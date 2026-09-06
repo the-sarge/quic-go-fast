@@ -109,6 +109,7 @@ func TestDatagramReceivePacedExperiment(t *testing.T) {
 	}
 
 	latency, lateness, pauseLengths := new(pacedHistogram), new(pacedHistogram), new(pacedHistogram)
+	external := prepareExternalPacer(t, duration)
 	finished := errors.New("paced producer finished")
 	ready, done, begin := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var epoch time.Time
@@ -154,16 +155,31 @@ func TestDatagramReceivePacedExperiment(t *testing.T) {
 	runtime.ReadMemStats(&before)
 	cpuStart := pacedCPUSeconds()
 	epoch = time.Now().Add(time.Millisecond)
+	if external != nil {
+		epoch = external.epoch
+	}
 	close(begin)
 	var offered, skippedBursts int64
 	bursts := total / int64(burst)
-	for slot := int64(0); slot < bursts; slot++ {
+	for slot := int64(0); slot < bursts || external != nil; slot++ {
+		if external != nil {
+			var more bool
+			slot, more = external.next(t, bursts)
+			if !more {
+				skippedBursts = external.generatorSkipped + external.ipcSkipped + external.expired
+				break
+			}
+		}
 		deadline := epoch.Add(time.Duration(slot * int64(burst) * int64(time.Second) / int64(rate)))
 		// Deliberately busy pace on one P to avoid Linux timer granularity
 		// turning fine-grained arrivals into accidental millisecond bursts.
-		for time.Now().Before(deadline) {
+		for external == nil && time.Now().Before(deadline) {
 		}
 		now := time.Now()
+		if external != nil && (now.Sub(deadline) >= interval || !now.Before(epoch.Add(duration))) {
+			external.expired++
+			continue
+		}
 		if !now.Before(epoch.Add(duration)) {
 			skippedBursts += bursts - slot
 			break
@@ -202,8 +218,15 @@ func TestDatagramReceivePacedExperiment(t *testing.T) {
 		"producer_elapsed_seconds": producerElapsed.Seconds(), "elapsed_seconds": elapsed.Seconds(),
 		"allocated_bytes": after.TotalAlloc - before.TotalAlloc, "allocations": after.Mallocs - before.Mallocs,
 		"gc_cycles": after.NumGC - before.NumGC, "gc_pause_ns": after.PauseTotalNs - before.PauseTotalNs,
-		"process_cpu_seconds_including_pacer": cpuSeconds,
-		"queue_latency":                       latency.summary(), "arrival_lateness": lateness.summary(), "receiver_pause": pauseLengths.summary(),
+		"process_cpu_seconds": cpuSeconds,
+		"queue_latency":       latency.summary(), "arrival_lateness": lateness.summary(), "receiver_pause": pauseLengths.summary(),
+	}
+	result["pacing_mode"] = "internal"
+	if external != nil {
+		result["pacing_mode"] = "external"
+		result["external_generator_skipped"] = external.generatorSkipped * int64(burst)
+		result["external_ipc_skipped"] = external.ipcSkipped * int64(burst)
+		result["external_expired"] = external.expired * int64(burst)
 	}
 	encoded, err := json.Marshal(result)
 	if err != nil {
