@@ -161,6 +161,34 @@ func TestDatagramReceiveConcurrentProducerDrainer(t *testing.T) {
 	})
 }
 
+func TestDatagramReceiveRefillDrain(t *testing.T) {
+	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // A missing entry fails immediately instead of blocking the test.
+	for cycle := range 16 {
+		for i := range maxDatagramRcvQueueLen {
+			queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(cycle), byte(i)}})
+		}
+		// Leave most entries queued, then refill across the wrap and capacity boundary.
+		const drained = 17
+		for i := range drained {
+			data, err := queue.Receive(ctx)
+			require.NoError(t, err)
+			require.Equal(t, []byte{byte(cycle), byte(i)}, data)
+		}
+		for i := range drained + 1 {
+			queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(cycle), byte(maxDatagramRcvQueueLen + i)}})
+		}
+		for i := drained; i < maxDatagramRcvQueueLen+drained; i++ {
+			data, err := queue.Receive(ctx)
+			require.NoError(t, err)
+			require.Equal(t, []byte{byte(cycle), byte(i)}, data)
+		}
+		_, err := queue.Receive(ctx)
+		require.ErrorIs(t, err, context.Canceled)
+	}
+}
+
 func TestDatagramQueueReceiveBlocking(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		queue := newDatagramQueue(func() {}, utils.DefaultLogger)
