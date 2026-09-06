@@ -2,6 +2,7 @@
 """Summarize the fixed D2 sample set with prespecified paired uncertainty."""
 
 import argparse
+import gzip
 import json
 import math
 from pathlib import Path
@@ -22,7 +23,10 @@ def main():
     parser.add_argument("--candidate", choices=("ring", "head-index"), default="ring")
     parser.add_argument("--partial-refill", action="store_true")
     args = parser.parse_args()
-    records = [json.loads(line) for line in args.manifest.read_text().splitlines()]
+    raw = args.manifest.read_bytes()
+    if args.manifest.suffix == ".gz":
+        raw = gzip.decompress(raw)
+    records = [json.loads(line) for line in raw.decode().splitlines()]
     cases = ("SteadyDrain", "BurstDrain", "Overflow", "Concurrent")
     if args.partial_refill:
         cases += ("PartialRefill",)

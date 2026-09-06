@@ -1,0 +1,38 @@
+diff --git a/datagram_queue.go b/datagram_queue.go
+index 3f039fc1..3d299c5e 100644
+--- a/datagram_queue.go
++++ b/datagram_queue.go
+@@ -20,7 +20,7 @@ type datagramQueue struct {
+ 	sent      chan struct{} // used to notify Add that a datagram was dequeued
+ 
+ 	rcvMx    sync.Mutex
+-	rcvQueue [][]byte
++	rcvQueue ringbuffer.RingBuffer[[]byte]
+ 	rcvd     chan struct{} // used to notify Receive that a new datagram was received
+ 
+ 	closeErr error
+@@ -93,10 +93,10 @@ func (h *datagramQueue) Pop() {
+ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
+ 	var queued bool
+ 	h.rcvMx.Lock()
+-	if len(h.rcvQueue) < maxDatagramRcvQueueLen {
++	if h.rcvQueue.Len() < maxDatagramRcvQueueLen {
+ 		data := make([]byte, len(f.Data))
+ 		copy(data, f.Data)
+-		h.rcvQueue = append(h.rcvQueue, data)
++		h.rcvQueue.PushBack(data)
+ 		queued = true
+ 		select {
+ 		case h.rcvd <- struct{}{}:
+@@ -113,9 +113,8 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
+ func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
+ 	for {
+ 		h.rcvMx.Lock()
+-		if len(h.rcvQueue) > 0 {
+-			data := h.rcvQueue[0]
+-			h.rcvQueue = h.rcvQueue[1:]
++		if h.rcvQueue.Len() > 0 {
++			data := h.rcvQueue.PopFront()
+ 			h.rcvMx.Unlock()
+ 			return data, nil
+ 		}
