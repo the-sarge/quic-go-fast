@@ -19,11 +19,15 @@ def percentile(values, fraction):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
+    parser.add_argument("--candidate", choices=("ring", "head-index"), default="ring")
+    parser.add_argument("--partial-refill", action="store_true")
     args = parser.parse_args()
     records = [json.loads(line) for line in args.manifest.read_text().splitlines()]
-    assert len(records) == 160, len(records)
     cases = ("SteadyDrain", "BurstDrain", "Overflow", "Concurrent")
-    data = {case: {variant: {} for variant in ("base", "ring")} for case in cases}
+    if args.partial_refill:
+        cases += ("PartialRefill",)
+    assert len(records) == 40 * len(cases), len(records)
+    data = {case: {variant: {} for variant in ("base", args.candidate)} for case in cases}
     for record in records:
         assert record["returncode"] == 0
         lines = [line for line in record["stdout"].splitlines() if line.startswith("Benchmark")]
@@ -42,7 +46,7 @@ def main():
         for variant in group:
             assert sorted(group[variant]) == list(range(1, 21))
         primary = "ns/delivered" if case == "Concurrent" else "ns/op"
-        ratios = [group["ring"][i][primary] / group["base"][i][primary] for i in range(1, 21)]
+        ratios = [group[args.candidate][i][primary] / group["base"][i][primary] for i in range(1, 21)]
         logs = [math.log(ratio) for ratio in ratios]
         randomizer = random.Random(20260906)
         bootstrap = sorted(

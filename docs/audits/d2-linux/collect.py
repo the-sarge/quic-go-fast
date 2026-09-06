@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot D2 Linux collection; consumes prebuilt base.test and ring.test."""
+"""One-shot D2 Linux collection; consumes the two prebuilt binaries for either fixed phase."""
 
 import argparse
 import datetime
@@ -25,6 +25,8 @@ def frequency_snapshot():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
+    parser.add_argument("--candidate", choices=("ring", "head-index"), default="ring")
+    parser.add_argument("--partial-refill", action="store_true")
     args = parser.parse_args()
     root = args.root.resolve()
     results = root / "results"
@@ -38,6 +40,8 @@ def main():
         ("Overflow", "^BenchmarkDatagramReceive$/^Overflow$"),
         ("Concurrent", "^BenchmarkDatagramReceiveConcurrent$"),
     ]
+    if args.partial_refill:
+        cases.append(("PartialRefill", "^BenchmarkDatagramReceivePartialRefill$"))
     with (results / "cpu-activity.txt").open("x") as cpu_log:
         monitor = subprocess.Popen(
             ["mpstat", "-P", "12,13,28,29", "1"], stdout=cpu_log, env=env
@@ -45,7 +49,7 @@ def main():
         try:
             with manifest.open("x") as records:
                 for round_index in range(20):
-                    variants = ("base", "ring") if round_index % 2 == 0 else ("ring", "base")
+                    variants = ("base", args.candidate) if round_index % 2 == 0 else (args.candidate, "base")
                     offset = round_index % len(cases)
                     for case, pattern in cases[offset:] + cases[:offset]:
                         for variant in variants:

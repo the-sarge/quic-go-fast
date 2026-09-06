@@ -66,3 +66,27 @@ func BenchmarkDatagramReceiveConcurrent(b *testing.B) {
 	b.ReportMetric(float64(delivered)/b.Elapsed().Seconds(), "delivered/s")
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(delivered), "ns/delivered")
 }
+
+// BenchmarkDatagramReceivePartialRefill keeps 96 entries live between operations.
+// Each operation drains and refills 32 messages, never emptying the queue.
+func BenchmarkDatagramReceivePartialRefill(b *testing.B) {
+	logger := utils.DefaultLogger.WithPrefix("benchmark")
+	logger.SetLogLevel(utils.LogLevelNothing)
+	queue := newDatagramQueue(func() {}, logger)
+	frame := &wire.DatagramFrame{Data: make([]byte, 1071)}
+	ctx := context.Background()
+	for range 96 {
+		queue.HandleDatagramFrame(frame)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		for range 32 {
+			if _, err := queue.Receive(ctx); err != nil {
+				b.Fatal(err)
+			}
+		}
+		for range 32 {
+			queue.HandleDatagramFrame(frame)
+		}
+	}
+}
