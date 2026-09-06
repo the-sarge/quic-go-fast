@@ -169,7 +169,7 @@ func TestDatagramReceiveRefillDrain(t *testing.T) {
 		for i := range maxDatagramRcvQueueLen {
 			queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(cycle), byte(i)}})
 		}
-		// Leave most entries queued, then refill across the wrap and capacity boundary.
+		// Leave most entries queued, then refill past the admission limit.
 		const drained = 17
 		for i := range drained {
 			data, err := queue.Receive(ctx)

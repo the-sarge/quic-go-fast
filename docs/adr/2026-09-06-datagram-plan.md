@@ -17,7 +17,7 @@ Keep `datagramQueue` as the queue owner and `rcvMx` as its only admission/dequeu
 | Slice | Disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
 | D1 | complete; runtime improvement | Full-queue admission drops without payload allocation/copy | None | None |
-| D2 | complete; bounded no-change | Receive storage reuse and cleared popped references | None | None |
+| D2 | complete; bounded no-change | Ring substitution evaluated but not retained; refill/drain characterization and evidence receipt retained | None | None |
 
 ## Common contract and evidence
 
