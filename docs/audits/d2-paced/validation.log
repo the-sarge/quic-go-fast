@@ -1,0 +1,22 @@
+Kernel Version: 7.0
+
+PASS
+Kernel Version: 7.0
+
+PASS
+ok  	github.com/quic-go/quic-go	1.014s
+Kernel Version: 7.0
+
+=== RUN   TestDatagramReceivePacedExperiment
+QUEUE_RESULT {"allocated_bytes":18965088,"allocations":16870,"arrival_lateness":{"count":500,"max_us":37.359,"mean_us":0.2724,"overflow_count":0,"p50_us_upper":1,"p95_us_upper":1,"p99_us_upper":1},"burst":32,"delivered":15814,"delivered_per_second":98831.0401561378,"duration_seconds":0.16,"elapsed_seconds":0.160010458,"gc_cycles":7,"gc_pause_ns":412615,"generator_skipped":0,"offered":16000,"offered_per_second":99999.91312507546,"planned":16000,"process_cpu_seconds_including_pacer":0.18536699999999998,"producer_elapsed_seconds":0.160000139,"queue_drops":186,"queue_latency":{"count":15814,"max_us":1696.292,"mean_us":156.00588390034147,"overflow_count":0,"p50_us_upper":59,"p95_us_upper":913,"p99_us_upper":1317},"rate":100000,"receiver_pause":{"count":15,"max_us":1578.903,"mean_us":1180.9768000000001,"overflow_count":0,"p50_us_upper":1097,"p95_us_upper":1579,"p99_us_upper":1579},"stall":true}
+--- PASS: TestDatagramReceivePacedExperiment (0.16s)
+PASS
+ok  	github.com/quic-go/quic-go	1.173s
+ok  	github.com/quic-go/quic-go	1.015s
+Kernel Version: 7.0
+
+=== RUN   TestDatagramReceivePacedExperiment
+QUEUE_RESULT {"allocated_bytes":18401304,"allocations":15982,"arrival_lateness":{"count":500,"max_us":63.528,"mean_us":0.219326,"overflow_count":0,"p50_us_upper":1,"p95_us_upper":1,"p99_us_upper":1},"burst":32,"delivered":15968,"delivered_per_second":99793.09618886428,"duration_seconds":0.16,"elapsed_seconds":0.160011069,"gc_cycles":6,"gc_pause_ns":238147,"generator_skipped":0,"offered":16000,"offered_per_second":99999.90125009751,"planned":16000,"process_cpu_seconds_including_pacer":0.188353,"producer_elapsed_seconds":0.160000158,"queue_drops":32,"queue_latency":{"count":15968,"max_us":1558.865,"mean_us":143.73547920841682,"overflow_count":0,"p50_us_upper":62,"p95_us_upper":826,"p99_us_upper":1162},"rate":100000,"receiver_pause":{"count":15,"max_us":1456.192,"mean_us":1107.9514,"overflow_count":0,"p50_us_upper":1073,"p95_us_upper":1457,"p99_us_upper":1457},"stall":true}
+--- PASS: TestDatagramReceivePacedExperiment (0.16s)
+PASS
+ok  	github.com/quic-go/quic-go	1.175s

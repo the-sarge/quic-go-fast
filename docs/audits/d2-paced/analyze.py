@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Analyze all 360 fixed paced samples; never filter on rate or outcome."""
 
+import datetime
 import gzip
 import json
 import math
@@ -48,12 +49,54 @@ def metrics(result):
     }
 
 
+def host_summary(records, root):
+    cpus = {cpu: [] for cpu in ("12", "13", "28", "29")}
+    intervals = []
+    date = records[0]["started_utc"].split("T")[0]
+    assert all(record["started_utc"].startswith(date) for record in records)
+    for line in (root / "cpu-activity.log").read_text().splitlines():
+        fields = line.split()
+        if len(fields) == 12 and fields[0][0].isdigit() and fields[1] in cpus:
+            cpus[fields[1]].append([float(value) for value in fields[2:]])
+            end = datetime.datetime.fromisoformat(date + "T" + fields[0] + "+00:00").timestamp()
+            intervals.append((end, float(fields[9])))
+    activity = {}
+    for cpu, rows in cpus.items():
+        assert rows, cpu
+        activity[cpu] = {"samples": len(rows), "mean_idle_pct": statistics.fmean(row[-1] for row in rows),
+                         "min_idle_pct": min(row[-1] for row in rows), "max_steal_pct": max(row[6] for row in rows),
+                         "max_guest_pct": max(row[7] for row in rows)}
+    frequency = {}
+    for variant in ("base", "head-index"):
+        frequency[variant] = {}
+        for cpu in cpus:
+            values = [int(record[boundary][cpu]["scaling_cur_freq"]) for record in records if record["variant"] == variant
+                      for boundary in ("frequency_before", "frequency_after")]
+            frequency[variant][cpu] = {"median_khz": statistics.median(values), "min_khz": min(values), "max_khz": max(values)}
+    overlap = {}
+    for record in records:
+        start = datetime.datetime.fromisoformat(record["started_utc"]).timestamp()
+        end = start + record["wall_seconds"]
+        rounds = overlap.setdefault(record["case"], {}).setdefault(record["variant"], [])
+        if any(tick > start and tick - 1 < end and guest > 0 for tick, guest in intervals):
+            rounds.append(record["round"])
+    return {"activity": activity, "boundary_frequency": frequency,
+            "rounds_overlapping_guest_activity_approx_1s": overlap}
+
+
 def main():
     path = Path(sys.argv[1])
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt") as source:
         records = [json.loads(line) for line in source]
     assert len(records) == 360, len(records)
+    cases = [f"{rate}/{shape}" for rate in (10000, 100000, 500000) for shape in ("single", "burst32", "pause")]
+    expected_order = []
+    for round_index in range(20):
+        offset = round_index % len(cases)
+        variants = ("base", "head-index") if round_index % 2 == 0 else ("head-index", "base")
+        expected_order.extend((round_index + 1, case, variant) for case in cases[offset:] + cases[:offset] for variant in variants)
+    assert [(record["round"], record["case"], record["variant"]) for record in records] == expected_order
     groups = {}
     for record in records:
         assert record["returncode"] == 0, record
@@ -74,7 +117,7 @@ def main():
         case[key] = result
     assert len(groups) == 9
     output = {"sample_count": len(records), "first_started_utc": records[0]["started_utc"],
-              "last_started_utc": records[-1]["started_utc"], "cases": {}}
+              "last_started_utc": records[-1]["started_utc"], "host": host_summary(records, path.parent), "cases": {}}
     ratios = ("delivered_per_second", "bytes_per_delivered", "allocations_per_delivered", "p50_us", "p99_us", "mean_latency_us", "cpu_us_per_delivered_including_pacer")
     for name, samples in groups.items():
         assert set(samples) == {(round_index, variant) for round_index in range(1, 21) for variant in ("base", "head-index")}

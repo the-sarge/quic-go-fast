@@ -1,0 +1,30 @@
+base.test: go1.26.0
+	path	github.com/quic-go/quic-go.test
+	mod	github.com/quic-go/quic-go	(devel)
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	-tags=queue_experiment
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+head-index.test: go1.26.0
+	path	github.com/quic-go/quic-go.test
+	mod	github.com/quic-go/quic-go	(devel)
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	-tags=queue_experiment
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+1
+amd-pstate-epp
