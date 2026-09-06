@@ -77,7 +77,7 @@ Stop this experiment here. If further work is authorized, answer a different, ap
 
 ## Reproduction and retained evidence
 
-The raw benchmark text, source/binary hashes, validation logs, host observations, per-sample manifests and analysis are under [ring](d2-linux/ring/) and [head-index](d2-linux/head-index/). The manifests are gzip-compressed JSON Lines and retain exact commands, run order, timestamps, frequency observations and original stdout/stderr. Plain-text exports normalize line-end whitespace for repository checks; the compressed manifests preserve the original benchmark output. The archived patches preserve the exact experimental runtime deltas. The remote binaries and source snapshots remain under `/home/josh/benchmarks/quic-go-fast/d2-linux-20260906` and `/home/josh/benchmarks/quic-go-fast/d2-linux-head-index-20260906` on minimax.
+The raw benchmark text, source/binary hashes, validation logs, host observations, per-sample manifests and analysis are under [ring](d2-linux/ring/) and [head-index](d2-linux/head-index/). The manifests are gzip-compressed JSON Lines and retain exact commands, run order, timestamps, frequency observations and original stdout/stderr. Plain-text exports normalize line-end whitespace for repository checks; the compressed manifests preserve the original benchmark output. The archived patches preserve the exact experimental runtime deltas with zero context; apply them to their matching baseline using `git apply --unidiff-zero`. The remote binaries and source snapshots remain under `/home/josh/benchmarks/quic-go-fast/d2-linux-20260906` and `/home/josh/benchmarks/quic-go-fast/d2-linux-head-index-20260906` on minimax.
 
 Reproduce analysis without rerunning benchmarks:
 

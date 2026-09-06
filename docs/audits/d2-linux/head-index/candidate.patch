@@ -2,18 +2,9 @@ diff --git a/datagram_queue.go b/datagram_queue.go
 index 3f039fc1..ec6c3a9e 100644
 --- a/datagram_queue.go
 +++ b/datagram_queue.go
-@@ -21,6 +21,7 @@ type datagramQueue struct {
- 
- 	rcvMx    sync.Mutex
- 	rcvQueue [][]byte
+@@ -23,0 +24 @@ type datagramQueue struct {
 +	rcvHead  int
- 	rcvd     chan struct{} // used to notify Receive that a new datagram was received
- 
- 	closeErr error
-@@ -93,7 +94,13 @@ func (h *datagramQueue) Pop() {
- func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
- 	var queued bool
- 	h.rcvMx.Lock()
+@@ -96 +97,7 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 -	if len(h.rcvQueue) < maxDatagramRcvQueueLen {
 +	if len(h.rcvQueue)-h.rcvHead < maxDatagramRcvQueueLen {
 +		if len(h.rcvQueue) == cap(h.rcvQueue) && h.rcvHead > 0 {
@@ -22,13 +13,7 @@ index 3f039fc1..ec6c3a9e 100644
 +			h.rcvQueue = h.rcvQueue[:live]
 +			h.rcvHead = 0
 +		}
- 		data := make([]byte, len(f.Data))
- 		copy(data, f.Data)
- 		h.rcvQueue = append(h.rcvQueue, data)
-@@ -113,9 +120,14 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
- func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
- 	for {
- 		h.rcvMx.Lock()
+@@ -116,3 +123,8 @@ func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 -		if len(h.rcvQueue) > 0 {
 -			data := h.rcvQueue[0]
 -			h.rcvQueue = h.rcvQueue[1:]
@@ -40,6 +25,3 @@ index 3f039fc1..ec6c3a9e 100644
 +				h.rcvQueue = h.rcvQueue[:0]
 +				h.rcvHead = 0
 +			}
- 			h.rcvMx.Unlock()
- 			return data, nil
- 		}
