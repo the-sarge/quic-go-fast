@@ -1,0 +1,19 @@
+File: head-index.test
+Type: delay
+Showing nodes accounting for 157.50ms, 97.51% of 161.53ms total
+Dropped 24 nodes (cum <= 0.81ms)
+      flat  flat%   sum%        cum   cum%
+  132.60ms 82.09% 82.09%   132.60ms 82.09%  runtime.selectnbsend
+   13.66ms  8.45% 90.55%   154.19ms 95.45%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+    9.41ms  5.83% 96.37%     9.41ms  5.83%  runtime.systemstack_switch
+    1.77ms  1.09% 97.47%     1.77ms  1.09%  runtime.goschedIfBusy
+    0.05ms 0.031% 97.50%     1.47ms  0.91%  runtime.gcMarkDone
+    0.01ms 0.0072% 97.50%   154.39ms 95.58%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0 0.0021% 97.51%     7.93ms  4.91%  runtime.makeslice
+         0     0% 97.51%     1.77ms  1.09%  runtime.bgsweep
+         0     0% 97.51%     1.74ms  1.07%  runtime.gcBgMarkWorker
+         0     0% 97.51%     1.31ms  0.81%  runtime.gcMarkTermination
+         0     0% 97.51%     7.95ms  4.92%  runtime.gcStart
+         0     0% 97.51%     7.93ms  4.91%  runtime.mallocgc
+         0     0% 97.51%     7.92ms  4.91%  runtime.mallocgcSmallNoscan
+         0     0% 97.51%   154.39ms 95.58%  testing.tRunner

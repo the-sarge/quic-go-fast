@@ -1,0 +1,11 @@
+File: base.test
+Type: delay
+Showing nodes accounting for 2052.41ms, 100% of 2052.41ms total
+      flat  flat%   sum%        cum   cum%
+ 2052.41ms   100%   100%  2052.41ms   100%  internal/poll.(*FD).Read
+         0     0%   100%  2008.62ms 97.87%  github.com/quic-go/quic-go.(*externalPacedSource).next
+         0     0%   100%  2052.41ms   100%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%    43.79ms  2.13%  github.com/quic-go/quic-go.prepareExternalPacer
+         0     0%   100%  2052.41ms   100%  net.(*conn).Read
+         0     0%   100%  2052.41ms   100%  net.(*netFD).Read
+         0     0%   100%  2052.41ms   100%  testing.tRunner

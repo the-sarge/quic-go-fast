@@ -1,0 +1,39 @@
+File: base.test
+Build ID: 65752d3ddcafb68adce727c12b7dbc63fce1ef1b
+Type: cpu
+Time: 2026-09-06 19:21:21 UTC
+Duration: 4s, Total samples = 4260ms (106.45%)
+Showing nodes accounting for 4170ms, 97.89% of 4260ms total
+Dropped 34 nodes (cum <= 21.30ms)
+      flat  flat%   sum%        cum   cum%
+    3740ms 87.79% 87.79%     3740ms 87.79%  time.runtimeNow
+     230ms  5.40% 93.19%      230ms  5.40%  runtime.futex
+      90ms  2.11% 95.31%     3830ms 89.91%  time.Now
+      30ms   0.7% 96.01%       50ms  1.17%  runtime.(*sweepLocked).sweep
+      30ms   0.7% 96.71%       30ms   0.7%  time.Time.Before
+      30ms   0.7% 97.42%       30ms   0.7%  time.now
+      20ms  0.47% 97.89%     3920ms 92.02%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0% 97.89%       40ms  0.94%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0% 97.89%       50ms  1.17%  runtime.bgsweep
+         0     0% 97.89%       30ms   0.7%  runtime.deductAssistCredit
+         0     0% 97.89%      230ms  5.40%  runtime.findRunnable
+         0     0% 97.89%      220ms  5.16%  runtime.futexsleep
+         0     0% 97.89%       30ms   0.7%  runtime.gcAssistAlloc
+         0     0% 97.89%       30ms   0.7%  runtime.gcAssistAlloc.func2
+         0     0% 97.89%       30ms   0.7%  runtime.gcAssistAlloc1
+         0     0% 97.89%       30ms   0.7%  runtime.gcBgMarkWorker
+         0     0% 97.89%       30ms   0.7%  runtime.gcBgMarkWorker.func2
+         0     0% 97.89%       30ms   0.7%  runtime.gcDrain
+         0     0% 97.89%       30ms   0.7%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0% 97.89%       30ms   0.7%  runtime.gcDrainN
+         0     0% 97.89%      220ms  5.16%  runtime.mPark (inline)
+         0     0% 97.89%       30ms   0.7%  runtime.makeslice
+         0     0% 97.89%       40ms  0.94%  runtime.mallocgc
+         0     0% 97.89%      230ms  5.40%  runtime.mcall
+         0     0% 97.89%      220ms  5.16%  runtime.notesleep
+         0     0% 97.89%      230ms  5.40%  runtime.park_m
+         0     0% 97.89%      230ms  5.40%  runtime.schedule
+         0     0% 97.89%      220ms  5.16%  runtime.stopm
+         0     0% 97.89%       50ms  1.17%  runtime.sweepone
+         0     0% 97.89%       90ms  2.11%  runtime.systemstack
+         0     0% 97.89%     3920ms 92.02%  testing.tRunner

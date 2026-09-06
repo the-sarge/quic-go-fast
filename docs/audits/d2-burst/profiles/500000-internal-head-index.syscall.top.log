@@ -1,0 +1,11 @@
+File: head-index.test
+Type: delay
+Showing nodes accounting for 0.48ms, 100% of 0.48ms total
+Dropped 12 nodes (cum <= 0)
+      flat  flat%   sum%        cum   cum%
+    0.48ms   100%   100%     0.48ms   100%  syscall.write
+         0     0%   100%          0  0.85%  fmt.Fprintf
+         0     0%   100%     0.48ms   100%  internal/poll.(*FD).Write
+         0     0%   100%     0.48ms   100%  os.(*File).Write
+         0     0%   100%     0.48ms 99.08%  runtime/trace.(*traceMultiplexer).startLocked.func1
+         0     0%   100%          0  0.85%  testing.tRunner

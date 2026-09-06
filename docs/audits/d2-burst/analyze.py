@@ -93,7 +93,9 @@ for rate in (10000, 100000, 500000):
     for variant in ("base", "head-index"):
         output["mode_ratios"][str(rate)][variant] = interval([metrics(groups[f"{rate}/external"][(i, variant)])["p99_us"]/metrics(groups[f"{rate}/internal"][(i, variant)])["p99_us"] for i in range(1, 21)], True)
 activity = {str(cpu): [] for cpu in range(32)}
-for line in (root/"cpu-activity.log").read_text().splitlines():
+cpu_log = root/"cpu-activity.log"
+cpu_text = cpu_log.read_text() if cpu_log.exists() else gzip.decompress((root/"cpu-activity.log.gz").read_bytes()).decode()
+for line in cpu_text.splitlines():
     parts = line.split()
     if len(parts) == 12 and parts[0][0].isdigit() and parts[1] in activity:
         activity[parts[1]].append([float(v) for v in parts[2:]])

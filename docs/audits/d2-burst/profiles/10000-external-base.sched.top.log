@@ -1,0 +1,20 @@
+File: base.test
+Type: delay
+Showing nodes accounting for 14.18ms, 96.43% of 14.71ms total
+Dropped 6 nodes (cum <= 0.07ms)
+      flat  flat%   sum%        cum   cum%
+   13.27ms 90.22% 90.22%    13.27ms 90.22%  runtime.selectnbsend
+    0.79ms  5.39% 95.61%     0.79ms  5.39%  runtime.systemstack_switch
+    0.10ms  0.71% 96.31%     0.10ms  0.71%  runtime.traceLocker.GoUnpark
+    0.01ms 0.068% 96.38%     0.13ms  0.87%  runtime.GC
+    0.01ms 0.048% 96.43%    13.85ms 94.17%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0% 96.43%    13.72ms 93.26%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0% 96.43%     0.33ms  2.26%  runtime.gcBgMarkWorker
+         0     0% 96.43%     0.33ms  2.25%  runtime.gcMarkDone
+         0     0% 96.43%     0.33ms  2.25%  runtime.gcMarkTermination
+         0     0% 96.43%     0.56ms  3.84%  runtime.gcStart
+         0     0% 96.43%     0.10ms  0.71%  runtime.injectglist
+         0     0% 96.43%     0.45ms  3.04%  runtime.makeslice
+         0     0% 96.43%     0.45ms  3.04%  runtime.mallocgc
+         0     0% 96.43%     0.45ms  3.04%  runtime.mallocgcSmallNoscan
+         0     0% 96.43%    13.86ms 94.20%  testing.tRunner

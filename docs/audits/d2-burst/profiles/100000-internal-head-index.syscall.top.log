@@ -1,0 +1,19 @@
+File: head-index.test
+Type: delay
+Showing nodes accounting for 0.31ms, 100% of 0.31ms total
+Dropped 4 nodes (cum <= 0)
+      flat  flat%   sum%        cum   cum%
+    0.31ms   100%   100%     0.31ms   100%  syscall.write
+         0     0%   100%          0  1.25%  fmt.Fprintf
+         0     0%   100%          0  0.56%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%          0   0.6%  github.com/quic-go/quic-go.TestMain
+         0     0%   100%     0.31ms   100%  internal/poll.(*FD).Write
+         0     0%   100%          0   0.6%  main.main
+         0     0%   100%     0.31ms   100%  os.(*File).Write
+         0     0%   100%     0.30ms 98.69%  runtime/trace.(*traceMultiplexer).startLocked.func1
+         0     0%   100%          0   0.6%  testing.(*M).Run
+         0     0%   100%          0  0.54%  testing.(*T).Run
+         0     0%   100%          0  0.69%  testing.(*chattyPrinter).Updatef
+         0     0%   100%          0  0.54%  testing.runTests
+         0     0%   100%          0  0.54%  testing.runTests.func1
+         0     0%   100%          0  1.25%  testing.tRunner

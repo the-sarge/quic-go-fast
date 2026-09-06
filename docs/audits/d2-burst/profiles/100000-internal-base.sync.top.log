@@ -1,0 +1,19 @@
+File: base.test
+Type: delay
+Showing nodes accounting for 7650.27ms, 100% of 7650.33ms total
+Dropped 9 nodes (cum <= 38.25ms)
+      flat  flat%   sum%        cum   cum%
+ 6010.83ms 78.57% 78.57%  6010.83ms 78.57%  runtime.chanrecv1
+ 1639.19ms 21.43%   100%  1639.19ms 21.43%  runtime.selectgo
+    0.26ms 0.0033%   100%  1639.44ms 21.43%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+         0     0%   100%  1642.54ms 21.47%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment.func2
+         0     0%   100%  2004.94ms 26.21%  github.com/quic-go/quic-go.TestMain
+         0     0%   100%  2004.94ms 26.21%  main.main
+         0     0%   100%  2000.17ms 26.14%  runtime.(*traceAdvancerState).start.func1
+         0     0%   100%  4002.79ms 52.32%  runtime.(*wakeableSleep).sleep
+         0     0%   100%  2002.64ms 26.18%  runtime.traceStartReadCPU.func1
+         0     0%   100%  2004.94ms 26.21%  testing.(*M).Run
+         0     0%   100%  2004.94ms 26.21%  testing.(*T).Run
+         0     0%   100%  2004.94ms 26.21%  testing.runTests
+         0     0%   100%  2004.94ms 26.21%  testing.runTests.func1
+         0     0%   100%  2004.94ms 26.21%  testing.tRunner

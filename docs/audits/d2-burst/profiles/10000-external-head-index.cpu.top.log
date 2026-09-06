@@ -1,0 +1,38 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: cpu
+Time: 2026-09-06 19:21:01 UTC
+Duration: 4.08s, Total samples = 60ms ( 1.47%)
+Showing nodes accounting for 60ms, 100% of 60ms total
+      flat  flat%   sum%        cum   cum%
+      10ms 16.67% 16.67%       10ms 16.67%  internal/runtime/atomic.(*Uint32).Add (inline)
+      10ms 16.67% 33.33%       20ms 33.33%  runtime.bgsweep
+      10ms 16.67% 50.00%       10ms 16.67%  runtime.findfunc
+      10ms 16.67% 66.67%       10ms 16.67%  runtime.futex
+      10ms 16.67% 83.33%       10ms 16.67%  runtime.gcAssistAlloc
+      10ms 16.67%   100%       20ms 33.33%  runtime.gcDrain
+         0     0%   100%       10ms 16.67%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0%   100%       10ms 16.67%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%       10ms 16.67%  runtime.(*mheap).nextSpanForSweep
+         0     0%   100%       10ms 16.67%  runtime.(*spanSet).pop
+         0     0%   100%       10ms 16.67%  runtime.(*unwinder).next
+         0     0%   100%       10ms 16.67%  runtime.deductAssistCredit
+         0     0%   100%       10ms 16.67%  runtime.forEachP (inline)
+         0     0%   100%       10ms 16.67%  runtime.forEachPInternal
+         0     0%   100%       10ms 16.67%  runtime.futexsleep
+         0     0%   100%       30ms 50.00%  runtime.gcBgMarkWorker
+         0     0%   100%       20ms 33.33%  runtime.gcBgMarkWorker.func2
+         0     0%   100%       20ms 33.33%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0%   100%       10ms 16.67%  runtime.gcMarkDone
+         0     0%   100%       10ms 16.67%  runtime.gcMarkTermination
+         0     0%   100%       10ms 16.67%  runtime.gcMarkTermination.forEachP.func7
+         0     0%   100%       10ms 16.67%  runtime.makeslice
+         0     0%   100%       10ms 16.67%  runtime.mallocgc
+         0     0%   100%       10ms 16.67%  runtime.markroot
+         0     0%   100%       10ms 16.67%  runtime.markroot.func1
+         0     0%   100%       10ms 16.67%  runtime.notetsleep
+         0     0%   100%       10ms 16.67%  runtime.notetsleep_internal
+         0     0%   100%       10ms 16.67%  runtime.scanstack
+         0     0%   100%       10ms 16.67%  runtime.sweepone
+         0     0%   100%       30ms 50.00%  runtime.systemstack
+         0     0%   100%       10ms 16.67%  testing.tRunner

@@ -1,0 +1,48 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: cpu
+Time: 2026-09-06 19:21:34 UTC
+Duration: 4.09s, Total samples = 700ms (17.12%)
+Showing nodes accounting for 690ms, 98.57% of 700ms total
+Showing top 40 nodes out of 119
+      flat  flat%   sum%        cum   cum%
+      80ms 11.43% 11.43%       80ms 11.43%  runtime.futex
+      50ms  7.14% 18.57%       50ms  7.14%  internal/runtime/syscall/linux.Syscall6
+      50ms  7.14% 25.71%       50ms  7.14%  runtime.nanotime
+      50ms  7.14% 32.86%       50ms  7.14%  runtime.usleep
+      40ms  5.71% 38.57%       40ms  5.71%  internal/runtime/atomic.(*Uint32).CompareAndSwap
+      40ms  5.71% 44.29%       40ms  5.71%  internal/sync.(*Mutex).Lock (inline)
+      30ms  4.29% 48.57%       80ms 11.43%  runtime.runqgrab
+      20ms  2.86% 51.43%       40ms  5.71%  runtime.(*mcache).nextFree
+      20ms  2.86% 54.29%       30ms  4.29%  runtime.scanblock
+      10ms  1.43% 55.71%       40ms  5.71%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+      10ms  1.43% 57.14%       10ms  1.43%  internal/runtime/atomic.(*Int32).Add
+      10ms  1.43% 58.57%       10ms  1.43%  internal/runtime/atomic.(*Uint32).Add (inline)
+      10ms  1.43% 60.00%       10ms  1.43%  internal/runtime/atomic.(*Uintptr).CompareAndSwap
+      10ms  1.43% 61.43%       10ms  1.43%  runtime.(*fixalloc).alloc
+      10ms  1.43% 62.86%       10ms  1.43%  runtime.(*guintptr).cas
+      10ms  1.43% 64.29%       10ms  1.43%  runtime.(*m).snapshotAllp
+      10ms  1.43% 65.71%       20ms  2.86%  runtime.(*mheap).allocSpan
+      10ms  1.43% 67.14%       10ms  1.43%  runtime.(*randomOrder).start (inline)
+      10ms  1.43% 68.57%       10ms  1.43%  runtime.(*spanSet).pop
+      10ms  1.43% 70.00%       10ms  1.43%  runtime.(*spanSet).reset
+      10ms  1.43% 71.43%       10ms  1.43%  runtime.(*stkframe).getStackMap
+      10ms  1.43% 72.86%       40ms  5.71%  runtime.(*sweepLocked).sweep
+      10ms  1.43% 74.29%       10ms  1.43%  runtime.(*timeHistogram).record
+      10ms  1.43% 75.71%       10ms  1.43%  runtime._ExternalCode
+      10ms  1.43% 77.14%       90ms 12.86%  runtime.futexsleep
+      10ms  1.43% 78.57%       70ms 10.00%  runtime.gcDrain
+      10ms  1.43% 80.00%       10ms  1.43%  runtime.getGCMask (inline)
+      10ms  1.43% 81.43%       20ms  2.86%  runtime.lock
+      10ms  1.43% 82.86%       10ms  1.43%  runtime.lock2
+      10ms  1.43% 84.29%       90ms 12.86%  runtime.mallocgcSmallNoscan
+      10ms  1.43% 85.71%       10ms  1.43%  runtime.memclrNoHeapPointers
+      10ms  1.43% 87.14%       10ms  1.43%  runtime.netpollblockcommit
+      10ms  1.43% 88.57%       10ms  1.43%  runtime.newInlineUnwinder
+      10ms  1.43% 90.00%      100ms 14.29%  runtime.notesleep
+      10ms  1.43% 91.43%       20ms  2.86%  runtime.pcvalue
+      10ms  1.43% 92.86%       30ms  4.29%  runtime.scanObject
+      10ms  1.43% 94.29%      100ms 14.29%  runtime.stealWork
+      10ms  1.43% 95.71%       10ms  1.43%  runtime.step
+      10ms  1.43% 97.14%      110ms 15.71%  runtime.stopm
+      10ms  1.43% 98.57%       10ms  1.43%  runtime.tryDeferToSpanScan

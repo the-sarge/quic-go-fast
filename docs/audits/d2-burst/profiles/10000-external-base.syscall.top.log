@@ -1,0 +1,30 @@
+File: base.test
+Type: delay
+Showing nodes accounting for 2.98ms, 99.63% of 2.99ms total
+Dropped 20 nodes (cum <= 0.01ms)
+      flat  flat%   sum%        cum   cum%
+    2.72ms 91.19% 91.19%     2.72ms 91.19%  syscall.read
+    0.19ms  6.41% 97.60%     0.19ms  6.41%  syscall.write
+    0.04ms  1.30% 98.90%     0.04ms  1.30%  syscall.unlinkat
+    0.02ms  0.73% 99.63%     0.02ms  0.73%  syscall.bind
+         0     0% 99.63%     2.71ms 90.61%  github.com/quic-go/quic-go.(*externalPacedSource).next
+         0     0% 99.63%     2.75ms 92.11%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0% 99.63%     0.04ms  1.34%  github.com/quic-go/quic-go.prepareExternalPacer
+         0     0% 99.63%     0.05ms  1.63%  github.com/quic-go/quic-go.prepareExternalPacer.func1
+         0     0% 99.63%     2.72ms 91.19%  internal/poll.(*FD).Read
+         0     0% 99.63%     0.19ms  6.41%  internal/poll.(*FD).Write
+         0     0% 99.63%     2.72ms 91.19%  net.(*conn).Read
+         0     0% 99.63%     2.72ms 91.19%  net.(*netFD).Read
+         0     0% 99.63%     0.02ms  0.73%  net.(*netFD).listenDatagram
+         0     0% 99.63%     0.02ms  0.73%  net.(*sysListener).listenUnixgram
+         0     0% 99.63%     0.02ms  0.73%  net.ListenUnixgram
+         0     0% 99.63%     0.02ms  0.73%  net.socket
+         0     0% 99.63%     0.02ms  0.73%  net.unixSocket
+         0     0% 99.63%     0.19ms  6.41%  os.(*File).Write
+         0     0% 99.63%     0.04ms  1.30%  os.Remove
+         0     0% 99.63%     0.18ms  6.15%  runtime/trace.(*traceMultiplexer).startLocked.func1
+         0     0% 99.63%     0.02ms  0.73%  syscall.Bind
+         0     0% 99.63%     0.05ms  1.63%  testing.(*common).Cleanup.func1
+         0     0% 99.63%     0.05ms  1.63%  testing.(*common).runCleanup
+         0     0% 99.63%     2.80ms 93.84%  testing.tRunner
+         0     0% 99.63%     0.05ms  1.63%  testing.tRunner.func2

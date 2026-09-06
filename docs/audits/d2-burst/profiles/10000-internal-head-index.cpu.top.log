@@ -1,0 +1,13 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: cpu
+Time: 2026-09-06 19:20:52 UTC
+Duration: 4s, Total samples = 4030ms (100.70%)
+Showing nodes accounting for 4000ms, 99.26% of 4030ms total
+Dropped 10 nodes (cum <= 20.15ms)
+      flat  flat%   sum%        cum   cum%
+    3880ms 96.28% 96.28%     3880ms 96.28%  time.runtimeNow
+      70ms  1.74% 98.01%       70ms  1.74%  time.now
+      50ms  1.24% 99.26%     3930ms 97.52%  time.Now
+         0     0% 99.26%     3940ms 97.77%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0% 99.26%     3940ms 97.77%  testing.tRunner

@@ -1,0 +1,25 @@
+File: head-index.test
+Type: delay
+Showing nodes accounting for 14.20ms, 97.13% of 14.62ms total
+Dropped 5 nodes (cum <= 0.07ms)
+      flat  flat%   sum%        cum   cum%
+      12ms 82.05% 82.05%       12ms 82.05%  runtime.selectnbsend
+    1.21ms  8.28% 90.34%     1.21ms  8.28%  runtime.systemstack_switch
+    0.42ms  2.89% 93.23%    13.20ms 90.31%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+    0.33ms  2.23% 95.46%     0.33ms  2.23%  internal/sync.runtime_nanotime
+    0.17ms  1.15% 96.61%     0.17ms  1.15%  runtime.traceLocker.GoUnpark
+    0.06ms   0.4% 97.01%     0.48ms  3.26%  runtime.gcMarkDone
+    0.01ms 0.058% 97.07%    13.35ms 91.28%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+    0.01ms 0.039% 97.11%     0.13ms  0.91%  runtime.GC
+         0 0.025% 97.13%     0.33ms  2.26%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment.func2
+         0     0% 97.13%     0.33ms  2.23%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+         0     0% 97.13%     0.33ms  2.23%  internal/sync.(*Mutex).lockSlow
+         0     0% 97.13%     0.53ms  3.60%  runtime.gcBgMarkWorker
+         0     0% 97.13%     0.30ms  2.04%  runtime.gcMarkTermination
+         0     0% 97.13%     0.91ms  6.24%  runtime.gcStart
+         0     0% 97.13%     0.12ms  0.81%  runtime.gcWakeAllAssists
+         0     0% 97.13%     0.17ms  1.15%  runtime.injectglist
+         0     0% 97.13%     0.78ms  5.37%  runtime.makeslice
+         0     0% 97.13%     0.78ms  5.37%  runtime.mallocgc
+         0     0% 97.13%     0.78ms  5.37%  runtime.mallocgcSmallNoscan
+         0     0% 97.13%    13.35ms 91.30%  testing.tRunner

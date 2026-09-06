@@ -1,0 +1,1202 @@
+{
+  "10000-external-base": {
+    "block": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        639,
+        4121506958
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 40000,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 40000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        5,
+        50000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        7,
+        473338
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        627,
+        2067634624
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        1429,
+        14709438
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        656,
+        8128827712
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        1282,
+        2987008
+      ]
+    }
+  },
+  "10000-external-head-index": {
+    "block": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        633,
+        4122517436
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 40000,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 40000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        6,
+        60000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        4,
+        65130
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        627,
+        2069998464
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        1398,
+        14619838
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        663,
+        8130260929
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        1282,
+        2971968
+      ]
+    }
+  },
+  "10000-internal-base": {
+    "block": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        633,
+        3939764298
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 40000,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 40000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        403,
+        4030000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        2,
+        48150
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        0,
+        0
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        1139,
+        60815498
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        655,
+        7846548668
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        25,
+        106943
+      ]
+    }
+  },
+  "10000-internal-head-index": {
+    "block": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        632,
+        3950276213
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 40000,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 40000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        403,
+        4030000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        0,
+        0
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        0,
+        0
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        1128,
+        49360000
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        656,
+        7857573696
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 20000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 20000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        25,
+        97920
+      ]
+    }
+  },
+  "100000-external-base": {
+    "block": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6294,
+        4089465956
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 400000,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 400000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        13,
+        130000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        37,
+        365536
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6252,
+        2052406977
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        14446,
+        36807102
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6308,
+        8106260419
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        12539,
+        6656962
+      ]
+    }
+  },
+  "100000-external-head-index": {
+    "block": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6320,
+        4097414203
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 400000,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 400000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        13,
+        130000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        64,
+        430497
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6252,
+        2041760255
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        30038,
+        38635214
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6304,
+        8098555390
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        12541,
+        6445375
+      ]
+    }
+  },
+  "100000-internal-base": {
+    "block": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6306,
+        3638293178
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 398976,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 400000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        405,
+        4050000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        51,
+        425868
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        0,
+        0
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        25921,
+        359470263
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6315,
+        7650334650
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        29,
+        245813
+      ]
+    }
+  },
+  "100000-internal-head-index": {
+    "block": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6340,
+        3635261860
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 399712,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 400000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        406,
+        4060000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 200000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        83,
+        650580
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 199616,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        0,
+        0
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 199616,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        10168,
+        362847491
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 199616,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        6287,
+        7541587576
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 199616,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 200000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        27,
+        307765
+      ]
+    }
+  },
+  "500000-external-base": {
+    "block": {
+      "delivered_in_profile_run": 999904,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0096,
+      "offered_in_profile_run": 999904,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        31557,
+        3941464702
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 1998400,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.08,
+      "offered_in_profile_run": 1998400,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        73,
+        730000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 999904,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0096,
+      "offered_in_profile_run": 999904,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        485,
+        2766329
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        31063,
+        1906379342
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        73190,
+        168760741
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        31327,
+        7938911487
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        62386,
+        22767429
+      ]
+    }
+  },
+  "500000-external-head-index": {
+    "block": {
+      "delivered_in_profile_run": 1000000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        31495,
+        3950896100
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 1999648,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0176,
+      "offered_in_profile_run": 1999648,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        70,
+        700000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 1000000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        375,
+        1713514
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        31070,
+        1916552460
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        70478,
+        161532375
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        31319,
+        7947496964
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 999776,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0224,
+      "offered_in_profile_run": 999776,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        62393,
+        23521855
+      ]
+    }
+  },
+  "500000-internal-base": {
+    "block": {
+      "delivered_in_profile_run": 998146,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        30116,
+        2290262749
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 1989765,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0016,
+      "offered_in_profile_run": 1999968,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        426,
+        4260000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 998146,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        365,
+        2400052
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 988000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0096,
+      "offered_in_profile_run": 999904,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        0,
+        0
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 988000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0096,
+      "offered_in_profile_run": 999904,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        49044,
+        1711517889
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 988000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0096,
+      "offered_in_profile_run": 999904,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        30023,
+        6281504511
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 988000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0096,
+      "offered_in_profile_run": 999904,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        50,
+        496437
+      ]
+    }
+  },
+  "500000-internal-head-index": {
+    "block": {
+      "delivered_in_profile_run": 1000000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        29889,
+        2294587525
+      ]
+    },
+    "cpu": {
+      "delivered_in_profile_run": 1998447,
+      "duration_seconds": 4,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 2000000,
+      "sample_types": [
+        "samples/count",
+        "cpu/nanoseconds"
+      ],
+      "totals": [
+        429,
+        4290000000
+      ]
+    },
+    "mutex": {
+      "delivered_in_profile_run": 1000000,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        418,
+        2359918
+      ]
+    },
+    "net": {
+      "delivered_in_profile_run": 998368,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        0,
+        0
+      ]
+    },
+    "sched": {
+      "delivered_in_profile_run": 998368,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        48867,
+        1690903787
+      ]
+    },
+    "sync": {
+      "delivered_in_profile_run": 998368,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        30150,
+        6286685499
+      ]
+    },
+    "syscall": {
+      "delivered_in_profile_run": 998368,
+      "duration_seconds": 2,
+      "miss_pct_in_profile_run": 0.0,
+      "offered_in_profile_run": 1000000,
+      "sample_types": [
+        "contentions/count",
+        "delay/nanoseconds"
+      ],
+      "totals": [
+        51,
+        479872
+      ]
+    }
+  }
+}

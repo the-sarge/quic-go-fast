@@ -1,0 +1,17 @@
+File: base.test
+Build ID: 65752d3ddcafb68adce727c12b7dbc63fce1ef1b
+Type: delay
+Time: 2026-09-06 19:21:40 UTC
+Showing nodes accounting for 0.05ms, 100% of 0.05ms total
+      flat  flat%   sum%        cum   cum%
+    0.05ms 98.61% 98.61%     0.05ms 98.61%  sync.(*Mutex).Unlock (inline)
+         0  1.39%   100%          0  1.39%  runtime.unlock (inline)
+         0     0%   100%     0.05ms 98.61%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0%   100%     0.05ms 98.61%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%          0  1.39%  runtime.findRunnable
+         0     0%   100%          0  1.39%  runtime.mcall
+         0     0%   100%          0  1.39%  runtime.park_m
+         0     0%   100%          0  1.39%  runtime.runSafePointFn
+         0     0%   100%          0  1.39%  runtime.schedule
+         0     0%   100%     0.05ms 98.61%  testing.(*T).Run.gowrap1
+         0     0%   100%     0.05ms 98.61%  testing.tRunner

@@ -1,0 +1,23 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: delay
+Time: 2026-09-06 19:21:46 UTC
+Showing nodes accounting for 0.07ms, 100% of 0.07ms total
+      flat  flat%   sum%        cum   cum%
+    0.05ms 76.39% 76.39%     0.05ms 76.39%  sync.(*Mutex).Unlock (inline)
+    0.02ms 23.61%   100%     0.02ms 23.61%  runtime.unlock (inline)
+         0     0%   100%     0.05ms 76.39%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0%   100%     0.05ms 76.39%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%     0.01ms 15.52%  runtime.findRunnable
+         0     0%   100%     0.01ms  8.09%  runtime.gcBgMarkWorker
+         0     0%   100%     0.01ms  8.09%  runtime.gcMarkDone
+         0     0%   100%     0.01ms  8.09%  runtime.gcMarkTermination
+         0     0%   100%     0.01ms  8.09%  runtime.gcMarkTermination.func3
+         0     0%   100%     0.01ms 15.52%  runtime.mcall
+         0     0%   100%     0.01ms 15.52%  runtime.park_m
+         0     0%   100%     0.01ms 15.52%  runtime.runSafePointFn
+         0     0%   100%     0.01ms 15.52%  runtime.schedule
+         0     0%   100%     0.01ms  8.09%  runtime.startTheWorldWithSema
+         0     0%   100%     0.01ms  8.09%  runtime.systemstack
+         0     0%   100%     0.05ms 76.39%  testing.(*T).Run.gowrap1
+         0     0%   100%     0.05ms 76.39%  testing.tRunner

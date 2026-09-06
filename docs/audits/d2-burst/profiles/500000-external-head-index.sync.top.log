@@ -1,0 +1,19 @@
+File: head-index.test
+Type: delay
+Showing nodes accounting for 7947.44ms, 100% of 7947.50ms total
+Dropped 9 nodes (cum <= 39.74ms)
+      flat  flat%   sum%        cum   cum%
+ 6087.56ms 76.60% 76.60%  6087.56ms 76.60%  runtime.chanrecv1
+ 1858.55ms 23.39%   100%  1858.55ms 23.39%  runtime.selectgo
+    1.34ms 0.017%   100%  1859.89ms 23.40%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+         0     0%   100%  1860.77ms 23.41%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment.func2
+         0     0%   100%  2086.10ms 26.25%  github.com/quic-go/quic-go.TestMain
+         0     0%   100%  2086.10ms 26.25%  main.main
+         0     0%   100%  2000.06ms 25.17%  runtime.(*traceAdvancerState).start.func1
+         0     0%   100%  4000.57ms 50.34%  runtime.(*wakeableSleep).sleep
+         0     0%   100%  2000.52ms 25.17%  runtime.traceStartReadCPU.func1
+         0     0%   100%  2086.10ms 26.25%  testing.(*M).Run
+         0     0%   100%  2086.10ms 26.25%  testing.(*T).Run
+         0     0%   100%  2086.10ms 26.25%  testing.runTests
+         0     0%   100%  2086.10ms 26.25%  testing.runTests.func1
+         0     0%   100%  2086.10ms 26.25%  testing.tRunner

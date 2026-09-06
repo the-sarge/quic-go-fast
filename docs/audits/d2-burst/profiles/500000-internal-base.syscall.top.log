@@ -1,0 +1,11 @@
+File: base.test
+Type: delay
+Showing nodes accounting for 0.50ms, 100% of 0.50ms total
+Dropped 12 nodes (cum <= 0)
+      flat  flat%   sum%        cum   cum%
+    0.50ms   100%   100%     0.50ms   100%  syscall.write
+         0     0%   100%          0  0.89%  fmt.Fprintf
+         0     0%   100%     0.50ms   100%  internal/poll.(*FD).Write
+         0     0%   100%     0.50ms   100%  os.(*File).Write
+         0     0%   100%     0.49ms 99.07%  runtime/trace.(*traceMultiplexer).startLocked.func1
+         0     0%   100%          0  0.89%  testing.tRunner

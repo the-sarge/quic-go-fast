@@ -1,0 +1,927 @@
+{
+  "cases": {
+    "10000/external": {
+      "paired_differences": {
+        "gc_cycles": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        },
+        "gc_pause_ms": {
+          "ci95": [
+            -0.132960165,
+            -0.019137898750000007
+          ],
+          "estimate": -0.07458285
+        },
+        "miss_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        },
+        "queue_drop_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        }
+      },
+      "paired_ratios": {
+        "allocations_per_delivered": {
+          "ci95": [
+            0.941208580288123,
+            0.9430263515262772
+          ],
+          "estimate": 0.9418294857395698
+        },
+        "bytes_per_delivered": {
+          "ci95": [
+            0.9607798988300357,
+            0.9608925688208573
+          ],
+          "estimate": 0.9608442793428731
+        },
+        "cpu_us_per_delivered": {
+          "ci95": [
+            0.9675707018552894,
+            0.9953442080419932
+          ],
+          "estimate": 0.9813948818240982
+        },
+        "delivered_per_second": {
+          "ci95": [
+            0.9999983017349405,
+            1.000000084220642
+          ],
+          "estimate": 0.9999992306655104
+        },
+        "p50_us": {
+          "ci95": [
+            0.8867623542572073,
+            0.9291897901388063
+          ],
+          "estimate": 0.9047030194250485
+        },
+        "p99_us": {
+          "ci95": [
+            1.1154698663545646,
+            1.7733862081314236
+          ],
+          "estimate": 1.4183618827885565
+        }
+      },
+      "variants": {
+        "base": {
+          "medians": {
+            "allocations_per_delivered": 1.06255,
+            "bytes_per_delivered": 1198.9392,
+            "cpu_us_per_delivered": 2.1321250000000003,
+            "delivered_per_second": 9999.816898352725,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 8.0,
+            "gc_pause_ms": 0.5031195,
+            "mean_latency_us": 10.593045850000001,
+            "miss_pct": 0.0,
+            "offered_per_second": 9999.858072014387,
+            "p50_us": 8.0,
+            "p99_us": 68.5,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.9999852362179726,
+          "unqualified_rounds": []
+        },
+        "head-index": {
+          "medians": {
+            "allocations_per_delivered": 1.0001,
+            "bytes_per_delivered": 1152.0112,
+            "cpu_us_per_delivered": 2.0985250000000004,
+            "delivered_per_second": 9999.807736196672,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 8.0,
+            "gc_pause_ms": 0.443597,
+            "mean_latency_us": 10.08566095,
+            "miss_pct": 0.0,
+            "offered_per_second": 9999.853867135513,
+            "p50_us": 7.0,
+            "p99_us": 121.5,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.9999850357239329,
+          "unqualified_rounds": []
+        }
+      }
+    },
+    "10000/internal": {
+      "paired_differences": {
+        "gc_cycles": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        },
+        "gc_pause_ms": {
+          "ci95": [
+            -0.017134218749999996,
+            -0.0021890100000000003
+          ],
+          "estimate": -0.009328899999999998
+        },
+        "miss_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        },
+        "queue_drop_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        }
+      },
+      "paired_ratios": {
+        "allocations_per_delivered": {
+          "ci95": [
+            0.9412297570215551,
+            0.941294250840715
+          ],
+          "estimate": 0.9412595121081685
+        },
+        "bytes_per_delivered": {
+          "ci95": [
+            0.9608595529916906,
+            0.9608960887617322
+          ],
+          "estimate": 0.9608723634468836
+        },
+        "cpu_us_per_delivered": {
+          "ci95": [
+            1.0000335948727972,
+            1.0004189001288852
+          ],
+          "estimate": 1.0002222397725646
+        },
+        "delivered_per_second": {
+          "ci95": [
+            0.9999998677501927,
+            1.0000000134768614
+          ],
+          "estimate": 0.9999999441250815
+        },
+        "p50_us": {
+          "ci95": [
+            0.9879657884034758,
+            1.049859870809882
+          ],
+          "estimate": 1.0181704728867504
+        },
+        "p99_us": {
+          "ci95": [
+            1.022607823409811,
+            1.2948301561060607
+          ],
+          "estimate": 1.1512887235465825
+        }
+      },
+      "variants": {
+        "base": {
+          "medians": {
+            "allocations_per_delivered": 1.0625,
+            "bytes_per_delivered": 1198.9324000000001,
+            "cpu_us_per_delivered": 100.87097500000002,
+            "delivered_per_second": 9999.987300016133,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 8.0,
+            "gc_pause_ms": 0.2530845,
+            "mean_latency_us": 92.004933875,
+            "miss_pct": 0.0,
+            "offered_per_second": 9999.99968000001,
+            "p50_us": 93.0,
+            "p99_us": 158.0,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.9999999570000018,
+          "unqualified_rounds": []
+        },
+        "head-index": {
+          "medians": {
+            "allocations_per_delivered": 1.0001,
+            "bytes_per_delivered": 1152.0112,
+            "cpu_us_per_delivered": 100.89095,
+            "delivered_per_second": 9999.986730017612,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 8.0,
+            "gc_pause_ms": 0.2445885,
+            "mean_latency_us": 92.146445325,
+            "miss_pct": 0.0,
+            "offered_per_second": 9999.99967500001,
+            "p50_us": 93.0,
+            "p99_us": 185.5,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.9999999575000018,
+          "unqualified_rounds": []
+        }
+      }
+    },
+    "100000/external": {
+      "paired_differences": {
+        "gc_cycles": {
+          "ci95": [
+            -4.3,
+            -3.7
+          ],
+          "estimate": -4.0
+        },
+        "gc_pause_ms": {
+          "ci95": [
+            0.08321339000000014,
+            0.8193743474999998
+          ],
+          "estimate": 0.44546295
+        },
+        "miss_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        },
+        "queue_drop_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        }
+      },
+      "paired_ratios": {
+        "allocations_per_delivered": {
+          "ci95": [
+            0.9411832522003095,
+            0.9412081788592703
+          ],
+          "estimate": 0.9411956808789517
+        },
+        "bytes_per_delivered": {
+          "ci95": [
+            0.9607998990239874,
+            0.9608097977021892
+          ],
+          "estimate": 0.9608048664449956
+        },
+        "cpu_us_per_delivered": {
+          "ci95": [
+            0.9542455939167077,
+            0.9796256942121317
+          ],
+          "estimate": 0.9673971039460971
+        },
+        "delivered_per_second": {
+          "ci95": [
+            0.9999993860759282,
+            1.000000092174693
+          ],
+          "estimate": 0.9999997407264264
+        },
+        "p50_us": {
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "estimate": 1.0
+        },
+        "p99_us": {
+          "ci95": [
+            0.8960091513338371,
+            1.2403493702764812
+          ],
+          "estimate": 1.0505221087812575
+        }
+      },
+      "variants": {
+        "base": {
+          "medians": {
+            "allocations_per_delivered": 1.0625325,
+            "bytes_per_delivered": 1198.9964799999998,
+            "cpu_us_per_delivered": 0.49222750000000004,
+            "delivered_per_second": 99999.52575224914,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 89.0,
+            "gc_pause_ms": 2.7065235,
+            "mean_latency_us": 3.3483556175,
+            "miss_pct": 0.0,
+            "offered_per_second": 99999.69330094066,
+            "p50_us": 3.0,
+            "p99_us": 47.5,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.9999958715170443,
+          "unqualified_rounds": []
+        },
+        "head-index": {
+          "medians": {
+            "allocations_per_delivered": 1.000055,
+            "bytes_per_delivered": 1152.00544,
+            "cpu_us_per_delivered": 0.4779,
+            "delivered_per_second": 99999.498702513,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 85.0,
+            "gc_pause_ms": 3.342868,
+            "mean_latency_us": 3.39082388,
+            "miss_pct": 0.0,
+            "offered_per_second": 99999.67075108408,
+            "p50_us": 3.0,
+            "p99_us": 49.5,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.999995511020151,
+          "unqualified_rounds": []
+        }
+      }
+    },
+    "100000/internal": {
+      "paired_differences": {
+        "gc_cycles": {
+          "ci95": [
+            -4.25,
+            -3.65
+          ],
+          "estimate": -3.95
+        },
+        "gc_pause_ms": {
+          "ci95": [
+            -0.05491138499999998,
+            1.1877870237499997
+          ],
+          "estimate": 0.5693644
+        },
+        "miss_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        },
+        "queue_drop_pct": {
+          "ci95": [
+            -0.018425,
+            0.10395000000000001
+          ],
+          "estimate": 0.038375000000000006
+        }
+      },
+      "paired_ratios": {
+        "allocations_per_delivered": {
+          "ci95": [
+            0.9411999990660258,
+            0.9445372270288903
+          ],
+          "estimate": 0.942317844954097
+        },
+        "bytes_per_delivered": {
+          "ci95": [
+            0.9607077720186191,
+            0.9608080046535536
+          ],
+          "estimate": 0.9607731659349684
+        },
+        "cpu_us_per_delivered": {
+          "ci95": [
+            0.9996183949507129,
+            1.0007404341616457
+          ],
+          "estimate": 1.0001559947073932
+        },
+        "delivered_per_second": {
+          "ci95": [
+            0.9989593774087528,
+            1.0001842769406954
+          ],
+          "estimate": 0.9996155363569943
+        },
+        "p50_us": {
+          "ci95": [
+            0.9973008733847734,
+            1.0
+          ],
+          "estimate": 0.9990994804361941
+        },
+        "p99_us": {
+          "ci95": [
+            0.9910685233900804,
+            1.1984063252859378
+          ],
+          "estimate": 1.0896488863698486
+        }
+      },
+      "variants": {
+        "base": {
+          "medians": {
+            "allocations_per_delivered": 1.0625049979983987,
+            "bytes_per_delivered": 1198.9972,
+            "cpu_us_per_delivered": 10.146162499999999,
+            "delivered_per_second": 99999.86330018687,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 88.5,
+            "gc_pause_ms": 3.1455055,
+            "mean_latency_us": 55.33604062,
+            "miss_pct": 0.0,
+            "offered_per_second": 99999.99725000007,
+            "p50_us": 56.0,
+            "p99_us": 86.0,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.9999999575000019,
+          "unqualified_rounds": []
+        },
+        "head-index": {
+          "medians": {
+            "allocations_per_delivered": 1.0000426040377857,
+            "bytes_per_delivered": 1152.0038893898134,
+            "cpu_us_per_delivered": 10.150520950826643,
+            "delivered_per_second": 99983.84777383199,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 85.0,
+            "gc_pause_ms": 4.931887,
+            "mean_latency_us": 55.948975520000005,
+            "miss_pct": 0.0,
+            "offered_per_second": 99999.99625000014,
+            "p50_us": 56.0,
+            "p99_us": 104.5,
+            "queue_drop_pct": 0.016
+          },
+          "min_rate_fraction": 0.9999999575000019,
+          "unqualified_rounds": []
+        }
+      }
+    },
+    "500000/external": {
+      "paired_differences": {
+        "gc_cycles": {
+          "ci95": [
+            -17.55,
+            -16.65
+          ],
+          "estimate": -17.1
+        },
+        "gc_pause_ms": {
+          "ci95": [
+            -4.349821388750001,
+            -3.3038482
+          ],
+          "estimate": -3.8210342499999994
+        },
+        "miss_pct": {
+          "ci95": [
+            -0.00352,
+            0.03856
+          ],
+          "estimate": 0.01424
+        },
+        "queue_drop_pct": {
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "estimate": 0.0
+        }
+      },
+      "paired_ratios": {
+        "allocations_per_delivered": {
+          "ci95": [
+            0.9509078420764985,
+            0.952757499657624
+          ],
+          "estimate": 0.9518445081976346
+        },
+        "bytes_per_delivered": {
+          "ci95": [
+            0.9604727174037777,
+            0.9605237882526305
+          ],
+          "estimate": 0.9604978874702074
+        },
+        "cpu_us_per_delivered": {
+          "ci95": [
+            0.9617819108794908,
+            0.9776311478361379
+          ],
+          "estimate": 0.969967372088221
+        },
+        "delivered_per_second": {
+          "ci95": [
+            0.9996150085851848,
+            1.0000358087918175
+          ],
+          "estimate": 0.9998581805684039
+        },
+        "p50_us": {
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "estimate": 1.0
+        },
+        "p99_us": {
+          "ci95": [
+            0.9555678774352844,
+            0.9698383265223908
+          ],
+          "estimate": 0.9631261029689488
+        }
+      },
+      "variants": {
+        "base": {
+          "medians": {
+            "allocations_per_delivered": 1.0503309142886939,
+            "bytes_per_delivered": 1199.3865666308848,
+            "cpu_us_per_delivered": 0.4075460420506912,
+            "delivered_per_second": 499966.1901223982,
+            "external_expired_pct": 0.0064,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 432.5,
+            "gc_pause_ms": 19.5823615,
+            "mean_latency_us": 3.9717869753664234,
+            "miss_pct": 0.0064,
+            "offered_per_second": 499966.80970402906,
+            "p50_us": 3.0,
+            "p99_us": 58.0,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.9997736405342083,
+          "unqualified_rounds": []
+        },
+        "head-index": {
+          "medians": {
+            "allocations_per_delivered": 1.0000150141850286,
+            "bytes_per_delivered": 1152.001537452547,
+            "cpu_us_per_delivered": 0.39448022942571465,
+            "delivered_per_second": 499966.23986885266,
+            "external_expired_pct": 0.0064,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 415.5,
+            "gc_pause_ms": 15.5157405,
+            "mean_latency_us": 3.56366770436654,
+            "miss_pct": 0.0064,
+            "offered_per_second": 499966.773456513,
+            "p50_us": 3.0,
+            "p99_us": 56.0,
+            "queue_drop_pct": 0.0
+          },
+          "min_rate_fraction": 0.998173543993995,
+          "unqualified_rounds": []
+        }
+      }
+    },
+    "500000/internal": {
+      "paired_differences": {
+        "gc_cycles": {
+          "ci95": [
+            -18.15,
+            -15.25
+          ],
+          "estimate": -16.6
+        },
+        "gc_pause_ms": {
+          "ci95": [
+            -8.7651403525,
+            -4.6897053475
+          ],
+          "estimate": -6.855332899999999
+        },
+        "miss_pct": {
+          "ci95": [
+            0.00016,
+            0.0032
+          ],
+          "estimate": 0.0016
+        },
+        "queue_drop_pct": {
+          "ci95": [
+            -0.07781597850447772,
+            0.6944525803781338
+          ],
+          "estimate": 0.28435943350467613
+        }
+      },
+      "paired_ratios": {
+        "allocations_per_delivered": {
+          "ci95": [
+            0.9488768862093282,
+            0.9510860412882421
+          ],
+          "estimate": 0.9498921443153004
+        },
+        "bytes_per_delivered": {
+          "ci95": [
+            0.9605495035719874,
+            0.9606116332011839
+          ],
+          "estimate": 0.9605835301847219
+        },
+        "cpu_us_per_delivered": {
+          "ci95": [
+            1.0014190609094218,
+            1.0089702254029915
+          ],
+          "estimate": 1.0049671371544444
+        },
+        "delivered_per_second": {
+          "ci95": [
+            0.9929497336847116,
+            1.0007666028706563
+          ],
+          "estimate": 0.9970949521326183
+        },
+        "p50_us": {
+          "ci95": [
+            1.0,
+            1.0
+          ],
+          "estimate": 1.0
+        },
+        "p99_us": {
+          "ci95": [
+            0.9647077605310198,
+            0.9962113982349685
+          ],
+          "estimate": 0.980399779648995
+        }
+      },
+      "variants": {
+        "base": {
+          "medians": {
+            "allocations_per_delivered": 1.0530938629289333,
+            "bytes_per_delivered": 1199.260065553654,
+            "cpu_us_per_delivered": 2.137148190444318,
+            "delivered_per_second": 498401.10220296006,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 425.0,
+            "gc_pause_ms": 19.419703499999997,
+            "mean_latency_us": 54.83730416127344,
+            "miss_pct": 0.0,
+            "offered_per_second": 499999.9838750005,
+            "p50_us": 55.0,
+            "p99_us": 114.5,
+            "queue_drop_pct": 0.31965
+          },
+          "min_rate_fraction": 0.9999679580013459,
+          "unqualified_rounds": []
+        },
+        "head-index": {
+          "medians": {
+            "allocations_per_delivered": 1.0000257248058708,
+            "bytes_per_delivered": 1152.0070329200264,
+            "cpu_us_per_delivered": 2.143467410985065,
+            "delivered_per_second": 498812.83907552704,
+            "external_expired_pct": 0.0,
+            "external_ipc_miss_pct": 0.0,
+            "gc_cycles": 409.0,
+            "gc_pause_ms": 11.4017725,
+            "mean_latency_us": 54.45364051823303,
+            "miss_pct": 0.0,
+            "offered_per_second": 499999.9827500006,
+            "p50_us": 55.0,
+            "p99_us": 112.0,
+            "queue_drop_pct": 0.23410750448028672
+          },
+          "min_rate_fraction": 0.999903967503121,
+          "unqualified_rounds": []
+        }
+      }
+    }
+  },
+  "first_started_utc": "2026-09-06T19:12:22.095700+00:00",
+  "host": {
+    "0": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 2.0,
+      "mean_idle_pct": 99.58241379310346
+    },
+    "1": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 1.02,
+      "mean_idle_pct": 99.2984236453202
+    },
+    "10": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 51.584006568144495
+    },
+    "11": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.96720853858784
+    },
+    "12": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.96707717569787
+    },
+    "13": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.97206896551724
+    },
+    "14": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.97691297208539
+    },
+    "15": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.97541871921182
+    },
+    "16": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.898013136289
+    },
+    "17": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.85244663382595
+    },
+    "18": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.87042692939244
+    },
+    "19": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.79428571428572
+    },
+    "2": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 1.0,
+      "mean_idle_pct": 99.78243021346469
+    },
+    "20": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.79692939244664
+    },
+    "21": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.80553366174055
+    },
+    "22": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.80536945812808
+    },
+    "23": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.74827586206897
+    },
+    "24": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.95275862068966
+    },
+    "25": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.94464696223316
+    },
+    "26": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.97724137931034
+    },
+    "27": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.98348111658457
+    },
+    "28": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.97886699507389
+    },
+    "29": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.98850574712644
+    },
+    "3": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 1.0,
+      "mean_idle_pct": 99.3895566502463
+    },
+    "30": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.98357963875205
+    },
+    "31": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.98180623973727
+    },
+    "4": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.80371100164203
+    },
+    "5": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.81988505747125
+    },
+    "6": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.99,
+      "mean_idle_pct": 99.81215106732348
+    },
+    "7": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 99.82816091954022
+    },
+    "8": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 87.50300492610837
+    },
+    "9": {
+      "max_guest_pct": 0.0,
+      "max_irq_pct": 0.0,
+      "mean_idle_pct": 59.900147783251235
+    }
+  },
+  "last_started_utc": "2026-09-06T19:20:46.704162+00:00",
+  "mode_ratios": {
+    "10000": {
+      "base": {
+        "ci95": [
+          0.4200080584069688,
+          0.5710427037871227
+        ],
+        "estimate": 0.4907739232704168
+      },
+      "head-index": {
+        "ci95": [
+          0.4858391504699585,
+          0.7516896539605626
+        ],
+        "estimate": 0.6046224648922222
+      }
+    },
+    "100000": {
+      "base": {
+        "ci95": [
+          0.5028836540643246,
+          0.5525482965779167
+        ],
+        "estimate": 0.5290801308360575
+      },
+      "head-index": {
+        "ci95": [
+          0.4336614280660449,
+          0.596066657072395
+        ],
+        "estimate": 0.5100820839746224
+      }
+    },
+    "500000": {
+      "base": {
+        "ci95": [
+          0.5030243819475151,
+          0.5131284902089329
+        ],
+        "estimate": 0.5078998419307397
+      },
+      "head-index": {
+        "ci95": [
+          0.49080164358313183,
+          0.5066380247418584
+        ],
+        "estimate": 0.49895114790053574
+      }
+    }
+  },
+  "sample_count": 240
+}

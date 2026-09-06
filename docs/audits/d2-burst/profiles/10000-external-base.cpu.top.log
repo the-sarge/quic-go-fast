@@ -1,0 +1,39 @@
+File: base.test
+Build ID: 65752d3ddcafb68adce727c12b7dbc63fce1ef1b
+Type: cpu
+Time: 2026-09-06 19:20:56 UTC
+Duration: 4.09s, Total samples = 50ms ( 1.22%)
+Showing nodes accounting for 50ms, 100% of 50ms total
+      flat  flat%   sum%        cum   cum%
+      10ms 20.00% 20.00%       10ms 20.00%  internal/runtime/gc/scan.scanSpanPackedAVX512
+      10ms 20.00% 40.00%       10ms 20.00%  runtime.read
+      10ms 20.00% 60.00%       10ms 20.00%  runtime.scanObjectsSmall
+      10ms 20.00% 80.00%       10ms 20.00%  runtime.scanblock
+      10ms 20.00%   100%       10ms 20.00%  runtime.typePointers.next
+         0     0%   100%       10ms 20.00%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0%   100%       10ms 20.00%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%       10ms 20.00%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0%   100%       10ms 20.00%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+         0     0%   100%       10ms 20.00%  runtime.deductAssistCredit
+         0     0%   100%       10ms 20.00%  runtime.findRunnable
+         0     0%   100%       10ms 20.00%  runtime.gcAssistAlloc
+         0     0%   100%       10ms 20.00%  runtime.gcAssistAlloc.func2
+         0     0%   100%       10ms 20.00%  runtime.gcAssistAlloc1
+         0     0%   100%       30ms 60.00%  runtime.gcBgMarkWorker
+         0     0%   100%       30ms 60.00%  runtime.gcBgMarkWorker.func2
+         0     0%   100%       30ms 60.00%  runtime.gcDrain
+         0     0%   100%       20ms 40.00%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0%   100%       10ms 20.00%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0%   100%       10ms 20.00%  runtime.gcDrainN
+         0     0%   100%       10ms 20.00%  runtime.makeslice
+         0     0%   100%       10ms 20.00%  runtime.mallocgc
+         0     0%   100%       10ms 20.00%  runtime.markroot
+         0     0%   100%       10ms 20.00%  runtime.markrootBlock
+         0     0%   100%       10ms 20.00%  runtime.mcall
+         0     0%   100%       10ms 20.00%  runtime.netpoll
+         0     0%   100%       10ms 20.00%  runtime.park_m
+         0     0%   100%       10ms 20.00%  runtime.scanObject
+         0     0%   100%       20ms 40.00%  runtime.scanSpan
+         0     0%   100%       10ms 20.00%  runtime.schedule
+         0     0%   100%       40ms 80.00%  runtime.systemstack
+         0     0%   100%       10ms 20.00%  testing.tRunner
