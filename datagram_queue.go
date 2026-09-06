@@ -91,11 +91,11 @@ func (h *datagramQueue) Pop() {
 
 // HandleDatagramFrame handles a received DATAGRAM frame.
 func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
-	data := make([]byte, len(f.Data))
-	copy(data, f.Data)
 	var queued bool
 	h.rcvMx.Lock()
 	if len(h.rcvQueue) < maxDatagramRcvQueueLen {
+		data := make([]byte, len(f.Data))
+		copy(data, f.Data)
 		h.rcvQueue = append(h.rcvQueue, data)
 		queued = true
 		select {
