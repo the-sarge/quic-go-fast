@@ -49,3 +49,30 @@ RAS review `20260906T165157-43dca5c8f574e5c8650c73fe` completed with one low rec
 ### Next
 
 D2 and H1 remain independently ready with no blockers; no new dependency was introduced by D1. [Program tracker #7](https://github.com/the-sarge/quic-go-fast/issues/7) owns live progress. Application integration and physical qualification remain externally owned.
+
+---
+
+## D2 receive storage experiment closed without runtime change - 2026-09-06 13:43 EDT
+
+**Main:** `9cb9eb139353`
+**Actor:** Codex
+
+### Completed
+
+Merged [D2 PR #11](https://github.com/the-sarge/quic-go-fast/pull/11) as `9cb9eb139353943ca2a09cea5972d1f4dcd9f2bd`, closing [#5](https://github.com/the-sarge/quic-go-fast/issues/5). Retained a 16-cycle refill/drain FIFO and overflow characterization plus the bounded experiment receipt. The runtime ring substitution was evaluated and removed; runtime behavior remains identical to the D1 comparison base. The product PR records D2 completion and the H1-only frontier.
+
+### Decisions
+
+Close D2 with the authorized bounded no-change disposition. Metadata savings were consistent (BurstDrain: 153600 → 147456 B/op and 130 → 128 allocs/op for 128 admitted messages), but timing reversed under observed host contention and remained inconclusive after the one allowed replacement pair. No additional campaign or runtime optimization is implied. [Evidence, exact versions, workload and raw samples](audits/2026-09-06-d2-receive-storage.md).
+
+### Validation
+
+Characterization passed on the base and evaluated candidate. Focused datagram tests, datagram race tests, inherited ring tests, the complete local suite including integration tests, and documentation checks passed on final certified head `8427902cce22c8d7e67adc13b75ec90e23c83565`. [Certification receipt](https://github.com/the-sarge/quic-go-fast/pull/11#issuecomment-5560989804).
+
+RAS review `20260906T172521-9855c057dbd6e3d996b72c79` completed with all seven reviewers, adjudication and synthesis. Two accepted wording corrections made the retained test comment storage-neutral and aligned the D2 summary table with the no-change outcome. RAS rerun was skipped under the shared documentation-polish policy; remaining observations were rejected or duplicate reports. No deferred findings or unresolved stops remain. [Independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/11#issuecomment-5560982631).
+
+No Actions runs, check runs, branch protection or required status checks were reported after ready on the matched merge head. Hosted-platform evidence is unavailable, not passed. [Hosted inspection](https://github.com/the-sarge/quic-go-fast/pull/11#issuecomment-5560993772). No application-throughput, heap-size or physical-network claim is made.
+
+### Next
+
+Track D is complete: D1 shipped its overflow improvement; D2 closed with a bounded no-change result. H1 is the sole ready slice and has no blockers. [Program tracker #7](https://github.com/the-sarge/quic-go-fast/issues/7) owns live progress. Application integration and physical qualification remain externally owned.
