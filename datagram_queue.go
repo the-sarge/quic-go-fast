@@ -21,6 +21,7 @@ type datagramQueue struct {
 
 	rcvMx    sync.Mutex
 	rcvQueue [][]byte
+	rcvHead  int
 	rcvd     chan struct{} // used to notify Receive that a new datagram was received
 
 	closeErr error
@@ -93,7 +94,13 @@ func (h *datagramQueue) Pop() {
 func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 	var queued bool
 	h.rcvMx.Lock()
-	if len(h.rcvQueue) < maxDatagramRcvQueueLen {
+	if len(h.rcvQueue)-h.rcvHead < maxDatagramRcvQueueLen {
+		if len(h.rcvQueue) == cap(h.rcvQueue) && h.rcvHead > 0 {
+			live := copy(h.rcvQueue, h.rcvQueue[h.rcvHead:])
+			clear(h.rcvQueue[live:])
+			h.rcvQueue = h.rcvQueue[:live]
+			h.rcvHead = 0
+		}
 		data := make([]byte, len(f.Data))
 		copy(data, f.Data)
 		h.rcvQueue = append(h.rcvQueue, data)
@@ -113,9 +120,14 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 	for {
 		h.rcvMx.Lock()
-		if len(h.rcvQueue) > 0 {
-			data := h.rcvQueue[0]
-			h.rcvQueue = h.rcvQueue[1:]
+		if h.rcvHead < len(h.rcvQueue) {
+			data := h.rcvQueue[h.rcvHead]
+			h.rcvQueue[h.rcvHead] = nil
+			h.rcvHead++
+			if h.rcvHead == len(h.rcvQueue) {
+				h.rcvQueue = h.rcvQueue[:0]
+				h.rcvHead = 0
+			}
 			h.rcvMx.Unlock()
 			return data, nil
 		}
