@@ -1,6 +1,6 @@
 # Datagram receive ownership audit
 
-Status: ownership audit complete; experimental candidate implemented and locally validated, awaiting matched real-QUIC performance evaluation and review. Base: `686bce6541438101c96732a023984e031faf6df7`. This is a standalone follow-up authorized by the owner's instruction to continue the received-payload ownership audit. D1/D2 remain completed; their plans and tracking are not reopened. Public API and wire compatibility remain governed by ADR 0001.
+Status: ownership audit and matched native-QUIC comparison complete; experimental candidate locally validated, with higher-rate tail noninferiority unresolved and review outstanding. Base: `686bce6541438101c96732a023984e031faf6df7`. This is a standalone follow-up authorized by the owner's instruction to continue the received-payload ownership audit. D1/D2 remain completed; their plans and tracking are not reopened. Public API and wire compatibility remain governed by ADR 0001.
 
 ## Finding and candidate
 
@@ -57,6 +57,6 @@ The [raw receipts](datagram-ownership/README.md) retain before/refined-before fa
 
 ## Disposition
 
-The lifetime audit supports borrowed parsing with the existing queue as the sole owning-copy boundary, and the candidate removes the expected allocation while passing the stated preservation evidence. Keep it on its experimental feature branch. The next acceptance step is a matched baseline/candidate real-QUIC run on minimax using the same Go 1.27.1 compiler, with clean throughput/on-time-delivery/CPU/tail observations separated from allocation profiles. Existing sender-generation misses must remain explicit and cannot be relabeled as queue loss. The audit does not authorize a performance claim based on microbenchmark MB/s or silently revise completed D1/D2 gates.
+The lifetime audit supports borrowed parsing with the existing queue as the sole owning-copy boundary, and the candidate removes the expected allocation while passing the stated preservation evidence. The [matched native-QUIC comparison](2026-09-06-datagram-native-comparison.md) on minimax Go 1.27.1 found about 47% lower receiver allocation and 2.1–4.8% lower receiver CPU per delivered byte, with practically unchanged goodput. Its 29 complete pairs establish the 5% tail bound only at 100 Mbps; the 1 and 4 Gbps intervals remain inconclusive. Keep the candidate experimental pending tail disposition and review. Sender-generation misses remain explicit and cannot be relabeled as queue loss. Neither comparison silently revises completed D1/D2 gates or turns microbenchmark MB/s into delivered throughput.
 
 Full repository certification, hosted checks, independent review and merge remain outstanding for adoption. No runtime change is on the default branch, no queue candidate was substituted, and no program or OmniFocus task was completed by this follow-up.
