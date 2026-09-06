@@ -1,6 +1,6 @@
 # Datagram receive efficiency implementation plan
 
-**Date:** 2026-09-06. **Status:** Accepted; not implemented. **Track:** D of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md). **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
+**Date:** 2026-09-06. **Status:** D1 complete; D2 ready. **Track:** D of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md). **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
 
 ## Goal and current shape
 
@@ -16,7 +16,7 @@ Keep `datagramQueue` as the queue owner and `rcvMx` as its only admission/dequeu
 
 | Slice | Disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| D1 | new | Full-queue admission drops without payload allocation/copy | None | None |
+| D1 | complete; runtime improvement | Full-queue admission drops without payload allocation/copy | None | None |
 | D2 | new; independently evaluate upstream #5557 | Receive storage reuse and cleared popped references | None | None |
 
 ## Common contract and evidence
@@ -32,6 +32,8 @@ Reject/rework within the same contract if the expected allocation improvement is
 ## Implementation slices
 
 ### D1 — Avoid allocation for receive overflow
+
+**Current state:** Complete; runtime improvement accepted. [Bounded evidence receipt](../audits/2026-09-06-d1-overflow.md).
 
 **What it delivers:** Move capacity admission under `rcvMx` ahead of allocation/copy. If full, unlock and retain existing conditional discard logging; if admitted, make the owning copy and append while holding the same lock, then preserve notification. This keeps admission atomic without an unlocked check/reservation race.
 
@@ -69,7 +71,7 @@ Reject/rework within the same contract if the expected allocation improvement is
 
 ## Acceptance criteria and validation
 
-- [ ] D1 has a merged runtime improvement or an explicit bounded no-change disposition, with its allocation and preservation evidence.
+- [x] D1 has a merged runtime improvement or an explicit bounded no-change disposition, with its allocation and preservation evidence.
 - [ ] D2 has a merged runtime improvement or an explicit bounded no-change disposition, with its metadata-cost and preservation evidence.
 - [ ] Each receipt identifies exact base/candidate/toolchain/workload and avoids inferring application throughput from microbenchmarks.
 

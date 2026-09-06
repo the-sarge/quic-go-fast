@@ -1,9 +1,11 @@
 package quic
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
@@ -84,6 +86,79 @@ func TestDatagramQueueReceive(t *testing.T) {
 	data, err = queue.Receive(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, []byte("bar"), data)
+}
+
+func TestDatagramReceiveOverflowNoAllocation(t *testing.T) {
+	logger := utils.DefaultLogger.WithPrefix("overflow")
+	logger.SetLogLevel(utils.LogLevelNothing)
+	queue := newDatagramQueue(func() {}, logger)
+	frame := &wire.DatagramFrame{Data: make([]byte, 1071)}
+	for range maxDatagramRcvQueueLen {
+		queue.HandleDatagramFrame(frame)
+	}
+	require.Zero(t, testing.AllocsPerRun(100, func() {
+		queue.HandleDatagramFrame(frame)
+	}))
+}
+
+func TestDatagramReceiveOverflowFIFO(t *testing.T) {
+	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+	for i := range maxDatagramRcvQueueLen + 1 {
+		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(i)}})
+	}
+	// Queued data takes precedence over cancellation, and overflow drops new data.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for i := range maxDatagramRcvQueueLen {
+		data, err := queue.Receive(ctx)
+		require.NoError(t, err)
+		require.Equal(t, []byte{byte(i)}, data)
+	}
+	_, err := queue.Receive(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+	// Admission resumes after draining, including an empty datagram.
+	queue.HandleDatagramFrame(&wire.DatagramFrame{})
+	data, err := queue.Receive(ctx)
+	require.NoError(t, err)
+	require.Empty(t, data)
+}
+
+func TestDatagramReceivePayloadOwnership(t *testing.T) {
+	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+	input := bytes.Repeat([]byte{'a'}, 1071)
+	frame := &wire.DatagramFrame{Data: input}
+	queue.HandleDatagramFrame(frame)
+	for i := range input {
+		input[i] = 'b'
+	}
+	first, err := queue.Receive(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, bytes.Repeat([]byte{'a'}, 1071), first)
+	queue.HandleDatagramFrame(frame)
+	second, err := queue.Receive(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, bytes.Repeat([]byte{'b'}, 1071), second)
+	second[0] = 'c'
+	require.Equal(t, bytes.Repeat([]byte{'a'}, 1071), first)
+	require.Equal(t, byte('b'), input[0])
+}
+
+func TestDatagramReceiveConcurrentProducerDrainer(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		go func() {
+			for i := range maxDatagramRcvQueueLen {
+				queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(i)}})
+			}
+		}()
+		for i := range maxDatagramRcvQueueLen {
+			data, err := queue.Receive(ctx)
+			require.NoError(t, err)
+			require.Equal(t, []byte{byte(i)}, data)
+		}
+	})
 }
 
 func TestDatagramQueueReceiveBlocking(t *testing.T) {
