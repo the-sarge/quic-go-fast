@@ -1,7 +1,7 @@
 go version go1.26.0 linux/amd64
 base.test: go1.26.0
 	path	github.com/quic-go/quic-go.test
-	mod	github.com/quic-go/quic-go	(devel)	
+	mod	github.com/quic-go/quic-go	(devel)
 	build	-buildmode=exe
 	build	-compiler=gc
 	build	CGO_ENABLED=1
@@ -14,7 +14,7 @@ base.test: go1.26.0
 	build	GOAMD64=v1
 ring.test: go1.26.0
 	path	github.com/quic-go/quic-go.test
-	mod	github.com/quic-go/quic-go	(devel)	
+	mod	github.com/quic-go/quic-go	(devel)
 	build	-buildmode=exe
 	build	-compiler=gc
 	build	CGO_ENABLED=1

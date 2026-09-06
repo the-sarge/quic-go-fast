@@ -6,7 +6,7 @@ Kernel Version: 7.0
 goos: linux
 goarch: amd64
 pkg: github.com/quic-go/quic-go
-cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S          
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
 BenchmarkDatagramReceiveConcurrent-2   	    1024	      1091 ns/op	       372.0 delivered	    332851 delivered/s	        63.67 drop-%	       652.0 drops	      3004 ns/delivered	     433 B/op	       0 allocs/op
 PASS
 ok  	github.com/quic-go/quic-go	1.014s
@@ -18,7 +18,7 @@ Kernel Version: 7.0
 goos: linux
 goarch: amd64
 pkg: github.com/quic-go/quic-go
-cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S          
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
 BenchmarkDatagramReceiveConcurrent-2   	    1024	      1690 ns/op	       425.0 delivered	    245513 delivered/s	        58.50 drop-%	       599.0 drops	      4073 ns/delivered	     483 B/op	       0 allocs/op
 PASS
 ok  	github.com/quic-go/quic-go	1.015s
