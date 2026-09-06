@@ -1,6 +1,6 @@
 # quic-go-fast first milestone — 2026-09-06
 
-**Program identity:** QGF-2026-09. **Status:** D1 complete; D2 and H1 ready. **Normative scope:** This index owns track identity, dependency edges and binding policy; each plan owns its slice contracts. **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
+**Program identity:** QGF-2026-09. **Status:** D complete; H1 ready. **Normative scope:** This index owns track identity, dependency edges and binding policy; each plan owns its slice contracts. **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
 
 ## Outcomes and boundaries
 
@@ -12,10 +12,10 @@ The code baseline is upstream v0.62.0 (`793f74d8e03368c5aded128af6f48d21dbb47f73
 
 | Track | Plan | Parent issue | Slices | Blocking edges | Current state |
 | --- | --- | --- | --- | --- | --- |
-| D — Datagram receive efficiency | [Plan](2026-09-06-datagram-plan.md) | [#2](https://github.com/the-sarge/quic-go-fast/issues/2) | D1, D2 | None | D1 complete; D2 FRONTIER |
+| D — Datagram receive efficiency | [Plan](2026-09-06-datagram-plan.md) | [#2](https://github.com/the-sarge/quic-go-fast/issues/2) | D1, D2 | None | Complete: D1 runtime improvement; D2 bounded no-change |
 | H — Handshake MTU recovery | [Plan](2026-09-06-handshake-mtu-plan.md) | [#3](https://github.com/the-sarge/quic-go-fast/issues/3) | H1 | None | FRONTIER |
 
-D1 and D2 are independent but edit the same queue module: their worktrees may run in parallel, but serialize integration and revalidate the later merge against the earlier patch. H1 changes the connection/send path and can proceed alongside either. Shared test fixtures or same-file merge conflicts are integration obligations, not invented blocking edges. The current implementation frontier is D2 (#5) and H1 (#6); neither has blockers. D1 (#4) is complete with a runtime improvement. Parent issues are never dispatched as implementation tasks.
+D1 and D2 are independent but edit the same queue module: their worktrees may run in parallel, but serialize integration and revalidate the later merge against the earlier patch. H1 changes the connection/send path and can proceed alongside either. Shared test fixtures or same-file merge conflicts are integration obligations, not invented blocking edges. The current implementation frontier is H1 (#6), with no blockers. D1 (#4) is complete with a runtime improvement; D2 (#5) is complete with a bounded no-change disposition. Parent issues are never dispatched as implementation tasks.
 
 ## Outcomes requiring no implementation
 

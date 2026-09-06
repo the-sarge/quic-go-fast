@@ -20,7 +20,7 @@ type datagramQueue struct {
 	sent      chan struct{} // used to notify Add that a datagram was dequeued
 
 	rcvMx    sync.Mutex
-	rcvQueue ringbuffer.RingBuffer[[]byte]
+	rcvQueue [][]byte
 	rcvd     chan struct{} // used to notify Receive that a new datagram was received
 
 	closeErr error
@@ -93,10 +93,10 @@ func (h *datagramQueue) Pop() {
 func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 	var queued bool
 	h.rcvMx.Lock()
-	if h.rcvQueue.Len() < maxDatagramRcvQueueLen {
+	if len(h.rcvQueue) < maxDatagramRcvQueueLen {
 		data := make([]byte, len(f.Data))
 		copy(data, f.Data)
-		h.rcvQueue.PushBack(data)
+		h.rcvQueue = append(h.rcvQueue, data)
 		queued = true
 		select {
 		case h.rcvd <- struct{}{}:
@@ -113,8 +113,9 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 	for {
 		h.rcvMx.Lock()
-		if h.rcvQueue.Len() > 0 {
-			data := h.rcvQueue.PopFront()
+		if len(h.rcvQueue) > 0 {
+			data := h.rcvQueue[0]
+			h.rcvQueue = h.rcvQueue[1:]
 			h.rcvMx.Unlock()
 			return data, nil
 		}
