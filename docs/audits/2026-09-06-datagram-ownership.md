@@ -1,6 +1,6 @@
 # Datagram receive ownership audit
 
-Status: ownership audit and matched native-QUIC comparison complete; experimental candidate locally validated, with higher-rate tail noninferiority unresolved and review outstanding. Base: `686bce6541438101c96732a023984e031faf6df7`. This is a standalone follow-up authorized by the owner's instruction to continue the received-payload ownership audit. D1/D2 remain completed; their plans and tracking are not reopened. Public API and wire compatibility remain governed by ADR 0001.
+Status: ownership audit, initial native-QUIC comparison and focused longer-window follow-up complete; experimental candidate locally validated, with 4 Gbps tail noninferiority unresolved and review outstanding. Base: `686bce6541438101c96732a023984e031faf6df7`. This is a standalone follow-up authorized by the owner's instruction to continue the received-payload ownership audit. D1/D2 remain completed; their plans and tracking are not reopened. Public API and wire compatibility remain governed by ADR 0001.
 
 ## Finding and candidate
 
@@ -60,3 +60,5 @@ The [raw receipts](datagram-ownership/README.md) retain before/refined-before fa
 The lifetime audit supports borrowed parsing with the existing queue as the sole owning-copy boundary, and the candidate removes the expected allocation while passing the stated preservation evidence. The [matched native-QUIC comparison](2026-09-06-datagram-native-comparison.md) on minimax Go 1.27.1 found about 47% lower receiver allocation and 2.1–4.8% lower receiver CPU per delivered byte, with practically unchanged goodput. Its 29 complete pairs establish the 5% tail bound only at 100 Mbps; the 1 and 4 Gbps intervals remain inconclusive. Keep the candidate experimental pending tail disposition and review. Sender-generation misses remain explicit and cannot be relabeled as queue loss. Neither comparison silently revises completed D1/D2 gates or turns microbenchmark MB/s into delivered throughput.
 
 Full repository certification, hosted checks, independent review and merge remain outstanding for adoption. No runtime change is on the default branch, no queue candidate was substituted, and no program or OmniFocus task was completed by this follow-up.
+
+The [focused longer-window follow-up](2026-09-06-datagram-tail-followup.md) subsequently completed 20 pairs per rate with 60-second windows. It establishes the 5% tail bound at 1 Gbps, while 4 Gbps remains inconclusive at +4.04% [−0.20%, +8.45%]. Allocation and CPU savings persist. The fixed schedule is complete; targeted timing instrumentation is the next investigation before adoption, rather than extending the benchmark or relaxing its bound.
