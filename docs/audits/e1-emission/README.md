@@ -62,3 +62,17 @@ The initial campaign is running on `minimax` with Go 1.27.1 and two/four physica
 Linux allocation checks match base and prototype: 37 fixture-inclusive allocations per ordinary packet/batch and 104 per three-packet GSO batch. The embedded connection value grows from 1168 to 1216 bytes; there is no separate module allocation or close-payload change in this prototype. These counts include transparent protection, mock-adapter and assertion overhead; they do not claim native emission is allocation-free. The full paired matrix, existing handshake/churn/transfer benchmark comparisons, disposition of the earlier timeout observation, independent review and final certification remain outstanding. No performance/adoption disposition is justified yet.
 
 Retain the one-initial/one-replacement review budget and the plan's one-campaign/one-replacement limit. Do not close E1, advance committed completion/frontier state, ready the PR for merge, append the journal or complete its OmniFocus task at this checkpoint.
+
+## Preflight and diagnostic receipts
+
+The [preflight archive](preflight-evidence.tar.gz) retains endpoint output, host activity, invocation manifests and receipts from the short setup checks, plus the Linux focused allocation logs. These short runs are excluded from all qualifying intervals. They established the frozen fixture before the initial full campaign; no replacement campaign has been used.
+
+| Capture | Observation and disposition |
+| --- | --- |
+| `smoke-01` | Client exited successfully but the server reported an error during final control exchange. The fixture needed an explicit final acknowledgment before closing the connection; corrected before freezing. |
+| `smoke-02` | Host qualification failed: the unrelated VM ran on measured cores and their SMT siblings. Temporary cgroup CPU isolation removed that overlap before the next setup check. |
+| `smoke-03` | All six cells completed one short base/candidate pair with valid payload, probe and host receipts under CPU isolation. |
+| `qlog-smoke` | The client timed out during setup because the fixture created a qlog trace without starting its processing loop. Added the required `trace.Run()` before freezing the endpoint. |
+| `qlog-smoke-02` | One qlog-on P2 base/candidate pair completed successfully. This is diagnostic coverage only. |
+
+Both failed and successful setup observations remain in the archive. The isolation launcher restored the initially unrestricted cgroup settings after each of these captures; the full campaign currently holds its own temporary reservation. The launcher later gained a separate `bench` mode for the existing benchmarks; the running full campaign still uses its original launcher bytes recorded by the host checkpoint.
