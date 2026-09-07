@@ -1,8 +1,11 @@
+//go:build linux && queue_experiment
+
 package quic
 
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/quic-go/quic-go/internal/utils"
@@ -13,6 +16,9 @@ import (
 // workload. The default ns/op and allocation metrics are per offered datagram;
 // delivered/s, ns/delivered, and drop-% describe useful work under overload.
 func BenchmarkDatagramReceiveConcurrent(b *testing.B) {
+	if os.Getenv("QUEUE_EXPERIMENT") != "1" {
+		b.Skip("set QUEUE_EXPERIMENT=1 to run this archived experiment")
+	}
 	logger := utils.DefaultLogger.WithPrefix("benchmark")
 	logger.SetLogLevel(utils.LogLevelNothing)
 	queue := newDatagramQueue(func() {}, logger)
@@ -70,6 +76,9 @@ func BenchmarkDatagramReceiveConcurrent(b *testing.B) {
 // BenchmarkDatagramReceivePartialRefill keeps 96 entries live between operations.
 // Each operation drains and refills 32 messages, never emptying the queue.
 func BenchmarkDatagramReceivePartialRefill(b *testing.B) {
+	if os.Getenv("QUEUE_EXPERIMENT") != "1" {
+		b.Skip("set QUEUE_EXPERIMENT=1 to run this archived experiment")
+	}
 	logger := utils.DefaultLogger.WithPrefix("benchmark")
 	logger.SetLogLevel(utils.LogLevelNothing)
 	queue := newDatagramQueue(func() {}, logger)

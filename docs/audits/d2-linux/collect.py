@@ -33,7 +33,7 @@ def main():
     manifest = results / "samples.jsonl"
     if manifest.exists():
         raise SystemExit("Refusing to overwrite or resume an existing collection")
-    env = dict(os.environ, GOMAXPROCS="2", GOTOOLCHAIN="local", LC_ALL="C")
+    env = dict(os.environ, GOMAXPROCS="2", GOTOOLCHAIN="local", LC_ALL="C", QUEUE_EXPERIMENT="1")
     cases = [
         ("SteadyDrain", "^BenchmarkDatagramReceive$/^SteadyDrain$"),
         ("BurstDrain", "^BenchmarkDatagramReceive$/^BurstDrain$"),
