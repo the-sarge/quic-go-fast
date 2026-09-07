@@ -148,3 +148,26 @@ Published the packet-emission architecture handoff in [PR #23](https://github.co
 Validation: the slice audit, source anchors, relative links, Markdown/whitespace checks and all 33 triggered hosted checks passed for the documentation PR. No runtime implementation, prototype or performance capture was performed during this handoff.
 
 Next snapshot: E1 feasibility [#25](https://github.com/the-sarge/quic-go-fast/issues/25) and E2 queue lifetime [#26](https://github.com/the-sarge/quic-go-fast/issues/26) are independently ready. Six child issues have native parent/blocking links and matching OmniFocus tasks under the supplied parent. [Program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) owns the live frontier and mapping. No implementation agent has been dispatched.
+
+---
+
+## Packet emission feasibility concluded inconclusively - 2026-09-07 05:05 EDT
+
+**Main:** `1692d1739809`
+**Actor:** Codex
+
+### Completed
+
+Merged [E1 / PR #33](https://github.com/the-sarge/quic-go-fast/pull/33) as `1692d1739809dfd086477f60698cf0755eba3a35`, closing [#25](https://github.com/the-sarge/quic-go-fast/issues/25). The product contains characterization tests and archived feasibility evidence, with E1 completion and the resulting frontier recorded in the plan and program index. The runtime prototype remains unadopted.
+
+### Decisions
+
+E1 concluded inconclusively under the accepted performance contract: all 120 matrix samples were valid, but P2 failed probe latency and missed-probe margins, P5 narrowly failed the probe latency margin, and stream churn failed its benchmark time bound. P1, P3, P4 and P6 passed all matrix margins. Four physical cores per endpoint improved delivered DATAGRAM throughput from about 2.93 to 3.72 Gbps at 4 Gbps offered load. This was one initial campaign on minimax using same-host loopback UDP; it does not qualify a physical link or other platforms. The partial prototype result interface and incomplete historical allocation invocation provenance are disclosed in the [feasibility receipt](audits/e1-emission/README.md). All temporary CPU isolation settings were restored.
+
+### Validation
+
+Independent RAS review `20260907T081528-7e4b074c7cec739bb0356bfc` completed, with every finding independently dispositioned in the [review receipt](audits/e1-emission/review.md). Accepted corrections changed documentation only; the shared review policy permitted skipping another RAS review or verification. No deferred findings survived closure. Final head `6a6da8977e6fefa06f29697938709ef6bd064ee7` passed focused emission tests, focused race checks, opt-in fixture compilation, the full Go suite and vet with Go 1.27.1 on darwin/arm64. Archived samples reanalyzed to identical summaries. All 33 hosted checks passed on that head, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34102647743), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34102647816), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34102647746), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34102647757), and [interop build](https://github.com/the-sarge/quic-go-fast/actions/runs/34102647749). Historical CI failures and reproduction limits remain recorded separately; no runtime fix is claimed for them.
+
+### Next
+
+E2 queue lifetime [#26](https://github.com/the-sarge/quic-go-fast/issues/26) remains independently ready. E3–E6 remain blocked because an inconclusive E1 does not authorize extraction; migration requires scoped re-handoff. Journal publication and mutable GitHub/OmniFocus closure remain at this timestamp. [Program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live frontier.
