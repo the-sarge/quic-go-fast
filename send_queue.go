@@ -84,7 +84,8 @@ func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
 	}
 }
 
-// Send sends out a packet. It's guaranteed to not block.
+// Send consumes a packet buffer, transferring it to the worker or releasing it if stopped.
+// It's guaranteed to not block. The sole producer must finish sending before calling Close.
 // Callers need to make sure that there's actually space in the send queue by calling WouldBlock.
 // Otherwise Send will panic.
 func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata) {
@@ -98,6 +99,7 @@ func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, meta
 			}
 		}
 	case <-h.runStopped:
+		p.Release()
 	default:
 		panic("sendQueue.Send would have blocked")
 	}
@@ -134,6 +136,7 @@ func (h *sendQueue) Run() error {
 				// 2. Path MTU discovery,and
 				// 3. Eventual detection of loss PingFrame.
 				if !isSendMsgSizeErr(err) {
+					e.buf.Release()
 					return err
 				}
 				if h.feedback != nil && e.metadata.handshake && e.gsoSize == 0 && e.buf.Len() > protocol.MinInitialPacketSize {
@@ -153,4 +156,9 @@ func (h *sendQueue) Close() {
 	close(h.closeCalled)
 	// wait until the run loop returned
 	<-h.runStopped
+	// The producer has stopped and the worker can no longer own a queued entry.
+	// A fatal write may have left entries, including a Send racing worker exit.
+	for len(h.queue) > 0 {
+		(<-h.queue).buf.Release()
+	}
 }
