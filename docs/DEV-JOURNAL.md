@@ -194,3 +194,26 @@ All 100 matrix samples and 20 existing-benchmark invocations completed successfu
 ### Next
 
 E2 remains independently ready; E3–E6 remain blocked pending a new feasibility decision and their existing dependencies. The product PR already committed this frontier. [Tracking issue #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live view; issue and OmniFocus closure is being reconciled after this journal merge. Physical-link and non-Linux performance remain untraced.
+
+---
+
+## Queued-buffer lifetimes closed; staged adoption accepted - 2026-09-07 14:18 EDT
+
+**Main:** `21b45f4615c7`
+**Actor:** Codex
+
+### Completed
+
+Merged [E2 / PR #39](https://github.com/the-sarge/quic-go-fast/pull/39): fatal writes and stopped submissions now release packet buffers, and shutdown joins the worker before reclaiming queued leftovers. This preserves queue capacity, the successful send path, error causes and handshake-MTU feedback. [Issue #26](https://github.com/the-sarge/quic-go-fast/issues/26) is closed.
+
+### Decisions
+
+The owner [authorized staged packet-emission adoption with E1's recorded uncertainty accepted](audits/2026-09-07-emission-adoption-decision.md). E1 remains inconclusive, its prototype remains inert and no further E1 campaign is authorized. Later slice correctness and bounded performance checks remain in place.
+
+### Validation
+
+Final product head `ddcbde7090d8bc2cb8bcfd9185a541eb117fa8d5` passed the full Go suite, vet and focused queue/handshake-MTU race checks with Go 1.27.1 on macOS and minimax Linux, plus all 33 hosted checks. The [queue comparison](audits/e2-buffer-lifetimes/README.md) passed its 5% time margins with zero allocations per operation. One failed fixture capture is retained; the corrected bounded replacement completed all twenty invocations. The source/build provenance correction reproduces the recorded binary hashes without another benchmark run. Independent review completed with five reviewers and two provider failures; its one metadata finding was resolved under the shared docs-only correction policy. [Certification](https://github.com/the-sarge/quic-go-fast/pull/39#issuecomment-5574341697).
+
+### Next
+
+E3, ordinary/GSO packet emission, is the current implementation frontier; E4/E5 still depend on E3 and E6 on E4/E5. [Live program tracker](https://github.com/the-sarge/quic-go-fast/issues/31).
