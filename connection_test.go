@@ -1839,14 +1839,10 @@ func TestConnectionPacketPacing(t *testing.T) {
 			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny),
 			sph.EXPECT().SentPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()),
 			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendPacingLimited),
-			// 4. become pacing limited for 25ms...
+			// 4. wake once more, then stop. ACK allowances have real-packer
+			// outcome coverage in TestEmissionAckAllowance.
 			sph.EXPECT().TimeUntilSend().DoAndReturn(func() monotime.Time { return monotime.Now().Add(step) }),
-			// ... but this time we're still pacing limited when waking up.
-			// In this case, we can only send an ACK.
-			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendPacingLimited),
-			// 5. stop the test by becoming pacing limited forever
-			sph.EXPECT().TimeUntilSend().Return(monotime.Now().Add(time.Hour)),
-			sph.EXPECT().SentPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()),
+			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendNone),
 		)
 		sph.EXPECT().ECNMode(gomock.Any()).AnyTimes()
 		for i := range 3 {
@@ -1857,13 +1853,6 @@ func TestConnectionPacketPacing(t *testing.T) {
 				},
 			)
 		}
-		tc.packer.EXPECT().PackAckOnlyPacket(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(_ protocol.ByteCount, _ monotime.Time, _ protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-				buf := getPacketBuffer()
-				buf.Data = []byte("ack")
-				return shortHeaderPacket{PacketNumber: 1}, buf, nil
-			},
-		)
 		sender.EXPECT().WouldBlock().AnyTimes()
 
 		type sentPacket struct {
@@ -1873,7 +1862,7 @@ func TestConnectionPacketPacing(t *testing.T) {
 		sendChan := make(chan sentPacket, 10)
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
 			sendChan <- sentPacket{time: monotime.Now(), data: b.Data}
-		}).Times(4)
+		}).Times(3)
 
 		errChan := make(chan error, 1)
 		go func() { errChan <- tc.conn.run() }()
@@ -1891,17 +1880,10 @@ func TestConnectionPacketPacing(t *testing.T) {
 				t.Fatal("should have sent a packet")
 			}
 		}
-		select {
-		case b := <-sendChan:
-			require.Equal(t, []byte("ack"), b.data)
-			times = append(times, b.time)
-		case <-time.After(time.Second):
-			t.Fatal("timeout")
-		}
 
 		require.Equal(t, times[0], times[1])
 		require.Equal(t, times[2], times[1].Add(step))
-		require.Equal(t, times[3], times[2].Add(step))
+		time.Sleep(step) // consume the final pacing wakeup without another send
 
 		synctest.Wait() // make sure that no more packets are sent
 		require.True(t, mockCtrl.Satisfied())
@@ -2393,92 +2375,6 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 			require.NoError(t, err)
 		default:
 			t.Fatal("should have timed out")
-		}
-	})
-}
-
-func TestConnectionCongestionControl(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		mockCtrl := gomock.NewController(t)
-		sph := mockackhandler.NewMockSentPacketHandler(mockCtrl)
-		tc := newServerTestConnection(t,
-			mockCtrl,
-			nil,
-			false,
-			connectionOptHandshakeConfirmed(),
-			connectionOptSentPacketHandler(sph),
-		)
-
-		sph.EXPECT().TimeUntilSend().AnyTimes()
-		sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
-		sph.EXPECT().ECNMode(true).AnyTimes()
-		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).Times(2)
-		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAck).MaxTimes(1)
-		sph.EXPECT().SentPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2)
-		// Since we're already sending out packets, we don't expect any calls to PackAckOnlyPacket
-		for i := range 2 {
-			tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-				func(buffer *packetBuffer, count protocol.ByteCount, t monotime.Time, version protocol.Version) (shortHeaderPacket, error) {
-					buffer.Data = append(buffer.Data, []byte("foobar")...)
-					return shortHeaderPacket{PacketNumber: protocol.PacketNumber(i)}, nil
-				},
-			)
-		}
-		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any())
-		done1 := make(chan struct{})
-		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).Do(
-			func([]byte, uint16, protocol.ECN) error { close(done1); return nil },
-		)
-
-		errChan := make(chan error, 1)
-		go func() { errChan <- tc.conn.run() }()
-		tc.conn.scheduleSending()
-
-		synctest.Wait()
-
-		select {
-		case <-done1:
-		default:
-			t.Fatal("should have sent a packet")
-		}
-		require.True(t, mockCtrl.Satisfied())
-
-		// Now that we're congestion limited, we can only send an ack-only packet
-		done2 := make(chan struct{})
-		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAck)
-		tc.packer.EXPECT().PackAckOnlyPacket(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(protocol.ByteCount, monotime.Time, protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-				close(done2)
-				return shortHeaderPacket{}, nil, errNothingToPack
-			},
-		)
-		tc.conn.scheduleSending()
-
-		synctest.Wait()
-
-		select {
-		case <-done2:
-		default:
-			t.Fatal("should have sent an ack-only packet")
-		}
-		require.True(t, mockCtrl.Satisfied())
-
-		// If the send mode is "none", we can't even send an ack-only packet
-		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendNone)
-		tc.conn.scheduleSending()
-		synctest.Wait() // make sure there are no calls to the packer
-
-		// test teardown
-		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-		tc.conn.destroy(nil)
-
-		synctest.Wait()
-
-		select {
-		case err := <-errChan:
-			require.NoError(t, err)
-		default:
-			t.Fatal("timeout")
 		}
 	})
 }

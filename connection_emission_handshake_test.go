@@ -114,6 +114,12 @@ func TestEmissionAckAllowance(t *testing.T) {
 				}
 				require.NoError(t, c.triggerSending(now).err)
 				require.Empty(t, q.queue, "an ACK is sent at most once until more packets arrive")
+				require.NoError(t, c.receivedPacketHandler.ReceivedPacket(6, protocol.ECNNon, level, now, true))
+				require.NoError(t, c.receivedPacketHandler.ReceivedPacket(7, protocol.ECNNon, level, now, true))
+				c.sentPacketHandler = emissionRecoveryOutcome{SentPacketHandler: c.sentPacketHandler, mode: ackhandler.SendNone}
+				blocked := c.triggerSending(now)
+				require.Equal(t, emissionHardBlocked, blocked.stop)
+				require.Empty(t, q.queue, "hard blocking forbids even ACK-only output")
 			})
 		}
 	}
