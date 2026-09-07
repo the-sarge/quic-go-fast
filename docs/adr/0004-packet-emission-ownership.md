@@ -1,0 +1,11 @@
+---
+status: accepted
+---
+
+# Deepen packet emission while preserving the Go execution model
+
+A private packet-emission module will own send-capacity coordination, construction through the existing packet packer, recovery registration, accounting, logging, and outgoing buffer handoff. Clearer ownership and easier behavioral testing can justify adoption without a speed gain, provided the measured performance and compatibility gates pass. The connection goroutine remains the protocol-state owner, and the asynchronous send worker retains socket I/O; a full sans-I/O redesign is a separate decision.
+
+Keep the existing registration point before asynchronous I/O and preserve scheduling, congestion, handshake, path and public-interface semantics. The module must begin before destructive packing; a wrapper around finished packets would leave the difficult ordering contract with callers. Local cleanup corrections needed to establish outgoing ownership are included only with focused failing regressions. Receive ownership, application credit, path-policy reorganization and neutral observability are excluded.
+
+The [packet-emission plan](2026-09-07-packet-emission-plan.md) is the normative execution contract, composed with ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), and [0003](0003-follow-stable-upstream-releases.md). It uses a disposable feasibility experiment followed by independently green migration slices; each slice keeps one authoritative state owner and a bounded temporary interface. Removing the broad packer interface and mock follows replacement coverage. Two production adapters are not required to justify a useful concrete module.
