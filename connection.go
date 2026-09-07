@@ -2815,7 +2815,11 @@ func (c *Conn) registerPackedShortHeaderPacket(p shortHeaderPacket, ecn protocol
 
 func (c *Conn) sendPackedCoalescedPacket(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) error {
 	c.logCoalescedPacket(packet, ecn)
+	var hasHandshakePacket bool
 	for _, p := range packet.longHdrPackets {
+		if p.EncryptionLevel() == protocol.EncryptionInitial || p.EncryptionLevel() == protocol.EncryptionHandshake {
+			hasHandshakePacket = true
+		}
 		if c.firstAckElicitingPacketAfterIdleSentTime.IsZero() && p.IsAckEliciting() {
 			c.firstAckElicitingPacketAfterIdleSentTime = now
 		}
@@ -2865,7 +2869,7 @@ func (c *Conn) sendPackedCoalescedPacket(packet *coalescedPacket, ecn protocol.E
 	}
 	c.connIDManager.SentPacket()
 	c.sendQueue.Send(packet.buffer, 0, ecn, sendMetadata{
-		handshake:      !c.handshakeConfirmed && len(packet.longHdrPackets) > 0,
+		handshake:      !c.handshakeConfirmed && hasHandshakePacket,
 		pathGeneration: c.pathGeneration,
 	})
 	return nil
