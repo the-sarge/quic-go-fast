@@ -17,8 +17,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const pacedStart = ^uint64(0)
-const pacedEnd = pacedStart - 1
+const (
+	pacedStart = ^uint64(0)
+	pacedEnd   = pacedStart - 1
+)
 
 func pacedMonotonicNS() int64 {
 	var ts unix.Timespec
@@ -87,7 +89,7 @@ func (s *externalPacedSource) next(t *testing.T, bursts int64) (int64, bool) {
 }
 
 func TestDatagramExternalPacer(t *testing.T) {
-	if os.Getenv("QUEUE_PACER") != "1" {
+	if os.Getenv("QUEUE_EXPERIMENT") != "1" || os.Getenv("QUEUE_PACER") != "1" {
 		t.Skip("external pacer subprocess only")
 	}
 	rate, burst := pacedEnvInt(t, "QUEUE_RATE"), pacedEnvInt(t, "QUEUE_BURST")
@@ -162,8 +164,10 @@ func TestDatagramExternalPacer(t *testing.T) {
 	if sent+skipped+ipcSkipped != bursts {
 		t.Fatal("pacer accounting failure")
 	}
-	encoded, err := json.Marshal(map[string]any{"sent_ticks": sent, "generator_skipped_ticks": skipped,
-		"ipc_skipped_ticks": ipcSkipped, "cpu_seconds": cpuSeconds, "lateness": lateness.summary()})
+	encoded, err := json.Marshal(map[string]any{
+		"sent_ticks": sent, "generator_skipped_ticks": skipped,
+		"ipc_skipped_ticks": ipcSkipped, "cpu_seconds": cpuSeconds, "lateness": lateness.summary(),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
