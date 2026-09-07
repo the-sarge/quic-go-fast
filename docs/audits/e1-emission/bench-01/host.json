@@ -1,0 +1,9 @@
+{
+  "fully_in_capture_one_second_intervals": 144,
+  "first_interval_end": "08:05:36",
+  "last_interval_end": "08:07:59",
+  "max_average_guest_percent": 0.0,
+  "max_average_smt_sibling_busy_percent": 0.0827083333333331,
+  "pass_host_thresholds": true,
+  "monitor_command": "LC_ALL=C TZ=UTC mpstat -P 8,9,12,13,24,25,28,29 -o JSON 1 180"
+}
