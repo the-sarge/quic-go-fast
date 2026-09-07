@@ -1,0 +1,85 @@
+{
+  "kind": "retrospective source and binary binding; no benchmark execution",
+  "go": "go version go1.27.1 linux/amd64",
+  "go_env": {
+    "CGO_ENABLED": "1",
+    "GOAMD64": "v1",
+    "GOARCH": "amd64",
+    "GOEXPERIMENT": "",
+    "GOFLAGS": "",
+    "GOOS": "linux",
+    "GOTOOLCHAIN": "auto"
+  },
+  "declared_base": "322c98991993736861f1d02e69d24497bf7376e6",
+  "variants": {
+    "base": {
+      "head": "23b58f89cc238cde79e77f8b3f308bcb885733db",
+      "tree": "411d225f63c456a8aa321f1073f34a528e6fe420",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e2-linux-base",
+      "changed_from_declared_base": [
+        "send_queue_lifetime_bench_test.go"
+      ],
+      "fixture_sha256": "34ff7b61106fc31b71f1deb80b057679365d11637a1859307920cd162a65d55f",
+      "original_build_command": [
+        "go",
+        "test",
+        "-tags",
+        "queue_lifetime_experiment",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e2/base-bench",
+        "."
+      ],
+      "rebuild_command": [
+        "go",
+        "test",
+        "-tags",
+        "queue_lifetime_experiment",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e2/base-rebuilt",
+        "."
+      ],
+      "rebuild_sha256": "43a7f809df5e3fd4cbb071b18e737bae65a48f5803f2c0345d17d3b4d3f30644",
+      "capture_sha256": "43a7f809df5e3fd4cbb071b18e737bae65a48f5803f2c0345d17d3b4d3f30644",
+      "binary_match": true,
+      "embedded_build_info": "/home/josh/.cache/qgf-e2/base-bench: go1.27.1\n\tpath\tgithub.com/quic-go/quic-go.test\n\tmod\tgithub.com/quic-go/quic-go\t(devel)\t\n\tdep\tgithub.com/quic-go/go-ossfuzz-seeds\tv0.1.0\th1:APacT+iIaNF6fd8AGEiN3bT/Jtkd2jz4v4TzM7MFjy0=\n\tdep\tgithub.com/stretchr/testify\tv1.12.1\th1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=\n\tdep\tgo.uber.org/mock\tv0.5.2\th1:LbtPTcP8A5k9WPXj54PPPbjcI4Y6lhyOZXn+VS7wNko=\n\tdep\tgo.yaml.in/yaml/v3\tv3.0.5\th1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=\n\tdep\tgolang.org/x/crypto\tv0.54.0\th1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=\n\tdep\tgolang.org/x/net\tv0.56.0\th1:Rw8j/hFzGvJUZwNBXnAtf5sVDVt+65SK2C7IxCxZt5o=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=queue_lifetime_experiment\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1"
+    },
+    "candidate": {
+      "head": "16a20ff6a210be891962fac2e23f669057b8b433",
+      "tree": "93c21a6686fd70b2cea372a56932c83490667dbf",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e2-linux-candidate",
+      "changed_from_declared_base": [
+        "send_queue.go",
+        "send_queue_lifetime_bench_test.go",
+        "send_queue_test.go"
+      ],
+      "fixture_sha256": "34ff7b61106fc31b71f1deb80b057679365d11637a1859307920cd162a65d55f",
+      "original_build_command": [
+        "go",
+        "test",
+        "-tags",
+        "queue_lifetime_experiment",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e2/candidate-bench",
+        "."
+      ],
+      "rebuild_command": [
+        "go",
+        "test",
+        "-tags",
+        "queue_lifetime_experiment",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e2/candidate-rebuilt",
+        "."
+      ],
+      "rebuild_sha256": "9047ad53e760b18d297249f19682bbc4938db4fb7bed1f232fc712695baee6de",
+      "capture_sha256": "9047ad53e760b18d297249f19682bbc4938db4fb7bed1f232fc712695baee6de",
+      "binary_match": true,
+      "embedded_build_info": "/home/josh/.cache/qgf-e2/candidate-bench: go1.27.1\n\tpath\tgithub.com/quic-go/quic-go.test\n\tmod\tgithub.com/quic-go/quic-go\t(devel)\t\n\tdep\tgithub.com/quic-go/go-ossfuzz-seeds\tv0.1.0\th1:APacT+iIaNF6fd8AGEiN3bT/Jtkd2jz4v4TzM7MFjy0=\n\tdep\tgithub.com/stretchr/testify\tv1.12.1\th1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=\n\tdep\tgo.uber.org/mock\tv0.5.2\th1:LbtPTcP8A5k9WPXj54PPPbjcI4Y6lhyOZXn+VS7wNko=\n\tdep\tgo.yaml.in/yaml/v3\tv3.0.5\th1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=\n\tdep\tgolang.org/x/crypto\tv0.54.0\th1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=\n\tdep\tgolang.org/x/net\tv0.56.0\th1:Rw8j/hFzGvJUZwNBXnAtf5sVDVt+65SK2C7IxCxZt5o=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-tags=queue_lifetime_experiment\n\tbuild\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1"
+    }
+  },
+  "source_bundle_sha256": "0f57f9da4770e44f3f3f41cb25308ef6d8e3ec49041c1fd1751dd69553c7cb64"
+}

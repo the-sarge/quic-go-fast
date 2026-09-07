@@ -34,6 +34,16 @@ Both variants reported 0 B/op and 0 allocs/op in every replacement sample. The m
 
 The first attempt stopped at the third invocation because the pressure fixture waited for availability once and then submitted without rechecking capacity. Availability is a wakeup hint, so this violated the existing `Send` precondition and caused the observed full-queue panic. The fixture was corrected to recheck in a loop, identically on baseline and candidate; production code did not change. The first failed attempt remains in `bench-01`, is excluded from replacement analysis, and is not represented as passing. The single permitted replacement is `bench-02`; no further comparison or broadened traffic campaign was run.
 
+## Retained source and build binding
+
+Review identified that the original archive named the synthetic baseline commit without retaining its source or build command. The [source bundle](source-binding.bundle) now retains both measured source revisions relative to declared base `322c98991993736861f1d02e69d24497bf7376e6`. The baseline differs from that base only by the identical opt-in benchmark fixture. The [build binding](build-binding.json) records both trees, changed files, fixture hashes, original build commands, toolchain/environment and embedded binary build information.
+
+The [bounded binding script](bind-builds.py) rebuilt both retained revisions without running any benchmarks. Each rebuilt binary exactly matches the SHA-256 recorded in the pre-measurement manifest: baseline `43a7f809df5e3fd4cbb071b18e737bae65a48f5803f2c0345d17d3b4d3f30644`, candidate `9047ad53e760b18d297249f19682bbc4938db4fb7bed1f232fc712695baee6de`. This is retrospective evidence recovery, not a claim that these extra receipts existed before capture. It resolves source correspondence without changing or replacing samples. The source bundle can be verified in a clone containing the declared base with `git bundle verify source-binding.bundle`.
+
+The [host observation](host-observation.json) summarizes the retained monitor's 48 complete intervals: zero measured-core guest CPU and maximum mean sibling busy time 0.061875%. The monitor was terminated after capture, leaving only the enclosing JSON footer absent; that footer was restored in memory to read the complete observations, and raw bytes remain unchanged in the archive.
+
 ## Review and certification
 
 The declared budget is one initial review and at most one replacement under the shared review-loop baseline. The product PR owns the explicit adoption-decision publication, E2 completion and E3 frontier transition. Final review dispositions and exact-head local/hosted certification are recorded in the PR discussion; neither the measured runtime commit nor this receipt predicts a future certified head. E3 and later modes remain separate implementations.
+
+The [review disposition](review.md) records the one accepted metadata correction. A further RAS review/verify was skipped under the shared docs-only correction policy; local source/hash/format checks and final-head certification apply to the corrected head.

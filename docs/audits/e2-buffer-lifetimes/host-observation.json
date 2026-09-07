@@ -1,0 +1,24 @@
+{
+  "complete_intervals": 48,
+  "footer_note": "mpstat terminated after capture; only enclosing JSON closing delimiters were restored in memory for reading retained complete observations",
+  "measured_cores": [
+    8,
+    9,
+    10,
+    11
+  ],
+  "reserved_siblings": [
+    24,
+    25,
+    26,
+    27
+  ],
+  "controller_affinity": [
+    0
+  ],
+  "monitor_command_affinity": [
+    1
+  ],
+  "maximum_measured_guest": 0.0,
+  "maximum_sibling_mean_busy": 0.06187499999999998
+}
