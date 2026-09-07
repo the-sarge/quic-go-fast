@@ -33,3 +33,7 @@ The [before](isolation-before.json) and [after](isolation-after.json) receipts s
 ## Closeout source packaging
 
 The retained Linux Go measurement tests require `-tags queue_experiment` and `QUEUE_EXPERIMENT=1`. The external pacer additionally requires `QUEUE_PACER=1`, as already supplied by the explicit collector invocation. The closeout adds the general opt-in guard to that subprocess entry point and groups its constants for repository formatting; the historical measured commits, tool hashes, samples and conclusions remain unchanged.
+
+## Prerequisite for future collector reuse
+
+The archived run restored all CPUs, as its receipts show, but `collect.py` does not guarantee restoration on every failure path: setup and its receipt write precede the `try`, and child/monitor waits can interrupt cleanup in `finally`. Before any separately authorized new collection, correct those paths so every successful setup reaches cleanup even if receipt writing or process teardown fails, and verify the failure paths with mocked isolation calls. Do not reuse the retained collector unchanged; analysis reproduction from the saved artifacts does not invoke it.

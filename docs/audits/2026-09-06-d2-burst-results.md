@@ -44,7 +44,7 @@ Paired head-index changes, with bootstrap 95% intervals:
 | 500,000 / internal | -3.94 [-3.95, -3.94] | +0.50 [+0.14, +0.90] | -1.96 [-3.53, -0.38] |
 | 500,000 / external | -3.95 [-3.95, -3.95] | -3.00 [-3.82, -2.24] | -3.69 [-4.44, -3.02] |
 
-With external pacing, median CPU per delivery was 2.132 → 2.099 µs at 10k/sec, 0.492 → 0.478 µs at 100k/sec, and 0.407 → 0.395 µs at 500k/sec. These are modest process-efficiency gains, including IPC and measurement work, not full QUIC CPU or file-transfer improvements. The much larger internal-to-external CPU reduction mostly removes the busy pacer from the measured process; that CPU still runs on core 10.
+With external pacing, median CPU per delivery was 2.132 → 2.099 µs at 10k/sec, 0.492 → 0.478 µs at 100k/sec, and 0.408 → 0.394 µs at 500k/sec. These are modest process-efficiency gains, including IPC and measurement work, not full QUIC CPU or file-transfer improvements. The much larger internal-to-external CPU reduction mostly removes the busy pacer from the measured process; that CPU still runs on core 10.
 
 At the highest rate, externally paced p99 improved only 3.69% [3.02%, 4.44% better], with essentially equal successful throughput. Even the isolated internal-pacer control showed only a 1.96% p99 improvement and no consistent throughput advantage. Thus the earlier approximately 67% tail improvement and 4% throughput advantage were not robust across this controlled follow-up. The historical run and this run differ in time, placement, isolation, and small harness plumbing, so the evidence does not uniquely assign the old result to VM interference.
 
