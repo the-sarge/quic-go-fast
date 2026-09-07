@@ -1,0 +1,44 @@
+{
+  "seed": 20260907,
+  "whole_pair_resamples": 20000,
+  "campaign": "/tmp/qgf-e4-capture-source/campaign-01",
+  "cells": [
+    {
+      "cell": "P3",
+      "valid_pairs": 10,
+      "status": "noninferiority_not_established",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 1.0003784147655526,
+          "one_sided_95_percent_bound": 0.9993950072929869,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0002997537716838,
+          "one_sided_95_percent_bound": 1.0030541093672654,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 0.9997961209336897,
+          "one_sided_95_percent_bound": 1.0001146066214246,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 1.066395997781453,
+          "one_sided_95_percent_bound": 1.0862731308980553,
+          "bound_direction": "upper",
+          "pass": false
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    }
+  ],
+  "status": "noninferiority_not_established"
+}
