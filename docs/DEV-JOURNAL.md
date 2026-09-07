@@ -171,3 +171,26 @@ Independent RAS review `20260907T081528-7e4b074c7cec739bb0356bfc` completed, wit
 ### Next
 
 E2 queue lifetime [#26](https://github.com/the-sarge/quic-go-fast/issues/26) remains independently ready. E3–E6 remain blocked because an inconclusive E1 does not authorize extraction; migration requires scoped re-handoff. Journal publication and mutable GitHub/OmniFocus closure remain at this timestamp. [Program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live frontier.
+
+---
+
+## Four-core packet-emission feasibility completed - 2026-09-07 13:07 EDT
+
+**Main:** `ad60bc438bb1`
+**Actor:** Codex
+
+### Completed
+
+Merged [E1 replacement evidence PR #37](https://github.com/the-sarge/quic-go-fast/pull/37) at `ad60bc438bb1d9143cf0323baf85aaf9237ef0d9`. The revised established-1-RTT normal/GSO prototype consumes progress, distinct stop reasons, deadlines and queue wakeup while retaining the authoritative packer/recovery/queue and existing execution model. It remains an inert patch; production runtime is unchanged. The [replacement receipt](audits/e1-emission-four-core/README.md) retains the complete minimax four-core campaign, bounded churn diagnosis, full allocation provenance and raw archives.
+
+### Decisions
+
+The [four-core deployment decision](audits/2026-09-07-emission-deployment-budget.md) removes two-core performance from acceptance. Under the [accepted resumption](audits/2026-09-07-emission-four-core-resumption.md), the remaining campaign and review allowances are now exhausted. The final result is inconclusive: P3/P4/P5/P6 meet the numerical margins, P1 p99 and stream churn exceed their numerical upper-bound limits, and capture tooling shared the endpoint cpuset, so dedicated-core qualification is unestablished. No runtime adoption or additional campaign is implied; historical receipts remain unchanged.
+
+### Validation
+
+All 100 matrix samples and 20 existing-benchmark invocations completed successfully; temporary CPU restrictions were restored. Focused allocations matched at 37 ordinary and 104 GSO, with a 48-byte embedded connection-size increase. The revised prototype passed full suite/vet/focused race on macOS and native Linux; the baseline Linux randomized-corruption Dial timeout remains disclosed and was not rerun. Replacement RAS review completed with five successful reviewers, one accepted placement-disclosure correction and one rejected missing-drain claim; both Claude subprocess failures and an AGY adjudication source-token rejection are retained. The docs-only correction policy skipped an additional RAS cycle. Final product head `7309630a12739dc0eef0003724dc1f6fe02c02c7` passed local full suite/vet/focused race/opt-in compile checks and all 33 hosted checks; see the [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/37#issuecomment-5573759929).
+
+### Next
+
+E2 remains independently ready; E3–E6 remain blocked pending a new feasibility decision and their existing dependencies. The product PR already committed this frontier. [Tracking issue #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live view; issue and OmniFocus closure is being reconciled after this journal merge. Physical-link and non-Linux performance remain untraced.
