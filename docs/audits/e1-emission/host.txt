@@ -1,0 +1,124 @@
+{
+  "cells": [
+    {
+      "cell": "P1",
+      "mode": "datagram",
+      "rate": 1000000000,
+      "processors": 2,
+      "streams": 1,
+      "gso": true
+    },
+    {
+      "cell": "P2",
+      "mode": "datagram",
+      "rate": 4000000000,
+      "processors": 2,
+      "streams": 1,
+      "gso": true
+    },
+    {
+      "cell": "P3",
+      "mode": "datagram",
+      "rate": 4000000000,
+      "processors": 4,
+      "streams": 1,
+      "gso": true
+    },
+    {
+      "cell": "P4",
+      "mode": "datagram",
+      "rate": 4000000000,
+      "processors": 2,
+      "streams": 1,
+      "gso": false
+    },
+    {
+      "cell": "P5",
+      "mode": "stream",
+      "rate": 0,
+      "processors": 2,
+      "streams": 1,
+      "gso": true
+    },
+    {
+      "cell": "P6",
+      "mode": "stream",
+      "rate": 0,
+      "processors": 2,
+      "streams": 16,
+      "gso": true
+    }
+  ],
+  "paired_samples": 10,
+  "measurement_seconds": 60,
+  "warmup_seconds": 2,
+  "drain_seconds": 1,
+  "processor_budget": "per endpoint",
+  "probe_hz": 100,
+  "probe_deadline_seconds": 1,
+  "quic_version": 1,
+  "qlog": false,
+  "datagram_bytes": 1071,
+  "probe_record_bytes": 64,
+  "stream_record_bytes": 65536,
+  "initial_packet_size": 1200,
+  "path_mtu_discovery": false,
+  "stream_receive_window": 8388608,
+  "connection_receive_window": 67108864,
+  "transport": "loopback UDP, two processes; generator cost included in client CPU",
+  "cpu_and_allocation_interval": "measurement start through drain end",
+  "datagram_admission_queue": 32,
+  "pacer": "elapsed-time offered ledger with scheduler yields",
+  "benchmark_flags": "native go build; no compiler or GODEBUG overrides; GOMAXPROCS and GSO as listed",
+  "max_average_guest_percent": 0.1,
+  "max_average_smt_sibling_busy_percent": 1,
+  "endpoint_sha256": "6ec75a1d6ae2d81c181af15f33b64036de4e1700670adba6218806a503d09a19",
+  "collector_sha256": "10dd5ae137e01fd9183130262aa88e2f19b65495a8fd25e664b658d7482f15c8",
+  "base": "e90617366674535bcefa8f90a2e92b153be1342b",
+  "candidate": "edea78eabf72a0ac2dacd0d55dd68a8f2cabdc3a"
+}
+InvocationID=0262affcec3344b88622b7ae435f3381
+ControlGroup=/qgf.slice/qgf-e1.slice/qgf-e1-capture.service
+AllowedCPUs=8-15
+CPU CORE SOCKET NODE
+  0    0      0    0
+  1    1      0    0
+  2    2      0    0
+  3    3      0    0
+  4    4      0    0
+  5    5      0    0
+  6    6      0    0
+  7    7      0    0
+  8    8      0    0
+  9    9      0    0
+ 10   10      0    0
+ 11   11      0    0
+ 12   12      0    0
+ 13   13      0    0
+ 14   14      0    0
+ 15   15      0    0
+ 16    0      0    0
+ 17    1      0    0
+ 18    2      0    0
+ 19    3      0    0
+ 20    4      0    0
+ 21    5      0    0
+ 22    6      0    0
+ 23    7      0    0
+ 24    8      0    0
+ 25    9      0    0
+ 26   10      0    0
+ 27   11      0    0
+ 28   12      0    0
+ 29   13      0    0
+ 30   14      0    0
+ 31   15      0    0
+{
+	"CGO_ENABLED": "1",
+	"GOAMD64": "v1",
+	"GOARCH": "amd64",
+	"GOFLAGS": "",
+	"GOOS": "linux",
+	"GOTOOLCHAIN": "auto",
+	"GOVERSION": "go1.27.1"
+}

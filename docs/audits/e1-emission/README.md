@@ -1,6 +1,6 @@
 # E1 packet-emission work in progress
 
-E1 is incomplete. This checkpoint contains ordinary characterization and an inert prototype, not a positive feasibility disposition. No performance campaign has started, no performance manifest is frozen, and neither the initial nor replacement campaign budget has been consumed. E3 remains blocked. The [normative E1 contract](../../adr/2026-09-07-packet-emission-plan.md#e1--establish-packet-emission-feasibility) governs; this receipt does not amend it.
+E1 is incomplete. This checkpoint contains ordinary characterization and an inert prototype, not a positive feasibility disposition. The initial performance campaign is running on `minimax` using the [frozen manifest](campaign-01/manifest.json). The replacement campaign budget remains unused. E3 remains blocked. The [normative E1 contract](../../adr/2026-09-07-packet-emission-plan.md#e1--establish-packet-emission-feasibility) governs; this receipt does not amend it.
 
 ## Frozen source identity
 
@@ -55,6 +55,8 @@ An earlier experimental revision using method-value hooks failed `TestMITCorrupt
 
 ## Resume point
 
-Resolve the Linux host and access/reservation instructions, then qualify disjoint physical-core placement, GSO capability and contention before freezing the exact manifest. The local macOS host cannot supply Linux GSO evidence. Allocation checks, the prescribed paired performance matrix, existing handshake/churn/transfer benchmark comparisons, the timeout diagnosis, independent review and final certification remain outstanding. No performance/adoption disposition is justified yet.
+The initial campaign is running on `minimax` with Go 1.27.1 and two/four physical cores per endpoint. The fixed endpoint, collector and initial isolation launcher were committed at `cc23153d`; the manifest records their applicable content hashes. Cores 8–15 are available to measurements; other user, system and VM workloads are restricted to cores 0–7 and 16–23 during each capture, leaving measured-core SMT siblings idle. The launcher restores the initially unrestricted settings on exit and has an independent three-hour restoration timer. The [host record](host.txt) captures topology, toolchain and the initial campaign service identity. Linux native GSO and emission tests passed before capture.
+
+Linux allocation checks match base and prototype: 37 fixture-inclusive allocations per ordinary packet/batch and 104 per three-packet GSO batch. The embedded connection value grows from 1168 to 1216 bytes; there is no separate module allocation or close-payload change in this prototype. These counts include transparent protection, mock-adapter and assertion overhead; they do not claim native emission is allocation-free. The full paired matrix, existing handshake/churn/transfer benchmark comparisons, disposition of the earlier timeout observation, independent review and final certification remain outstanding. No performance/adoption disposition is justified yet.
 
 Retain the one-initial/one-replacement review budget and the plan's one-campaign/one-replacement limit. Do not close E1, advance committed completion/frontier state, ready the PR for merge, append the journal or complete its OmniFocus task at this checkpoint.
