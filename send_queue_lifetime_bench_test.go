@@ -25,7 +25,7 @@ func BenchmarkQueueLifetime(b *testing.B) {
 			go func() { result <- q.Run() }()
 			b.ReportAllocs()
 			for b.Loop() {
-				if q.WouldBlock() {
+				for q.WouldBlock() {
 					<-q.Available()
 				}
 				q.Send(getPacketBuffer(), 0, protocol.ECNNon, sendMetadata{})
