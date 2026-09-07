@@ -16,7 +16,9 @@ var MaxDatagramSize protocol.ByteCount = 16383
 // A DatagramFrame is a DATAGRAM frame
 type DatagramFrame struct {
 	DataLenPresent bool
-	Data           []byte
+	// Data borrows the input buffer for parsed frames. Copy it before retaining
+	// it beyond input reuse or modifying it independently of the input.
+	Data []byte
 }
 
 func parseDatagramFrame(b []byte, typ FrameType, _ protocol.Version) (*DatagramFrame, int, error) {
@@ -39,8 +41,7 @@ func parseDatagramFrame(b []byte, typ FrameType, _ protocol.Version) (*DatagramF
 	} else {
 		length = uint64(len(b))
 	}
-	f.Data = make([]byte, length)
-	copy(f.Data, b)
+	f.Data = b[:length:length]
 	return f, startLen - len(b) + int(length), nil
 }
 

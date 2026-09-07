@@ -124,3 +124,44 @@ func TestMaxDatagramLenWithDataLenPresent(t *testing.T) {
 	}
 	require.Equal(t, 1, frameOneByteTooSmallCounter)
 }
+
+func TestParseDatagramFrameBorrowsBoundedPayload(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		withLength bool
+		payload    []byte
+	}{
+		{name: "length", withLength: true, payload: []byte("foobar")},
+		{name: "no length", payload: []byte("foobar")},
+		{name: "empty length", withLength: true},
+		{name: "empty no length"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var data []byte
+			typ := FrameTypeDatagramNoLength
+			if test.withLength {
+				typ = FrameTypeDatagramWithLength
+				data = encodeVarInt(uint64(len(test.payload)))
+			}
+			offset := len(data)
+			data = append(data, test.payload...)
+			consumed := len(data)
+			if test.withLength {
+				data = append(data, 0x01) // a following PING is not payload
+			}
+			frame, n, err := parseDatagramFrame(data, typ, protocol.Version1)
+			require.NoError(t, err)
+			require.Equal(t, consumed, n)
+			require.Equal(t, string(test.payload), string(frame.Data))
+			require.Equal(t, len(test.payload), cap(frame.Data))
+			if len(test.payload) > 0 {
+				require.Same(t, &data[offset], &frame.Data[0])
+			}
+			// Appending to a parsed payload must not overwrite the next frame.
+			_ = append(frame.Data, 0xff)
+			if test.withLength {
+				require.Equal(t, byte(0x01), data[consumed])
+			}
+		})
+	}
+}

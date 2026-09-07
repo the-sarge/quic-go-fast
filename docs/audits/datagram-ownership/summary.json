@@ -1,0 +1,98 @@
+[
+  {
+    "source": "bench-before.log",
+    "overflow": false,
+    "samples": 5,
+    "median_ns": 314.7,
+    "bytes_per_op": [
+      2360.0
+    ],
+    "allocations_per_op": [
+      4.0
+    ]
+  },
+  {
+    "source": "bench-before.log",
+    "overflow": true,
+    "samples": 5,
+    "median_ns": 160.4,
+    "bytes_per_op": [
+      1184.0
+    ],
+    "allocations_per_op": [
+      2.0
+    ]
+  },
+  {
+    "source": "bench-after.log",
+    "overflow": false,
+    "samples": 5,
+    "median_ns": 146.6,
+    "bytes_per_op": [
+      1208.0
+    ],
+    "allocations_per_op": [
+      3.0
+    ]
+  },
+  {
+    "source": "bench-after.log",
+    "overflow": true,
+    "samples": 5,
+    "median_ns": 12.3,
+    "bytes_per_op": [
+      32.0
+    ],
+    "allocations_per_op": [
+      1.0
+    ]
+  },
+  {
+    "source": "bench-base.log",
+    "overflow": false,
+    "samples": 5,
+    "median_ns": 246.8,
+    "bytes_per_op": [
+      2360.0
+    ],
+    "allocations_per_op": [
+      4.0
+    ]
+  },
+  {
+    "source": "bench-base.log",
+    "overflow": true,
+    "samples": 5,
+    "median_ns": 122.4,
+    "bytes_per_op": [
+      1184.0
+    ],
+    "allocations_per_op": [
+      2.0
+    ]
+  },
+  {
+    "source": "bench-candidate.log",
+    "overflow": false,
+    "samples": 5,
+    "median_ns": 139.4,
+    "bytes_per_op": [
+      1208.0
+    ],
+    "allocations_per_op": [
+      3.0
+    ]
+  },
+  {
+    "source": "bench-candidate.log",
+    "overflow": true,
+    "samples": 5,
+    "median_ns": 21.01,
+    "bytes_per_op": [
+      32.0
+    ],
+    "allocations_per_op": [
+      1.0
+    ]
+  }
+]

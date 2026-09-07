@@ -1,0 +1,354 @@
+[
+  {
+    "capture": "trace-01-base",
+    "covered": 482,
+    "tail_count": 5,
+    "tail_median_rtt_ns": 2029820,
+    "tail_median_shares": {
+      "request_leg_ns": 0.6177806536981608,
+      "return_leg_ns": 0.38143544454211326,
+      "request_prelock_ns": 0.5507024553794648,
+      "request_postlock_ns": 0.0007744914718939311
+    },
+    "spans": {
+      "request_prelock": {
+        "median_duration_ns": 1117696,
+        "median_states_ns": {
+          "Running": 31553,
+          "Runnable": 404350,
+          "Waiting": 691071,
+          "Undetermined": 0
+        }
+      },
+      "request_postlock": {
+        "median_duration_ns": 1024,
+        "median_states_ns": {
+          "Running": 960,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_prelock": {
+        "median_duration_ns": 1664,
+        "median_states_ns": {
+          "Running": 1536,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_postlock": {
+        "median_duration_ns": 1024,
+        "median_states_ns": {
+          "Running": 896,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "return_observer": {
+        "median_duration_ns": 815057,
+        "median_states_ns": {
+          "Running": 1664,
+          "Runnable": 95488,
+          "Waiting": 717777,
+          "Undetermined": 0
+        }
+      }
+    },
+    "clock_alignment": {
+      "send": {
+        "offset_spread_ns": 60,
+        "marker_lag_min_ns": 240,
+        "marker_lag_p99_ns": 2732,
+        "marker_lag_max_ns": 49539
+      },
+      "receive": {
+        "offset_spread_ns": 53,
+        "marker_lag_min_ns": 248,
+        "marker_lag_p99_ns": 2858,
+        "marker_lag_max_ns": 35350
+      }
+    },
+    "covered_rtt_ns": {
+      "p50": 1142455,
+      "p99": 1964398,
+      "max": 2471098
+    },
+    "stw_overlap_ns": {
+      "send": {
+        "median": 34240,
+        "max": 60736
+      },
+      "receive": {
+        "median": 0,
+        "max": 85696
+      }
+    }
+  },
+  {
+    "capture": "trace-01-candidate",
+    "covered": 482,
+    "tail_count": 5,
+    "tail_median_rtt_ns": 2040420,
+    "tail_median_shares": {
+      "request_leg_ns": 0.6112294853009639,
+      "return_leg_ns": 0.38819127613801757,
+      "request_prelock_ns": 0.6032808816971396,
+      "request_postlock_ns": 0.0009702902905802191
+    },
+    "spans": {
+      "request_prelock": {
+        "median_duration_ns": 1230656,
+        "median_states_ns": {
+          "Running": 12544,
+          "Runnable": 232000,
+          "Waiting": 1004352,
+          "Undetermined": 0
+        }
+      },
+      "request_postlock": {
+        "median_duration_ns": 1088,
+        "median_states_ns": {
+          "Running": 960,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_prelock": {
+        "median_duration_ns": 1280,
+        "median_states_ns": {
+          "Running": 1152,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_postlock": {
+        "median_duration_ns": 896,
+        "median_states_ns": {
+          "Running": 832,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "return_observer": {
+        "median_duration_ns": 792700,
+        "median_states_ns": {
+          "Running": 1152,
+          "Runnable": 99968,
+          "Waiting": 691388,
+          "Undetermined": 0
+        }
+      }
+    },
+    "clock_alignment": {
+      "send": {
+        "offset_spread_ns": 46,
+        "marker_lag_min_ns": 262,
+        "marker_lag_p99_ns": 2957,
+        "marker_lag_max_ns": 12941
+      },
+      "receive": {
+        "offset_spread_ns": 18,
+        "marker_lag_min_ns": 256,
+        "marker_lag_p99_ns": 2720,
+        "marker_lag_max_ns": 43115
+      }
+    },
+    "covered_rtt_ns": {
+      "p50": 1151160,
+      "p99": 2025603,
+      "max": 2209538
+    },
+    "stw_overlap_ns": {
+      "send": {
+        "median": 6208,
+        "max": 21440
+      },
+      "receive": {
+        "median": 0,
+        "max": 6208
+      }
+    }
+  },
+  {
+    "capture": "trace-02-base",
+    "covered": 474,
+    "tail_count": 5,
+    "tail_median_rtt_ns": 2294237,
+    "tail_median_shares": {
+      "request_leg_ns": 0.538011053641979,
+      "return_leg_ns": 0.4611846958967959,
+      "request_prelock_ns": 0.5022970141770691,
+      "request_postlock_ns": 0.0005575085867157327
+    },
+    "spans": {
+      "request_prelock": {
+        "median_duration_ns": 1019776,
+        "median_states_ns": {
+          "Running": 10752,
+          "Runnable": 371840,
+          "Waiting": 729536,
+          "Undetermined": 0
+        }
+      },
+      "request_postlock": {
+        "median_duration_ns": 1024,
+        "median_states_ns": {
+          "Running": 896,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_prelock": {
+        "median_duration_ns": 1856,
+        "median_states_ns": {
+          "Running": 1728,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_postlock": {
+        "median_duration_ns": 1088,
+        "median_states_ns": {
+          "Running": 960,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "return_observer": {
+        "median_duration_ns": 984383,
+        "median_states_ns": {
+          "Running": 1152,
+          "Runnable": 23552,
+          "Waiting": 968383,
+          "Undetermined": 0
+        }
+      }
+    },
+    "clock_alignment": {
+      "send": {
+        "offset_spread_ns": 57,
+        "marker_lag_min_ns": 224,
+        "marker_lag_p99_ns": 2802,
+        "marker_lag_max_ns": 61128
+      },
+      "receive": {
+        "offset_spread_ns": 58,
+        "marker_lag_min_ns": 286,
+        "marker_lag_p99_ns": 2850,
+        "marker_lag_max_ns": 5018
+      }
+    },
+    "covered_rtt_ns": {
+      "p50": 1163895,
+      "p99": 2030401,
+      "max": 2730987
+    },
+    "stw_overlap_ns": {
+      "send": {
+        "median": 0,
+        "max": 23616
+      },
+      "receive": {
+        "median": 0,
+        "max": 0
+      }
+    }
+  },
+  {
+    "capture": "trace-02-candidate",
+    "covered": 479,
+    "tail_count": 5,
+    "tail_median_rtt_ns": 2109560,
+    "tail_median_shares": {
+      "request_leg_ns": 0.5923134897875023,
+      "return_leg_ns": 0.4069840306777837,
+      "request_prelock_ns": 0.5364681115209315,
+      "request_postlock_ns": 0.0006305075019066244
+    },
+    "spans": {
+      "request_prelock": {
+        "median_duration_ns": 1128512,
+        "median_states_ns": {
+          "Running": 10304,
+          "Runnable": 228223,
+          "Waiting": 856769,
+          "Undetermined": 0
+        }
+      },
+      "request_postlock": {
+        "median_duration_ns": 832,
+        "median_states_ns": {
+          "Running": 704,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_prelock": {
+        "median_duration_ns": 1472,
+        "median_states_ns": {
+          "Running": 1344,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "reply_postlock": {
+        "median_duration_ns": 960,
+        "median_states_ns": {
+          "Running": 832,
+          "Runnable": 0,
+          "Waiting": 0,
+          "Undetermined": 0
+        }
+      },
+      "return_observer": {
+        "median_duration_ns": 859323,
+        "median_states_ns": {
+          "Running": 1280,
+          "Runnable": 98816,
+          "Waiting": 746043,
+          "Undetermined": 0
+        }
+      }
+    },
+    "clock_alignment": {
+      "send": {
+        "offset_spread_ns": 53,
+        "marker_lag_min_ns": 233,
+        "marker_lag_p99_ns": 2669,
+        "marker_lag_max_ns": 71184
+      },
+      "receive": {
+        "offset_spread_ns": 47,
+        "marker_lag_min_ns": 235,
+        "marker_lag_p99_ns": 2708,
+        "marker_lag_max_ns": 13660
+      }
+    },
+    "covered_rtt_ns": {
+      "p50": 1151852,
+      "p99": 2105222,
+      "max": 2526923
+    },
+    "stw_overlap_ns": {
+      "send": {
+        "median": 0,
+        "max": 0
+      },
+      "receive": {
+        "median": 0,
+        "max": 0
+      }
+    }
+  }
+]
