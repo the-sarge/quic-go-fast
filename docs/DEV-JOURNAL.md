@@ -112,3 +112,26 @@ Merged the completed receive-queue investigations as evidence: [Linux candidates
 Independent three-reviewer RAS reviews and final local certification completed. PR #15's initial review captured stale GitHub metadata; explicit verification and the replacement review used the correct pushed head. Accepted documentation corrections cover collector provenance, phase-specific power settings, zero-context patch application, the historical offered-rate summary omission, causal wording and CPU rounding. PR #15's final documentation-only corrections used the shared no-rerun policy. All hosted checks passed on each exact merged PR head: 33 for #13, 50 for #14 and 33 for #15. Root tests, DATAGRAM race coverage, lint/vet and bounded tagged Linux correctness checks passed as recorded in the PR receipts; all saved analyses reproduce exactly. No new performance campaign ran during closeout.
 
 The retained Go measurement aids require the experimental build tag and explicit environment opt-in; the external pacer requires both flags. [Issue #18](https://github.com/the-sarge/quic-go-fast/issues/18) records a prerequisite to make the archived burst collector's failure cleanup unconditional before any future authorized reuse. The recorded run restored all CPUs, and no collector or CPU reservation ran during closeout. Completed D2 tracking remains closed. Review artifacts, certificates, merge receipts and a verified history bundle are retained at `/Users/josh/Documents/quic-go-fast-validation/d2-evidence-closeout-20260907`.
+
+---
+
+## Handshake MTU recovery landed - 2026-09-06 23:35 EDT
+
+**Main:** `38c5d07357aa`
+**Actor:** Codex
+
+### Completed
+
+Merged [H1 / PR #20](https://github.com/the-sarge/quic-go-fast/pull/20) as `38c5d07357aa1c9f7d86a57ad61be0e85d5c68d8`, closing [#6](https://github.com/the-sarge/quic-go-fast/issues/6). Classified native message-size failures from oversized Initial/Handshake flights now reach a bounded mailbox and a connection-owned 1200-byte fallback. Existing loss/PTO recovery, key lifetime, path/phase guards, disabled discovery, and congestion accounting remain intact. The product PR also records H1 completion and an empty implementation frontier in the normative plan and program index.
+
+### Decisions
+
+The review found that standalone 0-RTT application packets were initially misclassified as handshake flights. The existing enqueue owner now checks Initial/Handshake encryption levels; the eighth permitted focused test covers application-only and mixed datagrams. Optional fallback logging was rejected as a new merge obligation. See the [independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/20#issuecomment-5564574400) and [fix receipt](https://github.com/the-sarge/quic-go-fast/pull/20#issuecomment-5564583946) for the bounded family and evidence.
+
+### Validation
+
+Both native-error UDP regressions timed out on base `c16a990872b1e8f443045240f7e4840f255c58e9` and established real handshakes with stream exchange on the candidate. Final reviewed head `0c511bde83b2b3a9bda80b09eb67cc5fd492714e` passed the full Go suite, focused race and integration gates, and all 17 same-head hosted jobs across unit, integration, lint, cross-compilation, and interop workflows. Initial RAS run `20260907T030645-20896f083382415f0f9b5fde` was fixed and exact-head verified; replacement run `20260907T032535-78377477dbd2215ac812a1df` was clean. No deferred findings remain. See the [local certification receipt](https://github.com/the-sarge/quic-go-fast/pull/20#issuecomment-5564629773) and [hosted certification receipt](https://github.com/the-sarge/quic-go-fast/pull/20#issuecomment-5564647938).
+
+### Next
+
+The merged [program index](adr/2026-09-06-fork-program.md) records D and H complete, with no successor slice to dispatch. Journal publication and mutable GitHub/OmniFocus closeout remain at this timestamp; [program tracker #7](https://github.com/the-sarge/quic-go-fast/issues/7) is the live view. Physical-path qualification remains externally owned and was not claimed by H1.
