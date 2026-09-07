@@ -135,3 +135,16 @@ Both native-error UDP regressions timed out on base `c16a990872b1e8f443045240f7e
 ### Next
 
 The merged [program index](adr/2026-09-06-fork-program.md) records D and H complete, with no successor slice to dispatch. Journal publication and mutable GitHub/OmniFocus closeout remain at this timestamp; [program tracker #7](https://github.com/the-sarge/quic-go-fast/issues/7) is the live view. Physical-path qualification remains externally owned and was not claimed by H1.
+
+---
+
+## Packet emission architecture handoff - 2026-09-07 00:58 EDT
+
+**Main:** `75ce9dc16186`
+**Actor:** Codex
+
+Published the packet-emission architecture handoff in [PR #23](https://github.com/the-sarge/quic-go-fast/pull/23), with the accepted plan on main at `75ce9dc161864af241863afdf59a94f19e2e8136`. An independent source-backed audit accepted six bounded slices; the design preserves the connection goroutine and send worker and requires performance preservation before extraction. The earlier DEVONthink review is linked as rationale, and the completed datagram/handshake program remains closed.
+
+Validation: the slice audit, source anchors, relative links, Markdown/whitespace checks and all 33 triggered hosted checks passed for the documentation PR. No runtime implementation, prototype or performance capture was performed during this handoff.
+
+Next snapshot: E1 feasibility [#25](https://github.com/the-sarge/quic-go-fast/issues/25) and E2 queue lifetime [#26](https://github.com/the-sarge/quic-go-fast/issues/26) are independently ready. Six child issues have native parent/blocking links and matching OmniFocus tasks under the supplied parent. [Program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) owns the live frontier and mapping. No implementation agent has been dispatched.
