@@ -135,8 +135,10 @@ type Conn struct {
 	version     protocol.Version
 	config      *Config
 
-	conn      sendConn
-	sendQueue sender
+	conn                  sendConn
+	sendQueue             sender
+	handshakeSendFeedback handshakeSendFeedback
+	pathGeneration        uint64
 
 	// lazily initialzed: most connections never migrate
 	pathManager         *pathManager
@@ -159,10 +161,11 @@ type Conn struct {
 	tokenStoreKey         string                    // only set for the client
 	tokenGenerator        *handshake.TokenGenerator // only set for the server
 
-	unpacker      unpacker
-	frameParser   wire.FrameParser
-	packer        packer
-	mtuDiscoverer *mtuFinder // initialized when the transport parameters are received
+	unpacker                   unpacker
+	frameParser                wire.FrameParser
+	packer                     packer
+	mtuDiscoverer              *mtuFinder // initialized when the transport parameters are received
+	effectiveInitialPacketSize protocol.ByteCount
 
 	maxPayloadSizeEstimate atomic.Uint32
 
@@ -509,10 +512,12 @@ var newClientConnection = func(
 }
 
 func (c *Conn) preSetup() {
+	c.effectiveInitialPacketSize = protocol.ByteCount(c.config.InitialPacketSize)
+	c.handshakeSendFeedback.wakeup = make(chan struct{}, 1)
 	c.largestRcvdAppData = protocol.InvalidPacketNumber
 	c.initialStream = newInitialCryptoStream(c.perspective == protocol.PerspectiveClient)
 	c.handshakeStream = newCryptoStream()
-	c.sendQueue = newSendQueue(c.conn)
+	c.sendQueue = newSendQueue(c.conn, &c.handshakeSendFeedback)
 	c.retransmissionQueue = newRetransmissionQueue()
 	c.frameParser = *wire.NewFrameParser(
 		c.config.EnableDatagrams,
@@ -658,6 +663,7 @@ runLoop:
 				break runLoop
 			case <-c.timer.C:
 			case <-c.sendingScheduled:
+			case <-c.handshakeSendFeedback.wakeup:
 			case <-sendQueueAvailable:
 			case <-c.notifyReceivedPacket:
 				wasProcessed, err := c.handlePackets()
@@ -911,6 +917,7 @@ func (c *Conn) idleTimeoutStartTime() monotime.Time {
 }
 
 func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
+	c.pathGeneration++
 	initialPacketSize := protocol.ByteCount(c.config.InitialPacketSize)
 	c.sentPacketHandler.MigratedPath(now, initialPacketSize)
 	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
@@ -920,7 +927,7 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 	c.mtuDiscoverer.Reset(now, initialPacketSize, maxPacketSize)
 	c.conn = newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
 	c.sendQueue.Close()
-	c.sendQueue = newSendQueue(c.conn)
+	c.sendQueue = newSendQueue(c.conn, &c.handshakeSendFeedback)
 	go func() {
 		if err := c.sendQueue.Run(); err != nil {
 			c.destroyImpl(err)
@@ -1298,6 +1305,7 @@ func (c *Conn) handleShortHeaderPacket(
 		protocol.ByteCount(c.config.InitialPacketSize),
 		maxPacketSize,
 	)
+	c.pathGeneration++
 	c.conn.ChangeRemoteAddr(p.remoteAddr, p.info)
 	return true, nil
 }
@@ -2135,7 +2143,8 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 		maxPayloadSize := estimateMaxPayloadSize(mtu)
 		if maxPayloadSize > protocol.ByteCount(c.maxPayloadSizeEstimate.Load()) {
 			c.maxPayloadSizeEstimate.Store(uint32(maxPayloadSize))
-			c.sentPacketHandler.SetMaxDatagramSize(mtu)
+			// Handshake fallback lowers packetization, not congestion accounting.
+			c.sentPacketHandler.SetMaxDatagramSize(max(mtu, protocol.ByteCount(c.config.InitialPacketSize)))
 		}
 	}
 	return c.cryptoStreamHandler.SetLargest1RTTAcked(frame.LargestAcked())
@@ -2442,13 +2451,31 @@ func (c *Conn) applyTransportParameters() {
 	}
 	c.mtuDiscoverer = newMTUDiscoverer(
 		c.rttStats,
-		protocol.ByteCount(c.config.InitialPacketSize),
+		c.effectiveInitialPacketSize,
 		maxPacketSize,
 		c.qlogger,
 	)
 }
 
+// applyHandshakeMTUFallback is the sole owner of the pre-confirmation size reduction.
+func (c *Conn) applyHandshakeMTUFallback() {
+	generation, pending := c.handshakeSendFeedback.take()
+	if !pending || c.handshakeConfirmed || generation != c.pathGeneration || c.effectiveInitialPacketSize <= protocol.MinInitialPacketSize {
+		return
+	}
+	c.effectiveInitialPacketSize = protocol.MinInitialPacketSize
+	if c.mtuDiscoverer != nil {
+		// No probes exist before confirmation. Do not Reset: that would start discovery.
+		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, protocol.MinInitialPacketSize, c.mtuDiscoverer.max(), c.qlogger)
+	}
+	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)))
+}
+
 func (c *Conn) triggerSending(now monotime.Time) error {
+	// Also runs on busy iterations that bypass the run loop's blocking select.
+	if !c.handshakeConfirmed {
+		c.applyHandshakeMTUFallback()
+	}
 	c.pacingDeadline = 0
 
 	sendMode := c.sentPacketHandler.SendMode(now)
@@ -2521,7 +2548,7 @@ func (c *Conn) sendPackets(now monotime.Time) error {
 		ecn := c.sentPacketHandler.ECNMode(true)
 		c.logShortHeaderPacket(p, ecn, buf.Len())
 		c.registerPackedShortHeaderPacket(p, ecn, now)
-		c.sendQueue.Send(buf, 0, ecn)
+		c.sendQueue.Send(buf, 0, ecn, sendMetadata{})
 		// There's (likely) more data to send. Loop around again.
 		c.scheduleSending()
 		return nil
@@ -2571,7 +2598,7 @@ func (c *Conn) sendPacketsWithoutGSO(now monotime.Time) error {
 			return err
 		}
 
-		c.sendQueue.Send(buf, 0, ecn)
+		c.sendQueue.Send(buf, 0, ecn, sendMetadata{})
 
 		if c.sendQueue.WouldBlock() {
 			return nil
@@ -2636,7 +2663,7 @@ func (c *Conn) sendPacketsWithGSO(now monotime.Time) error {
 			continue
 		}
 
-		c.sendQueue.Send(buf, uint16(maxSize), ecn)
+		c.sendQueue.Send(buf, uint16(maxSize), ecn, sendMetadata{})
 
 		if dontSendMore {
 			return nil
@@ -2690,7 +2717,7 @@ func (c *Conn) maybeSendAckOnlyPacket(now monotime.Time) error {
 	}
 	c.logShortHeaderPacket(p, ecn, buf.Len())
 	c.registerPackedShortHeaderPacket(p, ecn, now)
-	c.sendQueue.Send(buf, 0, ecn)
+	c.sendQueue.Send(buf, 0, ecn, sendMetadata{})
 	return nil
 }
 
@@ -2788,7 +2815,11 @@ func (c *Conn) registerPackedShortHeaderPacket(p shortHeaderPacket, ecn protocol
 
 func (c *Conn) sendPackedCoalescedPacket(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) error {
 	c.logCoalescedPacket(packet, ecn)
+	var hasHandshakePacket bool
 	for _, p := range packet.longHdrPackets {
+		if p.EncryptionLevel() == protocol.EncryptionInitial || p.EncryptionLevel() == protocol.EncryptionHandshake {
+			hasHandshakePacket = true
+		}
 		if c.firstAckElicitingPacketAfterIdleSentTime.IsZero() && p.IsAckEliciting() {
 			c.firstAckElicitingPacketAfterIdleSentTime = now
 		}
@@ -2837,7 +2868,10 @@ func (c *Conn) sendPackedCoalescedPacket(packet *coalescedPacket, ecn protocol.E
 		)
 	}
 	c.connIDManager.SentPacket()
-	c.sendQueue.Send(packet.buffer, 0, ecn)
+	c.sendQueue.Send(packet.buffer, 0, ecn, sendMetadata{
+		handshake:      !c.handshakeConfirmed && hasHandshakePacket,
+		pathGeneration: c.pathGeneration,
+	})
 	return nil
 }
 
@@ -2868,7 +2902,7 @@ func (c *Conn) maxPacketSize() protocol.ByteCount {
 		// If the server sends a max_udp_payload_size that's smaller than this size, we can ignore this:
 		// Apparently the server still processed the (fully padded) Initial packet anyway.
 		if c.perspective == protocol.PerspectiveClient {
-			return protocol.ByteCount(c.config.InitialPacketSize)
+			return c.effectiveInitialPacketSize
 		}
 		// On the server side, there's no downside to using 1200 bytes until we received the client's transport
 		// parameters:

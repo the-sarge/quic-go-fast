@@ -1871,7 +1871,7 @@ func TestConnectionPacketPacing(t *testing.T) {
 			data []byte
 		}
 		sendChan := make(chan sentPacket, 10)
-		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN) {
+		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
 			sendChan <- sentPacket{time: monotime.Now(), data: b.Data}
 		}).Times(4)
 
@@ -2660,7 +2660,7 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(
 			shortHeaderPacket{PacketNumber: protocol.PacketNumber(1)}, nil,
 		)
-		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any())
+		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 
 		errChan := make(chan error, 1)
 		go func() { errChan <- tc.conn.run() }()

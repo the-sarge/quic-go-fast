@@ -1,6 +1,6 @@
 # Handshake MTU recovery implementation plan
 
-**Date:** 2026-09-06. **Status:** Accepted; not implemented. **Track:** H of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md), [upstream #5815](https://github.com/quic-go/quic-go/issues/5815). **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
+**Date:** 2026-09-06. **Status:** Complete in [PR #20](https://github.com/the-sarge/quic-go-fast/pull/20). **Track:** H of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md), [upstream #5815](https://github.com/quic-go/quic-go/issues/5815). **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
 
 ## Goal and current shape
 
@@ -28,7 +28,7 @@ Already queued oversized packets may still fail; the queue stays bounded and ord
 
 | Slice | Disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| H1 | new | Classified send feedback through connection-owned fallback and a completing handshake | None | None |
+| H1 | complete | Classified send feedback through connection-owned fallback and a completing handshake | None | None |
 
 ## Implementation slices
 
@@ -54,14 +54,14 @@ Already queued oversized packets may still fail; the queue stays bounded and ord
 
 | Semantic class | Required disposition | Owner/evidence | Planning status |
 | --- | --- | --- | --- |
-| Client oversized Initial before transport parameters | Lower effective start to 1200; later finder inherits it | Conn fallback; completing-handshake wrapper case | Designed, pending implementation |
-| Server oversized flight after parameters, before confirmation | Fresh unstarted finder at 1200 | Conn fallback; server wrapper case | Designed, pending implementation |
-| Discovery disabled after fallback | Complete and remain at 1200; no probe start | Confirmation/finder initialization; focused case | Designed, pending implementation |
-| Discovery enabled after fallback | Confirmation enables normal upward probes within peer/local limit | Existing probe owner; focused case | Designed, pending implementation |
-| Pending feedback during busy loop, duplicates or queue drain | Observe before further packing; bounded/idempotent; shutdown joins | Mailbox/run loop; bounded race case | Designed, pending implementation |
-| Old-path event or event observed after confirmation | Ignore; no size reset | Conn phase/generation guards; focused cases | Designed, pending implementation |
-| Non-size error, unmarked send, GSO/PMTU/path probe, or payload <=1200 | Preserve existing disposition; no handshake fallback | Queue eligibility boundary; table case | Designed, pending implementation |
-| Application admission and congestion growth after reduction | Estimate decreases; later growth cannot call the monotone setter with a smaller size | Conn fallback/ACK update; focused case | Designed, pending implementation |
+| Client oversized Initial before transport parameters | Lower effective start to 1200; later finder inherits it | Conn fallback; completing-handshake wrapper case | Covered by H1 focused/integration regressions |
+| Server oversized flight after parameters, before confirmation | Fresh unstarted finder at 1200 | Conn fallback; server wrapper case | Covered by H1 focused/integration regressions |
+| Discovery disabled after fallback | Complete and remain at 1200; no probe start | Confirmation/finder initialization; focused case | Covered by H1 focused/integration regressions |
+| Discovery enabled after fallback | Confirmation enables normal upward probes within peer/local limit | Existing probe owner; focused case | Covered by H1 focused/integration regressions |
+| Pending feedback during busy loop, duplicates or queue drain | Observe before further packing; bounded/idempotent; shutdown joins | Mailbox/run loop; bounded race case | Covered by H1 focused/integration regressions |
+| Old-path event or event observed after confirmation | Ignore; no size reset | Conn phase/generation guards; focused cases | Covered by H1 focused/integration regressions |
+| Non-size error, unmarked send, GSO/PMTU/path probe, or payload <=1200 | Preserve existing disposition; no handshake fallback | Queue eligibility boundary; table case | Covered by H1 focused/integration regressions |
+| Application admission and congestion growth after reduction | Estimate decreases; later growth cannot call the monotone setter with a smaller size | Conn fallback/ACK update; focused case | Covered by H1 focused/integration regressions |
 | Silent drops, post-confirmation shrink, subminimum paths | Explicit non-goals; do not claim recovery | Existing handling retained | Non-goal |
 
 **TDD and terminating evidence budget:** Write a failing local-UDP handshake test first with injected native message-size errors. Use two end-to-end cells: rejected client Initial and rejected server flight; both must establish a real connection and exchange a short stream payload once patched. Use at most eight focused logical cases matching the matrix, table-driven where behavior is shared, including queue closure without a goroutine leak and the lower-then-grow congestion regression. Existing transport-parameter, handshake, loss and MTU tests provide preservation. One source guard-bypass experiment may verify the phase/generation guard if inherited coverage is the only exercise; no mandatory mutation, syntax fuzz expansion, or cross-product matrix. A no-error control must show configured initial sizing remains unchanged. No benchmark or physical Tailscale run is required to establish the native-error transition; a later physical run is corroboration owned by the sweep.
@@ -76,10 +76,10 @@ Already queued oversized packets may still fail; the queue stays bounded and ord
 
 ## Acceptance and validation
 
-- [ ] The two injected-error handshake regressions fail on the baseline and complete with stream exchange on the candidate.
-- [ ] The matrix's in-contract classes have dispositions and the finite focused evidence passes; no universal path or deadline guarantee is claimed.
-- [ ] Healthy start sizing, the existing peer/local discovery upper-bound calculation, disabled discovery, congestion monotonicity, queue shutdown, and ordinary PMTU probe handling retain their specified behavior.
-- [ ] The receipt identifies the reproduction, exact base/head, generated mock changes, local commands and same-head hosted outcomes.
+- [x] The two injected-error handshake regressions fail on the baseline and complete with stream exchange on the candidate.
+- [x] The matrix's in-contract classes have dispositions and the finite focused evidence passes; no universal path or deadline guarantee is claimed.
+- [x] Healthy start sizing, the existing peer/local discovery upper-bound calculation, disabled discovery, congestion monotonicity, queue shutdown, and ordinary PMTU probe handling retain their specified behavior.
+- [x] The receipt identifies the reproduction, exact base/head, generated mock changes, local commands and same-head hosted outcomes.
 
 Use names beginning `TestHandshakeMTUFallback` for the new connection/integration regressions and `TestSendQueueHandshakeMTU` for queue feedback tests. Focused local commands: `go test -count=1 -run 'TestHandshakeMTUFallback|TestSendQueueHandshakeMTU|TestConnectionHandshake|TestSendQueue|TestMTU' .`; `go test -race -count=1 -run 'TestHandshakeMTUFallback|TestSendQueueHandshakeMTU|TestSendQueue' .`; `go test -count=1 -run 'TestHandshakeMTUFallback|TestPathMTUDiscovery' ./integrationtests/self`. Run `go test -count=1 ./...` once at the final reviewed code head. Inherited same-head Linux/macOS/Windows integration and unit checks supply the justified native classifier coverage; absence is a reported missing gate, not a local substitute. No repeated complete runs absent a changed candidate or diagnosed external failure.
 
