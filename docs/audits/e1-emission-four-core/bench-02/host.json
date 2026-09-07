@@ -15,5 +15,7 @@
     "1",
     "1"
   ],
-  "selection": "Retain only entire observation intervals inside manifest.started_unix and completion.finished_unix; discard no benchmark samples."
+  "selection": "Retain only entire observation intervals inside manifest.started_unix and completion.finished_unix; discard no benchmark samples.",
+  "dedicated_core_condition_established": false,
+  "qualification_note": "Numerical guest/SMT thresholds passed. The capture controller inherited AllowedCPUs=8-15 and could execute on measured cores; the campaign mpstat child inherited it too. The benchmark passive monitor ran outside measured cores. Same-core tooling contention was not excluded or quantified; do not promote numerical bounds to dedicated-core-qualified passes."
 }
