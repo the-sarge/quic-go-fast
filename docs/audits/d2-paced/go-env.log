@@ -1,0 +1,6 @@
+linux
+amd64
+v1
+
+auto
+{"GOGC": null, "GOMEMLIMIT": null, "GODEBUG": null, "GOFLAGS": null, "GOAMD64": null, "CGO_ENABLED": null, "GOEXPERIMENT": null}

@@ -1,0 +1,27 @@
+diff --git a/datagram_queue.go b/datagram_queue.go
+index 3f039fc1..ec6c3a9e 100644
+--- a/datagram_queue.go
++++ b/datagram_queue.go
+@@ -23,0 +24 @@ type datagramQueue struct {
++	rcvHead  int
+@@ -96 +97,7 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
+-	if len(h.rcvQueue) < maxDatagramRcvQueueLen {
++	if len(h.rcvQueue)-h.rcvHead < maxDatagramRcvQueueLen {
++		if len(h.rcvQueue) == cap(h.rcvQueue) && h.rcvHead > 0 {
++			live := copy(h.rcvQueue, h.rcvQueue[h.rcvHead:])
++			clear(h.rcvQueue[live:])
++			h.rcvQueue = h.rcvQueue[:live]
++			h.rcvHead = 0
++		}
+@@ -116,3 +123,8 @@ func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
+-		if len(h.rcvQueue) > 0 {
+-			data := h.rcvQueue[0]
+-			h.rcvQueue = h.rcvQueue[1:]
++		if h.rcvHead < len(h.rcvQueue) {
++			data := h.rcvQueue[h.rcvHead]
++			h.rcvQueue[h.rcvHead] = nil
++			h.rcvHead++
++			if h.rcvHead == len(h.rcvQueue) {
++				h.rcvQueue = h.rcvQueue[:0]
++				h.rcvHead = 0
++			}
