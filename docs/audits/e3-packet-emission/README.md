@@ -59,6 +59,10 @@ The DATAGRAM ledger unit is one application message; goodput is the geometric me
 The [capture archive](capture.tar.gz), SHA-256 `888438a48c873c280b45ff3d97f11f3d9a015abcc054a57abceca65ef582ca2a`, retains all samples, endpoint logs, CPU observations, manifests, scripts, build provenance, setup/allocation diagnostics and restoration records. [Source binding](source-binding.bundle) retains the measured source relative to the declared parent; verify it with `git bundle verify` in a clone containing that parent.
 
 
+## Historical certification uncertainty
+
+One macOS randomized-loss full-suite failure remains unexplained after the bounded diagnostic campaign. The operator accepted that historical uncertainty in [decision PR #43](https://github.com/the-sarge/quic-go-fast/pull/43); [issue #44](https://github.com/the-sarge/quic-go-fast/issues/44) tracks its nonblocking investigation. The original failure is not relabeled as passing or proven unrelated to E3. The decision requires one fresh uncached full suite on the final candidate and all applicable same-head checks; their exact receipts remain in PR #41's discussion. No timeout, loss, payload, runtime or test behavior changed during this continuation.
+
 ## Source and review binding
 
 The measured parent is `40877a7fc8d6c33a9181a46d832e45c79bb08abb`; the measured runtime candidate is `fe35b808db043f976f455f3f1f40298ae1efea47`. The source bundle retains the candidate and subsequent comment/test-import correction relative to the parent. That correction adds a linter explanation and formats test imports; it does not alter runtime behavior. Later receipt/frontier changes are metadata. The retained build manifest records source revisions, commands, toolchain/environment, fixture hashes and compiled binary hashes. The endpoint source is identical on both variants and is retained with the capture sources.

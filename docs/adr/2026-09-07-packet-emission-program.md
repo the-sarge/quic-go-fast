@@ -14,7 +14,7 @@ Deepen packet emission around the existing packer while preserving public behavi
 
 E1's [four-core evidence](../audits/e1-emission-four-core/README.md) remains inconclusive. The owner has [authorized staged adoption with that uncertainty accepted](../audits/2026-09-07-emission-adoption-decision.md); this satisfies the E1 migration prerequisite without changing the measurements or authorizing another feasibility campaign. E2's queue lifetime corrections and [E3's ordinary/GSO emission](../audits/e3-packet-emission/README.md) are complete. E4/E5 are ready; E6 requires E4/E5. Shared-file merges remain serialized and revalidated without invented dependencies.
 
-Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current implementation frontier is E4 and E5. Later slices retain their correctness and bounded performance gates. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
+Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current implementation frontier is E4 and E5. The [historical-timeout decision](../audits/2026-09-07-e3-certification-exception.md) and nonblocking [investigation #44](https://github.com/the-sarge/quic-go-fast/issues/44) retain the accepted uncertainty. Later slices retain their correctness and bounded performance gates. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
 
 ## Outcomes requiring no implementation
 
