@@ -1,0 +1,29 @@
+# E1 four-core feasibility resumption — 2026-09-07
+
+After [the deployment-budget correction](2026-09-07-emission-deployment-budget.md), the owner instructed “do it” in response to the remaining four-core coverage, stream-churn timing and prototype interface/allocation evidence. This authorizes resumed E1 work on minimax, including the bounded diagnostic, prototype revision and remaining replacement campaign below. It supersedes the earlier pending-dispatch state; it does not adopt prototype runtime or change the accepted module/execution model. [E1 #25](https://github.com/the-sarge/quic-go-fast/issues/25) is retained for one new evidence PR; the prior completed PR and receipts remain historical.
+
+## Retained source and ownership
+
+The original production comparison base is `e90617366674535bcefa8f90a2e92b153be1342b`; the original inert prototype is `edea78eabf72a0ac2dacd0d55dd68a8f2cabdc3a`. Production runtime is unchanged through the deployment-decision commit `83ae5b9868e0d70a2fbbc7e5532d612199880662`; verify that bounded runtime diff before freezing. Use new dedicated feature worktrees for the revised prototype and evidence PR. Never mutate the frozen original sources or their archives. The final prototype remains an inert patch; ordinary builds only receive useful characterization and opt-in evidence.
+
+The same connection goroutine, packer, recovery and send queue remain authoritative. The narrow interface must consume actual progress/stop/deadline/capacity outcomes without adding a worker, timer, per-packet allocation, mutable shadow state or generic strategy. Top-level handshake, ACK/PTO, probes and close retain their existing owners. Queue-lifetime cleanup remains E2, and production migration remains E3–E6. The agreed test seam is the real packer/recovery/send-queue boundary and connection scheduling outcome already characterized by E1. This user-authorized resumption retains that seam; no new approval is needed to exercise it.
+
+## Finite evidence and stop conditions
+
+| Work | Bounded evidence and terminating rule |
+| --- | --- |
+| Existing churn result | Inspect the ten archived pair values and benchmark source. Reanalyze without dropping runs or changing the original bound. |
+| Churn diagnostic | At most four alternating unprofiled baseline/original-prototype pairs at the original shared-process four-core budget, one second per benchmark; at most one ten-second CPU profile per variant. Record all invocations, output and host observations. Diagnostic runs do not supply acceptance samples. Rank falsifiable hypotheses after reproduction; if no cause is established, record that limit rather than inventing a fix. |
+| Prototype revision | One in-contract candidate revision: consume progress and distinct no-data/queue/pacing/congestion/hard-blocking/receive-yield outcomes, including capacity wakeup, preserving existing ordering and scheduling. First make the relevant outcome tests fail, then retain focused characterization/race and ordinary suite/vet results. Any additional performance edit needs diagnostic evidence and must fit this same frozen revision. |
+| Allocation provenance | One focused invocation per final baseline/candidate, retaining exact command/environment, fixture/source/binary hashes, Go patch version, GOMAXPROCS, placement, stdout/stderr and exits. Compare packet/batch allocations and setup size under the unchanged contract. This repairs future evidence; original missing metadata stays disclosed. |
+| Setup | One short paired smoke per current cell and one qlog-on paired P3 smoke, separately retained. Diagnose setup failure before qualification; never silently replace a failed qualifying sample. |
+| Replacement qualification | Freeze one revised candidate and matched baseline. Run P1/P3/P4/P5/P6 at four physical cores and four Go processors per endpoint, ten alternating pairs, 2 s warmup / 60 s measurement / 1 s drain. Run existing handshake/churn/transfer benchmarks in ten one-second pairs at their shared-process four-core budget. Preserve the original statistical margins and host thresholds. |
+| Review and completion | Use the one remaining fresh replacement RAS review, independently disposition findings, manually fix and exact-head verify accepted findings. Certify the evidence PR locally and on hosted CI, merge, then journal and reconcile task/frontier state. No extra fresh review or campaign is implied. |
+
+The original campaign remains inconclusive under its original contract. The revised candidate cannot inherit the original P3 pass. No pooling across candidates or budgets, adaptive extension, sample deletion or rerunning to obtain a favorable result is allowed. A failed/inconclusive replacement yields an evidence-only outcome and leaves runtime migration blocked. A changed representation, execution model, ownership boundary, additional campaign or additional fresh review requires a new decision.
+
+## Artifact and coverage disposition
+
+The prototype, fixtures, profiles and tests are disposable verification aids; the plan, receipts and mirrors are process/traceability metadata. No maintained benchmark framework is introduced. Performance remains example-level on native Linux/minimax loopback; physical-link and non-Linux performance are untraced. Production representation and lifecycle owners do not change, so contract closure is not triggered for this resumption. The existing finite ownership matrix remains assigned to E2–E6.
+
+The narrowest useful outcome is one revised feasibility receipt, not separate fixture and benchmark-tool deliverables. Combining this with E2 cleanup or E3 production migration would change the accepted outcome and obscure the independent experiment, so both remain separate. Context remains bounded to the current E1/common contract, prior compact receipts, concrete prototype diff and relevant diagnostics; raw samples stay archived rather than entering review context.
