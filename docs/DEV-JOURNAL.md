@@ -76,3 +76,26 @@ No Actions runs, check runs, branch protection or required status checks were re
 ### Next
 
 Track D is complete: D1 shipped its overflow improvement; D2 closed with a bounded no-change result. H1 is the sole ready slice and has no blockers. [Program tracker #7](https://github.com/the-sarge/quic-go-fast/issues/7) owns live progress. Application integration and physical qualification remain externally owned.
+
+---
+
+## DATAGRAM parser copy removal adopted - 2026-09-06 21:30 EDT
+
+**Main:** `fd8e5ee109b9`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #16](https://github.com/the-sarge/quic-go-fast/pull/16) as `fd8e5ee109b9fda31d6ace644dd9914aa705fd30`. DATAGRAM parsing now borrows the bounded packet payload during synchronous handling; the queue retains its owning copy before admitted bytes escape to applications. Queue representation, FIFO, capacity, overflow, cancellation, close, public API and wire behavior are unchanged. This standalone follow-up does not reopen D1/D2 or their tracking.
+
+### Decisions
+
+Adopt for the consistent roughly 47% receiver-allocation savings and smaller CPU savings, accepting unresolved tail-latency risk. The original 4 Gbps 5% noninferiority bound was not established and has not been relaxed or relabeled as passing. More endpoint cores substantially improved measured system latency for both variants; that does not establish a parser-specific speedup. The [adoption contract](audits/2026-09-07-datagram-adoption.md) records the owner's decision and preserved scope; the [core-budget receipt](audits/2026-09-07-datagram-core-budget.md) records the last diagnostic. No further performance runs were added for adoption.
+
+### Validation
+
+Certified head `c184ad02337bd25a6f5ba5578d36e5ecd8a65e7d` passed ordinary package tests, focused DATAGRAM race checks, tools/version negotiation, full QUIC v1/v2 integration, FIPS, vet, gcassert and module-tidiness checks on macOS Go 1.27.0 and minimax Linux Go 1.27.1. The final 20-second, four-worker parser fuzz run passed 554,524 executions. Linux full package race validation skips only `TestFrameParserAllocs/STREAM`, after identical failure on base `686bce65`: race-instrumented `sync.Pool` deliberately discards entries, invalidating its zero-allocation assertion. That test passes normally; all remaining race tests pass and no DATAGRAM test is excluded.
+
+Initial RAS review `20260907T010639-2739819f5c674b6682bcc541` completed with seven reviewers and found one required formatter correction in a test fixture. The implementing agent fixed it; exact-head verification cleared the defect. Replacement review `20260907T012359-a8aa15ab1dbd59fb5b2926d6` completed with three reviewers and no required fixes or follow-ups. Optional documentation and qlog-test strengthening did not demonstrate an unmet adoption obligation. No unresolved ownership or compatibility finding remains.
+
+Enabled GitHub's fork workflow execution gate, which had prevented earlier Actions runs despite active workflow metadata. All 33 checks passed on the certified head before exact-head squash merge: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34072522113), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34072522088), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34072522118), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34072522163) and [interop Docker build](https://github.com/the-sarge/quic-go-fast/actions/runs/34072522109). The inherited workflow layout remains in place.
