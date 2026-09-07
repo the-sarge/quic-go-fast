@@ -120,7 +120,7 @@ func TestHandshakeMTUFallbackBeforePacking(t *testing.T) {
 	sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAck)
 	sph.EXPECT().ECNMode(false).Return(protocol.ECNNon)
 	tc.packer.EXPECT().PackCoalescedPacket(true, protocol.ByteCount(1200), gomock.Any(), protocol.Version1).Return(nil, nil)
-	require.NoError(t, tc.conn.triggerSending(monotime.Now()))
+	require.NoError(t, tc.conn.triggerSending(monotime.Now()).err)
 }
 
 func TestHandshakeMTUFallbackSendClassification(t *testing.T) {

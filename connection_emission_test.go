@@ -2,6 +2,8 @@ package quic
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -179,3 +181,61 @@ func TestEmissionDatagramOutput(t *testing.T) {
 		})
 	}
 }
+
+// Observe caller storage while retaining the real packet construction path.
+type emissionObservedPacker struct {
+	packer
+	buffers []*packetBuffer
+	failAt  int
+	err     error
+}
+
+func (p *emissionObservedPacker) AppendPacket(buf *packetBuffer, size protocol.ByteCount, now monotime.Time, version protocol.Version) (shortHeaderPacket, error) {
+	p.buffers = append(p.buffers, buf)
+	if p.failAt == len(p.buffers) {
+		return shortHeaderPacket{}, p.err
+	}
+	return p.packer.AppendPacket(buf, size, now, version)
+}
+
+func TestEmissionFatalCallerBuffer(t *testing.T) {
+	for _, gso := range []bool{false, true} {
+		for _, failAt := range []int{1, 2} {
+			t.Run(fmt.Sprintf("gso=%t/append=%d", gso, failAt), func(t *testing.T) {
+				tc := newEmissionTestConnection(t, gso)
+				c := tc.conn
+				cause := errors.New("fatal packet construction")
+				observed := &emissionObservedPacker{packer: c.packer, failAt: failAt, err: cause}
+				c.packer = observed
+				_, pnLen := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				size := 1200 - int(wire.ShortHeaderLen(c.connIDManager.Get(), pnLen)) - 7 - 3
+				for range 2 {
+					require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{0x41}, size)}))
+				}
+				require.ErrorIs(t, c.sendPackets(monotime.Now()), cause)
+				require.Len(t, observed.buffers, failAt)
+				// No allocation follows emission: pool reuse cannot disguise release.
+				require.Zero(t, observed.buffers[failAt-1].refCount, "fatal caller-owned storage must be released")
+				q := c.sendQueue.(*sendQueue)
+				queued := 0
+				if !gso {
+					queued = failAt - 1
+				}
+				require.Len(t, q.queue, queued)
+				pn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				require.EqualValues(t, failAt-1, pn, "fatal output must not refund packet numbers or registration")
+				if failAt == 2 {
+					acked, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 0, Largest: 0}}}, protocol.Encryption1RTT, monotime.Now().Add(time.Millisecond))
+					require.NoError(t, err)
+					require.True(t, acked, "registration survives failed handoff")
+				}
+				for len(q.queue) > 0 {
+					(<-q.queue).buf.Release()
+				}
+			})
+		}
+	}
+}
+
+// Preserve the historical outcome/allocation fixture entrypoint.
+func (c *Conn) sendPackets(now monotime.Time) error { return c.emitPackets(now).err }
