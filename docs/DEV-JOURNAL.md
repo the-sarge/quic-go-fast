@@ -217,3 +217,18 @@ Final product head `ddcbde7090d8bc2cb8bcfd9185a541eb117fa8d5` passed the full Go
 ### Next
 
 E3, ordinary/GSO packet emission, is the current implementation frontier; E4/E5 still depend on E3 and E6 on E4/E5. [Live program tracker](https://github.com/the-sarge/quic-go-fast/issues/31).
+
+---
+
+## Complete ordinary and GSO packet emission - 2026-09-07 17:40 EDT
+
+**Main:** `f271602adabd`
+**Actor:** Codex
+
+E3's ordinary/GSO packet-emission owner and caller-buffer cleanup merged in [PR #41](https://github.com/the-sarge/quic-go-fast/pull/41), closing [#27](https://github.com/the-sarge/quic-go-fast/issues/27). The product PR includes its committed completion/frontier transition: E4 and E5 have their dependency satisfied; E6 still requires both. Their mutable tracking mirrors are being closed out after this journal, with the [program tracker](https://github.com/the-sarge/quic-go-fast/issues/31) as the live view.
+
+The operator accepted uncertainty around one unexplained historical macOS randomized-loss timeout through [decision #43](https://github.com/the-sarge/quic-go-fast/pull/43). [Investigation #44](https://github.com/the-sarge/quic-go-fast/issues/44), labeled `needs-triage` and mirrored in OmniFocus, retains that nonblocking follow-up. The original failure remains failed and unexplained; no runtime, test, payload, loss or timeout behavior changed during certification continuation.
+
+Final candidate `5bfed6994be0fb3d6dbf7c8250b152b0ecac1050` passed exactly one fresh uncached macOS Go 1.27.0 full suite, focused races, vet, golangci-lint and gcassert. All 33 applicable hosted checks passed on that head, including [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34163338141), [unit tests](https://github.com/the-sarge/quic-go-fast/actions/runs/34163338109), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34163338138), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34163338067), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34163338013). The [local certification receipt](https://github.com/the-sarge/quic-go-fast/pull/41#issuecomment-5575813442) binds commands, source and base. The prior initial review and bounded P3/P4/allocation evidence remain applicable because Go/test/module sources are unchanged from the reviewed candidate. No replacement review, performance campaign or green-seeking rerun was used.
+
+Untraced effects remain the historical timeout's cause, physical-link/application performance and the ownership families assigned to E4–E6. There were no deferred review findings to file. E3's exact OmniFocus completion and successor readiness updates follow this post-merge journal; no routine frontier PR is needed.
