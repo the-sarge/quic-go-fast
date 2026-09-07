@@ -2,7 +2,7 @@
 # Disposable minimax capture launcher. Restores initially unrestricted slices.
 # The independent timer also restores them if the SSH session is lost.
 set -euo pipefail
-[[ $# == 2 ]] || { echo 'usage: isolate.sh OUTPUT smoke|campaign|qlog' >&2; exit 2; }
+[[ $# == 2 ]] || { echo 'usage: isolate.sh OUTPUT smoke|campaign|qlog|bench' >&2; exit 2; }
 output=$1
 mode=$2
 [[ $output == /home/josh/.cache/qgf-e1/* && ! -e $output ]] || exit 2
@@ -33,13 +33,15 @@ for slice in machine.slice system.slice user.slice; do
   systemctl set-property --runtime "$slice" AllowedCPUs=0-7,16-23
 done
 args=()
+runner=(/usr/bin/python3 /home/josh/.cache/qgf-e1/collect.py --output "$output")
 case "$mode" in
   smoke) args=(--smoke) ;;
   qlog) args=(--smoke --qlog --cells P2) ;;
   campaign) ;;
+  bench) runner=(/usr/bin/python3 /home/josh/.cache/qgf-e1/bench.py "$output") ;;
   *) exit 2 ;;
 esac
 systemd-run --collect --wait --pipe --unit=qgf-e1-capture --slice=qgf-e1.slice \
   --property=User=josh --property=AllowedCPUs=8-15 --property=RuntimeMaxSec=9500 \
   --setenv=PATH=/usr/local/bin:/usr/bin:/bin \
-  /usr/bin/python3 /home/josh/.cache/qgf-e1/collect.py --output "$output" "${args[@]}"
+  "${runner[@]}" "${args[@]}"

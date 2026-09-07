@@ -5,6 +5,12 @@ import json
 import math
 from pathlib import Path
 import random
+import re
+
+
+def whole_pairs():
+    rng=random.Random(20260907)
+    return [[rng.randrange(10) for _ in range(10)] for _ in range(20000)]
 
 
 def percentile(values, p):
@@ -19,8 +25,7 @@ def summarize(root):
     manifest=json.loads((root/'manifest.json').read_text())
     if manifest['paired_samples'] != 10 or manifest['measurement_seconds'] != 60:
         raise ValueError('smoke data cannot qualify E1')
-    rng=random.Random(20260907)
-    resamples=[[rng.randrange(10) for _ in range(10)] for _ in range(20000)]
+    resamples=whole_pairs()
     summary={'seed':20260907,'whole_pair_resamples':20000,'campaign':str(root),'cells':[]}
     for cell in manifest['cells']:
         name=cell['cell']
@@ -59,9 +64,47 @@ def summarize(root):
     return summary
 
 
+def summarize_benchmarks(root):
+    manifest=json.loads((root/'manifest.json').read_text())
+    if manifest['pairs'] != 10 or manifest['benchtime'] != '1s' or not manifest['benchmem']:
+        raise ValueError('benchmark manifest does not match the accepted sample budget')
+    expected={'BenchmarkHandshake-4','BenchmarkStreamChurn-4',
+              'BenchmarkTransfer/500_kb-4','BenchmarkTransfer/51200_kb-4'}
+    samples={name:[] for name in expected}
+    for pair in range(10):
+        variants=[]
+        for variant in ('base','candidate'):
+            log=(root/f'{pair:02d}-{variant}.log').read_text()
+            if not re.search(r'^PASS$',log,re.M):
+                raise ValueError(f'{pair}/{variant}: benchmark did not pass')
+            rows={}
+            for line in log.splitlines():
+                fields=line.split()
+                if fields and fields[0] in expected:
+                    values={fields[i+1]:float(fields[i]) for i in range(2,len(fields)-1,2)}
+                    rows[fields[0]]={k:values[k] for k in ('ns/op','B/op','allocs/op')}
+            if set(rows) != expected:
+                raise ValueError(f'{pair}/{variant}: missing benchmark rows')
+            variants.append(rows)
+        for name in expected:
+            samples[name].append([v[name] for v in variants])
+    resamples=whole_pairs()
+    results=[]
+    for name,pairs in sorted(samples.items()):
+        logs=[math.log(c['ns/op']/b['ns/op']) for b,c in pairs]
+        upper=percentile([math.exp(sum(logs[i] for i in sample)/10) for sample in resamples],0.95)
+        results.append(dict(benchmark=name,paired_samples=pairs,
+                            geometric_mean_time_ratio=math.exp(sum(logs)/10),
+                            one_sided_95_percent_upper_bound=upper,passed=upper<=1.05))
+    return dict(seed=20260907,whole_pair_resamples=20000,benchmarks=results,
+                status='pass' if all(r['passed'] for r in results) else 'noninferiority_not_established')
+
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('campaign',type=Path)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--benchmarks',action='store_true')
     args=parser.parse_args()
-    args.output.write_text(json.dumps(summarize(args.campaign),indent=2)+'\n')
+    result=summarize_benchmarks(args.campaign) if args.benchmarks else summarize(args.campaign)
+    args.output.write_text(json.dumps(result,indent=2)+'\n')
