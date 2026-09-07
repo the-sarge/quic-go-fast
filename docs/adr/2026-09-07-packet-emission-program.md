@@ -1,6 +1,6 @@
 # Packet emission architecture program — 2026-09-07
 
-**Identity:** QGF-PE-2026-09. **Status:** Staged adoption authorized with E1 uncertainty accepted; E2 and E3 complete; E4 and E5 ready; E6 blocked by E4/E5. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
+**Identity:** QGF-PE-2026-09. **Status:** Staged adoption authorized with E1 uncertainty accepted; E2, E3 and E4 complete; E5 ready; E6 blocked by E5. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
 
 ## Outcome and scope
 
@@ -10,11 +10,11 @@ Deepen packet emission around the existing packer while preserving public behavi
 
 | Track | Plan | Parent issue | Slices | Dependencies | Status |
 | --- | --- | --- | --- | --- | --- |
-| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | [#24](https://github.com/the-sarge/quic-go-fast/issues/24) | E1–E6, one intended PR each | E3 requires the accepted adoption decision and completed E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 complete, uncertainty accepted; E2/E3 complete; E4/E5 ready |
+| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | [#24](https://github.com/the-sarge/quic-go-fast/issues/24) | E1–E6, one intended PR each | E3 requires the accepted adoption decision and completed E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 complete, uncertainty accepted; E2/E3/E4 complete; E5 ready |
 
-E1's [four-core evidence](../audits/e1-emission-four-core/README.md) remains inconclusive. The owner has [authorized staged adoption with that uncertainty accepted](../audits/2026-09-07-emission-adoption-decision.md); this satisfies the E1 migration prerequisite without changing the measurements or authorizing another feasibility campaign. E2's queue lifetime corrections and [E3's ordinary/GSO emission](../audits/e3-packet-emission/README.md) are complete. E4/E5 are ready; E6 requires E4/E5. Shared-file merges remain serialized and revalidated without invented dependencies.
+E1's [four-core evidence](../audits/e1-emission-four-core/README.md) remains inconclusive. The owner has [authorized staged adoption with that uncertainty accepted](../audits/2026-09-07-emission-adoption-decision.md); this satisfies the E1 migration prerequisite without changing the measurements or authorizing another feasibility campaign. E2's queue lifetime corrections and [E3's ordinary/GSO emission](../audits/e3-packet-emission/README.md) are complete. [E4’s handshake/ACK/PTO emission](../audits/e4-handshake-emission/README.md) is also complete. E5 is ready; E6 requires E5. Shared-file merges remain serialized and revalidated without invented dependencies.
 
-Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current implementation frontier is E4 and E5. The [historical-timeout decision](../audits/2026-09-07-e3-certification-exception.md) and nonblocking [investigation #44](https://github.com/the-sarge/quic-go-fast/issues/44) retain the accepted uncertainty. Later slices retain their correctness and bounded performance gates. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
+Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current implementation frontier is E5. The [historical-timeout decision](../audits/2026-09-07-e3-certification-exception.md) and nonblocking [investigation #44](https://github.com/the-sarge/quic-go-fast/issues/44) retain the accepted uncertainty. Later slices retain their correctness and bounded performance gates. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
 
 ## Outcomes requiring no implementation
 
