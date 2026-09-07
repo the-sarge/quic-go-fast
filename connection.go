@@ -2481,38 +2481,37 @@ func (c *Conn) applyHandshakeMTUFallback() {
 }
 
 func (c *Conn) triggerSending(now monotime.Time) emissionResult {
-	var progress bool
-	for {
-		// Preserve fallback before every opportunity, including busy PTO continuations.
-		if !c.handshakeConfirmed {
-			c.applyHandshakeMTUFallback()
-		}
-		c.pacingDeadline = 0
-		result := c.emission.dispatch(now, c.handshakeConfirmed)
-		progress = progress || result.progress
-		if result.err == nil {
-			switch result.stop {
-			case emissionSendAny:
-				result = c.emitPackets(now)
-			case emissionProbeSent:
-				continue
-			case emissionQueueFull:
-				if result.progress {
-					c.scheduleSending()
-				}
-			case emissionHardBlocked:
-				c.blocked = blockModeHardBlocked
-			case emissionCongestionLimited:
-				c.blocked = blockModeCongestionLimited
-			case emissionPaced:
-				c.pacingDeadline = result.deadline
-			case emissionNoData, emissionReceivePending, emissionProbePending, emissionLegacy:
-				// Other outcomes are consumed by the ordinary emission path.
-			}
-		}
-		result.progress = result.progress || progress
+	// Preserve fallback before every opportunity, including PTO continuations.
+	if !c.handshakeConfirmed {
+		c.applyHandshakeMTUFallback()
+	}
+	c.pacingDeadline = 0
+	result := c.emission.dispatch(now, c.handshakeConfirmed)
+	if result.err != nil {
 		return result
 	}
+	switch result.stop {
+	case emissionSendAny:
+		// Ordinary traffic needs no PTO progress accumulation or result merge.
+		return c.emitPackets(now)
+	case emissionProbeSent:
+		// Recovery bounds PTO output; preserve the original immediate continuation.
+		result = c.triggerSending(now)
+		result.progress = true
+	case emissionQueueFull:
+		if result.progress {
+			c.scheduleSending()
+		}
+	case emissionHardBlocked:
+		c.blocked = blockModeHardBlocked
+	case emissionCongestionLimited:
+		c.blocked = blockModeCongestionLimited
+	case emissionPaced:
+		c.pacingDeadline = result.deadline
+	case emissionNoData, emissionReceivePending, emissionProbePending, emissionLegacy:
+		// Other outcomes are consumed by the ordinary emission path.
+	}
+	return result
 }
 
 func (c *Conn) emitPackets(now monotime.Time) emissionResult {
