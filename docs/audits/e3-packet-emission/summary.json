@@ -1,0 +1,80 @@
+{
+  "seed": 20260907,
+  "whole_pair_resamples": 20000,
+  "campaign": "/home/josh/.cache/qgf-e3/campaign-01",
+  "cells": [
+    {
+      "cell": "P3",
+      "valid_pairs": 10,
+      "status": "pass",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 0.998865748158471,
+          "one_sided_95_percent_bound": 0.9975618522339191,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0000514953172683,
+          "one_sided_95_percent_bound": 1.0030977262500687,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.000921396777274,
+          "one_sided_95_percent_bound": 1.0011991322170246,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 0.9313869209503719,
+          "one_sided_95_percent_bound": 0.9477865972386321,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "cell": "P4",
+      "valid_pairs": 10,
+      "status": "pass",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 0.9988822933806775,
+          "one_sided_95_percent_bound": 0.9974872148779954,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 0.9992821390647947,
+          "one_sided_95_percent_bound": 1.0019258698883473,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.001157485284461,
+          "one_sided_95_percent_bound": 1.0016482472938675,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 0.9965022629518027,
+          "one_sided_95_percent_bound": 1.0182237246620627,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    }
+  ],
+  "status": "pass"
+}
