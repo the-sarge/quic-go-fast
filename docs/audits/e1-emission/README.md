@@ -45,6 +45,12 @@ The experimental patch also adds one expected `WouldBlock` call to the existing 
 
 These are verification aids, not maintained product deliverables. This receipt and the source map are traceability metadata. No shipped runtime or required safety enforcement changes are present in the product branch. Contract closure is not triggered for these aids; no mutation program, universal parser claim or new lifecycle guarantee is inferred from them.
 
+## Capture counters
+
+For DATAGRAM cells, `offered` counts the fixed-rate generator's scheduled 1071-byte messages. A bounded 32-entry fixture queue feeds one sender. `admitted` increments only after `SendDatagram` returns successfully; that call copies the payload into QUIC and can block on QUIC's own full send queue. `ingress_drop` counts fixture-queue overflow before the call. `delivered` counts unique valid measured-phase messages received through the drain deadline. The ledger is `offered = admitted + ingress_drop`; `post_admission_drop = admitted - delivered`. These counters locate observed loss but do not independently distinguish generator scheduling from transport backpressure as its cause.
+
+For reliable-stream cells, counters use bytes, admission is the byte count accepted by stream writes, and the admitted/delivered ledger must close. Goodput uses delivered application payload divided by the 60-second measurement window. CPU and allocated bytes include both endpoint processes and the fixture, measured from the measurement start through drain completion. Probe p50/p99 summarize successful round trips; missed schedules and failures remain separately counted across all 6000 scheduled probes.
+
 ## Local validation checkpoint
 
 Local environment: macOS arm64, native `go1.27.0 darwin/arm64`. The characterization/base commit passed `go test . -run '^TestEmission' -count=1`, the same focused run with `-race`, `go test ./...`, and `go vet ./...`.

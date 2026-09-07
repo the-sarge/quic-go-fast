@@ -6,12 +6,14 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 root=Path('/home/josh/.cache/qgf-e1')
 out=Path(sys.argv[1])
 out.mkdir(parents=True,exist_ok=False)
 env=dict(os.environ,GOMAXPROCS='4',QUIC_GO_DISABLE_GSO='false')
 manifest=dict(pairs=10,benchtime='1s',benchmem=True,cpus='8,9,12,13',gomaxprocs=4,
+              started_unix=time.time(),
               shared_process=True,gso_disabled=False,
               benchmarks='BenchmarkHandshake|BenchmarkStreamChurn|BenchmarkTransfer',
               base='e90617366674535bcefa8f90a2e92b153be1342b',
@@ -31,3 +33,4 @@ for pair in range(10):
         with (out/(label+'.log')).open('w') as stream:
             subprocess.run(cmd,stdout=stream,stderr=subprocess.STDOUT,env=env,check=True,timeout=60)
         print('finished '+label,flush=True)
+(out/'completion.json').write_text(json.dumps(dict(finished_unix=time.time(),completed_samples=20),indent=2)+'\n')
