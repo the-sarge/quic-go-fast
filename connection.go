@@ -2481,48 +2481,37 @@ func (c *Conn) applyHandshakeMTUFallback() {
 }
 
 func (c *Conn) triggerSending(now monotime.Time) emissionResult {
-	// Also runs on busy iterations that bypass the run loop's blocking select.
-	if !c.handshakeConfirmed {
-		c.applyHandshakeMTUFallback()
-	}
-	c.pacingDeadline = 0
-
-	sendMode := c.sentPacketHandler.SendMode(now)
-	switch sendMode {
-	case ackhandler.SendAny:
-		return c.emitPackets(now)
-	case ackhandler.SendNone:
-		c.blocked = blockModeHardBlocked
-		return legacyEmission(nil)
-	case ackhandler.SendPacingLimited:
-		deadline := c.sentPacketHandler.TimeUntilSend()
-		if deadline.IsZero() {
-			deadline = deadlineSendImmediately
+	var progress bool
+	for {
+		// Preserve fallback before every opportunity, including busy PTO continuations.
+		if !c.handshakeConfirmed {
+			c.applyHandshakeMTUFallback()
 		}
-		c.pacingDeadline = deadline
-		// Allow sending of an ACK if we're pacing limit.
-		// This makes sure that a peer that is mostly receiving data (and thus has an inaccurate cwnd estimate)
-		// sends enough ACKs to allow its peer to utilize the bandwidth.
-		return legacyEmission(c.maybeSendAckOnlyPacket(now))
-	case ackhandler.SendAck:
-		// We can at most send a single ACK only packet.
-		// There will only be a new ACK after receiving new packets.
-		// SendAck is only returned when we're congestion limited, so we don't need to set the pacing timer.
-		c.blocked = blockModeCongestionLimited
-		return legacyEmission(c.maybeSendAckOnlyPacket(now))
-	case ackhandler.SendPTOInitial, ackhandler.SendPTOHandshake, ackhandler.SendPTOAppData:
-		if err := c.sendProbePacket(sendMode, now); err != nil {
-			return legacyEmission(err)
+		c.pacingDeadline = 0
+		result := c.emission.dispatch(now, c.handshakeConfirmed)
+		progress = progress || result.progress
+		if result.err == nil {
+			switch result.stop {
+			case emissionSendAny:
+				result = c.emitPackets(now)
+			case emissionProbeSent:
+				continue
+			case emissionQueueFull:
+				if result.progress {
+					c.scheduleSending()
+				}
+			case emissionHardBlocked:
+				c.blocked = blockModeHardBlocked
+			case emissionCongestionLimited:
+				c.blocked = blockModeCongestionLimited
+			case emissionPaced:
+				c.pacingDeadline = result.deadline
+			case emissionNoData, emissionReceivePending, emissionProbePending, emissionLegacy:
+				// Other outcomes are consumed by the ordinary emission path.
+			}
 		}
-		if c.sendQueue.WouldBlock() {
-			c.scheduleSending()
-			return legacyEmission(nil)
-		}
-		result := c.triggerSending(now)
-		result.progress = true // The preceding PTO emission made progress.
+		result.progress = result.progress || progress
 		return result
-	default:
-		return legacyEmission(fmt.Errorf("BUG: invalid send mode %d", sendMode))
 	}
 }
 
@@ -2573,22 +2562,11 @@ func (c *Conn) emitPackets(now monotime.Time) emissionResult {
 	}
 
 	if !c.handshakeConfirmed {
-		packet, err := c.packer.PackCoalescedPacket(false, c.maxPacketSize(), now, c.version)
-		if err != nil || packet == nil {
-			return legacyEmission(err)
+		result := c.emission.coalesced(now)
+		if !result.deadline.IsZero() {
+			c.pacingDeadline = result.deadline
 		}
-		c.sentFirstPacket = true
-		if err := c.sendPackedCoalescedPacket(packet, c.sentPacketHandler.ECNMode(packet.IsOnlyShortHeaderPacket()), now); err != nil {
-			return legacyEmission(err)
-		}
-		//nolint:exhaustive // only need to handle pacing-related events here
-		switch c.sentPacketHandler.SendMode(now) {
-		case ackhandler.SendPacingLimited:
-			c.resetPacingDeadline()
-		case ackhandler.SendAny:
-			c.pacingDeadline = deadlineSendImmediately
-		}
-		return legacyEmission(nil)
+		return result
 	}
 
 	result := c.emission.advance(now, c.conn.capabilities().GSO)
@@ -2598,7 +2576,7 @@ func (c *Conn) emitPackets(now monotime.Time) emissionResult {
 	case emissionNoData, emissionQueueFull, emissionHardBlocked, emissionCongestionLimited, emissionProbePending:
 		// Preserve the baseline timer policy after a send opportunity: a later
 		// top-level recovery dispatch still decides ACK/PTO and blocked timers.
-	case emissionLegacy:
+	case emissionLegacy, emissionSendAny, emissionProbeSent:
 		panic("BUG: established emission returned a legacy outcome")
 	}
 	return result
@@ -2612,6 +2590,25 @@ func (c *Conn) bindPacketEmission() {
 		version:  c.version,
 		policy:   c,
 	}
+}
+
+func (c *Conn) noteFirstEmission() { c.sentFirstPacket = true }
+
+func (c *Conn) noteCoalescedActivity(ackEliciting bool, now monotime.Time) {
+	if c.firstAckElicitingPacketAfterIdleSentTime.IsZero() && ackEliciting {
+		c.firstAckElicitingPacketAfterIdleSentTime = now
+	}
+}
+
+func (c *Conn) noteCoalescedRegistration(level protocol.EncryptionLevel, now monotime.Time) {
+	if c.perspective == protocol.PerspectiveClient && level == protocol.EncryptionHandshake && !c.droppedInitialKeys {
+		// Client Initial keys retire synchronously at Handshake registration (RFC 9001, 4.9.1).
+		c.dropEncryptionLevel(protocol.EncryptionInitial, now)
+	}
+}
+
+func (c *Conn) coalescedSendMetadata(hasHandshakePacket bool) sendMetadata {
+	return sendMetadata{handshake: !c.handshakeConfirmed && hasHandshakePacket, pathGeneration: c.pathGeneration}
 }
 
 func (c *Conn) noteEmissionRegistration() {
@@ -2630,146 +2627,9 @@ func (c *Conn) emissionReceivePending() bool {
 	return !c.receivedPackets.Empty()
 }
 
-func (c *Conn) resetPacingDeadline() {
-	deadline := c.sentPacketHandler.TimeUntilSend()
-	if deadline.IsZero() {
-		deadline = deadlineSendImmediately
-	}
-	c.pacingDeadline = deadline
-}
-
-func (c *Conn) maybeSendAckOnlyPacket(now monotime.Time) error {
-	if !c.handshakeConfirmed {
-		ecn := c.sentPacketHandler.ECNMode(false)
-		packet, err := c.packer.PackCoalescedPacket(true, c.maxPacketSize(), now, c.version)
-		if err != nil {
-			return err
-		}
-		if packet == nil {
-			return nil
-		}
-		return c.sendPackedCoalescedPacket(packet, ecn, now)
-	}
-
-	ecn := c.sentPacketHandler.ECNMode(true)
-	p, buf, err := c.packer.PackAckOnlyPacket(c.maxPacketSize(), now, c.version)
-	if err != nil {
-		if err == errNothingToPack {
-			return nil
-		}
-		return err
-	}
-	c.logShortHeaderPacket(p, ecn, buf.Len())
-	c.registerPackedShortHeaderPacket(p, ecn, now)
-	c.sendQueue.Send(buf, 0, ecn, sendMetadata{})
-	return nil
-}
-
-func (c *Conn) sendProbePacket(sendMode ackhandler.SendMode, now monotime.Time) error {
-	var encLevel protocol.EncryptionLevel
-	//nolint:exhaustive // We only need to handle the PTO send modes here.
-	switch sendMode {
-	case ackhandler.SendPTOInitial:
-		encLevel = protocol.EncryptionInitial
-	case ackhandler.SendPTOHandshake:
-		encLevel = protocol.EncryptionHandshake
-	case ackhandler.SendPTOAppData:
-		encLevel = protocol.Encryption1RTT
-	default:
-		return fmt.Errorf("connection BUG: unexpected send mode: %d", sendMode)
-	}
-	// Queue probe packets until we actually send out a packet,
-	// or until there are no more packets to queue.
-	var packet *coalescedPacket
-	for packet == nil {
-		if wasQueued := c.sentPacketHandler.QueueProbePacket(encLevel); !wasQueued {
-			break
-		}
-		var err error
-		packet, err = c.packer.PackPTOProbePacket(encLevel, c.maxPacketSize(), false, now, c.version)
-		if err != nil {
-			return err
-		}
-	}
-	if packet == nil {
-		var err error
-		packet, err = c.packer.PackPTOProbePacket(encLevel, c.maxPacketSize(), true, now, c.version)
-		if err != nil {
-			return err
-		}
-	}
-	if packet == nil || (len(packet.longHdrPackets) == 0 && packet.shortHdrPacket == nil) {
-		return fmt.Errorf("connection BUG: couldn't pack %s probe packet: %v", encLevel, packet)
-	}
-	return c.sendPackedCoalescedPacket(packet, c.sentPacketHandler.ECNMode(packet.IsOnlyShortHeaderPacket()), now)
-}
-
-// Legacy ACK/coalesced and probe paths share emission's registration owner.
-// E4/E5 retire these callers; they do not maintain a second accounting path.
+// Legacy probe paths borrow emission's registration owner until E5.
 func (c *Conn) registerPackedShortHeaderPacket(p shortHeaderPacket, ecn protocol.ECN, now monotime.Time) {
 	c.emission.registerPacket(p, ecn, now)
-}
-
-func (c *Conn) sendPackedCoalescedPacket(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) error {
-	c.logCoalescedPacket(packet, ecn)
-	var hasHandshakePacket bool
-	for _, p := range packet.longHdrPackets {
-		if p.EncryptionLevel() == protocol.EncryptionInitial || p.EncryptionLevel() == protocol.EncryptionHandshake {
-			hasHandshakePacket = true
-		}
-		if c.firstAckElicitingPacketAfterIdleSentTime.IsZero() && p.IsAckEliciting() {
-			c.firstAckElicitingPacketAfterIdleSentTime = now
-		}
-		largestAcked := protocol.InvalidPacketNumber
-		if p.ack != nil {
-			largestAcked = p.ack.LargestAcked()
-		}
-		c.sentPacketHandler.SentPacket(
-			now,
-			p.header.PacketNumber,
-			largestAcked,
-			p.streamFrames,
-			p.frames,
-			p.EncryptionLevel(),
-			ecn,
-			p.length,
-			false,
-			false,
-		)
-		if c.perspective == protocol.PerspectiveClient && p.EncryptionLevel() == protocol.EncryptionHandshake &&
-			!c.droppedInitialKeys {
-			// On the client side, Initial keys are dropped as soon as the first Handshake packet is sent.
-			// See Section 4.9.1 of RFC 9001.
-			c.dropEncryptionLevel(protocol.EncryptionInitial, now)
-		}
-	}
-	if p := packet.shortHdrPacket; p != nil {
-		if c.firstAckElicitingPacketAfterIdleSentTime.IsZero() && p.IsAckEliciting() {
-			c.firstAckElicitingPacketAfterIdleSentTime = now
-		}
-		largestAcked := protocol.InvalidPacketNumber
-		if p.Ack != nil {
-			largestAcked = p.Ack.LargestAcked()
-		}
-		c.sentPacketHandler.SentPacket(
-			now,
-			p.PacketNumber,
-			largestAcked,
-			p.StreamFrames,
-			p.Frames,
-			protocol.Encryption1RTT,
-			ecn,
-			p.Length,
-			p.IsPathMTUProbePacket,
-			false,
-		)
-	}
-	c.connIDManager.SentPacket()
-	c.sendQueue.Send(packet.buffer, 0, ecn, sendMetadata{
-		handshake:      !c.handshakeConfirmed && hasHandshakePacket,
-		pathGeneration: c.pathGeneration,
-	})
-	return nil
 }
 
 func (c *Conn) sendConnectionClose(e error) ([]byte, error) {

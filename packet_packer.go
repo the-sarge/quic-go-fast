@@ -429,6 +429,7 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 		padding := p.initialPaddingLen(initialPayload.frames, size, maxSize)
 		cont, err := p.appendLongHeaderPacket(buffer, initialHdr, initialPayload, padding, protocol.EncryptionInitial, initialSealer, v)
 		if err != nil {
+			buffer.Release()
 			return nil, err
 		}
 		packet.longHdrPackets = append(packet.longHdrPackets, cont)
@@ -436,6 +437,7 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 	if handshakePayload.length > 0 {
 		cont, err := p.appendLongHeaderPacket(buffer, handshakeHdr, handshakePayload, 0, protocol.EncryptionHandshake, handshakeSealer, v)
 		if err != nil {
+			buffer.Release()
 			return nil, err
 		}
 		packet.longHdrPackets = append(packet.longHdrPackets, cont)
@@ -443,12 +445,14 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 	if zeroRTTPayload.length > 0 {
 		longHdrPacket, err := p.appendLongHeaderPacket(buffer, zeroRTTHdr, zeroRTTPayload, 0, protocol.Encryption0RTT, zeroRTTSealer, v)
 		if err != nil {
+			buffer.Release()
 			return nil, err
 		}
 		packet.longHdrPackets = append(packet.longHdrPackets, longHdrPacket)
 	} else if oneRTTPayload.length > 0 {
 		shp, err := p.appendShortHeaderPacket(buffer, connID, oneRTTPacketNumber, oneRTTPacketNumberLen, kp, oneRTTPayload, 0, maxSize, oneRTTSealer, false, v)
 		if err != nil {
+			buffer.Release()
 			return nil, err
 		}
 		packet.shortHdrPacket = &shp
@@ -461,7 +465,11 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 func (p *packetPacker) PackAckOnlyPacket(maxSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
 	buf := getPacketBuffer()
 	packet, err := p.appendPacket(buf, true, maxSize, now, v)
-	return packet, buf, err
+	if err != nil {
+		buf.Release()
+		return shortHeaderPacket{}, nil, err
+	}
+	return packet, buf, nil
 }
 
 // AppendPacket packs a packet in the application data packet number space.
@@ -759,6 +767,7 @@ func (p *packetPacker) PackPTOProbePacket(
 
 	longHdrPacket, err := p.appendLongHeaderPacket(buffer, hdr, pl, padding, encLevel, sealer, v)
 	if err != nil {
+		buffer.Release()
 		return nil, err
 	}
 	packet.longHdrPackets = []*longHeaderPacket{longHdrPacket}
@@ -787,6 +796,7 @@ func (p *packetPacker) packPTOProbePacket1RTT(maxPacketSize protocol.ByteCount, 
 	packet := &coalescedPacket{buffer: buffer}
 	shp, err := p.appendShortHeaderPacket(buffer, connID, pn, pnLen, kp, pl, 0, maxPacketSize, s, false, v)
 	if err != nil {
+		buffer.Release()
 		return nil, err
 	}
 	packet.shortHdrPacket = &shp

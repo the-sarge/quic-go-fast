@@ -1,14 +1,16 @@
 package quic
 
 import (
+	"fmt"
+
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
-// packetEmission owns established ordinary/GSO construction, registration and
-// queue transfer. Typed slots borrow the single path state during migration;
-// handshake, probes and close retain their bounded connection-owned paths.
+// packetEmission owns ordinary/GSO, handshake, ACK and PTO construction,
+// registration and queue transfer. Typed slots borrow the single path state;
+// probes and close retain their bounded connection-owned paths.
 type packetEmission struct {
 	packer   *packer
 	recovery *ackhandler.SentPacketHandler
@@ -26,6 +28,11 @@ type emissionPolicy interface {
 	noteEmissionActivity(shortHeaderPacket, monotime.Time)
 	noteEmissionRegistration()
 	emissionReceivePending() bool
+	logCoalescedPacket(*coalescedPacket, protocol.ECN)
+	noteFirstEmission()
+	noteCoalescedActivity(bool, monotime.Time)
+	noteCoalescedRegistration(protocol.EncryptionLevel, monotime.Time)
+	coalescedSendMetadata(bool) sendMetadata
 }
 
 type emissionStop uint8
@@ -39,6 +46,8 @@ const (
 	emissionCongestionLimited
 	emissionProbePending
 	emissionLegacy
+	emissionSendAny
+	emissionProbeSent
 )
 
 type emissionResult struct {
@@ -64,9 +73,9 @@ func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
 	return e.withoutGSO(now)
 }
 
-// Preserve the recovery owner's distinction without moving ACK/PTO dispatch.
+// Preserve the recovery owner's distinction between ordinary batches.
 func emissionRecoveryStop(mode ackhandler.SendMode) emissionStop {
-	//nolint:exhaustive // SendAny and pacing are consumed by the loops; remaining modes request legacy PTO dispatch.
+	//nolint:exhaustive // SendAny and pacing are consumed by the loops; remaining modes request PTO dispatch on the next opportunity.
 	switch mode {
 	case ackhandler.SendNone:
 		return emissionHardBlocked
@@ -217,4 +226,175 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 		false,
 	)
 	e.policy.noteEmissionRegistration()
+}
+
+// dispatch interprets recovery's opportunity before any destructive packing.
+// SendAny returns to the connection's bounded path/control prelude. A completed
+// PTO returns for synchronous connection-owned feedback before the next mode.
+func (e *packetEmission) dispatch(now monotime.Time, confirmed bool) emissionResult {
+	mode := (*e.recovery).SendMode(now)
+	if mode != ackhandler.SendAny && (*e.queue).WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: (*e.queue).Available()}
+	}
+	switch mode {
+	case ackhandler.SendAny:
+		return emissionResult{stop: emissionSendAny}
+	case ackhandler.SendNone:
+		return emissionResult{stop: emissionHardBlocked}
+	case ackhandler.SendAck, ackhandler.SendPacingLimited:
+		result := emissionResult{stop: emissionCongestionLimited}
+		if mode == ackhandler.SendPacingLimited {
+			result.stop, result.deadline = emissionPaced, e.pacingDeadline()
+		}
+		result.progress, result.err = e.maybeSendAckOnlyPacket(now, confirmed)
+		return result
+	case ackhandler.SendPTOInitial, ackhandler.SendPTOHandshake, ackhandler.SendPTOAppData:
+		if err := e.sendProbePacket(mode, now); err != nil {
+			return emissionResult{err: err}
+		}
+		if (*e.queue).WouldBlock() {
+			return emissionResult{progress: true, stop: emissionQueueFull, available: (*e.queue).Available()}
+		}
+		return emissionResult{progress: true, stop: emissionProbeSent}
+	default:
+		return emissionResult{err: fmt.Errorf("BUG: invalid send mode %d", mode)}
+	}
+}
+
+func (e *packetEmission) coalesced(now monotime.Time) emissionResult {
+	if (*e.queue).WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: (*e.queue).Available()}
+	}
+	packet, err := (*e.packer).PackCoalescedPacket(false, e.policy.maxPacketSize(), now, e.version)
+	if err != nil || packet == nil {
+		return emissionResult{err: err}
+	}
+	e.policy.noteFirstEmission()
+	e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now)
+	result := emissionResult{progress: true}
+	//nolint:exhaustive // Preserve only the handshake flight's pacing/immediate-retry policy.
+	switch (*e.recovery).SendMode(now) {
+	case ackhandler.SendPacingLimited:
+		result.stop, result.deadline = emissionPaced, e.pacingDeadline()
+	case ackhandler.SendAny:
+		result.deadline = deadlineSendImmediately
+	}
+	return result
+}
+
+func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed bool) (bool, error) {
+	if !confirmed {
+		ecn := (*e.recovery).ECNMode(false)
+		packet, err := (*e.packer).PackCoalescedPacket(true, e.policy.maxPacketSize(), now, e.version)
+		if err != nil {
+			return false, err
+		}
+		if packet == nil {
+			return false, nil
+		}
+		e.sendCoalesced(packet, ecn, now)
+		return true, nil
+	}
+
+	ecn := (*e.recovery).ECNMode(true)
+	p, buf, err := (*e.packer).PackAckOnlyPacket(e.policy.maxPacketSize(), now, e.version)
+	if err != nil {
+		if err == errNothingToPack {
+			return false, nil
+		}
+		return false, err
+	}
+	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
+	e.registerPacket(p, ecn, now)
+	(*e.queue).Send(buf, 0, ecn, sendMetadata{})
+	return true, nil
+}
+
+func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monotime.Time) error {
+	var encLevel protocol.EncryptionLevel
+	//nolint:exhaustive // We only need to handle the PTO send modes here.
+	switch sendMode {
+	case ackhandler.SendPTOInitial:
+		encLevel = protocol.EncryptionInitial
+	case ackhandler.SendPTOHandshake:
+		encLevel = protocol.EncryptionHandshake
+	case ackhandler.SendPTOAppData:
+		encLevel = protocol.Encryption1RTT
+	default:
+		return fmt.Errorf("connection BUG: unexpected send mode: %d", sendMode)
+	}
+	// Queue probe packets until we actually send out a packet,
+	// or until there are no more packets to queue.
+	var packet *coalescedPacket
+	for packet == nil {
+		if wasQueued := (*e.recovery).QueueProbePacket(encLevel); !wasQueued {
+			break
+		}
+		var err error
+		packet, err = (*e.packer).PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), false, now, e.version)
+		if err != nil {
+			return err
+		}
+	}
+	if packet == nil {
+		var err error
+		packet, err = (*e.packer).PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), true, now, e.version)
+		if err != nil {
+			return err
+		}
+	}
+	if packet == nil || (len(packet.longHdrPackets) == 0 && packet.shortHdrPacket == nil) {
+		return fmt.Errorf("connection BUG: couldn't pack %s probe packet: %v", encLevel, packet)
+	}
+	e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now)
+	return nil
+}
+
+func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) {
+	e.policy.logCoalescedPacket(packet, ecn)
+	var hasHandshakePacket bool
+	for _, p := range packet.longHdrPackets {
+		if p.EncryptionLevel() == protocol.EncryptionInitial || p.EncryptionLevel() == protocol.EncryptionHandshake {
+			hasHandshakePacket = true
+		}
+		e.policy.noteCoalescedActivity(p.IsAckEliciting(), now)
+		largestAcked := protocol.InvalidPacketNumber
+		if p.ack != nil {
+			largestAcked = p.ack.LargestAcked()
+		}
+		(*e.recovery).SentPacket(
+			now,
+			p.header.PacketNumber,
+			largestAcked,
+			p.streamFrames,
+			p.frames,
+			p.EncryptionLevel(),
+			ecn,
+			p.length,
+			false,
+			false,
+		)
+		e.policy.noteCoalescedRegistration(p.EncryptionLevel(), now)
+	}
+	if p := packet.shortHdrPacket; p != nil {
+		e.policy.noteCoalescedActivity(p.IsAckEliciting(), now)
+		largestAcked := protocol.InvalidPacketNumber
+		if p.Ack != nil {
+			largestAcked = p.Ack.LargestAcked()
+		}
+		(*e.recovery).SentPacket(
+			now,
+			p.PacketNumber,
+			largestAcked,
+			p.StreamFrames,
+			p.Frames,
+			protocol.Encryption1RTT,
+			ecn,
+			p.Length,
+			p.IsPathMTUProbePacket,
+			false,
+		)
+	}
+	e.policy.noteEmissionRegistration()
+	(*e.queue).Send(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
 }
