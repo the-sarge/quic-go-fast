@@ -1,6 +1,6 @@
 # Packet emission architecture program — 2026-09-07
 
-**Identity:** QGF-PE-2026-09. **Status:** E1 resumed for four-core feasibility; E2 ready; E3–E6 blocked. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
+**Identity:** QGF-PE-2026-09. **Status:** E1 complete, four-core result inconclusive; E2 ready; E3–E6 blocked. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
 
 ## Outcome and scope
 
@@ -10,11 +10,11 @@ Deepen packet emission around the existing packer while preserving public behavi
 
 | Track | Plan | Parent issue | Slices | Dependencies | Status |
 | --- | --- | --- | --- | --- | --- |
-| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | [#24](https://github.com/the-sarge/quic-go-fast/issues/24) | E1–E6, one intended PR each | E3 requires positive E1 and E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 resumed; E2 independently ready |
+| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | [#24](https://github.com/the-sarge/quic-go-fast/issues/24) | E1–E6, one intended PR each | E3 requires positive E1 and E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 complete, inconclusive; E2 independently ready |
 
-E1 is resumed for the authorized four-core follow-through, with one evidence PR and its remaining replacement campaign and review budgets. Preserve the [original inconclusive evidence](../audits/e1-emission/README.md) from [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33); no experimental runtime is adopted. The [resumption receipt](../audits/2026-09-07-emission-four-core-resumption.md) bounds the current work. E2 remains independently ready. E3 still requires a positive final feasibility disposition and merged E2; E4/E5 require E3 and E6 requires E4/E5. Shared-file merges remain serialized and revalidated without invented dependencies.
+E1's authorized four-core follow-through is complete in [PR #37](https://github.com/the-sarge/quic-go-fast/pull/37), with an [inconclusive replacement receipt](../audits/e1-emission-four-core/README.md). Dedicated-core qualification is unestablished, and P1 p99 and stream-churn time additionally miss their numerical margins. Preserve the [original evidence](../audits/e1-emission/README.md) from [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33); no experimental runtime is adopted. The finite campaign and review budgets from the [resumption receipt](../audits/2026-09-07-emission-four-core-resumption.md) are exhausted. E2 remains independently ready. E3 still requires a new positive feasibility decision and merged E2; E4/E5 require E3 and E6 requires E4/E5. Shared-file merges remain serialized and revalidated without invented dependencies.
 
-Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current frontier is E1 (resumed and owned by this execution) and E2 (independently ready). E3–E6 remain blocked. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
+Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current implementation frontier is E2 (independently ready). E3–E6 remain blocked. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
 
 ## Outcomes requiring no implementation
 

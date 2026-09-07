@@ -1,0 +1,21 @@
+{
+  "fully_in_capture_intervals": 144,
+  "first_interval_start": 1788798375.3898745,
+  "last_interval_end": 1788798519.9941187,
+  "max_average_guest_percent": 0.0,
+  "max_average_smt_sibling_busy_percent": 0.054999999999999716,
+  "pass_host_thresholds": true,
+  "monitor_sha256": "4b5c9fa836db4aeecb56a3faba96fe7eb048bfc3ff5ef5d1f16d953a3cddb139",
+  "monitor_command": [
+    "mpstat",
+    "-P",
+    "8,9,12,13,24,25,28,29",
+    "-o",
+    "JSON",
+    "1",
+    "1"
+  ],
+  "selection": "Retain only entire observation intervals inside manifest.started_unix and completion.finished_unix; discard no benchmark samples.",
+  "dedicated_core_condition_established": false,
+  "qualification_note": "Numerical guest/SMT thresholds passed. The capture controller inherited AllowedCPUs=8-15 and could execute on measured cores; the campaign mpstat child inherited it too. The benchmark passive monitor ran outside measured cores. Same-core tooling contention was not excluded or quantified; do not promote numerical bounds to dedicated-core-qualified passes."
+}

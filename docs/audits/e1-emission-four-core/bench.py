@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Run the existing shared-process benchmarks in ten adjacent alternating pairs."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+root=Path('/home/josh/.cache/qgf-e1-four-core')
+out=Path(sys.argv[1])
+out.mkdir(parents=True,exist_ok=False)
+env=dict(os.environ,GOMAXPROCS='4',QUIC_GO_DISABLE_GSO='false')
+manifest=dict(launcher_sha256=hashlib.sha256((root/"isolate.sh").read_bytes()).hexdigest(), pairs=10,benchtime='1s',benchmem=True,cpus='8,9,12,13',gomaxprocs=4,
+              started_unix=time.time(),
+              shared_process=True,gso_disabled=False,
+              benchmarks='BenchmarkHandshake|BenchmarkStreamChurn|BenchmarkTransfer',
+              base='e742e3ee64c79c61440061a86f56e2e223a776ef',
+              candidate='8e61c8e8b9997204316d6009b9065943a5e8b82f',
+              go=subprocess.check_output(['go','version'],text=True).strip(),
+              runner_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              binary_sha256={v:hashlib.sha256((root/(v+'-bench')).read_bytes()).hexdigest()
+                             for v in ('base','candidate')})
+(out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+for pair in range(10):
+    for variant in (['base','candidate'] if pair%2==0 else ['candidate','base']):
+        label=f'{pair:02d}-{variant}'
+        cmd=['taskset','-c',manifest['cpus'],str(root/(variant+'-bench')),
+             '-test.run=^$','-test.bench=^('+manifest['benchmarks']+')$',
+             '-test.benchtime=1s','-test.benchmem']
+        print('start '+label,flush=True)
+        with (out/(label+'.log')).open('w') as stream:
+            subprocess.run(cmd,stdout=stream,stderr=subprocess.STDOUT,env=env,check=True,timeout=60)
+        print('finished '+label,flush=True)
+(out/'completion.json').write_text(json.dumps(dict(finished_unix=time.time(),completed_samples=20),indent=2)+'\n')

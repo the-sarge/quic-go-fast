@@ -1,0 +1,217 @@
+{
+  "go": "go version go1.27.1 linux/amd64",
+  "go_env": {
+    "CGO_ENABLED": "1",
+    "GOARCH": "amd64",
+    "GOEXPERIMENT": "",
+    "GOFLAGS": "",
+    "GOOS": "linux",
+    "GOTOOLCHAIN": "auto"
+  },
+  "endpoint_sha256": "6ec75a1d6ae2d81c181af15f33b64036de4e1700670adba6218806a503d09a19",
+  "builder_sha256": "ab7e141e20b23a6838cc4cbcd47af28faaf48ff52ae1bf02802215ba00be13c6",
+  "steps": [
+    {
+      "variant": "base",
+      "kind": "tests",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-base",
+      "command": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "started_unix": 1788791538.5969057,
+      "exit_code": 1,
+      "finished_unix": 1788791550.2923954
+    },
+    {
+      "variant": "base",
+      "kind": "race",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-base",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        ".",
+        "-run",
+        "^TestEmission|^TestConnection(GSOBatch|SendQueue|ReceivePrioritization)|^TestHandshakeMTU",
+        "-count=1"
+      ],
+      "started_unix": 1788791636.5598733,
+      "exit_code": 0,
+      "finished_unix": 1788791641.9699044
+    },
+    {
+      "variant": "base",
+      "kind": "vet",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-base",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "started_unix": 1788791641.9704514,
+      "exit_code": 0,
+      "finished_unix": 1788791642.3838415
+    },
+    {
+      "variant": "base",
+      "kind": "endpoint",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-base",
+      "command": [
+        "go",
+        "build",
+        "-o",
+        "/home/josh/.cache/qgf-e1-four-core/base-endpoint",
+        "/home/josh/.cache/qgf-e1-four-core/endpoint.go"
+      ],
+      "started_unix": 1788791642.384132,
+      "exit_code": 0,
+      "finished_unix": 1788791642.675594,
+      "binary_sha256": "9d4390b0d4cea8e06d6d25108f9e93473493c7db70cbd32249db80fb0f6c5ccc"
+    },
+    {
+      "variant": "base",
+      "kind": "bench",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-base",
+      "command": [
+        "go",
+        "test",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e1-four-core/base-bench",
+        "./integrationtests/self"
+      ],
+      "started_unix": 1788791642.6834524,
+      "exit_code": 0,
+      "finished_unix": 1788791643.0253663,
+      "binary_sha256": "a903e2caf500a8e0b8aae588389b0530324aa0be1e1cfb054d3b748e39259b9e"
+    },
+    {
+      "variant": "base",
+      "kind": "alloc",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-base",
+      "command": [
+        "go",
+        "test",
+        "-tags",
+        "emission_experiment",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e1-four-core/base-alloc",
+        "."
+      ],
+      "started_unix": 1788791643.0369117,
+      "exit_code": 0,
+      "finished_unix": 1788791644.5771186,
+      "binary_sha256": "a24e109ed1cf9393254ceff79c0f2f8c3892f24acc57ff7d786a59b5e14f5c7d"
+    },
+    {
+      "variant": "candidate",
+      "kind": "tests",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-candidate",
+      "command": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "started_unix": 1788791644.6218033,
+      "exit_code": 0,
+      "finished_unix": 1788791655.4256864
+    },
+    {
+      "variant": "candidate",
+      "kind": "race",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-candidate",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        ".",
+        "-run",
+        "^TestEmission|^TestConnection(GSOBatch|SendQueue|ReceivePrioritization)|^TestHandshakeMTU",
+        "-count=1"
+      ],
+      "started_unix": 1788791655.4259894,
+      "exit_code": 0,
+      "finished_unix": 1788791660.8695772
+    },
+    {
+      "variant": "candidate",
+      "kind": "vet",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-candidate",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "started_unix": 1788791660.8700333,
+      "exit_code": 0,
+      "finished_unix": 1788791661.284921
+    },
+    {
+      "variant": "candidate",
+      "kind": "endpoint",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-candidate",
+      "command": [
+        "go",
+        "build",
+        "-o",
+        "/home/josh/.cache/qgf-e1-four-core/candidate-endpoint",
+        "/home/josh/.cache/qgf-e1-four-core/endpoint.go"
+      ],
+      "started_unix": 1788791661.2852,
+      "exit_code": 0,
+      "finished_unix": 1788791661.5795262,
+      "binary_sha256": "0699586558783f12d3b732dde374eaa427d0d2f5b3458b4a7f2734a1f979057a"
+    },
+    {
+      "variant": "candidate",
+      "kind": "bench",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-candidate",
+      "command": [
+        "go",
+        "test",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e1-four-core/candidate-bench",
+        "./integrationtests/self"
+      ],
+      "started_unix": 1788791661.5849993,
+      "exit_code": 0,
+      "finished_unix": 1788791661.932595,
+      "binary_sha256": "8fc20a79d432e97917e9cfe5bef9ef24e3328bb48013b0ecf8f46714a4955b7d"
+    },
+    {
+      "variant": "candidate",
+      "kind": "alloc",
+      "cwd": "/Volumes/worktrees/quic-go-fast/e1-four-core-linux-candidate",
+      "command": [
+        "go",
+        "test",
+        "-tags",
+        "emission_experiment",
+        "-c",
+        "-o",
+        "/home/josh/.cache/qgf-e1-four-core/candidate-alloc",
+        "."
+      ],
+      "started_unix": 1788791661.9437313,
+      "exit_code": 0,
+      "finished_unix": 1788791663.5049024,
+      "binary_sha256": "96db207e0cf4928d0354df339c4caf8c20b4a61b36bfe829d8a4758724cec920"
+    }
+  ],
+  "sources": {
+    "base": {
+      "head": "e742e3ee64c79c61440061a86f56e2e223a776ef",
+      "fixture_sha256": "5861ea9e4d7f0aa5117191104215bf34498b894dbeee70ac0405dc3cdd92431d"
+    },
+    "candidate": {
+      "head": "8e61c8e8b9997204316d6009b9065943a5e8b82f",
+      "fixture_sha256": "5861ea9e4d7f0aa5117191104215bf34498b894dbeee70ac0405dc3cdd92431d"
+    }
+  },
+  "initial_builder_sha256": "3cc59084660a721b41ce6571f271c40a6da6af96c41c3cdfb92059b0beba15d6",
+  "disposition": "Baseline full suite hit pre-existing TestMITCorruptPackets/towards_the_client one-second Dial deadline; preserved failure, no rerun. Continue remaining independent checks and candidate validation."
+}
