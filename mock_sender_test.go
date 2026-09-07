@@ -154,15 +154,15 @@ func (c *MockSenderRunCall) DoAndReturn(f func() error) *MockSenderRunCall {
 }
 
 // Send mocks base method.
-func (m *MockSender) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN) {
+func (m *MockSender) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Send", p, gsoSize, ecn)
+	m.ctrl.Call(m, "Send", p, gsoSize, ecn, metadata)
 }
 
 // Send indicates an expected call of Send.
-func (mr *MockSenderMockRecorder) Send(p, gsoSize, ecn any) *MockSenderSendCall {
+func (mr *MockSenderMockRecorder) Send(p, gsoSize, ecn, metadata any) *MockSenderSendCall {
 	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSender)(nil).Send), p, gsoSize, ecn)
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSender)(nil).Send), p, gsoSize, ecn, metadata)
 	return &MockSenderSendCall{Call: call}
 }
 
@@ -178,13 +178,13 @@ func (c *MockSenderSendCall) Return() *MockSenderSendCall {
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockSenderSendCall) Do(f func(*packetBuffer, uint16, protocol.ECN)) *MockSenderSendCall {
+func (c *MockSenderSendCall) Do(f func(*packetBuffer, uint16, protocol.ECN, sendMetadata)) *MockSenderSendCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockSenderSendCall) DoAndReturn(f func(*packetBuffer, uint16, protocol.ECN)) *MockSenderSendCall {
+func (c *MockSenderSendCall) DoAndReturn(f func(*packetBuffer, uint16, protocol.ECN, sendMetadata)) *MockSenderSendCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

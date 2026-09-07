@@ -2,12 +2,13 @@ package quic
 
 import (
 	"net"
+	"sync"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
 type sender interface {
-	Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN)
+	Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata)
 	SendProbe(*packetBuffer, net.Addr, packetInfo)
 	Run() error
 	WouldBlock() bool
@@ -15,10 +16,48 @@ type sender interface {
 	Close()
 }
 
+// sendMetadata is captured by the connection loop, never read from it by the worker.
+type sendMetadata struct {
+	handshake      bool
+	pathGeneration uint64
+}
+
+// handshakeSendFeedback retains the latest eligible failure without retaining buffers.
+// Publishing and consuming the coalesced wakeup under the lock prevents lost wakeups.
+type handshakeSendFeedback struct {
+	mu         sync.Mutex
+	generation uint64
+	pending    bool
+	wakeup     chan struct{}
+}
+
+func (f *handshakeSendFeedback) publish(generation uint64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.generation, f.pending = generation, true
+	select {
+	case f.wakeup <- struct{}{}:
+	default:
+	}
+}
+
+func (f *handshakeSendFeedback) take() (uint64, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	generation, pending := f.generation, f.pending
+	f.pending = false
+	select {
+	case <-f.wakeup:
+	default:
+	}
+	return generation, pending
+}
+
 type queueEntry struct {
-	buf     *packetBuffer
-	gsoSize uint16
-	ecn     protocol.ECN
+	metadata sendMetadata
+	buf      *packetBuffer
+	gsoSize  uint16
+	ecn      protocol.ECN
 }
 
 type sendQueue struct {
@@ -27,15 +66,17 @@ type sendQueue struct {
 	runStopped  chan struct{} // runStopped when the run loop returns
 	available   chan struct{}
 	conn        sendConn
+	feedback    *handshakeSendFeedback
 }
 
 var _ sender = &sendQueue{}
 
 const sendQueueCapacity = 8
 
-func newSendQueue(conn sendConn) sender {
+func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
 	return &sendQueue{
 		conn:        conn,
+		feedback:    feedback,
 		runStopped:  make(chan struct{}),
 		closeCalled: make(chan struct{}),
 		available:   make(chan struct{}, 1),
@@ -46,9 +87,9 @@ func newSendQueue(conn sendConn) sender {
 // Send sends out a packet. It's guaranteed to not block.
 // Callers need to make sure that there's actually space in the send queue by calling WouldBlock.
 // Otherwise Send will panic.
-func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN) {
+func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata) {
 	select {
-	case h.queue <- queueEntry{buf: p, gsoSize: gsoSize, ecn: ecn}:
+	case h.queue <- queueEntry{buf: p, gsoSize: gsoSize, ecn: ecn, metadata: metadata}:
 		// clear available channel if we've reached capacity
 		if len(h.queue) == sendQueueCapacity {
 			select {
@@ -94,6 +135,9 @@ func (h *sendQueue) Run() error {
 				// 3. Eventual detection of loss PingFrame.
 				if !isSendMsgSizeErr(err) {
 					return err
+				}
+				if h.feedback != nil && e.metadata.handshake && e.gsoSize == 0 && e.buf.Len() > protocol.MinInitialPacketSize {
+					h.feedback.publish(e.metadata.pathGeneration)
 				}
 			}
 			e.buf.Release()

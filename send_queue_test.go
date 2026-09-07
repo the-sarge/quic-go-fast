@@ -25,7 +25,7 @@ func TestSendQueueSendOnePacket(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		c := NewMockSendConn(mockCtrl)
-		q := newSendQueue(c)
+		q := newSendQueue(c, nil)
 
 		written := make(chan struct{})
 		c.EXPECT().Write([]byte("foobar"), uint16(10), protocol.ECT1).Do(
@@ -38,7 +38,7 @@ func TestSendQueueSendOnePacket(t *testing.T) {
 			close(done)
 		}()
 
-		q.Send(getPacketWithContents([]byte("foobar")), 10, protocol.ECT1)
+		q.Send(getPacketWithContents([]byte("foobar")), 10, protocol.ECT1, sendMetadata{})
 		synctest.Wait()
 
 		select {
@@ -62,7 +62,7 @@ func TestSendQueueBlocking(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		c := NewMockSendConn(mockCtrl)
-		q := newSendQueue(c)
+		q := newSendQueue(c, nil)
 
 		blockWrite := make(chan struct{})
 		written := make(chan struct{}, 1)
@@ -86,7 +86,7 @@ func TestSendQueueBlocking(t *testing.T) {
 		// +1, since one packet will be queued in the Write call
 		for i := range sendQueueCapacity + 1 {
 			require.False(t, q.WouldBlock())
-			q.Send(getPacketWithContents([]byte("foobar")), 10, protocol.ECT1)
+			q.Send(getPacketWithContents([]byte("foobar")), 10, protocol.ECT1, sendMetadata{})
 			// make sure that the first packet is actually enqueued in the Write call
 			if i == 0 {
 				select {
@@ -102,7 +102,7 @@ func TestSendQueueBlocking(t *testing.T) {
 			t.Fatal("should not be available")
 		default:
 		}
-		require.Panics(t, func() { q.Send(getPacketWithContents([]byte("foobar")), 10, protocol.ECT1) })
+		require.Panics(t, func() { q.Send(getPacketWithContents([]byte("foobar")), 10, protocol.ECT1, sendMetadata{}) })
 
 		// allow one packet to be sent
 		blockWrite <- struct{}{}
@@ -155,10 +155,10 @@ func TestSendQueueWriteError(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		c := NewMockSendConn(mockCtrl)
-		q := newSendQueue(c)
+		q := newSendQueue(c, nil)
 
 		c.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).Return(assert.AnError)
-		q.Send(getPacketWithContents([]byte("foobar")), 6, protocol.ECNNon)
+		q.Send(getPacketWithContents([]byte("foobar")), 6, protocol.ECNNon, sendMetadata{})
 
 		errChan := make(chan error, 1)
 		go func() { errChan <- q.Run() }()
@@ -177,7 +177,7 @@ func TestSendQueueWriteError(t *testing.T) {
 		go func() {
 			defer close(sent)
 			for range 2 * sendQueueCapacity {
-				q.Send(getPacketWithContents([]byte("raboof")), 6, protocol.ECNNon)
+				q.Send(getPacketWithContents([]byte("raboof")), 6, protocol.ECNNon, sendMetadata{})
 			}
 		}()
 
@@ -194,7 +194,7 @@ func TestSendQueueWriteError(t *testing.T) {
 func TestSendQueueSendProbe(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	c := NewMockSendConn(mockCtrl)
-	q := newSendQueue(c)
+	q := newSendQueue(c, nil)
 
 	addr := &net.UDPAddr{IP: net.IPv4(42, 42, 42, 42), Port: 42}
 	localAddr := netip.MustParseAddr("43.43.43.43")
