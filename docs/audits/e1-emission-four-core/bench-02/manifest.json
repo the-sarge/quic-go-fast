@@ -1,0 +1,20 @@
+{
+  "launcher_sha256": "b3133feb2a9ec3b615a9f4673db0adced9813b2105950b600032a0bc5bbe4fd8",
+  "pairs": 10,
+  "benchtime": "1s",
+  "benchmem": true,
+  "cpus": "8,9,12,13",
+  "gomaxprocs": 4,
+  "started_unix": 1788798374.4560108,
+  "shared_process": true,
+  "gso_disabled": false,
+  "benchmarks": "BenchmarkHandshake|BenchmarkStreamChurn|BenchmarkTransfer",
+  "base": "e742e3ee64c79c61440061a86f56e2e223a776ef",
+  "candidate": "8e61c8e8b9997204316d6009b9065943a5e8b82f",
+  "go": "go version go1.27.1 linux/amd64",
+  "runner_sha256": "2e7e3ea96ed0fe4ff641f059e4d28c0cc91094ee085f223c3af4a597b61e2adf",
+  "binary_sha256": {
+    "base": "a903e2caf500a8e0b8aae588389b0530324aa0be1e1cfb054d3b748e39259b9e",
+    "candidate": "8fc20a79d432e97917e9cfe5bef9ef24e3328bb48013b0ecf8f46714a4955b7d"
+  }
+}

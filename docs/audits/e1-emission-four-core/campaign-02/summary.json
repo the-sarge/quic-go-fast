@@ -1,0 +1,188 @@
+{
+  "seed": 20260907,
+  "whole_pair_resamples": 20000,
+  "campaign": "/tmp/qgf-e1-four-core/campaign-02",
+  "cells": [
+    {
+      "cell": "P1",
+      "valid_pairs": 10,
+      "status": "noninferiority_not_established",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 1.0004953115208095,
+          "one_sided_95_percent_bound": 1.0000212766183956,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 0.992398674251319,
+          "one_sided_95_percent_bound": 0.995007272882286,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0001114110648903,
+          "one_sided_95_percent_bound": 1.0004388049455395,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 0.9494438580748827,
+          "one_sided_95_percent_bound": 1.0793204935077678,
+          "bound_direction": "upper",
+          "pass": false
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "cell": "P3",
+      "valid_pairs": 10,
+      "status": "pass",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 1.000699938962481,
+          "one_sided_95_percent_bound": 0.9994382788034447,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 0.9977601201310154,
+          "one_sided_95_percent_bound": 0.9995531986470568,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0009576393622313,
+          "one_sided_95_percent_bound": 1.001226419463346,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 0.9135697266674883,
+          "one_sided_95_percent_bound": 0.9352669197894168,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": -3.3333333333333335e-05,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "cell": "P4",
+      "valid_pairs": 10,
+      "status": "pass",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 0.9996421031610218,
+          "one_sided_95_percent_bound": 0.9989230329069146,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 0.9993387043560826,
+          "one_sided_95_percent_bound": 1.001215377768393,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0007166953541604,
+          "one_sided_95_percent_bound": 1.000981464175044,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 0.9798404576783775,
+          "one_sided_95_percent_bound": 0.999134233393329,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "cell": "P5",
+      "valid_pairs": 10,
+      "status": "pass",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 0.9988319383587129,
+          "one_sided_95_percent_bound": 0.997301595777499,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0076985815609028,
+          "one_sided_95_percent_bound": 1.009873013462928,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 0.999777645698407,
+          "one_sided_95_percent_bound": 1.0004461111428957,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 1.0185891061260381,
+          "one_sided_95_percent_bound": 1.03572816706797,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "cell": "P6",
+      "valid_pairs": 10,
+      "status": "pass",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 0.9992660438797366,
+          "one_sided_95_percent_bound": 0.9981882257961913,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0057091885963558,
+          "one_sided_95_percent_bound": 1.006602344460895,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.0013718893280854,
+          "one_sided_95_percent_bound": 1.0017540810239667,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 1.017614971338303,
+          "one_sided_95_percent_bound": 1.0305616212350606,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    }
+  ],
+  "status": "noninferiority_not_established"
+}

@@ -1,0 +1,12 @@
+{
+  "observed_unix": 1788798374.3541057,
+  "phase_exit": 0,
+  "allowed_cpus": {
+    "machine.slice": "",
+    "system.slice": "",
+    "user.slice": ""
+  },
+  "reservation_marker_exists": false,
+  "backup_timer_active": false,
+  "restored": true
+}

@@ -1,0 +1,7 @@
+{
+  "completed_samples": 100,
+  "all_valid": true,
+  "max_average_guest_percent": 0.0,
+  "max_average_smt_sibling_busy_percent": 0.1398437499999996,
+  "pass_host_thresholds": true
+}
