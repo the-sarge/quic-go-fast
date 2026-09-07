@@ -2643,7 +2643,7 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		)
 
 		sender.EXPECT().Run().MaxTimes(1)
-		sender.EXPECT().WouldBlock()
+		sender.EXPECT().WouldBlock().Times(2) // run-loop and experimental emission entry guards
 		sender.EXPECT().WouldBlock().Return(true).Times(2)
 		available := make(chan struct{})
 		blocked := make(chan struct{})
