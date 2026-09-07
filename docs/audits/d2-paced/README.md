@@ -6,6 +6,8 @@ The [protocol](../2026-09-06-d2-paced-protocol.md) fixes the workload, collectio
 
 Frozen baseline: `37914bf7e884ff5f777d9ef9f3df32ed1e68fa7a`. Frozen head-index candidate: `5d3fdb0170dc58ab6bfa871e32cc9eb925fcf4aa`. Export each with `git archive`, extract into `base` and `head-index` directories under a fresh experiment root on minimax, and compare archive checksums against `source-hashes.log`. `source-diff.log` records the extracted-tree comparison. The only differing file is `datagram_queue.go`.
 
+The retained `candidate.patch` is a zero-context diff. To apply it to an export of frozen baseline `37914bf7e884ff5f777d9ef9f3df32ed1e68fa7a`, use `git apply --unidiff-zero /absolute/path/to/docs/audits/d2-paced/candidate.patch`; add `--check` for an applicability check. The two frozen tree exports above are the primary reconstruction path.
+
 Build each extracted tree natively with `GOTOOLCHAIN=local go test -tags=queue_experiment -c -o ../base.test .` (use `../head-index.test` for the candidate). `binary-hashes.log`, `toolchain.log`, `host.log`, and `validation.log` preserve the measured builds and validation. To collect a new explicitly authorized experiment, use a fresh root containing those two binaries and run `python3 base/docs/audits/d2-paced/collect.py /absolute/experiment/root`. The collector requires `taskset` and `mpstat`; CPU choices and sample budget are intentionally fixed in its source. It refuses an existing manifest.
 
 A single diagnostic invocation uses the following environment and command. It is not a replacement for the interleaved collection, and a race-enabled invocation is correctness evidence only.
