@@ -6,7 +6,7 @@ Keep head-index experimental. Allocated bytes per delivered datagram fell consis
 
 All 360 planned samples completed; all FIFO, payload-integrity, and delivery-accounting checks passed. No sample was removed, repeated, or replaced. One baseline sample missed the predeclared 98% offered-rate qualification: round 16 of the 500,000/sec individual-arrival case achieved 97.762% of target. That case establishes behavior at its achieved rates only. All other samples met the rate qualification. These are provisional synthetic bulk-transfer scenarios, not a measured application trace or a full QUIC network test.
 
-The [fixed protocol](2026-09-06-d2-paced-protocol.md), [reproduction instructions](d2-paced/README.md), [complete analysis](d2-paced/analysis.json), and [original sample manifest](d2-paced/samples.jsonl.gz) own the details. This investigation follows [draft PR #13](https://github.com/the-sarge/quic-go-fast/pull/13); completed D2 and the program frontier remain unchanged. The evidence branch contains no runtime change.
+The [fixed protocol](2026-09-06-d2-paced-protocol.md), [reproduction instructions](d2-paced/README.md), [saved analysis](d2-paced/analysis.json), and [original sample manifest](d2-paced/samples.jsonl.gz) own the details. This investigation follows [PR #13](https://github.com/the-sarge/quic-go-fast/pull/13); completed D2 and the program frontier remain unchanged. The evidence branch contains no runtime change.
 
 ![Paired changes in allocated bytes, p99 queue latency, and queue loss](d2-paced/comparison.png)
 
@@ -37,6 +37,8 @@ All 10,000/sec samples delivered every offered datagram, including the pause cas
 At 500,000/sec the unchanged 128-entry queue holds only 0.256 ms of arrivals. A 1 ms pause can therefore overwhelm either representation. That capacity calculation predicts vulnerability, not the exact measured loss: burst alignment, preexisting occupancy, oversleep, GC, scheduler behavior, and competing host activity also matter. Head-index changes storage reuse, not the admission limit or the consumer's ability to pause safely.
 
 ## Paired comparisons
+
+The historical protocol requested paired geometric-mean intervals for positive metrics. The saved analyzer includes achieved offered-rate medians, minimum target fractions, qualification failures and paired generator-miss percentage-point differences, but omits the paired geometric-mean offered-rate interval in all nine cases. That is a reporting limitation; the archived analysis is not a complete implementation of that protocol request. Closeout preserves the original analysis and makes no paired offered-rate equivalence claim.
 
 Each row uses all 20 matched rounds. Byte and latency changes are paired geometric-mean candidate/base ratios expressed as percentages; queue-loss differences are mean percentage-point changes. Brackets contain seeded 10,000-resample bootstrap 95% intervals. These are exploratory host/window estimates, with no multiplicity-adjusted or production-equivalence claim.
 
