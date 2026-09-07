@@ -1,0 +1,23 @@
+File: head-index.test
+Type: delay
+Showing nodes accounting for 2.95ms, 99.15% of 2.97ms total
+Dropped 27 nodes (cum <= 0.01ms)
+      flat  flat%   sum%        cum   cum%
+    2.79ms 94.03% 94.03%     2.79ms 94.03%  syscall.read
+    0.11ms  3.82% 97.86%     0.11ms  3.82%  syscall.write
+    0.04ms  1.30% 99.15%     0.04ms  1.30%  syscall.unlinkat
+         0     0% 99.15%     2.78ms 93.41%  github.com/quic-go/quic-go.(*externalPacedSource).next
+         0     0% 99.15%     2.82ms 94.72%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0% 99.15%     0.03ms  1.14%  github.com/quic-go/quic-go.prepareExternalPacer
+         0     0% 99.15%     0.05ms  1.62%  github.com/quic-go/quic-go.prepareExternalPacer.func1
+         0     0% 99.15%     2.79ms 94.03%  internal/poll.(*FD).Read
+         0     0% 99.15%     0.11ms  3.82%  internal/poll.(*FD).Write
+         0     0% 99.15%     2.79ms 94.03%  net.(*conn).Read
+         0     0% 99.15%     2.79ms 94.03%  net.(*netFD).Read
+         0     0% 99.15%     0.11ms  3.82%  os.(*File).Write
+         0     0% 99.15%     0.04ms  1.30%  os.Remove
+         0     0% 99.15%     0.11ms  3.56%  runtime/trace.(*traceMultiplexer).startLocked.func1
+         0     0% 99.15%     0.05ms  1.62%  testing.(*common).Cleanup.func1
+         0     0% 99.15%     0.05ms  1.62%  testing.(*common).runCleanup
+         0     0% 99.15%     2.87ms 96.40%  testing.tRunner
+         0     0% 99.15%     0.05ms  1.62%  testing.tRunner.func2

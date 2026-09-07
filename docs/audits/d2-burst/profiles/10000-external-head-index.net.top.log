@@ -1,0 +1,11 @@
+File: head-index.test
+Type: delay
+Showing nodes accounting for 2070ms, 100% of 2070ms total
+      flat  flat%   sum%        cum   cum%
+    2070ms   100%   100%     2070ms   100%  internal/poll.(*FD).Read
+         0     0%   100%  2032.04ms 98.17%  github.com/quic-go/quic-go.(*externalPacedSource).next
+         0     0%   100%     2070ms   100%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%    37.96ms  1.83%  github.com/quic-go/quic-go.prepareExternalPacer
+         0     0%   100%     2070ms   100%  net.(*conn).Read
+         0     0%   100%     2070ms   100%  net.(*netFD).Read
+         0     0%   100%     2070ms   100%  testing.tRunner

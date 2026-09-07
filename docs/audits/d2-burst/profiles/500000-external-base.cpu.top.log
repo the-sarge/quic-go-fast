@@ -1,0 +1,48 @@
+File: base.test
+Build ID: 65752d3ddcafb68adce727c12b7dbc63fce1ef1b
+Type: cpu
+Time: 2026-09-06 19:21:29 UTC
+Duration: 4.09s, Total samples = 730ms (17.85%)
+Showing nodes accounting for 730ms, 100% of 730ms total
+Showing top 40 nodes out of 116
+      flat  flat%   sum%        cum   cum%
+     210ms 28.77% 28.77%      210ms 28.77%  runtime.futex
+      70ms  9.59% 38.36%       70ms  9.59%  runtime.usleep
+      60ms  8.22% 46.58%       60ms  8.22%  runtime.nanotime (inline)
+      30ms  4.11% 50.68%       30ms  4.11%  internal/runtime/syscall/linux.Syscall6
+      30ms  4.11% 54.79%       30ms  4.11%  internal/sync.(*Mutex).Lock (inline)
+      30ms  4.11% 58.90%       30ms  4.11%  runtime.memmove
+      20ms  2.74% 61.64%      210ms 28.77%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+      20ms  2.74% 64.38%       20ms  2.74%  internal/runtime/atomic.(*Uint32).CompareAndSwap
+      20ms  2.74% 67.12%       40ms  5.48%  runtime.(*mcache).nextFree
+      20ms  2.74% 69.86%      210ms 28.77%  runtime.futexsleep
+      20ms  2.74% 72.60%       20ms  2.74%  runtime.heapArenaOf (inline)
+      20ms  2.74% 75.34%       20ms  2.74%  runtime.nanotime1
+      10ms  1.37% 76.71%       10ms  1.37%  internal/runtime/atomic.(*Uint32).Add (inline)
+      10ms  1.37% 78.08%       10ms  1.37%  internal/runtime/gc/scan.scanSpanPackedAVX512
+      10ms  1.37% 79.45%       10ms  1.37%  internal/sync.(*Mutex).Unlock (inline)
+      10ms  1.37% 80.82%       10ms  1.37%  runtime.(*limiterEvent).stop
+      10ms  1.37% 82.19%       10ms  1.37%  runtime.(*mcentral).partialSwept (inline)
+      10ms  1.37% 83.56%       10ms  1.37%  runtime.(*pallocBits).summarize
+      10ms  1.37% 84.93%       30ms  4.11%  runtime.(*sweepLocked).sweep
+      10ms  1.37% 86.30%      320ms 43.84%  runtime.findRunnable
+      10ms  1.37% 87.67%       10ms  1.37%  runtime.getGCMask (inline)
+      10ms  1.37% 89.04%       30ms  4.11%  runtime.growslice
+      10ms  1.37% 90.41%       10ms  1.37%  runtime.ifaceeq
+      10ms  1.37% 91.78%       10ms  1.37%  runtime.lock2
+      10ms  1.37% 93.15%       10ms  1.37%  runtime.netpollcheckerr (inline)
+      10ms  1.37% 94.52%       10ms  1.37%  runtime.pallocSum.unpack (inline)
+      10ms  1.37% 95.89%       20ms  2.74%  runtime.scanblock
+      10ms  1.37% 97.26%       60ms  8.22%  runtime.selectnbsend
+      10ms  1.37% 98.63%       20ms  2.74%  runtime.typePointers.next
+      10ms  1.37%   100%       10ms  1.37%  runtime.wirep
+         0     0%   100%       10ms  1.37%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+         0     0%   100%       30ms  4.11%  github.com/quic-go/quic-go.(*externalPacedSource).next
+         0     0%   100%      280ms 38.36%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%       10ms  1.37%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment.func2
+         0     0%   100%       30ms  4.11%  internal/poll.(*FD).Read
+         0     0%   100%       10ms  1.37%  internal/poll.(*pollDesc).wait
+         0     0%   100%       10ms  1.37%  internal/poll.(*pollDesc).waitRead (inline)
+         0     0%   100%       20ms  2.74%  internal/poll.ignoringEINTRIO (inline)
+         0     0%   100%       10ms  1.37%  internal/poll.runtime_pollWait
+         0     0%   100%       10ms  1.37%  internal/runtime/gc/scan.ScanSpanPacked (inline)

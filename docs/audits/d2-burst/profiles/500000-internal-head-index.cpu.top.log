@@ -1,0 +1,34 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: cpu
+Time: 2026-09-06 19:21:25 UTC
+Duration: 4s, Total samples = 4290ms (107.19%)
+Showing nodes accounting for 4220ms, 98.37% of 4290ms total
+Dropped 16 nodes (cum <= 21.45ms)
+      flat  flat%   sum%        cum   cum%
+    3790ms 88.34% 88.34%     3790ms 88.34%  time.runtimeNow
+     230ms  5.36% 93.71%      230ms  5.36%  runtime.futex
+      60ms  1.40% 95.10%       60ms  1.40%  time.Time.Before
+      40ms  0.93% 96.04%     3830ms 89.28%  time.Now
+      40ms  0.93% 96.97%       40ms  0.93%  time.now
+      20ms  0.47% 97.44%     3910ms 91.14%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+      20ms  0.47% 97.90%       30ms   0.7%  runtime.scanframeworker
+      10ms  0.23% 98.14%      240ms  5.59%  runtime.futexsleep
+      10ms  0.23% 98.37%       50ms  1.17%  runtime.sweepone
+         0     0% 98.37%       50ms  1.17%  runtime.bgsweep
+         0     0% 98.37%      240ms  5.59%  runtime.findRunnable
+         0     0% 98.37%       50ms  1.17%  runtime.gcBgMarkWorker
+         0     0% 98.37%       40ms  0.93%  runtime.gcBgMarkWorker.func2
+         0     0% 98.37%       40ms  0.93%  runtime.gcDrain
+         0     0% 98.37%       40ms  0.93%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0% 98.37%      240ms  5.59%  runtime.mPark (inline)
+         0     0% 98.37%       30ms   0.7%  runtime.markroot
+         0     0% 98.37%       30ms   0.7%  runtime.markroot.func1
+         0     0% 98.37%      240ms  5.59%  runtime.mcall
+         0     0% 98.37%      240ms  5.59%  runtime.notesleep
+         0     0% 98.37%      240ms  5.59%  runtime.park_m
+         0     0% 98.37%       30ms   0.7%  runtime.scanstack
+         0     0% 98.37%      240ms  5.59%  runtime.schedule
+         0     0% 98.37%      240ms  5.59%  runtime.stopm
+         0     0% 98.37%       60ms  1.40%  runtime.systemstack
+         0     0% 98.37%     3910ms 91.14%  testing.tRunner

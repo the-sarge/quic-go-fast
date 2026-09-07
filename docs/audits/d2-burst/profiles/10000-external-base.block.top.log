@@ -1,0 +1,19 @@
+File: base.test
+Build ID: 65752d3ddcafb68adce727c12b7dbc63fce1ef1b
+Type: delay
+Time: 2026-09-06 19:21:44 UTC
+Showing nodes accounting for 4121.01ms, 100% of 4121.51ms total
+Dropped 6 nodes (cum <= 20.61ms)
+      flat  flat%   sum%        cum   cum%
+ 2087.73ms 50.65% 50.65%  2087.73ms 50.65%  runtime.chanrecv1
+ 2033.27ms 49.33%   100%  2033.27ms 49.33%  runtime.selectgo
+         0     0%   100%  2033.77ms 49.35%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+         0     0%   100%  2034.45ms 49.36%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment.func2
+         0     0%   100%  2087.05ms 50.64%  github.com/quic-go/quic-go.TestMain
+         0     0%   100%  2087.05ms 50.64%  main.main
+         0     0%   100%  2087.05ms 50.64%  runtime.main
+         0     0%   100%  2087.05ms 50.64%  testing.(*M).Run
+         0     0%   100%  2087.05ms 50.64%  testing.(*T).Run
+         0     0%   100%  2087.05ms 50.64%  testing.runTests
+         0     0%   100%  2087.05ms 50.64%  testing.runTests.func1
+         0     0%   100%  2087.06ms 50.64%  testing.tRunner

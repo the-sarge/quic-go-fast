@@ -1,0 +1,19 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: delay
+Time: 2026-09-06 19:22:03 UTC
+Showing nodes accounting for 3948.99ms, 100% of 3950.90ms total
+Dropped 6 nodes (cum <= 19.75ms)
+      flat  flat%   sum%        cum   cum%
+ 2085.77ms 52.79% 52.79%  2085.77ms 52.79%  runtime.chanrecv1
+ 1863.22ms 47.16%   100%  1863.22ms 47.16%  runtime.selectgo
+         0     0%   100%  1865.12ms 47.21%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+         0     0%   100%  1865.80ms 47.22%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment.func2
+         0     0%   100%  2085.09ms 52.78%  github.com/quic-go/quic-go.TestMain
+         0     0%   100%  2085.09ms 52.78%  main.main
+         0     0%   100%  2085.09ms 52.78%  runtime.main
+         0     0%   100%  2085.09ms 52.78%  testing.(*M).Run
+         0     0%   100%  2085.09ms 52.78%  testing.(*T).Run
+         0     0%   100%  2085.09ms 52.78%  testing.runTests
+         0     0%   100%  2085.09ms 52.78%  testing.runTests.func1
+         0     0%   100%  2085.09ms 52.78%  testing.tRunner

@@ -1,0 +1,19 @@
+File: base.test
+Type: delay
+Showing nodes accounting for 0.11ms, 100% of 0.11ms total
+Dropped 4 nodes (cum <= 0)
+      flat  flat%   sum%        cum   cum%
+    0.11ms   100%   100%     0.11ms   100%  syscall.write
+         0     0%   100%          0  3.77%  fmt.Fprintf
+         0     0%   100%          0  1.80%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%          0  1.79%  github.com/quic-go/quic-go.TestMain
+         0     0%   100%     0.11ms   100%  internal/poll.(*FD).Write
+         0     0%   100%          0  1.79%  main.main
+         0     0%   100%     0.11ms   100%  os.(*File).Write
+         0     0%   100%     0.10ms 96.05%  runtime/trace.(*traceMultiplexer).startLocked.func1
+         0     0%   100%          0  1.79%  testing.(*M).Run
+         0     0%   100%          0  1.61%  testing.(*T).Run
+         0     0%   100%          0  1.97%  testing.(*chattyPrinter).Updatef
+         0     0%   100%          0  1.61%  testing.runTests
+         0     0%   100%          0  1.61%  testing.runTests.func1
+         0     0%   100%          0  3.77%  testing.tRunner

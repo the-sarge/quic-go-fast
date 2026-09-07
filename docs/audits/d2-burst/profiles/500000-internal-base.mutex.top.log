@@ -1,0 +1,19 @@
+File: base.test
+Build ID: 65752d3ddcafb68adce727c12b7dbc63fce1ef1b
+Type: delay
+Time: 2026-09-06 19:21:57 UTC
+Showing nodes accounting for 2.40ms, 100% of 2.40ms total
+Dropped 42 nodes (cum <= 0.01ms)
+      flat  flat%   sum%        cum   cum%
+    2.37ms 98.85% 98.85%     2.37ms 98.85%  sync.(*Mutex).Unlock (inline)
+    0.03ms  1.15%   100%     0.03ms  1.15%  runtime.unlock (inline)
+         0     0%   100%     2.37ms 98.89%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0%   100%     2.37ms 98.89%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%     0.03ms  1.10%  runtime.gcBgMarkWorker
+         0     0%   100%     0.03ms  1.10%  runtime.gcMarkDone
+         0     0%   100%     0.03ms  1.10%  runtime.gcMarkTermination
+         0     0%   100%     0.03ms  1.10%  runtime.gcMarkTermination.func3
+         0     0%   100%     0.03ms  1.10%  runtime.startTheWorldWithSema
+         0     0%   100%     0.03ms  1.15%  runtime.systemstack
+         0     0%   100%     2.37ms 98.85%  testing.(*T).Run.gowrap1
+         0     0%   100%     2.37ms 98.89%  testing.tRunner

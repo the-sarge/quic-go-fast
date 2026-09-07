@@ -1,0 +1,48 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: cpu
+Time: 2026-09-06 19:21:17 UTC
+Duration: 4.08s, Total samples = 130ms ( 3.18%)
+Showing nodes accounting for 130ms, 100% of 130ms total
+Showing top 40 nodes out of 42
+      flat  flat%   sum%        cum   cum%
+      30ms 23.08% 23.08%       30ms 23.08%  internal/sync.(*Mutex).Unlock (inline)
+      20ms 15.38% 38.46%       50ms 38.46%  runtime.(*sweepLocked).sweep
+      10ms  7.69% 46.15%       10ms  7.69%  internal/runtime/atomic.(*Uint32).Add (inline)
+      10ms  7.69% 53.85%       10ms  7.69%  runtime.(*sysMemStat).add
+      10ms  7.69% 61.54%       10ms  7.69%  runtime.(*unwinder).initAt
+      10ms  7.69% 69.23%       10ms  7.69%  runtime.getGCMask (inline)
+      10ms  7.69% 76.92%       10ms  7.69%  runtime.lock2
+      10ms  7.69% 84.62%       20ms 15.38%  runtime.scanObject
+      10ms  7.69% 92.31%       10ms  7.69%  runtime.scanblock
+      10ms  7.69%   100%       60ms 46.15%  runtime.sweepone
+         0     0%   100%       20ms 15.38%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0%   100%       20ms 15.38%  github.com/quic-go/quic-go.(*datagramQueue).Receive
+         0     0%   100%       20ms 15.38%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%       20ms 15.38%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment.func2
+         0     0%   100%       10ms  7.69%  runtime.(*consistentHeapStats).release
+         0     0%   100%       20ms 15.38%  runtime.(*mheap).freeSpan (inline)
+         0     0%   100%       20ms 15.38%  runtime.(*mheap).freeSpanLocked
+         0     0%   100%       10ms  7.69%  runtime.(*spanSet).push
+         0     0%   100%       20ms 15.38%  runtime.(*sweepLocked).sweep.(*mheap).freeSpan.func2
+         0     0%   100%       10ms  7.69%  runtime.(*unwinder).init (inline)
+         0     0%   100%       60ms 46.15%  runtime.bgsweep
+         0     0%   100%       10ms  7.69%  runtime.deductAssistCredit
+         0     0%   100%       10ms  7.69%  runtime.gcAssistAlloc
+         0     0%   100%       10ms  7.69%  runtime.gcAssistAlloc.func2
+         0     0%   100%       10ms  7.69%  runtime.gcAssistAlloc1
+         0     0%   100%       30ms 23.08%  runtime.gcBgMarkWorker
+         0     0%   100%       30ms 23.08%  runtime.gcBgMarkWorker.func2
+         0     0%   100%       30ms 23.08%  runtime.gcDrain
+         0     0%   100%       30ms 23.08%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0%   100%       10ms  7.69%  runtime.gcDrainN
+         0     0%   100%       10ms  7.69%  runtime.lock (inline)
+         0     0%   100%       10ms  7.69%  runtime.lockWithRank (inline)
+         0     0%   100%       10ms  7.69%  runtime.makeslice
+         0     0%   100%       10ms  7.69%  runtime.mallocgc
+         0     0%   100%       20ms 15.38%  runtime.markroot
+         0     0%   100%       10ms  7.69%  runtime.markroot.func1
+         0     0%   100%       10ms  7.69%  runtime.markrootBlock
+         0     0%   100%       10ms  7.69%  runtime.scanstack
+         0     0%   100%       60ms 46.15%  runtime.systemstack
+         0     0%   100%       10ms  7.69%  runtime.typePointers.next

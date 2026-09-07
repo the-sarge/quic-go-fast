@@ -1,0 +1,14 @@
+File: base.test
+Build ID: 65752d3ddcafb68adce727c12b7dbc63fce1ef1b
+Type: cpu
+Time: 2026-09-06 19:20:48 UTC
+Duration: 4s, Total samples = 4030ms (100.70%)
+Showing nodes accounting for 4020ms, 99.75% of 4030ms total
+Dropped 8 nodes (cum <= 20.15ms)
+      flat  flat%   sum%        cum   cum%
+    3780ms 93.80% 93.80%     3780ms 93.80%  time.runtimeNow
+      80ms  1.99% 95.78%       80ms  1.99%  time.Time.Before
+      80ms  1.99% 97.77%       80ms  1.99%  time.now
+      60ms  1.49% 99.26%     3840ms 95.29%  time.Now
+      20ms   0.5% 99.75%     3940ms 97.77%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0% 99.75%     3940ms 97.77%  testing.tRunner

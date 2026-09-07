@@ -1,0 +1,1 @@
+{"cpuset.cpus.effective": "0-7,11-23,27-31", "codex-d2-burst-20260906/cpuset.cpus.partition": "root", "codex-d2-burst-20260906/cpuset.cpus.effective": "8-10,24-26", "codex-d2-burst-20260906/cpuset.cpus.exclusive.effective": "8-10,24-26", "codex-d2-burst-20260906/cgroup.procs": ""}

@@ -1,0 +1,11 @@
+File: head-index.test
+Build ID: 9f47ec2daa874763ebe73614b19ea06d08076d29
+Type: delay
+Time: 2026-09-06 19:21:59 UTC
+Showing nodes accounting for 2.36ms, 100% of 2.36ms total
+      flat  flat%   sum%        cum   cum%
+    2.36ms   100%   100%     2.36ms   100%  sync.(*Mutex).Unlock (inline)
+         0     0%   100%     2.36ms   100%  github.com/quic-go/quic-go.(*datagramQueue).HandleDatagramFrame
+         0     0%   100%     2.36ms   100%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0%   100%     2.36ms   100%  testing.(*T).Run.gowrap1
+         0     0%   100%     2.36ms   100%  testing.tRunner

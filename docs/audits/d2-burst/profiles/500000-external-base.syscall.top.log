@@ -1,0 +1,16 @@
+File: base.test
+Type: delay
+Showing nodes accounting for 22.73ms, 99.83% of 22.77ms total
+Dropped 34 nodes (cum <= 0.11ms)
+      flat  flat%   sum%        cum   cum%
+   21.96ms 96.46% 96.46%    21.96ms 96.46%  syscall.read
+    0.77ms  3.37% 99.83%     0.77ms  3.37%  syscall.write
+         0     0% 99.83%    21.95ms 96.40%  github.com/quic-go/quic-go.(*externalPacedSource).next
+         0     0% 99.83%    21.98ms 96.53%  github.com/quic-go/quic-go.TestDatagramReceivePacedExperiment
+         0     0% 99.83%    21.96ms 96.46%  internal/poll.(*FD).Read
+         0     0% 99.83%     0.77ms  3.37%  internal/poll.(*FD).Write
+         0     0% 99.83%    21.96ms 96.46%  net.(*conn).Read
+         0     0% 99.83%    21.96ms 96.46%  net.(*netFD).Read
+         0     0% 99.83%     0.77ms  3.37%  os.(*File).Write
+         0     0% 99.83%     0.76ms  3.35%  runtime/trace.(*traceMultiplexer).startLocked.func1
+         0     0% 99.83%       22ms 96.65%  testing.tRunner
