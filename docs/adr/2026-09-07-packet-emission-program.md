@@ -14,6 +14,8 @@ Deepen packet emission around the existing packer while preserving public behavi
 
 E1 completed with [inconclusive feasibility evidence](../audits/e1-emission/README.md) through [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33); no experimental runtime was adopted. E2 (queue ownership prefactor) remains independently ready. E4 (handshake/ACK/PTO) and E5 (probes/path handoff) can proceed independently after E3. Shared-file edits require serialized integration and validation of the later candidate, not invented dependency edges. E1's positive feasibility disposition is required before E3; the inconclusive disposition leaves E3–E6 blocked until a scoped re-handoff revises or closes them.
 
+Performance qualification uses the plan's four-core deployment domain. Two-core results are diagnostic only. The [deployment-budget decision](../audits/2026-09-07-emission-deployment-budget.md) does not establish positive feasibility or authorize another capture; remaining qualification and prototype gaps keep E3–E6 blocked.
+
 The current dispatchable frontier is E2. Parent issues are never implementation tasks. The tracking issue owns the live mapping, so issue fields do not independently require a new plan commit after publication.
 
 ## Outcomes requiring no implementation
