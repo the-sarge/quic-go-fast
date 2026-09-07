@@ -1,0 +1,26 @@
+ok  	github.com/quic-go/quic-go	0.005s
+ok  	github.com/quic-go/quic-go	1.024s
+ok  	github.com/quic-go/quic-go/internal/utils/ringbuffer	0.002s
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2      	    1024	      1389 ns/op	       596.0 delivered	    418999 delivered/s	        41.80 drop-%	       428.0 drops	      2387 ns/delivered	     703 B/op	       0 allocs/op
+BenchmarkDatagramReceivePartialRefill-2   	    1024	     39919 ns/op	   38228 B/op	      32 allocs/op
+PASS
+ok  	github.com/quic-go/quic-go	1.054s
+ok  	github.com/quic-go/quic-go	0.005s
+ok  	github.com/quic-go/quic-go	1.021s
+ok  	github.com/quic-go/quic-go/internal/utils/ringbuffer	0.003s
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2      	    1024	      1432 ns/op	       639.0 delivered	    435856 delivered/s	        37.60 drop-%	       385.0 drops	      2294 ns/delivered	     724 B/op	       0 allocs/op
+BenchmarkDatagramReceivePartialRefill-2   	    1024	     42158 ns/op	   36864 B/op	      32 allocs/op
+PASS
+ok  	github.com/quic-go/quic-go	1.057s
