@@ -1,0 +1,41 @@
+{
+  "window_start": "2026-09-06T18:09:16.262452+00:00",
+  "last_sample_start": "2026-09-06T18:13:07.943420+00:00",
+  "sample_count": 200,
+  "cpus": {
+    "12": {
+      "samples": 232,
+      "mean_idle_percent": 19.25038793103448,
+      "min_idle_percent": 0.0,
+      "max_guest_percent": 0.0
+    },
+    "13": {
+      "samples": 232,
+      "mean_idle_percent": 45.3523275862069,
+      "min_idle_percent": 18.75,
+      "max_guest_percent": 0.0
+    },
+    "28": {
+      "samples": 232,
+      "mean_idle_percent": 99.97866379310345,
+      "min_idle_percent": 99.01,
+      "max_guest_percent": 0.0
+    },
+    "29": {
+      "samples": 232,
+      "mean_idle_percent": 99.99573275862069,
+      "min_idle_percent": 99.01,
+      "max_guest_percent": 0.0
+    }
+  },
+  "base_cpu12_boundary_mhz": {
+    "min": 1906.85,
+    "median": 5022.4495,
+    "max": 5032.221
+  },
+  "head-index_cpu12_boundary_mhz": {
+    "min": 1949.343,
+    "median": 5022.546,
+    "max": 5032.933
+  }
+}

@@ -1,0 +1,900 @@
+# round 1 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12943525	        90.33 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 1 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   94288	     12387 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 1 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127919914	         9.378 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 1 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	74568147	        15.80 ns/op	   1078820 delivered	    915893 delivered/s	        98.55 drop-%	  73489327 drops	      1092 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 1 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  303631	      3723 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 2 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   97633	     12352 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 2 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127974122	         9.377 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 2 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	82181395	        16.17 ns/op	   1102182 delivered	    829347 delivered/s	        98.66 drop-%	  81079213 drops	      1206 ns/delivered	      15 B/op	       0 allocs/op
+PASS
+# round 2 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  357627	      2974 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 2 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	13044218	        91.59 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 3 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128067518	         9.370 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 3 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	73060138	        16.41 ns/op	   1022185 delivered	    852366 delivered/s	        98.60 drop-%	  72037953 drops	      1173 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 3 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  369655	      2881 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 3 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12111903	        92.68 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 3 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   97556	     12323 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 4 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	72383764	        15.82 ns/op	   1071771 delivered	    936201 delivered/s	        98.52 drop-%	  71311993 drops	      1068 ns/delivered	      17 B/op	       0 allocs/op
+PASS
+# round 4 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  344413	      3036 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 4 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12178068	        92.12 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 4 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   98116	     12359 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 4 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128102826	         9.367 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 5 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  370406	      2917 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 5 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12306354	        92.33 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 5 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   99091	     11880 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 5 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127972995	         9.374 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 5 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	71871844	        15.94 ns/op	   1026494 delivered	    895900 delivered/s	        98.57 drop-%	  70845350 drops	      1116 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 6 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12222603	        97.13 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 6 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   98338	     11668 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 6 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128037715	         9.371 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 6 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	80874860	        16.32 ns/op	   1124438 delivered	    851742 delivered/s	        98.61 drop-%	  79750422 drops	      1174 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 6 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  373798	      2936 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 7 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   95755	     12223 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 7 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128103202	         9.367 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 7 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	72570243	        16.35 ns/op	   1168340 delivered	    984803 delivered/s	        98.39 drop-%	  71401903 drops	      1015 ns/delivered	      18 B/op	       0 allocs/op
+PASS
+# round 7 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  371674	      2981 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 7 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	13308738	        94.74 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 8 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127694977	         9.395 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 8 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	78683085	        15.91 ns/op	   1112440 delivered	    888768 delivered/s	        98.59 drop-%	  77570645 drops	      1125 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 8 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  361677	      2995 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 8 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12756138	        91.27 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 8 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   95716	     11915 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 9 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	72501668	        15.99 ns/op	   1061179 delivered	    915441 delivered/s	        98.54 drop-%	  71440489 drops	      1092 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 9 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  363997	      2954 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 9 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	13191705	        91.32 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 9 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   98860	     11836 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 9 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128115152	         9.367 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 10 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  351578	      2929 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 10 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12873279	        88.02 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 10 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   96975	     11863 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 10 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128027757	         9.372 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 10 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	73382780	        16.34 ns/op	   1080502 delivered	    901310 delivered/s	        98.53 drop-%	  72302278 drops	      1109 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 11 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12401911	        90.84 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 11 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   96229	     12266 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 11 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127997337	         9.373 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 11 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	72578332	        15.95 ns/op	   1089026 delivered	    940974 delivered/s	        98.50 drop-%	  71489306 drops	      1063 ns/delivered	      17 B/op	       0 allocs/op
+PASS
+# round 11 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  387432	      2951 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 12 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   68889	     15146 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 12 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128062069	         9.369 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 12 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	72453342	        15.87 ns/op	   1178102 delivered	   1024596 delivered/s	        98.37 drop-%	  71275240 drops	       976.0 ns/delivered	      18 B/op	       0 allocs/op
+PASS
+# round 12 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  355449	      3045 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 12 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	13001808	        92.67 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 13 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128132887	         9.366 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 13 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	73930401	        15.99 ns/op	   1174881 delivered	    993904 delivered/s	        98.41 drop-%	  72755520 drops	      1006 ns/delivered	      18 B/op	       0 allocs/op
+PASS
+# round 13 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  368630	      2870 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 13 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	13260204	        90.67 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 13 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	  100380	     11974 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 14 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	69978548	        16.16 ns/op	   1049716 delivered	    928289 delivered/s	        98.50 drop-%	  68928832 drops	      1077 ns/delivered	      17 B/op	       0 allocs/op
+PASS
+# round 14 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  398295	      2990 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 14 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12039254	       100.2 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 14 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   98406	     11941 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 14 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128013247	         9.374 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 15 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  398977	      3001 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 15 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	11768515	        92.98 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 15 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	  102285	     11756 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 15 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127912878	         9.379 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 15 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	71321304	        16.12 ns/op	    991509 delivered	    862277 delivered/s	        98.61 drop-%	  70329795 drops	      1160 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 16 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12787794	        91.36 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 16 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   95757	     13997 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 16 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127799768	         9.389 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 16 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	71843389	        16.40 ns/op	   1038757 delivered	    881754 delivered/s	        98.55 drop-%	  70804632 drops	      1134 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 16 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  365227	      3020 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 17 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   97839	     12270 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 17 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127949712	         9.377 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 17 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	82733668	        16.45 ns/op	   1213245 delivered	    891201 delivered/s	        98.53 drop-%	  81520423 drops	      1122 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 17 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  371888	      3010 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 17 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	11726283	        91.48 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 18 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	127874476	         9.383 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 18 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	71935903	        16.15 ns/op	   1019317 delivered	    877455 delivered/s	        98.58 drop-%	  70916586 drops	      1140 ns/delivered	      16 B/op	       0 allocs/op
+PASS
+# round 18 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  369595	      2940 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 18 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	11889086	        89.24 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 18 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   94483	     12157 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 19 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	72846448	        16.48 ns/op	   1129362 delivered	    940823 delivered/s	        98.45 drop-%	  71717086 drops	      1063 ns/delivered	      17 B/op	       0 allocs/op
+PASS
+# round 19 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  353880	      2987 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 19 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12159360	        89.32 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 19 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   97251	     12576 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 19 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128062126	         9.370 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 20 PartialRefill
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceivePartialRefill-2   	  414830	      2890 ns/op	   36864 B/op	      32 allocs/op
+PASS
+# round 20 SteadyDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/SteadyDrain-2         	12351865	        86.61 ns/op	    1152 B/op	       1 allocs/op
+PASS
+# round 20 BurstDrain
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/BurstDrain-2         	   93837	     12186 ns/op	  147456 B/op	     128 allocs/op
+PASS
+# round 20 Overflow
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceive/Overflow-2         	128073644	         9.370 ns/op	       0 B/op	       0 allocs/op
+PASS
+# round 20 Concurrent
+Kernel Version: 7.0
+
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+BenchmarkDatagramReceiveConcurrent-2   	72538290	        16.25 ns/op	   1054943 delivered	    894988 delivered/s	        98.55 drop-%	  71483347 drops	      1117 ns/delivered	      16 B/op	       0 allocs/op
+PASS

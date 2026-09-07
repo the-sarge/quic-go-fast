@@ -105,6 +105,8 @@ func (p *FrameParser) ParseAckFrame(frameType FrameType, data []byte, encLevel p
 	return p.ackFrame, l, nil
 }
 
+// ParseDatagramFrame parses a DATAGRAM whose Data borrows the input buffer.
+// The caller must copy Data before retaining it beyond input reuse.
 func (p *FrameParser) ParseDatagramFrame(frameType FrameType, data []byte, v protocol.Version) (*DatagramFrame, int, error) {
 	f, l, err := parseDatagramFrame(data, frameType, v)
 	if err != nil {

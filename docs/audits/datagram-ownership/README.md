@@ -1,0 +1,7 @@
+# Ownership audit receipts
+
+These gzip files preserve the original command output bytes, including unsuccessful pre-change assertions. `parser-before.log.gz` contains the initial red run; `parser-before-refined.log.gz` contains the refined red run after the empty-payload comparison was corrected. `connection-before.log.gz` passed before runtime changes. `focused-after.log.gz`, `race-after.log.gz`, `integration-after.log.gz` and `fuzz-after.log.gz` are Mac candidate results.
+
+`bench-before.log.gz` and `bench-after.log.gz` are Mac Go 1.27.0; `bench-base.log.gz` and `bench-candidate.log.gz` are minimax Go 1.27.1. Each uses `go test -run '^$' -bench '^BenchmarkDatagramParseAndReceive$' -benchtime=100ms -count=5 -benchmem .`. These allocation checks have no CPU isolation or application-throughput interpretation. `summary.json` records five samples per host/variant/occupancy, constant B/op and allocs/op, and median ns/op.
+
+`toolchain.log.gz`, `base-tests.log.gz`, `candidate-tests.log.gz` and `candidate-race.log.gz` retain native Linux validation. Native candidate normal tests covered the whole root and internal/wire packages; race tests matched `Test.*Datagram` in root, internal/wire and integrationtests/self. The baseline excluded only `BorrowsBounded`, whose expected red result is recorded on the Mac. No traffic captures or shared-host configuration changes were made for these checks.

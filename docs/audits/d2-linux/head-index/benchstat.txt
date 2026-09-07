@@ -1,0 +1,54 @@
+goos: linux
+goarch: amd64
+pkg: github.com/quic-go/quic-go
+cpu: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S
+                               │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                               │                      sec/op                      │             sec/op              vs base                │
+DatagramReceive/SteadyDrain-2                                        101.75n ± 1%                      91.42n ± 1%  -10.15% (p=0.000 n=20)
+DatagramReceive/BurstDrain-2                                          12.36µ ± 1%                      12.20µ ± 2%   -1.23% (p=0.012 n=20)
+DatagramReceive/Overflow-2                                            9.373n ± 0%                      9.372n ± 0%        ~ (p=0.804 n=20)
+DatagramReceiveConcurrent-2                                           16.29n ± 2%                      16.16n ± 1%        ~ (p=0.525 n=20)
+DatagramReceivePartialRefill-2                                        3.087µ ± 2%                      2.978µ ± 1%   -3.55% (p=0.000 n=20)
+geomean                                                               226.2n                           218.9n        -3.23%
+
+                               │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                               │                       B/op                       │             B/op              vs base                  │
+DatagramReceive/SteadyDrain-2                                      1.148Ki ± 0%                     1.125Ki ± 0%   -2.04% (p=0.000 n=20)
+DatagramReceive/BurstDrain-2                                       150.0Ki ± 0%                     144.0Ki ± 0%   -4.00% (p=0.000 n=20)
+DatagramReceive/Overflow-2                                           0.000 ± 0%                       0.000 ± 0%        ~ (p=1.000 n=20) ¹
+DatagramReceiveConcurrent-2                                          18.00 ± 6%                       16.00 ± 6%  -11.11% (p=0.000 n=20)
+DatagramReceivePartialRefill-2                                     37.33Ki ± 0%                     36.00Ki ± 0%   -3.57% (p=0.000 n=20)
+geomean                                                                         ²                                  -4.22%                ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean
+
+                               │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                               │                    allocs/op                     │           allocs/op            vs base                 │
+DatagramReceive/SteadyDrain-2                                        1.000 ± 0%                        1.000 ± 0%       ~ (p=1.000 n=20) ¹
+DatagramReceive/BurstDrain-2                                         130.0 ± 0%                        128.0 ± 0%  -1.54% (p=0.000 n=20)
+DatagramReceive/Overflow-2                                           0.000 ± 0%                        0.000 ± 0%       ~ (p=1.000 n=20) ¹
+DatagramReceiveConcurrent-2                                          0.000 ± 0%                        0.000 ± 0%       ~ (p=1.000 n=20) ¹
+DatagramReceivePartialRefill-2                                       32.00 ± 0%                        32.00 ± 0%       ~ (p=1.000 n=20) ¹
+geomean                                                                         ²                                  -0.31%                ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean
+
+                            │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                            │                    delivered                     │              delivered                vs base          │
+DatagramReceiveConcurrent-2                                        1.080M ± 3%                            1.080M ± 4%  ~ (p=0.968 n=20)
+
+                            │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                            │                   delivered/s                    │             delivered/s               vs base          │
+DatagramReceiveConcurrent-2                                        926.7k ± 4%                            898.6k ± 4%  ~ (p=0.221 n=20)
+
+                            │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                            │                      drop-%                      │                drop-%                 vs base          │
+DatagramReceiveConcurrent-2                                         98.49 ± 0%                             98.55 ± 0%  ~ (p=0.128 n=20)
+
+                            │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                            │                      drops                       │                drops                  vs base          │
+DatagramReceiveConcurrent-2                                        70.93M ± 1%                            71.49M ± 2%  ~ (p=0.072 n=20)
+
+                            │ /tmp/quic-go-fast-d2-linux/head/results/base.txt │ /tmp/quic-go-fast-d2-linux/head/results/head-index.txt │
+                            │                  sec/delivered                   │            sec/delivered              vs base          │
+DatagramReceiveConcurrent-2                                        1.079µ ± 4%                            1.113µ ± 4%  ~ (p=0.218 n=20)
