@@ -66,6 +66,7 @@ func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
 
 // Preserve the recovery owner's distinction without moving ACK/PTO dispatch.
 func emissionRecoveryStop(mode ackhandler.SendMode) emissionStop {
+	//nolint:exhaustive // SendAny and pacing are consumed by the loops; remaining modes request legacy PTO dispatch.
 	switch mode {
 	case ackhandler.SendNone:
 		return emissionHardBlocked

@@ -2,10 +2,10 @@ package quic
 
 import (
 	"fmt"
-	"github.com/quic-go/quic-go/internal/ackhandler"
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
