@@ -1,0 +1,27 @@
+go version go1.26.0 linux/amd64
+base.test: go1.26.0
+	path	github.com/quic-go/quic-go.test
+	mod	github.com/quic-go/quic-go	(devel)
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1
+head-index.test: go1.26.0
+	path	github.com/quic-go/quic-go.test
+	mod	github.com/quic-go/quic-go	(devel)
+	build	-buildmode=exe
+	build	-compiler=gc
+	build	CGO_ENABLED=1
+	build	CGO_CFLAGS=
+	build	CGO_CPPFLAGS=
+	build	CGO_CXXFLAGS=
+	build	CGO_LDFLAGS=
+	build	GOARCH=amd64
+	build	GOOS=linux
+	build	GOAMD64=v1

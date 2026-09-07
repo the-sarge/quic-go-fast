@@ -1,0 +1,2 @@
+86c2fc6c943e0b5dccca706063f0f397d10d3179842bc2e7a85fdc226f3e634e  base.tar.gz
+dbf5daf45750b175b904cd5db4c10db8b6dec80158c2d3ecc359f5a7fa81825c  ring.tar.gz
