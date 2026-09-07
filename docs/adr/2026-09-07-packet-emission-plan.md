@@ -1,6 +1,6 @@
 # Packet Emission Implementation Plan
 
-**Date:** 2026-09-07. **Status:** Accepted design; not implemented. **Track:** E of QGF-PE-2026-09. **Depends on:** Nothing outside this track. **Related:** [Program](2026-09-07-packet-emission-program.md), [ADR 0004](0004-packet-emission-ownership.md), [compatibility](0001-upstream-compatibility.md), [module adoption](0002-adopt-through-module-replacement.md), [stable upstream](0003-follow-stable-upstream-releases.md). **Normative scope:** Current outcomes, boundaries, invariants, budgets, blockers and stops. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
+**Date:** 2026-09-07. **Status:** E1 complete with inconclusive feasibility; E2 ready; E3–E6 blocked. **Track:** E of QGF-PE-2026-09. **Depends on:** Nothing outside this track. **Related:** [Program](2026-09-07-packet-emission-program.md), [ADR 0004](0004-packet-emission-ownership.md), [compatibility](0001-upstream-compatibility.md), [module adoption](0002-adopt-through-module-replacement.md), [stable upstream](0003-follow-stable-upstream-releases.md). **Normative scope:** Current outcomes, boundaries, invariants, budgets, blockers and stops. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
 
 ## Goal
 
@@ -85,7 +85,7 @@ Per slice, one declared matrix plus at most one complete replacement for documen
 
 | Slice | Disposition | Delivers | Blocked by | Temporary interface removed |
 | --- | --- | --- | --- | --- |
-| E1 | New, evidence-only | Bounded feasibility answer for normal/GSO packet emission | None | Prototype remains inert/disposable |
+| E1 | Complete, inconclusive; no runtime adoption | [Feasibility receipt](../audits/e1-emission/README.md) for normal/GSO packet emission | None | Prototype remains inert/disposable |
 | E2 | New prefactor | Complete queued outgoing-buffer lifetime on failure and close | None | None |
 | E3 | New migration | Normal 1-RTT/GSO emission through concrete owner | E1 positive, E2 | Normal-send orchestration; remaining legacy arms retired by E4–E6 |
 | E4 | New migration | Handshake/coalesced, ACK-only and PTO emission | E3 | Those legacy arms; close/probes remain bounded |
@@ -97,6 +97,8 @@ E1 and E2 are independent; E4 and E5 are independent after E3. Serialize same-fi
 ## Implementation slices
 
 ### E1 — Establish packet-emission feasibility
+
+**State:** Complete through [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33), with an [inconclusive receipt](../audits/e1-emission/README.md) and no runtime adoption. E2 remains independently ready. E3–E6 remain blocked until a scoped re-handoff revises or closes the migration work; this outcome does not relax their positive-feasibility prerequisite.
 
 **Delivers:** A finite experiment using a disposable established-1-RTT normal/GSO extraction, source/field/hook correspondence map, outcome characterization, paired results and a positive/no-change/inconclusive disposition. The PR retains only useful ordinary characterization and opt-in evidence; prototype runtime is an inert patch tied to its base, never selected by normal builds. Positive means the bounded concrete seam works without moving execution/fairness or adding hot-path coordination and meets the full performance contract. It does not certify later migrated modes.
 

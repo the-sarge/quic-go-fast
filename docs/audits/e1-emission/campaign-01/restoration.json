@@ -1,0 +1,10 @@
+{
+  "observed_unix": 1788768333.0988932,
+  "allowed_cpus": {
+    "machine.slice": "",
+    "system.slice": "",
+    "user.slice": ""
+  },
+  "reservation_exists": false,
+  "backup_timer_state": "inactive"
+}

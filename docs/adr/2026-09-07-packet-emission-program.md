@@ -1,6 +1,6 @@
 # Packet emission architecture program — 2026-09-07
 
-**Identity:** QGF-PE-2026-09. **Status:** Accepted design; implementation not started. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
+**Identity:** QGF-PE-2026-09. **Status:** E1 complete with inconclusive feasibility; E2 ready; E3–E6 blocked. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
 
 ## Outcome and scope
 
@@ -10,11 +10,11 @@ Deepen packet emission around the existing packer while preserving public behavi
 
 | Track | Plan | Parent issue | Slices | Dependencies | Status |
 | --- | --- | --- | --- | --- | --- |
-| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | pending | E1–E6, one intended PR each | E3 requires E1 and E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 and E2 are frontier |
+| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | [#24](https://github.com/the-sarge/quic-go-fast/issues/24) | E1–E6, one intended PR each | E3 requires positive E1 and E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 complete, inconclusive; E2 is frontier |
 
-E1 (feasibility evidence) and E2 (queue ownership prefactor) can proceed independently in isolated worktrees. E4 (handshake/ACK/PTO) and E5 (probes/path handoff) can proceed independently after E3. Shared-file edits require serialized integration and validation of the later candidate, not invented dependency edges. E1's positive feasibility disposition is required before E3; a no-change or inconclusive disposition leaves E3–E6 blocked until a scoped re-handoff revises or closes them. E2 remains valuable and may complete independently.
+E1 completed with [inconclusive feasibility evidence](../audits/e1-emission/README.md) through [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33); no experimental runtime was adopted. E2 (queue ownership prefactor) remains independently ready. E4 (handshake/ACK/PTO) and E5 (probes/path handoff) can proceed independently after E3. Shared-file edits require serialized integration and validation of the later candidate, not invented dependency edges. E1's positive feasibility disposition is required before E3; the inconclusive disposition leaves E3–E6 blocked until a scoped re-handoff revises or closes them.
 
-The recommended first dispatch is E1; E2 is parallel-safe. Parent issues are never implementation tasks. The tracking issue owns the live mapping, so pending issue fields do not require a new plan commit after publication.
+The current dispatchable frontier is E2. Parent issues are never implementation tasks. The tracking issue owns the live mapping, so issue fields do not independently require a new plan commit after publication.
 
 ## Outcomes requiring no implementation
 
