@@ -203,7 +203,7 @@ func TestEmissionPTOOutput(t *testing.T) {
 				require.True(t, result.progress)
 				require.Equal(t, emissionHardBlocked, result.stop)
 				require.Len(t, q.queue, 2, "PTO continues immediately until recovery changes mode")
-				for i := 0; i < 2; i++ {
+				for i := range 2 {
 					entry := <-q.queue
 					var pn protocol.PacketNumber
 					if level == protocol.Encryption1RTT {
