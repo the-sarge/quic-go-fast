@@ -24,7 +24,7 @@ func TestConnectionDatagramPacketReuse(t *testing.T) {
 			if traced {
 				log = func(frames []qlog.Frame) { logs = append(logs, frames) }
 			}
-			want := [][]byte{[]byte{}, []byte("first"), bytes.Repeat([]byte{'a'}, 1071)}
+			want := [][]byte{{}, []byte("first"), bytes.Repeat([]byte{'a'}, 1071)}
 			var packet []byte
 			for i, payload := range want {
 				var err error
