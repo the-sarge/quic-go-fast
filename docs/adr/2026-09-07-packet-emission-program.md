@@ -1,6 +1,6 @@
 # Packet emission architecture program — 2026-09-07
 
-**Identity:** QGF-PE-2026-09. **Status:** E1 complete, four-core result inconclusive; E2 ready; E3–E6 blocked. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
+**Identity:** QGF-PE-2026-09. **Status:** Staged adoption authorized with E1 uncertainty accepted; E2 complete; E3 ready; E4–E6 blocked by migration dependencies. **Normative scope:** Track identity, cross-slice dependencies, frontier and binding policy. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
 
 ## Outcome and scope
 
@@ -10,15 +10,15 @@ Deepen packet emission around the existing packer while preserving public behavi
 
 | Track | Plan | Parent issue | Slices | Dependencies | Status |
 | --- | --- | --- | --- | --- | --- |
-| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | [#24](https://github.com/the-sarge/quic-go-fast/issues/24) | E1–E6, one intended PR each | E3 requires positive E1 and E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 complete, inconclusive; E2 independently ready |
+| E — Packet emission | [Plan](2026-09-07-packet-emission-plan.md) | [#24](https://github.com/the-sarge/quic-go-fast/issues/24) | E1–E6, one intended PR each | E3 requires the accepted adoption decision and completed E2; E4 and E5 require E3; E6 requires E4 and E5 | E1 complete, uncertainty accepted; E2 complete; E3 ready |
 
-E1's authorized four-core follow-through is complete in [PR #37](https://github.com/the-sarge/quic-go-fast/pull/37), with an [inconclusive replacement receipt](../audits/e1-emission-four-core/README.md). Dedicated-core qualification is unestablished, and P1 p99 and stream-churn time additionally miss their numerical margins. Preserve the [original evidence](../audits/e1-emission/README.md) from [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33); no experimental runtime is adopted. The finite campaign and review budgets from the [resumption receipt](../audits/2026-09-07-emission-four-core-resumption.md) are exhausted. E2 remains independently ready. E3 still requires a new positive feasibility decision and merged E2; E4/E5 require E3 and E6 requires E4/E5. Shared-file merges remain serialized and revalidated without invented dependencies.
+E1's [four-core evidence](../audits/e1-emission-four-core/README.md) remains inconclusive. The owner has [authorized staged adoption with that uncertainty accepted](../audits/2026-09-07-emission-adoption-decision.md); this satisfies the E1 migration prerequisite without changing the measurements or authorizing another feasibility campaign. E2's queue lifetime corrections are complete. E3 is ready; E4/E5 require E3 and E6 requires E4/E5. Shared-file merges remain serialized and revalidated without invented dependencies.
 
-Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current implementation frontier is E2 (independently ready). E3–E6 remain blocked. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
+Performance qualification uses the plan's four-core deployment domain; two-core results remain diagnostic only. The current implementation frontier is E3. Later slices retain their correctness and bounded performance gates. Parent issues are never implementation tasks, and the tracking issue owns the live mapping.
 
 ## Outcomes requiring no implementation
 
-Keep the existing Go application interface, connection loop and send worker. Defer a full sans-I/O engine, application write-credit changes, receive refcounts, per-path policy redesign, custom congestion, package splitting, neutral trace events and HTTP/3 changes. No speed improvement or physical-link qualification is promised. An evidence-only E1 disposition is valid and does not justify promoting prototype code.
+Keep the existing Go application interface, connection loop and send worker. Defer a full sans-I/O engine, application write-credit changes, receive refcounts, per-path policy redesign, custom congestion, package splitting, neutral trace events and HTTP/3 changes. No speed improvement or physical-link qualification is promised. E1 remains evidence only; production migration requires its own reviewed and validated slices.
 
 ## Binding rules
 
