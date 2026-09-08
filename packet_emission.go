@@ -59,12 +59,12 @@ const (
 
 type emissionResult struct {
 	progress  bool
-	available <-chan struct{}
 	stop      emissionStop
-	deadline  monotime.Time
-	err       error
 	blocked   blockMode
 	retry     bool
+	available <-chan struct{}
+	deadline  monotime.Time
+	err       error
 }
 
 type emissionIntent struct {
