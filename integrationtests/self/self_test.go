@@ -147,6 +147,9 @@ func getQuicConfig(conf *quic.Config) *quic.Config {
 	} else {
 		conf = conf.Clone()
 	}
+	if len(conf.Versions) == 0 {
+		conf.Versions = []quic.Version{version}
+	}
 	if !enableQlog {
 		return conf
 	}
