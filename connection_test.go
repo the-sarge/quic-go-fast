@@ -1882,95 +1882,115 @@ func TestConnectionPacketBuffering(t *testing.T) {
 }
 
 func TestConnectionPacketPacing(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		mockCtrl := gomock.NewController(t)
-		sph := mockackhandler.NewMockSentPacketHandler(mockCtrl)
-		sender := NewMockSender(mockCtrl)
+	for _, test := range []struct {
+		name              string
+		wakeWhilePaced    bool
+		exitAfterFirstTwo bool
+	}{
+		{name: "concurrent wakeup"},
+		{name: "wakeup while paced", wakeWhilePaced: true},
+		{name: "early exit while paced", wakeWhilePaced: true, exitAfterFirstTwo: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				mockCtrl := gomock.NewController(t)
+				sph := mockackhandler.NewMockSentPacketHandler(mockCtrl)
+				sender := NewMockSender(mockCtrl)
+				tc := newServerTestConnection(t,
+					mockCtrl,
+					nil,
+					false,
+					connectionOptSender(sender),
+					connectionOptHandshakeConfirmed(),
+				)
+				useSchedulingPacketPacker(t, mockCtrl, tc, sph)
+				sender.EXPECT().Run()
+				sender.EXPECT().Close()
+				tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
 
-		tc := newServerTestConnection(t,
-			mockCtrl,
-			nil,
-			false,
-			connectionOptSender(sender),
-			connectionOptHandshakeConfirmed(),
-		)
-		useSchedulingPacketPacker(t, mockCtrl, tc, sph)
-		sender.EXPECT().Run()
+				const step = 50 * time.Millisecond
+				var sent int
+				var deadline monotime.Time
+				sph.EXPECT().GetLossDetectionTimeout().Return(monotime.Now().Add(time.Hour)).AnyTimes()
+				// Recovery is consulted again on non-timer wakeups. Its allowance
+				// must depend on the clock, not the number of SendMode calls.
+				sph.EXPECT().SendMode(gomock.Any()).DoAndReturn(func(now monotime.Time) ackhandler.SendMode {
+					switch {
+					case sent < 2:
+						return ackhandler.SendAny
+					case sent == 2 && now.Before(deadline):
+						return ackhandler.SendPacingLimited
+					case sent == 2:
+						return ackhandler.SendAny
+					default:
+						return ackhandler.SendNone
+					}
+				}).MinTimes(1)
+				sph.EXPECT().TimeUntilSend().DoAndReturn(func() monotime.Time { return deadline }).MinTimes(1)
+				sph.EXPECT().ECNMode(gomock.Any()).AnyTimes()
+				for i := range 3 {
+					require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("packet" + strconv.Itoa(i+1))}))
+				}
+				sender.EXPECT().WouldBlock().AnyTimes()
 
-		const step = 50 * time.Millisecond
+				type sentPacket struct {
+					time monotime.Time
+					data []byte
+				}
+				sendChan := make(chan sentPacket, 10)
+				wantPackets := 3
+				if test.exitAfterFirstTwo {
+					wantPackets = 2
+				}
+				sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
+					sent++
+					if sent == 2 {
+						deadline = monotime.Now().Add(step)
+					}
+					sendChan <- sentPacket{time: monotime.Now(), data: bytes.Clone(b.Data)}
+					b.Release()
+				}).Times(wantPackets)
 
-		sph.EXPECT().GetLossDetectionTimeout().Return(monotime.Now().Add(time.Hour)).AnyTimes()
-		gomock.InOrder(
-			// 1. allow 2 packets to be sent
-			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny),
-			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny),
-			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendPacingLimited),
-			// 2. become pacing limited for 50ms
-			sph.EXPECT().TimeUntilSend().DoAndReturn(func() monotime.Time { return monotime.Now().Add(step) }),
-			// 3. send another packet
-			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny),
-			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendPacingLimited),
-			// 4. wake once more, then stop. ACK allowances have real-packer
-			// outcome coverage in TestEmissionAckAllowance.
-			sph.EXPECT().TimeUntilSend().DoAndReturn(func() monotime.Time { return monotime.Now().Add(step) }),
-			sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendNone),
-		)
-		sph.EXPECT().ECNMode(gomock.Any()).AnyTimes()
-		for i := range 3 {
-			require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("packet" + strconv.Itoa(i+1))}))
-		}
-		sender.EXPECT().WouldBlock().AnyTimes()
+				errChan := make(chan error, 1)
+				// A deferred teardown runs before synctest checks for surviving
+				// goroutines, including when require aborts this callback.
+				defer func() {
+					tc.conn.destroy(nil)
+					synctest.Wait()
+					require.NoError(t, <-errChan)
+				}()
+				go func() { errChan <- tc.conn.run() }()
+				if test.wakeWhilePaced {
+					// Add already scheduled sending. Force the connection to consume
+					// that wakeup before scheduling another at the same fake time.
+					synctest.Wait()
+					require.Len(t, sendChan, 2)
+				}
+				tc.conn.scheduleSending()
+				synctest.Wait()
+				require.Len(t, sendChan, 2)
+				if test.exitAfterFirstTwo {
+					return // exercise teardown with a live pacing timer and queued data
+				}
 
-		type sentPacket struct {
-			time monotime.Time
-			data []byte
-		}
-		sendChan := make(chan sentPacket, 10)
-		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
-			sendChan <- sentPacket{time: monotime.Now(), data: bytes.Clone(b.Data)}
-			b.Release()
-		}).Times(3)
-
-		errChan := make(chan error, 1)
-		go func() { errChan <- tc.conn.run() }()
-		tc.conn.scheduleSending()
-
-		synctest.Wait()
-
-		var times []monotime.Time
-		for i := range 3 {
-			select {
-			case b := <-sendChan:
-				require.Equal(t, []byte("packet"+strconv.Itoa(i+1)), schedulingDatagram(t, tc, b.data))
-				times = append(times, b.time)
-			case <-time.After(time.Hour):
-				t.Fatal("should have sent a packet")
-			}
-		}
-
-		require.Equal(t, times[0], times[1])
-		require.Equal(t, times[2], times[1].Add(step))
-		time.Sleep(step) // consume the final pacing wakeup without another send
-
-		synctest.Wait() // make sure that no more packets are sent
-		require.True(t, mockCtrl.Satisfied())
-
-		// test teardown
-		sender.EXPECT().Close()
-		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-		tc.conn.destroy(nil)
-
-		synctest.Wait()
-
-		select {
-		case <-sendChan:
-			t.Fatal("should not have sent any more packets")
-		case err := <-errChan:
-			require.NoError(t, err)
-		default:
-			t.Fatal("should have timed out")
-		}
-	})
+				var times []monotime.Time
+				for i := range 3 {
+					select {
+					case b := <-sendChan:
+						require.Equal(t, []byte("packet"+strconv.Itoa(i+1)), schedulingDatagram(t, tc, b.data))
+						times = append(times, b.time)
+					case <-time.After(time.Hour):
+						t.Fatal("should have sent a packet")
+					}
+				}
+				require.Equal(t, times[0], times[1])
+				require.Equal(t, times[1].Add(step), times[2])
+				time.Sleep(step)
+				synctest.Wait()
+				require.Empty(t, sendChan)
+			})
+		})
+	}
 }
 
 func TestConnectionIdleTimeout(t *testing.T) {
