@@ -55,7 +55,7 @@ func connectionOptUnpacker(u unpacker) testConnectionOpt {
 }
 
 func connectionOptSender(s sender) testConnectionOpt {
-	return func(conn *Conn) { conn.sendQueue = s }
+	return func(conn *Conn) { conn.emission.queue = s }
 }
 
 func connectionOptHandshakeConfirmed() testConnectionOpt {
@@ -79,7 +79,6 @@ type testConnection struct {
 	conn       *Conn
 	connRunner *MockConnRunner
 	sendConn   *MockSendConn
-	packer     *MockPacker
 	destConnID protocol.ConnectionID
 	srcConnID  protocol.ConnectionID
 	remoteAddr *net.UDPAddr
@@ -115,7 +114,7 @@ func useLifecyclePacketPacker(t *testing.T, ctrl *gomock.Controller, tc *testCon
 		return sealer, nil
 	}).AnyTimes()
 	sealing.EXPECT().Get0RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
-	c.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
+	c.emission.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
 }
 
 func newServerTestConnection(
@@ -135,7 +134,6 @@ func newServerTestConnection(
 	sendConn.EXPECT().capabilities().Return(connCapabilities{GSO: gso}).AnyTimes()
 	sendConn.EXPECT().RemoteAddr().Return(remoteAddr).AnyTimes()
 	sendConn.EXPECT().LocalAddr().Return(localAddr).AnyTimes()
-	packer := NewMockPacker(mockCtrl)
 	b := make([]byte, 12)
 	rand.Read(b)
 	origDestConnID := protocol.ParseConnectionID(b[:6])
@@ -167,7 +165,6 @@ func newServerTestConnection(
 	)
 	require.Nil(t, wc.testHooks)
 	conn := wc.Conn
-	conn.packer = packer
 	for _, opt := range opts {
 		opt(conn)
 	}
@@ -175,7 +172,6 @@ func newServerTestConnection(
 		conn:       conn,
 		connRunner: connRunner,
 		sendConn:   sendConn,
-		packer:     packer,
 		destConnID: origDestConnID,
 		srcConnID:  srcConnID,
 		remoteAddr: remoteAddr,
@@ -199,7 +195,6 @@ func newClientTestConnection(
 	sendConn.EXPECT().capabilities().Return(connCapabilities{}).AnyTimes()
 	sendConn.EXPECT().RemoteAddr().Return(remoteAddr).AnyTimes()
 	sendConn.EXPECT().LocalAddr().Return(localAddr).AnyTimes()
-	packer := NewMockPacker(mockCtrl)
 	b := make([]byte, 12)
 	rand.Read(b)
 	destConnID := protocol.ParseConnectionID(b[:6])
@@ -225,7 +220,6 @@ func newClientTestConnection(
 		protocol.Version1,
 	)
 	require.Nil(t, conn.testHooks)
-	conn.packer = packer
 	for _, opt := range opts {
 		opt(conn.Conn)
 	}
@@ -233,7 +227,6 @@ func newClientTestConnection(
 		conn:       conn.Conn,
 		connRunner: connRunner,
 		sendConn:   sendConn,
-		packer:     packer,
 		destConnID: destConnID,
 		srcConnID:  srcConnID,
 	}
@@ -326,14 +319,30 @@ func testConnectionClose(t *testing.T, useApplicationClose bool, expectedErr err
 		errChan := make(chan error, 1)
 
 		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-		b := getPacketBuffer()
-		b.Data = append(b.Data, []byte("connection close")...)
-		if useApplicationClose {
-			tc.packer.EXPECT().PackApplicationClose(expectedErr, gomock.Any(), protocol.Version1).Return(&coalescedPacket{buffer: b}, nil)
-		} else {
-			tc.packer.EXPECT().PackConnectionClose(expectedErr, gomock.Any(), protocol.Version1).Return(&coalescedPacket{buffer: b}, nil)
-		}
-		tc.sendConn.EXPECT().Write([]byte("connection close"), gomock.Any(), gomock.Any())
+		useLifecyclePacketPacker(t, mockCtrl, tc)
+		tc.conn.handshakeComplete = true
+		tc.conn.handshakeConfirmed = true
+		tc.conn.droppedInitialKeys = true
+		queued := getPacketBuffer()
+		queued.Data = append(queued.Data, "queued before close"...)
+		tc.conn.emission.queue.Send(queued, 0, protocol.ECNNon, sendMetadata{})
+		queuedWrite := tc.sendConn.EXPECT().Write([]byte("queued before close"), uint16(0), protocol.ECNNon)
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).After(queuedWrite.Call).DoAndReturn(func(data []byte, _ uint16, _ protocol.ECN) error {
+			hdrLen, _, _, _, err := wire.ParseShortHeader(data, tc.conn.connIDManager.Get().Len())
+			require.NoError(t, err)
+			typ, n, err := tc.conn.frameParser.ParseType(data[hdrLen:], protocol.Encryption1RTT)
+			require.NoError(t, err)
+			frame, _, err := tc.conn.frameParser.ParseLessCommonFrame(typ, data[hdrLen+n:], protocol.Version1)
+			require.NoError(t, err)
+			closeFrame := frame.(*wire.ConnectionCloseFrame)
+			require.Equal(t, useApplicationClose, closeFrame.IsApplicationError)
+			require.EqualValues(t, 1337, closeFrame.ErrorCode)
+			require.Equal(t, "foobar", closeFrame.ReasonPhrase)
+			if !useApplicationClose {
+				require.EqualValues(t, 42, closeFrame.FrameType)
+			}
+			return nil
+		})
 		tc.connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 		go func() { errChan <- tc.conn.run() }()
@@ -824,7 +833,7 @@ func testConnectionUnpackFailureFatal(t *testing.T, unpackErr error) error {
 
 	tc.connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any())
 	unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(protocol.PacketNumber(0), protocol.PacketNumberLen(0), protocol.KeyPhaseBit(0), nil, unpackErr)
-	tc.packer.EXPECT().PackConnectionClose(gomock.Any(), gomock.Any(), protocol.Version1).Return(&coalescedPacket{buffer: getPacketBuffer()}, nil)
+	useLifecyclePacketPacker(t, mockCtrl, tc)
 	errChan := make(chan error, 1)
 	go func() { errChan <- tc.conn.run() }()
 

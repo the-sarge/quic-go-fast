@@ -17,19 +17,6 @@ import (
 
 var errNothingToPack = errors.New("nothing to pack")
 
-type packer interface {
-	PackCoalescedPacket(onlyAck bool, maxPacketSize protocol.ByteCount, now monotime.Time, v protocol.Version) (*coalescedPacket, error)
-	PackAckOnlyPacket(maxPacketSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, *packetBuffer, error)
-	AppendPacket(_ *packetBuffer, maxPacketSize protocol.ByteCount, now monotime.Time, v protocol.Version) (shortHeaderPacket, error)
-	PackPTOProbePacket(_ protocol.EncryptionLevel, _ protocol.ByteCount, addPingIfEmpty bool, now monotime.Time, v protocol.Version) (*coalescedPacket, error)
-	PackConnectionClose(*qerr.TransportError, protocol.ByteCount, protocol.Version) (*coalescedPacket, error)
-	PackApplicationClose(*qerr.ApplicationError, protocol.ByteCount, protocol.Version) (*coalescedPacket, error)
-	PackPathProbePacket(protocol.ConnectionID, []ackhandler.Frame, protocol.Version) (shortHeaderPacket, *packetBuffer, error)
-	PackMTUProbePacket(ping ackhandler.Frame, size protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error)
-
-	SetToken([]byte)
-}
-
 type sealer interface {
 	handshake.LongHeaderSealer
 }
@@ -136,8 +123,6 @@ type packetPacker struct {
 
 	numNonAckElicitingAcks int
 }
-
-var _ packer = &packetPacker{}
 
 func newPacketPacker(
 	srcConnID protocol.ConnectionID,
@@ -274,6 +259,7 @@ func (p *packetPacker) packConnectionClose(
 		if encLevel == protocol.Encryption1RTT {
 			shp, err := p.appendShortHeaderPacket(buffer, connID, oneRTTPacketNumber, oneRTTPacketNumberLen, keyPhase, payloads[i], 0, maxPacketSize, sealers[i], false, v)
 			if err != nil {
+				buffer.Release()
 				return nil, err
 			}
 			packet.shortHdrPacket = &shp
@@ -284,6 +270,7 @@ func (p *packetPacker) packConnectionClose(
 			}
 			longHdrPacket, err := p.appendLongHeaderPacket(buffer, hdrs[i], payloads[i], paddingLen, encLevel, sealers[i], v)
 			if err != nil {
+				buffer.Release()
 				return nil, err
 			}
 			packet.longHdrPackets = append(packet.longHdrPackets, longHdrPacket)

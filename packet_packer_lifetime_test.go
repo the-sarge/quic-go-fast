@@ -34,7 +34,7 @@ func observeConstructionBuffer(t *testing.T) **packetBuffer {
 func TestAckConstructorEmptyLifetime(t *testing.T) {
 	c := newEmissionTestConnection(t, false).conn
 	observed := observeConstructionBuffer(t)
-	_, buf, err := c.packer.PackAckOnlyPacket(1200, monotime.Now(), protocol.Version1)
+	_, buf, err := c.emission.packer.PackAckOnlyPacket(1200, monotime.Now(), protocol.Version1)
 	require.ErrorIs(t, err, errNothingToPack)
 	require.NotNil(t, *observed)
 	require.Zero(t, (*observed).refCount, "unreturned construction storage must be released")
@@ -107,7 +107,7 @@ func TestProbeConstructorFailureLifetime(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				tc := newEmissionTestConnection(t, false)
 				c := tc.conn
-				p := c.packer.(*packetPacker)
+				p := c.emission.packer
 				p.pnManager = mismatchedConstructionNumber{c.sentPacketHandler}
 				if missingKeys {
 					sealing := NewMockSealingManager(gomock.NewController(t))

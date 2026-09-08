@@ -19,7 +19,7 @@ func TestEmissionResultQueueWakeup(t *testing.T) {
 			t.Run(fmt.Sprintf("gso=%t/occupied=%d", gso, occupied), func(t *testing.T) {
 				tc := newEmissionTestConnection(t, gso)
 				c := tc.conn
-				q := c.sendQueue.(*sendQueue)
+				q := c.emission.queue.(*sendQueue)
 				for range occupied {
 					buf := getPacketBuffer()
 					buf.Data = append(buf.Data, 0xff)
@@ -87,7 +87,7 @@ func TestEmissionResultRecoveryOutcome(t *testing.T) {
 				} else {
 					require.True(t, result.deadline.IsZero())
 				}
-				q := c.sendQueue.(*sendQueue)
+				q := c.emission.queue.(*sendQueue)
 				require.Len(t, q.queue, 1)
 				tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				close(q.closeCalled)
@@ -118,7 +118,7 @@ func TestEmissionResultConnection(t *testing.T) {
 			require.Equal(t, deadlineSendImmediately, c.pacingDeadline)
 			require.NotNil(t, c.datagramQueue.Peek())
 			c.receivedPackets.PopFront()
-			q := c.sendQueue.(*sendQueue)
+			q := c.emission.queue.(*sendQueue)
 			tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			close(q.closeCalled)
 			require.NoError(t, q.Run())
@@ -137,7 +137,7 @@ func TestEmissionEmptyCallerBuffer(t *testing.T) {
 			require.Equal(t, emissionNoData, result.stop)
 			require.Len(t, *observed, 1)
 			require.Zero(t, (*observed)[0].refCount)
-			require.Empty(t, c.sendQueue.(*sendQueue).queue)
+			require.Empty(t, c.emission.queue.(*sendQueue).queue)
 		})
 	}
 }
@@ -166,7 +166,7 @@ func TestEmissionECNBatchBoundary(t *testing.T) {
 	result := c.emission.advance(monotime.Now(), true)
 	require.NoError(t, result.err)
 	require.True(t, result.progress)
-	q := c.sendQueue.(*sendQueue)
+	q := c.emission.queue.(*sendQueue)
 	require.Len(t, q.queue, 2)
 	for _, want := range []protocol.ECN{protocol.ECT0, protocol.ECNNon} {
 		entry := <-q.queue

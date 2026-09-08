@@ -29,7 +29,7 @@ func TestEmissionProbeAllocations(t *testing.T) {
 		now := monotime.Now()
 		frames := []ackhandler.Frame{{Frame: &wire.PathChallengeFrame{Data: [8]byte{1}}}}
 		allocs := testing.AllocsPerRun(1000, func() {
-			p, buf, err := c.packer.PackPathProbePacket(c.connIDManager.Get(), frames, c.version)
+			p, buf, err := c.emission.packer.PackPathProbePacket(c.connIDManager.Get(), frames, c.version)
 			require.NoError(t, err)
 			c.emission.registerPacket(p, protocol.ECNNon, now)
 			_, err = c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: p.PacketNumber, Largest: p.PacketNumber}}}, protocol.Encryption1RTT, now.Add(time.Millisecond))
@@ -41,7 +41,7 @@ func TestEmissionProbeAllocations(t *testing.T) {
 	})
 	t.Run("queued-MTU", func(t *testing.T) {
 		c := newEmissionTestConnection(t, false).conn
-		q := c.sendQueue.(*sendQueue)
+		q := c.emission.queue.(*sendQueue)
 		now := monotime.Now()
 		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
 		c.sentPacketHandler.ReceivedBytes(1<<30, now)
@@ -65,14 +65,14 @@ func TestEmissionProbeAllocations(t *testing.T) {
 		raw := NewMockRawConn(gomock.NewController(t))
 		raw.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}).AnyTimes()
 		tr := &Transport{conn: raw}
-		q := c.sendQueue
+		q := c.emission.queue
 		go func() { require.NoError(t, q.Run()) }()
 		now := monotime.Now()
 		allocs := testing.AllocsPerRun(1000, func() {
 			now = now.Add(time.Second)
 			c.switchToNewPath(tr, now)
 		})
-		c.sendQueue.Close()
+		c.emission.queue.Close()
 		fmt.Printf("path-replacement allocs=%g\n", allocs)
 	})
 

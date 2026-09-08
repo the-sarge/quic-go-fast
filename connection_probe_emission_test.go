@@ -79,7 +79,7 @@ func TestEmissionDirectProbe(t *testing.T) {
 				}
 				require.Equal(t, 1, writes)
 				require.Zero(t, (*observed).refCount)
-				require.Empty(t, c.sendQueue.(*sendQueue).queue, "direct probes never enter the ordinary queue")
+				require.Empty(t, c.emission.queue.(*sendQueue).queue, "direct probes never enter the ordinary queue")
 				sent := recorder.Events(qlog.PacketSent{})
 				require.Len(t, sent, 1)
 				if !client {
@@ -103,7 +103,7 @@ func TestEmissionMTUProbe(t *testing.T) {
 			require.NoError(t, result.err)
 			require.True(t, result.progress)
 			require.EqualValues(t, 1, (*observed).refCount)
-			q := c.sendQueue.(*sendQueue)
+			q := c.emission.queue.(*sendQueue)
 			require.Len(t, q.queue, 1)
 			cause := errors.New("MTU write failure")
 			tc.sendConn.EXPECT().Write(gomock.Any(), uint16(0), protocol.ECNUnsupported).DoAndReturn(func(b []byte, _ uint16, _ protocol.ECN) error {
@@ -136,7 +136,7 @@ func TestEmissionMTUProbeFullQueue(t *testing.T) {
 	now := monotime.Now()
 	c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
 	c.mtuDiscoverer.Start(now.Add(-time.Hour))
-	q := c.sendQueue.(*sendQueue)
+	q := c.emission.queue.(*sendQueue)
 	for range sendQueueCapacity {
 		q.Send(getPacketBuffer(), 0, protocol.ECNUnsupported, sendMetadata{})
 	}
@@ -152,7 +152,7 @@ func TestEmissionPathReplacement(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		tc := newEmissionTestConnection(t, false)
 		c := tc.conn
-		q := c.sendQueue.(*sendQueue)
+		q := c.emission.queue.(*sendQueue)
 		first, second := getPacketWithContents([]byte("active")), getPacketWithContents([]byte("pending"))
 		q.Send(first, 0, protocol.ECNNon, sendMetadata{})
 		q.Send(second, 0, protocol.ECNNon, sendMetadata{})
@@ -166,14 +166,14 @@ func TestEmissionPathReplacement(t *testing.T) {
 		replaced := make(chan sender, 1)
 		go func() { replaced <- c.emission.replacePath(next, &c.handshakeSendFeedback) }()
 		synctest.Wait()
-		require.Same(t, q, c.sendQueue, "old worker must finish before queue replacement")
+		require.Same(t, q, c.emission.queue, "old worker must finish before queue replacement")
 		require.EqualValues(t, 1, first.refCount)
 		require.EqualValues(t, 1, second.refCount)
 		close(release)
 		synctest.Wait()
 		require.NoError(t, <-worker)
 		newQueue := <-replaced
-		require.Same(t, newQueue, c.sendQueue)
+		require.Same(t, newQueue, c.emission.queue)
 		require.Same(t, next, c.conn)
 		require.Zero(t, first.refCount)
 		require.Zero(t, second.refCount)
@@ -194,12 +194,12 @@ func TestEmissionPathRebinding(t *testing.T) {
 	raw.EXPECT().LocalAddr().Return(oldAddr)
 	conn := newSendConn(raw, oldAddr, packetInfo{}, c.logger)
 	q := newSendQueue(conn, &c.handshakeSendFeedback).(*sendQueue)
-	c.sendQueue = q
+	c.emission.queue = q
 	c.conn = conn
 	buf := getPacketWithContents([]byte("queued before rebinding"))
 	q.Send(buf, 0, protocol.ECNNon, sendMetadata{})
 	c.emission.rebindPath(newAddr, packetInfo{})
-	require.Same(t, q, c.sendQueue)
+	require.Same(t, q, c.emission.queue)
 	raw.EXPECT().WritePacket(buf.Data, newAddr, gomock.Any(), uint16(0), protocol.ECNNon).Return(len(buf.Data), nil)
 	close(q.closeCalled)
 	require.NoError(t, q.Run())
