@@ -201,7 +201,7 @@ The initial review is consumed; preserve its independent dispositions. With unch
 
 ### E5 — Own probe emission and path handoff
 
-**State:** Complete. The [E5 receipt](../audits/e5-probe-emission/README.md) records probe ownership, path handoff and bounded validation. E6a/E6b/E6c are complete; E6 is ready; E4 and E5 are complete.
+**State:** Complete. The [E5 receipt](../audits/e5-probe-emission/README.md) records probe ownership, path handoff and bounded validation. E6a/E6b/E6c are complete; E6 is complete; no implementation frontier remains.
 
 **Delivers:** Direct server responses, direct client alternate-transport probes and queued MTU probes use typed emission operations with complete temporary-byte ownership. Path replacement uses the queue lifecycle interface while path policy and generation/MTU state remain with the connection. Preserve both replacement and in-place migration behavior.
 

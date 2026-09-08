@@ -32,8 +32,6 @@ type SealingManager = sealingManager
 //go:generate sh -c "go tool mockgen -typed -build_flags=\"-tags=gomock\" -package quic -self_package github.com/quic-go/quic-go -destination mock_unpacker_test.go github.com/quic-go/quic-go Unpacker"
 type Unpacker = unpacker
 
-type Packer = packer
-
 //go:generate sh -c "go tool mockgen -typed -build_flags=\"-tags=gomock\" -package quic -self_package github.com/quic-go/quic-go -destination mock_conn_runner_test.go github.com/quic-go/quic-go ConnRunner"
 type ConnRunner = connRunner
 
