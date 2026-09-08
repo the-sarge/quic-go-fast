@@ -441,3 +441,16 @@ The first instrumented run exposed a zero-allocation assertion incompatible with
 Certified candidate `3d1c6e4717c7f816e831bf57e77fe1d2f8c73cb7`: full 31-package local unit scope passed with `TIMESCALE_FACTOR=20` and race instrumentation; normal parser allocation tests and the wire race suite passed. Workflow validation and whitespace checks passed; default actionlint's unrelated SC2086 warning was unchanged from the base. Standards and Spec reviews reported zero findings. Initial RAS run `20260908T193951-214de8c5fd4e189830fae73f` identified one allocation-test defect, with duplicate reports; verification resolved all four reports on the candidate. Five initial reviewers completed and two provider-output failures were retained in the audit record. Replacement RAS run `20260908T195750-06148e85f32028558d62dfe2` completed with no findings or follow-ups.
 
 All existing pull-request workflows passed on the candidate: unit, integration, lint, cross-compilation, and interop Docker. Both Ubuntu Go 1.26 and 1.27 jobs completed the race, FIPS140, and benchmark steps successfully. Squash merge `45fffa2e0d38a431480f18096003c01a2d43e460` was guarded by the exact reviewed head.
+
+---
+
+## Self-suite QUIC version selection corrected - 2026-09-08 18:40 EDT
+
+**Main:** `6a3e66fa00e4`
+**Actor:** Codex
+
+Merged [PR #120](https://github.com/the-sarge/quic-go-fast/pull/120), closing [issue #69](https://github.com/the-sarge/quic-go-fast/issues/69). The self-suite now applies its selected QUIC version through `getQuicConfig`, preserving explicit version lists. Seven HTTP/3 dialing fixtures now use that helper, and representative handshakes assert the actual negotiated version on both peers. Existing suite entry points, qlog behavior, the separate version-negotiation suite, public API, and module identity remain intact.
+
+The initial regression reproduced `-version=2` logging v2 while negotiating v1. Applying the helper default then exposed HTTP clients still using v1; the seven fixture assignments resolved that in-scope regression. Certified head `dfbd3e43821b547aef489f9f2ffadfae1d6a3d19` passed full repository tests, the full shuffled v2 self-suite, package vet, and whitespace checks. Focused handshake and affected HTTP tests passed for both flags; explicit overrides and qlog were also exercised. All 33 hosted checks passed with none skipped, including unit, integration, lint, cross-compilation, and interop image workflows.
+
+Standards and Spec reviews found no actionable issues. Initial RAS review `20260908T221543-60b137673c7efed2aeda5895` identified the same HTTP client mismatch; exact-head verification resolved it and its duplicate reports. An added HTTP assertion requirement was rejected as beyond the accepted representative coverage. Replacement review `20260908T223512-6e14684b70f6cd6e0fb59e70` returned no fixes or follow-ups. The [PR review record](https://github.com/the-sarge/quic-go-fast/pull/120) preserves scope and dispositions. Merge `6a3e66fa00e400f7256bbd2bf574d4bdcbebf636` was guarded by the exact reviewed head.
