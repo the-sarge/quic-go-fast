@@ -36,7 +36,7 @@ func TestEmissionDirectProbe(t *testing.T) {
 				recorder := &events.Recorder{}
 				c.qlogger = recorder
 				addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}
-				info := packetInfo{addr: netip.MustParseAddr("127.0.0.2"), ifIndex: 3}
+				info := packetInfo{addr: netip.MustParseAddr("127.0.0.2")}
 				connID := protocol.ParseConnectionID([]byte{8, 7, 6, 5})
 				challenge := &wire.PathChallengeFrame{Data: [8]byte{1, 2, 3, 4, 5, 6, 7, 8}}
 				frames := []ackhandler.Frame{{Frame: challenge}}
