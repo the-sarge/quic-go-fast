@@ -2297,7 +2297,8 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		c.connIDGenerator.ReplaceWithClosed(nil, 3*c.rttStats.PTO(false))
 		return
 	}
-	if closeErr.immediate {
+	// Recreating for version negotiation never sends a close in the old version.
+	if closeErr.immediate || recreateErr != nil {
 		c.connIDGenerator.RemoveAll()
 		return
 	}

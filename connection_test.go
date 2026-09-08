@@ -2523,17 +2523,31 @@ func getVersionNegotiationPacket(src, dest protocol.ConnectionID, versions []pro
 }
 
 func TestConnectionVersionNegotiation(t *testing.T) {
+	for _, sendInitial := range []bool{false, true} {
+		t.Run(map[bool]string{false: "before Initial", true: "after Initial"}[sendInitial], func(t *testing.T) {
+			testConnectionVersionNegotiation(t, sendInitial)
+		})
+	}
+}
+
+func testConnectionVersionNegotiation(t *testing.T, sendInitial bool) {
 	synctest.Test(t, func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		var eventRecorder events.Recorder
 		tc := newClientTestConnection(t, mockCtrl, nil, false, connectionOptTracer(&eventRecorder))
 
 		useLifecyclePacketPacker(t, mockCtrl, tc)
-		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+		writes := 0
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func([]byte, uint16, protocol.ECN) error { writes++; return nil }).AnyTimes()
 		tc.connRunner.EXPECT().Remove(gomock.Any())
 
 		errChan := make(chan error, 1)
-		go func() { errChan <- tc.conn.run() }()
+		if sendInitial {
+			go func() { errChan <- tc.conn.run() }()
+			synctest.Wait()
+			require.Positive(t, writes, "send a real Initial before negotiating another version")
+		}
+		writesBeforeNegotiation := writes
 		vnp := getVersionNegotiationPacket(
 			tc.destConnID,
 			tc.srcConnID,
@@ -2543,9 +2557,13 @@ func TestConnectionVersionNegotiation(t *testing.T) {
 		_, _, vnpVersions, err := wire.ParseVersionNegotiationPacket(vnp.data)
 		require.NoError(t, err)
 		tc.conn.handlePacket(vnp)
+		if !sendInitial {
+			go func() { errChan <- tc.conn.run() }()
+		}
 
 		synctest.Wait()
 
+		require.Equal(t, writesBeforeNegotiation, writes, "version recreation must not emit CONNECTION_CLOSE")
 		select {
 		case err := <-errChan:
 			var rerr *errCloseForRecreating
