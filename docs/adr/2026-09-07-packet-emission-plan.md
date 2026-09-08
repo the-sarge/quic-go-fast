@@ -1,6 +1,6 @@
 # Packet Emission Implementation Plan
 
-**Date:** 2026-09-07. **Status:** Staged adoption authorized with E1 uncertainty accepted; E2, E3, E4 and E5 complete; E6a/E6b complete; E6c ready; E6 blocked by E6c. **Track:** E of QGF-PE-2026-09. **Depends on:** Nothing outside this track. **Related:** [Program](2026-09-07-packet-emission-program.md), [ADR 0004](0004-packet-emission-ownership.md), [compatibility](0001-upstream-compatibility.md), [module adoption](0002-adopt-through-module-replacement.md), [stable upstream](0003-follow-stable-upstream-releases.md). **Normative scope:** Current outcomes, boundaries, invariants, budgets, blockers and stops. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
+**Date:** 2026-09-07. **Status:** Staged adoption authorized with E1 uncertainty accepted; E2, E3, E4 and E5 complete; E6a/E6b/E6c complete; E6 ready. **Track:** E of QGF-PE-2026-09. **Depends on:** Nothing outside this track. **Related:** [Program](2026-09-07-packet-emission-program.md), [ADR 0004](0004-packet-emission-ownership.md), [compatibility](0001-upstream-compatibility.md), [module adoption](0002-adopt-through-module-replacement.md), [stable upstream](0003-follow-stable-upstream-releases.md). **Normative scope:** Current outcomes, boundaries, invariants, budgets, blockers and stops. **Audit history:** [Handoff audit](../audits/2026-09-07-packet-emission-handoff.md).
 
 ## Goal
 
@@ -111,7 +111,7 @@ E1 and E2 can complete independently; E4 and E5 are independent after E3. Serial
 
 ### E1 — Establish packet-emission feasibility
 
-**State:** Complete with an inconclusive four-core disposition in [PR #37](https://github.com/the-sarge/quic-go-fast/pull/37). The [replacement receipt](../audits/e1-emission-four-core/README.md) records the revised prototype, bounded diagnosis and complete remaining campaign. P3/P4/P5/P6 meet their numerical margins, but dedicated-core qualification is unestablished because capture tooling shared the measured cpuset; P1 p99 and stream-churn time additionally miss their unchanged numerical margins. Retain [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33) and its [original inconclusive receipt](../audits/e1-emission/README.md) unchanged. Normal builds retain production runtime unchanged. The owner has accepted this uncertainty for staged adoption. E2, E3, E4 and E5 are complete; E6a/E6b are complete; E6c is ready; E6 is blocked by E6c.
+**State:** Complete with an inconclusive four-core disposition in [PR #37](https://github.com/the-sarge/quic-go-fast/pull/37). The [replacement receipt](../audits/e1-emission-four-core/README.md) records the revised prototype, bounded diagnosis and complete remaining campaign. P3/P4/P5/P6 meet their numerical margins, but dedicated-core qualification is unestablished because capture tooling shared the measured cpuset; P1 p99 and stream-churn time additionally miss their unchanged numerical margins. Retain [PR #33](https://github.com/the-sarge/quic-go-fast/pull/33) and its [original inconclusive receipt](../audits/e1-emission/README.md) unchanged. Normal builds retain production runtime unchanged. The owner has accepted this uncertainty for staged adoption. E2, E3, E4 and E5 are complete; E6a/E6b/E6c are complete; E6 is ready.
 
 **Delivers:** A finite experiment using a disposable established-1-RTT normal/GSO extraction, source/field/hook correspondence map, outcome characterization, paired results and a positive/no-change/inconclusive disposition. The PR retains only useful ordinary characterization and opt-in evidence; prototype runtime is an inert patch tied to its base, never selected by normal builds. Positive means the bounded concrete seam works without moving execution/fairness or adding hot-path coordination and meets the full performance contract. It does not certify later migrated modes.
 
@@ -131,7 +131,7 @@ E1 and E2 can complete independently; E4 and E5 are independent after E3. Serial
 
 ### E2 — Close queued-buffer lifetimes
 
-**State:** Complete. The [E2 receipt](../audits/e2-buffer-lifetimes/README.md) records lifetime regressions and the bounded queue comparison. E3, E4 and E5 are complete; E6a/E6b are complete; E6c is the current frontier under the accepted adoption decision.
+**State:** Complete. The [E2 receipt](../audits/e2-buffer-lifetimes/README.md) records lifetime regressions and the bounded queue comparison. E3, E4 and E5 are complete; E6a/E6b/E6c are complete; E6 is the current frontier under the accepted adoption decision.
 
 **Delivers:** Every supported queued-byte-buffer submission reaches one terminal ownership disposition on normal send, stopped submission, fatal worker error, racing enqueue and graceful close. Preserve current queue capacity, single producer, worker behavior, error cause and handshake feedback. This is a useful independently shippable prefactor even if E1 rejects the larger extraction.
 
@@ -151,7 +151,7 @@ E1 and E2 can complete independently; E4 and E5 are independent after E3. Serial
 
 ### E3 — Own normal and GSO packet emission
 
-**State:** Complete in [PR #41](https://github.com/the-sarge/quic-go-fast/pull/41). The [E3 receipt](../audits/e3-packet-emission/README.md) records ownership, result and performance evidence. E4 and E5 are complete; E6a/E6b are complete; E6c is ready; E6 is blocked by E6c.
+**State:** Complete in [PR #41](https://github.com/the-sarge/quic-go-fast/pull/41). The [E3 receipt](../audits/e3-packet-emission/README.md) records ownership, result and performance evidence. E4 and E5 are complete; E6a/E6b/E6c are complete; E6 is ready.
 
 **Delivers:** Established 1-RTT normal and GSO send opportunities pass through the concrete emission owner, including capacity, existing packer, registration, qlog/connection-ID effects, batching, receive fairness and queue transfer. Real-connection stream and DATAGRAM output exercises it. Preserve the registration point and recovery queries during batch assembly.
 
@@ -181,7 +181,7 @@ The initial review is consumed; preserve its independent dispositions. With unch
 
 ### E4 — Own handshake, ACK and PTO emission
 
-**State:** Complete. The [E4 receipt](../audits/e4-handshake-emission/README.md) records handshake/ACK/PTO ownership, constructor cleanup and the bounded performance comparison. E5 is complete; E6a/E6b are complete; E6c is ready; E6 is blocked by E6c.
+**State:** Complete. The [E4 receipt](../audits/e4-handshake-emission/README.md) records handshake/ACK/PTO ownership, constructor cleanup and the bounded performance comparison. E5 is complete; E6a/E6b/E6c are complete; E6 is ready.
 
 **Delivers:** Normal coalesced handshake/0-RTT output, ACK-only output and PTO emission use the concrete owner. The module interprets those send modes and packs/registers/hands off internally, preserving handshake key retirement and all ordinary-loop wakeups. The connection retains handshake state and applies typed registration effects synchronously.
 
@@ -201,7 +201,7 @@ The initial review is consumed; preserve its independent dispositions. With unch
 
 ### E5 — Own probe emission and path handoff
 
-**State:** Complete. The [E5 receipt](../audits/e5-probe-emission/README.md) records probe ownership, path handoff and bounded validation. E6a/E6b are complete; E6c is ready; E6 is blocked by E6c; E4 and E5 are complete.
+**State:** Complete. The [E5 receipt](../audits/e5-probe-emission/README.md) records probe ownership, path handoff and bounded validation. E6a/E6b/E6c are complete; E6 is ready; E4 and E5 are complete.
 
 **Delivers:** Direct server responses, direct client alternate-transport probes and queued MTU probes use typed emission operations with complete temporary-byte ownership. Path replacement uses the queue lifecycle interface while path policy and generation/MTU state remain with the connection. Preserve both replacement and in-place migration behavior.
 
@@ -261,7 +261,7 @@ Use opt-in setup for the migrated tests. A test may install the real packer with
 
 ### E6c — Migrate connection-ID and path packer consumers
 
-**State / blockers:** Ready; E5 is complete. New child issue pending publication. No dependency on E6a/E6b.
+**State / blockers:** Complete; see [preservation receipt](../audits/e6c-path-consumers/README.md). Child [#54](https://github.com/the-sarge/quic-go-fast/issues/54). E5 is complete. No dependency on E6a/E6b.
 
 **Delivers and acceptance:** Preserve `testConnectionConnectionIDChanges` (2793), `testConnectionPathValidation` (2998), and `testConnectionMigration` (3172) while removing their packer expectations. Retry token installation is observed through the next real Initial header/packer conformance boundary, not a new forwarding mock. Preserve connection-ID selection, path-validation decisions, destinations, probe versus ordinary output, stale/current path behavior and migration outcomes already asserted by these functions. Existing direct-probe, replacement and rebinding emission tests may discharge matching storage/handoff assertions; they do not replace the path-policy decisions exercised by the connection tests.
 
@@ -275,7 +275,7 @@ Use opt-in setup for the migrated tests. A test may install the real packer with
 
 ### E6 — Own close emission and retire the legacy seam
 
-**State:** Blocked by E6c; E6a, E6b, E4 and E5 are complete. Retain child #30 and its OmniFocus identity for this contracted final product slice.
+**State:** Ready; E6a, E6b, E6c, E4 and E5 are complete. Retain child #30 and its OmniFocus identity for this contracted final product slice.
 
 **Delivers:** Close construction hands off immutable retained bytes safely, and the remaining connection/packer/queue forwarding interface is removed. The final connection requests emission progress and handles outcomes; it no longer selects a packet-shape method or coordinates raw output registration/handoff. Remove the broad `packer` interface, its generated mock and superseded interaction tests only after their mode-specific replacements exist. Preserve focused `packetPacker` conformance tests. Qualify the composed final implementation.
 
