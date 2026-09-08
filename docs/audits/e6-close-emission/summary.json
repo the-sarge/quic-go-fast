@@ -1,0 +1,68 @@
+{
+  "seed": 20260907,
+  "whole_pair_resamples": 20000,
+  "campaign": "/home/josh/.cache/qgf-e6-r2/campaign-01",
+  "cells": [
+    {
+      "cell": "P1",
+      "valid_pairs": 10,
+      "status": "noninferiority_not_established",
+      "metrics": {
+        "goodput_bps": {
+          "geometric_mean_candidate_base_ratio": 0.9998771897668948,
+          "one_sided_95_percent_bound": 0.9996081035068848,
+          "bound_direction": "lower",
+          "pass": true
+        },
+        "cpu_per_unit": {
+          "geometric_mean_candidate_base_ratio": 1.005980120145799,
+          "one_sided_95_percent_bound": 1.0077496565134814,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "allocated_bytes_per_unit": {
+          "geometric_mean_candidate_base_ratio": 0.9998224685176222,
+          "one_sided_95_percent_bound": 1.000235999761979,
+          "bound_direction": "upper",
+          "pass": true
+        },
+        "probe_p99_ns": {
+          "geometric_mean_candidate_base_ratio": 1.1261588997389695,
+          "one_sided_95_percent_bound": 1.2358177429874126,
+          "bound_direction": "upper",
+          "pass": false
+        },
+        "probe_bad_fraction": {
+          "mean_absolute_difference": 0.0,
+          "one_sided_95_percent_upper_bound": 0.0,
+          "pass": true
+        }
+      }
+    },
+    {
+      "cell": "P3",
+      "valid_pairs": 0,
+      "status": "incomplete",
+      "metrics": {}
+    },
+    {
+      "cell": "P4",
+      "valid_pairs": 0,
+      "status": "incomplete",
+      "metrics": {}
+    },
+    {
+      "cell": "P5",
+      "valid_pairs": 0,
+      "status": "incomplete",
+      "metrics": {}
+    },
+    {
+      "cell": "P6",
+      "valid_pairs": 0,
+      "status": "incomplete",
+      "metrics": {}
+    }
+  ],
+  "status": "noninferiority_not_established"
+}
