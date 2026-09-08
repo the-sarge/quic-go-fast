@@ -2430,16 +2430,19 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 
 		useSchedulingPacketPacker(t, mockCtrl, tc, sph)
 		sender.EXPECT().Run().MaxTimes(1)
-		sender.EXPECT().WouldBlock().Times(2) // run-loop and experimental emission entry guards
-		sender.EXPECT().WouldBlock().Return(true).Times(2)
+		full := false
+		sender.EXPECT().WouldBlock().DoAndReturn(func() bool { return full }).AnyTimes()
 		available := make(chan struct{})
-		blocked := make(chan struct{})
+		blocked := make(chan struct{}, 1)
 		sender.EXPECT().Available().DoAndReturn(
 			func() <-chan struct{} {
-				close(blocked)
+				select {
+				case blocked <- struct{}{}:
+				default:
+				}
 				return available
 			},
-		)
+		).AnyTimes()
 		sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
 		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).AnyTimes()
 		sph.EXPECT().ECNMode(gomock.Any()).AnyTimes()
@@ -2449,6 +2452,7 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		require.NoError(t, tc.conn.datagramQueue.Add(next))
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
 			require.Equal(t, first.Data, schedulingDatagram(t, tc, b.Data))
+			full = true
 			b.Release()
 		})
 
@@ -2456,6 +2460,9 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		go func() { errChan <- tc.conn.run() }()
 		tc.conn.scheduleSending()
 
+		synctest.Wait()
+		// A producer wakeup does not make a full queue available.
+		tc.conn.scheduleSending()
 		synctest.Wait()
 
 		select {
@@ -2469,8 +2476,8 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		require.EqualValues(t, 1, pn)
 
 		// now make room in the send queue
-		sender.EXPECT().WouldBlock().AnyTimes()
-		unblocked := make(chan struct{})
+		full = false
+		unblocked := make(chan struct{}, 1)
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
 			require.Equal(t, next.Data, schedulingDatagram(t, tc, b.Data))
 			b.Release()
