@@ -1,0 +1,83 @@
+package quic
+
+import (
+	"github.com/quic-go/quic-go/internal/handshake"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/qlog"
+	"net"
+	"testing"
+)
+
+// Disposable diagnostic assertions against the unchanged production implementation.
+func scrutinyPacket() receivedPacket {
+	b := &packetBuffer{Data: make([]byte, 1, protocol.MaxPacketBufferSize), refCount: 1}
+	return receivedPacket{data: b.Data, buffer: b, remoteAddr: &net.UDPAddr{Port: 1234}}
+}
+func TestScrutinyIngressTerminalOwnership(t *testing.T) {
+	t.Run("connection_overflow", func(t *testing.T) {
+		c := &Conn{}
+		for range protocol.MaxConnUnprocessedPackets {
+			c.receivedPackets.PushBack(receivedPacket{})
+		}
+		p := scrutinyPacket()
+		c.handlePacket(p)
+		if p.buffer.refCount != 0 {
+			t.Fatalf("terminal connection overflow retained refCount=%d, want 0", p.buffer.refCount)
+		}
+	})
+	t.Run("server_overflow", func(t *testing.T) {
+		s := &baseServer{receivedPackets: make(chan receivedPacket, 1), logger: utils.DefaultLogger}
+		s.receivedPackets <- receivedPacket{}
+		p := scrutinyPacket()
+		s.handlePacket(p)
+		if p.buffer.refCount != 0 {
+			t.Fatalf("terminal server overflow retained refCount=%d, want 0", p.buffer.refCount)
+		}
+	})
+	t.Run("transport_empty", func(t *testing.T) {
+		tr := &Transport{}
+		p := scrutinyPacket()
+		p.data = nil
+		tr.handlePacket(p)
+		if p.buffer.refCount != 0 {
+			t.Fatalf("terminal empty datagram retained refCount=%d, want 0", p.buffer.refCount)
+		}
+	})
+	t.Run("transport_parse_reject", func(t *testing.T) {
+		tr := &Transport{logger: utils.DefaultLogger, connIDLen: 8}
+		p := scrutinyPacket()
+		p.data[0] = 0x40
+		tr.handlePacket(p)
+		if p.buffer.refCount != 0 {
+			t.Fatalf("terminal parse rejection retained refCount=%d, want 0", p.buffer.refCount)
+		}
+	})
+	t.Run("non_quic_disabled", func(t *testing.T) {
+		tr := &Transport{}
+		p := scrutinyPacket()
+		tr.handleNonQUICPacket(p)
+		if p.buffer.refCount != 0 {
+			t.Fatalf("terminal non-QUIC drop retained refCount=%d, want 0", p.buffer.refCount)
+		}
+	})
+}
+func TestScrutinyDeferredAdmissionTruth(t *testing.T) {
+	c := &Conn{logger: utils.DefaultLogger, undecryptablePackets: make([]receivedPacketWithChecksum, protocol.MaxUndecryptablePackets)}
+	p := scrutinyPacket()
+	queued, err := c.handleUnpackError(handshake.ErrKeysNotYetAvailable, p, qlog.PacketType1RTT, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queued {
+		t.Fatalf("reported retained=true with full queue; queue remains %d entries", len(c.undecryptablePackets))
+	}
+}
+func TestScrutinyAdmissionControl(t *testing.T) {
+	c := &Conn{logger: utils.DefaultLogger}
+	p := scrutinyPacket()
+	queued, err := c.handleUnpackError(handshake.ErrKeysNotYetAvailable, p, qlog.PacketType1RTT, 0)
+	if err != nil || !queued || len(c.undecryptablePackets) != 1 || c.undecryptablePackets[0].buffer != p.buffer {
+		t.Fatal("valid admission control failed")
+	}
+}

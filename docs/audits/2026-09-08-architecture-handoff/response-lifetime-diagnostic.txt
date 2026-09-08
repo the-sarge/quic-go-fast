@@ -1,0 +1,6 @@
+--- FAIL: TestScrutinyActiveResponseSurvivesIdleClose (0.00s)
+    scrutiny_body_diagnostic_test.go:33: active response after headers has useCount=0, want 1
+    scrutiny_body_diagnostic_test.go:38: CloseIdleConnections closed the connection with an active response body
+FAIL
+FAIL	github.com/quic-go/quic-go/http3	0.333s
+FAIL

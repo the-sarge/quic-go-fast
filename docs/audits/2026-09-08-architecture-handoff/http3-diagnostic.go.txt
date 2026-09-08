@@ -1,0 +1,53 @@
+package http3
+
+import (
+	"context"
+	"errors"
+	"go.uber.org/mock/gomock"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+// A cancelled waiter on an already shared pending dial must release its usage.
+func TestScrutinyCancelledDialWaiterUsage(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	entry := &roundTripperWithCount{dialing: make(chan struct{}), cancel: func() {}}
+	tr := &Transport{clients: map[string]*roundTripperWithCount{"example.test:443": entry}}
+	req := httptest.NewRequest(http.MethodGet, "https://example.test/", nil).WithContext(ctx)
+	_, err := tr.doRoundTripOpt(req, RoundTripOpt{}, false)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n := entry.useCount.Load(); n != 0 {
+		t.Fatalf("cancelled waiter left useCount=%d, want 0", n)
+	}
+	// No worker was started: the pending-entry fixture only represents the shared state.
+}
+
+// The callback installs a successor to represent another request replacing the
+// old entry while this request still uses it; the old failure must not evict it.
+func TestScrutinyStaleFailurePreservesSuccessor(t *testing.T) {
+	conn, _ := newConnPair(t)
+	mock := NewMockClientConn(gomock.NewController(t))
+	done := make(chan struct{})
+	close(done)
+	old := &roundTripperWithCount{dialing: done, cancel: func() {}, conn: conn, clientConn: mock}
+	replacement := &roundTripperWithCount{dialing: make(chan struct{}), cancel: func() {}}
+	tr := &Transport{clients: map[string]*roundTripperWithCount{"example.test:443": old}}
+	failure := errors.New("diagnostic non-retryable old-entry failure")
+	mock.EXPECT().RoundTrip(gomock.Any()).DoAndReturn(func(*http.Request) (*http.Response, error) {
+		tr.mutex.Lock()
+		tr.clients["example.test:443"] = replacement
+		tr.mutex.Unlock()
+		return nil, failure
+	})
+	_, err := tr.doRoundTripOpt(httptest.NewRequest(http.MethodGet, "https://example.test/", nil), RoundTripOpt{}, false)
+	if !errors.Is(err, failure) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if tr.clients["example.test:443"] != replacement {
+		t.Fatal("old request failure evicted the replacement entry")
+	}
+}

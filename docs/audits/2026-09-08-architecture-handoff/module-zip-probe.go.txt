@@ -1,0 +1,17 @@
+package main
+import("archive/zip";"bytes";"encoding/json";"fmt";"io";"io/fs";"os";"strings";"time";"golang.org/x/mod/module";modzip "golang.org/x/mod/zip")
+type mf struct{name string;data []byte}
+func(f mf)Path()string{return f.name};func(f mf)Lstat()(os.FileInfo,error){return fi{f},nil};func(f mf)Open()(io.ReadCloser,error){return io.NopCloser(bytes.NewReader(f.data)),nil}
+type fi struct{mf};func(f fi)Name()string{return f.name};func(f fi)Size()int64{return int64(len(f.data))};func(f fi)Mode()fs.FileMode{return 0644};func(f fi)ModTime()time.Time{return time.Time{}};func(f fi)IsDir()bool{return false};func(f fi)Sys()any{return nil}
+func main(){
+ out:=os.Args[1];repo:=os.Args[2];sha:=os.Args[3];m:=module.Version{Path:"github.com/quic-go/quic-go",Version:"v0.0.0"}
+ var baseline bytes.Buffer
+ must(modzip.CreateFromVCS(&baseline,m,repo,sha,""));must(os.WriteFile(out+"/module-baseline.zip",baseline.Bytes(),0600))
+ zr,err:=zip.NewReader(bytes.NewReader(baseline.Bytes()),int64(baseline.Len()));must(err)
+ var files []modzip.File;var auditCount,receiptCount int;var auditBytes,auditCompressed uint64
+ for _,z:=range zr.File {r,e:=z.Open();must(e);b,e:=io.ReadAll(r);must(e);must(r.Close());name:=strings.TrimPrefix(z.Name,m.Path+"@"+m.Version+"/");files=append(files,mf{name,b});if strings.HasPrefix(name,"docs/audits/"){auditCount++;auditBytes+=z.UncompressedSize64;auditCompressed+=z.CompressedSize64;if strings.HasSuffix(name,".md"){receiptCount++}}}
+ files=append(files,mf{"docs/audits/go.mod",[]byte("module example.invalid/diagnostic-audits-only\n")})
+ var projected bytes.Buffer;must(modzip.Create(&projected,m,files));must(os.WriteFile(out+"/module-nested-audit-projection.zip",projected.Bytes(),0600))
+ json.NewEncoder(os.Stdout).Encode(map[string]any{"sha":sha,"diagnostic_module_version":"v0.0.0 (local label, not a published artifact)","baseline_zip_bytes":baseline.Len(),"projected_zip_bytes":projected.Len(),"saved_zip_bytes":baseline.Len()-projected.Len(),"saved_percent":100*float64(baseline.Len()-projected.Len())/float64(baseline.Len()),"audit_files":auditCount,"audit_uncompressed_bytes":auditBytes,"audit_compressed_content_bytes":auditCompressed,"audit_markdown_receipts_excluded":receiptCount,"method":"x/mod/zip.CreateFromVCS at exact HEAD; virtual nested go.mod projection via zip.Create; no repository files changed"})
+}
+func must(e error){if e!=nil{panic(fmt.Sprint(e))}}
