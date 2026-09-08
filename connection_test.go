@@ -89,6 +89,35 @@ func (tc *testConnection) receivedPacketHandler() *ackhandler.ReceivedPacketHand
 	return &tc.conn.receivedPacketHandler
 }
 
+// useLifecyclePacketPacker keeps packet construction, frame sources and recovery
+// real while making protection transparent for these handshake event fixtures.
+func useLifecyclePacketPacker(t *testing.T, ctrl *gomock.Controller, tc *testConnection) {
+	t.Helper()
+	c := tc.conn
+	sealing := NewMockSealingManager(ctrl)
+	sealer := newMockShortHeaderSealer(ctrl)
+	sealing.EXPECT().GetInitialSealer().DoAndReturn(func() (handshake.LongHeaderSealer, error) {
+		if c.droppedInitialKeys {
+			return nil, handshake.ErrKeysDropped
+		}
+		return sealer, nil
+	}).AnyTimes()
+	sealing.EXPECT().GetHandshakeSealer().DoAndReturn(func() (handshake.LongHeaderSealer, error) {
+		if c.handshakeConfirmed {
+			return nil, handshake.ErrKeysDropped
+		}
+		return sealer, nil
+	}).AnyTimes()
+	sealing.EXPECT().Get1RTTSealer().DoAndReturn(func() (handshake.ShortHeaderSealer, error) {
+		if !c.handshakeComplete {
+			return nil, handshake.ErrKeysNotYetAvailable
+		}
+		return sealer, nil
+	}).AnyTimes()
+	sealing.EXPECT().Get0RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
+	c.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
+}
+
 func newServerTestConnection(
 	t *testing.T,
 	mockCtrl *gomock.Controller,
@@ -964,7 +993,7 @@ func TestConnectionIdleTimeoutDuringHandshake(t *testing.T) {
 			false,
 			connectionOptTracer(&eventRecorder),
 		)
-		tc.packer.EXPECT().PackCoalescedPacket(false, gomock.Any(), gomock.Any(), protocol.Version1).AnyTimes()
+		useLifecyclePacketPacker(t, mockCtrl, tc)
 		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
 		start := monotime.Now()
 		errChan := make(chan error, 1)
@@ -1003,7 +1032,7 @@ func TestConnectionHandshakeIdleTimeout(t *testing.T) {
 			connectionOptTracer(&eventRecorder),
 			func(c *Conn) { c.creationTime = monotime.Now().Add(-20 * time.Second) },
 		)
-		tc.packer.EXPECT().PackCoalescedPacket(false, gomock.Any(), gomock.Any(), protocol.Version1).AnyTimes()
+		useLifecyclePacketPacker(t, mockCtrl, tc)
 		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
 		errChan := make(chan error, 1)
 		go func() { errChan <- tc.conn.run() }()
@@ -1231,82 +1260,111 @@ func TestConnectionTransportParameterValidationFailureClient(t *testing.T) {
 }
 
 func TestConnectionHandshakeServer(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	cs := mocks.NewMockCryptoSetup(mockCtrl)
-	unpacker := NewMockUnpacker(mockCtrl)
-	tc := newServerTestConnection(
-		t,
-		mockCtrl,
-		nil,
-		false,
-		connectionOptCryptoSetup(cs),
-		connectionOptUnpacker(unpacker),
-	)
+	synctest.Test(t, func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		cs := mocks.NewMockCryptoSetup(mockCtrl)
+		unpacker := NewMockUnpacker(mockCtrl)
+		tc := newServerTestConnection(
+			t,
+			mockCtrl,
+			nil,
+			false,
+			connectionOptCryptoSetup(cs),
+			connectionOptUnpacker(unpacker),
+		)
 
-	// the state transition is driven by processing of a CRYPTO frame
-	hdr := &wire.ExtendedHeader{
-		Header:          wire.Header{Type: protocol.PacketTypeHandshake, Version: protocol.Version1},
-		PacketNumberLen: protocol.PacketNumberLen2,
-	}
-	data, err := (&wire.CryptoFrame{Data: []byte("foobar")}).Append(nil, protocol.Version1)
-	require.NoError(t, err)
+		useLifecyclePacketPacker(t, mockCtrl, tc)
+		var output [][]byte
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(data []byte, _ uint16, _ protocol.ECN) error {
+			output = append(output, bytes.Clone(data))
+			return nil
+		}).AnyTimes()
 
-	cs.EXPECT().DiscardInitialKeys().Times(2)
-	gomock.InOrder(
-		cs.EXPECT().StartHandshake(gomock.Any()),
-		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
-		unpacker.EXPECT().UnpackLongHeader(gomock.Any(), gomock.Any()).Return(
-			&unpackedPacket{hdr: hdr, encryptionLevel: protocol.EncryptionHandshake, data: data}, nil,
-		),
-		cs.EXPECT().HandleMessage([]byte("foobar"), protocol.EncryptionHandshake),
-		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventHandshakeComplete}),
-		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
-		cs.EXPECT().SetHandshakeConfirmed(),
-		cs.EXPECT().GetSessionTicket().Return([]byte("session ticket"), nil),
-	)
-	tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(shortHeaderPacket{}, errNothingToPack).AnyTimes()
-
-	errChan := make(chan error, 1)
-	go func() { errChan <- tc.conn.run() }()
-	p := getLongHeaderPacket(t, tc.remoteAddr, hdr, nil)
-	tc.conn.handlePacket(receivedPacket{data: p.data, buffer: p.buffer, rcvTime: monotime.Now()})
-
-	select {
-	case <-tc.conn.HandshakeComplete():
-	case <-tc.conn.Context().Done():
-		t.Fatal("connection context done")
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
-
-	var foundSessionTicket, foundHandshakeDone, foundNewToken bool
-	frames, _, _ := tc.conn.framer.Append(nil, nil, protocol.MaxByteCount, monotime.Now(), protocol.Version1)
-	for _, frame := range frames {
-		switch f := frame.Frame.(type) {
-		case *wire.CryptoFrame:
-			assert.Equal(t, []byte("session ticket"), f.Data)
-			foundSessionTicket = true
-		case *wire.HandshakeDoneFrame:
-			foundHandshakeDone = true
-		case *wire.NewTokenFrame:
-			assert.NotEmpty(t, f.Token)
-			foundNewToken = true
+		// the state transition is driven by processing of a CRYPTO frame
+		hdr := &wire.ExtendedHeader{
+			Header:          wire.Header{Type: protocol.PacketTypeHandshake, Version: protocol.Version1},
+			PacketNumberLen: protocol.PacketNumberLen2,
 		}
-	}
-	assert.True(t, foundSessionTicket)
-	assert.True(t, foundHandshakeDone)
-	assert.True(t, foundNewToken)
-
-	// test teardown
-	cs.EXPECT().Close()
-	tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-	tc.conn.destroy(nil)
-	select {
-	case err := <-errChan:
+		data, err := (&wire.CryptoFrame{Data: []byte("foobar")}).Append(nil, protocol.Version1)
 		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
+
+		cs.EXPECT().DiscardInitialKeys().Times(2)
+		gomock.InOrder(
+			cs.EXPECT().StartHandshake(gomock.Any()),
+			cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
+			unpacker.EXPECT().UnpackLongHeader(gomock.Any(), gomock.Any()).Return(
+				&unpackedPacket{hdr: hdr, encryptionLevel: protocol.EncryptionHandshake, data: data}, nil,
+			),
+			cs.EXPECT().HandleMessage([]byte("foobar"), protocol.EncryptionHandshake),
+			cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventHandshakeComplete}),
+			cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
+			cs.EXPECT().SetHandshakeConfirmed(),
+			cs.EXPECT().GetSessionTicket().Return([]byte("session ticket"), nil),
+		)
+
+		errChan := make(chan error, 1)
+		go func() { errChan <- tc.conn.run() }()
+		p := getLongHeaderPacket(t, tc.remoteAddr, hdr, nil)
+		tc.conn.handlePacket(receivedPacket{data: p.data, buffer: p.buffer, rcvTime: monotime.Now()})
+
+		select {
+		case <-tc.conn.HandshakeComplete():
+		case <-tc.conn.Context().Done():
+			t.Fatal("connection context done")
+		case <-time.After(time.Second):
+			t.Fatal("timeout")
+		}
+
+		var foundSessionTicket, foundHandshakeDone, foundNewToken bool
+		synctest.Wait()
+		require.True(t, tc.conn.handshakeConfirmed)
+		require.NotEmpty(t, output)
+		parser := wire.NewFrameParser(false, false, false)
+		for _, packet := range output {
+			_, packet = parsePacket(t, packet)
+			if len(packet) == 0 {
+				continue
+			}
+			n, _, _, _, err := wire.ParseShortHeader(packet, tc.conn.connIDManager.Get().Len())
+			require.NoError(t, err)
+			payload := packet[n : len(packet)-7] // transparent sealer's authentication tag
+			for len(payload) > 0 {
+				typ, n, err := parser.ParseType(payload, protocol.Encryption1RTT)
+				require.NoError(t, err)
+				payload = payload[n:]
+				if typ == 0 {
+					continue
+				}
+				frame, n, err := parser.ParseLessCommonFrame(typ, payload, protocol.Version1)
+				require.NoError(t, err)
+				payload = payload[n:]
+				switch f := frame.(type) {
+				case *wire.CryptoFrame:
+					assert.Equal(t, []byte("session ticket"), f.Data)
+					foundSessionTicket = true
+				case *wire.HandshakeDoneFrame:
+					foundHandshakeDone = true
+				case *wire.NewTokenFrame:
+					assert.NotEmpty(t, f.Token)
+					foundNewToken = true
+				}
+			}
+		}
+		assert.True(t, foundSessionTicket)
+		assert.True(t, foundHandshakeDone)
+		assert.True(t, foundNewToken)
+
+		// test teardown
+		cs.EXPECT().Close()
+		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		tc.conn.destroy(nil)
+		select {
+		case err := <-errChan:
+			require.NoError(t, err)
+		case <-time.After(time.Second):
+			t.Fatal("timeout")
+		}
+	})
 }
 
 func TestConnectionFinishesCryptoStreamWhenReadKeysBecomeAvailable(t *testing.T) {
@@ -1344,129 +1402,126 @@ func TestConnectionHandshakeClient(t *testing.T) {
 }
 
 func testConnectionHandshakeClient(t *testing.T, usePreferredAddress bool) {
-	mockCtrl := gomock.NewController(t)
-	cs := mocks.NewMockCryptoSetup(mockCtrl)
-	unpacker := NewMockUnpacker(mockCtrl)
-	tc := newClientTestConnection(t, mockCtrl, nil, false, connectionOptCryptoSetup(cs), connectionOptUnpacker(unpacker))
-	tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	synctest.Test(t, func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		cs := mocks.NewMockCryptoSetup(mockCtrl)
+		unpacker := NewMockUnpacker(mockCtrl)
+		tc := newClientTestConnection(t, mockCtrl, nil, false, connectionOptCryptoSetup(cs), connectionOptUnpacker(unpacker))
+		useLifecyclePacketPacker(t, mockCtrl, tc)
+		tc.conn.handshakeStream.Write([]byte("client handshake flight"))
+		written := make(chan []byte, 1)
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(data []byte, _ uint16, _ protocol.ECN) error {
+			select {
+			case written <- bytes.Clone(data):
+			default:
+			}
+			return nil
+		}).AnyTimes()
 
-	// the state transition is driven by processing of a CRYPTO frame
-	hdr := &wire.ExtendedHeader{
-		Header:          wire.Header{Type: protocol.PacketTypeHandshake, Version: protocol.Version1},
-		PacketNumberLen: protocol.PacketNumberLen2,
-	}
-	data, err := (&wire.CryptoFrame{Data: []byte("foobar")}).Append(nil, protocol.Version1)
-	require.NoError(t, err)
-
-	tp := &wire.TransportParameters{
-		OriginalDestinationConnectionID: tc.destConnID,
-		MaxIdleTimeout:                  time.Hour,
-	}
-	preferredAddressConnID := protocol.ParseConnectionID([]byte{10, 8, 6, 4})
-	preferredAddressResetToken := protocol.StatelessResetToken{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	if usePreferredAddress {
-		tp.PreferredAddress = &wire.PreferredAddress{
-			IPv4:                netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), 42),
-			IPv6:                netip.AddrPortFrom(netip.AddrFrom16([16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}), 13),
-			ConnectionID:        preferredAddressConnID,
-			StatelessResetToken: preferredAddressResetToken,
+		// the state transition is driven by processing of a CRYPTO frame
+		hdr := &wire.ExtendedHeader{
+			Header:          wire.Header{Type: protocol.PacketTypeHandshake, Version: protocol.Version1},
+			PacketNumberLen: protocol.PacketNumberLen2,
 		}
-	}
-
-	packedFirstPacket := make(chan struct{})
-	gomock.InOrder(
-		cs.EXPECT().StartHandshake(gomock.Any()),
-		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
-		tc.packer.EXPECT().PackCoalescedPacket(false, gomock.Any(), gomock.Any(), protocol.Version1).DoAndReturn(
-			func(b bool, bc protocol.ByteCount, t monotime.Time, v protocol.Version) (*coalescedPacket, error) {
-				close(packedFirstPacket)
-				return &coalescedPacket{buffer: getPacketBuffer(), longHdrPackets: []*longHeaderPacket{{header: hdr}}}, nil
-			},
-		),
-		// initial keys are dropped when the first handshake packet is sent
-		cs.EXPECT().DiscardInitialKeys(),
-		// no more data to send
-		unpacker.EXPECT().UnpackLongHeader(gomock.Any(), gomock.Any()).Return(
-			&unpackedPacket{hdr: hdr, encryptionLevel: protocol.EncryptionHandshake, data: data}, nil,
-		),
-		cs.EXPECT().HandleMessage([]byte("foobar"), protocol.EncryptionHandshake),
-		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventReceivedTransportParameters, TransportParameters: tp}),
-		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventHandshakeComplete}),
-		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
-	)
-	tc.packer.EXPECT().PackCoalescedPacket(false, gomock.Any(), gomock.Any(), protocol.Version1).Return(nil, nil).AnyTimes()
-
-	errChan := make(chan error, 1)
-	go func() { errChan <- tc.conn.run() }()
-
-	select {
-	case <-packedFirstPacket:
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
-
-	p := getLongHeaderPacket(t, tc.remoteAddr, hdr, nil)
-	tc.conn.handlePacket(receivedPacket{data: p.data, buffer: p.buffer, rcvTime: monotime.Now()})
-
-	select {
-	case <-tc.conn.HandshakeComplete():
-	case <-tc.conn.Context().Done():
-		t.Fatal("connection context done")
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
-
-	require.True(t, mockCtrl.Satisfied())
-	// the handshake isn't confirmed until we receive a HANDSHAKE_DONE frame from the server
-
-	data, err = (&wire.HandshakeDoneFrame{}).Append(nil, protocol.Version1)
-	require.NoError(t, err)
-	done := make(chan struct{})
-	tc.packer.EXPECT().PackCoalescedPacket(false, gomock.Any(), gomock.Any(), protocol.Version1).Return(nil, nil).AnyTimes()
-	gomock.InOrder(
-		unpacker.EXPECT().UnpackLongHeader(gomock.Any(), gomock.Any()).Return(
-			&unpackedPacket{hdr: hdr, encryptionLevel: protocol.Encryption1RTT, data: data}, nil,
-		),
-		cs.EXPECT().DiscardInitialKeys(),
-		cs.EXPECT().SetHandshakeConfirmed(),
-		tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(buf *packetBuffer, _ protocol.ByteCount, _ monotime.Time, _ protocol.Version) (shortHeaderPacket, error) {
-				close(done)
-				return shortHeaderPacket{}, errNothingToPack
-			},
-		),
-	)
-	tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(shortHeaderPacket{}, errNothingToPack).AnyTimes()
-	p = getLongHeaderPacket(t, tc.remoteAddr, hdr, nil)
-	tc.conn.handlePacket(receivedPacket{data: p.data, buffer: p.buffer, rcvTime: monotime.Now()})
-
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
-
-	if usePreferredAddress {
-		tc.connRunner.EXPECT().AddResetToken(preferredAddressResetToken, gomock.Any())
-	}
-	nextConnID := tc.conn.connIDManager.Get()
-	if usePreferredAddress {
-		require.Equal(t, preferredAddressConnID, nextConnID)
-	}
-
-	// test teardown
-	cs.EXPECT().Close()
-	tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-	if usePreferredAddress {
-		tc.connRunner.EXPECT().RemoveResetToken(preferredAddressResetToken)
-	}
-	tc.conn.destroy(nil)
-	select {
-	case err := <-errChan:
+		data, err := (&wire.CryptoFrame{Data: []byte("foobar")}).Append(nil, protocol.Version1)
 		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
+
+		tp := &wire.TransportParameters{
+			OriginalDestinationConnectionID: tc.destConnID,
+			MaxIdleTimeout:                  time.Hour,
+		}
+		preferredAddressConnID := protocol.ParseConnectionID([]byte{10, 8, 6, 4})
+		preferredAddressResetToken := protocol.StatelessResetToken{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+		if usePreferredAddress {
+			tp.PreferredAddress = &wire.PreferredAddress{
+				IPv4:                netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), 42),
+				IPv6:                netip.AddrPortFrom(netip.AddrFrom16([16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}), 13),
+				ConnectionID:        preferredAddressConnID,
+				StatelessResetToken: preferredAddressResetToken,
+			}
+		}
+
+		gomock.InOrder(
+			cs.EXPECT().StartHandshake(gomock.Any()),
+			cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
+			// initial keys are dropped when the first handshake packet is sent
+			cs.EXPECT().DiscardInitialKeys(),
+			// no more data to send
+			unpacker.EXPECT().UnpackLongHeader(gomock.Any(), gomock.Any()).Return(
+				&unpackedPacket{hdr: hdr, encryptionLevel: protocol.EncryptionHandshake, data: data}, nil,
+			),
+			cs.EXPECT().HandleMessage([]byte("foobar"), protocol.EncryptionHandshake),
+			cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventReceivedTransportParameters, TransportParameters: tp}),
+			cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventHandshakeComplete}),
+			cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
+		)
+
+		if usePreferredAddress {
+			tc.connRunner.EXPECT().AddResetToken(preferredAddressResetToken, gomock.Any())
+		}
+		errChan := make(chan error, 1)
+		go func() { errChan <- tc.conn.run() }()
+
+		select {
+		case packet := <-written:
+			hdrs, _ := parsePacket(t, packet)
+			require.Len(t, hdrs, 1)
+			require.Equal(t, protocol.PacketTypeHandshake, hdrs[0].Type)
+		case <-time.After(time.Second):
+			t.Fatal("timeout")
+		}
+
+		p := getLongHeaderPacket(t, tc.remoteAddr, hdr, nil)
+		tc.conn.handlePacket(receivedPacket{data: p.data, buffer: p.buffer, rcvTime: monotime.Now()})
+
+		select {
+		case <-tc.conn.HandshakeComplete():
+		case <-tc.conn.Context().Done():
+			t.Fatal("connection context done")
+		case <-time.After(time.Second):
+			t.Fatal("timeout")
+		}
+
+		synctest.Wait()
+		require.True(t, mockCtrl.Satisfied())
+		require.True(t, tc.conn.droppedInitialKeys)
+		require.False(t, tc.conn.handshakeConfirmed)
+		// the handshake isn't confirmed until we receive a HANDSHAKE_DONE frame from the server
+
+		data, err = (&wire.HandshakeDoneFrame{}).Append(nil, protocol.Version1)
+		require.NoError(t, err)
+		gomock.InOrder(
+			unpacker.EXPECT().UnpackLongHeader(gomock.Any(), gomock.Any()).Return(
+				&unpackedPacket{hdr: hdr, encryptionLevel: protocol.Encryption1RTT, data: data}, nil,
+			),
+			cs.EXPECT().DiscardInitialKeys(),
+			cs.EXPECT().SetHandshakeConfirmed(),
+		)
+		p = getLongHeaderPacket(t, tc.remoteAddr, hdr, nil)
+		tc.conn.handlePacket(receivedPacket{data: p.data, buffer: p.buffer, rcvTime: monotime.Now()})
+
+		synctest.Wait()
+		require.True(t, tc.conn.handshakeConfirmed)
+
+		nextConnID := tc.conn.connIDManager.Get()
+		if usePreferredAddress {
+			require.Equal(t, preferredAddressConnID, nextConnID)
+		}
+
+		// test teardown
+		cs.EXPECT().Close()
+		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		if usePreferredAddress {
+			tc.connRunner.EXPECT().RemoveResetToken(preferredAddressResetToken)
+		}
+		tc.conn.destroy(nil)
+		select {
+		case err := <-errChan:
+			require.NoError(t, err)
+		case <-time.After(time.Second):
+			t.Fatal("timeout")
+		}
+	})
 }
 
 func TestConnection0RTTTransportParameters(t *testing.T) {
@@ -1474,7 +1529,16 @@ func TestConnection0RTTTransportParameters(t *testing.T) {
 	cs := mocks.NewMockCryptoSetup(mockCtrl)
 	unpacker := NewMockUnpacker(mockCtrl)
 	tc := newClientTestConnection(t, mockCtrl, nil, false, connectionOptCryptoSetup(cs), connectionOptUnpacker(unpacker))
-	tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	useLifecyclePacketPacker(t, mockCtrl, tc)
+	tc.conn.handshakeStream.Write([]byte("client handshake flight"))
+	written := make(chan []byte, 1)
+	tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(data []byte, _ uint16, _ protocol.ECN) error {
+		select {
+		case written <- bytes.Clone(data):
+		default:
+		}
+		return nil
+	}).AnyTimes()
 
 	// the state transition is driven by processing of a CRYPTO frame
 	hdr := &wire.ExtendedHeader{
@@ -1497,17 +1561,10 @@ func TestConnection0RTTTransportParameters(t *testing.T) {
 	new.MaxBidiStreamNum-- // the server is not allowed to reduce the limit
 	new.OriginalDestinationConnectionID = tc.destConnID
 
-	packedFirstPacket := make(chan struct{})
 	gomock.InOrder(
 		cs.EXPECT().StartHandshake(gomock.Any()),
 		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventRestoredTransportParameters, TransportParameters: restored}),
 		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
-		tc.packer.EXPECT().PackCoalescedPacket(false, gomock.Any(), gomock.Any(), protocol.Version1).DoAndReturn(
-			func(b bool, bc protocol.ByteCount, t monotime.Time, v protocol.Version) (*coalescedPacket, error) {
-				close(packedFirstPacket)
-				return &coalescedPacket{buffer: getPacketBuffer(), longHdrPackets: []*longHeaderPacket{{header: hdr}}}, nil
-			},
-		),
 		// initial keys are dropped when the first handshake packet is sent
 		cs.EXPECT().DiscardInitialKeys(),
 		// no more data to send
@@ -1520,15 +1577,16 @@ func TestConnection0RTTTransportParameters(t *testing.T) {
 		// cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent}),
 		cs.EXPECT().Close(),
 	)
-	tc.packer.EXPECT().PackCoalescedPacket(false, gomock.Any(), gomock.Any(), protocol.Version1).Return(nil, nil).AnyTimes()
-	tc.packer.EXPECT().PackConnectionClose(gomock.Any(), gomock.Any(), protocol.Version1).Return(&coalescedPacket{buffer: getPacketBuffer()}, nil)
 	tc.connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any())
 
 	errChan := make(chan error, 1)
 	go func() { errChan <- tc.conn.run() }()
 
 	select {
-	case <-packedFirstPacket:
+	case packet := <-written:
+		hdrs, _ := parsePacket(t, packet)
+		require.Len(t, hdrs, 1)
+		require.Equal(t, protocol.PacketTypeHandshake, hdrs[0].Type)
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
 	}
@@ -1641,6 +1699,9 @@ func TestConnectionPacketBuffering(t *testing.T) {
 			connectionOptTracer(&eventRecorder),
 		)
 
+		useLifecyclePacketPacker(t, mockCtrl, tc)
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+
 		cs.EXPECT().DiscardInitialKeys()
 
 		hdr1 := wire.ExtendedHeader{
@@ -1706,7 +1767,6 @@ func TestConnectionPacketBuffering(t *testing.T) {
 		hdr3 := hdr1
 		hdr3.PacketNumber = 3
 		hdrs["packet3"] = &hdr3
-		tc.packer.EXPECT().PackCoalescedPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventReceived1RTTReadKeys})
 		cs.EXPECT().NextEvent().Return(handshake.Event{Kind: handshake.EventNoEvent})
 
@@ -2489,7 +2549,8 @@ func TestConnectionVersionNegotiation(t *testing.T) {
 		var eventRecorder events.Recorder
 		tc := newClientTestConnection(t, mockCtrl, nil, false, connectionOptTracer(&eventRecorder))
 
-		tc.packer.EXPECT().PackCoalescedPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		useLifecyclePacketPacker(t, mockCtrl, tc)
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 		tc.connRunner.EXPECT().Remove(gomock.Any())
 
 		errChan := make(chan error, 1)
@@ -2545,7 +2606,8 @@ func TestConnectionVersionNegotiationNoMatch(t *testing.T) {
 			connectionOptTracer(&eventRecorder),
 		)
 
-		tc.packer.EXPECT().PackCoalescedPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		useLifecyclePacketPacker(t, mockCtrl, tc)
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 		tc.connRunner.EXPECT().Remove(gomock.Any())
 
 		errChan := make(chan error, 1)
