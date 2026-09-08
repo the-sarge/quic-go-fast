@@ -249,3 +249,20 @@ Final head `2b4a4709f5026fe4d5783ade193fbedf6f31ea9f` passed uncached full suite
 The bounded initial and replacement reviews completed with no accepted fix-now or stop-for-decision finding. One initial adjudicator timed out; all seven initial reviewers, the other six adjudicators and synthesis completed. The three-reviewer replacement completed fully. Independent [initial](https://github.com/the-sarge/quic-go-fast/pull/47#issuecomment-5576819627) and [replacement](https://github.com/the-sarge/quic-go-fast/pull/47#issuecomment-5576928027) dispositions retain rejected aid-strengthening requests. Remaining probe-constructor cleanup is already assigned to [E5 #29](https://github.com/the-sarge/quic-go-fast/issues/29); no duplicate follow-up or added contract is needed.
 
 E5 remains the ready frontier; E6 is now blocked only by E5. The [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/31) and exact OmniFocus task are being reconciled after this journal. Direct probes, retained close, receive storage and physical-link/application qualification remain outside E4’s traced effects.
+
+---
+
+## Complete probe emission and path handoff - 2026-09-07 21:35 EDT
+
+**Main:** `52c5321db04c`
+**Actor:** Codex
+
+E5 merged in [PR #49](https://github.com/the-sarge/quic-go-fast/pull/49) as `52c5321db04cdbf1671249878dde9db633866ab6`, closing [#29](https://github.com/the-sarge/quic-go-fast/issues/29). The emission owner now constructs, registers and disposes direct server/client probes, queues MTU probes and owns path handoff through the authoritative active send-connection slot. Connection policy, MTU lifecycle, worker execution and protocol behavior remain with their existing owners. Probe constructor errors release unreturned storage without refunding packet numbers. The product PR committed E5 completion and E6 readiness.
+
+The [bounded performance receipt](audits/e5-probe-emission/README.md) preserves both campaigns. The initial P3 probe-p99 upper ratio 1.070867 failed its 1.05 margin. The single permitted replacement, after binding the active send-connection slot, passed all margins across ten valid alternating pairs: goodput lower ratio 0.997506, CPU/unit upper 1.002985, allocated bytes/unit upper 1.000953 and probe-p99 upper 1.026829, with no failed/missed probes or payload errors. Focused allocations were unchanged; the embedded connection grew by eight bytes. No causal latency claim is made, and the performance budget is exhausted.
+
+Final head `933bbff047feb6d7954bfa6e43d2e592353269d8` passed one uncached full suite, focused ownership/path/feedback races, vet, golangci-lint and gcassert on macOS arm64 Go 1.27.0. Native Linux Go 1.27.1 full tests, focused races, vet and performance qualification cover byte-identical Go/module/fixture sources. All 33 hosted checks passed, including [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34175825987); the [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/49#issuecomment-5577720975) binds the exact head, base and commands. A Windows/non-OOB test-fixture compile failure was diagnosed and corrected before these passing checks.
+
+The initial review, verification and single replacement review completed. Independent dispositions accepted the authoritative-slot correction despite the initial synthesis rejecting that architectural finding; receipt provenance was completed under the cheap documentation correction policy. The [final review receipt](https://github.com/the-sarge/quic-go-fast/pull/49#issuecomment-5577711945) records no remaining fix, decision stop or deferred follow-up.
+
+E6 is now the ready frontier: E4 and E5 are closed. The [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/31) and exact OmniFocus tasks are being reconciled after this journal. Receive storage, retained-close lifetime assigned to E6, path-policy algorithms and physical-link/application performance remain outside E5's traced effects.
