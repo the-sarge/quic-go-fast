@@ -1911,6 +1911,7 @@ func TestConnectionPacketPacing(t *testing.T) {
 				const step = 50 * time.Millisecond
 				var sent int
 				var deadline monotime.Time
+				var stopped bool
 				sph.EXPECT().GetLossDetectionTimeout().Return(monotime.Now().Add(time.Hour)).AnyTimes()
 				// Recovery is consulted again on non-timer wakeups. Its allowance
 				// must depend on the clock, not the number of SendMode calls.
@@ -1918,11 +1919,12 @@ func TestConnectionPacketPacing(t *testing.T) {
 					switch {
 					case sent < 2:
 						return ackhandler.SendAny
-					case sent == 2 && now.Before(deadline):
+					case now.Before(deadline):
 						return ackhandler.SendPacingLimited
 					case sent == 2:
 						return ackhandler.SendAny
 					default:
+						stopped = true
 						return ackhandler.SendNone
 					}
 				}).MinTimes(1)
@@ -1938,18 +1940,16 @@ func TestConnectionPacketPacing(t *testing.T) {
 					data []byte
 				}
 				sendChan := make(chan sentPacket, 10)
-				wantPackets := 3
-				if test.exitAfterFirstTwo {
-					wantPackets = 2
-				}
+				// Assert counts on the test goroutine: a fatal mock rejection here
+				// would abort run before it can perform connection teardown.
 				sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
 					sent++
-					if sent == 2 {
+					if sent == 2 || sent == 3 {
 						deadline = monotime.Now().Add(step)
 					}
 					sendChan <- sentPacket{time: monotime.Now(), data: bytes.Clone(b.Data)}
 					b.Release()
-				}).Times(wantPackets)
+				}).AnyTimes()
 
 				errChan := make(chan error, 1)
 				// A deferred teardown runs before synctest checks for surviving
@@ -1985,8 +1985,10 @@ func TestConnectionPacketPacing(t *testing.T) {
 				}
 				require.Equal(t, times[0], times[1])
 				require.Equal(t, times[1].Add(step), times[2])
-				time.Sleep(step)
+				time.Sleep(step) // consume the final pacing wakeup, then stop
 				synctest.Wait()
+				require.True(t, stopped)
+				require.Equal(t, 3, sent)
 				require.Empty(t, sendChan)
 			})
 		})
