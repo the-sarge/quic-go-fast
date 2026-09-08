@@ -325,3 +325,26 @@ Both PRs completed RAS review with no findings or follow-ups, exact-head local c
 ### Next
 
 [E6 #30](https://github.com/the-sarge/quic-go-fast/issues/30) is the sole ready successor; E4, E5 and all three test prefactors are complete. The [program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live frontier view. E6 retains close ownership, final interface contraction and its existing qualification obligations. No review follow-ups or untraced runtime effects remain from E6c.
+
+---
+
+## E6 packet-emission ownership completed - 2026-09-08 02:40 EDT
+
+**Main:** `86bba30bb7b6`
+**Actor:** Codex
+
+### Summary
+
+Completed E6 in [PR #62](https://github.com/the-sarge/quic-go-fast/pull/62), merged as `86bba30bb7b6b2ccb96566ce3aafa799fbe53037`. Close emission now retains an immutable owned payload and releases temporary construction storage after the synchronous write and on constructor failures. Packet emission owns the concrete packer, queue lifecycle/capacity and packet-shape dispatch; the legacy interface, mock and connection forwarding are removed.
+
+### Validation
+
+The initial review identified a remaining generator-only alias; it was removed and exact-head RAS verification passed. The final replacement review found no issues or follow-ups. Uncached full tests, focused ownership/close/feedback races, vet, lint, gcassert, tagged builds and generation checks passed on reviewed head `78420a048e5edfa19c5796dbec6923ffb9923bf1`, together with all 33 applicable hosted checks. The [PR certification receipt](https://github.com/the-sarge/quic-go-fast/pull/62#issuecomment-5580461735) links review and hosted evidence.
+
+### Decisions
+
+The owner directed completion after unsuccessful final performance qualification. The [normative E6 decision](adr/2026-09-07-packet-emission-plan.md#e6--own-close-emission-and-retire-the-legacy-seam) accepts the recorded uncertainty without changing margins or authorizing another campaign. P1 probe-p99 upper ratio remains 1.2358177429874126 against the 1.05 bound; P3/P4/P5/P6 remain unqualified. The [E6 receipt](audits/e6-close-emission/README.md) preserves both campaigns and all failed evidence; no cause or performance pass is claimed.
+
+### Next
+
+All nine packet-emission slices are complete in the merged plan and program index; #30 is closed. Finish this journal and reconcile the parent/OmniFocus completion state. The [program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) remains the live tracking view; no successor slice is newly ready.
