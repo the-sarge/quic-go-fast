@@ -59,6 +59,7 @@ func TestGracefulShutdownShortRequest(t *testing.T) {
 	connChan := make(chan *quic.Conn, 1)
 	tr := &http3.Transport{
 		TLSClientConfig: getTLSClientConfigWithoutServerName(),
+		QUICConfig:      getQuicConfig(nil),
 		Dial: func(ctx context.Context, a string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
 			addr, err := net.ResolveUDPAddr("udp", a)
 			if err != nil {
@@ -143,6 +144,7 @@ func TestGracefulShutdownIdleConnection(t *testing.T) {
 	connChan := make(chan *quic.Conn, 1)
 	tr := &http3.Transport{
 		TLSClientConfig: getTLSClientConfigWithoutServerName(),
+		QUICConfig:      getQuicConfig(nil),
 		Dial: func(ctx context.Context, a string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
 			addr, err := net.ResolveUDPAddr("udp", a)
 			if err != nil {
@@ -266,6 +268,7 @@ func TestGracefulShutdownPendingStreams(t *testing.T) {
 	connChan := make(chan *quic.Conn, 1)
 	tr := &http3.Transport{
 		TLSClientConfig: getTLSClientConfigWithoutServerName(),
+		QUICConfig:      getQuicConfig(nil),
 		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 			a, err := net.ResolveUDPAddr("udp", addr)
 			if err != nil {
@@ -366,7 +369,10 @@ func testHTTP3ListenerClosing(t *testing.T, graceful, useApplicationListener boo
 		t.Helper()
 		tlsConf := getTLSClientConfig()
 		tlsConf.NextProtos = []string{http3.NextProtoH3}
-		tr := &http3.Transport{TLSClientConfig: tlsConf}
+		tr := &http3.Transport{
+			TLSClientConfig: tlsConf,
+			QUICConfig:      getQuicConfig(nil),
+		}
 		defer tr.Close()
 		addDialCallback(t, tr)
 		cl := &http.Client{Transport: tr}
