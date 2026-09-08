@@ -130,14 +130,13 @@ func TestEmissionEmptyCallerBuffer(t *testing.T) {
 	for _, gso := range []bool{false, true} {
 		t.Run(fmt.Sprintf("gso=%t", gso), func(t *testing.T) {
 			c := newEmissionTestConnection(t, gso).conn
-			observed := &emissionObservedPacker{packer: c.packer}
-			c.packer = observed
+			observed := observeEmissionBuffers(t, gso)
 			result := c.emission.advance(monotime.Now(), gso)
 			require.NoError(t, result.err)
 			require.False(t, result.progress)
 			require.Equal(t, emissionNoData, result.stop)
-			require.Len(t, observed.buffers, 1)
-			require.Zero(t, observed.buffers[0].refCount)
+			require.Len(t, *observed, 1)
+			require.Zero(t, (*observed)[0].refCount)
 			require.Empty(t, c.sendQueue.(*sendQueue).queue)
 		})
 	}

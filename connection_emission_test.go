@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/quic-go/quic-go/internal/handshake"
 
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -182,20 +185,23 @@ func TestEmissionDatagramOutput(t *testing.T) {
 	}
 }
 
-// Observe caller storage while retaining the real packet construction path.
-type emissionObservedPacker struct {
-	packer
-	buffers []*packetBuffer
-	failAt  int
-	err     error
-}
-
-func (p *emissionObservedPacker) AppendPacket(buf *packetBuffer, size protocol.ByteCount, now monotime.Time, version protocol.Version) (shortHeaderPacket, error) {
-	p.buffers = append(p.buffers, buf)
-	if p.failAt == len(p.buffers) {
-		return shortHeaderPacket{}, p.err
+// As in observeConstructionBuffer, install an empty pool for sequential
+// observations without a worker. Keep each allocation distinct until checked.
+func observeEmissionBuffers(t *testing.T, gso bool) *[]*packetBuffer {
+	t.Helper()
+	pool, capacity := &bufferPool, protocol.MaxPacketBufferSize
+	if gso {
+		pool, capacity = &largeBufferPool, protocol.MaxLargePacketBufferSize
 	}
-	return p.packer.AppendPacket(buf, size, now, version)
+	constructor := pool.New
+	var observed []*packetBuffer
+	*pool = sync.Pool{New: func() any {
+		b := &packetBuffer{Data: make([]byte, 0, capacity)}
+		observed = append(observed, b)
+		return b
+	}}
+	t.Cleanup(func() { *pool = sync.Pool{New: constructor} })
+	return &observed
 }
 
 func TestEmissionFatalCallerBuffer(t *testing.T) {
@@ -205,17 +211,35 @@ func TestEmissionFatalCallerBuffer(t *testing.T) {
 				tc := newEmissionTestConnection(t, gso)
 				c := tc.conn
 				cause := errors.New("fatal packet construction")
-				observed := &emissionObservedPacker{packer: c.packer, failAt: failAt, err: cause}
-				c.packer = observed
+				ctrl := gomock.NewController(t)
+				sealing := NewMockSealingManager(ctrl)
+				sealer := newMockShortHeaderSealer(ctrl)
+				appends := 0
+				sealing.EXPECT().Get1RTTSealer().DoAndReturn(func() (handshake.ShortHeaderSealer, error) {
+					appends++
+					if appends == failAt {
+						return nil, cause
+					}
+					return sealer, nil
+				}).Times(failAt)
+				c.packer.(*packetPacker).cryptoSetup = sealing
+				observed := observeEmissionBuffers(t, gso)
 				_, pnLen := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 				size := 1200 - int(wire.ShortHeaderLen(c.connIDManager.Get(), pnLen)) - 7 - 3
 				for range 2 {
 					require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{0x41}, size)}))
 				}
 				require.ErrorIs(t, c.sendPackets(monotime.Now()), cause)
-				require.Len(t, observed.buffers, failAt)
+				allocations := failAt
+				if gso {
+					allocations = 1
+				}
+				require.Len(t, *observed, allocations)
+				if !gso && failAt == 2 {
+					require.Equal(t, 1, (*observed)[0].refCount, "earlier ordinary output remains owned by the queue")
+				}
 				// No allocation follows emission: pool reuse cannot disguise release.
-				require.Zero(t, observed.buffers[failAt-1].refCount, "fatal caller-owned storage must be released")
+				require.Zero(t, (*observed)[allocations-1].refCount, "fatal caller-owned storage must be released")
 				q := c.sendQueue.(*sendQueue)
 				queued := 0
 				if !gso {
