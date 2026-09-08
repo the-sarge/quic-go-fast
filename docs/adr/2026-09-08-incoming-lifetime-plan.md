@@ -219,13 +219,13 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Existing-work disposition:** New slice; no open implementation PR or partial implementation is adopted.
 
-**Single owner after merge:** Listener completion is the producer barrier. The transport send worker owns stateless-reset consumption/final drain. A listener-terminal cleanup owner drains non-QUIC packets; channel receives give a concurrent reader exclusive packet ownership.
+**Single owner after merge:** Transport.initOnce creates and publishes one stable non-QUIC channel before starting the listener. Listener completion is the producer barrier. The transport send worker owns stateless-reset consumption/final drain. A listener-terminal cleanup owner drains that same non-QUIC channel; channel receives give a concurrent reader exclusive packet ownership.
 
 **Authority completeness:** No newly authoritative persisted fact or restart schema is introduced. The slice includes creation, validation and every in-scope terminal/destructive consumer of its new internal representation; constructors and teardown cannot be postponed to another slice.
 
 **Transitional-seam budget:** No duplicate product representation, generic mutation API or double-open lifetime is introduced. Existing adjacent defects remain separately owned and do not act as successor-dependent placeholders. Any frozen experiment helper explicitly retained by T1 is outside the product representation.
 
-**Decision details:** Return pending storage when its owning worker terminates. Do not strengthen public Close to wait for a blocked write. Any producer that can survive the claimed listener barrier is an approach stop.
+**Decision details:** Initialize the bounded non-QUIC channel alongside the existing transport queues under initOnce, before listener startup; ReadNonQUICPacket must never replace it. Keep readingNonQUICPackets as the atomic opt-in flag so packets arriving before the first reader still follow the existing drop policy. The one channel allocation occurs per initialized Transport, not per packet; no new pool or synchronization module is needed. Return pending storage when its owning worker terminates. Do not strengthen public Close to wait for a blocked write. Any producer that can survive the claimed listener barrier is an approach stop.
 
 **Blast radius:** Producer cessation, worker/channel consumption, public Close completion and caller-owned socket lifetime are traced. Do not drain outgoing close payloads as received buffers or join previously asynchronous writes. No effect may be left implicitly untraced; a newly discovered required ownership boundary invokes the stop below.
 
@@ -240,7 +240,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 | Reset send success | Retain existing consume behavior. | Named slice owner; regression/characterization required before completion |
 | Reset queue pending at listener stop | Sending owner disposes pending input. | Named slice owner; regression/characterization required before completion |
 | Non-QUIC queue pending at listener stop | Drain after producer barrier. | Named slice owner; regression/characterization required before completion |
-| Consumer versus terminal drain | Exactly one channel receiver disposes each packet. | Named slice owner; regression/characterization required before completion |
+| Consumer versus terminal drain | Concurrent first readers share the single initialized channel; publication, readers and terminal drain cannot replace or lose its queue. Exactly one channel receiver disposes each packet. Include the concurrent first-reader interleaving within this cell. | Named slice owner; regression/characterization required before completion |
 | Caller-owned socket | Cleanup does not close it or introduce a network-write join. | Named slice owner; regression/characterization required before completion |
 
 **Evidence budget:** 5 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
