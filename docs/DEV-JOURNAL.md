@@ -285,3 +285,22 @@ Exact candidate `41f6e54e67780edfe54e7678a602233842433316` passed the full packa
 ### Next
 
 The product PR committed E6a completion and the remaining E6b/E6c frontier. Both remain independent and ready; E6 remains blocked by both. [Program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live view.
+
+---
+
+## E6b scheduling and batching consumer migration - 2026-09-07 23:54 EDT
+
+**Main:** `eb9b3ed8f562`
+**Actor:** Codex
+
+### Summary
+
+Merged [E6b / PR #57](https://github.com/the-sarge/quic-go-fast/pull/57), retiring nine scheduling/batching packer-mock consumers and the caller-buffer observation wrapper. Tests now use real packet construction, decoded output, timer/queue observations and real recovery state. Production Go, module files and CI configuration are unchanged. The [preservation mapping](audits/e6b-scheduling-consumers/README.md) records the retained assertions.
+
+### Validation
+
+The initial RAS review and its allowed replacement completed with no required fixes or follow-ups. Final exact-head certification at `c50f700dc16b84cd0686d9ae1aa7d5c5474c02c5` passed the full Go suite, the prescribed focused race family, vet, gcassert and lint. All 33 inherited hosted checks succeeded. CI exposed two fixture defects—worker-start synchronization and call-count-based capacity assumptions—which were reproduced locally and corrected before the replacement review. The [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/57#issuecomment-5578902773) links the review dispositions and hosted runs.
+
+### Next
+
+[Child #53](https://github.com/the-sarge/quic-go-fast/issues/53) is closed. E6c remains the sole ready frontier; final E6 remains blocked by E6c. The product PR owns this committed transition. See the [program tracker](https://github.com/the-sarge/quic-go-fast/issues/31) for the live state. No new review follow-up or untraced runtime effect was admitted.
