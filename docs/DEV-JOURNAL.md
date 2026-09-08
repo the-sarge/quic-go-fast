@@ -266,3 +266,22 @@ Final head `933bbff047feb6d7954bfa6e43d2e592353269d8` passed one uncached full s
 The initial review, verification and single replacement review completed. Independent dispositions accepted the authoritative-slot correction despite the initial synthesis rejecting that architectural finding; receipt provenance was completed under the cheap documentation correction policy. The [final review receipt](https://github.com/the-sarge/quic-go-fast/pull/49#issuecomment-5577711945) records no remaining fix, decision stop or deferred follow-up.
 
 E6 is now the ready frontier: E4 and E5 are closed. The [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/31) and exact OmniFocus tasks are being reconciled after this journal. Receive storage, retained-close lifetime assigned to E6, path-policy algorithms and physical-link/application performance remain outside E5's traced effects.
+
+---
+
+## E6a handshake lifecycle consumers migrated - 2026-09-07 22:54 EDT
+
+**Main:** `a62dc4eee670`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #55](https://github.com/the-sarge/quic-go-fast/pull/55), closing [E6a #52](https://github.com/the-sarge/quic-go-fast/issues/52). Nine handshake/lifecycle consumers now use real packet construction. Server post-handshake frames are decoded at socket output; client synchronization observes a real Handshake flight and settled lifecycle state. Timeout, 0-RTT limit rejection, buffering/replay, version negotiation and pre-packing MTU fallback observations are preserved. The [preservation mapping](audits/e6a-handshake-consumers/README.md) records each replacement. Production, module and CI files are unchanged.
+
+### Validation
+
+Exact candidate `41f6e54e67780edfe54e7678a602233842433316` passed the full package suite, focused race family, vet, gcassert, golangci-lint and inherited local lint steps. All 33 hosted checks passed. [The review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/55#issuecomment-5578386517) records RAS run `20260908T024017-2042c2d6a4f8a495c48a2888`, two rejected low findings, zero required fixes or follow-ups, and same-head hosted workflow links. The MTU output regression distinguished 1,452 bytes without feedback from 1,200 with eligible feedback. No performance campaign or untraced runtime effects were introduced.
+
+### Next
+
+The product PR committed E6a completion and the remaining E6b/E6c frontier. Both remain independent and ready; E6 remains blocked by both. [Program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live view.
