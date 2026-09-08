@@ -205,3 +205,33 @@ func TestEmissionPathRebinding(t *testing.T) {
 	require.NoError(t, q.Run())
 	require.Zero(t, buf.refCount)
 }
+
+// Public state must consult the replacement's live capability, not a value
+// cached when the path was published. The raw socket injects a real GSO error.
+func TestConnectionStatePathCapabilities(t *testing.T) {
+	if !platformSupportsGSO {
+		t.Skip("GSO is not supported on this platform")
+	}
+	tc := newEmissionTestConnection(t, false)
+	c := tc.conn
+	require.False(t, c.ConnectionState().GSO)
+	oldQueue := c.emission.queue
+	oldWorker := make(chan error, 1)
+	go func() { oldWorker <- oldQueue.Run() }()
+
+	next := newSendConn(&gsoFallbackRawConn{}, tc.remoteAddr, packetInfo{}, c.logger)
+	queue := c.emission.replacePath(next, &c.handshakeSendFeedback)
+	require.NoError(t, <-oldWorker)
+	require.True(t, c.ConnectionState().GSO)
+	require.Equal(t, &net.UDPAddr{}, c.LocalAddr())
+	require.Equal(t, tc.remoteAddr, c.RemoteAddr())
+
+	buf := getPacketWithContents([]byte("foobar"))
+	queue.Send(buf, 4, protocol.ECNNon, sendMetadata{})
+	worker := make(chan error, 1)
+	go func() { worker <- queue.Run() }()
+	queue.Close()
+	require.NoError(t, <-worker)
+	require.Zero(t, buf.refCount)
+	require.False(t, c.ConnectionState().GSO, "later GSO fallback must remain visible on the active path")
+}
