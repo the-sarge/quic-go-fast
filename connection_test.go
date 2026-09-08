@@ -1623,7 +1623,8 @@ func testConnectionReceivePrioritization(t *testing.T, handshakeComplete bool, n
 	tc := newServerTestConnection(t, mockCtrl, nil, false, opts...)
 
 	useSchedulingPacketPacker(t, mockCtrl, tc, nil)
-	sender.EXPECT().Run()
+	started := make(chan struct{})
+	sender.EXPECT().Run().DoAndReturn(func() error { close(started); return nil })
 	sender.EXPECT().WouldBlock().AnyTimes()
 	var events []string
 	var counter int
@@ -1665,6 +1666,14 @@ func testConnectionReceivePrioritization(t *testing.T, handshakeComplete bool, n
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
+	}
+
+	// The connection can finish before its worker starts on a single P.
+	// Join startup before allowing the mock controller to finish.
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("sender did not start")
 	}
 
 	// test teardown
