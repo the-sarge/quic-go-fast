@@ -1,0 +1,408 @@
+{"Time":"2026-09-08T11:47:12.961975-04:00","Action":"start","Package":"github.com/quic-go/quic-go"}
+{"Time":"2026-09-08T11:47:13.296409-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime"}
+{"Time":"2026-09-08T11:47:13.296519-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime","Output":"=== RUN   TestEmissionCloseRetainedLifetime\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.296562-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/success"}
+{"Time":"2026-09-08T11:47:13.29657-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/success","Output":"=== RUN   TestEmissionCloseRetainedLifetime/success\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297098-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/success","Output":"--- PASS: TestEmissionCloseRetainedLifetime/success (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297108-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/success","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297117-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/write-error"}
+{"Time":"2026-09-08T11:47:13.29712-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/write-error","Output":"=== RUN   TestEmissionCloseRetainedLifetime/write-error\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.29718-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/write-error","Output":"--- PASS: TestEmissionCloseRetainedLifetime/write-error (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297186-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime/write-error","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297196-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime","Output":"--- PASS: TestEmissionCloseRetainedLifetime (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297201-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCloseRetainedLifetime","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297204-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime"}
+{"Time":"2026-09-08T11:47:13.297208-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime","Output":"=== RUN   TestCloseConstructorFailureLifetime\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297217-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/short"}
+{"Time":"2026-09-08T11:47:13.29722-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/short","Output":"=== RUN   TestCloseConstructorFailureLifetime/short\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297283-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/short","Output":"--- PASS: TestCloseConstructorFailureLifetime/short (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297289-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/short","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297292-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/long"}
+{"Time":"2026-09-08T11:47:13.297295-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/long","Output":"=== RUN   TestCloseConstructorFailureLifetime/long\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297363-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/long","Output":"--- PASS: TestCloseConstructorFailureLifetime/long (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297387-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime/long","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297394-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime","Output":"--- PASS: TestCloseConstructorFailureLifetime (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297398-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestCloseConstructorFailureLifetime","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.2974-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake"}
+{"Time":"2026-09-08T11:47:13.297402-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake","Output":"=== RUN   TestEmissionCoalescedHandshake\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297405-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/server"}
+{"Time":"2026-09-08T11:47:13.297407-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/server","Output":"=== RUN   TestEmissionCoalescedHandshake/server\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297504-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/server","Output":"--- PASS: TestEmissionCoalescedHandshake/server (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297508-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/server","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297511-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/client"}
+{"Time":"2026-09-08T11:47:13.297514-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/client","Output":"=== RUN   TestEmissionCoalescedHandshake/client\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297632-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/client","Output":"--- PASS: TestEmissionCoalescedHandshake/client (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297636-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake/client","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297639-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake","Output":"--- PASS: TestEmissionCoalescedHandshake (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297641-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionCoalescedHandshake","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297648-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance"}
+{"Time":"2026-09-08T11:47:13.29765-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance","Output":"=== RUN   TestEmissionAckAllowance\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297671-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/handshake"}
+{"Time":"2026-09-08T11:47:13.297674-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/handshake","Output":"=== RUN   TestEmissionAckAllowance/ack/handshake\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297755-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/handshake","Output":"--- PASS: TestEmissionAckAllowance/ack/handshake (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297759-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/handshake","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297761-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/handshake"}
+{"Time":"2026-09-08T11:47:13.297768-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/handshake","Output":"=== RUN   TestEmissionAckAllowance/pacing_limited/handshake\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297826-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/handshake","Output":"--- PASS: TestEmissionAckAllowance/pacing_limited/handshake (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297841-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/handshake","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297846-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/confirmed"}
+{"Time":"2026-09-08T11:47:13.29785-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/confirmed","Output":"=== RUN   TestEmissionAckAllowance/ack/confirmed\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297882-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/confirmed","Output":"--- PASS: TestEmissionAckAllowance/ack/confirmed (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.29789-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/ack/confirmed","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297894-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/confirmed"}
+{"Time":"2026-09-08T11:47:13.297896-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/confirmed","Output":"=== RUN   TestEmissionAckAllowance/pacing_limited/confirmed\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297931-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/confirmed","Output":"--- PASS: TestEmissionAckAllowance/pacing_limited/confirmed (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297936-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance/pacing_limited/confirmed","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297939-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance","Output":"--- PASS: TestEmissionAckAllowance (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.297942-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckAllowance","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.297945-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckFullQueuePacing"}
+{"Time":"2026-09-08T11:47:13.297948-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckFullQueuePacing","Output":"=== RUN   TestEmissionAckFullQueuePacing\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckFullQueuePacing","Output":"--- PASS: TestEmissionAckFullQueuePacing (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298016-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionAckFullQueuePacing","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298021-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput"}
+{"Time":"2026-09-08T11:47:13.298025-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput","Output":"=== RUN   TestEmissionPTOOutput\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298028-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/empty"}
+{"Time":"2026-09-08T11:47:13.298031-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/empty","Output":"=== RUN   TestEmissionPTOOutput/Initial/empty\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298156-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/empty","Output":"--- PASS: TestEmissionPTOOutput/Initial/empty (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298164-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/empty","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298171-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/retransmit"}
+{"Time":"2026-09-08T11:47:13.298175-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/retransmit","Output":"=== RUN   TestEmissionPTOOutput/Initial/retransmit\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298259-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/retransmit","Output":"--- PASS: TestEmissionPTOOutput/Initial/retransmit (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298265-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Initial/retransmit","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298271-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/empty"}
+{"Time":"2026-09-08T11:47:13.298274-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/empty","Output":"=== RUN   TestEmissionPTOOutput/Handshake/empty\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298332-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/empty","Output":"--- PASS: TestEmissionPTOOutput/Handshake/empty (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298344-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/empty","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298349-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/retransmit"}
+{"Time":"2026-09-08T11:47:13.298352-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/retransmit","Output":"=== RUN   TestEmissionPTOOutput/Handshake/retransmit\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298401-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/retransmit","Output":"--- PASS: TestEmissionPTOOutput/Handshake/retransmit (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298408-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/Handshake/retransmit","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298412-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/empty"}
+{"Time":"2026-09-08T11:47:13.298415-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/empty","Output":"=== RUN   TestEmissionPTOOutput/1-RTT/empty\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298455-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/empty","Output":"--- PASS: TestEmissionPTOOutput/1-RTT/empty (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298461-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/empty","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298464-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/retransmit"}
+{"Time":"2026-09-08T11:47:13.298467-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/retransmit","Output":"=== RUN   TestEmissionPTOOutput/1-RTT/retransmit\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298555-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/retransmit","Output":"--- PASS: TestEmissionPTOOutput/1-RTT/retransmit (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298573-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput/1-RTT/retransmit","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298579-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput","Output":"--- PASS: TestEmissionPTOOutput (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298584-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPTOOutput","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298588-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness"}
+{"Time":"2026-09-08T11:47:13.298592-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness","Output":"=== RUN   TestEmissionReceiveFairness\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298598-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/ordinary"}
+{"Time":"2026-09-08T11:47:13.298602-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/ordinary","Output":"=== RUN   TestEmissionReceiveFairness/ordinary\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.29869-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/ordinary","Output":"--- PASS: TestEmissionReceiveFairness/ordinary (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298695-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/ordinary","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298697-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/GSO"}
+{"Time":"2026-09-08T11:47:13.2987-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/GSO","Output":"=== RUN   TestEmissionReceiveFairness/GSO\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298752-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/GSO","Output":"--- PASS: TestEmissionReceiveFairness/GSO (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298758-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness/GSO","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298768-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness","Output":"--- PASS: TestEmissionReceiveFairness (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298775-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionReceiveFairness","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.298779-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume"}
+{"Time":"2026-09-08T11:47:13.298782-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume","Output":"=== RUN   TestEmissionFullQueueResume\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.298785-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/ordinary"}
+{"Time":"2026-09-08T11:47:13.298788-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/ordinary","Output":"=== RUN   TestEmissionFullQueueResume/ordinary\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299214-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/ordinary","Output":"--- PASS: TestEmissionFullQueueResume/ordinary (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299226-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/ordinary","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299232-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/GSO"}
+{"Time":"2026-09-08T11:47:13.299248-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/GSO","Output":"=== RUN   TestEmissionFullQueueResume/GSO\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299459-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/GSO","Output":"--- PASS: TestEmissionFullQueueResume/GSO (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299465-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume/GSO","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299468-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume","Output":"--- PASS: TestEmissionFullQueueResume (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299471-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFullQueueResume","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299481-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput"}
+{"Time":"2026-09-08T11:47:13.299484-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput","Output":"=== RUN   TestEmissionDatagramOutput\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299487-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/ordinary"}
+{"Time":"2026-09-08T11:47:13.29949-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/ordinary","Output":"=== RUN   TestEmissionDatagramOutput/ordinary\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299573-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/ordinary","Output":"--- PASS: TestEmissionDatagramOutput/ordinary (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299578-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/ordinary","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.29958-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/GSO"}
+{"Time":"2026-09-08T11:47:13.299585-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/GSO","Output":"=== RUN   TestEmissionDatagramOutput/GSO\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299647-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/GSO","Output":"--- PASS: TestEmissionDatagramOutput/GSO (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299652-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput/GSO","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299655-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput","Output":"--- PASS: TestEmissionDatagramOutput (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299657-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDatagramOutput","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.29966-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer"}
+{"Time":"2026-09-08T11:47:13.299662-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer","Output":"=== RUN   TestEmissionFatalCallerBuffer\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299665-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=1"}
+{"Time":"2026-09-08T11:47:13.299668-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=1","Output":"=== RUN   TestEmissionFatalCallerBuffer/gso=false/append=1\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299721-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=1","Output":"--- PASS: TestEmissionFatalCallerBuffer/gso=false/append=1 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.29973-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=1","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299733-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=2"}
+{"Time":"2026-09-08T11:47:13.299736-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=2","Output":"=== RUN   TestEmissionFatalCallerBuffer/gso=false/append=2\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299779-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=2","Output":"--- PASS: TestEmissionFatalCallerBuffer/gso=false/append=2 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299784-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=false/append=2","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299787-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=1"}
+{"Time":"2026-09-08T11:47:13.299789-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=1","Output":"=== RUN   TestEmissionFatalCallerBuffer/gso=true/append=1\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299851-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=1","Output":"--- PASS: TestEmissionFatalCallerBuffer/gso=true/append=1 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299856-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=1","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299859-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=2"}
+{"Time":"2026-09-08T11:47:13.299861-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=2","Output":"=== RUN   TestEmissionFatalCallerBuffer/gso=true/append=2\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299911-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=2","Output":"--- PASS: TestEmissionFatalCallerBuffer/gso=true/append=2 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299915-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer/gso=true/append=2","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299918-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer","Output":"--- PASS: TestEmissionFatalCallerBuffer (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299921-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionFatalCallerBuffer","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299923-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization"}
+{"Time":"2026-09-08T11:47:13.299926-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization","Output":"=== RUN   TestHandshakeMTUFallbackInitialization\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299937-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/healthy"}
+{"Time":"2026-09-08T11:47:13.29994-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/healthy","Output":"=== RUN   TestHandshakeMTUFallbackInitialization/healthy\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299957-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/healthy","Output":"--- PASS: TestHandshakeMTUFallbackInitialization/healthy (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299964-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/healthy","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299968-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/fallback"}
+{"Time":"2026-09-08T11:47:13.29997-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/fallback","Output":"=== RUN   TestHandshakeMTUFallbackInitialization/fallback\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.29999-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/fallback","Output":"--- PASS: TestHandshakeMTUFallbackInitialization/fallback (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.299994-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization/fallback","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.299996-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization","Output":"--- PASS: TestHandshakeMTUFallbackInitialization (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.3-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackInitialization","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300002-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackPhaseAndPath"}
+{"Time":"2026-09-08T11:47:13.300004-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackPhaseAndPath","Output":"=== RUN   TestHandshakeMTUFallbackPhaseAndPath\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300022-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackPhaseAndPath","Output":"--- PASS: TestHandshakeMTUFallbackPhaseAndPath (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300031-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackPhaseAndPath","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300033-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery"}
+{"Time":"2026-09-08T11:47:13.300035-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery","Output":"=== RUN   TestHandshakeMTUFallbackDiscovery\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300038-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/enabled"}
+{"Time":"2026-09-08T11:47:13.300039-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/enabled","Output":"=== RUN   TestHandshakeMTUFallbackDiscovery/enabled\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300112-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/enabled","Output":"--- PASS: TestHandshakeMTUFallbackDiscovery/enabled (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300116-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/enabled","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300119-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/disabled"}
+{"Time":"2026-09-08T11:47:13.300121-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/disabled","Output":"=== RUN   TestHandshakeMTUFallbackDiscovery/disabled\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30022-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/disabled","Output":"--- PASS: TestHandshakeMTUFallbackDiscovery/disabled (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300224-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery/disabled","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300232-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery","Output":"--- PASS: TestHandshakeMTUFallbackDiscovery (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300235-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackDiscovery","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300237-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackCongestionGrowth"}
+{"Time":"2026-09-08T11:47:13.300239-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackCongestionGrowth","Output":"=== RUN   TestHandshakeMTUFallbackCongestionGrowth\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300281-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackCongestionGrowth","Output":"--- PASS: TestHandshakeMTUFallbackCongestionGrowth (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300289-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackCongestionGrowth","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300294-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackBeforePacking"}
+{"Time":"2026-09-08T11:47:13.300301-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackBeforePacking","Output":"=== RUN   TestHandshakeMTUFallbackBeforePacking\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300339-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackBeforePacking","Output":"--- PASS: TestHandshakeMTUFallbackBeforePacking (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300344-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackBeforePacking","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300351-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification"}
+{"Time":"2026-09-08T11:47:13.300353-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification","Output":"=== RUN   TestHandshakeMTUFallbackSendClassification\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300356-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial"}
+{"Time":"2026-09-08T11:47:13.300358-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial","Output":"=== RUN   TestHandshakeMTUFallbackSendClassification/Initial\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300391-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial","Output":"--- PASS: TestHandshakeMTUFallbackSendClassification/Initial (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300396-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300399-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Handshake"}
+{"Time":"2026-09-08T11:47:13.300401-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Handshake","Output":"=== RUN   TestHandshakeMTUFallbackSendClassification/Handshake\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300414-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Handshake","Output":"--- PASS: TestHandshakeMTUFallbackSendClassification/Handshake (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300418-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Handshake","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300427-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT"}
+{"Time":"2026-09-08T11:47:13.30043-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT","Output":"=== RUN   TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300454-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT","Output":"--- PASS: TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300458-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300465-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/0-RTT_only"}
+{"Time":"2026-09-08T11:47:13.300471-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/0-RTT_only","Output":"=== RUN   TestHandshakeMTUFallbackSendClassification/0-RTT_only\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300486-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/0-RTT_only","Output":"--- PASS: TestHandshakeMTUFallbackSendClassification/0-RTT_only (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300489-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/0-RTT_only","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300492-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/1-RTT_only"}
+{"Time":"2026-09-08T11:47:13.300494-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/1-RTT_only","Output":"=== RUN   TestHandshakeMTUFallbackSendClassification/1-RTT_only\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300523-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/1-RTT_only","Output":"--- PASS: TestHandshakeMTUFallbackSendClassification/1-RTT_only (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300527-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification/1-RTT_only","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.30053-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification","Output":"--- PASS: TestHandshakeMTUFallbackSendClassification (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300532-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestHandshakeMTUFallbackSendClassification","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300535-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe"}
+{"Time":"2026-09-08T11:47:13.300537-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe","Output":"=== RUN   TestEmissionDirectProbe\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300584-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/success"}
+{"Time":"2026-09-08T11:47:13.300599-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/success","Output":"=== RUN   TestEmissionDirectProbe/server/success\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300663-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/success","Output":"--- PASS: TestEmissionDirectProbe/server/success (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300671-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/success","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300681-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/write-error"}
+{"Time":"2026-09-08T11:47:13.300685-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/write-error","Output":"=== RUN   TestEmissionDirectProbe/server/write-error\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300711-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/write-error","Output":"--- PASS: TestEmissionDirectProbe/server/write-error (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300715-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/server/write-error","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300718-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/success"}
+{"Time":"2026-09-08T11:47:13.300721-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/success","Output":"=== RUN   TestEmissionDirectProbe/client/success\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300799-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/success","Output":"--- PASS: TestEmissionDirectProbe/client/success (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300803-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/success","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300809-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/write-error"}
+{"Time":"2026-09-08T11:47:13.300814-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/write-error","Output":"=== RUN   TestEmissionDirectProbe/client/write-error\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300854-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/write-error","Output":"--- PASS: TestEmissionDirectProbe/client/write-error (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30086-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe/client/write-error","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300864-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe","Output":"--- PASS: TestEmissionDirectProbe (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300867-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionDirectProbe","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300874-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe"}
+{"Time":"2026-09-08T11:47:13.300877-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe","Output":"=== RUN   TestEmissionMTUProbe\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300879-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/success"}
+{"Time":"2026-09-08T11:47:13.300882-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/success","Output":"=== RUN   TestEmissionMTUProbe/success\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300914-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/success","Output":"--- PASS: TestEmissionMTUProbe/success (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300922-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/success","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300925-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/write-error"}
+{"Time":"2026-09-08T11:47:13.30093-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/write-error","Output":"=== RUN   TestEmissionMTUProbe/write-error\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300964-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/write-error","Output":"--- PASS: TestEmissionMTUProbe/write-error (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.300971-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe/write-error","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300976-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe","Output":"--- PASS: TestEmissionMTUProbe (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30098-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbe","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.300984-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbeFullQueue"}
+{"Time":"2026-09-08T11:47:13.300987-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbeFullQueue","Output":"=== RUN   TestEmissionMTUProbeFullQueue\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301003-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbeFullQueue","Output":"--- PASS: TestEmissionMTUProbeFullQueue (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301007-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionMTUProbeFullQueue","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301011-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathReplacement"}
+{"Time":"2026-09-08T11:47:13.301014-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathReplacement","Output":"=== RUN   TestEmissionPathReplacement\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301118-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathReplacement","Output":"--- PASS: TestEmissionPathReplacement (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301123-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathReplacement","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301126-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathRebinding"}
+{"Time":"2026-09-08T11:47:13.301129-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathRebinding","Output":"=== RUN   TestEmissionPathRebinding\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301171-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathRebinding","Output":"--- PASS: TestEmissionPathRebinding (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301175-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionPathRebinding","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301202-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup"}
+{"Time":"2026-09-08T11:47:13.301207-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup","Output":"=== RUN   TestEmissionResultQueueWakeup\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301209-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=7"}
+{"Time":"2026-09-08T11:47:13.301212-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=7","Output":"=== RUN   TestEmissionResultQueueWakeup/gso=false/occupied=7\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301296-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=7","Output":"--- PASS: TestEmissionResultQueueWakeup/gso=false/occupied=7 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301301-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=7","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301308-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=8"}
+{"Time":"2026-09-08T11:47:13.301311-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=8","Output":"=== RUN   TestEmissionResultQueueWakeup/gso=false/occupied=8\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301339-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=8","Output":"--- PASS: TestEmissionResultQueueWakeup/gso=false/occupied=8 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301343-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=false/occupied=8","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301345-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=7"}
+{"Time":"2026-09-08T11:47:13.301347-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=7","Output":"=== RUN   TestEmissionResultQueueWakeup/gso=true/occupied=7\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301396-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=7","Output":"--- PASS: TestEmissionResultQueueWakeup/gso=true/occupied=7 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.3014-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=7","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301405-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=8"}
+{"Time":"2026-09-08T11:47:13.301409-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=8","Output":"=== RUN   TestEmissionResultQueueWakeup/gso=true/occupied=8\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301439-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=8","Output":"--- PASS: TestEmissionResultQueueWakeup/gso=true/occupied=8 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301444-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup/gso=true/occupied=8","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301448-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup","Output":"--- PASS: TestEmissionResultQueueWakeup (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301452-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultQueueWakeup","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301454-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome"}
+{"Time":"2026-09-08T11:47:13.30146-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome","Output":"=== RUN   TestEmissionResultRecoveryOutcome\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301463-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/congestion"}
+{"Time":"2026-09-08T11:47:13.301465-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/congestion","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=false/congestion\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301495-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/congestion","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=false/congestion (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301505-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/congestion","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301646-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/hard_blocked"}
+{"Time":"2026-09-08T11:47:13.30165-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/hard_blocked","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=false/hard_blocked\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301882-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/hard_blocked","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=false/hard_blocked (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301888-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/hard_blocked","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301905-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/pacing"}
+{"Time":"2026-09-08T11:47:13.301908-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/pacing","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=false/pacing\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301968-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/pacing","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=false/pacing (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.301972-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/pacing","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.301975-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/probe_pending"}
+{"Time":"2026-09-08T11:47:13.301977-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/probe_pending","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=false/probe_pending\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302019-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/probe_pending","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=false/probe_pending (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302024-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=false/probe_pending","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302029-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/congestion"}
+{"Time":"2026-09-08T11:47:13.302032-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/congestion","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=true/congestion\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302084-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/congestion","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=true/congestion (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30209-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/congestion","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302093-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/hard_blocked"}
+{"Time":"2026-09-08T11:47:13.302095-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/hard_blocked","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=true/hard_blocked\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302134-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/hard_blocked","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=true/hard_blocked (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302143-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/hard_blocked","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302146-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/pacing"}
+{"Time":"2026-09-08T11:47:13.302148-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/pacing","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=true/pacing\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302184-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/pacing","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=true/pacing (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302189-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/pacing","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302192-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/probe_pending"}
+{"Time":"2026-09-08T11:47:13.302194-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/probe_pending","Output":"=== RUN   TestEmissionResultRecoveryOutcome/gso=true/probe_pending\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302233-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/probe_pending","Output":"--- PASS: TestEmissionResultRecoveryOutcome/gso=true/probe_pending (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30224-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome/gso=true/probe_pending","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302242-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome","Output":"--- PASS: TestEmissionResultRecoveryOutcome (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302245-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultRecoveryOutcome","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302247-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection"}
+{"Time":"2026-09-08T11:47:13.302249-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection","Output":"=== RUN   TestEmissionResultConnection\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302252-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=false"}
+{"Time":"2026-09-08T11:47:13.302254-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=false","Output":"=== RUN   TestEmissionResultConnection/gso=false\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302308-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=false","Output":"--- PASS: TestEmissionResultConnection/gso=false (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302313-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=false","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302316-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=true"}
+{"Time":"2026-09-08T11:47:13.302318-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=true","Output":"=== RUN   TestEmissionResultConnection/gso=true\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302368-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=true","Output":"--- PASS: TestEmissionResultConnection/gso=true (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302379-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection/gso=true","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302382-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection","Output":"--- PASS: TestEmissionResultConnection (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302385-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionResultConnection","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302388-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer"}
+{"Time":"2026-09-08T11:47:13.30239-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer","Output":"=== RUN   TestEmissionEmptyCallerBuffer\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302393-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=false"}
+{"Time":"2026-09-08T11:47:13.302395-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=false","Output":"=== RUN   TestEmissionEmptyCallerBuffer/gso=false\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302413-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=false","Output":"--- PASS: TestEmissionEmptyCallerBuffer/gso=false (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302417-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=false","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.30242-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=true"}
+{"Time":"2026-09-08T11:47:13.302422-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=true","Output":"=== RUN   TestEmissionEmptyCallerBuffer/gso=true\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30247-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=true","Output":"--- PASS: TestEmissionEmptyCallerBuffer/gso=true (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302479-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer/gso=true","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302482-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer","Output":"--- PASS: TestEmissionEmptyCallerBuffer (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302494-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionEmptyCallerBuffer","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302496-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestEmissionECNBatchBoundary"}
+{"Time":"2026-09-08T11:47:13.302498-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionECNBatchBoundary","Output":"=== RUN   TestEmissionECNBatchBoundary\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30253-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestEmissionECNBatchBoundary","Output":"--- PASS: TestEmissionECNBatchBoundary (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302535-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestEmissionECNBatchBoundary","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302551-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility"}
+{"Time":"2026-09-08T11:47:13.302553-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30258-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/handshake"}
+{"Time":"2026-09-08T11:47:13.302597-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/handshake","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility/handshake\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302604-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/handshake","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility/handshake (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302609-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/handshake","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302612-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/success"}
+{"Time":"2026-09-08T11:47:13.302615-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/success","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility/success\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302629-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/success","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility/success (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302633-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/success","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302635-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/other_error"}
+{"Time":"2026-09-08T11:47:13.302637-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/other_error","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility/other_error\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302651-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/other_error","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility/other_error (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302655-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/other_error","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302658-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/unmarked_or_PMTU_probe"}
+{"Time":"2026-09-08T11:47:13.30266-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/unmarked_or_PMTU_probe","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility/unmarked_or_PMTU_probe\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302669-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/unmarked_or_PMTU_probe","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility/unmarked_or_PMTU_probe (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302673-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/unmarked_or_PMTU_probe","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302675-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/GSO"}
+{"Time":"2026-09-08T11:47:13.302677-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/GSO","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility/GSO\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302687-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/GSO","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility/GSO (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30269-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/GSO","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302696-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/minimum"}
+{"Time":"2026-09-08T11:47:13.302698-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/minimum","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility/minimum\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302703-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/minimum","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility/minimum (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302714-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/minimum","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.30272-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/subminimum"}
+{"Time":"2026-09-08T11:47:13.302722-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/subminimum","Output":"=== RUN   TestSendQueueHandshakeMTUEligibility/subminimum\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302756-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/subminimum","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility/subminimum (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30276-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility/subminimum","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302763-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility","Output":"--- PASS: TestSendQueueHandshakeMTUEligibility (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302765-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUEligibility","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302768-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUDrain"}
+{"Time":"2026-09-08T11:47:13.30277-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUDrain","Output":"=== RUN   TestSendQueueHandshakeMTUDrain\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30286-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUDrain","Output":"--- PASS: TestSendQueueHandshakeMTUDrain (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302868-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueHandshakeMTUDrain","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302872-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendOnePacket"}
+{"Time":"2026-09-08T11:47:13.302875-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendOnePacket","Output":"=== RUN   TestSendQueueSendOnePacket\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302886-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendOnePacket","Output":"--- PASS: TestSendQueueSendOnePacket (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.302891-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendOnePacket","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.302895-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueBlocking"}
+{"Time":"2026-09-08T11:47:13.302897-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueBlocking","Output":"=== RUN   TestSendQueueBlocking\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303018-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueBlocking","Output":"--- PASS: TestSendQueueBlocking (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303023-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueBlocking","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.303026-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueWriteError"}
+{"Time":"2026-09-08T11:47:13.303028-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueWriteError","Output":"=== RUN   TestSendQueueWriteError\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303055-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueWriteError","Output":"--- PASS: TestSendQueueWriteError (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303058-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueWriteError","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.30306-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueStoppedSubmission"}
+{"Time":"2026-09-08T11:47:13.303062-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueStoppedSubmission","Output":"=== RUN   TestSendQueueStoppedSubmission\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303083-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueStoppedSubmission","Output":"--- PASS: TestSendQueueStoppedSubmission (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303086-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueStoppedSubmission","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.303088-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit"}
+{"Time":"2026-09-08T11:47:13.30309-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit","Output":"=== RUN   TestSendQueueEnqueueAtWorkerExit\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303102-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/before"}
+{"Time":"2026-09-08T11:47:13.303105-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/before","Output":"=== RUN   TestSendQueueEnqueueAtWorkerExit/before\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.30315-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/before","Output":"--- PASS: TestSendQueueEnqueueAtWorkerExit/before (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303158-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/before","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.303161-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/concurrent"}
+{"Time":"2026-09-08T11:47:13.303163-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/concurrent","Output":"=== RUN   TestSendQueueEnqueueAtWorkerExit/concurrent\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303172-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/concurrent","Output":"--- PASS: TestSendQueueEnqueueAtWorkerExit/concurrent (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303175-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/concurrent","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.303178-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/after"}
+{"Time":"2026-09-08T11:47:13.30318-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/after","Output":"=== RUN   TestSendQueueEnqueueAtWorkerExit/after\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303194-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/after","Output":"--- PASS: TestSendQueueEnqueueAtWorkerExit/after (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303196-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit/after","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.303199-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit","Output":"--- PASS: TestSendQueueEnqueueAtWorkerExit (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303202-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueEnqueueAtWorkerExit","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.303207-04:00","Action":"run","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendProbe"}
+{"Time":"2026-09-08T11:47:13.303209-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendProbe","Output":"=== RUN   TestSendQueueSendProbe\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303212-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendProbe","Output":"--- PASS: TestSendQueueSendProbe (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.303215-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Test":"TestSendQueueSendProbe","Elapsed":0}
+{"Time":"2026-09-08T11:47:13.303231-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-09-08T11:47:13.304126-04:00","Action":"output","Package":"github.com/quic-go/quic-go","Output":"ok  \tgithub.com/quic-go/quic-go\t0.342s\n"}
+{"Time":"2026-09-08T11:47:13.304137-04:00","Action":"pass","Package":"github.com/quic-go/quic-go","Elapsed":0.342}

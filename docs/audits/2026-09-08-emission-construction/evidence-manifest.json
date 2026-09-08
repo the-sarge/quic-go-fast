@@ -1,0 +1,35 @@
+{
+  "source_revision": "a5bb7f9145755a6c40482eda8cdde4c9a68b4dbf",
+  "source_method": "git archive projection; no source edits",
+  "environment": {
+    "go": "go1.27.0",
+    "os": "darwin",
+    "arch": "arm64"
+  },
+  "files": {
+    "baseline-focused.jsonl": {
+      "sha256": "62059ee261f25035780821399cc281556bdd6202311e14f76d03f07ac50fbd62",
+      "bytes": 79425
+    },
+    "baseline-lifecycle.jsonl": {
+      "sha256": "d19e2f665e297177e11ef293a14628cad268fcdff8edaddd36df9f29e0b64983",
+      "bytes": 25452
+    },
+    "baseline-race.jsonl": {
+      "sha256": "547ad8efdf3db5e8ecaf4f0277f2e742474b1fda53f9f0414cfad44f401107f5",
+      "bytes": 104375
+    },
+    "baseline-tag-compile.log": {
+      "sha256": "4396bf76bf5957860db0e8e3a3ec13871ced322d53d20ab7a1b16cd0991f0cfc",
+      "bytes": 57
+    },
+    "INVESTIGATION.md": {
+      "sha256": "fdae04462e98dd66c5f0dd27838dd6f320c0a50e4061143fab524d7f0823c887",
+      "bytes": 46618
+    }
+  },
+  "source_verification": {
+    "tracked_blobs_checked": 932,
+    "mismatches": []
+  }
+}
