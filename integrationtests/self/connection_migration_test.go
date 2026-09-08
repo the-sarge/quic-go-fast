@@ -27,8 +27,8 @@ func TestConnectionMigrationConcurrentState(t *testing.T) {
 
 func TestConnectionMigrationConcurrentAddresses(t *testing.T) {
 	testConnectionMigration(t, func(conn *quic.Conn) {
-		conn.LocalAddr().String()
-		conn.RemoteAddr().String()
+		_ = conn.LocalAddr().String()
+		_ = conn.RemoteAddr().String()
 	})
 }
 
