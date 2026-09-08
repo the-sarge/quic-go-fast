@@ -373,3 +373,14 @@ Three independent pre-commit slice audits passed. The bounded two-agent RAS revi
 ### Next
 
 At this entry, H1, H2, I1, I3, I5, I6, I7, P1, and T1 form the nine-slice frontier; I2, I4, and I8 await their named predecessors. Prefer H1 first; packaging can proceed independently. Implementation remains undispatched. Use [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) as the live view and the [OmniFocus program](omnifocus:///task/jTmzcx-2f8I) as its task-manager mirror.
+
+---
+
+## 32-bit close-reason parser hardening landed - 2026-09-08 13:45 EDT
+
+**Main:** `24fb7b565d9d`
+**Actor:** Codex
+
+[PR #104](https://github.com/the-sarge/quic-go-fast/pull/104) closed [issue #64](https://github.com/the-sarge/quic-go-fast/issues/64). CONNECTION_CLOSE parsing now compares the decoded reason length with remaining bytes before narrowing, rejecting malformed oversized lengths with `io.EOF` on 32-bit targets. Valid application and transport close decoding, empty/nonempty reasons and consumed-length behavior remain preserved.
+
+A Linux/386 executable under emulation reproduced the baseline allocation panic and passed after the fix, including `1<<31`, `1<<32` and maximum QUIC varint rejection for both close types. Reviewed head `7ac589bf9ad5634034f80fd7698afff63041b534` passed the full native suite, focused close race tests, vet, lint, gcassert and inherited local checks. Both RAS reviewers completed without findings or follow-ups, and all 33 hosted checks passed before head-guarded squash merge. The [local certification receipt](https://github.com/the-sarge/quic-go-fast/pull/104#issuecomment-5589320256) retains an initial lint/generation overlap and an unrelated STREAM allocation assertion from an overbroad race invocation; neither is relabeled as passing. The [hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/104#issuecomment-5589390828) records the exact-head checks. No public API, module identity, packet-emission ownership or CI behavior changed.
