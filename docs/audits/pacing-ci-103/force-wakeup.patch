@@ -1,0 +1,10 @@
+--- a/connection_test.go
++++ b/connection_test.go
+@@ -1933,6 +1933,7 @@
+ 
+ 		errChan := make(chan error, 1)
+ 		go func() { errChan <- tc.conn.run() }()
++		synctest.Wait() // force the queued DATAGRAM wakeup before the explicit wakeup
+ 		tc.conn.scheduleSending()
+ 
+ 		synctest.Wait()
