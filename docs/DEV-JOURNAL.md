@@ -420,3 +420,24 @@ At this entry, C1 is the scoped frontier and C2 is blocked by C1; T1 is independ
 The separate teardown defect is corrected by deferring destruction inside the synctest bubble, asserting send counts on the test goroutine, and collecting completion without blocking after destruction. The old-allowance regression now fails cleanly in both forced-wakeup scenarios; controlled early exit also drains the connection with a live timer and queued data. The [diagnostic record](audits/pacing-ci-103/README.md) retains the baseline source, Linux environment differences, bounded failure counts, deterministic 5/5 reproduction, and red/green evidence.
 
 Reviewed head `4afc62b13a46300931f24633ee9c886f31e269cc` passed the full local suite, vet, module-tidy check, lint, focused race checks, 10,000 pacing repetitions on both Linux/amd64 and macOS/arm64, and all 33 hosted checks. Independent Standards and Spec reviews were clean. Initial RAS review `20260908T185254-2f998620c5bce16804ca91af` led to the bounded teardown and coverage corrections; exact-head verification resolved those findings. Replacement review `20260908T191846-5664579bbc888d7588944405` found no issues or follow-ups. The [final local receipt](https://github.com/the-sarge/quic-go-fast/pull/116#issuecomment-5590423887), [finding dispositions](https://github.com/the-sarge/quic-go-fast/pull/116#issuecomment-5590404063), and [merge receipt](https://github.com/the-sarge/quic-go-fast/pull/116#issuecomment-5590608427) preserve certification and review history. The prior journal CI failures remain historical failures; this correction was separately certified and merged.
+
+---
+
+## Unit race instrumentation enabled - 2026-09-08 16:03 EDT
+
+**Main:** `45fffa2e0d38`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #118](https://github.com/the-sarge/quic-go-fast/pull/118), closing [issue #71](https://github.com/the-sarge/quic-go-fast/issues/71). The existing Ubuntu unit race step now passes `-race`, retaining `TIMESCALE_FACTOR=20`, verbosity, shuffle, package scope, and the workflow matrix.
+
+### Decisions
+
+The first instrumented run exposed a zero-allocation assertion incompatible with race-mode `sync.Pool` drops. Relocated the unchanged parser allocation test and helper into a `!race` file; normal unit CI retains both STREAM and ACK allocation assertions, and functional parser tests remain race-enabled. The [PR review record](https://github.com/the-sarge/quic-go-fast/pull/118) records the rationale and rejection of an added requirement to measure ACK allocations under race instrumentation.
+
+### Validation
+
+Certified candidate `3d1c6e4717c7f816e831bf57e77fe1d2f8c73cb7`: full 31-package local unit scope passed with `TIMESCALE_FACTOR=20` and race instrumentation; normal parser allocation tests and the wire race suite passed. Workflow validation and whitespace checks passed; default actionlint's unrelated SC2086 warning was unchanged from the base. Standards and Spec reviews reported zero findings. Initial RAS run `20260908T193951-214de8c5fd4e189830fae73f` identified one allocation-test defect, with duplicate reports; verification resolved all four reports on the candidate. Five initial reviewers completed and two provider-output failures were retained in the audit record. Replacement RAS run `20260908T195750-06148e85f32028558d62dfe2` completed with no findings or follow-ups.
+
+All existing pull-request workflows passed on the candidate: unit, integration, lint, cross-compilation, and interop Docker. Both Ubuntu Go 1.26 and 1.27 jobs completed the race, FIPS140, and benchmark steps successfully. Squash merge `45fffa2e0d38a431480f18096003c01a2d43e460` was guarded by the exact reviewed head.
