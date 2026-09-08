@@ -304,3 +304,24 @@ The initial RAS review and its allowed replacement completed with no required fi
 ### Next
 
 [Child #53](https://github.com/the-sarge/quic-go-fast/issues/53) is closed. E6c remains the sole ready frontier; final E6 remains blocked by E6c. The product PR owns this committed transition. See the [program tracker](https://github.com/the-sarge/quic-go-fast/issues/31) for the live state. No new review follow-up or untraced runtime effect was admitted.
+
+---
+
+## E6c path consumers and version-negotiation correction landed - 2026-09-08 00:48 EDT
+
+**Main:** `4e99c6725483`
+**Actor:** Codex
+
+### Completed
+
+Merged [E6c PR #59](https://github.com/the-sarge/quic-go-fast/pull/59) as `4e99c672548303aaaca496e8e86977fe5cb13db5`, closing [child #54](https://github.com/the-sarge/quic-go-fast/issues/54). The three assigned connection-ID/path tests now use real packet construction and decoded output; the [preservation mapping](audits/e6c-path-consumers/README.md) records the retained Retry, destination, path-validation, migration and storage/handoff evidence. Only the two declared close/error consumers remain for E6. The product PR owns the committed completion/frontier transition.
+
+The inherited hosted unit suite exposed an ordering-sensitive version-negotiation defect on the unchanged base. [Prerequisite PR #60](https://github.com/the-sarge/quic-go-fast/pull/60), merged as `d7d2b295f50b6c7ff78a47c2c78c57136c541846`, makes the existing close handler suppress CONNECTION_CLOSE during version recreation even after the first Initial. Deterministic before/after-Initial regressions preserve the typed error, selected version, connection-ID removal and qlog observations. E6c then resumed on the corrected base with its test-only diff intact.
+
+### Validation
+
+Both PRs completed RAS review with no findings or follow-ups, exact-head local certification, all 33 applicable hosted checks and head-guarded squash merge. The [correction receipt](https://github.com/the-sarge/quic-go-fast/pull/60#issuecomment-5579257820) and [E6c receipt](https://github.com/the-sarge/quic-go-fast/pull/59#issuecomment-5579396957) record exact heads and evidence. E6c passed the full suite, its prescribed focused race family, vet, lint, gcassert, whitespace and production/module/CI byte-identity checks against the corrected base. No performance campaign or new verification infrastructure was introduced. The first E6c review was interrupted before synthesis at the CI failure; the resumed initial review completed cleanly.
+
+### Next
+
+[E6 #30](https://github.com/the-sarge/quic-go-fast/issues/30) is the sole ready successor; E4, E5 and all three test prefactors are complete. The [program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) is the live frontier view. E6 retains close ownership, final interface contraction and its existing qualification obligations. No review follow-ups or untraced runtime effects remain from E6c.
