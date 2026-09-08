@@ -1,0 +1,22 @@
+--- FAIL: TestScrutinyIngressTerminalOwnership (0.00s)
+    --- FAIL: TestScrutinyIngressTerminalOwnership/connection_overflow (0.00s)
+        scrutiny_diagnostic_test.go:26: terminal connection overflow retained refCount=1, want 0
+    --- FAIL: TestScrutinyIngressTerminalOwnership/server_overflow (0.00s)
+        scrutiny_diagnostic_test.go:35: terminal server overflow retained refCount=1, want 0
+    --- FAIL: TestScrutinyIngressTerminalOwnership/transport_empty (0.00s)
+        scrutiny_diagnostic_test.go:44: terminal empty datagram retained refCount=1, want 0
+    --- FAIL: TestScrutinyIngressTerminalOwnership/transport_parse_reject (0.00s)
+        scrutiny_diagnostic_test.go:53: terminal parse rejection retained refCount=1, want 0
+    --- FAIL: TestScrutinyIngressTerminalOwnership/non_quic_disabled (0.00s)
+        scrutiny_diagnostic_test.go:61: terminal non-QUIC drop retained refCount=1, want 0
+--- FAIL: TestScrutinyDeferredAdmissionTruth (0.00s)
+    scrutiny_diagnostic_test.go:73: reported retained=true with full queue; queue remains 32 entries
+FAIL
+FAIL	github.com/quic-go/quic-go	0.300s
+--- FAIL: TestScrutinyCancelledDialWaiterUsage (0.00s)
+    scrutiny_diagnostic_test.go:24: cancelled waiter left useCount=1, want 0
+--- FAIL: TestScrutinyStaleFailurePreservesSuccessor (0.00s)
+    scrutiny_diagnostic_test.go:51: old request failure evicted the replacement entry
+FAIL
+FAIL	github.com/quic-go/quic-go/http3	0.516s
+FAIL

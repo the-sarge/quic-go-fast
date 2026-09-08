@@ -1,0 +1,41 @@
+package http3
+
+import (
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"go.uber.org/mock/gomock"
+)
+
+// Diagnostic only: return headers with an unfinished body through the real
+// transport lifecycle. A real QUIC connection makes idle closure observable;
+// the HTTP exchange and streaming body are controlled fixtures.
+func TestScrutinyActiveResponseSurvivesIdleClose(t *testing.T) {
+	conn, _ := newConnPair(t)
+	client := NewMockClientConn(gomock.NewController(t))
+	dialed := make(chan struct{})
+	close(dialed)
+	entry := &roundTripperWithCount{dialing: dialed, cancel: func() {}, conn: conn, clientConn: client}
+	tr := &Transport{clients: map[string]*roundTripperWithCount{"example.test:443": entry}}
+	reader, writer := io.Pipe()
+	t.Cleanup(func() { reader.Close(); writer.Close() })
+	client.EXPECT().RoundTrip(gomock.Any()).Return(&http.Response{
+		StatusCode: http.StatusOK, Header: make(http.Header), Body: reader, ContentLength: -1,
+	}, nil)
+	response, err := tr.doRoundTripOpt(httptest.NewRequest(http.MethodGet, "https://example.test/", nil), RoundTripOpt{}, false)
+	if err != nil || response == nil {
+		t.Fatalf("unexpected response: %v, error: %v", response, err)
+	}
+	// The producer has not completed; the body is neither read nor closed.
+	if count := entry.useCount.Load(); count != 1 {
+		t.Errorf("active response after headers has useCount=%d, want 1", count)
+	}
+	tr.CloseIdleConnections()
+	select {
+	case <-conn.Context().Done():
+		t.Error("CloseIdleConnections closed the connection with an active response body")
+	default:
+	}
+}

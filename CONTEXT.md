@@ -21,3 +21,11 @@ Language for QUIC transport behavior and the fork's transmission work.
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
 
 **Packet emission**: The sequence that turns eligible protocol work into constructed packets, recovery registration and an owned handoff to a network send path. It does not imply rollback of protocol state after a local write failure.
+
+**Incoming datagram storage**: The bytes backing a received UDP datagram. Several QUIC packet views can share those bytes while processing or awaiting decryption.
+
+**Retained QUIC packet view**: A received QUIC packet kept for later decryption or replay; it remains distinct from the whole datagram whose bytes it shares.
+
+**HTTP/3 exchange**: One request attempt and its response, including any overlapping request upload and response consumption. Receiving response headers does not by itself finish an exchange.
+
+**Idle pooled HTTP/3 connection**: A reusable HTTP/3 connection with no active exchanges. A connection carrying an unfinished response or request upload is not idle.
