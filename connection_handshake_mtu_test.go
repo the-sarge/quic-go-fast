@@ -122,7 +122,7 @@ func TestHandshakeMTUFallbackBeforePacking(t *testing.T) {
 	c.handshakeSendFeedback.publish(c.pathGeneration)
 	c.pacingDeadline = deadlineSendImmediately
 	require.NoError(t, c.triggerSending(now).err)
-	q := c.sendQueue.(*sendQueue)
+	q := c.emission.queue.(*sendQueue)
 	require.Len(t, q.queue, 1)
 	entry := <-q.queue
 	defer entry.buf.Release()

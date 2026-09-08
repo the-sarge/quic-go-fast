@@ -28,7 +28,7 @@ func newEmissionTestConnection(t *testing.T, gso bool) *testConnection {
 	c := tc.conn
 	sealing := NewMockSealingManager(ctrl)
 	sealing.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
-	c.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
+	c.emission.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
 	c.sentPacketHandler.ReceivedBytes(1<<20, monotime.Now())
 	c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, monotime.Now())
 	c.sentPacketHandler.DropPackets(protocol.EncryptionHandshake, monotime.Now())
@@ -50,7 +50,7 @@ func TestEmissionReceiveFairness(t *testing.T) {
 			require.NoError(t, c.sendPackets(monotime.Now()))
 			require.Same(t, next, c.datagramQueue.Peek())
 			require.Equal(t, deadlineSendImmediately, c.pacingDeadline)
-			q := c.sendQueue.(*sendQueue)
+			q := c.emission.queue.(*sendQueue)
 			require.Len(t, q.queue, 1)
 			c.receivedPackets.PopFront()
 			require.NoError(t, c.sendPackets(monotime.Now()))
@@ -69,7 +69,7 @@ func TestEmissionFullQueueResume(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				tc := newEmissionTestConnection(t, gso)
 				c := tc.conn
-				q := c.sendQueue.(*sendQueue)
+				q := c.emission.queue.(*sendQueue)
 				for range sendQueueCapacity {
 					buf := getPacketBuffer()
 					buf.Data = append(buf.Data, 0xff)
@@ -175,7 +175,7 @@ func TestEmissionDatagramOutput(t *testing.T) {
 				}
 				return nil
 			}).AnyTimes()
-			q := c.sendQueue.(*sendQueue)
+			q := c.emission.queue.(*sendQueue)
 			close(q.closeCalled)
 			require.NoError(t, q.Run())
 			require.Equal(t, want, got)
@@ -222,7 +222,7 @@ func TestEmissionFatalCallerBuffer(t *testing.T) {
 					}
 					return sealer, nil
 				}).Times(failAt)
-				c.packer.(*packetPacker).cryptoSetup = sealing
+				c.emission.packer.cryptoSetup = sealing
 				observed := observeEmissionBuffers(t, gso)
 				_, pnLen := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 				size := 1200 - int(wire.ShortHeaderLen(c.connIDManager.Get(), pnLen)) - 7 - 3
@@ -240,7 +240,7 @@ func TestEmissionFatalCallerBuffer(t *testing.T) {
 				}
 				// No allocation follows emission: pool reuse cannot disguise release.
 				require.Zero(t, (*observed)[allocations-1].refCount, "fatal caller-owned storage must be released")
-				q := c.sendQueue.(*sendQueue)
+				q := c.emission.queue.(*sendQueue)
 				queued := 0
 				if !gso {
 					queued = failAt - 1
@@ -263,3 +263,12 @@ func TestEmissionFatalCallerBuffer(t *testing.T) {
 
 // Preserve the historical outcome/allocation fixture entrypoint.
 func (c *Conn) sendPackets(now monotime.Time) error { return c.emitPackets(now).err }
+
+func (c *Conn) emitPackets(now monotime.Time) emissionResult {
+	result := c.emission.finish(c.emission.sendAny(now, c.handshakeConfirmed))
+	c.pacingDeadline = result.deadline
+	if result.retry {
+		c.scheduleSending()
+	}
+	return result
+}

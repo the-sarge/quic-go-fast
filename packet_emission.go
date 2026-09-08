@@ -1,22 +1,24 @@
 package quic
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"net"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/qlog"
 )
 
-// packetEmission owns ordinary/GSO, handshake, ACK, PTO and probe construction,
-// registration, direct disposal and queue handoff. Typed slots borrow one path;
-// close retains its bounded connection-owned path.
+// packetEmission owns packet construction, registration, output handoff and
+// temporary storage. The closed handler retains an immutable close payload.
 type packetEmission struct {
-	packer   *packer
+	packer   *packetPacker
 	recovery *ackhandler.SentPacketHandler
-	queue    *sender
+	queue    sender
 	version  protocol.Version
 
 	policy emissionPolicy
@@ -26,6 +28,8 @@ type packetEmission struct {
 // This interface exposes only the synchronous connection-owned policy effects.
 // Binding the receiver once avoids allocating one method-value closure per hook.
 type emissionPolicy interface {
+	applyHandshakeMTUFallback()
+	prepareEmission(monotime.Time) emissionIntent
 	maxPacketSize() protocol.ByteCount
 	logPathProbe(shortHeaderPacket, net.Addr, protocol.ByteCount, qlog.DatagramPayloadChecksum)
 	logShortHeaderPacket(shortHeaderPacket, protocol.ECN, protocol.ByteCount)
@@ -49,27 +53,102 @@ const (
 	emissionReceivePending
 	emissionCongestionLimited
 	emissionProbePending
-	emissionLegacy
 	emissionSendAny
 	emissionProbeSent
 )
 
 type emissionResult struct {
 	progress  bool
-	available <-chan struct{}
 	stop      emissionStop
+	blocked   blockMode
+	retry     bool
+	available <-chan struct{}
 	deadline  monotime.Time
 	err       error
 }
 
-// Unmigrated send paths preserve their existing post-send capacity check.
-func legacyEmission(err error) emissionResult {
-	return emissionResult{stop: emissionLegacy, err: err}
+type emissionIntent struct {
+	transport *Transport
+	connID    protocol.ConnectionID
+	frame     ackhandler.Frame
+	addr      net.Addr
+	mtu       *mtuFinder
+}
+
+func (e *packetEmission) setToken(token []byte) { e.packer.SetToken(token) }
+func (e *packetEmission) run() error            { return e.queue.Run() }
+func (e *packetEmission) drain()                { e.queue.Close() }
+func (e *packetEmission) capacity() <-chan struct{} {
+	if e.queue.WouldBlock() {
+		return e.queue.Available()
+	}
+	return nil
+}
+
+// Finish capacity accounting here, including ACK, coalesced and final GSO batches.
+func (e *packetEmission) finish(result emissionResult) emissionResult {
+	if result.err == nil && (result.progress || result.stop == emissionQueueFull) {
+		result.available = nil
+		if available := e.capacity(); available != nil {
+			result.stop, result.available, result.deadline = emissionQueueFull, available, 0
+			result.blocked = blockModeHardBlocked
+		}
+	}
+	return result
+}
+
+func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissionResult) {
+	defer func() { result = e.finish(result) }()
+	progress := false
+	for {
+		if !confirmed {
+			e.policy.applyHandshakeMTUFallback()
+		}
+		result = e.dispatch(now, confirmed)
+		if result.err != nil {
+			return result
+		}
+		switch result.stop {
+		case emissionSendAny:
+			result = e.sendAny(now, confirmed)
+			result.progress = result.progress || progress
+			return result
+		case emissionProbeSent:
+			progress = true
+			continue
+		case emissionQueueFull:
+			result.retry = result.progress
+		case emissionHardBlocked:
+			result.blocked = blockModeHardBlocked
+		case emissionCongestionLimited:
+			result.blocked = blockModeCongestionLimited
+		case emissionPaced, emissionNoData, emissionReceivePending, emissionProbePending:
+		}
+		result.progress = result.progress || progress
+		return result
+	}
+}
+
+func (e *packetEmission) sendAny(now monotime.Time, confirmed bool) emissionResult {
+	intent := e.policy.prepareEmission(now)
+	if intent.transport != nil {
+		err := e.clientProbe(intent.connID, intent.frame, intent.transport, intent.addr, now)
+		return emissionResult{err: err, retry: err == nil}
+	}
+	if intent.mtu != nil {
+		result := e.mtuProbe(intent.mtu, now)
+		result.retry = result.progress
+		return result
+	}
+	if !confirmed {
+		return e.coalesced(now)
+	}
+	return e.advance(now, (*e.conn).capabilities().GSO)
 }
 
 func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
-	if (*e.queue).WouldBlock() {
-		return emissionResult{stop: emissionQueueFull, available: (*e.queue).Available()}
+	if e.queue.WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
 	if gso {
 		return e.withGSO(now)
@@ -100,7 +179,7 @@ func (e *packetEmission) pacingDeadline() monotime.Time {
 
 func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCount, ecn protocol.ECN, now monotime.Time) (protocol.ByteCount, error) {
 	start := buf.Len()
-	p, err := (*e.packer).AppendPacket(buf, maxSize, now, e.version)
+	p, err := e.packer.AppendPacket(buf, maxSize, now, e.version)
 	if err != nil {
 		return 0, err
 	}
@@ -123,10 +202,10 @@ func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 			result.err = err // Storage is reclaimed; protocol registration is not refunded.
 			return result
 		}
-		(*e.queue).Send(buf, 0, ecn, sendMetadata{})
+		e.queue.Send(buf, 0, ecn, sendMetadata{})
 		result.progress = true
-		if (*e.queue).WouldBlock() {
-			result.stop, result.available = emissionQueueFull, (*e.queue).Available()
+		if e.queue.WouldBlock() {
+			result.stop, result.available = emissionQueueFull, e.queue.Available()
 			return result
 		}
 		mode := (*e.recovery).SendMode(now)
@@ -177,13 +256,13 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 		if !done && size == maxSize && nextECN == ecn && buf.Len()+maxSize <= buf.Cap() {
 			continue
 		}
-		(*e.queue).Send(buf, uint16(maxSize), ecn, sendMetadata{})
+		e.queue.Send(buf, uint16(maxSize), ecn, sendMetadata{})
 		result.progress = true
 		if done {
 			return result
 		}
-		if (*e.queue).WouldBlock() {
-			result.stop, result.available = emissionQueueFull, (*e.queue).Available()
+		if e.queue.WouldBlock() {
+			result.stop, result.available = emissionQueueFull, e.queue.Available()
 			return result
 		}
 		if e.policy.emissionReceivePending() {
@@ -233,12 +312,11 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 }
 
 // dispatch interprets recovery's opportunity before any destructive packing.
-// SendAny returns to the connection's bounded path/control prelude. A completed
-// PTO returns for synchronous connection-owned feedback before the next mode.
+// The module consumes SendAny and PTO continuation internally.
 func (e *packetEmission) dispatch(now monotime.Time, confirmed bool) emissionResult {
 	mode := (*e.recovery).SendMode(now)
-	if mode != ackhandler.SendAny && (*e.queue).WouldBlock() {
-		return emissionResult{stop: emissionQueueFull, available: (*e.queue).Available()}
+	if mode != ackhandler.SendAny && e.queue.WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
 	switch mode {
 	case ackhandler.SendAny:
@@ -256,8 +334,8 @@ func (e *packetEmission) dispatch(now monotime.Time, confirmed bool) emissionRes
 		if err := e.sendProbePacket(mode, now); err != nil {
 			return emissionResult{err: err}
 		}
-		if (*e.queue).WouldBlock() {
-			return emissionResult{progress: true, stop: emissionQueueFull, available: (*e.queue).Available()}
+		if e.queue.WouldBlock() {
+			return emissionResult{progress: true, stop: emissionQueueFull, available: e.queue.Available()}
 		}
 		return emissionResult{progress: true, stop: emissionProbeSent}
 	default:
@@ -266,10 +344,10 @@ func (e *packetEmission) dispatch(now monotime.Time, confirmed bool) emissionRes
 }
 
 func (e *packetEmission) coalesced(now monotime.Time) emissionResult {
-	if (*e.queue).WouldBlock() {
-		return emissionResult{stop: emissionQueueFull, available: (*e.queue).Available()}
+	if e.queue.WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
-	packet, err := (*e.packer).PackCoalescedPacket(false, e.policy.maxPacketSize(), now, e.version)
+	packet, err := e.packer.PackCoalescedPacket(false, e.policy.maxPacketSize(), now, e.version)
 	if err != nil || packet == nil {
 		return emissionResult{err: err}
 	}
@@ -289,7 +367,7 @@ func (e *packetEmission) coalesced(now monotime.Time) emissionResult {
 func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed bool) (bool, error) {
 	if !confirmed {
 		ecn := (*e.recovery).ECNMode(false)
-		packet, err := (*e.packer).PackCoalescedPacket(true, e.policy.maxPacketSize(), now, e.version)
+		packet, err := e.packer.PackCoalescedPacket(true, e.policy.maxPacketSize(), now, e.version)
 		if err != nil {
 			return false, err
 		}
@@ -301,7 +379,7 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 	}
 
 	ecn := (*e.recovery).ECNMode(true)
-	p, buf, err := (*e.packer).PackAckOnlyPacket(e.policy.maxPacketSize(), now, e.version)
+	p, buf, err := e.packer.PackAckOnlyPacket(e.policy.maxPacketSize(), now, e.version)
 	if err != nil {
 		if err == errNothingToPack {
 			return false, nil
@@ -310,7 +388,7 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 	}
 	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
 	e.registerPacket(p, ecn, now)
-	(*e.queue).Send(buf, 0, ecn, sendMetadata{})
+	e.queue.Send(buf, 0, ecn, sendMetadata{})
 	return true, nil
 }
 
@@ -335,14 +413,14 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 			break
 		}
 		var err error
-		packet, err = (*e.packer).PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), false, now, e.version)
+		packet, err = e.packer.PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), false, now, e.version)
 		if err != nil {
 			return err
 		}
 	}
 	if packet == nil {
 		var err error
-		packet, err = (*e.packer).PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), true, now, e.version)
+		packet, err = e.packer.PackPTOProbePacket(encLevel, e.policy.maxPacketSize(), true, now, e.version)
 		if err != nil {
 			return err
 		}
@@ -400,25 +478,25 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 		)
 	}
 	e.policy.noteEmissionRegistration()
-	(*e.queue).Send(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
+	e.queue.Send(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
 }
 
 // Direct operations borrow the destination and preserve best-effort write errors.
 // Storage belongs to emission until the synchronous write has returned.
 func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
-	p, buf, err := (*e.packer).PackPathProbePacket(connID, frames, e.version)
+	p, buf, err := e.packer.PackPathProbePacket(connID, frames, e.version)
 	if err != nil {
 		return err
 	}
 	defer buf.Release()
 	e.policy.logPathProbe(p, addr, buf.Len(), checksum)
 	e.registerPacket(p, protocol.ECNNon, now)
-	(*e.queue).SendProbe(buf, addr, info)
+	e.queue.SendProbe(buf, addr, info)
 	return nil
 }
 
 func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {
-	p, buf, err := (*e.packer).PackPathProbePacket(connID, []ackhandler.Frame{frame}, e.version)
+	p, buf, err := e.packer.PackPathProbePacket(connID, []ackhandler.Frame{frame}, e.version)
 	if err != nil {
 		return err
 	}
@@ -430,28 +508,28 @@ func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhand
 }
 
 func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emissionResult {
-	if (*e.queue).WouldBlock() {
-		return emissionResult{stop: emissionQueueFull, available: (*e.queue).Available()}
+	if e.queue.WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
 	ping, size := finder.GetPing(now)
-	p, buf, err := (*e.packer).PackMTUProbePacket(ping, size, e.version)
+	p, buf, err := e.packer.PackMTUProbePacket(ping, size, e.version)
 	if err != nil {
-		return legacyEmission(err)
+		return emissionResult{err: err}
 	}
 	ecn := (*e.recovery).ECNMode(true)
 	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
 	e.registerPacket(p, ecn, now)
-	(*e.queue).Send(buf, 0, ecn, sendMetadata{})
-	return emissionResult{progress: true, stop: emissionLegacy}
+	e.queue.Send(buf, 0, ecn, sendMetadata{})
+	return emissionResult{progress: true}
 }
 
 // The connection still starts workers and owns failure/lifecycle policy. Join
 // the previous worker before publishing the replacement to the emission slot.
 func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedback) sender {
 	*e.conn = conn
-	(*e.queue).Close()
+	e.queue.Close()
 	queue := newSendQueue(conn, feedback)
-	*e.queue = queue
+	e.queue = queue
 	return queue
 }
 
@@ -459,4 +537,27 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 // the destination current at their syscall, as before.
 func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
 	(*e.conn).ChangeRemoteAddr(addr, info)
+}
+
+func (e *packetEmission) close(cause error) ([]byte, error) {
+	var packet *coalescedPacket
+	var err error
+	if transportErr, ok := errors.AsType[*qerr.TransportError](cause); ok {
+		packet, err = e.packer.PackConnectionClose(transportErr, e.policy.maxPacketSize(), e.version)
+	} else if applicationErr, ok := errors.AsType[*qerr.ApplicationError](cause); ok {
+		packet, err = e.packer.PackApplicationClose(applicationErr, e.policy.maxPacketSize(), e.version)
+	} else {
+		packet, err = e.packer.PackConnectionClose(&qerr.TransportError{
+			ErrorCode:    qerr.InternalError,
+			ErrorMessage: fmt.Sprintf("connection BUG: unspecified error type (msg: %s)", cause.Error()),
+		}, e.policy.maxPacketSize(), e.version)
+	}
+	if err != nil {
+		return nil, err
+	}
+	ecn := (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket())
+	e.policy.logCoalescedPacket(packet, ecn)
+	defer packet.buffer.Release()
+	retained := bytes.Clone(packet.buffer.Data)
+	return retained, (*e.conn).Write(packet.buffer.Data, 0, ecn)
 }

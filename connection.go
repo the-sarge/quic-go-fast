@@ -137,7 +137,6 @@ type Conn struct {
 	config      *Config
 
 	conn                  sendConn
-	sendQueue             sender
 	handshakeSendFeedback handshakeSendFeedback
 	pathGeneration        uint64
 
@@ -164,7 +163,6 @@ type Conn struct {
 
 	unpacker                   unpacker
 	frameParser                wire.FrameParser
-	packer                     packer
 	mtuDiscoverer              *mtuFinder // initialized when the transport parameters are received
 	effectiveInitialPacketSize protocol.ByteCount
 
@@ -371,7 +369,7 @@ var newConnection = func(
 		s.version,
 	)
 	s.cryptoStreamHandler = cs
-	s.packer = newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
+	s.emission.packer = newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
 	s.bindPacketEmission()
 	s.unpacker = newPacketUnpacker(cs, s.srcConnIDLen)
 	s.cryptoStreamManager = newCryptoStreamManager(s.initialStream, s.handshakeStream, s.oneRTTStream)
@@ -498,7 +496,7 @@ var newClientConnection = func(
 	s.cryptoStreamHandler = cs
 	s.cryptoStreamManager = newCryptoStreamManager(s.initialStream, s.handshakeStream, oneRTTStream)
 	s.unpacker = newPacketUnpacker(cs, s.srcConnIDLen)
-	s.packer = newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
+	s.emission.packer = newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
 	s.bindPacketEmission()
 	if len(tlsConf.ServerName) > 0 {
 		s.tokenStoreKey = tlsConf.ServerName
@@ -507,7 +505,7 @@ var newClientConnection = func(
 	}
 	if s.config.TokenStore != nil {
 		if token := s.config.TokenStore.Pop(s.tokenStoreKey); token != nil {
-			s.packer.SetToken(token.data)
+			s.emission.setToken(token.data)
 			s.rttStats.SetInitialRTT(token.rtt)
 		}
 	}
@@ -520,7 +518,7 @@ func (c *Conn) preSetup() {
 	c.largestRcvdAppData = protocol.InvalidPacketNumber
 	c.initialStream = newInitialCryptoStream(c.perspective == protocol.PerspectiveClient)
 	c.handshakeStream = newCryptoStream()
-	c.sendQueue = newSendQueue(c.conn, &c.handshakeSendFeedback)
+	c.emission.queue = newSendQueue(c.conn, &c.handshakeSendFeedback)
 	c.retransmissionQueue = newRetransmissionQueue()
 	c.frameParser = *wire.NewFrameParser(
 		c.config.EnableDatagrams,
@@ -592,7 +590,7 @@ func (c *Conn) run() (err error) {
 		return err
 	}
 	go func() {
-		if err := c.sendQueue.Run(); err != nil {
+		if err := c.emission.run(); err != nil {
 			c.destroyImpl(err)
 		}
 	}()
@@ -720,9 +718,9 @@ runLoop:
 			}
 		}
 
-		if c.sendQueue.WouldBlock() {
+		if available := c.emission.capacity(); available != nil {
 			// The send queue is still busy sending out packets. Wait until there's space to enqueue new packets.
-			sendQueueAvailable = c.sendQueue.Available()
+			sendQueueAvailable = available
 			// Cancel the pacing timer, as we can't send any more packets until the send queue is available again.
 			c.pacingDeadline = 0
 			c.blocked = blockModeHardBlocked
@@ -739,14 +737,8 @@ runLoop:
 			c.setCloseError(&closeError{err: result.err})
 			break runLoop
 		}
-		// The connection is the only producer. If established emission made no
-		// progress, the worker cannot have increased queue occupancy. Legacy
-		// send paths retain their original post-send capacity check.
-		if (result.progress || result.stop == emissionQueueFull || result.stop == emissionLegacy) && c.sendQueue.WouldBlock() {
-			sendQueueAvailable = result.available
-			if sendQueueAvailable == nil {
-				sendQueueAvailable = c.sendQueue.Available()
-			}
+		sendQueueAvailable = result.available
+		if result.available != nil {
 			// Cancel the pacing timer, as we can't send any more packets until the send queue is available again.
 			c.pacingDeadline = 0
 			c.blocked = blockModeHardBlocked
@@ -757,7 +749,7 @@ runLoop:
 
 	closeErr := c.closeErr.Load()
 	c.cryptoStreamHandler.Close()
-	c.sendQueue.Close() // close the send queue before sending the CONNECTION_CLOSE
+	c.emission.drain() // close the send queue before sending the CONNECTION_CLOSE
 	c.handleCloseError(closeErr)
 	if c.qlogger != nil {
 		if _, ok := errors.AsType[*errCloseForRecreating](closeErr.err); !ok {
@@ -1547,7 +1539,7 @@ func (c *Conn) handleRetryPacket(hdr *wire.Header, data []byte, rcvTime monotime
 	c.handshakeDestConnID = newDestConnID
 	c.retrySrcConnID = &newDestConnID
 	c.cryptoStreamHandler.ChangeConnectionID(newDestConnID)
-	c.packer.SetToken(hdr.Token)
+	c.emission.setToken(hdr.Token)
 	c.connIDManager.ChangeInitialConnID(newDestConnID)
 
 	if c.logger.Debug() {
@@ -2308,7 +2300,7 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		c.connIDGenerator.RemoveAll()
 		return
 	}
-	connClosePacket, err := c.sendConnectionClose(e)
+	connClosePacket, err := c.emission.close(e)
 	if err != nil {
 		c.logger.Debugf("Error sending CONNECTION_CLOSE: %s", err)
 	}
@@ -2476,99 +2468,42 @@ func (c *Conn) applyHandshakeMTUFallback() {
 }
 
 func (c *Conn) triggerSending(now monotime.Time) emissionResult {
-	// Preserve fallback before every opportunity, including PTO continuations.
-	if !c.handshakeConfirmed {
-		c.applyHandshakeMTUFallback()
-	}
-	c.pacingDeadline = 0
-	result := c.emission.dispatch(now, c.handshakeConfirmed)
-	if result.err != nil {
-		return result
-	}
-	switch result.stop {
-	case emissionSendAny:
-		// Ordinary traffic needs no PTO progress accumulation or result merge.
-		return c.emitPackets(now)
-	case emissionProbeSent:
-		// Recovery bounds PTO output; preserve the original immediate continuation.
-		result = c.triggerSending(now)
-		result.progress = true
-	case emissionQueueFull:
-		if result.progress {
-			c.scheduleSending()
-		}
-	case emissionHardBlocked:
-		c.blocked = blockModeHardBlocked
-	case emissionCongestionLimited:
-		c.blocked = blockModeCongestionLimited
-	case emissionPaced:
-		c.pacingDeadline = result.deadline
-	case emissionNoData, emissionReceivePending, emissionProbePending, emissionLegacy:
-		// Other outcomes are consumed by the ordinary emission path.
+	result := c.emission.send(now, c.handshakeConfirmed)
+	c.pacingDeadline = result.deadline
+	c.blocked = result.blocked
+	if result.retry {
+		c.scheduleSending()
 	}
 	return result
 }
 
-func (c *Conn) emitPackets(now monotime.Time) emissionResult {
+// The connection produces path and control intent; emission selects packet shapes.
+func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 	if c.perspective == protocol.PerspectiveClient && c.handshakeConfirmed {
 		if pm := c.pathManagerOutgoing.Load(); pm != nil {
 			connID, frame, tr, ok := pm.NextPathToProbe()
 			if ok {
-				if err := c.emission.clientProbe(connID, frame, tr, c.conn.RemoteAddr(), now); err != nil {
-					return legacyEmission(err)
-				}
-				// There's (likely) more data to send. Loop around again.
-				c.scheduleSending()
-				return legacyEmission(nil)
+				return emissionIntent{transport: tr, connID: connID, frame: frame, addr: c.conn.RemoteAddr()}
 			}
 		}
 	}
-
-	// Path MTU Discovery
-	// Can't use GSO, since we need to send a single packet that's larger than our current maximum size.
-	// Performance-wise, this doesn't matter, since we only send a very small (<10) number of
-	// MTU probe packets per connection.
 	if c.handshakeConfirmed && c.mtuDiscoverer != nil && c.mtuDiscoverer.ShouldSendProbe(now) {
-		result := c.emission.mtuProbe(c.mtuDiscoverer, now)
-		if result.progress {
-			c.scheduleSending()
-		}
-		return result
+		return emissionIntent{mtu: c.mtuDiscoverer}
 	}
-
 	if offset := c.connFlowController.GetWindowUpdate(now); offset > 0 {
 		c.framer.QueueControlFrame(&wire.MaxDataFrame{MaximumData: offset})
 	}
 	if cf := c.cryptoStreamManager.GetPostHandshakeData(protocol.MaxPostHandshakeCryptoFrameSize); cf != nil {
 		c.queueControlFrame(cf)
 	}
-
-	if !c.handshakeConfirmed {
-		result := c.emission.coalesced(now)
-		if !result.deadline.IsZero() {
-			c.pacingDeadline = result.deadline
-		}
-		return result
-	}
-
-	result := c.emission.advance(now, c.conn.capabilities().GSO)
-	switch result.stop {
-	case emissionPaced, emissionReceivePending:
-		c.pacingDeadline = result.deadline
-	case emissionNoData, emissionQueueFull, emissionHardBlocked, emissionCongestionLimited, emissionProbePending:
-		// Preserve the baseline timer policy after a send opportunity: a later
-		// top-level recovery dispatch still decides ACK/PTO and blocked timers.
-	case emissionLegacy, emissionSendAny, emissionProbeSent:
-		panic("BUG: established emission returned a legacy outcome")
-	}
-	return result
+	return emissionIntent{}
 }
 
 func (c *Conn) bindPacketEmission() {
 	c.emission = packetEmission{
-		packer:   &c.packer,
+		packer:   c.emission.packer,
 		recovery: &c.sentPacketHandler,
-		queue:    &c.sendQueue,
+		queue:    c.emission.queue,
 		version:  c.version,
 		policy:   c,
 		conn:     &c.conn,
@@ -2618,27 +2553,6 @@ func (c *Conn) logPathProbe(p shortHeaderPacket, addr net.Addr, size protocol.By
 	}
 	c.logger.Debugf("sending path probe packet to %s", addr)
 	c.logShortHeaderPacketWithDatagramPayloadChecksum(p, protocol.ECNNon, size, false, checksum)
-}
-
-func (c *Conn) sendConnectionClose(e error) ([]byte, error) {
-	var packet *coalescedPacket
-	var err error
-	if transportErr, ok := errors.AsType[*qerr.TransportError](e); ok {
-		packet, err = c.packer.PackConnectionClose(transportErr, c.maxPacketSize(), c.version)
-	} else if applicationErr, ok := errors.AsType[*qerr.ApplicationError](e); ok {
-		packet, err = c.packer.PackApplicationClose(applicationErr, c.maxPacketSize(), c.version)
-	} else {
-		packet, err = c.packer.PackConnectionClose(&qerr.TransportError{
-			ErrorCode:    qerr.InternalError,
-			ErrorMessage: fmt.Sprintf("connection BUG: unspecified error type (msg: %s)", e.Error()),
-		}, c.maxPacketSize(), c.version)
-	}
-	if err != nil {
-		return nil, err
-	}
-	ecn := c.sentPacketHandler.ECNMode(packet.IsOnlyShortHeaderPacket())
-	c.logCoalescedPacket(packet, ecn)
-	return packet.buffer.Data, c.conn.Write(packet.buffer.Data, 0, ecn)
 }
 
 func (c *Conn) maxPacketSize() protocol.ByteCount {

@@ -38,7 +38,7 @@ func newHandshakeEmissionConnection(t *testing.T, client bool) *testConnection {
 	sealing.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
 	sealing.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
 	sealing.EXPECT().Get0RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
-	c.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
+	c.emission.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
 	c.sentPacketHandler.ReceivedBytes(1<<20, monotime.Now())
 	return tc
 }
@@ -56,7 +56,7 @@ func TestEmissionCoalescedHandshake(t *testing.T) {
 			require.True(t, c.sentFirstPacket)
 			require.Equal(t, client, c.droppedInitialKeys)
 			require.Equal(t, now, c.firstAckElicitingPacketAfterIdleSentTime)
-			q := c.sendQueue.(*sendQueue)
+			q := c.emission.queue.(*sendQueue)
 			require.Len(t, q.queue, 1)
 			entry := <-q.queue
 			defer entry.buf.Release()
@@ -102,7 +102,7 @@ func TestEmissionAckAllowance(t *testing.T) {
 				c.sentPacketHandler = emissionRecoveryOutcome{SentPacketHandler: c.sentPacketHandler, mode: mode, deadline: now.Add(time.Millisecond)}
 				result := c.triggerSending(now)
 				require.NoError(t, result.err)
-				q := c.sendQueue.(*sendQueue)
+				q := c.emission.queue.(*sendQueue)
 				require.Len(t, q.queue, 1)
 				entry := <-q.queue
 				defer entry.buf.Release()
@@ -127,7 +127,7 @@ func TestEmissionAckAllowance(t *testing.T) {
 
 func TestEmissionAckFullQueuePacing(t *testing.T) {
 	c := newEmissionTestConnection(t, false).conn
-	q := c.sendQueue.(*sendQueue)
+	q := c.emission.queue.(*sendQueue)
 	for !q.WouldBlock() {
 		q.Send(getPacketBuffer(), 0, protocol.ECNNon, sendMetadata{})
 	}
@@ -187,11 +187,11 @@ func TestEmissionPTOOutput(t *testing.T) {
 					c = newHandshakeEmissionConnection(t, false).conn
 				}
 				now := monotime.Now()
-				q := c.sendQueue.(*sendQueue)
+				q := c.emission.queue.(*sendQueue)
 				if outstanding {
 					// A real PING is registered first, so QueueProbePacket exercises recovery
 					// and the real retransmission callback rather than a fabricated packet.
-					packet, err := c.packer.PackPTOProbePacket(level, 1200, true, now, protocol.Version1)
+					packet, err := c.emission.packer.PackPTOProbePacket(level, 1200, true, now, protocol.Version1)
 					require.NoError(t, err)
 					c.emission.sendCoalesced(packet, protocol.ECNNon, now)
 					(<-q.queue).buf.Release()

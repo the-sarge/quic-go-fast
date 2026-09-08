@@ -27,7 +27,7 @@ func TestEmissionFocusedAllocations(t *testing.T) {
 			// Keep synthetic server anti-amplification credit outside this
 			// established-send allocation measurement, including full batches.
 			c.sentPacketHandler.ReceivedBytes(1<<30, monotime.Now())
-			q := c.sendQueue.(*sendQueue)
+			q := c.emission.queue.(*sendQueue)
 			frame := &wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 1071)}
 			packets := 1
 			if gso {
