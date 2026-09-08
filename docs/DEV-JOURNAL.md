@@ -373,3 +373,26 @@ Three independent pre-commit slice audits passed. The bounded two-agent RAS revi
 ### Next
 
 At this entry, H1, H2, I1, I3, I5, I6, I7, P1, and T1 form the nine-slice frontier; I2, I4, and I8 await their named predecessors. Prefer H1 first; packaging can proceed independently. Implementation remains undispatched. Use [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) as the live view and the [OmniFocus program](omnifocus:///task/jTmzcx-2f8I) as its task-manager mirror.
+
+---
+
+## Emission construction handoff published - 2026-09-08 14:00 EDT
+
+**Main:** `0d9ef762117d`
+**Actor:** Codex
+
+### Summary
+
+Published the scoped packet-emission construction track C in the existing QGF-AD-2026-09 program through [docs PR #105](https://github.com/the-sarge/quic-go-fast/pull/105), merged at `0d9ef762117d12cc704d820bd7a5b0b8f34d8a0d`. The [plan](adr/2026-09-08-emission-construction-plan.md) adds constructor-owned regression coverage before replacing staged initialization with one complete assignment. Recovery/path bindings and packet-time behavior remain unchanged; no initialization defect or performance gain is claimed.
+
+### Completed
+
+The durable [investigation and audit receipt](audits/2026-09-08-emission-construction/README.md) preserve evidence and scope decisions. [Track parent #107](https://github.com/the-sarge/quic-go-fast/issues/107) contains [C1 #108](https://github.com/the-sarge/quic-go-fast/issues/108) and [C2 #109](https://github.com/the-sarge/quic-go-fast/issues/109), with a native C1 blocker on C2. Both child issues pin the verified reachable default-branch plan commit. [Program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) was updated without recreating the other tracks. OmniFocus parent `fsNvXyZ3aDd` contains sequential track `nQ6ddTP0zNg`, C1 `l7l2JEzj8AW`, and C2 `d-KfNeYG5KL`.
+
+### Validation
+
+The independent pre-commit slice audit passed. RAS review `20260908T173827-1f8fe92822c77e314724ec3e` completed on docs head `a59dfdae510d420bed0d7da65d1f796fdec1ddcd`; both reviewers approved with no findings and no fix verification required. Exact-head local documentation checks and all 33 applicable hosted checks passed before guarded squash merge. Production Go/module/workflow files were unchanged by the handoff. Preserved baseline tests are historical observations, not certification of future implementation.
+
+### Next
+
+At this entry, C1 is the scoped frontier and C2 is blocked by C1; T1 is independent. [Tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns live progress. Dispatch is the operator's decision through `$implement-architecture-slice` in a fresh context. No implementation or performance campaign was launched, and the other tracks and completed Track E retain their existing contracts.
