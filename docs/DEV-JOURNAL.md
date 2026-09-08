@@ -454,3 +454,16 @@ Merged [PR #120](https://github.com/the-sarge/quic-go-fast/pull/120), closing [i
 The initial regression reproduced `-version=2` logging v2 while negotiating v1. Applying the helper default then exposed HTTP clients still using v1; the seven fixture assignments resolved that in-scope regression. Certified head `dfbd3e43821b547aef489f9f2ffadfae1d6a3d19` passed full repository tests, the full shuffled v2 self-suite, package vet, and whitespace checks. Focused handshake and affected HTTP tests passed for both flags; explicit overrides and qlog were also exercised. All 33 hosted checks passed with none skipped, including unit, integration, lint, cross-compilation, and interop image workflows.
 
 Standards and Spec reviews found no actionable issues. Initial RAS review `20260908T221543-60b137673c7efed2aeda5895` identified the same HTTP client mismatch; exact-head verification resolved it and its duplicate reports. An added HTTP assertion requirement was rejected as beyond the accepted representative coverage. Replacement review `20260908T223512-6e14684b70f6cd6e0fb59e70` returned no fixes or follow-ups. The [PR review record](https://github.com/the-sarge/quic-go-fast/pull/120) preserves scope and dispositions. Merge `6a3e66fa00e400f7256bbd2bf574d4bdcbebf636` was guarded by the exact reviewed head.
+
+---
+
+## GSO fallback capability publication synchronized - 2026-09-08 19:15 EDT
+
+**Main:** `5e9ae2ab3e46`
+**Actor:** Codex
+
+Merged [PR #122](https://github.com/the-sarge/quic-go-fast/pull/122), closing [issue #65](https://github.com/the-sarge/quic-go-fast/issues/65). GSO fallback now publishes its capability flag with `atomic.Bool`, removing the plain-boolean race between `sconn.Write` and `sconn.capabilities`. The asynchronous socket worker, connection-goroutine protocol owner, packet splitting, public API, and module identity remain intact.
+
+The new concurrent capability-read regression reproduced the original race under Linux/amd64 Go 1.27.1 and passed after the fix. The complete send-connection test family passed with race instrumentation; the full local suite, including integration tests, and repository-wide vet passed at reviewed head `a988237a7f7b435dc8e72afb9d3df9601857ce9d`. All 33 hosted checks and five pull-request workflows passed with none skipped before the exact-head guarded squash merge `5e9ae2ab3e46067335ea409a689b638a82877bd3`.
+
+Independent Standards and Spec reviews found no issues. RAS run `20260908T225944-664787ad48c46cab3fc15a1d` completed with seven reviewers and no required fixes; no verification or replacement round was needed. The [merge record](https://github.com/the-sarge/quic-go-fast/pull/122#issuecomment-5593151110) preserves dispositions and evidence. Optional ownership-comment expansion was rejected as a requirement. A separate pre-existing active-connection publication race during migration was revalidated on the merged head and tracked in [follow-up #123](https://github.com/the-sarge/quic-go-fast/issues/123), with an OmniFocus mirror. The original OmniFocus task is complete; #123 remains a triage investigation, not a reproduced incident or part of this scalar fix.
