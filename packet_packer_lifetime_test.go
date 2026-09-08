@@ -91,3 +91,46 @@ func TestPTOConstructorFailureLifetime(t *testing.T) {
 		})
 	}
 }
+
+func TestProbeConstructorFailureLifetime(t *testing.T) {
+	for _, mtu := range []bool{false, true} {
+		for _, missingKeys := range []bool{false, true} {
+			name := "path"
+			if mtu {
+				name = "MTU"
+			}
+			if missingKeys {
+				name += "/keys"
+			} else {
+				name += "/append"
+			}
+			t.Run(name, func(t *testing.T) {
+				tc := newEmissionTestConnection(t, false)
+				c := tc.conn
+				p := c.packer.(*packetPacker)
+				p.pnManager = mismatchedConstructionNumber{c.sentPacketHandler}
+				if missingKeys {
+					sealing := NewMockSealingManager(gomock.NewController(t))
+					sealing.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
+					p.cryptoSetup = sealing
+				}
+				observed := observeConstructionBuffer(t)
+				var buf *packetBuffer
+				var err error
+				if mtu {
+					_, buf, err = p.PackMTUProbePacket(ackhandler.Frame{Frame: &wire.PingFrame{}}, 1300, protocol.Version1)
+				} else {
+					_, buf, err = p.PackPathProbePacket(c.connIDManager.Get(), []ackhandler.Frame{{Frame: &wire.PathChallengeFrame{Data: [8]byte{1}}}}, protocol.Version1)
+				}
+				if missingKeys {
+					require.ErrorIs(t, err, handshake.ErrKeysNotYetAvailable)
+				} else {
+					require.ErrorContains(t, err, "Peeked and Popped")
+				}
+				require.NotNil(t, *observed)
+				require.Zero(t, (*observed).refCount, "unreturned probe storage must be released")
+				require.Nil(t, buf)
+			})
+		}
+	}
+}

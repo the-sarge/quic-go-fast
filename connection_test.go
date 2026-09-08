@@ -3018,6 +3018,7 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 
 		probeSent := make(chan struct{})
 		var pathChallenge *wire.PathChallengeFrame
+		var probeBuffer *packetBuffer
 		payload := []byte{0} // PADDING frame
 		if isNATRebinding {
 			payload = []byte{1} // PING frame
@@ -3029,7 +3030,8 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 			tc.packer.EXPECT().PackPathProbePacket(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 				func(_ protocol.ConnectionID, frames []ackhandler.Frame, _ protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
 					pathChallenge = frames[0].Frame.(*wire.PathChallengeFrame)
-					return shortHeaderPacket{IsPathProbePacket: true}, getPacketBuffer(), nil
+					probeBuffer = getPacketBuffer()
+					return shortHeaderPacket{IsPathProbePacket: true}, probeBuffer, nil
 				},
 			),
 			tc.sendConn.EXPECT().WriteTo(gomock.Any(), newRemoteAddr, packetInfo{}).DoAndReturn(
@@ -3054,6 +3056,8 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 		case <-time.After(time.Second):
 			t.Fatal("timeout")
 		}
+
+		assert.Zero(t, probeBuffer.refCount, "direct write must release temporary storage")
 
 		// Receive a packed containing a PATH_RESPONSE frame.
 		// Only if the first packet received on the path was a probing packet
