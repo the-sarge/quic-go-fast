@@ -4,6 +4,7 @@ package quic
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 // Opt-in, identical-source allocation observations for the migrated probe paths.
@@ -56,4 +58,22 @@ func TestEmissionProbeAllocations(t *testing.T) {
 		})
 		fmt.Printf("queued-MTU allocs=%g\n", allocs)
 	})
+	t.Run("path-replacement", func(t *testing.T) {
+		c := newEmissionTestConnection(t, false).conn
+		c.peerParams = &wire.TransportParameters{}
+		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
+		raw := NewMockRawConn(gomock.NewController(t))
+		raw.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}).AnyTimes()
+		tr := &Transport{conn: raw}
+		q := c.sendQueue
+		go func() { require.NoError(t, q.Run()) }()
+		now := monotime.Now()
+		allocs := testing.AllocsPerRun(1000, func() {
+			now = now.Add(time.Second)
+			c.switchToNewPath(tr, now)
+		})
+		c.sendQueue.Close()
+		fmt.Printf("path-replacement allocs=%g\n", allocs)
+	})
+
 }
