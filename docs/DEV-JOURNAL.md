@@ -407,3 +407,16 @@ The independent pre-commit slice audit passed. RAS review `20260908T173827-1f8fe
 ### Next
 
 At this entry, C1 is the scoped frontier and C2 is blocked by C1; T1 is independent. [Tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns live progress. Dispatch is the operator's decision through `$implement-architecture-slice` in a fresh context. No implementation or performance campaign was launched, and the other tracks and completed Track E retain their existing contracts.
+
+---
+
+## Connection pacing fixture diagnosis completed - 2026-09-08 15:26 EDT
+
+**Main:** `a5c7ec43b7e3`
+**Actor:** Codex
+
+[PR #116](https://github.com/the-sarge/quic-go-fast/pull/116) closed [issue #103](https://github.com/the-sarge/quic-go-fast/issues/103). The missing 50 ms packet-pacing interval came from the connection test's call-ordered recovery allowance: DATAGRAM admission and the explicit scheduling call could produce separate wakeups at the same controlled time, consuming the next `SendAny` too early. The fixture now uses sent count and fixed deadlines, preserves the exact two-immediate/third-after-50-ms guarantee and final pacing wakeup, and covers the competing wakeup order. Production pacing, APIs, and architecture contracts are unchanged.
+
+The separate teardown defect is corrected by deferring destruction inside the synctest bubble, asserting send counts on the test goroutine, and collecting completion without blocking after destruction. The old-allowance regression now fails cleanly in both forced-wakeup scenarios; controlled early exit also drains the connection with a live timer and queued data. The [diagnostic record](audits/pacing-ci-103/README.md) retains the baseline source, Linux environment differences, bounded failure counts, deterministic 5/5 reproduction, and red/green evidence.
+
+Reviewed head `4afc62b13a46300931f24633ee9c886f31e269cc` passed the full local suite, vet, module-tidy check, lint, focused race checks, 10,000 pacing repetitions on both Linux/amd64 and macOS/arm64, and all 33 hosted checks. Independent Standards and Spec reviews were clean. Initial RAS review `20260908T185254-2f998620c5bce16804ca91af` led to the bounded teardown and coverage corrections; exact-head verification resolved those findings. Replacement review `20260908T191846-5664579bbc888d7588944405` found no issues or follow-ups. The [final local receipt](https://github.com/the-sarge/quic-go-fast/pull/116#issuecomment-5590423887), [finding dispositions](https://github.com/the-sarge/quic-go-fast/pull/116#issuecomment-5590404063), and [merge receipt](https://github.com/the-sarge/quic-go-fast/pull/116#issuecomment-5590608427) preserve certification and review history. The prior journal CI failures remain historical failures; this correction was separately certified and merged.
