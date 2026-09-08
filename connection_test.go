@@ -1957,7 +1957,12 @@ func TestConnectionPacketPacing(t *testing.T) {
 				defer func() {
 					tc.conn.destroy(nil)
 					synctest.Wait()
-					require.NoError(t, <-errChan)
+					select {
+					case err := <-errChan:
+						require.NoError(t, err)
+					default:
+						t.Error("connection run loop did not return")
+					}
 				}()
 				go func() { errChan <- tc.conn.run() }()
 				if test.wakeWhilePaced {
