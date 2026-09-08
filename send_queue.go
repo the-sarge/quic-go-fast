@@ -105,6 +105,8 @@ func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, meta
 	}
 }
 
+// SendProbe borrows storage for one synchronous best-effort write.
+// The emission caller releases it after this method returns.
 func (h *sendQueue) SendProbe(p *packetBuffer, addr net.Addr, info packetInfo) {
 	h.conn.WriteTo(p.Data, addr, info)
 }

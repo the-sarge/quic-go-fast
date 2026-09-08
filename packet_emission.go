@@ -2,15 +2,17 @@ package quic
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/qlog"
 )
 
-// packetEmission owns ordinary/GSO, handshake, ACK and PTO construction,
-// registration and queue transfer. Typed slots borrow the single path state;
-// probes and close retain their bounded connection-owned paths.
+// packetEmission owns ordinary/GSO, handshake, ACK, PTO and probe construction,
+// registration, direct disposal and queue handoff. Typed slots borrow one path;
+// close retains its bounded connection-owned path.
 type packetEmission struct {
 	packer   *packer
 	recovery *ackhandler.SentPacketHandler
@@ -18,12 +20,14 @@ type packetEmission struct {
 	version  protocol.Version
 
 	policy emissionPolicy
+	conn   *sendConn
 }
 
 // This interface exposes only the synchronous connection-owned policy effects.
 // Binding the receiver once avoids allocating one method-value closure per hook.
 type emissionPolicy interface {
 	maxPacketSize() protocol.ByteCount
+	logPathProbe(shortHeaderPacket, net.Addr, protocol.ByteCount, qlog.DatagramPayloadChecksum)
 	logShortHeaderPacket(shortHeaderPacket, protocol.ECN, protocol.ByteCount)
 	noteEmissionActivity(shortHeaderPacket, monotime.Time)
 	noteEmissionRegistration()
@@ -397,4 +401,62 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 	}
 	e.policy.noteEmissionRegistration()
 	(*e.queue).Send(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
+}
+
+// Direct operations borrow the destination and preserve best-effort write errors.
+// Storage belongs to emission until the synchronous write has returned.
+func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
+	p, buf, err := (*e.packer).PackPathProbePacket(connID, frames, e.version)
+	if err != nil {
+		return err
+	}
+	defer buf.Release()
+	e.policy.logPathProbe(p, addr, buf.Len(), checksum)
+	e.registerPacket(p, protocol.ECNNon, now)
+	(*e.queue).SendProbe(buf, addr, info)
+	return nil
+}
+
+func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {
+	p, buf, err := (*e.packer).PackPathProbePacket(connID, []ackhandler.Frame{frame}, e.version)
+	if err != nil {
+		return err
+	}
+	defer buf.Release()
+	e.policy.logPathProbe(p, nil, buf.Len(), 0)
+	e.registerPacket(p, protocol.ECNNon, now)
+	tr.WriteTo(buf.Data, addr)
+	return nil
+}
+
+func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emissionResult {
+	if (*e.queue).WouldBlock() {
+		return emissionResult{stop: emissionQueueFull, available: (*e.queue).Available()}
+	}
+	ping, size := finder.GetPing(now)
+	p, buf, err := (*e.packer).PackMTUProbePacket(ping, size, e.version)
+	if err != nil {
+		return legacyEmission(err)
+	}
+	ecn := (*e.recovery).ECNMode(true)
+	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
+	e.registerPacket(p, ecn, now)
+	(*e.queue).Send(buf, 0, ecn, sendMetadata{})
+	return emissionResult{progress: true, stop: emissionLegacy}
+}
+
+// The connection still starts workers and owns failure/lifecycle policy. Join
+// the previous worker before publishing the replacement to the emission slot.
+func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedback) sender {
+	*e.conn = conn
+	(*e.queue).Close()
+	queue := newSendQueue(conn, feedback)
+	*e.queue = queue
+	return queue
+}
+
+// In-place rebinding deliberately retains the active queue: pending writes use
+// the destination current at their syscall, as before.
+func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
+	(*e.conn).ChangeRemoteAddr(addr, info)
 }

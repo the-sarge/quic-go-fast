@@ -934,11 +934,10 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 		maxPacketSize = c.peerParams.MaxUDPPayloadSize
 	}
 	c.mtuDiscoverer.Reset(now, initialPacketSize, maxPacketSize)
-	c.conn = newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
-	c.sendQueue.Close()
-	c.sendQueue = newSendQueue(c.conn, &c.handshakeSendFeedback)
+	conn := newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
+	queue := c.emission.replacePath(conn, &c.handshakeSendFeedback)
 	go func() {
-		if err := c.sendQueue.Run(); err != nil {
+		if err := queue.Run(); err != nil {
 			c.destroyImpl(err)
 		}
 	}()
@@ -1289,14 +1288,9 @@ func (c *Conn) handleShortHeaderPacket(
 	}
 	destConnID, frames, shouldSwitchPath := c.pathManager.HandlePacket(p.remoteAddr, p.rcvTime, pathChallenge, isNonProbing)
 	if len(frames) > 0 {
-		probe, buf, err := c.packer.PackPathProbePacket(destConnID, frames, c.version)
-		if err != nil {
+		if err := c.emission.serverProbe(destConnID, frames, p.remoteAddr, p.info, datagramPayloadChecksum, p.rcvTime); err != nil {
 			return true, err
 		}
-		c.logger.Debugf("sending path probe packet to %s", p.remoteAddr)
-		c.logShortHeaderPacketWithDatagramPayloadChecksum(probe, protocol.ECNNon, buf.Len(), false, datagramPayloadChecksum)
-		c.registerPackedShortHeaderPacket(probe, protocol.ECNNon, p.rcvTime)
-		c.sendQueue.SendProbe(buf, p.remoteAddr, p.info)
 	}
 	// We only switch paths in response to the highest-numbered non-probing packet,
 	// see section 9.3 of RFC 9000.
@@ -1315,7 +1309,7 @@ func (c *Conn) handleShortHeaderPacket(
 		maxPacketSize,
 	)
 	c.pathGeneration++
-	c.conn.ChangeRemoteAddr(p.remoteAddr, p.info)
+	c.emission.rebindPath(p.remoteAddr, p.info)
 	return true, nil
 }
 
@@ -2519,14 +2513,9 @@ func (c *Conn) emitPackets(now monotime.Time) emissionResult {
 		if pm := c.pathManagerOutgoing.Load(); pm != nil {
 			connID, frame, tr, ok := pm.NextPathToProbe()
 			if ok {
-				probe, buf, err := c.packer.PackPathProbePacket(connID, []ackhandler.Frame{frame}, c.version)
-				if err != nil {
+				if err := c.emission.clientProbe(connID, frame, tr, c.conn.RemoteAddr(), now); err != nil {
 					return legacyEmission(err)
 				}
-				c.logger.Debugf("sending path probe packet from %s", c.LocalAddr())
-				c.logShortHeaderPacket(probe, protocol.ECNNon, buf.Len())
-				c.registerPackedShortHeaderPacket(probe, protocol.ECNNon, now)
-				tr.WriteTo(buf.Data, c.conn.RemoteAddr())
 				// There's (likely) more data to send. Loop around again.
 				c.scheduleSending()
 				return legacyEmission(nil)
@@ -2539,18 +2528,11 @@ func (c *Conn) emitPackets(now monotime.Time) emissionResult {
 	// Performance-wise, this doesn't matter, since we only send a very small (<10) number of
 	// MTU probe packets per connection.
 	if c.handshakeConfirmed && c.mtuDiscoverer != nil && c.mtuDiscoverer.ShouldSendProbe(now) {
-		ping, size := c.mtuDiscoverer.GetPing(now)
-		p, buf, err := c.packer.PackMTUProbePacket(ping, size, c.version)
-		if err != nil {
-			return legacyEmission(err)
+		result := c.emission.mtuProbe(c.mtuDiscoverer, now)
+		if result.progress {
+			c.scheduleSending()
 		}
-		ecn := c.sentPacketHandler.ECNMode(true)
-		c.logShortHeaderPacket(p, ecn, buf.Len())
-		c.registerPackedShortHeaderPacket(p, ecn, now)
-		c.sendQueue.Send(buf, 0, ecn, sendMetadata{})
-		// There's (likely) more data to send. Loop around again.
-		c.scheduleSending()
-		return legacyEmission(nil)
+		return result
 	}
 
 	if offset := c.connFlowController.GetWindowUpdate(now); offset > 0 {
@@ -2588,6 +2570,7 @@ func (c *Conn) bindPacketEmission() {
 		queue:    &c.sendQueue,
 		version:  c.version,
 		policy:   c,
+		conn:     &c.conn,
 	}
 }
 
@@ -2626,9 +2609,14 @@ func (c *Conn) emissionReceivePending() bool {
 	return !c.receivedPackets.Empty()
 }
 
-// Legacy probe paths borrow emission's registration owner until E5.
-func (c *Conn) registerPackedShortHeaderPacket(p shortHeaderPacket, ecn protocol.ECN, now monotime.Time) {
-	c.emission.registerPacket(p, ecn, now)
+func (c *Conn) logPathProbe(p shortHeaderPacket, addr net.Addr, size protocol.ByteCount, checksum qlog.DatagramPayloadChecksum) {
+	if addr == nil {
+		c.logger.Debugf("sending path probe packet from %s", c.LocalAddr())
+		c.logShortHeaderPacket(p, protocol.ECNNon, size)
+		return
+	}
+	c.logger.Debugf("sending path probe packet to %s", addr)
+	c.logShortHeaderPacketWithDatagramPayloadChecksum(p, protocol.ECNNon, size, false, checksum)
 }
 
 func (c *Conn) sendConnectionClose(e error) ([]byte, error) {

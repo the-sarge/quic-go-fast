@@ -811,6 +811,7 @@ func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.B
 	buffer := getPacketBuffer()
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
+		buffer.Release()
 		return shortHeaderPacket{}, nil, err
 	}
 	connID := p.getDestConnID()
@@ -818,7 +819,11 @@ func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.B
 	padding := size - p.shortHeaderPacketLength(connID, pnLen, pl) - protocol.ByteCount(s.Overhead())
 	kp := s.KeyPhase()
 	packet, err := p.appendShortHeaderPacket(buffer, connID, pn, pnLen, kp, pl, padding, size, s, true, v)
-	return packet, buffer, err
+	if err != nil {
+		buffer.Release()
+		return shortHeaderPacket{}, nil, err
+	}
+	return packet, buffer, nil
 }
 
 func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
@@ -826,6 +831,7 @@ func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames 
 	buf := getPacketBuffer()
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
+		buf.Release()
 		return shortHeaderPacket{}, nil, err
 	}
 	var l protocol.ByteCount
@@ -839,6 +845,7 @@ func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames 
 	padding := protocol.MinInitialPacketSize - p.shortHeaderPacketLength(connID, pnLen, payload) - protocol.ByteCount(s.Overhead())
 	packet, err := p.appendShortHeaderPacket(buf, connID, pn, pnLen, s.KeyPhase(), payload, padding, protocol.MinInitialPacketSize, s, false, v)
 	if err != nil {
+		buf.Release()
 		return shortHeaderPacket{}, nil, err
 	}
 	packet.IsPathProbePacket = true
