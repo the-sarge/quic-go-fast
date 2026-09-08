@@ -92,6 +92,32 @@ func TestHandshake(t *testing.T) {
 			serverConn, err := server.Accept(ctx)
 			require.NoError(t, err)
 			defer serverConn.CloseWithError(0, "")
+			require.Equal(t, version, conn.ConnectionState().Version)
+			require.Equal(t, version, serverConn.ConnectionState().Version)
+		})
+	}
+}
+
+func TestHandshakeExplicitVersions(t *testing.T) {
+	for _, v := range []quic.Version{quic.Version1, quic.Version2} {
+		t.Run(v.String(), func(t *testing.T) {
+			// Explicit versions override the suite flag for version-negotiation tests.
+			conf := &quic.Config{Versions: []quic.Version{v}}
+			server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(conf))
+			require.NoError(t, err)
+			defer server.Close()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			conn, err := quic.Dial(ctx, newUDPConnLocalhost(t), server.Addr(), getTLSClientConfig(), getQuicConfig(conf))
+			require.NoError(t, err)
+			defer conn.CloseWithError(0, "")
+
+			serverConn, err := server.Accept(ctx)
+			require.NoError(t, err)
+			defer serverConn.CloseWithError(0, "")
+			require.Equal(t, v, conn.ConnectionState().Version)
+			require.Equal(t, v, serverConn.ConnectionState().Version)
 		})
 	}
 }

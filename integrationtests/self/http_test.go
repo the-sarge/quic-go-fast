@@ -597,6 +597,7 @@ func TestHTTPServerIdleTimeout(t *testing.T) {
 	connChan := make(chan *quic.Conn, 1)
 	tr := &http3.Transport{
 		TLSClientConfig: getTLSClientConfigWithoutServerName(),
+		QUICConfig:      getQuicConfig(nil),
 		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 			conn, err := quic.DialAddrEarly(ctx, addr, tlsCfg, cfg)
 			connChan <- conn
@@ -638,6 +639,7 @@ func TestHTTPReestablishConnectionAfterDialError(t *testing.T) {
 	cl := http.Client{
 		Transport: &http3.Transport{
 			TLSClientConfig: getTLSClientConfig(),
+			QUICConfig:      getQuicConfig(nil),
 			Dial: func(ctx context.Context, addr string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
 				dialCounter++
 				if dialCounter == 1 { // make the first dial fail
@@ -1299,6 +1301,7 @@ func testHTTPRequestAfterGracefulShutdown(t *testing.T, setGetBody bool) {
 	var dialCount int
 	tr := &http3.Transport{
 		TLSClientConfig: tlsConf,
+		QUICConfig:      getQuicConfig(nil),
 		Dial: func(ctx context.Context, a string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
 			addr, err := net.ResolveUDPAddr("udp", a)
 			if err != nil {
