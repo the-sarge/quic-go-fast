@@ -1,6 +1,6 @@
 # E6 close emission and final contraction
 
-This receipt records E6's close-storage correction and the final packet-emission wiring change against parent `805e86c643abc8f1fbccd6ff9759cafaf5cc5402`. The normative contract remains [E6 in the packet-emission plan](../../adr/2026-09-07-packet-emission-plan.md#e6--own-close-emission-and-retire-the-legacy-seam). **Disposition: qualification not established; no runtime adoption or merge.** Both permitted campaigns are consumed. E6 requires an operator decision through `$architecture-handoff` before further implementation/qualification dispatch.
+This receipt records E6's close-storage correction and the final packet-emission wiring change against parent `805e86c643abc8f1fbccd6ff9759cafaf5cc5402`. The normative contract remains [E6 in the packet-emission plan](../../adr/2026-09-07-packet-emission-plan.md#e6--own-close-emission-and-retire-the-legacy-seam). **Disposition: complete under the owner’s explicit continuation decision; final performance qualification remains unestablished.** Both permitted campaigns are consumed. After the failed qualification and stop report, the owner instructed “no. implement E6 and stop fucking around”, authorizing completion of the retained implementation with that uncertainty recorded. The E6 section of the plan owns this exception; correctness, ownership, review and exact-head hosted gates remain required.
 
 ## Ownership and source map
 
@@ -33,7 +33,7 @@ The sole permitted replacement tests an in-contract, behavior-preserving revisio
 
 ## Replacement qualification
 
-The first replacement allocation precheck failed on the unchanged parent because its fixture repeatedly constructed close packets on one connection. The corrected fixture prepares 1001 independent connections outside measurement, then consumes one close per connection (one warmup plus 1000 measured observations), preserving real packer/recovery behavior and adding no close registration. That precheck and its correction are retained; no replacement benchmark or traffic samples preceded the correction. The replacement budget has been assigned and must not be renewed. Exact source, binary, fixture, host, raw-sample, analysis and restoration records are retained in the campaign archives. Review, final certification, hosted verification and adoption remain pending until the declared gates succeed.
+The first replacement allocation precheck failed on the unchanged parent because its fixture repeatedly constructed close packets on one connection. The corrected fixture prepares 1001 independent connections outside measurement, then consumes one close per connection (one warmup plus 1000 measured observations), preserving real packer/recovery behavior and adding no close registration. That precheck and its correction are retained; no replacement benchmark or traffic samples preceded the correction. The replacement budget has been assigned and must not be renewed. Exact source, binary, fixture, host, raw-sample, analysis and restoration records are retained in the campaign archives. Review, final correctness certification and hosted verification remain separate from these performance observations; adoption follows the explicit E6 continuation decision.
 
 The corrected cold-close observation is 63 allocations on the parent versus 62 on the candidate for a 27-byte serialized payload. Ordinary/GSO allocations remain 37/104. These are example-level observations with test-boundary overhead; they do not claim that every close serializes to that length.
 
@@ -43,7 +43,7 @@ P1 completes all ten valid alternating pairs but fails the unchanged successful-
 
 The remaining traffic collection was stopped at the failed required P1 gate. P3/P4/P5/P6 remain unqualified; all completed or interrupted samples are retained. The systemd launcher returned zero when its service was intentionally stopped, which is not a completed-campaign receipt: the missing required pairs and explicit disposition control acceptance. Final restoration checks confirm empty machine/system/user CPU restrictions, no reservation marker, and an inactive restoration timer.
 
-No further statistical sampling, third campaign, changed margin or uncertainty waiver is authorized by this execution. No RAS review, PR publication, exact pushed-head certification, merge or journal was performed. All prerequisite product work remains retained. The implementation branch and this receipt are preserved for the required decision; the normative completion/frontier surfaces are intentionally unchanged because E6 has not merged.
+At the campaign stop, no RAS review, PR publication, exact pushed-head certification, merge or journal had been performed. The owner subsequently directed completion of E6, accepting the reported qualification uncertainty without further sampling or changed margins. This product PR owns the resulting completion and empty-frontier transition; its PR discussion records review and final certification receipts. The failed P1 latency result remains unresolved, and the unmeasured traffic cells remain unqualified. No causal attribution or performance pass is claimed.
 
 ## Artifact integrity
 
