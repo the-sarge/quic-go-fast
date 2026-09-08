@@ -1,6 +1,6 @@
 # Architecture Deepening Program — 2026-09-08
 
-**Identity:** QGF-AD-2026-09. **Status:** Accepted contracts; implementation undispatched. **Normative scope:** Stable track identity, cross-track edges, accepted no-code outcomes and binding rules. Each exact plan slice owns the implementation contract. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md).
+**Identity:** QGF-AD-2026-09. **Status:** Accepted contracts; implementation undispatched. **Normative scope:** Stable track identity, cross-track edges, accepted no-code outcomes and binding rules. Each exact plan slice owns the implementation contract. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md); [scoped construction addition](../audits/2026-09-08-emission-construction/README.md).
 
 ## Tracks, dependencies and frontier
 
@@ -10,21 +10,22 @@
 | I | Incoming packet-buffer lifetime | [I plan](2026-09-08-incoming-lifetime-plan.md) | pending | I1–I8 | I2 requires I1; I4 requires I3; I8 requires I2 and I5 |
 | P | Published module payload | [P plan](2026-09-08-module-payload-plan.md) | pending | P1 | None |
 | T | Maintained emission test entrypoints | [T plan](2026-09-08-emission-entrypoint-tests-plan.md) | pending | T1 | None |
+| C | Complete initial packet-emission assembly | [C plan](2026-09-08-emission-construction-plan.md) | pending | C1, C2 | C2 requires C1 |
 
-The initial implementation frontier is H1, H2, I1, I3, I5, I6, I7, P1 and T1. I2, I4 and I8 are blocked as shown. These are twelve intended PRs and twelve fresh implementation contexts. H1 reuses existing issue #68; issue links pending in this index are resolved by the program tracker after publication and need not be backfilled into another authoritative plan commit.
+The initial implementation frontier is H1, H2, I1, I3, I5, I6, I7, P1, T1 and C1. I2, I4, I8 and C2 are blocked as shown. These are fourteen intended PRs and fourteen fresh implementation contexts. H1 reuses existing issue #68; issue links pending in this index are resolved by the program tracker after publication and need not be backfilled into another authoritative plan commit.
 
-Recommended priority is H1, then H2 and the I1 → I2 path, followed by the other I owners and I8 when its blockers finish. P1 can run in parallel because it changes distribution rather than runtime. T1 follows correctness by preference and should precede any future construction/readiness refactor. There are no cross-track technical blockers. H1/H2 share transport code; I slices share connection/server/transport files; T1 and existing #73 touch nearby tests. Use separate worktrees and serialize shared-file integration/revalidation; shared filenames alone are not dependency edges.
+Recommended priority is H1, then H2 and the I1 → I2 path, followed by the other I owners and I8 when its blockers finish. P1 can run in parallel because it changes distribution rather than runtime. T1 and C follow correctness by preference. C1 supplies the specific constructor-owned coverage required by C2; broad T1 migration does not technically block C. Future readiness changes need their own evidence decision. There are no cross-track technical blockers. H1/H2 share transport code; I slices share connection/server/transport files; T1 and existing #73 touch nearby tests; C shares connection.go with I and constructor fixtures with T. Keep path/early-error changes in their current tracks and revalidate constructor ordering when integrating. Use separate worktrees and serialize shared-file integration/revalidation; shared filenames alone are not dependency edges.
 
 ## Outcomes closed with no code
 
 - Active-path/packet-size coordination (C-011/C-017) is deferred. Different client/server ordering is not a demonstrated race; path generation, effective initial size, discovery state, application estimate and congestion accounting remain distinct connection-owned facts. Reopen only for a concrete transition defect or material new duplication.
-- Emission construction/path binding (construction C-007, C-021/C-028) is deferred. Intermediate construction is not shown to be observed by the worker; recovery pointer bindings are load-bearing in tests, and shared send-path references do not imply competing policy owners. A future small constructor helper must justify itself independently.
+- Broad emission path binding (C-021 and the path member of C-007) remains deferred. Shared references do not imply competing policy owners. The narrower construction member of C-007/C-028 is reopened only as C1/C2: preserve recovery/path bindings and replace staged initial assembly. No initialization race or performance gain is claimed.
 - Send-readiness consolidation (C-020 and outcome C-007) is deferred. result.available is live and the blocked projection depends on progress/context, not only stop reason. Preserve pre-packing capacity ordering; no sealed result algebra or new performance campaign is scheduled.
 - Broad receive modules, new HTTP/3 pool frameworks and moving audit evidence to a new service are rejected. The retained plans capture the narrower useful outcomes and explicit rejected directions.
 
 ## Existing work and stable boundaries
 
-H1 updates #68 rather than duplicating it and moves its existing OmniFocus task under the H track. Original audit provenance is retained in the handoff receipt. No open implementation PR or partial implementation was found for these tracks; source at the inspected default branch is the baseline, not an unmerged branch. This is a new program, not a rebaseline of the completed packet-emission program or the unrelated code-smell audit. Existing #67, #71–#84 (except the H1 contract of #68), #18, #44 and #46 retain their separate scopes and identities. In particular #73/#72 helper work and #67 pre-stream SETTINGS cancellation are not silently absorbed.
+H1 updates #68 rather than duplicating it and moves its existing OmniFocus task under the H track. Original audit provenance is retained in the handoff receipt. No open implementation PR or partial implementation was found for these tracks; source at the inspected default branch is the baseline, not an unmerged branch. The C addition is scoped to this existing program, not a rebaseline of the completed packet-emission program or the unrelated code-smell audit. H/I/P/T contracts remain intact; C adds two new slices with no cross-track technical blockers. No new domain vocabulary or ADR reversal is required. Existing #67, #71–#84 (except the H1 contract of #68), #18, #44 and #46 retain their separate scopes and identities. In particular #73/#72 helper work and #67 pre-stream SETTINGS cancellation are not silently absorbed.
 
 ## Rules that bind every track
 
