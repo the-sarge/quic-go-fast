@@ -71,6 +71,51 @@ func TestSendConnDetectGSOFailure(t *testing.T) {
 	require.False(t, c.capabilities().GSO)
 }
 
+// Avoid mock-controller synchronization between socket writes and capability reads:
+// the test must exercise the synchronization provided by sconn itself.
+type gsoFallbackRawConn struct {
+	rawConn
+}
+
+func (*gsoFallbackRawConn) LocalAddr() net.Addr { return &net.UDPAddr{} }
+
+func (*gsoFallbackRawConn) capabilities() connCapabilities {
+	return connCapabilities{GSO: true, ECN: true, DF: true}
+}
+
+func (*gsoFallbackRawConn) WritePacket(p []byte, _ net.Addr, _ []byte, gsoSize uint16, _ protocol.ECN) (int, error) {
+	if gsoSize != 0 {
+		return 0, errGSO
+	}
+	return len(p), nil
+}
+
+func TestSendConnGSOFallbackConcurrentCapabilities(t *testing.T) {
+	if !platformSupportsGSO {
+		t.Skip("GSO is not supported on this platform")
+	}
+
+	c := newSendConn(&gsoFallbackRawConn{}, &net.UDPAddr{}, packetInfo{}, utils.DefaultLogger)
+	require.Equal(t, connCapabilities{GSO: true, ECN: true, DF: true}, c.capabilities())
+	start := make(chan struct{})
+	readDone := make(chan connCapabilities, 1)
+	go func() {
+		<-start
+		var caps connCapabilities
+		for range 1000 {
+			caps = c.capabilities()
+		}
+		readDone <- caps
+	}()
+	close(start)
+	err := c.Write([]byte("foobar"), 4, protocol.ECNCE)
+	caps := <-readDone
+	require.NoError(t, err)
+	require.True(t, caps.ECN)
+	require.True(t, caps.DF)
+	require.Equal(t, connCapabilities{GSO: false, ECN: true, DF: true}, c.capabilities())
+}
+
 func TestSendConnSendmsgFailures(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("only Linux exhibits this bug, we don't need to work around it on other platforms")
