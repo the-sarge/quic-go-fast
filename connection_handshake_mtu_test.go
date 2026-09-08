@@ -113,14 +113,23 @@ func TestHandshakeMTUFallbackCongestionGrowth(t *testing.T) {
 
 func TestHandshakeMTUFallbackBeforePacking(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	sph := mockackhandler.NewMockSentPacketHandler(ctrl)
-	tc := newClientTestConnection(t, ctrl, &Config{InitialPacketSize: 1452}, false, connectionOptSentPacketHandler(sph))
-	tc.conn.pacingDeadline = deadlineSendImmediately
-	tc.conn.handshakeSendFeedback.publish(0)
-	sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAck)
-	sph.EXPECT().ECNMode(false).Return(protocol.ECNNon)
-	tc.packer.EXPECT().PackCoalescedPacket(true, protocol.ByteCount(1200), gomock.Any(), protocol.Version1).Return(nil, nil)
-	require.NoError(t, tc.conn.triggerSending(monotime.Now()).err)
+	tc := newClientTestConnection(t, ctrl, &Config{InitialPacketSize: 1452}, false)
+	useLifecyclePacketPacker(t, ctrl, tc)
+	c := tc.conn
+	now := monotime.Now()
+	require.NoError(t, c.receivedPacketHandler.ReceivedPacket(4, protocol.ECNNon, protocol.EncryptionInitial, now, true))
+	c.sentPacketHandler = emissionRecoveryOutcome{SentPacketHandler: c.sentPacketHandler, mode: ackhandler.SendAck}
+	c.handshakeSendFeedback.publish(c.pathGeneration)
+	c.pacingDeadline = deadlineSendImmediately
+	require.NoError(t, c.triggerSending(now).err)
+	q := c.sendQueue.(*sendQueue)
+	require.Len(t, q.queue, 1)
+	entry := <-q.queue
+	defer entry.buf.Release()
+	require.Len(t, entry.buf.Data, 1200, "eligible feedback reduces the budget before construction")
+	hdrs, _ := parsePacket(t, entry.buf.Data)
+	require.Len(t, hdrs, 1)
+	require.Equal(t, protocol.PacketTypeInitial, hdrs[0].Type)
 }
 
 func TestHandshakeMTUFallbackSendClassification(t *testing.T) {
