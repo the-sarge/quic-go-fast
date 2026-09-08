@@ -21,9 +21,9 @@ The plan's fifth and sixth closure rows are covered by these bounded regressions
 
 ## Validation and measurement binding
 
-The runtime candidate is recorded in the product PR and the capture source manifest. Local full uncached tests, focused ownership/path/feedback race checks, vet, golangci-lint and gcassert passed. The opt-in allocation fixture initially omitted packet registration and tripped recovery's sequential-number assertion; it was corrected before qualification and is not a runtime failure. The paired base/candidate fixture includes real registration and ACK processing.
+The final runtime candidate is `b88e7763b7d2afe6308e01df8b42edfe53e8c32a`, compared with parent `d9c6fc17c7b953d6bef8650b647f3f440b50feb5`. Local full uncached tests, focused ownership/path/feedback race checks, vet, golangci-lint and gcassert passed. The opt-in allocation fixture initially omitted packet registration and tripped recovery's sequential-number assertion; it was corrected before qualification and is not a runtime failure. The paired base/candidate fixture includes real registration and ACK processing.
 
-E5 requires P3 and focused probe/path allocations on the same native Linux toolchain, plus the existing ordinary/GSO allocation observations. The initial campaign uses ten alternating base/candidate pairs and the unchanged plan thresholds. The capture retains source/toolchain/binary hashes, payload/probe ledgers and CPU-isolation/restoration receipts. Performance results and exact-head local/hosted certification are required before merge; final results are recorded here or in the linked product PR discussion.
+E5 requires P3 and focused probe/path allocations on the same native Linux toolchain, plus the existing ordinary/GSO allocation observations. The initial campaign uses ten alternating base/candidate pairs and the unchanged plan thresholds. The capture retains source/toolchain/binary hashes, payload/probe ledgers and CPU-isolation/restoration receipts. Both performance campaigns are recorded below. Final exact-head local/hosted certification remains in the linked product PR discussion, separate from plan and mirror state.
 
 
 ## Initial qualification and revision
@@ -36,6 +36,31 @@ Identical-source focused observations show no added allocations: ordinary/GSO ba
 
 The complete [initial archive](initial-capture.tar.gz), SHA-256 `959a9fe3f020efc049d9b29bcea21a0b864cfac0192573f8d25b1dcb70fb7098`, retains raw ledgers, manifests, build logs, scripts, allocation observations, compiled-path diagnosis and restoration receipts. P3 uses four physical cores and GOMAXPROCS=4 per endpoint, active native GSO, QUIC v1, qlog off, 1071-byte DATAGRAMs at 4 Gbps, 2 s warmup, 60 s measurement and 1 s drain. Client/server cores are 8–11/12–15 with SMT siblings 24–31 reserved; controller and monitor use cores 0/1, and other work is restricted to 0–7 and 16–23. The qlog-on paired smoke is diagnostic. All phases restored CPU restrictions and removed their reservation/timer. The retained `build.py`, `phases.py`, `isolate.sh`, `collect.py` and `alloc.py` contain exact commands; the cold-path supplement uses `path-alloc.py`. Reproduce the fixed 20000-resample paired analysis with `python3 analyze.py <extracted campaign-01> --output summary.json`.
 
-Initial review C-003 identified a pure rebinding passthrough. The implementing agent accepted it against E5's removal of legacy path access and bound the existing authoritative send slot once in runtime revision `b88e7763`. The correction keeps path policy, the original connection-slot update sequence and worker lifetime intact, adds no shadow state and requires no contract re-audit. Other shape-only logging suggestions were rejected as unnecessary strengthening. Exact independent dispositions and review history remain in [PR #49](https://github.com/the-sarge/quic-go-fast/pull/49).
+Initial review C-003 identified a pure rebinding passthrough. The implementing agent accepted it against E5's removal of legacy path access and bound the existing authoritative send slot once in runtime revision `b88e7763b7d2afe6308e01df8b42edfe53e8c32a`. The correction keeps path policy, the original connection-slot update sequence and worker lifetime intact, adds no shadow state and requires no contract re-audit. Other shape-only logging suggestions were rejected as unnecessary strengthening. Exact independent dispositions and review history remain in [PR #49](https://github.com/the-sarge/quic-go-fast/pull/49).
 
 The compiled initial GSO loop retains its instruction count, with a changed policy-table load offset; the connection prelude is smaller. These observations establish no cause for the p99 miss. The one permitted replacement is declared for the in-contract active-slot revision, not a same-head rerun or discarded sample. It must retain the same workload, thresholds and sample budget, and its result is kept separate. The [source bundle](source-binding.bundle) retains the initial runtime, supplemental fixture and revised runtime against the parent. No third runtime campaign is authorized.
+
+
+## Replacement qualification
+
+The final runtime candidate `b88e7763b7d2afe6308e01df8b42edfe53e8c32a` passes the complete replacement P3 comparison against the same parent `d9c6fc17c7b953d6bef8650b647f3f440b50feb5`, on native Linux Go 1.27.1 with identical endpoint and focused-fixture sources. Native full uncached tests, focused races and vet passed before capture. The workload, core placement, toolchain, sample count, statistical method and thresholds are unchanged from the initial campaign.
+
+The [replacement summary](summary.json) reports ten valid pairs and passing bounds: goodput lower bound 0.997506, CPU/unit upper bound 1.002985, allocated bytes/unit upper bound 1.000953, probe p99 upper bound 1.026829 and bad-probe upper difference zero. Probe p99 geometric mean ratio is 0.994770. There were no invalid/duplicate payloads, failed or missed probes, or host-qualification failures. The result qualifies this finite comparison; it does not establish why the initial p99 comparison failed or attribute the difference solely to slot binding.
+
+Focused allocations remain 37/104 per ordinary/GSO batch, 32 per path construction/registration, 30 per queued MTU probe and 17 per cold path replacement on both variants. The candidate's bound send-slot pointer adds eight bytes to the connection value (1216 → 1224), with no new allocation. `testing.AllocsPerRun(1000)` temporarily uses one Go processor internally; these are allocation observations on a reserved four-core process placement, not endpoint latency measurements. P3 itself uses four Go processors per endpoint as declared.
+
+The [replacement archive](replacement-capture.tar.gz), SHA-256 `8f4861c6faa518f7626f63e4fd971dbf4f167a651b5ad6c813d87f16c647594d`, retains every raw pair, exact source/toolchain/environment/fixture/binary binding, allocation output, qlog smoke and restoration receipt. Each replacement phase restored machine/system/user CPU restrictions and removed its reservation and restoration timer. No samples were pooled across candidates, dropped or replaced. The initial and replacement campaigns exhaust E5's accepted qualification budget.
+
+The executed build/capture and analysis commands were:
+
+```sh
+python3 /home/josh/.cache/qgf-e5/build.py > /home/josh/.cache/qgf-e5/build.log 2>&1
+python3 /home/josh/.cache/qgf-e5/phases.py > /home/josh/.cache/qgf-e5/phases.log 2>&1
+python3 /home/josh/.cache/qgf-e5/path-alloc.py > /home/josh/.cache/qgf-e5/path-alloc.log 2>&1
+python3 /home/josh/.cache/qgf-e5/analyze-e4.py /home/josh/.cache/qgf-e5/campaign-01 --output /home/josh/.cache/qgf-e5/summary.json
+python3 /home/josh/.cache/qgf-e5-r2/build.py > /home/josh/.cache/qgf-e5-r2/build.log 2>&1
+python3 /home/josh/.cache/qgf-e5-r2/phases.py > /home/josh/.cache/qgf-e5-r2/phases.log 2>&1
+python3 /home/josh/.cache/qgf-e5-r2/analyze-e4.py /home/josh/.cache/qgf-e5-r2/campaign-01 --output /home/josh/.cache/qgf-e5-r2/summary.json
+```
+
+The scripts in each archive record the exact underlying build, test, CPU reservation and endpoint commands. Final metadata commits change neither the qualified runtime nor its measurement fixture. E5 has no deferred review follow-ups; retained close ownership and final interface contraction remain E6's work.
