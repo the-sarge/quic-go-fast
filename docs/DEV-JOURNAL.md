@@ -348,3 +348,28 @@ The owner directed completion after unsuccessful final performance qualification
 ### Next
 
 All nine packet-emission slices are complete in the merged plan and program index; #30 is closed. Finish this journal and reconcile the parent/OmniFocus completion state. The [program tracker #31](https://github.com/the-sarge/quic-go-fast/issues/31) remains the live tracking view; no successor slice is newly ready.
+
+---
+
+## Architecture improvement handoff published - 2026-09-08 13:06 EDT
+
+**Main:** `f43f8d65a43f`
+**Actor:** Codex
+
+### Completed
+
+Merged the audited architecture handoff in [PR #85](https://github.com/the-sarge/quic-go-fast/pull/85), publishing four normative track plans, the incoming packet-lifetime ADR, domain terms, and frozen supporting evidence. The [program index](adr/2026-09-08-architecture-deepening-program.md) retains HTTP/3 exchange lifetime, incoming packet-buffer lifetime, module payload reduction, and maintained emission entrypoint tests as twelve bounded implementation slices. No production implementation was performed or dispatched.
+
+Published four GitHub parent issues and twelve child issues, reusing #68 for H1, with exact merged plan commit references and four native blocking edges. [Program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns live progress and the current frontier.
+
+### Decisions
+
+The [HTTP/3 plan](adr/2026-09-08-http3-lifetime-plan.md) separates per-attempt usage from unread request-input ownership during supported retries and retains usage through active response/upload lifetime. The [incoming lifetime plan](adr/2026-09-08-incoming-lifetime-plan.md) gives non-QUIC queue publication one initialization owner and includes a bounded abort for failed unpublished Initial construction. Broader shutdown-lock restructuring, path/MTU coordination, emission construction, and readiness consolidation remain deferred as recorded in the program index.
+
+### Validation
+
+Three independent pre-commit slice audits passed. The bounded two-agent RAS review identified two distinct contract gaps; both were independently accepted, corrected, and passed scoped pre-commit re-audits. The shared cheap docs-only correction policy allowed skipping another RAS cycle. Final local certification covered documentation scope, tracked links, slice headings and graph, Markdown/JSON structure, whitespace, and clean worktree. All 33 inherited hosted checks passed on the exact reviewed-and-corrected candidate before guarded squash merge; the merged tree matched that candidate and the accepted plan commit was verified reachable on remote main.
+
+### Next
+
+At this entry, H1, H2, I1, I3, I5, I6, I7, P1, and T1 form the nine-slice frontier; I2, I4, and I8 await their named predecessors. Prefer H1 first; packaging can proceed independently. Implementation remains undispatched. Use [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) as the live view and the [OmniFocus program](omnifocus:///task/jTmzcx-2f8I) as its task-manager mirror.
