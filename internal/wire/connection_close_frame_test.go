@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/quicvarint"
 
 	"github.com/stretchr/testify/require"
 )
@@ -43,6 +44,49 @@ func TestParseConnectionCloseLongReasonPhrase(t *testing.T) {
 	data = append(data, encodeVarInt(0xffff)...) // reason phrase length
 	_, _, err := parseConnectionCloseFrame(data, FrameTypeConnectionClose, protocol.Version1)
 	require.Equal(t, io.EOF, err)
+}
+
+func TestParseConnectionCloseRejectsOversizedReasonPhrase(t *testing.T) {
+	for _, typ := range []FrameType{FrameTypeConnectionClose, FrameTypeApplicationClose} {
+		for _, length := range []uint64{1 << 31, 1 << 32, quicvarint.Max} {
+			data := encodeVarInt(0x19)
+			if typ == FrameTypeConnectionClose {
+				data = append(data, encodeVarInt(0x42)...)
+			}
+			data = append(data, encodeVarInt(length)...)
+			frame, n, err := parseConnectionCloseFrame(data, typ, protocol.Version1)
+			require.Equal(t, io.EOF, err, "type %d, reason length %d", typ, length)
+			require.Nil(t, frame)
+			require.Zero(t, n)
+		}
+	}
+}
+
+func TestParseConnectionCloseLeavesTrailingBytes(t *testing.T) {
+	for _, typ := range []FrameType{FrameTypeConnectionClose, FrameTypeApplicationClose} {
+		for _, reason := range []string{"", "closed"} {
+			data := encodeVarInt(0x19)
+			if typ == FrameTypeConnectionClose {
+				data = append(data, encodeVarInt(0x42)...)
+			}
+			data = append(data, encodeVarInt(uint64(len(reason)))...)
+			data = append(data, reason...)
+			frameLen := len(data)
+			data = append(data, 0xde, 0xad)
+			frame, n, err := parseConnectionCloseFrame(data, typ, protocol.Version1)
+			require.NoError(t, err)
+			require.Equal(t, typ == FrameTypeApplicationClose, frame.IsApplicationError)
+			require.EqualValues(t, 0x19, frame.ErrorCode)
+			if typ == FrameTypeConnectionClose {
+				require.EqualValues(t, 0x42, frame.FrameType)
+			} else {
+				require.Zero(t, frame.FrameType)
+			}
+			require.Equal(t, reason, frame.ReasonPhrase)
+			require.Equal(t, frameLen, n)
+			require.Equal(t, []byte{0xde, 0xad}, data[n:])
+		}
+	}
 }
 
 func TestParseConnectionCloseErrorsOnEOFs(t *testing.T) {

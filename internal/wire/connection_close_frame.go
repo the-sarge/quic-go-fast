@@ -39,7 +39,7 @@ func parseConnectionCloseFrame(b []byte, typ FrameType, _ protocol.Version) (*Co
 		return nil, 0, replaceUnexpectedEOF(err)
 	}
 	b = b[l:]
-	if int(reasonPhraseLen) > len(b) {
+	if reasonPhraseLen > uint64(len(b)) {
 		return nil, 0, io.EOF
 	}
 
