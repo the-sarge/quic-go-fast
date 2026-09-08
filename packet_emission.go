@@ -20,6 +20,7 @@ type packetEmission struct {
 	version  protocol.Version
 
 	policy emissionPolicy
+	conn   *sendConn
 }
 
 // This interface exposes only the synchronous connection-owned policy effects.
@@ -447,6 +448,7 @@ func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emission
 // The connection still starts workers and owns failure/lifecycle policy. Join
 // the previous worker before publishing the replacement to the emission slot.
 func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedback) sender {
+	*e.conn = conn
 	(*e.queue).Close()
 	queue := newSendQueue(conn, feedback)
 	*e.queue = queue
@@ -455,6 +457,6 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 
 // In-place rebinding deliberately retains the active queue: pending writes use
 // the destination current at their syscall, as before.
-func (e *packetEmission) rebindPath(conn sendConn, addr net.Addr, info packetInfo) {
-	conn.ChangeRemoteAddr(addr, info)
+func (e *packetEmission) rebindPath(addr net.Addr, info packetInfo) {
+	(*e.conn).ChangeRemoteAddr(addr, info)
 }

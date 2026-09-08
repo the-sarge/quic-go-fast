@@ -934,8 +934,8 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 		maxPacketSize = c.peerParams.MaxUDPPayloadSize
 	}
 	c.mtuDiscoverer.Reset(now, initialPacketSize, maxPacketSize)
-	c.conn = newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
-	queue := c.emission.replacePath(c.conn, &c.handshakeSendFeedback)
+	conn := newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
+	queue := c.emission.replacePath(conn, &c.handshakeSendFeedback)
 	go func() {
 		if err := queue.Run(); err != nil {
 			c.destroyImpl(err)
@@ -1309,7 +1309,7 @@ func (c *Conn) handleShortHeaderPacket(
 		maxPacketSize,
 	)
 	c.pathGeneration++
-	c.emission.rebindPath(c.conn, p.remoteAddr, p.info)
+	c.emission.rebindPath(p.remoteAddr, p.info)
 	return true, nil
 }
 
@@ -2570,6 +2570,7 @@ func (c *Conn) bindPacketEmission() {
 		queue:    &c.sendQueue,
 		version:  c.version,
 		policy:   c,
+		conn:     &c.conn,
 	}
 }
 

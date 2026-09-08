@@ -174,6 +174,7 @@ func TestEmissionPathReplacement(t *testing.T) {
 		require.NoError(t, <-worker)
 		newQueue := <-replaced
 		require.Same(t, newQueue, c.sendQueue)
+		require.Same(t, next, c.conn)
 		require.Zero(t, first.refCount)
 		require.Zero(t, second.refCount)
 		// The replacement remains connection-started and borrows the same feedback owner.
@@ -194,9 +195,10 @@ func TestEmissionPathRebinding(t *testing.T) {
 	conn := newSendConn(raw, oldAddr, packetInfo{}, c.logger)
 	q := newSendQueue(conn, &c.handshakeSendFeedback).(*sendQueue)
 	c.sendQueue = q
+	c.conn = conn
 	buf := getPacketWithContents([]byte("queued before rebinding"))
 	q.Send(buf, 0, protocol.ECNNon, sendMetadata{})
-	c.emission.rebindPath(conn, newAddr, packetInfo{})
+	c.emission.rebindPath(newAddr, packetInfo{})
 	require.Same(t, q, c.sendQueue)
 	raw.EXPECT().WritePacket(buf.Data, newAddr, gomock.Any(), uint16(0), protocol.ECNNon).Return(len(buf.Data), nil)
 	close(q.closeCalled)
