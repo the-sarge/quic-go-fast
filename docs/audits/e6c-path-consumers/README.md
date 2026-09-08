@@ -1,0 +1,15 @@
+# E6c connection-ID and path consumer preservation
+
+The E6c test-only migration retires the three assigned broad-packer consumers. Production Go, module and CI files remain byte-identical to the parent. The default mock and two close/error consumers remain for E6.
+
+| Consumer | Retained or replacement evidence |
+| --- | --- |
+| `testConnectionConnectionIDChanges` | Both Retry/no-Retry cases retain connection-ID state, received/dropped qlog events, refusal of the second server ID change and clean shutdown. Real Initial output shows the original destination and empty token, then the Retry destination and `foobar` token. Copied packet bytes keep parsed token storage independent of pool reuse. Empty coalesced callbacks retire in favor of real packing; the SetToken expectation becomes a decoded Initial observation. |
+| `testConnectionPathValidation` | Both PADDING/probing and PING/NAT-rebinding cases retain the connection run loop, real path manager, PATH_RESPONSE challenge matching, old/new response destinations, deferred versus immediate ChangeRemoteAddr decision and shutdown. The direct WriteTo decodes the real PATH_CHALLENGE and checks its destination ID/address. Ordinary output is decoded separately and excludes PATH_CHALLENGE. Empty AppendPacket expectations retire. `TestEmissionDirectProbe` retains matching direct-write storage-release and queue-bypass coverage; replacement/rebinding tests retain generation and queue handoff coverage. |
+| `testConnectionMigration` | Enabled/disabled migration and AddPath results remain. A real stateless reset still demonstrates transport initialization. A localhost receiver observes the actual alternate-transport probe, source address, new connection ID and decoded PATH_CHALLENGE, replacing the packer callback. Probe cancellation is joined before connection teardown. |
+
+The existing opt-in lifecycle/scheduling setup supplies transparent protection while packetPacker, recovery, connection/path managers and emission retain their real authority. No packet-construction stand-in, runtime hook or new state machine is introduced. The named scenarios have example-level behavioral evidence; source inspection checks the universal removal claim only over the finite three-function census. Closure is not triggered. No maintained verification aid, new platform sweep, repetition or performance capture is added.
+
+The original focused family passed before editing. The new Initial-output observation failed against the old empty-packer setup and passed after opting into real construction. Focused tests, the prescribed focused race run, full suite, vet, lint/gcassert and applicable inherited hosted checks form the finite evidence plan. Exact-head commands, review dispositions and hosted receipts belong in the PR discussion.
+
+On merge E6c is complete and E6 is the sole ready successor: E4, E5, E6a and E6b are already complete. No untraced runtime effects are admitted. Runtime byte identity discharges performance nonimpact; E6 retains its full qualification obligations.

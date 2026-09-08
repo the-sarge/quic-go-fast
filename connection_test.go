@@ -2876,22 +2876,43 @@ func testConnectionConnectionIDChanges(t *testing.T, sendRetry bool) {
 		newConnID := protocol.ParseConnectionID(b[:11])
 		newConnID2 := protocol.ParseConnectionID(b[11:20])
 
-		tc.packer.EXPECT().PackCoalescedPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		useLifecyclePacketPacker(t, mockCtrl, tc)
+
+		var initialHeaders []*wire.ExtendedHeader
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(data []byte, _ uint16, _ protocol.ECN) error {
+				headers, _ := parsePacket(t, bytes.Clone(data))
+				for _, hdr := range headers {
+					if hdr.Type == protocol.PacketTypeInitial {
+						initialHeaders = append(initialHeaders, hdr)
+					}
+				}
+				return nil
+			},
+		).AnyTimes()
 
 		errChan := make(chan error, 1)
 		go func() { errChan <- tc.conn.run() }()
 
 		require.Equal(t, dstConnID, tc.conn.connIDManager.Get())
 
+		synctest.Wait()
+		require.NotEmpty(t, initialHeaders)
+		require.Equal(t, dstConnID, initialHeaders[len(initialHeaders)-1].DestConnectionID)
+		require.Empty(t, initialHeaders[len(initialHeaders)-1].Token)
+
 		var retryConnID protocol.ConnectionID
 		if sendRetry {
 			retryConnID = protocol.ParseConnectionID(b[20:30])
-			tc.packer.EXPECT().SetToken([]byte("foobar"))
+			initialHeaders = nil
 
 			retry := getRetryPacket(t, retryConnID, tc.srcConnID, tc.destConnID, []byte("foobar"))
 			tc.conn.handlePacket(retry)
 
 			synctest.Wait()
+			require.NotEmpty(t, initialHeaders)
+			require.Equal(t, retryConnID, initialHeaders[len(initialHeaders)-1].DestConnectionID)
+			require.Equal(t, []byte("foobar"), initialHeaders[len(initialHeaders)-1].Token)
 
 			require.Equal(t,
 				[]qlogwriter.Event{
@@ -3067,6 +3088,16 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 			connectionOptHandshakeConfirmed(),
 			connectionOptRTT(time.Second),
 		)
+		useSchedulingPacketPacker(t, mockCtrl, tc, nil)
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(data []byte, _ uint16, _ protocol.ECN) error {
+				for _, frame := range schedulingFrames(t, tc, data) {
+					_, isChallenge := frame.(*wire.PathChallengeFrame)
+					require.False(t, isChallenge, "probes use the direct destination")
+				}
+				return nil
+			},
+		).AnyTimes()
 		require.NoError(t, tc.conn.handleTransportParameters(&wire.TransportParameters{MaxUDPPayloadSize: 1456}))
 
 		newRemoteAddr := &net.UDPAddr{IP: net.IPv4(192, 168, 1, 1), Port: 1234}
@@ -3077,7 +3108,6 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 
 		probeSent := make(chan struct{})
 		var pathChallenge *wire.PathChallengeFrame
-		var probeBuffer *packetBuffer
 		payload := []byte{0} // PADDING frame
 		if isNATRebinding {
 			payload = []byte{1} // PING frame
@@ -3086,18 +3116,16 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 			unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(
 				protocol.PacketNumber(10), protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil,
 			),
-			tc.packer.EXPECT().PackPathProbePacket(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-				func(_ protocol.ConnectionID, frames []ackhandler.Frame, _ protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-					pathChallenge = frames[0].Frame.(*wire.PathChallengeFrame)
-					probeBuffer = getPacketBuffer()
-					return shortHeaderPacket{IsPathProbePacket: true}, probeBuffer, nil
-				},
-			),
 			tc.sendConn.EXPECT().WriteTo(gomock.Any(), newRemoteAddr, packetInfo{}).DoAndReturn(
-				func([]byte, net.Addr, packetInfo) error { close(probeSent); return nil },
-			),
-			tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(
-				shortHeaderPacket{}, errNothingToPack,
+				func(data []byte, _ net.Addr, _ packetInfo) error {
+					require.Equal(t, tc.conn.connIDManager.Get().Bytes(), data[1:1+tc.conn.connIDManager.Get().Len()])
+					frames := schedulingFrames(t, tc, data)
+					require.Len(t, frames, 1)
+					require.IsType(t, &wire.PathChallengeFrame{}, frames[0])
+					pathChallenge = frames[0].(*wire.PathChallengeFrame)
+					close(probeSent)
+					return nil
+				},
 			),
 		)
 
@@ -3116,7 +3144,7 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 			t.Fatal("timeout")
 		}
 
-		assert.Zero(t, probeBuffer.refCount, "direct write must release temporary storage")
+		// TestEmissionDirectProbe covers temporary-storage release at this handoff.
 
 		// Receive a packed containing a PATH_RESPONSE frame.
 		// Only if the first packet received on the path was a probing packet
@@ -3136,11 +3164,7 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 				),
 			)
 		}
-		calls = append(calls,
-			tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(
-				shortHeaderPacket{}, errNothingToPack,
-			).MaxTimes(1),
-		)
+
 		gomock.InOrder(calls...)
 		require.Equal(t, tc.remoteAddr, tc.conn.RemoteAddr())
 		// the PATH_RESPONSE can be sent on the old path, if the client is just probing the new path
@@ -3176,9 +3200,6 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 				tc.sendConn.EXPECT().ChangeRemoteAddr(newRemoteAddr, gomock.Any()).Do(
 					func(net.Addr, packetInfo) { close(migrated) },
 				),
-				tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(
-					shortHeaderPacket{}, errNothingToPack,
-				).MaxTimes(1),
 			)
 			tc.conn.handlePacket(receivedPacket{
 				data:       make([]byte, 100),
@@ -3229,7 +3250,9 @@ func TestConnectionMigration(t *testing.T) {
 }
 
 func testConnectionMigration(t *testing.T, enabled bool) {
-	tc := newClientTestConnection(t, nil, nil, false, connectionOptHandshakeConfirmed())
+	mockCtrl := gomock.NewController(t)
+	tc := newClientTestConnection(t, mockCtrl, nil, false, connectionOptHandshakeConfirmed())
+	useSchedulingPacketPacker(t, mockCtrl, tc, nil)
 	require.NoError(t, tc.conn.handleTransportParameters(&wire.TransportParameters{
 		InitialSourceConnectionID:       tc.destConnID,
 		OriginalDestinationConnectionID: tc.destConnID,
@@ -3250,16 +3273,11 @@ func testConnectionMigration(t *testing.T, enabled bool) {
 	require.NoError(t, err)
 	require.NotNil(t, path)
 
-	tc.packer.EXPECT().AppendPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(
-		shortHeaderPacket{}, errNothingToPack,
-	).AnyTimes()
-	packedProbe := make(chan struct{})
-	tc.packer.EXPECT().PackPathProbePacket(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(protocol.ConnectionID, []ackhandler.Frame, protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-			defer close(packedProbe)
-			return shortHeaderPacket{IsPathProbePacket: true}, getPacketBuffer(), nil
-		},
-	).AnyTimes()
+	// Receive probes at a real local destination through the alternate transport.
+	conn := newUDPConnLocalhost(t)
+	remoteAddr := tc.conn.RemoteAddr().(*net.UDPAddr)
+	*remoteAddr = *conn.LocalAddr().(*net.UDPAddr)
+	tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	tc.connRunner.EXPECT().AddResetToken(gomock.Any(), gomock.Any())
 	// add a new connection ID, so the path can be probed
 	_, err = tc.conn.handleFrame(&wire.NewConnectionIDFrame{
@@ -3272,19 +3290,34 @@ func testConnectionMigration(t *testing.T, enabled bool) {
 
 	// Adding the path initialized the transport.
 	// We can test this by triggering a stateless reset.
-	conn := newUDPConnLocalhost(t)
 	_, err = conn.WriteTo(append([]byte{0x40}, make([]byte, 100)...), tr.Conn.LocalAddr())
 	require.NoError(t, err)
 	conn.SetReadDeadline(time.Now().Add(time.Second))
 	_, _, err = conn.ReadFrom(make([]byte, 100))
 	require.NoError(t, err)
 
-	go func() { path.Probe(context.Background()) }()
-	select {
-	case <-packedProbe:
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	probeDone := make(chan error, 1)
+	go func() { probeDone <- path.Probe(ctx) }()
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(time.Second)))
+	data := make([]byte, 1500)
+	n, addr, err := conn.ReadFrom(data)
+	require.NoError(t, err)
+	require.Equal(t, tr.Conn.LocalAddr(), addr)
+	data = data[:n]
+	require.Equal(t, []byte{1, 2, 3, 4}, data[1:5])
+	hdrLen, _, _, _, err := wire.ParseShortHeader(data, 4)
+	require.NoError(t, err)
+	parser := wire.NewFrameParser(true, false, false)
+	payload := data[hdrLen : len(data)-7]
+	typ, consumed, err := parser.ParseType(payload, protocol.Encryption1RTT)
+	require.NoError(t, err)
+	frame, _, err := parser.ParseLessCommonFrame(typ, payload[consumed:], protocol.Version1)
+	require.NoError(t, err)
+	require.IsType(t, &wire.PathChallengeFrame{}, frame)
+	cancel()
+	require.ErrorIs(t, <-probeDone, context.Canceled)
 
 	// teardown
 	tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
