@@ -473,3 +473,20 @@ Both concurrent migration regressions reproduced the unfixed baseline race. At r
 ### Decisions
 
 Initial RAS review `20260908T234415-517558168d6ac9d54a1f563d` identified a vet failure in the address regression, corrected with explicit result discards and independently verified. Speculative contention and constructor-rebinding comments did not establish required changes; the verifier's additional 100-run macOS stress campaign passed. Final replacement review `20260909T001011-ae36863bcb6c624f9b094857` returned zero findings. No deferred follow-up remains. [Review dispositions](https://github.com/the-sarge/quic-go-fast/pull/125#issuecomment-5593604592) and [verification dispositions](https://github.com/the-sarge/quic-go-fast/pull/125#issuecomment-5593708546) preserve the evidence and scope decisions.
+
+---
+
+## Address helper socket cleanup merged - 2026-09-08 23:55 EDT
+
+**Main:** `c79b5a386bdd`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #127](https://github.com/the-sarge/quic-go-fast/pull/127), closing [issue #66](https://github.com/the-sarge/quic-go-fast/issues/66). DialAddr, DialAddrEarly, ListenAddr, and ListenAddrEarly now promptly close internally allocated UDP sockets on setup failure. Successful setup, caller-owned PacketConn lifetimes, public APIs, module identity, and packet-emission ownership remain intact.
+
+### Validation
+
+Retained real-socket regressions failed before the fix for destination resolution and TLS/configuration errors and passed afterward; listener failures also permit immediate port reuse. Caller-owned sockets still deliver packets after configuration errors, and normal/early address-helper handshakes succeed. Full `go test ./...`, focused race tests, `go vet ./...`, and golangci-lint passed on reviewed head `aac9f97271b580b8f07531dd3816879424322610`. All 33 reported hosted checks passed, including unit, integration, lint, cross-compilation, and interop builds. Independent Standards and Spec reviews each reported zero findings.
+
+RAS run `20260909T033733-23022bfd71cf61ee19029a29` completed with no required fixes or follow-ups. Its sole observation requested stronger read-deadline restoration testing in unchanged transport teardown; the [PR disposition](https://github.com/the-sarge/quic-go-fast/pull/127) records why that verification-aid strengthening is outside this bounded ownership fix. No fix verification or replacement review was required. Product merge: `c79b5a386bdd504b978d57871d075d9967c8f7eb`.
