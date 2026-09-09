@@ -329,6 +329,82 @@ func TestClientExtendedConnect(t *testing.T) {
 	})
 }
 
+func TestClientExtendedConnectCancellationBeforeSettings(t *testing.T) {
+	clientConn, serverConn := newConnPair(t)
+	select {
+	case <-clientConn.HandshakeComplete():
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for handshake")
+	}
+	cc := (&Transport{}).NewClientConn(clientConn)
+	requestCtx, requestCancel := context.WithCancel(context.Background())
+	defer requestCancel()
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodConnect, "http://quic-go.net", nil)
+	require.NoError(t, err)
+	req.Proto = "connect"
+
+	type result struct {
+		rsp *http.Response
+		err error
+	}
+	resultChan := make(chan result, 1)
+	go func() {
+		rsp, err := cc.RoundTrip(req)
+		resultChan <- result{rsp: rsp, err: err}
+	}()
+
+	select {
+	case <-resultChan:
+		t.Fatal("RoundTrip should have blocked until SETTINGS were received")
+	case <-time.After(scaleDuration(10 * time.Millisecond)):
+	}
+	requestCancel()
+	select {
+	case res := <-resultChan:
+		require.Nil(t, res.rsp)
+		require.ErrorIs(t, res.err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("request cancellation did not interrupt the SETTINGS wait")
+	}
+	require.NoError(t, clientConn.Context().Err())
+	require.NoError(t, serverConn.Context().Err())
+	select {
+	case <-cc.ReceivedSettings():
+		t.Fatal("peer SETTINGS should still be withheld")
+	default:
+	}
+
+	// Cancellation must leave the connection usable for subsequent requests.
+	settingsStr, err := serverConn.OpenUniStream()
+	require.NoError(t, err)
+	require.NoError(t, settingsStr.SetWriteDeadline(time.Now().Add(time.Second)))
+	_, err = settingsStr.Write((&settingsFrame{ExtendedConnect: true}).Append(quicvarint.Append(nil, streamTypeControlStream)))
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	go func() {
+		rsp, err := cc.RoundTrip(req.Clone(ctx))
+		resultChan <- result{rsp: rsp, err: err}
+	}()
+	str, err := serverConn.AcceptStream(ctx)
+	require.NoError(t, err)
+	hfs := decodeHeader(t, str)
+	require.Equal(t, []string{http.MethodConnect}, hfs[":method"])
+	require.Equal(t, []string{"connect"}, hfs[":protocol"])
+	require.NoError(t, str.SetWriteDeadline(time.Now().Add(time.Second)))
+	_, err = str.Write(encodeResponse(t, http.StatusOK))
+	require.NoError(t, err)
+	require.NoError(t, str.Close())
+	select {
+	case res := <-resultChan:
+		require.NoError(t, res.err)
+		require.Equal(t, http.StatusOK, res.rsp.StatusCode)
+		require.NoError(t, res.rsp.Body.Close())
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for the subsequent Extended CONNECT response")
+	}
+}
+
 func testClientExtendedConnect(t *testing.T, enabled bool) {
 	clientConn, serverConn := newConnPair(t)
 
