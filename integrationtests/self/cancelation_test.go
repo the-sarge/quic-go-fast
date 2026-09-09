@@ -348,10 +348,12 @@ func TestCancelAcceptStream(t *testing.T) {
 	workerCtx, stopWorkers := context.WithTimeout(context.Background(), scaleDuration(5*time.Second))
 	defer stopWorkers()
 	serverDone := make(chan struct{})
+	startServer := make(chan struct{})
 	serverErrChan := make(chan error, 1)
 	go func() {
 		defer close(serverDone)
 		defer close(serverErrChan)
+		<-startServer
 		ctx, cancel := context.WithTimeout(workerCtx, scaleDuration(2*time.Second))
 		defer cancel()
 		ticker := time.NewTicker(5 * time.Millisecond)
@@ -374,11 +376,14 @@ func TestCancelAcceptStream(t *testing.T) {
 	var numToAccept int
 	var counter atomic.Int32
 	var wg sync.WaitGroup
+	var canceledWorkers sync.WaitGroup
 	workerErrs := make(chan error)
 	for numToAccept < numStreams {
 		ctx, cancel := context.WithCancel(workerCtx)
 		// cancel accepting half of the streams
-		if rand.Int()%2 == 0 {
+		preCanceled := rand.Int()%2 == 0
+		if preCanceled {
+			canceledWorkers.Add(1)
 			cancel()
 		} else {
 			numToAccept++
@@ -386,6 +391,9 @@ func TestCancelAcceptStream(t *testing.T) {
 		}
 
 		wg.Go(func() {
+			if preCanceled {
+				defer canceledWorkers.Done()
+			}
 			str, err := conn.AcceptUniStream(ctx)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
@@ -405,6 +413,13 @@ func TestCancelAcceptStream(t *testing.T) {
 			}
 		})
 	}
+	// AcceptStream may return an already queued stream even for a canceled
+	// context. Finish those attempts before producing streams, so they cannot
+	// consume one of the streams promised to the non-canceled workers.
+	wg.Go(func() {
+		canceledWorkers.Wait()
+		close(startServer)
+	})
 	workersDone := make(chan struct{})
 	go func() {
 		defer close(workersDone)
