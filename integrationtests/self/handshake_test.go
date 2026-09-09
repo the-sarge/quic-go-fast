@@ -50,24 +50,47 @@ func (c *tokenStore) Pop(key string) *quic.ClientToken {
 }
 
 func TestHandshakeAddrResolutionHelpers(t *testing.T) {
-	server, err := quic.ListenAddr("localhost:0", getTLSConfig(), getQuicConfig(nil))
-	require.NoError(t, err)
-	defer server.Close()
+	for _, early := range []bool{false, true} {
+		t.Run(fmt.Sprintf("early=%t", early), func(t *testing.T) {
+			var server interface {
+				Addr() net.Addr
+				Accept(context.Context) (*quic.Conn, error)
+				Close() error
+			}
+			var err error
+			if early {
+				server, err = quic.ListenAddrEarly("localhost:0", getTLSConfig(), getQuicConfig(nil))
+			} else {
+				server, err = quic.ListenAddr("localhost:0", getTLSConfig(), getQuicConfig(nil))
+			}
+			require.NoError(t, err)
+			defer server.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	conn, err := quic.DialAddr(
-		ctx,
-		fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-		getTLSClientConfig(),
-		getQuicConfig(nil),
-	)
-	require.NoError(t, err)
-	defer conn.CloseWithError(0, "")
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			dial := quic.DialAddr
+			if early {
+				dial = quic.DialAddrEarly
+			}
+			conn, err := dial(
+				ctx,
+				fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
+				getTLSClientConfig(),
+				getQuicConfig(nil),
+			)
+			require.NoError(t, err)
+			defer conn.CloseWithError(0, "")
 
-	serverConn, err := server.Accept(ctx)
-	require.NoError(t, err)
-	defer serverConn.CloseWithError(0, "")
+			serverConn, err := server.Accept(ctx)
+			require.NoError(t, err)
+			defer serverConn.CloseWithError(0, "")
+			select {
+			case <-conn.HandshakeComplete():
+			case <-ctx.Done():
+				t.Fatal("handshake did not complete")
+			}
+		})
+	}
 }
 
 func TestHandshake(t *testing.T) {
