@@ -20,6 +20,7 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/testutils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,23 +28,18 @@ import (
 )
 
 type writerWithTimeout struct {
-	io.Writer
+	Writer interface {
+		io.Writer
+		SetWriteDeadline(time.Time) error
+	}
 	Timeout time.Duration
 }
 
-func (w *writerWithTimeout) Write(p []byte) (n int, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		n, err = w.Writer.Write(p)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(w.Timeout):
-		return 0, fmt.Errorf("write timeout after %s", w.Timeout)
-	}
+func (w *writerWithTimeout) Write(p []byte) (int, error) {
+	return testutils.RunWithTimeout(w.Timeout,
+		func() { w.Writer.SetWriteDeadline(time.Now()) },
+		func() (int, error) { return w.Writer.Write(p) },
+	)
 }
 
 func expectedFrameHeaderLen(strID protocol.StreamID, offset protocol.ByteCount) protocol.ByteCount {

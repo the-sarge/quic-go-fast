@@ -322,95 +322,132 @@ func testStreamCancellation(
 	assert.NotZero(t, serverErrs, "server-observed canceled streams")
 }
 
+// startCancellationWorker accounts for every exit, including accept and read
+// failures. The caller sizes errs for one result per worker and joins wg.
+func startCancellationWorker(wg *sync.WaitGroup, errs chan<- error, work func() error) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		errs <- work()
+	}()
+}
+
 func TestCancelAcceptStream(t *testing.T) {
 	const numStreams = 30
-
 	server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
 	defer server.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(5*time.Second))
 	defer cancel()
-	conn, err := quic.Dial(
-		ctx,
-		newUDPConnLocalhost(t),
-		server.Addr(),
-		getTLSClientConfig(),
-		getQuicConfig(&quic.Config{MaxIncomingUniStreams: numStreams / 3}),
-	)
+	conn, err := quic.Dial(ctx, newUDPConnLocalhost(t), server.Addr(), getTLSClientConfig(),
+		getQuicConfig(&quic.Config{MaxIncomingUniStreams: numStreams / 3}))
 	require.NoError(t, err)
 	defer conn.CloseWithError(0, "")
-
 	serverConn, err := server.Accept(ctx)
 	require.NoError(t, err)
-	defer conn.CloseWithError(0, "")
+	defer serverConn.CloseWithError(0, "")
 
-	serverErrChan := make(chan error, 1)
-	go func() {
-		defer close(serverErrChan)
-		ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(2*time.Second))
-		defer cancel()
+	var wg sync.WaitGroup
+	errs := make(chan error, 2*numStreams+1)
+	startCancellationWorker(&wg, errs, func() error {
 		ticker := time.NewTicker(5 * time.Millisecond)
 		defer ticker.Stop()
 		for range numStreams {
-			<-ticker.C
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			}
 			str, err := serverConn.OpenUniStreamSync(ctx)
 			if err != nil {
-				serverErrChan <- err
-				return
+				return err
+			}
+			if err := str.SetWriteDeadline(time.Now().Add(scaleDuration(time.Second))); err != nil {
+				return err
 			}
 			if _, err := str.Write(PRData); err != nil {
-				serverErrChan <- err
-				return
+				return err
 			}
-			str.Close()
+			if err := str.Close(); err != nil {
+				return err
+			}
 		}
-	}()
+		return nil
+	})
 
-	var numToAccept int
 	var counter atomic.Int32
-	var wg sync.WaitGroup
-	wg.Add(numStreams)
-	for numToAccept < numStreams {
-		ctx, cancel := context.WithCancel(context.Background())
-		// cancel accepting half of the streams
-		if rand.Int()%2 == 0 {
-			cancel()
-		} else {
-			numToAccept++
-			defer cancel()
-		}
-
-		go func() {
-			str, err := conn.AcceptUniStream(ctx)
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					counter.Add(1)
-				}
-				return
+	for range numStreams {
+		// Exercise both cases deliberately, rather than requiring a random number
+		// of canceled accepts before the fixture can finish.
+		for _, canceled := range []bool{true, false} {
+			acceptCtx := ctx
+			if canceled {
+				var cancelAccept context.CancelFunc
+				acceptCtx, cancelAccept = context.WithCancel(ctx)
+				cancelAccept()
 			}
-			go func() {
+			startCancellationWorker(&wg, errs, func() error {
+				str, err := conn.AcceptUniStream(acceptCtx)
+				if canceled {
+					if !errors.Is(err, context.Canceled) {
+						return fmt.Errorf("canceled accept returned stream %v, error %v", str, err)
+					}
+					counter.Add(1)
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+				if err := str.SetReadDeadline(time.Now().Add(scaleDuration(time.Second))); err != nil {
+					return err
+				}
 				data, err := io.ReadAll(str)
 				if err != nil {
-					t.Errorf("ReadAll failed: %v", err)
-					return
+					return err
 				}
 				if !bytes.Equal(data, PRData) {
-					t.Errorf("received data mismatch")
-					return
+					return fmt.Errorf("received data mismatch")
 				}
-				wg.Done()
-			}()
-		}()
+				return nil
+			})
+		}
 	}
-	wg.Wait()
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	defer func() {
+		cancel()
+		conn.CloseWithError(0, "")
+		serverConn.CloseWithError(0, "")
+		// Closing both connections unblocks the native stream operations. Join
+		// before returning, including the parent's timeout and failure paths.
+		<-done
+		close(errs)
+		for err := range errs {
+			assert.NoError(t, err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for cancellation workers")
+	}
+	require.Equal(t, int32(numStreams), counter.Load())
+}
 
-	count := counter.Load()
-	t.Logf("canceled AcceptStream %d times", count)
-	require.Greater(t, count, int32(numStreams/4))
-	require.NoError(t, conn.CloseWithError(0, ""))
-	require.NoError(t, server.Close())
-	require.NoError(t, <-serverErrChan)
+func TestCancellationWorkerErrorCompletes(t *testing.T) {
+	var wg sync.WaitGroup
+	errs := make(chan error, 1)
+	want := errors.New("stream read failed")
+	startCancellationWorker(&wg, errs, func() error { return want })
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("worker error prevented completion")
+	}
+	require.ErrorIs(t, <-errs, want)
 }
 
 func TestCancelOpenStreamSync(t *testing.T) {

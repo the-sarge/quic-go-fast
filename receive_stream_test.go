@@ -1,7 +1,6 @@
 package quic
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"sync/atomic"
@@ -13,6 +12,7 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/testutils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,26 +20,22 @@ import (
 )
 
 type readerWithTimeout struct {
-	io.Reader
+	Reader interface {
+		io.Reader
+		SetReadDeadline(time.Time) error
+	}
 	Timeout time.Duration
 }
 
-func (r *readerWithTimeout) Read(p []byte) (n int, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		n, err = r.Reader.Read(p)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(r.Timeout):
-		return 0, fmt.Errorf("read timeout after %s", r.Timeout)
-	}
+func (r *readerWithTimeout) Read(p []byte) (int, error) {
+	return testutils.RunWithTimeout(r.Timeout,
+		func() { r.Reader.SetReadDeadline(time.Now()) },
+		func() (int, error) { return r.Reader.Read(p) },
+	)
 }
 
 type peeker interface {
+	SetReadDeadline(time.Time) error
 	Peek(b []byte) (int, error)
 }
 
@@ -48,19 +44,11 @@ type peekerWithTimeout struct {
 	Timeout time.Duration
 }
 
-func (p *peekerWithTimeout) Peek(b []byte) (n int, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		n, err = p.Peeker.Peek(b)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(p.Timeout):
-		return 0, fmt.Errorf("peek timeout after %s", p.Timeout)
-	}
+func (p *peekerWithTimeout) Peek(b []byte) (int, error) {
+	return testutils.RunWithTimeout(p.Timeout,
+		func() { p.Peeker.SetReadDeadline(time.Now()) },
+		func() (int, error) { return p.Peeker.Peek(b) },
+	)
 }
 
 func TestReceiveStreamReadData(t *testing.T) {
