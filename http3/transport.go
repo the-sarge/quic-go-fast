@@ -39,7 +39,7 @@ type RoundTripOpt struct {
 
 type clientConn interface {
 	OpenRequestStream(context.Context) (*RequestStream, error)
-	RoundTrip(*http.Request) (*http.Response, error)
+	roundTrip(*http.Request, *requestLifetime) (*http.Response, error)
 	handleUnidirectionalStream(*quic.ReceiveStream)
 }
 
@@ -168,17 +168,16 @@ func (t *Transport) init() error {
 
 // RoundTripOpt is like [Transport.RoundTrip], but takes options.
 func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Response, error) {
-	rsp, err := t.roundTripOpt(req, opt)
-	if err != nil {
-		if req.Body != nil {
-			req.Body.Close()
-		}
-		return nil, err
-	}
-	return rsp, nil
+	return t.roundTripOpt(req, opt)
 }
 
-func (t *Transport) roundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Response, error) {
+func (t *Transport) roundTripOpt(req *http.Request, opt RoundTripOpt) (rsp *http.Response, err error) {
+	handedOff := false
+	defer func() {
+		if err != nil && !handedOff && req.Body != nil {
+			req.Body.Close()
+		}
+	}()
 	t.initOnce.Do(func() { t.initErr = t.init() })
 	if t.initErr != nil {
 		return nil, t.initErr
@@ -210,10 +209,22 @@ func (t *Transport) roundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 		}
 	}
 
+	handedOff = true
 	return t.doRoundTripOpt(req, opt, false)
 }
 
-func (t *Transport) doRoundTripOpt(req *http.Request, opt RoundTripOpt, isRetried bool) (*http.Response, error) {
+func (t *Transport) doRoundTripOpt(req *http.Request, opt RoundTripOpt, isRetried bool) (rsp *http.Response, err error) {
+	lifetime := newRequestLifetime(req.Body)
+	dispatched, inputTransferred := false, false
+	defer func() {
+		if err != nil && !inputTransferred {
+			lifetime.closeInput()
+		}
+		if !dispatched {
+			lifetime.end(false)
+			lifetime.uploadFinished()
+		}
+	}()
 	hostname := authorityAddr(hostnameFromURL(req.URL))
 	trace := httptrace.ContextClientTrace(req.Context())
 	traceGetConn(trace, hostname)
@@ -221,6 +232,8 @@ func (t *Transport) doRoundTripOpt(req *http.Request, opt RoundTripOpt, isRetrie
 	if err != nil {
 		return nil, err
 	}
+
+	lifetime.release = func() { cl.useCount.Add(-1) }
 
 	select {
 	case <-cl.dialing:
@@ -232,9 +245,9 @@ func (t *Transport) doRoundTripOpt(req *http.Request, opt RoundTripOpt, isRetrie
 		t.removeClient(hostname)
 		return nil, cl.dialErr
 	}
-	defer cl.useCount.Add(-1)
 	traceGotConn(trace, cl.conn, isReused)
-	rsp, err := cl.clientConn.RoundTrip(req)
+	dispatched = true
+	rsp, err = cl.clientConn.roundTrip(req, lifetime)
 	if err != nil {
 		// request aborted due to context cancellation
 		select {
@@ -251,6 +264,7 @@ func (t *Transport) doRoundTripOpt(req *http.Request, opt RoundTripOpt, isRetrie
 		if err != nil {
 			return nil, err
 		}
+		inputTransferred = true
 		return t.doRoundTripOpt(req, opt, true)
 	}
 	return rsp, nil
