@@ -454,3 +454,22 @@ Merged [PR #120](https://github.com/the-sarge/quic-go-fast/pull/120), closing [i
 The initial regression reproduced `-version=2` logging v2 while negotiating v1. Applying the helper default then exposed HTTP clients still using v1; the seven fixture assignments resolved that in-scope regression. Certified head `dfbd3e43821b547aef489f9f2ffadfae1d6a3d19` passed full repository tests, the full shuffled v2 self-suite, package vet, and whitespace checks. Focused handshake and affected HTTP tests passed for both flags; explicit overrides and qlog were also exercised. All 33 hosted checks passed with none skipped, including unit, integration, lint, cross-compilation, and interop image workflows.
 
 Standards and Spec reviews found no actionable issues. Initial RAS review `20260908T221543-60b137673c7efed2aeda5895` identified the same HTTP client mismatch; exact-head verification resolved it and its duplicate reports. An added HTTP assertion requirement was rejected as beyond the accepted representative coverage. Replacement review `20260908T223512-6e14684b70f6cd6e0fb59e70` returned no fixes or follow-ups. The [PR review record](https://github.com/the-sarge/quic-go-fast/pull/120) preserves scope and dispositions. Merge `6a3e66fa00e400f7256bbd2bf574d4bdcbebf636` was guarded by the exact reviewed head.
+
+---
+
+## Active send-connection publication fixed - 2026-09-08 20:16 EDT
+
+**Main:** `79dd6834d826`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #125](https://github.com/the-sarge/quic-go-fast/pull/125), closing [issue #123](https://github.com/the-sarge/quic-go-fast/issues/123). Packet emission now synchronizes active send-connection publication with public state and address inspection. The replacement object is safely initialized, GSO fallback remains live, and queue drain, worker lifecycle, protocol ownership, public API, and wire behavior are preserved. The ownership audit and real UDP migration regressions landed with the fix.
+
+### Validation
+
+Both concurrent migration regressions reproduced the unfixed baseline race. At reviewed head `f8810a3a4ff1bf4e27ee5a8018a82b279dee6dae`, three independent fixed Linux/arm64 Go 1.27.1 race runs passed, as did focused migration/rebinding/queue/GSO race checks, the full macOS/arm64 Go 1.27.0 suite, vet, and all 33 hosted checks. The baseline production SHA was `5e9ae2ab3e46067335ea409a689b638a82877bd3`. See the [exact-head certification receipt](https://github.com/the-sarge/quic-go-fast/pull/125#issuecomment-5593756181).
+
+### Decisions
+
+Initial RAS review `20260908T234415-517558168d6ac9d54a1f563d` identified a vet failure in the address regression, corrected with explicit result discards and independently verified. Speculative contention and constructor-rebinding comments did not establish required changes; the verifier's additional 100-run macOS stress campaign passed. Final replacement review `20260909T001011-ae36863bcb6c624f9b094857` returned zero findings. No deferred follow-up remains. [Review dispositions](https://github.com/the-sarge/quic-go-fast/pull/125#issuecomment-5593604592) and [verification dispositions](https://github.com/the-sarge/quic-go-fast/pull/125#issuecomment-5593708546) preserve the evidence and scope decisions.
