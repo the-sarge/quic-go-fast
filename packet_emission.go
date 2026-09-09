@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
@@ -23,6 +24,11 @@ type packetEmission struct {
 
 	policy emissionPolicy
 	conn   *sendConn
+
+	// The connection goroutine is the only writer of *conn. It may read the
+	// slot directly; application inspection must take a snapshot via activeConn.
+	// This lock publishes both the interface and the initialized replacement.
+	connMutex sync.Mutex
 }
 
 // This interface exposes only the synchronous connection-owned policy effects.
@@ -523,10 +529,21 @@ func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emission
 	return emissionResult{progress: true}
 }
 
-// The connection still starts workers and owns failure/lifecycle policy. Join
-// the previous worker before publishing the replacement to the emission slot.
+// activeConn snapshots the path for application inspection. Mutable state inside
+// sendConn (remote address and GSO fallback) provides its own synchronization.
+func (e *packetEmission) activeConn() sendConn {
+	e.connMutex.Lock()
+	conn := *e.conn
+	e.connMutex.Unlock()
+	return conn
+}
+
+// The connection still starts workers and owns failure/lifecycle policy. Publish
+// the path as before, then drain and join the old worker before replacing its queue.
 func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedback) sender {
+	e.connMutex.Lock()
 	*e.conn = conn
+	e.connMutex.Unlock()
 	e.queue.Close()
 	queue := newSendQueue(conn, feedback)
 	e.queue = queue

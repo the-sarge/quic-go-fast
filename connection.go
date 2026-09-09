@@ -136,6 +136,9 @@ type Conn struct {
 	version     protocol.Version
 	config      *Config
 
+	// Active send connection: initialized before exposure, then published by
+	// emission.replacePath on the connection goroutine. Public inspection uses
+	// emission.activeConn; other direct reads are connection-goroutine owned.
 	conn                  sendConn
 	handshakeSendFeedback handshakeSendFeedback
 	pathGeneration        uint64
@@ -790,7 +793,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 	}
 	c.connState.SupportsDatagrams.Local = c.config.EnableDatagrams
 	c.connState.SupportsStreamResetPartialDelivery.Local = c.config.EnableStreamResetPartialDelivery
-	c.connState.GSO = c.conn.capabilities().GSO
+	c.connState.GSO = c.emission.activeConn().capabilities().GSO
 	return c.connState
 }
 
@@ -2763,10 +2766,10 @@ func (c *Conn) ReceiveDatagram(ctx context.Context) ([]byte, error) {
 }
 
 // LocalAddr returns the local address of the QUIC connection.
-func (c *Conn) LocalAddr() net.Addr { return c.conn.LocalAddr() }
+func (c *Conn) LocalAddr() net.Addr { return c.emission.activeConn().LocalAddr() }
 
 // RemoteAddr returns the remote address of the QUIC connection.
-func (c *Conn) RemoteAddr() net.Addr { return c.conn.RemoteAddr() }
+func (c *Conn) RemoteAddr() net.Addr { return c.emission.activeConn().RemoteAddr() }
 
 // getPathManager lazily initializes the Conn's pathManagerOutgoing.
 // May create multiple pathManagerOutgoing objects if called concurrently.

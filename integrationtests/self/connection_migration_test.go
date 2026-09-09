@@ -18,6 +18,22 @@ import (
 )
 
 func TestConnectionMigration(t *testing.T) {
+	testConnectionMigration(t, nil)
+}
+
+func TestConnectionMigrationConcurrentState(t *testing.T) {
+	testConnectionMigration(t, func(conn *quic.Conn) { conn.ConnectionState() })
+}
+
+func TestConnectionMigrationConcurrentAddresses(t *testing.T) {
+	testConnectionMigration(t, func(conn *quic.Conn) {
+		_ = conn.LocalAddr().String()
+		_ = conn.RemoteAddr().String()
+	})
+}
+
+func testConnectionMigration(t *testing.T, inspect func(*quic.Conn)) {
+	t.Helper()
 	ln, err := quic.ListenAddr("localhost:0", getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
 	defer ln.Close()
@@ -119,6 +135,31 @@ func TestConnectionMigration(t *testing.T) {
 
 	time.Sleep(3 * rtt) // wait for ACKs
 
+	if inspect != nil {
+		// Overlap application inspection with real, validated path switches.
+		stopReads := make(chan struct{})
+		readsDone := make(chan struct{})
+		readsStarted := make(chan struct{})
+		go func() {
+			defer close(readsDone)
+			inspect(conn)
+			close(readsStarted)
+			for {
+				select {
+				case <-stopReads:
+					return
+				default:
+					inspect(conn)
+				}
+			}
+		}()
+		defer func() {
+			close(stopReads)
+			<-readsDone
+		}()
+		<-readsStarted
+	}
+
 	// now switch and make sure that no packets are sent on path 1
 	require.NoError(t, path.Switch())
 	sendAndReceiveFile(t) // stream 10
@@ -126,6 +167,7 @@ func TestConnectionMigration(t *testing.T) {
 	require.Equal(t, c1, packetsPath1.Load())
 	require.Greater(t, packetsPath2.Load(), c2)
 	require.Equal(t, tr2.Conn.LocalAddr(), conn.LocalAddr())
+	require.Equal(t, proxy.LocalAddr(), conn.RemoteAddr())
 
 	// switch back to the handshake path
 	time.Sleep(3 * rtt) // wait for ACKs
@@ -141,4 +183,5 @@ func TestConnectionMigration(t *testing.T) {
 	// some path probing might have happened
 	require.Less(t, int(packetsPath2.Load()-c2BeforeSwitch), 20)
 	require.Equal(t, tr1.Conn.LocalAddr(), conn.LocalAddr())
+	require.Equal(t, proxy.LocalAddr(), conn.RemoteAddr())
 }
