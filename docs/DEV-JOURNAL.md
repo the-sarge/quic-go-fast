@@ -531,3 +531,18 @@ Merged [PR #134](https://github.com/the-sarge/quic-go-fast/pull/134), closing [i
 ### Validation
 
 Full Go tests, focused race tests, vet, lint, and Go modernization checks passed on `b52da1761eb6603be989cd7a4fa0b1e7f7844aed`; all 33 hosted checks were green before the exact-head squash merge. Original timeout helpers fail the buffer-reuse regressions with races. Controlled connection-error and producer-gate-bypass checks exercised the repaired fixture error paths without a randomized campaign. Initial RAS review `20260909T080552-1ab6192f9849f3b6fa754df0` produced two accepted findings, both verified resolved; replacement review `20260909T083140-f50240c4d4cceb216484ba03` was clean. No deferred findings remain.
+
+---
+
+## HTTP/3 exchange lifetime landed - 2026-09-09 10:37 EDT
+
+**Main:** `28922b8a0025`
+**Actor:** Codex
+
+Merged [PR #136](https://github.com/the-sarge/quic-go-fast/pull/136) as `28922b8a002591dec05024d067d3844afe8d8590`, closing [H1 / issue #68](https://github.com/the-sarge/quic-go-fast/issues/68). Each HTTP/3 request attempt now has one lifetime owner that retains pooled usage through both outer response consumption and asynchronous upload cleanup. Cancellation and connection teardown close input once; stream-opening retries preserve untouched input. Direct ClientConn requests use the same lifecycle without pooled accounting. The product PR also records H1 completion and the resulting program frontier.
+
+The two required baseline regressions failed before implementation. The accepted 14-cell evidence includes real multiplexed responses, early-response/upload rendezvous, compressed-source EOF before decoded completion, cancellation, connection teardown, terminal read errors, and close-sensitive retry success/failure. Exact candidate `6e2acee9f8f678ed810a639b543964a6ff5e01bd` passed HTTP/3 normal/race suites, ordinary non-integration package tests, vet, scoped lint, modernization and whitespace checks. All 33 inherited hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34362641316) and [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34362641406) workflows. The [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/136#issuecomment-5603639567) records the remaining hosted runs and exact base.
+
+Initial RAS review `20260909T140950-8e756c65b4e2419e390bafcf` completed seven reviews and adjudication. Independent [dispositions](https://github.com/the-sarge/quic-go-fast/pull/136#issuecomment-5603553176) rejected unreachable runtime claims and non-required cleanup; dormant raw reqDone plumbing has no pooled-release authority. Replacement review `20260909T142941-c39df2e73d432e288b51903b` was clean on the final candidate. No accepted product finding required fix verification, and no worthwhile deferred findings or required untraced effects remain.
+
+H2 remains independently ready; H1's merge does not newly unblock another slice. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier view, and the [H plan](adr/2026-09-08-http3-lifetime-plan.md) retains the accepted boundaries. Cache-identity eviction, shared-dial policy, public API and wire behavior remain under their existing contracts.
