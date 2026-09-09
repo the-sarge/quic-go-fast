@@ -1,6 +1,6 @@
 # HTTP/3 pooled exchange lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** H1 and H2 implementations complete; H3 fixture synchronization pending. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md); [H3 fixture audit](../audits/2026-09-09-http3-fixture-completion.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** H1, H2 and H3 implementations complete. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md); [H3 fixture audit](../audits/2026-09-09-http3-fixture-completion.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -8,7 +8,7 @@ Keep pooled connections active through actual request/response use and make evic
 
 ## Current Shape (verified 2026-09-09)
 
-`http3/exchange.go:13–120` owns the complete exchange: `done` reports both halves ended and `stopped` closes after the pooled decrement. `http3/client.go:412–460` starts asynchronous upload for a non-nil request body and reports upload completion after input cleanup, trailers and stream closure. `http3/transport.go:434–440` owns identity-checked failure eviction. The H1 fixture's immediate terminal count assertions at `http3/exchange_test.go:102,114,271,281,370,498` can precede upload completion. Its `httptest.NewRequest(..., nil)` requests carry non-nil `http.NoBody`; the standard library owns that representation. `TestExchangeActualBodyCompletion` uses `http.NewRequest(..., nil)` and finishes its synchronous upload obligation before returning a response.
+`http3/exchange.go:13–120` owns the complete exchange: `done` reports both halves ended and `stopped` closes after the pooled decrement. `http3/client.go:412–460` starts asynchronous upload for a non-nil request body and reports upload completion after input cleanup, trailers and stream closure. `http3/transport.go:434–440` owns identity-checked failure eviction. The six terminal count observations in `TestExchangeActiveMultiplexedResponses`, `TestExchangeGzipCompletion`, `TestExchangeRetryUntouchedInput/retry-success` and `TestExchangeResponseReadFailure` now join their own attempt’s `requestLifetime.stopped` before asserting the released pooled count. Its `httptest.NewRequest(..., nil)` requests carry non-nil `http.NoBody`; the standard library owns that representation. `TestExchangeActualBodyCompletion` uses `http.NewRequest(..., nil)` and finishes its synchronous upload obligation before returning a response.
 
 ## Decision
 
@@ -22,7 +22,7 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 | --- | --- | --- | --- | --- |
 | H1 | Complete (#68) | Preserve usage through the complete HTTP/3 exchange | None | None introduced |
 | H2 | Complete (#90) | Evict only the expected cached HTTP/3 connection | None | None introduced |
-| H3 | New | Synchronize fixture assertions with complete exchange cleanup | None (H1 is already merged) | None introduced |
+| H3 | Complete (#141) | Synchronize fixture assertions with complete exchange cleanup | None (H1 is already merged) | None introduced |
 
 ## Implementation Slices
 
@@ -143,7 +143,7 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 
 ### H3 — Synchronize HTTP/3 fixture completion assertions
 
-**Status:** Accepted contract; implementation pending. **Size:** S; one intended test-only PR. **Blocked by:** None; H1's implementation is already merged.
+**Status:** Complete (#141). **Size:** S; one intended test-only PR. **Blocked by:** None; H1's implementation is already merged.
 
 **What it delivers:** Existing HTTP/3 exchange fixtures observe the complete attempt before asserting a released pooled count. Response EOF/error/Close remains independently observable while upload cleanup can still be active. Fix the terminal observation family exposed by the H1 multiplexed-response CI failure, retaining exact-count and cleanup assertions rather than weakening them.
 

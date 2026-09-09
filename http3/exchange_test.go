@@ -99,6 +99,7 @@ func TestExchangeActiveMultiplexedResponses(t *testing.T) {
 	entry := exchangeEntry(t, tr)
 	require.EqualValues(t, 2, entry.useCount.Load())
 	require.NoError(t, rsp1.Body.Close())
+	receiveExchange(t, rsp1.Body.(*exchangeBody).lifetime.stopped)
 	require.EqualValues(t, 1, entry.useCount.Load())
 	tr.CloseIdleConnections()
 	require.NoError(t, client.Context().Err())
@@ -111,6 +112,7 @@ func TestExchangeActiveMultiplexedResponses(t *testing.T) {
 	data, err := io.ReadAll(rsp2.Body)
 	require.NoError(t, err)
 	require.Equal(t, payload, data)
+	receiveExchange(t, rsp2.Body.(*exchangeBody).lifetime.stopped)
 	require.Zero(t, entry.useCount.Load())
 	require.NoError(t, rsp2.Body.Close())
 	require.Zero(t, entry.useCount.Load())
@@ -209,33 +211,47 @@ func TestExchangeUploadTerminalEvents(t *testing.T) {
 }
 
 func TestExchangeUploadFinishesAfterResponse(t *testing.T) {
-	tr, client, server := exchangeTransport(t)
-	body := newExchangeInput()
-	t.Cleanup(func() {
-		if body.closes.Load() == 0 {
-			body.Close()
-		}
-	})
-	req := httptest.NewRequest(http.MethodPost, "https://example.com", body)
-	req.Trailer = http.Header{"Finished": {"yes"}}
-	rsp, str := exchangeResponse(t, tr, server, req, encodeResponse(t, http.StatusOK))
-	receiveExchange(t, body.entered)
-	require.NoError(t, str.Close())
-	_, err := io.ReadAll(rsp.Body)
-	require.NoError(t, err)
-	entry := exchangeEntry(t, tr)
-	require.EqualValues(t, 1, entry.useCount.Load())
-	tr.CloseIdleConnections()
-	require.NoError(t, client.Context().Err())
-	// Let Read finish normally; the uploader then closes input and sends trailers.
-	close(body.finished)
-	trailers := decodeHeader(t, str)
-	require.Equal(t, []string{"yes"}, trailers["finished"])
-	_, err = io.ReadAll(str)
-	require.NoError(t, err)
-	receiveExchange(t, rsp.Body.(*exchangeBody).lifetime.stopped)
-	require.Zero(t, entry.useCount.Load())
-	require.EqualValues(t, 1, body.closes.Load())
+	for _, trailers := range []bool{false, true} {
+		t.Run(map[bool]string{false: "empty", true: "trailers"}[trailers], func(t *testing.T) {
+			tr, client, server := exchangeTransport(t)
+			body := newExchangeInput()
+			t.Cleanup(func() {
+				if body.closes.Load() == 0 {
+					body.Close()
+				}
+			})
+			req := httptest.NewRequest(http.MethodPost, "https://example.com", body)
+			if trailers {
+				req.Trailer = http.Header{"Finished": {"yes"}}
+			}
+			rsp, str := exchangeResponse(t, tr, server, req, encodeResponse(t, http.StatusOK))
+			receiveExchange(t, body.entered)
+			require.NoError(t, str.Close())
+			_, err := io.ReadAll(rsp.Body)
+			require.NoError(t, err)
+			entry := exchangeEntry(t, tr)
+			require.EqualValues(t, 1, entry.useCount.Load())
+			require.Zero(t, body.closes.Load())
+			select {
+			case <-rsp.Body.(*exchangeBody).lifetime.stopped:
+				t.Fatal("exchange stopped before upload finished")
+			default:
+			}
+			tr.CloseIdleConnections()
+			require.NoError(t, client.Context().Err())
+			// Let Read finish normally; the uploader closes input and sends any trailers.
+			close(body.finished)
+			if trailers {
+				header := decodeHeader(t, str)
+				require.Equal(t, []string{"yes"}, header["finished"])
+			}
+			_, err = io.ReadAll(str)
+			require.NoError(t, err)
+			receiveExchange(t, rsp.Body.(*exchangeBody).lifetime.stopped)
+			require.Zero(t, entry.useCount.Load())
+			require.EqualValues(t, 1, body.closes.Load())
+		})
+	}
 }
 
 func TestExchangeGzipCompletion(t *testing.T) {
@@ -268,6 +284,7 @@ func TestExchangeGzipCompletion(t *testing.T) {
 			if invalid {
 				require.ErrorIs(t, err, gzip.ErrHeader)
 				require.False(t, raw.eof)
+				receiveExchange(t, rsp.Body.(*exchangeBody).lifetime.stopped)
 				require.Zero(t, entry.useCount.Load())
 				expectStreamWriteReset(t, str, quic.StreamErrorCode(ErrCodeRequestCanceled))
 			} else {
@@ -278,6 +295,7 @@ func TestExchangeGzipCompletion(t *testing.T) {
 				data, err := io.ReadAll(rsp.Body)
 				require.NoError(t, err)
 				require.Len(t, data, 32767)
+				receiveExchange(t, rsp.Body.(*exchangeBody).lifetime.stopped)
 				require.Zero(t, entry.useCount.Load())
 			}
 		})
@@ -367,6 +385,7 @@ func TestExchangeRetryUntouchedInput(t *testing.T) {
 				require.NoError(t, str.Close())
 				_, err = io.ReadAll(rsp.Body)
 				require.NoError(t, err)
+				receiveExchange(t, rsp.Body.(*exchangeBody).lifetime.stopped)
 				require.Zero(t, exchangeEntry(t, tr).useCount.Load())
 			}
 			require.Zero(t, old.useCount.Load())
@@ -495,5 +514,6 @@ func TestExchangeResponseReadFailure(t *testing.T) {
 	str.CancelWrite(quic.StreamErrorCode(ErrCodeInternalError))
 	_, err := io.ReadAll(rsp.Body)
 	require.ErrorIs(t, err, &Error{ErrorCode: ErrCodeInternalError, Remote: true})
+	receiveExchange(t, rsp.Body.(*exchangeBody).lifetime.stopped)
 	require.Zero(t, entry.useCount.Load())
 }
