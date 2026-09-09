@@ -623,3 +623,24 @@ The merged PR head `c0cf3ba9084daa11ce8e28bdeb047f6e9a9bb702` passed the uncache
 ### Next
 
 The original historical server-first timeout remains unexplained; [issue #44 is the live investigation](https://github.com/the-sarge/quic-go-fast/issues/44). Its OmniFocus task stays open. [PR #144](https://github.com/the-sarge/quic-go-fast/pull/144) and the #46 workflow remain independently owned and were not modified, rerun or merged by this work.
+
+---
+
+## Corruption recovery tests and failure diagnostics landed - 2026-09-09 19:54 EDT
+
+**Main:** `b0cdb08bb7a4`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #144](https://github.com/the-sarge/quic-go-fast/pull/144) as `b0cdb08bb7a498d0cfe835709ae0dd8b856bb4e7`. The original randomized corruption fixture now emits bounded failure diagnostics with connection/endpoint events, proxy mutation decisions and write results, plus the latest Dial/Accept/transfer phases. Five permanent simulated-network cases cover bounded Initial/Handshake corruption recovery, undamaged controls and cancellation under continuous corruption. Both prior investigations and their raw evidence are published with the tests.
+
+The maintainer directed “finish 144” after PR #145 addressed the captured packet-loss failure that had stopped publication. A new dedicated worktree integrated main without changing the original PR's Go files or immutable evidence. The original #46 worktree and its local branch were untouched. The [publication contract](audits/issue-46-recovery/MERGE-CONTRACT.md) records this resumption, preservation of corruption decisions/deadlines and the bounded evidence plan.
+
+### Validation
+
+Reviewed and merged head `2a8513cfead75b6018235feb6248f676c40bdafd` against main `6786a562a07175f612ac3b6f7a876e62d3b41f86`. The uncached native full suite, focused corruption/diagnostic race tests, vet, lint, changed-Go formatting, root/FIPS module tidiness, go-fix diff, generator consistency and gcassert passed. RAS review `20260909T234404-647230c63d31c6e15fa61bba` completed with both reviewers and synthesis reporting zero findings; no fix verification or replacement round was needed. All 33 applicable hosted checks passed on that exact head before guarded squash merge. No same-head CI rerun, new random campaign or production change was performed.
+
+### Next
+
+[Issue #46](https://github.com/the-sarge/quic-go-fast/issues/46) remains the live investigation into the historical randomized-corruption Dial timeout; its tests and diagnostics are now delivered. An actual failing corruption capture is still needed to establish that failure's cause. [Issue #44](https://github.com/the-sarge/quic-go-fast/issues/44) retains its separate unresolved historical question, which did not prevent this publication. The investigation tasks stay open; no additional diagnostic campaign is started by this journal entry.
