@@ -1385,3 +1385,48 @@ func TestServer0RTTQueueing(t *testing.T) {
 		require.Contains(t, eventRecorder.Events(qlog.PacketDropped{}), event)
 	}
 }
+
+func TestListenAddrSetupFailureClosesSocket(t *testing.T) {
+	for _, listen := range []struct {
+		name string
+		fn   func(string, *tls.Config, *Config) error
+	}{
+		{"ListenAddr", func(addr string, tlsConf *tls.Config, conf *Config) error {
+			ln, err := ListenAddr(addr, tlsConf, conf)
+			if ln != nil {
+				t.Cleanup(func() { ln.Close() })
+			}
+			return err
+		}},
+		{"ListenAddrEarly", func(addr string, tlsConf *tls.Config, conf *Config) error {
+			ln, err := ListenAddrEarly(addr, tlsConf, conf)
+			if ln != nil {
+				t.Cleanup(func() { ln.Close() })
+			}
+			return err
+		}},
+	} {
+		t.Run(listen.name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name      string
+				tlsConf   *tls.Config
+				conf      *Config
+				errorText string
+			}{
+				{"TLS configuration", nil, nil, "tls.Config not set"},
+				{"QUIC configuration", &tls.Config{}, &Config{Versions: []Version{0x1234}}, "invalid QUIC version"},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					socket := captureAddrSocket(t)
+					require.ErrorContains(t, listen.fn("127.0.0.1:0", tc.tlsConf, tc.conf), tc.errorText)
+					require.NotNil(t, *socket)
+					require.ErrorIs(t, (*socket).SetReadDeadline(time.Now()), net.ErrClosed)
+					// The failed listener must release its bound port before returning.
+					rebound, err := net.ListenUDP("udp", (*socket).LocalAddr().(*net.UDPAddr))
+					require.NoError(t, err)
+					rebound.Close()
+				})
+			}
+		})
+	}
+}

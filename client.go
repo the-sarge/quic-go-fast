@@ -17,16 +17,18 @@ var generateConnectionIDForInitial = protocol.GenerateConnectionIDForInitial
 // When the QUIC connection is closed, this UDP connection is closed.
 // See [Dial] for more details.
 func DialAddr(ctx context.Context, addr string, tlsConf *tls.Config, conf *Config) (*Conn, error) {
-	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	udpConn, err := listenUDPConn("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
 		return nil, err
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
+		udpConn.Close()
 		return nil, err
 	}
 	tr, err := setupTransport(udpConn, tlsConf, true)
 	if err != nil {
+		udpConn.Close()
 		return nil, err
 	}
 	conn, err := tr.dial(ctx, udpAddr, addr, tlsConf, conf, false)
@@ -40,16 +42,18 @@ func DialAddr(ctx context.Context, addr string, tlsConf *tls.Config, conf *Confi
 // DialAddrEarly establishes a new 0-RTT QUIC connection to a server.
 // See [DialAddr] for more details.
 func DialAddrEarly(ctx context.Context, addr string, tlsConf *tls.Config, conf *Config) (*Conn, error) {
-	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	udpConn, err := listenUDPConn("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
 		return nil, err
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
+		udpConn.Close()
 		return nil, err
 	}
 	tr, err := setupTransport(udpConn, tlsConf, true)
 	if err != nil {
+		udpConn.Close()
 		return nil, err
 	}
 	conn, err := tr.dial(ctx, udpAddr, addr, tlsConf, conf, true)

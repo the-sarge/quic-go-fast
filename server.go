@@ -184,11 +184,16 @@ func ListenAddr(addr string, tlsConf *tls.Config, config *Config) (*Listener, er
 	if err != nil {
 		return nil, err
 	}
-	return (&Transport{
+	ln, err := (&Transport{
 		Conn:        conn,
 		createdConn: true,
 		isSingleUse: true,
 	}).Listen(tlsConf, config)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return ln, nil
 }
 
 // ListenAddrEarly works like [ListenAddr], but it returns connections before the handshake completes.
@@ -197,19 +202,27 @@ func ListenAddrEarly(addr string, tlsConf *tls.Config, config *Config) (*EarlyLi
 	if err != nil {
 		return nil, err
 	}
-	return (&Transport{
+	ln, err := (&Transport{
 		Conn:        conn,
 		createdConn: true,
 		isSingleUse: true,
 	}).ListenEarly(tlsConf, config)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return ln, nil
 }
+
+// listenUDPConn is replaced in tests to observe ownership of real sockets.
+var listenUDPConn = net.ListenUDP
 
 func listenUDP(addr string) (*net.UDPConn, error) {
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return nil, err
 	}
-	return net.ListenUDP("udp", udpAddr)
+	return listenUDPConn("udp", udpAddr)
 }
 
 // Listen listens for QUIC connections on a given [net.PacketConn].
