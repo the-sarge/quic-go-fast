@@ -1,6 +1,6 @@
 # HTTP/3 pooled exchange lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** H1 complete; H2 implementation pending. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** H1 and H2 complete. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -21,7 +21,7 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 | Slice | Status/disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
 | H1 | Complete (#68) | Preserve usage through the complete HTTP/3 exchange | None | None introduced |
-| H2 | New | Evict only the expected cached HTTP/3 connection | None | None introduced |
+| H2 | Complete (#90) | Evict only the expected cached HTTP/3 connection | None | None introduced |
 
 ## Implementation Slices
 
@@ -90,7 +90,7 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 
 ### H2 — Evict only the expected cached HTTP/3 connection
 
-**Status:** Accepted contract; implementation pending. **Size:** S; one intended PR. **Blocked by:** None.
+**Status:** Complete. **Size:** S; one intended PR. **Blocked by:** None.
 
 **What it delivers:** An old failed request or dial waiter cannot delete a replacement cached under the same hostname. Route those cleanup callers through one conditional eviction operation.
 
@@ -112,11 +112,11 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Current expected entry | Remove it under the mutex. | Named slice owner; regression/characterization required before completion |
-| Missing entry or nil map | No-op. | Named slice owner; regression/characterization required before completion |
-| Replacement occupies hostname | Preserve it. | Named slice owner; regression/characterization required before completion |
-| Delayed old dial failure | Preserve successor via the same conditional operation. | Named slice owner; regression/characterization required before completion |
-| Delayed old request failure | Preserve successor; retry and cancellation eligibility remain unchanged. | Named slice owner; regression/characterization required before completion |
+| Current expected entry | Remove it under the mutex. | `Transport.removeClient`; covered by `TestTransportConditionalEviction/current` |
+| Missing entry or nil map | No-op. | `Transport.removeClient`; covered by `TestTransportConditionalEviction/nil_map` and `/missing` |
+| Replacement occupies hostname | Preserve it. | `Transport.removeClient`; covered by `TestTransportConditionalEviction/replacement` |
+| Delayed old dial failure | Preserve successor via the same conditional operation. | `Transport.removeClient`; covered by `TestTransportDelayedDialFailurePreservesReplacement` |
+| Delayed old request failure | Preserve successor; retry and cancellation eligibility remain unchanged. | `Transport.removeClient`; covered by `TestTransportDelayedRequestFailurePreservesReplacement` and existing redial/cancellation tests |
 
 **Evidence budget:** 5 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 

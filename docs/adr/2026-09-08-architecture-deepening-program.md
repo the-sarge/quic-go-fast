@@ -1,6 +1,6 @@
 # Architecture Deepening Program — 2026-09-08
 
-**Identity:** QGF-AD-2026-09. **Status:** In progress; H1 complete, remaining slices pending. **Normative scope:** Stable track identity, cross-track edges, accepted no-code outcomes and binding rules. Each exact plan slice owns the implementation contract. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md); [scoped construction addition](../audits/2026-09-08-emission-construction/README.md).
+**Identity:** QGF-AD-2026-09. **Status:** In progress; H track complete, remaining slices pending. **Normative scope:** Stable track identity, cross-track edges, accepted no-code outcomes and binding rules. Each exact plan slice owns the implementation contract. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md); [scoped construction addition](../audits/2026-09-08-emission-construction/README.md).
 
 ## Tracks, dependencies and frontier
 
@@ -12,9 +12,9 @@
 | T | Maintained emission test entrypoints | [T plan](2026-09-08-emission-entrypoint-tests-plan.md) | pending | T1 | None |
 | C | Complete initial packet-emission assembly | [C plan](2026-09-08-emission-construction-plan.md) | pending | C1, C2 | C2 requires C1 |
 
-The current implementation frontier is H2, I1, I3, I5, I6, I7, P1, T1 and C1. I2, I4, I8 and C2 are blocked as shown. These are fourteen intended PRs and fourteen fresh implementation contexts. H1 reuses existing issue #68; issue links pending in this index are resolved by the program tracker after publication and need not be backfilled into another authoritative plan commit.
+The current implementation frontier is I1, I3, I5, I6, I7, P1, T1 and C1. I2, I4, I8 and C2 are blocked as shown. The program comprises fourteen intended PRs and fourteen fresh implementation contexts; twelve remain after H1 and H2. H1 reuses existing issue #68; issue links pending in this index are resolved by the program tracker after publication and need not be backfilled into another authoritative plan commit.
 
-H1 is complete. Recommended priority is H2 and the I1 → I2 path, followed by the other I owners and I8 when its blockers finish. P1 can run in parallel because it changes distribution rather than runtime. T1 and C follow correctness by preference. C1 supplies the specific constructor-owned coverage required by C2; broad T1 migration does not technically block C. Future readiness changes need their own evidence decision. There are no cross-track technical blockers. H1/H2 share transport code; I slices share connection/server/transport files; T1 and existing #73 touch nearby tests; C shares connection.go with I and constructor fixtures with T. Keep path/early-error changes in their current tracks and revalidate constructor ordering when integrating. Use separate worktrees and serialize shared-file integration/revalidation; shared filenames alone are not dependency edges.
+H1 and H2 are complete; H2 unlocks no successor. Recommended priority is the I1 → I2 path, followed by the other I owners and I8 when its blockers finish. P1 can run in parallel because it changes distribution rather than runtime. T1 and C follow correctness by preference. C1 supplies the specific constructor-owned coverage required by C2; broad T1 migration does not technically block C. Future readiness changes need their own evidence decision. There are no cross-track technical blockers. H1/H2 share transport code; I slices share connection/server/transport files; T1 and existing #73 touch nearby tests; C shares connection.go with I and constructor fixtures with T. Keep path/early-error changes in their current tracks and revalidate constructor ordering when integrating. Use separate worktrees and serialize shared-file integration/revalidation; shared filenames alone are not dependency edges.
 
 ## Outcomes closed with no code
 
