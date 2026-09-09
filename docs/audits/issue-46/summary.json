@@ -1,0 +1,1218 @@
+{
+  "M1": {
+    "records": 4505,
+    "datagrams": 967,
+    "selected": 21,
+    "selected_before_dial_result": 0,
+    "short_or_failed_writes": 0,
+    "dial_start_ms": 0.460916,
+    "deadline_ms": 1000.457041,
+    "dial_result_ms": 8.157166,
+    "dial_elapsed_ms": 7.69625,
+    "dial_result": "success",
+    "events": {
+      "transport:connection_started": 2,
+      "recovery:congestion_state_updated": 31,
+      "transport:parameters_set": 4,
+      "security:key_updated": 16,
+      "transport:packet_sent": 970,
+      "recovery:metrics_updated": 1084,
+      "recovery:loss_timer_updated": 418,
+      "transport:version_information": 2,
+      "transport:packet_received": 946,
+      "transport:alpn_information": 2,
+      "security:key_discarded": 8,
+      "recovery:ecn_state_updated": 6,
+      "transport:packet_dropped": 21,
+      "recovery:packet_lost": 18,
+      "recovery:mtu_updated": 6,
+      "transport:connection_closed": 2
+    },
+    "server_pto_expired_ms": [
+      41.284625,
+      60.03075
+    ],
+    "last_server_timer_set": {
+      "event_type": "set",
+      "timer_type": "pto",
+      "packet_number_space": "application_data",
+      "delta": 134.441583
+    },
+    "selected_before_dial_details": []
+  },
+  "M2": {
+    "records": 4624,
+    "datagrams": 977,
+    "selected": 22,
+    "selected_before_dial_result": 0,
+    "short_or_failed_writes": 0,
+    "dial_start_ms": 2.693792,
+    "deadline_ms": 1002.689459,
+    "dial_result_ms": 13.178917,
+    "dial_elapsed_ms": 10.485125,
+    "dial_result": "success",
+    "events": {
+      "transport:connection_started": 2,
+      "recovery:congestion_state_updated": 38,
+      "transport:parameters_set": 4,
+      "security:key_updated": 16,
+      "transport:packet_sent": 980,
+      "recovery:metrics_updated": 1102,
+      "recovery:loss_timer_updated": 472,
+      "transport:version_information": 2,
+      "transport:packet_received": 956,
+      "transport:alpn_information": 2,
+      "security:key_discarded": 12,
+      "recovery:ecn_state_updated": 6,
+      "transport:packet_dropped": 22,
+      "recovery:packet_lost": 21,
+      "recovery:mtu_updated": 8,
+      "transport:connection_closed": 2
+    },
+    "server_pto_expired_ms": [
+      40.689625,
+      55.364,
+      65.943375,
+      126.348792,
+      137.959209
+    ],
+    "last_server_timer_set": {
+      "event_type": "set",
+      "timer_type": "pto",
+      "packet_number_space": "application_data",
+      "delta": 227.942459
+    },
+    "selected_before_dial_details": []
+  },
+  "L1": {
+    "records": 4434,
+    "datagrams": 950,
+    "selected": 24,
+    "selected_before_dial_result": 0,
+    "short_or_failed_writes": 0,
+    "dial_start_ms": 0.305243,
+    "deadline_ms": 3000.297759,
+    "dial_result_ms": 25.263848,
+    "dial_elapsed_ms": 24.958605,
+    "dial_result": "success",
+    "events": {
+      "transport:connection_started": 2,
+      "recovery:congestion_state_updated": 32,
+      "transport:parameters_set": 4,
+      "security:key_updated": 16,
+      "transport:packet_sent": 953,
+      "recovery:metrics_updated": 1049,
+      "recovery:loss_timer_updated": 421,
+      "transport:version_information": 2,
+      "transport:packet_received": 927,
+      "transport:alpn_information": 2,
+      "security:key_discarded": 12,
+      "recovery:ecn_state_updated": 6,
+      "transport:packet_dropped": 24,
+      "recovery:packet_lost": 22,
+      "recovery:mtu_updated": 8,
+      "transport:connection_closed": 2
+    },
+    "server_pto_expired_ms": [
+      75.750127,
+      89.190762,
+      143.43596,
+      155.240197,
+      264.250076,
+      519.877311
+    ],
+    "last_server_timer_set": {
+      "event_type": "set",
+      "timer_type": "pto",
+      "packet_number_space": "application_data",
+      "delta": 563.864538
+    },
+    "selected_before_dial_details": []
+  },
+  "L2": {
+    "records": 4321,
+    "datagrams": 937,
+    "selected": 25,
+    "selected_before_dial_result": 4,
+    "short_or_failed_writes": 0,
+    "dial_start_ms": 0.27186,
+    "deadline_ms": 3000.262973,
+    "dial_result_ms": 185.606012,
+    "dial_elapsed_ms": 185.334152,
+    "dial_result": "success",
+    "events": {
+      "transport:connection_started": 2,
+      "recovery:congestion_state_updated": 37,
+      "transport:parameters_set": 4,
+      "security:key_updated": 16,
+      "transport:packet_sent": 939,
+      "recovery:metrics_updated": 1024,
+      "recovery:loss_timer_updated": 372,
+      "transport:version_information": 2,
+      "transport:packet_received": 909,
+      "transport:packet_buffered": 3,
+      "transport:packet_dropped": 25,
+      "transport:alpn_information": 2,
+      "security:key_discarded": 12,
+      "recovery:ecn_state_updated": 6,
+      "recovery:packet_lost": 19,
+      "recovery:mtu_updated": 8,
+      "transport:connection_closed": 2
+    },
+    "server_pto_expired_ms": [
+      66.529996,
+      174.509924
+    ],
+    "last_server_timer_set": {
+      "event_type": "set",
+      "timer_type": "pto",
+      "packet_number_space": "application_data",
+      "delta": 817.640625
+    },
+    "selected_before_dial_details": [
+      {
+        "bound": 4,
+        "callback_ns": 12617452,
+        "choice": 0,
+        "crc_after": 621935370,
+        "crc_before": 492927580,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:60612",
+        "length": 673,
+        "new": 175,
+        "offset": 199,
+        "old": 142,
+        "order": 4,
+        "parts": [
+          {
+            "length": 570,
+            "type": "Handshake"
+          },
+          {
+            "length": 103,
+            "type": "short"
+          }
+        ],
+        "return_ns": 12660884,
+        "selected": true,
+        "to": "127.0.0.1:33561",
+        "write_end_ns": 12659952,
+        "write_n": 673,
+        "write_start_ns": 12635907,
+        "receiver_events": [
+          {
+            "ms": 12.769187,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 0
+              },
+              "raw": {
+                "length": 570
+              },
+              "datagram_payload_checksum": 621935370,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "ms": 12.869685,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "1RTT",
+                "dcil": 0
+              },
+              "raw": {
+                "length": 103
+              },
+              "datagram_payload_checksum": 621935370,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "ms": 21.896574,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "09c3e47cf7b9"
+              },
+              "raw": {
+                "length": 570
+              },
+              "datagram_payload_checksum": 621935370,
+              "trigger": "payload_decrypt_error"
+            }
+          },
+          {
+            "ms": 21.915168,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "1RTT",
+                "dcil": 0
+              },
+              "raw": {
+                "length": 103
+              },
+              "datagram_payload_checksum": 621935370,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "ms": 185.83411,
+            "event": "transport:packet_received",
+            "data": {
+              "header": {
+                "packet_type": "1RTT",
+                "packet_number": 0,
+                "dcil": 6,
+                "dcid": "09c3e47cf7b9",
+                "key_phase_bit": "0"
+              },
+              "raw": {
+                "length": 103,
+                "payload_length": 94
+              },
+              "datagram_payload_checksum": 621935370,
+              "frames": [
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 3,
+                  "retire_prior_to": 0,
+                  "length": 6,
+                  "connection_id": "182bfeae52ef",
+                  "stateless_reset_token": "46633aaacd5b55aba6d583d43970c256"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 1,
+                  "retire_prior_to": 0,
+                  "length": 6,
+                  "connection_id": "3d027ae30e9b",
+                  "stateless_reset_token": "a0b94009f5e3d5589a34ce098873dbc1"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 2,
+                  "retire_prior_to": 0,
+                  "length": 6,
+                  "connection_id": "7de5525d40ab",
+                  "stateless_reset_token": "33691c003b0209a837662f5270927a7a"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "bound": 4,
+        "callback_ns": 66817595,
+        "choice": 0,
+        "crc_after": 591440773,
+        "crc_before": 2127696172,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:60612",
+        "length": 570,
+        "new": 106,
+        "offset": 481,
+        "old": 94,
+        "order": 6,
+        "parts": [
+          {
+            "length": 570,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 66876967,
+        "selected": true,
+        "to": "127.0.0.1:33561",
+        "write_end_ns": 66875824,
+        "write_n": 570,
+        "write_start_ns": 66832133,
+        "receiver_events": [
+          {
+            "ms": 67.004606,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "09c3e47cf7b9"
+              },
+              "raw": {
+                "length": 570
+              },
+              "datagram_payload_checksum": 591440773,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "bound": 4,
+        "callback_ns": 66907604,
+        "choice": 0,
+        "crc_after": 1655663273,
+        "crc_before": 1379441952,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:60612",
+        "length": 570,
+        "new": 32,
+        "offset": 242,
+        "old": 201,
+        "order": 7,
+        "parts": [
+          {
+            "length": 570,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 66924967,
+        "selected": true,
+        "to": "127.0.0.1:33561",
+        "write_end_ns": 66924486,
+        "write_n": 570,
+        "write_start_ns": 66913365,
+        "receiver_events": [
+          {
+            "ms": 67.042257,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "09c3e47cf7b9"
+              },
+              "raw": {
+                "length": 570
+              },
+              "datagram_payload_checksum": 1655663273,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "bound": 4,
+        "callback_ns": 175156616,
+        "choice": 0,
+        "crc_after": 440730705,
+        "crc_before": 1403898126,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:60612",
+        "length": 570,
+        "new": 106,
+        "offset": 394,
+        "old": 101,
+        "order": 11,
+        "parts": [
+          {
+            "length": 570,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 175190179,
+        "selected": true,
+        "to": "127.0.0.1:33561",
+        "write_end_ns": 175189137,
+        "write_n": 570,
+        "write_start_ns": 175165703,
+        "receiver_events": [
+          {
+            "ms": 175.31335,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "09c3e47cf7b9"
+              },
+              "raw": {
+                "length": 570
+              },
+              "datagram_payload_checksum": 440730705,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "F1": {
+    "records": 169,
+    "datagrams": 27,
+    "selected": 11,
+    "selected_before_dial_result": 11,
+    "short_or_failed_writes": 0,
+    "dial_start_ms": 0.468917,
+    "deadline_ms": 1000.466042,
+    "dial_result_ms": 1001.024708,
+    "dial_elapsed_ms": 1000.555791,
+    "dial_result": "context deadline exceeded",
+    "events": {
+      "transport:connection_started": 2,
+      "recovery:congestion_state_updated": 4,
+      "transport:parameters_set": 3,
+      "security:key_updated": 9,
+      "transport:packet_sent": 31,
+      "recovery:metrics_updated": 24,
+      "recovery:loss_timer_updated": 33,
+      "transport:version_information": 2,
+      "transport:packet_received": 16,
+      "transport:packet_buffered": 3,
+      "transport:packet_dropped": 11,
+      "transport:connection_closed": 2
+    },
+    "server_pto_expired_ms": [
+      23.699583,
+      61.712375,
+      137.285083,
+      287.410958,
+      586.610042
+    ],
+    "last_server_timer_set": {
+      "event_type": "set",
+      "timer_type": "pto",
+      "packet_number_space": "handshake",
+      "delta": 1182.922936
+    },
+    "selected_before_dial_details": [
+      {
+        "callback_ns": 5066000,
+        "control": false,
+        "crc_after": 2716059613,
+        "crc_before": 3862447306,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 664,
+        "new": 108,
+        "offset": 560,
+        "old": 109,
+        "order": 4,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          },
+          {
+            "length": 103,
+            "type": "short"
+          }
+        ],
+        "return_ns": 5077958,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 1,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 5077792,
+        "write_n": 664,
+        "write_start_ns": 5068083,
+        "receiver_events": [
+          {
+            "ms": 5.12,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 0
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 2716059613,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "ms": 5.123125,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "1RTT",
+                "dcil": 0
+              },
+              "raw": {
+                "length": 103
+              },
+              "datagram_payload_checksum": 2716059613,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "ms": 8.167417,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 2716059613,
+              "trigger": "payload_decrypt_error"
+            }
+          },
+          {
+            "ms": 8.178333,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "1RTT",
+                "dcil": 0
+              },
+              "raw": {
+                "length": 103
+              },
+              "datagram_payload_checksum": 2716059613,
+              "trigger": "keys_unavailable"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 23816167,
+        "control": false,
+        "crc_after": 3556735221,
+        "crc_before": 563411958,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 209,
+        "offset": 560,
+        "old": 208,
+        "order": 6,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 23833125,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 2,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 23832917,
+        "write_n": 561,
+        "write_start_ns": 23820958,
+        "receiver_events": [
+          {
+            "ms": 23.863,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 3556735221,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 23836875,
+        "control": false,
+        "crc_after": 3672359561,
+        "crc_before": 680018314,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 2,
+        "offset": 560,
+        "old": 3,
+        "order": 7,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 23842875,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 3,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 23842792,
+        "write_n": 561,
+        "write_start_ns": 23837667,
+        "receiver_events": [
+          {
+            "ms": 23.871667,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 3672359561,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 61837583,
+        "control": false,
+        "crc_after": 4288041622,
+        "crc_before": 234738069,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 40,
+        "offset": 560,
+        "old": 41,
+        "order": 10,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 61850208,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 4,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 61850042,
+        "write_n": 561,
+        "write_start_ns": 61839417,
+        "receiver_events": [
+          {
+            "ms": 61.880625,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 4288041622,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 61853375,
+        "control": false,
+        "crc_after": 676673818,
+        "crc_before": 3661543961,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 114,
+        "offset": 560,
+        "old": 115,
+        "order": 11,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 61859250,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 5,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 61859167,
+        "write_n": 561,
+        "write_start_ns": 61854042,
+        "receiver_events": [
+          {
+            "ms": 61.883125,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 676673818,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 137434292,
+        "control": false,
+        "crc_after": 2686361642,
+        "crc_before": 1383408425,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 134,
+        "offset": 560,
+        "old": 135,
+        "order": 14,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 137451667,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 6,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 137451542,
+        "write_n": 561,
+        "write_start_ns": 137437458,
+        "receiver_events": [
+          {
+            "ms": 137.492167,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 2686361642,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 137461458,
+        "control": false,
+        "crc_after": 2225270849,
+        "crc_before": 1992913730,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 168,
+        "offset": 560,
+        "old": 169,
+        "order": 15,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 137471083,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 7,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 137470958,
+        "write_n": 561,
+        "write_start_ns": 137462375,
+        "receiver_events": [
+          {
+            "ms": 137.496875,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 2225270849,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 287748375,
+        "control": false,
+        "crc_after": 1670344665,
+        "crc_before": 2447699162,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 245,
+        "offset": 560,
+        "old": 244,
+        "order": 20,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 287768250,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 8,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 287768000,
+        "write_n": 561,
+        "write_start_ns": 287751708,
+        "receiver_events": [
+          {
+            "ms": 287.810875,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 1670344665,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 287774500,
+        "control": false,
+        "crc_after": 3994651494,
+        "crc_before": 477235301,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 238,
+        "offset": 560,
+        "old": 239,
+        "order": 21,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 287781458,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 9,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 287781375,
+        "write_n": 561,
+        "write_start_ns": 287775708,
+        "receiver_events": [
+          {
+            "ms": 287.817042,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 3994651494,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 586751375,
+        "control": false,
+        "crc_after": 3232998834,
+        "crc_before": 853026481,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 23,
+        "offset": 560,
+        "old": 22,
+        "order": 24,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 586767542,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 10,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 586767500,
+        "write_n": 561,
+        "write_start_ns": 586754083,
+        "receiver_events": [
+          {
+            "ms": 586.808125,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 3232998834,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 586772542,
+        "control": false,
+        "crc_after": 1135557788,
+        "crc_before": 2982461343,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:50379",
+        "length": 561,
+        "new": 121,
+        "offset": 560,
+        "old": 120,
+        "order": 25,
+        "parts": [
+          {
+            "length": 561,
+            "type": "Handshake"
+          }
+        ],
+        "return_ns": 586779458,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 11,
+        "selected": true,
+        "to": "127.0.0.1:53448",
+        "write_end_ns": 586779333,
+        "write_n": 561,
+        "write_start_ns": 586773333,
+        "receiver_events": [
+          {
+            "ms": 586.812,
+            "event": "transport:packet_dropped",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 6,
+                "dcid": "76c2e06a0baa"
+              },
+              "raw": {
+                "length": 561
+              },
+              "datagram_payload_checksum": 1135557788,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "F2": {
+    "records": 4275,
+    "datagrams": 959,
+    "selected": 1,
+    "selected_before_dial_result": 1,
+    "short_or_failed_writes": 0,
+    "dial_start_ms": 2.302292,
+    "deadline_ms": 1002.297,
+    "dial_result_ms": 12.439792,
+    "dial_elapsed_ms": 10.1375,
+    "dial_result": "success",
+    "events": {
+      "transport:connection_started": 2,
+      "recovery:congestion_state_updated": 8,
+      "transport:parameters_set": 4,
+      "security:key_updated": 16,
+      "transport:packet_sent": 960,
+      "recovery:metrics_updated": 1034,
+      "recovery:loss_timer_updated": 356,
+      "transport:version_information": 2,
+      "transport:packet_received": 912,
+      "transport:packet_buffered": 2,
+      "transport:alpn_information": 2,
+      "security:key_discarded": 8,
+      "recovery:ecn_state_updated": 6,
+      "transport:connection_closed": 2
+    },
+    "server_pto_expired_ms": [],
+    "last_server_timer_set": {
+      "event_type": "set",
+      "timer_type": "pto",
+      "packet_number_space": "application_data",
+      "delta": 71.26525
+    },
+    "selected_before_dial_details": [
+      {
+        "callback_ns": 9255167,
+        "control": true,
+        "crc_after": 1353947608,
+        "crc_before": 1353947608,
+        "direction": "Outgoing",
+        "from": "127.0.0.1:51167",
+        "length": 666,
+        "new": 10,
+        "offset": 562,
+        "old": 10,
+        "order": 4,
+        "parts": [
+          {
+            "length": 563,
+            "type": "Handshake"
+          },
+          {
+            "length": 103,
+            "type": "short"
+          }
+        ],
+        "return_ns": 9273959,
+        "schedule": "first-eleven-handshake",
+        "schedule_index": 1,
+        "selected": true,
+        "to": "127.0.0.1:57699",
+        "write_end_ns": 9273625,
+        "write_n": 666,
+        "write_start_ns": 9257209,
+        "receiver_events": [
+          {
+            "ms": 9.307375,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 0
+              },
+              "raw": {
+                "length": 563
+              },
+              "datagram_payload_checksum": 1353947608,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "ms": 9.312,
+            "event": "transport:packet_buffered",
+            "data": {
+              "header": {
+                "packet_type": "1RTT",
+                "dcil": 0
+              },
+              "raw": {
+                "length": 103
+              },
+              "datagram_payload_checksum": 1353947608,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "ms": 12.412,
+            "event": "transport:packet_received",
+            "data": {
+              "header": {
+                "packet_type": "handshake",
+                "packet_number": 0,
+                "version": "1",
+                "scil": 6,
+                "scid": "cedf975d9270",
+                "dcil": 6,
+                "dcid": "87ab7fc477e7"
+              },
+              "raw": {
+                "length": 563,
+                "payload_length": 542
+              },
+              "datagram_payload_checksum": 1353947608,
+              "frames": [
+                {
+                  "frame_type": "crypto",
+                  "offset": 0,
+                  "length": 520
+                }
+              ]
+            }
+          },
+          {
+            "ms": 12.430292,
+            "event": "transport:packet_received",
+            "data": {
+              "header": {
+                "packet_type": "1RTT",
+                "packet_number": 0,
+                "dcil": 6,
+                "dcid": "87ab7fc477e7",
+                "key_phase_bit": "0"
+              },
+              "raw": {
+                "length": 103,
+                "payload_length": 94
+              },
+              "datagram_payload_checksum": 1353947608,
+              "frames": [
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 1,
+                  "retire_prior_to": 0,
+                  "length": 6,
+                  "connection_id": "8aa4a7a3725e",
+                  "stateless_reset_token": "ceaf5f1ecbc5a227348ed1b553708be1"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 3,
+                  "retire_prior_to": 0,
+                  "length": 6,
+                  "connection_id": "96b5e8eda80a",
+                  "stateless_reset_token": "a5b77804f4369ef4cf523b76c459894b"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 2,
+                  "retire_prior_to": 0,
+                  "length": 6,
+                  "connection_id": "240aa5f2b9f0",
+                  "stateless_reset_token": "ac8176eb3eb225a166272e9d81ac7ece"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

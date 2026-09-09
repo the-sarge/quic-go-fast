@@ -1,0 +1,20 @@
+{
+  "command": [
+    "./self-diagnostic.test",
+    "-test.run=^TestMITCorruptPackets$/^towards_the_client$",
+    "-test.count=1",
+    "-test.v",
+    "-test.timeout=30s",
+    "-version=1"
+  ],
+  "cwd": "/tmp/quic-go-issue46-901f53e0-Rpmvbq",
+  "environment": {
+    "TIMESCALE_FACTOR": "3",
+    "QUIC_GO_DISABLE_GSO": "true",
+    "QUIC_GO_DISABLE_ECN": null,
+    "GOFLAGS": null,
+    "GODEBUG": null,
+    "GOMAXPROCS": null,
+    "ISSUE46_OUTPUT": "/tmp/quic-go-issue46-901f53e0-Rpmvbq/L1.jsonl"
+  }
+}

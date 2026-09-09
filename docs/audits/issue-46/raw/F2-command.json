@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/Volumes/worktrees/quic-go-fast/issue-46-investigation/docs/audits/issue-46/mechanism.test",
+    "-test.run=^TestMITCorruptPackets$/^towards_the_client$",
+    "-test.count=1",
+    "-test.v",
+    "-test.timeout=30s",
+    "-version=1"
+  ],
+  "environment": {
+    "TIMESCALE_FACTOR": "1",
+    "QUIC_GO_DISABLE_GSO": null,
+    "QUIC_GO_DISABLE_ECN": null,
+    "GOFLAGS": null,
+    "GODEBUG": null,
+    "GOMAXPROCS": null,
+    "ISSUE46_OUTPUT": "/Volumes/worktrees/quic-go-fast/issue-46-investigation/docs/audits/issue-46/raw/F2.jsonl",
+    "ISSUE46_CONTROL": "true"
+  }
+}
