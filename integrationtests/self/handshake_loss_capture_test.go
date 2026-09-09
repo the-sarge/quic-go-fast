@@ -240,6 +240,10 @@ func TestHandshakeCapturedLoss(t *testing.T) {
 				payload, readErr := io.ReadAll(&readerWithTimeout{Reader: received, Timeout: timeout})
 				diagnostics.phase(false, fmt.Sprintf("read stream returned: bytes=%d err=%v", len(payload), readErr))
 
+				// Stream delivery can wake Read before PacketReceived is recorded.
+				// Settle producers before inspecting their causal evidence.
+				synctest.Wait()
+
 				loss.mu.Lock()
 				defer loss.mu.Unlock()
 				require.Empty(t, loss.mappingError)
