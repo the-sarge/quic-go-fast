@@ -22,6 +22,7 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/testutils"
 	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/require"
@@ -296,19 +297,18 @@ type readerWithTimeout struct {
 	Timeout time.Duration
 }
 
-func (r *readerWithTimeout) Read(p []byte) (n int, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		n, err = r.Reader.Read(p)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(r.Timeout):
-		return 0, fmt.Errorf("read timeout after %s", r.Timeout)
+func (r *readerWithTimeout) Read(p []byte) (int, error) {
+	var interrupt func()
+	switch reader := r.Reader.(type) {
+	case interface{ SetReadDeadline(time.Time) error }:
+		interrupt = func() { reader.SetReadDeadline(time.Now()) }
+	case io.ReadCloser:
+		// HTTP response bodies have no native deadline; Close cancels their read.
+		interrupt = func() { reader.Close() }
+	default:
+		return 0, fmt.Errorf("timeout reader %T cannot be interrupted", r.Reader)
 	}
+	return testutils.RunWithTimeout(r.Timeout, interrupt, func() (int, error) { return r.Reader.Read(p) })
 }
 
 func randomDuration(min, max time.Duration) time.Duration {
