@@ -1,11 +1,9 @@
 package self_test
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"io"
-	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -16,7 +14,10 @@ import (
 
 func setupDeadlineTest(t *testing.T) (serverStr, clientStr *quic.Stream) {
 	t.Helper()
-	server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(nil))
+	server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(&quic.Config{
+		InitialStreamReceiveWindow: 1024,
+		MaxStreamReceiveWindow:     1024,
+	}))
 	require.NoError(t, err)
 	t.Cleanup(func() { server.Close() })
 
@@ -41,195 +42,100 @@ func setupDeadlineTest(t *testing.T) (serverStr, clientStr *quic.Stream) {
 	return serverStr, clientStr
 }
 
-func TestReadDeadlineSync(t *testing.T) {
+// armDeadline keeps the async case bounded even if its setter is delayed.
+// Cleanup joins the setter before the caller resets a deadline or closes a stream.
+func armDeadline(t *testing.T, async bool, set func(time.Time) error) func() {
+	t.Helper()
+	if !async {
+		require.NoError(t, set(time.Now().Add(scaleDuration(10*time.Millisecond))))
+		return func() {}
+	}
+	require.NoError(t, set(time.Now().Add(scaleDuration(5*time.Second))))
+	done := make(chan struct{})
+	timer := time.AfterFunc(scaleDuration(10*time.Millisecond), func() {
+		defer close(done)
+		_ = set(time.Now())
+	})
+	join := func() {
+		if timer.Stop() {
+			close(done)
+		}
+		<-done
+	}
+	t.Cleanup(join)
+	return join
+}
+
+func TestReadDeadlineSync(t *testing.T)  { testReadDeadline(t, false) }
+func TestReadDeadlineAsync(t *testing.T) { testReadDeadline(t, true) }
+
+func testReadDeadline(t *testing.T, async bool) {
+	t.Helper()
 	serverStr, clientStr := setupDeadlineTest(t)
-
-	const timeout = time.Millisecond
-	errChan := make(chan error, 1)
-	go func() {
-		_, err := serverStr.Write(PRDataLong)
-		errChan <- err
-	}()
-
-	var bytesRead int
-	var timeoutCounter int
-	buf := make([]byte, 1<<10)
-	data := make([]byte, len(PRDataLong))
-	clientStr.SetReadDeadline(time.Now().Add(timeout))
-	for bytesRead < len(PRDataLong) {
+	buf := make([]byte, 1)
+	// The peer sends nothing until all ten blocked reads have expired.
+	for range 10 {
+		join := armDeadline(t, async, clientStr.SetReadDeadline)
 		n, err := clientStr.Read(buf)
-		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-			timeoutCounter++
-			clientStr.SetReadDeadline(time.Now().Add(timeout))
-		} else {
-			require.NoError(t, err)
-		}
-		copy(data[bytesRead:], buf[:n])
-		bytesRead += n
+		join()
+		require.Zero(t, n)
+		require.ErrorIs(t, err, os.ErrDeadlineExceeded)
 	}
-	require.Equal(t, PRDataLong, data)
-	// make sure the test actually worked and Read actually ran into the deadline a few times
-	t.Logf("ran into deadline %d times", timeoutCounter)
-	require.GreaterOrEqual(t, timeoutCounter, 10)
-	select {
-	case err := <-errChan:
-		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
+	require.NoError(t, clientStr.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+	payload := []byte("data after read deadline")
+	require.NoError(t, serverStr.SetWriteDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+	_, err := serverStr.Write(payload)
+	require.NoError(t, err)
+	require.NoError(t, serverStr.Close())
+	data, err := io.ReadAll(clientStr)
+	require.NoError(t, err)
+	require.Equal(t, payload, data)
 }
 
-func TestReadDeadlineAsync(t *testing.T) {
+func TestWriteDeadlineSync(t *testing.T)  { testWriteDeadline(t, false) }
+func TestWriteDeadlineAsync(t *testing.T) { testWriteDeadline(t, true) }
+
+func testWriteDeadline(t *testing.T, async bool) {
+	t.Helper()
 	serverStr, clientStr := setupDeadlineTest(t)
-
-	const timeout = time.Millisecond
-	errChan := make(chan error, 1)
-	go func() {
-		_, err := serverStr.Write(PRDataLong)
-		errChan <- err
-	}()
-
-	var bytesRead int
-	var timeoutCounter int
-	buf := make([]byte, 1<<10)
-	data := make([]byte, len(PRDataLong))
-	received := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-received:
-				return
-			default:
-				time.Sleep(timeout)
-			}
-			clientStr.SetReadDeadline(time.Now().Add(timeout))
-		}
-	}()
-
-	for bytesRead < len(PRDataLong) {
-		n, err := clientStr.Read(buf)
-		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-			timeoutCounter++
-		} else {
-			require.NoError(t, err)
-		}
-		copy(data[bytesRead:], buf[:n])
-		bytesRead += n
+	// The peer's receive window stays at 1 KiB and it does not read yet.
+	// This payload exceeds both that window and the stream's local send buffer.
+	payload := PRDataLong[:256<<10]
+	written := 0
+	for range 10 {
+		join := armDeadline(t, async, clientStr.SetWriteDeadline)
+		n, err := clientStr.Write(payload[written:])
+		join()
+		written += n
+		require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+		require.Less(t, written, len(payload))
 	}
-
-	require.Equal(t, PRDataLong, data)
-	close(received)
-
-	// make sure the test actually worked and Read actually ran into the deadline a few times
-	t.Logf("ran into deadline %d times", timeoutCounter)
-	require.GreaterOrEqual(t, timeoutCounter, 10)
-	select {
-	case err := <-errChan:
-		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
+	type result struct {
+		data []byte
+		err  error
 	}
-}
-
-func TestWriteDeadlineSync(t *testing.T) {
-	serverStr, clientStr := setupDeadlineTest(t)
-
-	const timeout = time.Millisecond
-
-	errChan := make(chan error, 1)
+	results := make(chan result, 1)
+	done := make(chan struct{})
 	go func() {
-		defer close(errChan)
+		defer close(done)
 		data, err := io.ReadAll(serverStr)
-		if err != nil {
-			errChan <- err
-		}
-		if !bytes.Equal(PRDataLong, data) {
-			errChan <- fmt.Errorf("data mismatch")
-		}
+		results <- result{data, err}
 	}()
-
-	var bytesWritten int
-	var timeoutCounter int
-	clientStr.SetWriteDeadline(time.Now().Add(timeout))
-	for bytesWritten < len(PRDataLong) {
-		n, err := clientStr.Write(PRDataLong[bytesWritten:])
-		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-			timeoutCounter++
-			clientStr.SetWriteDeadline(time.Now().Add(timeout))
-		} else {
-			require.NoError(t, err)
-		}
-		bytesWritten += n
-	}
-	clientStr.Close()
-
-	// make sure the test actually worked and Write actually ran into the deadline a few times
-	t.Logf("ran into deadline %d times", timeoutCounter)
-	require.GreaterOrEqual(t, timeoutCounter, 10)
+	// Also join on assertion failures, before connection cleanup runs.
+	defer func() {
+		serverStr.CancelRead(0)
+		<-done
+	}()
+	require.NoError(t, clientStr.SetWriteDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+	n, err := clientStr.Write(payload[written:])
+	require.NoError(t, err)
+	require.Equal(t, len(payload), written+n)
+	require.NoError(t, clientStr.Close())
 	select {
-	case err := <-errChan:
-		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
-	}
-}
-
-func TestWriteDeadlineAsync(t *testing.T) {
-	serverStr, clientStr := setupDeadlineTest(t)
-
-	const timeout = time.Millisecond
-
-	errChan := make(chan error, 1)
-	go func() {
-		defer close(errChan)
-		data, err := io.ReadAll(serverStr)
-		if err != nil {
-			errChan <- err
-		}
-		if !bytes.Equal(PRDataLong, data) {
-			errChan <- fmt.Errorf("data mismatch")
-		}
-	}()
-
-	clientStr.SetWriteDeadline(time.Now().Add(timeout))
-	readDone := make(chan struct{})
-	deadlineDone := make(chan struct{})
-	go func() {
-		defer close(deadlineDone)
-		for {
-			select {
-			case <-readDone:
-				return
-			default:
-				time.Sleep(timeout)
-			}
-			clientStr.SetWriteDeadline(time.Now().Add(timeout))
-		}
-	}()
-
-	var bytesWritten int
-	var timeoutCounter int
-	clientStr.SetWriteDeadline(time.Now().Add(timeout))
-	for bytesWritten < len(PRDataLong) {
-		n, err := clientStr.Write(PRDataLong[bytesWritten:])
-		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-			timeoutCounter++
-		} else {
-			require.NoError(t, err)
-		}
-		bytesWritten += n
-	}
-	clientStr.Close()
-
-	close(readDone)
-
-	// make sure the test actually worked and Write actually ran into the deadline a few times
-	t.Logf("ran into deadline %d times", timeoutCounter)
-	require.GreaterOrEqual(t, timeoutCounter, 10)
-	select {
-	case err := <-errChan:
-		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
+	case result := <-results:
+		require.NoError(t, result.err)
+		require.Equal(t, payload, result.data)
+	case <-time.After(scaleDuration(5 * time.Second)):
+		t.Fatal("timed out waiting for peer to read")
 	}
 }

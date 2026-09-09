@@ -296,19 +296,29 @@ type readerWithTimeout struct {
 	Timeout time.Duration
 }
 
-func (r *readerWithTimeout) Read(p []byte) (n int, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		n, err = r.Reader.Read(p)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(r.Timeout):
-		return 0, fmt.Errorf("read timeout after %s", r.Timeout)
+func (r *readerWithTimeout) Read(p []byte) (int, error) {
+	// QUIC streams support deadlines. HTTP response bodies instead promise that
+	// Close unblocks a concurrent Read. Reject readers without either contract.
+	var interrupt func()
+	switch reader := r.Reader.(type) {
+	case interface{ SetReadDeadline(time.Time) error }:
+		interrupt = func() { _ = reader.SetReadDeadline(time.Now()) }
+	case io.ReadCloser:
+		interrupt = func() { _ = reader.Close() }
+	default:
+		return 0, fmt.Errorf("timeout reader requires a deadline or concurrent Close")
 	}
+	done := make(chan struct{})
+	timer := time.AfterFunc(r.Timeout, func() {
+		defer close(done)
+		interrupt()
+	})
+	defer func() {
+		if !timer.Stop() {
+			<-done
+		}
+	}()
+	return r.Reader.Read(p)
 }
 
 func randomDuration(min, max time.Duration) time.Duration {

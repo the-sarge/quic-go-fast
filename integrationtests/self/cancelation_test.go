@@ -343,12 +343,18 @@ func TestCancelAcceptStream(t *testing.T) {
 
 	serverConn, err := server.Accept(ctx)
 	require.NoError(t, err)
-	defer conn.CloseWithError(0, "")
+	defer serverConn.CloseWithError(0, "")
 
+	workerCtx, stopWorkers := context.WithTimeout(context.Background(), scaleDuration(5*time.Second))
+	defer stopWorkers()
+	serverDone := make(chan struct{})
+	startServer := make(chan struct{})
 	serverErrChan := make(chan error, 1)
 	go func() {
+		defer close(serverDone)
 		defer close(serverErrChan)
-		ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(2*time.Second))
+		<-startServer
+		ctx, cancel := context.WithTimeout(workerCtx, scaleDuration(2*time.Second))
 		defer cancel()
 		ticker := time.NewTicker(5 * time.Millisecond)
 		defer ticker.Stop()
@@ -370,47 +376,92 @@ func TestCancelAcceptStream(t *testing.T) {
 	var numToAccept int
 	var counter atomic.Int32
 	var wg sync.WaitGroup
-	wg.Add(numStreams)
+	var canceledWorkers sync.WaitGroup
+	workerErrs := make(chan error)
 	for numToAccept < numStreams {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(workerCtx)
 		// cancel accepting half of the streams
-		if rand.Int()%2 == 0 {
+		preCanceled := rand.Int()%2 == 0
+		if preCanceled {
+			canceledWorkers.Add(1)
 			cancel()
 		} else {
 			numToAccept++
 			defer cancel()
 		}
 
-		go func() {
+		wg.Go(func() {
+			if preCanceled {
+				defer canceledWorkers.Done()
+			}
 			str, err := conn.AcceptUniStream(ctx)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					counter.Add(1)
+				} else {
+					workerErrs <- fmt.Errorf("AcceptUniStream failed: %w", err)
 				}
 				return
 			}
-			go func() {
-				data, err := io.ReadAll(str)
-				if err != nil {
-					t.Errorf("ReadAll failed: %v", err)
-					return
-				}
-				if !bytes.Equal(data, PRData) {
-					t.Errorf("received data mismatch")
-					return
-				}
-				wg.Done()
-			}()
-		}()
+			data, err := io.ReadAll(str)
+			if err != nil {
+				workerErrs <- fmt.Errorf("ReadAll failed: %w", err)
+				return
+			}
+			if !bytes.Equal(data, PRData) {
+				workerErrs <- fmt.Errorf("received data mismatch")
+			}
+		})
 	}
-	wg.Wait()
+	// AcceptStream may return an already queued stream even for a canceled
+	// context. Finish those attempts before producing streams, so they cannot
+	// consume one of the streams promised to the non-canceled workers.
+	wg.Go(func() {
+		canceledWorkers.Wait()
+		close(startServer)
+	})
+	workersDone := make(chan struct{})
+	go func() {
+		defer close(workersDone)
+		wg.Wait()
+	}()
+	defer func() {
+		stopWorkers()
+		conn.CloseWithError(0, "")
+		serverConn.CloseWithError(0, "")
+		<-workersDone
+		<-serverDone
+	}()
+
+	waitTimeout := workerCtx.Done()
+waitForWorkers:
+	for {
+		select {
+		case err := <-workerErrs:
+			t.Error(err)
+		case <-workersDone:
+			break waitForWorkers
+		case <-waitTimeout:
+			t.Error("timed out waiting for stream workers")
+			stopWorkers()
+			conn.CloseWithError(0, "")
+			serverConn.CloseWithError(0, "")
+			// Keep draining errors while cancellation joins the remaining workers.
+			waitTimeout = nil
+		}
+	}
 
 	count := counter.Load()
 	t.Logf("canceled AcceptStream %d times", count)
 	require.Greater(t, count, int32(numStreams/4))
 	require.NoError(t, conn.CloseWithError(0, ""))
 	require.NoError(t, server.Close())
-	require.NoError(t, <-serverErrChan)
+	select {
+	case err := <-serverErrChan:
+		require.NoError(t, err)
+	case <-workerCtx.Done():
+		t.Fatal("timed out waiting for server worker")
+	}
 }
 
 func TestCancelOpenStreamSync(t *testing.T) {

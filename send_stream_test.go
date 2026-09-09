@@ -27,23 +27,17 @@ import (
 )
 
 type writerWithTimeout struct {
-	io.Writer
+	Writer interface {
+		io.Writer
+		SetWriteDeadline(time.Time) error
+	}
 	Timeout time.Duration
 }
 
-func (w *writerWithTimeout) Write(p []byte) (n int, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		n, err = w.Writer.Write(p)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(w.Timeout):
-		return 0, fmt.Errorf("write timeout after %s", w.Timeout)
-	}
+func (w *writerWithTimeout) Write(p []byte) (int, error) {
+	stop := interruptAfter(w.Timeout, func() { _ = w.Writer.SetWriteDeadline(time.Now()) })
+	defer stop()
+	return w.Writer.Write(p)
 }
 
 func expectedFrameHeaderLen(strID protocol.StreamID, offset protocol.ByteCount) protocol.ByteCount {

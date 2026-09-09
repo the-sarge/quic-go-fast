@@ -1,7 +1,6 @@
 package quic
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"sync/atomic"
@@ -19,28 +18,38 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type readerWithTimeout struct {
-	io.Reader
-	Timeout time.Duration
-}
-
-func (r *readerWithTimeout) Read(p []byte) (n int, err error) {
+// interruptAfter bounds an operation without moving its buffer access to a worker.
+// The returned function also joins a timeout callback that has already started.
+func interruptAfter(timeout time.Duration, interrupt func()) func() {
 	done := make(chan struct{})
-	go func() {
+	timer := time.AfterFunc(timeout, func() {
 		defer close(done)
-		n, err = r.Reader.Read(p)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(r.Timeout):
-		return 0, fmt.Errorf("read timeout after %s", r.Timeout)
+		interrupt()
+	})
+	return func() {
+		if !timer.Stop() {
+			<-done
+		}
 	}
 }
 
+type readerWithTimeout struct {
+	Reader interface {
+		io.Reader
+		SetReadDeadline(time.Time) error
+	}
+	Timeout time.Duration
+}
+
+func (r *readerWithTimeout) Read(p []byte) (int, error) {
+	stop := interruptAfter(r.Timeout, func() { _ = r.Reader.SetReadDeadline(time.Now()) })
+	defer stop()
+	return r.Reader.Read(p)
+}
+
 type peeker interface {
-	Peek(b []byte) (int, error)
+	Peek([]byte) (int, error)
+	SetReadDeadline(time.Time) error
 }
 
 type peekerWithTimeout struct {
@@ -48,19 +57,10 @@ type peekerWithTimeout struct {
 	Timeout time.Duration
 }
 
-func (p *peekerWithTimeout) Peek(b []byte) (n int, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		n, err = p.Peeker.Peek(b)
-	}()
-
-	select {
-	case <-done:
-		return n, err
-	case <-time.After(p.Timeout):
-		return 0, fmt.Errorf("peek timeout after %s", p.Timeout)
-	}
+func (p *peekerWithTimeout) Peek(b []byte) (int, error) {
+	stop := interruptAfter(p.Timeout, func() { _ = p.Peeker.SetReadDeadline(time.Now()) })
+	defer stop()
+	return p.Peeker.Peek(b)
 }
 
 func TestReceiveStreamReadData(t *testing.T) {
