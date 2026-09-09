@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	mrand "math/rand/v2"
 	"net"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -141,7 +141,7 @@ func testMITMInjectRandomPackets(t *testing.T, direction quicproxy.Direction) {
 		return false
 	}
 
-	runMITMTest(t, serverTransport, clientTransport, rtt, dropCallback)
+	runMITMTest(t, serverTransport, clientTransport, rtt, dropCallback, nil)
 }
 
 func testMITMDuplicatePackets(t *testing.T, direction quicproxy.Direction) {
@@ -161,45 +161,43 @@ func testMITMDuplicatePackets(t *testing.T, direction quicproxy.Direction) {
 		return false
 	}
 
-	runMITMTest(t, serverTransport, clientTransport, rtt, dropCallback)
+	runMITMTest(t, serverTransport, clientTransport, rtt, dropCallback, nil)
 }
 
 func testMITMCorruptPackets(t *testing.T, direction quicproxy.Direction) {
-	serverTransport, clientTransport := getTransportsForMITMTest(t)
-	rtt := scaleDuration(5 * time.Millisecond)
-
-	var numCorrupted atomic.Int32
-	dropCallback := func(dir quicproxy.Direction, _, _ net.Addr, b []byte) bool {
-		if dir != direction {
-			return false
-		}
-		isLongHeaderPacket := wire.IsLongHeaderPacket(b[0])
-		// corrupt 20% of long header packets and 5% of short header packets
-		if isLongHeaderPacket && mrand.IntN(4) != 0 {
-			return false
-		}
-		if !isLongHeaderPacket && mrand.IntN(20) != 0 {
-			return false
-		}
-		numCorrupted.Add(1)
-		pos := mrand.IntN(len(b))
-		b[pos] = byte(mrand.IntN(256))
-		switch direction {
-		case quicproxy.DirectionIncoming:
-			clientTransport.WriteTo(b, serverTransport.Conn.LocalAddr())
-		case quicproxy.DirectionOutgoing:
-			serverTransport.WriteTo(b, clientTransport.Conn.LocalAddr())
-		}
-		return true
-	}
-
-	runMITMTest(t, serverTransport, clientTransport, rtt, dropCallback)
-	t.Logf("corrupted %d packets", numCorrupted.Load())
-	require.NotZero(t, int(numCorrupted.Load()))
+	testMITMCorruptPacketsWithRandom(t, direction, mrand.IntN)
 }
 
-func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Duration, dropCb quicproxy.DropCallback) {
-	ln, err := serverTr.Listen(getTLSConfig(), getQuicConfig(nil))
+func testMITMCorruptPacketsWithRandom(t *testing.T, direction quicproxy.Direction, intN func(int) int) {
+	// Register the report first so transport/socket cleanup runs before it.
+	d := newHandshakeDiagnostics(t, fmt.Sprintf("requested_direction=%s version=%s rtt=%s dial_timeout=%s", direction, version, scaleDuration(5*time.Millisecond), scaleDuration(time.Second)))
+	d.label = "corruption"
+	serverTransport, clientTransport := getTransportsForMITMTest(t)
+	d.addCorruptionTransport(serverTransport, false)
+	d.addCorruptionTransport(clientTransport, true)
+	rtt := scaleDuration(5 * time.Millisecond)
+	p := &corruptionProxy{
+		direction: direction, diagnostics: d, intN: intN,
+		write: func(dir quicproxy.Direction, b []byte) (int, error) {
+			if dir == quicproxy.DirectionIncoming {
+				return clientTransport.WriteTo(b, serverTransport.Conn.LocalAddr())
+			}
+			return serverTransport.WriteTo(b, clientTransport.Conn.LocalAddr())
+		},
+	}
+	runMITMTest(t, serverTransport, clientTransport, rtt, p.drop, d)
+	t.Logf("corrupted %d packets", p.numCorrupted.Load())
+	require.NotZero(t, int(p.numCorrupted.Load()))
+}
+
+func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Duration, dropCb quicproxy.DropCallback, d *handshakeDiagnostics) {
+	conf := &quic.Config{}
+	if d != nil {
+		conf.Tracer = d.tracer
+	}
+	d.phase(false, "Listen")
+	ln, err := serverTr.Listen(getTLSConfig(), getQuicConfig(conf))
+	d.phase(false, fmt.Sprintf("Listen returned: %v", err))
 	require.NoError(t, err)
 	defer ln.Close()
 
@@ -214,37 +212,53 @@ func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Dura
 
 	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
 	defer cancel()
-	conn, err := clientTr.Dial(ctx, proxy.LocalAddr(), getTLSClientConfig(), getQuicConfig(nil))
+	d.phase(true, "Dial")
+	conn, err := clientTr.Dial(ctx, proxy.LocalAddr(), getTLSClientConfig(), getQuicConfig(conf))
+	d.phase(true, fmt.Sprintf("Dial returned: %v", err))
 	require.NoError(t, err)
 	defer conn.CloseWithError(0, "")
 
+	d.phase(false, "Accept")
 	serverConn, err := ln.Accept(ctx)
+	d.phase(false, fmt.Sprintf("Accept returned: %v", err))
 	require.NoError(t, err)
 	defer serverConn.CloseWithError(0, "")
 
+	d.phase(true, "OpenStreamSync")
 	str, err := conn.OpenStreamSync(ctx)
+	d.phase(true, fmt.Sprintf("OpenStreamSync returned: %v", err))
 	require.NoError(t, err)
 	clientErrChan := make(chan error, 1)
 	go func() {
-		_, err := str.Write(PRData)
+		d.phase(true, "Write payload")
+		n, err := str.Write(PRData)
+		d.phase(true, fmt.Sprintf("Write payload returned: bytes=%d err=%v", n, err))
 		clientErrChan <- err
 		str.Close()
 	}()
 
+	d.phase(false, "AcceptStream")
 	serverStr, err := serverConn.AcceptStream(ctx)
+	d.phase(false, fmt.Sprintf("AcceptStream returned: %v", err))
 	require.NoError(t, err)
 	serverErrChan := make(chan error, 1)
 	go func() {
 		defer close(serverErrChan)
-		if _, err := io.Copy(serverStr, serverStr); err != nil {
+		d.phase(false, "Echo stream")
+		n, err := io.Copy(serverStr, serverStr)
+		d.phase(false, fmt.Sprintf("Echo stream returned: bytes=%d err=%v", n, err))
+		if err != nil {
 			serverErrChan <- err
 			return
 		}
 		serverStr.Close()
 	}()
+	d.phase(true, "Wait for server echo")
 	require.NoError(t, <-serverErrChan)
 
+	d.phase(true, "Read echo")
 	data, err := io.ReadAll(str)
+	d.phase(true, fmt.Sprintf("Read echo returned: bytes=%d err=%v", len(data), err))
 	require.NoError(t, err)
 	require.Equal(t, PRData, data)
 
