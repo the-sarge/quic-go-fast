@@ -374,7 +374,7 @@ func TestCancelAcceptStream(t *testing.T) {
 	var numToAccept int
 	var counter atomic.Int32
 	var wg sync.WaitGroup
-	workerErrs := make(chan error, numStreams)
+	workerErrs := make(chan error)
 	for numToAccept < numStreams {
 		ctx, cancel := context.WithCancel(workerCtx)
 		// cancel accepting half of the streams
@@ -419,18 +419,23 @@ func TestCancelAcceptStream(t *testing.T) {
 		<-workersDone
 		<-serverDone
 	}()
-	select {
-	case <-workersDone:
-	case <-workerCtx.Done():
-		t.Error("timed out waiting for stream workers")
-		stopWorkers()
-		conn.CloseWithError(0, "")
-		serverConn.CloseWithError(0, "")
-		<-workersDone
-	}
-	close(workerErrs)
-	for err := range workerErrs {
-		t.Error(err)
+
+	waitTimeout := workerCtx.Done()
+waitForWorkers:
+	for {
+		select {
+		case err := <-workerErrs:
+			t.Error(err)
+		case <-workersDone:
+			break waitForWorkers
+		case <-waitTimeout:
+			t.Error("timed out waiting for stream workers")
+			stopWorkers()
+			conn.CloseWithError(0, "")
+			serverConn.CloseWithError(0, "")
+			// Keep draining errors while cancellation joins the remaining workers.
+			waitTimeout = nil
+		}
 	}
 
 	count := counter.Load()
