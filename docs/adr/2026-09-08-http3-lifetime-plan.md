@@ -1,6 +1,6 @@
 # HTTP/3 pooled exchange lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** H1 and H2 implementations complete; H3 fixture synchronization pending. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md); [H3 fixture audit](../audits/2026-09-09-http3-fixture-completion.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** H1, H2 and H3 implementations complete. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md); [H3 fixture audit](../audits/2026-09-09-http3-fixture-completion.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -22,7 +22,7 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 | --- | --- | --- | --- | --- |
 | H1 | Complete (#68) | Preserve usage through the complete HTTP/3 exchange | None | None introduced |
 | H2 | Complete (#90) | Evict only the expected cached HTTP/3 connection | None | None introduced |
-| H3 | New | Synchronize fixture assertions with complete exchange cleanup | None (H1 is already merged) | None introduced |
+| H3 | Complete (#141) | Synchronize fixture assertions with complete exchange cleanup | None (H1 is already merged) | None introduced |
 
 ## Implementation Slices
 
@@ -143,7 +143,7 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 
 ### H3 — Synchronize HTTP/3 fixture completion assertions
 
-**Status:** Accepted contract; implementation pending. **Size:** S; one intended test-only PR. **Blocked by:** None; H1's implementation is already merged.
+**Status:** Complete (#141). **Size:** S; one intended test-only PR. **Blocked by:** None; H1's implementation is already merged.
 
 **What it delivers:** Existing HTTP/3 exchange fixtures observe the complete attempt before asserting a released pooled count. Response EOF/error/Close remains independently observable while upload cleanup can still be active. Fix the terminal observation family exposed by the H1 multiplexed-response CI failure, retaining exact-count and cleanup assertions rather than weakening them.
 
