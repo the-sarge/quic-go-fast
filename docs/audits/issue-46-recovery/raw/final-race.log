@@ -1,0 +1,14 @@
+using QUIC version: v1
+=== RUN   TestHandshakeCorruption
+=== RUN   TestHandshakeCorruption/initial/corrupt
+=== RUN   TestHandshakeCorruption/initial/control
+=== RUN   TestHandshakeCorruption/handshake/corrupt
+=== RUN   TestHandshakeCorruption/handshake/control
+=== RUN   TestHandshakeCorruption/handshake/deadline
+--- PASS: TestHandshakeCorruption (0.04s)
+    --- PASS: TestHandshakeCorruption/initial/corrupt (0.01s)
+    --- PASS: TestHandshakeCorruption/initial/control (0.01s)
+    --- PASS: TestHandshakeCorruption/handshake/corrupt (0.01s)
+    --- PASS: TestHandshakeCorruption/handshake/control (0.01s)
+    --- PASS: TestHandshakeCorruption/handshake/deadline (0.01s)
+PASS

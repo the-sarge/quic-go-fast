@@ -1,0 +1,9 @@
+using QUIC version: v1
+=== RUN   TestHandshakeRecoversFromCorruption
+=== RUN   TestHandshakeRecoversFromCorruption/initial
+=== RUN   TestHandshakeRecoversFromCorruption/initial/control
+1999/12/31 19:00:00 connection doesn't allow setting of receive buffer size. Not a *net.UDPConn?. See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
+--- PASS: TestHandshakeRecoversFromCorruption (0.00s)
+    --- PASS: TestHandshakeRecoversFromCorruption/initial (0.00s)
+        --- PASS: TestHandshakeRecoversFromCorruption/initial/control (0.00s)
+PASS

@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/tmp/quic-go-issue46-controlled.test",
+    "-test.run=^TestHandshakeRecoversFromCorruption$/^handshake$/^control$",
+    "-test.count=1",
+    "-test.v",
+    "-test.timeout=30s",
+    "-version=1"
+  ],
+  "cwd": "/Volumes/worktrees/quic-go-fast/issue-46-recovery-fixtures",
+  "utc": "2026-09-09T17:22:01.513830+00:00",
+  "environment": {
+    "TIMESCALE_FACTOR": "1",
+    "ISSUE46_OUTPUT": "/Volumes/worktrees/quic-go-fast/issue-46-recovery-fixtures/docs/audits/issue-46-recovery/raw/C4.jsonl",
+    "QUIC_GO_DISABLE_GSO": null,
+    "QUIC_GO_DISABLE_ECN": null,
+    "GODEBUG": null,
+    "GOMAXPROCS": null
+  },
+  "toolchain": "go version go1.27.0 darwin/arm64",
+  "platform": "Darwin mbp128.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:17:26 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6041 arm64",
+  "binary_sha256": "262b3712ca4d9fbdb5b54f482ee740d6ffab96b43344c8e3a67ed6475c17329e",
+  "source_hashes": {
+    "integrationtests/self/handshake_corruption_test.go": "07e5e7a4ae2b042f1ed43fa1a709db0fa5ebee0f2dba1f097afa9658e0da5a86",
+    "integrationtests/self/issue46_diagnostic_test.go": "54cef71a705a70f8918d20ed548bb201b69518cbbbc620bc14ff2a27e246fb78"
+  }
+}

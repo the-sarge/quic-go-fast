@@ -1,0 +1,22 @@
+{
+  "command": [
+    "/tmp/quic-go-issue46-final-race.test",
+    "-test.run=^TestHandshakeCorruption$",
+    "-test.count=1",
+    "-test.v",
+    "-test.timeout=30s",
+    "-version=1"
+  ],
+  "build_command": "go test -race -c -o /tmp/quic-go-issue46-final-race.test ./integrationtests/self",
+  "toolchain": "go version go1.27.0 darwin/arm64",
+  "binary_sha256": "464592e1193db1c196dcb59e2cc6a054183e475ef1e6401468428166f66413f6",
+  "fixture_sha256": "0a010e14dbf66a73e36afe1fc3b490ab0681bf09c63845fe671aef74746de650",
+  "environment": {
+    "TIMESCALE_FACTOR": "1",
+    "ISSUE46_OUTPUT": null,
+    "QUIC_GO_DISABLE_GSO": null,
+    "QUIC_GO_DISABLE_ECN": null,
+    "GODEBUG": null,
+    "GOMAXPROCS": null
+  }
+}
