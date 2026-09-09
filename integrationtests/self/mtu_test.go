@@ -159,6 +159,9 @@ func TestPathMTUDiscovery(t *testing.T) {
 		t.Fatal("timeout")
 	}
 
+	// Finish ACK processing before comparing the DATAGRAM limit with MTU events.
+	// MTUUpdated is recorded before the corresponding limit is published.
+	require.NoError(t, conn.CloseWithError(0, ""))
 	err = conn.SendDatagram(make([]byte, 2000))
 	require.Error(t, err)
 	require.ErrorAs(t, err, &datagramErr)

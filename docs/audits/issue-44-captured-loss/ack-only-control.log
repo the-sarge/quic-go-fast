@@ -1,0 +1,49 @@
+using QUIC version: v2
+=== RUN   TestIssue44CapturedLossExperiment
+=== RUN   TestIssue44CapturedLossExperiment/deliver_ack_only/drop_1/3_of_packets_in_direction_to_client
+=== RUN   TestIssue44CapturedLossExperiment/deliver_ack_only/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first
+    issue44_capture_experiment_test.go:39: decision direction=to server index=0 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=1 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=0 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=1 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=2 bytes=1280 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=3 bytes=1280 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=4 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=5 bytes=204 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to server index=2 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=6 bytes=1280 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=7 bytes=1280 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to server index=3 bytes=33 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=8 bytes=113 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=9 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=4 bytes=40 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=10 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=5 bytes=79 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=6 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=7 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=8 bytes=1280 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to server index=9 bytes=1266 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=10 bytes=27 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=11 bytes=378 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=12 bytes=371 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=11 bytes=30 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to server index=12 bytes=1280 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to server index=13 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=13 bytes=28 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=14 bytes=1280 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to server index=15 bytes=29 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=16 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=14 bytes=371 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=15 bytes=371 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=16 bytes=30 drop=true
+    issue44_capture_experiment_test.go:39: decision direction=to client index=17 bytes=31 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=17 bytes=1280 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to client index=18 bytes=22 drop=false
+    issue44_capture_experiment_test.go:39: decision direction=to server index=18 bytes=26 drop=false
+    issue44_capture_experiment_test.go:160: dropped 14 packets
+    issue44_capture_experiment_test.go:84: result at=2000-01-01T00:00:00.296Z client=close stream returned: <nil> server=read stream returned: bytes=5000 err=<nil>
+--- PASS: TestIssue44CapturedLossExperiment (0.00s)
+    --- PASS: TestIssue44CapturedLossExperiment/deliver_ack_only/drop_1/3_of_packets_in_direction_to_client (0.00s)
+        --- PASS: TestIssue44CapturedLossExperiment/deliver_ack_only/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go/integrationtests/self	0.513s
