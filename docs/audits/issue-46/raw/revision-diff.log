@@ -1,0 +1,111 @@
+ .github/workflows/unit.yml                         |    2 +-
+ CONTEXT.md                                         |    8 +
+ client.go                                          |    8 +-
+ client_test.go                                     |  101 ++
+ connection.go                                      |  365 +----
+ connection_emission_close_test.go                  |   77 +
+ connection_emission_experiment_test.go             |    2 +-
+ connection_emission_handshake_test.go              |  228 +++
+ connection_emission_test.go                        |   77 +-
+ connection_handshake_mtu_test.go                   |   27 +-
+ connection_probe_emission_test.go                  |  237 +++
+ connection_probe_experiment_test.go                |   79 +
+ connection_scheduling_test.go                      |   88 ++
+ connection_test.go                                 | 1538 +++++++++-----------
+ docs/DEV-JOURNAL.md                                |  299 ++++
+ docs/adr/0005-incoming-packet-lifetime.md          |    9 +
+ docs/adr/2026-09-07-packet-emission-plan.md        |  107 +-
+ docs/adr/2026-09-07-packet-emission-program.md     |    8 +-
+ .../2026-09-08-architecture-deepening-program.md   |   36 +
+ docs/adr/2026-09-08-emission-construction-plan.md  |  129 ++
+ .../2026-09-08-emission-entrypoint-tests-plan.md   |   93 ++
+ docs/adr/2026-09-08-http3-lifetime-plan.md         |  155 ++
+ docs/adr/2026-09-08-incoming-lifetime-plan.md      |  503 +++++++
+ docs/adr/2026-09-08-module-payload-plan.md         |   93 ++
+ docs/agents/packet-loss-diagnostics.md             |   26 +
+ .../2026-09-08-architecture-handoff/README.md      |   47 +
+ .../diagnostic-tests.txt                           |   22 +
+ .../existing-emission-tests.txt                    |    1 +
+ .../existing-issue-68.json                         |    1 +
+ .../grilled-assessment.md                          |  269 ++++
+ .../http3-diagnostic.go.txt                        |   53 +
+ .../ingress-diagnostic.go.txt                      |   83 ++
+ .../module-zip-probe.go.txt                        |   17 +
+ .../module-zip-results.json                        |    1 +
+ .../response-lifetime-diagnostic.go.txt            |   41 +
+ .../response-lifetime-diagnostic.txt               |    6 +
+ docs/audits/2026-09-08-e6-contract-reslice.md      |   32 +
+ .../2026-09-08-emission-construction/README.md     |   23 +
+ .../baseline-focused.jsonl                         |  408 ++++++
+ .../baseline-lifecycle.jsonl                       |  136 ++
+ .../baseline-race.jsonl                            |  540 +++++++
+ .../baseline-tag-compile.log                       |    1 +
+ .../evidence-manifest.json                         |   35 +
+ .../investigation.md                               |  223 +++
+ docs/audits/active-sendconn-publication.md         |   28 +
+ docs/audits/e4-handshake-emission/README.md        |   51 +
+ docs/audits/e4-handshake-emission/analyze-e4.py    |  109 ++
+ .../e4-handshake-emission/benchmark-summary.json   |  135 ++
+ .../initial-benchmark-summary.json                 |  135 ++
+ .../e4-handshake-emission/initial-capture.tar.gz   |  Bin 0 -> 656990 bytes
+ .../e4-handshake-emission/initial-summary.json     |   44 +
+ .../replacement-capture.tar.gz                     |  Bin 0 -> 656679 bytes
+ .../e4-handshake-emission/source-binding.bundle    |  Bin 0 -> 10279 bytes
+ docs/audits/e4-handshake-emission/summary.json     |   44 +
+ docs/audits/e5-probe-emission/README.md            |   66 +
+ docs/audits/e5-probe-emission/analyze.py           |  109 ++
+ .../e5-probe-emission/initial-capture.tar.gz       |  Bin 0 -> 674063 bytes
+ docs/audits/e5-probe-emission/initial-summary.json |   44 +
+ .../e5-probe-emission/replacement-capture.tar.gz   |  Bin 0 -> 649895 bytes
+ .../audits/e5-probe-emission/source-binding.bundle |  Bin 0 -> 681826 bytes
+ docs/audits/e5-probe-emission/summary.json         |   44 +
+ docs/audits/e6-close-emission/README.md            |   54 +
+ docs/audits/e6-close-emission/analyze.py           |  109 ++
+ .../e6-close-emission/benchmark-summary.json       |  519 +++++++
+ .../initial-benchmark-summary.json                 |  519 +++++++
+ .../e6-close-emission/initial-capture.tar.gz       |  Bin 0 -> 2168647 bytes
+ .../e6-close-emission/local-validation.tar.gz      |  Bin 0 -> 1260 bytes
+ .../e6-close-emission/replacement-capture.tar.gz   |  Bin 0 -> 558123 bytes
+ docs/audits/e6-close-emission/summary.json         |   68 +
+ docs/audits/e6a-handshake-consumers/README.md      |   27 +
+ docs/audits/e6b-scheduling-consumers/README.md     |   23 +
+ docs/audits/e6c-path-consumers/README.md           |   15 +
+ docs/audits/pacing-ci-103/README.md                |   39 +
+ docs/audits/pacing-ci-103/force-wakeup.patch       |   10 +
+ http3/client.go                                    |   68 +-
+ http3/client_test.go                               |   76 +
+ http3/exchange.go                                  |  144 ++
+ http3/exchange_test.go                             |  497 +++++++
+ http3/mockgen.go                                   |   15 +-
+ http3/transport.go                                 |   40 +-
+ http3/transport_test.go                            |   13 +
+ integrationtests/self/cancelation_test.go          |   93 +-
+ integrationtests/self/connection_migration_test.go |   43 +
+ integrationtests/self/deadline_test.go             |  270 ++--
+ .../self/handshake_diagnostics_helper_test.go      |  142 ++
+ .../self/handshake_diagnostics_test.go             |  181 +++
+ integrationtests/self/handshake_drop_test.go       |   77 +-
+ integrationtests/self/handshake_test.go            |   81 +-
+ integrationtests/self/http_shutdown_test.go        |    8 +-
+ integrationtests/self/http_test.go                 |    3 +
+ integrationtests/self/self_test.go                 |   37 +-
+ integrationtests/self/timeout_helpers_test.go      |   31 +
+ internal/wire/connection_close_frame.go            |    2 +-
+ internal/wire/connection_close_frame_test.go       |   44 +
+ internal/wire/frame_parser_allocs_test.go          |   56 +
+ internal/wire/frame_parser_test.go                 |   42 -
+ mock_packer_test.go                                |  395 -----
+ mockgen.go                                         |    3 -
+ packet_emission.go                                 |  402 ++++-
+ packet_emission_test.go                            |   17 +-
+ packet_packer.go                                   |   38 +-
+ packet_packer_lifetime_test.go                     |  136 ++
+ receive_stream_test.go                             |   60 +-
+ send_conn.go                                       |    7 +-
+ send_conn_test.go                                  |   45 +
+ send_queue.go                                      |    2 +
+ send_stream_test.go                                |   22 +-
+ server.go                                          |   19 +-
+ server_test.go                                     |   45 +
+ timeout_helpers_test.go                            |   82 ++
+ 110 files changed, 9650 insertions(+), 2012 deletions(-)

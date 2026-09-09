@@ -26,6 +26,7 @@ type handshakeDiagnosticEvent struct {
 
 type handshakeDiagnostics struct {
 	scenario                 string
+	label                    string
 	mu                       sync.Mutex
 	clientPhase, serverPhase string
 	clientClose, serverClose string
@@ -63,6 +64,9 @@ func (d *handshakeDiagnostics) closeConnection(client bool, conn *quic.Conn) {
 }
 
 func (d *handshakeDiagnostics) phase(client bool, phase string) {
+	if d == nil {
+		return
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if client {
@@ -130,7 +134,11 @@ func (d *handshakeDiagnostics) logFailure(t interface {
 	clientClose, serverClose := d.clientClose, d.serverClose
 	events, total := d.events, d.total
 	d.mu.Unlock()
-	t.Logf("packet-loss diagnostics: %s", d.scenario)
+	label := d.label
+	if label == "" {
+		label = "packet-loss"
+	}
+	t.Logf("%s diagnostics: %s", label, d.scenario)
 	t.Logf("latest phases: client=%s server=%s", client, server)
 	t.Logf("connection close: client=%s server=%s", clientClose, serverClose)
 	retained := min(total, uint64(len(events)))

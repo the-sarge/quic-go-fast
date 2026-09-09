@@ -1,0 +1,7 @@
+using QUIC version: v1
+=== RUN   TestMITCorruptPackets
+=== RUN   TestMITCorruptPackets/towards_the_client
+    mitm_test.go:216: corrupted 25 packets
+--- PASS: TestMITCorruptPackets (0.87s)
+    --- PASS: TestMITCorruptPackets/towards_the_client (0.87s)
+PASS

@@ -1,0 +1,9 @@
+{
+  "platform": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux",
+  "toolchain": "go version go1.27.1 linux/amd64",
+  "go_env": "linux\namd64\n\n\nauto\n1",
+  "binary_sha256": "683a0013e539de488a8b5b406dc235813068973695067f60f23be3294338b7bd",
+  "command": "go test -race -c -o self-diagnostic.test ./integrationtests/self",
+  "cwd": "/tmp/quic-go-issue46-901f53e0-Rpmvbq",
+  "exit": 0
+}

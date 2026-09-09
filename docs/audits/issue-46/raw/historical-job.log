@@ -1,0 +1,982 @@
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	﻿2026-09-07T21:42:54.5811916Z ##[group]Run go test  -race -v -timeout 5m -shuffle=on ./integrationtests/self -version=1  2>&1 | go-junit-report -set-exit-code -iocopy -out report_self_nogso.xml
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5812765Z ^[[36;1mgo test  -race -v -timeout 5m -shuffle=on ./integrationtests/self -version=1  2>&1 | go-junit-report -set-exit-code -iocopy -out report_self_nogso.xml^[[0m
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5844568Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5844840Z env:
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5844999Z   DEBUG: false
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5845168Z   TIMESCALE_FACTOR: 3
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5845354Z   GOTOOLCHAIN: local
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5845528Z   RACEFLAG:  -race
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5845703Z   QUIC_GO_DISABLE_GSO: true
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:54.5845892Z ##[endgroup]
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.4994149Z using QUIC version: v1
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.4994600Z -test.shuffle 1788817375499168428
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.4994922Z === RUN   TestHTTPShutdown
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.5001552Z 2026/09/07 21:42:55 failed to sufficiently increase receive buffer size (was: 1024 kiB, wanted: 7168 kiB, got: 2048 kiB). See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.5395196Z --- PASS: TestHTTPShutdown (0.04s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.5395801Z === RUN   TestHTTPHeaders
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.5479632Z --- PASS: TestHTTPHeaders (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.5480080Z === RUN   Test0RTTRejectedOnConnectionWindowDecrease
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.5617973Z --- PASS: Test0RTTRejectedOnConnectionWindowDecrease (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.5618617Z === RUN   Test0RTTWaitForHandshakeCompletion
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.6186478Z     zero_rtt_test.go:375: received 5 STREAM frames in 0-RTT packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.6187873Z --- PASS: Test0RTTWaitForHandshakeCompletion (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.6188348Z === RUN   Test0RTTWithSessionTicketData
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.6189819Z === RUN   Test0RTTWithSessionTicketData/server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.6676296Z === RUN   Test0RTTWithSessionTicketData/client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.7159497Z --- PASS: Test0RTTWithSessionTicketData (0.10s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.7160455Z     --- PASS: Test0RTTWithSessionTicketData/server (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.7161183Z     --- PASS: Test0RTTWithSessionTicketData/client (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.7161679Z === RUN   TestHTTPRequestRetryAfterIdleTimeout
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.7162205Z === RUN   TestHTTPRequestRetryAfterIdleTimeout/only_cached_conn
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.8268053Z === RUN   TestHTTPRequestRetryAfterIdleTimeout/allow_re-dialing
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.9473598Z --- PASS: TestHTTPRequestRetryAfterIdleTimeout (0.23s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.9474285Z     --- PASS: TestHTTPRequestRetryAfterIdleTimeout/only_cached_conn (0.11s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.9474847Z     --- PASS: TestHTTPRequestRetryAfterIdleTimeout/allow_re-dialing (0.12s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.9475234Z === RUN   TestHTTPRequestAfterGracefulShutdown
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:55.9475591Z === RUN   TestHTTPRequestAfterGracefulShutdown/Request.GetBody_set
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.1733420Z === RUN   TestHTTPRequestAfterGracefulShutdown/Request.GetBody_not_set
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2684819Z --- PASS: TestHTTPRequestAfterGracefulShutdown (0.32s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2685602Z     --- PASS: TestHTTPRequestAfterGracefulShutdown/Request.GetBody_set (0.23s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2686244Z     --- PASS: TestHTTPRequestAfterGracefulShutdown/Request.GetBody_not_set (0.10s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2686741Z === RUN   TestHandshakeWithPacketLoss
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2687108Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2687733Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2962420Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.2964245Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3128434Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3130196Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3271481Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3272780Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3424981Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3426418Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3577085Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3578209Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3724355Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3726023Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3893514Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.3895775Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4065044Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4066476Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4236501Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4237335Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4312482Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4313701Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4390553Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4392681Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4460564Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4462315Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4561082Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4562666Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4656982Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4658558Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4751578Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4753641Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4754530Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4904498Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.4906126Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5061828Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5063224Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5205296Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5206663Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5361176Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5362840Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5519162Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5520626Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5667458Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5670457Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5838861Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.5840502Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6002827Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6004844Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6175671Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6179787Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6258486Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6269112Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6340202Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6341012Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6409704Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6411347Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6508274Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6509717Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6607277Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6609440Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6702937Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6704237Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6705361Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6859786Z     handshake_drop_test.go:319: dropped 12 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.6861433Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7014354Z     handshake_drop_test.go:319: dropped 11 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7015819Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7162614Z     handshake_drop_test.go:319: dropped 10 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7179924Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7316271Z     handshake_drop_test.go:319: dropped 10 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7317048Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7460249Z     handshake_drop_test.go:319: dropped 7 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7462397Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7593743Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7595494Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7767622Z     handshake_drop_test.go:319: dropped 9 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7768978Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7940322Z     handshake_drop_test.go:319: dropped 18 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.7942021Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8114760Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8117025Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8204416Z     handshake_drop_test.go:319: dropped 16 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8205907Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8282642Z     handshake_drop_test.go:319: dropped 7 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8285208Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8349626Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8351306Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8451359Z     handshake_drop_test.go:319: dropped 8 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8453462Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8545822Z     handshake_drop_test.go:319: dropped 7 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8548066Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8637322Z     handshake_drop_test.go:319: dropped 7 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8639186Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8640181Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8787041Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8788500Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8940824Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.8949998Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9091347Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9093111Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9245443Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9248829Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9400086Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9400662Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9538141Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9539544Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9707823Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9709076Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9871089Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:56.9872935Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0032872Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0034511Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0132171Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0133766Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0202701Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0205551Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0274252Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0275512Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0365022Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0366526Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0457649Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0459422Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0544132Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0546188Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0547400Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0697590Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0699001Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0853573Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.0855398Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1003517Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1004801Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1151175Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1152830Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1292225Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1294965Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1431332Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1432981Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1597697Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1599102Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1755691Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1757668Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1920028Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1921827Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1994043Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.1995502Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2070205Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2073147Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2137980Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2141385Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2228853Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2230661Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2316831Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2319589Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2404537Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2406336Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2407313Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2586831Z     handshake_drop_test.go:319: dropped 17 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2588383Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2741833Z     handshake_drop_test.go:319: dropped 12 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2743626Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2889424Z     handshake_drop_test.go:319: dropped 1 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.2890185Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3038466Z     handshake_drop_test.go:319: dropped 8 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3039423Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3193616Z     handshake_drop_test.go:319: dropped 15 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3194983Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3337615Z     handshake_drop_test.go:319: dropped 0 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3339769Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3513370Z     handshake_drop_test.go:319: dropped 12 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3516770Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3694650Z     handshake_drop_test.go:319: dropped 11 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3696363Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3861668Z     handshake_drop_test.go:319: dropped 9 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3862844Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3938987Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.3940828Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4010981Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4012506Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4081196Z     handshake_drop_test.go:319: dropped 5 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4082871Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4184410Z     handshake_drop_test.go:319: dropped 13 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4185706Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4280854Z     handshake_drop_test.go:319: dropped 7 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4283058Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4376646Z     handshake_drop_test.go:319: dropped 11 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4378399Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4379363Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4526297Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4527728Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4677724Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4678481Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4816449Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4817833Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4967393Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.4968578Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5118018Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5120509Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5261396Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5263201Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5441628Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5443142Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5608417Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5609770Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5773687Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5774908Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5843536Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5845108Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5914250Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5916240Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5984120Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.5985277Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6070875Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6074329Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6163110Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6166138Z === RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6255128Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6257330Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6258189Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6417298Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6418645Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6558961Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6561056Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6696800Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6697856Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6851523Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.6852988Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7000182Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7008243Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7145910Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7147183Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7328592Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7329512Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7492580Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7494760Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7650346Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7651929Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7728207Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7731925Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7804936Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7806365Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7877311Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7879166Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7987722Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.7989868Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8083423Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8085689Z === RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8175164Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8177086Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8178127Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_true/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8376578Z     handshake_drop_test.go:319: dropped 18 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8378200Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_true/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8583009Z     handshake_drop_test.go:319: dropped 2 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8585121Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_true/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8740712Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8742175Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8902008Z     handshake_drop_test.go:319: dropped 9 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.8903443Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9215646Z     handshake_drop_test.go:319: dropped 9 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9217204Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9369188Z     handshake_drop_test.go:319: dropped 11 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9373009Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9563576Z     handshake_drop_test.go:319: dropped 13 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9564762Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9744701Z     handshake_drop_test.go:319: dropped 14 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9746912Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks#01
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9912787Z     handshake_drop_test.go:319: dropped 3 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:57.9914099Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0004357Z     handshake_drop_test.go:319: dropped 12 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0005823Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0084828Z     handshake_drop_test.go:319: dropped 7 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0090882Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks#02
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0166188Z     handshake_drop_test.go:319: dropped 11 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0167268Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0264669Z     handshake_drop_test.go:319: dropped 6 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0266358Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0379780Z     handshake_drop_test.go:319: dropped 22 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0382065Z === RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks#03
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0467979Z     handshake_drop_test.go:319: dropped 8 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0476039Z --- PASS: TestHandshakeWithPacketLoss (1.78s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0477091Z     --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client (0.21s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0479367Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/client_speaks_first (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0480505Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0481416Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0482383Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0483289Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0484168Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0485077Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0486000Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0487285Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0488647Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0490167Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0491478Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0492815Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0494228Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0495583Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0496658Z     --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client (0.20s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0497956Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0499551Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0501332Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0502742Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0504325Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0505713Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0507112Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0508580Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0510186Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0511570Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0513007Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0514439Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0515877Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0517319Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0518860Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0519917Z     --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0521143Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_true/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0522498Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_true/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0523874Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0525248Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0526648Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0528028Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0529623Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0531065Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0532487Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0533915Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0535333Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0536701Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0538285Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0539896Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0541448Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0542495Z     --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0543732Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/client_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0545077Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0546401Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0547889Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0549368Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0550762Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0552094Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0553026Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0553790Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0554710Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0555507Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0556537Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0557327Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0558263Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0559154Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0559768Z     --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0560571Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0561538Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0562637Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0563692Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0564710Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0565527Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0566330Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0567323Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0568144Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0569275Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0570097Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0570896Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0571692Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0572501Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0573289Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0573903Z     --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server (0.20s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0574617Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_true/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0575396Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_true/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0576406Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0577567Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0578490Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0580012Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0581396Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0582759Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0583675Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0584474Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0585277Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0586055Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0586840Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0587639Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0588412Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0589248Z     --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0589924Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/client_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0590840Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/server_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0591571Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0592445Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0593179Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0593894Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0594628Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0595374Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0596107Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0596847Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0597592Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0598311Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0599246Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0600142Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0601125Z         --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0602069Z     --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0602777Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0603546Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/server_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0604286Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0605040Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0605805Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0606552Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0607325Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0608110Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0608982Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0609755Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0610541Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0611302Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0612242Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0613026Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0613894Z         --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0614604Z     --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both (0.23s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0615305Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_true/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0616187Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_true/server_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0617189Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_true/nobody_speaks (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0618109Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0619184Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0619930Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0620687Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0621681Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0622752Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks#01 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0623787Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0625002Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0626245Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks#02 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0627532Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/client_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0628916Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/server_speaks_first#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0630252Z         --- PASS: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both/retry:_false/nobody_speaks#03 (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0630962Z === RUN   Test0RTTRejectedOnALPNChanged
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0631481Z     zero_rtt_test.go:822: Sent 4 0-RTT packets.
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0640055Z --- PASS: Test0RTTRejectedOnALPNChanged (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.0640517Z === RUN   TestEarlyData
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.2315383Z --- PASS: TestEarlyData (0.17s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.2316149Z === RUN   TestStreamWriteCancellation
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.2316839Z === RUN   TestStreamWriteCancellation/immediate
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:58.8138383Z === RUN   TestStreamWriteCancellation/after_writing_some_data
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:42:59.6829437Z === RUN   TestStreamWriteCancellation/concurrent
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:00.3278822Z --- PASS: TestStreamWriteCancellation (2.09s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:00.3279778Z     --- PASS: TestStreamWriteCancellation/immediate (0.58s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:00.3280707Z     --- PASS: TestStreamWriteCancellation/after_writing_some_data (0.87s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:00.3281573Z     --- PASS: TestStreamWriteCancellation/concurrent (0.64s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:00.3282386Z === RUN   TestStreamDataBlocked
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:00.4531542Z --- PASS: TestStreamDataBlocked (0.13s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:00.4532394Z === RUN   TestReadDeadlineAsync
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:01.9651167Z     deadline_test.go:124: ran into deadline 181565 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:01.9658241Z --- PASS: TestReadDeadlineAsync (1.51s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:01.9658692Z === RUN   TestHandshakeMTUFallback
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:01.9659234Z === RUN   TestHandshakeMTUFallback/client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:02.1745832Z     handshake_mtu_test.go:48: client rejected oversized writes: 2
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:02.1756090Z === RUN   TestHandshakeMTUFallback/server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:02.3851531Z     handshake_mtu_test.go:48: server rejected oversized writes: 4
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:02.3858832Z --- PASS: TestHandshakeMTUFallback (0.42s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:02.3859373Z     --- PASS: TestHandshakeMTUFallback/client (0.21s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:02.3859908Z     --- PASS: TestHandshakeMTUFallback/server (0.21s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:02.3860428Z === RUN   TestWriteDeadlineSync
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:03.7516658Z     deadline_test.go:167: ran into deadline 1221 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.0417739Z --- PASS: TestWriteDeadlineSync (1.66s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.0418382Z === RUN   TestHTTPDeadlines
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.0420722Z === RUN   TestHTTPDeadlines/read_deadline
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.1095527Z === RUN   TestHTTPDeadlines/write_deadline
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.1628356Z --- PASS: TestHTTPDeadlines (0.12s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.1629084Z     --- PASS: TestHTTPDeadlines/read_deadline (0.07s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.1629636Z     --- PASS: TestHTTPDeadlines/write_deadline (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.1630041Z === RUN   TestDownloadWithFixedRTT
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.1630339Z === RUN   TestDownloadWithFixedRTT/10ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.1931138Z === RUN   TestDownloadWithFixedRTT/100ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.2531360Z === RUN   TestDownloadWithFixedRTT/500ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.3240552Z --- PASS: TestDownloadWithFixedRTT (0.16s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.3241148Z     --- PASS: TestDownloadWithFixedRTT/10ms (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.3241707Z     --- PASS: TestDownloadWithFixedRTT/100ms (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.3242236Z     --- PASS: TestDownloadWithFixedRTT/500ms (0.07s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.3242604Z === RUN   TestStreamPriority
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.3242928Z === RUN   TestStreamPriority/incremental_streams_use_urgency_and_round_robin
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.3842869Z === RUN   TestStreamPriority/non-incremental_streams_use_stream_ID
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4422749Z --- PASS: TestStreamPriority (0.12s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4423818Z     --- PASS: TestStreamPriority/incremental_streams_use_urgency_and_round_robin (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4424611Z     --- PASS: TestStreamPriority/non-incremental_streams_use_stream_ID (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4424989Z === RUN   Test0RTTRejectedOnStreamLimitDecrease
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4560871Z     zero_rtt_test.go:709: sent 4 0-RTT packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4565645Z --- PASS: Test0RTTRejectedOnStreamLimitDecrease (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4566309Z === RUN   TestMITMInjectRandomPackets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.4566899Z === RUN   TestMITMInjectRandomPackets/towards_the_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.6667813Z === RUN   TestMITMInjectRandomPackets/towards_the_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.8774385Z --- PASS: TestMITMInjectRandomPackets (0.42s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.8775012Z     --- PASS: TestMITMInjectRandomPackets/towards_the_server (0.21s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.8775498Z     --- PASS: TestMITMInjectRandomPackets/towards_the_client (0.21s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.8775873Z === RUN   TestTimeoutAfterSendingPacket
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.8861192Z --- PASS: TestTimeoutAfterSendingPacket (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:04.8861621Z === RUN   TestConnDataBlocked
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.0125345Z --- PASS: TestConnDataBlocked (0.13s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.0125873Z === RUN   TestHTTPMultipleRequests
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.0126221Z === RUN   TestHTTPMultipleRequests/reading_the_response
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.0453853Z === RUN   TestHTTPMultipleRequests/not_reading_the_response
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.1877207Z --- PASS: TestHTTPMultipleRequests (0.18s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.1877806Z     --- PASS: TestHTTPMultipleRequests/reading_the_response (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.1878361Z     --- PASS: TestHTTPMultipleRequests/not_reading_the_response (0.14s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.1879351Z === RUN   TestKeepAlive
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.1965249Z --- PASS: TestKeepAlive (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.1965821Z === RUN   TestDownloadWithReordering
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.1966220Z === RUN   TestDownloadWithReordering/5ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.2768313Z     rtt_test.go:175: Smoothed RTT: 4.91ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.2769536Z     rtt_test.go:178: received 451 short header packets, detected 179 reorderings
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.2772380Z === RUN   TestDownloadWithReordering/50ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.3561028Z     rtt_test.go:175: Smoothed RTT: 49.799ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.3561682Z     rtt_test.go:178: received 431 short header packets, detected 153 reorderings
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.3565973Z === RUN   TestDownloadWithReordering/250ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4400583Z     rtt_test.go:175: Smoothed RTT: 245.609ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4401298Z     rtt_test.go:178: received 435 short header packets, detected 139 reorderings
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4403723Z --- PASS: TestDownloadWithReordering (0.24s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4404468Z     --- PASS: TestDownloadWithReordering/5ms (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4405090Z     --- PASS: TestDownloadWithReordering/50ms (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4405703Z     --- PASS: TestDownloadWithReordering/250ms (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4406147Z === RUN   TestDatagramSizeLimit
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4476632Z --- PASS: TestDatagramSizeLimit (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4477099Z === RUN   TestNoPacketsSentWhenClientHelloFails
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4985927Z --- PASS: TestNoPacketsSentWhenClientHelloFails (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.4986453Z === RUN   TestHTTPRequestTrailers
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5276851Z --- PASS: TestHTTPRequestTrailers (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5277429Z === RUN   TestTLSConfigGetConfigForClientAddresses
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5346768Z --- PASS: TestTLSConfigGetConfigForClientAddresses (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5347554Z === RUN   TestHTTPRawConn
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5653302Z --- PASS: TestHTTPRawConn (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5653841Z === RUN   TestHandshakePacketBuffering
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5724201Z     handshake_drop_test.go:388: buffered packets: 2
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5733701Z --- PASS: TestHandshakePacketBuffering (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5734136Z === RUN   TestTransportClose
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.5734495Z === RUN   TestTransportClose/Close
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6043360Z === RUN   TestTransportClose/connection_error
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6359478Z --- PASS: TestTransportClose (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6360020Z     --- PASS: TestTransportClose/Close (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6360575Z     --- PASS: TestTransportClose/connection_error (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6361024Z === RUN   TestGetConfigForClient
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6419432Z --- PASS: TestGetConfigForClient (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6420005Z === RUN   TestMITCorruptPackets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:05.6420819Z === RUN   TestMITCorruptPackets/towards_the_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:06.1017305Z     mitm_test.go:197: corrupted 28 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:06.1018897Z === RUN   TestMITCorruptPackets/towards_the_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1028440Z     mitm_test.go:218: 
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1029435Z         	Error Trace:	/home/runner/work/quic-go-fast/quic-go-fast/integrationtests/self/mitm_test.go:218
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1031040Z         	            				/home/runner/work/quic-go-fast/quic-go-fast/integrationtests/self/mitm_test.go:196
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1032318Z         	            				/home/runner/work/quic-go-fast/quic-go-fast/integrationtests/self/mitm_test.go:71
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1032973Z         	Error:      	Received unexpected error:
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1033690Z         	            	context deadline exceeded
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1034279Z         	Test:       	TestMITCorruptPackets/towards_the_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1034695Z --- FAIL: TestMITCorruptPackets (3.46s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1035115Z     --- PASS: TestMITCorruptPackets/towards_the_server (0.46s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1035520Z     --- FAIL: TestMITCorruptPackets/towards_the_client (3.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1035869Z === RUN   TestHandshakeAddrResolutionHelpers
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1106361Z --- PASS: TestHandshakeAddrResolutionHelpers (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1107088Z === RUN   TestHTTPConnContext
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1182371Z --- PASS: TestHTTPConnContext (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1182820Z === RUN   TestStreamReadCancellation
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.1183230Z === RUN   TestStreamReadCancellation/immediate
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:09.5984101Z === RUN   TestStreamReadCancellation/after_reading_some_data
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:10.5460936Z === RUN   TestStreamReadCancellation/concurrent
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1327218Z --- PASS: TestStreamReadCancellation (2.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1327997Z     --- PASS: TestStreamReadCancellation/immediate (0.48s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1329141Z     --- PASS: TestStreamReadCancellation/after_reading_some_data (0.95s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1329942Z     --- PASS: TestStreamReadCancellation/concurrent (0.59s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1330374Z === RUN   TestHTTPSettings
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1330713Z === RUN   TestHTTPSettings/server_settings
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1389084Z === RUN   TestHTTPSettings/client_settings
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1462776Z --- PASS: TestHTTPSettings (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1463212Z     --- PASS: TestHTTPSettings/server_settings (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1463692Z     --- PASS: TestHTTPSettings/client_settings (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1464047Z === RUN   TestGetConfigForClientErrorsConnectionRejection
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1480670Z --- PASS: TestGetConfigForClientErrorsConnectionRejection (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1481792Z === RUN   TestConnContextOnServerSide
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1547238Z --- PASS: TestConnContextOnServerSide (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1548019Z === RUN   TestGracefulShutdownIdleConnection
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1621707Z --- PASS: TestGracefulShutdownIdleConnection (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1622491Z === RUN   TestHTTPContextFromQUIC
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1695699Z --- PASS: TestHTTPContextFromQUIC (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1696154Z === RUN   TestTokensFromNewTokenFrames
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1696977Z === RUN   TestTokensFromNewTokenFrames/MaxTokenAge:_1_hour
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.1976365Z === RUN   TestTokensFromNewTokenFrames/MaxTokenAge:_default
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2252740Z === RUN   TestTokensFromNewTokenFrames/MaxTokenAge:_very_short
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2530685Z --- PASS: TestTokensFromNewTokenFrames (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2531989Z     --- PASS: TestTokensFromNewTokenFrames/MaxTokenAge:_1_hour (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2532751Z     --- PASS: TestTokensFromNewTokenFrames/MaxTokenAge:_default (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2533482Z     --- PASS: TestTokensFromNewTokenFrames/MaxTokenAge:_very_short (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2534042Z === RUN   TestHTTP1xxResponse
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2600664Z --- PASS: TestHTTP1xxResponse (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.2601310Z === RUN   TestMultiplexingNonQUICPackets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.3794943Z --- PASS: TestMultiplexingNonQUICPackets (0.12s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.3795544Z === RUN   TestDatagramSizeLimitWithMTUDiscovery
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.3954909Z --- PASS: TestDatagramSizeLimitWithMTUDiscovery (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:11.3955527Z === RUN   TestGracefulShutdownPendingStreams
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1238294Z --- PASS: TestGracefulShutdownPendingStreams (0.73s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1239116Z === RUN   TestHandshakeIdleTimeout
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1239500Z === RUN   TestHandshakeIdleTimeout/Dial
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1255114Z === RUN   TestHandshakeIdleTimeout/DialEarly
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1272281Z --- PASS: TestHandshakeIdleTimeout (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1272897Z     --- PASS: TestHandshakeIdleTimeout/Dial (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1273449Z     --- PASS: TestHandshakeIdleTimeout/DialEarly (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:12.1273901Z === RUN   TestHeavyStreamCancellation
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.1553067Z --- PASS: TestHeavyStreamCancellation (1.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.1553568Z === RUN   Test0RTTTransfer
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2397434Z     zero_rtt_test.go:210: sent 29 0-RTT packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2400246Z     zero_rtt_test.go:212: received 29 0-RTT packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2402363Z --- PASS: Test0RTTTransfer (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2403534Z === RUN   TestHTTPRemoteAddrContextKey
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2479262Z --- PASS: TestHTTPRemoteAddrContextKey (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2479768Z === RUN   TestHTTPServerIdleTimeout
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2863860Z --- PASS: TestHTTPServerIdleTimeout (0.04s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2864717Z === RUN   TestTLSSessionResumption
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2865908Z === RUN   TestTLSSessionResumption/uses_session_resumption
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.2990932Z === RUN   TestTLSSessionResumption/disabled_in_tls.Config
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3123092Z === RUN   TestTLSSessionResumption/disabled_in_tls.Config.GetConfigForClient
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3259892Z --- PASS: TestTLSSessionResumption (0.04s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3260650Z     --- PASS: TestTLSSessionResumption/uses_session_resumption (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3261373Z     --- PASS: TestTLSSessionResumption/disabled_in_tls.Config (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3262174Z     --- PASS: TestTLSSessionResumption/disabled_in_tls.Config.GetConfigForClient (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3262815Z === RUN   TestQlogHandshake
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3322180Z --- PASS: TestQlogHandshake (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3322785Z === RUN   TestHTTPServeQUICConn
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3395703Z --- PASS: TestHTTPServeQUICConn (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.3396461Z === RUN   TestCancelOpenStreamSync
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.8423197Z     cancelation_test.go:501: Canceled OpenStreamSync 12 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.8425213Z --- PASS: TestCancelOpenStreamSync (0.50s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.8426177Z === RUN   Test0RTTDataLoss
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.8984069Z     zero_rtt_test.go:425: sent 10 0-RTT packets, dropped 2 of those.
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.8986966Z --- PASS: Test0RTTDataLoss (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:13.8987332Z === RUN   TestHTTP0RTT
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3666034Z --- PASS: TestHTTP0RTT (0.47s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3666423Z === RUN   TestMultiplexingServerAndClientOnSameConn
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3667437Z     multiplex_test.go:147: This test requires setting of iptables rules on Linux, see https://stackoverflow.com/questions/23859164/linux-udp-socket-sendto-operation-not-permitted.
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3668459Z --- SKIP: TestMultiplexingServerAndClientOnSameConn (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3669006Z === RUN   TestConnContextRejection
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3669297Z === RUN   TestConnContextRejection/rejecting
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3684760Z === RUN   TestConnContextRejection/not_rejecting
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3754368Z --- PASS: TestConnContextRejection (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3754933Z     --- PASS: TestConnContextRejection/rejecting (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3755535Z     --- PASS: TestConnContextRejection/not_rejecting (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3756119Z === RUN   TestHandshake
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3756511Z === RUN   TestHandshake/short_cert_chain
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3818945Z === RUN   TestHandshake/long_cert_chain
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3902545Z --- PASS: TestHandshake (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3903225Z     --- PASS: TestHandshake/short_cert_chain (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3903653Z     --- PASS: TestHandshake/long_cert_chain (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.3903954Z === RUN   Test0RTTDisabledOnDial
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.4010897Z --- PASS: Test0RTTDisabledOnDial (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.4011379Z === RUN   TestGracefulShutdownLongLivedRequest
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.4912138Z --- PASS: TestGracefulShutdownLongLivedRequest (0.09s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.4913076Z === RUN   TestHTTPErrAbortHandler
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.4987098Z --- PASS: TestHTTPErrAbortHandler (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.4987783Z === RUN   TestHandshakeCancellationError
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.4999869Z --- PASS: TestHandshakeCancellationError (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.5000654Z === RUN   Test0RTTPacketQueueing
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.5123385Z --- PASS: Test0RTTPacketQueueing (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.5123864Z === RUN   TestServerTransportClose
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.7015164Z --- PASS: TestServerTransportClose (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.7015667Z === RUN   TestHTTP3ServerHotswap
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.7779403Z --- PASS: TestHTTP3ServerHotswap (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.7780334Z === RUN   TestHTTPResponseTrailers
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.7847358Z --- PASS: TestHTTPResponseTrailers (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.7847822Z === RUN   TestHTTPClientTrace
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.8927511Z --- PASS: TestHTTPClientTrace (0.11s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.8928081Z === RUN   TestMultiplexesConnectionsToSameServer
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.9226142Z --- PASS: TestMultiplexesConnectionsToSameServer (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.9227201Z === RUN   Test0RTTDatagrams
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.9344641Z     zero_rtt_test.go:1149: sent 1 0-RTT packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.9347977Z --- PASS: Test0RTTDatagrams (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.9348567Z === RUN   TestHTTP3StreamPriority
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.9349276Z === RUN   TestHTTP3StreamPriority/incremental_streams_use_urgency_and_round_robin
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:14.9944992Z === RUN   TestHTTP3StreamPriority/non-incremental_streams_use_stream_ID
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0542961Z --- PASS: TestHTTP3StreamPriority (0.12s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0544028Z     --- PASS: TestHTTP3StreamPriority/incremental_streams_use_urgency_and_round_robin (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0545163Z     --- PASS: TestHTTP3StreamPriority/non-incremental_streams_use_stream_ID (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0545864Z === RUN   TestContentLengthForSmallResponse
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0620538Z --- PASS: TestContentLengthForSmallResponse (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0620958Z === RUN   TestHTTPReestablishConnectionAfterDialError
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0689993Z --- PASS: TestHTTPReestablishConnectionAfterDialError (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0690583Z === RUN   TestMITMForgedVersionNegotiationPacket
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0707342Z --- PASS: TestMITMForgedVersionNegotiationPacket (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0707959Z === RUN   TestHTTP3ListenerClosing
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0708388Z === RUN   TestHTTP3ListenerClosing/application_listener
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.0907522Z === RUN   TestHTTP3ListenerClosing/listener_created_by_the_http3.Server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1397056Z --- PASS: TestHTTP3ListenerClosing (0.07s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1397736Z     --- PASS: TestHTTP3ListenerClosing/application_listener (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1398519Z     --- PASS: TestHTTP3ListenerClosing/listener_created_by_the_http3.Server (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1399200Z === RUN   TestHTTPPost
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1399827Z === RUN   TestHTTPPost/small
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1477111Z === RUN   TestHTTPPost/big
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1811442Z --- PASS: TestHTTPPost (0.04s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1812109Z     --- PASS: TestHTTPPost/small (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1812718Z     --- PASS: TestHTTPPost/big (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.1813078Z === RUN   TestConnectionMigration
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.3919823Z --- PASS: TestConnectionMigration (0.21s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.3920354Z === RUN   TestContextOnClientSide
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.3995570Z --- PASS: TestContextOnClientSide (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.3996122Z === RUN   TestConnectionIDsRandomLengths
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.3996821Z     conn_id_test.go:43: issuing 13 byte connection ID from the server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.3997470Z     conn_id_test.go:43: issuing 14 byte connection ID from the client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4264638Z --- PASS: TestConnectionIDsRandomLengths (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4269600Z === RUN   TestHandshake05RTT
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4270011Z === RUN   TestHandshake05RTT/using_ListenEarly
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4339491Z === RUN   TestHandshake05RTT/using_Listen
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4401428Z --- PASS: TestHandshake05RTT (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4402046Z     --- PASS: TestHandshake05RTT/using_ListenEarly (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4402605Z     --- PASS: TestHandshake05RTT/using_Listen (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.4403040Z === RUN   TestHandshakeContextTimeout
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5012695Z --- PASS: TestHandshakeContextTimeout (0.06s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5013199Z === RUN   TestMultiplexingConnectToSelf
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5239921Z --- PASS: TestMultiplexingConnectToSelf (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5240558Z === RUN   TestBidirectionalStreamMultiplexing
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5240955Z === RUN   TestBidirectionalStreamMultiplexing/client_->_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5455680Z === RUN   TestBidirectionalStreamMultiplexing/client_<->_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5737432Z --- PASS: TestBidirectionalStreamMultiplexing (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5738441Z     --- PASS: TestBidirectionalStreamMultiplexing/client_->_server (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5739435Z     --- PASS: TestBidirectionalStreamMultiplexing/client_<->_server (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5740319Z === RUN   TestHTTPClientRequestContextCancellation
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.5740685Z === RUN   TestHTTPClientRequestContextCancellation/before_response
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6243731Z === RUN   TestHTTPClientRequestContextCancellation/after_response
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6257749Z --- PASS: TestHTTPClientRequestContextCancellation (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6258484Z     --- PASS: TestHTTPClientRequestContextCancellation/before_response (0.05s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6259500Z     --- PASS: TestHTTPClientRequestContextCancellation/after_response (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6260177Z === RUN   TestConnectionCloseRetransmission
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6412078Z --- PASS: TestConnectionCloseRetransmission (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6413006Z === RUN   TestDatagramLoss
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6814671Z     datagram_test.go:331: dropped 23 to client and 23 to server out of 200 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6819947Z     datagram_test.go:334: server received 77 out of 100 sent datagrams
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6820988Z     datagram_test.go:336: client received 77 out of 100 sent datagrams
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6821479Z --- PASS: TestDatagramLoss (0.04s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6821846Z === RUN   TestUnidirectionalStreams
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.6822246Z === RUN   TestUnidirectionalStreams/client_->_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:15.8461260Z === RUN   TestUnidirectionalStreams/server_->_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.0327387Z === RUN   TestUnidirectionalStreams/client_<->_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.3519755Z --- PASS: TestUnidirectionalStreams (0.67s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.3520257Z     --- PASS: TestUnidirectionalStreams/client_->_server (0.16s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.3520704Z     --- PASS: TestUnidirectionalStreams/server_->_client (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.3521155Z     --- PASS: TestUnidirectionalStreams/client_<->_server (0.32s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.3521644Z === RUN   TestALPN
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.3622027Z --- PASS: TestALPN (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:16.3622583Z === RUN   TestWriteDeadlineAsync
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:17.9629041Z     deadline_test.go:227: ran into deadline 46595 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.3861283Z --- PASS: TestWriteDeadlineAsync (2.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.3861885Z === RUN   TestWriteWithLimitConnectionFlowControl
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.3937235Z --- PASS: TestWriteWithLimitConnectionFlowControl (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.3937725Z === RUN   TestHandshakeRTTHelloRetryRequest
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.4083971Z --- PASS: TestHandshakeRTTHelloRetryRequest (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.4084368Z === RUN   TestMultiplexingToDifferentServers
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.4378445Z --- PASS: TestMultiplexingToDifferentServers (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.4379384Z === RUN   TestHTTP0RTTWithChangedServerSettings
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.4380126Z === RUN   TestHTTP0RTTWithChangedServerSettings/increased
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.6034306Z === RUN   TestHTTP0RTTWithChangedServerSettings/decreased
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.7679778Z --- PASS: TestHTTP0RTTWithChangedServerSettings (0.33s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.7680757Z     --- PASS: TestHTTP0RTTWithChangedServerSettings/increased (0.17s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.7681836Z     --- PASS: TestHTTP0RTTWithChangedServerSettings/decreased (0.16s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.7682543Z === RUN   TestHTTP3ListenerGracefulShutdown
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.7683258Z === RUN   TestHTTP3ListenerGracefulShutdown/application_listener
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.8496251Z === RUN   TestHTTP3ListenerGracefulShutdown/listener_created_by_the_http3.Server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.9587068Z --- PASS: TestHTTP3ListenerGracefulShutdown (0.19s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.9587997Z     --- PASS: TestHTTP3ListenerGracefulShutdown/application_listener (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.9589070Z     --- PASS: TestHTTP3ListenerGracefulShutdown/listener_created_by_the_http3.Server (0.11s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:18.9590234Z === RUN   TestClosedConnectionsInAcceptQueue
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:19.0472364Z --- PASS: TestClosedConnectionsInAcceptQueue (0.09s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:19.0472942Z === RUN   TestWriteWithLimitStreamFlowControl
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:19.0545275Z --- PASS: TestWriteWithLimitStreamFlowControl (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:19.0546179Z === RUN   Test0RTTRejectedWhenDisabled
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:19.0669222Z     zero_rtt_test.go:862: Sent 4 0-RTT packets.
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:19.0670870Z --- PASS: Test0RTTRejectedWhenDisabled (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:19.0671427Z === RUN   TestReadDeadlineSync
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3055621Z     deadline_test.go:72: ran into deadline 1131 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3060761Z --- PASS: TestReadDeadlineSync (1.24s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3061356Z === RUN   TestConnectionIDsCustomGenerator
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3062270Z     conn_id_test.go:47: using 8 byte connection ID generator for the server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3062938Z     conn_id_test.go:47: using 14 byte connection ID generator for the client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3326487Z --- PASS: TestConnectionIDsCustomGenerator (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3327064Z === RUN   TestHTTPGzip
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3427028Z --- PASS: TestHTTPGzip (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3427474Z === RUN   TestGracefulShutdownShortRequest
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3814729Z --- PASS: TestGracefulShutdownShortRequest (0.04s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:20.3815472Z === RUN   TestPathMTUDiscovery
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:23.7860803Z     mtu_test.go:177: max client packet size: 1400, MTU: 1400
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:23.7861877Z     mtu_test.go:178: max datagram size: initial: 1163, final: 1363
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:23.7862901Z     mtu_test.go:179: max server packet size: 1234, MTU: 1400
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:23.7872179Z --- PASS: TestPathMTUDiscovery (3.41s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:23.7872833Z === RUN   TestACKBundling
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.8961193Z     packetization_test.go:125: bundled incoming packets: 98 / 100
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.8961966Z     packetization_test.go:126: bundled outgoing packets: 98 / 100
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.8963398Z --- PASS: TestACKBundling (1.11s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.8963852Z === RUN   TestConnectionIDsZeroLength
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.8964479Z     conn_id_test.go:39: issuing 9 byte connection ID from the server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.8965204Z     conn_id_test.go:39: issuing 0 byte connection ID from the client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9231877Z --- PASS: TestConnectionIDsZeroLength (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9232629Z === RUN   TestHandshakeFailsWithoutClientCert
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9299573Z --- PASS: TestHandshakeFailsWithoutClientCert (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9299922Z === RUN   TestQlogDirEnvironmentVariable
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9372947Z --- PASS: TestQlogDirEnvironmentVariable (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9373472Z === RUN   TestQlogHandshakeFailed
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9389698Z --- PASS: TestQlogHandshakeFailed (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:24.9390123Z === RUN   TestKeyUpdates
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:26.9025357Z     key_update_test.go:90: Used 1591 key phases on outgoing and 1591 key phases on incoming packets.
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:26.9026178Z --- PASS: TestKeyUpdates (1.96s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:26.9027439Z === RUN   Test0RTTWithIncreasedStreamLimit
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:26.9146913Z --- PASS: Test0RTTWithIncreasedStreamLimit (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:26.9147718Z === RUN   TestMITMForgedInitialPacket
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.0659131Z --- PASS: TestMITMForgedInitialPacket (0.15s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.0659895Z === RUN   TestInitialPacketSize
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.0673605Z --- PASS: TestInitialPacketSize (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.0674030Z === RUN   TestHandshakeCipherSuites
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.0674593Z === RUN   TestHandshakeCipherSuites/TLS_AES_128_GCM_SHA256
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.0929840Z === RUN   TestHandshakeCipherSuites/TLS_AES_256_GCM_SHA384
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1172058Z === RUN   TestHandshakeCipherSuites/TLS_CHACHA20_POLY1305_SHA256
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1446405Z --- PASS: TestHandshakeCipherSuites (0.08s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1447092Z     --- PASS: TestHandshakeCipherSuites/TLS_AES_128_GCM_SHA256 (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1448259Z     --- PASS: TestHandshakeCipherSuites/TLS_AES_256_GCM_SHA384 (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1449091Z     --- PASS: TestHandshakeCipherSuites/TLS_CHACHA20_POLY1305_SHA256 (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1449613Z === RUN   TestHTTPHeaderSizeLimitClient
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1450017Z === RUN   TestHTTPHeaderSizeLimitClient/large_HEADERS_frame
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1528870Z === RUN   TestHTTPHeaderSizeLimitClient/large_decompressed_HEADERS_frame
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1605217Z --- PASS: TestHTTPHeaderSizeLimitClient (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1606119Z     --- PASS: TestHTTPHeaderSizeLimitClient/large_HEADERS_frame (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1607225Z     --- PASS: TestHTTPHeaderSizeLimitClient/large_decompressed_HEADERS_frame (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1608044Z === RUN   TestStreamReadWriteCancellation
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:27.1608965Z === RUN   TestStreamReadWriteCancellation/immediate
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.0000123Z === RUN   TestStreamReadWriteCancellation/after_writing_some_data
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.7865458Z --- PASS: TestStreamReadWriteCancellation (1.62s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.7866022Z     --- PASS: TestStreamReadWriteCancellation/immediate (0.84s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.7866494Z     --- PASS: TestStreamReadWriteCancellation/after_writing_some_data (0.78s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.7866850Z === RUN   TestMITMDuplicatePackets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.7867128Z === RUN   TestMITMDuplicatePackets/towards_the_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.8203212Z === RUN   TestMITMDuplicatePackets/towards_the_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9447352Z --- PASS: TestMITMDuplicatePackets (0.16s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9448331Z     --- PASS: TestMITMDuplicatePackets/towards_the_server (0.04s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9449435Z     --- PASS: TestMITMDuplicatePackets/towards_the_client (0.12s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9450150Z === RUN   TestDatagramNegotiation
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9450740Z === RUN   TestDatagramNegotiation/server_enable,_client_enable
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9528911Z === RUN   TestDatagramNegotiation/server_enable,_client_disable
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9597992Z === RUN   TestDatagramNegotiation/server_disable,_client_enable
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9666489Z === RUN   TestDatagramNegotiation/server_disable,_client_disable
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9733691Z --- PASS: TestDatagramNegotiation (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9734532Z     --- PASS: TestDatagramNegotiation/server_enable,_client_enable (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9735210Z     --- PASS: TestDatagramNegotiation/server_enable,_client_disable (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9735801Z     --- PASS: TestDatagramNegotiation/server_disable,_client_enable (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9736315Z     --- PASS: TestDatagramNegotiation/server_disable,_client_disable (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:28.9736673Z === RUN   TestMITMForgedRetryPacket
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1248210Z --- PASS: TestMITMForgedRetryPacket (0.15s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1248696Z === RUN   TestHTTPStreamedRequests
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1339606Z --- PASS: TestHTTPStreamedRequests (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1340056Z === RUN   TestHTTPDifferentOrigins
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1474471Z --- PASS: TestHTTPDifferentOrigins (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1474829Z === RUN   TestHTTPDatagramClose
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1546435Z --- PASS: TestHTTPDatagramClose (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1546975Z === RUN   TestHandshakeCloseListener
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.1547411Z === RUN   TestHandshakeCloseListener/using_Transport.Listen
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.2262433Z === RUN   TestHandshakeCloseListener/using_Listen
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.2974287Z === RUN   TestHandshakeCloseListener/using_ListenAddr
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9696536Z --- PASS: TestHandshakeCloseListener (0.81s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9697228Z     --- PASS: TestHandshakeCloseListener/using_Transport.Listen (0.07s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9697891Z     --- PASS: TestHandshakeCloseListener/using_Listen (0.07s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9698504Z     --- PASS: TestHandshakeCloseListener/using_ListenAddr (0.67s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9699168Z === RUN   TestMITMForgedInitialPacketWithAck
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9716829Z --- PASS: TestMITMForgedInitialPacketWithAck (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9717316Z === RUN   TestStatelessResets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9718177Z === RUN   TestStatelessResets/zero-length_connection_IDs
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9788060Z === RUN   TestStatelessResets/10_byte_connection_IDs
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9854377Z --- PASS: TestStatelessResets (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9854990Z     --- PASS: TestStatelessResets/zero-length_connection_IDs (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9855769Z     --- PASS: TestStatelessResets/10_byte_connection_IDs (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9856066Z === RUN   TestHandshakeRTTRetry
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9856299Z === RUN   TestHandshakeRTTRetry/retry
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9920977Z === RUN   TestHandshakeRTTRetry/no_retry
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9981365Z --- PASS: TestHandshakeRTTRetry (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9981884Z     --- PASS: TestHandshakeRTTRetry/retry (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9982411Z     --- PASS: TestHandshakeRTTRetry/no_retry (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:29.9982802Z === RUN   TestHTTPStreamer
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.0301989Z --- PASS: TestHTTPStreamer (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.0302510Z === RUN   TestHTTP1xxTerminalResponse
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.0375555Z --- PASS: TestHTTP1xxTerminalResponse (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.0376052Z === RUN   TestServerAcceptQueueOverflow
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.3960489Z --- PASS: TestServerAcceptQueueOverflow (0.36s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.3961296Z === RUN   TestInvalidToken
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.4196289Z --- PASS: TestInvalidToken (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.4196773Z === RUN   TestDrainServerAcceptQueue
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.6776987Z --- PASS: TestDrainServerAcceptQueue (0.26s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.6777673Z === RUN   TestHTTP3Qlog
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.6852659Z --- PASS: TestHTTP3Qlog (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.6853120Z === RUN   TestHandshakeServerMismatch
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.6904570Z --- PASS: TestHandshakeServerMismatch (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.6905047Z === RUN   Test0RTTRejectedOnDatagramsDisabled
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7029738Z     zero_rtt_test.go:905: Sent 4 0-RTT packets.
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7031507Z --- PASS: Test0RTTRejectedOnDatagramsDisabled (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7032061Z === RUN   TestHTTPDatagramStreamReset
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7212968Z --- PASS: TestHTTPDatagramStreamReset (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7213479Z === RUN   TestTLSGetConfigForClientError
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7234957Z --- PASS: TestTLSGetConfigForClientError (0.00s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7235454Z === RUN   TestFaultyPacketConn
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7236060Z === RUN   TestFaultyPacketConn/client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7237043Z     timeout_test.go:435: blocking client's connection after 13 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7327034Z === RUN   TestFaultyPacketConn/server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7327900Z     timeout_test.go:435: blocking server's connection after 17 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7400850Z --- PASS: TestFaultyPacketConn (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7401400Z     --- PASS: TestFaultyPacketConn/client (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7401931Z     --- PASS: TestFaultyPacketConn/server (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7402332Z === RUN   Test0RTTRetransmitOnRetry
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7402733Z === RUN   Test0RTTRetransmitOnRetry/no_retry
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7527665Z === RUN   Test0RTTRetransmitOnRetry/with_retry
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7672035Z --- PASS: Test0RTTRetransmitOnRetry (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7672576Z     --- PASS: Test0RTTRetransmitOnRetry/no_retry (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7672934Z     --- PASS: Test0RTTRetransmitOnRetry/with_retry (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7673383Z === RUN   TestHTTPDatagrams
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7748010Z --- PASS: TestHTTPDatagrams (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7748484Z === RUN   TestPacketDrops
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7748947Z === RUN   TestPacketDrops/from_client
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7749455Z     drop_test.go:75: sending a message every 33.082389ms, 50 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7750024Z     drop_test.go:76: dropping packets for 678.86101ms, after a delay of 451.419465ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7903544Z     drop_test.go:114: dropped 26 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7904244Z === RUN   TestPacketDrops/from_server
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7905749Z     drop_test.go:75: sending a message every 88.172164ms, 50 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.7907108Z     drop_test.go:76: dropping packets for 1.652068426s, after a delay of 986.110981ms
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.8042311Z     drop_test.go:114: dropped 22 packets
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.8044346Z --- PASS: TestPacketDrops (0.03s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.8044653Z     --- PASS: TestPacketDrops/from_client (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.8045078Z     --- PASS: TestPacketDrops/from_server (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.8045770Z === RUN   TestConnContextFreshContext
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.8111006Z --- PASS: TestConnContextFreshContext (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:30.8111324Z === RUN   TestNATRebinding
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:31.6309390Z --- PASS: TestNATRebinding (0.82s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:31.6309926Z === RUN   TestCancelAcceptStream
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:32.0477006Z     cancelation_test.go:409: canceled AcceptStream 32 times
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:32.0479345Z --- PASS: TestCancelAcceptStream (0.42s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:32.0479740Z === RUN   TestHTTPGet
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:32.0481111Z === RUN   TestHTTPGet/small
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:32.0551005Z === RUN   TestHTTPGet/big
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:33.9950401Z --- PASS: TestHTTPGet (1.95s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:33.9950910Z     --- PASS: TestHTTPGet/small (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:33.9951314Z     --- PASS: TestHTTPGet/big (1.94s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:33.9951664Z === RUN   TestHTTPHeaderSizeLimitServer
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:33.9952149Z === RUN   TestHTTPHeaderSizeLimitServer/large_HEADERS_frame
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0026325Z === RUN   TestHTTPHeaderSizeLimitServer/large_decompressed_HEADERS_frame
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0102141Z --- PASS: TestHTTPHeaderSizeLimitServer (0.02s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0103024Z     --- PASS: TestHTTPHeaderSizeLimitServer/large_HEADERS_frame (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0103834Z     --- PASS: TestHTTPHeaderSizeLimitServer/large_decompressed_HEADERS_frame (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0173459Z === RUN   TestIdleTimeout
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0174131Z     timeout_test.go:129: server connection timed out after 20s (idle timeout: 20s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0174771Z     timeout_test.go:138: client connection timed out after 20s (idle timeout: 20s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0175162Z --- PASS: TestIdleTimeout (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0175419Z === RUN   TestTimeoutAfterInactivity
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0245926Z --- PASS: TestTimeoutAfterInactivity (0.01s)
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0246463Z FAIL
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0742311Z FAIL	github.com/quic-go/quic-go/integrationtests/self	39.009s
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0765944Z FAIL
+Integration (ubuntu, Go 1.27.x, race)	Run self tests, with GSO disabled	2026-09-07T21:43:34.0869576Z ##[error]Process completed with exit code 1.

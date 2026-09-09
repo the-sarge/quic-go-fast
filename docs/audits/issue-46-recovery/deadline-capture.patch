@@ -1,0 +1,274 @@
+diff --git a/integrationtests/self/handshake_corruption_test.go b/integrationtests/self/handshake_corruption_test.go
+new file mode 100644
+index 00000000..c6a85d15
+--- /dev/null
++++ b/integrationtests/self/handshake_corruption_test.go
+@@ -0,0 +1,132 @@
++package self_test
++
++import (
++	"context"
++	"io"
++	"math"
++	"sync/atomic"
++	"testing"
++	"testing/synctest"
++	"time"
++
++	"github.com/quic-go/quic-go"
++	"github.com/quic-go/quic-go/internal/protocol"
++	"github.com/quic-go/quic-go/internal/wire"
++	"github.com/quic-go/quic-go/qlog"
++	"github.com/quic-go/quic-go/testutils/simnet"
++
++	"github.com/stretchr/testify/require"
++)
++
++func TestHandshakeCorruption(t *testing.T) {
++	for _, tc := range []struct {
++		name         string
++		packetType   protocol.PacketType
++		limit        int32
++		corrupt      bool
++		wantDeadline bool
++	}{
++		{name: "initial/corrupt", packetType: protocol.PacketTypeInitial, limit: 1, corrupt: true},
++		{name: "initial/control", packetType: protocol.PacketTypeInitial, limit: 1},
++		{name: "handshake/corrupt", packetType: protocol.PacketTypeHandshake, limit: 3, corrupt: true},
++		{name: "handshake/control", packetType: protocol.PacketTypeHandshake, limit: 3},
++		{name: "handshake/deadline", packetType: protocol.PacketTypeHandshake, limit: math.MaxInt32, corrupt: true, wantDeadline: true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			synctest.Test(t, func(t *testing.T) {
++				diagnostic := newIssue46Diagnostic(t) // issue46 capture
++				var selected atomic.Int32
++				router := &callbackRouter{Router: &simnet.PerfectRouter{}}
++				clientPacketConn, serverPacketConn, closeLink := newSimnetLinkWithRouter(t, 5*time.Millisecond, router)
++				defer closeLink(t)
++				router.OnSendPacket = func(p simnet.Packet) {
++					record := diagnostic.datagram(p.To.String(), p.From.String(), p.To.String(), p.Data) // issue46 capture
++					defer func() { diagnostic.record("route", record) }()                                // issue46 capture
++					if p.From.String() != serverPacketConn.LocalAddr().String() || selected.Load() >= tc.limit {
++						return
++					}
++					offset, ok := handshakeCorruptionOffset(p.Data, tc.packetType)
++					if !ok {
++						return
++					}
++					selected.Add(1)
++					record["selected"], record["offset"], record["old"] = true, offset, p.Data[offset] // issue46 capture
++					if tc.corrupt {
++						p.Data[offset] ^= 1
++					}
++					record["new"], record["crc_after"] = p.Data[offset], qlog.CalculateDatagramPayloadChecksum(p.Data) // issue46 capture
++				}
++				serverTransport := &quic.Transport{Conn: &issue46PacketConn{PacketConn: serverPacketConn, d: diagnostic, source: "server"}}
++				defer serverTransport.Close()
++				clientTransport := &quic.Transport{Conn: &issue46PacketConn{PacketConn: clientPacketConn, d: diagnostic, source: "client"}}
++				defer clientTransport.Close()
++				conf := getQuicConfig(&quic.Config{DisablePathMTUDiscovery: true})
++				conf.Tracer = diagnostic.tracer // issue46 capture
++				listener, err := serverTransport.Listen(getTLSConfig(), conf)
++				require.NoError(t, err)
++				defer listener.Close()
++				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
++				defer cancel()
++				diagnostic.record("dial_start", time.Now().Add(time.Second).Sub(diagnostic.start).Nanoseconds()) // issue46 capture
++				conn, err := clientTransport.Dial(ctx, serverPacketConn.LocalAddr(), getTLSClientConfig(), conf)
++				diagnostic.record("dial_result", map[string]any{"error": errString46(err), "elapsed_ns": time.Since(diagnostic.start).Nanoseconds()}) // issue46 capture
++				if tc.wantDeadline {
++					require.ErrorIs(t, err, context.DeadlineExceeded)
++					require.Nil(t, conn)
++					require.Greater(t, selected.Load(), int32(1), "exercise repeated handshake corruption before cancellation")
++					diagnostic.record("deadline_complete", selected.Load()) // issue46 capture
++					return
++				}
++				require.NoError(t, err)
++				defer conn.CloseWithError(0, "")
++				serverConn, err := listener.Accept(ctx)
++				require.NoError(t, err)
++				defer serverConn.CloseWithError(0, "")
++				deadline, _ := ctx.Deadline()
++				stream, err := conn.OpenStreamSync(ctx)
++				require.NoError(t, err)
++				require.NoError(t, stream.SetDeadline(deadline))
++				payload := GeneratePRData(4096)
++				_, err = stream.Write(payload)
++				require.NoError(t, err)
++				require.NoError(t, stream.Close())
++				serverStream, err := serverConn.AcceptStream(ctx)
++				require.NoError(t, err)
++				require.NoError(t, serverStream.SetDeadline(deadline))
++				received, err := io.ReadAll(serverStream)
++				require.NoError(t, err)
++				require.Equal(t, payload, received)
++				_, err = serverStream.Write(received)
++				require.NoError(t, err)
++				require.NoError(t, serverStream.Close())
++				echoed, err := io.ReadAll(stream)
++				require.NoError(t, err)
++				require.Equal(t, payload, echoed)
++				if tc.corrupt {
++					require.Equal(t, tc.limit, selected.Load())
++				} else {
++					require.Positive(t, selected.Load())
++				}
++				diagnostic.record("transfer_complete", map[string]any{"selected": selected.Load(), "bytes": len(echoed)}) // issue46 capture
++			})
++		})
++	}
++}
++
++// Target a protected byte in the requested QUIC packet, including when it is
++// coalesced behind an Initial packet. The rest of the datagram is untouched.
++func handshakeCorruptionOffset(data []byte, packetType protocol.PacketType) (int, bool) {
++	offset := 0
++	for len(data) > 0 && wire.IsLongHeaderPacket(data[0]) {
++		header, packet, rest, err := wire.ParsePacket(data)
++		if err != nil {
++			return 0, false
++		}
++		if header.Type == packetType {
++			return offset + len(packet) - 1, true
++		}
++		offset += len(packet)
++		data = rest
++	}
++	return 0, false
++}
+diff --git a/integrationtests/self/issue46_diagnostic_test.go b/integrationtests/self/issue46_diagnostic_test.go
+new file mode 100644
+index 00000000..bcba9171
+--- /dev/null
++++ b/integrationtests/self/issue46_diagnostic_test.go
+@@ -0,0 +1,130 @@
++package self_test
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"fmt"
++	"net"
++	"os"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/quic-go/quic-go"
++	"github.com/quic-go/quic-go/internal/wire"
++	"github.com/quic-go/quic-go/qlog"
++	"github.com/quic-go/quic-go/qlogwriter"
++	"github.com/quic-go/quic-go/qlogwriter/jsontext"
++	"github.com/quic-go/quic-go/testutils/events"
++)
++
++// Temporary issue-46 instrumentation, retained only as an audit patch.
++type issue46Diagnostic struct {
++	start   time.Time
++	mu      sync.Mutex
++	records []any
++	order   uint64
++}
++
++func newIssue46Diagnostic(t *testing.T) *issue46Diagnostic {
++	d := &issue46Diagnostic{start: time.Now()}
++	t.Cleanup(func() {
++		d.mu.Lock()
++		defer d.mu.Unlock()
++		f, err := os.Create(os.Getenv("ISSUE46_OUTPUT"))
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		defer f.Close()
++		enc := json.NewEncoder(f)
++		for _, r := range d.records {
++			if err := enc.Encode(r); err != nil {
++				t.Error(err)
++				return
++			}
++		}
++	})
++	return d
++}
++
++func (d *issue46Diagnostic) record(kind string, data any) {
++	at := time.Since(d.start).Nanoseconds()
++	d.mu.Lock()
++	d.records = append(d.records, map[string]any{"ns": at, "kind": kind, "data": data})
++	d.mu.Unlock()
++}
++
++func (d *issue46Diagnostic) datagram(dir string, from, to string, b []byte) map[string]any {
++	d.mu.Lock()
++	d.order++
++	order := d.order
++	d.mu.Unlock()
++	parts := []any{}
++	remaining := b
++	for len(remaining) > 0 {
++		if !wire.IsLongHeaderPacket(remaining[0]) {
++			parts = append(parts, map[string]any{"type": "short", "length": len(remaining)})
++			break
++		}
++		hdr, packet, rest, err := wire.ParsePacket(remaining)
++		if err != nil {
++			parts = append(parts, map[string]any{"parse_error": err.Error()})
++			break
++		}
++		parts = append(parts, map[string]any{"type": fmt.Sprint(hdr.Type), "length": len(packet)})
++		if len(rest) >= len(remaining) {
++			break
++		}
++		remaining = rest
++	}
++	return map[string]any{"order": order, "direction": dir, "from": from, "to": to, "length": len(b), "crc_before": qlog.CalculateDatagramPayloadChecksum(b), "parts": parts, "callback_ns": time.Since(d.start).Nanoseconds(), "selected": false}
++}
++
++func (d *issue46Diagnostic) tracer(_ context.Context, client bool, id quic.ConnectionID) qlogwriter.Trace {
++	return &events.Trace{Recorder: &issue46Recorder{d: d, source: fmt.Sprintf("connection client=%t id=%s", client, id)}}
++}
++
++type issue46Recorder struct {
++	d      *issue46Diagnostic
++	source string
++}
++
++func (r *issue46Recorder) RecordEvent(e qlogwriter.Event) {
++	at := time.Since(r.d.start).Nanoseconds()
++	var buf bytes.Buffer
++	err := e.Encode(jsontext.NewEncoder(&buf), r.d.start)
++	data := map[string]any{"source": r.source, "event": e.Name(), "event_ns": at, "json": buf.String()}
++	if err != nil {
++		data["encode_error"] = err.Error()
++	}
++	r.d.record("qlog", data)
++}
++func (*issue46Recorder) Close() error { return nil }
++
++func errString46(err error) string {
++	if err == nil {
++		return ""
++	}
++	return err.Error()
++}
++
++type issue46PacketConn struct {
++	net.PacketConn
++	d      *issue46Diagnostic
++	source string
++}
++
++func (c *issue46PacketConn) WriteTo(b []byte, addr net.Addr) (int, error) {
++	crc := qlog.CalculateDatagramPayloadChecksum(b)
++	at := time.Since(c.d.start).Nanoseconds()
++	n, err := c.PacketConn.WriteTo(b, addr)
++	c.d.record("socket_write", map[string]any{"source": c.source, "crc": crc, "length": len(b), "n": n, "error": errString46(err), "start_ns": at})
++	return n, err
++}
++func (c *issue46PacketConn) ReadFrom(b []byte) (int, net.Addr, error) {
++	n, addr, err := c.PacketConn.ReadFrom(b)
++	c.d.record("socket_read", map[string]any{"source": c.source, "crc": qlog.CalculateDatagramPayloadChecksum(b[:n]), "n": n, "error": errString46(err)})
++	return n, addr, err
++}

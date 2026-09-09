@@ -1,0 +1,6 @@
+{
+  "command": "go test -c -o docs/audits/issue-46/mechanism.test ./integrationtests/self",
+  "toolchain": "go version go1.27.0 darwin/arm64",
+  "patch_sha256": "fd363c1a74d3a1c0363f8e47f7566e29bb92f432ce5bcb45124b5cb849b5fe8a",
+  "binary_sha256": "21db433d13f888aaf25c2945aef99bcd9c4c2a493e9159057c236a2921a57eab"
+}
