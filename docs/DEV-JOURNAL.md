@@ -546,3 +546,30 @@ The two required baseline regressions failed before implementation. The accepted
 Initial RAS review `20260909T140950-8e756c65b4e2419e390bafcf` completed seven reviews and adjudication. Independent [dispositions](https://github.com/the-sarge/quic-go-fast/pull/136#issuecomment-5603553176) rejected unreachable runtime claims and non-required cleanup; dormant raw reqDone plumbing has no pooled-release authority. Replacement review `20260909T142941-c39df2e73d432e288b51903b` was clean on the final candidate. No accepted product finding required fix verification, and no worthwhile deferred findings or required untraced effects remain.
 
 H2 remains independently ready; H1's merge does not newly unblock another slice. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier view, and the [H plan](adr/2026-09-08-http3-lifetime-plan.md) retains the accepted boundaries. Cache-identity eviction, shared-dial policy, public API and wire behavior remain under their existing contracts.
+
+---
+
+## Conditional HTTP/3 eviction landed - 2026-09-09 11:28 EDT
+
+**Main:** `9018906dc1e0`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #138](https://github.com/the-sarge/quic-go-fast/pull/138) as `9018906dc1e03782426818b96444d63e15019384`, completing [H2 / #90](https://github.com/the-sarge/quic-go-fast/issues/90). Delayed dial and request failures now remove a hostname's cached HTTP/3 entry only when it still matches the failed attempt's pointer. Replacement connections remain available to cached requests and eligible retries.
+
+### Completed
+
+Added deterministic current/missing/replacement and delayed-failure regressions, with terminal and retryable request cases. The product PR records H2 completion, its five evidence classes, and the resulting program frontier. Both H slices are complete; H2 unlocks no successor. Retry eligibility, cancellation, shared dial context, idle/explicit close authority, public API and wire behavior are preserved.
+
+### Validation
+
+Observed stale-entry and delayed-failure regressions fail before the guard/caller fix and pass afterward. Final local certification at `7fbfd1b576b98498b7a1dd090d636554f3916199` against base `89f4491a55080e56d1067aef1b66dd4743c3950a` passed HTTP/3 tests and race tests, all remaining package tests, vet, golangci-lint, HTTP/3 go-fix inspection, documentation checks and `git diff --check` with a clean worktree.
+
+RAS review `20260909T145737-87e99fdb0de429153c25a71c` completed with eight successful reviewers; two Cursor reports failed parsing and did not count as clean reviews. No runtime defect was found. The accepted documentation count correction distinguishes fourteen total slices from twelve remaining; the optional helper comment was rejected. [Finding dispositions](https://github.com/the-sarge/quic-go-fast/pull/138#issuecomment-5604262335) record why the shared docs-only policy skipped another RAS cycle. No deferred findings or untraced effects remain.
+
+All 33 hosted checks passed on the exact certified head before guarded squash merge: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34369225954), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34369225830), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34369225947), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34369225774) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34369225943). No same-head CI rerun or additional stress campaign was needed.
+
+### Next
+
+The remaining frontier is I1, I3, I5, I6, I7, P1, T1 and C1; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view. Existing blocked slices retain their accepted edges. No routine frontier PR is needed because the product PR owns the committed transition.
