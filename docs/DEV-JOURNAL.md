@@ -573,3 +573,30 @@ All 33 hosted checks passed on the exact certified head before guarded squash me
 ### Next
 
 The remaining frontier is I1, I3, I5, I6, I7, P1, T1 and C1; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view. Existing blocked slices retain their accepted edges. No routine frontier PR is needed because the product PR owns the committed transition.
+
+---
+
+## HTTP/3 fixture completion synchronized - 2026-09-09 12:51 EDT
+
+**Main:** `229011cae6fa`
+**Actor:** Codex
+
+### Summary
+
+Merged [H3 / PR #142](https://github.com/the-sarge/quic-go-fast/pull/142) as `eeabc39b534080385182d2a5e85fff2215cc8173`, closing [#141](https://github.com/the-sarge/quic-go-fast/issues/141). Six HTTP/3 fixture observations now join their own attempt’s existing completion barrier before asserting released pooled counts. The controlled empty-upload case preserves count one and open input after response EOF, then verifies count zero and one input close after upload completion. Production behavior is unchanged. The product PR owns H3’s committed completion/frontier transition.
+
+### Validation
+
+A temporary premature-zero assertion failed deterministically with count one; the retained characterization passed before adding the six joins. The five focused fixture families passed. Final HTTP/3 normal/race tests, vet, module tidiness, document links and whitespace checks passed on `01d16cb4959a72b8268752ae4983b5a3201ded58` against base `45954f54fcca3a6906ea3a0c3b0a11f2b2aad56c`. All 33 applicable hosted checks passed on that head before guarded squash merge; [local certification](https://github.com/the-sarge/quic-go-fast/pull/142#issuecomment-5605275980) and [hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/142#issuecomment-5605389213) retain the evidence.
+
+RAS review `20260909T162120-742f220e0bcc502559853c72` completed with nine successful R1 reviewers; cursor-glm failed structured output and did not count as a successful review. Its one accepted documentation finding corrected the stale current-shape sentence; the second cluster duplicated that observation. The shared docs-only policy skipped a RAS rerun after the correction, with new exact-head local and hosted certification. No deferred review findings or required untraced effects remain. [Dispositions](https://github.com/the-sarge/quic-go-fast/pull/142#issuecomment-5605266481) record the boundary.
+
+### Decisions
+
+The full local suite observed the separately tracked randomized-corruption Dial timeout in [#46](https://github.com/the-sarge/quic-go-fast/issues/46#issuecomment-5605125412), at the same test and assertion location; an identical underlying cause was not established. All other packages passed. The operator explicitly accepted keeping that failure separate from H3 and proceeding with remaining checks. The failed local check was disclosed, not rerun until green or reported as passing; no deadline or corruption behavior changed, and no new architecture handoff was required for the existing investigation.
+
+Reconciled and merged the retained [H2 journal / PR #139](https://github.com/the-sarge/quic-go-fast/pull/139) as `229011cae6fa6d2e62f9d15bdcbc89c691865fc6` after H3. Its prior journal bytes were preserved exactly, its main diff remained one EOF entry, and all 33 new-head hosted checks passed.
+
+### Next
+
+All H implementations are complete. The remaining implementation frontier is I1, I3, I5, I6, I7, P1, T1 and C1; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns live state. No new implementation successor is unlocked and no separate frontier PR is needed.
