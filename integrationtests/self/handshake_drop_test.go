@@ -8,6 +8,7 @@ import (
 	"io"
 	mrand "math/rand/v2"
 	"net"
+	"os"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -250,6 +251,9 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 		dropPatternDrop1stPacket         dropPattern = "drop 1st packet"
 		dropPatternDropFirst3Packets     dropPattern = "drop first 3 packets"
 		dropPatternDropOneThirdOfPackets dropPattern = "drop 1/3 of packets"
+		dropPatternPeriodicPhase1        dropPattern = "drop every 3rd of first 30 packets, phase 1"
+		dropPatternPeriodicPhase2        dropPattern = "drop every 3rd of first 30 packets, phase 2"
+		dropPatternPeriodicPhase3        dropPattern = "drop every 3rd of first 30 packets, phase 3"
 	)
 
 	type testConfig struct {
@@ -262,9 +266,15 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 		for _, pattern := range []dropPattern{
 			dropPatternDrop1stPacket,
 			dropPatternDropFirst3Packets,
+			dropPatternPeriodicPhase1,
+			dropPatternPeriodicPhase2,
+			dropPatternPeriodicPhase3,
 			dropPatternDropOneThirdOfPackets,
 		} {
 			t.Run(fmt.Sprintf("%s in direction %s", pattern, dir), func(t *testing.T) {
+				if pattern == dropPatternDropOneThirdOfPackets && os.Getenv("QUIC_GO_TEST_RANDOM_LOSS") != "1" {
+					t.Skip("random loss is opt-in stress; set QUIC_GO_TEST_RANDOM_LOSS=1")
+				}
 				for _, conf := range []testConfig{
 					{postQuantum: false, longCertChain: false, doRetry: true},
 					{postQuantum: false, longCertChain: false, doRetry: false},
@@ -293,6 +303,12 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 									fn = dropCallbackDropNthPacket(dir, 1, 2, 3)
 								case dropPatternDropOneThirdOfPackets:
 									fn = dropCallbackDropOneThird(dir)
+								case dropPatternPeriodicPhase1:
+									fn = dropCallbackDropNthPacket(dir, 1, 4, 7, 10, 13, 16, 19, 22, 25, 28)
+								case dropPatternPeriodicPhase2:
+									fn = dropCallbackDropNthPacket(dir, 2, 5, 8, 11, 14, 17, 20, 23, 26, 29)
+								case dropPatternPeriodicPhase3:
+									fn = dropCallbackDropNthPacket(dir, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30)
 								}
 								var numDropped atomic.Int32
 								n := &simnet.Simnet{
@@ -354,7 +370,7 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 									require.Equal(t, tls.CurveP384, curveID)
 								}
 
-								if pattern != dropPatternDropOneThirdOfPackets {
+								if pattern == dropPatternDrop1stPacket || pattern == dropPatternDropFirst3Packets {
 									require.NotZero(t, numDropped.Load())
 								}
 								t.Logf("dropped %d packets", numDropped.Load())
