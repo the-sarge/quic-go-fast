@@ -323,13 +323,12 @@ func testStreamCancellation(
 }
 
 // startCancellationWorker accounts for every exit, including accept and read
-// failures. The caller sizes errs for one result per worker and joins wg.
+// failures: WaitGroup.Go defers Done around the worker. The caller sizes errs
+// for one result per worker and joins wg.
 func startCancellationWorker(wg *sync.WaitGroup, errs chan<- error, work func() error) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		errs <- work()
-	}()
+	})
 }
 
 func TestCancelAcceptStream(t *testing.T) {
@@ -349,8 +348,13 @@ func TestCancelAcceptStream(t *testing.T) {
 	defer serverConn.CloseWithError(0, "")
 
 	var wg sync.WaitGroup
+	var canceledAccepts sync.WaitGroup
+	canceledAccepts.Add(numStreams)
 	errs := make(chan error, 2*numStreams+1)
 	startCancellationWorker(&wg, errs, func() error {
+		// AcceptUniStream may return queued streams even with a canceled context.
+		// Keep the queue empty until every canceled accept has finished.
+		canceledAccepts.Wait()
 		ticker := time.NewTicker(5 * time.Millisecond)
 		defer ticker.Stop()
 		for range numStreams {
@@ -388,6 +392,9 @@ func TestCancelAcceptStream(t *testing.T) {
 				cancelAccept()
 			}
 			startCancellationWorker(&wg, errs, func() error {
+				if canceled {
+					defer canceledAccepts.Done()
+				}
 				str, err := conn.AcceptUniStream(acceptCtx)
 				if canceled {
 					if !errors.Is(err, context.Canceled) {
