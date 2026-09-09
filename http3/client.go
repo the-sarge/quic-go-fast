@@ -258,7 +258,11 @@ func (c *ClientConn) onStreamsEmpty() {
 
 // RoundTrip executes a request and returns a response
 func (c *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
-	rsp, err := c.roundTrip(req)
+	lifetime := newRequestLifetime(req.Body)
+	rsp, err := c.roundTrip(req, lifetime)
+	if err != nil {
+		lifetime.closeInput()
+	}
 	if err != nil && req.Context().Err() != nil {
 		// if the context was canceled, return the context cancellation error
 		err = req.Context().Err()
@@ -266,7 +270,24 @@ func (c *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
 	return rsp, err
 }
 
-func (c *ClientConn) roundTrip(req *http.Request) (*http.Response, error) {
+func (c *ClientConn) roundTrip(req *http.Request, lifetime *requestLifetime) (rsp *http.Response, err error) {
+	requestStarted := false
+	defer func() {
+		if err != nil {
+			if _, retryable := errors.AsType[*errConnUnusable](err); retryable {
+				// Transport decides whether untouched input is retried or closed.
+				lifetime.end(false)
+			} else {
+				lifetime.abort()
+			}
+		}
+		if !requestStarted {
+			lifetime.uploadFinished()
+		}
+		if err != nil && req.Context().Err() != nil {
+			err = req.Context().Err()
+		}
+	}()
 	// Immediately send out this request, if this is a 0-RTT request.
 	switch req.Method {
 	case MethodGet0RTT:
@@ -305,11 +326,10 @@ func (c *ClientConn) roundTrip(req *http.Request) (*http.Response, error) {
 		}
 	}
 
-	reqDone := make(chan struct{})
 	str, err := c.openRequestStream(
 		req.Context(),
 		c.requestWriter,
-		reqDone,
+		nil, // the outer body, not raw stream EOF, reports exchange completion
 		c.disableCompression,
 		c.maxResponseHeaderBytes,
 	)
@@ -317,27 +337,14 @@ func (c *ClientConn) roundTrip(req *http.Request) (*http.Response, error) {
 		return nil, &errConnUnusable{e: err}
 	}
 
-	// Request Cancellation:
-	// This go routine keeps running even after RoundTripOpt() returns.
-	// It is shut down when the application is done processing the body.
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		select {
-		case <-req.Context().Done():
-			str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestCanceled))
-			str.CancelRead(quic.StreamErrorCode(ErrCodeRequestCanceled))
-		case <-reqDone:
-		}
-	}()
-
-	rsp, err := c.doRequest(req, str)
-	if err != nil { // if any error occurred
-		close(reqDone)
-		<-done
+	lifetime.observe(req.Context(), c.conn.Context(), str)
+	requestStarted = true
+	rsp, err = c.doRequest(req, str, lifetime)
+	if err != nil {
 		return nil, maybeReplaceError(err)
 	}
-	return rsp, maybeReplaceError(err)
+	rsp.Body = &exchangeBody{ReadCloser: rsp.Body, lifetime: lifetime}
+	return rsp, nil
 }
 
 // ReceivedSettings returns a channel that is closed once the server's HTTP/3 settings were received.
@@ -402,7 +409,14 @@ func (c *ClientConn) sendRequestBody(str *RequestStream, body io.ReadCloser, con
 	return err
 }
 
-func (c *ClientConn) doRequest(req *http.Request, str *RequestStream) (*http.Response, error) {
+func (c *ClientConn) doRequest(req *http.Request, str *RequestStream, lifetime *requestLifetime) (*http.Response, error) {
+	uploadStarted := false
+	defer func() {
+		if !uploadStarted {
+			lifetime.closeInput()
+			lifetime.uploadFinished()
+		}
+	}()
 	trace := httptrace.ContextClientTrace(req.Context())
 	var sendingReqFailed bool
 	if err := str.sendRequestHeader(req); err != nil {
@@ -418,7 +432,9 @@ func (c *ClientConn) doRequest(req *http.Request, str *RequestStream) (*http.Res
 			str.Close()
 		} else {
 			// send the request body asynchronously
+			uploadStarted = true
 			go func() {
+				defer lifetime.uploadFinished()
 				defer str.Close()
 				contentLength := int64(-1)
 				// According to the documentation for http.Request.ContentLength,
@@ -426,7 +442,7 @@ func (c *ClientConn) doRequest(req *http.Request, str *RequestStream) (*http.Res
 				if req.ContentLength > 0 {
 					contentLength = req.ContentLength
 				}
-				err := c.sendRequestBody(str, req.Body, contentLength)
+				err := c.sendRequestBody(str, lifetime.input, contentLength)
 				traceWroteRequest(trace, err)
 				if err != nil {
 					if c.logger != nil {

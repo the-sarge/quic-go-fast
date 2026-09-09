@@ -570,3 +570,16 @@ func TestTransportClose(t *testing.T) {
 	_, err = tr.RoundTrip(req)
 	require.ErrorIs(t, err, ErrTransportClosed)
 }
+
+// These transport fixtures return synchronous, bodyless responses. Real upload
+// and response lifetimes are exercised through QUIC in exchange_test.go.
+func (m *MockClientConn) roundTrip(req *http.Request, lifetime *requestLifetime) (*http.Response, error) {
+	defer lifetime.uploadFinished()
+	rsp, err := m.RoundTrip(req)
+	if rsp == nil || rsp.Body == nil || err != nil {
+		lifetime.end(false)
+	} else {
+		rsp.Body = &exchangeBody{ReadCloser: rsp.Body, lifetime: lifetime}
+	}
+	return rsp, err
+}

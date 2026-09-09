@@ -1,6 +1,6 @@
 # HTTP/3 pooled exchange lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** H1 complete; H2 implementation pending. **Track:** H in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -20,14 +20,14 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 
 | Slice | Status/disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| H1 | Rework #68 contract | Preserve usage through the complete HTTP/3 exchange | None | None introduced |
+| H1 | Complete (#68) | Preserve usage through the complete HTTP/3 exchange | None | None introduced |
 | H2 | New | Evict only the expected cached HTTP/3 connection | None | None introduced |
 
 ## Implementation Slices
 
 ### H1 — Preserve usage through the complete HTTP/3 exchange
 
-**Status:** Accepted contract; implementation pending. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Complete. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** One pooled acquisition remains counted while either its delivered response or asynchronous request upload still uses the connection. Balance pre-delivery failure and cancel paths, and retain the count after headers until terminal activity ends. Use the same request lifecycle for direct ClientConn calls without introducing pooled accounting there.
 
@@ -47,24 +47,24 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 
 **Representation contract:** Supported pooled Transport.RoundTrip/RoundTripOpt attempts and supported http.Request.Body implementations whose concurrent Close unblocks Read. Existing standard-library, HTTP/3 and QPACK parsers own external representations; this slice owns internal attempt state. Universal usage invariant within that domain, supported by finite examples rather than an exhaustive concurrency proof. The separate pre-stream Extended CONNECT SETTINGS-wait responsiveness defect is owned by issue #67 and excluded from the cancellation-response-time claim.
 
-**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows are accepted obligations with implementation evidence pending.
+**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows record the accepted obligations and their implementation evidence.
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Validation/acquisition failure | No usage acquired; do not decrement. | Named slice owner; regression/characterization required before completion |
-| Canceled shared-dial waiter or acquired dial failure | Finish the acquired obligation once before returning. | Named slice owner; regression/characterization required before completion |
-| Stream opening/header/pre-response failure | Abort owned stream activity; finish after any started uploader exits. Preserve untouched input on stream-opening failure for Transport’s existing retry decision; terminal disposition closes it. | Named slice owner; regression/characterization required before completion |
-| Headers with active body | Retain usage; idle cleanup must leave the response readable. | Named slice owner; regression/characterization required before completion |
-| Outer-body EOF, terminal read error or explicit Close; upload complete | Finish the response half and release once. | Named slice owner; regression/characterization required before completion |
-| Response terminal while request upload continues | Keep usage and cancellation alive until uploader exits after input cleanup, trailers and write closure. | Named slice owner; regression/characterization required before completion |
-| Cancellation after stream creation without another body Read | Cancel both stream directions, close request input once and finish after uploader exit. | Named slice owner; regression/characterization required before completion |
-| Connection termination with an unread body | Perform the same terminal cleanup without changing error propagation. | Named slice owner; regression/characterization required before completion |
-| Compressed source EOF before outer consumption, or outer decoder error before raw EOF | Observe outer-body completion; on terminal decoding error close/cancel receive cleanup while preserving the returned error. | Named slice owner; regression/characterization required before completion |
-| HEAD, 204, length zero and successful CONNECT | Use actual body EOF/Close/cancel; never infer completion solely from status or ContentLength. | Named slice owner; regression/characterization required before completion |
-| Multiplexed responses | Finishing one attempt retains the remaining counts; idle cleanup waits until no attempt is active. | Named slice owner; regression/characterization required before completion |
-| Overlapping EOF/Close/cancel/uploader termination | One decrement and completed observer cleanup. | Named slice owner; regression/characterization required before completion |
-| Retry | Each attempt has a separate balanced obligation; no lease transfer to the successor. Preserve unread input through an eligible errConnUnusable retry; a started uploader owns its original input, and any replay uses the existing GetBody policy. Characterize a close-sensitive body without GetBody, both retry success and terminal failure, within this cell. | Named slice owner; regression/characterization required before completion |
-| Direct ClientConn and low-level RequestStream | Preserve API behavior; introduce no pooled usage for unmanaged connections. | Named slice owner; regression/characterization required before completion |
+| Validation/acquisition failure | No usage acquired; do not decrement. | `requestLifetime`; covered by `TestRequestValidation`, `TestTransportConnectionReuse` (existing acquisition behavior) |
+| Canceled shared-dial waiter or acquired dial failure | Finish the acquired obligation once before returning. | `requestLifetime`; covered by `TestExchangeCanceledDialWaiter`, `TestExchangeAcquiredDialFailure` |
+| Stream opening/header/pre-response failure | Abort owned stream activity; finish after any started uploader exits. Preserve untouched input on stream-opening failure for Transport’s existing retry decision; terminal disposition closes it. | `requestLifetime`; covered by `TestExchangePreResponseFailure`, `TestExchangeRetryUntouchedInput`, existing client request-error tests |
+| Headers with active body | Retain usage; idle cleanup must leave the response readable. | `requestLifetime`; covered by `TestExchangeActiveMultiplexedResponses` |
+| Outer-body EOF, terminal read error or explicit Close; upload complete | Finish the response half and release once. | `requestLifetime`; covered by `TestExchangeActiveMultiplexedResponses`, `TestExchangeResponseReadFailure` |
+| Response terminal while request upload continues | Keep usage and cancellation alive until uploader exits after input cleanup, trailers and write closure. | `requestLifetime`; covered by `TestExchangeUploadFinishesAfterResponse`, `TestExchangeUploadTerminalEvents/response-close-then-cancel` |
+| Cancellation after stream creation without another body Read | Cancel both stream directions, close request input once and finish after uploader exit. | `requestLifetime`; covered by `TestExchangeUploadTerminalEvents/unread-cancel` |
+| Connection termination with an unread body | Perform the same terminal cleanup without changing error propagation. | `requestLifetime`; covered by `TestExchangeUploadTerminalEvents/connection-close` |
+| Compressed source EOF before outer consumption, or outer decoder error before raw EOF | Observe outer-body completion; on terminal decoding error close/cancel receive cleanup while preserving the returned error. | `requestLifetime`; covered by `TestExchangeGzipCompletion` (observes raw EOF separately) |
+| HEAD, 204, length zero and successful CONNECT | Use actual body EOF/Close/cancel; never infer completion solely from status or ContentLength. | `requestLifetime`; covered by `TestExchangeActualBodyCompletion` |
+| Multiplexed responses | Finishing one attempt retains the remaining counts; idle cleanup waits until no attempt is active. | `requestLifetime`; covered by `TestExchangeActiveMultiplexedResponses` |
+| Overlapping EOF/Close/cancel/uploader termination | One decrement and completed observer cleanup. | `requestLifetime`; covered by `TestExchangeOverlappingTerminalEvents` and stopped-observer checks |
+| Retry | Each attempt has a separate balanced obligation; no lease transfer to the successor. Preserve unread input through an eligible errConnUnusable retry; a started uploader owns its original input, and any replay uses the existing GetBody policy. Characterize a close-sensitive body without GetBody, both retry success and terminal failure, within this cell. | `requestLifetime`; covered by `TestExchangeRetryUntouchedInput` and existing `TestTransportConnectionRedial` |
+| Direct ClientConn and low-level RequestStream | Preserve API behavior; introduce no pooled usage for unmanaged connections. | `requestLifetime`; covered by `TestExchangeDirectClient` and existing RequestStream tests |
 
 **Evidence budget:** 14 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -74,7 +74,7 @@ H1 has one per-attempt lifetime reporting response and upload completion; H2 has
 
 **Slice decision audit:** A cancellation-only patch is independently green but leaves one accounting fact under incompatible lifetimes. A body-only successor would still release early for gzip, active uploads or cancellation. Keep these reporters with their single owner in one PR. H2 owns cache identity and can ship separately, so merging it only enlarges the context. There are no convenience-only blockers.
 
-**Acceptance criteria:**
+**Acceptance criteria (normative requirements, not progress checkboxes):**
 
 - [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
