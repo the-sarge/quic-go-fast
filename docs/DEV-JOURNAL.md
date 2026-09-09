@@ -600,3 +600,26 @@ Reconciled and merged the retained [H2 journal / PR #139](https://github.com/the
 ### Next
 
 All H implementations are complete. The remaining implementation frontier is I1, I3, I5, I6, I7, P1, T1 and C1; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns live state. No new implementation successor is unlocked and no separate frontier PR is needed.
+
+---
+
+## Captured packet-loss diagnosis and CI fixtures landed - 2026-09-09 19:10 EDT
+
+**Main:** `4084ae7b4f96`
+**Actor:** Codex
+
+### Completed
+
+[PR #145](https://github.com/the-sarge/quic-go-fast/pull/145) merged the diagnosis of the fresh PR #144 packet-loss capture, deterministic mandatory loss cases, the opt-in historical random stress path, missing-range/ACK-blackout regression and recovery controls, and the separately approved MTU fixture snapshot repair. The reconstructed capture identified a missing 1253-byte stream range and absent application ACKs, with recovery backoff extending beyond the existing read deadline. No transport defect was established by that capture.
+
+### Decisions
+
+Use the explicit deterministic loss corpus in mandatory CI while preserving the historical random callback behind `QUIC_GO_TEST_RANDOM_LOSS=1`; retain production recovery, payloads and deadlines. The [accepted packet-loss contract](agents/packet-loss-ci.md) records the operator's approval and the bounded model's guarantees. The [MTU diagnostic addendum](audits/mtu-snapshot-race.md) records the separate approval and controlled ACK-publication experiment; closing the connection before final measurements makes the MTU event and DATAGRAM estimate consistent without relaxing the test tolerance.
+
+### Validation
+
+The merged PR head `c0cf3ba9084daa11ce8e28bdeb047f6e9a9bb702` passed the uncached full module suite, QUIC v2 self suite, focused packet-loss/MTU race tests, vet, lint, module tidy including FIPS, generator consistency, go-fix diff and gcassert. All 33 applicable hosted checks passed on that head. Standards and Spec reviews found no findings. The packet-loss RAS finding about receive-trace completion was fixed and verified before its clean replacement review; the final integrated review `20260909T225952-9893ed0c3f0715ed03d8233d` completed with both reviewers and synthesis reporting no findings. No same-head CI rerun or new random campaign was requested, and passing duplicate runs were not used as diagnosis.
+
+### Next
+
+The original historical server-first timeout remains unexplained; [issue #44 is the live investigation](https://github.com/the-sarge/quic-go-fast/issues/44). Its OmniFocus task stays open. [PR #144](https://github.com/the-sarge/quic-go-fast/pull/144) and the #46 workflow remain independently owned and were not modified, rerun or merged by this work.
