@@ -490,3 +490,16 @@ Merged [PR #127](https://github.com/the-sarge/quic-go-fast/pull/127), closing [i
 Retained real-socket regressions failed before the fix for destination resolution and TLS/configuration errors and passed afterward; listener failures also permit immediate port reuse. Caller-owned sockets still deliver packets after configuration errors, and normal/early address-helper handshakes succeed. Full `go test ./...`, focused race tests, `go vet ./...`, and golangci-lint passed on reviewed head `aac9f97271b580b8f07531dd3816879424322610`. All 33 reported hosted checks passed, including unit, integration, lint, cross-compilation, and interop builds. Independent Standards and Spec reviews each reported zero findings.
 
 RAS run `20260909T033733-23022bfd71cf61ee19029a29` completed with no required fixes or follow-ups. Its sole observation requested stronger read-deadline restoration testing in unchanged transport teardown; the [PR disposition](https://github.com/the-sarge/quic-go-fast/pull/127) records why that verification-aid strengthening is outside this bounded ownership fix. No fix verification or replacement review was required. Product merge: `c79b5a386bdd504b978d57871d075d9967c8f7eb`.
+
+---
+
+## Extended CONNECT SETTINGS cancellation fixed - 2026-09-09 00:11 EDT
+
+**Main:** `32446154e729`
+**Actor:** Codex
+
+Merged [PR #129](https://github.com/the-sarge/quic-go-fast/pull/129), closing [issue #67](https://github.com/the-sarge/quic-go-fast/issues/67). Extended CONNECT now observes request cancellation while waiting for peer SETTINGS. The live-peer regression withholds SETTINGS, verifies bounded cancellation while both peers remain connected, and completes a subsequent Extended CONNECT on the same connection. Public APIs, module identity, ordinary negotiation, and packet-emission ownership remain intact.
+
+The regression failed before the fix and passed afterward. Certified head `e5573685b9b6dfe5e502279b9f5bcbe4c0974a4d` passed the full local `go test ./...` suite, focused HTTP/3 cancellation/CONNECT race tests, vet, golangci-lint, and whitespace checks on Go 1.27.0 macOS/arm64. All 33 reported hosted checks passed with none skipped, covering unit, integration, lint, cross-compilation, and interop image workflows.
+
+Independent Standards and Spec reviews each found zero issues. RAS initial review `20260909T040120-b5ba2759af3045385bfdc11c` completed with all seven reviewers successful and no findings or follow-ups; no fix verification or replacement review was needed. The [PR validation record](https://github.com/the-sarge/quic-go-fast/pull/129) preserves the bounded contract and review evidence. Squash merge `32446154e7290a2d1d1007ab879a95413427432e` was guarded by the exact reviewed head. The linked OmniFocus task is complete.
