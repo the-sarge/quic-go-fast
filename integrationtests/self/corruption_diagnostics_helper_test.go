@@ -21,17 +21,17 @@ type corruptionProxy struct {
 	intN         func(int) int
 	write        func(quicproxy.Direction, []byte) (int, error)
 	numCorrupted atomic.Int32
-	packets      atomic.Uint64
+	datagrams    atomic.Uint64
 }
 
 func (p *corruptionProxy) drop(dir quicproxy.Direction, from, to net.Addr, b []byte) (drop bool) {
-	seq := p.packets.Add(1)
+	seq := p.datagrams.Add(1)
 	checksum := qlog.CalculateDatagramPayloadChecksum(b)
 	offset, before, after := -1, byte(0), byte(0)
 	var written int
 	var writeErr error
 	defer func() {
-		p.diagnostics.record(time.Now(), "corruption proxy", fmt.Sprintf("packet=%d direction=%s from=%s to=%s bytes=%d crc32c_before=%d crc32c_after=%d drop=%t offset=%d before=%d after=%d write_bytes=%d write_err=%v", seq, dir, from, to, len(b), checksum, qlog.CalculateDatagramPayloadChecksum(b), drop, offset, before, after, written, writeErr))
+		p.diagnostics.record(time.Now(), "corruption proxy", fmt.Sprintf("datagram=%d direction=%s from=%s to=%s bytes=%d crc32c_before=%d crc32c_after=%d drop=%t offset=%d before=%d after=%d write_bytes=%d write_err=%v", seq, dir, from, to, len(b), checksum, qlog.CalculateDatagramPayloadChecksum(b), drop, offset, before, after, written, writeErr))
 	}()
 	if dir != p.direction {
 		return false
