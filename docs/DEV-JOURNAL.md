@@ -503,3 +503,16 @@ Merged [PR #129](https://github.com/the-sarge/quic-go-fast/pull/129), closing [i
 The regression failed before the fix and passed afterward. Certified head `e5573685b9b6dfe5e502279b9f5bcbe4c0974a4d` passed the full local `go test ./...` suite, focused HTTP/3 cancellation/CONNECT race tests, vet, golangci-lint, and whitespace checks on Go 1.27.0 macOS/arm64. All 33 reported hosted checks passed with none skipped, covering unit, integration, lint, cross-compilation, and interop image workflows.
 
 Independent Standards and Spec reviews each found zero issues. RAS initial review `20260909T040120-b5ba2759af3045385bfdc11c` completed with all seven reviewers successful and no findings or follow-ups; no fix verification or replacement review was needed. The [PR validation record](https://github.com/the-sarge/quic-go-fast/pull/129) preserves the bounded contract and review evidence. Squash merge `32446154e7290a2d1d1007ab879a95413427432e` was guarded by the exact reviewed head. The linked OmniFocus task is complete.
+
+---
+
+## Packet-loss failure diagnostics merged - 2026-09-09 03:43 EDT
+
+**Main:** `61278443eb3e`
+**Actor:** Codex
+
+Merged [PR #132](https://github.com/the-sarge/quic-go-fast/pull/132) at `61278443eb3e88d834777c800b182ffa8910e266`. The packet-loss fixture now emits its exact scenario, latest helper and connection-close states, and a bounded tail of router decisions and qlog events on test failure. Normal passing cases emit no diagnostic dump. Timeout, payload, loss decisions, existing subtest names, production transport behavior, and timeout-helper ownership are preserved.
+
+The certified head `956823576885c769cab32a777f66e83a2871b93b` passed deterministic collector/callback/cleanup regressions, a focused race check, one full uncached local suite, vet, go-fix and module-tidy checks, golangci-lint, and all 33 inherited hosted checks. Standards and Spec reviews had no findings. RAS run `20260909T071827-6a28f99d53caeab7df5edc5f` completed all seven initial reviews and adjudications. Three low recommendations for future writer encapsulation, more close-state tests, and explicit unset labels were independently deferred as contract strengthening; the asserted current buffer panic was rejected because the native encoder uses bounded Write calls. No fix/verify/replacement cycle was needed under the scoped low/nit policy. The [PR record](https://github.com/the-sarge/quic-go-fast/pull/132) preserves those dispositions.
+
+The [accepted diagnostic scope](agents/packet-loss-diagnostics.md) excludes complete histories, deterministic replay, process-termination capture, and scheduler-neutral observation. Client transport-level drops before connection dispatch are not traced; the retained tail can include teardown. Those limitations were revalidated against the merged code. [Issue #44](https://github.com/the-sarge/quic-go-fast/issues/44) remains the live investigation: the preceding 200-run campaign captured no failure, no timeout cause is established, and its original OmniFocus task remains open. Direction correction remains separate in [issue #79](https://github.com/the-sarge/quic-go-fast/issues/79).
