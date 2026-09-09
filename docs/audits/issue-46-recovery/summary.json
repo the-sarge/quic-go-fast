@@ -1,0 +1,2811 @@
+{
+  "C1": {
+    "dial": {
+      "data": {
+        "elapsed_ns": 205000000,
+        "error": ""
+      },
+      "kind": "dial_result",
+      "ns": 205000000
+    },
+    "completion": {
+      "data": {
+        "bytes": 4096,
+        "selected": 1
+      },
+      "kind": "transfer_complete",
+      "ns": 212500000
+    },
+    "record_count": 219,
+    "datagrams": 26,
+    "selections": [
+      {
+        "callback_ns": 2500000,
+        "crc_after": 2421973528,
+        "crc_before": 1647829275,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 1280,
+        "new": 203,
+        "offset": 1279,
+        "old": 202,
+        "order": 3,
+        "parts": [
+          {
+            "length": 1280,
+            "type": "Initial"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1647829275,
+              "error": "",
+              "length": 1280,
+              "n": 1280,
+              "source": "server",
+              "start_ns": 2500000
+            },
+            "kind": "socket_write",
+            "ns": 2500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 2421973528,
+              "error": "",
+              "n": 1280,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 5000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"initial\",\"scil\":0,\"dcil\":4,\"dcid\":\"9e733e06\"},\"raw\":{\"length\":1280},\"datagram_payload_checksum\":2421973528,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=46aeba3c90c23f4589",
+            "decoded": {
+              "header": {
+                "packet_type": "initial",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "9e733e06"
+              },
+              "raw": {
+                "length": 1280
+              },
+              "datagram_payload_checksum": 2421973528,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      }
+    ],
+    "probe_chains": [
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 200000000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"initial\"}\n",
+          "source": "connection client=true id=46aeba3c90c23f4589",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "initial"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 200000000,
+          "json": "{\"header\":{\"packet_type\":\"initial\",\"packet_number\":2,\"version\":\"1\",\"scil\":4,\"scid\":\"9e733e06\",\"dcil\":9,\"dcid\":\"46aeba3c90c23f4589\"},\"raw\":{\"length\":1280,\"payload_length\":1257},\"datagram_payload_checksum\":4194171079,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":64},{\"frame_type\":\"crypto\",\"offset\":69,\"length\":1166}]}\n",
+          "source": "connection client=true id=46aeba3c90c23f4589",
+          "decoded": {
+            "header": {
+              "packet_type": "initial",
+              "packet_number": 2,
+              "version": "1",
+              "scil": 4,
+              "scid": "9e733e06",
+              "dcil": 9,
+              "dcid": "46aeba3c90c23f4589"
+            },
+            "raw": {
+              "length": 1280,
+              "payload_length": 1257
+            },
+            "datagram_payload_checksum": 4194171079,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 64
+              },
+              {
+                "frame_type": "crypto",
+                "offset": 69,
+                "length": 1166
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 4194171079,
+              "error": "",
+              "length": 1280,
+              "n": 1280,
+              "source": "client",
+              "start_ns": 200000000
+            },
+            "kind": "socket_write",
+            "ns": 200000000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 200000000,
+            "crc_before": 4194171079,
+            "direction": "1.0.0.2:9002",
+            "from": "1.0.0.1:9001",
+            "length": 1280,
+            "order": 5,
+            "parts": [
+              {
+                "length": 1280,
+                "type": "Initial"
+              }
+            ],
+            "selected": false,
+            "to": "1.0.0.2:9002"
+          }
+        ]
+      },
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 202500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"initial\"}\n",
+          "source": "connection client=false id=46aeba3c90c23f4589",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "initial"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 202500000,
+          "json": "{\"header\":{\"packet_type\":\"initial\",\"packet_number\":1,\"version\":\"1\",\"scil\":4,\"scid\":\"87f2def4\",\"dcil\":4,\"dcid\":\"9e733e06\"},\"raw\":{\"length\":1280,\"payload_length\":1262},\"datagram_payload_checksum\":1528029300,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":1178}]}\n",
+          "source": "connection client=false id=46aeba3c90c23f4589",
+          "decoded": {
+            "header": {
+              "packet_type": "initial",
+              "packet_number": 1,
+              "version": "1",
+              "scil": 4,
+              "scid": "87f2def4",
+              "dcil": 4,
+              "dcid": "9e733e06"
+            },
+            "raw": {
+              "length": 1280,
+              "payload_length": 1262
+            },
+            "datagram_payload_checksum": 1528029300,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 1178
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 1528029300,
+              "error": "",
+              "length": 1280,
+              "n": 1280,
+              "source": "server",
+              "start_ns": 202500000
+            },
+            "kind": "socket_write",
+            "ns": 202500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 202500000,
+            "crc_before": 1528029300,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 1280,
+            "order": 7,
+            "parts": [
+              {
+                "length": 1280,
+                "type": "Initial"
+              }
+            ],
+            "selected": false,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      }
+    ],
+    "write_errors": [],
+    "handshake_receipts": [
+      {
+        "event": "transport:packet_received",
+        "event_ns": 205000000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"87f2def4\",\"dcil\":4,\"dcid\":\"9e733e06\"},\"raw\":{\"length\":556,\"payload_length\":539},\"datagram_payload_checksum\":2446320589,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":517}]}\n",
+        "source": "connection client=true id=46aeba3c90c23f4589",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 0,
+            "version": "1",
+            "scil": 4,
+            "scid": "87f2def4",
+            "dcil": 4,
+            "dcid": "9e733e06"
+          },
+          "raw": {
+            "length": 556,
+            "payload_length": 539
+          },
+          "datagram_payload_checksum": 2446320589,
+          "frames": [
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 517
+            }
+          ]
+        }
+      },
+      {
+        "event": "transport:packet_received",
+        "event_ns": 207500000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"9e733e06\",\"dcil\":4,\"dcid\":\"21a2f91e\"},\"raw\":{\"length\":79,\"payload_length\":62},\"datagram_payload_checksum\":2996738445,\"frames\":[{\"frame_type\":\"ack\",\"acked_ranges\":[[0]]},{\"frame_type\":\"crypto\",\"offset\":0,\"length\":36}]}\n",
+        "source": "connection client=false id=46aeba3c90c23f4589",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 0,
+            "version": "1",
+            "scil": 4,
+            "scid": "9e733e06",
+            "dcil": 4,
+            "dcid": "21a2f91e"
+          },
+          "raw": {
+            "length": 79,
+            "payload_length": 62
+          },
+          "datagram_payload_checksum": 2996738445,
+          "frames": [
+            {
+              "frame_type": "ack",
+              "acked_ranges": [
+                [
+                  0
+                ]
+              ]
+            },
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 36
+            }
+          ]
+        }
+      }
+    ],
+    "connection_closes": [
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 212500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=false id=46aeba3c90c23f4589",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      },
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 212500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=true id=46aeba3c90c23f4589",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      }
+    ]
+  },
+  "C2": {
+    "dial": {
+      "data": {
+        "elapsed_ns": 5000000,
+        "error": ""
+      },
+      "kind": "dial_result",
+      "ns": 5000000
+    },
+    "completion": {
+      "data": {
+        "bytes": 4096,
+        "selected": 1
+      },
+      "kind": "transfer_complete",
+      "ns": 12500000
+    },
+    "record_count": 178,
+    "datagrams": 20,
+    "selections": [
+      {
+        "callback_ns": 2500000,
+        "crc_after": 1136282907,
+        "crc_before": 1136282907,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 1280,
+        "new": 108,
+        "offset": 1279,
+        "old": 108,
+        "order": 3,
+        "parts": [
+          {
+            "length": 1280,
+            "type": "Initial"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1136282907,
+              "error": "",
+              "length": 1280,
+              "n": 1280,
+              "source": "server",
+              "start_ns": 2500000
+            },
+            "kind": "socket_write",
+            "ns": 2500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 1136282907,
+              "error": "",
+              "n": 1280,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 5000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_received",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"initial\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"88e6ede8\",\"dcil\":4,\"dcid\":\"3ca2c471\"},\"raw\":{\"length\":1280,\"payload_length\":1262},\"datagram_payload_checksum\":1136282907,\"frames\":[{\"frame_type\":\"ack\",\"acked_ranges\":[[0,1]]},{\"frame_type\":\"crypto\",\"offset\":0,\"length\":1178}]}\n",
+            "source": "connection client=true id=f0a4932385c255e42168a9e824c7",
+            "decoded": {
+              "header": {
+                "packet_type": "initial",
+                "packet_number": 0,
+                "version": "1",
+                "scil": 4,
+                "scid": "88e6ede8",
+                "dcil": 4,
+                "dcid": "3ca2c471"
+              },
+              "raw": {
+                "length": 1280,
+                "payload_length": 1262
+              },
+              "datagram_payload_checksum": 1136282907,
+              "frames": [
+                {
+                  "frame_type": "ack",
+                  "acked_ranges": [
+                    [
+                      0,
+                      1
+                    ]
+                  ]
+                },
+                {
+                  "frame_type": "crypto",
+                  "offset": 0,
+                  "length": 1178
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "probe_chains": [],
+    "write_errors": [],
+    "handshake_receipts": [
+      {
+        "event": "transport:packet_received",
+        "event_ns": 5000000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"88e6ede8\",\"dcil\":4,\"dcid\":\"3ca2c471\"},\"raw\":{\"length\":569,\"payload_length\":552},\"datagram_payload_checksum\":863249176,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":530}]}\n",
+        "source": "connection client=true id=f0a4932385c255e42168a9e824c7",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 0,
+            "version": "1",
+            "scil": 4,
+            "scid": "88e6ede8",
+            "dcil": 4,
+            "dcid": "3ca2c471"
+          },
+          "raw": {
+            "length": 569,
+            "payload_length": 552
+          },
+          "datagram_payload_checksum": 863249176,
+          "frames": [
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 530
+            }
+          ]
+        }
+      },
+      {
+        "event": "transport:packet_received",
+        "event_ns": 7500000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"3ca2c471\",\"dcil\":4,\"dcid\":\"008b9c6f\"},\"raw\":{\"length\":79,\"payload_length\":62},\"datagram_payload_checksum\":4235934593,\"frames\":[{\"frame_type\":\"ack\",\"acked_ranges\":[[0]]},{\"frame_type\":\"crypto\",\"offset\":0,\"length\":36}]}\n",
+        "source": "connection client=false id=f0a4932385c255e42168a9e824c7",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 0,
+            "version": "1",
+            "scil": 4,
+            "scid": "3ca2c471",
+            "dcil": 4,
+            "dcid": "008b9c6f"
+          },
+          "raw": {
+            "length": 79,
+            "payload_length": 62
+          },
+          "datagram_payload_checksum": 4235934593,
+          "frames": [
+            {
+              "frame_type": "ack",
+              "acked_ranges": [
+                [
+                  0
+                ]
+              ]
+            },
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 36
+            }
+          ]
+        }
+      }
+    ],
+    "connection_closes": [
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 12500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=false id=f0a4932385c255e42168a9e824c7",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      },
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 12500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=true id=f0a4932385c255e42168a9e824c7",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      }
+    ]
+  },
+  "C3": {
+    "dial": {
+      "data": {
+        "elapsed_ns": 50000000,
+        "error": ""
+      },
+      "kind": "dial_result",
+      "ns": 50000000
+    },
+    "completion": {
+      "data": {
+        "bytes": 4096,
+        "selected": 3
+      },
+      "kind": "transfer_complete",
+      "ns": 57500000
+    },
+    "record_count": 239,
+    "datagrams": 29,
+    "selections": [
+      {
+        "callback_ns": 2500000,
+        "crc_after": 4173464860,
+        "crc_before": 1012746875,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 650,
+        "new": 36,
+        "offset": 554,
+        "old": 37,
+        "order": 4,
+        "parts": [
+          {
+            "length": 555,
+            "type": "Handshake"
+          },
+          {
+            "length": 95,
+            "type": "short"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1012746875,
+              "error": "",
+              "length": 650,
+              "n": 650,
+              "source": "server",
+              "start_ns": 2500000
+            },
+            "kind": "socket_write",
+            "ns": 2500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 4173464860,
+              "error": "",
+              "n": 650,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 5000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0b76be55\"},\"raw\":{\"length\":555},\"datagram_payload_checksum\":4173464860,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=414cee0babbaea7ab46752",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0b76be55"
+              },
+              "raw": {
+                "length": 555
+              },
+              "datagram_payload_checksum": 4173464860,
+              "trigger": "payload_decrypt_error"
+            }
+          },
+          {
+            "event": "transport:packet_buffered",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"1RTT\",\"dcil\":0},\"raw\":{\"length\":95},\"datagram_payload_checksum\":4173464860,\"trigger\":\"keys_unavailable\"}\n",
+            "source": "connection client=true id=414cee0babbaea7ab46752",
+            "decoded": {
+              "header": {
+                "packet_type": "1RTT",
+                "dcil": 0
+              },
+              "raw": {
+                "length": 95
+              },
+              "datagram_payload_checksum": 4173464860,
+              "trigger": "keys_unavailable"
+            }
+          },
+          {
+            "event": "transport:packet_received",
+            "event_ns": 50000000,
+            "json": "{\"header\":{\"packet_type\":\"1RTT\",\"packet_number\":0,\"dcil\":4,\"dcid\":\"0b76be55\",\"key_phase_bit\":\"0\"},\"raw\":{\"length\":95,\"payload_length\":88},\"datagram_payload_checksum\":4173464860,\"frames\":[{\"frame_type\":\"new_connection_id\",\"sequence_number\":1,\"retire_prior_to\":0,\"length\":4,\"connection_id\":\"04238d60\",\"stateless_reset_token\":\"9fd0bdacab0b84e4ba3fdaf02e78576c\"},{\"frame_type\":\"new_connection_id\",\"sequence_number\":2,\"retire_prior_to\":0,\"length\":4,\"connection_id\":\"503fa8e5\",\"stateless_reset_token\":\"9ca7576bc35ee0d255669ab720ebcd2b\"},{\"frame_type\":\"new_connection_id\",\"sequence_number\":3,\"retire_prior_to\":0,\"length\":4,\"connection_id\":\"e2f4ee87\",\"stateless_reset_token\":\"e0320ab4fa18f5663e386a63b5eb2c14\"}]}\n",
+            "source": "connection client=true id=414cee0babbaea7ab46752",
+            "decoded": {
+              "header": {
+                "packet_type": "1RTT",
+                "packet_number": 0,
+                "dcil": 4,
+                "dcid": "0b76be55",
+                "key_phase_bit": "0"
+              },
+              "raw": {
+                "length": 95,
+                "payload_length": 88
+              },
+              "datagram_payload_checksum": 4173464860,
+              "frames": [
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 1,
+                  "retire_prior_to": 0,
+                  "length": 4,
+                  "connection_id": "04238d60",
+                  "stateless_reset_token": "9fd0bdacab0b84e4ba3fdaf02e78576c"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 2,
+                  "retire_prior_to": 0,
+                  "length": 4,
+                  "connection_id": "503fa8e5",
+                  "stateless_reset_token": "9ca7576bc35ee0d255669ab720ebcd2b"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 3,
+                  "retire_prior_to": 0,
+                  "length": 4,
+                  "connection_id": "e2f4ee87",
+                  "stateless_reset_token": "e0320ab4fa18f5663e386a63b5eb2c14"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 17500000,
+        "crc_after": 3465014078,
+        "crc_before": 1022126141,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 555,
+        "new": 16,
+        "offset": 554,
+        "old": 17,
+        "order": 6,
+        "parts": [
+          {
+            "length": 555,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1022126141,
+              "error": "",
+              "length": 555,
+              "n": 555,
+              "source": "server",
+              "start_ns": 17500000
+            },
+            "kind": "socket_write",
+            "ns": 17500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 3465014078,
+              "error": "",
+              "n": 555,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 20000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 20000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0b76be55\"},\"raw\":{\"length\":555},\"datagram_payload_checksum\":3465014078,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=414cee0babbaea7ab46752",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0b76be55"
+              },
+              "raw": {
+                "length": 555
+              },
+              "datagram_payload_checksum": 3465014078,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 17500000,
+        "crc_after": 2554845379,
+        "crc_before": 1781291968,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 555,
+        "new": 248,
+        "offset": 554,
+        "old": 249,
+        "order": 7,
+        "parts": [
+          {
+            "length": 555,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1781291968,
+              "error": "",
+              "length": 555,
+              "n": 555,
+              "source": "server",
+              "start_ns": 17500000
+            },
+            "kind": "socket_write",
+            "ns": 17500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 2554845379,
+              "error": "",
+              "n": 555,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 20000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 20000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0b76be55\"},\"raw\":{\"length\":555},\"datagram_payload_checksum\":2554845379,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=414cee0babbaea7ab46752",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0b76be55"
+              },
+              "raw": {
+                "length": 555
+              },
+              "datagram_payload_checksum": 2554845379,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      }
+    ],
+    "probe_chains": [
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 17500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=414cee0babbaea7ab46752",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 17500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":1,\"version\":\"1\",\"scil\":4,\"scid\":\"412791b2\",\"dcil\":4,\"dcid\":\"0b76be55\"},\"raw\":{\"length\":555,\"payload_length\":538},\"datagram_payload_checksum\":1022126141,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":516}]}\n",
+          "source": "connection client=false id=414cee0babbaea7ab46752",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 1,
+              "version": "1",
+              "scil": 4,
+              "scid": "412791b2",
+              "dcil": 4,
+              "dcid": "0b76be55"
+            },
+            "raw": {
+              "length": 555,
+              "payload_length": 538
+            },
+            "datagram_payload_checksum": 1022126141,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 516
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 1022126141,
+              "error": "",
+              "length": 555,
+              "n": 555,
+              "source": "server",
+              "start_ns": 17500000
+            },
+            "kind": "socket_write",
+            "ns": 17500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 17500000,
+            "crc_after": 3465014078,
+            "crc_before": 1022126141,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 555,
+            "new": 16,
+            "offset": 554,
+            "old": 17,
+            "order": 6,
+            "parts": [
+              {
+                "length": 555,
+                "type": "Handshake"
+              }
+            ],
+            "selected": true,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      },
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 47500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=414cee0babbaea7ab46752",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 47500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":3,\"version\":\"1\",\"scil\":4,\"scid\":\"412791b2\",\"dcil\":4,\"dcid\":\"0b76be55\"},\"raw\":{\"length\":555,\"payload_length\":538},\"datagram_payload_checksum\":3167420685,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":516}]}\n",
+          "source": "connection client=false id=414cee0babbaea7ab46752",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 3,
+              "version": "1",
+              "scil": 4,
+              "scid": "412791b2",
+              "dcil": 4,
+              "dcid": "0b76be55"
+            },
+            "raw": {
+              "length": 555,
+              "payload_length": 538
+            },
+            "datagram_payload_checksum": 3167420685,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 516
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 3167420685,
+              "error": "",
+              "length": 555,
+              "n": 555,
+              "source": "server",
+              "start_ns": 47500000
+            },
+            "kind": "socket_write",
+            "ns": 47500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 47500000,
+            "crc_before": 3167420685,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 555,
+            "order": 10,
+            "parts": [
+              {
+                "length": 555,
+                "type": "Handshake"
+              }
+            ],
+            "selected": false,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      }
+    ],
+    "write_errors": [],
+    "handshake_receipts": [
+      {
+        "event": "transport:packet_received",
+        "event_ns": 50000000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":3,\"version\":\"1\",\"scil\":4,\"scid\":\"412791b2\",\"dcil\":4,\"dcid\":\"0b76be55\"},\"raw\":{\"length\":555,\"payload_length\":538},\"datagram_payload_checksum\":3167420685,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":516}]}\n",
+        "source": "connection client=true id=414cee0babbaea7ab46752",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 3,
+            "version": "1",
+            "scil": 4,
+            "scid": "412791b2",
+            "dcil": 4,
+            "dcid": "0b76be55"
+          },
+          "raw": {
+            "length": 555,
+            "payload_length": 538
+          },
+          "datagram_payload_checksum": 3167420685,
+          "frames": [
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 516
+            }
+          ]
+        }
+      },
+      {
+        "event": "transport:packet_received",
+        "event_ns": 50000000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":4,\"version\":\"1\",\"scil\":4,\"scid\":\"412791b2\",\"dcil\":4,\"dcid\":\"0b76be55\"},\"raw\":{\"length\":555,\"payload_length\":538},\"datagram_payload_checksum\":2093089069,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":516}]}\n",
+        "source": "connection client=true id=414cee0babbaea7ab46752",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 4,
+            "version": "1",
+            "scil": 4,
+            "scid": "412791b2",
+            "dcil": 4,
+            "dcid": "0b76be55"
+          },
+          "raw": {
+            "length": 555,
+            "payload_length": 538
+          },
+          "datagram_payload_checksum": 2093089069,
+          "frames": [
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 516
+            }
+          ]
+        }
+      },
+      {
+        "event": "transport:packet_received",
+        "event_ns": 52500000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"0b76be55\",\"dcil\":4,\"dcid\":\"412791b2\"},\"raw\":{\"length\":79,\"payload_length\":62},\"datagram_payload_checksum\":1679753448,\"frames\":[{\"frame_type\":\"ack\",\"acked_ranges\":[[3,4]]},{\"frame_type\":\"crypto\",\"offset\":0,\"length\":36}]}\n",
+        "source": "connection client=false id=414cee0babbaea7ab46752",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 0,
+            "version": "1",
+            "scil": 4,
+            "scid": "0b76be55",
+            "dcil": 4,
+            "dcid": "412791b2"
+          },
+          "raw": {
+            "length": 79,
+            "payload_length": 62
+          },
+          "datagram_payload_checksum": 1679753448,
+          "frames": [
+            {
+              "frame_type": "ack",
+              "acked_ranges": [
+                [
+                  3,
+                  4
+                ]
+              ]
+            },
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 36
+            }
+          ]
+        }
+      }
+    ],
+    "connection_closes": [
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 57500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=false id=414cee0babbaea7ab46752",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      },
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 57500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=true id=414cee0babbaea7ab46752",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      }
+    ]
+  },
+  "C4": {
+    "dial": {
+      "data": {
+        "elapsed_ns": 5000000,
+        "error": ""
+      },
+      "kind": "dial_result",
+      "ns": 5000000
+    },
+    "completion": {
+      "data": {
+        "bytes": 4096,
+        "selected": 1
+      },
+      "kind": "transfer_complete",
+      "ns": 12500000
+    },
+    "record_count": 178,
+    "datagrams": 20,
+    "selections": [
+      {
+        "callback_ns": 2500000,
+        "crc_after": 2408392953,
+        "crc_before": 2408392953,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 664,
+        "new": 113,
+        "offset": 568,
+        "old": 113,
+        "order": 4,
+        "parts": [
+          {
+            "length": 569,
+            "type": "Handshake"
+          },
+          {
+            "length": 95,
+            "type": "short"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 2408392953,
+              "error": "",
+              "length": 664,
+              "n": 664,
+              "source": "server",
+              "start_ns": 2500000
+            },
+            "kind": "socket_write",
+            "ns": 2500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 2408392953,
+              "error": "",
+              "n": 664,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 5000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_received",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"6a3fe72f\",\"dcil\":4,\"dcid\":\"c1a3622a\"},\"raw\":{\"length\":569,\"payload_length\":552},\"datagram_payload_checksum\":2408392953,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":530}]}\n",
+            "source": "connection client=true id=0caa99a7415843230ea873522217546b2b3d9b",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "packet_number": 0,
+                "version": "1",
+                "scil": 4,
+                "scid": "6a3fe72f",
+                "dcil": 4,
+                "dcid": "c1a3622a"
+              },
+              "raw": {
+                "length": 569,
+                "payload_length": 552
+              },
+              "datagram_payload_checksum": 2408392953,
+              "frames": [
+                {
+                  "frame_type": "crypto",
+                  "offset": 0,
+                  "length": 530
+                }
+              ]
+            }
+          },
+          {
+            "event": "transport:packet_received",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"1RTT\",\"packet_number\":0,\"dcil\":4,\"dcid\":\"c1a3622a\",\"key_phase_bit\":\"0\"},\"raw\":{\"length\":95,\"payload_length\":88},\"datagram_payload_checksum\":2408392953,\"frames\":[{\"frame_type\":\"new_connection_id\",\"sequence_number\":2,\"retire_prior_to\":0,\"length\":4,\"connection_id\":\"ee0018e0\",\"stateless_reset_token\":\"195b89b80600e359847f9947d63ae810\"},{\"frame_type\":\"new_connection_id\",\"sequence_number\":3,\"retire_prior_to\":0,\"length\":4,\"connection_id\":\"b57beec6\",\"stateless_reset_token\":\"bda7ea52ab013d1c182eda2c0624df5e\"},{\"frame_type\":\"new_connection_id\",\"sequence_number\":1,\"retire_prior_to\":0,\"length\":4,\"connection_id\":\"4319e0c5\",\"stateless_reset_token\":\"038af32940bfc902cb81e1e878c91cb1\"}]}\n",
+            "source": "connection client=true id=0caa99a7415843230ea873522217546b2b3d9b",
+            "decoded": {
+              "header": {
+                "packet_type": "1RTT",
+                "packet_number": 0,
+                "dcil": 4,
+                "dcid": "c1a3622a",
+                "key_phase_bit": "0"
+              },
+              "raw": {
+                "length": 95,
+                "payload_length": 88
+              },
+              "datagram_payload_checksum": 2408392953,
+              "frames": [
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 2,
+                  "retire_prior_to": 0,
+                  "length": 4,
+                  "connection_id": "ee0018e0",
+                  "stateless_reset_token": "195b89b80600e359847f9947d63ae810"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 3,
+                  "retire_prior_to": 0,
+                  "length": 4,
+                  "connection_id": "b57beec6",
+                  "stateless_reset_token": "bda7ea52ab013d1c182eda2c0624df5e"
+                },
+                {
+                  "frame_type": "new_connection_id",
+                  "sequence_number": 1,
+                  "retire_prior_to": 0,
+                  "length": 4,
+                  "connection_id": "4319e0c5",
+                  "stateless_reset_token": "038af32940bfc902cb81e1e878c91cb1"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "probe_chains": [],
+    "write_errors": [],
+    "handshake_receipts": [
+      {
+        "event": "transport:packet_received",
+        "event_ns": 5000000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"6a3fe72f\",\"dcil\":4,\"dcid\":\"c1a3622a\"},\"raw\":{\"length\":569,\"payload_length\":552},\"datagram_payload_checksum\":2408392953,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":530}]}\n",
+        "source": "connection client=true id=0caa99a7415843230ea873522217546b2b3d9b",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 0,
+            "version": "1",
+            "scil": 4,
+            "scid": "6a3fe72f",
+            "dcil": 4,
+            "dcid": "c1a3622a"
+          },
+          "raw": {
+            "length": 569,
+            "payload_length": 552
+          },
+          "datagram_payload_checksum": 2408392953,
+          "frames": [
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 530
+            }
+          ]
+        }
+      },
+      {
+        "event": "transport:packet_received",
+        "event_ns": 7500000,
+        "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":0,\"version\":\"1\",\"scil\":4,\"scid\":\"c1a3622a\",\"dcil\":4,\"dcid\":\"4319e0c5\"},\"raw\":{\"length\":79,\"payload_length\":62},\"datagram_payload_checksum\":674069725,\"frames\":[{\"frame_type\":\"ack\",\"acked_ranges\":[[0]]},{\"frame_type\":\"crypto\",\"offset\":0,\"length\":36}]}\n",
+        "source": "connection client=false id=0caa99a7415843230ea873522217546b2b3d9b",
+        "decoded": {
+          "header": {
+            "packet_type": "handshake",
+            "packet_number": 0,
+            "version": "1",
+            "scil": 4,
+            "scid": "c1a3622a",
+            "dcil": 4,
+            "dcid": "4319e0c5"
+          },
+          "raw": {
+            "length": 79,
+            "payload_length": 62
+          },
+          "datagram_payload_checksum": 674069725,
+          "frames": [
+            {
+              "frame_type": "ack",
+              "acked_ranges": [
+                [
+                  0
+                ]
+              ]
+            },
+            {
+              "frame_type": "crypto",
+              "offset": 0,
+              "length": 36
+            }
+          ]
+        }
+      }
+    ],
+    "connection_closes": [
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 12500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=false id=0caa99a7415843230ea873522217546b2b3d9b",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      },
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 12500000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=true id=0caa99a7415843230ea873522217546b2b3d9b",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      }
+    ]
+  },
+  "C5": {
+    "dial": {
+      "data": {
+        "elapsed_ns": 1000000000,
+        "error": "context deadline exceeded"
+      },
+      "kind": "dial_result",
+      "ns": 1000000000
+    },
+    "completion": {
+      "data": 13,
+      "kind": "deadline_complete",
+      "ns": 1000000000
+    },
+    "record_count": 251,
+    "datagrams": 32,
+    "selections": [
+      {
+        "callback_ns": 2500000,
+        "crc_after": 2711100601,
+        "crc_before": 1694979038,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 666,
+        "new": 225,
+        "offset": 570,
+        "old": 224,
+        "order": 4,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          },
+          {
+            "length": 95,
+            "type": "short"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1694979038,
+              "error": "",
+              "length": 666,
+              "n": 666,
+              "source": "server",
+              "start_ns": 2500000
+            },
+            "kind": "socket_write",
+            "ns": 2500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 2711100601,
+              "error": "",
+              "n": 666,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 5000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":2711100601,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 2711100601,
+              "trigger": "payload_decrypt_error"
+            }
+          },
+          {
+            "event": "transport:packet_buffered",
+            "event_ns": 5000000,
+            "json": "{\"header\":{\"packet_type\":\"1RTT\",\"dcil\":0},\"raw\":{\"length\":95},\"datagram_payload_checksum\":2711100601,\"trigger\":\"keys_unavailable\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "1RTT",
+                "dcil": 0
+              },
+              "raw": {
+                "length": 95
+              },
+              "datagram_payload_checksum": 2711100601,
+              "trigger": "keys_unavailable"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 17500000,
+        "crc_after": 1987277333,
+        "crc_before": 2216227094,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 160,
+        "offset": 570,
+        "old": 161,
+        "order": 6,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 2216227094,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 17500000
+            },
+            "kind": "socket_write",
+            "ns": 17500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 1987277333,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 20000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 20000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":1987277333,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 1987277333,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 17500000,
+        "crc_after": 3604801751,
+        "crc_before": 616000468,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 148,
+        "offset": 570,
+        "old": 149,
+        "order": 7,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 616000468,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 17500000
+            },
+            "kind": "socket_write",
+            "ns": 17500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 3604801751,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 20000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 20000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":3604801751,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 3604801751,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 47500000,
+        "crc_after": 821670438,
+        "crc_before": 3264360741,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 7,
+        "offset": 570,
+        "old": 6,
+        "order": 10,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 3264360741,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 47500000
+            },
+            "kind": "socket_write",
+            "ns": 47500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 821670438,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 50000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 50000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":821670438,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 821670438,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 47500000,
+        "crc_after": 3229157992,
+        "crc_before": 840075627,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 113,
+        "offset": 570,
+        "old": 112,
+        "order": 11,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 840075627,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 47500000
+            },
+            "kind": "socket_write",
+            "ns": 47500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 3229157992,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 50000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 50000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":3229157992,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 3229157992,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 107500000,
+        "crc_after": 2203142109,
+        "crc_before": 1899676894,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 242,
+        "offset": 570,
+        "old": 243,
+        "order": 16,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1899676894,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 107500000
+            },
+            "kind": "socket_write",
+            "ns": 107500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 2203142109,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 110000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 110000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":2203142109,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 2203142109,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 107500000,
+        "crc_after": 1002366067,
+        "crc_before": 3386206064,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 90,
+        "offset": 570,
+        "old": 91,
+        "order": 17,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 3386206064,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 107500000
+            },
+            "kind": "socket_write",
+            "ns": 107500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 1002366067,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 110000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 110000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":1002366067,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 1002366067,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 227500000,
+        "crc_after": 3945537833,
+        "crc_before": 424124970,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 239,
+        "offset": 570,
+        "old": 238,
+        "order": 20,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 424124970,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 227500000
+            },
+            "kind": "socket_write",
+            "ns": 227500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 3945537833,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 230000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 230000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":3945537833,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 3945537833,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 227500000,
+        "crc_after": 515295523,
+        "crc_before": 3973925408,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 16,
+        "offset": 570,
+        "old": 17,
+        "order": 21,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 3973925408,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 227500000
+            },
+            "kind": "socket_write",
+            "ns": 227500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 515295523,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 230000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 230000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":515295523,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 515295523,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 467500000,
+        "crc_after": 3938217341,
+        "crc_before": 416804478,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 109,
+        "offset": 570,
+        "old": 108,
+        "order": 24,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 416804478,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 467500000
+            },
+            "kind": "socket_write",
+            "ns": 467500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 3938217341,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 470000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 470000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":3938217341,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 3938217341,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 467500000,
+        "crc_after": 2812942132,
+        "crc_before": 1438749751,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 94,
+        "offset": 570,
+        "old": 95,
+        "order": 25,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 1438749751,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 467500000
+            },
+            "kind": "socket_write",
+            "ns": 467500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 2812942132,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 470000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 470000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":2812942132,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 2812942132,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 947500000,
+        "crc_after": 1099314125,
+        "crc_before": 3018698958,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 36,
+        "offset": 570,
+        "old": 37,
+        "order": 28,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 3018698958,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 947500000
+            },
+            "kind": "socket_write",
+            "ns": 947500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 1099314125,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 950000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 950000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":1099314125,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 1099314125,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 947500000,
+        "crc_after": 4224819043,
+        "crc_before": 163191904,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 571,
+        "new": 202,
+        "offset": 570,
+        "old": 203,
+        "order": 29,
+        "parts": [
+          {
+            "length": 571,
+            "type": "Handshake"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 163191904,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 947500000
+            },
+            "kind": "socket_write",
+            "ns": 947500000
+          }
+        ],
+        "receiver_reads": [
+          {
+            "data": {
+              "crc": 4224819043,
+              "error": "",
+              "n": 571,
+              "source": "client"
+            },
+            "kind": "socket_read",
+            "ns": 950000000
+          }
+        ],
+        "receiver_events": [
+          {
+            "event": "transport:packet_dropped",
+            "event_ns": 950000000,
+            "json": "{\"header\":{\"packet_type\":\"handshake\",\"scil\":0,\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571},\"datagram_payload_checksum\":4224819043,\"trigger\":\"payload_decrypt_error\"}\n",
+            "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+            "decoded": {
+              "header": {
+                "packet_type": "handshake",
+                "scil": 0,
+                "dcil": 4,
+                "dcid": "0258dde9"
+              },
+              "raw": {
+                "length": 571
+              },
+              "datagram_payload_checksum": 4224819043,
+              "trigger": "payload_decrypt_error"
+            }
+          }
+        ]
+      },
+      {
+        "callback_ns": 1000000000,
+        "crc_after": 2098282775,
+        "crc_before": 3741633059,
+        "direction": "1.0.0.1:9001",
+        "from": "1.0.0.2:9002",
+        "length": 106,
+        "new": 169,
+        "offset": 78,
+        "old": 168,
+        "order": 32,
+        "parts": [
+          {
+            "length": 40,
+            "type": "Initial"
+          },
+          {
+            "length": 39,
+            "type": "Handshake"
+          },
+          {
+            "length": 27,
+            "type": "short"
+          }
+        ],
+        "selected": true,
+        "to": "1.0.0.1:9001",
+        "sender_writes": [
+          {
+            "data": {
+              "crc": 3741633059,
+              "error": "",
+              "length": 106,
+              "n": 106,
+              "source": "server",
+              "start_ns": 1000000000
+            },
+            "kind": "socket_write",
+            "ns": 1000000000
+          }
+        ],
+        "receiver_reads": [],
+        "receiver_events": []
+      }
+    ],
+    "probe_chains": [
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 17500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 17500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":1,\"version\":\"1\",\"scil\":4,\"scid\":\"aac42ced\",\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571,\"payload_length\":554},\"datagram_payload_checksum\":2216227094,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":532}]}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 1,
+              "version": "1",
+              "scil": 4,
+              "scid": "aac42ced",
+              "dcil": 4,
+              "dcid": "0258dde9"
+            },
+            "raw": {
+              "length": 571,
+              "payload_length": 554
+            },
+            "datagram_payload_checksum": 2216227094,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 532
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 2216227094,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 17500000
+            },
+            "kind": "socket_write",
+            "ns": 17500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 17500000,
+            "crc_after": 1987277333,
+            "crc_before": 2216227094,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 571,
+            "new": 160,
+            "offset": 570,
+            "old": 161,
+            "order": 6,
+            "parts": [
+              {
+                "length": 571,
+                "type": "Handshake"
+              }
+            ],
+            "selected": true,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      },
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 47500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 47500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":3,\"version\":\"1\",\"scil\":4,\"scid\":\"aac42ced\",\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571,\"payload_length\":554},\"datagram_payload_checksum\":3264360741,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":532}]}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 3,
+              "version": "1",
+              "scil": 4,
+              "scid": "aac42ced",
+              "dcil": 4,
+              "dcid": "0258dde9"
+            },
+            "raw": {
+              "length": 571,
+              "payload_length": 554
+            },
+            "datagram_payload_checksum": 3264360741,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 532
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 3264360741,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 47500000
+            },
+            "kind": "socket_write",
+            "ns": 47500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 47500000,
+            "crc_after": 821670438,
+            "crc_before": 3264360741,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 571,
+            "new": 7,
+            "offset": 570,
+            "old": 6,
+            "order": 10,
+            "parts": [
+              {
+                "length": 571,
+                "type": "Handshake"
+              }
+            ],
+            "selected": true,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      },
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 107500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 107500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":5,\"version\":\"1\",\"scil\":4,\"scid\":\"aac42ced\",\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571,\"payload_length\":554},\"datagram_payload_checksum\":1899676894,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":532}]}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 5,
+              "version": "1",
+              "scil": 4,
+              "scid": "aac42ced",
+              "dcil": 4,
+              "dcid": "0258dde9"
+            },
+            "raw": {
+              "length": 571,
+              "payload_length": 554
+            },
+            "datagram_payload_checksum": 1899676894,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 532
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 1899676894,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 107500000
+            },
+            "kind": "socket_write",
+            "ns": 107500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 107500000,
+            "crc_after": 2203142109,
+            "crc_before": 1899676894,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 571,
+            "new": 242,
+            "offset": 570,
+            "old": 243,
+            "order": 16,
+            "parts": [
+              {
+                "length": 571,
+                "type": "Handshake"
+              }
+            ],
+            "selected": true,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      },
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 227500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 227500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":7,\"version\":\"1\",\"scil\":4,\"scid\":\"aac42ced\",\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571,\"payload_length\":554},\"datagram_payload_checksum\":424124970,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":532}]}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 7,
+              "version": "1",
+              "scil": 4,
+              "scid": "aac42ced",
+              "dcil": 4,
+              "dcid": "0258dde9"
+            },
+            "raw": {
+              "length": 571,
+              "payload_length": 554
+            },
+            "datagram_payload_checksum": 424124970,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 532
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 424124970,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 227500000
+            },
+            "kind": "socket_write",
+            "ns": 227500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 227500000,
+            "crc_after": 3945537833,
+            "crc_before": 424124970,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 571,
+            "new": 239,
+            "offset": 570,
+            "old": 238,
+            "order": 20,
+            "parts": [
+              {
+                "length": 571,
+                "type": "Handshake"
+              }
+            ],
+            "selected": true,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      },
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 467500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 467500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":9,\"version\":\"1\",\"scil\":4,\"scid\":\"aac42ced\",\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571,\"payload_length\":554},\"datagram_payload_checksum\":416804478,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":532}]}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 9,
+              "version": "1",
+              "scil": 4,
+              "scid": "aac42ced",
+              "dcil": 4,
+              "dcid": "0258dde9"
+            },
+            "raw": {
+              "length": 571,
+              "payload_length": 554
+            },
+            "datagram_payload_checksum": 416804478,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 532
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 416804478,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 467500000
+            },
+            "kind": "socket_write",
+            "ns": 467500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 467500000,
+            "crc_after": 3938217341,
+            "crc_before": 416804478,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 571,
+            "new": 109,
+            "offset": 570,
+            "old": 108,
+            "order": 24,
+            "parts": [
+              {
+                "length": 571,
+                "type": "Handshake"
+              }
+            ],
+            "selected": true,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      },
+      {
+        "expiry": {
+          "event": "recovery:loss_timer_updated",
+          "event_ns": 947500000,
+          "json": "{\"event_type\":\"expired\",\"timer_type\":\"pto\",\"packet_number_space\":\"handshake\"}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "event_type": "expired",
+            "timer_type": "pto",
+            "packet_number_space": "handshake"
+          }
+        },
+        "next_ack_eliciting_send": {
+          "event": "transport:packet_sent",
+          "event_ns": 947500000,
+          "json": "{\"header\":{\"packet_type\":\"handshake\",\"packet_number\":11,\"version\":\"1\",\"scil\":4,\"scid\":\"aac42ced\",\"dcil\":4,\"dcid\":\"0258dde9\"},\"raw\":{\"length\":571,\"payload_length\":554},\"datagram_payload_checksum\":3018698958,\"frames\":[{\"frame_type\":\"crypto\",\"offset\":0,\"length\":532}]}\n",
+          "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+          "decoded": {
+            "header": {
+              "packet_type": "handshake",
+              "packet_number": 11,
+              "version": "1",
+              "scil": 4,
+              "scid": "aac42ced",
+              "dcil": 4,
+              "dcid": "0258dde9"
+            },
+            "raw": {
+              "length": 571,
+              "payload_length": 554
+            },
+            "datagram_payload_checksum": 3018698958,
+            "frames": [
+              {
+                "frame_type": "crypto",
+                "offset": 0,
+                "length": 532
+              }
+            ]
+          }
+        },
+        "socket_writes": [
+          {
+            "data": {
+              "crc": 3018698958,
+              "error": "",
+              "length": 571,
+              "n": 571,
+              "source": "server",
+              "start_ns": 947500000
+            },
+            "kind": "socket_write",
+            "ns": 947500000
+          }
+        ],
+        "routes": [
+          {
+            "callback_ns": 947500000,
+            "crc_after": 1099314125,
+            "crc_before": 3018698958,
+            "direction": "1.0.0.1:9001",
+            "from": "1.0.0.2:9002",
+            "length": 571,
+            "new": 36,
+            "offset": 570,
+            "old": 37,
+            "order": 28,
+            "parts": [
+              {
+                "length": 571,
+                "type": "Handshake"
+              }
+            ],
+            "selected": true,
+            "to": "1.0.0.1:9001"
+          }
+        ]
+      }
+    ],
+    "write_errors": [],
+    "handshake_receipts": [],
+    "connection_closes": [
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 1000000000,
+        "json": "{\"initiator\":\"local\",\"application_error\":\"unknown\",\"error_code\":0,\"reason\":\"\"}\n",
+        "source": "connection client=true id=e65e9339ba5c06601423473a7c",
+        "decoded": {
+          "initiator": "local",
+          "application_error": "unknown",
+          "error_code": 0,
+          "reason": ""
+        }
+      },
+      {
+        "event": "transport:connection_closed",
+        "event_ns": 1000000000,
+        "json": "{\"initiator\":\"local\",\"connection_error\":\"connection_refused\",\"reason\":\"\"}\n",
+        "source": "connection client=false id=e65e9339ba5c06601423473a7c",
+        "decoded": {
+          "initiator": "local",
+          "connection_error": "connection_refused",
+          "reason": ""
+        }
+      }
+    ]
+  }
+}

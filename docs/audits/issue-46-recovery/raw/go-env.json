@@ -1,0 +1,8 @@
+{
+	"CGO_ENABLED": "1",
+	"GOARCH": "arm64",
+	"GOEXPERIMENT": "",
+	"GOFLAGS": "",
+	"GOOS": "darwin",
+	"GOTOOLCHAIN": "auto"
+}
