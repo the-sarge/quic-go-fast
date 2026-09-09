@@ -156,13 +156,15 @@ func TestExchangeEarlyResponsePreservesUpload(t *testing.T) {
 			body.Close()
 		}
 	})
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	req := httptest.NewRequest(http.MethodPost, "https://example.com", body).WithContext(ctx)
 	rsp, _ := exchangeResponse(t, tr, server, req, encodeResponse(t, http.StatusOK))
 	receiveExchange(t, body.entered)
 	require.NoError(t, rsp.Body.Close())
 	require.Zero(t, body.closes.Load(), "ordinary response Close must preserve the upload")
+	close(body.finished)
+	receiveExchange(t, rsp.Body.(*exchangeBody).lifetime.stopped)
+	require.EqualValues(t, 1, body.closes.Load())
 }
 
 func TestExchangeUploadTerminalEvents(t *testing.T) {
