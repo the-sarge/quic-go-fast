@@ -516,3 +516,18 @@ Merged [PR #132](https://github.com/the-sarge/quic-go-fast/pull/132) at `6127844
 The certified head `956823576885c769cab32a777f66e83a2871b93b` passed deterministic collector/callback/cleanup regressions, a focused race check, one full uncached local suite, vet, go-fix and module-tidy checks, golangci-lint, and all 33 inherited hosted checks. Standards and Spec reviews had no findings. RAS run `20260909T071827-6a28f99d53caeab7df5edc5f` completed all seven initial reviews and adjudications. Three low recommendations for future writer encapsulation, more close-state tests, and explicit unset labels were independently deferred as contract strengthening; the asserted current buffer panic was rejected because the native encoder uses bounded Write calls. No fix/verify/replacement cycle was needed under the scoped low/nit policy. The [PR record](https://github.com/the-sarge/quic-go-fast/pull/132) preserves those dispositions.
 
 The [accepted diagnostic scope](agents/packet-loss-diagnostics.md) excludes complete histories, deterministic replay, process-termination capture, and scheduler-neutral observation. Client transport-level drops before connection dispatch are not traced; the retained tail can include teardown. Those limitations were revalidated against the merged code. [Issue #44](https://github.com/the-sarge/quic-go-fast/issues/44) remains the live investigation: the preceding 200-run campaign captured no failure, no timeout cause is established, and its original OmniFocus task remains open. Direction correction remains separate in [issue #79](https://github.com/the-sarge/quic-go-fast/issues/79).
+
+---
+
+## Timeout test worker ownership landed - 2026-09-09 04:39 EDT
+
+**Main:** `7607293b93da`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #134](https://github.com/the-sarge/quic-go-fast/pull/134), closing [issue #70](https://github.com/the-sarge/quic-go-fast/issues/70). Timeout wrappers retain caller-buffer ownership through synchronous I/O and joined interruption. Cancellation workers report errors during bounded joining and finish pre-canceled accepts before stream production. Deadline fixtures deliberately block ten operations and join asynchronous setters before checking recovery.
+
+### Validation
+
+Full Go tests, focused race tests, vet, lint, and Go modernization checks passed on `b52da1761eb6603be989cd7a4fa0b1e7f7844aed`; all 33 hosted checks were green before the exact-head squash merge. Original timeout helpers fail the buffer-reuse regressions with races. Controlled connection-error and producer-gate-bypass checks exercised the repaired fixture error paths without a randomized campaign. Initial RAS review `20260909T080552-1ab6192f9849f3b6fa754df0` produced two accepted findings, both verified resolved; replacement review `20260909T083140-f50240c4d4cceb216484ba03` was clean. No deferred findings remain.
