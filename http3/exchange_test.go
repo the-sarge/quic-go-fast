@@ -60,9 +60,7 @@ func exchangeTransport(t *testing.T) (*Transport, *quic.Conn, *quic.Conn) {
 	return tr, client, server
 }
 
-func exchangeResponse(t *testing.T, tr interface {
-	RoundTrip(*http.Request) (*http.Response, error)
-}, server *quic.Conn, req *http.Request, headers []byte) (*http.Response, *quic.Stream) {
+func exchangeResponse(t *testing.T, tr http.RoundTripper, server *quic.Conn, req *http.Request, headers []byte) (*http.Response, *quic.Stream) {
 	t.Helper()
 	type result struct {
 		rsp *http.Response
