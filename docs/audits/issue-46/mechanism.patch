@@ -1,0 +1,230 @@
+diff --git a/integrationtests/self/mitm_test.go b/integrationtests/self/mitm_test.go
+index 7a4e1fb3..a0da31e0 100644
+--- a/integrationtests/self/mitm_test.go
++++ b/integrationtests/self/mitm_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"math"
+ 	mrand "math/rand/v2"
+ 	"net"
++	"os"
+ 	"sync"
+ 	"sync/atomic"
+ 	"testing"
+@@ -17,6 +18,7 @@ import (
+ 	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
+ 	"github.com/quic-go/quic-go/internal/protocol"
+ 	"github.com/quic-go/quic-go/internal/wire"
++	"github.com/quic-go/quic-go/qlog"
+ 	"github.com/quic-go/quic-go/testutils"
+ 
+ 	"github.com/stretchr/testify/require"
+@@ -165,41 +167,66 @@ func testMITMDuplicatePackets(t *testing.T, direction quicproxy.Direction) {
+ }
+ 
+ func testMITMCorruptPackets(t *testing.T, direction quicproxy.Direction) {
++	d := newIssue46Diagnostic(t)
+ 	serverTransport, clientTransport := getTransportsForMITMTest(t)
++	serverTransport.Tracer = &issue46Recorder{d: d, source: "server transport"}
++	clientTransport.Tracer = &issue46Recorder{d: d, source: "client transport"}
+ 	rtt := scaleDuration(5 * time.Millisecond)
+ 
+ 	var numCorrupted atomic.Int32
+-	dropCallback := func(dir quicproxy.Direction, _, _ net.Addr, b []byte) bool {
++	var selectedHandshake int
++	dropCallback := func(dir quicproxy.Direction, from, to net.Addr, b []byte) bool {
++		r := d.datagram(dir.String(), from.String(), to.String(), b)
++		defer func() { r["return_ns"] = time.Since(d.start).Nanoseconds(); d.record("decision", r) }()
+ 		if dir != direction {
+ 			return false
+ 		}
+-		isLongHeaderPacket := wire.IsLongHeaderPacket(b[0])
+-		// corrupt 20% of long header packets and 5% of short header packets
+-		if isLongHeaderPacket && mrand.IntN(4) != 0 {
+-			return false
+-		}
+-		if !isLongHeaderPacket && mrand.IntN(20) != 0 {
++		// Constructed mechanism/control schedule, not a fresh random execution.
++		hdr, packet, _, err := wire.ParsePacket(b)
++		if err != nil || hdr.Type != protocol.PacketTypeHandshake || selectedHandshake >= 11 {
+ 			return false
+ 		}
++		selectedHandshake++
++		r["schedule"] = "first-eleven-handshake"
++		r["schedule_index"] = selectedHandshake
+ 		numCorrupted.Add(1)
+-		pos := mrand.IntN(len(b))
+-		b[pos] = byte(mrand.IntN(256))
++		pos := len(packet) - 1
++		r["offset"], r["old"] = pos, b[pos]
++		if os.Getenv("ISSUE46_CONTROL") != "true" {
++			b[pos] ^= 1
++		}
++		r["control"] = os.Getenv("ISSUE46_CONTROL") == "true"
++		r["selected"], r["new"] = true, b[pos]
++		r["crc_after"] = qlog.CalculateDatagramPayloadChecksum(b)
++		r["write_start_ns"] = time.Since(d.start).Nanoseconds()
++		var n int
++		err = nil
+ 		switch direction {
+ 		case quicproxy.DirectionIncoming:
+-			clientTransport.WriteTo(b, serverTransport.Conn.LocalAddr())
++			n, err = clientTransport.WriteTo(b, serverTransport.Conn.LocalAddr())
+ 		case quicproxy.DirectionOutgoing:
+-			serverTransport.WriteTo(b, clientTransport.Conn.LocalAddr())
++			n, err = serverTransport.WriteTo(b, clientTransport.Conn.LocalAddr())
++		}
++		r["write_end_ns"], r["write_n"] = time.Since(d.start).Nanoseconds(), n
++		if err != nil {
++			r["write_error"] = err.Error()
+ 		}
+ 		return true
+ 	}
+ 
+-	runMITMTest(t, serverTransport, clientTransport, rtt, dropCallback)
++	runMITMTest(t, serverTransport, clientTransport, rtt, dropCallback, d)
+ 	t.Logf("corrupted %d packets", numCorrupted.Load())
+ 	require.NotZero(t, int(numCorrupted.Load()))
+ }
+ 
+-func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Duration, dropCb quicproxy.DropCallback) {
+-	ln, err := serverTr.Listen(getTLSConfig(), getQuicConfig(nil))
++func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Duration, dropCb quicproxy.DropCallback, diagnostics ...*issue46Diagnostic) {
++	var d *issue46Diagnostic
++	conf := getQuicConfig(nil)
++	if len(diagnostics) > 0 {
++		d = diagnostics[0]
++		conf.Tracer = d.tracer
++	}
++	ln, err := serverTr.Listen(getTLSConfig(), conf)
+ 	require.NoError(t, err)
+ 	defer ln.Close()
+ 
+@@ -214,7 +241,18 @@ func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Dura
+ 
+ 	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
+ 	defer cancel()
+-	conn, err := clientTr.Dial(ctx, proxy.LocalAddr(), getTLSClientConfig(), getQuicConfig(nil))
++	if d != nil {
++		deadline, _ := ctx.Deadline()
++		d.record("dial_start", map[string]any{"deadline_ns": deadline.Sub(d.start).Nanoseconds(), "proxy": proxy.LocalAddr().String(), "server": serverTr.Conn.LocalAddr().String(), "client": clientTr.Conn.LocalAddr().String()})
++	}
++	conn, err := clientTr.Dial(ctx, proxy.LocalAddr(), getTLSClientConfig(), conf)
++	if d != nil {
++		result := "success"
++		if err != nil {
++			result = err.Error()
++		}
++		d.record("dial_result", result)
++	}
+ 	require.NoError(t, err)
+ 	defer conn.CloseWithError(0, "")
+ 
+diff --git a/integrationtests/self/issue46_diagnostic_test.go b/integrationtests/self/issue46_diagnostic_test.go
+new file mode 100644
+index 00000000..17e74115
+--- /dev/null
++++ b/integrationtests/self/issue46_diagnostic_test.go
+@@ -0,0 +1,103 @@
++package self_test
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"fmt"
++	"os"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/quic-go/quic-go"
++	"github.com/quic-go/quic-go/internal/wire"
++	"github.com/quic-go/quic-go/qlog"
++	"github.com/quic-go/quic-go/qlogwriter"
++	"github.com/quic-go/quic-go/qlogwriter/jsontext"
++	"github.com/quic-go/quic-go/testutils/events"
++)
++
++// Temporary issue-46 instrumentation, retained only as an audit patch.
++type issue46Diagnostic struct {
++	start   time.Time
++	mu      sync.Mutex
++	records []any
++	order   uint64
++}
++
++func newIssue46Diagnostic(t *testing.T) *issue46Diagnostic {
++	d := &issue46Diagnostic{start: time.Now()}
++	t.Cleanup(func() {
++		d.mu.Lock()
++		defer d.mu.Unlock()
++		f, err := os.Create(os.Getenv("ISSUE46_OUTPUT"))
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		defer f.Close()
++		enc := json.NewEncoder(f)
++		for _, r := range d.records {
++			if err := enc.Encode(r); err != nil {
++				t.Error(err)
++				return
++			}
++		}
++	})
++	return d
++}
++
++func (d *issue46Diagnostic) record(kind string, data any) {
++	at := time.Since(d.start).Nanoseconds()
++	d.mu.Lock()
++	d.records = append(d.records, map[string]any{"ns": at, "kind": kind, "data": data})
++	d.mu.Unlock()
++}
++
++func (d *issue46Diagnostic) datagram(dir string, from, to string, b []byte) map[string]any {
++	d.mu.Lock()
++	d.order++
++	order := d.order
++	d.mu.Unlock()
++	parts := []any{}
++	remaining := b
++	for len(remaining) > 0 {
++		if !wire.IsLongHeaderPacket(remaining[0]) {
++			parts = append(parts, map[string]any{"type": "short", "length": len(remaining)})
++			break
++		}
++		hdr, packet, rest, err := wire.ParsePacket(remaining)
++		if err != nil {
++			parts = append(parts, map[string]any{"parse_error": err.Error()})
++			break
++		}
++		parts = append(parts, map[string]any{"type": fmt.Sprint(hdr.Type), "length": len(packet)})
++		if len(rest) >= len(remaining) {
++			break
++		}
++		remaining = rest
++	}
++	return map[string]any{"order": order, "direction": dir, "from": from, "to": to, "length": len(b), "crc_before": qlog.CalculateDatagramPayloadChecksum(b), "parts": parts, "callback_ns": time.Since(d.start).Nanoseconds(), "selected": false}
++}
++
++func (d *issue46Diagnostic) tracer(_ context.Context, client bool, id quic.ConnectionID) qlogwriter.Trace {
++	return &events.Trace{Recorder: &issue46Recorder{d: d, source: fmt.Sprintf("connection client=%t id=%s", client, id)}}
++}
++
++type issue46Recorder struct {
++	d      *issue46Diagnostic
++	source string
++}
++
++func (r *issue46Recorder) RecordEvent(e qlogwriter.Event) {
++	at := time.Since(r.d.start).Nanoseconds()
++	var buf bytes.Buffer
++	err := e.Encode(jsontext.NewEncoder(&buf), r.d.start)
++	data := map[string]any{"source": r.source, "event": e.Name(), "event_ns": at, "json": buf.String()}
++	if err != nil {
++		data["encode_error"] = err.Error()
++	}
++	r.d.record("qlog", data)
++}
++func (*issue46Recorder) Close() error { return nil }

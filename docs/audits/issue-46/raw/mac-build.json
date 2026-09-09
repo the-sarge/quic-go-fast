@@ -1,0 +1,10 @@
+{
+  "platform": "Darwin mbp128.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:17:26 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6041 arm64",
+  "toolchain": "go version go1.27.0 darwin/arm64",
+  "go_env": "darwin\narm64\n\n\nauto\n1",
+  "head": "901f53e0fcc8e8e5ff004de4f84a78728a61a150",
+  "instrumentation_sha256": "58e7806c853a78202796f19397c6de1410b136b810dbf3d2d946883bd953ff0a",
+  "binary_sha256": "0f61b2a509948b332c7cf4b3cea3ef75ec36bc40991e9ad831386a695fe7eef2",
+  "command": "go test -c -o /Volumes/worktrees/quic-go-fast/issue-46-investigation/docs/audits/issue-46/self-diagnostic.test ./integrationtests/self",
+  "exit": 0
+}
