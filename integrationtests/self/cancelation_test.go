@@ -385,9 +385,7 @@ func TestCancelAcceptStream(t *testing.T) {
 			defer cancel()
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			str, err := conn.AcceptUniStream(ctx)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
@@ -405,7 +403,7 @@ func TestCancelAcceptStream(t *testing.T) {
 			if !bytes.Equal(data, PRData) {
 				workerErrs <- fmt.Errorf("received data mismatch")
 			}
-		}()
+		})
 	}
 	workersDone := make(chan struct{})
 	go func() {
