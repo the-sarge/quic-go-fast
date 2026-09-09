@@ -131,6 +131,7 @@ type exchangeInput struct {
 func newExchangeInput() *exchangeInput {
 	return &exchangeInput{entered: make(chan struct{}), unblock: make(chan struct{}), finished: make(chan struct{})}
 }
+
 func (b *exchangeInput) Read([]byte) (int, error) {
 	b.once.Do(func() { close(b.entered) })
 	select {
@@ -139,6 +140,7 @@ func (b *exchangeInput) Read([]byte) (int, error) {
 	}
 	return 0, io.EOF
 }
+
 func (b *exchangeInput) Close() error {
 	if b.closes.Add(1) == 1 {
 		close(b.unblock)
@@ -299,7 +301,8 @@ func TestExchangeActualBodyCompletion(t *testing.T) {
 		status       int
 		header       http.Header
 	}{
-		{"head", http.MethodHead, 200, nil}, {"no-content", http.MethodGet, 204, nil},
+		{"head", http.MethodHead, 200, nil},
+		{"no-content", http.MethodGet, 204, nil},
 		{"length-zero", http.MethodGet, 200, http.Header{"Content-Length": {"0"}}},
 		{"connect", http.MethodConnect, 200, nil},
 	} {
