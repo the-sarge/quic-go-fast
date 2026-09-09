@@ -24,70 +24,94 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func dropTestProtocolClientSpeaksFirst(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, data []byte) *quic.Conn {
+func dropTestProtocolClientSpeaksFirst(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, data []byte, diagnostics *handshakeDiagnostics) *quic.Conn {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+	diagnostics.phase(true, "dial")
 	conn, err := quic.Dial(
 		ctx,
 		clientConn,
 		ln.Addr(),
 		clientConf,
 		getQuicConfig(&quic.Config{
+			Tracer:                  diagnostics.tracer,
 			MaxIdleTimeout:          timeout,
 			HandshakeIdleTimeout:    timeout,
 			DisablePathMTUDiscovery: true,
 		}),
 	)
+	diagnostics.phase(true, fmt.Sprintf("dial returned: %v", err))
 	require.NoError(t, err)
-	defer conn.CloseWithError(0, "")
+	defer diagnostics.closeConnection(true, conn)
 
+	diagnostics.phase(true, "open stream")
 	str, err := conn.OpenUniStream()
+	diagnostics.phase(true, fmt.Sprintf("open stream returned: %v", err))
 	require.NoError(t, err)
 	errChan := make(chan error, 1)
 	go func() {
-		defer str.Close()
-		_, err := str.Write(data)
+		defer func() {
+			diagnostics.phase(true, "close stream")
+			err := str.Close()
+			diagnostics.phase(true, fmt.Sprintf("close stream returned: %v", err))
+		}()
+		diagnostics.phase(true, "write stream")
+		n, err := str.Write(data)
+		diagnostics.phase(true, fmt.Sprintf("write stream returned: bytes=%d err=%v", n, err))
 		errChan <- err
 	}()
 
+	diagnostics.phase(false, "accept connection")
 	serverConn, err := ln.Accept(ctx)
+	diagnostics.phase(false, fmt.Sprintf("accept connection returned: %v", err))
 	require.NoError(t, err)
+	diagnostics.phase(false, "accept stream")
 	serverStr, err := serverConn.AcceptUniStream(ctx)
+	diagnostics.phase(false, fmt.Sprintf("accept stream returned: %v", err))
 	require.NoError(t, err)
+	diagnostics.phase(false, "read stream")
 	b, err := io.ReadAll(&readerWithTimeout{Reader: serverStr, Timeout: timeout})
+	diagnostics.phase(false, fmt.Sprintf("read stream returned: bytes=%d err=%v", len(b), err))
 	require.NoError(t, err)
 	require.Equal(t, b, data)
-	serverConn.CloseWithError(0, "")
+	diagnostics.closeConnection(false, serverConn)
 
 	return conn
 }
 
-func dropTestProtocolServerSpeaksFirst(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, data []byte) *quic.Conn {
+func dropTestProtocolServerSpeaksFirst(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, data []byte, diagnostics *handshakeDiagnostics) *quic.Conn {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+	diagnostics.phase(true, "dial")
 	conn, err := quic.Dial(
 		ctx,
 		clientConn,
 		ln.Addr(),
 		clientConf,
 		getQuicConfig(&quic.Config{
+			Tracer:                  diagnostics.tracer,
 			MaxIdleTimeout:          timeout,
 			HandshakeIdleTimeout:    timeout,
 			DisablePathMTUDiscovery: true,
 		}),
 	)
+	diagnostics.phase(true, fmt.Sprintf("dial returned: %v", err))
 	require.NoError(t, err)
 
 	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
-		defer conn.CloseWithError(0, "")
+		defer diagnostics.closeConnection(true, conn)
+		diagnostics.phase(true, "accept stream")
 		str, err := conn.AcceptUniStream(ctx)
+		diagnostics.phase(true, fmt.Sprintf("accept stream returned: %v", err))
 		if err != nil {
 			errChan <- err
 			return
 		}
+		diagnostics.phase(true, "read stream")
 		b, err := io.ReadAll(&readerWithTimeout{Reader: str, Timeout: timeout})
+		diagnostics.phase(true, fmt.Sprintf("read stream returned: bytes=%d err=%v", len(b), err))
 		if err != nil {
 			errChan <- err
 			return
@@ -98,50 +122,64 @@ func dropTestProtocolServerSpeaksFirst(t *testing.T, ln *quic.Listener, clientCo
 		}
 	}()
 
+	diagnostics.phase(false, "accept connection")
 	serverConn, err := ln.Accept(ctx)
+	diagnostics.phase(false, fmt.Sprintf("accept connection returned: %v", err))
 	require.NoError(t, err)
+	diagnostics.phase(false, "open stream")
 	serverStr, err := serverConn.OpenUniStream()
+	diagnostics.phase(false, fmt.Sprintf("open stream returned: %v", err))
 	require.NoError(t, err)
-	_, err = serverStr.Write(data)
+	diagnostics.phase(false, "write stream")
+	n, err := serverStr.Write(data)
+	diagnostics.phase(false, fmt.Sprintf("write stream returned: bytes=%d err=%v", n, err))
 	require.NoError(t, err)
-	require.NoError(t, serverStr.Close())
+	diagnostics.phase(false, "close stream")
+	err = serverStr.Close()
+	diagnostics.phase(false, fmt.Sprintf("close stream returned: %v", err))
+	require.NoError(t, err)
 
 	select {
 	case err := <-errChan:
 		require.NoError(t, err)
 	case <-time.After(timeout):
-		t.Fatal("server connection not closed")
+		t.Fatal("client worker not finished")
 	}
 
 	select {
 	case <-conn.Context().Done():
 	case <-time.After(timeout):
-		t.Fatal("server connection not closed")
+		t.Fatal("client connection not closed")
 	}
 
 	return conn
 }
 
-func dropTestProtocolNobodySpeaks(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, _ []byte) *quic.Conn {
+func dropTestProtocolNobodySpeaks(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, _ []byte, diagnostics *handshakeDiagnostics) *quic.Conn {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+	diagnostics.phase(true, "dial")
 	conn, err := quic.Dial(
 		ctx,
 		clientConn,
 		ln.Addr(),
 		clientConf,
 		getQuicConfig(&quic.Config{
+			Tracer:                  diagnostics.tracer,
 			MaxIdleTimeout:          timeout,
 			HandshakeIdleTimeout:    timeout,
 			DisablePathMTUDiscovery: true,
 		}),
 	)
+	diagnostics.phase(true, fmt.Sprintf("dial returned: %v", err))
 	require.NoError(t, err)
-	defer conn.CloseWithError(0, "")
+	defer diagnostics.closeConnection(true, conn)
 
+	diagnostics.phase(false, "accept connection")
 	serverConn, err := ln.Accept(ctx)
+	diagnostics.phase(false, fmt.Sprintf("accept connection returned: %v", err))
 	require.NoError(t, err)
-	serverConn.CloseWithError(0, "")
+	diagnostics.closeConnection(false, serverConn)
 
 	return conn
 }
@@ -236,7 +274,7 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 				} {
 					for _, test := range []struct {
 						name string
-						fn   func(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, data []byte) *quic.Conn
+						fn   func(t *testing.T, ln *quic.Listener, clientConn net.PacketConn, clientConf *tls.Config, timeout time.Duration, data []byte, diagnostics *handshakeDiagnostics) *quic.Conn
 					}{
 						{"client speaks first", dropTestProtocolClientSpeaksFirst},
 						{"server speaks first", dropTestProtocolServerSpeaksFirst},
@@ -244,6 +282,7 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 					} {
 						t.Run(fmt.Sprintf("retry: %t/%s", conf.doRetry, test.name), func(t *testing.T) {
 							synctest.Test(t, func(t *testing.T) {
+								diagnostics := newHandshakeDiagnostics(t, fmt.Sprintf("test=%s requested_direction=%s loss=%s retry=%t speaking=%s post_quantum=%t long_chain=%t version=%s", t.Name(), dir, pattern, conf.doRetry, test.name, conf.postQuantum, conf.longCertChain, version))
 								clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
 								serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
 								var fn func(direction, simnet.Packet) bool
@@ -260,13 +299,13 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 									Router: &directionAwareDroppingRouter{
 										ClientAddr: clientAddr,
 										ServerAddr: serverAddr,
-										Drop: func(d direction, p simnet.Packet) bool {
+										Drop: diagnostics.observeDrop(func(d direction, p simnet.Packet) bool {
 											drop := fn(d, p)
 											if drop {
 												numDropped.Add(1)
 											}
 											return drop
-										},
+										}),
 									},
 								}
 								settings := simnet.NodeBiDiLinkSettings{Latency: rtt / 2}
@@ -290,6 +329,7 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 
 								tr := &quic.Transport{
 									Conn:                serverConn,
+									Tracer:              &handshakeDiagnosticRecorder{diagnostics: diagnostics, source: "server listener"},
 									VerifySourceAddress: func(net.Addr) bool { return conf.doRetry },
 								}
 								defer tr.Close()
@@ -297,6 +337,7 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 								ln, err := tr.Listen(
 									tlsConf,
 									getQuicConfig(&quic.Config{
+										Tracer:                  diagnostics.tracer,
 										MaxIdleTimeout:          timeout,
 										HandshakeIdleTimeout:    timeout,
 										DisablePathMTUDiscovery: true,
@@ -305,7 +346,7 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 								require.NoError(t, err)
 								defer ln.Close()
 
-								conn := test.fn(t, ln, clientConn, clientConf, timeout, data)
+								conn := test.fn(t, ln, clientConn, clientConf, timeout, data, diagnostics)
 								curveID := getCurveID(conn.ConnectionState().TLS)
 								if conf.postQuantum {
 									require.Equal(t, tls.X25519MLKEM768, curveID)
