@@ -822,3 +822,28 @@ The observed TestDial assertion is distinct from [#44](https://github.com/the-sa
 ### Next
 
 The unresolved HTTP/0.9 timeout is tracked in [#169](https://github.com/the-sarge/quic-go-fast/issues/169) for evidence from the next natural failure. The architecture frontier remains in the [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/101); I5 product work is complete and I8 is ready.
+
+---
+
+## Server admission and owner-exit cleanup landed - 2026-09-10 13:09 EDT
+
+**Main:** `fba5aaa1f55f`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #170](https://github.com/the-sarge/quic-go-fast/pull/170) as `fba5aaa1f55f89db0a1cb9fe2f34fe99b1c64f3e`, completing the I6 implementation and closing [issue #96](https://github.com/the-sarge/quic-go-fast/issues/96). Server admission now synchronizes enqueue with closure and disposes rejected input. The receive worker drains queued datagrams and retained 0-RTT groups; the response worker drains its queues after the receive producer exits. Active Retry responses also release their input. Public close waits, established connections, and caller-owned sockets are preserved.
+
+### Validation
+
+Rejection, receive-exit, response-exit, and active-Retry regressions failed before their fixes. The I5 admission fixture preserves its pre-shutdown retention check and now checks disposal after owner exit. Exact candidate `c827e302c4af0f240dabcf8cb66f3d5f76b32a52` passed the focused race selection, `go test -count=1 ./...`, `go vet ./...`, golangci-lint, module-tidiness checks, and all 33 applicable hosted checks. Focused listener-close integration tests also passed.
+
+The initial RAS review identified import formatting and a local test timeout; both were independently accepted and fixed, and exact-head verification resolved every cluster. The final replacement review completed with nine reviewers and zero findings. A disposable Go build overlay observed exactly one pool return for each of thirteen tracked I6 inputs and no premature return during a blocked response write. Source hashes stayed unchanged, and ordinary certification ran without the overlay. See the [complete review, observation, and hosted-validation receipt](https://github.com/the-sarge/quic-go-fast/pull/170#issuecomment-5622493452).
+
+### Decisions
+
+The accepted [I6 contract](adr/2026-09-08-incoming-lifetime-plan.md#i6--seal-server-admission-before-worker-drains) retains successive concrete owners, one terminal admission signal, and the seven-cell evidence budget. There is no new receive engine, public wait guarantee, maintained observer, performance claim, or newly untraced effect. No deferred review finding remains.
+
+### Next
+
+I7 and I8 remain ready; I6 adds no newly unblocked successor. The product PR already contains its committed completion and frontier transition. [Track #87](https://github.com/the-sarge/quic-go-fast/issues/87) and [program #101](https://github.com/the-sarge/quic-go-fast/issues/101) are the live progress views.
