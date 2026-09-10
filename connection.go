@@ -2221,6 +2221,19 @@ func (c *Conn) CloseWithError(code ApplicationErrorCode, desc string) error {
 	return nil
 }
 
+// abortUnstarted releases an unpublished server connection. The constructor
+// owner may call this only when the connection has never been registered or run.
+// Ordinary teardown would wait for unstarted workers and remove routing entries
+// that may belong to the connection that won registration.
+func (c *Conn) abortUnstarted(err error) {
+	c.closePacketAdmission()
+	c.cryptoStreamHandler.Close()
+	c.ctxCancel(err)
+	if c.qlogger != nil {
+		c.qlogger.Close()
+	}
+}
+
 func (c *Conn) closeWithTransportError(code TransportErrorCode) {
 	c.closeLocal(&qerr.TransportError{ErrorCode: code})
 	<-c.ctx.Done()

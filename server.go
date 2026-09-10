@@ -877,6 +877,12 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	} else {
 		cancel = cancel1
 	}
+	connID, err := s.connIDGenerator.GenerateConnectionID()
+	if err != nil {
+		p.buffer.Release()
+		cancel(err)
+		return err
+	}
 	var qlogTrace qlogwriter.Trace
 	if config.Tracer != nil {
 		// Use the same connection ID that is passed to the client's GetLogWriter callback.
@@ -885,10 +891,6 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 			connID = origDestConnID
 		}
 		qlogTrace = config.Tracer(ctx, false, connID)
-	}
-	connID, err := s.connIDGenerator.GenerateConnectionID()
-	if err != nil {
-		return err
 	}
 	s.logger.Debugf("Changing connection ID to %s.", connID)
 	conn = s.newConn(
@@ -918,8 +920,8 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	// under normal circumstances the packet would just be routed to that connection.
 	// The only time this collision will occur if we receive the two Initial packets at the same time.
 	if added := s.tr.AddWithConnID(hdr.DestConnectionID, connID, conn); !added {
+		conn.abortUnstarted(&qerr.TransportError{ErrorCode: ConnectionRefused})
 		s.retireZeroRTTQueue(hdr.DestConnectionID)
-		conn.closeWithTransportError(ConnectionRefused)
 		return nil
 	}
 	// Pass queued 0-RTT to the newly established connection.
