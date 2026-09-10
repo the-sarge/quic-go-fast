@@ -3,11 +3,12 @@
 package quic
 
 import (
-	"golang.org/x/sys/unix"
 	"net"
 	"testing"
 	"time"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/ipv4"
