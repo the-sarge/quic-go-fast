@@ -100,11 +100,9 @@ func TestTransportQueueLifetimeConcurrentReaders(t *testing.T) {
 			readers.Go(func() {
 				out := make([]byte, 4)
 				n, addr, err := tr.ReadNonQUICPacket(context.Background(), out)
-				if err == nil {
+				if assert.NoError(t, err) {
 					assert.Equal(t, []byte{0, 1, 2, 3}, out[:n])
 					assert.Equal(t, &net.UDPAddr{Port: 1234}, addr)
-				} else {
-					assert.EqualError(t, err, "closed")
 				}
 			})
 		}
