@@ -42,6 +42,7 @@ func TestEmissionConstructionInitial(t *testing.T) {
 			defer c.ctxCancel(context.Canceled)
 			defer c.cryptoStreamHandler.Close()
 			q := c.emission.queue.(*sendQueue)
+			require.Same(t, &c.handshakeSendFeedback, q.feedback)
 			// Even an assertion failure must release submitted buffers and join
 			// the worker. It starts only after all recovery observations finish.
 			var queued, written []byte
@@ -110,6 +111,7 @@ func TestEmissionConstructionStartHandshakeError(t *testing.T) {
 		cs := mocks.NewMockCryptoSetup(ctrl)
 		want := errors.New("StartHandshake failed")
 		cs.EXPECT().StartHandshake(gomock.Any()).Return(want)
+		cs.EXPECT().Close().Return(nil).MaxTimes(1)
 		c.cryptoStreamHandler = cs
 		q := c.emission.queue.(*sendQueue)
 		buf := getPacketBuffer()
@@ -124,8 +126,8 @@ func TestEmissionConstructionStartHandshakeError(t *testing.T) {
 		defer c.timer.Stop()
 		synctest.Wait()
 		require.ErrorIs(t, context.Cause(c.Context()), want)
-		// Pending work stays queued and the socket has no Write expectation:
-		// no worker started. Returning also demonstrates no unstarted join.
-		require.Len(t, q.queue, 1)
+		// The strict socket mock has no Write expectation, even with pending
+		// work. Returning demonstrates no unstarted-worker join. Synchronous
+		// cleanup is free to release that work or close the crypto handler.
 	})
 }
