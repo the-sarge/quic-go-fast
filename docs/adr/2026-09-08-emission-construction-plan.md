@@ -1,6 +1,6 @@
 # Packet-emission construction Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** C in QGF-AD-2026-09. **Depends on:** Nothing outside this track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Construction receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-emission-construction/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), [T test-entrypoint plan](2026-09-08-emission-entrypoint-tests-plan.md), ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md) and [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** C1 complete; C2 ready. **Track:** C in QGF-AD-2026-09. **Depends on:** Nothing outside this track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Construction receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-emission-construction/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), [T test-entrypoint plan](2026-09-08-emission-entrypoint-tests-plan.md), ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md) and [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -49,8 +49,8 @@ Retain `schedulingRecoveryInputs` forwarding real registration/numbering while c
 
 | Slice | Disposition | Deliverable | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| C1 | New, frontier | Constructor-owned Initial emission and token/lifecycle characterization | None | None introduced; existing staging remains coherent until C2 |
-| C2 | New, blocked | One complete initial emission assignment | C1 | Removes existing staged emission mutation and self-reading binder |
+| C1 | Complete | Constructor-owned Initial emission and token/lifecycle characterization | None | None introduced; existing staging remains coherent until C2 |
+| C2 | Ready, frontier | One complete initial emission assignment | C1 | Removes existing staged emission mutation and self-reading binder |
 
 T1 has no dependency in either direction. Its tests rebuild the packer and migrate runtime composition claims; C1 exercises constructor-owned dependencies without rebuilding. Shared-file integration needs revalidation, not a blocker. C1 and C2 are two intended PRs and two fresh contexts; no implementation agent is launched by this handoff.
 
@@ -58,7 +58,7 @@ T1 has no dependency in either direction. Its tests rebuild the packer and migra
 
 ### C1 — Characterize constructor-owned initial emission
 
-**Status / size / blockers:** Accepted; new slice, S, one intended PR. No blocker. No open PR, failed implementation or partial implementation is adopted.
+**Status / size / blockers:** Complete, S, one PR. No blocker. Constructor-owned regression coverage is maintained in `connection_emission_construction_test.go`.
 
 **End-to-end delivery:** Add bounded maintained constructor regression coverage, preferably `connection_emission_construction_test.go`. Exercise both production constructors via existing test wrappers without replacing their constructor-owned packer, queue, recovery or sealing. Give server anti-amplification credit and supply eligible Initial work through existing crypto/retransmission producers. Call `triggerSending` before starting the worker; inspect real queued Initial headers and recovery accounting, then exercise started worker and joined teardown through the existing queue contract. Assert actual constructor arguments/current header values: the server fixture’s tc.destConnID is its original destination ID and is not necessarily its outbound destination. For the client, supply present/absent token-store cases and verify the actual next Initial token and restored RTT. Inspect real registration on the test/connection goroutine before I/O; do not race an ACK assertion in the worker with ongoing recovery mutation.
 
@@ -82,7 +82,7 @@ T1 has no dependency in either direction. Its tests rebuild the packer and migra
 
 ### C2 — Install complete initial emission once
 
-**Status / size / blockers:** Accepted; new slice, XS, one intended PR. Blocked by merged C1 because its unchanged constructor-owned regressions protect the dependency assembly being moved. No other blocker or adopted unmerged implementation.
+**Status / size / blockers:** Ready; new slice, XS, one intended PR. C1 is merged and its unchanged constructor-owned regressions protect the dependency assembly being moved. No open blocker or adopted unmerged implementation.
 
 **End-to-end delivery:** Modify only `newConnection`, `newClientConnection`, `Conn.preSetup` and the existing final-binding helper in `connection.go` as specified above. The final initializer consumes the local packer and creates the queue, binding recovery/path/feedback/policy/version in one assignment before client token setup or publication. All packer arguments remain explicit and unchanged. Minimal comments document the one-time convention and deliberate binding semantics.
 
@@ -108,7 +108,7 @@ T1 has no dependency in either direction. Its tests rebuild the packer and migra
 
 Contract closure is **not triggered**: this finite setup ordering change can affect lifecycle, but its two constructor routes, pre-worker use and one failure observation are reasonably covered by ordinary focused evidence. Multiple callers alone do not trigger a matrix. Do not impose closure recursively on C1 tests, source checks or compiler diagnostics. No repeated-root conclusion is made; new findings require the shared exact-invariant/central-owner/semantic-class comparison before any such stop.
 
-- [ ] C1 demonstrates server Initial, client no-token Initial and client stored-token Initial through the production constructor-owned packer and `triggerSending`, including real registration before I/O and joined started-worker cleanup; one lifecycle-error observation checks no worker start/join before StartHandshake succeeds. Domain and evidence are the four example-level C1 cells.
+- [x] C1 demonstrates server Initial, client no-token Initial and client stored-token Initial through the production constructor-owned packer and `triggerSending`, including real registration before I/O and joined started-worker cleanup; one lifecycle-error observation checks no worker start/join before StartHandshake succeeds. Domain and evidence are the four example-level C1 cells.
 - [ ] C2 removes production emission field staging and self-reading binding from the two constructors/preSetup/initializer. The finite source guarantee is discharged by direct census, inspection and compilation of those sites.
 - [ ] C1 passes unchanged after C2. Existing recovery substitution, token, handshake, queue, path, close and scheduling regressions retain their assertions. This is example-level preservation within the named gate selection, not a general absence-of-races claim.
 - [ ] Packet-emission layout and live-slot/captured-manager semantics, packet-time methods, queue/channel counts, public/module/workflow interfaces and initial publication order remain unchanged, verified over the explicit files/fields and constructor call graph. Same-toolchain compiler diagnostics reveal no new setup object or closure; an unresolved allocation discrepancy stops C2.
@@ -116,7 +116,7 @@ Contract closure is **not triggered**: this finite setup ordering change can aff
 
 ## Validation gates
 
-Planned C1 test names should begin `TestEmissionConstruction` so the focused family below includes them. The tests do not exist yet. Use `go test -count=1 -run '^(TestEmission|TestHandshakeMTUFallback|TestCloseConstructorFailureLifetime|TestSendQueue|TestConnection(Handshake|0RTTTransportParameters|PacketPacing|GSOBatch|SendQueue|VersionNegotiation|ConnectionID|PathValidation|Migration|EarlyClose|Close|RemoteClose))' .`, then the same selection once with `-race`, and `go test -tags emission_experiment -run '^$' .`. Preserve existing assertions and real registrations; decode with existing parsers. Do not set experiment capture variables or run archived host-mutating collectors.
+C1 test names begin `TestEmissionConstruction` so the focused family below includes them. Use `go test -count=1 -run '^(TestEmission|TestHandshakeMTUFallback|TestCloseConstructorFailureLifetime|TestSendQueue|TestConnection(Handshake|0RTTTransportParameters|PacketPacing|GSOBatch|SendQueue|VersionNegotiation|ConnectionID|PathValidation|Migration|EarlyClose|Close|RemoteClose))' .`, then the same selection once with `-race`, and `go test -tags emission_experiment -run '^$' .`. Preserve existing assertions and real registrations; decode with existing parsers. Do not set experiment capture variables or run archived host-mutating collectors.
 
 Final implementation certification uses `go test -count=1 ./...`, `go vet ./...` and the named focused/tag/source/compiler gates on the exact pushed head, plus applicable inherited hosted support checks. CI's Linux GSO and supported OS behavior are preservation evidence, not a new native performance claim. The known pacing-test failure tracked in #103 and earlier accepted historical failures do not waive a new failing check. Diagnose before reruns; retain failures rather than green-seeking repetitions.
 
