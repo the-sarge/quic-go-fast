@@ -47,13 +47,13 @@ func TestEmissionReceiveFairness(t *testing.T) {
 			// A pending receive must get a turn before another batch. The receive
 			// handler is outside this seam; the sentinel is never decoded.
 			c.receivedPackets.PushBack(receivedPacket{})
-			require.NoError(t, c.sendPackets(monotime.Now()))
+			require.NoError(t, c.triggerSending(monotime.Now()).err)
 			require.Same(t, next, c.datagramQueue.Peek())
 			require.Equal(t, deadlineSendImmediately, c.pacingDeadline)
 			q := c.emission.queue.(*sendQueue)
 			require.Len(t, q.queue, 1)
 			c.receivedPackets.PopFront()
-			require.NoError(t, c.sendPackets(monotime.Now()))
+			require.NoError(t, c.triggerSending(monotime.Now()).err)
 			require.Nil(t, c.datagramQueue.Peek())
 			require.Len(t, q.queue, 2)
 			tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(2)
@@ -136,7 +136,7 @@ func TestEmissionDatagramOutput(t *testing.T) {
 			for _, payload := range want {
 				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: payload}))
 			}
-			require.NoError(t, c.sendPackets(monotime.Now()))
+			require.NoError(t, c.triggerSending(monotime.Now()).err)
 			var got [][]byte
 			var packets []protocol.PacketNumber
 			writes := 0
@@ -229,7 +229,7 @@ func TestEmissionFatalCallerBuffer(t *testing.T) {
 				for range 2 {
 					require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: bytes.Repeat([]byte{0x41}, size)}))
 				}
-				require.ErrorIs(t, c.sendPackets(monotime.Now()), cause)
+				require.ErrorIs(t, c.triggerSending(monotime.Now()).err, cause)
 				allocations := failAt
 				if gso {
 					allocations = 1
@@ -259,16 +259,4 @@ func TestEmissionFatalCallerBuffer(t *testing.T) {
 			})
 		}
 	}
-}
-
-// Preserve the historical outcome/allocation fixture entrypoint.
-func (c *Conn) sendPackets(now monotime.Time) error { return c.emitPackets(now).err }
-
-func (c *Conn) emitPackets(now monotime.Time) emissionResult {
-	result := c.emission.finish(c.emission.sendAny(now, c.handshakeConfirmed))
-	c.pacingDeadline = result.deadline
-	if result.retry {
-		c.scheduleSending()
-	}
-	return result
 }

@@ -51,7 +51,7 @@ func TestEmissionCoalescedHandshake(t *testing.T) {
 			c.retransmissionQueue.addInitial(&wire.PingFrame{})
 			c.handshakeStream.Write([]byte("handshake payload"))
 			now := monotime.Now()
-			result := c.emitPackets(now)
+			result := c.triggerSending(now)
 			require.NoError(t, result.err)
 			require.True(t, c.sentFirstPacket)
 			require.Equal(t, client, c.droppedInitialKeys)
@@ -71,7 +71,7 @@ func TestEmissionCoalescedHandshake(t *testing.T) {
 			require.NoError(t, err, "registration precedes queue handoff")
 			if client {
 				c.handshakeStream.Write([]byte("next flight"))
-				require.NoError(t, c.emitPackets(now.Add(time.Millisecond)).err)
+				require.NoError(t, c.triggerSending(now.Add(time.Millisecond)).err)
 				next := <-q.queue
 				defer next.buf.Release()
 				nextHdrs, _ := parsePacket(t, next.buf.Data)

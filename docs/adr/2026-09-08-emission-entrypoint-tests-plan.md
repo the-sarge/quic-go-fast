@@ -1,6 +1,6 @@
 # Maintained emission test entrypoints Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** T in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** T1 implementation complete. **Track:** T in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -20,13 +20,13 @@ Migrate only the finite maintained caller set, configuring genuine send eligibil
 
 | Slice | Status/disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| T1 | New | Exercise shipped send orchestration in maintained connection tests | None | None introduced |
+| T1 | Complete | Exercise shipped send orchestration in maintained connection tests | None | None introduced |
 
 ## Implementation Slices
 
 ### T1 — Exercise shipped send orchestration in maintained connection tests
 
-**Status:** Accepted contract; implementation pending. **Size:** S; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete; no T-track successors. **Size:** S; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Migrate the eight untagged sendPackets/emitPackets callsites across connection_emission_test.go, connection_emission_handshake_test.go and connection_probe_emission_test.go onto triggerSending or the real loop where required. Preserve scenario-local assertions and real packing/recovery/queue behavior.
 
@@ -50,11 +50,11 @@ Migrate only the finite maintained caller set, configuring genuine send eligibil
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Eight maintained consumers | Characterize then migrate the same fairness/output/error/MTU/probe claims without removing assertions. | Named slice owner; regression/characterization required before completion |
-| Worker capacity and wakeup | Retain existing real-loop coverage where asynchronous capacity is part of the claim. | Named slice owner; regression/characterization required before completion |
-| Historical experiments | Keep two tagged callers compatible by moving the historical shim unchanged behind emission_experiment when needed; compile without running it. | Named slice owner; regression/characterization required before completion |
-| Production preservation | Exact byte comparison of production Go, module and workflow files; no runtime changes. | Named slice owner; regression/characterization required before completion |
-| Existing composed coverage | Retain fallback, PTO, blocked-state, fatal partial construction and registration-order coverage. | Named slice owner; regression/characterization required before completion |
+| Eight maintained consumers | Characterize then migrate the same fairness/output/error/MTU/probe claims without removing assertions. | Covered by the eight migrated callers through `Conn.triggerSending`, retaining scenario-local assertions and real packing/recovery/queue behavior. |
+| Worker capacity and wakeup | Retain existing real-loop coverage where asynchronous capacity is part of the claim. | Covered by retained `TestEmissionFullQueueResume` real-loop capacity and wakeup assertions. |
+| Historical experiments | Keep two tagged callers compatible by moving the historical shim unchanged behind emission_experiment when needed; compile without running it. | Covered by compile-only `emission_experiment` validation of the two tagged callers and the byte-identical moved historical helper. |
+| Production preservation | Exact byte comparison of production Go, module and workflow files; no runtime changes. | Covered by exact byte comparison of production Go, module and workflow files. |
+| Existing composed coverage | Retain fallback, PTO, blocked-state, fatal partial construction and registration-order coverage. | Covered by retained emission/handshake/probe regressions, focused race coverage and ordinary package tests; the full-queue blocked-state assertion fails with the historical helper and passes through the shipped owner. |
 
 **Evidence budget:** 5 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -66,11 +66,11 @@ Migrate only the finite maintained caller set, configuring genuine send eligibil
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 

@@ -99,7 +99,7 @@ func TestEmissionMTUProbe(t *testing.T) {
 			c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
 			c.mtuDiscoverer.Start(now.Add(-time.Hour))
 			observed := observeConstructionBuffer(t)
-			result := c.emitPackets(now)
+			result := c.triggerSending(now)
 			require.NoError(t, result.err)
 			require.True(t, result.progress)
 			require.EqualValues(t, 1, (*observed).refCount)
@@ -140,8 +140,9 @@ func TestEmissionMTUProbeFullQueue(t *testing.T) {
 	for range sendQueueCapacity {
 		q.Send(getPacketBuffer(), 0, protocol.ECNUnsupported, sendMetadata{})
 	}
-	result := c.emitPackets(now)
+	result := c.triggerSending(now)
 	require.Equal(t, emissionQueueFull, result.stop)
+	require.Equal(t, blockModeHardBlocked, c.blocked)
 	require.True(t, c.mtuDiscoverer.ShouldSendProbe(now), "full queue must not consume probe intent")
 	for len(q.queue) > 0 {
 		(<-q.queue).buf.Release()

@@ -68,3 +68,15 @@ func TestEmissionFocusedAllocations(t *testing.T) {
 		})
 	}
 }
+
+// Preserve the historical outcome/allocation fixture entrypoint.
+func (c *Conn) sendPackets(now monotime.Time) error { return c.emitPackets(now).err }
+
+func (c *Conn) emitPackets(now monotime.Time) emissionResult {
+	result := c.emission.finish(c.emission.sendAny(now, c.handshakeConfirmed))
+	c.pacingDeadline = result.deadline
+	if result.retry {
+		c.scheduleSending()
+	}
+	return result
+}
