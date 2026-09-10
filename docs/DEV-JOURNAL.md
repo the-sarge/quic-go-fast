@@ -717,3 +717,26 @@ The maintainer explicitly directed continuation after the Linux Go 1.27 race int
 ### Next
 
 I8 #98 remains blocked by I5 #95; I2's merge makes no new successor ready. I3, I5, I6, I7, P1, T1 and C1 remain the recorded frontier. The [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view. Continue the existing #46 investigation without creating a duplicate issue or authorizing another randomized campaign.
+
+---
+
+## Captured corruption timeout explained and deterministic CI merged - 2026-09-10 03:18 EDT
+
+**Main:** `71b930ecd731`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #157](https://github.com/the-sarge/quic-go-fast/pull/157) as `71b930ecd731dc0a829f4f4891b7adf1376a9ea0`, closing [#46](https://github.com/the-sarge/quic-go-fast/issues/46). The I1 and I2 captures establish that every server Initial carrying CRYPTO was corrupted before the existing Dial deadline, while ACK-only Initials arrived and the client never derived Handshake keys. Byte-level mutation/write/read/authentication-rejection chains and the next Initial retry timers explain these two captured failures; they do not establish the cause of every earlier unrecorded occurrence. The [audit](audits/issue-46-captured-corruption/README.md) retains raw captures, hashes, provenance, analysis and limits.
+
+Mandatory corruption CI now covers six real-UDP finite-damage cases followed by reliable delivery, with three simulated Initial-starvation, retransmission-release and undamaged cases. The original random callback remains available through `QUIC_GO_TEST_RANDOM_CORRUPTION=1`. Rebased Windows CI also exposed a token-expiry fixture assumption; the approved test-only repair waits for the decoded token timestamp to exceed its configured maximum age before retaining the original rejection assertions. Production recovery, token validation, corruption deadlines and payload assertions are unchanged.
+
+### Decisions
+
+The maintainer approved replacing mandatory random-success testing with deterministic mechanism and recovery examples, retaining the completed RAS review through the clean rebase onto merged I2 and the bounded token-expiry amendment. The [current contract](agents/corruption-ci.md) defines the fixture scope and evidence budget. No additional RAS review, randomized campaign or unchanged-head hosted rerun was performed.
+
+### Validation
+
+Final candidate `43ae5fbca67bad2cde18b74bf6def277ae9c9a47`, based on `6cc25c236659b4b86594f558916a9cabf29f1d7f`, passed focused corruption v1/v2/race tests, proxy race tests, an uncached full native suite, vet, lint, formatting, root/FIPS module tidy, repository go-fix and source/document whitespace checks. Token validation passed once natively and once with race detection. All 33 applicable hosted checks passed before pinned-head squash merge, including both Windows Go 1.27 unit jobs.
+
+Independent Standards and Spec reviews found no issues. Initial RAS lost one reviewer to a process failure; the single allowed replacement `20260910T064327-6c901b3e97a808ecdcba75ca` completed both reviewers and synthesis. The stale capture-guide finding was fixed; the proposed test-selection omission was rejected after checking that the unanchored suffix includes the intended test families. No findings remain deferred from this review.
