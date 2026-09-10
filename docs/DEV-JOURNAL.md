@@ -667,3 +667,30 @@ The [capture contract](agents/corruption-capture.md) bounds interpretation to re
 ### Next
 
 The historical randomized-corruption timeout remains unresolved; [#46](https://github.com/the-sarge/quic-go-fast/issues/46) is the live investigation view and stays open. The previously approved 100-attempt capture window passed without reproducing it; publication did not authorize another random investigation campaign. Retrieve the strengthened capture and complete job log from a future failure, respecting the recorded completeness limits. The separate packet-loss investigation [#44](https://github.com/the-sarge/quic-go-fast/issues/44) is unchanged.
+
+---
+
+## I1 receive lifetime and CI fixture repairs merged - 2026-09-10 01:10 EDT
+
+**Main:** `21d70f758e03`
+**Actor:** Codex
+
+### Completed
+
+Merged [I1, PR #152](https://github.com/the-sarge/quic-go-fast/pull/152) as `21d70f758e0346b4c57e3e1fb7d207e5e5bbd2a3`, closing #91. Connection processing now retains an active parsing reference through every exit, grants each dispatched view its own reference, and reports rejected undecryptable admission truthfully. The product PR includes I1 completion and the I2 frontier transition; queue teardown remains I2's responsibility.
+
+Two separately reviewed fixture repairs preceded integration: [#153](https://github.com/the-sarge/quic-go-fast/pull/153), merged as `691b8a0e8dcb0bf054a8b445794a4a11fa7a9a5d`, establishes compressed-source EOF before gzip lifetime assertions; [#154](https://github.com/the-sarge/quic-go-fast/pull/154), merged as `303fbff8cf9dd850bcd156b13a77a49f139b96a0`, restores continuing ACK feedback in the captured-loss recovery control and preserves a deterministic delayed-feedback regression. Both fixture defects originated in this fork (#136 and #145); I1's faulty receive cleanup/admission behavior is present in upstream common ancestor `793f74d8e03368c5aded128af6f48d21dbb47f73`.
+
+### Decisions
+
+The maintainer directed ordinary diagnosis and separate bounded repairs for the CI failures. No architecture decision or slice contract needed reopening; the [resumption disposition](https://github.com/the-sarge/quic-go-fast/pull/152#issuecomment-5613362519) supersedes the earlier cross-scope stop. No retained deadlines, sleeps, payload assertions or loss bounds were weakened.
+
+### Validation
+
+I1's reviewed head `bc335595b2cb912b3d03f486ec2f50f4ba14dbcb` passed local suite, focused race and preservation tests, and vet. A disposable source overlay observed actual final pool returns across all ten semantic cells without a maintained production hook. RAS `20260910T050053-d808bdc6a025114952f21051` completed with codex-astra and codex-sol and no findings. All 33 applicable hosted checks passed before exact-head squash merge. [Certification](https://github.com/the-sarge/quic-go-fast/pull/152#issuecomment-5613490701) and [probe receipt](https://github.com/the-sarge/quic-go-fast/pull/152#issuecomment-5613443774) retain the evidence. Each supporting repair also passed its bounded review, local certification and all 33 hosted checks.
+
+An additional earlier QUIC-v2 randomized-corruption run failed at the existing Dial timeout. Its complete capture is retained at `/Volumes/worktrees/quic-go-fast/i1-ci-evidence/issue46-capture-76c6fb97.jsonl` with an adjacent SHA-256 receipt. It was not rerun until green. Historical cause and upstream-versus-fork provenance remain unresolved under existing [#46](https://github.com/the-sarge/quic-go-fast/issues/46); no new random campaign or causal claim is implied.
+
+### Next
+
+I2 #92 is newly eligible after I1; the other accepted dependency edges remain unchanged. The [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier. Continue surviving corruption evidence work under existing #46 rather than opening a duplicate investigation.
