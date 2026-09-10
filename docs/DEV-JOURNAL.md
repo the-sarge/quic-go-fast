@@ -799,3 +799,26 @@ RAS run `20260910T142415-e16736fd346cac9cdf60dfa7` completed with eight successf
 ### Next
 
 I2 and I5 are complete, making I8 ready. I6/I7 retain their independent scopes; server shutdown and unpublished-connection abort remain separately owned, with no additional untraced effects discovered. The product PR already includes the committed completion/frontier transition. [Track #87](https://github.com/the-sarge/quic-go-fast/issues/87) and [program #101](https://github.com/the-sarge/quic-go-fast/issues/101) are the live progress views.
+
+---
+
+## Test fixture cleanup and HTTP diagnostics landed - 2026-09-10 11:38 EDT
+
+**Main:** `e61f3a541dab`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #168](https://github.com/the-sarge/quic-go-fast/pull/168), a test-only repair discovered while closing the I5 journal: server fixtures now join their transport listeners, and HTTP/0.9 fixtures close their transport and UDP socket. HTTP request failures now print bounded client/server event tails.
+
+### Validation
+
+The fixture listener completion and socket leak were demonstrated before the fix. Exact reviewed head `1ff2be5eff7137cd96ecfe77a66ff212d3dda4c7` passed the 100-run CPU-8 fixture gate, focused server/dial and race checks, HTTP/0.9 race checks, the ordinary non-integration package suite, vet, and all 33 hosted checks. Eight RAS reviewers completed with no required fixes; see the [certification and review receipts](https://github.com/the-sarge/quic-go-fast/pull/168#issuecomment-5621294280).
+
+### Decisions
+
+The observed TestDial assertion is distinct from [#44](https://github.com/the-sarge/quic-go-fast/issues/44) and [#151](https://github.com/the-sarge/quic-go-fast/issues/151). The HTTP/0.9 initial-request timeout resembles #151 only at symptom level; neither the cleanup defects nor a shared root are established as its cause. See the [comparison](https://github.com/the-sarge/quic-go-fast/pull/168#issuecomment-5621039721).
+
+### Next
+
+The unresolved HTTP/0.9 timeout is tracked in [#169](https://github.com/the-sarge/quic-go-fast/issues/169) for evidence from the next natural failure. The architecture frontier remains in the [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/101); I5 product work is complete and I8 is ready.
