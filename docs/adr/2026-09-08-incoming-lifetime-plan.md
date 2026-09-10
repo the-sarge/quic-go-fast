@@ -178,7 +178,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Empty input | Dispose an owned empty datagram; preserve the bufferless no-progress sentinel as a no-op. | Covered: `TestTransportTerminalLifetime/empty`; named slice owner |
+| Empty input | Dispose an owned empty datagram; preserve the bufferless no-progress sentinel as a no-op. | Covered: `TestTransportTerminalLifetime/{empty,empty_without_buffer}`; named slice owner |
 | Connection-ID parse rejection | Dispose current reference; MaybeRelease alone is insufficient. | Covered: `TestTransportTerminalLifetime/connection_id_rejection`; named slice owner |
 | No server available | Dispose. | Covered: `TestTransportTerminalLifetime/no_server`; named slice owner |
 | Recognized stateless reset | Process then dispose. | Covered: `TestTransportTerminalLifetimeReset`; named slice owner |

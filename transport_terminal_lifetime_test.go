@@ -15,6 +15,10 @@ import (
 )
 
 func TestTransportTerminalLifetime(t *testing.T) {
+	t.Run("empty_without_buffer", func(t *testing.T) {
+		tr := &Transport{}
+		tr.handlePacket(receivedPacket{})
+	})
 	for _, tc := range []struct {
 		name   string
 		data   []byte

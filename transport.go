@@ -563,7 +563,10 @@ func (t *Transport) maybeStopListening() {
 
 func (t *Transport) handlePacket(p receivedPacket) {
 	if len(p.data) == 0 {
-		p.buffer.Release()
+		// A zero-progress batch read can return an empty packet without a buffer.
+		if p.buffer != nil {
+			p.buffer.Release()
+		}
 		return
 	}
 	if !wire.IsPotentialQUICPacket(p.data[0]) && !wire.IsLongHeaderPacket(p.data[0]) {
