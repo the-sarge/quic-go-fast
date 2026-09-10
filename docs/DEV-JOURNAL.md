@@ -925,3 +925,18 @@ The full-queue blocked-state assertion failed through the historical helper and 
 RAS review `20260910T205322-cf0f9b22daf63bbf4e668d81` completed with six successful reviewers and three failed Claude processes, meeting quorum. Its one low-severity finding was independently accepted and resolved by reconciling the plan's delivered-evidence cells and first three acceptance checkboxes. The [disposition](https://github.com/the-sarge/quic-go-fast/pull/179#issuecomment-5625430691) records the shared docs-only policy for skipping another RAS cycle. All 33 hosted checks passed on the final head, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34530258802), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34530258792), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34530258774), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34530258761), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34530258810), before the guarded squash merge.
 
 No deferred review finding, newly ready T-track successor, or untraced effect remains. C1 #108 is the remaining implementation frontier; C2 #109 remains blocked by C1. The [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns the live view after this post-merge snapshot.
+
+---
+
+## C1 constructor-owned emission coverage landed - 2026-09-10 18:04 EDT
+
+**Main:** `79db4ae39b5a`
+**Actor:** Codex
+
+C1 merged in [PR #181](https://github.com/the-sarge/quic-go-fast/pull/181), closing [#108](https://github.com/the-sarge/quic-go-fast/issues/108). Four constructor-owned regression cells cover server Initial emission, client Initial emission without/with a stored token, and the StartHandshake-error worker boundary. Real packer, sealing, recovery and initial queue remain intact; the tests observe header values, stored RTT, packet registration before I/O, feedback binding, joined worker teardown and cleanup-neutral startup failure. Production, module, workflow and existing test bytes are unchanged.
+
+The bounded review completed with two accepted fixes, exact-head verification and a replacement review with no required fixes or follow-ups. Two marginal polish suggestions remain intentionally untracked. Reviewer/adjudicator failures did not prevent quorum or synthesis; details and dispositions are in the [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/181#issuecomment-5626053361).
+
+Candidate `3ca55c5880de92ac5345a8aa7a6084f69cacaf51` passed post-review full tests, vet, focused preservation/race selections, experiment-tag compilation and source identity checks on Go 1.27.0 darwin/arm64. All hosted unit, integration, lint, cross-compilation and interop checks succeeded on that head before guarded squash merge. Evidence remains example-level across the four accepted cells; no new performance, protocol-conformance or platform campaign was undertaken.
+
+The product PR owns the committed C1-complete/C2-ready transition. C2 is the next frontier, with its C1 blocker now closed; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view. Dispatch C2 in a fresh architecture-slice context. This journal append changes no frontier contract.
