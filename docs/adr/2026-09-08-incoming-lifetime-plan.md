@@ -99,7 +99,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I2 — Close connection-owned retained storage and admission
 
-**Status:** Implementation complete. I8 remains blocked by I5. **Size:** M; one intended PR. **Blocked by:** I1.
+**Status:** Implementation complete. I8 is ready after I5 merges. **Size:** M; one intended PR. **Blocked by:** I1.
 
 **What it delivers:** Seal ordinary packet admission atomically with final queue drain, dispose pending/ready retained views and detached replay tails, and handle synchronous handshake discard without returning active parsing storage.
 
@@ -215,7 +215,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I4 — Retire transport-owned queued receive storage
 
-**Status:** Implementation complete. I5, I6 and I7 remain ready; I8 remains blocked by I5. **Size:** M; one intended PR. **Blocked by:** I3.
+**Status:** Implementation complete. I5 is complete; I6, I7 and I8 are ready after I5 merges. **Size:** M; one intended PR. **Blocked by:** I3.
 
 **What it delivers:** Drain pending stateless-reset input when its sending owner exits and pending non-QUIC storage after the listener stops producing. Preserve concurrent non-QUIC consumers and caller-owned sockets.
 
