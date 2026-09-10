@@ -99,7 +99,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I2 — Close connection-owned retained storage and admission
 
-**Status:** Implementation complete. I8 is ready after I5 merges. **Size:** M; one intended PR. **Blocked by:** I1.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** I1.
 
 **What it delivers:** Seal ordinary packet admission atomically with final queue drain, dispose pending/ready retained views and detached replay tails, and handle synchronous handshake discard without returning active parsing storage.
 
@@ -215,7 +215,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I4 — Retire transport-owned queued receive storage
 
-**Status:** Implementation complete. I5 is complete; I6, I7 and I8 are ready after I5 merges. **Size:** M; one intended PR. **Blocked by:** I3.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** I3.
 
 **What it delivers:** Drain pending stateless-reset input when its sending owner exits and pending non-QUIC storage after the listener stops producing. Preserve concurrent non-QUIC consumers and caller-owned sockets.
 
@@ -269,7 +269,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I5 — Retire server-held 0-RTT groups deliberately
 
-**Status:** Implementation complete. I8 is ready after this slice merges; I2 is already complete. **Size:** S; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** S; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Centralize server-owned 0-RTT group retirement for expiry, Retry, refusal and collision, preserving transfer to a successfully registered connection and existing queue bounds.
 
@@ -325,7 +325,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I6 — Seal server admission before worker drains
 
-**Status:** Implementation complete. I7 and I8 remain ready; this slice adds no successor blocker edges. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Stop receive admission under the enqueue synchronization before draining server input, remaining 0-RTT storage and receive-backed response queues at their respective owner exits.
 
@@ -381,7 +381,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I7 — Make raw-reader cached ownership explicit
 
-**Status:** Implementation complete. I8 remains ready; I7 has no blocked successors. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Reclaim basic read failures and optimized-reader untransferred buffers at error/termination without reclaiming already returned packets or closing caller-owned sockets. Use a private optional cleanup capability after listener reading stops.
 

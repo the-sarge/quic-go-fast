@@ -70,6 +70,7 @@ func (c *initialLifetimeCrypto) StartHandshake(ctx context.Context) error {
 	c.started = true
 	return c.cryptoStreamHandler.StartHandshake(ctx)
 }
+
 func (c *initialLifetimeCrypto) Close() error {
 	c.closed = true
 	if err := c.cryptoStreamHandler.Close(); err != nil {
@@ -177,16 +178,19 @@ func testServerInitialLifetimeCollision(t *testing.T) {
 				err = <-done
 			}
 			// Restore resources on the red path before reporting failure.
-			closed := crypto.closed
-			if !closed {
+			cryptoClosed, qlogClosed := crypto.closed, log.closed
+			if !cryptoClosed {
 				loser.closePacketAdmission()
 				crypto.Close()
+			}
+			if !qlogClosed {
 				loser.qlogger.Close()
 			}
 			<-logDone
 			require.False(t, timedOut, "registration failure waited for an unstarted connection loop")
 			require.NoError(t, err)
-			require.True(t, closed, "unstarted TLS must be closed")
+			require.True(t, cryptoClosed, "unstarted TLS must be closed")
+			require.True(t, qlogClosed, "unpublished qlog producer must be closed")
 			require.False(t, crypto.started)
 			require.Nil(t, loser.timer, "protocol run must not start")
 			require.True(t, loser.receivedPacketsClosed)
