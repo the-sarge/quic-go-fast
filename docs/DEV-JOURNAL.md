@@ -847,3 +847,28 @@ The accepted [I6 contract](adr/2026-09-08-incoming-lifetime-plan.md#i6--seal-ser
 ### Next
 
 I7 and I8 remain ready; I6 adds no newly unblocked successor. The product PR already contains its committed completion and frontier transition. [Track #87](https://github.com/the-sarge/quic-go-fast/issues/87) and [program #101](https://github.com/the-sarge/quic-go-fast/issues/101) are the live progress views.
+
+---
+
+## I7 raw-reader ownership completed - 2026-09-10 14:05 EDT
+
+**Main:** `781dca6cfc3c`
+**Actor:** Codex
+
+### Completed
+
+Merged [I7 product PR #172](https://github.com/the-sarge/quic-go-fast/pull/172) as `781dca6cfc3cdda8b46d3273449b8edf504d242f`, closing [#97](https://github.com/the-sarge/quic-go-fast/issues/97). Basic read failures release their acquired packet buffer. OOB readers explicitly transfer slot ownership, discard failed batches without stale replay, retry zero-progress reads, and reclaim unread/cached storage after listener termination. Previously returned packets and caller-owned sockets retain their lifetime. The product PR includes I7 completion and the committed frontier transition; I8 remains ready.
+
+### Decisions
+
+Executed the existing [I7 contract](adr/2026-09-08-incoming-lifetime-plan.md#i7--make-raw-reader-cached-ownership-explicit) without re-audit or expanded ownership. RAS review `20260910T174013-4e9d9403d93ba9b8a1749c64` produced one accepted comment-only correction and the scheduled certification-receipt obligation. Duplicate guard removal and speculative fixture hardening were rejected; no deferred follow-ups remain. The shared documentation-only policy permitted skipping another RAS review/verification cycle. Nine initial reviewers completed; one adjudicator failed, and synthesis completed from the remaining results. [Independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/172#issuecomment-5623077987) retain the details.
+
+### Validation
+
+Reproduced missing basic pool return, stale batch replay, zero-progress empty return, and missing listener cleanup before their fixes. Exact candidate `03f2df18a42e699c737fb622cd9d32ae6cf35799` passed disposable Darwin/Linux pool-return observations, `go test -count=1 ./...`, focused race tests, vet, golangci-lint, gcassert, module-tidy verification, Windows/amd64 test compilation, and diff checks. Every tracked source file remained unchanged by observation/certification. The [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/172#issuecomment-5623103852) records the bounded evidence, overlay mapping, source hash, observations, and limitations; no permanent instrumentation was added.
+
+All nine triggered workflows and 33 jobs passed on that exact head, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34511095071), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34511095048), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34511095037), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34511095028), and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/34511095119). The separate push lint run required one same-head failed-job retry after an HTTP 500 while downloading the linter, before repository analysis; the [diagnosis](https://github.com/the-sarge/quic-go-fast/pull/172#issuecomment-5623129565) distinguishes this external fault from a code failure. No untraced effects remain within I7's accepted scope.
+
+### Next
+
+At this entry, I8, P1, T1, and C1 remain ready; I7 unlocks no new successor. [Program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier view, and [incoming-lifetime parent #87](https://github.com/the-sarge/quic-go-fast/issues/87) tracks the remaining I work.
