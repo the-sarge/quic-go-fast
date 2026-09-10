@@ -1055,6 +1055,12 @@ func (c *Conn) handlePackets() (wasProcessed bool, _ error) {
 }
 
 func (c *Conn) handleOnePacket(rp receivedPacket, datagramPayloadChecksum qlog.DatagramPayloadChecksum) (wasProcessed bool, _ error) {
+	// Keep the input reference while parsing coalesced views. A handler may
+	// synchronously dispose retained views that share this datagram's storage.
+	defer func() {
+		rp.buffer.Decrement()
+		rp.buffer.MaybeRelease()
+	}()
 	c.sentPacketHandler.ReceivedBytes(rp.Size(), rp.rcvTime)
 
 	if wire.IsVersionNegotiationPacket(rp.data) {
@@ -1132,9 +1138,7 @@ func (c *Conn) handleOnePacket(rp receivedPacket, datagramPayloadChecksum qlog.D
 				break
 			}
 
-			if counter > 0 {
-				p.buffer.Split()
-			}
+			p.buffer.Split()
 			counter++
 
 			// only log if this actually a coalesced packet
@@ -1153,9 +1157,7 @@ func (c *Conn) handleOnePacket(rp receivedPacket, datagramPayloadChecksum qlog.D
 			}
 			data = rest
 		} else {
-			if counter > 0 {
-				p.buffer.Split()
-			}
+			p.buffer.Split()
 			processed, err := c.handleShortHeaderPacket(p, counter > 0, datagramPayloadChecksum)
 			if err != nil {
 				return false, err
@@ -1167,7 +1169,6 @@ func (c *Conn) handleOnePacket(rp receivedPacket, datagramPayloadChecksum qlog.D
 		}
 	}
 
-	p.buffer.MaybeRelease()
 	c.blocked = blockModeNone
 	return wasProcessed, nil
 }
@@ -1412,8 +1413,7 @@ func (c *Conn) handleUnpackError(err error, p receivedPacket, pt qlog.PacketType
 	case handshake.ErrKeysNotYetAvailable:
 		// Sealer for this encryption level not yet available.
 		// Try again later.
-		c.tryQueueingUndecryptablePacket(p, pt, datagramPayloadChecksum)
-		return true, nil
+		return c.tryQueueingUndecryptablePacket(p, pt, datagramPayloadChecksum), nil
 	case wire.ErrInvalidReservedBits:
 		return false, &qerr.TransportError{
 			ErrorCode:    qerr.ProtocolViolation,
@@ -2654,7 +2654,7 @@ func (c *Conn) scheduleSending() {
 
 // tryQueueingUndecryptablePacket queues a packet for which we're missing the decryption keys.
 // The qlogevents.PacketType is only used for logging purposes.
-func (c *Conn) tryQueueingUndecryptablePacket(p receivedPacket, pt qlog.PacketType, datagramPayloadChecksum qlog.DatagramPayloadChecksum) {
+func (c *Conn) tryQueueingUndecryptablePacket(p receivedPacket, pt qlog.PacketType, datagramPayloadChecksum qlog.DatagramPayloadChecksum) bool {
 	if c.handshakeComplete {
 		panic("shouldn't queue undecryptable packets after handshake completion")
 	}
@@ -2671,7 +2671,7 @@ func (c *Conn) tryQueueingUndecryptablePacket(p receivedPacket, pt qlog.PacketTy
 			})
 		}
 		c.logger.Infof("Dropping undecryptable packet (%d bytes). Undecryptable packet queue full.", p.Size())
-		return
+		return false
 	}
 	c.logger.Infof("Queueing packet (%d bytes) for later decryption", p.Size())
 	if c.qlogger != nil {
@@ -2685,6 +2685,7 @@ func (c *Conn) tryQueueingUndecryptablePacket(p receivedPacket, pt qlog.PacketTy
 		})
 	}
 	c.undecryptablePackets = append(c.undecryptablePackets, receivedPacketWithChecksum{receivedPacket: p, checksum: datagramPayloadChecksum})
+	return true
 }
 
 func (c *Conn) queueControlFrame(f wire.Frame) {

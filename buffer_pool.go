@@ -9,9 +9,8 @@ import (
 type packetBuffer struct {
 	Data []byte
 
-	// refCount counts how many packets Data is used in.
+	// refCount counts live packet views and active parsing holds on Data.
 	// It doesn't support concurrent use.
-	// It is > 1 when used for coalesced packet.
 	refCount int
 }
 
