@@ -1,6 +1,6 @@
 # Incoming packet-buffer lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** In progress; I1/I2/I3/I4/I5 implemented, I6–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** In progress; I1/I2/I3/I4/I5/I6 implemented, I7–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -25,7 +25,7 @@ Keep successive concrete owners. A consuming handlePacket transfers or disposes 
 | I3 | Complete | Dispose terminal transport routes and closed-handler input | None | None introduced |
 | I4 | Complete | Retire transport-owned queued receive storage | I3 | None introduced |
 | I5 | Complete | Retire server-held 0-RTT groups deliberately | None | None introduced |
-| I6 | New | Seal server admission before worker drains | None | None introduced |
+| I6 | Complete | Seal server admission before worker drains | None | None introduced |
 | I7 | New | Make raw-reader cached ownership explicit | None | None introduced |
 | I8 | New | Complete failed Initial construction and publication | I2, I5 | None introduced |
 
@@ -325,7 +325,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I6 — Seal server admission before worker drains
 
-**Status:** Accepted contract; implementation pending. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I7 and I8 remain ready; this slice adds no successor blocker edges. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Stop receive admission under the enqueue synchronization before draining server input, remaining 0-RTT storage and receive-backed response queues at their respective owner exits.
 
@@ -345,17 +345,17 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Representation contract:** Server-owned whole input datagrams, rejectedPacket wrappers and producer/worker terminal states. Universal owner-exit disposal; established connections survive ordinary listener close and public close wait semantics are unchanged.
 
-**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows are accepted obligations with implementation evidence pending.
+**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows record the accepted obligations and maintained regression evidence. The disposable pool-return probe supplies direct return observations in the product PR receipt.
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Accepted input | Transfer to server consumer. | Named slice owner; regression/characterization required before completion |
-| Full rejection | Dispose locally. | Named slice owner; regression/characterization required before completion |
-| Closed rejection | Dispose locally. | Named slice owner; regression/characterization required before completion |
-| Enqueue versus close | Synchronize terminal state with enqueue. | Named slice owner; regression/characterization required before completion |
-| Receive queue at exit | Seal before final drain. | Named slice owner; regression/characterization required before completion |
-| Response queues at exit | Worker drains after producer barrier. | Named slice owner; regression/characterization required before completion |
-| Pending 0-RTT at exit | Server owner retires still-held map storage. | Named slice owner; regression/characterization required before completion |
+| Accepted input | Transfer to server consumer. | Covered: `TestServerAdmissionLifetime/accepted_and_full`; named slice owner |
+| Full rejection | Dispose locally. | Covered: `TestServerAdmissionLifetime/accepted_and_full`; named slice owner |
+| Closed rejection | Dispose locally. | Covered: `TestServerAdmissionLifetime/closed`; named slice owner |
+| Enqueue versus close | Synchronize terminal state with enqueue. | Covered: `TestServerAdmissionLifetimeEnqueueClose and TestServerAdmissionLifetimeReceiveExit`; named slice owner |
+| Receive queue at exit | Seal before final drain. | Covered: `TestServerAdmissionLifetimeReceiveExit`; named slice owner |
+| Response queues at exit | Worker drains after producer barrier. | Covered: `TestServerAdmissionLifetimeResponseExit and TestServerAdmissionLifetimeRetryResponse`; named slice owner |
+| Pending 0-RTT at exit | Server owner retires still-held map storage. | Covered: `TestServerAdmissionLifetimeReceiveExit and TestServerZeroRTTLifetimeAdmission`; named slice owner |
 
 **Evidence budget:** 7 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -367,11 +367,11 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 

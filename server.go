@@ -63,7 +63,9 @@ type baseServer struct {
 	statelessResetter *statelessResetter
 	onClose           func()
 
-	receivedPackets chan receivedPacket
+	// receivedPacketsMx synchronizes admission with closing errorChan.
+	receivedPacketsMx sync.Mutex
+	receivedPackets   chan receivedPacket
 
 	nextZeroRTTCleanup monotime.Time
 	zeroRTTQueues      map[protocol.ConnectionID]*zeroRTTQueue // only initialized if acceptEarlyConns == true
@@ -304,6 +306,20 @@ func newServer(
 
 func (s *baseServer) run() {
 	defer close(s.running)
+	defer func() {
+		// Admission was sealed before errorChan woke this owner.
+		for {
+			select {
+			case p := <-s.receivedPackets:
+				p.buffer.Release()
+			default:
+				for id := range s.zeroRTTQueues {
+					s.retireZeroRTTQueue(id)
+				}
+				return
+			}
+		}
+	}()
 	for {
 		select {
 		case <-s.errorChan:
@@ -322,7 +338,30 @@ func (s *baseServer) run() {
 }
 
 func (s *baseServer) runSendQueue() {
+	defer func() {
+		// running is the producer barrier: the receive worker can enqueue responses
+		// after the close request, but never after it exits.
+		for {
+			select {
+			case p := <-s.versionNegotiationQueue:
+				p.buffer.Release()
+			case p := <-s.invalidTokenQueue:
+				p.buffer.Release()
+			case p := <-s.connectionRefusedQueue:
+				p.buffer.Release()
+			case p := <-s.retryQueue:
+				p.buffer.Release()
+			default:
+				return
+			}
+		}
+	}()
 	for {
+		select {
+		case <-s.running:
+			return
+		default:
+		}
 		select {
 		case <-s.running:
 			return
@@ -375,7 +414,9 @@ func (s *baseServer) close(e error, transportClose bool) {
 		return
 	}
 	s.closeErr = e
+	s.receivedPacketsMx.Lock()
 	close(s.errorChan)
+	s.receivedPacketsMx.Unlock()
 	<-s.running
 	s.closeMx.Unlock()
 
@@ -406,18 +447,28 @@ func (s *baseServer) Addr() net.Addr {
 }
 
 func (s *baseServer) handlePacket(p receivedPacket) {
+	s.receivedPacketsMx.Lock()
 	select {
-	case s.receivedPackets <- p:
 	case <-s.errorChan:
+		s.receivedPacketsMx.Unlock()
+		p.buffer.Release()
 		return
 	default:
-		s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
-		if s.qlogger != nil {
-			s.qlogger.RecordEvent(qlog.PacketDropped{
-				Raw:     qlog.RawInfo{Length: int(p.Size())},
-				Trigger: qlog.PacketDropDOSPrevention,
-			})
-		}
+	}
+	select {
+	case s.receivedPackets <- p:
+		s.receivedPacketsMx.Unlock()
+		return
+	default:
+	}
+	s.receivedPacketsMx.Unlock()
+	defer p.buffer.Release()
+	s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
+	if s.qlogger != nil {
+		s.qlogger.RecordEvent(qlog.PacketDropped{
+			Raw:     qlog.RawInfo{Length: int(p.Size())},
+			Trigger: qlog.PacketDropDOSPrevention,
+		})
 	}
 }
 
@@ -926,6 +977,7 @@ func (s *baseServer) handleNewConn(conn *wrappedConn) {
 }
 
 func (s *baseServer) sendRetry(p rejectedPacket) {
+	defer p.buffer.Release()
 	if err := s.sendRetryPacket(p); err != nil {
 		s.logger.Debugf("Error sending Retry packet: %s", err)
 	}
