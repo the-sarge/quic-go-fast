@@ -43,8 +43,10 @@ func TestTransportTerminalLifetime(t *testing.T) {
 func TestTransportTerminalLifetimeReset(t *testing.T) {
 	token := protocol.StatelessResetToken{1, 2, 3}
 	destroyed := make(chan error, 1)
-	tr := &Transport{connIDLen: 4, logger: utils.DefaultLogger,
-		resetTokens: map[protocol.StatelessResetToken]packetHandler{token: &mockPacketHandler{destruction: destroyed}}}
+	tr := &Transport{
+		connIDLen: 4, logger: utils.DefaultLogger,
+		resetTokens: map[protocol.StatelessResetToken]packetHandler{token: &mockPacketHandler{destruction: destroyed}},
+	}
 	buf := getPacketBuffer()
 	buf.Data = append(buf.Data, 0x40, 9, 8, 7, 6)
 	buf.Data = append(buf.Data, token[:]...)
@@ -56,8 +58,10 @@ func TestTransportTerminalLifetimeReset(t *testing.T) {
 func TestTransportTerminalLifetimeForward(t *testing.T) {
 	connID := protocol.ParseConnectionID([]byte{1, 2, 3, 4})
 	packets := make(chan receivedPacket, 1)
-	tr := &Transport{connIDLen: 4, logger: utils.DefaultLogger,
-		handlers: map[protocol.ConnectionID]packetHandler{connID: &mockPacketHandler{packets: packets}}}
+	tr := &Transport{
+		connIDLen: 4, logger: utils.DefaultLogger,
+		handlers: map[protocol.ConnectionID]packetHandler{connID: &mockPacketHandler{packets: packets}},
+	}
 	buf := getPacketBuffer()
 	var err error
 	buf.Data, err = wire.AppendShortHeader(buf.Data, connID, 1, 1, protocol.KeyPhaseZero)
