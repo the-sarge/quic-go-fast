@@ -1,6 +1,6 @@
 # Incoming packet-buffer lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Implementation complete; I1–I8 implemented. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** Implementation complete; I1–I8 implemented. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -195,7 +195,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Dispatch context budget:** At most 18k input tokens: roughly 300 transport routing/non-QUIC/closed-handler lines, packet-handler contract and selected routing tests. Include one successful-forward control and source receipt.
 
-**Scoped preservation audit:** [Empty-input producer clarification](../audits/2026-09-10-i3-empty-input.md). The accepted outcome, single owner and one-product-PR boundary remain intact. The finite empty-input transition has ordinary focused coverage; closure remains not triggered. No new authority, transitional seam, public behavior or reader scheduling change is admitted.
+**Scoped preservation audit:** [Empty-input producer clarification](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-10-i3-empty-input.md). The accepted outcome, single owner and one-product-PR boundary remain intact. The finite empty-input transition has ordinary focused coverage; closure remains not triggered. No new authority, transitional seam, public behavior or reader scheduling change is admitted.
 
 **Slice decision audit:** Individual scalar drop sites could be separate tiny PRs, but their exclusive consume contract and finite terminal census fit one context. I4 has a different producer-stop obligation and remains separate. There are no convenience-only blockers.
 

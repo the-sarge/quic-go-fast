@@ -1,6 +1,6 @@
 # Handshake MTU recovery implementation plan
 
-**Date:** 2026-09-06. **Status:** Complete in [PR #20](https://github.com/the-sarge/quic-go-fast/pull/20). **Track:** H of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md), [upstream #5815](https://github.com/quic-go/quic-go/issues/5815). **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
+**Date:** 2026-09-06. **Status:** Complete in [PR #20](https://github.com/the-sarge/quic-go-fast/pull/20). **Track:** H of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md), [upstream #5815](https://github.com/quic-go/quic-go/issues/5815). **Audit history:** [Handoff audit](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-06-handoff.md).
 
 ## Goal and current shape
 

@@ -1,6 +1,6 @@
 # Published module payload Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** P in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** Implementation complete. **Track:** P in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -20,13 +20,13 @@ Use Go’s own nested-module archive exclusion with a small inert marker. Keep a
 
 | Slice | Status/disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| P1 | New | Exclude archived audits from the published module payload | None | None introduced |
+| P1 | Complete | Exclude archived audits from the published module payload | None | None introduced |
 
 ## Implementation Slices
 
 ### P1 — Exclude archived audits from the published module payload
 
-**Status:** Accepted contract; implementation pending. **Size:** S; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete; no successor remains. **Size:** S; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Add an inert nested docs/audits/go.mod packaging boundary; keep existing evidence bytes and locations in Git. Provide docs/audit-evidence.md outside the excluded subtree with immutable repository links, and repair audit pointers in current normative documents. Preserve historical journal paragraphs exactly.
 
@@ -50,11 +50,11 @@ Use Go’s own nested-module archive exclusion with a small inert marker. Keep a
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Base/candidate module zip | One comparison: audit subtree absent in candidate and compressed payload reduced. | Named slice owner; regression/characterization required before completion |
-| Source/package identity | Runtime file contents, root module path, root dependency bytes and package list unchanged. | Named slice owner; regression/characterization required before completion |
-| Frozen evidence | Existing audit files and historical journal prefix byte-identical; only new marker/index/current links change. | Named slice owner; regression/characterization required before completion |
-| Durable references | Check each changed pinned link against its Git tree; module readers use shipped index for historical checkout-relative links. | Named slice owner; regression/characterization required before completion |
-| Consumer build | Compile root packages and one local replace-and-pin consumer against generated module content. | Named slice owner; regression/characterization required before completion |
+| Base/candidate module zip | One comparison: audit subtree absent in candidate and compressed payload reduced. | Covered by the authoritative base/candidate module-zip comparison. |
+| Source/package identity | Runtime file contents, root module path, root dependency bytes and package list unchanged. | Covered by unchanged source/dependency manifests and package enumeration. |
+| Frozen evidence | Existing audit files and historical journal prefix byte-identical; only new marker/index/current links change. | Covered by byte comparisons of existing audit files and historical journal. |
+| Durable references | Check each changed pinned link against its Git tree; module readers use shipped index for historical checkout-relative links. | Covered by pinned Git-tree target checks and the shipped evidence index. |
+| Consumer build | Compile root packages and one local replace-and-pin consumer against generated module content. | Covered by root-package compilation and a local replacement-consumer build. |
 
 **Evidence budget:** 5 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
