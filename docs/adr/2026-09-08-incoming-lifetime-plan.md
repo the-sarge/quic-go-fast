@@ -1,6 +1,6 @@
 # Incoming packet-buffer lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** In progress; I1/I2/I3/I4 implemented, I5–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** In progress; I1/I2/I3/I4/I5 implemented, I6–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -24,7 +24,7 @@ Keep successive concrete owners. A consuming handlePacket transfers or disposes 
 | I2 | Complete | Close connection-owned retained storage and admission | I1 | None introduced |
 | I3 | Complete | Dispose terminal transport routes and closed-handler input | None | None introduced |
 | I4 | Complete | Retire transport-owned queued receive storage | I3 | None introduced |
-| I5 | New | Retire server-held 0-RTT groups deliberately | None | None introduced |
+| I5 | Complete | Retire server-held 0-RTT groups deliberately | None | None introduced |
 | I6 | New | Seal server admission before worker drains | None | None introduced |
 | I7 | New | Make raw-reader cached ownership explicit | None | None introduced |
 | I8 | New | Complete failed Initial construction and publication | I2, I5 | None introduced |
@@ -269,7 +269,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I5 — Retire server-held 0-RTT groups deliberately
 
-**Status:** Accepted contract; implementation pending. **Size:** S; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 is ready after this slice merges; I2 is already complete. **Size:** S; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Centralize server-owned 0-RTT group retirement for expiry, Retry, refusal and collision, preserving transfer to a successfully registered connection and existing queue bounds.
 
@@ -293,12 +293,12 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Expiry | Retire storage. | Named slice owner; regression/characterization required before completion |
-| Retry invalidation | Retire invalidated group. | Named slice owner; regression/characterization required before completion |
-| Refusal | Retire group still held by server. | Named slice owner; regression/characterization required before completion |
-| Registration collision | Retire group; unpublished connection cleanup remains I8. | Named slice owner; regression/characterization required before completion |
-| Successful transfer | Transfer each datagram before deletion; no sender release. | Named slice owner; regression/characterization required before completion |
-| Bounded admission rejection | Dispose rejected input; retain accepted group. | Named slice owner; regression/characterization required before completion |
+| Expiry | Retire storage. | Covered: `TestServerZeroRTTLifetimeExpiry`; named slice owner |
+| Retry invalidation | Retire invalidated group. | Covered: `TestServerZeroRTTLifetimeRetry`; named slice owner |
+| Refusal | Retire group still held by server. | Covered: `TestServerZeroRTTLifetimeRefusal`; named slice owner |
+| Registration collision | Retire group; unpublished connection cleanup remains I8. | Covered: `TestServerZeroRTTLifetimeCollision`; named slice owner |
+| Successful transfer | Transfer each datagram before deletion; no sender release. | Covered: `TestServerZeroRTTLifetimeTransfer`; named slice owner |
+| Bounded admission rejection | Dispose rejected input; retain accepted group. | Covered: `TestServerZeroRTTLifetimeAdmission`; named slice owner |
 
 **Evidence budget:** 6 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -310,17 +310,18 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 
 **Quantifier scope:** “Every”, “one”, “exactly”, “no” and other universal statements in this slice apply only to the declared representation domain and named owners. The finite table and tests terminate evidence; they are not an exhaustive concurrency or external-parser proof.
 
 **Stop conditions:** Apply shared representation, precise-root and budget stops. Also stop if the required correction changes the public API, wire behavior, retry eligibility, initiating shared-dial context, public shutdown wait/socket-ownership semantics, the separately scoped #67 wait, or requires a new global receive/pool module; if a packet refcount is concurrently shared beyond its declared owner; if a producer outlives its declared stop barrier; if a required semantic family cannot fit this single PR/context; or if a frozen evidence rewrite is required. Re-audit the affected contract rather than extend the checklist.
+
 
 ### I6 — Seal server admission before worker drains
 
