@@ -9,6 +9,7 @@ import (
 	"math"
 	mrand "math/rand/v2"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/testutils"
 
 	"github.com/stretchr/testify/require"
@@ -63,6 +65,24 @@ func TestMITMDuplicatePackets(t *testing.T) {
 }
 
 func TestMITCorruptPackets(t *testing.T) {
+	for _, dir := range []struct {
+		name      string
+		direction quicproxy.Direction
+	}{
+		{"towards the server", quicproxy.DirectionIncoming}, {"towards the client", quicproxy.DirectionOutgoing},
+	} {
+		t.Run(dir.name, func(t *testing.T) {
+			for _, packetType := range []qlog.PacketType{qlog.PacketTypeInitial, qlog.PacketTypeHandshake, qlog.PacketType1RTT} {
+				t.Run(string(packetType), func(t *testing.T) { runMITMCorruption(t, dir.direction, nil, &packetType) })
+			}
+		})
+	}
+}
+
+func TestMITCorruptPacketsRandom(t *testing.T) {
+	if os.Getenv("QUIC_GO_TEST_RANDOM_CORRUPTION") != "1" {
+		t.Skip("random corruption is opt-in stress; set QUIC_GO_TEST_RANDOM_CORRUPTION=1")
+	}
 	t.Run("towards the server", func(t *testing.T) {
 		testMITMCorruptPackets(t, quicproxy.DirectionIncoming)
 	})
@@ -169,8 +189,15 @@ func testMITMCorruptPackets(t *testing.T, direction quicproxy.Direction) {
 }
 
 func testMITMCorruptPacketsWithRandom(t *testing.T, direction quicproxy.Direction, intN func(int) int) {
+	runMITMCorruption(t, direction, intN, nil)
+}
+
+func runMITMCorruption(t *testing.T, direction quicproxy.Direction, intN func(int) int, packetType *qlog.PacketType) {
 	// Register the report first so transport/socket cleanup runs before it.
 	d := newHandshakeDiagnostics(t, fmt.Sprintf("requested_direction=%s version=%s rtt=%s dial_timeout=%s", direction, version, scaleDuration(5*time.Millisecond), scaleDuration(time.Second)))
+	if packetType != nil {
+		d.scenario += fmt.Sprintf(" first_%s_then_reliable", *packetType)
+	}
 	d.label = "corruption"
 	d.capture = newCorruptionCapture(t, d.scenario)
 	serverTransport, clientTransport := getTransportsForMITMTest(t)
@@ -180,7 +207,7 @@ func testMITMCorruptPacketsWithRandom(t *testing.T, direction quicproxy.Directio
 	d.addCorruptionTransport(clientTransport, true)
 	rtt := scaleDuration(5 * time.Millisecond)
 	p := &corruptionProxy{
-		direction: direction, diagnostics: d, intN: intN,
+		direction: direction, diagnostics: d, intN: intN, packetType: packetType,
 		write: func(dir quicproxy.Direction, b []byte) (int, error) {
 			if dir == quicproxy.DirectionIncoming {
 				return clientTransport.WriteTo(b, serverTransport.Conn.LocalAddr())
@@ -190,7 +217,11 @@ func testMITMCorruptPacketsWithRandom(t *testing.T, direction quicproxy.Directio
 	}
 	runMITMTest(t, serverTransport, clientTransport, rtt, p.drop, d)
 	t.Logf("corrupted %d packets", p.numCorrupted.Load())
-	require.NotZero(t, int(p.numCorrupted.Load()))
+	if packetType != nil {
+		require.EqualValues(t, 1, p.numCorrupted.Load())
+	} else {
+		require.NotZero(t, int(p.numCorrupted.Load()))
+	}
 }
 
 func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Duration, dropCb quicproxy.DropCallback, d *handshakeDiagnostics) {

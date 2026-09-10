@@ -1,6 +1,6 @@
 # Corruption failure evidence
 
-The maintainer requested stronger evidence after the approved 100-attempt isolated capture window ended without a failure. This change strengthens the existing original-corruption fixture, not transport recovery policy. Preserve callback random draw order/bounds, replacement/drop behavior, payload, deadlines, UDP batching, ECN and GSO capabilities. Do not execute another randomized investigation, full suite or CI rerun as part of implementation.
+The collector retains corruption failures without changing transport recovery policy. The approved [deterministic corruption CI contract](corruption-ci.md) now owns mandatory fault selection and publication: ordinary CI uses finite damage followed by reliable forwarding; the original randomized callback remains opt-in stress. Preserve random draw order/bounds in that opt-in path, replacement/drop behavior, payload, deadlines, UDP batching, ECN and GSO capabilities. Earlier investigation execution limits and publication receipts remain historical; the current contract declares the new finite evidence budget.
 
 ## Accepted diagnostic boundaries
 

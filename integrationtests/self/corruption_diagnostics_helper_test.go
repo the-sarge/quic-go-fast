@@ -8,6 +8,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
+	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
@@ -19,6 +20,7 @@ type corruptionProxy struct {
 	direction    quicproxy.Direction
 	diagnostics  *handshakeDiagnostics
 	intN         func(int) int
+	packetType   *qlog.PacketType
 	write        func(quicproxy.Direction, []byte) (int, error)
 	numCorrupted atomic.Int32
 	datagrams    atomic.Uint64
@@ -39,20 +41,29 @@ func (p *corruptionProxy) drop(dir quicproxy.Direction, from, to net.Addr, b []b
 	if dir != p.direction {
 		return false
 	}
-	isLongHeaderPacket := wire.IsLongHeaderPacket(b[0])
-	// Preserve the original selection: one in four long-header datagrams and
-	// one in twenty short-header datagrams. A replacement may equal the old byte.
-	if isLongHeaderPacket && p.intN(4) != 0 {
-		return false
+	if p.packetType != nil {
+		var ok bool
+		offset, ok = corruptionPacketOffset(b, *p.packetType)
+		if !ok || !p.numCorrupted.CompareAndSwap(0, 1) {
+			return false
+		}
+		before = b[offset]
+		after = before ^ 1
+	} else {
+		isLongHeaderPacket := wire.IsLongHeaderPacket(b[0])
+		// Preserve the original random selection and draw order, including no-ops.
+		if isLongHeaderPacket && p.intN(4) != 0 {
+			return false
+		}
+		if !isLongHeaderPacket && p.intN(20) != 0 {
+			return false
+		}
+		p.numCorrupted.Add(1)
+		offset = p.intN(len(b))
+		before = b[offset]
+		after = byte(p.intN(256))
 	}
-	if !isLongHeaderPacket && p.intN(20) != 0 {
-		return false
-	}
-	p.numCorrupted.Add(1)
-	offset = p.intN(len(b))
-	before = b[offset]
-	b[offset] = byte(p.intN(256))
-	after = b[offset]
+	b[offset] = after
 	written, writeErr = p.write(dir, b)
 	return true
 }
@@ -64,4 +75,29 @@ func (d *handshakeDiagnostics) addCorruptionTransport(tr *quic.Transport, client
 		return
 	}
 	tr.Tracer = &multiplexedRecorder{Recorders: []qlogwriter.Recorder{tr.Tracer, recorder}}
+}
+
+// Select a protected byte in repository-generated packets. Parse long-header
+// boundaries before treating the final short-header remainder as one packet.
+func corruptionPacketOffset(data []byte, packetType qlog.PacketType) (int, bool) {
+	switch packetType {
+	case qlog.PacketTypeInitial:
+		return handshakeCorruptionOffset(data, protocol.PacketTypeInitial)
+	case qlog.PacketTypeHandshake:
+		return handshakeCorruptionOffset(data, protocol.PacketTypeHandshake)
+	case qlog.PacketType1RTT:
+		offset := 0
+		for len(data) > 0 && wire.IsLongHeaderPacket(data[0]) {
+			_, packet, rest, err := wire.ParsePacket(data)
+			if err != nil {
+				return 0, false
+			}
+			offset += len(packet)
+			data = rest
+		}
+		if len(data) > 0 {
+			return offset + len(data) - 1, true
+		}
+	}
+	return 0, false
 }

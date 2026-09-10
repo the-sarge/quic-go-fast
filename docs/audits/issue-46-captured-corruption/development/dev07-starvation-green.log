@@ -1,0 +1,14 @@
+using QUIC version: v1
+=== RUN   TestHandshakeCapturedCorruption
+=== RUN   TestHandshakeCapturedCorruption/Initial_starvation
+    handshake_corruption_capture_test.go:200: Initial attempts=3 damaged=3 received_CRYPTO=0 received_ACK=6 authentication_drops=3 PTO=2 released=false handshake_keys=false
+=== RUN   TestHandshakeCapturedCorruption/release_retransmission
+    handshake_corruption_capture_test.go:200: Initial attempts=3 damaged=1 received_CRYPTO=2 received_ACK=1 authentication_drops=1 PTO=1 released=true handshake_keys=true
+=== RUN   TestHandshakeCapturedCorruption/undamaged
+    handshake_corruption_capture_test.go:200: Initial attempts=1 damaged=0 received_CRYPTO=1 received_ACK=1 authentication_drops=0 PTO=0 released=false handshake_keys=true
+--- PASS: TestHandshakeCapturedCorruption (0.00s)
+    --- PASS: TestHandshakeCapturedCorruption/Initial_starvation (0.00s)
+    --- PASS: TestHandshakeCapturedCorruption/release_retransmission (0.00s)
+    --- PASS: TestHandshakeCapturedCorruption/undamaged (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go/integrationtests/self	0.675s

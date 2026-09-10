@@ -1,0 +1,4 @@
+# github.com/quic-go/quic-go/integrationtests/self_test [github.com/quic-go/quic-go/integrationtests/self.test]
+integrationtests/self/corruption_policy_test.go:55:82: undefined: protocol.PacketType1RTT
+FAIL	github.com/quic-go/quic-go/integrationtests/self [build failed]
+FAIL

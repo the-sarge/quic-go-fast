@@ -1,0 +1,290 @@
+{
+  "i1": {
+    "sha256": "1ed6e68e39353bd346f65063b5f77820e4fc3f56839725bd41cbf55cf97a19a8",
+    "record_count": 201,
+    "metadata": "schema=1 test=TestMITCorruptPackets/towards_the_client scenario=requested_direction=Outgoing version=v2 rtt=5ms dial_timeout=1s go=go1.27.0 os=darwin arch=arm64 GSO_disabled=\"\" ECN_disabled=\"\" TIMESCALE_FACTOR=\"\" GITHUB_SHA=\"\" GODEBUG=\"\" GOMAXPROCS=\"\"; prefix through Dial return; limits_bytes=33554432 event_bytes=262144",
+    "Initial_CRYPTO_attempts": [
+      {
+        "packet_number": 0,
+        "sent_line": 43,
+        "mutation_line": 55,
+        "socket_lines": [
+          54,
+          59
+        ],
+        "drop_line": 60,
+        "offset": 641,
+        "old": 217,
+        "new": 164
+      },
+      {
+        "packet_number": 2,
+        "sent_line": 105,
+        "mutation_line": 113,
+        "socket_lines": [
+          112,
+          119
+        ],
+        "drop_line": 122,
+        "offset": 356,
+        "old": 140,
+        "new": 53
+      },
+      {
+        "packet_number": 3,
+        "sent_line": 107,
+        "mutation_line": 117,
+        "socket_lines": [
+          116,
+          121
+        ],
+        "drop_line": 123,
+        "offset": 641,
+        "old": 187,
+        "new": 101
+      }
+    ],
+    "accepted_ACK_only_Initials": 2,
+    "client_keys": [
+      "client_initial_secret",
+      "server_initial_secret"
+    ],
+    "server_timers": [
+      {
+        "time": "2026-09-10T00:49:38.749423-04:00",
+        "line": 45,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 199.96075
+      },
+      {
+        "time": "2026-09-10T00:49:38.951694-04:00",
+        "line": 102,
+        "event_type": "expired",
+        "timer_type": "pto",
+        "packet_number_space": "initial"
+      },
+      {
+        "time": "2026-09-10T00:49:38.956536-04:00",
+        "line": 104,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 192.848625
+      },
+      {
+        "time": "2026-09-10T00:49:38.956893-04:00",
+        "line": 106,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "handshake",
+        "delta": 192.539083
+      },
+      {
+        "time": "2026-09-10T00:49:39.149505-04:00",
+        "line": 126,
+        "event_type": "expired",
+        "timer_type": "pto",
+        "packet_number_space": "handshake"
+      },
+      {
+        "time": "2026-09-10T00:49:39.15492-04:00",
+        "line": 128,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "handshake",
+        "delta": 394.512333
+      },
+      {
+        "time": "2026-09-10T00:49:39.154957-04:00",
+        "line": 130,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 596.734375
+      }
+    ],
+    "deadline": "deadline=2026-09-10T00:49:39.681631-04:00 proxy=127.0.0.1:65451 client=127.0.0.1:59228 server=127.0.0.1:65106"
+  },
+  "i2": {
+    "sha256": "53b032d4075edbc51367079de91e44de3f00500082b1307725a1afcba770c7fc",
+    "record_count": 311,
+    "metadata": "schema=1 test=TestMITCorruptPackets/towards_the_client scenario=requested_direction=Outgoing version=v1 rtt=15ms dial_timeout=3s go=go1.27.1 os=linux arch=amd64 GSO_disabled=\"\" ECN_disabled=\"\" TIMESCALE_FACTOR=\"3\" GITHUB_SHA=\"2a4f2c565c8880c5006f60922a089cdb0adad65b\" GODEBUG=\"\" GOMAXPROCS=\"\"; prefix through Dial return; limits_bytes=33554432 event_bytes=262144",
+    "Initial_CRYPTO_attempts": [
+      {
+        "packet_number": 0,
+        "sent_line": 43,
+        "mutation_line": 57,
+        "socket_lines": [
+          54,
+          55
+        ],
+        "drop_line": 61,
+        "offset": 889,
+        "old": 77,
+        "new": 48
+      },
+      {
+        "packet_number": 3,
+        "sent_line": 106,
+        "mutation_line": 116,
+        "socket_lines": [
+          113,
+          115
+        ],
+        "drop_line": 119,
+        "offset": 654,
+        "old": 29,
+        "new": 13
+      },
+      {
+        "packet_number": 4,
+        "sent_line": 108,
+        "mutation_line": 123,
+        "socket_lines": [
+          121,
+          122
+        ],
+        "drop_line": 124,
+        "offset": 744,
+        "old": 234,
+        "new": 61
+      },
+      {
+        "packet_number": 8,
+        "sent_line": 224,
+        "mutation_line": 232,
+        "socket_lines": [
+          231,
+          236
+        ],
+        "drop_line": 240,
+        "offset": 759,
+        "old": 189,
+        "new": 46
+      },
+      {
+        "packet_number": 9,
+        "sent_line": 226,
+        "mutation_line": 239,
+        "socket_lines": [
+          238,
+          241
+        ],
+        "drop_line": 242,
+        "offset": 77,
+        "old": 169,
+        "new": 31
+      }
+    ],
+    "accepted_ACK_only_Initials": 6,
+    "client_keys": [
+      "client_initial_secret",
+      "server_initial_secret"
+    ],
+    "server_timers": [
+      {
+        "time": "2026-09-10T06:06:07.692394491Z",
+        "line": 45,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 199.831676
+      },
+      {
+        "time": "2026-09-10T06:06:07.892504951Z",
+        "line": 103,
+        "event_type": "expired",
+        "timer_type": "pto",
+        "packet_number_space": "initial"
+      },
+      {
+        "time": "2026-09-10T06:06:07.892611239Z",
+        "line": 105,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 199.614928
+      },
+      {
+        "time": "2026-09-10T06:06:07.892765979Z",
+        "line": 107,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "handshake",
+        "delta": 199.682224
+      },
+      {
+        "time": "2026-09-10T06:06:08.093379306Z",
+        "line": 155,
+        "event_type": "expired",
+        "timer_type": "pto",
+        "packet_number_space": "handshake"
+      },
+      {
+        "time": "2026-09-10T06:06:08.093557128Z",
+        "line": 157,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "handshake",
+        "delta": 398.891084
+      },
+      {
+        "time": "2026-09-10T06:06:08.09376145Z",
+        "line": 159,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 598.739343
+      },
+      {
+        "time": "2026-09-10T06:06:08.692902761Z",
+        "line": 221,
+        "event_type": "expired",
+        "timer_type": "pto",
+        "packet_number_space": "initial"
+      },
+      {
+        "time": "2026-09-10T06:06:08.693017396Z",
+        "line": 223,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 799.483387
+      },
+      {
+        "time": "2026-09-10T06:06:08.693204315Z",
+        "line": 225,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "handshake",
+        "delta": 1000.164671
+      },
+      {
+        "time": "2026-09-10T06:06:09.694187052Z",
+        "line": 265,
+        "event_type": "expired",
+        "timer_type": "pto",
+        "packet_number_space": "handshake"
+      },
+      {
+        "time": "2026-09-10T06:06:09.694381426Z",
+        "line": 267,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "handshake",
+        "delta": 1598.98757
+      },
+      {
+        "time": "2026-09-10T06:06:09.694593001Z",
+        "line": 269,
+        "event_type": "set",
+        "timer_type": "pto",
+        "packet_number_space": "initial",
+        "delta": 2198.305202
+      }
+    ],
+    "deadline": "deadline=2026-09-10T06:06:10.675905821Z proxy=127.0.0.1:52938 client=127.0.0.1:36230 server=127.0.0.1:43225"
+  }
+}

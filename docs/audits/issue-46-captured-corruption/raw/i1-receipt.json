@@ -1,0 +1,10 @@
+{
+  "head": "76c6fb97077a4b143fe05212de5bfa484f32ae94",
+  "command": "go test ./integrationtests/self -count=1 -version=2",
+  "capture": "/Volumes/worktrees/quic-go-fast/i1-ci-evidence/issue46-capture-76c6fb97.jsonl",
+  "sha256": "1ed6e68e39353bd346f65063b5f77820e4fc3f56839725bd41cbf55cf97a19a8",
+  "original": "/var/folders/ph/8tf9wjq95wjcv0qf93zg96c00000gn/T/quic-go-corruption/handshake-1785799593.jsonl",
+  "runtime_diff_from_base": [
+    "integrationtests/self/handshake_loss_capture_test.go"
+  ]
+}
