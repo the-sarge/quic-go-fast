@@ -194,23 +194,27 @@ func TestServerZeroRTTLifetimeAdmission(t *testing.T) {
 			s.running = make(chan struct{})
 			s.errorChan = make(chan struct{})
 			sent := make(chan struct{})
+			finish := make(chan struct{})
 			// A second packet transfers through the routing map and supplies a
 			// deterministic receive-owner barrier after rejection is complete.
 			barrierID := randConnID(8)
 			barrier := zeroRTTLifetimePacket(t, barrierID)
 			require.True(t, s.tr.Add(barrierID, &wrappedConn{testHooks: &connTestHooks{
-				handlePacket: func(p receivedPacket) { p.buffer.Release(); close(s.errorChan); close(sent) },
+				handlePacket: func(p receivedPacket) { p.buffer.Release(); close(sent); <-finish; close(s.errorChan) },
 			}}))
 			go s.run()
 			s.receivedPackets <- barrier
 			<-sent
-			<-s.running
 			require.Zero(t, rejected.buffer.refCount)
 			for _, p := range packets {
 				require.Equal(t, 1, p.buffer.refCount)
 			}
-			// Expiry disposes only the accepted groups after the owner stops.
-			s.cleanupZeroRTTQueues(rejected.rcvTime.Add(protocol.Max0RTTQueueingDuration))
+			// Accepted groups remain owned until shutdown retires them.
+			close(finish)
+			<-s.running
+			for _, p := range packets {
+				require.Zero(t, p.buffer.refCount)
+			}
 		})
 	}
 }
