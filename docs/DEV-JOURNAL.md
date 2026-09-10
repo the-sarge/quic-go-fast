@@ -940,3 +940,18 @@ The bounded review completed with two accepted fixes, exact-head verification an
 Candidate `3ca55c5880de92ac5345a8aa7a6084f69cacaf51` passed post-review full tests, vet, focused preservation/race selections, experiment-tag compilation and source identity checks on Go 1.27.0 darwin/arm64. All hosted unit, integration, lint, cross-compilation and interop checks succeeded on that head before guarded squash merge. Evidence remains example-level across the four accepted cells; no new performance, protocol-conformance or platform campaign was undertaken.
 
 The product PR owns the committed C1-complete/C2-ready transition. C2 is the next frontier, with its C1 blocker now closed; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view. Dispatch C2 in a fresh architecture-slice context. This journal append changes no frontier contract.
+
+---
+
+## C2 complete initial emission assembly landed - 2026-09-10 19:03 EDT
+
+**Main:** `3700e9e1eb82`
+**Actor:** Codex
+
+C2 merged in [PR #183](https://github.com/the-sarge/quic-go-fast/pull/183) as `3700e9e1eb8278eddc881ba1d56a0056411d35af`, closing [#109](https://github.com/the-sarge/quic-go-fast/issues/109). Both production constructors now pass a local packet packer to `Conn.initPacketEmission`, which creates the queue and installs the complete emission once. The staged packer/queue fields and self-reading binder are removed. Packet-time source, layout, live recovery/path bindings, token/publication/worker ordering and all existing tests remain unchanged.
+
+Initial RAS review `20260910T225223-a1bde93eada2b96b80d4959a` completed with all reviewers/adjudicators successful and no required fixes. The sole stale line-reference finding is pre-existing marginal documentation polish and remains untracked after revalidation at the merged head (`connection.go:512`, plan paragraph at line 13). No fix verification or replacement review was required.
+
+Candidate `e03118bfb966192e4ebf35f3e2a28e6bcba3a30e`, based on `ee71e7a59e4a7c4a6b55ee162f9c79c1ec93ec15`, passed exact-head full tests, vet, focused preservation/race selections, experiment-tag compilation and source/compiler checks on Go 1.27.0 darwin/arm64. Constructor coverage passed unchanged before and after the refactor. The initializer and queue construction still inline; one queue and four channels remain per production route, with no extra setup object or closure. All 33 hosted checks and nine triggered workflows passed before the guarded squash merge. See the [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/183#issuecomment-5626588918).
+
+The product PR records C2 and all fifteen program implementation slices complete, with an empty implementation frontier and no newly ready successors. No new follow-up or untraced effect was introduced; broader performance/protocol guarantees and unrelated cleanup retain their declared non-goals. Post-merge task/mirror reconciliation is the remaining administrative closure at this timestamp; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns the live view.
