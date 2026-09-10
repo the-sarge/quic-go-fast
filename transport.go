@@ -588,7 +588,7 @@ func (t *Transport) maybeStopListening() {
 
 func (t *Transport) handlePacket(p receivedPacket) {
 	if len(p.data) == 0 {
-		// A zero-progress batch read can return an empty packet without a buffer.
+		// Empty datagrams still own pooled storage that must be released.
 		if p.buffer != nil {
 			p.buffer.Release()
 		}
