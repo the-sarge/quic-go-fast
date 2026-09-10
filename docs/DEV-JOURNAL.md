@@ -897,3 +897,16 @@ At certified head `30e1b65a5649b34c41391fa789de256e5ed776d0`, the bounded dispos
 ### Next
 
 The incoming-lifetime implementations I1–I8 are complete. P1, T1, and C1 remain the implementation frontier; C2 remains blocked by C1. No incoming-track successor or remaining untraced effect was identified. This entry is the post-merge journal snapshot; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view for task closure and subsequent dispatch.
+
+---
+
+## P1 module payload boundary merged - 2026-09-10 16:29 EDT
+
+**Main:** `2d5cd37b3449`
+**Actor:** Codex
+
+[PR #176](https://github.com/the-sarge/quic-go-fast/pull/176) completed P1 and closed [#99](https://github.com/the-sarge/quic-go-fast/issues/99). An inert nested module excludes `docs/audits/` from the published parent module while all existing audit and historical journal bytes remain unchanged in Git. The shipped [evidence index](audit-evidence.md) links 65 archived Markdown documents at an immutable commit; current normative audit pointers use pinned repository links. The product PR owns P1's completion/frontier transition, with no P-track successor.
+
+The authoritative `golang.org/x/mod/zip` comparison reduced the actual archive from 23,534,240 to 1,277,464 compressed bytes (94.5719%). All 516 audit files were excluded and preserved in Git; 547 non-documentation archive entries, root module/dependency bytes and the package list were unchanged. The final archive passed compilation, a local replacement-consumer build, 66 pinned Git-target checks, and documentation checks. The ordinary test suite and `go vet ./...` passed before the final checkbox/link-only correction. RAS `20260910T195342-72b238199c360bcfbd91f765` produced two accepted docs-only corrections; unsupported process claims and duplicate work items were rejected. The shared low/nit policy skipped another RAS cycle after the corrections. [Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/176#issuecomment-5624882928) records final head `3e3e5365622dc1ceea23ae3a59e6fbc3b0037229`; all 33 hosted checks passed before its guarded squash merge, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34525527465), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34525527472), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34525527482), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34525527473) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34525527502).
+
+No deferred review finding or untraced effect remains. Git clone size and runtime behavior are unchanged; historical checkout-relative journal links use the shipped index when read from the module cache. The remaining implementation frontier is C1 #108 and T1 #100; C2 remains blocked by C1. [Program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns the live view.
