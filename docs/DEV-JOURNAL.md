@@ -872,3 +872,28 @@ All nine triggered workflows and 33 jobs passed on that exact head, including [u
 ### Next
 
 At this entry, I8, P1, T1, and C1 remain ready; I7 unlocks no new successor. [Program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier view, and [incoming-lifetime parent #87](https://github.com/the-sarge/quic-go-fast/issues/87) tracks the remaining I work.
+
+---
+
+## I8 unpublished Initial cleanup landed - 2026-09-10 15:22 EDT
+
+**Main:** `aa879ce77e17`
+**Actor:** Codex
+
+### Summary
+
+Merged [I8 product PR #174](https://github.com/the-sarge/quic-go-fast/pull/174) as `aa879ce77e17f095217e8fe3562347c04063f7cc`, closing [#98](https://github.com/the-sarge/quic-go-fast/issues/98). Connection-ID generation failures now release the Initial and cancel construction before allocating a tracer. Registration failures abort the real unpublished connection without starting or waiting for the protocol loop, reclaim its queued Initial and unstarted TLS/qlog resources, and retire the server-held 0-RTT group while preserving the winning routing and reset-token entries.
+
+### Decisions
+
+Preserved the accepted [I8 ownership and publication contract](adr/2026-09-08-incoming-lifetime-plan.md#i8--complete-failed-initial-construction-and-publication). Abort reuses I2 admission/drain and I5 retirement, retains Initial-before-publication ordering, preserves cancellation causes, and leaves shared sockets and routing authority untouched. The product PR owns I8 completion and the committed frontier transition; no separate status PR is needed. No new public API, receive engine, maintained observer framework, or tracer-close latency guarantee was introduced.
+
+### Validation
+
+Generation and real collision regressions failed before the runtime fixes. Initial RAS review `20260910T183643-63cd85f4c9df8d538400984e`, source verification, and replacement review `20260910T190316-6111b75042cce642b68307d5` completed with no unresolved accepted findings. The replacement had eight successful reviewers and one invalid structured result, meeting configured quorum. Independent dispositions and the rejected hypothetical mock-lifecycle extension are recorded in the [PR review receipts](https://github.com/the-sarge/quic-go-fast/pull/174#issuecomment-5624166162); no follow-up items survived.
+
+At certified head `30e1b65a5649b34c41391fa789de256e5ed776d0`, the bounded disposable pool-return overlay observed each losing Initial return once, retained 0-RTT return once on collision, and no premature 0-RTT return on generation failure. Production source hashes were unchanged. A focused race selection, `go test ./... -count=1`, `go vet ./...`, local golangci-lint, formatting and clean-tree checks passed. All 33 same-head hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34517590760), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34517590736), and [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34517591141). The [final certification receipt](https://github.com/the-sarge/quic-go-fast/pull/174#issuecomment-5624180730) records the exact head, base, observations, and hosted runs.
+
+### Next
+
+The incoming-lifetime implementations I1–I8 are complete. P1, T1, and C1 remain the implementation frontier; C2 remains blocked by C1. No incoming-track successor or remaining untraced effect was identified. This entry is the post-merge journal snapshot; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view for task closure and subsequent dispatch.
