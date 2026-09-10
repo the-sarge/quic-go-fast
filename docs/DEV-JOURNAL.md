@@ -740,3 +740,18 @@ The maintainer approved replacing mandatory random-success testing with determin
 Final candidate `43ae5fbca67bad2cde18b74bf6def277ae9c9a47`, based on `6cc25c236659b4b86594f558916a9cabf29f1d7f`, passed focused corruption v1/v2/race tests, proxy race tests, an uncached full native suite, vet, lint, formatting, root/FIPS module tidy, repository go-fix and source/document whitespace checks. Token validation passed once natively and once with race detection. All 33 applicable hosted checks passed before pinned-head squash merge, including both Windows Go 1.27 unit jobs.
 
 Independent Standards and Spec reviews found no issues. Initial RAS lost one reviewer to a process failure; the single allowed replacement `20260910T064327-6c901b3e97a808ecdcba75ca` completed both reviewers and synthesis. The stale capture-guide finding was fixed; the proposed test-selection omission was rejected after checking that the unanchored suffix includes the intended test families. No findings remain deferred from this review.
+
+---
+
+## I3 terminal incoming disposal merged - 2026-09-10 04:32 EDT
+
+**Main:** `0e4600452e7c`
+**Actor:** Codex
+
+Merged [I3 / PR #160](https://github.com/the-sarge/quic-go-fast/pull/160) as `0e4600452e7cd8b7a2edc0afdaa6008d3aaf9e96`, closing [#93](https://github.com/the-sarge/quic-go-fast/issues/93). Terminal transport drops, recognized stateless resets, closed handlers and successful non-QUIC copy-out now dispose their owned input buffers while successful transfers retain ownership. The product PR includes I3 completion and I4 readiness in the normative plan and program index.
+
+The [scoped preservation audit](adr/2026-09-08-incoming-lifetime-plan.md#i3--dispose-terminal-transport-routes-and-closed-handler-input), published through [#161](https://github.com/the-sarge/quic-go-fast/pull/161), preserved the existing bufferless empty sentinel from supported caller-supplied batch readers at the same transport guard. I7 retains reader retry/cache behavior. No public API, wire policy, socket lifetime or new runtime representation changed.
+
+Validation on reviewed head `8a7b3b4857bb1bc1cce4f8e368bb07851ebcdc9c`: red-before-green lifetime and bufferless-sentinel regressions; full uncached package suite, vet, golangci-lint, focused race tests, disposable pool-return observations and unchanged production source hashes. Both accepted review findings were fixed and exact-head verified; final review `20260910T082412-a7eb70e95f52d4fe8509e945` had no findings or follow-ups, with reviewer quorum met despite adapter failures. All 33 applicable hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698223), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698243), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698385), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698307) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698255). [Full certification receipt](https://github.com/the-sarge/quic-go-fast/pull/160#issuecomment-5615592355).
+
+At this timestamp, I4's sole blocker #93 is closed; the committed frontier is I4, I5, I6, I7, P1, T1 and C1. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/101) remains the live progress view. No deferred review follow-ups or untraced effects remain in I3.
