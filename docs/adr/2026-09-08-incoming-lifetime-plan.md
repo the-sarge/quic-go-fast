@@ -1,6 +1,6 @@
 # Incoming packet-buffer lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** In progress; I1 implemented, I2–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** In progress; I1/I2 implemented, I3–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -21,7 +21,7 @@ Keep successive concrete owners. A consuming handlePacket transfers or disposes 
 | Slice | Status/disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
 | I1 | Complete | Consume connection processing input on every exit | None | None introduced |
-| I2 | New | Close connection-owned retained storage and admission | I1 | None introduced |
+| I2 | Complete | Close connection-owned retained storage and admission | I1 | None introduced |
 | I3 | New | Dispose terminal transport routes and closed-handler input | None | None introduced |
 | I4 | New | Retire transport-owned queued receive storage | I3 | None introduced |
 | I5 | New | Retire server-held 0-RTT groups deliberately | None | None introduced |
@@ -99,7 +99,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I2 — Close connection-owned retained storage and admission
 
-**Status:** Accepted contract; implementation pending. **Size:** M; one intended PR. **Blocked by:** I1.
+**Status:** Implementation complete. I8 remains blocked by I5. **Size:** M; one intended PR. **Blocked by:** I1.
 
 **What it delivers:** Seal ordinary packet admission atomically with final queue drain, dispose pending/ready retained views and detached replay tails, and handle synchronous handshake discard without returning active parsing storage.
 
@@ -119,18 +119,18 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Representation contract:** Ordinary input queue, pending undecryptable views, scheduled replay views, detached active replay batch and legitimate producers calling Conn.handlePacket. Universal internal disposition after the owner terminates; no new public close deadline.
 
-**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows are accepted obligations with implementation evidence pending.
+**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows record the accepted obligations and maintained regression evidence. The bounded disposable pool-return probe supplements these tests; its receipt belongs to the product PR.
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Admitted input and overflow | Transfer on admission; reject with exclusive disposition. | Named slice owner; regression/characterization required before completion |
-| Admission after terminal drain | Reject rather than enqueue. | Named slice owner; regression/characterization required before completion |
-| Admission racing final drain | Serialize through the same mutex; no post-drain orphan. | Named slice owner; regression/characterization required before completion |
-| Handshake discard with shared active input | Drop each retained reference without recycling parsing storage. | Named slice owner; regression/characterization required before completion |
-| Normal close with pending and ready retained storage | Dispose each held view. | Named slice owner; regression/characterization required before completion |
-| run startup failure | StartHandshake/event failure performs final owned cleanup. | Named slice owner; regression/characterization required before completion |
-| Replay success | Transfer scheduled ownership and preserve order/fairness. | Named slice owner; regression/characterization required before completion |
-| Early replay error | Dispose unvisited local tail and newly scheduled work, not just fields cleared earlier. | Named slice owner; regression/characterization required before completion |
+| Admitted input and overflow | Transfer on admission; reject with exclusive disposition. | Covered: `TestConnectionRetainedLifetimeOverflow`; named slice owner |
+| Admission after terminal drain | Reject rather than enqueue. | Covered: `TestConnectionRetainedLifetimeTermination`; named slice owner |
+| Admission racing final drain | Serialize through the same mutex; no post-drain orphan. | Covered: `TestConnectionRetainedLifetimeAdmissionRace`; named slice owner |
+| Handshake discard with shared active input | Drop each retained reference without recycling parsing storage. | Covered: `TestConnectionRetainedLifetimeHandshakeDiscard`; named slice owner |
+| Normal close with pending and ready retained storage | Dispose each held view. | Covered: `TestConnectionRetainedLifetimeTermination/normal_close`; named slice owner |
+| run startup failure | StartHandshake/event failure performs final owned cleanup. | Covered: `TestConnectionRetainedLifetimeTermination/{start_handshake,handshake_event}`; named slice owner |
+| Replay success | Transfer scheduled ownership and preserve order/fairness. | Covered: `TestConnectionRetainedLifetimeReplay/success`; named slice owner |
+| Early replay error | Dispose unvisited local tail and newly scheduled work, not just fields cleared earlier. | Covered: `TestConnectionRetainedLifetimeReplay/early_error`; named slice owner |
 
 **Evidence budget:** 8 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -142,11 +142,11 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 

@@ -176,10 +176,11 @@ type Conn struct {
 	oneRTTStream        *cryptoStream // only set for the server
 	cryptoStreamHandler cryptoStreamHandler
 
-	notifyReceivedPacket chan struct{}
-	sendingScheduled     chan struct{}
-	receivedPacketMx     sync.Mutex
-	receivedPackets      ringbuffer.RingBuffer[receivedPacket]
+	notifyReceivedPacket  chan struct{}
+	sendingScheduled      chan struct{}
+	receivedPacketMx      sync.Mutex
+	receivedPackets       ringbuffer.RingBuffer[receivedPacket]
+	receivedPacketsClosed bool // guarded by receivedPacketMx
 
 	// closeChan is used to notify the run loop that it should terminate
 	closeChan chan struct{}
@@ -573,15 +574,11 @@ func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
 
 	defer func() {
-		// drain queued packets that will never be processed
-		c.receivedPacketMx.Lock()
-		defer c.receivedPacketMx.Unlock()
-
-		for !c.receivedPackets.Empty() {
-			p := c.receivedPackets.PopFront()
-			p.buffer.Decrement()
-			p.buffer.MaybeRelease()
-		}
+		c.closePacketAdmission()
+		releaseUndecryptablePackets(c.undecryptablePackets)
+		c.undecryptablePackets = nil
+		releaseUndecryptablePackets(c.undecryptablePacketsToProcess)
+		c.undecryptablePacketsToProcess = nil
 	}()
 
 	c.timer = time.NewTimer(monotime.Until(c.idleTimeoutStartTime().Add(c.config.HandshakeIdleTimeout)))
@@ -628,9 +625,10 @@ runLoop:
 			var processedUndecryptablePacket bool
 			queue := c.undecryptablePacketsToProcess
 			c.undecryptablePacketsToProcess = nil
-			for _, p := range queue {
+			for i, p := range queue {
 				processed, err := c.handleOnePacket(p.receivedPacket, p.checksum)
 				if err != nil {
+					releaseUndecryptablePackets(queue[i+1:])
 					c.setCloseError(&closeError{err: err})
 					break runLoop
 				}
@@ -942,6 +940,7 @@ func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 	defer close(c.handshakeCompleteChan)
 	// Once the handshake completes, we have derived 1-RTT keys.
 	// There's no point in queueing undecryptable packets for later decryption anymore.
+	releaseUndecryptablePackets(c.undecryptablePackets)
 	c.undecryptablePackets = nil
 
 	c.connIDManager.SetHandshakeComplete()
@@ -1952,6 +1951,11 @@ func (c *Conn) handleFrame(
 // handlePacket is called by the server with a new packet
 func (c *Conn) handlePacket(p receivedPacket) {
 	c.receivedPacketMx.Lock()
+	if c.receivedPacketsClosed {
+		c.receivedPacketMx.Unlock()
+		p.buffer.Release()
+		return
+	}
 	// Discard packets once the amount of queued packets is larger than
 	// the channel size, protocol.MaxConnUnprocessedPackets
 	if c.receivedPackets.Len() >= protocol.MaxConnUnprocessedPackets {
@@ -1967,6 +1971,7 @@ func (c *Conn) handlePacket(p receivedPacket) {
 			})
 		}
 		c.receivedPacketMx.Unlock()
+		p.buffer.Release()
 		return
 	}
 	c.receivedPackets.PushBack(p)
@@ -1975,6 +1980,29 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	select {
 	case c.notifyReceivedPacket <- struct{}{}:
 	default:
+	}
+}
+
+// closePacketAdmission seals and drains ordinary input. Only the run goroutine,
+// or the exclusive owner of a connection that has never run, may call it.
+// It does not perform socket, routing or protocol teardown.
+func (c *Conn) closePacketAdmission() {
+	c.receivedPacketMx.Lock()
+	defer c.receivedPacketMx.Unlock()
+	c.receivedPacketsClosed = true
+	for !c.receivedPackets.Empty() {
+		p := c.receivedPackets.PopFront()
+		p.buffer.Decrement()
+		p.buffer.MaybeRelease()
+	}
+}
+
+// releaseUndecryptablePackets disposes counted views, including distinct views
+// sharing storage with each other or with an active parsing hold.
+func releaseUndecryptablePackets(packets []receivedPacketWithChecksum) {
+	for _, p := range packets {
+		p.buffer.Decrement()
+		p.buffer.MaybeRelease()
 	}
 }
 
