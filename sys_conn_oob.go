@@ -49,7 +49,8 @@ type oobConn struct {
 	readPos uint8
 	// Packets received from the kernel, but not yet returned by ReadPacket().
 	messages []ipv4.Message
-	buffers  [batchSize]*packetBuffer
+	// A nil slot has transferred ownership; non-nil storage belongs to this reader.
+	buffers [batchSize]*packetBuffer
 
 	cap connCapabilities
 }
@@ -141,19 +142,22 @@ func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
 var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
 
 func (c *oobConn) ReadPacket() (receivedPacket, error) {
-	if len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
+	for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
 		c.messages = c.messages[:batchSize]
-		// replace buffers data buffers up to the packet that has been consumed during the last ReadBatch call
-		for i := uint8(0); i < c.readPos; i++ {
-			buffer := getPacketBuffer()
-			buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
-			c.buffers[i] = buffer
+		for i := range c.buffers {
+			if c.buffers[i] == nil {
+				buffer := getPacketBuffer()
+				buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+				c.buffers[i] = buffer
+			}
 			c.messages[i].Buffers[0] = c.buffers[i].Data
 		}
 		c.readPos = 0
 
 		n, err := c.batchConn.ReadBatch(c.messages, 0)
-		if n == 0 || err != nil {
+		if err != nil {
+			// Preserve the existing policy: even a non-empty failed batch is discarded.
+			c.releaseReadBuffers()
 			return receivedPacket{}, err
 		}
 		c.messages = c.messages[:n]
@@ -161,24 +165,29 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 
 	msg := c.messages[c.readPos]
 	buffer := c.buffers[c.readPos]
+	payload := msg.Buffers[0][:msg.N]
+	c.buffers[c.readPos] = nil
+	c.messages[c.readPos].Buffers[0] = nil
 	c.readPos++
 
 	data := msg.OOB[:msg.NN]
 	p := receivedPacket{
 		remoteAddr: msg.Addr,
 		rcvTime:    monotime.Now(),
-		data:       msg.Buffers[0][:msg.N],
+		data:       payload,
 		buffer:     buffer,
 	}
 	for len(data) > 0 {
 		hdr, body, remainder, err := unix.ParseOneSocketControlMessage(data)
 		if err != nil {
+			buffer.Release()
 			return receivedPacket{}, err
 		}
 		if hdr.Level == unix.IPPROTO_IP {
 			switch hdr.Type {
 			case msgTypeIPTOS:
 				if len(body) != 1 {
+					buffer.Release()
 					return receivedPacket{}, errors.New("invalid IPTOS size")
 				}
 				p.ecn = protocol.ParseECNHeaderBits(body[0] & ecnMask)
@@ -199,6 +208,7 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 			switch hdr.Type {
 			case unix.IPV6_TCLASS:
 				if len(body) != 4 {
+					buffer.Release()
 					return receivedPacket{}, errors.New("invalid IPV6_TCLASS size")
 				}
 				bits := uint8(binary.NativeEndian.Uint32(body)) & ecnMask
@@ -222,6 +232,21 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		data = remainder
 	}
 	return p, nil
+}
+
+// releaseReadBuffers runs only after reading stops, or while discarding a failed
+// batch. Returned packets belong to their consumers, and the socket stays open.
+func (c *oobConn) releaseReadBuffers() {
+	c.messages = c.messages[:batchSize]
+	for i, buffer := range c.buffers {
+		if buffer != nil {
+			buffer.Release()
+			c.buffers[i] = nil
+		}
+		c.messages[i].Buffers[0] = nil
+	}
+	c.messages = c.messages[:0]
+	c.readPos = 0
 }
 
 // WritePacket writes a new packet.

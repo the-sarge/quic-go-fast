@@ -537,6 +537,9 @@ func (t *Transport) close(e error) {
 var setBufferWarningOnce sync.Once
 
 func (t *Transport) listen(conn rawConn) {
+	if reader, ok := conn.(interface{ releaseReadBuffers() }); ok {
+		defer reader.releaseReadBuffers()
+	}
 	defer func() {
 		// This goroutine is the sole producer. Concurrent non-QUIC readers
 		// can still receive, but each packet belongs to exactly one receiver.
