@@ -31,6 +31,8 @@ jobs:
     name: "Integration (${{ matrix.os }}, Go ${{ matrix.go }}${{ matrix.race && ', race' || '' }})"
     steps:
       - uses: actions/checkout@v7
+      - name: Configure corruption capture directory
+        run: echo "QUIC_GO_CORRUPTION_CAPTURE_DIR=$RUNNER_TEMP/quic-go-corruption" >> "$GITHUB_ENV"
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
@@ -78,6 +80,14 @@ jobs:
           name: qlogs-${{ matrix.os }}-go${{ matrix.go }}-race${{ matrix.race }}
           path: integrationtests/self/*.qlog
           retention-days: 7
+      - name: Save corruption failure captures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: corruption-${{ matrix.os }}-go${{ matrix.go }}-race${{ matrix.race }}
+          path: ${{ runner.temp }}/quic-go-corruption/*.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Upload report to Codecov
         if: ${{ !cancelled() && !matrix.race }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0

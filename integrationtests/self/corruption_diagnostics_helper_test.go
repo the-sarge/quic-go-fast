@@ -27,6 +27,9 @@ type corruptionProxy struct {
 func (p *corruptionProxy) drop(dir quicproxy.Direction, from, to net.Addr, b []byte) (drop bool) {
 	seq := p.datagrams.Add(1)
 	checksum := qlog.CalculateDatagramPayloadChecksum(b)
+	if p.diagnostics.capture.capturing() {
+		p.diagnostics.capture.record(time.Now(), "before_mutation", fmt.Sprintf("datagram=%d direction=%s from=%s to=%s bytes=%d crc32c=%d parts=%s payload=%x", seq, dir, from, to, len(b), checksum, corruptionPacketBoundaries(b), b))
+	}
 	offset, before, after := -1, byte(0), byte(0)
 	var written int
 	var writeErr error
