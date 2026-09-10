@@ -563,6 +563,7 @@ func (t *Transport) maybeStopListening() {
 
 func (t *Transport) handlePacket(p receivedPacket) {
 	if len(p.data) == 0 {
+		p.buffer.Release()
 		return
 	}
 	if !wire.IsPotentialQUICPacket(p.data[0]) && !wire.IsLongHeaderPacket(p.data[0]) {
@@ -578,7 +579,7 @@ func (t *Transport) handlePacket(p receivedPacket) {
 				Trigger: qlog.PacketDropHeaderParseError,
 			})
 		}
-		p.buffer.MaybeRelease()
+		p.buffer.Release()
 		return
 	}
 
@@ -595,6 +596,7 @@ func (t *Transport) handlePacket(p receivedPacket) {
 	// exceedingly rare. In the unlikely event that a stateless reset is misrouted to an existing connection,
 	// it is to be expected that the next stateless reset will be correctly detected.
 	if isStatelessReset := t.maybeHandleStatelessReset(p.data); isStatelessReset {
+		p.buffer.Release()
 		return
 	}
 	if !wire.IsLongHeaderPacket(p.data[0]) {
@@ -621,7 +623,7 @@ func (t *Transport) handlePacket(p receivedPacket) {
 				Trigger: qlog.PacketDropUnknownConnectionID,
 			})
 		}
-		p.buffer.MaybeRelease()
+		p.buffer.Release()
 		return
 	}
 	t.server.handlePacket(p)
@@ -692,6 +694,7 @@ func (t *Transport) handleNonQUICPacket(p receivedPacket) {
 	// Strictly speaking, this is racy,
 	// but we only care about receiving packets at some point after ReadNonQUICPacket has been called.
 	if !t.readingNonQUICPackets.Load() {
+		p.buffer.Release()
 		return
 	}
 	select {
@@ -703,6 +706,7 @@ func (t *Transport) handleNonQUICPacket(p receivedPacket) {
 				Trigger: qlog.PacketDropDOSPrevention,
 			})
 		}
+		p.buffer.Release()
 	}
 }
 
@@ -724,6 +728,7 @@ func (t *Transport) ReadNonQUICPacket(ctx context.Context, b []byte) (int, net.A
 		return 0, nil, ctx.Err()
 	case p := <-t.nonQUICPackets:
 		n := copy(b, p.data)
+		p.buffer.Release()
 		return n, p.remoteAddr, nil
 	case <-t.listening:
 		return 0, nil, errors.New("closed")
