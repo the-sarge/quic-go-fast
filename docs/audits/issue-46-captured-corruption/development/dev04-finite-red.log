@@ -1,0 +1,38 @@
+using QUIC version: v1
+--- FAIL: TestCorruptionFiniteCallback (0.00s)
+    --- FAIL: TestCorruptionFiniteCallback/initial (0.00s)
+        --- FAIL: TestCorruptionFiniteCallback/initial/Incoming (0.00s)
+            corruption_policy_test.go:71: 
+                	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:71
+                	Error:      	Should be true
+                	Test:       	TestCorruptionFiniteCallback/initial/Incoming
+        --- FAIL: TestCorruptionFiniteCallback/initial/Outgoing (0.00s)
+            corruption_policy_test.go:71: 
+                	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:71
+                	Error:      	Should be true
+                	Test:       	TestCorruptionFiniteCallback/initial/Outgoing
+    --- FAIL: TestCorruptionFiniteCallback/handshake (0.00s)
+        --- FAIL: TestCorruptionFiniteCallback/handshake/Incoming (0.00s)
+            corruption_policy_test.go:71: 
+                	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:71
+                	Error:      	Should be true
+                	Test:       	TestCorruptionFiniteCallback/handshake/Incoming
+        --- FAIL: TestCorruptionFiniteCallback/handshake/Outgoing (0.00s)
+            corruption_policy_test.go:71: 
+                	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:71
+                	Error:      	Should be true
+                	Test:       	TestCorruptionFiniteCallback/handshake/Outgoing
+    --- FAIL: TestCorruptionFiniteCallback/1RTT (0.00s)
+        --- FAIL: TestCorruptionFiniteCallback/1RTT/Incoming (0.00s)
+            corruption_policy_test.go:71: 
+                	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:71
+                	Error:      	Should be true
+                	Test:       	TestCorruptionFiniteCallback/1RTT/Incoming
+        --- FAIL: TestCorruptionFiniteCallback/1RTT/Outgoing (0.00s)
+            corruption_policy_test.go:71: 
+                	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:71
+                	Error:      	Should be true
+                	Test:       	TestCorruptionFiniteCallback/1RTT/Outgoing
+FAIL
+FAIL	github.com/quic-go/quic-go/integrationtests/self	0.492s
+FAIL

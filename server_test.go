@@ -519,7 +519,7 @@ func TestServerTokenValidation(t *testing.T) {
 		token, err := tg.NewRetryToken(conn.LocalAddr(), protocol.ConnectionID{}, protocol.ConnectionID{})
 		require.NoError(t, err)
 		// the maximum retry token age is equivalent to the handshake timeout
-		time.Sleep(time.Millisecond) // make sure the token is expired
+		waitForServerTestTokenExpiry(t, tg, token, server.config.maxRetryTokenAge())
 		testServerTokenValidation(t, server, &eventRecorder, conn, token, false, true, false)
 	})
 
@@ -536,7 +536,7 @@ func TestServerTokenValidation(t *testing.T) {
 		conn := newUDPConnLocalhost(t)
 		token, err := tg.NewRetryToken(conn.LocalAddr(), protocol.ConnectionID{}, protocol.ConnectionID{})
 		require.NoError(t, err)
-		time.Sleep(time.Millisecond) // make sure the token is expired
+		waitForServerTestTokenExpiry(t, tg, token, server.config.maxRetryTokenAge())
 		testServerTokenValidation(t, server, &eventRecorder, conn, token, true, false, true)
 	})
 
@@ -554,7 +554,7 @@ func TestServerTokenValidation(t *testing.T) {
 		conn := newUDPConnLocalhost(t)
 		token, err := tg.NewToken(conn.LocalAddr(), 10*time.Millisecond)
 		require.NoError(t, err)
-		time.Sleep(3 * time.Millisecond) // make sure the token is expired
+		waitForServerTestTokenExpiry(t, tg, token, server.maxTokenAge)
 		testServerTokenValidation(t, server, &eventRecorder, conn, token, false, false, true)
 	})
 
@@ -570,9 +570,19 @@ func TestServerTokenValidation(t *testing.T) {
 		conn := newUDPConnLocalhost(t)
 		token, err := tg.NewToken(conn.LocalAddr(), 100*time.Millisecond)
 		require.NoError(t, err)
-		time.Sleep(3 * time.Millisecond) // make sure the token is expired
+		waitForServerTestTokenExpiry(t, tg, token, server.maxTokenAge)
 		testServerTokenValidation(t, server, &eventRecorder, conn, token, false, false, true)
 	})
+}
+
+// Wait on the serialized token timestamp used by validateToken. A short sleep
+// can finish before the wall clock used for token expiry has advanced.
+func waitForServerTestTokenExpiry(t *testing.T, generator *handshake.TokenGenerator, encoded []byte, maxAge time.Duration) {
+	t.Helper()
+	token, err := generator.DecodeToken(encoded)
+	require.NoError(t, err)
+	require.NotNil(t, token)
+	require.Eventually(t, func() bool { return time.Since(token.SentTime) > maxAge }, time.Second, time.Millisecond)
 }
 
 func testServerTokenValidation(

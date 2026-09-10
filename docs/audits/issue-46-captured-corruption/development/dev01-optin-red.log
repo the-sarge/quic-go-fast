@@ -1,0 +1,15 @@
+using QUIC version: v1
+--- FAIL: TestCorruptionRandomOptIn (0.33s)
+    --- FAIL: TestCorruptionRandomOptIn/default (0.17s)
+        corruption_policy_test.go:34: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:34
+            	Error:      	"using QUIC version: v2\ntesting: warning: no tests to run\nPASS\n" does not contain "=== RUN   TestMITCorruptPacketsRandom"
+            	Test:       	TestCorruptionRandomOptIn/default
+    --- FAIL: TestCorruptionRandomOptIn/enabled (0.17s)
+        corruption_policy_test.go:34: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/issue-46-deterministic-ci/integrationtests/self/corruption_policy_test.go:34
+            	Error:      	"using QUIC version: v2\ntesting: warning: no tests to run\nPASS\n" does not contain "=== RUN   TestMITCorruptPacketsRandom"
+            	Test:       	TestCorruptionRandomOptIn/enabled
+FAIL
+FAIL	github.com/quic-go/quic-go/integrationtests/self	0.741s
+FAIL
