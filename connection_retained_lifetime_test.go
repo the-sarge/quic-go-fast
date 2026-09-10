@@ -146,7 +146,7 @@ func TestConnectionRetainedLifetimeTermination(t *testing.T) {
 				retained.buffer.Split()
 				tc.conn.undecryptablePackets = []receivedPacketWithChecksum{{receivedPacket: retained}}
 				tc.conn.undecryptablePacketsToProcess = []receivedPacketWithChecksum{{receivedPacket: retained}}
-				var wantErr error = errors.New("handshake startup failed")
+				wantErr := errors.New("handshake startup failed")
 				switch mode {
 				case "start handshake":
 					cs.EXPECT().StartHandshake(gomock.Any()).Return(wantErr)
