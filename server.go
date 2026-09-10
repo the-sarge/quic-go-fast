@@ -636,6 +636,19 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 	return true
 }
 
+// retireZeroRTTQueue disposes datagrams still owned by the server receive
+// goroutine. A successful handoff must empty the queue before retiring it.
+func (s *baseServer) retireZeroRTTQueue(connID protocol.ConnectionID) {
+	q, ok := s.zeroRTTQueues[connID]
+	if !ok {
+		return
+	}
+	delete(s.zeroRTTQueues, connID)
+	for _, p := range q.packets {
+		p.buffer.Release()
+	}
+}
+
 func (s *baseServer) cleanupZeroRTTQueues(now monotime.Time) {
 	// Iterate over all queues to find those that are expired.
 	// This is ok since we're placing a pretty low limit on the number of queues.
@@ -660,9 +673,8 @@ func (s *baseServer) cleanupZeroRTTQueues(now monotime.Time) {
 					Trigger: qlog.PacketDropDOSPrevention,
 				})
 			}
-			p.buffer.Release()
 		}
-		delete(s.zeroRTTQueues, connID)
+		s.retireZeroRTTQueue(connID)
 		if s.logger.Debug() {
 			s.logger.Debugf("Removing 0-RTT queue for %s.", connID)
 		}
@@ -756,7 +768,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 
 	if token == nil && s.verifySourceAddress != nil && s.verifySourceAddress(p.remoteAddr) {
 		// Retry invalidates all 0-RTT packets sent.
-		delete(s.zeroRTTQueues, hdr.DestConnectionID)
+		s.retireZeroRTTQueue(hdr.DestConnectionID)
 		select {
 		case s.retryQueue <- rejectedPacket{receivedPacket: p, hdr: hdr}:
 		default:
@@ -855,7 +867,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	// under normal circumstances the packet would just be routed to that connection.
 	// The only time this collision will occur if we receive the two Initial packets at the same time.
 	if added := s.tr.AddWithConnID(hdr.DestConnectionID, connID, conn); !added {
-		delete(s.zeroRTTQueues, hdr.DestConnectionID)
+		s.retireZeroRTTQueue(hdr.DestConnectionID)
 		conn.closeWithTransportError(ConnectionRefused)
 		return nil
 	}
@@ -864,7 +876,8 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		for _, p := range q.packets {
 			conn.handlePacket(p)
 		}
-		delete(s.zeroRTTQueues, hdr.DestConnectionID)
+		q.packets = nil // all datagrams now belong to the connection
+		s.retireZeroRTTQueue(hdr.DestConnectionID)
 	}
 
 	s.handshakingCount.Go(func() { s.handleNewConn(conn) })
@@ -873,7 +886,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 }
 
 func (s *baseServer) refuseNewConn(p receivedPacket, hdr *wire.Header) {
-	delete(s.zeroRTTQueues, hdr.DestConnectionID)
+	s.retireZeroRTTQueue(hdr.DestConnectionID)
 	select {
 	case s.connectionRefusedQueue <- rejectedPacket{receivedPacket: p, hdr: hdr}:
 	default:
