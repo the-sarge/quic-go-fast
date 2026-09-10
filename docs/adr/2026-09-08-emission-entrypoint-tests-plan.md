@@ -50,11 +50,11 @@ Migrate only the finite maintained caller set, configuring genuine send eligibil
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Eight maintained consumers | Characterize then migrate the same fairness/output/error/MTU/probe claims without removing assertions. | Named slice owner; regression/characterization required before completion |
-| Worker capacity and wakeup | Retain existing real-loop coverage where asynchronous capacity is part of the claim. | Named slice owner; regression/characterization required before completion |
-| Historical experiments | Keep two tagged callers compatible by moving the historical shim unchanged behind emission_experiment when needed; compile without running it. | Named slice owner; regression/characterization required before completion |
-| Production preservation | Exact byte comparison of production Go, module and workflow files; no runtime changes. | Named slice owner; regression/characterization required before completion |
-| Existing composed coverage | Retain fallback, PTO, blocked-state, fatal partial construction and registration-order coverage. | Named slice owner; regression/characterization required before completion |
+| Eight maintained consumers | Characterize then migrate the same fairness/output/error/MTU/probe claims without removing assertions. | Covered by the eight migrated callers through `Conn.triggerSending`, retaining scenario-local assertions and real packing/recovery/queue behavior. |
+| Worker capacity and wakeup | Retain existing real-loop coverage where asynchronous capacity is part of the claim. | Covered by retained `TestEmissionFullQueueResume` real-loop capacity and wakeup assertions. |
+| Historical experiments | Keep two tagged callers compatible by moving the historical shim unchanged behind emission_experiment when needed; compile without running it. | Covered by compile-only `emission_experiment` validation of the two tagged callers and the byte-identical moved historical helper. |
+| Production preservation | Exact byte comparison of production Go, module and workflow files; no runtime changes. | Covered by exact byte comparison of production Go, module and workflow files. |
+| Existing composed coverage | Retain fallback, PTO, blocked-state, fatal partial construction and registration-order coverage. | Covered by retained emission/handshake/probe regressions, focused race coverage and ordinary package tests; the full-queue blocked-state assertion fails with the historical helper and passes through the shipped owner. |
 
 **Evidence budget:** 5 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -66,11 +66,11 @@ Migrate only the finite maintained caller set, configuring genuine send eligibil
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 
