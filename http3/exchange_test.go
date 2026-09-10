@@ -279,6 +279,18 @@ func TestExchangeGzipCompletion(t *testing.T) {
 			entry := exchangeEntry(t, tr)
 			raw := &eofObservedBody{ReadCloser: rsp.Body.(*exchangeBody).ReadCloser.(*gzipReader).body}
 			rsp.Body.(*exchangeBody).ReadCloser.(*gzipReader).body = raw
+			if !invalid {
+				// Establish raw EOF before decoding, independently of whether DATA
+				// and FIN arrive together. Replay the same compressed bytes and keep
+				// Close attached to the real response body.
+				compressed, err := io.ReadAll(raw)
+				require.NoError(t, err)
+				require.Equal(t, payload, compressed)
+				rsp.Body.(*exchangeBody).ReadCloser.(*gzipReader).body = struct {
+					io.Reader
+					io.Closer
+				}{bytes.NewReader(compressed), raw}
+			}
 			buf := make([]byte, 1)
 			n, err := rsp.Body.Read(buf)
 			if invalid {

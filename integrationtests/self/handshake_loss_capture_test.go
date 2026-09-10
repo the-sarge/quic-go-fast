@@ -28,6 +28,7 @@ import (
 type capturedHandshakeLoss struct {
 	mu                                sync.Mutex
 	control                           string
+	ackAfterPTO                       uint32
 	pending                           [3][]capturedSentPacket
 	mappingError                      string
 	run                               [3]int
@@ -70,7 +71,10 @@ func (c *capturedHandshakeLoss) drop(d direction, p simnet.Packet) bool {
 		return false
 	}
 	drop := d == directionToClient && ack
-	if drop && ackOnly && packetCount == 1 && c.control == "deliver ACK" && !c.ackReleased {
+	if drop && ackOnly && packetCount == 1 && c.control == "restore ACKs" && c.ptoCount >= c.ackAfterPTO {
+		// Restore standalone ACK feedback without also delivering control frames.
+		// One ACK can reset PTO yet leave the remaining loss schedule unable to
+		// finish before the deadline, depending on DATA/FIN packetization.
 		c.ackReleased = true
 		drop = false
 	}
@@ -186,13 +190,22 @@ func (r *capturedHandshakeRecorder) RecordEvent(ev qlogwriter.Event) {
 }
 
 func TestHandshakeCapturedLoss(t *testing.T) {
-	for _, control := range []string{"ACK blackout", "deliver gap", "deliver ACK"} {
-		t.Run(control, func(t *testing.T) {
+	for _, scenario := range []struct {
+		name, control string
+		ackAfterPTO   uint32
+	}{
+		{name: "ACK blackout", control: "ACK blackout"},
+		{name: "deliver gap", control: "deliver gap"},
+		{name: "restore ACKs", control: "restore ACKs"},
+		{name: "delayed ACK feedback", control: "restore ACKs", ackAfterPTO: 3},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
+				control := scenario.control
 				const timeout = 2 * time.Minute
 				const rtt = 20 * time.Millisecond
 				data := GeneratePRData(5000)
-				loss := &capturedHandshakeLoss{control: control, gapStart: -1, seenOffsets: make(map[int64]bool)}
+				loss := &capturedHandshakeLoss{control: control, ackAfterPTO: scenario.ackAfterPTO, gapStart: -1, seenOffsets: make(map[int64]bool)}
 				diagnostics := newHandshakeDiagnostics(t, fmt.Sprintf("captured #44 control=%s post_quantum=true long_chain=true retry=false client_speaks_first version=%s", control, version))
 				tracer := func(ctx context.Context, client bool, id quic.ConnectionID) qlogwriter.Trace {
 					return &events.Trace{Recorder: &capturedHandshakeRecorder{loss: loss, client: client, Recorder: diagnostics.tracer(ctx, client, id).AddProducer()}}
@@ -225,9 +238,19 @@ func TestHandshakeCapturedLoss(t *testing.T) {
 				require.Equal(t, tls.X25519MLKEM768, getCurveID(client.ConnectionState().TLS))
 				stream, err := client.OpenUniStream()
 				require.NoError(t, err)
-				written, err := stream.Write(data)
+				toWrite := data
+				if scenario.ackAfterPTO > 0 {
+					// Reproduce the short first DATA frame from the Windows failure.
+					// Flush it before writing the remainder; no wall-clock sleep is needed.
+					written, err := stream.Write(toWrite[:1136])
+					require.NoError(t, err)
+					require.Equal(t, 1136, written)
+					synctest.Wait()
+					toWrite = toWrite[1136:]
+				}
+				written, err := stream.Write(toWrite)
 				require.NoError(t, err)
-				require.Equal(t, len(data), written)
+				require.Equal(t, len(toWrite), written)
 				err = stream.Close()
 				diagnostics.phase(true, fmt.Sprintf("close stream returned: %v", err))
 				require.NoError(t, err)
@@ -268,8 +291,11 @@ func TestHandshakeCapturedLoss(t *testing.T) {
 						require.True(t, loss.gapReleased, "the intervention must forward the missing range")
 						require.Zero(t, loss.ackReceived, "delivery must succeed despite the ACK blackout")
 					} else {
-						require.True(t, loss.ackReleased, "the intervention must forward an ACK-only datagram")
+						require.True(t, loss.ackReleased, "the intervention must restore ACK-only delivery")
 						require.Positive(t, loss.ackReceived)
+						if scenario.ackAfterPTO > 0 {
+							require.GreaterOrEqual(t, loss.ptoCount, scenario.ackAfterPTO)
+						}
 						require.GreaterOrEqual(t, loss.gapSent, 2, "an ACK must enable retransmission of the lost range")
 					}
 				}
