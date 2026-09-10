@@ -1,6 +1,6 @@
 # Incoming packet-buffer lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** In progress; I1/I2/I3/I4/I5/I6/I7 implemented, I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** Implementation complete; I1–I8 implemented. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -27,7 +27,7 @@ Keep successive concrete owners. A consuming handlePacket transfers or disposes 
 | I5 | Complete | Retire server-held 0-RTT groups deliberately | None | None introduced |
 | I6 | Complete | Seal server admission before worker drains | None | None introduced |
 | I7 | Complete | Make raw-reader cached ownership explicit | None | None introduced |
-| I8 | New | Complete failed Initial construction and publication | I2, I5 | None introduced |
+| I8 | Complete | Complete failed Initial construction and publication | I2, I5 | None introduced |
 
 ## Implementation Slices
 
@@ -99,7 +99,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I2 — Close connection-owned retained storage and admission
 
-**Status:** Implementation complete. I8 is ready after I5 merges. **Size:** M; one intended PR. **Blocked by:** I1.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** I1.
 
 **What it delivers:** Seal ordinary packet admission atomically with final queue drain, dispose pending/ready retained views and detached replay tails, and handle synchronous handshake discard without returning active parsing storage.
 
@@ -215,7 +215,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I4 — Retire transport-owned queued receive storage
 
-**Status:** Implementation complete. I5 is complete; I6, I7 and I8 are ready after I5 merges. **Size:** M; one intended PR. **Blocked by:** I3.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** I3.
 
 **What it delivers:** Drain pending stateless-reset input when its sending owner exits and pending non-QUIC storage after the listener stops producing. Preserve concurrent non-QUIC consumers and caller-owned sockets.
 
@@ -269,7 +269,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I5 — Retire server-held 0-RTT groups deliberately
 
-**Status:** Implementation complete. I8 is ready after this slice merges; I2 is already complete. **Size:** S; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** S; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Centralize server-owned 0-RTT group retirement for expiry, Retry, refusal and collision, preserving transfer to a successfully registered connection and existing queue bounds.
 
@@ -325,7 +325,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I6 — Seal server admission before worker drains
 
-**Status:** Implementation complete. I7 and I8 remain ready; this slice adds no successor blocker edges. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Stop receive admission under the enqueue synchronization before draining server input, remaining 0-RTT storage and receive-backed response queues at their respective owner exits.
 
@@ -381,7 +381,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I7 — Make raw-reader cached ownership explicit
 
-**Status:** Implementation complete. I8 remains ready; I7 has no blocked successors. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 is complete; no I-track successors remain. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Reclaim basic read failures and optimized-reader untransferred buffers at error/termination without reclaiming already returned packets or closing caller-owned sockets. Use a private optional cleanup capability after listener reading stops.
 
@@ -438,7 +438,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I8 — Complete failed Initial construction and publication
 
-**Status:** Accepted contract; implementation pending. **Size:** M; one intended PR. **Blocked by:** I2, I5.
+**Status:** Implementation complete. No I-track successors remain. **Size:** M; one intended PR. **Blocked by:** I2, I5.
 
 **What it delivers:** Return from server Initial generation/registration failures without waiting for an unstarted connection loop, abandoning owned resources or disturbing the already registered winning connection.
 
@@ -458,16 +458,16 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Representation contract:** Accepted Initial packets reaching handleInitialImpl and concrete server connections constructed but never registered or run. Existing wire/TLS implementations own syntax. Universal internal ownership/publication invariant in this bounded path, not a general startup/shutdown proof.
 
-**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows are accepted obligations with implementation evidence pending.
+**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows record the accepted obligations and maintained regression evidence. The bounded disposable pool-return probe supplements these tests; its receipt belongs to the product PR.
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Connection-ID generation error | Release Initial and cancel construction contexts; do not create tracer first. | Named slice owner; regression/characterization required before completion |
-| Real failed registration | Complete without starting run; reclaim queued Initial through I2. | Named slice owner; regression/characterization required before completion |
-| Winning routing and reset-token entries | Preserve them; abort never invokes ordinary routing teardown. | Named slice owner; regression/characterization required before completion |
-| Losing crypto/qlog/context | Clean unpublished resources without waiting for protocol run. | Named slice owner; regression/characterization required before completion |
-| Losing retained 0-RTT group | Retire via I5 owner. | Named slice owner; regression/characterization required before completion |
-| Successful publication | Preserve Initial-before-later-packet ordering and single run/accept start. | Named slice owner; regression/characterization required before completion |
+| Connection-ID generation error | Release Initial and cancel construction contexts; do not create tracer first. | Covered: `TestServerInitialLifetimeGenerationError`; named slice owner |
+| Real failed registration | Complete without starting run; reclaim queued Initial through I2. | Covered: `TestServerZeroRTTLifetimeCollision`; named slice owner |
+| Winning routing and reset-token entries | Preserve them; abort never invokes ordinary routing teardown. | Covered: `TestServerZeroRTTLifetimeCollision`; named slice owner |
+| Losing crypto/qlog/context | Clean unpublished resources without waiting for protocol run. | Covered: `TestServerZeroRTTLifetimeCollision`; named slice owner |
+| Losing retained 0-RTT group | Retire via I5 owner. | Covered: `TestServerZeroRTTLifetimeCollision`; named slice owner |
+| Successful publication | Preserve Initial-before-later-packet ordering and single run/accept start. | Covered: `TestServerZeroRTTLifetimeTransfer and TestServerCreateConnection`; named slice owner |
 
 **Evidence budget:** 6 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -479,11 +479,11 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 

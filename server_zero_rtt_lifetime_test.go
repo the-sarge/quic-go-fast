@@ -81,35 +81,7 @@ func TestServerZeroRTTLifetimeRefusal(t *testing.T) {
 }
 
 func TestServerZeroRTTLifetimeCollision(t *testing.T) {
-	s := newZeroRTTLifetimeServer(t)
-	id := randConnID(8)
-	p := zeroRTTLifetimePacket(t, id)
-	initial := getValidInitialPacket(t, p.remoteAddr, randConnID(5), id)
-	winner := &wrappedConn{testHooks: &connTestHooks{}}
-	var closed bool
-	recorder := newConnConstructorRecorder(&connTestHooks{
-		handlePacket: func(p receivedPacket) {
-			// Model the routing winner appearing after the initial lookup but
-			// before this connection tries to register. Initial remains I8-owned.
-			require.True(t, s.tr.Add(id, winner))
-			require.Same(t, initial.buffer, p.buffer)
-		},
-		closeWithTransportError: func(code TransportErrorCode) {
-			require.Equal(t, ConnectionRefused, code)
-			closed = true
-		},
-	})
-	s.newConn = recorder.NewConn
-	require.True(t, s.handlePacketImpl(p))
-	require.True(t, s.handlePacketImpl(initial))
-	require.True(t, closed)
-	require.NotContains(t, s.zeroRTTQueues, id)
-	require.Zero(t, p.buffer.refCount)
-	got, ok := s.tr.Get(id)
-	require.True(t, ok)
-	require.Same(t, winner, got)
-	// The mocked unpublished connection retains its Initial; I8 owns abort.
-	initial.buffer.Release()
+	testServerInitialLifetimeCollision(t)
 }
 
 func TestServerZeroRTTLifetimeExpiry(t *testing.T) {
