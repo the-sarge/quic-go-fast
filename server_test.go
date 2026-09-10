@@ -82,7 +82,12 @@ func newTestServer(t *testing.T, serverOpts *serverOpts) *testServer {
 		serverOpts.acceptEarly,
 	)
 	s.newConn = serverOpts.newConn
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() {
+		s.Close()
+		// The fixture owns this transport. Closing its UDP socket alone doesn't
+		// join the listener before the next test can observe it.
+		require.NoError(t, tr.Close())
+	})
 	return &testServer{s}
 }
 
@@ -1438,5 +1443,18 @@ func TestListenAddrSetupFailureClosesSocket(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestServerFixtureStopsTransport(t *testing.T) {
+	var stopped <-chan struct{}
+	t.Run("fixture", func(t *testing.T) {
+		server := newTestServer(t, &serverOpts{})
+		stopped = (*Transport)(server.tr).listening
+	})
+	select {
+	case <-stopped:
+	default:
+		t.Fatal("server fixture returned before its transport listener stopped")
 	}
 }
