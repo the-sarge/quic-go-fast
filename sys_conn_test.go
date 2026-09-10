@@ -26,7 +26,37 @@ func TestBasicConn(t *testing.T) {
 	require.NoError(t, err)
 	p, err := conn.ReadPacket()
 	require.NoError(t, err)
+	defer p.buffer.Release()
 	require.Equal(t, []byte("foobar"), p.data)
 	require.WithinDuration(t, time.Now(), p.rcvTime.ToTime(), scaleDuration(100*time.Millisecond))
 	require.Equal(t, addr, p.remoteAddr)
+}
+
+func TestBasicConnReadFailure(t *testing.T) {
+	c := NewMockPacketConn(gomock.NewController(t))
+	c.EXPECT().ReadFrom(gomock.Any()).DoAndReturn(func(b []byte) (int, net.Addr, error) {
+		return copy(b, "discarded"), nil, net.ErrClosed
+	})
+	conn := &basicConn{PacketConn: c}
+	p, err := conn.ReadPacket()
+	require.ErrorIs(t, err, net.ErrClosed)
+	require.Nil(t, p.buffer)
+	require.Empty(t, p.data)
+}
+
+type cleanupRawReader struct {
+	rawConn
+	released bool
+}
+
+func (c *cleanupRawReader) ReadPacket() (receivedPacket, error) {
+	return receivedPacket{}, net.ErrClosed
+}
+func (c *cleanupRawReader) releaseReadBuffers() { c.released = true }
+
+func TestListenerReleasesReadBuffers(t *testing.T) {
+	conn := &cleanupRawReader{}
+	tr := &Transport{}
+	tr.listen(conn)
+	require.True(t, conn.released)
 }

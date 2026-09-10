@@ -1,6 +1,6 @@
 # Incoming packet-buffer lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** In progress; I1/I2/I3/I4/I5/I6 implemented, I7–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** In progress; I1/I2/I3/I4/I5/I6/I7 implemented, I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -26,7 +26,7 @@ Keep successive concrete owners. A consuming handlePacket transfers or disposes 
 | I4 | Complete | Retire transport-owned queued receive storage | I3 | None introduced |
 | I5 | Complete | Retire server-held 0-RTT groups deliberately | None | None introduced |
 | I6 | Complete | Seal server admission before worker drains | None | None introduced |
-| I7 | New | Make raw-reader cached ownership explicit | None | None introduced |
+| I7 | Complete | Make raw-reader cached ownership explicit | None | None introduced |
 | I8 | New | Complete failed Initial construction and publication | I2, I5 | None introduced |
 
 ## Implementation Slices
@@ -381,7 +381,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I7 — Make raw-reader cached ownership explicit
 
-**Status:** Accepted contract; implementation pending. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I8 remains ready; I7 has no blocked successors. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Reclaim basic read failures and optimized-reader untransferred buffers at error/termination without reclaiming already returned packets or closing caller-owned sockets. Use a private optional cleanup capability after listener reading stops.
 
@@ -401,18 +401,18 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Representation contract:** Existing basic/OOB raw adapters, internal slot array and authoritative ReadBatch count/error and OS control-message parser. Universal slot ownership within existing adapters; no partial-error delivery policy expansion.
 
-**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows are accepted obligations with implementation evidence pending.
+**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows record the accepted obligations and maintained regression evidence. The bounded disposable pool-return probe supplements these tests; its receipt belongs to the product PR.
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Basic success/error | Transfer only on success and reclaim on failure. | Named slice owner; regression/characterization required before completion |
-| Short/full batch progression | Refill owned/unowned slots correctly. | Named slice owner; regression/characterization required before completion |
-| Batch error then retry | Reset valid-message metadata; no stale replay. | Named slice owner; regression/characterization required before completion |
-| Zero-progress batch | Read again or return actual error; do not fabricate a packet. | Named slice owner; regression/characterization required before completion |
-| Ancillary parse error | Dispose the extracted buffer if no packet is returned. | Named slice owner; regression/characterization required before completion |
-| Terminal unread/cached slots | Reclaim only reader-owned slots. | Named slice owner; regression/characterization required before completion |
-| Previously transferred input | Survives reader cleanup. | Named slice owner; regression/characterization required before completion |
-| Caller-owned socket | Storage cleanup leaves socket lifetime unchanged. | Named slice owner; regression/characterization required before completion |
+| Basic success/error | Transfer only on success and reclaim on failure. | Covered: `TestBasicConn`, `TestBasicConnReadFailure`; named slice owner |
+| Short/full batch progression | Refill owned/unowned slots correctly. | Covered: `TestOOBReaderBatchProgressionAndCleanup` (Linux); named slice owner |
+| Batch error then retry | Reset valid-message metadata; no stale replay. | Covered: `TestOOBReaderBatchErrorRetry`; named slice owner |
+| Zero-progress batch | Read again or return actual error; do not fabricate a packet. | Covered: `TestOOBReaderZeroProgress`; named slice owner |
+| Ancillary parse error | Dispose the extracted buffer if no packet is returned. | Covered: `TestOOBReaderAncillaryFailure`; named slice owner |
+| Terminal unread/cached slots | Reclaim only reader-owned slots. | Covered: `TestOOBReaderListenerCleanup`, `TestListenerReleasesReadBuffers`; named slice owner |
+| Previously transferred input | Survives reader cleanup. | Covered: `TestOOBReaderBatchProgressionAndCleanup`, `TestOOBReaderListenerCleanup`; named slice owner |
+| Caller-owned socket | Storage cleanup leaves socket lifetime unchanged. | Covered: `TestOOBReaderBatchProgressionAndCleanup`, `TestOOBReaderListenerCleanup`; named slice owner |
 
 **Evidence budget:** 8 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -424,11 +424,11 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 

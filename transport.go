@@ -537,6 +537,9 @@ func (t *Transport) close(e error) {
 var setBufferWarningOnce sync.Once
 
 func (t *Transport) listen(conn rawConn) {
+	if reader, ok := conn.(interface{ releaseReadBuffers() }); ok {
+		defer reader.releaseReadBuffers()
+	}
 	defer func() {
 		// This goroutine is the sole producer. Concurrent non-QUIC readers
 		// can still receive, but each packet belongs to exactly one receiver.
@@ -585,7 +588,7 @@ func (t *Transport) maybeStopListening() {
 
 func (t *Transport) handlePacket(p receivedPacket) {
 	if len(p.data) == 0 {
-		// A zero-progress batch read can return an empty packet without a buffer.
+		// Empty datagrams still own pooled storage that must be released.
 		if p.buffer != nil {
 			p.buffer.Release()
 		}
