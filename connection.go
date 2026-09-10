@@ -373,8 +373,8 @@ var newConnection = func(
 		s.version,
 	)
 	s.cryptoStreamHandler = cs
-	s.emission.packer = newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
-	s.bindPacketEmission()
+	packer := newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
+	s.initPacketEmission(packer)
 	s.unpacker = newPacketUnpacker(cs, s.srcConnIDLen)
 	s.cryptoStreamManager = newCryptoStreamManager(s.initialStream, s.handshakeStream, s.oneRTTStream)
 	return &wrappedConn{Conn: s}
@@ -500,8 +500,8 @@ var newClientConnection = func(
 	s.cryptoStreamHandler = cs
 	s.cryptoStreamManager = newCryptoStreamManager(s.initialStream, s.handshakeStream, oneRTTStream)
 	s.unpacker = newPacketUnpacker(cs, s.srcConnIDLen)
-	s.emission.packer = newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
-	s.bindPacketEmission()
+	packer := newPacketPacker(srcConnID, s.connIDManager.Get, s.initialStream, s.handshakeStream, s.sentPacketHandler, s.retransmissionQueue, cs, s.framer, &s.receivedPacketHandler, s.datagramQueue, s.perspective)
+	s.initPacketEmission(packer)
 	if len(tlsConf.ServerName) > 0 {
 		s.tokenStoreKey = tlsConf.ServerName
 	} else {
@@ -522,7 +522,6 @@ func (c *Conn) preSetup() {
 	c.largestRcvdAppData = protocol.InvalidPacketNumber
 	c.initialStream = newInitialCryptoStream(c.perspective == protocol.PerspectiveClient)
 	c.handshakeStream = newCryptoStream()
-	c.emission.queue = newSendQueue(c.conn, &c.handshakeSendFeedback)
 	c.retransmissionQueue = newRetransmissionQueue()
 	c.frameParser = *wire.NewFrameParser(
 		c.config.EnableDatagrams,
@@ -2543,11 +2542,15 @@ func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 	return emissionIntent{}
 }
 
-func (c *Conn) bindPacketEmission() {
+// initPacketEmission runs once before use, after producers, recovery, path and
+// feedback exist. Recovery follows the live Conn slot; the packer retains its
+// captured packet-number manager.
+func (c *Conn) initPacketEmission(packer *packetPacker) {
+	queue := newSendQueue(c.conn, &c.handshakeSendFeedback)
 	c.emission = packetEmission{
-		packer:   c.emission.packer,
+		packer:   packer,
 		recovery: &c.sentPacketHandler,
-		queue:    c.emission.queue,
+		queue:    queue,
 		version:  c.version,
 		policy:   c,
 		conn:     &c.conn,
