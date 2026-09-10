@@ -1,6 +1,6 @@
 # Maintained emission test entrypoints Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** T in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** T1 implementation complete. **Track:** T in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -20,13 +20,13 @@ Migrate only the finite maintained caller set, configuring genuine send eligibil
 
 | Slice | Status/disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| T1 | New | Exercise shipped send orchestration in maintained connection tests | None | None introduced |
+| T1 | Complete | Exercise shipped send orchestration in maintained connection tests | None | None introduced |
 
 ## Implementation Slices
 
 ### T1 — Exercise shipped send orchestration in maintained connection tests
 
-**Status:** Accepted contract; implementation pending. **Size:** S; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete; no T-track successors. **Size:** S; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Migrate the eight untagged sendPackets/emitPackets callsites across connection_emission_test.go, connection_emission_handshake_test.go and connection_probe_emission_test.go onto triggerSending or the real loop where required. Preserve scenario-local assertions and real packing/recovery/queue behavior.
 
