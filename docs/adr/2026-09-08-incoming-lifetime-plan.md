@@ -1,6 +1,6 @@
 # Incoming packet-buffer lifetime Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** In progress; I1 implemented, I2–I8 pending. **Track:** I in QGF-AD-2026-09. **Depends on:** No other track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Handoff receipt](../audits/2026-09-08-architecture-handoff/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 
@@ -20,7 +20,7 @@ Keep successive concrete owners. A consuming handlePacket transfers or disposes 
 
 | Slice | Status/disposition | Delivers | Blocked by | Temporary seam |
 | --- | --- | --- | --- | --- |
-| I1 | New | Consume connection processing input on every exit | None | None introduced |
+| I1 | Complete | Consume connection processing input on every exit | None | None introduced |
 | I2 | New | Close connection-owned retained storage and admission | I1 | None introduced |
 | I3 | New | Dispose terminal transport routes and closed-handler input | None | None introduced |
 | I4 | New | Retire transport-owned queued receive storage | I3 | None introduced |
@@ -40,7 +40,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 ### I1 — Consume connection processing input on every exit
 
-**Status:** Accepted contract; implementation pending. **Size:** M; one intended PR. **Blocked by:** None.
+**Status:** Implementation complete. I2 is ready after this slice merges. **Size:** M; one intended PR. **Blocked by:** None.
 
 **What it delivers:** Give handleOnePacket an explicit active parsing reference; count a separate view before each actual header-handler dispatch, and finalize the parsing reference on every return. Header handlers either finish their view or retain it with truthful bounded admission.
 
@@ -60,20 +60,20 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Representation contract:** Pool-backed receivedPacket inputs, including retained views replayed through handleOnePacket. Existing wire parsers own QUIC syntax; this slice owns the internal counted-view representation. Universal internal lifetime contract; example-level malformed-packet coverage, not parser conformance.
 
-**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows are accepted obligations with implementation evidence pending.
+**Contract closure:** Triggered: the accepted lifecycle invariant has material cleanup/compatibility consequences across independently reachable states. The table is the bounded semantic census, not a proof by example. Its owner is the named single owner above; rows record the accepted obligations and maintained regression evidence. The bounded disposable pool-return probe supplements these tests; its receipt belongs to the product PR.
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Short packet success | Release after processing. | Named slice owner; regression/characterization required before completion |
-| Coalesced long/long | Keep storage live throughout both views. | Named slice owner; regression/characterization required before completion |
-| Long/short siblings | Preserve both packet behaviors and final disposition. | Named slice owner; regression/characterization required before completion |
-| Malformed first header | Consume initial hold even without header dispatch. | Named slice owner; regression/characterization required before completion |
-| Malformed or mismatched suffix | Dispose consumed views while preserving established parser policy. | Named slice owner; regression/characterization required before completion |
-| Version Negotiation | Finalization also covers the early return. | Named slice owner; regression/characterization required before completion |
-| Fatal handler error | Return original error and finish unretained storage. | Named slice owner; regression/characterization required before completion |
-| Retained view | Transfer only its counted view; final parsing hold ends separately. | Named slice owner; regression/characterization required before completion |
-| Rejected retention | Report false and finish the rejected view. | Named slice owner; regression/characterization required before completion |
-| Mixed retained/processed siblings | Do not recycle storage while parsing or retention remains active. | Named slice owner; regression/characterization required before completion |
+| Short packet success | Release after processing. | Covered: `TestConnectionReceiveLifetimeViews/short_success`; named slice owner |
+| Coalesced long/long | Keep storage live throughout both views. | Covered: `TestConnectionReceiveLifetimeViews/long_long`; named slice owner |
+| Long/short siblings | Preserve both packet behaviors and final disposition. | Covered: `TestConnectionReceiveLifetimeViews/long_short`; named slice owner |
+| Malformed first header | Consume initial hold even without header dispatch. | Covered: `TestConnectionReceiveLifetimeMalformedFirstHeader`; named slice owner |
+| Malformed or mismatched suffix | Dispose consumed views while preserving established parser policy. | Covered: `TestConnectionReceiveLifetimeViews/{malformed,mismatched}_suffix`; named slice owner |
+| Version Negotiation | Finalization also covers the early return. | Covered: `TestConnectionReceiveLifetimeVersionNegotiation`; named slice owner |
+| Fatal handler error | Return original error and finish unretained storage. | Covered: `TestConnectionReceiveLifetimeViews/fatal_handler`; named slice owner |
+| Retained view | Transfer only its counted view; final parsing hold ends separately. | Covered: `TestConnectionReceiveLifetimeViews/retained_replay`; named slice owner |
+| Rejected retention | Report false and finish the rejected view. | Covered: `TestConnectionReceiveLifetimeRejectedRetention`; named slice owner |
+| Mixed retained/processed siblings | Do not recycle storage while parsing or retention remains active. | Covered: `TestConnectionReceiveLifetimeViews/mixed_retained_processed`; named slice owner |
 
 **Evidence budget:** 10 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
@@ -85,11 +85,11 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 

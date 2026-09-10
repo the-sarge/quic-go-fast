@@ -2718,6 +2718,7 @@ func TestConnectionVersionNegotiationInvalidPackets(t *testing.T) {
 
 	// unparseable, since it's missing 2 bytes
 	vnp.data = vnp.data[:len(vnp.data)-2]
+	vnp.buffer = getPacketBuffer() // the first input was consumed
 	wasProcessed, err = tc.conn.handleOnePacket(vnp, 0)
 	require.NoError(t, err)
 	require.False(t, wasProcessed)
