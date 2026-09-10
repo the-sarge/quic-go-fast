@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -18,9 +19,10 @@ import (
 // wrapping only ReadFrom would silently lose batched reads or miss them entirely.
 type corruptionUDPConn struct {
 	*net.UDPConn
-	batch   *ipv4.PacketConn
-	capture *corruptionCapture
-	source  string
+	batch       *ipv4.PacketConn
+	capture     *corruptionCapture
+	source      string
+	readBatches atomic.Uint64
 }
 
 var _ quic.OOBCapablePacketConn = (*corruptionUDPConn)(nil)
@@ -45,7 +47,9 @@ func (c *corruptionUDPConn) ReadMsgUDP(b, oob []byte) (int, int, int, *net.UDPAd
 func (c *corruptionUDPConn) ReadBatch(messages []ipv4.Message, flags int) (int, error) {
 	n, err := c.batch.ReadBatch(messages, flags)
 	if c.capture.capturing() {
-		for _, msg := range messages[:max(n, 0)] {
+		batch := c.readBatches.Add(1)
+		c.capture.record(time.Now(), c.source, fmt.Sprintf("operation=read_batch batch=%d result_messages=%d flags=%d error=%v", batch, n, flags, err))
+		for index, msg := range messages[:max(n, 0)] {
 			// quic supplies one buffer per message. Join only the populated bytes
 			// to retain the socket boundary even if that caller changes later.
 			var payload []byte
@@ -55,10 +59,8 @@ func (c *corruptionUDPConn) ReadBatch(messages []ipv4.Message, flags int) (int, 
 				payload = append(payload, b[:l]...)
 				left -= l
 			}
-			c.capture.socket(c.source, "read", time.Time{}, msg.Addr, c.LocalAddr(), payload, msg.OOB[:msg.NN], msg.N, msg.Flags, err)
-		}
-		if err != nil {
-			c.capture.socket(c.source, "read_batch", time.Time{}, nil, c.LocalAddr(), nil, nil, n, flags, err)
+			source := fmt.Sprintf("%s batch=%d index=%d count=%d", c.source, batch, index, n)
+			c.capture.socket(source, "read", time.Time{}, msg.Addr, c.LocalAddr(), payload, msg.OOB[:msg.NN], msg.N, msg.Flags, err)
 		}
 	}
 	return n, err

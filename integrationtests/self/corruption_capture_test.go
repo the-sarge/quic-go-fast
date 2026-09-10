@@ -23,7 +23,7 @@ func readCorruptionCapture(t *testing.T, path string) []corruptionCaptureRecord 
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var records []corruptionCaptureRecord
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		var record corruptionCaptureRecord
 		require.NoError(t, json.Unmarshal([]byte(line), &record))
 		records = append(records, record)
@@ -193,6 +193,7 @@ func TestCorruptionCaptureIncompleteRecords(t *testing.T) {
 		records := readCorruptionCapture(t, c.path)
 		require.Contains(t, records[1].Data, "encode_error=short write")
 		require.Contains(t, records[1].Data, "[capture record truncated]")
+		require.LessOrEqual(t, len(records[1].Data), corruptionEventBytes)
 		require.Contains(t, records[len(records)-1].Data, "dropped_or_truncated=1")
 	})
 	t.Run("failed file write", func(t *testing.T) {
@@ -204,4 +205,17 @@ func TestCorruptionCaptureIncompleteRecords(t *testing.T) {
 		records := readCorruptionCapture(t, c.path)
 		require.Len(t, records, 1, "missing final marker explicitly leaves the capture incomplete")
 	})
+}
+
+func TestCorruptionCaptureUnicodeLimit(t *testing.T) {
+	t.Setenv("QUIC_GO_CORRUPTION_CAPTURE_DIR", t.TempDir())
+	c := newCorruptionCapture(t, "UTF-8 boundary")
+	c.record(time.Now(), "unicode", strings.Repeat("界", corruptionEventBytes/3+1))
+	c.finish(strings.Repeat("界", corruptionEventBytes/3+1))
+	records := readCorruptionCapture(t, c.path)
+	for _, record := range records[1:] {
+		require.LessOrEqual(t, len(record.Data), corruptionEventBytes)
+		require.NotContains(t, record.Data, "�", "truncation must preserve complete UTF-8 characters")
+		require.Contains(t, record.Data, "[capture record truncated]")
+	}
 }

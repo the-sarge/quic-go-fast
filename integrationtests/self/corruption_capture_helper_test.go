@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -82,14 +84,22 @@ func (c *corruptionCapture) record(at time.Time, source, data string) {
 		c.dropped++
 		return
 	}
-	if len(data) > corruptionEventBytes {
-		data = data[:corruptionEventBytes] + " [capture record truncated]"
-		c.dropped++
-	}
 	c.write(at, source, data, false)
 }
 
 func (c *corruptionCapture) write(at time.Time, source, data string, terminal bool) {
+	// JSON represents Data as UTF-8 text. Normalize before applying the byte
+	// limit, and never cut a multi-byte character at the truncation boundary.
+	data = strings.ToValidUTF8(data, "�")
+	if len(data) > corruptionEventBytes {
+		const marker = " [capture record truncated]"
+		end := corruptionEventBytes - len(marker)
+		for !utf8.RuneStart(data[end]) {
+			end--
+		}
+		data = data[:end] + marker
+		c.dropped++
+	}
 	line, err := json.Marshal(corruptionCaptureRecord{Time: at, Source: source, Data: data})
 	if err != nil {
 		c.err = err

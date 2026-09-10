@@ -1,0 +1,35 @@
+{
+  "source_go_sha256": {
+    "integrationtests/self/corruption_capture_helper_test.go": "180320c25130053f14be8497893d1515baccecd1089ee14b996d3547655b4570",
+    "integrationtests/self/corruption_capture_test.go": "248160849e55f61ac85443f89f5d0c8f97d4a586480cce329ff23078cb916a31",
+    "integrationtests/self/corruption_capture_linux_test.go": "61ffab9fabc1aa9c9e0df0046737d20da7159da39c4daf02f5af32a744fdce13",
+    "integrationtests/self/corruption_socket_helper_test.go": "6289c7979d619700a287bbb0debcf0fad7d81a4855af25fd69e2c82f2c3aa2b1"
+  },
+  "checks": [
+    {
+      "command": "go test ./integrationtests/self -run ^TestCorruptionCapture -count=1 -timeout=30s",
+      "platform": "darwin/arm64 Go1.27.0",
+      "exit_code": 0
+    },
+    {
+      "command": "go test -race ./integrationtests/self -run ^(TestCorruption|TestHandshakeDiagnostics|TestHandshakeCorruption) -count=1 -timeout=90s",
+      "platform": "minimax linux/amd64 Go1.27.1",
+      "environment": {
+        "GOTOOLCHAIN": "local",
+        "TIMESCALE_FACTOR": "3",
+        "QUIC_GO_DISABLE_GSO": "true"
+      },
+      "exit_code": 0
+    },
+    {
+      "command": "go fix -diff ./integrationtests/self",
+      "exit_code": 0
+    },
+    {
+      "command": "golangci-lint run ./integrationtests/self ./integrationtests/tools/proxy",
+      "exit_code": 0
+    }
+  ],
+  "linux_export": "/tmp/quic-go-issue46-reviewfix-WBGP6Nwt",
+  "linux_batch_red_log": "/tmp/issue46-C1-red.log"
+}
