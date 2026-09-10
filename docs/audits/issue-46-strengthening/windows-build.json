@@ -1,0 +1,14 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-c",
+    "-o",
+    "/tmp/issue46-strengthening-windows.test.exe",
+    "./integrationtests/self"
+  ],
+  "GOOS": "windows",
+  "GOARCH": "amd64",
+  "CGO_ENABLED": "0",
+  "exit_code": 0
+}

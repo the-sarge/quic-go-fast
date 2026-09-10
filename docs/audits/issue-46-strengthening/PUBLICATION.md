@@ -1,0 +1,22 @@
+# PR #148 review dispositions
+
+The maintainer invoked `loop-review-merge` after the implementation phase. [PR #148](https://github.com/the-sarge/quic-go-fast/pull/148) publishes this maintained diagnostic aid under the [current contract](../../agents/corruption-capture.md). The earlier implementation receipts retain their original source and scope; this publication phase supersedes their local-only status and authorizes ordinary finite merge certification.
+
+## Initial review
+
+RAS run `20260910T030709-f2e1b2306d111dc77967b61c` reviewed head `9c4d49d98cc1c4689a7293a953652d6d500007d5` against main `9d9716290ffb67662c8292269a308c08c2d67c35`. Both codex-astra and codex-sol completed, normal adjudication completed and a usable synthesis reported two findings. No review was posted automatically. Full RAS artifacts remain in `/Volumes/worktrees/quic-go-fast/issue46-publication-review/`; the prompt mechanically included the normative contract verbatim. The implementing agent independently assigns both findings `fix-now` for the reasons below.
+
+| Finding | Evidence and accepted obligation | Precise owner and semantic family | Disposition and evidence |
+| --- | --- | --- | --- |
+| C-001 / CODEXSOL-F-001: successful receive batches lack call-level identity | Every returned datagram was recorded, but successful `ReadBatch` calls had neither their result count nor membership links. One adjudicator reasonably read “batch submissions” as send-side only. Independently, retaining actual socket-operation results on the supported batched read path warrants the small receive-side correction. | `corruptionUDPConn.ReadBatch`: completed successful and failed calls, with each returned message linked to the same per-socket batch and its index/count. Preserve underlying syscall, returned bytes/OOB/addresses/flags, result count and error. | `fix-now`. A real Linux socket test queues two datagrams, confirms the underlying call returns both unchanged, and fails on the old capture's missing batch record. Record each call's result before its indexed message observations. `TestCorruptionCaptureSuccessfulReadBatch` and the existing closed-socket regression cover this family. |
+| C-002 / CODEXSOL-F-002: marker exceeds the 256 KiB data limit | Retaining 262144 bytes and then appending the marker produces a 262171-byte decoded field; truncating within UTF-8 can expand it further when encoded. This violates the explicit per-record byte limit even though the diagnostic consequence is small. | `corruptionCapture.write`: central encoding for ordinary, metadata and terminal records. Normalize textual UTF-8, reserve marker space, and retain complete characters before encoding. Raw datagram bytes remain hex encoded and unchanged. | `fix-now`. The oversized-qlog length assertion fails before the fix. `TestCorruptionCaptureUnicodeLimit` covers the same bound for ordinary and terminal UTF-8 text; `TestCorruptionCaptureIncompleteRecords/oversized_event` retains its marker/incompleteness checks and gains a decoded-length assertion. |
+
+These are distinct invariants at distinct enforcement seams. This is the first substantive RAS finding set for this PR; no repeated-root approach stop applies. Contract closure is not triggered for these bounded verification-aid corrections. No new random campaign, generic mutation suite, platform cross-product or transport change is needed.
+
+## Hosted static failure
+
+The first candidate's [static job](https://github.com/the-sarge/quic-go-fast/actions/runs/34432078477/job/102729492688) failed only at `go fix -diff`: the new capture reader needed `strings.SplitSeq` instead of ranging over `strings.Split`. The complete job log was saved locally as `/tmp/issue46-pr148-static-failure.log`. Disposition is `fix-now` under the repository's required static gate; the one-line test-reader modernization preserves its parsing behavior. `go fix -diff ./integrationtests/self` passes after the correction. No same-head rerun was requested; the corrected source must receive new review/certification and hosted checks.
+
+## Next gate
+
+Push the accepted fixes, verify this review at that exact head, then use the one allowed replacement review with these settled findings and regression evidence in its briefing. Final exact-head local certification and all applicable hosted checks remain required before merge. Issue #46 remains open; no causal transport defect has been established.

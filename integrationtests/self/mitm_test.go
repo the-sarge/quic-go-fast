@@ -172,7 +172,10 @@ func testMITMCorruptPacketsWithRandom(t *testing.T, direction quicproxy.Directio
 	// Register the report first so transport/socket cleanup runs before it.
 	d := newHandshakeDiagnostics(t, fmt.Sprintf("requested_direction=%s version=%s rtt=%s dial_timeout=%s", direction, version, scaleDuration(5*time.Millisecond), scaleDuration(time.Second)))
 	d.label = "corruption"
+	d.capture = newCorruptionCapture(t, d.scenario)
 	serverTransport, clientTransport := getTransportsForMITMTest(t)
+	d.observeCorruptionSocket(serverTransport, false)
+	d.observeCorruptionSocket(clientTransport, true)
 	d.addCorruptionTransport(serverTransport, false)
 	d.addCorruptionTransport(clientTransport, true)
 	rtt := scaleDuration(5 * time.Millisecond)
@@ -207,14 +210,24 @@ func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Dura
 		DelayPacket: func(quicproxy.Direction, net.Addr, net.Addr, []byte) time.Duration { return rtt / 2 },
 		DropPacket:  dropCb,
 	}
+	if d != nil && d.capture != nil {
+		proxy.ObserveSocket = d.observeProxySocket
+	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
 	defer cancel()
 	d.phase(true, "Dial")
+	if d != nil {
+		deadline, _ := ctx.Deadline()
+		d.capture.record(time.Now(), "dial_context", fmt.Sprintf("deadline=%s proxy=%s client=%s server=%s", deadline.Format(time.RFC3339Nano), proxy.LocalAddr(), clientTr.Conn.LocalAddr(), serverTr.Conn.LocalAddr()))
+	}
 	conn, err := clientTr.Dial(ctx, proxy.LocalAddr(), getTLSClientConfig(), getQuicConfig(conf))
 	d.phase(true, fmt.Sprintf("Dial returned: %v", err))
+	if d != nil {
+		d.capture.finish(fmt.Sprintf("Dial returned: %v", err))
+	}
 	require.NoError(t, err)
 	defer conn.CloseWithError(0, "")
 

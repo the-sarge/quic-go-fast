@@ -25,6 +25,7 @@ type handshakeDiagnosticEvent struct {
 }
 
 type handshakeDiagnostics struct {
+	capture                  *corruptionCapture
 	scenario                 string
 	label                    string
 	mu                       sync.Mutex
@@ -67,6 +68,9 @@ func (d *handshakeDiagnostics) phase(client bool, phase string) {
 	if d == nil {
 		return
 	}
+	if d.capture != nil {
+		d.capture.record(time.Now(), "phase", fmt.Sprintf("client=%t %s", client, phase))
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if client {
@@ -85,6 +89,7 @@ func boundedHandshakeDiagnostic(s string) string {
 }
 
 func (d *handshakeDiagnostics) record(at time.Time, source, data string) {
+	d.capture.record(at, source, data)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.events[d.total%uint64(len(d.events))] = handshakeDiagnosticEvent{time: at, source: source, data: boundedHandshakeDiagnostic(data)}
@@ -101,6 +106,9 @@ type handshakeDiagnosticRecorder struct {
 func (r *handshakeDiagnosticRecorder) RecordEvent(ev qlogwriter.Event) {
 	at := time.Now()
 	var buffer handshakeDiagnosticBuffer
+	if r.diagnostics.capture.capturing() {
+		buffer.limit = corruptionEventBytes
+	}
 	err := ev.Encode(jsontext.NewEncoder(&buffer), at)
 	r.diagnostics.record(at, r.source, fmt.Sprintf("event=%s encode_error=%v data=%s", ev.Name(), err, buffer.String()))
 }
@@ -111,10 +119,17 @@ func (d *handshakeDiagnostics) tracer(_ context.Context, client bool, id quic.Co
 	return &events.Trace{Recorder: &handshakeDiagnosticRecorder{diagnostics: d, source: fmt.Sprintf("transport client=%t conn=%s", client, id)}}
 }
 
-type handshakeDiagnosticBuffer struct{ strings.Builder }
+type handshakeDiagnosticBuffer struct {
+	strings.Builder
+	limit int
+}
 
 func (b *handshakeDiagnosticBuffer) Write(p []byte) (int, error) {
-	n, _ := b.Builder.Write(p[:min(len(p), handshakeDiagnosticBytes-b.Len())])
+	limit := b.limit
+	if limit == 0 {
+		limit = handshakeDiagnosticBytes
+	}
+	n, _ := b.Builder.Write(p[:min(len(p), limit-b.Len())])
 	if n < len(p) {
 		return n, io.ErrShortWrite
 	}

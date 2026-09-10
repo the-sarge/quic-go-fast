@@ -147,6 +147,19 @@ type DropCallback func(dir Direction, from, to net.Addr, packet []byte) bool
 // DelayCallback is a callback that determines how much delay to apply to a packet.
 type DelayCallback func(dir Direction, from, to net.Addr, packet []byte) time.Duration
 
+// SocketEvent observes a completed proxy socket operation, not a forwarding
+// decision. Data is borrowed and is valid only during the synchronous callback.
+// Observers must not mutate Data or block on another proxy operation.
+type SocketEvent struct {
+	Direction Direction
+	Operation string
+	Started   time.Time // write start; zero for reads
+	From, To  net.Addr
+	Data      []byte
+	N         int
+	Err       error
+}
+
 // Proxy is a QUIC proxy that can drop and delay packets.
 type Proxy struct {
 	// Conn is the UDP socket that the proxy listens on for incoming packets from clients.
@@ -160,6 +173,10 @@ type Proxy struct {
 
 	// DelayPacket is a callback that determines how much delay to apply to a packet.
 	DelayPacket DelayCallback
+
+	// ObserveSocket optionally records reads and actual forwarding write results.
+	// Set before Start. It may be called concurrently by both directions.
+	ObserveSocket func(SocketEvent)
 
 	closeChan chan struct{}
 	logger    utils.Logger
@@ -250,6 +267,7 @@ func (p *Proxy) runProxy() error {
 	for {
 		buffer := make([]byte, protocol.MaxPacketBufferSize)
 		n, cliaddr, err := p.Conn.ReadFromUDP(buffer)
+		p.observeRead(DirectionIncoming, cliaddr, p.Conn.LocalAddr(), buffer[:n], n, err)
 		if err != nil {
 			return err
 		}
@@ -285,7 +303,8 @@ func (p *Proxy) runProxy() error {
 			if p.logger.Debug() {
 				p.logger.Debugf("forwarding incoming packet (%d bytes) to %s", len(raw), conn.ServerAddr)
 			}
-			if _, err := conn.GetServerConn().WriteTo(raw, conn.ServerAddr); err != nil {
+			socket := conn.GetServerConn()
+			if err := p.observeWrite(DirectionIncoming, socket.LocalAddr(), conn.ServerAddr, raw, func() (int, error) { return socket.WriteTo(raw, conn.ServerAddr) }); err != nil {
 				return err
 			}
 		} else {
@@ -304,7 +323,9 @@ func (p *Proxy) runOutgoingConnection(conn *connection) error {
 	go func() {
 		for {
 			buffer := make([]byte, protocol.MaxPacketBufferSize)
-			n, addr, err := conn.GetServerConn().ReadFrom(buffer)
+			socket := conn.GetServerConn()
+			n, addr, err := socket.ReadFrom(buffer)
+			p.observeRead(DirectionOutgoing, addr, socket.LocalAddr(), buffer[:n], n, err)
 			if err != nil {
 				// when the connection is switched out, we set a deadline on the old connection,
 				// in order to return it immediately
@@ -330,7 +351,7 @@ func (p *Proxy) runOutgoingConnection(conn *connection) error {
 				if p.logger.Debug() {
 					p.logger.Debugf("forwarding outgoing packet (%d bytes) to %s", len(raw), conn.ClientAddr)
 				}
-				if _, err := p.Conn.WriteToUDP(raw, conn.ClientAddr); err != nil {
+				if err := p.observeWrite(DirectionOutgoing, p.Conn.LocalAddr(), conn.ClientAddr, raw, func() (int, error) { return p.Conn.WriteToUDP(raw, conn.ClientAddr) }); err != nil {
 					return
 				}
 			} else {
@@ -350,7 +371,8 @@ func (p *Proxy) runOutgoingConnection(conn *connection) error {
 		case e := <-outgoingPackets:
 			conn.Outgoing.Add(e)
 		case <-conn.Outgoing.Timer():
-			if _, err := p.Conn.WriteTo(conn.Outgoing.Get(), conn.ClientAddr); err != nil {
+			raw := conn.Outgoing.Get()
+			if err := p.observeWrite(DirectionOutgoing, p.Conn.LocalAddr(), conn.ClientAddr, raw, func() (int, error) { return p.Conn.WriteTo(raw, conn.ClientAddr) }); err != nil {
 				return err
 			}
 		}
@@ -366,9 +388,28 @@ func (p *Proxy) runIncomingConnection(conn *connection) error {
 			// Send the packet to the server
 			conn.Incoming.Add(e)
 		case <-conn.Incoming.Timer():
-			if _, err := conn.GetServerConn().WriteTo(conn.Incoming.Get(), conn.ServerAddr); err != nil {
+			socket := conn.GetServerConn()
+			raw := conn.Incoming.Get()
+			if err := p.observeWrite(DirectionIncoming, socket.LocalAddr(), conn.ServerAddr, raw, func() (int, error) { return socket.WriteTo(raw, conn.ServerAddr) }); err != nil {
 				return err
 			}
 		}
 	}
+}
+
+func (p *Proxy) observeRead(dir Direction, from, to net.Addr, b []byte, n int, err error) {
+	if p.ObserveSocket != nil {
+		p.ObserveSocket(SocketEvent{Direction: dir, Operation: "read", From: from, To: to, Data: b, N: n, Err: err})
+	}
+}
+
+func (p *Proxy) observeWrite(dir Direction, from, to net.Addr, b []byte, write func() (int, error)) error {
+	if p.ObserveSocket == nil {
+		_, err := write()
+		return err
+	}
+	start := time.Now()
+	n, err := write()
+	p.ObserveSocket(SocketEvent{Direction: dir, Operation: "write", Started: start, From: from, To: to, Data: b, N: n, Err: err})
+	return err
 }

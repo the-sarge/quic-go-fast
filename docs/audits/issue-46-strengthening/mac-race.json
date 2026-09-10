@@ -1,0 +1,16 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "./integrationtests/self",
+    "./integrationtests/tools/proxy",
+    "-run",
+    "^(TestCorruption|TestHandshakeDiagnostics|TestHandshakeCorruption|TestProxySocketObservations)",
+    "-count=1",
+    "-timeout=90s"
+  ],
+  "started_at": "2026-09-10T01:09:15.212590+00:00",
+  "exit_code": 0,
+  "toolchain": "go version go1.27.0 darwin/arm64"
+}

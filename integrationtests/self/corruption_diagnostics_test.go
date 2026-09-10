@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -93,14 +94,18 @@ func TestCorruptionDiagnosticsCleanup(t *testing.T) {
 	require.NoError(t, err)
 	for _, mode := range []string{"pass", "fail"} {
 		t.Run(mode, func(t *testing.T) {
+			captureDir := t.TempDir()
 			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, executable, "-test.run=^TestCorruptionDiagnosticsCleanup$", "-test.v", "-test.timeout=15s")
-			cmd.Env = append(os.Environ(), childMode+"="+mode)
+			cmd.Env = append(os.Environ(), childMode+"="+mode, "QUIC_GO_CORRUPTION_CAPTURE_DIR="+captureDir)
 			output, err := cmd.CombinedOutput()
+			files, globErr := filepath.Glob(filepath.Join(captureDir, "*.jsonl"))
+			require.NoError(t, globErr)
 			if mode == "pass" {
 				require.NoError(t, err, "%s", output)
 				require.NotContains(t, string(output), "corruption diagnostics:")
+				require.Empty(t, files, "successful fixtures remove their capture")
 				return
 			}
 			require.Error(t, err)
@@ -112,6 +117,18 @@ func TestCorruptionDiagnosticsCleanup(t *testing.T) {
 			require.Contains(t, string(output), "offset=0")
 			require.Contains(t, string(output), "write_err=<nil>")
 			require.NotContains(t, string(output), "panic:")
+			require.Len(t, files, 1, "failed Dial must leave a handshake artifact")
+			capture, readErr := os.ReadFile(files[0])
+			require.NoError(t, readErr)
+			require.Contains(t, string(capture), "Dial returned: context deadline exceeded")
+			require.Contains(t, string(capture), "capture_start")
+			require.Contains(t, string(capture), "dial_finished")
+			require.Contains(t, string(capture), "socket endpoint client=true")
+			require.Contains(t, string(capture), "socket endpoint client=false")
+			require.Contains(t, string(capture), "socket proxy")
+			require.Contains(t, string(capture), "operation=write")
+			require.Contains(t, string(capture), "operation=read")
+			require.Contains(t, string(capture), "before_mutation")
 		})
 	}
 }
