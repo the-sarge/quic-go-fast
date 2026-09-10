@@ -28,7 +28,7 @@ Use Go’s own nested-module archive exclusion with a small inert marker. Keep a
 
 **Status:** Implementation complete; no successor remains. **Size:** S; one intended PR. **Blocked by:** None.
 
-**What it delivers:** Add an inert nested docs/audits/go.mod packaging boundary; keep existing evidence bytes and locations in Git. Provide docs/audit-evidence.md outside the excluded subtree with immutable repository links, and repair audit pointers in current normative documents. Preserve historical journal paragraphs exactly.
+**What it delivers:** Add an inert nested docs/audits/go.mod packaging boundary; keep existing evidence bytes and locations in Git. Provide [docs/audit-evidence.md](../audit-evidence.md) outside the excluded subtree with immutable repository links, and repair audit pointers in current normative documents. Preserve historical journal paragraphs exactly.
 
 **Existing-work disposition:** New slice; no open implementation PR or partial implementation is adopted.
 
@@ -66,11 +66,11 @@ Use Go’s own nested-module archive exclusion with a small inert marker. Keep a
 
 **Acceptance criteria:**
 
-- [ ] Deliver the end-to-end behavior above through its actual owners and consuming callers.
+- [x] Deliver the end-to-end behavior above through its actual owners and consuming callers.
 
-- [ ] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
+- [x] Implement the declared internal invariant without a second terminal authority or unbudgeted product seam.
 
-- [ ] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
+- [x] Satisfy the listed semantic-cell evidence and preserve the traced behavior within the representation domain.
 
 - [ ] Complete the shared bounded review, exact-head local and same-head hosted gates, merge, post-merge journal and pointer updates.
 
