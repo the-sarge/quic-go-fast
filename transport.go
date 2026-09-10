@@ -396,6 +396,7 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 
 		t.closeQueue = make(chan closePacket, 4)
 		t.statelessResetQueue = make(chan receivedPacket, 4)
+		t.nonQUICPackets = make(chan receivedPacket, maxQueuedNonQUICPackets)
 		if t.TokenGeneratorKey == nil {
 			var key TokenGeneratorKey
 			if _, err := rand.Read(key[:]); err != nil {
@@ -443,7 +444,16 @@ func (t *Transport) runSendQueue() {
 	for {
 		select {
 		case <-t.listening:
-			return
+			// The listener has stopped producing reset input. This worker
+			// owns disposal, so Close doesn't have to join a blocked write.
+			for {
+				select {
+				case p := <-t.statelessResetQueue:
+					p.buffer.Release()
+				default:
+					return
+				}
+			}
 		case p := <-t.closeQueue:
 			t.conn.WritePacket(p.payload, p.addr, p.info.OOB(), 0, protocol.ECNUnsupported)
 		case p := <-t.statelessResetQueue:
@@ -527,6 +537,18 @@ func (t *Transport) close(e error) {
 var setBufferWarningOnce sync.Once
 
 func (t *Transport) listen(conn rawConn) {
+	defer func() {
+		// This goroutine is the sole producer. Concurrent non-QUIC readers
+		// can still receive, but each packet belongs to exactly one receiver.
+		for {
+			select {
+			case p := <-t.nonQUICPackets:
+				p.buffer.Release()
+			default:
+				return
+			}
+		}
+	}()
 	for {
 		p, err := conn.ReadPacket()
 		//nolint:staticcheck // SA1019 ignore this!
@@ -722,10 +744,7 @@ func (t *Transport) ReadNonQUICPacket(ctx context.Context, b []byte) (int, net.A
 	if err := t.init(false); err != nil {
 		return 0, nil, err
 	}
-	if !t.readingNonQUICPackets.Load() {
-		t.nonQUICPackets = make(chan receivedPacket, maxQueuedNonQUICPackets)
-		t.readingNonQUICPackets.Store(true)
-	}
+	t.readingNonQUICPackets.Store(true)
 	select {
 	case <-ctx.Done():
 		return 0, nil, ctx.Err()
