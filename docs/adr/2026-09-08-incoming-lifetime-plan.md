@@ -162,7 +162,7 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Existing-work disposition:** New slice; no open implementation PR or partial implementation is adopted.
 
-**Single owner after merge:** Transport owns each whole datagram until transfer; each closed handler consumes its own input; the successful non-QUIC reader owns its dequeued packet through copy-out.
+**Single owner after merge:** Transport owns each whole datagram until transfer; its empty-input branch preserves the existing bufferless no-progress sentinel as a no-op; each closed handler consumes its own input; the successful non-QUIC reader owns its dequeued packet through copy-out.
 
 **Authority completeness:** No newly authoritative persisted fact or restart schema is introduced. The slice includes creation, validation and every in-scope terminal/destructive consumer of its new internal representation; constructors and teardown cannot be postponed to another slice.
 
@@ -172,13 +172,13 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 
 **Artifact classification:** Changed runtime lifetime guards are shipped behavior and required safety enforcement. Tests/fixtures are verification aids; no new maintained analyzer, observer framework or harness is approved as a blocking deliverable. Plans, closure matrices, receipts and journal are process/traceability metadata.
 
-**Representation contract:** Pool-backed exclusive datagrams before connection splitting and the named routing outcomes. Existing connection-ID/wire parsing owns syntax. Universal disposition at these listed terminal owners.
+**Representation contract:** Pool-backed exclusive datagrams before connection splitting and the named routing outcomes, plus the existing empty, bufferless no-progress sentinel forwarded by listen after an OOB zero-message read. The transport empty-input branch releases only when an input buffer exists; a bufferless sentinel owns nothing and remains a no-op. Existing connection-ID/wire parsing owns syntax. Universal disposition at these listed terminal owners; no new representation is introduced and nonempty bufferless packets remain unsupported. Reader retry/cache behavior belongs to I7.
 
 **Contract closure:** Not triggered for this finite transition set: named guarded operations are reasonably covered by ordinary focused tests; multiple callers alone do not trigger closure. P1 uses the authoritative archive representation and a finite content comparison; T1 is a bounded test migration without a new shipped safety owner. Ordinary focused checks suffice; do not recursively impose closure on verification aids.
 
 | Semantic class | Accepted disposition | Owner / evidence status |
 | --- | --- | --- |
-| Empty input | Dispose. | Covered: `TestTransportTerminalLifetime/empty`; named slice owner |
+| Empty input | Dispose an owned empty datagram; preserve the bufferless no-progress sentinel as a no-op. | Covered: `TestTransportTerminalLifetime/empty`; named slice owner |
 | Connection-ID parse rejection | Dispose current reference; MaybeRelease alone is insufficient. | Covered: `TestTransportTerminalLifetime/connection_id_rejection`; named slice owner |
 | No server available | Dispose. | Covered: `TestTransportTerminalLifetime/no_server`; named slice owner |
 | Recognized stateless reset | Process then dispose. | Covered: `TestTransportTerminalLifetimeReset`; named slice owner |
@@ -189,11 +189,13 @@ Ordinary reference-count, preserved-byte and protocol-outcome tests remain maint
 | Remote closed handler | Dispose terminal input. | Covered: `TestClosedRemoteConnection`; named slice owner |
 | Successful forward control | Transfer ownership without releasing the forwarded buffer. | Covered: `TestTransportTerminalLifetimeForward`; named slice owner |
 
-**Evidence budget:** 10 semantic cells as listed, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
+**Evidence budget:** 10 semantic cells as listed; the empty-input cell includes owned-buffer and bufferless-sentinel subcases, one representative positive and one materially different negative per applicable owner; listed alternatives are subcases, not a Cartesian product or permission for repetition. No mandatory mutation: at most one central guard bypass per enforcement owner only if inherited coverage otherwise leaves that guard unobserved. No fuzz campaign, arbitrary stress loop, new timing deadline, expanded platform matrix or sustained performance campaign. One initial fully briefed review and at most one replacement under the shared baseline. The directly in-scope process-crash regression discovered during replacement permits one scoped central correction, exact-head verification of that triggering review, and one final fresh review under the shared critical-safety budget exception; no further expansion is approved. Stop when the listed evidence and required certification pass with no unresolved stop-for-decision finding; more confidence is not a completion criterion.
 
 **TDD and preservation evidence:** Run the listed new regression cells first (demonstrate failure or characterize unchanged behavior), then the relevant existing receive/transport/server families, one focused `go test -race -count=1` selection for the synchronization owners changed by this slice, and normal local certification. I7 additionally uses one Linux OOB behavior cell and a non-OOB Windows compile because those are different existing adapters; no platform cross-product. These names select repository families or planned test cells, not claims that unwritten tests already exist. Runtime hot-path slices may invoke existing relevant benchmarks with benchmem once as diagnostic evidence; no performance qualification or speed claim is created, and no new per-packet heap representation is permitted.
 
 **Dispatch context budget:** At most 18k input tokens: roughly 300 transport routing/non-QUIC/closed-handler lines, packet-handler contract and selected routing tests. Include one successful-forward control and source receipt.
+
+**Scoped preservation audit:** [Empty-input producer clarification](../audits/2026-09-10-i3-empty-input.md). The accepted outcome, single owner and one-product-PR boundary remain intact. The finite empty-input transition has ordinary focused coverage; closure remains not triggered. No new authority, transitional seam, public behavior or reader scheduling change is admitted.
 
 **Slice decision audit:** Individual scalar drop sites could be separate tiny PRs, but their exclusive consume contract and finite terminal census fit one context. I4 has a different producer-stop obligation and remains separate. There are no convenience-only blockers.
 
