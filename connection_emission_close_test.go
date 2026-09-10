@@ -42,7 +42,7 @@ func TestEmissionCloseRetainedLifetime(t *testing.T) {
 				(*observed).Data[i] = 0xa5
 			}
 			handler := newClosedLocalConn(func(net.Addr, packetInfo) { require.Equal(t, first, retained) }, c.logger)
-			handler.handlePacket(receivedPacket{})
+			handler.handlePacket(receivedPacket{buffer: getPacketBuffer()})
 		})
 	}
 }

@@ -14,7 +14,9 @@ func TestClosedLocalConnection(t *testing.T) {
 	conn := newClosedLocalConn(func(addr net.Addr, _ packetInfo) { written <- addr }, utils.DefaultLogger)
 	addr := &net.UDPAddr{IP: net.IPv4(127, 1, 2, 3), Port: 1337}
 	for i := 1; i <= 20; i++ {
-		conn.handlePacket(receivedPacket{remoteAddr: addr})
+		buf := getPacketBuffer()
+		conn.handlePacket(receivedPacket{remoteAddr: addr, buffer: buf})
+		require.Zero(t, buf.refCount)
 		if i == 1 || i == 2 || i == 4 || i == 8 || i == 16 {
 			select {
 			case gotAddr := <-written:
@@ -31,4 +33,11 @@ func TestClosedLocalConnection(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestClosedRemoteConnection(t *testing.T) {
+	buf := getPacketBuffer()
+	conn := newClosedRemoteConn()
+	conn.handlePacket(receivedPacket{buffer: buf})
+	require.Zero(t, buf.refCount)
 }

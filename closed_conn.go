@@ -29,6 +29,7 @@ func newClosedLocalConn(sendPacket func(net.Addr, packetInfo), logger utils.Logg
 }
 
 func (c *closedLocalConn) handlePacket(p receivedPacket) {
+	defer p.buffer.Release()
 	n := c.counter.Add(1)
 	// exponential backoff
 	// only send a CONNECTION_CLOSE for the 1st, 2nd, 4th, 8th, 16th, ... packet arriving
@@ -53,6 +54,6 @@ func newClosedRemoteConn() packetHandler {
 	return &closedRemoteConn{}
 }
 
-func (c *closedRemoteConn) handlePacket(receivedPacket)                {}
+func (c *closedRemoteConn) handlePacket(p receivedPacket)              { p.buffer.Release() }
 func (c *closedRemoteConn) destroy(error)                              {}
 func (c *closedRemoteConn) closeWithTransportError(TransportErrorCode) {}
