@@ -778,3 +778,24 @@ A failed existing HTTP/3 timing assertion did not establish an architecture or s
 ### Next
 
 I4 unlocks no additional child. I5, I6 and I7 remain ready; I8 remains blocked by I5. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier view.
+
+---
+
+## I5 server 0-RTT retirement landed - 2026-09-10 10:52 EDT
+
+**Main:** `e3cad9517aed`
+**Actor:** Codex
+
+### Summary
+
+Merged [I5 product PR #166](https://github.com/the-sarge/quic-go-fast/pull/166) as `e3cad9517aed9241802d9235db48ca8cc10df876`, closing [slice #95](https://github.com/the-sarge/quic-go-fast/issues/95). One server receive-owner operation now retires retained 0-RTT groups on expiry, Retry, refusal and registration collision. Successful connection handoff empties ownership before group deletion; queue bounds and Initial-first ordering are preserved.
+
+### Validation
+
+Retry, refusal and collision regressions failed before the fix. The six accepted semantic cells, existing server/transport/closed-handler tests, focused race selection, ordinary non-integration package suite and `go vet ./...` passed. A disposable source overlay observed 75 selected input acquisitions returning to the pool exactly once, with no early return in the transfer/admission controls; no permanent observer was added.
+
+RAS run `20260910T142415-e16736fd346cac9cdf60dfa7` completed with eight successful reviewers, adjudication and synthesis; one reviewer failed structured-output parsing. The only accepted finding corrected two stale plan-status sentences. Duplicate and cosmetic findings were rejected, with no deferred follow-ups. The shared docs-only policy allowed skipping another RAS cycle after those sentence edits. Final certification at `f0aac7f4fffef570e9f7e4f2bcc443d2466f5ba3`, base `534d34fc1d6ba1304f2dd7af57fe0784d9ad0077`, passed with a clean tree. All 33 same-head hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34490622978), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34490622857), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34490622910), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34490622976), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34490622810). See the [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/166#issuecomment-5620499527).
+
+### Next
+
+I2 and I5 are complete, making I8 ready. I6/I7 retain their independent scopes; server shutdown and unpublished-connection abort remain separately owned, with no additional untraced effects discovered. The product PR already includes the committed completion/frontier transition. [Track #87](https://github.com/the-sarge/quic-go-fast/issues/87) and [program #101](https://github.com/the-sarge/quic-go-fast/issues/101) are the live progress views.
