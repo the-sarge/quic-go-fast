@@ -755,3 +755,26 @@ The [scoped preservation audit](adr/2026-09-08-incoming-lifetime-plan.md#i3--dis
 Validation on reviewed head `8a7b3b4857bb1bc1cce4f8e368bb07851ebcdc9c`: red-before-green lifetime and bufferless-sentinel regressions; full uncached package suite, vet, golangci-lint, focused race tests, disposable pool-return observations and unchanged production source hashes. Both accepted review findings were fixed and exact-head verified; final review `20260910T082412-a7eb70e95f52d4fe8509e945` had no findings or follow-ups, with reviewer quorum met despite adapter failures. All 33 applicable hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698223), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698243), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698385), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698307) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34454698255). [Full certification receipt](https://github.com/the-sarge/quic-go-fast/pull/160#issuecomment-5615592355).
 
 At this timestamp, I4's sole blocker #93 is closed; the committed frontier is I4, I5, I6, I7, P1, T1 and C1. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/101) remains the live progress view. No deferred review follow-ups or untraced effects remain in I3.
+
+---
+
+## Transport queued receive storage retired - 2026-09-10 10:04 EDT
+
+**Main:** `419a43f5e262`
+**Actor:** Codex
+
+### Completed
+
+Merged [I4 / PR #163](https://github.com/the-sarge/quic-go-fast/pull/163) as `419a43f5e262b7c9e368e10d6e18a2b87e9f7f99`, closing [#94](https://github.com/the-sarge/quic-go-fast/issues/94). Transport initialization now publishes one stable non-QUIC channel; listener termination drains pending non-QUIC input, and the send worker drains pending stateless-reset input after the listener barrier. Concurrent readers own their dequeued packets exclusively. Caller-owned sockets and public Close's asynchronous-write behavior are preserved. The product PR includes I4's committed completion and frontier transition.
+
+### Validation
+
+The bounded regressions demonstrated the original pending-storage and channel-publication failures. The final candidate `dd115a2d625dd96ea30746a8b2c6c608688070f4` passed focused preservation and race tests, the ordinary package suite, go vet, golangci-lint, and the disposable pool-return probe; nine selected acquisitions each returned once, with no premature return during the blocked reset write. Production source bytes remained unchanged by the probe. Initial review `20260910T133530-a55c46f54fa80f50975a582a`, exact-head verification of its accepted reader-assertion finding, and replacement review `20260910T135534-c8c8c8d44f96dbb028d29855` completed; the replacement had no findings. Eight reviewers completed each review; one adapter failed candidate recovery and quorum was satisfied. All 33 jobs across the final candidate's applicable push/PR workflows succeeded, including [hosted integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34485390600).
+
+### Decisions
+
+A failed existing HTTP/3 timing assertion did not establish an architecture or scope change. The premature architecture-handoff routing was retracted, and I4 continued under its accepted contract; see the [routing correction](https://github.com/the-sarge/quic-go-fast/pull/163#issuecomment-5619533525). The earlier exact candidate had discordant independently triggered integration runs; no same-head rerun or timing-threshold weakening was used. Detailed findings and evidence remain in the [PR discussion](https://github.com/the-sarge/quic-go-fast/pull/163).
+
+### Next
+
+I4 unlocks no additional child. I5, I6 and I7 remain ready; I8 remains blocked by I5. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier view.
