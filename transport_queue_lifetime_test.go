@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,6 +29,7 @@ type queueLifetimeConn struct {
 func newQueueLifetimeConn() *queueLifetimeConn {
 	return &queueLifetimeConn{packets: make(chan receivedPacket, 8), stop: make(chan struct{})}
 }
+
 func (c *queueLifetimeConn) ReadPacket() (receivedPacket, error) {
 	select {
 	case p := <-c.packets:
@@ -36,6 +38,7 @@ func (c *queueLifetimeConn) ReadPacket() (receivedPacket, error) {
 		return receivedPacket{}, net.ErrClosed
 	}
 }
+
 func (c *queueLifetimeConn) WritePacket(b []byte, _ net.Addr, _ []byte, _ uint16, _ protocol.ECN) (int, error) {
 	c.writes++
 	if c.writeGate != nil {
@@ -43,6 +46,7 @@ func (c *queueLifetimeConn) WritePacket(b []byte, _ net.Addr, _ []byte, _ uint16
 	}
 	return len(b), nil
 }
+
 func (c *queueLifetimeConn) SetReadDeadline(d time.Time) error {
 	c.deadline = d
 	if !d.IsZero() {
@@ -97,10 +101,10 @@ func TestTransportQueueLifetimeConcurrentReaders(t *testing.T) {
 				out := make([]byte, 4)
 				n, addr, err := tr.ReadNonQUICPacket(context.Background(), out)
 				if err == nil {
-					require.Equal(t, []byte{0, 1, 2, 3}, out[:n])
-					require.Equal(t, &net.UDPAddr{Port: 1234}, addr)
+					assert.Equal(t, []byte{0, 1, 2, 3}, out[:n])
+					assert.Equal(t, &net.UDPAddr{Port: 1234}, addr)
 				} else {
-					require.EqualError(t, err, "closed")
+					assert.EqualError(t, err, "closed")
 				}
 			})
 		}
