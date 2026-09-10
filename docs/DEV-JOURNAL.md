@@ -694,3 +694,26 @@ An additional earlier QUIC-v2 randomized-corruption run failed at the existing D
 ### Next
 
 I2 #92 is newly eligible after I1; the other accepted dependency edges remain unchanged. The [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live frontier. Continue surviving corruption evidence work under existing #46 rather than opening a duplicate investigation.
+
+---
+
+## I2 retained receive storage and admission merged - 2026-09-10 02:38 EDT
+
+**Main:** `4574917af20c`
+**Actor:** Codex
+
+### Completed
+
+Merged [I2, PR #156](https://github.com/the-sarge/quic-go-fast/pull/156) as `4574917af20cb104c6aa5bc3d9d3d91b16fe8c20`, closing #92. Connection admission is sealed under the queue mutex before final drain, overflow and late input are disposed, retained views are released individually, and early replay errors dispose the detached tail. Synchronous handshake cleanup preserves I1's active parsing hold. The product PR records I2 completion and the resulting frontier; failed server publication remains I8's scope.
+
+### Validation
+
+Reviewed head `5c231567aa02524fa51995abc5c62269888f8774` passed all eight semantic-cell regressions, the focused race selection, an uncached full suite including integration packages, vet, repository-specific go-fix checks, tidy, lint and whitespace checks. The [disposable pool-return probe](https://github.com/the-sarge/quic-go-fast/pull/156#issuecomment-5613977403) observed one actual return per tested acquisition and no premature return during active parsing; production source hashes remained unchanged. RAS initial round `20260910T061928-839b7ce1d3de84eac4c6cf8c` completed with eight successful reviewers, one structured-output failure, and zero Fix First clusters. No code fix verification or replacement review was needed. The [final certification receipt](https://github.com/the-sarge/quic-go-fast/pull/156#issuecomment-5614265145) records the exact head and independent dispositions.
+
+### Decisions
+
+The maintainer explicitly directed continuation after the Linux Go 1.27 race integration job failed in `TestMITCorruptPackets/towards_the_client` with a three-second Dial timeout. The [PR-specific exception](https://github.com/the-sarge/quic-go-fast/pull/156#issuecomment-5614094598) accepted that disclosed occurrence; the other 32 hosted checks passed. The failed check was not rerun or reclassified as passing or infrastructure, and no corruption behavior or deadline was relaxed. The capture remains with [#46](https://github.com/the-sarge/quic-go-fast/issues/46); an identical cause or absence of an I2 contribution is not established.
+
+### Next
+
+I8 #98 remains blocked by I5 #95; I2's merge makes no new successor ready. I3, I5, I6, I7, P1, T1 and C1 remain the recorded frontier. The [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) is the live view. Continue the existing #46 investigation without creating a duplicate issue or authorizing another randomized campaign.
