@@ -922,9 +922,14 @@ func TestConnectionMaxUnprocessedPackets(t *testing.T) {
 
 		for range protocol.MaxConnUnprocessedPackets {
 			// nothing here should block
-			tc.conn.handlePacket(receivedPacket{data: []byte("foobar")})
+			tc.conn.handlePacket(lifetimePacket(t, tc, []byte("foobar")))
 		}
-		tc.conn.handlePacket(receivedPacket{data: []byte("foobar")})
+		tc.conn.handlePacket(lifetimePacket(t, tc, []byte("foobar")))
+		t.Cleanup(func() {
+			for !tc.conn.receivedPackets.Empty() {
+				tc.conn.receivedPackets.PopFront().buffer.Release()
+			}
+		})
 
 		synctest.Wait()
 
