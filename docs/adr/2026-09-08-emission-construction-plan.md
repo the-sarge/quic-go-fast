@@ -1,6 +1,6 @@
 # Packet-emission construction Implementation Plan
 
-**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** C in QGF-AD-2026-09. **Depends on:** Nothing outside this track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Construction receipt](../audits/2026-09-08-emission-construction/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), [T test-entrypoint plan](2026-09-08-emission-entrypoint-tests-plan.md), ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md) and [0004](0004-packet-emission-ownership.md).
+**Date:** 2026-09-08. **Status:** Accepted; not implemented. **Track:** C in QGF-AD-2026-09. **Depends on:** Nothing outside this track. **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stops. **Audit history:** [Construction receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-08-emission-construction/README.md). **Related:** [Program](2026-09-08-architecture-deepening-program.md), [T test-entrypoint plan](2026-09-08-emission-entrypoint-tests-plan.md), ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md) and [0004](0004-packet-emission-ownership.md).
 
 ## Goal
 

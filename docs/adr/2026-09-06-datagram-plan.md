@@ -1,6 +1,6 @@
 # Datagram receive efficiency implementation plan
 
-**Date:** 2026-09-06. **Status:** Complete; D1 runtime improvement, D2 bounded no-change. **Track:** D of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md). **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
+**Date:** 2026-09-06. **Status:** Complete; D1 runtime improvement, D2 bounded no-change. **Track:** D of QGF-2026-09. **Depends on:** Nothing. **Related:** [Program](2026-09-06-fork-program.md), [compatibility](0001-upstream-compatibility.md). **Audit history:** [Handoff audit](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-06-handoff.md).
 
 ## Goal and current shape
 
@@ -33,7 +33,7 @@ Reject/rework within the same contract if the expected allocation improvement is
 
 ### D1 — Avoid allocation for receive overflow
 
-**Current state:** Complete; runtime improvement accepted. [Bounded evidence receipt](../audits/2026-09-06-d1-overflow.md).
+**Current state:** Complete; runtime improvement accepted. [Bounded evidence receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-06-d1-overflow.md).
 
 **What it delivers:** Move capacity admission under `rcvMx` ahead of allocation/copy. If full, unlock and retain existing conditional discard logging; if admitted, make the owning copy and append while holding the same lock, then preserve notification. This keeps admission atomic without an unlocked check/reservation race.
 
@@ -53,7 +53,7 @@ Reject/rework within the same contract if the expected allocation improvement is
 
 ### D2 — Reuse receive queue storage
 
-**Current state:** Complete; bounded no-change disposition. Metadata allocation savings were observed, but the permitted replacement pair did not resolve timing contamination. The runtime substitution is not retained; the refill/drain characterization is retained. [Bounded evidence receipt](../audits/2026-09-06-d2-receive-storage.md).
+**Current state:** Complete; bounded no-change disposition. Metadata allocation savings were observed, but the permitted replacement pair did not resolve timing contamination. The runtime substitution is not retained; the refill/drain characterization is retained. [Bounded evidence receipt](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-06-d2-receive-storage.md).
 
 **What it delivers:** Replace the receive `[][]byte` with the existing lazy `ringbuffer.RingBuffer[[]byte]`, using `Len`, `PushBack`, and `PopFront` under the unchanged lock. Queue admission still limits live entries to 128; do not preallocate 128 slots for every idle connection. The existing ring clears removed references and retains bounded metadata for reuse.
 

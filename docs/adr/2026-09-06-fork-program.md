@@ -1,6 +1,6 @@
 # quic-go-fast first milestone — 2026-09-06
 
-**Program identity:** QGF-2026-09. **Status:** D and H complete. **Normative scope:** This index owns track identity, dependency edges and binding policy; each plan owns its slice contracts. **Audit history:** [Handoff audit](../audits/2026-09-06-handoff.md).
+**Program identity:** QGF-2026-09. **Status:** D and H complete. **Normative scope:** This index owns track identity, dependency edges and binding policy; each plan owns its slice contracts. **Audit history:** [Handoff audit](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/2026-09-06-handoff.md).
 
 ## Outcomes and boundaries
 

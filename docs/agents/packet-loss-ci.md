@@ -1,6 +1,6 @@
 # Deterministic packet-loss CI
 
-The operator approved the following proposal after the [PR #144 capture was diagnosed](../audits/issue-44-captured-loss/README.md): “make random-loss stress opt-in and use a documented deterministic loss corpus in mandatory CI, including this timeout case and successful recovery controls”. The accompanying constraint was: “This changes CI loss selection; transport recovery and deadlines would stay unchanged.” The operator replied “go ahead”. This approval supersedes the earlier diagnostics-only scope for this implementation; the archived investigation remains an immutable record of the evidence available before approval.
+The operator approved the following proposal after the [PR #144 capture was diagnosed](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/issue-44-captured-loss/README.md): “make random-loss stress opt-in and use a documented deterministic loss corpus in mandatory CI, including this timeout case and successful recovery controls”. The accompanying constraint was: “This changes CI loss selection; transport recovery and deadlines would stay unchanged.” The operator replied “go ahead”. This approval supersedes the earlier diagnostics-only scope for this implementation; the archived investigation remains an immutable record of the evidence available before approval.
 
 ## Fixture contract
 
@@ -58,4 +58,4 @@ The evidence plan is focused v1/v2 tests, one final focused race check, the opt-
 
 The review budget is Standards and Spec reviews, one fully briefed initial RAS review, verification of accepted fixes when needed, and at most one replacement review. Production recovery redesign, recursive testing of evidence tools and random reproduction campaigns are outside this change. Merge only the independently reviewed and locally/hosted validated head of this fixture PR; PR #144 remains owned by its separate workflow.
 
-After this review completed, the operator explicitly approved investigating and repairing a separate MTU fixture failure captured by the initial PR head. The [MTU diagnostic addendum](../audits/mtu-snapshot-race.md) records that approval, the causal experiment, the narrow fixture repair and its bounded review/evidence plan. The packet-loss contract above is unchanged.
+After this review completed, the operator explicitly approved investigating and repairing a separate MTU fixture failure captured by the initial PR head. The [MTU diagnostic addendum](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/mtu-snapshot-race.md) records that approval, the causal experiment, the narrow fixture repair and its bounded review/evidence plan. The packet-loss contract above is unchanged.
