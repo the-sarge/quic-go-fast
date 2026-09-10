@@ -644,3 +644,26 @@ Reviewed and merged head `2a8513cfead75b6018235feb6248f676c40bdafd` against main
 ### Next
 
 [Issue #46](https://github.com/the-sarge/quic-go-fast/issues/46) remains the live investigation into the historical randomized-corruption Dial timeout; its tests and diagnostics are now delivered. An actual failing corruption capture is still needed to establish that failure's cause. [Issue #44](https://github.com/the-sarge/quic-go-fast/issues/44) retains its separate unresolved historical question, which did not prevent this publication. The investigation tasks stay open; no additional diagnostic campaign is started by this journal entry.
+
+---
+
+## Stronger corruption capture published - 2026-09-09 23:45 EDT
+
+**Main:** `fcbaa187f105`
+**Actor:** Codex
+
+### Completed
+
+[PR #148](https://github.com/the-sarge/quic-go-fast/pull/148) merged stronger corruption-handshake evidence: append-only JSONL through Dial return, original datagrams and packet boundaries, qlog, selected mutations, and actual endpoint/proxy socket results including receive-batch identity. Failure and interrupted-process evidence survives ordinary cleanup loss; successful fixtures remove captures, and CI uploads retained files independently of debug mode. The existing corruption choices, deadlines and UDP/OOB capabilities remain unchanged. The capture has explicit storage limits and a record-by-record finalization cutoff; it does not promise complete causation, deterministic replay or a historical timeout fix.
+
+### Validation
+
+Initial RAS review `20260910T030709-f2e1b2306d111dc77967b61c` found missing receive-batch identity/result and a truncation-marker size error. Both were fixed manually and verified resolved (2/2, clear blocking projection) at `0a70aba55268c83766ca6005cd6c77fc583a75b1`. Final two-reviewer review `20260910T033219-717f424aed57a1f57f3db455` completed; its atomic-batch suggestion was independently deferred under the documented recording boundary and finite review budget. Exact-head focused race tests, full proxy race tests, uncached native full suite, vet, lint, go-fix, formatting, root/FIPS module tidy, workflow syntax and diff checks passed. Corrected Linux batch race evidence and Windows build evidence are in the [audit receipts](audits/issue-46-strengthening/README.md). All 33 applicable hosted checks passed before squash merge `fcbaa187f10591544df90bbf68a9bb55a5281236`.
+
+### Decisions
+
+The [capture contract](agents/corruption-capture.md) bounds interpretation to records appended before finalization, with explicit truncation/overflow/error limits and accepted scheduling effects. A batch result can precede finalization while indexed member records fall after the cutoff. Operation-group atomicity is a worthwhile strengthening beyond this boundary, revalidated against the merged commit and tracked in [#149](https://github.com/the-sarge/quic-go-fast/issues/149).
+
+### Next
+
+The historical randomized-corruption timeout remains unresolved; [#46](https://github.com/the-sarge/quic-go-fast/issues/46) is the live investigation view and stays open. The previously approved 100-attempt capture window passed without reproducing it; publication did not authorize another random investigation campaign. Retrieve the strengthened capture and complete job log from a future failure, respecting the recorded completeness limits. The separate packet-loss investigation [#44](https://github.com/the-sarge/quic-go-fast/issues/44) is unchanged.
