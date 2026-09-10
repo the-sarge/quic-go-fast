@@ -4,7 +4,6 @@ import (
 	"net"
 	"testing"
 	"testing/synctest"
-	"time"
 
 	"github.com/quic-go/quic-go/internal/handshake"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -67,11 +66,7 @@ func TestServerAdmissionLifetimeReceiveExit(t *testing.T) {
 	rejected := serverAdmissionLifetimePacket()
 	admitted := make(chan struct{})
 	go func() { s.handlePacket(rejected); close(admitted) }()
-	select {
-	case <-admitted:
-	case <-time.After(time.Second):
-		t.Fatal("admission blocked on the receive-worker exit")
-	}
+	<-admitted
 	s.run()
 	<-closed
 	require.Empty(t, s.receivedPackets)
