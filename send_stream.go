@@ -710,6 +710,21 @@ func (s *SendStream) CancelWrite(errorCode StreamErrorCode) {
 				s.nextFrameReserved = false
 			} else if s.nextFrame.Offset+s.nextFrame.DataLen() > reliableOffset {
 				s.nextFrame.Data = s.nextFrame.Data[:reliableOffset-s.nextFrame.Offset]
+				if cap(s.nextFrame.Data) > int(protocol.MaxPacketBufferSize) {
+					// Cancellation is terminal: copy the retained prefix once so a
+					// small reliable range cannot keep a large discarded suffix alive.
+					previous := s.nextFrame
+					if previous.DataLen() <= protocol.MaxPacketBufferSize {
+						s.nextFrame = wire.GetStreamFrame()
+						s.nextFrame.Data = s.nextFrame.Data[:len(previous.Data)]
+					} else {
+						s.nextFrame = &wire.StreamFrame{Data: make([]byte, len(previous.Data))}
+					}
+					s.nextFrame.StreamID = s.streamID
+					s.nextFrame.Offset = previous.Offset
+					s.nextFrame.DataLenPresent = true
+					copy(s.nextFrame.Data, previous.Data)
+				}
 			}
 		}
 		if len(s.retransmissionQueue) > 0 {

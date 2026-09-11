@@ -14,7 +14,7 @@ Issue: https://github.com/the-sarge/quic-go-fast/issues/75
 
 The supported domain is bytes accepted atomically by `SendStream.TryWriteAll`, including repeated admissions and appends after partial packetization, and their existing packetization, ACK/loss, cancellation and reliable-prefix paths. `SendStream.nextFrame` owns pending bytes; emitted STREAM frames own packet-sized recovery storage. No caller storage is retained. The algorithmic guarantee is linear total copying in admitted bytes with bounded packet-size tail work, supported by finite scaling checks at 32, 128 and 512 KiB for single admissions and 2 KiB admissions. This is not an application throughput claim.
 
-Production changes are confined to growth and segmentation in `send_stream.go`. Tests are verification aids. Public API/module identity, atomic flow-control reservation, pacing, packet emission, recovery accounting and reset final-size semantics remain unchanged. Existing issues #18, #44 and #46 and archived experiments remain intact. No new buffer-ownership API, performance campaign, timing threshold, mutation campaign or platform cross-product expansion is included.
+Production changes are confined to pending-buffer growth, segmentation and cancellation trimming in `send_stream.go`. Tests are verification aids. Public API/module identity, atomic flow-control reservation, pacing, packet emission, recovery accounting and reset final-size semantics remain unchanged. Existing issues #18, #44 and #46 and archived experiments remain intact. No new buffer-ownership API, performance campaign, timing threshold, mutation campaign or platform cross-product expansion is included.
 
 ## Terminating evidence and review
 

@@ -140,7 +140,12 @@ func TestSendStreamLargeTryWriteAllCancellationLifetime(t *testing.T) {
 				require.NoError(t, str.TryWriteAll(bytes.Repeat([]byte("r"), size-40)))
 			}
 			first, _, _ := str.popStreamFrame(expectedFrameHeaderLen(streamID, 0)+20, protocol.Version1)
+			pending := str.nextFrame.Data
 			str.CancelWrite(42)
+			if reliableSize > 0 {
+				require.LessOrEqual(t, cap(str.nextFrame.Data), max(int(protocol.MaxPacketBufferSize), reliableSize))
+				require.True(t, &pending[0] != &str.nextFrame.Data[0], "cancellation must release discarded suffix storage")
+			}
 			control, ok, _ := str.getControlFrame(monotime.Now())
 			require.True(t, ok)
 			reset := control.Frame.(*wire.ResetStreamFrame)
