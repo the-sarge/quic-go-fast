@@ -1139,3 +1139,20 @@ Merged [PR #211](https://github.com/the-sarge/quic-go-fast/pull/211) as `45b9fa8
 Removing the production priority application call caused all seven replacement scenarios to fail; the temporary mutation was restored before committing. Focused tests and their race check, one uncached full native suite including self integration, lint, vet, module tidiness, compiler assertions, generation and diff checks passed. Certification covered reviewed head `3b74c07d65527206aa78994f29c4c261818d2bbd` against `bad8cd6ebf36745222571f54fc6a7cff90a590ed`, with a clean worktree. All 33 hosted checks succeeded without reruns before the guarded squash merge.
 
 Independent Standards and Spec reviews each returned zero findings. RAS run `20260911T073947-5b96cbaa1a225c17cab9439c` used the configured `codex-astra` and `codex-sol` reviewers and completed with zero findings or follow-ups. No fix verification or replacement review was required, and no RAS review was posted to GitHub. Review and certification details are retained in the PR description.
+
+---
+
+## Fork automation validates staged inputs safely - 2026-09-11 04:17 EDT
+
+**Main:** `d1b4292807ca`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #213](https://github.com/the-sarge/quic-go-fast/pull/213) as `d1b4292807cac595eb289b417c326f172663e5a6`, closing [issue #84](https://github.com/the-sarge/quic-go-fast/issues/84). Benchmark and interop push filters and cross-compile cache saving now target the verified fork default branch, `main`. Interop validation remains build-only, with publication disabled and upstream registry login/namespace references removed. The optional hook validates an isolated checkout of the index, checks tool exits explicitly, uses staged Go content and safe filenames, and runs non-mutating vendor-module validation. Git index modes enforce rejection of staged Go symlinks. Documentation follows the accepted standard-test and helper conventions.
+
+### Validation
+
+The hook fixtures passed on macOS and in a Linux container. Red/green regressions covered an empty-output formatter failure, staged content with unusual filenames, and symlink materialization with `core.symlinks=false`. A hosted Linux fixture failure was reproduced and corrected by using literal Git pathspecs during fixture staging. The final-head full native suite, hook suite, vet, Bash syntax/shellcheck, formatting and diff checks passed; workflow syntax checks excluded existing shellcheck warnings on unchanged lines and the known CodSpeed runner label. A real-tool hook invocation passed without changing caller files or staging.
+
+Standards and Spec reviews each found zero issues. Initial RAS run `20260911T075907-fc6eb5d3bf13f05b53a56fbb` used `codex-astra` and `codex-sol`; its three findings were independently accepted and fixed. Exact-head verification resolved all three. Replacement run `20260911T081036-e2f8543b5ed7bab0663888bf` used the same reviewers and returned zero findings. No deferred findings remain and no RAS review was posted. All 33 hosted checks succeeded on reviewed head `6fbb1f33381767a28ad3b6de86cd7d7234fe37d9` before the guarded squash merge. Superseded CI runs were cancelled; the final-head checks required no reruns.
