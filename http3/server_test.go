@@ -533,6 +533,15 @@ func getAltSvc(s *Server) (string, bool) {
 	return "", false
 }
 
+func waitForServerListeners(t *testing.T, s *Server, count int) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
+		return len(s.listeners) == count
+	}, time.Second, time.Millisecond, "server did not register %d listeners", count)
+}
+
 func TestServerAltSvcFromListenersAndConns(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		testServerAltSvcFromListenersAndConns(t, []quic.Version{})
@@ -546,6 +555,7 @@ func TestServerAltSvcFromListenersAndConns(t *testing.T) {
 }
 
 func testServerAltSvcFromListenersAndConns(t *testing.T, versions []quic.Version) {
+	t.Helper()
 	ln1, err := quic.ListenEarly(newUDPConnLocalhost(t), getTLSConfig(), nil)
 	require.NoError(t, err)
 	port1 := ln1.Addr().(*net.UDPAddr).Port
@@ -556,11 +566,19 @@ func testServerAltSvcFromListenersAndConns(t *testing.T, versions []quic.Version
 		QUICConfig: &quic.Config{Versions: versions},
 	}
 	done1 := make(chan struct{})
+	t.Cleanup(func() {
+		ln1.Close()
+		select {
+		case <-done1:
+		case <-time.After(time.Second):
+			t.Error("server listener did not stop")
+		}
+	})
 	go func() {
 		defer close(done1)
 		s.ServeListener(ln1)
 	}()
-	time.Sleep(scaleDuration(10 * time.Millisecond))
+	waitForServerListeners(t, s, 1)
 	altSvc, ok := getAltSvc(s)
 	require.True(t, ok)
 	require.Equal(t, fmt.Sprintf(`h3=":%d"; ma=2592000`, port1), altSvc)
@@ -568,11 +586,19 @@ func testServerAltSvcFromListenersAndConns(t *testing.T, versions []quic.Version
 	udpConn := newUDPConnLocalhost(t)
 	port2 := udpConn.LocalAddr().(*net.UDPAddr).Port
 	done2 := make(chan struct{})
+	t.Cleanup(func() {
+		udpConn.Close()
+		select {
+		case <-done2:
+		case <-time.After(time.Second):
+			t.Error("server listener did not stop")
+		}
+	})
 	go func() {
 		defer close(done2)
 		s.Serve(udpConn)
 	}()
-	time.Sleep(scaleDuration(10 * time.Millisecond))
+	waitForServerListeners(t, s, 2)
 	altSvc, ok = getAltSvc(s)
 	require.True(t, ok)
 	require.Equal(t, fmt.Sprintf(`h3=":%d"; ma=2592000,h3=":%d"; ma=2592000`, port1, port2), altSvc)
@@ -611,11 +637,19 @@ func TestServerAltSvcFromPort(t *testing.T) {
 	ln, err := quic.ListenEarly(newUDPConnLocalhost(t), getTLSConfig(), nil)
 	require.NoError(t, err)
 	done := make(chan struct{})
+	t.Cleanup(func() {
+		ln.Close()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("server listener did not stop")
+		}
+	})
 	go func() {
 		defer close(done)
 		s.ServeListener(ln)
 	}()
-	time.Sleep(scaleDuration(10 * time.Millisecond))
+	waitForServerListeners(t, s, 1)
 
 	altSvc, ok := getAltSvc(s)
 	require.True(t, ok)
@@ -654,6 +688,7 @@ func TestServerAltSvcFromUnixSocket(t *testing.T) {
 }
 
 func testServerAltSvcFromUnixSocket(t *testing.T, addr string) (altSvc string, ok bool) {
+	t.Helper()
 	ln, err := quic.ListenEarly(newUDPConnLocalhost(t), testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
 
@@ -663,11 +698,19 @@ func testServerAltSvcFromUnixSocket(t *testing.T, addr string) (altSvc string, o
 		Logger: slog.New(slog.NewTextHandler(&logBuf, nil)),
 	}
 	done := make(chan struct{})
+	t.Cleanup(func() {
+		ln.Close()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("server listener did not stop")
+		}
+	})
 	go func() {
 		defer close(done)
 		s.ServeListener(&unixSocketListener{EarlyListener: ln})
 	}()
-	time.Sleep(scaleDuration(10 * time.Millisecond))
+	waitForServerListeners(t, s, 1)
 
 	altSvc, ok = getAltSvc(s)
 	require.NoError(t, ln.Close())

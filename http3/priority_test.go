@@ -1,9 +1,16 @@
 package http3
 
 import (
+	"context"
+	"io"
 	"net/http"
-	"strings"
+	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/require"
 )
@@ -53,41 +60,68 @@ func FuzzParsePriority(f *testing.F) {
 }
 
 func TestServerRequestPriority(t *testing.T) {
-	conn := &RawServerConn{}
-
-	requestPriority := func(header http.Header) (int8, bool) {
-		values, ok := header["Priority"]
-		if !ok {
-			return defaultPriorityUrgency, !conn.priorityAware.Load()
-		}
-		conn.priorityAware.Store(true)
-		return parsePriority(strings.Join(values, ","))
+	type request struct {
+		name            string
+		priority        []string
+		wantUrgency     int8
+		wantIncremental bool
 	}
+	for _, scenario := range []struct {
+		name     string
+		requests []request
+	}{
+		{
+			name: "priority-aware connection",
+			requests: []request{
+				{name: "before priority signal", wantUrgency: 3, wantIncremental: true},
+				{name: "explicit urgency", priority: []string{"u=0"}, wantUrgency: 0},
+				{name: "after priority signal", wantUrgency: 3},
+				{name: "incremental", priority: []string{"i"}, wantUrgency: 3, wantIncremental: true},
+				{name: "multiple field lines", priority: []string{"u=2", "i"}, wantUrgency: 2, wantIncremental: true},
+			},
+		},
+		{
+			name: "malformed priority signal",
+			requests: []request{
+				{name: "malformed header", priority: []string{`u=0, invalid="`}, wantUrgency: 3},
+				{name: "after malformed signal", wantUrgency: 3},
+			},
+		},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			var recorder events.Recorder
+			client, server := newConnPair(t, withServerRecorder(&recorder))
+			conn := newRawServerConn(server, false, 0, nil, nil, context.Background(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}), 0)
+			for _, test := range scenario.requests {
+				t.Run(test.name, func(t *testing.T) {
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					defer cancel()
+					str, err := client.OpenStreamSync(ctx)
+					require.NoError(t, err)
+					require.NoError(t, str.SetDeadline(time.Now().Add(time.Second)))
+					req := httptest.NewRequest(http.MethodGet, "https://www.example.com", nil)
+					for _, value := range test.priority {
+						req.Header.Add("Priority", value)
+					}
+					_, err = str.Write(encodeRequest(t, req))
+					require.NoError(t, err)
+					require.NoError(t, str.Close())
+					incoming, err := server.AcceptStream(ctx)
+					require.NoError(t, err)
+					require.NoError(t, incoming.SetDeadline(time.Now().Add(time.Second)))
+					// Start at a different priority so even applying the default emits an event.
+					incoming.SetPriority(7, false)
+					recorder.Clear()
 
-	urgency, incremental := requestPriority(http.Header{})
-	require.Equal(t, defaultPriorityUrgency, urgency)
-	require.True(t, incremental)
+					conn.HandleRequestStream(incoming)
 
-	header := http.Header{}
-	header.Set("Priority", "u=0")
-	urgency, incremental = requestPriority(header)
-	require.Equal(t, int8(0), urgency)
-	require.False(t, incremental)
-	require.True(t, conn.priorityAware.Load())
-
-	urgency, incremental = requestPriority(http.Header{})
-	require.Equal(t, defaultPriorityUrgency, urgency)
-	require.False(t, incremental)
-
-	header.Set("Priority", "i")
-	urgency, incremental = requestPriority(header)
-	require.Equal(t, defaultPriorityUrgency, urgency)
-	require.True(t, incremental)
-
-	conn = &RawServerConn{}
-	header.Set("Priority", `u=0, invalid="`)
-	urgency, incremental = requestPriority(header)
-	require.Equal(t, defaultPriorityUrgency, urgency)
-	require.False(t, incremental)
-	require.True(t, conn.priorityAware.Load())
+					require.Equal(t, []qlogwriter.Event{
+						qlog.StreamPriorityUpdated{StreamID: incoming.StreamID(), Urgency: test.wantUrgency, Incremental: test.wantIncremental},
+					}, recorder.Events(qlog.StreamPriorityUpdated{}))
+					_, err = io.Copy(io.Discard, str)
+					require.NoError(t, err)
+				})
+			}
+		})
+	}
 }

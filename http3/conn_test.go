@@ -373,6 +373,11 @@ func TestConnSendAndReceiveDatagram(t *testing.T) {
 		conn.handleUnidirectionalStream(clientStr, false)
 	}()
 
+	// Stream 0 provides a delivery barrier before stream 4 is registered.
+	str0, err := clientConn.OpenStreamSync(ctx)
+	require.NoError(t, err)
+	barrierStr := conn.TrackStream(str0)
+
 	const strID = 4
 
 	// first deliver a datagram...
@@ -381,7 +386,9 @@ func TestConnSendAndReceiveDatagram(t *testing.T) {
 
 	datagram := append(quarterStreamID, []byte("foo")...)
 	require.NoError(t, serverConn.SendDatagram(datagram))
-	time.Sleep(scaleDuration(10 * time.Millisecond)) // give the datagram a chance to be delivered
+	require.Eventually(t, func() bool {
+		return len(eventRecorder.Events(qlog.DatagramParsed{})) > 0
+	}, time.Second, time.Millisecond, "datagram was not parsed")
 
 	require.Equal(t,
 		[]qlogwriter.Event{
@@ -392,13 +399,15 @@ func TestConnSendAndReceiveDatagram(t *testing.T) {
 		},
 		eventRecorder.Events(qlog.DatagramParsed{}),
 	)
+	// Parsing is logged before the stream lookup. Receiving a later datagram on
+	// stream 0 proves the same receive loop finished dropping the first one.
+	require.NoError(t, serverConn.SendDatagram(quicvarint.Append(nil, 0)))
+	barrier, err := barrierStr.ReceiveDatagram(ctx)
+	require.NoError(t, err)
+	require.Empty(t, barrier)
 	eventRecorder.Clear()
 
-	// don't use stream 0, since that makes it hard to test that the quarter stream ID is used
-	str0, err := clientConn.OpenStreamSync(context.Background())
-	require.NoError(t, err)
-	str0.Close()
-
+	// Use a nonzero stream ID to exercise quarter stream ID routing.
 	str, err := clientConn.OpenStream()
 	require.NoError(t, err)
 	require.Equal(t, quic.StreamID(strID), str.StreamID())
