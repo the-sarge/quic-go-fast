@@ -11,6 +11,32 @@ import subprocess
 import time
 
 
+def stop_process(process, label, errors):
+    """Bound each wait and keep trying after individual subprocess errors."""
+    try:
+        if process.poll() is not None:
+            return
+    except BaseException as exc:
+        errors.append((f"{label} poll", exc))
+    try:
+        process.terminate()
+    except BaseException as exc:
+        errors.append((f"{label} terminate", exc))
+    try:
+        process.wait(timeout=10)
+        return
+    except BaseException as exc:
+        errors.append((f"{label} wait after terminate", exc))
+    try:
+        process.kill()
+    except BaseException as exc:
+        errors.append((f"{label} kill", exc))
+    try:
+        process.wait(timeout=10)
+    except BaseException as exc:
+        errors.append((f"{label} wait after kill", exc))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
@@ -59,7 +85,7 @@ def main():
                   "isolation_before": json.loads(receipt), "frequency_before": frequency()}
         start = time.monotonic()
         receiver = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        children.append(receiver)
+        children.append((receiver, f"receiver {rate}/{mode}/{variant}/{phase}/{round_index}"))
         pacer = None
         if mode == "external":
             ready_deadline = time.monotonic() + 10
@@ -71,7 +97,7 @@ def main():
                             str(root / "base.test"), "-test.run", "^TestDatagramExternalPacer$", "-test.v", "-test.count=1", "-test.timeout=15s"]
             record["pacer_command"] = pacer_command
             pacer = subprocess.Popen(pacer_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            children.append(pacer)
+            children.append((pacer, f"pacer {rate}/{mode}/{variant}/{phase}/{round_index}"))
         stdout, stderr = receiver.communicate(timeout=20)
         record.update(returncode=receiver.returncode, stdout=stdout, stderr=stderr, wall_seconds=time.monotonic()-start,
                       frequency_after=frequency(), isolation_after=json.loads(isolation("check")))
@@ -82,9 +108,11 @@ def main():
 
     manifest = results / "samples.jsonl"
     with manifest.open("x") as output, (results / "cpu-activity.log").open("x") as cpu_log:
-        (results / "isolation-before.json").write_text(isolation("setup") + "\n")
         monitor = None
+        failure = None
+        setup_receipt = isolation("setup")
         try:
+            (results / "isolation-before.json").write_text(setup_receipt + "\n")
             monitor = subprocess.Popen(["mpstat", "-P", "ALL", "1"], stdout=cpu_log, env=dict(os.environ, LC_ALL="C", TZ="UTC"))
             precheck = subprocess.check_output(["mpstat", "-P", "ALL", "1", "3"], text=True)
             (results / "precheck.log").write_text(precheck)
@@ -113,15 +141,33 @@ def main():
                                 if rec["returncode"] or rec.get("pacer_returncode", 0):
                                     raise RuntimeError(f"Failed profile: {rec}")
                         print(f"Completed separate {phase} profiles", flush=True)
+        except BaseException as exc:
+            failure = exc
+            raise
         finally:
-            for child in children:
-                if child.poll() is None:
-                    child.terminate()
-                    child.wait(timeout=10)
-            if monitor:
-                monitor.terminate()
-                monitor.wait()
-            (results / "isolation-after.json").write_text(isolation("cleanup") + "\n")
+            errors = []
+            try:
+                for child, label in children:
+                    stop_process(child, label, errors)
+                if monitor is not None:
+                    stop_process(monitor, "monitor", errors)
+            finally:
+                # A successful setup owns exactly one cleanup attempt, even if
+                # teardown fails. Only the helper can confirm CPU restoration.
+                try:
+                    cleanup_receipt = isolation("cleanup")
+                except BaseException as exc:
+                    errors.append(("isolation cleanup (restoration unconfirmed)", exc))
+                else:
+                    try:
+                        (results / "isolation-after.json").write_text(cleanup_receipt + "\n")
+                    except BaseException as exc:
+                        errors.append(("persist isolation-after.json (cleanup confirmed)", exc))
+            if errors:
+                diagnostics = [("collection", failure)] if failure is not None else []
+                diagnostics += errors
+                message = "\n".join(f"{label}: {type(exc).__name__}: {exc}" for label, exc in diagnostics)
+                raise RuntimeError(f"Collector failed:\n{message}") from (failure or errors[0][1])
 
 
 if __name__ == "__main__":
