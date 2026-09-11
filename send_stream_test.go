@@ -408,6 +408,7 @@ func TestSendStreamLargeTryWriteAll(t *testing.T) {
 	for offset < protocol.ByteCount(len(data)) {
 		frame, _, hasMore := str.popStreamFrame(expectedFrameHeaderLen(streamID, offset)+40, protocol.Version1)
 		require.NotNil(t, frame.Frame)
+		require.LessOrEqual(t, cap(frame.Frame.Data), int(protocol.MaxPacketBufferSize), "recovery must not retain a large accepted-write allocation")
 		require.Equal(t, offset, frame.Frame.Offset)
 		require.Equal(t, data[offset:offset+40], frame.Frame.Data)
 		offset += 40

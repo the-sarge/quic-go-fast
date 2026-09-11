@@ -202,11 +202,12 @@ func (s *SendStream) tryWriteAll(p []byte) (bool /* is newly completed */, bool 
 	if l+len(p) > cap(s.nextFrame.Data) {
 		// Pooled STREAM frames must keep their packet-sized buffer.
 		// Use a non-pooled frame when the queued data grows beyond that.
+		// Grow geometrically so repeated admissions copy a linear total of bytes.
 		nextFrame := &wire.StreamFrame{
 			StreamID:       s.streamID,
 			Offset:         s.nextFrame.Offset,
 			DataLenPresent: true,
-			Data:           make([]byte, l+len(p)),
+			Data:           make([]byte, l+len(p), max(l+len(p), 2*cap(s.nextFrame.Data))),
 		}
 		copy(nextFrame.Data, s.nextFrame.Data)
 		s.nextFrame.PutBack()
@@ -473,15 +474,38 @@ func (s *SendStream) popNewStreamFrame(maxDataLen protocol.ByteCount) (_ *wire.S
 		nextFrameReserved := s.nextFrameReserved
 		s.nextFrame = nil
 		s.nextFrameReserved = false
-		if nextFrame.DataLen() > maxDataLen {
-			if nextFrame.DataLen()-maxDataLen > protocol.MaxPacketBufferSize {
-				s.nextFrame = &wire.StreamFrame{
-					Data: make([]byte, nextFrame.DataLen()-maxDataLen),
+		if cap(nextFrame.Data) > int(protocol.MaxPacketBufferSize) {
+			// Keep the large allocation owned by the stream. Recovery only retains
+			// a packet-sized copy, and dequeuing never copies the large unsent tail.
+			f := wire.GetStreamFrame()
+			maxDataLen = min(maxDataLen, protocol.MaxPacketBufferSize)
+			f.StreamID = s.streamID
+			f.Offset = s.writeOffset
+			f.DataLenPresent = true
+			f.Data = f.Data[:maxDataLen]
+			copy(f.Data, nextFrame.Data[:maxDataLen])
+			nextFrame.Data = nextFrame.Data[maxDataLen:]
+			nextFrame.Offset += maxDataLen
+			if len(nextFrame.Data) > 0 {
+				s.nextFrame = nextFrame
+				if nextFrame.DataLen() <= protocol.MaxPacketBufferSize {
+					// Copy the final small tail once, releasing the large allocation
+					// and restoring the ordinary pooled-frame path.
+					s.nextFrame = wire.GetStreamFrame()
+					s.nextFrame.StreamID = s.streamID
+					s.nextFrame.Offset = nextFrame.Offset
+					s.nextFrame.DataLenPresent = true
+					s.nextFrame.Data = s.nextFrame.Data[:len(nextFrame.Data)]
+					copy(s.nextFrame.Data, nextFrame.Data)
 				}
+				s.nextFrameReserved = nextFrameReserved
 			} else {
-				s.nextFrame = wire.GetStreamFrame()
-				s.nextFrame.Data = s.nextFrame.Data[:nextFrame.DataLen()-maxDataLen]
+				s.signalWrite()
 			}
+			nextFrame = f
+		} else if nextFrame.DataLen() > maxDataLen {
+			s.nextFrame = wire.GetStreamFrame()
+			s.nextFrame.Data = s.nextFrame.Data[:nextFrame.DataLen()-maxDataLen]
 			s.nextFrame.StreamID = s.streamID
 			s.nextFrame.Offset = s.writeOffset + maxDataLen
 			s.nextFrame.DataLenPresent = true
