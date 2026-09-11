@@ -4,12 +4,11 @@ permissions:
   contents: read
   id-token: write
 
+# Disabled until a CodSpeed macro runner is registered for this fork: the
+# upstream `codspeed-macro` runner is unavailable here, so automatic runs
+# queue forever and leave a permanently pending "Benchmarks" check.
+# Manual dispatch is kept so the workflow can be re-enabled later.
 on:
-  push:
-    branches: [main]
-  pull_request:
-  schedule:
-    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
