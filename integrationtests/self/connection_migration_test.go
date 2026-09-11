@@ -44,6 +44,7 @@ func testConnectionMigration(t *testing.T, inspect func(*quic.Conn)) {
 	defer tr2.Close()
 
 	var packetsPath1, packetsPath2 atomic.Int64
+	var clientPacketsPath1 atomic.Int64
 
 	const rtt = 5 * time.Millisecond
 	proxy := quicproxy.Proxy{
@@ -60,6 +61,9 @@ func testConnectionMigration(t *testing.T, inspect func(*quic.Conn)) {
 			switch port {
 			case tr1.Conn.LocalAddr().(*net.UDPAddr).Port:
 				packetsPath1.Add(1)
+				if dir == quicproxy.DirectionIncoming {
+					clientPacketsPath1.Add(1)
+				}
 			case tr2.Conn.LocalAddr().(*net.UDPAddr).Port:
 				packetsPath2.Add(1)
 			default:
@@ -160,11 +164,12 @@ func testConnectionMigration(t *testing.T, inspect func(*quic.Conn)) {
 		<-readsStarted
 	}
 
-	// now switch and make sure that no packets are sent on path 1
+	// The server may still send ACKs on the old path. Count client-to-server
+	// packets separately: after switching, the client must send on path 2.
+	c1 := clientPacketsPath1.Load()
 	require.NoError(t, path.Switch())
-	sendAndReceiveFile(t) // stream 10
-	c1 := packetsPath1.Load()
-	require.Equal(t, c1, packetsPath1.Load())
+	sendAndReceiveFile(t) // stream 10; waits for the receiver to observe EOF
+	require.Equal(t, c1, clientPacketsPath1.Load(), "client sent packets on the old path during the migrated transfer")
 	require.Greater(t, packetsPath2.Load(), c2)
 	require.Equal(t, tr2.Conn.LocalAddr(), conn.LocalAddr())
 	require.Equal(t, proxy.LocalAddr(), conn.RemoteAddr())
