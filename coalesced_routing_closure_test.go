@@ -58,7 +58,7 @@ func (h *releasingPacketHandler) handlePacket(p receivedPacket) {
 	}()
 }
 
-func (h *releasingPacketHandler) destroy(error)                                 {}
+func (h *releasingPacketHandler) destroy(error)                                   {}
 func (h *releasingPacketHandler) closeWithTransportError(qerr.TransportErrorCode) {}
 
 // class: sibling views routed to two established connections that release

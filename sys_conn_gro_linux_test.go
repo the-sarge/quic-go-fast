@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+	"time"
 	"unsafe"
 
 	"golang.org/x/net/ipv4"
@@ -234,4 +235,56 @@ func TestGROReleaseReadBuffersReleasesPendingViews(t *testing.T) {
 	require.False(t, slab.released(), "the delivered view still holds the slab")
 	p.buffer.Release()
 	require.True(t, slab.released())
+}
+
+// TestGROEndToEndLoopback sends one GSO batch across loopback into a
+// GRO-enabled socket and verifies every datagram arrives intact and in
+// order, whether or not the kernel coalesced them. Engagement (several
+// datagrams per read) is logged, not asserted: the adoption protocol owns
+// the engagement evidence.
+func TestGROEndToEndLoopback(t *testing.T) {
+	recvUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer recvUDP.Close()
+	recvConn, err := newConn(recvUDP, true, true)
+	require.NoError(t, err)
+	if !recvConn.capabilities().GRO {
+		t.Skip("kernel does not support UDP_GRO")
+	}
+
+	sendUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer sendUDP.Close()
+	sendConn, err := newConn(sendUDP, true, true)
+	require.NoError(t, err)
+	if !sendConn.capabilities().GSO {
+		t.Skip("kernel does not support UDP_SEGMENT")
+	}
+
+	const segSize, numSegs = 1200, 8
+	segs := testCoalescedSegments(numSegs, segSize)
+	var batch []byte
+	for _, seg := range segs {
+		batch = append(batch, seg...)
+	}
+	_, err = sendConn.WritePacket(batch, recvUDP.LocalAddr(), nil, segSize, protocol.ECNUnsupported)
+	require.NoError(t, err)
+
+	require.NoError(t, recvUDP.SetReadDeadline(time.Now().Add(5*time.Second)))
+	slabs := map[*coalescedSlab]int{}
+	for i := range numSegs {
+		p, err := recvConn.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, segs[i], p.data, "datagram %d must arrive intact and in order", i)
+		require.NotNil(t, p.buffer.slab)
+		slabs[p.buffer.slab]++
+		p.buffer.Release()
+	}
+	coalesced := 0
+	for _, n := range slabs {
+		if n > 1 {
+			coalesced += n
+		}
+	}
+	t.Logf("%d datagrams in %d socket reads (%d arrived coalesced)", numSegs, len(slabs), coalesced)
 }
