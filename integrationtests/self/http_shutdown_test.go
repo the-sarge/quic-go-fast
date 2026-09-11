@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -196,60 +197,134 @@ func TestGracefulShutdownIdleConnection(t *testing.T) {
 }
 
 func TestGracefulShutdownLongLivedRequest(t *testing.T) {
-	delay := scaleDuration(25 * time.Millisecond)
-	errChan := make(chan error, 1)
-	requestChan := make(chan time.Duration, 1)
+	for _, setupDelay := range []time.Duration{0, scaleDuration(75 * time.Millisecond)} {
+		t.Run(fmt.Sprintf("setup_delay_%s", setupDelay), func(t *testing.T) {
+			testGracefulShutdownLongLivedRequest(t, setupDelay)
+		})
+	}
+}
 
-	var server *http3.Server
+func testGracefulShutdownLongLivedRequest(t *testing.T, setupDelay time.Duration) {
+	const shutdownPeriod = 25 * time.Millisecond
+	waitTimeout := scaleDuration(time.Second)
+	requestCtx, cancelRequest := context.WithTimeout(context.Background(), 5*waitTimeout)
+	defer cancelRequest()
+	fixtureCtx, cancelFixture := context.WithCancel(context.Background())
+	defer cancelFixture()
+
+	handlerStarted := make(chan struct{})
+	handlerDone := make(chan struct{})
+	var handlerTerminated time.Time // published by handlerDone
 	mux := http.NewServeMux()
-	port := startHTTPServer(t, mux, func(s *http3.Server) { server = s })
 	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+		close(handlerStarted)
+		defer close(handlerDone)
 		w.WriteHeader(http.StatusOK)
 		w.(http.Flusher).Flush()
+		// Keep the response unfinished until the connection is closed. The fixture
+		// context also releases the handler if an assertion fails.
+		select {
+		case <-r.Context().Done():
+		case <-fixtureCtx.Done():
+		}
+		handlerTerminated = time.Now()
+	})
+	var server *http3.Server
+	port := startHTTPServer(t, mux, func(s *http3.Server) { server = s })
+	client := newHTTP3Client(t)
+	tr := client.Transport.(*http3.Transport)
+	dial := tr.Dial // preserve the macOS socket workaround
+	tr.Dial = func(ctx context.Context, addr string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
+		timer := time.NewTimer(setupDelay)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		if dial != nil {
+			return dial(ctx, addr, tlsConf, conf)
+		}
+		return quic.DialAddrEarly(ctx, addr, tlsConf, conf)
+	}
 
-		// The request simulated here takes longer than the server's graceful shutdown period.
-		// We expect it to be terminated once the server shuts down.
+	var resp *http.Response
+	var workers sync.WaitGroup
+	t.Cleanup(func() {
+		cancelRequest()
+		cancelFixture()
+		if resp != nil {
+			resp.Body.Close()
+		}
+		closed := make(chan struct{})
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), delay)
-			defer cancel()
-			errChan <- server.Shutdown(ctx)
-		}()
-
-		// measure how long it takes until the request errors
-		for t := range time.NewTicker(delay / 10).C {
-			if _, err := w.Write([]byte(t.String())); err != nil {
-				requestChan <- time.Since(start)
-				return
+			defer close(closed)
+			server.Close()
+			workers.Wait()
+			select {
+			case <-handlerStarted:
+				<-handlerDone
+			default: // request setup failed before a handler was started
 			}
+		}()
+		select {
+		case <-closed:
+		case <-time.After(waitTimeout):
+			t.Error("shutdown fixture cleanup did not complete")
 		}
 	})
 
-	start := time.Now()
-	resp, err := newHTTP3Client(t).Get(fmt.Sprintf("https://localhost:%d/shutdown", port))
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, fmt.Sprintf("https://localhost:%d/shutdown", port), nil)
+	require.NoError(t, err)
+	resp, err = client.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	_, err = io.Copy(io.Discard, resp.Body)
-	require.Error(t, err)
-	var h3Err *http3.Error
-	require.ErrorAs(t, err, &h3Err)
-	require.Equal(t, http3.ErrCodeNoError, h3Err.ErrorCode)
-	took := time.Since(start)
-	require.InDelta(t, delay.Seconds(), took.Seconds(), (delay / 2).Seconds())
 
-	// make sure that shutdown returned due to context deadline
-	select {
-	case err := <-errChan:
-		require.ErrorIs(t, err, context.DeadlineExceeded)
-	case <-time.After(time.Second):
-		t.Fatal("shutdown did not return due to context deadline")
+	// Only start the shutdown clock once response headers establish an active,
+	// unfinished exchange. Connection / request setup is outside this interval.
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), scaleDuration(shutdownPeriod))
+	defer cancelShutdown()
+	deadline, ok := shutdownCtx.Deadline()
+	require.True(t, ok)
+	type result struct {
+		at  time.Time
+		err error
 	}
+	bodyResult := make(chan result, 1)
+	workers.Go(func() {
+		_, err := io.Copy(io.Discard, resp.Body)
+		bodyResult <- result{at: time.Now(), err: err}
+	})
+	shutdownResult := make(chan result, 1)
+	workers.Go(func() {
+		err := server.Shutdown(shutdownCtx)
+		shutdownResult <- result{at: time.Now(), err: err}
+	})
 
+	// Timestamp observations in their workers, so scheduling of this test goroutine
+	// cannot hide an observed premature termination. The generous watchdog bounds
+	// a stuck fixture; it is not a public shutdown-latency guarantee.
 	select {
-	case requestDuration := <-requestChan:
-		require.InDelta(t, delay.Seconds(), requestDuration.Seconds(), (delay / 2).Seconds())
-	case <-time.After(time.Second):
-		t.Fatal("did not receive request duration")
+	case res := <-bodyResult:
+		require.False(t, res.at.Before(deadline), "response terminated before the shutdown deadline")
+		var h3Err *http3.Error
+		require.ErrorAs(t, res.err, &h3Err)
+		require.Equal(t, http3.ErrCodeNoError, h3Err.ErrorCode)
+	case <-time.After(waitTimeout):
+		t.Fatal("response did not terminate after the shutdown deadline")
+	}
+	select {
+	case res := <-shutdownResult:
+		require.False(t, res.at.Before(deadline), "shutdown returned before its deadline")
+		require.ErrorIs(t, res.err, context.DeadlineExceeded)
+	case <-time.After(waitTimeout):
+		t.Fatal("shutdown did not return after its deadline")
+	}
+	select {
+	case <-handlerDone:
+		require.False(t, handlerTerminated.Before(deadline), "handler terminated before the shutdown deadline")
+	case <-time.After(waitTimeout):
+		t.Fatal("handler did not terminate after the shutdown deadline")
 	}
 }
 
