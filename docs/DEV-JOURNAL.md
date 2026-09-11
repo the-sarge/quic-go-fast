@@ -1073,3 +1073,16 @@ The controlled direction regression failed before the fix and passed afterward. 
 Standards and Spec reviews had zero findings. RAS run `20260911T055146-cab0ebab533179405f8b8c57` reviewed `7d969137fa9d9cf070d36d70ab3679edfada523c` with seven successful reviewers and one unusable reviewer response; quorum and synthesis completed. Its duplicate stale-documentation findings were accepted and fixed; marginal pre-existing dead-condition cleanup was deferred without follow-up busywork. The documentation-only correction used the shared no-rerun policy, with renewed local certification at `19af34b27edbfb4fd643211ac435bc39ea06085e` and unchanged tested Go/dependency files. No unresolved design decision remained.
 
 All 17 applicable hosted jobs succeeded on that final head: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053509), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053593), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053479), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053538), and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053606). The merge was guarded with the exact head SHA.
+
+---
+
+## Integration outcome assertions repaired - 2026-09-11 02:28 EDT
+
+**Main:** `e611e4a97843`
+**Actor:** Codex
+
+Merged [PR #204](https://github.com/the-sarge/quic-go-fast/pull/204) as `e611e4a97843601b9fcef26b1ce8b20071bb952a`, closing [issue #81](https://github.com/the-sarge/quic-go-fast/issues/81). Both multiplex servers now serve data and both receive results must succeed. Migration measures old-path client traffic before switching through receiver EOF, explicitly permitting server ACKs. Listener lifetime checks send from the original caller-owned socket to an observer that validates source and payload, avoiding competition with transport reads during draining. Transport closure checks the awaited second connection's own cause. Production behavior, timeout durations, Linux skip, and historical investigations remain unchanged.
+
+Five temporary negative controls failed at the intended assertions: each absent multiplex server, omitted migration switch, closed original socket, and a distinct second-connection closure cause. Restored macOS QUIC v1 tests and focused race QUIC v2 tests passed. The uncached full suite, vet, lint, root/FIPS module-tidy and formatting checks passed on reviewed head `106cf26c44cdf2b1c3a677f3ccbe96ff5499a421`. All 33 hosted checks succeeded without skips or reruns before the guarded squash merge. The [audit note](audits/issue-81-integration-outcomes.md) records the controls and the competing-reader fixture correction discovered by the initial race run.
+
+Standards and Spec reviews each reported zero findings. RAS run `20260911T061825-1ad174bba1879dfc67636fb7` completed both configured reviewers and synthesis with zero findings; no fix-verification, replacement review, or deferred follow-up was required. The PR description retains review and certification details.
