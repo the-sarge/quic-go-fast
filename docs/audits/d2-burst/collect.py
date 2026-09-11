@@ -49,9 +49,17 @@ def main():
     sudo = ["sudo", "-n", "python3", str(helper)]
     socket = root / "run.sock"
     children = []
+    pending_signal = None
 
     def interrupted(signum, frame):
-        raise RuntimeError(f"Interrupted by signal {signum}")
+        # Do not raise asynchronously across setup ownership or finalization.
+        nonlocal pending_signal
+        if pending_signal is None:
+            pending_signal = signum
+
+    def check_interrupted():
+        if pending_signal is not None:
+            raise RuntimeError(f"Interrupted by signal {pending_signal}")
 
     for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(sig, interrupted)
@@ -64,6 +72,7 @@ def main():
                 for cpu in (8, 9, 10, 24, 25, 26)}
 
     def sample(rate, mode, variant, duration_ms, phase, round_index):
+        check_interrupted()
         assert not socket.exists(), "Stale socket; refusing reuse"
         receipt = isolation("check")
         env = ["GOTOOLCHAIN=local", "GOMAXPROCS=2", "LC_ALL=C", "QUEUE_EXPERIMENT=1",
@@ -104,15 +113,18 @@ def main():
         if pacer:
             out, err = pacer.communicate(timeout=5)
             record.update(pacer_stdout=out, pacer_stderr=err, pacer_returncode=pacer.returncode)
+        check_interrupted()
         return record
 
     manifest = results / "samples.jsonl"
     with manifest.open("x") as output, (results / "cpu-activity.log").open("x") as cpu_log:
         monitor = None
         failure = None
+        check_interrupted()
         setup_receipt = isolation("setup")
         try:
             (results / "isolation-before.json").write_text(setup_receipt + "\n")
+            check_interrupted()
             monitor = subprocess.Popen(["mpstat", "-P", "ALL", "1"], stdout=cpu_log, env=dict(os.environ, LC_ALL="C", TZ="UTC"))
             precheck = subprocess.check_output(["mpstat", "-P", "ALL", "1", "3"], text=True)
             (results / "precheck.log").write_text(precheck)
@@ -163,6 +175,8 @@ def main():
                         (results / "isolation-after.json").write_text(cleanup_receipt + "\n")
                     except BaseException as exc:
                         errors.append(("persist isolation-after.json (cleanup confirmed)", exc))
+            if pending_signal is not None and failure is None:
+                errors.append(("interruption", RuntimeError(f"Interrupted by signal {pending_signal}")))
             if errors:
                 diagnostics = [("collection", failure)] if failure is not None else []
                 diagnostics += errors

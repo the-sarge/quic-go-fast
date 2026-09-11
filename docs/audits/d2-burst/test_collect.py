@@ -3,6 +3,7 @@
 import importlib.util
 from pathlib import Path
 import subprocess
+import sys
 import unittest
 from unittest.mock import Mock, call, mock_open, patch
 
@@ -25,6 +26,8 @@ class CollectorLifecycleTests(unittest.TestCase):
         self.precheck_error = None
         self.start_error = None
         self.configure_process = lambda process, role: None
+        self.handlers = {}
+        self.isolation_signal = None
 
         def check_output(command, **kwargs):
             if command[0] == "mpstat":
@@ -33,6 +36,8 @@ class CollectorLifecycleTests(unittest.TestCase):
                 return "mock precheck"
             action = command[-1]
             self.commands.append(action)
+            if action == self.isolation_signal:
+                self.handlers[collect.signal.SIGINT](collect.signal.SIGINT, None)
             error = self.setup_error if action == "setup" else self.cleanup_error if action == "cleanup" else None
             if error:
                 raise error
@@ -67,7 +72,7 @@ class CollectorLifecycleTests(unittest.TestCase):
         self.enterContext(patch.object(collect.Path, "write_text", write_text))
         self.enterContext(patch.object(collect.Path, "read_text", return_value="1000"))
         self.enterContext(patch.object(collect.Path, "exists", lambda path: self.socket_ready))
-        self.enterContext(patch.object(collect.signal, "signal"))
+        self.enterContext(patch.object(collect.signal, "signal", side_effect=self.handlers.__setitem__))
         self.enterContext(patch.object(collect.time, "sleep"))
         self.enterContext(patch.object(collect.subprocess, "check_output", side_effect=check_output))
         self.enterContext(patch.object(collect.subprocess, "Popen", side_effect=popen))
@@ -234,6 +239,63 @@ class CollectorLifecycleTests(unittest.TestCase):
         with self.assertRaises(KeyboardInterrupt):
             collect.main()
         self.assertEqual(self.commands, ["setup", "cleanup"])
+
+    def test_signal_at_successful_setup_transition_still_cleans_up(self):
+        for signum in (collect.signal.SIGINT, collect.signal.SIGTERM, collect.signal.SIGHUP):
+            with self.subTest(signal=signum):
+                self.commands.clear()
+                injected = False
+
+                def trace(frame, event, arg):
+                    nonlocal injected
+                    if not injected and event == "line" and frame.f_code is collect.main.__code__ and "setup_receipt" in frame.f_locals:
+                        injected = True
+                        self.handlers[signum](signum, frame)
+                    return trace
+
+                previous_trace = sys.gettrace()
+                try:
+                    sys.settrace(trace)
+                    with self.assertRaisesRegex(RuntimeError, f"Interrupted by signal {signum}"):
+                        collect.main()
+                finally:
+                    sys.settrace(previous_trace)
+                self.assertTrue(injected)
+                self.assertEqual(self.commands, ["setup", "cleanup"])
+
+    def test_signal_during_failed_setup_does_not_duplicate_helper_rollback(self):
+        self.isolation_signal = "setup"
+        self.setup_error = OSError("setup failed")
+        with self.assertRaisesRegex(OSError, "setup failed"):
+            collect.main()
+        self.assertEqual(self.commands, ["setup"])
+        self.assertEqual(self.receipts, {})
+
+    def test_repeated_signals_during_teardown_do_not_interrupt_cleanup(self):
+        def interrupt():
+            for signum in (collect.signal.SIGINT, collect.signal.SIGTERM):
+                self.handlers[signum](signum, None)
+
+        def configure(process, role):
+            if role == "monitor":
+                process.terminate.side_effect = interrupt
+
+        self.configure_process = configure
+        with self.assertRaisesRegex(RuntimeError, "Interrupted by signal"):
+            collect.main()
+        self.processes[0][1].wait.assert_called_once_with(timeout=10)
+        self.assertEqual(self.commands.count("cleanup"), 1)
+        self.assertIn("isolation-after.json", self.receipts)
+
+    def test_signal_during_cleanup_retains_restoration_failure(self):
+        self.isolation_signal = "cleanup"
+        self.cleanup_error = OSError("cleanup failed")
+        with self.assertRaisesRegex(RuntimeError, "restoration unconfirmed") as result:
+            collect.main()
+        self.assertIn("Interrupted by signal", str(result.exception))
+        self.assertIn("cleanup failed", str(result.exception))
+        self.assertEqual(self.commands.count("cleanup"), 1)
+        self.assertNotIn("isolation-after.json", self.receipts)
 
 
 if __name__ == "__main__":
