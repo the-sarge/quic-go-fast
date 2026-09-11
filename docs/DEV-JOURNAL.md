@@ -1015,3 +1015,16 @@ Merged [PR #192](https://github.com/the-sarge/quic-go-fast/pull/192), closing [i
 ### Validation
 
 Real consumer regressions cover ordinary modules, versioned and local replacements, and linker revisions with and without replacement. Focused tests, race tests, both interop builds, go vet, module tidiness and focused lint passed. The uncached full suite passed with the integration workflow’s TIMESCALE_FACTOR=3; an earlier invocation with the unit-only factor 10 reversed two existing corruption-fixture timeout expectations and was corrected without changing product code. Independent Standards and Spec reviews and RAS run `20260911T033047-c68f2968882468d5e2db1e3b` reported zero findings. All 33 hosted checks passed on reviewed head `33610b1d956edabc8a358f3a37b4081897dd0d59` before the guarded squash merge.
+
+---
+
+## Short HTTP/0.9 request rejection landed - 2026-09-11 00:05 EDT
+
+**Main:** `a591f863483d`
+**Actor:** Codex
+
+Merged [PR #194](https://github.com/the-sarge/quic-go-fast/pull/194), closing [issue #78](https://github.com/the-sarge/quic-go-fast/issues/78). The HTTP/0.9 interop server now uses a length-safe prefix check, retaining reset code 42 for invalid requests. Real QUIC stream regressions cover empty, truncated, invalid, and valid lines, including successful requests after rejections on the same connection.
+
+Validation reproduced the empty-stream process panic before the fix. Package tests, a focused race check, go vet, and the uncached full suite passed on reviewed head `031d766ecf0f2779cc1520b1ae0e9417ab6c1e25`; all 33 hosted checks succeeded before the guarded squash merge. The full suite used the integration workflow multiplier 3. An initial invocation with unit-test multiplier 10 caused two unrelated corruption-diagnostics assertions to observe the QUIC idle timeout before the context deadline; the corrected configuration passed without code changes.
+
+Standards and spec reviews found no issues. RAS run `20260911T035557-80b0f784515a4876a68c5fe5` completed with no required fixes; no fix-verification or replacement review was needed. Its sole observation concerned the unchanged malformed-URL error branch, independently deferred for separate tracking after merged-head revalidation.
