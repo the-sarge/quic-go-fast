@@ -161,10 +161,13 @@ const (
 func wsaCmsgAlign(n int) int { return (n + wsaCmsgAlignTo - 1) &^ (wsaCmsgAlignTo - 1) }
 
 // appendCmsg appends a control message and returns the extended buffer along
-// with the message's zeroed data section.
+// with the message's zeroed data section. The buffer grows by
+// WSA_CMSG_SPACE(dataLen) — WSASendMsg rejects a control buffer that is not
+// padded to the platform alignment — while cmsg_len stays the unpadded
+// WSA_CMSG_LEN(dataLen).
 func appendCmsg(b []byte, level, typ int32, dataLen int) ([]byte, []byte) {
 	startLen := len(b)
-	b = append(b, make([]byte, wsaCmsgDataOffset+dataLen)...)
+	b = append(b, make([]byte, wsaCmsgAlign(wsaCmsgDataOffset+dataLen))...)
 	h := (*windows.WSACMSGHDR)(unsafe.Pointer(&b[startLen]))
 	h.Len = uintptr(wsaCmsgDataOffset + dataLen)
 	h.Level = level
