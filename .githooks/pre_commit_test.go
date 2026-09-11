@@ -95,7 +95,7 @@ func TestHookUsesStagedContentAndSafeFilenames(t *testing.T) {
 	f := newHookFixture(t)
 	for _, name := range []string{"space name.go", "-leading.go", "tab\tname.go", "line\nbreak.go", "[glob]*.go"} {
 		f.write(name, "package staged\n")
-		f.git("add", "--", name)
+		f.git("--literal-pathspecs", "add", "--", name)
 		f.write(name, "package unstaged\n")
 	}
 	f.write("go.mod", "module unstaged\n")
