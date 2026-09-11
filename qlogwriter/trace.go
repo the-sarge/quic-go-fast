@@ -27,8 +27,8 @@ func init() {
 		if d.Path == "github.com/quic-go/quic-go" {
 			quicGoVersion = d.Version
 			if d.Replace != nil {
-				if len(d.Replace.Version) > 0 {
-					quicGoVersion = d.Version
+				if d.Replace.Version != "" && d.Replace.Version != "(devel)" {
+					quicGoVersion = d.Replace.Version
 				} else {
 					quicGoVersion += " (replaced)"
 				}
