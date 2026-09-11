@@ -955,3 +955,20 @@ Initial RAS review `20260910T225223-a1bde93eada2b96b80d4959a` completed with all
 Candidate `e03118bfb966192e4ebf35f3e2a28e6bcba3a30e`, based on `ee71e7a59e4a7c4a6b55ee162f9c79c1ec93ec15`, passed exact-head full tests, vet, focused preservation/race selections, experiment-tag compilation and source/compiler checks on Go 1.27.0 darwin/arm64. Constructor coverage passed unchanged before and after the refactor. The initializer and queue construction still inline; one queue and four channels remain per production route, with no extra setup object or closure. All 33 hosted checks and nine triggered workflows passed before the guarded squash merge. See the [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/183#issuecomment-5626588918).
 
 The product PR records C2 and all fifteen program implementation slices complete, with an empty implementation frontier and no newly ready successors. No new follow-up or untraced effect was introduced; broader performance/protocol guarantees and unrelated cleanup retain their declared non-goals. Post-merge task/mirror reconciliation is the remaining administrative closure at this timestamp; [program tracker #101](https://github.com/the-sarge/quic-go-fast/issues/101) owns the live view.
+
+---
+
+## Optional qlog resource ownership repaired - 2026-09-10 20:50 EDT
+
+**Main:** `2a204483e154`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #185](https://github.com/the-sarge/quic-go-fast/pull/185), closing [issue #76](https://github.com/the-sarge/quic-go-fast/issues/76). The HTTP/3 server preserves the rawConn identity captured by cancellation so recorder shutdown waits on its producer group. Optional qlog directory failures log and return nil, and buffered sink closure always attempts the underlying Close while joining flush and close errors. Public API/module identity and packet-emission ownership are unchanged.
+
+### Validation
+
+Each focused regression failed before its corresponding fix and passed afterward. Affected packages, focused race checks, go vet, module tidiness and formatting checks passed. The uncached full-suite run passed all packages except integrationtests/self when invoked with the unit workflow's 10× timing factor; that package passed with its documented 3× factor after diagnosing the resulting context-deadline versus idle-timeout mismatch. No source change was made for the command correction.
+
+Standards and Spec reviews found no issues. RAS run `20260911T004140-42568e5d10429dd6350f4ef3` completed with two successful reviewers, no findings and no follow-ups. All 33 hosted checks passed on `119d33be55b0cde3d84a0107c410edc44b6c3503` before guarded squash merge. The bounded contract is [optional tracing ownership](agents/optional-tracing-ownership.md).
