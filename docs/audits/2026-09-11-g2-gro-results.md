@@ -4,7 +4,7 @@ Results for the [G2 GRO adoption protocol](2026-09-11-g2-gro-protocol.md), colle
 
 ## Provenance
 
-- **Candidate measured:** `7306e2c6719c4bf9f0638747b2afaa78b7dea707` (the G2 PR head containing the protocol; product code identical to the reviewed candidate).
+- **Candidate measured:** `7306e2c6719c4bf9f0638747b2afaa78b7dea707` (the G2 PR head containing the protocol). Review round 1 subsequently changed two product files outside the measured receive path — `coalesced_slab.go` (cross-owner oversized-charge transfer, reachable only above the 20 KiB tier; the workload's ~1200-byte segments never reach it) and `server.go` (drop-diagnostic wording) — while `sys_conn_oob.go`, `sys_conn_helper_linux.go`, `connection.go`, and `buffer_pool.go` are byte-identical between the measured commit and the final head, so the adoption-gate measurements remain representative of the merged code.
 - **Base:** `71a1ae80` (default-branch HEAD at branch creation).
 - **Host/toolchain:** minimax, AMD Ryzen AI MAX+ 395, Linux 7.0.0-30-generic x86_64, Go 1.27.1, amd-pstate powersave unchanged. Affinity `taskset -c 12,13,28,29`, `GOMAXPROCS=4`. Load average 0.17 (1-min) at precheck, 0.92 immediately after collection (the collection itself is the dominant contributor); no competing workload was started.
 - **Collection:** 11 rounds × 4 cells, one fresh process per invocation, cell order rotated per round, 512 MiB per transfer; round 0 discarded as warmup, rounds 1–10 analyzed. Raw JSON lines are reproducible from the committed harness (`go test -c -tags grobench`, invocation per the protocol).
