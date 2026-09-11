@@ -565,7 +565,8 @@ func testTransportDial(t *testing.T, early bool) {
 		select {
 		case err := <-errChan:
 			require.NoError(t, err)
-		default:
+		case <-time.After(time.Second):
+			t.Fatal("Dial did not return after handshake completion")
 		}
 	})
 }
