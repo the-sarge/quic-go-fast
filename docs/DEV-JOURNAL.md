@@ -1000,3 +1000,18 @@ Merged [PR #190](https://github.com/the-sarge/quic-go-fast/pull/190) as `9245232
 Bounded checks cover 32, 128 and 512 KiB single and repeated admissions, caller reuse, atomic rejection, partial-drain appends, retransmission splitting, and zero/short/large reliable-prefix cancellation. Recovery-capacity and cancellation-detachment regressions failed before their fixes and passed afterward. Final head `b31ca7b6dc7a03a01bcbfbd03b9b119733231639` passed the uncached full suite with the documented CI timing scale (`TIMESCALE_FACTOR=3`), focused stream race tests, vet, module tidiness and formatting checks. An earlier scale-1 full run failed `TestStreamDataBlocked` at its 5 ms deadline; ten focused base and candidate controls passed, and coverage showed neither changed storage path executed. The failed run remains disclosed in the PR validation record.
 
 Standards review found no issues. Spec review identified a partial-drain append assertion gap, which was fixed and independently verified. Initial RAS `20260911T014623-7332fc45af633db44697075f` accepted that evidence correction and a cancellation storage-lifetime fix. Exact-head verification resolved both findings. Replacement RAS `20260911T015812-34d6949c9b16cb1c17a71729` completed with two successful reviewers and zero findings or follow-ups. All 33 applicable hosted checks passed unskipped before guarded squash merge. No automated fixer or archived performance campaign was used. The [bounded contract](agents/large-accepted-stream-writes.md) and [PR review/validation record](https://github.com/the-sarge/quic-go-fast/pull/190) retain the scope and evidence.
+
+---
+
+## Qlog fork provenance corrected - 2026-09-10 23:41 EDT
+
+**Main:** `05050af18220`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #192](https://github.com/the-sarge/quic-go-fast/pull/192), closing [issue #77](https://github.com/the-sarge/quic-go-fast/issues/77). Qlog provenance selects the supplying fork replacement version, marks local replacements including Go’s `(devel)` metadata, and preserves explicit linker overrides. Both interop linker flags now target qlogwriter. Module identity and ADR 0002 adoption remain unchanged.
+
+### Validation
+
+Real consumer regressions cover ordinary modules, versioned and local replacements, and linker revisions with and without replacement. Focused tests, race tests, both interop builds, go vet, module tidiness and focused lint passed. The uncached full suite passed with the integration workflow’s TIMESCALE_FACTOR=3; an earlier invocation with the unit-only factor 10 reversed two existing corruption-fixture timeout expectations and was corrected without changing product code. Independent Standards and Spec reviews and RAS run `20260911T033047-c68f2968882468d5e2db1e3b` reported zero findings. All 33 hosted checks passed on reviewed head `33610b1d956edabc8a358f3a37b4081897dd0d59` before the guarded squash merge.
