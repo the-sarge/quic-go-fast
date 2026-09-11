@@ -1,6 +1,6 @@
 # G2 Linux UDP_GRO adoption results
 
-Results for the [G2 GRO adoption protocol](2026-09-11-g2-gro-protocol.md), collected 2026-09-11 on minimax exactly as predeclared. **Disposition: pass.**
+Results for the [G2 GRO adoption protocol](2026-09-11-g2-gro-protocol.md), collected 2026-09-11 on minimax per the predeclared collection procedure, with the deviations recorded below. **Disposition: pass** (all four mechanical gates; no fail condition).
 
 ## Provenance
 
@@ -29,7 +29,12 @@ Aggregate engaged-cell coalescing distribution (segments per kernel message, rou
 
 **Mechanical disposition: pass** (all four gate conditions met; no fail condition triggered).
 
-## Unexercised-cell note and diagnostic
+## Deviations from the predeclared protocol and binding plan (recorded 2026-09-11, review round 1)
+
+1. **Unmeasured memory dimensions.** The [datapath offload plan](../adr/2026-09-11-datapath-offload-plan.md) names third-tier pool misses, queued bytes, and post-close retention among the memory dimensions each slice's protocol measures. This protocol and harness measured allocations, GC cycles, heap in use, and peak RSS only; **third-tier pool misses, queued bytes, and post-close retention were not measured**. They are bounded by tests and constants rather than measurements: exactly-once slab recycling and retention-copy behavior by the race-enabled closure tests, queued-byte pinning by the count bounds and per-owner `MaxConnRetainedCoalescedBytes` budgets, and post-close release by `releaseReadBuffers` coverage. Tests and constant bounds are not measurements; the omission is a protocol-authoring gap recorded here, not a claim of coverage. The four mechanical adoption gates (syscalls per datagram, engagement, throughput, RSS budget) did not depend on the unmeasured dimensions.
+2. **Failed predeclared context check.** The protocol's unexercised-vs-disabled 10 % context bound failed (0.495×); see the next section. The original protocol text is preserved unchanged; the explanatory diagnostic below is post-collection, non-predeclared support, not a retroactive replacement of the predeclared comparator, and the mechanical gate results are unaffected.
+
+## Unexercised-cell note and diagnostic (deviation 2 detail)
 
 The protocol's context check asked the unexercised cell to sit within 10 % of the disabled cell's median. Observed: 534.4 vs 1079.7 MB/s (0.495×). That predeclared comparator was mis-specified: the two cells differ in the **sender's** GSO state, so the comparison measures peer send capability, not the GRO receive path. A three-run post-collection diagnostic (reported as such, outside the fixed collection statistics) with GSO **and** GRO both disabled measured 537.1–540.9 MB/s and 0.422–0.433 syscalls/datagram — statistically indistinguishable from the unexercised cell (534.4 MB/s, 0.440). The GRO-on receive path therefore shows no material regression when the peer never coalesces (≲ 1 % throughput, ~3 % syscalls/datagram against its like-for-like baseline); the 2× spread is the known cost of per-packet sends without GSO, present at base. This does not affect the mechanical disposition, whose gates compare cells with identical sender state.
 

@@ -465,24 +465,34 @@ func (s *baseServer) handlePacket(p receivedPacket) {
 	// and charged against the server's retained-bytes budget. Check capacity
 	// first so a doomed packet doesn't pay for a retention copy; the mutex
 	// serializes producers, so the queue cannot fill between check and send.
-	var retained bool
-	if len(s.receivedPackets) < cap(s.receivedPackets) {
-		p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-	}
-	if retained {
-		s.receivedPackets <- p
+	if len(s.receivedPackets) == cap(s.receivedPackets) {
 		s.receivedPacketsMx.Unlock()
+		defer p.buffer.Release()
+		s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
+		s.qlogPacketDropDOSPrevention(p)
 		return
 	}
-	s.receivedPacketsMx.Unlock()
-	defer p.buffer.Release()
-	s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
-	if s.qlogger != nil {
-		s.qlogger.RecordEvent(qlog.PacketDropped{
-			Raw:     qlog.RawInfo{Length: int(p.Size())},
-			Trigger: qlog.PacketDropDOSPrevention,
-		})
+	var retained bool
+	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
+	if !retained {
+		s.receivedPacketsMx.Unlock()
+		defer p.buffer.Release()
+		s.logger.Debugf("Dropping packet from %s (%d bytes). Coalesced retention budget exhausted.", p.remoteAddr, p.Size())
+		s.qlogPacketDropDOSPrevention(p)
+		return
 	}
+	s.receivedPackets <- p
+	s.receivedPacketsMx.Unlock()
+}
+
+func (s *baseServer) qlogPacketDropDOSPrevention(p receivedPacket) {
+	if s.qlogger == nil {
+		return
+	}
+	s.qlogger.RecordEvent(qlog.PacketDropped{
+		Raw:     qlog.RawInfo{Length: int(p.Size())},
+		Trigger: qlog.PacketDropDOSPrevention,
+	})
 }
 
 func (s *baseServer) handlePacketImpl(p receivedPacket) bool /* is the buffer still in use? */ {

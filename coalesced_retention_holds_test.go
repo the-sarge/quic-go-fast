@@ -1,7 +1,10 @@
 package quic
 
 import (
+	"fmt"
 	"net"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -179,4 +182,102 @@ func TestStatelessResetQueueDoesNotPinCoalescedSlab(t *testing.T) {
 	views[1].Release()
 	require.True(t, slab.released(), "the stateless-reset queue must not pin the slab")
 	q.buffer.Release()
+}
+
+// recordingLogger captures Infof/Debugf lines for drop-diagnostic assertions.
+type recordingLogger struct {
+	utils.Logger
+	mu    sync.Mutex
+	lines []string
+}
+
+func (l *recordingLogger) record(format string, args ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.lines = append(l.lines, fmt.Sprintf(format, args...))
+}
+func (l *recordingLogger) Debugf(format string, args ...any) { l.record(format, args...) }
+func (l *recordingLogger) Infof(format string, args ...any)  { l.record(format, args...) }
+
+func (l *recordingLogger) all() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return strings.Join(l.lines, "\n")
+}
+
+// A server drop caused by the retention budget must not claim the queue was
+// full: the two limits have different operational remedies.
+func TestServerBudgetDropIsNotReportedAsQueueFull(t *testing.T) {
+	logger := &recordingLogger{Logger: utils.DefaultLogger}
+	s := &baseServer{
+		receivedPackets: make(chan receivedPacket, protocol.MaxServerUnprocessedPackets),
+		errorChan:       make(chan struct{}),
+		logger:          logger,
+	}
+	require.True(t, s.coalescedRetention.tryCharge(protocol.MaxConnRetainedCoalescedBytes))
+
+	pkt := testLongHeaderPacketBytes(t, protocol.MaxLargePacketBufferSize+1)
+	slab, views := newCoalescedReadFixture(t, len(pkt), pkt, pkt)
+	s.handlePacket(fixturePacket(views[0]))
+	views[1].Release()
+	require.True(t, slab.released())
+
+	require.Empty(t, s.receivedPackets)
+	require.Contains(t, logger.all(), "Coalesced retention budget exhausted")
+	require.NotContains(t, logger.all(), "queue full", "capacity remained; the drop cause is the budget")
+}
+
+// An oversized view charged to one owner's budget and then admitted by a
+// second owner must move its charge: the destination budget is reserved
+// first, the source refunded, and the view charged to exactly one owner.
+func TestOversizedViewChargeTransfersAcrossOwners(t *testing.T) {
+	const size = protocol.MaxLargePacketBufferSize + 1000
+	pkt := testLongHeaderPacketBytes(t, size)
+	slab, views := newCoalescedReadFixture(t, size, pkt, pkt)
+
+	var server, conn coalescedRetentionBudget
+	p, ok := retainForRetentionQueue(fixturePacket(views[0]), &server)
+	require.True(t, ok)
+	require.EqualValues(t, protocol.MaxCoalescedPacketBufferSize, server.retained.Load())
+
+	// same-owner re-admission stays a no-op
+	p, ok = retainForRetentionQueue(p, &server)
+	require.True(t, ok)
+	require.EqualValues(t, protocol.MaxCoalescedPacketBufferSize, server.retained.Load())
+
+	// cross-owner admission moves the charge
+	p, ok = retainForRetentionQueue(p, &conn)
+	require.True(t, ok)
+	require.Zero(t, server.retained.Load(), "the source owner must be refunded")
+	require.EqualValues(t, protocol.MaxCoalescedPacketBufferSize, conn.retained.Load(),
+		"the destination owner must hold the charge")
+
+	p.buffer.Release()
+	views[1].Release()
+	require.True(t, slab.released())
+	require.Zero(t, conn.retained.Load(), "release must refund the holding owner")
+	require.Zero(t, server.retained.Load())
+}
+
+// When the destination owner's budget is exhausted, the admission is refused
+// and the source owner keeps its charge until the view is disposed.
+func TestOversizedViewChargeTransferRefusedWhenDestinationExhausted(t *testing.T) {
+	const size = protocol.MaxLargePacketBufferSize + 1000
+	pkt := testLongHeaderPacketBytes(t, size)
+	slab, views := newCoalescedReadFixture(t, size, pkt, pkt)
+
+	var server, conn coalescedRetentionBudget
+	p, ok := retainForRetentionQueue(fixturePacket(views[0]), &server)
+	require.True(t, ok)
+	require.True(t, conn.tryCharge(protocol.MaxConnRetainedCoalescedBytes))
+
+	_, ok = retainForRetentionQueue(p, &conn)
+	require.False(t, ok, "the destination budget is exhausted")
+	require.EqualValues(t, protocol.MaxCoalescedPacketBufferSize, server.retained.Load(),
+		"the source keeps its charge until disposal")
+
+	p.buffer.Release() // the refused caller drops the packet
+	views[1].Release()
+	require.True(t, slab.released())
+	require.Zero(t, server.retained.Load(), "disposal refunds the source owner")
 }

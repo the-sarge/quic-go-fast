@@ -124,12 +124,20 @@ func retainForRetentionQueue(p receivedPacket, budget *coalescedRetentionBudget)
 	case size <= protocol.MaxLargePacketBufferSize:
 		buf = getLargePacketBuffer()
 	default:
-		if view.retentionCharge != nil {
-			// already charged when it entered another retention queue
+		if view.retentionCharge == budget {
+			// already charged to this owner when it entered an earlier
+			// retention queue
 			return p, true
 		}
 		if !budget.tryCharge(protocol.MaxCoalescedPacketBufferSize) {
+			// refused; a charge from a previous owner stays in place until
+			// the caller disposes of the packet
 			return p, false
+		}
+		if prev := view.retentionCharge; prev != nil {
+			// admission by a new owner moves the charge: the destination is
+			// reserved above before the source is refunded
+			prev.uncharge(protocol.MaxCoalescedPacketBufferSize)
 		}
 		view.retentionCharge = budget
 		return p, true

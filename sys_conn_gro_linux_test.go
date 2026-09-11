@@ -129,7 +129,10 @@ func newGROConn(t *testing.T, bc batchConn) *oobConn {
 	udpConn := newUDPConnLocalhost(t)
 	oc, err := newConn(udpConn, true, true)
 	require.NoError(t, err)
-	require.True(t, oc.capabilities().GRO, "GRO probe failed; kernel too old?")
+	// The scripted reads never touch the kernel, so force the capability
+	// instead of depending on the live probe: parsing, splitting, and
+	// pending-view coverage must run on GRO-unavailable kernels too.
+	oc.cap.GRO = true
 	oc.batchConn = bc
 	return oc
 }
