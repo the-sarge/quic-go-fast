@@ -131,7 +131,7 @@ func TestHookReportsModuleFailureWithoutChangingCaller(t *testing.T) {
 			f.tool("go", `[[ "$*" == 'mod tidy -diff' ]]
 [[ "$(cat go.mod)" == 'module staged' ]]
 echo 'tool side effect' > go.mod
-echo '`+output+`'
+printf '%s' '`+output+`'
 exit 17`)
 			f.run(false, "Module validation failed")
 		})
@@ -161,11 +161,20 @@ func TestHookFormatsRenamedFiles(t *testing.T) {
 }
 
 func TestHookRejectsStagedGoSymlinks(t *testing.T) {
-	f := newHookFixture(t)
-	f.write("source", "package fixture\n")
-	if err := os.Symlink("source", filepath.Join(f.repo, "link.go")); err != nil {
-		t.Fatal(err)
+	for _, symlinks := range []string{"true", "false"} {
+		t.Run(symlinks, func(t *testing.T) {
+			f := newHookFixture(t)
+			f.write("source", "package fixture\n")
+			if err := os.Symlink("source", filepath.Join(f.repo, "link.go")); err != nil {
+				t.Fatal(err)
+			}
+			f.git("add", ".")
+			f.git("config", "core.symlinks", symlinks)
+			if entry := f.git("ls-files", "--stage", "--", "link.go"); !strings.HasPrefix(entry, "120000 ") {
+				t.Fatalf("expected staged symlink, got %q", entry)
+			}
+			f.tool("gofumpt", "echo 'formatter must not run'\nexit 99")
+			f.run(false, "Staged Go input must be a regular file")
+		})
 	}
-	f.git("add", ".")
-	f.run(false, "Staged Go input must be a regular file")
 }

@@ -19,7 +19,11 @@ fi
 
 files=()
 while IFS= read -r -d '' file; do
-  if [[ -L "$snapshot/tree/$file" || ! -f "$snapshot/tree/$file" ]]; then
+  # core.symlinks=false materializes symlink blobs as regular files. Git's
+  # staged mode, rather than the checkout alone, owns the input type.
+  entry=$(git --literal-pathspecs ls-files --stage -- "$file")
+  mode=${entry%% *}
+  if [[ ( "$mode" != 100644 && "$mode" != 100755 ) || -L "$snapshot/tree/$file" || ! -f "$snapshot/tree/$file" ]]; then
     printf 'Staged Go input must be a regular file: %q\n' "$file" >&2
     exit 1
   fi
