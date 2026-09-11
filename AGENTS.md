@@ -11,3 +11,7 @@ Use `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `won
 ### Domain docs
 
 Use a single-context layout: root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
+
+### Maintained-code conventions
+
+Use [the maintained-code and test-helper conventions](docs/agents/conventions.md) for future maintenance sweeps; distinguish enforced rules, observed practices, package differences, and frozen evidence.
