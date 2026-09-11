@@ -1,6 +1,6 @@
 # Datapath Offload Program — 2026-09-11
 
-**Identity:** QGF-DP-2026-09. **Status:** Accepted; G1 complete (#236).
+**Identity:** QGF-DP-2026-09. **Status:** Accepted; Track G complete (#236, #239).
 
 ## What this is
 
@@ -14,11 +14,11 @@ io_uring and XDP datapaths are rejected for this program (off-by-default or plat
 
 | # | Track | Plan | Parent issue | Blocked by | Slices | Status |
 |---|---|---|---|---|---|---|
-| G | Linux coalesced receive (GRO) | [G plan](2026-09-11-linux-gro-plan.md) | #225 | None | G1 done (#236), G2 | G2 FRONTIER |
+| G | Linux coalesced receive (GRO) | [G plan](2026-09-11-linux-gro-plan.md) | #225 | None | G1 done (#236), G2 done (#239) | COMPLETE |
 | W | Windows datapath (foundation, USO, URO) | [W plan](2026-09-11-windows-datapath-plan.md) | #226 | None (W3's G1 edge satisfied; W3 still requires W1) | W1, W2, W3 | W1 FRONTIER |
 | D | Darwin batch send + receive experiment | [D plan](2026-09-11-darwin-batch-plan.md) | #227 | None | D1, D2 | D1 FRONTIER |
 
-Cross-track slice edges: W3 requires G1 (coalesced-storage contract and split helper) — satisfied by #236. In-track edges: G2 requires G1 (satisfied); W2 requires W1; W3 requires W1; D2 requires D1. The frontier is G2, W1, and D1; W1 and D1 touch disjoint files and are parallel-safe, and G2 activates G1's merged machinery. The program's evidence-per-effort ordering recommends completing G and W adoption before D by preference; that recommendation is not a blocking edge. Seven intended PRs, seven fresh implementation contexts; G1 (#236) is merged.
+Cross-track slice edges: W3 requires G1 (coalesced-storage contract and split helper) — satisfied by #236. In-track edges: W2 requires W1; W3 requires W1; D2 requires D1. Track G is complete: G2 (#239) activated G1's merged machinery and passed its adoption gate ([protocol](../audits/2026-09-11-g2-gro-protocol.md), [results](../audits/2026-09-11-g2-gro-results.md)). The frontier is W1 and D1; they touch disjoint files and are parallel-safe. The program's evidence-per-effort ordering recommends completing W adoption before D by preference; that recommendation is not a blocking edge. Seven intended PRs, seven fresh implementation contexts; G1 (#236) and G2 (#239) are merged.
 
 ## Rules that bind every track
 

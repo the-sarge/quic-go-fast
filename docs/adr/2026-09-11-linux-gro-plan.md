@@ -1,7 +1,7 @@
 # Linux Coalesced Receive (GRO) Implementation Plan
 
 **Date:** 2026-09-11
-**Status:** Accepted; G1 complete (#236), G2 frontier
+**Status:** Accepted; complete — G1 (#236), G2 (#239)
 **Track:** G, 1 of 3 in the 2026-09-11 datapath offload program
 **Depends on:** Nothing — safe to start first
 **Related:** [Datapath offload plan](2026-09-11-datapath-offload-plan.md); ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md), [0005](0005-incoming-packet-lifetime.md) (amended 2026-09-11)
@@ -29,7 +29,7 @@ Split coalesced receives inside the sys layer, backed by an atomically reference
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 |---|---|---|---|---|
 | G1 | Complete (#236) | Coalesced-storage contract (slab, third tier, split helper, retention copy), behaviorally inert | None | n/a (introduces inert-machinery seam; activated by G2) |
-| G2 | new | Linux UDP_GRO receive end to end with adoption evidence | None (G1 complete) | Activates G1 machinery (inert seam closed) |
+| G2 | Complete (#239) | Linux UDP_GRO receive end to end with adoption evidence | None (G1 complete) | Activates G1 machinery (inert seam closed) |
 
 ## Implementation Slices
 
@@ -99,9 +99,9 @@ Split coalesced receives inside the sys layer, backed by an atomically reference
 
 ## Acceptance Criteria
 
-- [ ] On a GRO-capable Linux kernel with a GSO-enabled peer, coalesced reads engage (coalesced segments per read > 1 observed and reported) and receive syscalls per delivered datagram decrease per the protocol's predeclared threshold.
-- [ ] With GRO unavailable, disabled via `QUIC_GO_DISABLE_GRO`, or the socket caller-supplied, receive behavior and socket options are unchanged (negative criterion: no `UDP_GRO` setsockopt is issued on caller-supplied sockets).
-- [ ] All contract-closure classes pass under `go test -race`.
+- [x] On a GRO-capable Linux kernel with a GSO-enabled peer, coalesced reads engage (coalesced segments per read > 1 observed and reported) and receive syscalls per delivered datagram decrease per the protocol's predeclared threshold — [protocol](../audits/2026-09-11-g2-gro-protocol.md) and [results](../audits/2026-09-11-g2-gro-results.md): engagement ~100%, syscalls per datagram ratio 0.263 against the 0.75 gate.
+- [x] With GRO unavailable, disabled via `QUIC_GO_DISABLE_GRO`, or the socket caller-supplied, receive behavior and socket options are unchanged (negative criterion: no `UDP_GRO` setsockopt is issued on caller-supplied sockets) — unit-asserted (`TestGRONotEnabledOnCallerSuppliedSocket`, `TestGRODisabledByEnv`) plus the results' disabled/unavailable cells.
+- [x] All contract-closure classes pass under `go test -race` (`coalesced_routing_closure_test.go`, `coalesced_retention_holds_test.go`, `sys_conn_gro_linux_test.go`).
 
 Universal criteria: domains, owners, guarantee levels, and terminating evidence are declared per-slice above; no criterion claims coverage beyond the kernel-delivered GRO domain.
 
