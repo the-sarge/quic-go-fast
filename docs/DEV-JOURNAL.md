@@ -1122,3 +1122,20 @@ Affected tests, focused race tests, the full native suite, vet, lint and formatt
 Standards and Spec reviews each returned zero findings. Initial RAS run `20260911T070828-f3ef910cfdf2ec9f4653b95e` used the configured eight-reviewer panel: seven succeeded, while `cursor-kimik3` returned no supported JSON candidate; quorum, adjudication and synthesis completed. The accepted diagnostic-attribution finding was fixed by removing two newly added `t.Helper()` markers from full MTU scenario bodies, and source verification resolved it and its duplicate at the final head. The proposed wider deterministic MTU bound was rejected as outside the fixed example-level contract. Replacement run `20260911T072127-d872cc9bf1b3e538a85930d2` used `codex-astra` and `codex-sol` and completed with zero findings. No deferred follow-ups remain; no RAS review was posted to GitHub.
 
 Every job in all five final-head PR workflows succeeded: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853581), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853558), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853590), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853565) and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853559). Interop attempt 1 failed during Ubuntu package downloads with connection refusal/timeouts; unchanged-head attempt 2 passed. This repository uses its existing workflows rather than a `ci-*` gate. The squash merge was guarded by the reviewed head SHA.
+
+---
+
+## HTTP/3 tests observe priority and asynchronous completion - 2026-09-11 03:49 EDT
+
+**Main:** `45b9fa840fc5`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #211](https://github.com/the-sarge/quic-go-fast/pull/211) as `45b9fa840fc53dfa53efe475e36214ba585b3a9a`, closing [issue #83](https://github.com/the-sarge/quic-go-fast/issues/83). Request-priority tests now send real requests through `RawServerConn.HandleRequestStream` and observe the transport's applied-priority events, covering connection defaults, priority-aware transitions, malformed headers and multiple field lines. Datagram tests wait for parsing and a delivery barrier before registering the missing stream. Alt-Svc tests wait for protected listener registration and close/join serving workers during cleanup. Only tests changed; parser tables, valid virtual-time sleeps and production/API/module/emission contracts remain intact.
+
+### Validation
+
+Removing the production priority application call caused all seven replacement scenarios to fail; the temporary mutation was restored before committing. Focused tests and their race check, one uncached full native suite including self integration, lint, vet, module tidiness, compiler assertions, generation and diff checks passed. Certification covered reviewed head `3b74c07d65527206aa78994f29c4c261818d2bbd` against `bad8cd6ebf36745222571f54fc6a7cff90a590ed`, with a clean worktree. All 33 hosted checks succeeded without reruns before the guarded squash merge.
+
+Independent Standards and Spec reviews each returned zero findings. RAS run `20260911T073947-5b96cbaa1a225c17cab9439c` used the configured `codex-astra` and `codex-sol` reviewers and completed with zero findings or follow-ups. No fix verification or replacement review was required, and no RAS review was posted to GitHub. Review and certification details are retained in the PR description.
