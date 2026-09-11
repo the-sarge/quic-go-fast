@@ -276,11 +276,13 @@ func (pm *pathManagerOutgoing) HandlePathResponseFrame(f *wire.PathResponseFrame
 
 	for _, p := range pm.paths {
 		if slices.Contains(p.pathChallenges, f.Data) {
-			// path validated
-			if !p.isValidated {
-				// make sure that duplicate PATH_RESPONSE frames are ignored
-				p.isValidated = true
-				p.pathChallenges = nil
+			p.isValidated = true
+			p.pathChallenges = nil
+			// Complete the current probe even if an earlier probe validated the path.
+			select {
+			case <-p.validated:
+				// A response to a queued retransmission can arrive after completion.
+			default:
 				close(p.validated)
 			}
 			break
