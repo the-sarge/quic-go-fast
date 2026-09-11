@@ -57,7 +57,7 @@ type oobConn struct {
 
 var _ rawConn = &oobConn{}
 
-func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
+func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, error) {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
 		return nil, err
@@ -131,6 +131,10 @@ func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
 			DF:  supportsDF,
 			GSO: isGSOEnabled(rawConn),
 			ECN: isECNEnabled(),
+			// The && short-circuit is load-bearing: isGROEnabled issues the
+			// UDP_GRO setsockopt, which must never reach a caller-supplied
+			// socket.
+			GRO: ownsSocket && isGROEnabled(rawConn),
 		},
 	}
 	for i := range batchSize {

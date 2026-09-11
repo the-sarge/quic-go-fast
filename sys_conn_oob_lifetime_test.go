@@ -20,7 +20,7 @@ func (f lifetimeBatchReader) ReadBatch(ms []ipv4.Message, _ int) (int, error) { 
 
 func newLifetimeReader(t *testing.T, read lifetimeBatchReader) *oobConn {
 	t.Helper()
-	c, err := newConn(newUDPConnLocalhost(t), true)
+	c, err := newConn(newUDPConnLocalhost(t), true, true)
 	require.NoError(t, err)
 	c.batchConn = read
 	t.Cleanup(c.releaseReadBuffers)

@@ -80,6 +80,42 @@ func isGSOEnabled(conn syscall.RawConn) bool {
 	return serr == nil
 }
 
+// isGROEnabled enables UDP_GRO on the socket and reports whether it
+// succeeded. The setsockopt is itself the probe: on success the kernel
+// coalesces consecutive same-flow datagrams into a single read and reports
+// the segment size in a UDP_GRO control message.
+// It must only be called on sockets the transport created and owns.
+func isGROEnabled(conn syscall.RawConn) bool {
+	if kernelVersionMajor < 5 {
+		return false
+	}
+	disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_GRO"))
+	if err == nil && disabled {
+		return false
+	}
+	var serr error
+	if err := conn.Control(func(fd uintptr) {
+		serr = unix.SetsockoptInt(int(fd), unix.IPPROTO_UDP, unix.UDP_GRO, 1)
+	}); err != nil {
+		return false
+	}
+	return serr == nil
+}
+
+// parseUDPGROSegmentSize parses the segment size from a UDP_GRO control
+// message, reporting ok == false for any other control message. The kernel
+// attaches this cmsg to a coalesced read; the payload is the size of every
+// segment except a possibly shorter final one.
+func parseUDPGROSegmentSize(hdr *unix.Cmsghdr, body []byte) (segmentSize int, ok bool) {
+	if hdr.Level != unix.IPPROTO_UDP || hdr.Type != unix.UDP_GRO {
+		return 0, false
+	}
+	if len(body) < 4 {
+		return 0, false
+	}
+	return int(int32(binary.NativeEndian.Uint32(body))), true
+}
+
 func appendUDPSegmentSizeMsg(b []byte, size uint16) []byte {
 	startLen := len(b)
 	const dataLen = 2 // payload is a uint16

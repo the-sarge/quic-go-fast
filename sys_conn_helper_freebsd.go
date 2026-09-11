@@ -31,3 +31,8 @@ func parseIPv4PktInfo(body []byte) (ip netip.Addr, _ uint32, ok bool) {
 func isGSOEnabled(syscall.RawConn) bool { return false }
 
 func isECNEnabled() bool { return !isECNDisabledUsingEnv() }
+
+// GRO is a Linux/Windows receive offload; no FreeBSD equivalent is adopted.
+func isGROEnabled(syscall.RawConn) bool { return false }
+
+func parseUDPGROSegmentSize(*unix.Cmsghdr, []byte) (segmentSize int, ok bool) { return 0, false }

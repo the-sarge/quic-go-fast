@@ -381,7 +381,7 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 			conn = c
 		} else {
 			var err error
-			conn, err = wrapConn(t.Conn)
+			conn, err = wrapConn(t.Conn, t.createdConn)
 			if err != nil {
 				t.initErr = err
 				return

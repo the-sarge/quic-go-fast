@@ -17,7 +17,7 @@ import (
 // workers, so ownership can be inspected before any buffer is acquired again.
 func newZeroRTTLifetimeServer(t *testing.T) *baseServer {
 	t.Helper()
-	conn, err := wrapConn(newUDPConnLocalhost(t))
+	conn, err := wrapConn(newUDPConnLocalhost(t), true)
 	require.NoError(t, err)
 	return &baseServer{
 		conn:                   conn,
