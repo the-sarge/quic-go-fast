@@ -161,6 +161,64 @@ func TestPathManagerOutgoingRepeatedSuccessfulProbes(t *testing.T) {
 	})
 }
 
+func TestPathManagerOutgoingReprobeDiscardsOldRetransmissions(t *testing.T) {
+	for _, state := range []string{"queued", "sent"} {
+		t.Run(state, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				pm := newPathManagerOutgoing(
+					func(pathID) (protocol.ConnectionID, bool) {
+						return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+					},
+					func(pathID) { t.Fatal("didn't expect any connection ID to be retired") },
+					func() {},
+				)
+				p := pm.NewPath(&Transport{}, time.Second, func() {})
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				errChan := make(chan error, 1)
+				go func() { errChan <- p.Probe(ctx) }()
+				synctest.Wait()
+				_, f, _, ok := pm.NextPathToProbe()
+				require.True(t, ok)
+				synctest.Wait()
+
+				// Queue a retransmission just before the first probe succeeds.
+				time.Sleep(time.Second)
+				synctest.Wait()
+				pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: f.Frame.(*wire.PathChallengeFrame).Data})
+				synctest.Wait()
+				require.NoError(t, <-errChan)
+
+				var oldResponse *wire.PathResponseFrame
+				if state == "sent" {
+					_, retry, _, ok := pm.NextPathToProbe()
+					require.True(t, ok)
+					oldResponse = &wire.PathResponseFrame{Data: retry.Frame.(*wire.PathChallengeFrame).Data}
+				}
+
+				go func() { errChan <- p.Probe(ctx) }()
+				synctest.Wait()
+				_, f, _, ok = pm.NextPathToProbe()
+				require.True(t, ok)
+				_, _, _, ok = pm.NextPathToProbe()
+				require.False(t, ok, "only the new probe should remain queued")
+				if oldResponse != nil {
+					pm.HandlePathResponseFrame(oldResponse)
+				}
+				synctest.Wait()
+				select {
+				case err := <-errChan:
+					t.Fatalf("old retransmission completed the new probe: %v", err)
+				default:
+				}
+				pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: f.Frame.(*wire.PathChallengeFrame).Data})
+				synctest.Wait()
+				require.NoError(t, <-errChan)
+			})
+		})
+	}
+}
+
 func TestPathManagerOutgoingRetransmissions(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		connIDs := []protocol.ConnectionID{

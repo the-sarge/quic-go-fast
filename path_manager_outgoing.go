@@ -152,6 +152,10 @@ func (pm *pathManagerOutgoing) addPath(p *Path, enablePath func()) *pathOutgoing
 
 	// path might already exist, and just being re-probed
 	if existingPath, ok := pm.paths[p.id]; ok {
+		// Start a new attempt without revoking the path's switch eligibility.
+		// Neither sent challenges nor queued retries belong to the new attempt.
+		existingPath.pathChallenges = nil
+		pm.pathsToProbe = slices.DeleteFunc(pm.pathsToProbe, func(id pathID) bool { return id == p.id })
 		existingPath.validated = make(chan struct{})
 		return existingPath
 	}
