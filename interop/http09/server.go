@@ -79,6 +79,8 @@ func (s *Server) handleStream(str *quic.Stream) error {
 
 	u, err := url.Parse(request[4:])
 	if err != nil {
+		// Reset malformed URLs like invalid prefixes so the peer does not wait for a response.
+		str.CancelWrite(42)
 		return err
 	}
 	u.Scheme = "https"
