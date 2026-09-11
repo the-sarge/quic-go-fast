@@ -29,3 +29,9 @@ Language for QUIC transport behavior and the fork's transmission work.
 **HTTP/3 exchange**: One request attempt and its response, including any overlapping request upload and response consumption. Receiving response headers does not by itself finish an exchange.
 
 **Idle pooled HTTP/3 connection**: A reusable HTTP/3 connection with no active exchanges. A connection carrying an unfinished response or request upload is not idle.
+
+**Coalesced receive**: A single socket read that delivers several consecutive equal-sized UDP datagrams from the same sender in one buffer, which the transport must split back into individual UDP datagrams before packet processing. It is distinct from several QUIC packets sharing one UDP datagram, and from a receive batch of separately delivered datagrams.
+
+**Receive batch**: One or more separately delivered UDP datagrams collected in a single submission from the socket-reading path. Each member is a complete UDP datagram; a member may itself be a coalesced receive.
+
+**Segmented send**: A single socket submission carrying a payload that the network stack splits into several equal-sized UDP datagrams before transmission. It is distinct from a send batch of separately submitted datagrams and from several QUIC packets sharing one UDP datagram.
