@@ -1054,3 +1054,22 @@ Merged [PR #200](https://github.com/the-sarge/quic-go-fast/pull/200) as `1136338
 The red-stage controls reproduced the retired guard's missed live loop, ten retained TLS workers per helper, and repeated certificate bind failures. On final head `f407d2c3e445d97972c7366b987333effbe6b218`, focused checks passed ten repetitions normally and under race, explicitly including both `testdata` packages omitted by `./...`. The uncached full suite with `TIMESCALE_FACTOR=3`, vet, module tidiness, formatting/go-fix checks, golangci-lint and gcassert passed. All 33 applicable hosted checks succeeded without skips or reruns before the guarded squash merge.
 
 Standards and Spec reviews each found no issues. RAS run `20260911T044916-d14e03ad3fd41ddb0be31d76` completed with all eight reviewers and adjudicators, zero required fixes and zero follow-ups. The implementing agent rejected a request to strengthen the copy-observation test beyond its behavioral sanity check and deferred optional secondary-error suppression in certificate cleanup as low-value polish without a separate tracking task. The latter was revalidated at both certificate fixtures' line 20 on merged commit `113633840bfb4ae933965fdf20ff895d2e37d45e`; resource cleanup remains correct. No fix-verification or replacement review was needed. The [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/200#issuecomment-5629726498) retains the evidence and dispositions.
+
+---
+
+## Packet-loss directions corrected - 2026-09-11 02:10 EDT
+
+**Main:** `724b605bb969`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #202](https://github.com/the-sarge/quic-go-fast/pull/202) as `724b605bb969d65ce4fdd82cf5f561b22446fc3e`, closing [issue #79](https://github.com/the-sarge/quic-go-fast/issues/79). The one-third-loss fixture now filters by the requested direction, while the explicit `both` case preserves historical bidirectional Bernoulli loss and independent ten-consecutive-drop limits. Handshake leaf names include direction, Retry, speaking order, post-quantum setting and certificate-chain dimensions. Current fixture documentation distinguishes the correction from historical diagnostics; archived #44 evidence is unchanged, its root cause remains unresolved by this correction, and #46 remains separate.
+
+### Validation
+
+The controlled direction regression failed before the fix and passed afterward. Controlled direction/decision and streak/reset tests, the deterministic v1/v2 corpus, focused v2 race tests, all 225 unique dimensioned leaf names, the uncached full local suite, complete v2 self suite, `go vet ./...`, `golangci-lint run --timeout=3m`, `go mod tidy -diff` and diff checks passed. No random campaign was run.
+
+Standards and Spec reviews had zero findings. RAS run `20260911T055146-cab0ebab533179405f8b8c57` reviewed `7d969137fa9d9cf070d36d70ab3679edfada523c` with seven successful reviewers and one unusable reviewer response; quorum and synthesis completed. Its duplicate stale-documentation findings were accepted and fixed; marginal pre-existing dead-condition cleanup was deferred without follow-up busywork. The documentation-only correction used the shared no-rerun policy, with renewed local certification at `19af34b27edbfb4fd643211ac435bc39ea06085e` and unchanged tested Go/dependency files. No unresolved design decision remained.
+
+All 17 applicable hosted jobs succeeded on that final head: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053509), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053593), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053479), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053538), and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/34568053606). The merge was guarded with the exact head SHA.
