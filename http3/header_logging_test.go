@@ -30,13 +30,16 @@ func TestServerRequestHeaderLogging(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "https://example.com/path?q=1", nil)
 			req.Header = http.Header{"X-Test": {"one", "two"}, "User-Agent": {"header-test"}}
+			received := make(chan *http.Request, 1)
 			testServerRequestHandling(t, func(w http.ResponseWriter, got *http.Request) {
-				require.Equal(t, req.Header, got.Header)
-				require.Equal(t, req.Method, got.Method)
-				require.Equal(t, "example.com", got.Host)
-				require.Equal(t, "/path?q=1", got.RequestURI)
-				require.Equal(t, "HTTP/3.0", got.Proto)
+				received <- got.Clone(got.Context())
 			}, req, logger)
+			got := <-received
+			require.Equal(t, req.Header, got.Header)
+			require.Equal(t, req.Method, got.Method)
+			require.Equal(t, "example.com", got.Host)
+			require.Equal(t, "/path?q=1", got.RequestURI)
+			require.Equal(t, "HTTP/3.0", got.Proto)
 			parsed := recorder.Events(qlog.FrameParsed{})
 			if !logging {
 				require.Empty(t, parsed)
