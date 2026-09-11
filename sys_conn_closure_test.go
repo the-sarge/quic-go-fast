@@ -131,22 +131,20 @@ func TestRawConnBlockedReadObservesClose(t *testing.T) {
 func TestRawConnConcurrentCloseDuringRead(t *testing.T) {
 	for _, v := range rawConnVariants() {
 		t.Run(v.name, func(t *testing.T) {
-			for i := 0; i < 20; i++ {
+			for i := range 20 {
 				conn, addr := newClosureTestConn(t, v)
 				sender, err := net.DialUDP("udp4", nil, addr)
 				require.NoError(t, err)
 
 				errChan := readPacketAsync(t, conn)
 				var wg sync.WaitGroup
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					for j := 0; j < 10; j++ {
+				wg.Go(func() {
+					for range 10 {
 						if _, err := sender.Write([]byte("closure test payload")); err != nil {
 							return
 						}
 					}
-				}()
+				})
 				// Close while the reader races the sender: sometimes
 				// mid-burst, sometimes against an already-blocked read.
 				if i%2 == 0 {
@@ -176,12 +174,12 @@ func TestRawConnSustainedTransfer(t *testing.T) {
 
 			require.NoError(t, conn.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
 			received := make(map[string]struct{})
-			for b := 0; b < bursts; b++ {
-				for i := 0; i < packetsPerBurst; i++ {
+			for b := range bursts {
+				for i := range packetsPerBurst {
 					_, err := sender.Write(fmt.Appendf(nil, "packet %d/%d", b, i))
 					require.NoError(t, err)
 				}
-				for i := 0; i < packetsPerBurst; i++ {
+				for range packetsPerBurst {
 					p, err := conn.ReadPacket()
 					require.NoError(t, err)
 					require.Equal(t, sender.LocalAddr().String(), p.remoteAddr.String())
