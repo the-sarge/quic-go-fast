@@ -1193,3 +1193,16 @@ Merged [PR #219](https://github.com/the-sarge/quic-go-fast/pull/219) as `fefe59f
 Validation: a controlled setup delay failed the original duration assertion while the expected shutdown, client error and handler timing assertions passed. The repaired cases pass. Two removed fault probes detected immediate closure and omitted deadline closure with bounded cleanup. Neighboring shutdown coverage passed with timing scale 3 for QUIC v1 and v2 on Go 1.27.0, darwin/arm64. The focused race test, uncached full root-module suite, repository-wide vet/lint, module tidiness, changed-file formatting and diff checks passed on reviewed head `7b88a1198d370024524fc56e56d50f06da58c584`. Broad formatter inspection found only an existing blank line in a frozen, unchanged experiment artifact, which was preserved under repository conventions.
 
 Independent Standards and Spec reviews found zero issues. RAS run `20260911T150605-82ac348e42b7d247746ec0e4` completed with two successful reviewers (`codex-astra` and `codex-sol`) and zero findings; no verification, replacement review or review posting was needed. All 33 applicable hosted checks passed unskipped on the exact reviewed head against unchanged base `420d6bad9b65f7b5a3645e27b77d783180b357cd` before guarded squash merge. The optional CodSpeed benchmark remained queued without an assigned runner; it is unavailable, not passing evidence, and performance measurement is outside this fixture repair. No deferred findings remain.
+
+---
+
+## Blocked-data fixture delivery synchronization - 2026-09-11 11:51 EDT
+
+**Main:** `091daab635d3`
+**Actor:** Codex
+
+Merged [PR #221](https://github.com/the-sarge/quic-go-fast/pull/221), closing [issue #198](https://github.com/the-sarge/quic-go-fast/issues/198). The shared connection/stream blocked-data fixture now reads the exact accepted batch and explicitly waits for auto-tuned receive credit before starting subsequent write deadlines. The 100/200/400-byte batches, deadline behavior, offsets 100/300/700, frame counts, and bundling assertions remain intact; production APIs and wire behavior are unchanged.
+
+A controlled final-batch forwarding delay reproduced accepted400/read0 in both variants on the base plus regression. The repaired regression passes under QUIC v1/v2. This establishes the fixture’s invalid delivery-deadline assumption without claiming the exact historical scheduling event was reproduced. On reviewed head `e0a87ed87c7d0ba8701778e9a0febf28bbf18c3e`, both original tests passed 1,000 unscaled repetitions each under both QUIC versions; the unscaled full suite, focused flow-control tests and vet passed. All 33 applicable hosted checks succeeded; hosted integration uses factor 3. Optional CodSpeed remained queued at merge.
+
+Standards and Spec reviews found no issues. RAS run `20260911T153332-3899166c8c34f1ee0095e7c5` completed with eight reviewers, full adjudication and no immediate fixes; no fix verification or replacement review was required. [The review receipt](https://github.com/the-sarge/quic-go-fast/pull/221#issuecomment-5637026414) records dispositions and certification. [Issue #222](https://github.com/the-sarge/quic-go-fast/issues/222) retains the source-revalidated, out-of-scope factor-10/20 PTO/duplicate-frame limitation and pre-existing excess-frame diagnostic panic for separate triage.
