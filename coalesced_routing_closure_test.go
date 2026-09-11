@@ -50,12 +50,10 @@ type releasingPacketHandler struct {
 
 func (h *releasingPacketHandler) handlePacket(p receivedPacket) {
 	h.data = append(h.data, bytes.Clone(p.data))
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
+	h.wg.Go(func() {
 		<-h.start
 		p.buffer.Release()
-	}()
+	})
 }
 
 func (h *releasingPacketHandler) destroy(error)                                   {}
