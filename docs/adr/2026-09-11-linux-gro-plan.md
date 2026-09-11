@@ -1,7 +1,7 @@
 # Linux Coalesced Receive (GRO) Implementation Plan
 
 **Date:** 2026-09-11
-**Status:** Accepted; not yet implemented
+**Status:** Accepted; G1 complete (#236), G2 frontier
 **Track:** G, 1 of 3 in the 2026-09-11 datapath offload program
 **Depends on:** Nothing — safe to start first
 **Related:** [Datapath offload plan](2026-09-11-datapath-offload-plan.md); ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md), [0005](0005-incoming-packet-lifetime.md) (amended 2026-09-11)
@@ -28,8 +28,8 @@ Split coalesced receives inside the sys layer, backed by an atomically reference
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 |---|---|---|---|---|
-| G1 | new | Coalesced-storage contract (slab, third tier, split helper, retention copy), behaviorally inert | None | n/a (introduces inert-machinery seam; activated by G2) |
-| G2 | new | Linux UDP_GRO receive end to end with adoption evidence | G1 | Activates G1 machinery (inert seam closed) |
+| G1 | Complete (#236) | Coalesced-storage contract (slab, third tier, split helper, retention copy), behaviorally inert | None | n/a (introduces inert-machinery seam; activated by G2) |
+| G2 | new | Linux UDP_GRO receive end to end with adoption evidence | None (G1 complete) | Activates G1 machinery (inert seam closed) |
 
 ## Implementation Slices
 

@@ -182,6 +182,10 @@ type Conn struct {
 	receivedPackets       ringbuffer.RingBuffer[receivedPacket]
 	receivedPacketsClosed bool // guarded by receivedPacketMx
 
+	// coalescedRetention bounds the coalesced-slab bytes pinned by this
+	// connection's retention queues through oversized segment views.
+	coalescedRetention coalescedRetentionBudget
+
 	// closeChan is used to notify the run loop that it should terminate
 	closeChan chan struct{}
 	closeErr  atomic.Pointer[closeError]
@@ -1958,17 +1962,18 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	// Discard packets once the amount of queued packets is larger than
 	// the channel size, protocol.MaxConnUnprocessedPackets
 	if c.receivedPackets.Len() >= protocol.MaxConnUnprocessedPackets {
-		if c.qlogger != nil {
-			var datagramPayloadChecksum qlog.DatagramPayloadChecksum
-			if wire.IsLongHeaderPacket(p.data[0]) {
-				datagramPayloadChecksum = qlog.CalculateDatagramPayloadChecksum(p.data)
-			}
-			c.qlogger.RecordEvent(qlog.PacketDropped{
-				Raw:                     qlog.RawInfo{Length: int(p.Size())},
-				DatagramPayloadChecksum: datagramPayloadChecksum,
-				Trigger:                 qlog.PacketDropDOSPrevention,
-			})
-		}
+		c.qlogUnprocessedPacketDropped(p)
+		c.receivedPacketMx.Unlock()
+		p.buffer.Release()
+		return
+	}
+	// A packet backed by a coalesced slab must not pin the slab while queued:
+	// it is copied into an ordinary tier, or, if oversized, kept on the slab
+	// and charged against the connection's retained-bytes budget.
+	var retained bool
+	p, retained = retainForRetentionQueue(p, &c.coalescedRetention)
+	if !retained {
+		c.qlogUnprocessedPacketDropped(p)
 		c.receivedPacketMx.Unlock()
 		p.buffer.Release()
 		return
@@ -1980,6 +1985,23 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	case c.notifyReceivedPacket <- struct{}{}:
 	default:
 	}
+}
+
+// qlogUnprocessedPacketDropped records the drop of a packet that could not
+// enter the unprocessed-packet queue. The caller holds receivedPacketMx.
+func (c *Conn) qlogUnprocessedPacketDropped(p receivedPacket) {
+	if c.qlogger == nil {
+		return
+	}
+	var datagramPayloadChecksum qlog.DatagramPayloadChecksum
+	if wire.IsLongHeaderPacket(p.data[0]) {
+		datagramPayloadChecksum = qlog.CalculateDatagramPayloadChecksum(p.data)
+	}
+	c.qlogger.RecordEvent(qlog.PacketDropped{
+		Raw:                     qlog.RawInfo{Length: int(p.Size())},
+		DatagramPayloadChecksum: datagramPayloadChecksum,
+		Trigger:                 qlog.PacketDropDOSPrevention,
+	})
 }
 
 // closePacketAdmission seals and drains ordinary input. Only the run goroutine,
@@ -2715,6 +2737,26 @@ func (c *Conn) tryQueueingUndecryptablePacket(p receivedPacket, pt qlog.PacketTy
 			})
 		}
 		c.logger.Infof("Dropping undecryptable packet (%d bytes). Undecryptable packet queue full.", p.Size())
+		return false
+	}
+	// A packet backed by a coalesced slab must not pin the slab while queued:
+	// it is copied into an ordinary tier, or, if oversized, kept on the slab
+	// and charged against the connection's retained-bytes budget.
+	var retained bool
+	p, retained = retainForRetentionQueue(p, &c.coalescedRetention)
+	if !retained {
+		if c.qlogger != nil {
+			c.qlogger.RecordEvent(qlog.PacketDropped{
+				Header: qlog.PacketHeader{
+					PacketType:   pt,
+					PacketNumber: protocol.InvalidPacketNumber,
+				},
+				Raw:                     qlog.RawInfo{Length: int(p.Size())},
+				DatagramPayloadChecksum: datagramPayloadChecksum,
+				Trigger:                 qlog.PacketDropDOSPrevention,
+			})
+		}
+		c.logger.Infof("Dropping undecryptable packet (%d bytes). Coalesced retention budget exhausted.", p.Size())
 		return false
 	}
 	c.logger.Infof("Queueing packet (%d bytes) for later decryption", p.Size())
