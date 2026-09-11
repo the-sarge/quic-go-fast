@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -132,14 +133,24 @@ func TestACKBundling(t *testing.T) {
 }
 
 func TestStreamDataBlocked(t *testing.T) {
-	testConnAndStreamDataBlocked(t, true, false)
+	testConnAndStreamDataBlocked(t, true, false, false)
 }
 
 func TestConnDataBlocked(t *testing.T) {
-	testConnAndStreamDataBlocked(t, false, true)
+	testConnAndStreamDataBlocked(t, false, true, false)
 }
 
-func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn bool) {
+func TestDataBlockedDelayedDelivery(t *testing.T) {
+	t.Run("stream", func(t *testing.T) {
+		testConnAndStreamDataBlocked(t, true, false, true)
+	})
+	t.Run("connection", func(t *testing.T) {
+		testConnAndStreamDataBlocked(t, false, true, true)
+	})
+}
+
+func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn, delayLastBatch bool) {
+	t.Helper()
 	const window = 100
 	const numBatches = 3
 
@@ -164,10 +175,14 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn bool) {
 	require.NoError(t, err)
 	defer ln.Close()
 
+	var delayDelivery atomic.Bool
 	proxy := quicproxy.Proxy{
 		Conn:       newUDPConnLocalhost(t),
 		ServerAddr: ln.Addr().(*net.UDPAddr),
-		DelayPacket: func(quicproxy.Direction, net.Addr, net.Addr, []byte) time.Duration {
+		DelayPacket: func(dir quicproxy.Direction, _, _ net.Addr, _ []byte) time.Duration {
+			if dir == quicproxy.DirectionIncoming && delayDelivery.Load() {
+				return 3 * rtt
+			}
 			return rtt / 2
 		},
 	}
@@ -187,9 +202,11 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn bool) {
 		}),
 	)
 	require.NoError(t, err)
+	defer conn.CloseWithError(0, "")
 
 	serverConn, err := ln.Accept(ctx)
 	require.NoError(t, err)
+	defer serverConn.CloseWithError(0, "")
 
 	str, err := conn.OpenUniStreamSync(ctx)
 	require.NoError(t, err)
@@ -202,7 +219,32 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn bool) {
 	}
 
 	var serverStr *quic.ReceiveStream
+	var blockedOffset protocol.ByteCount
 	for i := range numBatches {
+		blockedOffset += windowSizes[i]
+		if i > 0 {
+			// Batch completion no longer waits for a read timeout. Wait explicitly
+			// for the auto-tuned credit before starting the next write deadline.
+			require.Eventually(t, func() bool {
+				for _, p := range counter.getRcvdShortHeaderPackets() {
+					for _, f := range p.frames {
+						switch frame := f.Frame.(type) {
+						case *qlog.MaxStreamDataFrame:
+							if limitStream && frame.StreamID == str.StreamID() && frame.MaximumStreamData == blockedOffset {
+								return true
+							}
+						case *qlog.MaxDataFrame:
+							if limitConn && frame.MaximumData == blockedOffset {
+								return true
+							}
+						}
+					}
+				}
+				return false
+			}, scaleDuration(time.Second), time.Millisecond, "batch %d: waiting for receive credit %d", i+1, blockedOffset)
+		}
+		// Delay only the final batch so the preceding batches still exercise auto-tuning.
+		delayDelivery.Store(delayLastBatch && i == numBatches-1)
 		str.SetWriteDeadline(time.Now().Add(rtt))
 		n, err := str.Write(make([]byte, 10000))
 		require.Error(t, err)
@@ -213,10 +255,11 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn bool) {
 			serverStr, err = serverConn.AcceptUniStream(ctx)
 			require.NoError(t, err)
 		}
-		serverStr.SetReadDeadline(time.Now().Add(rtt))
-		n2, err := io.ReadFull(serverStr, make([]byte, 10000))
-		require.Error(t, err)
-		require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+		// Write reports accepted bytes, not peer delivery. Read exactly this batch
+		// and use the deadline only to bound failure, not to signal completion.
+		require.NoError(t, serverStr.SetReadDeadline(time.Now().Add(scaleDuration(time.Second))))
+		n2, err := io.ReadFull(serverStr, make([]byte, n))
+		require.NoError(t, err, "batch %d: received %d of %d accepted bytes", i+1, n2, n)
 		require.Equal(t, n, n2)
 	}
 
