@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -67,4 +68,23 @@ func TestQLOGDIRNotSet(t *testing.T) {
 
 	tracer := DefaultConnectionTracer(context.Background(), true, connID)
 	require.Nil(t, tracer)
+}
+
+func TestQLOGDIRCreationFailure(t *testing.T) {
+	if os.Getenv("QUIC_GO_TEST_QLOGDIR_FAILURE") == "1" {
+		// The missing parent makes Stat report nonexistence; the oversized path
+		// component then makes MkdirAll fail, even when tests run as root.
+		dir := filepath.Join(t.TempDir(), "missing", strings.Repeat("x", 300))
+		_, err := os.Stat(dir)
+		require.True(t, os.IsNotExist(err))
+		t.Setenv("QLOGDIR", dir)
+		require.Nil(t, DefaultConnectionTracer(context.Background(), true, ConnectionID{}))
+		require.Nil(t, DefaultConnectionTracerWithSchemas(context.Background(), false, ConnectionID{}, []string{"extra"}))
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestQLOGDIRCreationFailure$")
+	cmd.Env = append(os.Environ(), "QUIC_GO_TEST_QLOGDIR_FAILURE=1")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	require.Contains(t, string(output), "failed to create qlog dir")
 }

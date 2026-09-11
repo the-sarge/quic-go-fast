@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"errors"
 	"io"
 )
 
@@ -18,9 +19,7 @@ func NewBufferedWriteCloser(writer *bufio.Writer, closer io.Closer) io.WriteClos
 	}
 }
 
+// Close flushes buffered data and always closes the sink, joining any errors.
 func (h bufferedWriteCloser) Close() error {
-	if err := h.Flush(); err != nil {
-		return err
-	}
-	return h.Closer.Close()
+	return errors.Join(h.Flush(), h.Closer.Close())
 }
