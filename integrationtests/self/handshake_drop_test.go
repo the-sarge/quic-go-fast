@@ -204,15 +204,21 @@ func dropCallbackDropNthPacket(dir direction, ns ...int) func(direction, simnet.
 	}
 }
 
-func dropCallbackDropOneThird(_ direction) func(direction, simnet.Packet) bool {
+func dropCallbackDropOneThird(dir direction) func(direction, simnet.Packet) bool {
+	return dropCallbackDropOneThirdWithDecision(dir, func() bool { return mrand.IntN(3) == 0 })
+}
+
+func dropCallbackDropOneThirdWithDecision(dir direction, shouldDrop func() bool) func(direction, simnet.Packet) bool {
 	const maxSequentiallyDropped = 10
 	var mx sync.Mutex
 	var toClient, toServer int
 	return func(d direction, p simnet.Packet) bool {
-		drop := mrand.IntN(3) == 0
-
+		if dir != directionBoth && d != dir {
+			return false
+		}
 		mx.Lock()
 		defer mx.Unlock()
+		drop := shouldDrop()
 		// never drop more than 10 consecutive packets
 		if d == directionToClient || d == directionBoth {
 			if drop {
@@ -290,7 +296,7 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 						{"server speaks first", dropTestProtocolServerSpeaksFirst},
 						{"nobody speaks", dropTestProtocolNobodySpeaks},
 					} {
-						t.Run(fmt.Sprintf("retry: %t/%s", conf.doRetry, test.name), func(t *testing.T) {
+						t.Run(fmt.Sprintf("retry: %t/post quantum: %t/long cert chain: %t/%s", conf.doRetry, conf.postQuantum, conf.longCertChain, test.name), func(t *testing.T) {
 							synctest.Test(t, func(t *testing.T) {
 								diagnostics := newHandshakeDiagnostics(t, fmt.Sprintf("test=%s requested_direction=%s loss=%s retry=%t speaking=%s post_quantum=%t long_chain=%t version=%s", t.Name(), dir, pattern, conf.doRetry, test.name, conf.postQuantum, conf.longCertChain, version))
 								clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}

@@ -4,7 +4,7 @@ The operator approved the following proposal after the [PR #144 capture was diag
 
 ## Fixture contract
 
-The handshake test fixture owns this change. Production QUIC recovery, the 5000-byte payload, the two-minute deadline, RTT settings, TLS configuration matrix and the historical random-loss callback are unchanged. The random callback continues to ignore its requested direction, as tracked separately in issue #79; it is not silently repaired here. PR #144 and the corruption workflow are independent of this branch.
+The handshake test fixture owns this change. Production QUIC recovery, the 5000-byte payload, the two-minute deadline, RTT settings and TLS configuration matrix are unchanged. Issue #79 subsequently corrects the random-loss callback to honor its requested direction; the explicit `both` case retains the historical bidirectional Bernoulli loss and per-direction ten-consecutive-drop guard. PR #144 and the corruption workflow are independent of this branch.
 
 Mandatory `TestHandshakeWithPacketLoss` coverage uses five deterministic schedules in each of the three existing directions, across the five TLS/Retry configurations and three speaking orders (225 cases per QUIC version):
 
@@ -18,7 +18,7 @@ Mandatory `TestHandshakeWithPacketLoss` coverage uses five deterministic schedul
 
 Indexes in this table are one based, counted independently per direction. Periodic cases stop introducing losses after datagram 30 and continue to require a successful handshake/transfer within the existing deadline. These are explicit example schedules, not a universal claim that any finite or one-third random loss sequence will complete on time. A short nobody-speaks exchange can finish before a later scheduled drop; the initial-loss cases retain their assertion that a drop occurred.
 
-The three historically named `drop 1/3 of packets` groups are skipped unless `QUIC_GO_TEST_RANDOM_LOSS=1`. Setting that variable restores the original Bernoulli draws, bidirectional loss, ten-consecutive-drop guard, fixture matrix and success assertions. Stress can therefore still fail on a permitted loss sequence; its purpose is exploration, not an unconditional CI success guarantee. Existing diagnostics remain active on failure. No workflow retry, timeout increase, lucky seed or accepted-failure exception is added.
+The three historically named `drop 1/3 of packets` groups are skipped unless `QUIC_GO_TEST_RANDOM_LOSS=1`. Setting that variable enables Bernoulli draws in the named direction, retaining the ten-consecutive-drop guard, fixture matrix and success assertions. The `both` group is the explicit historical bidirectional scenario. Every leaf name includes direction, Retry, speaking order, post-quantum setting and certificate-chain length; cases no longer depend on Go-generated duplicate-name suffixes. Stress can therefore still fail on a permitted loss sequence; its purpose is exploration, not an unconditional CI success guarantee. Existing diagnostics remain active on failure. No workflow retry, timeout increase, lucky seed or accepted-failure exception is added.
 
 ## Captured failure regression
 
@@ -42,7 +42,7 @@ go test ./integrationtests/self -run '^TestHandshake(WithPacketLoss|CapturedLoss
 go test -race ./integrationtests/self -run '^TestHandshake(WithPacketLoss|CapturedLoss|RandomLossOptIn)$' -version=2 -count=1
 ```
 
-Explicitly request random stress (the regular expression selects all three historical random-loss directions):
+Explicitly request random stress (the regular expression selects the two corrected one-way groups and the historical bidirectional group):
 
 ```sh
 QUIC_GO_TEST_RANDOM_LOSS=1 go test ./integrationtests/self -run '^TestHandshakeWithPacketLoss$/^drop_1$/^3_of_packets_in_direction_' -version=2 -count=1 -v
@@ -52,7 +52,7 @@ Preserve any failed stress run and its diagnostics before deciding whether anoth
 
 ## Review and terminating evidence
 
-The supported representation and guarantee are the enumerated example schedules and the frame-observed two-endpoint regression above. Material artifacts are test fixtures, maintained verification aids, documentation and immutable diagnostic receipts. There is no shipped runtime/API change, general replay guarantee, probability claim, direction-policy repair or required random campaign.
+The supported representation and guarantee are the enumerated example schedules and the frame-observed two-endpoint regression above. Material artifacts are test fixtures, maintained verification aids, documentation and immutable diagnostic receipts. There is no shipped runtime/API change, general replay guarantee, probability claim or required random campaign. The subsequent issue #79 direction-policy repair is bounded to the callback and fixture names, with controlled loss-decision sequences testing one-way filtering, bidirectional decisions, independent streak limits and resets. Historical issue #44 evidence remains unchanged and its root cause remains unresolved by this correction; issue #46 is separate.
 
 The evidence plan is focused v1/v2 tests, one final focused race check, the opt-in gate regression, targeted sensitivity checks of the timeout and ACK control, one final uncached full local suite plus the v2 self suite and documented static checks, followed by the applicable hosted matrix on the exact PR head. Local checks do not stand in for the hosted OS/Go matrix. The repository has inherited push/PR workflows rather than a draft-gated `ci.yml`; use their applicable successful checks as the hosted gate without changing workflows.
 
