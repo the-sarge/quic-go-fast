@@ -20,9 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func startServer(t *testing.T) net.Addr {
+func startServer(t *testing.T, handler *http.ServeMux) net.Addr {
 	t.Helper()
-	server := &Server{}
+	server := &Server{Handler: handler}
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
 	require.NoError(t, err)
 	tr := &quic.Transport{Conn: conn}
@@ -49,7 +49,7 @@ func TestHTTPRequest(t *testing.T) {
 		_, _ = w.Write([]byte("Hello World!"))
 	})
 
-	addr := startServer(t)
+	addr := startServer(t, nil)
 
 	rt := &RoundTripper{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, QuicConfig: httpTestConfig(t, "client")}
 	t.Cleanup(func() { rt.Close() })
@@ -69,7 +69,7 @@ func TestHTTPHeaders(t *testing.T) {
 		_, _ = w.Write([]byte("done"))
 	})
 
-	addr := startServer(t)
+	addr := startServer(t, nil)
 
 	rt := &RoundTripper{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, QuicConfig: httpTestConfig(t, "client")}
 	t.Cleanup(func() { rt.Close() })
@@ -113,7 +113,7 @@ func httpTestConfig(t *testing.T, side string) *quic.Config {
 
 func TestServerFixtureClosesSocket(t *testing.T) {
 	var addr net.Addr
-	t.Run("fixture", func(t *testing.T) { addr = startServer(t) })
+	t.Run("fixture", func(t *testing.T) { addr = startServer(t, nil) })
 	conn, err := net.ListenUDP("udp", addr.(*net.UDPAddr))
 	require.NoError(t, err, "server fixture must release its UDP socket")
 	require.NoError(t, conn.Close())
