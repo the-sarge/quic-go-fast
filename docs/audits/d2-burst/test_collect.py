@@ -256,12 +256,13 @@ class CollectorLifecycleTests(unittest.TestCase):
                 previous_trace = sys.gettrace()
                 try:
                     sys.settrace(trace)
-                    with self.assertRaisesRegex(RuntimeError, f"Interrupted by signal {signum}"):
+                    with self.assertRaisesRegex(RuntimeError, f"Interrupted by signal {signum}") as result:
                         collect.main()
                 finally:
                     sys.settrace(previous_trace)
                 self.assertTrue(injected)
                 self.assertEqual(self.commands, ["setup", "cleanup"])
+                self.assertEqual(str(result.exception).count("Interrupted by signal"), 1)
 
     def test_signal_during_failed_setup_does_not_duplicate_helper_rollback(self):
         self.isolation_signal = "setup"
@@ -295,6 +296,33 @@ class CollectorLifecycleTests(unittest.TestCase):
         self.assertIn("Interrupted by signal", str(result.exception))
         self.assertIn("cleanup failed", str(result.exception))
         self.assertEqual(self.commands.count("cleanup"), 1)
+        self.assertNotIn("isolation-after.json", self.receipts)
+
+    def test_teardown_signal_is_reported_alongside_collection_failure(self):
+        self.precheck_error = OSError("precheck failed")
+
+        def configure(process, role):
+            process.terminate.side_effect = lambda: self.handlers[collect.signal.SIGTERM](collect.signal.SIGTERM, None)
+
+        self.configure_process = configure
+        with self.assertRaises(RuntimeError) as result:
+            collect.main()
+        self.assertIn("precheck failed", str(result.exception))
+        self.assertIn("Interrupted by signal 15", str(result.exception))
+        self.assertIs(result.exception.__cause__, self.precheck_error)
+        self.assertEqual(self.commands, ["setup", "cleanup"])
+
+    def test_cleanup_signal_is_reported_with_collection_and_cleanup_failures(self):
+        self.precheck_error = OSError("precheck failed")
+        self.cleanup_error = OSError("cleanup failed")
+        self.isolation_signal = "cleanup"
+        with self.assertRaises(RuntimeError) as result:
+            collect.main()
+        for diagnostic in ("precheck failed", "cleanup failed", "Interrupted by signal"):
+            self.assertIn(diagnostic, str(result.exception))
+        self.assertEqual(str(result.exception).count("Interrupted by signal"), 1)
+        self.assertIs(result.exception.__cause__, self.precheck_error)
+        self.assertEqual(self.commands, ["setup", "cleanup"])
         self.assertNotIn("isolation-after.json", self.receipts)
 
 

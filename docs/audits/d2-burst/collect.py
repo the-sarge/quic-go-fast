@@ -50,6 +50,7 @@ def main():
     socket = root / "run.sock"
     children = []
     pending_signal = None
+    interruption_reported = False
 
     def interrupted(signum, frame):
         # Do not raise asynchronously across setup ownership or finalization.
@@ -58,7 +59,9 @@ def main():
             pending_signal = signum
 
     def check_interrupted():
+        nonlocal interruption_reported
         if pending_signal is not None:
+            interruption_reported = True
             raise RuntimeError(f"Interrupted by signal {pending_signal}")
 
     for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
@@ -175,7 +178,7 @@ def main():
                         (results / "isolation-after.json").write_text(cleanup_receipt + "\n")
                     except BaseException as exc:
                         errors.append(("persist isolation-after.json (cleanup confirmed)", exc))
-            if pending_signal is not None and failure is None:
+            if pending_signal is not None and not interruption_reported:
                 errors.append(("interruption", RuntimeError(f"Interrupted by signal {pending_signal}")))
             if errors:
                 diagnostics = [("collection", failure)] if failure is not None else []
