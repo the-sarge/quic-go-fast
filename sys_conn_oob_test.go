@@ -285,10 +285,11 @@ func (c *mockBatchConn) ReadBatch(ms []ipv4.Message, _ int) (int, error) {
 	require.Len(c.t, ms, batchSize)
 	for i := 0; i < c.numMsgRead; i++ {
 		require.Len(c.t, ms[i].Buffers, 1)
-		require.Len(c.t, ms[i].Buffers[0], protocol.MaxPacketBufferSize)
+		// GRO-enabled sockets prepost coalesced-tier buffers
+		require.GreaterOrEqual(c.t, len(ms[i].Buffers[0]), protocol.MaxPacketBufferSize)
 		data := fmt.Appendf(nil, "message %d", c.callCounter*c.numMsgRead+i)
-		ms[i].Buffers[0] = data
-		ms[i].N = len(data)
+		// fill the preposted buffer in place, like the kernel
+		ms[i].N = copy(ms[i].Buffers[0], data)
 	}
 	c.callCounter++
 	return c.numMsgRead, nil
