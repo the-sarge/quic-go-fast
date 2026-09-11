@@ -384,11 +384,13 @@ func (s *RequestStream) ReadResponse() (*http.Response, error) {
 	}
 	decodeFn := s.decoder.Decode(headerBlock)
 	var hfs []qpack.HeaderField
+	var headerFields *[]qpack.HeaderField
 	if s.str.qlogger != nil {
 		hfs = make([]qpack.HeaderField, 0, 16)
+		headerFields = &hfs
 	}
 	res := s.response
-	err = updateResponseFromHeaders(res, decodeFn, s.maxHeaderBytes, &hfs)
+	err = updateResponseFromHeaders(res, decodeFn, s.maxHeaderBytes, headerFields)
 	if s.str.qlogger != nil {
 		qlogParsedHeadersFrame(s.str.qlogger, s.str.StreamID(), hf, hfs)
 	}

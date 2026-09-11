@@ -144,10 +144,12 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 	}
 	decodeFn := decoder.Decode(headerBlock)
 	var hfs []qpack.HeaderField
+	var headerFields *[]qpack.HeaderField
 	if qlogger != nil {
 		hfs = make([]qpack.HeaderField, 0, 16)
+		headerFields = &hfs
 	}
-	req, err := requestFromHeaders(decodeFn, maxHeaderBytes, &hfs)
+	req, err := requestFromHeaders(decodeFn, maxHeaderBytes, headerFields)
 	if qlogger != nil {
 		qlogParsedHeadersFrame(qlogger, str.StreamID(), hf, hfs)
 	}
