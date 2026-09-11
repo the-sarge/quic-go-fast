@@ -416,15 +416,18 @@ func TestHandshakeCloseListener(t *testing.T) {
 			return ln
 		})
 
-		// make sure that the Transport didn't close the underlying connection
-		conn2 := newUDPConnLocalhost(t)
-		_, err := conn2.WriteTo([]byte("test"), conn2.LocalAddr())
+		// The caller-owned socket must still send after the listener closes.
+		// Receive on a separate socket: the transport can still be reading conn
+		// while its retained connection entries drain.
+		observer := newUDPConnLocalhost(t)
+		_, err := conn.WriteTo([]byte("test"), observer.LocalAddr())
 		require.NoError(t, err)
 
-		conn2.SetReadDeadline(time.Now().Add(time.Second))
+		require.NoError(t, observer.SetReadDeadline(time.Now().Add(time.Second)))
 		b := make([]byte, 1000)
-		n, err := conn2.Read(b)
+		n, from, err := observer.ReadFromUDP(b)
 		require.NoError(t, err)
+		require.Equal(t, conn.LocalAddr(), from)
 		require.Equal(t, "test", string(b[:n]))
 	})
 
@@ -855,7 +858,7 @@ func TestServerTransportClose(t *testing.T) {
 	}
 	select {
 	case <-conn2.Context().Done():
-		require.ErrorIs(t, context.Cause(conn1.Context()), &quic.IdleTimeoutError{})
+		require.ErrorIs(t, context.Cause(conn2.Context()), &quic.IdleTimeoutError{})
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
 	}
