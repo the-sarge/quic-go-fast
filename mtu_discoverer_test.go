@@ -91,6 +91,7 @@ func TestMTUDiscovererMTUDiscovery(t *testing.T) {
 }
 
 func testMTUDiscovererMTUDiscovery(t *testing.T) {
+	t.Helper()
 	const rtt = 100 * time.Millisecond
 	const startMTU protocol.ByteCount = 1000
 
@@ -106,11 +107,13 @@ func testMTUDiscovererMTUDiscovery(t *testing.T) {
 	t.Logf("MTU: %d, max: %d", realMTU, maxMTU)
 	now = now.Add(mtuProbeDelay * rtt)
 	var probes []protocol.ByteCount
+	var lastProbeAcked bool
 	for d.ShouldSendProbe(now) {
 		require.Less(t, len(probes), 25, fmt.Sprintf("too many iterations: %v", probes))
 		ping, size := d.GetPing(now)
 		probes = append(probes, size)
-		if size <= realMTU {
+		lastProbeAcked = size <= realMTU
+		if lastProbeAcked {
 			ping.Handler.OnAcked(ping.Frame)
 		} else {
 			ping.Handler.OnLost(ping.Frame)
@@ -120,10 +123,12 @@ func testMTUDiscovererMTUDiscovery(t *testing.T) {
 	currentMTU := d.CurrentSize()
 	diff := realMTU - currentMTU
 	require.GreaterOrEqual(t, diff, protocol.ByteCount(0))
-	if maxMTU > currentMTU+maxMTU {
-		events := eventRecorder.Events(qlog.MTUUpdated{})
-		require.NotEmpty(t, events)
-		require.Equal(t, qlog.MTUUpdated{Value: int(currentMTU), Done: true}, events[0])
+	if currentMTU > startMTU {
+		updates := eventRecorder.Events(qlog.MTUUpdated{})
+		require.NotEmpty(t, updates)
+		// Only an acknowledged probe emits an update. A final loss can end
+		// discovery without changing the last update's completion flag.
+		require.Equal(t, qlog.MTUUpdated{Value: int(currentMTU), Done: lastProbeAcked}, updates[len(updates)-1])
 	}
 	t.Logf("MTU discovered: %d (diff: %d)", currentMTU, diff)
 	t.Logf("probes sent (%d): %v", len(probes), probes)
@@ -139,6 +144,7 @@ func TestMTUDiscovererWithRandomLoss(t *testing.T) {
 }
 
 func testMTUDiscovererWithRandomLoss(t *testing.T) {
+	t.Helper()
 	const rtt = 100 * time.Millisecond
 	const startMTU protocol.ByteCount = 1000
 	const maxRandomLoss = maxLostMTUProbes - 1
@@ -156,6 +162,7 @@ func testMTUDiscovererWithRandomLoss(t *testing.T) {
 	t.Logf("MTU: %d, max: %d", realMTU, maxMTU)
 	now = now.Add(mtuProbeDelay * rtt)
 	var probes, randomLosses []protocol.ByteCount
+	var lastProbeAcked bool
 
 	for d.ShouldSendProbe(now) {
 		require.Less(t, len(probes), 32, fmt.Sprintf("too many iterations: %v", probes))
@@ -172,6 +179,7 @@ func testMTUDiscovererWithRandomLoss(t *testing.T) {
 				acked = true
 			}
 		}
+		lastProbeAcked = acked
 		if !acked {
 			ping.Handler.OnLost(ping.Frame)
 		}
@@ -181,14 +189,51 @@ func testMTUDiscovererWithRandomLoss(t *testing.T) {
 	currentMTU := d.CurrentSize()
 	diff := realMTU - currentMTU
 	require.GreaterOrEqual(t, diff, protocol.ByteCount(0))
-	if maxMTU > currentMTU+maxMTU {
-		events := eventRecorder.Events(qlog.MTUUpdated{})
-		require.NotEmpty(t, events)
-		require.Equal(t, qlog.MTUUpdated{Value: int(currentMTU), Done: true}, events[0])
+	if currentMTU > startMTU {
+		updates := eventRecorder.Events(qlog.MTUUpdated{})
+		require.NotEmpty(t, updates)
+		// Only an acknowledged probe emits an update. A final loss can end
+		// discovery without changing the last update's completion flag.
+		require.Equal(t, qlog.MTUUpdated{Value: int(currentMTU), Done: lastProbeAcked}, updates[len(updates)-1])
 	}
 	t.Logf("MTU discovered with random losses %v: %d (diff: %d)", randomLosses, currentMTU, diff)
 	t.Logf("probes sent (%d): %v", len(probes), probes)
 	require.LessOrEqual(t, diff, maxMTUDiff)
+}
+
+func TestMTUDiscovererCompletion(t *testing.T) {
+	for _, lostProbes := range []int{0, maxLostMTUProbes - 1} {
+		t.Run(fmt.Sprintf("after %d losses", lostProbes), func(t *testing.T) {
+			const startMTU protocol.ByteCount = 1000
+			const maxMTU protocol.ByteCount = 2000
+			const rtt = 100 * time.Millisecond
+			rttStats := utils.NewRTTStats()
+			rttStats.SetInitialRTT(rtt)
+			var recorder events.Recorder
+			d := newMTUDiscoverer(rttStats, startMTU, maxMTU, &recorder)
+			now := monotime.Now()
+			d.Start(now)
+			now = now.Add(mtuProbeDelay * rtt)
+			var probes int
+			for d.ShouldSendProbe(now) {
+				require.Less(t, probes, 25)
+				ping, _ := d.GetPing(now)
+				if probes < lostProbes {
+					ping.Handler.OnLost(ping.Frame)
+				} else {
+					ping.Handler.OnAcked(ping.Frame)
+				}
+				probes++
+				now = now.Add(mtuProbeDelay * rtt)
+			}
+			require.Greater(t, probes, lostProbes)
+			require.LessOrEqual(t, maxMTU-d.CurrentSize(), maxMTUDiff)
+			require.LessOrEqual(t, d.CurrentSize(), maxMTU)
+			updates := recorder.Events(qlog.MTUUpdated{})
+			require.NotEmpty(t, updates)
+			require.Equal(t, qlog.MTUUpdated{Value: int(d.CurrentSize()), Done: true}, updates[len(updates)-1])
+		})
+	}
 }
 
 func TestMTUDiscovererReset(t *testing.T) {

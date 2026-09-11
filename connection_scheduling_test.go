@@ -1,9 +1,11 @@
 package quic
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
+	mockackhandler "github.com/quic-go/quic-go/internal/mocks/ackhandler"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
@@ -85,4 +87,46 @@ func schedulingFrames(t *testing.T, tc *testConnection, packet []byte) []wire.Fr
 		payload = payload[m:]
 	}
 	return frames
+}
+
+func newGSOBatchTestConnection(t *testing.T) (*testConnection, *mockackhandler.MockSentPacketHandler) {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	sph := mockackhandler.NewMockSentPacketHandler(ctrl)
+	tc := newServerTestConnection(t, ctrl, nil, true, connectionOptHandshakeConfirmed())
+	useSchedulingPacketPacker(t, ctrl, tc, sph)
+	sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).AnyTimes()
+	sph.EXPECT().TimeUntilSend().AnyTimes()
+	sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
+	return tc, sph
+}
+
+func gsoDatagramPayloadSize(tc *testConnection) int {
+	_, pnLen := tc.conn.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+	// Transparent protection adds a seven-byte tag; these DATAGRAM frames
+	// use a one-byte type and a two-byte length.
+	return int(tc.conn.maxPacketSize()-wire.ShortHeaderLen(tc.conn.connIDManager.Get(), pnLen)) - 7 - 3
+}
+
+func queueGSODatagrams(t *testing.T, tc *testConnection, payloadSizes ...int) [][]byte {
+	t.Helper()
+	var payloads [][]byte
+	for i, size := range payloadSizes {
+		data := bytes.Repeat([]byte{byte(i)}, size)
+		payloads = append(payloads, data)
+		require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: data}))
+	}
+	return payloads
+}
+
+func schedulingGSODatagrams(t *testing.T, tc *testConnection, batch []byte, segment uint16) [][]byte {
+	t.Helper()
+	require.Positive(t, segment)
+	var payloads [][]byte
+	for len(batch) > 0 {
+		n := min(len(batch), int(segment))
+		payloads = append(payloads, schedulingDatagram(t, tc, batch[:n]))
+		batch = batch[n:]
+	}
+	return payloads
 }

@@ -2203,51 +2203,19 @@ func TestConnectionACKTimer(t *testing.T) {
 // Send a GSO batch, until we have no more data to send.
 func TestConnectionGSOBatch(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		mockCtrl := gomock.NewController(t)
-		sph := mockackhandler.NewMockSentPacketHandler(mockCtrl)
-		tc := newServerTestConnection(t,
-			mockCtrl,
-			nil,
-			true,
-			connectionOptHandshakeConfirmed(),
-		)
-
-		useSchedulingPacketPacker(t, mockCtrl, tc, sph)
-		// allow packets to be sent
-		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).AnyTimes()
-		sph.EXPECT().TimeUntilSend().AnyTimes()
-		sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
+		tc, sph := newGSOBatchTestConnection(t)
 		sph.EXPECT().ECNMode(gomock.Any()).Return(protocol.ECT1).AnyTimes()
 
 		maxPacketSize := tc.conn.maxPacketSize()
-		_, pnLen := tc.conn.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
-		payloadSize := int(maxPacketSize-wire.ShortHeaderLen(tc.conn.connIDManager.Get(), pnLen)) - 7 - 3
-		var want [][]byte
-		for i := range 4 {
-			n := payloadSize
-
-			data := bytes.Repeat([]byte{byte(i)}, n)
-			want = append(want, data)
-			require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: data}))
-		}
+		payloadSize := gsoDatagramPayloadSize(tc)
+		want := queueGSODatagrams(t, tc, payloadSize, payloadSize, payloadSize, payloadSize)
 
 		done := make(chan struct{})
-		writes := 0
 		tc.sendConn.EXPECT().Write(gomock.Any(), uint16(maxPacketSize), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
-			writes++
-			if writes == 1 {
-				require.Equal(t, protocol.ECT1, ecn)
-				require.Len(t, b, int(maxPacketSize)*4)
-				for _, data := range want {
-					n := min(len(b), int(segment))
-					require.Equal(t, data, schedulingDatagram(t, tc, b[:n]))
-					b = b[n:]
-				}
-				require.Empty(t, b)
-			}
-			if writes == 1 {
-				close(done)
-			}
+			require.Equal(t, protocol.ECT1, ecn)
+			require.Len(t, b, int(maxPacketSize)*4)
+			require.Equal(t, want, schedulingGSODatagrams(t, tc, b, segment))
+			close(done)
 			return nil
 		}).Times(1)
 
@@ -2273,7 +2241,7 @@ func TestConnectionGSOBatch(t *testing.T) {
 		case err := <-errChan:
 			require.NoError(t, err)
 		default:
-			t.Fatal("should have timed out")
+			t.Fatal("connection did not stop")
 		}
 	})
 }
@@ -2281,35 +2249,12 @@ func TestConnectionGSOBatch(t *testing.T) {
 // Send a GSO batch, until a packet smaller than the maximum size is packed
 func TestConnectionGSOBatchPacketSize(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		mockCtrl := gomock.NewController(t)
-		sph := mockackhandler.NewMockSentPacketHandler(mockCtrl)
-		tc := newServerTestConnection(t,
-			mockCtrl,
-			nil,
-			true,
-			connectionOptHandshakeConfirmed(),
-		)
-
-		useSchedulingPacketPacker(t, mockCtrl, tc, sph)
-		// allow packets to be sent
-		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).AnyTimes()
-		sph.EXPECT().TimeUntilSend().AnyTimes()
-		sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
+		tc, sph := newGSOBatchTestConnection(t)
 		sph.EXPECT().ECNMode(gomock.Any()).Return(protocol.ECT1).AnyTimes()
 
 		maxPacketSize := tc.conn.maxPacketSize()
-		_, pnLen := tc.conn.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
-		payloadSize := int(maxPacketSize-wire.ShortHeaderLen(tc.conn.connIDManager.Get(), pnLen)) - 7 - 3
-		var want [][]byte
-		for i := range 4 {
-			n := payloadSize
-			if i == 3 {
-				n--
-			}
-			data := bytes.Repeat([]byte{byte(i)}, n)
-			want = append(want, data)
-			require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: data}))
-		}
+		payloadSize := gsoDatagramPayloadSize(tc)
+		want := queueGSODatagrams(t, tc, payloadSize, payloadSize, payloadSize, payloadSize-1)
 		require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("foobar")}))
 		done := make(chan struct{})
 		writes := 0
@@ -2318,12 +2263,7 @@ func TestConnectionGSOBatchPacketSize(t *testing.T) {
 			if writes == 1 {
 				require.Equal(t, protocol.ECT1, ecn)
 				require.Len(t, b, int(maxPacketSize)*4-1)
-				for _, data := range want {
-					n := min(len(b), int(segment))
-					require.Equal(t, data, schedulingDatagram(t, tc, b[:n]))
-					b = b[n:]
-				}
-				require.Empty(t, b)
+				require.Equal(t, want, schedulingGSODatagrams(t, tc, b, segment))
 			} else {
 				require.Equal(t, protocol.ECT1, ecn)
 				require.Equal(t, []byte("foobar"), schedulingDatagram(t, tc, b))
@@ -2356,27 +2296,14 @@ func TestConnectionGSOBatchPacketSize(t *testing.T) {
 		case err := <-errChan:
 			require.NoError(t, err)
 		default:
-			t.Fatal("should have timed out")
+			t.Fatal("connection did not stop")
 		}
 	})
 }
 
 func TestConnectionGSOBatchECN(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		mockCtrl := gomock.NewController(t)
-		sph := mockackhandler.NewMockSentPacketHandler(mockCtrl)
-		tc := newServerTestConnection(t,
-			mockCtrl,
-			nil,
-			true,
-			connectionOptHandshakeConfirmed(),
-		)
-
-		useSchedulingPacketPacker(t, mockCtrl, tc, sph)
-		// allow packets to be sent
-		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).AnyTimes()
-		sph.EXPECT().TimeUntilSend().AnyTimes()
-		sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
+		tc, sph := newGSOBatchTestConnection(t)
 		sph.EXPECT().ECNMode(gomock.Any()).DoAndReturn(func(bool) protocol.ECN {
 			pn, _ := tc.conn.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 			if pn >= 3 {
@@ -2386,16 +2313,8 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 		}).AnyTimes()
 
 		maxPacketSize := tc.conn.maxPacketSize()
-		_, pnLen := tc.conn.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
-		payloadSize := int(maxPacketSize-wire.ShortHeaderLen(tc.conn.connIDManager.Get(), pnLen)) - 7 - 3
-		var want [][]byte
-		for i := range 3 {
-			n := payloadSize
-
-			data := bytes.Repeat([]byte{byte(i)}, n)
-			want = append(want, data)
-			require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: data}))
-		}
+		payloadSize := gsoDatagramPayloadSize(tc)
+		want := queueGSODatagrams(t, tc, payloadSize, payloadSize, payloadSize)
 		require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("foobar")}))
 		done := make(chan struct{})
 		writes := 0
@@ -2404,12 +2323,7 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 			if writes == 1 {
 				require.Equal(t, protocol.ECT1, ecn)
 				require.Len(t, b, int(maxPacketSize)*3)
-				for _, data := range want {
-					n := min(len(b), int(segment))
-					require.Equal(t, data, schedulingDatagram(t, tc, b[:n]))
-					b = b[n:]
-				}
-				require.Empty(t, b)
+				require.Equal(t, want, schedulingGSODatagrams(t, tc, b, segment))
 			} else {
 				require.Equal(t, protocol.ECNCE, ecn)
 				require.Equal(t, []byte("foobar"), schedulingDatagram(t, tc, b))
@@ -2442,7 +2356,7 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 		case err := <-errChan:
 			require.NoError(t, err)
 		default:
-			t.Fatal("should have timed out")
+			t.Fatal("connection did not stop")
 		}
 	})
 }
