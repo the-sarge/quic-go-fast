@@ -113,6 +113,11 @@ const MaxPacketBufferSize = 1452
 // MaxLargePacketBufferSize is used when using GSO
 const MaxLargePacketBufferSize = 20 * 1024
 
+// MaxCoalescedPacketBufferSize is the size of the buffers backing coalesced
+// receives (Linux UDP_GRO, Windows URO): the maximum UDP payload size, so a
+// kernel-coalesced read is never truncated.
+const MaxCoalescedPacketBufferSize = 65535
+
 // MinInitialPacketSize is the minimum size an Initial packet is required to have.
 const MinInitialPacketSize = 1200
 
