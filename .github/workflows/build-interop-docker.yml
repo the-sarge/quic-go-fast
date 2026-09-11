@@ -5,14 +5,14 @@ permissions: read-all
 on: 
   push:
     branches:
-      - master
+      - main
     tags:
       - 'v*'
   pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' && github.ref != 'refs/heads/master' }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref != 'refs/heads/main' }}
 
 jobs:
   interop:
@@ -26,12 +26,6 @@ jobs:
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           platforms: linux/amd64,linux/arm64
-      - name: Login to Docker Hub
-        if: github.event_name == 'push'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
       - name: set tag name
         id: tag
         # Tagged releases won't be picked up by the interop runner automatically,
@@ -47,5 +41,6 @@ jobs:
           context: "."
           file: "interop/Dockerfile"
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' }}
-          tags: martenseemann/quic-go-interop:${{ steps.tag.outputs.tag }}
+          # Build-only until a fork-owned publishing destination is selected.
+          push: false
+          tags: quic-go-interop:${{ steps.tag.outputs.tag }}

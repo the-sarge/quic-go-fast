@@ -40,8 +40,8 @@ jobs:
         # run in parallel on as many cores as are available on the machine
         run: go tool dist list | xargs -I % -P "$(nproc)" .github/workflows/cross-compile.sh %
       - name: Save Go build cache
-        # only store cache when on master
-        if: github.event_name == 'push' && github.ref_name == 'master'
+        # only store cache when on main
+        if: github.event_name == 'push' && github.ref_name == 'main'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/go-build
