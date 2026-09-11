@@ -1103,3 +1103,22 @@ Merged [PR #206](https://github.com/the-sarge/quic-go-fast/pull/206), closing [i
 At reviewed head `47fbb943db6b966c6e68f5c1b729471d153e53fc`, relative documentation links and diff checks passed, as did one uncached full native Go test suite, `go vet ./...` and `go mod tidy -diff`. Independent Standards and Spec reviews found no issues. All 33 applicable hosted checks succeeded before the guarded squash merge.
 
 RAS run `20260911T064100-6fffc7303bbb80f95d6037bd` used the full configured eight-reviewer default panel and completed with zero findings or required fixes. Seven reviewers succeeded; `cursor-kimik3` failed structured-output parsing. Configured quorum was met and synthesis completed; no verification or replacement review was needed. An earlier narrowed attempt failed quorum, and its narrowed retry was interrupted after the operator required preserving configured defaults without prior permission. No RAS review was posted to GitHub.
+
+---
+
+## Core packet and transport assertions made observable - 2026-09-11 03:32 EDT
+
+**Main:** `7b1764833536`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #209](https://github.com/the-sarge/quic-go-fast/pull/209) as `7b1764833536f695b02bf605887912ee9747eb44`, closing [issue #73](https://github.com/the-sarge/quic-go-fast/issues/73). The three GSO outcome tests share narrow setup, payload and decoding mechanics while retaining real packing/recovery, scenario-local segment-size/ECN assertions and explicit teardown. Randomized MTU tests now assert reachable final updates, and deterministic zero/two-loss cases check completion and size bounds. Regular and early transport dialing must return success before teardown. Only tests changed.
+
+### Validation
+
+Affected tests, focused race tests, the full native suite, vet, lint and formatting/diff checks passed. Temporary Go overlays confirmed that suppressed MTU completion flags fail both deterministic cases and hidden dial readiness fails both dial variants. Final local certification passed at `5047ad3dfd9598cb4ab0cacd82c22ad18faa845c`.
+
+Standards and Spec reviews each returned zero findings. Initial RAS run `20260911T070828-f3ef910cfdf2ec9f4653b95e` used the configured eight-reviewer panel: seven succeeded, while `cursor-kimik3` returned no supported JSON candidate; quorum, adjudication and synthesis completed. The accepted diagnostic-attribution finding was fixed by removing two newly added `t.Helper()` markers from full MTU scenario bodies, and source verification resolved it and its duplicate at the final head. The proposed wider deterministic MTU bound was rejected as outside the fixed example-level contract. Replacement run `20260911T072127-d872cc9bf1b3e538a85930d2` used `codex-astra` and `codex-sol` and completed with zero findings. No deferred follow-ups remain; no RAS review was posted to GitHub.
+
+Every job in all five final-head PR workflows succeeded: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853581), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853558), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853590), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853565) and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/34573853559). Interop attempt 1 failed during Ubuntu package downloads with connection refusal/timeouts; unchanged-head attempt 2 passed. This repository uses its existing workflows rather than a `ci-*` gate. The squash merge was guarded by the reviewed head SHA.
