@@ -972,3 +972,18 @@ Merged [PR #185](https://github.com/the-sarge/quic-go-fast/pull/185), closing [i
 Each focused regression failed before its corresponding fix and passed afterward. Affected packages, focused race checks, go vet, module tidiness and formatting checks passed. The uncached full-suite run passed all packages except integrationtests/self when invoked with the unit workflow's 10× timing factor; that package passed with its documented 3× factor after diagnosing the resulting context-deadline versus idle-timeout mismatch. No source change was made for the command correction.
 
 Standards and Spec reviews found no issues. RAS run `20260911T004140-42568e5d10429dd6350f4ef3` completed with two successful reviewers, no findings and no follow-ups. All 33 hosted checks passed on `119d33be55b0cde3d84a0107c410edc44b6c3503` before guarded squash merge. The bounded contract is [optional tracing ownership](agents/optional-tracing-ownership.md).
+
+---
+
+## Repeated successful path probes repaired - 2026-09-10 21:23 EDT
+
+**Main:** `eb83d2ff29d1`
+**Actor:** Codex
+
+Merged [PR #187](https://github.com/the-sarge/quic-go-fast/pull/187) as `eb83d2ff29d1be6b80222921ea6fc8072e135d3e`, closing [issue #74](https://github.com/the-sarge/quic-go-fast/issues/74). Matching PATH_RESPONSE frames now complete the current probe independently of previous path validation. Starting another sequential probe clears old challenge membership and queued retries without revoking switch eligibility. The public API and packet-emission ownership remain unchanged.
+
+Regressions failed before their fixes and passed afterward: two consecutive successful probes, stale queued retries, and stale sent retry responses. Existing cancellation, retransmission, switching and close tests pass. The final candidate `dfd03fc85ead6fa2f33b12cd0a660dea5e5d721a` passed the uncached full suite, focused race tests, vet, repository lint, formatting, root/FIPS module tidiness and diff checks. Standards and Spec reviews found no issues.
+
+Initial RAS review `20260911T005629-4aa822173def58e4f9b859af` identified one accepted retry-boundary defect. The agent repaired it; exact-head verification resolved C-001 with no new findings. Replacement review `20260911T010606-a0df2bb505a6670e2219442f` had zero findings. No automated fixer was used.
+
+Hosted CI passed 32 checks. The macOS PR integration job failed the unrelated `TestHTTP3ServerHotswap` replacement-server request; the same-head push integration job and one focused local reproduction passed. The cause remains unestablished. Under the maintainer's explicit instruction to file unrelated intermittent failures and move on unless a simple fast fix was supported, [issue #188](https://github.com/the-sarge/quic-go-fast/issues/188) records the failure, logs and investigation boundary. The reviewed head was squash-merged with a matching-head guard. No failed hosted job was rerun, no CI rules or timeouts were changed, and the failed check is not represented as successful.
