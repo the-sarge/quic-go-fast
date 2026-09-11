@@ -91,7 +91,6 @@ func TestMTUDiscovererMTUDiscovery(t *testing.T) {
 }
 
 func testMTUDiscovererMTUDiscovery(t *testing.T) {
-	t.Helper()
 	const rtt = 100 * time.Millisecond
 	const startMTU protocol.ByteCount = 1000
 
@@ -144,7 +143,6 @@ func TestMTUDiscovererWithRandomLoss(t *testing.T) {
 }
 
 func testMTUDiscovererWithRandomLoss(t *testing.T) {
-	t.Helper()
 	const rtt = 100 * time.Millisecond
 	const startMTU protocol.ByteCount = 1000
 	const maxRandomLoss = maxLostMTUProbes - 1
