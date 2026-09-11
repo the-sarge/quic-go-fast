@@ -16,6 +16,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -68,15 +69,35 @@ func w1benchTLSConfigs(t *testing.T) (server, client *tls.Config) {
 	return server, client
 }
 
-// newW1CellConn builds one endpoint's rawConn for the given cell on a fresh
-// loopback socket; the Transport uses it directly because both cell types
-// satisfy rawConn. Both cells receive the same explicit socket buffers and
-// the same DF flag, so the only difference under measurement is the datapath:
-// windowsConn (ReadMsgUDP/WriteMsgUDP) against basicConn (ReadFrom/WriteTo),
-// the exact construction the base commit's Windows newConn performed.
-func newW1CellConn(t *testing.T, cell string) (net.PacketConn, *net.UDPAddr) {
+// w1InfoCountingConn counts reads that delivered populated packet info, so a
+// candidate cell that silently fails to exercise the control-message path
+// cannot measure.
+type w1InfoCountingConn struct {
+	*windowsConn
+	withInfo atomic.Int64
+}
+
+func (c *w1InfoCountingConn) ReadPacket() (receivedPacket, error) {
+	p, err := c.windowsConn.ReadPacket()
+	if err == nil && p.info.addr.IsValid() {
+		c.withInfo.Add(1)
+	}
+	return p, err
+}
+
+// newW1CellConn builds one endpoint's rawConn for the given cell; the
+// Transport uses it directly because both cell types satisfy rawConn. Both
+// cells bind the wildcard address — the packet-info-requesting configuration
+// a server normally runs, so the candidate measures with its control-message
+// path active — and receive the same explicit socket buffers and DF flag, so
+// the only difference under measurement is the datapath: windowsConn
+// (ReadMsgUDP/WriteMsgUDP with control buffer) against basicConn
+// (ReadFrom/WriteTo), the exact construction the base commit's Windows
+// newConn performed. The returned address dials the endpoint via loopback.
+// The counter is non-nil for the candidate cell only.
+func newW1CellConn(t *testing.T, cell string) (net.PacketConn, *net.UDPAddr, *w1InfoCountingConn) {
 	t.Helper()
-	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,18 +107,20 @@ func newW1CellConn(t *testing.T, cell string) (net.PacketConn, *net.UDPAddr) {
 	if err := udpConn.SetWriteBuffer(4 << 20); err != nil {
 		t.Fatal(err)
 	}
+	dialAddr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: udpConn.LocalAddr().(*net.UDPAddr).Port}
 	switch cell {
 	case "candidate":
 		conn, err := newConn(udpConn, true, true)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return conn, udpConn.LocalAddr().(*net.UDPAddr)
+		counting := &w1InfoCountingConn{windowsConn: conn}
+		return counting, dialAddr, counting
 	case "baseline":
-		return &basicConn{PacketConn: udpConn, supportsDF: true}, udpConn.LocalAddr().(*net.UDPAddr)
+		return &basicConn{PacketConn: udpConn, supportsDF: true}, dialAddr, nil
 	default:
 		t.Fatalf("unknown W1BENCH_CELL %q (want candidate|baseline)", cell)
-		return nil, nil
+		return nil, nil, nil
 	}
 }
 
@@ -122,12 +145,12 @@ func TestW1MeasurementCell(t *testing.T) {
 		MaxConnectionReceiveWindow:     24 << 20,
 	}
 
-	serverConn, serverAddr := newW1CellConn(t, cell)
-	clientConn, _ := newW1CellConn(t, cell)
+	serverConn, serverAddr, serverCount := newW1CellConn(t, cell)
+	clientConn, _, clientCount := newW1CellConn(t, cell)
 	// The cell assertion: a silently misconfigured cell must not measure.
 	switch cell {
 	case "candidate":
-		if _, ok := serverConn.(*windowsConn); !ok {
+		if _, ok := serverConn.(*w1InfoCountingConn); !ok {
 			t.Fatalf("candidate cell got %T", serverConn)
 		}
 	case "baseline":
@@ -211,14 +234,23 @@ func TestW1MeasurementCell(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn.CloseWithError(0, "done")
+	// The candidate must have measured with its control-message path active:
+	// every read on these wildcard-bound sockets should carry packet info.
+	if cell == "candidate" {
+		if serverCount.withInfo.Load() == 0 || clientCount.withInfo.Load() == 0 {
+			t.Fatalf("candidate cell read no populated packet info (server %d, client %d)",
+				serverCount.withInfo.Load(), clientCount.withInfo.Load())
+		}
+	}
 
 	osv := windows.RtlGetVersion()
 	out := map[string]any{
-		"cell":                   cell,
-		"round":                  os.Getenv("W1BENCH_ROUND"),
-		"bytes":                  received,
-		"elapsed_ns":             elapsed.Nanoseconds(),
-		"throughput_mbps":        float64(received) / elapsed.Seconds() / 1e6,
+		"cell":       cell,
+		"round":      os.Getenv("W1BENCH_ROUND"),
+		"bytes":      received,
+		"elapsed_ns": elapsed.Nanoseconds(),
+		// decimal megabytes per second (bytes / 1e6 / s)
+		"throughput_mb_per_s":    float64(received) / elapsed.Seconds() / 1e6,
 		"total_alloc_bytes":      memAfter.TotalAlloc - memBefore.TotalAlloc,
 		"mallocs":                memAfter.Mallocs - memBefore.Mallocs,
 		"num_gc":                 memAfter.NumGC - memBefore.NumGC,
@@ -229,6 +261,9 @@ func TestW1MeasurementCell(t *testing.T) {
 		"gomaxprocs":             runtime.GOMAXPROCS(0),
 		"go_version":             runtime.Version(),
 		"arch":                   runtime.GOARCH,
+	}
+	if cell == "candidate" {
+		out["reads_with_packet_info"] = serverCount.withInfo.Load() + clientCount.withInfo.Load()
 	}
 	line, err := json.Marshal(out)
 	if err != nil {

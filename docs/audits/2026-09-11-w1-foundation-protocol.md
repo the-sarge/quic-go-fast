@@ -18,7 +18,8 @@ The measurement harness (`w1_measurement_test.go`, build tag `w1bench`, excluded
 - **Toolchain:** the repository's current Go 1.27.x for windows/amd64; identical flags for every cell; one binary per collection built with `go test -c -tags w1bench`.
 - **CPU affinity:** not available on a hosted runner; recorded as absent. `GOMAXPROCS` left at the runner default and recorded.
 - **Workload:** one QUIC connection over IPv4 loopback between two transports in one process; the server bulk-sends 512 MiB of 1071-byte application records on one unidirectional stream, generating records in 32-record batches so the sender outpaces the packetizer the way a bulk sender does; the client reads to completion. Flow-control windows are raised (16/24 MiB max) so flow control is not the bottleneck. The externally owned application sweep stays out of scope.
-- **Cell integrity:** the harness asserts the concrete conn type per cell (`*windowsConn` for candidate, `*basicConn` for baseline) before measuring, so a silently misconfigured cell cannot pass. Both cells set identical explicit socket buffers (4 MiB) and the same DF flag on both endpoints.
+- **Socket binding:** both cells bind the wildcard IPv4 address and dial via loopback — the packet-info-requesting configuration a server normally runs — so the candidate measures with its control-message parse active on every read while the baseline runs the base commit's wildcard-bound behavior (no packet info, as before W1). This keeps one cell per implementation rather than adding a bind cross-product.
+- **Cell integrity:** the harness asserts the concrete conn type per cell before measuring, and the candidate cell additionally fails unless both endpoints observed populated packet info during the transfer, so a silently misconfigured or control-message-inactive cell cannot pass. Both cells set identical explicit socket buffers (4 MiB) and the same DF flag on both endpoints.
 
 ## Cells
 
@@ -33,7 +34,7 @@ Packet-info parity, deadline/close closure, and the caller-supplied-socket fallb
 
 Eleven rounds; round 0 is a discarded warmup, rounds 1–10 are the fixed collection. Each round runs both cells with the order alternating by round parity, one fresh process per cell invocation. The collection runs in one hosted job with no concurrent steps. No repetition beyond the fixed set, and no selective deletion of samples.
 
-Per cell invocation the harness emits one JSON line: wall time and throughput; Go allocation totals, GC count, heap in use; peak working set (`K32GetProcessMemoryInfo`); and the recorded host facts (OS build, CPU count, `GOMAXPROCS`, Go version, architecture).
+Per cell invocation the harness emits one JSON line: wall time and throughput (`throughput_mb_per_s`, decimal megabytes per second); Go allocation totals, GC count, heap in use; peak working set (`K32GetProcessMemoryInfo`); the candidate cell's count of reads with populated packet info; and the recorded host facts (OS build, CPU count, `GOMAXPROCS`, Go version, architecture).
 
 ## Metrics and predeclared bounds
 

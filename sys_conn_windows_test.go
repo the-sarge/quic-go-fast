@@ -155,6 +155,45 @@ func TestWindowsPacketInfoParseLiteral(t *testing.T) {
 	require.False(t, parsed.pktinfoV6)
 }
 
+// The replaced basicConn surfaced a nil or non-UDP destination address as a
+// socket error; the message-I/O conn must preserve that behavior rather than
+// panic on its address assertion.
+func TestWindowsConnWriteInvalidAddr(t *testing.T) {
+	newWindowsConn := func(t *testing.T) rawConn {
+		t.Helper()
+		udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+		require.NoError(t, err)
+		t.Cleanup(func() { udpConn.Close() })
+		conn, err := newConn(udpConn, true, false)
+		require.NoError(t, err)
+		return conn
+	}
+	newBasicConn := func(t *testing.T) rawConn {
+		t.Helper()
+		udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+		require.NoError(t, err)
+		t.Cleanup(func() { udpConn.Close() })
+		conn, err := wrapConn(&nonOOBPacketConn{PacketConn: udpConn}, false)
+		require.NoError(t, err)
+		return conn
+	}
+	for _, tt := range []struct {
+		name string
+		conn func(*testing.T) rawConn
+	}{
+		{name: "windowsConn", conn: newWindowsConn},
+		{name: "basicConn", conn: newBasicConn},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := tt.conn(t)
+			_, err := conn.WritePacket([]byte("foobar"), nil, nil, 0, protocol.ECNUnsupported)
+			require.Error(t, err)
+			_, err = conn.WritePacket([]byte("foobar"), &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}, nil, 0, protocol.ECNUnsupported)
+			require.Error(t, err)
+		})
+	}
+}
+
 // A structurally invalid control buffer must not fail the read: packet info
 // falls back to absent, matching the OOB path's fallback-when-absent rule.
 func TestWindowsPacketInfoMalformed(t *testing.T) {

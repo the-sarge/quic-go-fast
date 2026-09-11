@@ -108,7 +108,15 @@ func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte,
 	if ecn != protocol.ECNUnsupported {
 		panic("cannot use ECN with a windowsConn")
 	}
-	n, _, err := c.WriteMsgUDP(b, packetInfoOOB, addr.(*net.UDPAddr))
+	udpAddr, ok := addr.(*net.UDPAddr)
+	if !ok {
+		// The replaced basicConn returned the socket's error for a nil or
+		// non-UDP destination; keep that behavior instead of panicking on
+		// the assertion. WriteTo rejects every non-UDP address, so this
+		// never sends.
+		return c.WriteTo(b, addr)
+	}
+	n, _, err := c.WriteMsgUDP(b, packetInfoOOB, udpAddr)
 	return n, err
 }
 
