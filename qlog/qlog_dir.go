@@ -18,7 +18,7 @@ const EventSchema = "urn:ietf:params:qlog:events:quic-12"
 
 // DefaultConnectionTracer creates a qlog file in the qlog directory specified by the QLOGDIR environment variable.
 // File names are <odcid>_<perspective>.sqlog.
-// Returns nil if QLOGDIR is not set.
+// Returns nil if QLOGDIR is not set or the log directory or file cannot be created.
 func DefaultConnectionTracer(_ context.Context, isClient bool, connID ConnectionID) qlogwriter.Trace {
 	return defaultConnectionTracerWithSchemas(isClient, connID, []string{EventSchema})
 }
@@ -37,7 +37,8 @@ func defaultConnectionTracerWithSchemas(isClient bool, connID ConnectionID, even
 	}
 	if _, err := os.Stat(qlogDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(qlogDir, 0o755); err != nil {
-			log.Fatalf("failed to create qlog dir %s: %v", qlogDir, err)
+			log.Printf("failed to create qlog dir %s: %v", qlogDir, err)
+			return nil
 		}
 	}
 	label := "server"
