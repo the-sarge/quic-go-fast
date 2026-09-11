@@ -1086,3 +1086,20 @@ Merged [PR #204](https://github.com/the-sarge/quic-go-fast/pull/204) as `e611e4a
 Five temporary negative controls failed at the intended assertions: each absent multiplex server, omitted migration switch, closed original socket, and a distinct second-connection closure cause. Restored macOS QUIC v1 tests and focused race QUIC v2 tests passed. The uncached full suite, vet, lint, root/FIPS module-tidy and formatting checks passed on reviewed head `106cf26c44cdf2b1c3a677f3ccbe96ff5499a421`. All 33 hosted checks succeeded without skips or reruns before the guarded squash merge. The [audit note](audits/issue-81-integration-outcomes.md) records the controls and the competing-reader fixture correction discovered by the initial race run.
 
 Standards and Spec reviews each reported zero findings. RAS run `20260911T061825-1ad174bba1879dfc67636fb7` completed both configured reviewers and synthesis with zero findings; no fix-verification, replacement review, or deferred follow-up was required. The PR description retains review and certification details.
+
+---
+
+## Maintained-code conventions documented - 2026-09-11 02:49 EDT
+
+**Main:** `ce3f1a785119`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #206](https://github.com/the-sarge/quic-go-fast/pull/206), closing [issue #72](https://github.com/the-sarge/quic-go-fast/issues/72). Added the maintained-code and test-helper conventions guide and its AGENTS.md pointer. The guide distinguishes existing enforcement from observed practices and package differences, preserves API/module/emission and real-packer contracts, and links the archived survey while excluding frozen evidence from maintenance sweeps. Only Markdown changed.
+
+### Validation
+
+At reviewed head `47fbb943db6b966c6e68f5c1b729471d153e53fc`, relative documentation links and diff checks passed, as did one uncached full native Go test suite, `go vet ./...` and `go mod tidy -diff`. Independent Standards and Spec reviews found no issues. All 33 applicable hosted checks succeeded before the guarded squash merge.
+
+RAS run `20260911T064100-6fffc7303bbb80f95d6037bd` used the full configured eight-reviewer default panel and completed with zero findings or required fixes. Seven reviewers succeeded; `cursor-kimik3` failed structured-output parsing. Configured quorum was met and synthesis completed; no verification or replacement review was needed. An earlier narrowed attempt failed quorum, and its narrowed retry was interrupted after the operator required preserving configured defaults without prior permission. No RAS review was posted to GitHub.
