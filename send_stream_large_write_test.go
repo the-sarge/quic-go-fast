@@ -92,12 +92,20 @@ func TestSendStreamLargeTryWriteAllRetransmissionLifetime(t *testing.T) {
 	first.Handler.OnLost(first.Frame)
 	// Append while the large pending allocation is partially consumed, then
 	// overwrite caller storage and drain/ACK newer frames before retransmitting.
-	require.NoError(t, str.TryWriteAll(bytes.Repeat([]byte("b"), 64<<10)))
+	appended := bytes.Repeat([]byte("b"), 64<<10)
+	require.NoError(t, str.TryWriteAll(appended))
 	clear(data)
+	clear(appended)
+	var drained []byte
 	for str.nextFrame != nil {
 		f, _, _ := str.popStreamFrame(1024, protocol.Version1)
+		require.NotNil(t, f.Frame)
+		require.Equal(t, protocol.ByteCount(len(expected)+len(drained)), f.Frame.Offset)
+		drained = append(drained, f.Frame.Data...)
 		f.Handler.OnAcked(f.Frame)
 	}
+	expectedTail := append(bytes.Repeat([]byte("a"), (32<<10)-len(expected)), bytes.Repeat([]byte("b"), 64<<10)...)
+	require.Equal(t, expectedTail, drained)
 	var retransmitted []byte
 	for more := true; more; {
 		f, hasMore := str.popRetransmissionFrame(128, protocol.Version1)
