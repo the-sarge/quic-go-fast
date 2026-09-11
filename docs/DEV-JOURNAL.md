@@ -1028,3 +1028,16 @@ Merged [PR #194](https://github.com/the-sarge/quic-go-fast/pull/194), closing [i
 Validation reproduced the empty-stream process panic before the fix. Package tests, a focused race check, go vet, and the uncached full suite passed on reviewed head `031d766ecf0f2779cc1520b1ae0e9417ab6c1e25`; all 33 hosted checks succeeded before the guarded squash merge. The full suite used the integration workflow multiplier 3. An initial invocation with unit-test multiplier 10 caused two unrelated corruption-diagnostics assertions to observe the QUIC idle timeout before the context deadline; the corrected configuration passed without code changes.
 
 Standards and spec reviews found no issues. RAS run `20260911T035557-80b0f784515a4876a68c5fe5` completed with no required fixes; no fix-verification or replacement review was needed. Its sole observation concerned the unchanged malformed-URL error branch, independently deferred for separate tracking after merged-head revalidation.
+
+---
+
+## Optional HTTP/3 tracing-header collection landed - 2026-09-11 00:42 EDT
+
+**Main:** `488fcd487e89`
+**Actor:** Codex
+
+Merged [PR #197](https://github.com/the-sarge/quic-go-fast/pull/197), closing [issue #82](https://github.com/the-sarge/quic-go-fast/issues/82). HTTP/3 request and response decoding now collects tracing-only header fields only when a recorder exists, following the trailer decoder convention. Decoded headers, complete logged fields including duplicates, public API/module identity and packet-emission ownership remain unchanged. Isolated request/response allocation fixtures measure 10 versus 14 and 9 versus 12 allocations respectively when collection is omitted; throughput remains unmeasured.
+
+Validation on reviewed head `290837e421319c9cda60a0c91c990902e064856a`: HTTP/3 tests, focused race checks, the uncached full suite with the integration workflow's `TIMESCALE_FACTOR=3`, vet, module tidiness, HTTP/3 go-fix diff, golangci-lint and gcassert passed. All 33 applicable hosted checks succeeded before the guarded squash merge. An unscaled `TestConnDataBlocked` read-deadline failure also reproduced on the unchanged base; the write accepted the expected bytes but the server read returned zero. Its fixture was revalidated unchanged against the merged commit and tracked in [issue #198](https://github.com/the-sarge/quic-go-fast/issues/198).
+
+Standards and spec reviews found no issues. Initial RAS `20260911T041810-39d66d5a85bbb0dde1f1428f` identified one duplicated test-goroutine finding, which was fixed and verified at the exact pushed head. Replacement RAS `20260911T043243-7ee86710e66c41b7d08a5a38` required no further fixes or follow-ups; seven reviewers completed and one failed structured delivery, with quorum and synthesis complete. Two low-value verification-aid nits were independently deferred without separate busywork after merged-head revalidation. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/197#issuecomment-5629565827) and [hosted run receipt](https://github.com/the-sarge/quic-go-fast/pull/197#issuecomment-5629573162) retain the evidence and dispositions.
