@@ -1156,3 +1156,14 @@ Merged [PR #213](https://github.com/the-sarge/quic-go-fast/pull/213) as `d1b4292
 The hook fixtures passed on macOS and in a Linux container. Red/green regressions covered an empty-output formatter failure, staged content with unusual filenames, and symlink materialization with `core.symlinks=false`. A hosted Linux fixture failure was reproduced and corrected by using literal Git pathspecs during fixture staging. The final-head full native suite, hook suite, vet, Bash syntax/shellcheck, formatting and diff checks passed; workflow syntax checks excluded existing shellcheck warnings on unchanged lines and the known CodSpeed runner label. A real-tool hook invocation passed without changing caller files or staging.
 
 Standards and Spec reviews each found zero issues. Initial RAS run `20260911T075907-fc6eb5d3bf13f05b53a56fbb` used `codex-astra` and `codex-sol`; its three findings were independently accepted and fixed. Exact-head verification resolved all three. Replacement run `20260911T081036-e2f8543b5ed7bab0663888bf` used the same reviewers and returned zero findings. No deferred findings remain and no RAS review was posted. All 33 hosted checks succeeded on reviewed head `6fbb1f33381767a28ad3b6de86cd7d7234fe37d9` before the guarded squash merge. Superseded CI runs were cancelled; the final-head checks required no reruns.
+
+---
+
+## HTTP/0.9 malformed URL rejection landed - 2026-09-11 10:18 EDT
+
+**Main:** `9bfeb1c5c23c`
+**Actor:** Codex
+
+Merged [PR #215](https://github.com/the-sarge/quic-go-fast/pull/215), closing [issue #196](https://github.com/the-sarge/quic-go-fast/issues/196). Completed HTTP/0.9 requests whose URL fails parsing now reset the response stream with application error code 42, consistent with invalid-prefix rejection, while preserving the parse error for logging. The real-QUIC validation regression checks an empty remote-reset response, excludes handler invocation, and exercises subsequent valid requests on the same connection.
+
+Validation: the regression failed before the fix with a deadline error and passed afterward. The HTTP/0.9 package, focused race regression, uncached full local suite, repository-wide vet, module tidiness, compiler assertions, package lint and diff checks passed. Independent Standards and Spec reviews had zero findings. RAS run `20260911T140851-853d8884e373d61fd223d6cd` completed with two successful reviewers and zero findings; no fix verification or replacement review was needed. All 33 applicable hosted checks passed on reviewed head `6c1b56c23864d7eba2f580c4e9054c15d28a66e8` before guarded squash merge to `9bfeb1c5c23c483ad4e9ce91c4fdefd708c4adb8`. The non-required CodSpeed job remained queued without a runner; it benchmarks `integrationtests/self`, outside this harness change and its performance obligations. No deferred findings.
