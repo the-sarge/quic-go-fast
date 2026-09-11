@@ -24,7 +24,7 @@ func runSysConnServer(t *testing.T, network string, addr *net.UDPAddr) (*net.UDP
 	require.NoError(t, err)
 	t.Cleanup(func() { udpConn.Close() })
 
-	oobConn, err := newConn(udpConn, true)
+	oobConn, err := newConn(udpConn, true, true)
 	require.NoError(t, err)
 	require.True(t, oobConn.capabilities().DF)
 
@@ -285,10 +285,11 @@ func (c *mockBatchConn) ReadBatch(ms []ipv4.Message, _ int) (int, error) {
 	require.Len(c.t, ms, batchSize)
 	for i := 0; i < c.numMsgRead; i++ {
 		require.Len(c.t, ms[i].Buffers, 1)
-		require.Len(c.t, ms[i].Buffers[0], protocol.MaxPacketBufferSize)
+		// GRO-enabled sockets prepost coalesced-tier buffers
+		require.GreaterOrEqual(c.t, len(ms[i].Buffers[0]), protocol.MaxPacketBufferSize)
 		data := fmt.Appendf(nil, "message %d", c.callCounter*c.numMsgRead+i)
-		ms[i].Buffers[0] = data
-		ms[i].N = len(data)
+		// fill the preposted buffer in place, like the kernel
+		ms[i].N = copy(ms[i].Buffers[0], data)
 	}
 	c.callCounter++
 	return c.numMsgRead, nil
@@ -298,7 +299,7 @@ func TestReadsMultipleMessagesInOneBatch(t *testing.T) {
 	bc := &mockBatchConn{t: t, numMsgRead: batchSize/2 + 1}
 
 	udpConn := newUDPConnLocalhost(t)
-	oobConn, err := newConn(udpConn, true)
+	oobConn, err := newConn(udpConn, true, true)
 	require.NoError(t, err)
 	oobConn.batchConn = bc
 
@@ -314,7 +315,7 @@ func TestNewConnWithoutNetConn(t *testing.T) {
 	udpConn := newUDPConnLocalhost(t)
 	conn := struct{ OOBCapablePacketConn }{udpConn}
 
-	_, err := newConn(conn, true)
+	_, err := newConn(conn, true, true)
 	require.EqualError(t, err, "quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
 }
 
@@ -326,7 +327,7 @@ func TestSysConnSendGSO(t *testing.T) {
 	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
 	require.NoError(t, err)
 	c := &oobRecordingConn{UDPConn: udpConn}
-	oobConn, err := newConn(c, true)
+	oobConn, err := newConn(c, true, true)
 	require.NoError(t, err)
 	require.True(t, oobConn.capabilities().GSO)
 

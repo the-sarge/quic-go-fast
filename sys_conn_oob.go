@@ -51,13 +51,16 @@ type oobConn struct {
 	messages []ipv4.Message
 	// A nil slot has transferred ownership; non-nil storage belongs to this reader.
 	buffers [batchSize]*packetBuffer
+	// Per-datagram views split from a coalesced (GRO) read, not yet returned
+	// by ReadPacket(). Each holds one reference on the read's shared slab.
+	pendingSegments []receivedPacket
 
 	cap connCapabilities
 }
 
 var _ rawConn = &oobConn{}
 
-func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
+func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, error) {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
 		return nil, err
@@ -131,6 +134,10 @@ func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
 			DF:  supportsDF,
 			GSO: isGSOEnabled(rawConn),
 			ECN: isECNEnabled(),
+			// The && short-circuit is load-bearing: isGROEnabled issues the
+			// UDP_GRO setsockopt, which must never reach a caller-supplied
+			// socket.
+			GRO: ownsSocket && isGROEnabled(rawConn),
 		},
 	}
 	for i := range batchSize {
@@ -142,12 +149,27 @@ func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
 var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
 
 func (c *oobConn) ReadPacket() (receivedPacket, error) {
+	// A coalesced read is split into per-datagram views, returned one per
+	// call to preserve ReadPacket's one-datagram contract.
+	if len(c.pendingSegments) > 0 {
+		p := c.pendingSegments[0]
+		c.pendingSegments[0] = receivedPacket{}
+		c.pendingSegments = c.pendingSegments[1:]
+		return p, nil
+	}
 	for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
 		c.messages = c.messages[:batchSize]
 		for i := range c.buffers {
 			if c.buffers[i] == nil {
-				buffer := getPacketBuffer()
-				buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+				var buffer *packetBuffer
+				if c.cap.GRO {
+					// a single GRO read can deliver up to 65535 bytes
+					buffer = getCoalescedPacketBuffer()
+					buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
+				} else {
+					buffer = getPacketBuffer()
+					buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+				}
 				c.buffers[i] = buffer
 			}
 			c.messages[i].Buffers[0] = c.buffers[i].Data
@@ -177,11 +199,15 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		data:       payload,
 		buffer:     buffer,
 	}
+	var groSegmentSize int
 	for len(data) > 0 {
 		hdr, body, remainder, err := unix.ParseOneSocketControlMessage(data)
 		if err != nil {
 			buffer.Release()
 			return receivedPacket{}, err
+		}
+		if size, ok := parseUDPGROSegmentSize(&hdr, body); ok {
+			groSegmentSize = size
 		}
 		if hdr.Level == unix.IPPROTO_IP {
 			switch hdr.Type {
@@ -231,12 +257,42 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		}
 		data = remainder
 	}
+	if !c.cap.GRO || len(payload) == 0 {
+		return p, nil
+	}
+	// On a GRO socket every non-empty read becomes a coalesced slab, even a
+	// single datagram: retention queues copy slab views out of the slab (or
+	// charge the retained-bytes budget), and that bound must hold for lone
+	// segments too. The datapath offload plan (2026-09-11) fixes this rule.
+	// Use the buffer's own storage (the kernel filled it in place) so the
+	// slab can only ever recycle coalesced-tier storage into the pool.
+	buffer.Data = buffer.Data[:msg.N]
+	slab := &coalescedSlab{buf: buffer}
+	segmentSize := groSegmentSize
+	if segmentSize <= 0 {
+		// no UDP_GRO control message: the read is a single datagram
+		segmentSize = len(payload)
+	}
+	views := slab.split(segmentSize)
+	p.data = views[0].Data
+	p.buffer = views[0]
+	for _, view := range views[1:] {
+		sibling := p
+		sibling.data = view.Data
+		sibling.buffer = view
+		c.pendingSegments = append(c.pendingSegments, sibling)
+	}
 	return p, nil
 }
 
 // releaseReadBuffers runs only after reading stops, or while discarding a failed
 // batch. Returned packets belong to their consumers, and the socket stays open.
 func (c *oobConn) releaseReadBuffers() {
+	for i, p := range c.pendingSegments {
+		p.buffer.Release()
+		c.pendingSegments[i] = receivedPacket{}
+	}
+	c.pendingSegments = nil
 	c.messages = c.messages[:batchSize]
 	for i, buffer := range c.buffers {
 		if buffer != nil {

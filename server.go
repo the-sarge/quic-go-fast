@@ -67,6 +67,11 @@ type baseServer struct {
 	receivedPacketsMx sync.Mutex
 	receivedPackets   chan receivedPacket
 
+	// coalescedRetention bounds the coalesced-slab bytes pinned by the
+	// server's queues (receive, version negotiation, 0-RTT) through
+	// oversized segment views.
+	coalescedRetention coalescedRetentionBudget
+
 	nextZeroRTTCleanup monotime.Time
 	zeroRTTQueues      map[protocol.ConnectionID]*zeroRTTQueue // only initialized if acceptEarlyConns == true
 
@@ -455,21 +460,39 @@ func (s *baseServer) handlePacket(p receivedPacket) {
 		return
 	default:
 	}
-	select {
-	case s.receivedPackets <- p:
+	// A packet backed by a coalesced slab must not pin the slab while queued:
+	// it is copied into an ordinary tier, or, if oversized, kept on the slab
+	// and charged against the server's retained-bytes budget. Check capacity
+	// first so a doomed packet doesn't pay for a retention copy; the mutex
+	// serializes producers, so the queue cannot fill between check and send.
+	if len(s.receivedPackets) == cap(s.receivedPackets) {
 		s.receivedPacketsMx.Unlock()
+		defer p.buffer.Release()
+		s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
+		s.qlogPacketDropDOSPrevention(p)
 		return
-	default:
 	}
+	var retained bool
+	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
+	if !retained {
+		s.receivedPacketsMx.Unlock()
+		defer p.buffer.Release()
+		s.logger.Debugf("Dropping packet from %s (%d bytes). Coalesced retention budget exhausted.", p.remoteAddr, p.Size())
+		s.qlogPacketDropDOSPrevention(p)
+		return
+	}
+	s.receivedPackets <- p
 	s.receivedPacketsMx.Unlock()
-	defer p.buffer.Release()
-	s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
-	if s.qlogger != nil {
-		s.qlogger.RecordEvent(qlog.PacketDropped{
-			Raw:     qlog.RawInfo{Length: int(p.Size())},
-			Trigger: qlog.PacketDropDOSPrevention,
-		})
+}
+
+func (s *baseServer) qlogPacketDropDOSPrevention(p receivedPacket) {
+	if s.qlogger == nil {
+		return
 	}
+	s.qlogger.RecordEvent(qlog.PacketDropped{
+		Raw:     qlog.RawInfo{Length: int(p.Size())},
+		Trigger: qlog.PacketDropDOSPrevention,
+	})
 }
 
 func (s *baseServer) handlePacketImpl(p receivedPacket) bool /* is the buffer still in use? */ {
@@ -657,6 +680,12 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 			}
 			return false
 		}
+		// a queued 0-RTT packet must not pin a coalesced slab
+		var retained bool
+		p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
+		if !retained {
+			return false
+		}
 		q.packets = append(q.packets, p)
 		return true
 	}
@@ -674,6 +703,12 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 				Trigger: qlog.PacketDropDOSPrevention,
 			})
 		}
+		return false
+	}
+	// a queued 0-RTT packet must not pin a coalesced slab
+	var retained bool
+	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
+	if !retained {
 		return false
 	}
 	queue := &zeroRTTQueue{packets: make([]receivedPacket, 1, 8)}
@@ -1152,13 +1187,19 @@ func (s *baseServer) sendError(remoteAddr net.Addr, hdr *wire.Header, sealer han
 }
 
 func (s *baseServer) enqueueVersionNegotiationPacket(p receivedPacket) (bufferInUse bool) {
-	select {
-	case s.versionNegotiationQueue <- p:
-		return true
-	default:
-		// it's fine to not send version negotiation packets when we are busy
+	// it's fine to not send version negotiation packets when we are busy;
+	// only the run goroutine enqueues, so the capacity check cannot race
+	if len(s.versionNegotiationQueue) == cap(s.versionNegotiationQueue) {
+		return false
 	}
-	return false
+	// a queued packet must not pin a coalesced slab
+	var retained bool
+	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
+	if !retained {
+		return false
+	}
+	s.versionNegotiationQueue <- p
+	return true
 }
 
 func (s *baseServer) maybeSendVersionNegotiationPacket(p receivedPacket) {

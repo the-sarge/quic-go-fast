@@ -166,6 +166,11 @@ type Transport struct {
 	readingNonQUICPackets atomic.Bool
 	nonQUICPackets        chan receivedPacket
 
+	// coalescedRetention bounds the coalesced-slab bytes pinned by the
+	// transport's queues (non-QUIC packets, stateless resets) through
+	// oversized segment views.
+	coalescedRetention coalescedRetentionBudget
+
 	logger utils.Logger
 }
 
@@ -381,7 +386,7 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 			conn = c
 		} else {
 			var err error
-			conn, err = wrapConn(t.Conn)
+			conn, err = wrapConn(t.Conn, t.createdConn)
 			if err != nil {
 				t.initErr = err
 				return
@@ -668,13 +673,19 @@ func (t *Transport) maybeSendStatelessReset(p receivedPacket) (statelessResetQue
 		return false
 	}
 
-	select {
-	case t.statelessResetQueue <- p:
-		return true
-	default:
-		// it's fine to not send a stateless reset when we're busy
+	// it's fine to not send a stateless reset when we're busy;
+	// only the listen goroutine enqueues, so the capacity check cannot race
+	if len(t.statelessResetQueue) == cap(t.statelessResetQueue) {
 		return false
 	}
+	// a queued packet must not pin a coalesced slab
+	var retained bool
+	p, retained = retainForRetentionQueue(p, &t.coalescedRetention)
+	if !retained {
+		return false
+	}
+	t.statelessResetQueue <- p
+	return true
 }
 
 func (t *Transport) sendStatelessReset(p receivedPacket) {
@@ -725,9 +736,14 @@ func (t *Transport) handleNonQUICPacket(p receivedPacket) {
 		p.buffer.Release()
 		return
 	}
-	select {
-	case t.nonQUICPackets <- p:
-	default:
+	// Check capacity before paying for a retention copy; only the listen
+	// goroutine enqueues, so the check cannot race. A queued packet must not
+	// pin a coalesced slab.
+	var retained bool
+	if len(t.nonQUICPackets) < cap(t.nonQUICPackets) {
+		p, retained = retainForRetentionQueue(p, &t.coalescedRetention)
+	}
+	if !retained {
 		if t.Tracer != nil {
 			t.Tracer.RecordEvent(qlog.PacketDropped{
 				Raw:     qlog.RawInfo{Length: int(p.Size())},
@@ -735,7 +751,9 @@ func (t *Transport) handleNonQUICPacket(p receivedPacket) {
 			})
 		}
 		p.buffer.Release()
+		return
 	}
+	t.nonQUICPackets <- p
 }
 
 const maxQueuedNonQUICPackets = 32

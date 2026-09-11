@@ -23,6 +23,11 @@ type connCapabilities struct {
 	GSO bool
 	// ECN (Explicit Congestion Notifications) supported
 	ECN bool
+	// GRO (Generic Receive Offload) enabled on this socket. Only ever set on
+	// sockets the transport created and owns: coalescing is socket-wide, and
+	// a caller-supplied socket must never have it enabled without an explicit
+	// opt-in (ADR 0001; datapath offload plan 2026-09-11).
+	GRO bool
 }
 
 // rawConn is a connection that allow reading of a receivedPackeh.
@@ -53,7 +58,11 @@ type OOBCapablePacketConn interface {
 
 var _ OOBCapablePacketConn = &net.UDPConn{}
 
-func wrapConn(pc net.PacketConn) (rawConn, error) {
+// wrapConn prepares a net.PacketConn for use by the transport.
+// ownsSocket reports whether the transport created the socket (and so may
+// mutate socket-wide options like UDP_GRO); it must be false for
+// caller-supplied sockets.
+func wrapConn(pc net.PacketConn, ownsSocket bool) (rawConn, error) {
 	if err := setReceiveBuffer(pc); err != nil {
 		if !strings.Contains(err.Error(), "use of closed network connection") {
 			setBufferWarningOnce.Do(func() {
@@ -99,7 +108,7 @@ func wrapConn(pc net.PacketConn) (rawConn, error) {
 		utils.DefaultLogger.Infof("PacketConn is not a net.UDPConn. Disabling optimizations possible on UDP connections.")
 		return &basicConn{PacketConn: pc, supportsDF: supportsDF}, nil
 	}
-	return newConn(c, supportsDF)
+	return newConn(c, supportsDF, ownsSocket)
 }
 
 // The basicConn is the most trivial implementation of a rawConn.
