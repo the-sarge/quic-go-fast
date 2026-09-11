@@ -72,7 +72,7 @@ func (s *Server) handleStream(str *quic.Stream) error {
 
 	log.Printf("Received request: %s\n", request)
 
-	if request[:5] != "GET /" {
+	if !strings.HasPrefix(request, "GET /") {
 		str.CancelWrite(42)
 		return nil
 	}
