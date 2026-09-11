@@ -2,6 +2,8 @@ package quic
 
 import (
 	"bytes"
+	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"os"
@@ -61,7 +63,35 @@ func getPacketWithPacketType(t *testing.T, connID protocol.ConnectionID, typ pro
 func areConnsRunning() bool {
 	var b bytes.Buffer
 	pprof.Lookup("goroutine").WriteTo(&b, 1)
-	return strings.Contains(b.String(), "quic-go.(*connection).run")
+	return strings.Contains(b.String(), "quic-go.(*Conn).run")
+}
+
+func TestAreConnsRunning(t *testing.T) {
+	require.False(t, areConnsRunning())
+	server := newUDPConnLocalhost(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := DialAddr(ctx, server.LocalAddr().String(), &tls.Config{InsecureSkipVerify: true}, nil)
+		done <- err
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-done:
+			require.ErrorIs(t, err, context.Canceled)
+		case <-time.After(scaleDuration(time.Second)):
+			t.Error("dial worker did not exit")
+		}
+		require.Eventually(t, func() bool { return !areConnsRunning() }, scaleDuration(time.Second), time.Millisecond)
+	})
+
+	// Receiving an Initial proves the real connection loop has started. The
+	// silent peer keeps it alive until cleanup cancels the dial.
+	require.NoError(t, server.SetReadDeadline(time.Now().Add(scaleDuration(time.Second))))
+	_, _, err := server.ReadFrom(make([]byte, 1500))
+	require.NoError(t, err)
+	require.True(t, areConnsRunning(), "live Conn.run must be visible to the suite leak guard")
 }
 
 func areTransportsRunning() bool {
