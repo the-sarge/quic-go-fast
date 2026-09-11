@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdh"
 	"crypto/rand"
@@ -9,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	mrand "math/rand/v2"
+	"runtime/pprof"
+	"strings"
 	"testing"
 
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -18,6 +21,43 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestClientHelloFixtureCleanup(t *testing.T) {
+	// Count only parked QUIC TLS handshakes, not unrelated runtime workers.
+	workers := func() int {
+		var stacks bytes.Buffer
+		require.NoError(t, pprof.Lookup("goroutine").WriteTo(&stacks, 2))
+		return strings.Count(stacks.String(), "crypto/tls.(*Conn).quicWaitForSignal(")
+	}
+	baseline := workers()
+	control := tls.QUICClient(&tls.QUICConfig{TLSConfig: &tls.Config{
+		MinVersion: tls.VersionTLS13, InsecureSkipVerify: true,
+	}})
+	defer control.Close()
+	control.SetTransportParameters(nil)
+	require.NoError(t, control.Start(context.Background()))
+	require.Greater(t, workers(), baseline, "positive control must detect a parked TLS handshake")
+	control.Close()
+	require.Equal(t, baseline, workers())
+
+	for _, tc := range []struct {
+		name string
+		get  func(string) ([]byte, error)
+	}{
+		{name: "plain", get: getClientHello},
+		{name: "ECH", get: getClientHelloWithECH},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := workers()
+			for range 10 {
+				hello, err := tc.get("example.com")
+				require.NoError(t, err)
+				require.NoError(t, checkClientHello(hello), "returned data must survive fixture teardown")
+			}
+			require.Equal(t, before, workers(), "fixture calls must join their TLS handshake workers")
+		})
+	}
+}
 
 func checkClientHello(clientHello []byte) error {
 	conn := tls.QUICServer(&tls.QUICConfig{
@@ -40,6 +80,7 @@ func getClientHello(serverName string) ([]byte, error) {
 			CurvePreferences: []tls.CurveID{tls.CurveP256},
 		},
 	})
+	defer c.Close()
 	b := make([]byte, mrand.IntN(200))
 	rand.Read(b)
 	c.SetTransportParameters(b)
@@ -54,7 +95,7 @@ func getClientHello(serverName string) ([]byte, error) {
 	if err := checkClientHello(ev.Data); err != nil {
 		return nil, err
 	}
-	return ev.Data, nil
+	return bytes.Clone(ev.Data), nil
 }
 
 func getClientHelloWithECH(serverName string) ([]byte, error) {
@@ -102,6 +143,7 @@ func getClientHelloWithECH(serverName string) ([]byte, error) {
 			CurvePreferences: []tls.CurveID{tls.CurveP256},
 		},
 	})
+	defer c.Close()
 	b := make([]byte, mrand.IntN(200))
 	rand.Read(b)
 	c.SetTransportParameters(b)
@@ -116,7 +158,7 @@ func getClientHelloWithECH(serverName string) ([]byte, error) {
 	if err := checkClientHello(ev.Data); err != nil {
 		return nil, err
 	}
-	return ev.Data, nil
+	return bytes.Clone(ev.Data), nil
 }
 
 // shuffleClientHelloExtensions takes a TLS 1.3 ClientHello message (without the record layer)
