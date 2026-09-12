@@ -1297,3 +1297,20 @@ Review: RAS run `20260912T055332-9cad6ab69dfdfefd262e1218` (initial, briefed fro
 ### Next
 
 The PR's docs commits mark W3 complete and Track W done in the [program index](adr/2026-09-11-datapath-offload-program.md); Tracks G and W are both complete. The frontier is Track D: D1 ([#230](https://github.com/the-sarge/quic-go-fast/issues/230), macOS `sendmsg_x` batch send) is dispatchable, D2 blocked by D1. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
+
+---
+
+## Stale Windows OOB test skip removed - 2026-09-12 07:55 EDT
+
+**Main:** `4adee07c8080`
+**Actor:** Claude
+
+Merged [PR #251](https://github.com/the-sarge/quic-go-fast/pull/251) as `4adee07c`, closing [issue #243](https://github.com/the-sarge/quic-go-fast/issues/243) — a deferred replacement-review finding from W1 ([PR #242](https://github.com/the-sarge/quic-go-fast/pull/242)). The change deletes the stale `runtime.GOOS == "windows"` skip from `TestSendConnOOB` in `send_conn_test.go`; its rationale ("we don't OOB conn on windows, and no packet info will be available") became false when W1 gave Windows a real `packetInfo.OOB()` `IPV6_PKTINFO` encoding. Verification aid only — no shipped-behavior change, no new tests.
+
+### Validation
+
+The acceptance criterion — the Windows unit CI job runs `TestSendConnOOB` as PASS instead of SKIP — is discharged: the Unit tests (windows, Go 1.27.x) log on head `7193c2c6` shows `--- PASS: TestSendConnOOB (0.00s)`. RAS review run `20260912T114824-f86826318448e929d6bc59b8` (initial, briefed from issue #243) returned zero findings in every cluster; no fix or replacement round was needed. Local certification at `7193c2c6`: gofmt, `go build ./...`, `go vet ./...`, `GOOS=windows go vet .`, `golangci-lint` 0 issues, full `go test ./...` green. All 33 hosted checks passed on that head; squash-merged with `--match-head-commit`.
+
+### Next
+
+No follow-ups from this PR. The datapath frontier is unchanged: Track D, with D1 ([#230](https://github.com/the-sarge/quic-go-fast/issues/230), macOS `sendmsg_x` batch send) dispatchable. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
