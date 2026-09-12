@@ -75,7 +75,7 @@ func TestWindowsConnSegmentedSendEncoding(t *testing.T) {
 		t.Skip("layout literal assumes a 64-bit SIZE_T")
 	}
 	segmentSizeMsg := func(size uint32) []byte {
-		buf := make([]byte, 24) // WSA_CMSG_SPACE(4): 16-byte header + 4-byte DWORD, padded to 8
+		buf := make([]byte, 24)                      // WSA_CMSG_SPACE(4): 16-byte header + 4-byte DWORD, padded to 8
 		binary.LittleEndian.PutUint64(buf[0:8], 20)  // cmsg_len: WSA_CMSG_LEN(4), unpadded
 		binary.LittleEndian.PutUint32(buf[8:12], 17) // cmsg_level: IPPROTO_UDP
 		binary.LittleEndian.PutUint32(buf[12:16], windows.UDP_SEND_MSG_SIZE)
