@@ -1,6 +1,6 @@
 # Datapath Offload Program — 2026-09-11
 
-**Identity:** QGF-DP-2026-09. **Status:** Accepted; Track G complete (#236, #239); W1 (#242) and W2 (#245) complete.
+**Identity:** QGF-DP-2026-09. **Status:** Accepted; Track G complete (#236, #239); Track W complete (#242, #245, #248); Track D frontier D1.
 
 ## What this is
 
@@ -15,10 +15,10 @@ io_uring and XDP datapaths are rejected for this program (off-by-default or plat
 | # | Track | Plan | Parent issue | Blocked by | Slices | Status |
 |---|---|---|---|---|---|---|
 | G | Linux coalesced receive (GRO) | [G plan](2026-09-11-linux-gro-plan.md) | #225 | None | G1 done (#236), G2 done (#239) | COMPLETE |
-| W | Windows datapath (foundation, USO, URO) | [W plan](2026-09-11-windows-datapath-plan.md) | #226 | None (W3's G1 and W1 edges satisfied) | W1 done (#242), W2 done (#245), W3 | W3 FRONTIER |
+| W | Windows datapath (foundation, USO, URO) | [W plan](2026-09-11-windows-datapath-plan.md) | #226 | None | W1 done (#242), W2 done (#245), W3 done (#248) | COMPLETE |
 | D | Darwin batch send + receive experiment | [D plan](2026-09-11-darwin-batch-plan.md) | #227 | None | D1, D2 | D1 FRONTIER |
 
-Cross-track slice edges: W3 requires G1 (coalesced-storage contract and split helper) — satisfied by #236. In-track edges: W3 requires W1 — satisfied by #242; D2 requires D1. Track G is complete: G2 (#239) activated G1's merged machinery and passed its adoption gate ([protocol](../audits/2026-09-11-g2-gro-protocol.md), [results](../audits/2026-09-11-g2-gro-results.md)). W1 (#242) delivered the Windows message-I/O foundation and passed its noninferiority gate ([protocol](../audits/2026-09-11-w1-foundation-protocol.md), [results](../audits/2026-09-11-w1-foundation-results.md)). W2 (#245) delivered Windows segmented send (USO) and passed its adoption gate ([protocol](../audits/2026-09-11-w2-uso-protocol.md), [results](../audits/2026-09-11-w2-uso-results.md)); W3 is now the W track's second lander, so the four-combination USO/URO interaction protocol is W3's obligation. The frontier is W3 and D1, which touch disjoint files and are parallel-safe. The program's evidence-per-effort ordering recommends completing W adoption before D by preference; that recommendation is not a blocking edge. Seven intended PRs, seven fresh implementation contexts; G1 (#236), G2 (#239), W1 (#242), and W2 (#245) are merged.
+Cross-track slice edges: W3 requires G1 (coalesced-storage contract and split helper) — satisfied by #236. In-track edges: W3 requires W1 — satisfied by #242; D2 requires D1. Track G is complete: G2 (#239) activated G1's merged machinery and passed its adoption gate ([protocol](../audits/2026-09-11-g2-gro-protocol.md), [results](../audits/2026-09-11-g2-gro-results.md)). Track W is complete: W1 (#242) delivered the Windows message-I/O foundation and passed its noninferiority gate; W2 (#245) delivered Windows segmented send (USO) and passed its adoption gate; W3 (#248) delivered Windows coalesced receive (URO), delivered the four-combination USO/URO interaction matrix as the W track's second lander, and passed its adoption gate ([protocol](../audits/2026-09-11-w3-uro-protocol.md), [results](../audits/2026-09-11-w3-uro-results.md)) on the v2 minimax KVM virtual-NIC surface — the v1 hosted-runner collection proved single-host traffic cannot exercise URO, so the program's qualified Windows surface for receive-offload engagement is a two-endpoint KVM guest, not the hosted `windows-latest` runner. The frontier is now D1 (D2 blocked by D1). The program's evidence-per-effort ordering is fully discharged for Tracks G and W. Seven intended PRs, seven fresh implementation contexts; G1 (#236), G2 (#239), W1 (#242), W2 (#245), and W3 (#248) are merged.
 
 ## Rules that bind every track
 
