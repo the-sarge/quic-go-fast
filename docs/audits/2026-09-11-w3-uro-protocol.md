@@ -2,6 +2,18 @@
 
 Precommitted measurement protocol for Slice W3 of the [Windows datapath plan](../adr/2026-09-11-windows-datapath-plan.md) (Track W, program QGF-DP-2026-09), per the [datapath offload plan](../adr/2026-09-11-datapath-offload-plan.md)'s adoption rule: protocol before measurement, results before adoption. This protocol is committed on the W3 implementation branch before any collection run; the results document records the exact candidate head measured.
 
+## Amendment v2 (2026-09-12): qualified surface change
+
+The v1 collection on the hosted `windows-latest` runner ran once and dispositioned **Fail** with zero engagement, and post-collection diagnostics established that any single-host surface is structurally unable to exercise URO: Windows delivers same-host traffic through a local shortcut that bypasses the NDIS receive-indication path where coalescing happens, so loopback and own-NIC-address traffic never coalesce regardless of backlog, bind order, or sender segmentation ([v1 record](2026-09-11-w3-uro-results.md)). The operator (Josh, 2026-09-12, this slice's stop-for-decision conversation) directed qualification on owned infrastructure instead.
+
+v2 changes the qualified surface and the harness topology; it changes no cell semantics, metrics, statistical machinery, bounds, or disposition rules:
+
+- **Surface:** the measured endpoint is a Windows Server 2025 KVM guest (`w3-uro-scratch`, 4 vCPU, 8 GiB, e1000e virtual NIC, QEMU/libvirt on the `minimax` host — an overlay clone of the infra GARM Server 2025 golden `v2`, build 10.0.26100). The sender is the `minimax` Linux host itself (AMD Ryzen AI MAX+ 395, Linux 7.0), sending across the libvirt NAT bridge (`virbr0`) into the guest's virtual NIC — a real NDIS receive path, verified URO-capable by a pre-collection engagement check (a GSO burst of 32×1200-byte datagrams arrives as one 38,400-byte coalesced read carrying `UDP_COALESCED_INFO`).
+- **Topology:** the harness splits into two processes: `TestW3MeasurementServer` (Linux host, bulk sender, asserts and reports its GSO state) and `TestW3MeasurementClient` (Windows guest, measured receiver, all receiver-side metrics unchanged). The peer's GSO cell knob moves to the sender process; the sender pins its two-endpoint TLS identity exactly as the v1 harness pinned it (fixed measurement-only certificate, receiver `RootCAs`).
+- **Workload:** unchanged (512 MiB of 1071-byte records, 32-record batches, raised flow-control windows), now crossing the virtual NIC instead of loopback.
+- **Affinity and noise:** the sender is pinned per the repository's minimax precedent (`taskset -c 12,13,28,29`); guest vCPUs are not pinned and this is recorded. Host load is recorded before and after collection. The paired same-round design and the 1.30× contamination rule are unchanged. Other guests on the host (infra's GARM CI runners) may run during collection; this shared-host fact is recorded rather than controlled.
+- **Provenance note:** the throughput noninferiority and memory bounds now bind on the virtual-NIC path. Absolute numbers are not comparable to the v1 loopback cells and are not compared against them.
+
 ## Question
 
 Does enabling UDP receive coalescing (URO) on Windows transport-owned sockets reduce receive syscalls per delivered datagram in a bulk QUIC transfer, with noninferior throughput and bounded memory, while the unexercised, disabled, and unavailable configurations preserve the W1/W2 foundation behavior — and do all four USO/URO offload combinations validate payload and ancillary metadata?
