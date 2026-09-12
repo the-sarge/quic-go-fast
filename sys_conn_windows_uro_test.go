@@ -4,6 +4,7 @@ package quic
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net"
 	"net/netip"
 	"os"
@@ -275,6 +276,87 @@ func TestWindowsUROReleaseReadBuffersReleasesPendingViews(t *testing.T) {
 	require.False(t, slab.released(), "the delivered view still holds the slab")
 	p.buffer.Release()
 	require.True(t, slab.released())
+}
+
+// TestWindowsUSOUROInteractionMatrix validates all four USO/URO offload
+// combinations for payload and ancillary metadata (the W track's
+// second-lander obligation): every datagram of a burst arrives intact and in
+// order, packet info reports the correct destination address on a
+// wildcard-bound socket, coalesced reads split into slab-backed views only
+// when URO is on, and ECN stays unsupported on the Windows conn in every
+// combination (the Server 2022 ancillary policy keeps TTL/DSCP receive
+// features disabled while offloads are active; the conn requests neither).
+func TestWindowsUSOUROInteractionMatrix(t *testing.T) {
+	const segSize, numSegs = 1200, 8
+	for _, tc := range []struct{ uso, uro bool }{
+		{true, true},
+		{true, false},
+		{false, true},
+		{false, false},
+	} {
+		name := fmt.Sprintf("uso=%v,uro=%v", tc.uso, tc.uro)
+		t.Run(name, func(t *testing.T) {
+			if !tc.uso {
+				t.Setenv("QUIC_GO_DISABLE_GSO", "1")
+			}
+			if !tc.uro {
+				t.Setenv("QUIC_GO_DISABLE_GRO", "1")
+			}
+
+			// A wildcard bind activates packet-info parsing, so the matrix
+			// validates the destination-address metadata alongside payload.
+			recvUDP, err := net.ListenUDP("udp4", &net.UDPAddr{Port: 0})
+			require.NoError(t, err)
+			defer recvUDP.Close()
+			recvConn, err := newConn(recvUDP, true, true)
+			require.NoError(t, err)
+			sendUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+			require.NoError(t, err)
+			defer sendUDP.Close()
+			sendConn, err := newConn(sendUDP, true, true)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.uro, recvConn.capabilities().GRO, "URO capability must match the combination")
+			require.Equal(t, tc.uso, sendConn.capabilities().GSO, "USO capability must match the combination")
+			if tc.uro {
+				requireUROCapableHost(t, recvConn)
+			}
+			if tc.uso {
+				requireUSOCapableHost(t, sendConn)
+			}
+
+			dest := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: recvUDP.LocalAddr().(*net.UDPAddr).Port}
+			segs := testCoalescedSegments(numSegs, segSize)
+			if tc.uso {
+				var batch []byte
+				for _, seg := range segs {
+					batch = append(batch, seg...)
+				}
+				_, err = sendConn.WritePacket(batch, dest, nil, segSize, protocol.ECNUnsupported)
+				require.NoError(t, err)
+			} else {
+				for _, seg := range segs {
+					_, err = sendConn.WritePacket(seg, dest, nil, 0, protocol.ECNUnsupported)
+					require.NoError(t, err)
+				}
+			}
+
+			require.NoError(t, recvUDP.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+			for i := range numSegs {
+				p, err := recvConn.ReadPacket()
+				require.NoError(t, err)
+				require.Equal(t, segs[i], p.data, "datagram %d must arrive intact and in order", i)
+				require.Equal(t, netip.AddrFrom4([4]byte{127, 0, 0, 1}), p.info.addr, "datagram %d must carry the destination packet info", i)
+				require.Equal(t, protocol.ECNUnsupported, p.ecn, "the Windows conn requests no ECN ancillary data")
+				if tc.uro {
+					require.NotNil(t, p.buffer.slab, "URO-on reads are slab-backed views")
+				} else {
+					require.Nil(t, p.buffer.slab, "URO-off reads keep the W1 foundation storage")
+				}
+				p.buffer.Release()
+			}
+		})
+	}
 }
 
 // TestWindowsUROEndToEndLoopback sends one USO batch across loopback into a
