@@ -79,18 +79,22 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn,
 			return nil, errors.New("activating packet info failed for both IPv4 and IPv6")
 		}
 	}
-	var uso bool
+	var uso, uro bool
 	if ownsSocket {
 		rawConn, err := c.SyscallConn()
 		if err != nil {
 			return nil, err
 		}
 		uso = isUSOEnabled(rawConn)
+		// The ownsSocket gate is load-bearing: isUROEnabled issues the
+		// UDP_RECV_MAX_COALESCED_SIZE setsockopt, which must never reach a
+		// caller-supplied socket.
+		uro = isUROEnabled(rawConn)
 	}
 	return &windowsConn{
 		OOBCapablePacketConn: c,
 		oobBuffer:            make([]byte, oobBufferSize),
-		cap:                  connCapabilities{DF: supportsDF, GSO: uso},
+		cap:                  connCapabilities{DF: supportsDF, GSO: uso, GRO: uro},
 	}, nil
 }
 
@@ -106,6 +110,27 @@ func isUSOEnabled(conn syscall.RawConn) bool {
 	var serr error
 	if err := conn.Control(func(fd uintptr) {
 		_, serr = windows.GetsockoptInt(windows.Handle(fd), windows.IPPROTO_UDP, windows.UDP_SEND_MSG_SIZE)
+	}); err != nil {
+		return false
+	}
+	return serr == nil
+}
+
+// isUROEnabled enables UDP receive coalescing (URO) on the socket and
+// reports whether it succeeded. The setsockopt is itself the probe, as with
+// the Linux UDP_GRO probe: on success Winsock coalesces consecutive
+// same-flow datagrams into a single read of up to the coalesced buffer
+// tier's capacity and reports the segment size in a UDP_COALESCED_INFO
+// control message. It must only be called on sockets the transport created
+// and owns, and honors the QUIC_GO_DISABLE_GRO kill switch that governs
+// coalesced receive on every platform.
+func isUROEnabled(conn syscall.RawConn) bool {
+	if disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_GRO")); err == nil && disabled {
+		return false
+	}
+	var serr error
+	if err := conn.Control(func(fd uintptr) {
+		serr = windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_UDP, windows.UDP_RECV_MAX_COALESCED_SIZE, protocol.MaxCoalescedPacketBufferSize)
 	}); err != nil {
 		return false
 	}
