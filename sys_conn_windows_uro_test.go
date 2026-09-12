@@ -3,9 +3,13 @@
 package quic
 
 import (
+	"encoding/binary"
 	"net"
+	"net/netip"
 	"os"
 	"testing"
+	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 
@@ -106,4 +110,217 @@ func TestWindowsUROProbeFailure(t *testing.T) {
 	t.Run("setsockopt error", func(t *testing.T) {
 		require.False(t, isUROEnabled(&probeFailingRawConn{}))
 	})
+}
+
+// coalescedInfoMsg builds the control message Winsock attaches to a
+// coalesced read (ws2def.h WSACMSGHDR: SIZE_T cmsg_len, INT cmsg_level, INT
+// cmsg_type, data at WSA_CMSGDATA_ALIGN(sizeof(WSACMSGHDR)); payload one
+// DWORD segment size), as a hand-built layout literal independent of the
+// parser under test.
+func coalescedInfoMsg(t *testing.T, size uint32) []byte {
+	t.Helper()
+	if unsafe.Sizeof(uintptr(0)) != 8 {
+		t.Skip("layout literal assumes a 64-bit SIZE_T")
+	}
+	buf := make([]byte, 24)                      // WSA_CMSG_SPACE(4): 16-byte header + 4-byte DWORD, padded to 8
+	binary.LittleEndian.PutUint64(buf[0:8], 20)  // cmsg_len: WSA_CMSG_LEN(4), unpadded
+	binary.LittleEndian.PutUint32(buf[8:12], 17) // cmsg_level: IPPROTO_UDP
+	binary.LittleEndian.PutUint32(buf[12:16], windows.UDP_COALESCED_INFO)
+	binary.LittleEndian.PutUint32(buf[16:20], size)
+	return buf
+}
+
+// ipv4PktInfoMsg builds an IP_PKTINFO control message (in_pktinfo: IN_ADDR
+// ipi_addr, ULONG ipi_ifindex) as a hand-built layout literal.
+func ipv4PktInfoMsg(t *testing.T, addr [4]byte, ifIndex uint32) []byte {
+	t.Helper()
+	if unsafe.Sizeof(uintptr(0)) != 8 {
+		t.Skip("layout literal assumes a 64-bit SIZE_T")
+	}
+	buf := make([]byte, 24)                      // WSA_CMSG_SPACE(8): 16-byte header + 8-byte body
+	binary.LittleEndian.PutUint64(buf[0:8], 24)  // cmsg_len: WSA_CMSG_LEN(8)
+	binary.LittleEndian.PutUint32(buf[8:12], 0)  // cmsg_level: IPPROTO_IP
+	binary.LittleEndian.PutUint32(buf[12:16], windows.IP_PKTINFO)
+	copy(buf[16:20], addr[:])
+	binary.LittleEndian.PutUint32(buf[20:24], ifIndex)
+	return buf
+}
+
+// uroReadConn delivers scripted messages, one per ReadMsgUDP call, the way
+// Winsock delivers coalesced reads: payload copied into the posted buffer,
+// ancillary data into the posted control buffer. It asserts the conn posts
+// a coalesced-tier buffer, so a kernel-coalesced read is never truncated.
+type uroReadConn struct {
+	*net.UDPConn
+	t           *testing.T
+	payloads    [][]byte
+	oobs        [][]byte
+	addr        *net.UDPAddr
+	callCounter int
+}
+
+func (c *uroReadConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *net.UDPAddr, err error) {
+	c.t.Helper()
+	require.Less(c.t, c.callCounter, len(c.payloads), "unexpected ReadMsgUDP call")
+	require.Len(c.t, b, protocol.MaxCoalescedPacketBufferSize, "a URO-enabled conn must post a coalesced-tier buffer")
+	payload, oobData := c.payloads[c.callCounter], c.oobs[c.callCounter]
+	n = copy(b, payload)
+	oobn = copy(oob, oobData)
+	c.callCounter++
+	return n, oobn, 0, c.addr, nil
+}
+
+func newUROConn(t *testing.T, rc *uroReadConn) *windowsConn {
+	t.Helper()
+	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	require.NoError(t, err)
+	t.Cleanup(func() { udpConn.Close() })
+	rc.UDPConn = udpConn
+	// The scripted reads never touch Winsock, so force the capability
+	// instead of depending on the live probe: parsing, splitting, and
+	// pending-view coverage must run on URO-unavailable builds too.
+	return &windowsConn{
+		OOBCapablePacketConn: rc,
+		oobBuffer:            make([]byte, oobBufferSize),
+		cap:                  connCapabilities{DF: true, GRO: true},
+	}
+}
+
+func TestWindowsUROReadSplitsCoalescedRead(t *testing.T) {
+	segs := testCoalescedSegments(3, 1200)
+	segs[2] = segs[2][:500] // short tail
+	payload := append(append(append([]byte{}, segs[0]...), segs[1]...), segs[2]...)
+	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 42), Port: 1234}
+	rc := &uroReadConn{t: t, payloads: [][]byte{payload, []byte("next read")}, oobs: [][]byte{coalescedInfoMsg(t, 1200), nil}, addr: addr}
+	conn := newUROConn(t, rc)
+
+	var slab *coalescedSlab
+	views := make([]*packetBuffer, 3)
+	for i, want := range segs {
+		p, err := conn.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, want, p.data)
+		require.Equal(t, addr, p.remoteAddr)
+		require.NotNil(t, p.buffer.slab, "segment %d must be a slab-backed view", i)
+		if i == 0 {
+			slab = p.buffer.slab
+		} else {
+			require.Same(t, slab, p.buffer.slab, "siblings share one slab")
+		}
+		views[i] = p.buffer
+	}
+	require.Equal(t, 1, rc.callCounter, "all segments must come from one socket read")
+
+	for _, v := range views {
+		require.False(t, slab.released())
+		v.Release()
+	}
+	require.True(t, slab.released(), "slab must recycle after the last view releases")
+
+	// the next ReadPacket issues the next read; without a coalesced-info
+	// cmsg the datagram is still slab-backed so retention-queue copies stay
+	// uniform
+	p, err := conn.ReadPacket()
+	require.NoError(t, err)
+	require.Equal(t, []byte("next read"), p.data)
+	require.NotNil(t, p.buffer.slab)
+	next := p.buffer.slab
+	p.buffer.Release()
+	require.True(t, next.released())
+	require.Equal(t, 2, rc.callCounter)
+}
+
+func TestWindowsUROReadEmptyDatagram(t *testing.T) {
+	rc := &uroReadConn{t: t, payloads: [][]byte{{}}, oobs: [][]byte{nil}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
+	conn := newUROConn(t, rc)
+
+	p, err := conn.ReadPacket()
+	require.NoError(t, err)
+	require.Empty(t, p.data)
+	require.NotNil(t, p.buffer)
+	require.Nil(t, p.buffer.slab, "an empty read has no segments to view")
+	p.buffer.Release()
+}
+
+func TestWindowsUROReadPacketInfoInheritance(t *testing.T) {
+	segs := testCoalescedSegments(2, 100)
+	payload := append(append([]byte{}, segs[0]...), segs[1]...)
+	oob := append(coalescedInfoMsg(t, 100), ipv4PktInfoMsg(t, [4]byte{10, 0, 0, 9}, 7)...)
+	rc := &uroReadConn{t: t, payloads: [][]byte{payload}, oobs: [][]byte{oob}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
+	conn := newUROConn(t, rc)
+
+	for i := range segs {
+		p, err := conn.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, segs[i], p.data)
+		require.Equal(t, netip.AddrFrom4([4]byte{10, 0, 0, 9}), p.info.addr, "segment %d must inherit packet info", i)
+		require.EqualValues(t, 7, p.info.ifIndex)
+		p.buffer.Release()
+	}
+}
+
+func TestWindowsUROReleaseReadBuffersReleasesPendingViews(t *testing.T) {
+	segs := testCoalescedSegments(3, 800)
+	payload := append(append(append([]byte{}, segs[0]...), segs[1]...), segs[2]...)
+	rc := &uroReadConn{t: t, payloads: [][]byte{payload}, oobs: [][]byte{coalescedInfoMsg(t, 800)}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
+	conn := newUROConn(t, rc)
+
+	p, err := conn.ReadPacket()
+	require.NoError(t, err)
+	slab := p.buffer.slab
+	require.NotNil(t, slab)
+
+	// reading stops with two undelivered sibling views pending
+	conn.releaseReadBuffers()
+	require.False(t, slab.released(), "the delivered view still holds the slab")
+	p.buffer.Release()
+	require.True(t, slab.released())
+}
+
+// TestWindowsUROEndToEndLoopback sends one USO batch across loopback into a
+// URO-enabled socket and verifies every datagram arrives intact and in
+// order, whether or not Winsock coalesced them. Engagement (several
+// datagrams per read) is logged, not asserted: the adoption protocol owns
+// the engagement evidence.
+func TestWindowsUROEndToEndLoopback(t *testing.T) {
+	recvUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	require.NoError(t, err)
+	defer recvUDP.Close()
+	recvConn, err := newConn(recvUDP, true, true)
+	require.NoError(t, err)
+	requireUROCapableHost(t, recvConn)
+
+	sendUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	require.NoError(t, err)
+	defer sendUDP.Close()
+	sendConn, err := newConn(sendUDP, true, true)
+	require.NoError(t, err)
+	requireUSOCapableHost(t, sendConn)
+
+	const segSize, numSegs = 1200, 8
+	segs := testCoalescedSegments(numSegs, segSize)
+	var batch []byte
+	for _, seg := range segs {
+		batch = append(batch, seg...)
+	}
+	_, err = sendConn.WritePacket(batch, recvUDP.LocalAddr(), nil, segSize, protocol.ECNUnsupported)
+	require.NoError(t, err)
+
+	require.NoError(t, recvUDP.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+	slabs := map[*coalescedSlab]int{}
+	for i := range numSegs {
+		p, err := recvConn.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, segs[i], p.data, "datagram %d must arrive intact and in order", i)
+		require.NotNil(t, p.buffer.slab)
+		slabs[p.buffer.slab]++
+		p.buffer.Release()
+	}
+	coalesced := 0
+	for _, n := range slabs {
+		if n > 1 {
+			coalesced += n
+		}
+	}
+	t.Logf("%d datagrams in %d socket reads (%d arrived coalesced)", numSegs, len(slabs), coalesced)
 }

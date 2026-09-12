@@ -40,6 +40,10 @@ type windowsConn struct {
 	// (parsed into the receivedPacket) before the next read overwrites it.
 	oobBuffer []byte
 
+	// Per-datagram views split from a coalesced (URO) read, not yet returned
+	// by ReadPacket(). Each holds one reference on the read's shared slab.
+	pendingSegments []receivedPacket
+
 	cap connCapabilities
 }
 
@@ -138,22 +142,74 @@ func isUROEnabled(conn syscall.RawConn) bool {
 }
 
 func (c *windowsConn) ReadPacket() (receivedPacket, error) {
-	buffer := getPacketBuffer()
-	// The packet size should not exceed protocol.MaxPacketBufferSize bytes
-	// If it does, we only read a truncated packet, which will then end up undecryptable
-	buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+	// A coalesced read is split into per-datagram views, returned one per
+	// call to preserve ReadPacket's one-datagram contract.
+	if len(c.pendingSegments) > 0 {
+		p := c.pendingSegments[0]
+		c.pendingSegments[0] = receivedPacket{}
+		c.pendingSegments = c.pendingSegments[1:]
+		return p, nil
+	}
+	var buffer *packetBuffer
+	if c.cap.GRO {
+		// a single coalesced read can deliver up to 65535 bytes
+		buffer = getCoalescedPacketBuffer()
+		buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
+	} else {
+		// The packet size should not exceed protocol.MaxPacketBufferSize bytes
+		// If it does, we only read a truncated packet, which will then end up undecryptable
+		buffer = getPacketBuffer()
+		buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+	}
 	n, oobn, _, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
 	if err != nil {
 		buffer.Release()
 		return receivedPacket{}, err
 	}
-	return receivedPacket{
+	info, segmentSize := parseControlMessages(c.oobBuffer[:oobn])
+	p := receivedPacket{
 		remoteAddr: addr,
 		rcvTime:    monotime.Now(),
 		data:       buffer.Data[:n],
 		buffer:     buffer,
-		info:       parsePacketInfo(c.oobBuffer[:oobn]),
-	}, nil
+		info:       info,
+	}
+	if !c.cap.GRO || n == 0 {
+		return p, nil
+	}
+	// On a URO socket every non-empty read becomes a coalesced slab, even a
+	// single datagram: retention queues copy slab views out of the slab (or
+	// charge the retained-bytes budget), and that bound must hold for lone
+	// segments too. The datapath offload plan (2026-09-11) fixes this rule.
+	// Use the buffer's own storage (Winsock filled it in place) so the slab
+	// can only ever recycle coalesced-tier storage into the pool.
+	buffer.Data = buffer.Data[:n]
+	slab := &coalescedSlab{buf: buffer}
+	if segmentSize <= 0 {
+		// no UDP_COALESCED_INFO control message: the read is a single datagram
+		segmentSize = n
+	}
+	views := slab.split(segmentSize)
+	p.data = views[0].Data
+	p.buffer = views[0]
+	for _, view := range views[1:] {
+		sibling := p
+		sibling.data = view.Data
+		sibling.buffer = view
+		c.pendingSegments = append(c.pendingSegments, sibling)
+	}
+	return p, nil
+}
+
+// releaseReadBuffers runs only after reading stops (the transport's read
+// loop releases the conn's undelivered segment views once it exits).
+// Returned packets belong to their consumers, and the socket stays open.
+func (c *windowsConn) releaseReadBuffers() {
+	for i, p := range c.pendingSegments {
+		p.buffer.Release()
+		c.pendingSegments[i] = receivedPacket{}
+	}
+	c.pendingSegments = nil
 }
 
 func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte, gsoSize uint16, ecn protocol.ECN) (int, error) {
@@ -254,19 +310,41 @@ func appendCmsg(b []byte, level, typ int32, dataLen int) ([]byte, []byte) {
 	return b, b[startLen+wsaCmsgDataOffset:]
 }
 
-var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
+var invalidCmsgOnceV4, invalidCmsgOnceV6, invalidCmsgOnceCoalesced sync.Once
 
 // parsePacketInfo extracts IPv4/IPv6 packet info from a WSAMSG control
-// buffer. Packet info is best-effort with an absent-info fallback, so a
-// structurally invalid buffer stops parsing without failing the read.
+// buffer.
 func parsePacketInfo(oob []byte) packetInfo {
+	info, _ := parseControlMessages(oob)
+	return info
+}
+
+// parseControlMessages extracts IPv4/IPv6 packet info and the
+// UDP_COALESCED_INFO segment size (0 when absent: the read is a single
+// datagram) from a WSAMSG control buffer. Packet info is best-effort with an
+// absent-info fallback, so a structurally invalid buffer stops parsing
+// without failing the read.
+func parseControlMessages(oob []byte) (packetInfo, int) {
 	var info packetInfo
+	var segmentSize int
 	for len(oob) >= wsaCmsgDataOffset {
 		hdr := (*windows.WSACMSGHDR)(unsafe.Pointer(&oob[0]))
 		if hdr.Len < uintptr(wsaCmsgDataOffset) || hdr.Len > uintptr(len(oob)) {
-			return info
+			return info, segmentSize
 		}
 		body := oob[wsaCmsgDataOffset:hdr.Len]
+		if hdr.Level == windows.IPPROTO_UDP && hdr.Type == windows.UDP_COALESCED_INFO {
+			// payload is one DWORD: the size of every segment of the
+			// coalesced read except a possibly shorter final one
+			if len(body) == 4 {
+				segmentSize = int(binary.NativeEndian.Uint32(body))
+			} else {
+				invalidCmsgOnceCoalesced.Do(func() {
+					log.Printf("Received invalid UDP_COALESCED_INFO control message: %+x. "+
+						"This should never occur, please open a new issue and include details about the architecture.", body)
+				})
+			}
+		}
 		if hdr.Level == windows.IPPROTO_IP && hdr.Type == windows.IP_PKTINFO {
 			// struct in_pktinfo { IN_ADDR ipi_addr; ULONG ipi_ifindex; }
 			if len(body) == 8 {
@@ -295,11 +373,11 @@ func parsePacketInfo(oob []byte) packetInfo {
 		}
 		next := wsaCmsgAlign(int(hdr.Len))
 		if next > len(oob) {
-			return info
+			return info, segmentSize
 		}
 		oob = oob[next:]
 	}
-	return info
+	return info, segmentSize
 }
 
 func (info *packetInfo) OOB() []byte {
