@@ -40,6 +40,10 @@ type sconn struct {
 	// Used to catch the error sometimes returned by the first sendmsg call on Linux,
 	// see https://github.com/golang/go/issues/63322.
 	wroteFirstPacket bool
+
+	// batch holds the platform's batched-send state (*darwinBatch on darwin),
+	// or nil. Accessed only from the sendQueue.Run goroutine.
+	batch any
 }
 
 var _ sendConn = &sconn{}
