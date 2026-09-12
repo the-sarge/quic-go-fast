@@ -17,6 +17,7 @@ package quic
 
 import (
 	"net"
+	"strconv"
 	"syscall"
 	"unsafe"
 )
@@ -121,9 +122,14 @@ func newSendmsgXDest(addr *net.UDPAddr, sockFamily int) *sendmsgXDest {
 		copy(d.sa6.Addr[12:], v4)
 	} else {
 		copy(d.sa6.Addr[:], addr.IP.To16())
-		if addr.Zone != "" { // link-local scope id
+		if addr.Zone != "" {
+			// Link-local scope id: an interface name, else a decimal
+			// interface index — the same resolution order the standard
+			// library applies on the per-packet WriteMsgUDP path.
 			if iface, err := net.InterfaceByName(addr.Zone); err == nil {
 				d.sa6.Scope_id = uint32(iface.Index)
+			} else if n, err := strconv.Atoi(addr.Zone); err == nil && n >= 0 {
+				d.sa6.Scope_id = uint32(n)
 			}
 		}
 	}

@@ -46,6 +46,20 @@ func TestSendmsgXDestSockaddr(t *testing.T) {
 		require.True(t, d.isV6)
 		require.Equal(t, [16]byte{15: 1}, d.sa6.Addr)
 	})
+	t.Run("numeric zone", func(t *testing.T) {
+		// The per-packet WriteMsgUDP path accepts a decimal interface index
+		// as the zone; the batch encoder must resolve it identically.
+		d := newSendmsgXDest(&net.UDPAddr{IP: net.ParseIP("fe80::1"), Port: 443, Zone: "1"}, syscall.AF_INET6)
+		require.EqualValues(t, 1, d.sa6.Scope_id)
+	})
+	t.Run("named zone", func(t *testing.T) {
+		ifaces, err := net.Interfaces()
+		require.NoError(t, err)
+		require.NotEmpty(t, ifaces)
+		iface := ifaces[0]
+		d := newSendmsgXDest(&net.UDPAddr{IP: net.ParseIP("fe80::1"), Port: 443, Zone: iface.Name}, syscall.AF_INET6)
+		require.EqualValues(t, iface.Index, d.sa6.Scope_id)
+	})
 	t.Run("v4 socket", func(t *testing.T) {
 		d := newSendmsgXDest(&net.UDPAddr{IP: net.IPv4(10, 0, 0, 1), Port: 443}, syscall.AF_INET)
 		require.False(t, d.isV6)
