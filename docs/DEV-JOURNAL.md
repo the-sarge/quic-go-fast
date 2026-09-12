@@ -1331,3 +1331,20 @@ RAS review run `20260912T122023-85d9955376d9186dc9758f9e` (initial, briefed from
 ### Next
 
 No follow-ups from this PR. The datapath frontier is unchanged: Track D, with D1 ([#230](https://github.com/the-sarge/quic-go-fast/issues/230), macOS `sendmsg_x` batch send) dispatchable. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
+
+---
+
+## URO probe error classification pinned; Track W deferral ledger empty - 2026-09-12 08:53 EDT
+
+**Main:** `2dc1ac99b5a8`
+**Actor:** Claude
+
+Merged [PR #255](https://github.com/the-sarge/quic-go-fast/pull/255) as `2dc1ac99`, closing [issue #250](https://github.com/the-sarge/quic-go-fast/issues/250) — the deferred low-severity finding C-003 from the W3 review (RAS run `20260912T055332-9cad6ab69dfdfefd262e1218`), revalidated against merged `b76174c9`. Of the issue's two resolution arms, the probe-false observation on a real URO-incapable Windows build is permanently unavailable — hosted `windows-2019` runners are retired and both qualified Windows surfaces (hosted windows-latest, the Server 2025 KVM golden) are URO-capable — so the PR delivers the injectable-classification fixture: `isUROEnabled` (`sys_conn_windows.go`) now delegates to `isUROEnabledWith`, which takes the `UDP_RECV_MAX_COALESCED_SIZE` setsockopt call as a parameter (the wrapper passes the identical live Winsock call, so shipped probe behavior is byte-for-byte unchanged), and `TestWindowsUROProbeErrorClassification` (`sys_conn_windows_uro_test.go`) injects `WSAENOPROTOOPT`, a generic error, and success through that seam, pinning the uniform classification contract — every setsockopt failure reports capability off, only success enables URO — with called-flag assertions and a `QUIC_GO_DISABLE_GRO=0` pin against vacuous passes. The stale `probeFailingRawConn` doc comment (USO-only claim) was corrected in passing. Verification aid plus minimum enabling seam — no shipped-behavior change, and with this the Track W deferred-finding ledger is empty: #243 (W1), #246 (W2), and #250 (W3) are all closed.
+
+### Validation
+
+RAS review run `20260912T124706-1bf20a6213ad715f175b9901` (initial, briefed from issue #250's verbatim contract) returned zero findings in every cluster; no fix round or replacement review was needed. Local certification at head `c8fd7700`: `GOOS=windows GOARCH=amd64 go vet .`, a cross-compiled Windows test binary (`go test -c`), `GOOS=windows GOARCH=amd64 golangci-lint run .` with 0 issues, and the full darwin `go test -count=1 ./...` green. All 33 hosted checks — including Unit tests (windows, Go 1.26.x and 1.27.x), the jobs that execute the new test — passed on that exact head; squash-merged with `--match-head-commit`.
+
+### Next
+
+No follow-ups from this PR. The datapath frontier is unchanged: Track D, with D1 ([#230](https://github.com/the-sarge/quic-go-fast/issues/230), macOS `sendmsg_x` batch send) dispatchable. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
