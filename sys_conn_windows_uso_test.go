@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"net"
 	"net/netip"
+	"os"
 	"testing"
 	"time"
 	"unsafe"
@@ -23,12 +24,26 @@ import (
 // control message, and the send-error classification the MTU discovery
 // feedback path depends on.
 
+// requireUSOCapableHost enforces the closure evidence's host posture: on a
+// hosted CI runner (GITHUB_ACTIONS set) the qualified Windows surface is
+// USO-capable, so a probe reporting no capability is a real failure — never
+// a vacuous skip that would silently drop the USO closure classes. Off CI, a
+// probe-false host is legitimate (an older Windows build) and the
+// USO-dependent test skips loudly. The probe's own failure branches are
+// covered deterministically by TestWindowsUSOProbeFailure.
+func requireUSOCapableHost(t *testing.T, conn rawConn) {
+	t.Helper()
+	if conn.capabilities().GSO {
+		return
+	}
+	if os.Getenv("GITHUB_ACTIONS") != "" {
+		t.Fatal("USO probe reported unsupported on a hosted CI runner; the qualified Windows surface must exercise the USO closure classes")
+	}
+	t.Skip("USO probe reported unsupported on this host; the USO-capable CI matrix asserts this capability strictly")
+}
+
 // The probe runs only on transport-owned sockets and honors the existing
 // QUIC_GO_DISABLE_GSO kill switch, mirroring the Linux isGSOEnabled probe.
-// The transport-owned assertion is unconditional: the unit suite's execution
-// surface is the USO-capable CI matrix, so a probe reporting no capability
-// there is a real failure, never a vacuous skip. The probe's own failure
-// branches are covered by TestWindowsUSOProbeFailure.
 func TestWindowsConnUSOCapability(t *testing.T) {
 	newOwnedConn := func(t *testing.T, ownsSocket bool) *windowsConn {
 		t.Helper()
@@ -42,6 +57,7 @@ func TestWindowsConnUSOCapability(t *testing.T) {
 
 	t.Run("transport-owned socket", func(t *testing.T) {
 		conn := newOwnedConn(t, true)
+		requireUSOCapableHost(t, conn)
 		require.True(t, conn.capabilities().GSO)
 	})
 
@@ -141,9 +157,7 @@ func TestWindowsConnSegmentedSend(t *testing.T) {
 	defer udpConn.Close()
 	conn, err := newConn(udpConn, true, true)
 	require.NoError(t, err)
-	if !conn.capabilities().GSO {
-		t.Skip("USO probe reported unsupported on this host; segmented-send closure evidence requires a USO-capable Windows build")
-	}
+	requireUSOCapableHost(t, conn)
 
 	receiver, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
 	require.NoError(t, err)
