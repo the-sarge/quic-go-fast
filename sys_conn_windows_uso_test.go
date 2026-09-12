@@ -14,6 +14,7 @@ import (
 
 	"github.com/quic-go/quic-go/internal/protocol"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +25,10 @@ import (
 
 // The probe runs only on transport-owned sockets and honors the existing
 // QUIC_GO_DISABLE_GSO kill switch, mirroring the Linux isGSOEnabled probe.
+// The transport-owned assertion is unconditional: the unit suite's execution
+// surface is the USO-capable CI matrix, so a probe reporting no capability
+// there is a real failure, never a vacuous skip. The probe's own failure
+// branches are covered by TestWindowsUSOProbeFailure.
 func TestWindowsConnUSOCapability(t *testing.T) {
 	newOwnedConn := func(t *testing.T, ownsSocket bool) *windowsConn {
 		t.Helper()
@@ -203,7 +208,39 @@ func TestWindowsConnSendMsgSizeErrClassification(t *testing.T) {
 	require.False(t, isGSOError(err))
 }
 
-// Probe-false / kill-switch closure classes: without the GSO capability a
+// probeFailingRawConn drives isUSOEnabled's failure branches
+// deterministically: a Control that itself errors, or a Control that hands
+// the probe an invalid socket handle so the getsockopt fails.
+type probeFailingRawConn struct {
+	controlErr error
+}
+
+func (c *probeFailingRawConn) Control(f func(fd uintptr)) error {
+	if c.controlErr != nil {
+		return c.controlErr
+	}
+	f(uintptr(windows.InvalidHandle))
+	return nil
+}
+
+func (c *probeFailingRawConn) Read(func(fd uintptr) bool) error  { return nil }
+func (c *probeFailingRawConn) Write(func(fd uintptr) bool) error { return nil }
+
+// Probe-failure closure class: a probe that cannot interrogate the socket —
+// the Control call errors, or the UDP_SEND_MSG_SIZE getsockopt is rejected
+// (a Windows build without USO) — must report no capability, leaving the
+// send path on the W1 foundation behavior.
+func TestWindowsUSOProbeFailure(t *testing.T) {
+	t.Run("control error", func(t *testing.T) {
+		require.False(t, isUSOEnabled(&probeFailingRawConn{controlErr: assert.AnError}))
+	})
+	t.Run("getsockopt error", func(t *testing.T) {
+		require.False(t, isUSOEnabled(&probeFailingRawConn{}))
+	})
+}
+
+// Kill-switch closure class (a failed probe clears the capability the same
+// way, so the downstream behavior is shared): without the GSO capability a
 // segmented write is a caller bug (the platform-neutral contract in
 // sys_conn.go), and unsegmented writes keep the W1 foundation behavior.
 func TestWindowsConnSegmentedSendRequiresCapability(t *testing.T) {
