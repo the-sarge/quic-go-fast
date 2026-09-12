@@ -1,7 +1,7 @@
 # Windows Datapath (Foundation, USO, URO) Implementation Plan
 
 **Date:** 2026-09-11
-**Status:** Accepted; not yet implemented
+**Status:** Accepted; W1 complete (#242, noninferiority [protocol](../audits/2026-09-11-w1-foundation-protocol.md)/[results](../audits/2026-09-11-w1-foundation-results.md): Pass); W2 and W3 not yet implemented
 **Track:** W, 2 of 3 in the 2026-09-11 datapath offload program
 **Depends on:** W3 requires G1 (coalesced-storage contract); W1 and W2 have no cross-track dependency
 **Related:** [Datapath offload plan](2026-09-11-datapath-offload-plan.md); ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md)
@@ -28,15 +28,15 @@ Three slices with an explicit dependency and revert graph, per the [datapath off
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 |---|---|---|---|---|
-| W1 | new | Behavior-preserving Windows message-I/O foundation | None | Removes the Windows `basicConn` capability gap seam |
-| W2 | new | Windows segmented send (USO) with adoption evidence | W1 | n/a |
-| W3 | new | Windows coalesced receive (URO) with adoption evidence | W1, G1 | Closes G1's inert seam for its second producer |
+| W1 | Complete (#242) | Behavior-preserving Windows message-I/O foundation | None | Removes the Windows `basicConn` capability gap seam |
+| W2 | new | Windows segmented send (USO) with adoption evidence | W1 (complete) | n/a |
+| W3 | new | Windows coalesced receive (URO) with adoption evidence | W1 (complete), G1 (complete) | Closes G1's inert seam for its second producer |
 
 ## Implementation Slices
 
 ### Slice W1 — Windows message-I/O foundation
 
-**What it delivers:** A Windows connection implementing the existing raw-connection interface over `net.UDPConn.ReadMsgUDP`/`WriteMsgUDP`, with Windows control-message encoding and parsing (IPv4/IPv6 packet-info parity with the OOB path), replacing `basicConn` on Windows with behavior otherwise preserved. Its gate is correctness and noninferiority: deadline, idle-close, and concurrent-close tests plus no throughput regression — not syscall reduction, which a behavior-preserving rebuild cannot show.
+**What it delivers:** A Windows connection implementing the existing raw-connection interface over `net.UDPConn.ReadMsgUDP`/`WriteMsgUDP`, with Windows control-message encoding and parsing (IPv4/IPv6 packet-info parity with the OOB path), replacing `basicConn` on Windows with behavior otherwise preserved. Its gate is correctness and noninferiority: deadline, idle-close, and concurrent-close tests plus no throughput regression where both datapaths do identical work — not syscall reduction, which a behavior-preserving rebuild cannot show. The packet-info parity path's measured per-packet cost (~5 % bulk-loopback throughput on wildcard-bound sockets, the OOB platforms' cost model) is reported against the evidence budget's stop floor rather than gated at the noninferiority bound; that acceptance is an operator decision recorded 2026-09-11 in #242.
 
 **Existing-work disposition:** New slice. No open PR or branch exists for this track.
 
@@ -56,7 +56,7 @@ Three slices with an explicit dependency and revert graph, per the [datapath off
 
 **Contract closure:** Triggered — close/deadline misbehavior is material (hangs, leaked OS threads) with independently reachable paths. Invariant: every blocked read observes deadline expiry, connection close, and concurrent socket close without hanging or panicking, through the runtime poller. Owner: the Windows conn's use of `net.UDPConn`. Classes: blocked read + deadline; blocked read + `Transport.Close`; concurrent close during read; sustained transfer (poller integration); write after close. Each has a Windows-CI test; dispositions covered.
 
-**Evidence budget:** The closure tests; the noninferiority protocol cells on the qualified Windows host with predeclared bounds. No other platform scope.
+**Evidence budget:** The closure tests; the protocol cells on the qualified Windows host with predeclared bounds. The noninferiority gate binds the preserved-behavior configuration, where both datapaths do identical work; the packet-info-active configuration — new behavior this slice is required to deliver, with the same per-packet control-message cost model the OOB platforms already pay — is measured and reported against a predeclared stop floor rather than the noninferiority bound (re-audited 2026-09-11 after the first collection; chronology in #242). No other platform scope.
 
 **TDD and preservation evidence:** Closure tests written first (they pass against `basicConn` too, characterizing preserved behavior, then must keep passing). Preservation: full suite on Windows CI; behavior-identical gate is the protocol's noninferiority cell; the caller-supplied non-OOB `basicConn` fallback path keeps its existing coverage.
 
@@ -134,7 +134,7 @@ Three slices with an explicit dependency and revert graph, per the [datapath off
 
 - [ ] On a USO/URO-capable Windows build, segmented sends and coalesced receives engage per their protocols' predeclared thresholds; once both W2 and W3 have merged, all four offload combinations are validated for payload and ancillary metadata by the second-lander's protocol.
 - [ ] With probes failing, switches set, or a caller-supplied socket, Windows behavior is behavior-identical to the W1 foundation under the disabled and probe-false protocol cells and the full suite (negative criterion: no offload socket option is set on caller-supplied sockets).
-- [ ] W1's deadline/close closure classes pass on Windows CI before W2 or W3 merges.
+- [x] W1's deadline/close closure classes pass on Windows CI before W2 or W3 merges — delivered by #242 (`sys_conn_closure_test.go` runs on the whole CI matrix, Windows included) and enforced continuously from then on.
 
 Universal criteria carry the per-slice domains, owners, guarantee levels, and terminating evidence above.
 
