@@ -135,12 +135,9 @@ func sendmsgXLatchOff(reason string) {
 // per-packet. ERESTART is kernel-internal on darwin and never reaches
 // userspace, so it is not listed.
 func sendmsgXZeroProgressErrno(errno syscall.Errno) bool {
-	switch errno {
-	case syscall.EAGAIN, syscall.EINTR, syscall.ENOBUFS, syscall.EMSGSIZE: // EAGAIN == EWOULDBLOCK on darwin
-		return true
-	default:
-		return false
-	}
+	// EAGAIN == EWOULDBLOCK on darwin.
+	return errno == syscall.EAGAIN || errno == syscall.EINTR ||
+		errno == syscall.ENOBUFS || errno == syscall.EMSGSIZE
 }
 
 // sendmsgXSubmit performs one bounds-checked batched submission and returns
