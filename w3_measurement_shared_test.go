@@ -5,10 +5,11 @@ package quic
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/binary"
+	"encoding/hex"
 	"math/big"
 	"testing"
 	"time"
@@ -16,59 +17,71 @@ import (
 
 // Shared fixtures for the two-process W3 URO adoption harness
 // (docs/audits/2026-09-11-w3-uro-protocol.md): the workload record size and
-// the deterministic measurement-only TLS identity that lets the receiver pin
-// the sender's certificate across processes exactly as the v1 single-process
-// harness pinned it via RootCAs. The fixed key is a test fixture for a
-// closed measurement link between endpoints the orchestration itself starts;
-// it is not a secret and must never be used outside the w3bench harness.
+// the measurement-only TLS pinning that lets the receiver trust exactly the
+// sender's certificate across processes, preserving the v1 single-process
+// harness's RootCAs pinning without a shared CA.
+//
+// The sender generates one ephemeral self-signed certificate at startup and
+// prints its SHA-256 fingerprint (W3BENCH_CERTPIN). The orchestration passes
+// that pin to the receiver as W3BENCH_PEER_CERTPIN; the receiver accepts the
+// TLS peer only when the presented leaf certificate hashes to that exact pin.
+// Certificate identity is not part of the investigation; the pin exists only
+// so a stray process cannot join the measured link.
 
 const w3benchRecordSize = 1071
 
-// w3benchDeterministicReader yields a fixed byte stream so both harness
-// halves derive the identical ECDSA key without exchanging material.
-type w3benchDeterministicReader struct {
-	counter uint64
-	buf     []byte
-}
-
-func (r *w3benchDeterministicReader) Read(p []byte) (int, error) {
-	for i := range p {
-		if len(r.buf) == 0 {
-			var ctr [8]byte
-			binary.BigEndian.PutUint64(ctr[:], r.counter)
-			sum := sha256.Sum256(append([]byte("w3bench-fixed-identity-20260912"), ctr[:]...))
-			r.buf = sum[:]
-			r.counter++
-		}
-		p[i] = r.buf[0]
-		r.buf = r.buf[1:]
-	}
-	return len(p), nil
-}
-
-// w3benchIdentity returns the harness's fixed self-signed certificate and
-// key. The sender presents it; the receiver trusts exactly this certificate.
-func w3benchIdentity(t *testing.T) (tls.Certificate, *x509.CertPool) {
+// w3benchServerTLS generates the sender's ephemeral certificate and returns
+// a tls.Config presenting it plus the certificate's SHA-256 fingerprint.
+func w3benchServerTLS(t *testing.T) (*tls.Config, string) {
 	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), &w3benchDeterministicReader{})
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
-		NotBefore:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		NotAfter:     time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC),
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
 		DNSNames:     []string{"w3bench"},
 	}
-	der, err := x509.CreateCertificate(&w3benchDeterministicReader{counter: 1 << 32}, tmpl, tmpl, &key.PublicKey, key)
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	parsed, err := x509.ParseCertificate(der)
-	if err != nil {
-		t.Fatal(err)
+	sum := sha256.Sum256(der)
+	cfg := &tls.Config{
+		Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}},
+		NextProtos:   []string{"w3bench"},
 	}
-	roots := x509.NewCertPool()
-	roots.AddCert(parsed)
-	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, roots
+	return cfg, hex.EncodeToString(sum[:])
 }
+
+// w3benchClientTLS returns a tls.Config that accepts exactly the peer
+// certificate whose SHA-256 fingerprint equals pin. It disables the default
+// chain build (the harness pins a specific leaf, not a CA) and verifies the
+// presented leaf against the pin itself.
+func w3benchClientTLS(pin string) *tls.Config {
+	return &tls.Config{
+		InsecureSkipVerify: true, // pin verification below replaces chain building
+		NextProtos:         []string{"w3bench"},
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			if len(rawCerts) == 0 {
+				return errW3benchNoPeerCert
+			}
+			sum := sha256.Sum256(rawCerts[0])
+			if hex.EncodeToString(sum[:]) != pin {
+				return errW3benchPinMismatch
+			}
+			return nil
+		},
+	}
+}
+
+type w3benchError string
+
+func (e w3benchError) Error() string { return string(e) }
+
+const (
+	errW3benchNoPeerCert  = w3benchError("w3bench: peer presented no certificate")
+	errW3benchPinMismatch = w3benchError("w3bench: peer certificate does not match the pinned fingerprint")
+)

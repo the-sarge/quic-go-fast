@@ -1,7 +1,7 @@
 # Windows Datapath (Foundation, USO, URO) Implementation Plan
 
 **Date:** 2026-09-11
-**Status:** Accepted; W1 complete (#242, noninferiority [protocol](../audits/2026-09-11-w1-foundation-protocol.md)/[results](../audits/2026-09-11-w1-foundation-results.md): Pass); W2 complete (#245, USO adoption [protocol](../audits/2026-09-11-w2-uso-protocol.md)/[results](../audits/2026-09-11-w2-uso-results.md): Pass); W3 not yet implemented
+**Status:** Complete. W1 (#242, noninferiority [protocol](../audits/2026-09-11-w1-foundation-protocol.md)/[results](../audits/2026-09-11-w1-foundation-results.md): Pass); W2 (#245, USO adoption [protocol](../audits/2026-09-11-w2-uso-protocol.md)/[results](../audits/2026-09-11-w2-uso-results.md): Pass); W3 (#248, URO adoption [protocol](../audits/2026-09-11-w3-uro-protocol.md)/[results](../audits/2026-09-11-w3-uro-results.md): Pass on the v2 minimax KVM virtual-NIC surface after the hosted-runner v1 collection proved a single host cannot exercise URO). Track W done.
 **Track:** W, 2 of 3 in the 2026-09-11 datapath offload program
 **Depends on:** W3 requires G1 (coalesced-storage contract); W1 and W2 have no cross-track dependency
 **Related:** [Datapath offload plan](2026-09-11-datapath-offload-plan.md); ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md)
@@ -30,7 +30,7 @@ Three slices with an explicit dependency and revert graph, per the [datapath off
 |---|---|---|---|---|
 | W1 | Complete (#242) | Behavior-preserving Windows message-I/O foundation | None | Removes the Windows `basicConn` capability gap seam |
 | W2 | Complete (#245) | Windows segmented send (USO) with adoption evidence | W1 (complete) | n/a |
-| W3 | new | Windows coalesced receive (URO) with adoption evidence | W1 (complete), G1 (complete) | Closes G1's inert seam for its second producer |
+| W3 | Complete (#248) | Windows coalesced receive (URO) with adoption evidence | W1 (complete), G1 (complete) | Closes G1's inert seam for its second producer |
 
 ## Implementation Slices
 
@@ -132,8 +132,8 @@ Three slices with an explicit dependency and revert graph, per the [datapath off
 
 ## Acceptance Criteria
 
-- [ ] On a USO/URO-capable Windows build, segmented sends and coalesced receives engage per their protocols' predeclared thresholds; once both W2 and W3 have merged, all four offload combinations are validated for payload and ancillary metadata by the second-lander's protocol.
-- [ ] With probes failing, switches set, or a caller-supplied socket, Windows behavior is behavior-identical to the W1 foundation under the disabled and probe-false protocol cells and the full suite (negative criterion: no offload socket option is set on caller-supplied sockets). W2's segmented-send half is delivered by #245 (kill-switch, probe-false, and caller-supplied classes in `sys_conn_windows_uso_test.go` plus the W2 protocol's disabled and unavailable cells); W3's coalesced-receive half is pending.
+- [x] On a USO/URO-capable Windows build, segmented sends and coalesced receives engage per their protocols' predeclared thresholds; once both W2 and W3 have merged, all four offload combinations are validated for payload and ancillary metadata by the second-lander's protocol. USO engagement is #245 (12.27 packets/submission); URO engagement is #248 (95.7 % of datagrams coalesced, 0.098 receive syscalls/datagram) on the v2 minimax KVM virtual-NIC surface — a real NDIS receive path, after the hosted runner proved single-host traffic cannot coalesce. The four-combination USO/URO matrix is validated by `TestWindowsUSOUROInteractionMatrix` (payload, packet-info, slab-backed coalescing, ECN-unsupported) on the Windows CI matrix.
+- [x] With probes failing, switches set, or a caller-supplied socket, Windows behavior is behavior-identical to the W1 foundation under the disabled and probe-false protocol cells and the full suite (negative criterion: no offload socket option is set on caller-supplied sockets). W2's segmented-send half is delivered by #245 (kill-switch, probe-false, and caller-supplied classes in `sys_conn_windows_uso_test.go` plus the W2 protocol's disabled and unavailable cells); W3's coalesced-receive half is delivered by #248 (`TestWindowsURODisabledByEnv`, `TestWindowsUROProbeFailure`, `TestWindowsURONotEnabledOnCallerSuppliedSocket` plus the W3 protocol's disabled and unavailable cells).
 - [x] W1's deadline/close closure classes pass on Windows CI before W2 or W3 merges — delivered by #242 (`sys_conn_closure_test.go` runs on the whole CI matrix, Windows included) and enforced continuously from then on.
 
 Universal criteria carry the per-slice domains, owners, guarantee levels, and terminating evidence above.

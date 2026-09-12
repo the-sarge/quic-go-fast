@@ -4,7 +4,6 @@ package quic
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -61,11 +60,10 @@ func TestW3MeasurementServer(t *testing.T) {
 		t.Fatalf("sender GSO capability = %v, want %v", got, wantGSO)
 	}
 
-	cert, _ := w3benchIdentity(t)
-	serverTLS := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		NextProtos:   []string{"w3bench"},
-	}
+	serverTLS, pin := w3benchServerTLS(t)
+	// The orchestration reads this line and passes the pin to the receiver
+	// as W3BENCH_PEER_CERTPIN before starting it.
+	fmt.Printf("W3BENCH_CERTPIN %s\n", pin)
 	quicConf := &Config{
 		InitialStreamReceiveWindow:     4 << 20,
 		MaxStreamReceiveWindow:         16 << 20,

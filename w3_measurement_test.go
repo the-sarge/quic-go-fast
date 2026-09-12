@@ -4,7 +4,6 @@ package quic
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -184,10 +183,14 @@ func TestW3MeasurementClient(t *testing.T) {
 		InitialConnectionReceiveWindow: 8 << 20,
 		MaxConnectionReceiveWindow:     24 << 20,
 	}
-	// Pin the harness's fixed measurement identity, preserving the v1
-	// single-process harness's RootCAs pinning across two processes.
-	_, roots := w3benchIdentity(t)
-	clientTLS := &tls.Config{RootCAs: roots, ServerName: "w3bench", NextProtos: []string{"w3bench"}}
+	// Pin the sender's ephemeral certificate by the fingerprint it printed
+	// at startup, preserving the v1 single-process harness's RootCAs pinning
+	// across two processes.
+	pin := os.Getenv("W3BENCH_PEER_CERTPIN")
+	if pin == "" {
+		t.Skip("W3BENCH_PEER_CERTPIN not set")
+	}
+	clientTLS := w3benchClientTLS(pin)
 
 	clientTr := &Transport{Conn: clientConn, createdConn: true, isSingleUse: true}
 	defer clientTr.Close()
