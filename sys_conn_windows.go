@@ -24,14 +24,18 @@ import (
 const oobBufferSize = 128
 
 // windowsConn is the Windows message-I/O datapath (Windows datapath plan,
-// Slices W1 and W2). Reads and writes go through
+// Slices W1, W2, and W3). Reads and writes go through
 // net.UDPConn.ReadMsgUDP/WriteMsgUDP, which execute WSARecvMsg/WSASendMsg on
 // the runtime's IOCP poller with standard deadline, cancellation, and close
 // semantics. This conn owns Windows control-message encoding and parsing:
 // IPv4/IPv6 packet info, giving sockets bound to an unspecified address the
-// same authoritative local-address handling as the OOB platforms, and the
+// same authoritative local-address handling as the OOB platforms; the
 // per-send UDP_SEND_MSG_SIZE segment-size message that hands a batched send
-// to USO the way UDP_SEGMENT hands one to Linux GSO.
+// to USO the way UDP_SEGMENT hands one to Linux GSO (W2); and, on
+// transport-owned sockets, the UDP_RECV_MAX_COALESCED_SIZE receive-coalescing
+// (URO) capability with UDP_COALESCED_INFO parsing, splitting each coalesced
+// read into per-datagram views over G1's shared coalescedSlab and returning
+// them one per ReadPacket call through pendingSegments (W3).
 type windowsConn struct {
 	OOBCapablePacketConn
 

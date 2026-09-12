@@ -320,13 +320,22 @@ func TestWindowsUSOUROInteractionMatrix(t *testing.T) {
 			sendConn, err := newConn(sendUDP, true, true)
 			require.NoError(t, err)
 
-			require.Equal(t, tc.uro, recvConn.capabilities().GRO, "URO capability must match the combination")
-			require.Equal(t, tc.uso, sendConn.capabilities().GSO, "USO capability must match the combination")
+			// For a combination that expects a capability on, the guarded
+			// host helper decides skip (off-CI host without the offload) vs.
+			// fail (a CI runner must be capable) before any enabled-state
+			// assertion, so an incapable dev host skips loudly rather than
+			// failing an equality check. For a combination that expects it
+			// off (kill switch or caller-supplied), the disabled state must
+			// always hold regardless of host.
 			if tc.uro {
 				requireUROCapableHost(t, recvConn)
+			} else {
+				require.False(t, recvConn.capabilities().GRO, "URO must be off for this combination")
 			}
 			if tc.uso {
 				requireUSOCapableHost(t, sendConn)
+			} else {
+				require.False(t, sendConn.capabilities().GSO, "USO must be off for this combination")
 			}
 
 			dest := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: recvUDP.LocalAddr().(*net.UDPAddr).Port}

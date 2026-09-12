@@ -8,7 +8,7 @@ Results for the precommitted [W3 URO adoption protocol](2026-09-11-w3-uro-protoc
 
 ### Provenance
 
-- **Candidate:** `7eddc0f8` (PR #248) — probe, coalesced-info parse, slab split, kill switch, and the two-process v2 harness. Shipped code (`sys_conn_windows.go`) is unchanged from the v1 candidate; only the `w3bench`-tagged harness gained the cross-host split.
+- **Candidate:** shipped URO code (`sys_conn_windows.go`) is unchanged since `559cc827` — `git diff 559cc827..HEAD -- sys_conn_windows.go` is empty — so the measured shipped behavior is identical across the whole branch. The measured **harness** is the ephemeral-certificate two-process build committed at `6b480b91` (PR #248); the intermediate `7eddc0f8` harness used a deterministic-certificate scheme that could not complete a run (Go 1.27 hedged ECDSA signing makes a regenerated certificate non-reproducible across the two processes), so it was replaced with an ephemeral certificate plus SHA-256 fingerprint handoff before any counted collection. That change touched only harness identity, not the shipped URO code or the measured receive behavior (`git diff 7eddc0f8..6b480b91 -- w3_measurement_*.go` is confined to the three harness files).
 - **Surface:** measured receiver is the Windows Server 2025 KVM guest `w3-uro-scratch` (4 vCPU, 8 GiB, `e1000e` virtual NIC, `q35`/OVMF, QEMU 10.2 / libvirt on `minimax`), an overlay clone of the infra GARM Server 2025 golden `v2` (build 10.0.26100). Sender is the `minimax` Linux host (AMD Ryzen AI MAX+ 395, Linux 7.0, Go 1.27.1), pinned `taskset -c 12,13,28,29`, sending across the libvirt NAT bridge `virbr0` into the guest NIC.
 - **Surface qualification:** a pre-collection engagement check confirmed the guest coalesces — a GSO burst of 32×1200-byte datagrams arrived as one 38,400-byte read carrying `UDP_COALESCED_INFO`. (The hosted `windows-latest` runner produced zero such reads under every diagnostic; see v1 below.)
 - **Guest facts (constant across all invocations):** OS build 10.0.26100, 4 vCPU, `GOMAXPROCS=4`, go1.27.1, windows/amd64. Guest vCPUs unpinned (recorded). Host load average 1.2–1.6 on 32 threads across the run; one infra GARM CI guest (`gridcast-win64`) was also resident — a recorded shared-host fact, not a controlled variable. The 1.30× contamination rule guards against gross noise and did not trip.
@@ -16,7 +16,7 @@ Results for the precommitted [W3 URO adoption protocol](2026-09-11-w3-uro-protoc
 
 ### Primary — receive syscalls per delivered datagram (engaged vs disabled)
 
-Per-round paired ratios 0.0969–0.0997; geometric mean **0.0983**, fixed-seed paired bootstrap (10,000 resamples, seed 20260912) 95 % interval **[0.0977, 0.0990]** against the ≤ 0.75 pass bound — **passed** with ≈ 10.2× fewer receive syscalls per datagram. Engaged median 0.098 reads/datagram versus disabled 1.000 (one `WSARecvMsg` per datagram, the preserved W1/W2 path). A representative engaged round delivered ~393 K datagrams in ~21.6 K reads.
+Per-round paired ratios 0.0969–0.0997; geometric mean **0.0983**, fixed-seed paired bootstrap (10,000 resamples, seed 20260912) 95 % interval **[0.0977, 0.0990]** against the ≤ 0.75 pass bound — **passed** with ≈ 10.2× fewer receive syscalls per datagram. Engaged median 0.098 reads/datagram versus disabled 1.000 (one `WSARecvMsg` per datagram, the preserved W1/W2 path). A representative engaged round delivered ~392 K datagrams in ~38.6 K socket reads (median 392,487 datagrams / 38,557 reads = 0.098), of which ~21.6 K were coalesced multi-datagram reads and ~17 K were single-datagram reads.
 
 ### Engagement
 
@@ -38,9 +38,21 @@ The unexercised cell (receiver URO on, **sender GSO off** via `QUIC_GO_DISABLE_G
 
 No cell violated the 1.30× max/median or median/min throughput rule; the collection is uncontaminated.
 
+### Interaction-matrix and closure receipt (candidate head)
+
+The protocol's v2 disposition also requires the interaction matrix green on the candidate head. `TestWindowsUSOUROInteractionMatrix` and every URO closure class (`TestWindowsUROProbeOnTransportOwnedSocket`, `TestWindowsURONotEnabledOnCallerSuppliedSocket`, `TestWindowsURODisabledByEnv`, `TestWindowsUROProbeFailure`, `TestWindowsUROReadSplitsCoalescedRead`, `TestWindowsUROReadEmptyDatagram`, `TestWindowsUROReadPacketInfoInheritance`, `TestWindowsUROReleaseReadBuffersReleasesPendingViews`) pass on the KVM guest at candidate head `6b480b91` under strict CI host posture (`GITHUB_ACTIONS=true`). This receipt is for the exact measured candidate; it is not inferred from the v1 record or the hosted-CI run. The final merged head repeats these on the hosted Windows CI matrix.
+
+### What the four-combination matrix does and does not prove
+
+Per the second-lander obligation, evidence for the four combinations maps to distinct receipts rather than one test:
+
+- **Payload integrity and packet-info (destination address) across all four USO×URO combinations, and ECN staying unsupported:** `TestWindowsUSOUROInteractionMatrix`.
+- **`UDP_COALESCED_INFO` parsing and correct multi-segment splitting (including a short tail):** `TestWindowsUROReadSplitsCoalescedRead`, driving a hand-built coalesced-info control message through the parser.
+- **Actual kernel coalescing engagement:** the adoption cells above (95.7 %). The interaction matrix asserts a slab-backed view when URO is on, but **slab presence does not itself prove the kernel coalesced** — every non-empty URO read is wrapped in a slab, a single datagram included — so the matrix validates payload/ancillary handling across combinations, and engagement is proven separately by the protocol cells, not by the matrix's slab assertion.
+
 ### Disposition against the mechanical rule
 
-Primary interval upper bound 0.0990 ≤ 0.75; engaged engagement 0.957 > 0.50; throughput interval lower bound 1.174 ≥ 0.95; memory within budget; no contamination → **Pass**. Per the protocol's termination rule the collection ran once and stops here.
+Primary interval upper bound 0.0990 ≤ 0.75; engaged engagement 0.957 > 0.50; throughput interval lower bound 1.174 ≥ 0.95; memory within budget; interaction matrix green on candidate `6b480b91`; no contamination → **Pass**. Per the protocol's termination rule the collection ran once and stops here.
 
 ## v1 collection (historical, Fail) — hosted `windows-latest` single-host surface
 
