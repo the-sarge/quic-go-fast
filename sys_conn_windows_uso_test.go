@@ -226,10 +226,12 @@ func TestWindowsConnSendMsgSizeErrClassification(t *testing.T) {
 // deterministically: a Control that itself errors, or a Control that hands
 // the probe an invalid socket handle so the getsockopt fails.
 type probeFailingRawConn struct {
-	controlErr error
+	controlErr    error
+	controlCalled bool
 }
 
 func (c *probeFailingRawConn) Control(f func(fd uintptr)) error {
+	c.controlCalled = true
 	if c.controlErr != nil {
 		return c.controlErr
 	}
@@ -245,11 +247,18 @@ func (c *probeFailingRawConn) Write(func(fd uintptr) bool) error { return nil }
 // (a Windows build without USO) — must report no capability, leaving the
 // send path on the W1 foundation behavior.
 func TestWindowsUSOProbeFailure(t *testing.T) {
+	// Pin the kill switch off: an ambient QUIC_GO_DISABLE_GSO=1 would make
+	// the probe return before Control, leaving both branches unexercised.
+	t.Setenv("QUIC_GO_DISABLE_GSO", "")
 	t.Run("control error", func(t *testing.T) {
-		require.False(t, isUSOEnabled(&probeFailingRawConn{controlErr: assert.AnError}))
+		conn := &probeFailingRawConn{controlErr: assert.AnError}
+		require.False(t, isUSOEnabled(conn))
+		require.True(t, conn.controlCalled, "the probe must reach Control")
 	})
 	t.Run("getsockopt error", func(t *testing.T) {
-		require.False(t, isUSOEnabled(&probeFailingRawConn{}))
+		conn := &probeFailingRawConn{}
+		require.False(t, isUSOEnabled(conn))
+		require.True(t, conn.controlCalled, "the probe must reach Control")
 	})
 }
 
