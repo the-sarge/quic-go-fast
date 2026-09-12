@@ -6,7 +6,7 @@ Results for the precommitted [W2 USO adoption protocol](2026-09-11-w2-uso-protoc
 
 ## Collection provenance
 
-- **Candidate (W2 PR head):** `1af918b1d4c9b1d96f54072a72609fbb444981c5` (PR #245).
+- **Candidate (W2 PR head at collection time):** `1af918b1d4c9b1d96f54072a72609fbb444981c5` (PR #245) — the last candidate to touch shipped code or the measurement harness. Later PR commits are review-driven test additions and documents only; `git diff 1af918b1..<final head> -- sys_conn_windows.go w2_measurement_test.go` is empty, so the measured shipped behavior and harness are byte-identical to the merged code.
 - **Collection head:** `4db67a4511dfc1cf98b7ff61905efb561b1670fa` on `scratch/w2-measure` — the candidate plus one workflow-only file (`.github/workflows/w2-measure.yml`, 62 added lines, verified as the entire diff); the measured product tree is the candidate byte for byte.
 - **Official collection:** hosted run `34669428064` (workflow `w2-measure.yml`, `windows-latest`), one invocation, 11 rounds × 4 cells, round 0 discarded as warmup. Two earlier workflow invocations (`34668970613`, `34669221313`) failed in the guard-mutation step's mechanics (a patch-encoding error under the runner's CRLF checkout, then a substring-counting bug in the step's own sanity check) after their collection steps; their measurement data was never downloaded or analyzed, and the official run was declared before its data was inspected. No sample in the official collection was discarded or repeated.
 - **Host facts (constant across all 44 invocations):** OS build 10.0.26100, 4 CPUs, `GOMAXPROCS=4`, go1.27.1, windows/amd64. CPU affinity unavailable (hosted runner), recorded as absent.
