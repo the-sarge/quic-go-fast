@@ -21,6 +21,14 @@ const ecnIPv4DataLen = 4
 // see https://godoc.org/golang.org/x/net/ipv4#PacketConn.ReadBatch.
 const batchSize = 1
 
+// Exactly one of the sendmsg_x active/stub file pair
+// (send_conn_sendmsg_x_darwin.go / send_conn_sendmsg_x_stub_darwin.go) must
+// compile for every darwin tag set. This assertion breaks the build if the
+// pair ever leaves a gap, and the compiler rejects the duplicate definitions
+// if they overlap — the terminating mechanism for the compile-time-absence
+// claim of the iOS and opt-out builds.
+var _ batchSender = (*sconn)(nil)
+
 func parseIPv4PktInfo(body []byte) (ip netip.Addr, ifIndex uint32, ok bool) {
 	// struct in_pktinfo {
 	// 	unsigned int   ipi_ifindex;  /* Interface index */

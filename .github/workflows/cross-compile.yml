@@ -39,6 +39,12 @@ jobs:
       - name: Run cross compilation
         # run in parallel on as many cores as are available on the machine
         run: go tool dist list | xargs -I % -P "$(nproc)" .github/workflows/cross-compile.sh %
+      - name: Verify the private-syscall opt-out tag
+        # The quic_go_no_private_syscalls tag selects the sendmsg_x fallback
+        # stub on darwin (docs/adr/2026-09-11-darwin-batch-plan.md, slice D1).
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -tags quic_go_no_private_syscalls ./...
+          GOOS=darwin GOARCH=amd64 go build -tags quic_go_no_private_syscalls ./...
       - name: Save Go build cache
         # only store cache when on main
         if: github.event_name == 'push' && github.ref_name == 'main'

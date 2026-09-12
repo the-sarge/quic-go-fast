@@ -1,7 +1,7 @@
 # Darwin Batch Send and Receive-Batching Experiment Implementation Plan
 
 **Date:** 2026-09-11
-**Status:** Accepted; not yet implemented
+**Status:** Accepted; D1 complete (#257), D2 frontier
 **Track:** D, 3 of 3 in the 2026-09-11 datapath offload program
 **Depends on:** Nothing technically — recommended after receive-side slices by the program's evidence-per-effort ordering; D2 requires D1
 **Related:** [Datapath offload plan](2026-09-11-datapath-offload-plan.md); ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md)
@@ -28,8 +28,8 @@ Port the send half under the exact build, qualification, and error-attribution c
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 |---|---|---|---|---|
-| D1 | new | macOS `sendmsg_x` batch send with fail-closed qualification and adoption evidence | None | n/a |
-| D2 | new | Bounded `recvmsg_x` receive-batching experiment; adopt or retire | D1 | n/a (experiment; retires cleanly) |
+| D1 | Complete (#257) | macOS `sendmsg_x` batch send with fail-closed qualification and adoption evidence | None | n/a |
+| D2 | new | Bounded `recvmsg_x` receive-batching experiment; adopt or retire | None (D1 complete) | n/a (experiment; retires cleanly) |
 
 ## Implementation Slices
 
@@ -99,8 +99,8 @@ Port the send half under the exact build, qualification, and error-attribution c
 
 ## Acceptance Criteria
 
-- [ ] On qualified Darwin kernel majors, batch send engages (packets per submission > 1 reported) and meets its protocol's predeclared thresholds; on unqualified majors or the kill switch the path is inert (fallback counters observed), and for iOS builds and the opt-out tag it is absent at compile time — the terminating mechanism is that the active and stub files define the same symbols so exactly one compiles per tag set, verified by the cross-build matrix (note: `.github/workflows/cross-compile.sh:13` currently skips `GOOS=ios`, so D1's blast radius includes adding the ios and opt-out-tag build checks to CI or the slice's local validation gates).
-- [ ] MTU-discovery and handshake feedback attribution is preserved under every partial-acceptance class.
+- [x] On qualified Darwin kernel majors, batch send engages (packets per submission > 1 reported) and meets its protocol's predeclared thresholds; on unqualified majors or the kill switch the path is inert (fallback counters observed), and for iOS builds and the opt-out tag it is absent at compile time — the terminating mechanism is that the active and stub files define the same symbols so exactly one compiles per tag set, verified by the cross-build matrix. Delivered by #257: 7.99 packets per submission ([results](../audits/2026-09-12-d1-sendmsgx-results.md)), and `cross-compile.sh` now builds the ios library packages and the opt-out tag instead of skipping them.
+- [x] MTU-discovery and handshake feedback attribution is preserved under every partial-acceptance class (#257 closure suite, `send_queue_batch_test.go`).
 - [ ] D2 ends in exactly one of the pre-accepted dispositions: adopted with positive predeclared results, or retired with the experimental path removed.
 
 Universal criteria carry the per-slice domains, owners, guarantee levels, and terminating evidence above.
