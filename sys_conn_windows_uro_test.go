@@ -117,6 +117,40 @@ func TestWindowsUROProbeFailure(t *testing.T) {
 	})
 }
 
+// Error-classification fixture: no URO-incapable Windows build exists in the
+// qualified measurement surfaces, so the error such a build returns from the
+// UDP_RECV_MAX_COALESCED_SIZE setsockopt — WSAENOPROTOOPT — is injected here
+// instead. The probe's contract is uniform classification: WSAENOPROTOOPT
+// gets no special handling over any other setsockopt failure, every failure
+// reports "capability off", and only success enables the capability.
+func TestWindowsUROProbeErrorClassification(t *testing.T) {
+	// Pin the ambient kill switch off so the probe reaches the socket path.
+	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+	for _, tc := range []struct {
+		name    string
+		serr    error
+		enabled bool
+	}{
+		{"WSAENOPROTOOPT reports capability off", windows.WSAENOPROTOOPT, false},
+		{"any other failure classifies the same", assert.AnError, false},
+		{"success enables the capability", nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// With no controlErr set, probeFailingRawConn's Control succeeds;
+			// the injected setter ignores the fd it passes.
+			conn := &probeFailingRawConn{}
+			var setterCalled bool
+			enabled := isUROEnabledWith(conn, func(uintptr) error {
+				setterCalled = true
+				return tc.serr
+			})
+			require.Equal(t, tc.enabled, enabled)
+			require.True(t, conn.controlCalled, "the probe must reach Control")
+			require.True(t, setterCalled, "the probe must issue the setsockopt")
+		})
+	}
+}
+
 // coalescedInfoMsg builds the control message Winsock attaches to a
 // coalesced read (ws2def.h WSACMSGHDR: SIZE_T cmsg_len, INT cmsg_level, INT
 // cmsg_type, data at WSA_CMSGDATA_ALIGN(sizeof(WSACMSGHDR)); payload one

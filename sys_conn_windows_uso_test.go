@@ -222,9 +222,11 @@ func TestWindowsConnSendMsgSizeErrClassification(t *testing.T) {
 	require.False(t, isGSOError(err))
 }
 
-// probeFailingRawConn drives isUSOEnabled's failure branches
-// deterministically: a Control that itself errors, or a Control that hands
-// the probe an invalid socket handle so the getsockopt fails.
+// probeFailingRawConn drives the USO/URO probe branches deterministically: a
+// Control that itself errors, or a Control that hands the probe an invalid
+// socket handle so the live socket call fails. With no controlErr set,
+// Control itself succeeds, so an injected socket call can also exercise a
+// probe's success classification.
 type probeFailingRawConn struct {
 	controlErr    error
 	controlCalled bool

@@ -133,12 +133,23 @@ func isUSOEnabled(conn syscall.RawConn) bool {
 // and owns, and honors the QUIC_GO_DISABLE_GRO kill switch that governs
 // coalesced receive on every platform.
 func isUROEnabled(conn syscall.RawConn) bool {
+	return isUROEnabledWith(conn, func(fd uintptr) error {
+		return windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_UDP, windows.UDP_RECV_MAX_COALESCED_SIZE, protocol.MaxCoalescedPacketBufferSize)
+	})
+}
+
+// isUROEnabledWith separates the probe's control flow from the live Winsock
+// call so the error classification is testable without a URO-incapable
+// Windows build: every setRecvCoalescing failure — WSAENOPROTOOPT from a
+// build without URO, or any other error — classifies uniformly as
+// "capability off".
+func isUROEnabledWith(conn syscall.RawConn, setRecvCoalescing func(fd uintptr) error) bool {
 	if disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_GRO")); err == nil && disabled {
 		return false
 	}
 	var serr error
 	if err := conn.Control(func(fd uintptr) {
-		serr = windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_UDP, windows.UDP_RECV_MAX_COALESCED_SIZE, protocol.MaxCoalescedPacketBufferSize)
+		serr = setRecvCoalescing(fd)
 	}); err != nil {
 		return false
 	}
