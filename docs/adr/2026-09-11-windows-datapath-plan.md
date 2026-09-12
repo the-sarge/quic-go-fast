@@ -1,7 +1,7 @@
 # Windows Datapath (Foundation, USO, URO) Implementation Plan
 
 **Date:** 2026-09-11
-**Status:** Accepted; W1 complete (#242); W2 and W3 not yet implemented
+**Status:** Accepted; W1 complete (#242, noninferiority [protocol](../audits/2026-09-11-w1-foundation-protocol.md)/[results](../audits/2026-09-11-w1-foundation-results.md): Pass); W2 and W3 not yet implemented
 **Track:** W, 2 of 3 in the 2026-09-11 datapath offload program
 **Depends on:** W3 requires G1 (coalesced-storage contract); W1 and W2 have no cross-track dependency
 **Related:** [Datapath offload plan](2026-09-11-datapath-offload-plan.md); ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md)
