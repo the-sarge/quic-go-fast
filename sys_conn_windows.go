@@ -155,6 +155,14 @@ func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte,
 		return c.WriteTo(b, addr)
 	}
 	n, _, err := c.WriteMsgUDP(b, oob, udpAddr)
+	if err == nil && gsoSize > 0 {
+		// Winsock reports zero transferred bytes on send completions that
+		// carry UDP_SEND_MSG_SIZE (observed on Server 2025 for segmented
+		// and single-packet submissions alike). A UDP send is
+		// all-or-nothing, so success means the whole buffer was accepted;
+		// report it, preserving the rawConn byte-count contract.
+		n = len(b)
+	}
 	return n, err
 }
 
