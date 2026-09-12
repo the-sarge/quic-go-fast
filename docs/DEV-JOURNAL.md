@@ -1314,3 +1314,20 @@ The acceptance criterion — the Windows unit CI job runs `TestSendConnOOB` as P
 ### Next
 
 No follow-ups from this PR. The datapath frontier is unchanged: Track D, with D1 ([#230](https://github.com/the-sarge/quic-go-fast/issues/230), macOS `sendmsg_x` batch send) dispatchable. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
+
+---
+
+## USO probe-failure test hardened against ambient kill switch - 2026-09-12 08:26 EDT
+
+**Main:** `9b2227a7c007`
+**Actor:** Claude
+
+Merged [PR #253](https://github.com/the-sarge/quic-go-fast/pull/253) as `9b2227a7`, closing [issue #246](https://github.com/the-sarge/quic-go-fast/issues/246) — the deferred replacement-review finding from W2 ([PR #245](https://github.com/the-sarge/quic-go-fast/pull/245), review run `20260912T034022-e4d56f3aab3aea2e5abb2203`, cluster C-004), revalidated against merged `69d70161`. The change pins `QUIC_GO_DISABLE_GSO` off with `t.Setenv` inside `TestWindowsUSOProbeFailure` (`sys_conn_windows_uso_test.go`) so an ambient kill-switch value can no longer route both probe-failure subtests through `isUSOEnabled`'s early return, and adds a called-flag to the `probeFailingRawConn` fake so each subtest asserts the probe actually reaches `RawConn.Control`. Verification aid only — no shipped-behavior change, and with this the W2 deferred-finding ledger is empty.
+
+### Validation
+
+RAS review run `20260912T122023-85d9955376d9186dc9758f9e` (initial, briefed from issue #246's verbatim contract) returned zero findings in every cluster; no fix round or replacement review was needed. Local certification at head `1827aa8b`: gofumpt/gofmt/goimports clean, `go build ./...`, `go vet ./...`, `GOOS=windows go vet .` plus a cross-compiled Windows test binary, and the full darwin `go test -count=1 ./...` green. All 33 hosted checks — including Unit tests (windows, Go 1.26.x and 1.27.x), the jobs that execute the hardened test — passed on that exact head; squash-merged with `--match-head-commit`. The issue's ambient-env check (`QUIC_GO_DISABLE_GSO=1 go test . -run '^TestWindowsUSOProbeFailure$'` on Windows) is discharged by `t.Setenv` semantics: the pin overrides any ambient value for the test's duration, and the called-flag assertions would fail if the kill-switch path were ever taken.
+
+### Next
+
+No follow-ups from this PR. The datapath frontier is unchanged: Track D, with D1 ([#230](https://github.com/the-sarge/quic-go-fast/issues/230), macOS `sendmsg_x` batch send) dispatchable. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
