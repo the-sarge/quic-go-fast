@@ -79,6 +79,71 @@ func TestSendmsgXBatchSendEndToEnd(t *testing.T) {
 	require.GreaterOrEqual(t, batchedAfter-batchedBefore, uint64(2), "at least one submission must have batched multiple packets")
 }
 
+// customWriteMsgConn is a caller-provided OOBCapablePacketConn that
+// overrides WriteMsgUDP — the documented extension point. Batching bypasses
+// WriteMsgUDP by design, so it must decline for this socket and every
+// datagram must keep flowing through the override.
+type customWriteMsgConn struct {
+	*net.UDPConn
+	writeMsgCalls int
+}
+
+func (c *customWriteMsgConn) WriteMsgUDP(b, oob []byte, addr *net.UDPAddr) (int, int, error) {
+	c.writeMsgCalls++
+	return c.UDPConn.WriteMsgUDP(b, oob, addr)
+}
+
+// TestSendmsgXCustomConnKeepsWriteMsgUDP: a caller-supplied conn with an
+// overridden WriteMsgUDP never has its writes bypassed by batched raw
+// submissions, even on a qualified host with the capability engaged.
+func TestSendmsgXCustomConnKeepsWriteMsgUDP(t *testing.T) {
+	major, err := getMacOSVersion()
+	require.NoError(t, err)
+	if _, qualified := qualifiedDarwinKernelMajors[major]; !qualified {
+		t.Skipf("running Darwin kernel major %d is not in the qualified set", major)
+	}
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	require.True(t, sendmsgXAvailable())
+
+	receiverUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer receiverUDP.Close()
+
+	senderUDP, err := net.ListenUDP("udp", nil)
+	require.NoError(t, err)
+	custom := &customWriteMsgConn{UDPConn: senderUDP}
+	senderRaw, err := newConn(custom, true, true)
+	require.NoError(t, err)
+	sc := newSendConn(senderRaw, receiverUDP.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+	defer sc.Close()
+
+	q := newSendQueue(sc, nil)
+	subsBefore, _, _ := sendmsgXCountersSnapshot()
+
+	const packets = 6
+	bufs := make([]*packetBuffer, packets)
+	for i := range bufs {
+		bufs[i] = getPacketWithContents([]byte{'c', 'w', byte('a' + i)})
+		q.Send(bufs[i], 0, protocol.ECNNon, sendMetadata{})
+	}
+	done := make(chan error, 1)
+	go func() { done <- q.Run() }()
+
+	require.NoError(t, receiverUDP.SetReadDeadline(time.Now().Add(5*time.Second)))
+	buf := make([]byte, 64)
+	for range packets {
+		_, _, err := receiverUDP.ReadFromUDP(buf)
+		require.NoError(t, err)
+	}
+	q.Close()
+	require.NoError(t, <-done)
+
+	require.Equal(t, packets, custom.writeMsgCalls, "every datagram must flow through the caller's WriteMsgUDP override")
+	subsAfter, _, _ := sendmsgXCountersSnapshot()
+	require.Equal(t, subsBefore, subsAfter, "a custom conn must never receive batched raw submissions")
+}
+
 // TestSendmsgXDisabledPathInert: with the kill switch set, the same
 // production send path stays on the per-packet fallback — no batch
 // submissions, fallback counters observed, and delivery still exact.

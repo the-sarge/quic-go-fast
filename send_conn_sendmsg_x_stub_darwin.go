@@ -14,4 +14,4 @@ import "github.com/quic-go/quic-go/internal/protocol"
 
 func (c *sconn) batchSendAvailable() bool { return false }
 
-func (c *sconn) sendBatch([][]byte, protocol.ECN) int { return 0 }
+func (c *sconn) sendBatch([][]byte, protocol.ECN) (int, error) { return 0, nil }

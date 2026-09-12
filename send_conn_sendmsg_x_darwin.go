@@ -67,30 +67,50 @@ func (c *sconn) batchSendAvailable() bool {
 	return true
 }
 
+// udpSyscallConn exposes the raw descriptor for batched submission only
+// when the wrapped socket is a native *net.UDPConn. quic-go documents
+// OOBCapablePacketConn as a caller extension point: a custom implementation
+// may override WriteMsgUDP, and every datagram must keep flowing through
+// that override, so batching — which bypasses WriteMsgUDP by design — is
+// reserved for sockets whose write semantics are the kernel's own.
+func (c *oobConn) udpSyscallConn() (syscall.RawConn, bool) {
+	udpConn, ok := c.OOBCapablePacketConn.(*net.UDPConn)
+	if !ok {
+		return nil, false
+	}
+	raw, err := udpConn.SyscallConn()
+	if err != nil {
+		return nil, false
+	}
+	return raw, true
+}
+
 // sendBatch submits bufs as individual datagrams to the connection's remote
 // address in one sendmsg_x syscall and returns how many the kernel
-// accepted. Any shortfall — transient errno, closed conn, structural latch —
-// reports fewer accepted entries, and the send worker's partial-acceptance
-// algorithm retries the first unaccepted entry through the per-packet path.
-func (c *sconn) sendBatch(bufs [][]byte, ecn protocol.ECN) int {
+// accepted. An observable shortfall — a short count, a zero-progress errno,
+// a closed conn, the structural latch — reports fewer accepted entries with
+// a nil error, and the send worker retries the first unaccepted entry
+// through the per-packet path. A non-nil error means kernel progress is
+// unknowable; the worker fails the send path without resending.
+func (c *sconn) sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 	bs := c.darwinBatchState()
 	ai := c.remoteAddrInfo.Load()
 	udpAddr, ok := ai.addr.(*net.UDPAddr)
 	if !ok {
-		return 0
+		return 0, nil
 	}
 	if bs.raw == nil {
 		rc, ok := c.rawConn.(interface {
-			SyscallConn() (syscall.RawConn, error)
+			udpSyscallConn() (syscall.RawConn, bool)
 		})
 		if !ok {
 			bs.rawErr = true
-			return 0
+			return 0, nil
 		}
-		raw, err := rc.SyscallConn()
-		if err != nil {
+		raw, ok := rc.udpSyscallConn()
+		if !ok {
 			bs.rawErr = true
-			return 0
+			return 0, nil
 		}
 		bs.raw = raw
 	}
@@ -107,7 +127,7 @@ func (c *sconn) sendBatch(bufs [][]byte, ecn protocol.ECN) int {
 			}
 		}); err != nil || family == 0 {
 			bs.rawErr = true
-			return 0
+			return 0, nil
 		}
 		bs.family = family
 	}
@@ -131,13 +151,14 @@ func (c *sconn) sendBatch(bufs [][]byte, ecn protocol.ECN) int {
 
 	msgs, iovs := bs.scratch(len(bufs))
 	var accepted int
+	var submitErr error
 	if err := bs.raw.Write(func(fd uintptr) bool {
-		accepted = sendmsgXSubmit(int(fd), bufs, bs.dest.name(), bs.dest.namelen, oob, msgs, iovs)
+		accepted, submitErr = sendmsgXSubmit(int(fd), bufs, bs.dest.name(), bs.dest.namelen, oob, msgs, iovs)
 		return true // never wait for writability: the worker's per-packet retry owns backpressure
 	}); err != nil {
-		// The conn is closed or unusable; the per-packet retry surfaces the
-		// real error with correct attribution.
-		return accepted
+		// The conn is closed or unusable and the submission never ran; the
+		// per-packet retry surfaces the real error with correct attribution.
+		return 0, nil
 	}
-	return accepted
+	return accepted, submitErr
 }

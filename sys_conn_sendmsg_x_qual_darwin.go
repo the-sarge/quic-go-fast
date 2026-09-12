@@ -53,8 +53,10 @@ var sendmsgXKernelMajor = getMacOSVersion
 // once by qualify, and latched permanently disables the path after ENOSYS or
 // a structurally invalid kernel result. The counters make the active path
 // observable: batchSubmissions counts sendmsg_x syscalls, batchPackets the
-// datagrams those syscalls accepted, and fallbackPackets the datagrams that
-// consulted the capability and proceeded per-packet instead.
+// datagrams those syscalls accepted, and fallbackPackets the capability
+// consultations that declined, each followed by one per-packet send.
+// Per-packet sends that never consult the capability — the lone tail of a
+// group, or GSO-segmented groups — are deliberately not counted here.
 type sendmsgXState struct {
 	qualifyOnce    sync.Once
 	qualifyStarted atomic.Bool
@@ -124,35 +126,59 @@ func sendmsgXLatchOff(reason string) {
 	}
 }
 
+// sendmsgXZeroProgressErrno reports whether errno is one the kernel only
+// lets a sendmsg_x caller see when no datagram of the batch was sent. XNU's
+// unconnected sendmsg_x loop (bsd/kern/uipc_syscalls.c) suppresses ERESTART,
+// EINTR, EWOULDBLOCK, ENOBUFS, and EMSGSIZE into a clean partial count when
+// at least one datagram went out, so observing one of them as an errno is an
+// exact zero-progress signal and the first entry can safely be retried
+// per-packet. ERESTART is kernel-internal on darwin and never reaches
+// userspace, so it is not listed.
+func sendmsgXZeroProgressErrno(errno syscall.Errno) bool {
+	switch errno {
+	case syscall.EAGAIN, syscall.EINTR, syscall.ENOBUFS, syscall.EMSGSIZE: // EAGAIN == EWOULDBLOCK on darwin
+		return true
+	default:
+		return false
+	}
+}
+
 // sendmsgXSubmit performs one bounds-checked batched submission and returns
-// how many leading payloads the kernel accepted. ENOSYS and structurally
-// invalid results (an accepted count outside [0, len(payloads)], or an
-// accepted count alongside an errno) latch the capability off for the
-// process and report nothing accepted, so the worker's per-packet retry owns
-// every datagram.
-func sendmsgXSubmit(fd int, payloads [][]byte, name *byte, namelen uint32, oob []byte, msgs []msghdrX, iovs []syscall.Iovec) int {
+// how many leading payloads the kernel accepted. The libc error convention
+// returns (-1, errno) and discards the accepted count, so errnos are
+// partitioned by progress observability: ENOSYS latches the capability off
+// for the process (the syscall was never dispatched); a zero-progress errno
+// reports nothing accepted so the worker's per-packet retry owns the first
+// entry with correct attribution; any other errno means the kernel may have
+// sent an unpublished prefix of the batch, so it is returned as a fatal
+// error and the worker must not resend anything. A count outside
+// [0, len(payloads)] on the success path is ABI drift: it latches the
+// capability and fails the send path, because delivery of the batch is
+// unknowable.
+func sendmsgXSubmit(fd int, payloads [][]byte, name *byte, namelen uint32, oob []byte, msgs []msghdrX, iovs []syscall.Iovec) (int, error) {
 	accepted, errno := sendmsgXBatchTo(fd, payloads, name, namelen, oob, msgs, iovs)
 	sendmsgX.batchSubmissions.Add(1)
 	if errno == syscall.ENOSYS {
 		sendmsgXLatchOff("kernel returned ENOSYS")
-		return 0
+		return 0, nil
 	}
 	if errno != 0 {
-		if accepted != 0 {
-			sendmsgXLatchOff(fmt.Sprintf("structurally invalid result: accepted %d with errno %d", accepted, int(errno)))
+		if sendmsgXZeroProgressErrno(errno) {
+			return 0, nil
 		}
-		return 0
+		return 0, fmt.Errorf("sendmsg_x: %w (kernel progress unpublished)", errno)
 	}
 	if accepted < 0 || accepted > len(payloads) {
 		sendmsgXLatchOff(fmt.Sprintf("structurally invalid result: accepted %d of %d offered", accepted, len(payloads)))
-		return 0
+		return 0, fmt.Errorf("sendmsg_x: structurally invalid accepted count %d of %d", accepted, len(payloads))
 	}
 	sendmsgX.batchPackets.Add(uint64(accepted))
-	return accepted
+	return accepted, nil
 }
 
 // sendmsgXCountersSnapshot returns (batch submissions, packets accepted via
-// batches, packets that fell back to the per-packet path).
+// batches, declined capability consultations each followed by a per-packet
+// send).
 func sendmsgXCountersSnapshot() (submissions, batchPackets, fallbackPackets uint64) {
 	return sendmsgX.batchSubmissions.Load(), sendmsgX.batchPackets.Load(), sendmsgX.fallbackPackets.Load()
 }

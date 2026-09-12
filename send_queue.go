@@ -64,13 +64,17 @@ type queueEntry struct {
 // share an ECN marking (and use no GSO segmentation) as one batched send.
 // sendBatch returns how many leading packets the kernel accepted
 // (0 <= accepted <= len(bufs)); accepted packets are on the wire and must
-// never be resent. Errors are not per-entry attributable at the batch layer,
-// so the worker resolves every shortfall by retrying the first unaccepted
-// entry through the per-packet path, where size errors and handshake MTU
-// feedback attach to the correct entry.
+// never be resent. A nil error with accepted < len(bufs) means the kernel
+// observably declined the remainder (a short count, or an errno that the
+// kernel only reports when nothing was sent); the worker then retries the
+// first unaccepted entry through the per-packet path, where size errors and
+// handshake MTU feedback attach to the correct entry. A non-nil error means
+// kernel progress for the offered packets is unknowable (the syscall's error
+// convention discards the count); the worker must fail the send path without
+// resending anything, so no packet can be duplicated.
 type batchSender interface {
 	batchSendAvailable() bool
-	sendBatch(bufs [][]byte, ecn protocol.ECN) int
+	sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error)
 }
 
 type sendQueue struct {
@@ -234,7 +238,7 @@ func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
 			for _, e := range remaining {
 				bufs = append(bufs, e.buf.Data)
 			}
-			accepted := bs.sendBatch(bufs, remaining[0].ecn)
+			accepted, err := bs.sendBatch(bufs, remaining[0].ecn)
 			clear(bufs)
 			h.bufsScratch = bufs[:0]
 			if accepted < 0 || accepted > len(remaining) {
@@ -244,6 +248,14 @@ func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
 				accepted = 0
 			}
 			i += accepted
+			if err != nil {
+				// Progress for the unaccepted remainder is unknowable, so a
+				// per-packet retry could resend a packet the kernel already
+				// sent. Fail the send path instead — the same fatal handling
+				// the per-packet path applies to this error class — and never
+				// duplicate.
+				return err
+			}
 			if accepted == len(remaining) {
 				continue
 			}

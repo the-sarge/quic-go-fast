@@ -24,7 +24,7 @@ type fakeBatchWrite struct {
 // error attribution.
 type fakeBatchSendConn struct {
 	available func() bool
-	accept    func(call int, bufs [][]byte) int
+	accept    func(call int, bufs [][]byte) (int, error)
 	writeErr  func(call int, b []byte) error
 
 	batches   [][][]byte
@@ -41,7 +41,7 @@ func (c *fakeBatchSendConn) batchSendAvailable() bool {
 	return c.available()
 }
 
-func (c *fakeBatchSendConn) sendBatch(bufs [][]byte, ecn protocol.ECN) int {
+func (c *fakeBatchSendConn) sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 	copied := make([][]byte, len(bufs))
 	for i, b := range bufs {
 		copied[i] = append([]byte(nil), b...)
@@ -83,7 +83,7 @@ func startAndFinishQueue(t *testing.T, q sender, wantErr error) {
 // submitted as one batch, accepted in full, and never resent per-packet.
 func TestSendQueueBatchFullAcceptance(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		conn := &fakeBatchSendConn{accept: func(_ int, bufs [][]byte) int { return len(bufs) }}
+		conn := &fakeBatchSendConn{accept: func(_ int, bufs [][]byte) (int, error) { return len(bufs), nil }}
 		q := newSendQueue(conn, nil)
 
 		payloads := [][]byte{[]byte("pkt0"), []byte("pkt1"), []byte("pkt2")}
@@ -114,11 +114,11 @@ func TestSendQueueBatchFullAcceptance(t *testing.T) {
 // tail re-enters batching without loss or duplication.
 func TestSendQueueBatchPartialAcceptance(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		conn := &fakeBatchSendConn{accept: func(call int, bufs [][]byte) int {
+		conn := &fakeBatchSendConn{accept: func(call int, bufs [][]byte) (int, error) {
 			if call == 0 {
-				return 2 // accept pkt0, pkt1; pkt2 is the first unaccepted entry
+				return 2, nil // accept pkt0, pkt1; pkt2 is the first unaccepted entry
 			}
-			return len(bufs)
+			return len(bufs), nil
 		}}
 		q := newSendQueue(conn, nil)
 
@@ -147,11 +147,11 @@ func TestSendQueueBatchPartialAcceptance(t *testing.T) {
 func TestSendQueueBatchPartialAcceptanceMsgSizeFeedback(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		conn := &fakeBatchSendConn{
-			accept: func(call int, bufs [][]byte) int {
+			accept: func(call int, bufs [][]byte) (int, error) {
 				if call == 0 {
-					return 1
+					return 1, nil
 				}
-				return len(bufs)
+				return len(bufs), nil
 			},
 			writeErr: func(_ int, b []byte) error {
 				if len(b) == 1452 {
@@ -196,7 +196,7 @@ func TestSendQueueBatchPartialAcceptanceMsgSizeFeedback(t *testing.T) {
 func TestSendQueueBatchPartialAcceptanceFatalError(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		conn := &fakeBatchSendConn{
-			accept:   func(int, [][]byte) int { return 1 },
+			accept:   func(int, [][]byte) (int, error) { return 1, nil },
 			writeErr: func(int, []byte) error { return assert.AnError },
 		}
 		q := newSendQueue(conn, nil)
@@ -215,6 +215,33 @@ func TestSendQueueBatchPartialAcceptanceFatalError(t *testing.T) {
 	})
 }
 
+// Unknown kernel progress: when the batch layer reports an error, some of
+// the offered packets may already be on the wire with the count discarded
+// by the syscall's error convention, so the worker must fail the send path
+// without retrying or resending anything — a per-packet retry could
+// duplicate a sent packet.
+func TestSendQueueBatchUnknownProgressFatal(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		conn := &fakeBatchSendConn{
+			accept: func(int, [][]byte) (int, error) { return 1, assert.AnError },
+		}
+		q := newSendQueue(conn, nil)
+
+		bufs := make([]*packetBuffer, 4)
+		for i := range bufs {
+			bufs[i] = getPacketWithContents([]byte{byte(i)})
+			q.Send(bufs[i], 0, protocol.ECNNon, sendMetadata{})
+		}
+		startAndFinishQueue(t, q, assert.AnError)
+
+		require.Len(t, conn.batches, 1, "the failed submission must not be followed by another")
+		require.Empty(t, conn.writes, "no entry may be retried per-packet after unknown progress")
+		for _, buf := range bufs {
+			require.Zero(t, buf.refCount, "every dequeued buffer must still be released exactly once")
+		}
+	})
+}
+
 // Structural failure (e.g. ENOSYS latch): the batch layer reports the
 // capability as unavailable, and every entry goes through the per-packet
 // path — the batch submission path is never entered.
@@ -222,9 +249,9 @@ func TestSendQueueBatchUnavailableFallsBack(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		conn := &fakeBatchSendConn{
 			available: func() bool { return false },
-			accept: func(int, [][]byte) int {
+			accept: func(int, [][]byte) (int, error) {
 				t.Error("sendBatch must not be called while unavailable")
-				return 0
+				return 0, nil
 			},
 		}
 		q := newSendQueue(conn, nil)
@@ -252,9 +279,9 @@ func TestSendQueueBatchMidGroupLatch(t *testing.T) {
 		latched := false
 		conn := &fakeBatchSendConn{}
 		conn.available = func() bool { return !latched }
-		conn.accept = func(int, [][]byte) int {
+		conn.accept = func(int, [][]byte) (int, error) {
 			latched = true // e.g. a structurally invalid result latched the capability off
-			return 1
+			return 1, nil
 		}
 		q := newSendQueue(conn, nil)
 
@@ -280,7 +307,7 @@ func TestSendQueueBatchMidGroupLatch(t *testing.T) {
 // entry flushes the group and starts a new one, preserving order.
 func TestSendQueueBatchGroupsByECN(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		conn := &fakeBatchSendConn{accept: func(_ int, bufs [][]byte) int { return len(bufs) }}
+		conn := &fakeBatchSendConn{accept: func(_ int, bufs [][]byte) (int, error) { return len(bufs), nil }}
 		q := newSendQueue(conn, nil)
 
 		bufs := []*packetBuffer{
@@ -310,9 +337,9 @@ func TestSendQueueBatchGroupsByECN(t *testing.T) {
 // keep the per-packet path that owns UDP_SEGMENT encoding.
 func TestSendQueueBatchSkipsGSO(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		conn := &fakeBatchSendConn{accept: func(int, [][]byte) int {
+		conn := &fakeBatchSendConn{accept: func(int, [][]byte) (int, error) {
 			t.Error("sendBatch must not be called for GSO-segmented entries")
-			return 0
+			return 0, nil
 		}}
 		q := newSendQueue(conn, nil)
 
