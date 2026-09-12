@@ -138,9 +138,9 @@ func ipv4PktInfoMsg(t *testing.T, addr [4]byte, ifIndex uint32) []byte {
 	if unsafe.Sizeof(uintptr(0)) != 8 {
 		t.Skip("layout literal assumes a 64-bit SIZE_T")
 	}
-	buf := make([]byte, 24)                      // WSA_CMSG_SPACE(8): 16-byte header + 8-byte body
-	binary.LittleEndian.PutUint64(buf[0:8], 24)  // cmsg_len: WSA_CMSG_LEN(8)
-	binary.LittleEndian.PutUint32(buf[8:12], 0)  // cmsg_level: IPPROTO_IP
+	buf := make([]byte, 24)                     // WSA_CMSG_SPACE(8): 16-byte header + 8-byte body
+	binary.LittleEndian.PutUint64(buf[0:8], 24) // cmsg_len: WSA_CMSG_LEN(8)
+	binary.LittleEndian.PutUint32(buf[8:12], 0) // cmsg_level: IPPROTO_IP
 	binary.LittleEndian.PutUint32(buf[12:16], windows.IP_PKTINFO)
 	copy(buf[16:20], addr[:])
 	binary.LittleEndian.PutUint32(buf[20:24], ifIndex)
