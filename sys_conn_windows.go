@@ -57,11 +57,15 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn,
 	if udpAddr, ok := c.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP.IsUnspecified() {
 		needsPacketInfo = true
 	}
-	if needsPacketInfo {
-		rawConn, err := c.SyscallConn()
+	var rawConn syscall.RawConn
+	if needsPacketInfo || ownsSocket {
+		var err error
+		rawConn, err = c.SyscallConn()
 		if err != nil {
 			return nil, err
 		}
+	}
+	if needsPacketInfo {
 		// We don't know if this a IPv4-only, IPv6-only or a IPv4-and-IPv6
 		// connection. Try enabling receiving of packet info for both IP
 		// versions. We expect at least one of those calls to succeed.
@@ -85,10 +89,6 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn,
 	}
 	var uso, uro bool
 	if ownsSocket {
-		rawConn, err := c.SyscallConn()
-		if err != nil {
-			return nil, err
-		}
 		uso = isUSOEnabled(rawConn)
 		// The ownsSocket gate is load-bearing: isUROEnabled issues the
 		// UDP_RECV_MAX_COALESCED_SIZE setsockopt, which must never reach a

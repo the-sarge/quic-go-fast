@@ -105,6 +105,10 @@ func TestWindowsURODisabledByEnv(t *testing.T) {
 // rejected (a Windows build without URO) — must report no capability,
 // leaving the receive path on the W1/W2 foundation behavior.
 func TestWindowsUROProbeFailure(t *testing.T) {
+	// Pin the ambient kill switch off: with QUIC_GO_DISABLE_GRO set in the
+	// environment the probe would report false before reaching the socket,
+	// and these subtests would pass vacuously.
+	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
 	t.Run("control error", func(t *testing.T) {
 		require.False(t, isUROEnabled(&probeFailingRawConn{controlErr: assert.AnError}))
 	})
