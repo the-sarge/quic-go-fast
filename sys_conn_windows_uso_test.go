@@ -165,6 +165,19 @@ func TestWindowsConnSegmentedSend(t *testing.T) {
 	}
 	require.Equal(t, payload, received)
 	require.Equal(t, []int{segmentSize, segmentSize, 250}, sizes)
+
+	// A GSO-mode submission always carries the segment-size message, even
+	// when it holds a single packet smaller than the segment size (the
+	// platform-neutral emission path sets gsoSize to the max packet size for
+	// every batch); such a send must arrive as exactly one datagram.
+	single := payload[:300]
+	n, err = conn.WritePacket(single, receiver.LocalAddr(), nil, segmentSize, protocol.ECNUnsupported)
+	require.NoError(t, err)
+	require.Equal(t, len(single), n)
+	require.NoError(t, receiver.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+	n, _, err = receiver.ReadFromUDP(buf)
+	require.NoError(t, err)
+	require.Equal(t, single, buf[:n])
 }
 
 // Message-size closure class: the error a too-large send surfaces through

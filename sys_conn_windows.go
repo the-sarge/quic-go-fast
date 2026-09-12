@@ -8,6 +8,8 @@ import (
 	"log"
 	"net"
 	"net/netip"
+	"os"
+	"strconv"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -22,12 +24,14 @@ import (
 const oobBufferSize = 128
 
 // windowsConn is the Windows message-I/O datapath (Windows datapath plan,
-// Slice W1). Reads and writes go through net.UDPConn.ReadMsgUDP/WriteMsgUDP,
-// which execute WSARecvMsg/WSASendMsg on the runtime's IOCP poller with
-// standard deadline, cancellation, and close semantics. This conn owns
-// Windows control-message encoding and parsing; in this slice that is
+// Slices W1 and W2). Reads and writes go through
+// net.UDPConn.ReadMsgUDP/WriteMsgUDP, which execute WSARecvMsg/WSASendMsg on
+// the runtime's IOCP poller with standard deadline, cancellation, and close
+// semantics. This conn owns Windows control-message encoding and parsing:
 // IPv4/IPv6 packet info, giving sockets bound to an unspecified address the
-// same authoritative local-address handling as the OOB platforms.
+// same authoritative local-address handling as the OOB platforms, and the
+// per-send UDP_SEND_MSG_SIZE segment-size message that hands a batched send
+// to USO the way UDP_SEGMENT hands one to Linux GSO.
 type windowsConn struct {
 	OOBCapablePacketConn
 
@@ -41,10 +45,10 @@ type windowsConn struct {
 
 var _ rawConn = &windowsConn{}
 
-// The third parameter reports socket ownership. W1 sets no socket-wide
-// offload options, so it is unused until the URO slice (W3) probes
-// UDP_RECV_MAX_COALESCED_SIZE on transport-owned sockets.
-func newConn(c OOBCapablePacketConn, supportsDF, _ bool) (*windowsConn, error) {
+// ownsSocket reports whether the transport created the socket. The W plan
+// scopes offload probes to transport-owned sockets, so a caller-supplied
+// socket keeps the W1 foundation behavior with no offload capability.
+func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn, error) {
 	var needsPacketInfo bool
 	if udpAddr, ok := c.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP.IsUnspecified() {
 		needsPacketInfo = true
@@ -75,11 +79,37 @@ func newConn(c OOBCapablePacketConn, supportsDF, _ bool) (*windowsConn, error) {
 			return nil, errors.New("activating packet info failed for both IPv4 and IPv6")
 		}
 	}
+	var uso bool
+	if ownsSocket {
+		rawConn, err := c.SyscallConn()
+		if err != nil {
+			return nil, err
+		}
+		uso = isUSOEnabled(rawConn)
+	}
 	return &windowsConn{
 		OOBCapablePacketConn: c,
 		oobBuffer:            make([]byte, oobBufferSize),
-		cap:                  connCapabilities{DF: supportsDF},
+		cap:                  connCapabilities{DF: supportsDF, GSO: uso},
 	}, nil
+}
+
+// isUSOEnabled tests if this Windows build supports UDP segmentation offload
+// (USO) by reading the UDP_SEND_MSG_SIZE socket option; a build without USO
+// rejects the option. The read mutates nothing, mirroring the Linux
+// UDP_SEGMENT getsockopt probe, and honors the QUIC_GO_DISABLE_GSO kill
+// switch that governs segmented send on every platform.
+func isUSOEnabled(conn syscall.RawConn) bool {
+	if disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_GSO")); err == nil && disabled {
+		return false
+	}
+	var serr error
+	if err := conn.Control(func(fd uintptr) {
+		_, serr = windows.GetsockoptInt(windows.Handle(fd), windows.IPPROTO_UDP, windows.UDP_SEND_MSG_SIZE)
+	}); err != nil {
+		return false
+	}
+	return serr == nil
 }
 
 func (c *windowsConn) ReadPacket() (receivedPacket, error) {
@@ -102,8 +132,16 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 }
 
 func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte, gsoSize uint16, ecn protocol.ECN) (int, error) {
-	if gsoSize != 0 {
-		panic("cannot use GSO with a windowsConn")
+	oob := packetInfoOOB
+	if gsoSize > 0 {
+		if !c.cap.GSO {
+			panic("GSO disabled")
+		}
+		// USO's per-send segment size is a DWORD, unlike the uint16 Linux
+		// UDP_SEGMENT carries.
+		var data []byte
+		oob, data = appendCmsg(oob, windows.IPPROTO_UDP, windows.UDP_SEND_MSG_SIZE, 4)
+		binary.NativeEndian.PutUint32(data, uint32(gsoSize))
 	}
 	if ecn != protocol.ECNUnsupported {
 		panic("cannot use ECN with a windowsConn")
@@ -116,7 +154,7 @@ func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte,
 		// never sends.
 		return c.WriteTo(b, addr)
 	}
-	n, _, err := c.WriteMsgUDP(b, packetInfoOOB, udpAddr)
+	n, _, err := c.WriteMsgUDP(b, oob, udpAddr)
 	return n, err
 }
 
