@@ -56,7 +56,7 @@ Three slices with an explicit dependency and revert graph, per the [datapath off
 
 **Contract closure:** Triggered — close/deadline misbehavior is material (hangs, leaked OS threads) with independently reachable paths. Invariant: every blocked read observes deadline expiry, connection close, and concurrent socket close without hanging or panicking, through the runtime poller. Owner: the Windows conn's use of `net.UDPConn`. Classes: blocked read + deadline; blocked read + `Transport.Close`; concurrent close during read; sustained transfer (poller integration); write after close. Each has a Windows-CI test; dispositions covered.
 
-**Evidence budget:** The closure tests; the noninferiority protocol cells on the qualified Windows host with predeclared bounds. No other platform scope.
+**Evidence budget:** The closure tests; the protocol cells on the qualified Windows host with predeclared bounds. The noninferiority gate binds the preserved-behavior configuration, where both datapaths do identical work; the packet-info-active configuration — new behavior this slice is required to deliver, with the same per-packet control-message cost model the OOB platforms already pay — is measured and reported against a predeclared stop floor rather than the noninferiority bound (re-audited 2026-09-11 after the first collection; chronology in #242). No other platform scope.
 
 **TDD and preservation evidence:** Closure tests written first (they pass against `basicConn` too, characterizing preserved behavior, then must keep passing). Preservation: full suite on Windows CI; behavior-identical gate is the protocol's noninferiority cell; the caller-supplied non-OOB `basicConn` fallback path keeps its existing coverage.
 

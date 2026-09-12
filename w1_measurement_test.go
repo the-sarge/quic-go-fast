@@ -97,7 +97,15 @@ func (c *w1InfoCountingConn) ReadPacket() (receivedPacket, error) {
 // The counter is non-nil for the candidate cell only.
 func newW1CellConn(t *testing.T, cell string) (net.PacketConn, *net.UDPAddr, *w1InfoCountingConn) {
 	t.Helper()
-	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero})
+	// The swap cell family binds loopback so packet info stays inactive and
+	// both datapaths do identical work (the noninferiority gate); the parity
+	// cell family binds the wildcard address so the candidate measures with
+	// its control-message path active (the reported parity cost).
+	bindIP := net.IPv4zero
+	if os.Getenv("W1BENCH_BIND") == "loopback" {
+		bindIP = net.IPv4(127, 0, 0, 1)
+	}
+	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: bindIP})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +244,7 @@ func TestW1MeasurementCell(t *testing.T) {
 	conn.CloseWithError(0, "done")
 	// The candidate must have measured with its control-message path active:
 	// every read on these wildcard-bound sockets should carry packet info.
-	if cell == "candidate" {
+	if cell == "candidate" && os.Getenv("W1BENCH_BIND") != "loopback" {
 		if serverCount.withInfo.Load() == 0 || clientCount.withInfo.Load() == 0 {
 			t.Fatalf("candidate cell read no populated packet info (server %d, client %d)",
 				serverCount.withInfo.Load(), clientCount.withInfo.Load())
@@ -244,8 +252,13 @@ func TestW1MeasurementCell(t *testing.T) {
 	}
 
 	osv := windows.RtlGetVersion()
+	bind := "wildcard"
+	if os.Getenv("W1BENCH_BIND") == "loopback" {
+		bind = "loopback"
+	}
 	out := map[string]any{
 		"cell":       cell,
+		"bind":       bind,
 		"round":      os.Getenv("W1BENCH_ROUND"),
 		"bytes":      received,
 		"elapsed_ns": elapsed.Nanoseconds(),
