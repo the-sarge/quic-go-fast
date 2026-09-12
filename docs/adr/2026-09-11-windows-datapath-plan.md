@@ -36,7 +36,7 @@ Three slices with an explicit dependency and revert graph, per the [datapath off
 
 ### Slice W1 — Windows message-I/O foundation
 
-**What it delivers:** A Windows connection implementing the existing raw-connection interface over `net.UDPConn.ReadMsgUDP`/`WriteMsgUDP`, with Windows control-message encoding and parsing (IPv4/IPv6 packet-info parity with the OOB path), replacing `basicConn` on Windows with behavior otherwise preserved. Its gate is correctness and noninferiority: deadline, idle-close, and concurrent-close tests plus no throughput regression — not syscall reduction, which a behavior-preserving rebuild cannot show.
+**What it delivers:** A Windows connection implementing the existing raw-connection interface over `net.UDPConn.ReadMsgUDP`/`WriteMsgUDP`, with Windows control-message encoding and parsing (IPv4/IPv6 packet-info parity with the OOB path), replacing `basicConn` on Windows with behavior otherwise preserved. Its gate is correctness and noninferiority: deadline, idle-close, and concurrent-close tests plus no throughput regression where both datapaths do identical work — not syscall reduction, which a behavior-preserving rebuild cannot show. The packet-info parity path's measured per-packet cost (~5 % bulk-loopback throughput on wildcard-bound sockets, the OOB platforms' cost model) is reported against the evidence budget's stop floor rather than gated at the noninferiority bound; that acceptance is an operator decision recorded 2026-09-11 in #242.
 
 **Existing-work disposition:** New slice. No open PR or branch exists for this track.
 
