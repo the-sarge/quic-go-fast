@@ -1348,3 +1348,25 @@ RAS review run `20260912T124706-1bf20a6213ad715f175b9901` (initial, briefed from
 ### Next
 
 No follow-ups from this PR. The datapath frontier is unchanged: Track D, with D1 ([#230](https://github.com/the-sarge/quic-go-fast/issues/230), macOS `sendmsg_x` batch send) dispatchable. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
+
+---
+
+## D1 macOS sendmsg_x batch send landed - 2026-09-12 15:27 EDT
+
+**Main:** `8e6fae4670c9`
+**Actor:** Claude
+
+Merged [PR #257](https://github.com/the-sarge/quic-go-fast/pull/257) as `8e6fae46`, closing [issue #230](https://github.com/the-sarge/quic-go-fast/issues/230) — Slice D1 of the [Darwin batch plan](adr/2026-09-11-darwin-batch-plan.md): macOS batch send over the private `sendmsg_x` syscall, adapted from KeibiSoft/quic-go `24ecf34c` (MIT, attributed). The send worker gains an optional `batchSender` seam (`send_queue.go`) with the plan's partial-acceptance algorithm — accepted entries are never resent, the first unaccepted entry retries through the per-packet path so `EMSGSIZE` and handshake MTU feedback attach to the correct entry, and the tail re-enters batching — while the Darwin conn owns encoding and submission (`sys_conn_sendmsg_x_darwin.go`, `send_conn_sendmsg_x_darwin.go`). Qualification fails closed: a Darwin-kernel-major allowlist (initial entry: Darwin 25 ↔ macOS 26.6.2, a tested floor), a production-shape loopback self-check (unconnected v4-mapped/native-v6 `msg_name` destinations with the production ECN control buffers, verified semantically), the `QUIC_GO_DISABLE_SENDMSG_X` kill switch, accepted-count bounds, a process latch on ENOSYS/structural results, and engaged/fallback counters. iOS and `quic_go_no_private_syscalls` builds compile a same-symbol declining stub, enforced by a `batchSender` assertion on every darwin build; `cross-compile.sh` now builds the ios library packages and the opt-out tag instead of skipping ios.
+
+### Decisions
+
+- Batch errnos are partitioned by progress observability, grounded in XNU `bsd/kern/uipc_syscalls.c`: the kernel suppresses `ERESTART/EINTR/EWOULDBLOCK/ENOBUFS/EMSGSIZE` into a clean partial count after progress, so those errnos are exact zero-progress signals (safe per-packet retry of the first entry); any other errno leaves the accepted count unpublished, so the submission is fatal without resending — never-resend preserved, duplication impossible, matching the per-packet baseline where the same errnos are already connection-fatal. Rationale recorded in the [PR #257 discussion](https://github.com/the-sarge/quic-go-fast/pull/257).
+- Batching is gated on a native `*net.UDPConn` (`oobConn.udpSyscallConn`): a caller-provided `OOBCapablePacketConn` overriding `WriteMsgUDP` keeps every datagram on its documented write path.
+
+### Validation
+
+Adoption gate PASS per the precommitted [protocol](audits/2026-09-12-d1-sendmsgx-protocol.md) and [results](audits/2026-09-12-d1-sendmsgx-results.md): send syscalls per packet ratio 0.126 (95 % CI [0.1256, 0.1270], bound ≤ 0.75), engagement 7.99 packets per submission with 99.9 % batched, throughput +17 % (CI lower 1.137, bound ≥ 0.95), memory within budget, disabled/unqualified cells inert with fallback counters observed. Closure suite with a fake batch sender covers full/partial acceptance, size-error attribution, zero-progress and unknown-progress errnos, latch, kill switch, and allowlist classes; the resend-accepted guard mutation failed five duplication tests before being reverted. Review: RAS runs `20260912T181734` (initial; errno-classification latch, custom-conn preservation, counter docs — fixed) and `20260912T185209` (replacement; numeric IPv6 zone resolution — fixed), each verified resolved at the exact pushed head, dispositions in the PR discussion. Local certification at `b9f5cc78`: full darwin suite, race suite, opt-out-tag suite, darwin amd64/arm64 + ios + opt-out cross-builds, and the five-GOOS lint matrix all green; all hosted checks passed on that exact head; squash-merged with `--match-head-commit`.
+
+### Next
+
+D2 ([#234](https://github.com/the-sarge/quic-go-fast/issues/234), the bounded `recvmsg_x` receive-batching experiment) is now dispatchable — its D1 blocker is satisfied and it adopts or retires on its own predeclared gate. No deferred findings survived this PR (both review rounds closed fix-now or rejected). The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
