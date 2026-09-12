@@ -41,9 +41,9 @@ type sconn struct {
 	// see https://github.com/golang/go/issues/63322.
 	wroteFirstPacket bool
 
-	// batch holds the platform's batched-send state (*darwinBatch on darwin),
-	// or nil. Accessed only from the sendQueue.Run goroutine.
-	batch any
+	// The platform's batched-send state; empty on platforms without a
+	// batched send path.
+	sconnBatchState
 }
 
 var _ sendConn = &sconn{}
@@ -66,6 +66,9 @@ func newSendConn(c rawConn, remote net.Addr, info packetInfo, logger utils.Logge
 		rawConn:   c,
 		localAddr: localAddr,
 		logger:    logger,
+		// The platform's batched-send state starts zero; only the darwin
+		// sendmsg_x path populates it, from the send worker's goroutine.
+		sconnBatchState: sconnBatchState{},
 	}
 	sc.remoteAddrInfo.Store(&remoteAddrInfo{
 		addr: remote,
