@@ -23,6 +23,14 @@ const ecnIPv4DataLen = 1
 
 const batchSize = 8 // needs to smaller than MaxUint8 (otherwise the type of oobConn.readPos has to be changed)
 
+// receiveBatchSize reports how many messages the shared read loop fills per
+// ReadBatch call; linux always uses the full compile-time batch.
+func receiveBatchSize() int { return batchSize }
+
+// wrapReadBatchConn is the identity on linux: recvmmsg batching lives in
+// x/net's ReadBatch, not in a platform wrapper.
+func wrapReadBatchConn(bc batchConn, _ syscall.RawConn) batchConn { return bc }
+
 var kernelVersionMajor int
 
 func init() {

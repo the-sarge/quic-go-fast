@@ -112,12 +112,17 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, err
 	// via SyscallConn(), and read it that way, which might not be what the caller wants.
 	var bc batchConn
 	if ibc, ok := c.(batchConn); ok {
+		// A caller-provided batchConn owns its batching and is never
+		// wrapped by a platform receive-batching path.
 		bc = ibc
 	} else {
 		if _, ok := c.(net.Conn); !ok {
 			return nil, errors.New("quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
 		}
-		bc = ipv4.NewPacketConn(c)
+		// wrapReadBatchConn is the platform receive-batching hook: the
+		// identity everywhere except darwin builds with the recvmsg_x path
+		// compiled in, where it installs the capability-gated batch reader.
+		bc = wrapReadBatchConn(ipv4.NewPacketConn(c), rawConn)
 	}
 
 	msgs := make([]ipv4.Message, batchSize)
@@ -158,8 +163,13 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		return p, nil
 	}
 	for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
-		c.messages = c.messages[:batchSize]
-		for i := range c.buffers {
+		// receiveBatchSize is consulted per refill: on darwin it offers the
+		// full batch only while the recvmsg_x capability is engaged, so the
+		// capability-off read keeps the single-message behavior (and memory
+		// shape) byte-identical.
+		bs := receiveBatchSize()
+		c.messages = c.messages[:bs]
+		for i := range c.buffers[:bs] {
 			if c.buffers[i] == nil {
 				var buffer *packetBuffer
 				if c.cap.GRO {

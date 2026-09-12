@@ -18,6 +18,14 @@ const ecnIPv4DataLen = 1
 
 const batchSize = 8
 
+// receiveBatchSize reports how many messages the shared read loop fills per
+// ReadBatch call; freebsd always uses the full compile-time batch.
+func receiveBatchSize() int { return batchSize }
+
+// wrapReadBatchConn is the identity on freebsd: no platform receive-batching
+// wrapper exists.
+func wrapReadBatchConn(bc batchConn, _ syscall.RawConn) batchConn { return bc }
+
 func parseIPv4PktInfo(body []byte) (ip netip.Addr, _ uint32, ok bool) {
 	// struct in_pktinfo {
 	// 	struct in_addr ipi_addr;     /* Header Destination address */

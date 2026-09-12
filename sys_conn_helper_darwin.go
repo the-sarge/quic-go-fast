@@ -17,9 +17,11 @@ const (
 
 const ecnIPv4DataLen = 4
 
-// ReadBatch only returns a single packet on OSX,
-// see https://godoc.org/golang.org/x/net/ipv4#PacketConn.ReadBatch.
-const batchSize = 1
+// batchSize (the receive batch ceiling) is defined by the recvmsg_x
+// active/stub pair: the D2 receive-batching path raises it behind the
+// fail-closed capability, and the ios/opt-out stub keeps the historical
+// single-packet read (x/net ReadBatch returns a single packet on darwin,
+// see https://godoc.org/golang.org/x/net/ipv4#PacketConn.ReadBatch).
 
 // Exactly one of the sendmsg_x active/stub file pair
 // (send_conn_sendmsg_x_darwin.go / send_conn_sendmsg_x_stub_darwin.go) must
