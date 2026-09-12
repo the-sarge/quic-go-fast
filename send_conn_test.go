@@ -37,10 +37,6 @@ func TestSendConnLocalAndRemoteAddress(t *testing.T) {
 }
 
 func TestSendConnOOB(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("we don't OOB conn on windows, and no packet info will be available")
-	}
-
 	remoteAddr := &net.UDPAddr{IP: net.IPv4(192, 168, 100, 200), Port: 1337}
 	rawConn := NewMockRawConn(gomock.NewController(t))
 	rawConn.EXPECT().LocalAddr()
