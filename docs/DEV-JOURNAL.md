@@ -1477,3 +1477,18 @@ Hosted [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34742109890
 ### Next
 
 R1 and R2 are complete; R3 remains ready with no blockers. Stored STREAM data retirement belongs to R3. Other A13 tracks remain independent; the [program tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live view. No new follow-up issues or untraced effects arose from R2.
+
+---
+
+## Receive STREAM terminal storage retirement completed - 2026-09-13 03:41 EDT
+
+**Main:** `417c444bac87`
+**Actor:** Codex
+
+Merged [PR #288](https://github.com/the-sarge/quic-go-fast/pull/288) as `417c444bac87faf7767b4049ed1ff97db889656f`, closing [A13/R3 (#269)](https://github.com/the-sarge/quic-go-fast/issues/269) and completing the receive STREAM lifetime track. Current callbacks are taken and cleared before release; terminal transitions discard gapped queued data and seal storage admission after required final-size validation. Consumed EOF, cancellation/shutdown errors, reliable-prefix delivery, flow accounting and completion ownership are preserved. The product PR owns R3/R-track completion and the committed frontier transition.
+
+Ten semantic cases cover consumed callbacks/EOF, cancellation/shutdown with unread FIN or gaps, reliable-prefix retention/retirement, late admission and waiter resumption. Retained-storage and late-admission regressions failed before their fixes. The review-adapted reduced-prefix case also failed with a blocked Peek before the reset transition gained its notification. Focused tests, focused race tests, the full root package suite, `go vet .`, `go mod tidy -diff`, whitespace and changed Markdown links passed; final clean-tree certification pinned head `2525794d36f670e0551a271f430ac042a2c54879` against base `ede9eb30d6a9ffc813baeefa71f7987aac63afb6`.
+
+Initial RAS run `20260913T071557-d2424ad60e2fef7e13fde0e8` found one wakeup regression: sealed late-data admission removed the prior late-traffic notification after a duplicate reset reduced the reliable size. Independent disposition accepted it once that changed-surface evidence was established. The central reset-transition fix was verified at the exact pushed head with 1/1 finding coverage. Replacement run `20260913T073320-001fa6904e1945da2ac84515` had no fixes or follow-ups. Both runs met quorum despite a failed Claude Fable reviewer; the initial run also had one failed Claude Opus adjudication. The [disposition history](https://github.com/the-sarge/quic-go-fast/pull/288#issuecomment-5651952278) and [final validation receipt with all hosted run links](https://github.com/the-sarge/quic-go-fast/pull/288#issuecomment-5652006067) preserve the evidence. All 33 existing hosted checks succeeded on the merged candidate. No pending deferred findings or additional untraced effects remain within R3's accepted boundary.
+
+Next snapshot: R1, R2 and R3 are delivered. S1, B1, H1, C1, Q1 and M1 remain independently ready; R3 completion adds no dependency edges or newly unblocked successor. The [A13 program tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live view.
