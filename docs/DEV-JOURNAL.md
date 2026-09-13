@@ -1395,3 +1395,24 @@ Review: RAS run `20260913T000141-ee4a5908dadef8e1e64cd329` (initial, briefed fro
 ### Next
 
 Datapath offload program QGF-DP-2026-09 is complete: Tracks G, W, and D are all done (G1 #236, G2 #239, W1 #242, W2 #245, W3 #248, D1 #257 merged; D2 retired via #259/#260) and **no dispatchable frontier remains**. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live view.
+
+---
+
+## Blocked-data regression timing bounded - 2026-09-12 23:06 EDT
+
+**Main:** `83e69d56d027`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #263](https://github.com/the-sarge/quic-go-fast/pull/263), closing [#222](https://github.com/the-sarge/quic-go-fast/issues/222). The delayed blocked-data regression caps effective RTT at 15 ms while preserving its three-RTT final delay, scaled failure waits, accepted-byte batches, exact blocked offsets/counts and bundling. Fatal frame-count checks report observed frames before indexing can panic. Production transport behavior and original undelayed test timing are unchanged.
+
+### Decisions
+
+Supported examples are timing factors 1, 3, 10 and 20, stream/connection limits, and QUIC v1/v2. This is bounded fixture coverage rather than a guarantee against arbitrary scheduler stalls. The maintained [regression contract](agents/blocked-data-delivery.md) owns scope, evidence and retirement policy.
+
+### Validation
+
+On macOS arm64 / Go 1.27.0, the baseline factor-20 race failed on its first run with five blocked frames and an indexing panic. The revised fixture passed all 16 factor/version/native-or-race cells, with 25 repetitions of all three affected tests per cell. Restoring the old read logic failed accepted400/read0 for both limiting modes at factors 1/20; excess-frame injections failed diagnostically without panic. All temporary mutations were removed before commit. The unscaled uncached full suite, vet, module tidiness, formatting and all 33 applicable hosted checks passed on candidate `fda5ea49f2c0889ec5bd416d284b051913042a53` against base `c087c0330aeada19937e9f3916706eafc9576357`.
+
+RAS run `20260913T025915-47fe04021e003e26bdba5656` completed with two approving reviewers and zero findings. No fix verification, replacement review or deferred follow-up was needed. See the [review and exact-head certification receipt](https://github.com/the-sarge/quic-go-fast/pull/263#issuecomment-5650545805). This journal is a post-merge documentation append and receives no RAS review.
