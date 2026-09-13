@@ -90,13 +90,13 @@ func TestCoalescedDeliveryMetadataAndClearedSlots(t *testing.T) {
 		original := receivedPacket{
 			buffer: buffer, data: buffer.Data, remoteAddr: addr,
 			rcvTime: monotime.Now(), ecn: protocol.ECT0,
-			info: packetInfo{addr: netip.MustParseAddr("10.0.0.9"), ifIndex: 7},
+			info: packetInfo{addr: netip.MustParseAddr("10.0.0.9")},
 		}
 		p := delivery.accept(original, 2)
 		slots := delivery.pending
 		// Mutating the caller's value cannot change metadata already copied.
 		original.ecn = protocol.ECNCE
-		original.info.ifIndex = 99
+		original.info.addr = netip.MustParseAddr("10.0.0.99")
 		for i, want := range segments {
 			if i > 0 {
 				var ok bool
@@ -108,8 +108,7 @@ func TestCoalescedDeliveryMetadataAndClearedSlots(t *testing.T) {
 			require.Same(t, addr, p.remoteAddr)
 			require.Equal(t, original.rcvTime, p.rcvTime)
 			require.Equal(t, protocol.ECT0, p.ecn)
-			require.Equal(t, netip.MustParseAddr("10.0.0.9"), p.info.addr)
-			require.EqualValues(t, 7, p.info.ifIndex)
+			require.Equal(t, packetInfo{addr: netip.MustParseAddr("10.0.0.9")}, p.info)
 			p.buffer.Release()
 		}
 	}
