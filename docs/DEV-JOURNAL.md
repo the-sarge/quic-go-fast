@@ -1439,3 +1439,18 @@ Independent existing-work and per-slice audits passed after bounded corrections.
 ### Next
 
 As of this entry, all nine children are ready and none is dispatched. Start with R1, then prioritize S1 and the remaining receive lifetime work; the [live program tracker #282](https://github.com/the-sarge/quic-go-fast/issues/282) owns current frontier/state. Dispatch one child per fresh context with `$implement-architecture-slice` when the operator chooses. Existing investigations, engine research, completed programs and frozen evidence retain their scopes.
+
+---
+
+## Partial-reset cancellation wakeup landed - 2026-09-13 01:54 EDT
+
+**Main:** `38be7586949b`
+**Actor:** Codex
+
+Merged [A13/R1, PR #284](https://github.com/the-sarge/quic-go-fast/pull/284) as `38be7586949bdec75c7b817fbca1b165da74030a`, closing [issue #267](https://github.com/the-sarge/quic-go-fast/issues/267). Local cancellation now wakes Read and Peek after a partial remote reset notification has been consumed, while preserving the original remote error, STOP_SENDING behavior, and one completion notification. The product PR includes R1 completion and the remaining frontier in the plan and program index.
+
+Validation: both deterministic Read/Peek subtests failed before the fix and passed afterward; the focused ReceiveStream suite and race run, full `go test ./... -count=1` including integration tests, `go vet .`, and `go mod tidy -diff` passed. Standards and Spec reviews each had zero findings. RAS run `20260913T053903-66e1bd15e933cada51c7b3b1` reported no behavioral fixes; its stale-current-shape documentation observation was independently accepted and corrected. The shared docs-only policy skipped another RAS cycle, and the final head `9b1e72eed8919daeaac9deea24011b92d220da5a` passed clean-tree, whitespace, link, and frontier certification. See the [validation and disposition receipt](https://github.com/the-sarge/quic-go-fast/pull/284#issuecomment-5651476086).
+
+Hosted checks passed on that exact final head: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185526), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185524), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185511), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185516), and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185506). No deferred findings or untraced effects remain for R1.
+
+Next snapshot: R2 and R3 remain independently ready; R1 completion creates no new dependency edges. Other A13 slices remain on the frontier. The [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live view.
