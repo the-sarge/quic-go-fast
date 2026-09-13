@@ -163,6 +163,13 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn, delayLas
 		initialConnWindow = window
 	}
 	rtt := scaleDuration(5 * time.Millisecond)
+	if delayLastBatch {
+		// Bound the injected network delay at the existing factor-3 timing.
+		// Larger factors must not stretch it against the fixed MaxAckDelay and
+		// provoke PTO retransmissions that invalidate the exact frame counts.
+		// Failure-wait budgets below still scale with TIMESCALE_FACTOR.
+		rtt = min(rtt, 15*time.Millisecond)
+	}
 
 	ln, err := quic.Listen(
 		newUDPConnLocalhost(t),
@@ -300,7 +307,7 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn, delayLas
 	assert.Equal(t, numBatches, bundledCounter)
 	if limitStream {
 		assert.Empty(t, dataBlockedFrames)
-		assert.Len(t, streamDataBlockedFrames, numBatches)
+		require.Len(t, streamDataBlockedFrames, numBatches)
 		for i, f := range streamDataBlockedFrames {
 			assert.Equal(t, str.StreamID(), f.StreamID)
 			assert.Equal(t, expectedBlockOffsets[i], f.MaximumStreamData)
@@ -308,7 +315,7 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn, delayLas
 	}
 	if limitConn {
 		assert.Empty(t, streamDataBlockedFrames)
-		assert.Len(t, dataBlockedFrames, numBatches)
+		require.Len(t, dataBlockedFrames, numBatches)
 		for i, f := range dataBlockedFrames {
 			assert.Equal(t, expectedBlockOffsets[i], f.MaximumData)
 		}
