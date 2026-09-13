@@ -158,6 +158,7 @@ start:
 	s.mx.Lock()
 	if len(s.queue) > 0 {
 		data := s.queue[0]
+		s.queue[0] = nil
 		s.queue = s.queue[1:]
 		s.mx.Unlock()
 		return data, nil
