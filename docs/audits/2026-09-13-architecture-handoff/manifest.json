@@ -1,0 +1,22 @@
+{
+  "reviewed_sha": "fdb1af2a2c81e441ad3c855c355e136214e3fd77",
+  "repo": "/Users/josh/code/github.com/the-sarge/quic-go-fast",
+  "go_version": "go1.27.0 darwin/arm64",
+  "production_changes": false,
+  "repo_test_changes": false,
+  "baseline_tests": [
+    {
+      "command": "go test . -run '^(TestSendQueueBatch.*|TestReceiveStreamCancellation|TestReceiveStreamCancelReadAbandonsUnreadData|TestReceiveStreamResetStreamAtAfterReadOffset|TestReceiveStreamMultipleResetStreamAt|TestReceiveStreamCloseForShutdown)$' -count=1",
+      "result": "PASS",
+      "reported_package_seconds": 0.484
+    },
+    {
+      "command": "go test ./http3 -run '^(TestServerClosing|TestServerConcurrentServeAndClose|TestServerImmediateGracefulShutdown|TestServerGracefulShutdown|TestParserReservedFrameType|TestDatagramReceiving|TestHeaderCollectionAllocations)$' -count=1",
+      "result": "PASS",
+      "reported_package_seconds": 0.382
+    }
+  ],
+  "diagnostic_command": "go test -overlay /tmp/quic-architecture-grill-evidence/overlay.json . -run '^TestArchitectureProbe' -count=1 -v",
+  "diagnostic_exit_code": 1,
+  "diagnostic_interpretation": "Four expected failures against the desired contracts: Read and Peek fail to wake after local cancellation following partial remote reset; negative/over-offered batch counts with nil error cause two per-packet retries. No production fix applied. Real ReceiveStream, real worker code; mocked stream notifications and scripted batch adapter. No network-level reproduction or platform batching fault claimed."
+}

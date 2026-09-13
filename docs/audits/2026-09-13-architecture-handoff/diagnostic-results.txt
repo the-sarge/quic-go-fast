@@ -1,0 +1,21 @@
+=== RUN   TestArchitectureProbeCancelAfterPartialReset
+=== RUN   TestArchitectureProbeCancelAfterPartialReset/Read
+    architecture_grill_diagnostic_test.go:31: CURRENT CODE VIOLATES CANCELLATION PROMISE: reader remains blocked after CancelRead following partial RESET_STREAM_AT
+=== RUN   TestArchitectureProbeCancelAfterPartialReset/Peek
+    architecture_grill_diagnostic_test.go:31: CURRENT CODE VIOLATES CANCELLATION PROMISE: reader remains blocked after CancelRead following partial RESET_STREAM_AT
+--- FAIL: TestArchitectureProbeCancelAfterPartialReset (0.00s)
+    --- FAIL: TestArchitectureProbeCancelAfterPartialReset/Read (0.00s)
+    --- FAIL: TestArchitectureProbeCancelAfterPartialReset/Peek (0.00s)
+=== RUN   TestArchitectureProbeInvalidBatchProgress
+=== RUN   TestArchitectureProbeInvalidBatchProgress/negative
+    architecture_grill_diagnostic_test.go:48: CURRENT CODE ACCEPTS MALFORMED PROGRESS: expected fatal contract error
+    architecture_grill_diagnostic_test.go:49: CURRENT CODE RETRIES AFTER UNKNOWN PROGRESS: per-packet writes=2
+=== RUN   TestArchitectureProbeInvalidBatchProgress/over-offered
+    architecture_grill_diagnostic_test.go:48: CURRENT CODE ACCEPTS MALFORMED PROGRESS: expected fatal contract error
+    architecture_grill_diagnostic_test.go:49: CURRENT CODE RETRIES AFTER UNKNOWN PROGRESS: per-packet writes=2
+--- FAIL: TestArchitectureProbeInvalidBatchProgress (0.00s)
+    --- FAIL: TestArchitectureProbeInvalidBatchProgress/negative (0.00s)
+    --- FAIL: TestArchitectureProbeInvalidBatchProgress/over-offered (0.00s)
+FAIL
+FAIL	github.com/quic-go/quic-go	0.352s
+FAIL
