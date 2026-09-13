@@ -1,7 +1,7 @@
 # HTTP/3 server admission implementation plan
 
 **Date:** 2026-09-13
-**Status:** Accepted; not implemented
+**Status:** Complete
 **Track:** S in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -24,7 +24,7 @@ Keep private admit/complete/seal operations on existing Server and mutex. Initia
 
 | Slice | State | Delivery | Blocked by | Temporary seam removal |
 |---|---|---|---|---|
-| S1 | New; frontier | Make HTTP/3 connection admission atomic with shutdown | None | None |
+| S1 | Complete | Make HTTP/3 connection admission atomic with shutdown | None | None |
 
 ## Implementation slices
 
@@ -52,12 +52,12 @@ Keep private admit/complete/seal operations on existing Server and mutex. Initia
 
 | Semantic class | Disposition | Enforcement owner | Finite evidence | Status |
 |---|---|---|---|---|
-| Direct route checked just before shutdown / listener accepted just before seal | Either reserve before seal or reject; never start uncounted | Server admission | Deterministic cases for both routes | Required at implementation |
-| Last admitted connection completes while another attempts admission after seal | Close stable done once; reject late admission | Server seal/complete | Coordinated completion case | Required at implementation |
-| Unused server, repeated/concurrent Close and Shutdown, immediate escalation | Finish without channel replacement, double close or lock wait cycle; concurrent callers wait for earlier owned-listener close work | Server lifecycle | Bounded table including concurrent listener close completion | Required at implementation |
-| Setup failure and managed handler completion | Release reservation once across full managed scope | Server completion | Failure and request/uni-accept completion cases | Required at implementation |
-| Rejected direct connection / rejected accepted connection / external resources | Preserve ownership-specific disposition | Admission callers | One case each ownership class | Required at implementation |
-| Listener failures and shutdown timeout | Preserve existing return precedence and timeout ctx.Err | Existing Close/Shutdown error boundary | Characterization table | Required at implementation |
+| Direct route checked just before shutdown / listener accepted just before seal | Either reserve before seal or reject; never start uncounted | Server admission | Deterministic cases for both routes | Covered: `TestServerCloseWaitsForAdmittedSetup`, `TestServerServeListenerRejectsAcceptedConnAfterClose`, `TestServerServeQUICConnRejectsWithoutTakingOwnership` |
+| Last admitted connection completes while another attempts admission after seal | Close stable done once; reject late admission | Server seal/complete | Coordinated completion case | Covered: `TestServerServeCompletionSignal` |
+| Unused server, repeated/concurrent Close and Shutdown, immediate escalation | Finish without channel replacement, double close or lock wait cycle; concurrent callers wait for earlier owned-listener close work | Server lifecycle | Bounded table including concurrent listener close completion | Covered: `TestServerUnusedConcurrentShutdown`, `TestServerConcurrentListenerCloseCompletion`; existing immediate/graceful shutdown tests |
+| Setup failure and managed handler completion | Release reservation once across full managed scope | Server completion | Failure and request/uni-accept completion cases | Covered: `TestServerCloseAfterSetupFailure`, `TestServerCloseWaitsForManagedHandler` |
+| Rejected direct connection / rejected accepted connection / external resources | Preserve ownership-specific disposition | Admission callers | One case each ownership class | Covered: Direct/listener rejection regressions and `TestServerListenerCloseErrors`; existing external-socket tests |
+| Listener failures and shutdown timeout | Preserve existing return precedence and timeout ctx.Err | Existing Close/Shutdown error boundary | Characterization table | Covered: `TestServerListenerCloseErrors`; existing `TestServerGracefulShutdown` |
 
 **Evidence budget:** At most 12 new cases, reuse existing ServerClosing, ConcurrentServeAndClose, ImmediateGracefulShutdown and GracefulShutdown. One HTTP/3 package run and one focused race run. Use private actual admission seam or temporary test-only coordination; no permanent production callback solely for testing. No repeated stress or deadline SLA. Terminate when the listed cases and applicable gates pass with no unresolved stop-for-decision finding; passing examples are evidence for the named enforcing representation, not a completeness proof.
 
@@ -71,9 +71,9 @@ Keep private admit/complete/seal operations on existing Server and mutex. Initia
 
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 

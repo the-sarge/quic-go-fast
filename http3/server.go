@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -124,6 +123,14 @@ var ServerContextKey = &contextKey{"http3-server"}
 // than its string representation.
 var RemoteAddrContextKey = &contextKey{"remote-addr"}
 
+// listenerCloseWork keeps a shutdown call's snapshot and completion separate
+// from the active listener list, which serving goroutines can remove from.
+type listenerCloseWork struct {
+	listeners []listener
+	previous  <-chan struct{}
+	done      chan struct{}
+}
+
 // listener contains info about specific listener added with addListener
 type listener struct {
 	ln   *QUICListener
@@ -192,15 +199,17 @@ type Server struct {
 
 	Logger *slog.Logger
 
-	mutex     sync.RWMutex
-	listeners []listener
+	mutex              sync.RWMutex
+	listenerCloseMutex sync.Mutex // serializes owned-listener Close calls, never connection completion
+	listeners          []listener
+	listenerCloseDone  chan struct{} // last registered listener-close work; protected by mutex
 
 	closed           bool
 	closeCtx         context.Context    // canceled when the server is closed
 	closeCancel      context.CancelFunc // cancels the closeCtx
 	graceCtx         context.Context    // canceled when the server is closed or gracefully closed
 	graceCancel      context.CancelFunc // cancels the graceCtx
-	connCount        atomic.Int64
+	connCount        int
 	connHandlingDone chan struct{}
 
 	altSvcHeader string
@@ -261,30 +270,83 @@ func (s *Server) init() {
 	if s.closeCtx == nil {
 		s.closeCtx, s.closeCancel = context.WithCancel(context.Background())
 		s.graceCtx, s.graceCancel = context.WithCancel(s.closeCtx)
+		s.connHandlingDone = make(chan struct{})
 	}
-	s.connHandlingDone = make(chan struct{}, 1)
+}
+
+// admitConn reserves the full managed handleConn lifetime before setup starts.
+func (s *Server) admitConn() bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.closed {
+		return false
+	}
+	s.init()
+	s.connCount++
+	return true
 }
 
 func (s *Server) decreaseConnCount() {
-	if s.connCount.Add(-1) == 0 && s.graceCtx.Err() != nil {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.connCount--
+	if s.connCount == 0 && s.closed {
 		close(s.connHandlingDone)
 	}
 }
 
+// seal stops admission and snapshots listener work. Neither listener closure nor
+// connection completion may be awaited while holding the admission mutex.
+func (s *Server) seal(immediate bool) (listenerCloseWork, <-chan struct{}) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.init()
+	if !s.closed {
+		s.closed = true
+		if s.connCount == 0 {
+			close(s.connHandlingDone)
+		}
+	}
+	if immediate {
+		s.closeCancel()
+	} else {
+		s.graceCancel()
+	}
+	work := listenerCloseWork{
+		listeners: slices.Clone(s.listeners),
+		previous:  s.listenerCloseDone,
+		done:      make(chan struct{}),
+	}
+	s.listenerCloseDone = work.done
+	return work, s.connHandlingDone
+}
+
+func (s *Server) closeListeners(work listenerCloseWork) []error {
+	// Registering the predecessor in seal prevents a later shutdown from
+	// overtaking this call before it reaches the listener-close mutex.
+	if work.previous != nil {
+		<-work.previous
+	}
+	defer close(work.done)
+	s.listenerCloseMutex.Lock()
+	defer s.listenerCloseMutex.Unlock()
+	var errs []error
+	for _, l := range work.listeners {
+		if l.createdLocally {
+			if err := (*l.ln).Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
 // ServeQUICConn serves a single QUIC connection.
 func (s *Server) ServeQUICConn(conn *quic.Conn) error {
-	s.mutex.Lock()
-	if s.closed {
-		s.mutex.Unlock()
+	if !s.admitConn() {
 		return http.ErrServerClosed
 	}
-
-	s.init()
-	s.mutex.Unlock()
-
-	s.connCount.Add(1)
 	defer s.decreaseConnCount()
-
 	return s.handleConn(conn)
 }
 
@@ -308,14 +370,16 @@ func (s *Server) ServeListener(ln QUICListener) error {
 func (s *Server) serveListener(ln QUICListener) error {
 	for {
 		conn, err := ln.Accept(s.graceCtx)
-		// server closed
-		if errors.Is(err, quic.ErrServerClosed) || s.graceCtx.Err() != nil {
-			return http.ErrServerClosed
-		}
 		if err != nil {
+			if errors.Is(err, quic.ErrServerClosed) || s.graceCtx.Err() != nil {
+				return http.ErrServerClosed
+			}
 			return err
 		}
-		s.connCount.Add(1)
+		if !s.admitConn() {
+			conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeNoError), "")
+			return http.ErrServerClosed
+		}
 		go func() {
 			defer s.decreaseConnCount()
 			if err := s.handleConn(conn); err != nil {
@@ -607,30 +671,13 @@ func (s *Server) maxHeaderBytes() int {
 // use [Server.Serve] to avoid this.
 // It is the caller's responsibility to close any connection passed to [Server.ServeQUICConn].
 func (s *Server) Close() error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.closed = true
-	// server is never used
-	if s.closeCtx == nil {
-		return nil
+	work, done := s.seal(true)
+	errs := s.closeListeners(work)
+	<-done
+	if len(errs) > 0 {
+		return errs[0]
 	}
-	s.closeCancel()
-
-	var err error
-	for _, l := range s.listeners {
-		if l.createdLocally {
-			if cerr := (*l.ln).Close(); cerr != nil && err == nil {
-				err = cerr
-			}
-		}
-	}
-	if s.connCount.Load() == 0 {
-		return err
-	}
-	// wait for all connections to be closed
-	<-s.connHandlingDone
-	return err
+	return nil
 }
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
@@ -638,34 +685,22 @@ func (s *Server) Close() error {
 // Calling Shutdown concurrently with [Server.ListenAndServe] may race with UDP socket creation;
 // use [Server.Serve] to avoid this.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.mutex.Lock()
-	s.closed = true
-	// server was never used
-	if s.closeCtx == nil {
-		s.mutex.Unlock()
-		return nil
-	}
-	s.graceCancel()
-
-	// close all listeners
-	var closeErrs []error
-	for _, l := range s.listeners {
-		if l.createdLocally {
-			if err := (*l.ln).Close(); err != nil {
-				closeErrs = append(closeErrs, err)
-			}
-		}
-	}
-	s.mutex.Unlock()
+	work, done := s.seal(false)
+	closeErrs := s.closeListeners(work)
 	if len(closeErrs) > 0 {
 		return errors.Join(closeErrs...)
 	}
 
-	if s.connCount.Load() == 0 {
-		return s.Close()
-	}
+	// Preserve immediate success when there is no managed work, even if ctx
+	// was already canceled.
 	select {
-	case <-s.connHandlingDone: // all connections were closed
+	case <-done:
+		return s.Close()
+	default:
+	}
+
+	select {
+	case <-done: // all connections were closed
 		// When receiving a GOAWAY frame, HTTP/3 clients are expected to close the connection
 		// once all requests were successfully handled...
 		return s.Close()
