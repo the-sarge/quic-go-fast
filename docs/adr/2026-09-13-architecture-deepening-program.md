@@ -1,7 +1,7 @@
 # Architecture deepening program — 2026-09-13
 
 **Identity:** A13
-**Status:** In progress; R track complete
+**Status:** In progress; R and S tracks complete
 
 ## What this is
 
@@ -12,16 +12,16 @@ Seven narrow tracks preserve the existing architecture while repairing specific 
 | Track | Plan | Parent issue | Hard prerequisites | Slices | Current state |
 |---|---|---|---|---|---|
 | R — Receive STREAM lifetime | [Plan](2026-09-13-receive-stream-lifetime-plan.md) | pending | None | R1, R2, R3 | Complete |
-| S — HTTP/3 server admission | [Plan](2026-09-13-http3-server-admission-plan.md) | pending | None | S1 | Frontier |
+| S — HTTP/3 server admission | [Plan](2026-09-13-http3-server-admission-plan.md) | [#270](https://github.com/the-sarge/quic-go-fast/issues/270) | None | S1 | Complete |
 | B — Send-batch defensive progress | [Plan](2026-09-13-send-batch-progress-plan.md) | pending | None | B1 | Frontier |
 | H — HTTP/3 response completion | [Plan](2026-09-13-http3-response-completion-plan.md) | pending | None | H1 | Frontier |
 | C — Coalesced receive delivery | [Plan](2026-09-13-coalesced-delivery-plan.md) | pending | None | C1 | Frontier |
 | Q — HTTP/3 datagram queue references | [Plan](2026-09-13-http3-datagram-references-plan.md) | pending | None | Q1 | Frontier |
 | M — Unused packet-handler mock | [Plan](2026-09-13-unused-packet-handler-mock-plan.md) | pending | None | M1 | Frontier |
 
-There are no hard cross-track or within-track edges. Current frontier: S1, B1, H1, C1, Q1, M1. Every slice is one intended PR in one fresh context. R1/R2/R3 are medium, medium, and medium respectively; S1 and C1 are medium; B1 and H1 are small; Q1 and M1 are very small. Context boundaries are defined in each slice, not by these relative estimates.
+There are no hard cross-track or within-track edges. Current frontier: B1, H1, C1, Q1, M1. Every slice is one intended PR in one fresh context. R1/R2/R3 are medium, medium, and medium respectively; S1 and C1 are medium; B1 and H1 are small; Q1 and M1 are very small. Context boundaries are defined in each slice, not by these relative estimates.
 
-Recommended remaining attention order: S1, B1, H1, C1, Q1, M1. This is prioritization, not a dependency graph. Prefer serial scheduling of R1/R2/R3 because they overlap receive_stream.go and tests; they are independently green. Distinct tracks may proceed in parallel on dedicated worktrees, with normal merge conflict checking. Shared generated-test or broad package tests do not themselves create dependency edges. Do not label a convenience order as blocked.
+Recommended remaining attention order: B1, H1, C1, Q1, M1. This is prioritization, not a dependency graph. Prefer serial scheduling of R1/R2/R3 because they overlap receive_stream.go and tests; they are independently green. Distinct tracks may proceed in parallel on dedicated worktrees, with normal merge conflict checking. Shared generated-test or broad package tests do not themselves create dependency edges. Do not label a convenience order as blocked.
 
 ## Outcomes closed with no code
 
