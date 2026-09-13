@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
@@ -242,10 +243,11 @@ func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
 			clear(bufs)
 			h.bufsScratch = bufs[:0]
 			if accepted < 0 || accepted > len(remaining) {
-				// Defense in depth: the batch layer bounds and latches on
-				// structural results; an out-of-bounds count is treated as
-				// nothing accepted so no entry can be skipped or resent.
-				accepted = 0
+				// Invalid progress cannot identify a safe remainder to retry.
+				if err != nil {
+					return err
+				}
+				return fmt.Errorf("quic: invalid send batch accepted count %d of %d", accepted, len(remaining))
 			}
 			i += accepted
 			if err != nil {
