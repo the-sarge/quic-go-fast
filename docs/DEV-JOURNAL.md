@@ -1492,3 +1492,24 @@ Ten semantic cases cover consumed callbacks/EOF, cancellation/shutdown with unre
 Initial RAS run `20260913T071557-d2424ad60e2fef7e13fde0e8` found one wakeup regression: sealed late-data admission removed the prior late-traffic notification after a duplicate reset reduced the reliable size. Independent disposition accepted it once that changed-surface evidence was established. The central reset-transition fix was verified at the exact pushed head with 1/1 finding coverage. Replacement run `20260913T073320-001fa6904e1945da2ac84515` had no fixes or follow-ups. Both runs met quorum despite a failed Claude Fable reviewer; the initial run also had one failed Claude Opus adjudication. The [disposition history](https://github.com/the-sarge/quic-go-fast/pull/288#issuecomment-5651952278) and [final validation receipt with all hosted run links](https://github.com/the-sarge/quic-go-fast/pull/288#issuecomment-5652006067) preserve the evidence. All 33 existing hosted checks succeeded on the merged candidate. No pending deferred findings or additional untraced effects remain within R3's accepted boundary.
 
 Next snapshot: R1, R2 and R3 are delivered. S1, B1, H1, C1, Q1 and M1 remain independently ready; R3 completion adds no dependency edges or newly unblocked successor. The [A13 program tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live view.
+
+---
+
+## Atomic HTTP/3 server admission completed - 2026-09-13 12:46 EDT
+
+**Main:** `96a7c9eba013`
+**Actor:** Codex
+
+### Summary
+
+[PR #290](https://github.com/the-sarge/quic-go-fast/pull/290) completed [A13/S1 (#271)](https://github.com/the-sarge/quic-go-fast/issues/271). Both managed HTTP/3 serving routes now reserve their full connection-handling lifetime atomically with shutdown sealing, using one stable completion signal. Pending owned-listener close work remains ordered even after removal from the active listener list. Each shutdown call retains its own listener snapshot and error attribution; direct rejected connections remain caller-owned. Raw connections, GOAWAY behavior, socket ownership, and handler completion policy retain their existing contracts.
+
+### Validation
+
+Twelve bounded new cases cover admission, stable completion, pending/running listener closure, setup failure, handler completion, unused/concurrent shutdown, ownership, and error precedence. The completion-signal and accepted-connection rejection regressions failed before their fixes; the pending-close regression reproduced the initial review's C-001 finding before its repair. HTTP/3 package tests, focused Server lifecycle race tests, vet, module tidiness, whitespace, and exact-head clean-tree certification passed on `1e2f875bed2e2d7549e0a182e39a72a7ac834d8d` (Go 1.27.0, darwin/arm64). All 33 hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34768998360) and [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34768998328).
+
+Initial RAS `20260913T161825-d3c9d6511c70d1aa5b38e980` identified C-001; exact-head verification resolved it. Replacement `20260913T163805-a272d36f04b19011fb48dfbd` returned no findings. Reviewer tool failures were recorded with quorum satisfied. The [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/290#issuecomment-5654624923) contains dispositions and the complete hosted run set. No deferred follow-ups or untraced effects remain.
+
+### Next
+
+The product merge marks the S track complete and leaves B1, H1, C1, Q1, and M1 as independent frontier slices in the [program index](adr/2026-09-13-architecture-deepening-program.md). The [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) remains the live work view; S1 unlocks no dependent successor.
