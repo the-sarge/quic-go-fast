@@ -1370,3 +1370,28 @@ Adoption gate PASS per the precommitted [protocol](audits/2026-09-12-d1-sendmsgx
 ### Next
 
 D2 ([#234](https://github.com/the-sarge/quic-go-fast/issues/234), the bounded `recvmsg_x` receive-batching experiment) is now dispatchable — its D1 blocker is satisfied and it adopts or retires on its own predeclared gate. No deferred findings survived this PR (both review rounds closed fix-now or rejected). The [program index](adr/2026-09-11-datapath-offload-program.md) is the live frontier view.
+
+---
+
+## D2 recvmsg_x experiment retired; datapath offload program complete - 2026-09-12 20:23 EDT
+
+**Main:** `4089bf70c47c`
+**Actor:** Claude
+
+Retired Slice D2 of the [Darwin batch plan](adr/2026-09-11-darwin-batch-plan.md), closing [issue #234](https://github.com/the-sarge/quic-go-fast/issues/234) and completing Track D — and with it datapath offload program QGF-DP-2026-09. The bounded `recvmsg_x` receive-batching experiment was built, closure-tested, and measured on [experiment PR #259](https://github.com/the-sarge/quic-go-fast/pull/259), dispositioned **Fail → retire** by its precommitted protocol's mechanical rule, and took the slice's pre-accepted retirement: #259 closed **unmerged**, so the tree never contained the experimental path and the merged D1 send half is untouched. The committed record — protocol, results, raw collection, analyzer, and the plan/program state transition — landed through docs-only disposition [PR #260](https://github.com/the-sarge/quic-go-fast/pull/260), squash-merged as `4089bf70` with `--match-head-commit`.
+
+The retired implementation (preserved on the closed PR's branch, measured candidate `489b7812`) raised the Darwin receive batch to 8 behind a capability mirroring D1's: the shared kernel-major allowlist plus a receive-shape loopback self-check verifying per-message ECN attribution across native-IPv6 and v4-mapped senders on the production dual-stack wildcard socket shape, `QUIC_GO_DISABLE_RECVMSG_X`, a process latch on ENOSYS or structurally invalid results, and engaged/fallback counters. The shared OOB read loop consulted `receiveBatchSize()` per refill so every capability-off configuration kept the single-message read behavior and memory shape byte-identical, and the ios/opt-out stub pinned `batchSize = 1` through the sendmsg_x pair's symbol-parity mechanism.
+
+### Decisions
+
+Retirement is the pre-accepted disposition the plan fixed in advance, not an operator escalation ([protocol](audits/2026-09-12-d2-recvmsgx-protocol.md) precommitted at `489b7812` before collection; [results](audits/2026-09-12-d2-recvmsgx-results.md), disposition **Fail**). Primary — receive syscalls per delivered datagram, engaged vs disabled — geometric mean 0.9049, 95 % CI [0.8967, 0.9115] against the ≤ 0.75 adoption gate (fail threshold > 0.90); throughput 0.6708 [0.6678, 0.6738] against the ≥ 0.95 noninferiority gate; engagement 1.785 datagrams per delivering batch read (< 2.0); memory within budget; preservation cells correct in all rounds. The loopback bulk workload is sender-bottlenecked: shallow fills (~1.8 of 8 offered messages, 0.615 parked poller attempts per delivering read) never amortize `recvmsg_x`'s per-call cost, so ~10 % fewer receive syscalls cost ~33 % throughput. Deep fills of the kind that made D1's send side profitable (7.99 packets per queue-accumulated submission) have no receive-side analogue on this surface.
+
+### Validation
+
+The 11-round × 3-cell collection ran once on the qualified Darwin 25 host (Mac16,5, macOS 26.6.2, go1.27.0) and is published in full ([collection](audits/2026-09-12-d2-recvmsgx-collection.jsonl), [analyzer](audits/2026-09-12-d2-recvmsgx-analysis.py) — seed 20260912, 10,000 paired resamples). On the retired branch, all closure classes passed against the fake syscall and the real kernel (full/partial/single fill, per-message ancillary attribution, structural and ENOSYS latch, errno surfacing, EAGAIN/EINTR retry, capability-off delegation, address-representation parity with the fallback path), plus `-race`, the full local suite, and the cross-build matrix including the exact iOS library-package and opt-out-tag CI gates. Disposition PR #260: local certification (gofmt, build, vet host and windows, `golangci-lint` 0 issues, full suite) and all 33 hosted checks passed on head `4f9595df`; squash-merged with `--match-head-commit`.
+
+Review: RAS run `20260913T000141-ee4a5908dadef8e1e64cd329` (initial, briefed from the exact plan slice) confirmed the disposition ("supported by reproducible point estimates and two independent fail gates") and returned five low docs-accuracy fix-now clusters, all fixed at `4f9595df`: observed datagram range instead of an identity claim, the frozen protocol's component-sum erratum (13,440 B ≈ 13.1 KiB, not 12.6), correct poller-statistic denominators, published bootstrap provenance with the committed analyzer, and the fixed-versus-capability-gated allocation split. Five duplicate clusters were recorded as no-action. The RAS verify/re-review cycle was skipped under the shared low/nit docs-only policy, with the synthesis's own verification commands executed locally instead ([dispositions](https://github.com/the-sarge/quic-go-fast/pull/260#issuecomment-5649620050)). No deferred findings survive to follow-ups.
+
+### Next
+
+Datapath offload program QGF-DP-2026-09 is complete: Tracks G, W, and D are all done (G1 #236, G2 #239, W1 #242, W2 #245, W3 #248, D1 #257 merged; D2 retired via #259/#260) and **no dispatchable frontier remains**. The [program index](adr/2026-09-11-datapath-offload-program.md) is the live view.
