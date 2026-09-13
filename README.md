@@ -2,7 +2,7 @@
 
 A fork of [quic-go](https://github.com/quic-go/quic-go) focused on lower allocation costs, explicit packet buffer ownership, and transport correctness. The fork is based on **quic-go v0.62.0** and preserves its existing public APIs, import paths, and QUIC/HTTP/3 wire compatibility.
 
-The work started with bulk transfer using 1071-byte application DATAGRAM records and has expanded to handshake recovery, stream writes, HTTP/3 exchange lifetimes, and shutdown cleanup. This README describes the changes shipped here relative to that upstream baseline. General QUIC and HTTP/3 usage is covered by the [upstream documentation](https://quic-go.net/docs/).
+The work started with bulk transfer using 1071-byte application DATAGRAM records and has expanded to handshake recovery, stream writes, HTTP/3 exchange lifetimes, shutdown cleanup, and platform datapath offloads. This README describes the changes shipped here relative to that upstream baseline. General QUIC and HTTP/3 usage is covered by the [upstream documentation](https://quic-go.net/docs/).
 
 ## What changed
 
@@ -16,6 +16,16 @@ These changes ship through the existing DATAGRAM APIs. The ring and head-index r
 ### Large stream writes
 
 Large `TryWriteAll` calls repeatedly copied already queued bytes when appending and the remaining unsent buffer when emitting each packet. Copying work could therefore grow quadratically with the amount of queued data. Pending storage now grows geometrically, and segmentation copies packet-sized prefixes while advancing the unsent tail, making total copying linear. Retransmission keeps bounded packet storage; cancellation copies the reliable prefix once so a small retained range cannot keep a large discarded suffix alive. Atomic admission and caller-buffer ownership are preserved. See [large stream write changes #190](https://github.com/the-sarge/quic-go-fast/pull/190).
+
+### Platform datapath offloads
+
+Beyond Linux's existing GSO send path and `recvmmsg` receive batching, platform facilities for moving more data per socket call sat unused: Linux kernels can coalesce received datagrams, Windows can segment sends and coalesce receives, and macOS can batch sends. The transport now adopts datapath offloads on all three major platforms, each landed through a precommitted measurement protocol with predeclared pass bounds and its own correctness gate (the protocol and results pairs live under [docs/audits](docs/audit-evidence.md); the [program index](docs/adr/2026-09-11-datapath-offload-program.md) and [binding plan](docs/adr/2026-09-11-datapath-offload-plan.md) record the decisions):
+
+- **Linux coalesced receive (UDP_GRO).** The kernel merges consecutive same-flow datagrams into one buffer per read, and the transport splits them back into individual datagrams before any packet parsing, preserving `ReadPacket()`'s one-datagram contract. Sibling segments can route to different connections and release concurrently, so coalesced storage uses an atomically reference-counted slab confined to the segments of a single read (a recorded amendment to [ADR 0005](docs/adr/0005-incoming-packet-lifetime.md)), with a dedicated 64 KiB pool tier and retention queues that copy segments out of slabs under per-connection byte budgets. See [storage contract #236](https://github.com/the-sarge/quic-go-fast/pull/236) and [activation #239](https://github.com/the-sarge/quic-go-fast/pull/239).
+- **Windows datapath rebuild with segmented send (USO) and coalesced receive (URO).** Windows previously used a featureless plain-socket path. It now reads and writes through the standard library's message I/O (`WSARecvMsg`/`WSASendMsg` on the runtime's IOCP poller) with control-message encoding, packet-info parity, and preserved deadline/close semantics ([foundation #242](https://github.com/the-sarge/quic-go-fast/pull/242)); probes `UDP_SEND_MSG_SIZE` and reuses the existing platform-neutral segmented-send logic ([USO #245](https://github.com/the-sarge/quic-go-fast/pull/245)); and probes `UDP_RECV_MAX_COALESCED_SIZE`, feeding `UDP_COALESCED_INFO` segment sizes to the same split seam Linux uses ([URO #248](https://github.com/the-sarge/quic-go-fast/pull/248)).
+- **macOS batch send (`sendmsg_x`).** Queued datagrams go out in batches through XNU's private `sendmsg_x` syscall under fail-closed qualification: a Darwin-kernel-major allowlist recording tested version floors, a startup self-check that exercises the production call shape and verifies delivered bytes, destinations, ECN marks, and accepted counts semantically, per-call accepted-count bounds, and a process-lifetime latch on any structurally invalid result. Partial kernel acceptance never resends accepted entries and keeps message-size errors and handshake MTU feedback attached to the correct packet. iOS builds and the `quic_go_no_private_syscalls` opt-out tag exclude the private-syscall path at compile time. See [batch send #257](https://github.com/the-sarge/quic-go-fast/pull/257). The matching `recvmsg_x` receive-batching experiment was built, measured, and **retired** by its own predeclared gates — shallow receive fills never amortize the private call's per-invocation cost — with the experimental path never merged ([experiment #259](https://github.com/the-sarge/quic-go-fast/pull/259), [record #260](https://github.com/the-sarge/quic-go-fast/pull/260)).
+
+Offloads engage only through runtime capability probes on transport-owned sockets — a caller-supplied socket never has socket-wide coalescing enabled — and each honors a kill switch following the existing convention: `QUIC_GO_DISABLE_GSO` (segmented send, now including Windows), `QUIC_GO_DISABLE_GRO` (coalesced receive on Linux and Windows), and `QUIC_GO_DISABLE_SENDMSG_X` (macOS batch send). When a probe, qualification, or self-check fails, the connection keeps the prior per-datagram behavior. No public API changed.
 
 ### Handshake and path recovery
 
@@ -72,15 +82,20 @@ These are bounded observations from individual changes, not a benchmark of the e
 | DATAGRAM overflow admission | 1 allocation and 1152 bytes per rejected 1071-byte record → zero | Queue microbenchmark on macOS/arm64, Go 1.27.0 |
 | DATAGRAM parser copy removal | About 47% lower receiver allocation per delivered record, with smaller CPU savings | Native Linux QUIC loopback workload; tail-latency uncertainty remains |
 | HTTP/3 tracing-only header collection | Request fixture: 14 → 10 allocations; response fixture: 12 → 9 | Isolated decoder fixtures without collection; throughput unmeasured |
+| Linux coalesced receive (GRO) | Receive syscalls per delivered datagram ×0.263; loopback throughput ×1.26 | Paired 10-round loopback bulk protocol on a Linux host |
+| Windows segmented send (USO) | Send submissions per packet ×0.0815 (12.27 packets per submission); loopback throughput ×3.01 | Paired 10-round loopback bulk protocol on hosted `windows-latest` |
+| Windows coalesced receive (URO) | Receive syscalls per delivered datagram ×0.098; 95.7% of datagrams coalesced; throughput ×1.34 | Two-endpoint KVM virtual-NIC transfer — single-host Windows traffic cannot engage URO |
+| macOS batch send (sendmsg_x) | Send syscalls per packet ×0.126 (7.99 packets per submission); loopback throughput ×1.17 | Paired 10-round loopback bulk protocol, Darwin 25 arm64 |
+| macOS receive batching (recvmsg_x) | Retired: syscall ratio only ×0.905 with throughput ×0.671 — predeclared gates failed | Same protocol shape; experimental path never merged |
 
 The [evidence index](docs/audit-evidence.md) links the measurements and adoption decisions; the [journal](docs/DEV-JOURNAL.md) records subsequent validation and known limitations.
 
 ## Use the fork
 
-The module still declares `github.com/quic-go/quic-go`. Keep existing imports and select the fork with a `replace` directive in your application's main module. For example, this Go-resolved pseudo-version pins commit `a534677ca097`, which includes the changes described above:
+The module still declares `github.com/quic-go/quic-go`. Keep existing imports and select the fork with a `replace` directive in your application's main module. For example, this Go-resolved pseudo-version pins commit `e22303402af2`, which includes the changes described above:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-0.20260911050246-a534677ca097
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-0.20260913002850-e22303402af2
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
