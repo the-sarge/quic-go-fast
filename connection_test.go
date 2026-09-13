@@ -3319,3 +3319,21 @@ func testConnectionDatagrams(t *testing.T, enabled bool) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("bar"), d)
 }
+
+func TestConnectionSkippedStreamFrameMetadata(t *testing.T) {
+	tc := newServerTestConnection(t, nil, nil, false)
+	// Stream 5 is a locally initiated stream that was never opened.
+	data, err := (&wire.StopSendingFrame{StreamID: 5}).Append(nil, protocol.Version1)
+	require.NoError(t, err)
+	data, err = (&wire.StreamFrame{
+		StreamID: 0, Offset: 17, Fin: true,
+		Data: make([]byte, protocol.MinStreamFrameBufferSize),
+	}).Append(data, protocol.Version1)
+	require.NoError(t, err)
+	var logged []qlog.Frame
+	_, _, _, err = tc.conn.handleFrames(data, protocol.ConnectionID{}, protocol.Encryption1RTT,
+		func(frames []qlog.Frame) { logged = frames }, monotime.Now())
+	require.ErrorIs(t, err, &qerr.TransportError{ErrorCode: qerr.StreamStateError})
+	require.Len(t, logged, 2)
+	require.Equal(t, &qlog.StreamFrame{StreamID: 0, Offset: 17, Length: protocol.MinStreamFrameBufferSize, Fin: true}, logged[1].Frame)
+}

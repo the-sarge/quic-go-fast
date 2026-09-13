@@ -2,6 +2,7 @@ package wire
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"testing"
 
@@ -61,11 +62,17 @@ func TestParseStreamFrameAllowsEmpty(t *testing.T) {
 }
 
 func TestParseStreamFrameRejectsOverflow(t *testing.T) {
-	data := encodeVarInt(0x12345)                                         // stream ID
-	data = append(data, encodeVarInt(uint64(protocol.MaxByteCount-5))...) // offset
-	data = append(data, []byte("foobar")...)
-	_, _, err := ParseStreamFrame(data, 0x8^0x4, protocol.Version1)
-	require.EqualError(t, err, "stream data overflows maximum offset")
+	for _, size := range []int{6, protocol.MinStreamFrameBufferSize} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			data := encodeVarInt(0x12345)
+			data = append(data, encodeVarInt(uint64(protocol.MaxByteCount-5))...)
+			data = append(data, make([]byte, size)...)
+			frame, n, err := ParseStreamFrame(data, 0x8^0x4, protocol.Version1)
+			require.EqualError(t, err, "stream data overflows maximum offset")
+			require.Nil(t, frame)
+			require.Zero(t, n)
+		})
+	}
 }
 
 func TestParseStreamFrameRejectsLongFrames(t *testing.T) {

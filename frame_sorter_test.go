@@ -77,11 +77,13 @@ func TestFrameSorterSimpleCases(t *testing.T) {
 	require.True(t, t3.WasCalled())
 
 	// now receive a later frame that overlaps with the ones we already consumed
-	cb4, _ := getFrameSorterTestCallback(t)
+	cb4, t4 := getFrameSorterTestCallback(t)
 	require.NoError(t, s.Push([]byte("barbaz"), 3, cb4))
 	require.True(t, s.HasMoreData())
 
-	offset, data, _ = s.Pop()
+	require.True(t, t4.WasCalled()) // the trimmed data was copied
+	offset, data, doneCb = s.Pop()
+	require.Nil(t, doneCb)
 	require.Equal(t, protocol.ByteCount(6), offset)
 	require.Equal(t, []byte("baz"), data)
 	require.False(t, s.HasMoreData())
@@ -1374,8 +1376,10 @@ func TestFrameSorterTooManyGaps(t *testing.T) {
 		require.NoError(t, s.Push([]byte("foobar"), protocol.ByteCount(i*7), nil))
 	}
 	require.Equal(t, protocol.MaxStreamFrameSorterGaps, s.gaps.Len())
-	err := s.Push([]byte("foobar"), protocol.ByteCount(protocol.MaxStreamFrameSorterGaps*7)+100, nil)
+	cb, tracker := getFrameSorterTestCallback(t)
+	err := s.Push([]byte("foobar"), protocol.ByteCount(protocol.MaxStreamFrameSorterGaps*7)+100, cb)
 	require.EqualError(t, err, "too many gaps in received data")
+	require.True(t, tracker.WasCalled())
 }
 
 func TestFrameSorterRandomized(t *testing.T) {

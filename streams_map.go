@@ -305,12 +305,15 @@ func (m *streamsMap) HandleResetStreamFrame(f *wire.ResetStreamFrame, rcvTime mo
 	return str.handleResetStreamFrame(f, rcvTime)
 }
 
+// HandleStreamFrame consumes f, including when stream lookup fails.
 func (m *streamsMap) HandleStreamFrame(f *wire.StreamFrame, rcvTime monotime.Time) error {
 	str, err := m.getReceiveStream(f.StreamID)
 	if err != nil {
+		f.PutBack()
 		return err
 	}
 	if str == nil { // stream already deleted
+		f.PutBack()
 		return nil
 	}
 	return str.handleStreamFrame(f, rcvTime)

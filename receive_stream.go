@@ -447,18 +447,22 @@ func (s *ReceiveStream) handleStreamFrame(frame *wire.StreamFrame, now monotime.
 	return err
 }
 
+// handleStreamFrameImpl consumes frame, transferring accepted data to the sorter.
 func (s *ReceiveStream) handleStreamFrameImpl(frame *wire.StreamFrame, now monotime.Time) error {
 	if s.closeForShutdownErr != nil {
+		frame.PutBack()
 		return nil
 	}
 	maxOffset := frame.Offset + frame.DataLen()
 	if err := s.flowController.UpdateHighestReceived(maxOffset, frame.Fin, now); err != nil {
+		frame.PutBack()
 		return err
 	}
 	if frame.Fin {
 		s.finalOffset = maxOffset
 	}
 	if s.cancelledLocally {
+		frame.PutBack()
 		return nil
 	}
 	if err := s.frameQueue.Push(frame.Data, frame.Offset, frame.PutBack); err != nil {

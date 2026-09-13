@@ -1,7 +1,7 @@
 # Receive STREAM lifetime implementation plan
 
 **Date:** 2026-09-13
-**Status:** In progress; R1 complete; R2 and R3 ready
+**Status:** In progress; R1 and R2 complete; R3 ready
 **Track:** R in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -10,7 +10,7 @@
 
 ## Goal and current shape
 
-`ReceiveStream.cancelReadImpl` signals local cancellation before preserving an earlier remote reset error, so Read and Peek waiting for the reliable prefix wake without further traffic. `receive_stream.go:450–466`, `streams_map.go:308–316`, and `connection.go:1811–1826` have incoming owning-frame early returns. The wire parser copies STREAM data into its own frame allocation (`internal/wire/stream_frame.go:59–84`); this lifetime is distinct from incoming UDP storage. `frame_sorter.go:45–51,162–173` has distinct duplicate, trimming-copy and gap-limit outcomes with callback handling inside Push. The current first-error lifecycle does not establish that trimming-copy and gap-limit failure occur together. Keep disposal authority inside the sorter rather than encoding assumptions about internal callback consumption at callers. `receive_stream.go:248–254` invokes the EOF callback without clearing the stored function. Read/Peek's early EOF predicate (`:159–165,294–301`) can hide an error if cleanup clears an unread FIN frame while retaining the final-frame flag. These are current source anchors, with diagnostic provenance behind the audit link.
+`ReceiveStream.cancelReadImpl` signals local cancellation before preserving an earlier remote reset error, so Read and Peek waiting for the reliable prefix wake without further traffic. Parser failures, skipped connection dispatch, stream-map lookup rejection and ReceiveStream admission rejection now dispose incoming owning STREAM frames; successful handoffs transfer ownership to the next concrete owner. The wire parser copies STREAM data into its own frame allocation (`internal/wire/stream_frame.go:59–84`); this lifetime is distinct from incoming UDP storage. `frameSorter.Push` consumes its incoming callback on every outcome, including distinct duplicate, trimming-copy and first gap-limit rejection paths. The current first-error lifecycle does not establish that trimming-copy and gap-limit failure occur together. Keep disposal authority inside the sorter rather than encoding assumptions about internal callback consumption at callers. `receive_stream.go:248–254` invokes the EOF callback without clearing the stored function. Read/Peek's early EOF predicate (`:159–165,294–301`) can hide an error if cleanup clears an unread FIN frame while retaining the final-frame flag. These are current source anchors, with diagnostic provenance behind the audit link.
 
 ## Decision
 
@@ -25,7 +25,7 @@ Keep successive concrete owners and the existing ReceiveStream mutex. Separate w
 | Slice | State | Delivery | Blocked by | Temporary seam removal |
 |---|---|---|---|---|
 | R1 | Complete | Wake readers when local cancellation follows partial reset | None | None |
-| R2 | New; frontier | Consume incoming STREAM frame ownership through dispatch | None | None |
+| R2 | Complete | Consume incoming STREAM frame ownership through dispatch | None | None |
 | R3 | New; frontier | Retire stored STREAM data at terminal transitions | None | None |
 
 ## Implementation slices
@@ -99,13 +99,13 @@ Universal wording in these criteria is bounded by this slice's Representation co
 
 | Semantic class | Disposition | Enforcement owner | Finite evidence | Status |
 |---|---|---|---|---|
-| Parser capacity and offset-overflow failures after allocation | Dispose before returning original error | wire parser | One case per post-allocation error | Required at implementation |
-| Earlier packet-frame failure skips a subsequently parsed STREAM | Snapshot qlog metadata then dispose | connection packet loop | One skipped STREAM case | Required at implementation |
-| Lookup error or deleted stream | Dispose without handing off | stream map | One case per disposition | Required at implementation |
-| Shutdown, local cancel or highest-received/final-size rejection | Dispose or transfer without changing validation | ReceiveStream | One per reachable early-return class | Required at implementation |
-| Accepted unique data / duplicate / replaced entry | Retain or release at the sorter owner | frameSorter.Push | Existing sorter cases with callback counts | Required at implementation |
-| Trim-to-copy success; ordinary first gap-limit failure | Release copied-away input on success; release rejected incoming data on first fatal error | frameSorter.Push internals | One trimming success and one gap-limit failure | Required at implementation |
-| Crypto nil callback | Preserve behavior | frameSorter.Push | Existing crypto tests | Required at implementation |
+| Parser capacity and offset-overflow failures after allocation | Dispose before returning original error | wire parser | One case per post-allocation error | Covered |
+| Earlier packet-frame failure skips a subsequently parsed STREAM | Snapshot qlog metadata then dispose | connection packet loop | One skipped STREAM case | Covered |
+| Lookup error or deleted stream | Dispose without handing off | stream map | One case per disposition | Covered |
+| Shutdown, local cancel or highest-received/final-size rejection | Dispose or transfer without changing validation | ReceiveStream | One per reachable early-return class | Covered |
+| Accepted unique data / duplicate / replaced entry | Retain or release at the sorter owner | frameSorter.Push | Existing sorter cases with callback counts | Covered |
+| Trim-to-copy success; ordinary first gap-limit failure | Release copied-away input on success; release rejected incoming data on first fatal error | frameSorter.Push internals | One trimming success and one gap-limit failure | Covered |
+| Crypto nil callback | Preserve behavior | frameSorter.Push | Existing crypto tests | Covered |
 
 **Evidence budget:** At most 12 new focused ownership cases across the seven rows, reuse existing sorter tests. Callback counts at sorter seams; for concrete wire.StreamFrame.PutBack at parser/map/stream exits, use bounded temporary test-only observation of the release seam if needed, removed before merge. Do not infer release from sync.Pool reuse or GC timing, and do not add permanent production callbacks solely for testing. The post-allocation overflow case must use a pooled frame; the existing tiny nonpooled overflow case does not exercise pool return. No global pool tracker. One root/internal-wire/crypto affected-package run, one focused race run where concurrent ReceiveStream handoff is exercised. No mutation campaign, fuzz corpus or parser aliases. Terminate when the listed cases and applicable gates pass with no unresolved stop-for-decision finding; passing examples are evidence for the named enforcing representation, not a completeness proof.
 
@@ -117,11 +117,13 @@ Universal wording in these criteria is bounded by this slice's Representation co
 
 **Stop conditions:** Stop if preserving existing sorter behavior requires caller error-based disposal, another shared owner, a new public parser contract, or if the six-file handoff cannot be reviewed in one context. Shared representation, repeated-root, artifact and one-PR boundary stops also apply.
 
+**Implementation evidence:** [R2 ownership receipt](../audits/2026-09-13-architecture-handoff/r2-ownership-evidence.md).
+
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 

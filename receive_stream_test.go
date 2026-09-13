@@ -10,6 +10,7 @@ import (
 
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
 
@@ -1203,4 +1204,38 @@ func TestReceiveStreamResetStreamAtAfterResetStream(t *testing.T) {
 	n, err = str.Read(b)
 	require.ErrorIs(t, err, &StreamError{StreamID: 42, ErrorCode: 1337, Remote: true})
 	require.Zero(t, n)
+}
+
+func TestReceiveStreamRejectedStreamFrame(t *testing.T) {
+	for _, state := range []string{"shutdown", "local cancel", "flow control", "final size"} {
+		t.Run(state, func(t *testing.T) {
+			fc := newTestStreamFlowControllerWithWindows(42, 0, 1024, 2048)
+			sender := NewMockStreamSender(gomock.NewController(t))
+			str := newReceiveStream(42, sender, fc)
+			f := wire.GetStreamFrame()
+			f.StreamID, f.Offset, f.Fin = 42, 0, false
+			f.Data = f.Data[:protocol.MinStreamFrameBufferSize]
+			switch state {
+			case "shutdown":
+				str.closeForShutdown(assert.AnError)
+			case "local cancel":
+				sender.EXPECT().onHasStreamControlFrame(protocol.StreamID(42), str)
+				str.CancelRead(9)
+			case "flow control":
+				f.Offset = 1024
+			case "final size":
+				require.NoError(t, str.handleStreamFrame(&wire.StreamFrame{Offset: 64, Fin: true}, monotime.Now()))
+			}
+			err := str.handleStreamFrame(f, monotime.Now())
+			switch state {
+			case "flow control":
+				require.ErrorIs(t, err, &qerr.TransportError{ErrorCode: qerr.FlowControlError})
+			case "final size":
+				require.ErrorIs(t, err, &qerr.TransportError{ErrorCode: qerr.FinalSizeError})
+			default:
+				require.NoError(t, err)
+			}
+			require.False(t, str.frameQueue.HasMoreData())
+		})
+	}
 }
