@@ -35,3 +35,5 @@ Language for QUIC transport behavior and the fork's transmission work.
 **Receive batch**: One or more separately delivered UDP datagrams collected in a single submission from the socket-reading path. Each member is a complete UDP datagram; a member may itself be a coalesced receive.
 
 **Segmented send**: A single socket submission carrying a payload that the network stack splits into several equal-sized UDP datagrams before transmission. It is distinct from a send batch of separately submitted datagrams and from several QUIC packets sharing one UDP datagram.
+
+**Reliable stream prefix**: The initial range of stream bytes that a partial stream reset still requires the receiver to be able to read before observing that reset. Local cancellation can abandon reading that range.
