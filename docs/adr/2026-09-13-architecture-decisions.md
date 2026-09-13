@@ -8,9 +8,9 @@ These outcomes do not authorize new tasks or opportunistic edits. “When touche
 
 ## N01 — Standalone HEADERS consolidation
 
-Defer. Existing parseHeaders semantics are already shared; encoded-size outcomes belong to request/response roles (request 431/ExcessiveLoad, response FrameError). Request and response logs preserve partial decoded fields before semantic failure; trailers log invalid parsed fields but not truncated input. A generic parser/logger/error-mapper callback bundle moves coordination into a shallow interface. Keep allocation behavior and TestHeaderCollectionAllocations. Reconsider concrete role functions only after repeated real changes.
+Defer. Existing parseHeaders semantics are already shared; encoded-size outcomes belong to request/response roles (request 431/ExcessiveLoad, response FrameError). Request and response logs preserve partial decoded fields before semantic failure; trailer semantic failure logs an invalid-HEADERS event without parsed fields, while truncated input returns before logging. A generic parser/logger/error-mapper callback bundle moves coordination into a shallow interface. Keep allocation behavior and TestHeaderCollectionAllocations. Reconsider concrete role functions only after repeated real changes.
 
-**Source boundary:** `http3/headers.go:55–75; http3/client.go:446–471`.
+**Source boundary:** `http3/headers.go:55–75; http3/headers.go:446–472`.
 
 ## N02 — Standalone routing registry
 
