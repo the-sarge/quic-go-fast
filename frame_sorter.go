@@ -222,6 +222,21 @@ func (s *frameSorter) deleteConsecutive(pos protocol.ByteCount) {
 	}
 }
 
+// discard releases all queued entries, including data beyond gaps.
+// The owner must seal admission first; a discarded sorter cannot accept Push.
+// Empty Pop and repeated discard remain safe for resuming readers and cleanup.
+func (s *frameSorter) discard() {
+	for offset, entry := range s.queue {
+		delete(s.queue, offset)
+		if entry.DoneCb != nil {
+			entry.DoneCb()
+		}
+	}
+	for gap := s.gaps.Front(); gap != nil; gap = s.gaps.Front() {
+		s.gaps.Remove(gap)
+	}
+}
+
 func (s *frameSorter) Pop() (protocol.ByteCount, []byte, func()) {
 	entry, ok := s.queue[s.readPos]
 	if !ok {

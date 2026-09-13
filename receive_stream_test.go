@@ -1239,3 +1239,186 @@ func TestReceiveStreamRejectedStreamFrame(t *testing.T) {
 		})
 	}
 }
+
+func TestReceiveStreamReleasesConsumedStorage(t *testing.T) {
+	sender := NewMockStreamSender(gomock.NewController(t))
+	str := newReceiveStream(42, sender, newTestStreamFlowController(42))
+	var released int
+	require.NoError(t, str.frameQueue.Push([]byte("foo"), 0, func() { released++ }))
+	require.NoError(t, str.frameQueue.Push([]byte("bar"), 3, func() { released++ }))
+	require.NoError(t, str.handleStreamFrame(&wire.StreamFrame{Offset: 6, Fin: true}, monotime.Now()))
+	buf := make([]byte, 3)
+	n, err := str.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+	require.Equal(t, "foo", string(buf))
+	require.Equal(t, 1, released)
+	sender.EXPECT().onStreamCompleted(protocol.StreamID(42))
+	n, err = str.Read(buf)
+	require.ErrorIs(t, err, io.EOF)
+	require.Equal(t, 3, n)
+	require.Equal(t, "bar", string(buf))
+	require.Equal(t, 2, released)
+	require.Nil(t, str.currentFrameDone)
+	str.CancelRead(9)
+	str.closeForShutdown(assert.AnError)
+	_, err = str.Read(buf)
+	require.ErrorIs(t, err, io.EOF)
+	_, err = str.Peek(buf)
+	require.ErrorIs(t, err, io.EOF)
+	require.Equal(t, 2, released)
+}
+
+func TestReceiveStreamRetiresCancelledStorage(t *testing.T) {
+	for _, shutdown := range []bool{false, true} {
+		for _, fin := range []bool{false, true} {
+			name := "cancel"
+			if shutdown {
+				name = "shutdown"
+			}
+			if fin {
+				name += "/unread FIN"
+			} else {
+				name += "/gapped queue"
+			}
+			t.Run(name, func(t *testing.T) {
+				sender := NewMockStreamSender(gomock.NewController(t))
+				str := newReceiveStream(42, sender, newTestStreamFlowController(42))
+				var currentReleased, queuedReleased int
+				require.NoError(t, str.frameQueue.Push([]byte("foo"), 0, func() { currentReleased++ }))
+				if fin {
+					require.NoError(t, str.handleStreamFrame(&wire.StreamFrame{Offset: 3, Fin: true}, monotime.Now()))
+				} else {
+					require.NoError(t, str.frameQueue.Push([]byte("bar"), 6, func() { queuedReleased++ }))
+				}
+				_, err := str.Read(make([]byte, 1))
+				require.NoError(t, err)
+				require.Zero(t, currentReleased)
+				var expected error = &StreamError{StreamID: 42, ErrorCode: 9}
+				if shutdown {
+					expected = assert.AnError
+					str.closeForShutdown(expected)
+					str.closeForShutdown(expected)
+				} else {
+					sender.EXPECT().onHasStreamControlFrame(protocol.StreamID(42), str)
+					if fin {
+						sender.EXPECT().onStreamCompleted(protocol.StreamID(42))
+					}
+					str.CancelRead(9)
+					str.CancelRead(10)
+				}
+				require.Nil(t, str.currentFrame)
+				require.Nil(t, str.currentFrameDone)
+				require.False(t, str.frameQueue.HasMoreData())
+				require.Equal(t, 1, currentReleased)
+				if !fin {
+					require.Equal(t, 1, queuedReleased)
+				}
+				_, err = str.Read(make([]byte, 1))
+				require.ErrorIs(t, err, expected)
+				_, err = str.Peek(make([]byte, 1))
+				require.ErrorIs(t, err, expected)
+				require.Equal(t, 1, currentReleased)
+			})
+		}
+	}
+}
+
+func TestReceiveStreamRetiresReliablePrefixStorage(t *testing.T) {
+	for _, reduce := range []bool{false, true} {
+		name := "consume past reliable size"
+		if reduce {
+			name = "reduce reliable size"
+		}
+		t.Run(name, func(t *testing.T) {
+			sender := NewMockStreamSender(gomock.NewController(t))
+			str := newReceiveStream(42, sender, newTestStreamFlowController(42))
+			var released int
+			require.NoError(t, str.frameQueue.Push([]byte("foobar"), 0, func() { released++ }))
+			require.NoError(t, str.frameQueue.Push([]byte("zz"), 8, func() { released++ }))
+			_, err := str.Read(make([]byte, 2))
+			require.NoError(t, err)
+			require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 7, FinalSize: 10, ReliableSize: 4}, monotime.Now()))
+			buf := make([]byte, 2)
+			n, err := str.Peek(buf)
+			require.NoError(t, err)
+			require.Equal(t, 2, n)
+			require.Equal(t, "ob", string(buf))
+			require.Zero(t, released)
+			if reduce {
+				require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 9, FinalSize: 10, ReliableSize: 2}, monotime.Now()))
+				require.Equal(t, 2, released)
+			}
+			sender.EXPECT().onStreamCompleted(protocol.StreamID(42))
+			buf = make([]byte, 4)
+			n, err = str.Read(buf)
+			require.ErrorIs(t, err, &StreamError{StreamID: 42, ErrorCode: 7, Remote: true})
+			if reduce {
+				require.Zero(t, n)
+			} else {
+				// Preserve existing whole-frame copying beyond reliableSize.
+				require.Equal(t, 4, n)
+				require.Equal(t, "obar", string(buf))
+			}
+			require.Equal(t, 2, released)
+			require.Nil(t, str.currentFrameDone)
+			require.False(t, str.frameQueue.HasMoreData())
+			str.CancelRead(10)
+			str.closeForShutdown(assert.AnError)
+			require.Equal(t, 2, released)
+		})
+	}
+}
+
+func TestReceiveStreamRetiredStorageRejectsLateData(t *testing.T) {
+	sender := NewMockStreamSender(gomock.NewController(t))
+	str := newReceiveStream(42, sender, newTestStreamFlowController(42))
+	require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 7, FinalSize: 10}, monotime.Now()))
+	require.NoError(t, str.handleStreamFrame(&wire.StreamFrame{Offset: 5, Data: []byte("late")}, monotime.Now()))
+	require.False(t, str.frameQueue.HasMoreData())
+	require.NoError(t, str.handleStreamFrame(&wire.StreamFrame{Offset: 10, Fin: true}, monotime.Now()))
+	err := str.handleStreamFrame(&wire.StreamFrame{Offset: 11, Fin: true}, monotime.Now())
+	require.ErrorIs(t, err, &qerr.TransportError{ErrorCode: qerr.FinalSizeError})
+	require.False(t, str.frameQueue.HasMoreData())
+	sender.EXPECT().onStreamCompleted(protocol.StreamID(42))
+	_, err = str.Read(make([]byte, 1))
+	require.ErrorIs(t, err, &StreamError{StreamID: 42, ErrorCode: 7, Remote: true})
+}
+
+func TestReceiveStreamRetiredStorageResumesWaiter(t *testing.T) {
+	for _, peek := range []bool{false, true} {
+		name := "Read"
+		if peek {
+			name = "Peek"
+		}
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				sender := NewMockStreamSender(gomock.NewController(t))
+				str := newReceiveStream(42, sender, newTestStreamFlowController(42))
+				var released int
+				require.NoError(t, str.frameQueue.Push([]byte("gap"), 6, func() { released++ }))
+				result := make(chan error, 1)
+				go func() {
+					var err error
+					if peek {
+						_, err = str.Peek(make([]byte, 1))
+					} else {
+						_, err = str.Read(make([]byte, 1))
+					}
+					result <- err
+				}()
+				synctest.Wait()
+				str.closeForShutdown(assert.AnError)
+				synctest.Wait()
+				require.ErrorIs(t, <-result, assert.AnError)
+				require.Equal(t, 1, released)
+				require.False(t, str.frameQueue.HasMoreData())
+				_, data, done := str.frameQueue.Pop()
+				require.Nil(t, data)
+				require.Nil(t, done)
+				str.closeForShutdown(assert.AnError)
+				require.Equal(t, 1, released)
+			})
+		})
+	}
+}
