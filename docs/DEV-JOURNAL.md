@@ -1513,3 +1513,24 @@ Initial RAS `20260913T161825-d3c9d6511c70d1aa5b38e980` identified C-001; exact-h
 ### Next
 
 The product merge marks the S track complete and leaves B1, H1, C1, Q1, and M1 as independent frontier slices in the [program index](adr/2026-09-13-architecture-deepening-program.md). The [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) remains the live work view; S1 unlocks no dependent successor.
+
+---
+
+## Fail closed on invalid send-batch progress - 2026-09-13 15:56 EDT
+
+**Main:** `e36e69f75cd9`
+**Actor:** Codex
+
+### Completed
+
+Merged [A13/B1, PR #292](https://github.com/the-sarge/quic-go-fast/pull/292) as `e36e69f75cd950f73b413f32c727c4016d594761`, closing [#273](https://github.com/the-sarge/quic-go-fast/issues/273). The send worker now treats negative and over-offered batch counts as fatal before fallback, preserves a supplied error, and still releases every group buffer and signals availability. The same PR committed B1 completion and the remaining A13 frontier.
+
+### Validation
+
+The two nil-error invalid-count regressions failed on the original code. All four cases, the existing send-queue tests, one root-package suite run, `go vet .`, and `go mod tidy -diff` passed. [Exact-head receipt](https://github.com/the-sarge/quic-go-fast/pull/292#issuecomment-5655704234) records candidate `3a9cd61662001b176e6b5a83cf96b3211c3cfcec` and RAS run `20260913T194929-9d2a7f8e85e50e7ab6cc0fc8`: six successful reviewers, no findings, and successful synthesis; two reviewer adapters failed, with quorum retained. No verification or replacement review was needed.
+
+All hosted PR checks passed on that candidate: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34778853684), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34778853688), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34778853711), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34778853692), and [interop build](https://github.com/the-sarge/quic-go-fast/actions/runs/34778853704). No worker concurrency or socket backend changes were introduced; no additional platform or live-wire experiment was required.
+
+### Next
+
+H1, C1, Q1 and M1 remain independently ready. No new slice becomes ready through B1, and there are no deferred review findings. [A13 tracker #282](https://github.com/the-sarge/quic-go-fast/issues/282) is the live frontier view.
