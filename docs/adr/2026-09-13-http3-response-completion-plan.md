@@ -1,7 +1,7 @@
 # HTTP/3 response completion implementation plan
 
 **Date:** 2026-09-13
-**Status:** Accepted; not implemented
+**Status:** Complete
 **Track:** H in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -24,7 +24,7 @@ Move normal non-hijacked response finalization behind one private void responseW
 
 | Slice | State | Delivery | Blocked by | Temporary seam removal |
 |---|---|---|---|---|
-| H1 | New; frontier | Finish normal responses inside responseWriter | None | None |
+| H1 | Complete | Finish normal responses inside responseWriter | None | None |
 
 ## Implementation slices
 
@@ -62,9 +62,9 @@ Move normal non-hijacked response finalization behind one private void responseW
 
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 

@@ -120,6 +120,7 @@ func TestServerRequestHandling(t *testing.T) {
 			&eventRecorder,
 		)
 		require.Equal(t, hfs[":status"], []string{"200"})
+		require.Equal(t, []string{"0"}, hfs["content-length"])
 		require.Empty(t, body)
 
 		require.Len(t, eventRecorder.Events(qlog.FrameParsed{}), 1)
@@ -151,6 +152,31 @@ func TestServerRequestHandling(t *testing.T) {
 		require.Equal(t, hfs["content-length"], []string{"6"})
 		require.Equal(t, body, []byte("foobar"))
 	})
+
+	for _, tc := range []struct {
+		name   string
+		values []string
+	}{
+		{name: "value", values: []string{"42"}},
+		{name: "empty", values: []string{""}},
+		{name: "nil"},
+	} {
+		t.Run("explicit content-length/"+tc.name, func(t *testing.T) {
+			hfs, body := testServerRequestHandling(t,
+				func(w http.ResponseWriter, r *http.Request) {
+					w.Header()["Content-Length"] = tc.values
+					w.Write([]byte("foobar"))
+				},
+				httptest.NewRequest(http.MethodGet, "https://www.example.com", nil),
+				nil,
+			)
+			require.Equal(t, tc.values, hfs["content-length"])
+			if tc.values == nil {
+				require.NotContains(t, hfs, "content-length")
+			}
+			require.Equal(t, []byte("foobar"), body)
+		})
+	}
 
 	t.Run("no content-length when flushed", func(t *testing.T) {
 		hfs, body := testServerRequestHandling(t,
