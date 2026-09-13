@@ -1454,3 +1454,26 @@ Validation: both deterministic Read/Peek subtests failed before the fix and pass
 Hosted checks passed on that exact final head: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185526), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185524), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185511), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185516), and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/34741185506). No deferred findings or untraced effects remain for R1.
 
 Next snapshot: R2 and R3 remain independently ready; R1 completion creates no new dependency edges. Other A13 slices remain on the frontier. The [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live view.
+
+---
+
+## Incoming STREAM ownership completed - 2026-09-13 02:23 EDT
+
+**Main:** `494affd9970c`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #286](https://github.com/the-sarge/quic-go-fast/pull/286), completing [A13/R2 (#268)](https://github.com/the-sarge/quic-go-fast/issues/268). Incoming owning STREAM frames now return storage on post-allocation parser failures, skipped dispatch, stream lookup and receive admission rejection, and the sorter's first fatal gap-limit error. Successful handoffs retain successive concrete ownership; qlog snapshots, validation order and crypto nil callbacks remain intact.
+
+### Validation
+
+Temporary concrete pooled-release observations demonstrated missing releases before each owner fix and exactly one release afterward, then were removed before commit under the [R2 evidence contract](adr/2026-09-13-receive-stream-lifetime-plan.md#r2--consume-incoming-stream-frame-ownership-through-dispatch). The [ownership receipt](audits/2026-09-13-architecture-handoff/r2-ownership-evidence.md) records eleven bounded semantic cases and the retained behavioral and sorter callback checks.
+
+The full Go suite passed. Affected root/wire tests, focused receive/sorter/crypto race tests, `go vet`, `go mod tidy -diff`, relative links and clean-tree checks passed for certified head `d64e9441a47dc77d7d629d5d52ea251b6949a15f`. Standards and Spec reviews each reported zero findings. RAS run `20260913T061107-e276b5ebdaeba0f8a84f3607` completed with no required fixes or follow-ups; seven reviewers completed, one failed, and quorum was met. The optional audit-index-link finding was independently rejected because the normative plan already links the receipt. No replacement review or verification was required.
+
+Hosted [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34742109890), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34742109889), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34742109874), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34742109869), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34742109866) checks passed on the merged candidate.
+
+### Next
+
+R1 and R2 are complete; R3 remains ready with no blockers. Stored STREAM data retirement belongs to R3. Other A13 tracks remain independent; the [program tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live view. No new follow-up issues or untraced effects arose from R2.
