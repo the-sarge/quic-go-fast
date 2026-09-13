@@ -1,7 +1,7 @@
 # Send-batch defensive progress implementation plan
 
 **Date:** 2026-09-13
-**Status:** Accepted; not implemented
+**Status:** Complete
 **Track:** B in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -10,7 +10,7 @@
 
 ## Goal and current shape
 
-`send_queue.go:65–78` specifies accepted-prefix progress. `sendBatchEntries` releases group buffers and signals availability (`:224` onward), but invalid counts are clamped to zero (`:244`) and a nil error leads to individual retries. The existing Darwin adapter already rejects malformed counts and latches batching off (`sys_conn_sendmsg_x_qual_darwin.go:168`). A scripted adapter reproduced fallback after -1 and over-offered counts; this is not a production adapter or network duplicate reproduction.
+The `batchSender` contract in `send_queue.go` specifies accepted-prefix progress. `sendBatchEntries` rejects invalid counts before fallback, preserves an existing error, releases group buffers and signals availability. The Darwin adapter separately rejects malformed counts and latches batching off. `TestSendQueueBatchInvalidProgress` covers negative and over-offered counts paired with nil and non-nil errors; the two nil-error cases demonstrated fallback on the original implementation.
 
 ## Decision
 
@@ -24,7 +24,7 @@ At the send worker boundary, treat progress below zero or above the currently of
 
 | Slice | State | Delivery | Blocked by | Temporary seam removal |
 |---|---|---|---|---|
-| B1 | New; frontier | Fail closed on impossible send-batch progress | None | None |
+| B1 | Complete | Fail closed on impossible send-batch progress | None | None |
 
 ## Implementation slices
 
@@ -52,9 +52,9 @@ At the send worker boundary, treat progress below zero or above the currently of
 
 | Semantic class | Disposition | Enforcement owner | Finite evidence | Status |
 |---|---|---|---|---|
-| Negative or over-offered count, nil error | Fatal internal error, no resend, release group | sendBatchEntries | Two red cases | Required at implementation |
-| Invalid count with existing error | Keep existing fatal cause and no resend | sendBatchEntries | Two cases | Required at implementation |
-| Valid short or full count; unknown-progress error | Preserve existing retry/error semantics | sendBatchEntries | Existing batch tests | Required at implementation |
+| Negative or over-offered count, nil error | Fatal internal error, no resend, release group | sendBatchEntries | Two red cases | Covered |
+| Invalid count with existing error | Keep existing fatal cause and no resend | sendBatchEntries | Two cases | Covered |
+| Valid short or full count; unknown-progress error | Preserve existing retry/error semantics | sendBatchEntries | Existing batch tests | Covered |
 
 **Evidence budget:** Four new invalid-count cases, existing valid progress/release/Close tests; one root package run and focused race run if worker concurrency is changed. No platform or live-wire experiment; no mutation needed after baseline red. Terminate when the listed cases and applicable gates pass with no unresolved stop-for-decision finding; passing examples are evidence for the named enforcing representation, not a completeness proof.
 
@@ -68,9 +68,9 @@ At the send worker boundary, treat progress below zero or above the currently of
 
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 

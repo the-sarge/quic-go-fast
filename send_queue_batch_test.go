@@ -192,6 +192,46 @@ func TestSendQueueBatchUnknownProgressFatal(t *testing.T) {
 	})
 }
 
+func TestSendQueueBatchInvalidProgress(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		accepted int
+		err      error
+	}{
+		{name: "negative", accepted: -1},
+		{name: "over-offered", accepted: 4},
+		{name: "negative with error", accepted: -1, err: assert.AnError},
+		{name: "over-offered with error", accepted: 4, err: assert.AnError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			conn := &fakeBatchSendConn{
+				accept: func(int, [][]byte) (int, error) { return tc.accepted, tc.err },
+			}
+			q := newSendQueue(conn, nil).(*sendQueue)
+			group := make([]queueEntry, 3)
+			for i := range group {
+				group[i] = queueEntry{buf: getPacketWithContents([]byte{byte(i)}), ecn: protocol.ECT1}
+			}
+
+			err := q.sendBatchEntries(group, conn)
+			assert.Error(t, err)
+			if tc.err != nil {
+				assert.Same(t, tc.err, err, "preserve the adapter's fatal cause")
+			}
+			assert.Len(t, conn.batches, 1, "invalid progress must stop further batch submissions")
+			assert.Empty(t, conn.writes, "invalid progress must not retry any packet")
+			for _, entry := range group {
+				assert.Zero(t, entry.buf.refCount, "the failed group must release every buffer")
+			}
+			select {
+			case <-q.Available():
+			default:
+				t.Error("released group must signal availability")
+			}
+		})
+	}
+}
+
 // Structural failure (e.g. ENOSYS latch): the batch layer reports the
 // capability as unavailable, and every entry goes through the per-packet
 // path — the batch submission path is never entered.
