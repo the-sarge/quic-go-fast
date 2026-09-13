@@ -123,6 +123,14 @@ var ServerContextKey = &contextKey{"http3-server"}
 // than its string representation.
 var RemoteAddrContextKey = &contextKey{"remote-addr"}
 
+// listenerCloseWork keeps a shutdown call's snapshot and completion separate
+// from the active listener list, which serving goroutines can remove from.
+type listenerCloseWork struct {
+	listeners []listener
+	previous  <-chan struct{}
+	done      chan struct{}
+}
+
 // listener contains info about specific listener added with addListener
 type listener struct {
 	ln   *QUICListener
@@ -194,6 +202,7 @@ type Server struct {
 	mutex              sync.RWMutex
 	listenerCloseMutex sync.Mutex // serializes owned-listener Close calls, never connection completion
 	listeners          []listener
+	listenerCloseDone  chan struct{} // last registered listener-close work; protected by mutex
 
 	closed           bool
 	closeCtx         context.Context    // canceled when the server is closed
@@ -288,7 +297,7 @@ func (s *Server) decreaseConnCount() {
 
 // seal stops admission and snapshots listener work. Neither listener closure nor
 // connection completion may be awaited while holding the admission mutex.
-func (s *Server) seal(immediate bool) ([]listener, <-chan struct{}) {
+func (s *Server) seal(immediate bool) (listenerCloseWork, <-chan struct{}) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.init()
@@ -303,7 +312,33 @@ func (s *Server) seal(immediate bool) ([]listener, <-chan struct{}) {
 	} else {
 		s.graceCancel()
 	}
-	return slices.Clone(s.listeners), s.connHandlingDone
+	work := listenerCloseWork{
+		listeners: slices.Clone(s.listeners),
+		previous:  s.listenerCloseDone,
+		done:      make(chan struct{}),
+	}
+	s.listenerCloseDone = work.done
+	return work, s.connHandlingDone
+}
+
+func (s *Server) closeListeners(work listenerCloseWork) []error {
+	// Registering the predecessor in seal prevents a later shutdown from
+	// overtaking this call before it reaches the listener-close mutex.
+	if work.previous != nil {
+		<-work.previous
+	}
+	defer close(work.done)
+	s.listenerCloseMutex.Lock()
+	defer s.listenerCloseMutex.Unlock()
+	var errs []error
+	for _, l := range work.listeners {
+		if l.createdLocally {
+			if err := (*l.ln).Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
 }
 
 // ServeQUICConn serves a single QUIC connection.
@@ -636,23 +671,13 @@ func (s *Server) maxHeaderBytes() int {
 // use [Server.Serve] to avoid this.
 // It is the caller's responsibility to close any connection passed to [Server.ServeQUICConn].
 func (s *Server) Close() error {
-	listeners, done := s.seal(true)
-
-	// A second listener Close may return before the first finishes its callbacks
-	// and handshakes. Keep concurrent server shutdown calls behind that work,
-	// even if the listener has since been removed from s.listeners.
-	s.listenerCloseMutex.Lock()
-	var err error
-	for _, l := range listeners {
-		if l.createdLocally {
-			if cerr := (*l.ln).Close(); cerr != nil && err == nil {
-				err = cerr
-			}
-		}
-	}
-	s.listenerCloseMutex.Unlock()
+	work, done := s.seal(true)
+	errs := s.closeListeners(work)
 	<-done
-	return err
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	return nil
 }
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
@@ -660,18 +685,8 @@ func (s *Server) Close() error {
 // Calling Shutdown concurrently with [Server.ListenAndServe] may race with UDP socket creation;
 // use [Server.Serve] to avoid this.
 func (s *Server) Shutdown(ctx context.Context) error {
-	listeners, done := s.seal(false)
-
-	s.listenerCloseMutex.Lock()
-	var closeErrs []error
-	for _, l := range listeners {
-		if l.createdLocally {
-			if err := (*l.ln).Close(); err != nil {
-				closeErrs = append(closeErrs, err)
-			}
-		}
-	}
-	s.listenerCloseMutex.Unlock()
+	work, done := s.seal(false)
+	closeErrs := s.closeListeners(work)
 	if len(closeErrs) > 0 {
 		return errors.Join(closeErrs...)
 	}

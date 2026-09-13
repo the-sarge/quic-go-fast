@@ -82,7 +82,8 @@ func TestServerServeCompletionSignal(t *testing.T) {
 		t.Fatal("completion before sealing")
 	default:
 	}
-	_, sealedDone := s.seal(false)
+	work, sealedDone := s.seal(false)
+	require.Empty(t, s.closeListeners(work))
 	require.Equal(t, (<-chan struct{})(done), sealedDone)
 	require.False(t, s.admitConn())
 	select {
@@ -136,40 +137,49 @@ func TestServerConcurrentListenerCloseCompletion(t *testing.T) {
 			name = "ShutdownThenClose"
 		}
 		t.Run(name, func(t *testing.T) {
-			var s Server
-			entered, release := make(chan struct{}), make(chan struct{})
-			var ln QUICListener = &lifecycleListener{close: func() error {
-				close(entered)
-				<-release
-				return nil
-			}}
-			require.NoError(t, s.addListener(&ln, true))
-			first, second := make(chan error, 1), make(chan error, 1)
-			go func() {
-				if gracefulFirst {
-					first <- s.Shutdown(context.Background())
-				} else {
-					first <- s.Close()
+			synctest.Test(t, func(t *testing.T) {
+				var s Server
+				entered, release := make(chan struct{}), make(chan struct{})
+				firstErr := errors.New("first listener close")
+				var ln QUICListener = &lifecycleListener{close: func() error {
+					close(entered)
+					<-release
+					return firstErr
+				}}
+				require.NoError(t, s.addListener(&ln, true))
+				// Pause the first shutdown after sealing, before acquiring the
+				// listener-close mutex. Its serving goroutine can already exit.
+				work, _ := s.seal(!gracefulFirst)
+				s.removeListener(&ln)
+				second := make(chan error, 1)
+				go func() {
+					if gracefulFirst {
+						second <- s.Close()
+					} else {
+						second <- s.Shutdown(context.Background())
+					}
+				}()
+				synctest.Wait()
+				select {
+				case <-second:
+					t.Error("later shutdown overtook pending owned-listener closure")
+				default:
 				}
-			}()
-			<-entered
-			// Serve can remove the listener while its Close callbacks still run.
-			s.removeListener(&ln)
-			go func() {
-				if gracefulFirst {
-					second <- s.Close()
-				} else {
-					second <- s.Shutdown(context.Background())
+				first := make(chan []error, 1)
+				go func() { first <- s.closeListeners(work) }()
+				<-entered
+				synctest.Wait()
+				select {
+				case <-second:
+					t.Error("later shutdown overtook running owned-listener closure")
+				default:
 				}
-			}()
-			select {
-			case <-second:
-				t.Error("concurrent shutdown skipped earlier owned-listener close work")
-			case <-time.After(scaleDuration(10 * time.Millisecond)):
-			}
-			close(release)
-			require.NoError(t, <-first)
-			require.NoError(t, <-second)
+				close(release)
+				require.Equal(t, []error{firstErr}, <-first)
+				// The later call waits, but does not inherit the earlier call's
+				// removed listener or its error.
+				require.NoError(t, <-second)
+			})
 		})
 	}
 }
