@@ -745,6 +745,72 @@ func TestReceiveStreamCancellation(t *testing.T) {
 	})
 }
 
+func TestReceiveStreamCancelReadAfterPartialReset(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		read func(*ReceiveStream, []byte) (int, error)
+	}{
+		{name: "Read", read: (*ReceiveStream).Read},
+		{name: "Peek", read: (*ReceiveStream).Peek},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				mockCtrl := gomock.NewController(t)
+				mockSender := NewMockStreamSender(mockCtrl)
+				str := newReceiveStream(42, mockSender, newTestStreamFlowController(42))
+				require.NoError(t, str.handleResetStreamFrame(
+					&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 7, FinalSize: 10, ReliableSize: 6},
+					monotime.Now(),
+				))
+				remoteErr := str.cancelErr
+
+				type readResult struct {
+					n   int
+					err error
+				}
+				done := make(chan readResult, 1)
+				defer func() {
+					// Join the reader even when an assertion fails while it is blocked.
+					str.closeForShutdown(assert.AnError)
+					synctest.Wait()
+				}()
+				go func() {
+					n, err := tc.read(str, make([]byte, 1))
+					done <- readResult{n: n, err: err}
+				}()
+				synctest.Wait() // Consume the reset notification and wait for the missing reliable bytes.
+				select {
+				case result := <-done:
+					t.Fatalf("returned before local cancellation: %+v", result)
+				default:
+				}
+
+				mockSender.EXPECT().onStreamCompleted(protocol.StreamID(42))
+				str.CancelRead(9)
+				synctest.Wait()
+				select {
+				case result := <-done:
+					require.Zero(t, result.n)
+					require.Same(t, remoteErr, result.err)
+					require.ErrorIs(t, result.err, &StreamError{StreamID: 42, ErrorCode: 7, Remote: true})
+				default:
+					t.Fatal("local cancellation did not unblock the reader")
+				}
+
+				str.CancelRead(9)
+				str.CancelRead(10)
+				n, err := tc.read(str, make([]byte, 1))
+				require.Zero(t, n)
+				require.Same(t, remoteErr, err)
+				_, ok, hasMore := str.getControlFrame(monotime.Now())
+				require.False(t, ok)
+				require.False(t, hasMore)
+				require.True(t, mockCtrl.Satisfied())
+			})
+		})
+	}
+}
+
 func TestReceiveStreamCancelReadAbandonsUnreadData(t *testing.T) {
 	const streamID protocol.StreamID = 42
 	mockCtrl := gomock.NewController(t)

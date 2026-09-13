@@ -420,12 +420,13 @@ func (s *ReceiveStream) cancelReadImpl(errorCode qerr.StreamErrorCode) (queuedNe
 		return false
 	}
 	s.cancelledLocally = true
+	// A partial remote reset can leave readers waiting for reliable bytes.
+	s.signalRead()
 	if s.errorRead || s.cancelledRemotely {
 		return false
 	}
 	s.queuedStopSending = true
 	s.cancelErr = &StreamError{StreamID: s.streamID, ErrorCode: errorCode, Remote: false}
-	s.signalRead()
 	return true
 }
 
