@@ -156,6 +156,7 @@ func (s *ReceiveStream) isNewlyCompleted() bool {
 }
 
 func (s *ReceiveStream) readImpl(p []byte) (hasStreamWindowUpdate bool, hasConnWindowUpdate bool, _ int, _ error) {
+	defer s.retireReadStorage()
 	if s.currentFrameIsLast && s.currentFrame == nil {
 		s.errorRead = true
 		return false, false, 0, io.EOF
@@ -245,13 +246,12 @@ func (s *ReceiveStream) readImpl(p []byte) (hasStreamWindowUpdate bool, hasConnW
 			s.flowController.Abandon()
 		}
 
-		if s.readPosInFrame >= len(s.currentFrame) && s.currentFrameIsLast {
-			s.currentFrame = nil
-			if s.currentFrameDone != nil {
-				s.currentFrameDone()
+		if s.readPosInFrame >= len(s.currentFrame) {
+			s.releaseCurrentFrame()
+			if s.currentFrameIsLast {
+				s.errorRead = true
+				return hasStreamWindowUpdate, hasConnWindowUpdate, bytesRead, io.EOF
 			}
-			s.errorRead = true
-			return hasStreamWindowUpdate, hasConnWindowUpdate, bytesRead, io.EOF
 		}
 	}
 	if s.isRemoteCancellationEffective() {
@@ -382,12 +382,42 @@ func (s *ReceiveStream) peekImpl(b []byte) (int, error) {
 	}
 }
 
-func (s *ReceiveStream) dequeueNextFrame() {
-	var offset protocol.ByteCount
-	// We're done with the last frame. Release the buffer.
-	if s.currentFrameDone != nil {
-		s.currentFrameDone()
+// releaseCurrentFrame takes the callback before returning its storage.
+// The caller holds the stream mutex and owns the final-frame state.
+func (s *ReceiveStream) releaseCurrentFrame() {
+	done := s.currentFrameDone
+	s.currentFrameDone = nil
+	s.currentFrame = nil
+	s.readPosInFrame = 0
+	if done != nil {
+		done()
 	}
+}
+
+// readStorageIsTerminal uses the existing read state to seal storage admission.
+func (s *ReceiveStream) readStorageIsTerminal() bool {
+	return s.cancelledLocally || s.closeForShutdownErr != nil || s.isRemoteCancellationEffective() ||
+		(s.currentFrameIsLast && s.currentFrame == nil)
+}
+
+func (s *ReceiveStream) retireReadStorage() {
+	if !s.readStorageIsTerminal() {
+		return
+	}
+	// Only a consumed final frame establishes the sticky EOF predicate.
+	// Discarding an unread FIN must leave the cancellation/shutdown error visible.
+	eof := s.currentFrameIsLast && s.currentFrame == nil
+	s.releaseCurrentFrame()
+	s.currentFrameIsLast = eof
+	s.frameQueue.discard()
+}
+
+func (s *ReceiveStream) dequeueNextFrame() {
+	if s.readStorageIsTerminal() && !s.frameQueue.HasMoreData() {
+		return
+	}
+	var offset protocol.ByteCount
+	s.releaseCurrentFrame()
 	offset, s.currentFrame, s.currentFrameDone = s.frameQueue.Pop()
 	s.currentFrameIsLast = offset+protocol.ByteCount(len(s.currentFrame)) >= s.finalOffset && !s.cancelledRemotely
 	s.readPosInFrame = 0
@@ -420,6 +450,7 @@ func (s *ReceiveStream) cancelReadImpl(errorCode qerr.StreamErrorCode) (queuedNe
 		return false
 	}
 	s.cancelledLocally = true
+	s.retireReadStorage()
 	// A partial remote reset can leave readers waiting for reliable bytes.
 	s.signalRead()
 	if s.errorRead || s.cancelledRemotely {
@@ -461,7 +492,7 @@ func (s *ReceiveStream) handleStreamFrameImpl(frame *wire.StreamFrame, now monot
 	if frame.Fin {
 		s.finalOffset = maxOffset
 	}
-	if s.cancelledLocally {
+	if s.readStorageIsTerminal() {
 		frame.PutBack()
 		return nil
 	}
@@ -489,6 +520,7 @@ func (s *ReceiveStream) handleResetStreamFrame(frame *wire.ResetStreamFrame, now
 }
 
 func (s *ReceiveStream) handleResetStreamFrameImpl(frame *wire.ResetStreamFrame, now monotime.Time) error {
+	defer s.retireReadStorage()
 	if s.closeForShutdownErr != nil {
 		return nil
 	}
@@ -498,15 +530,20 @@ func (s *ReceiveStream) handleResetStreamFrameImpl(frame *wire.ResetStreamFrame,
 	s.finalOffset = frame.FinalSize
 
 	// senders are allowed to reduce the reliable size, but frames might have been reordered
-	if (!s.cancelledRemotely && s.reliableSize == 0) || frame.ReliableSize < s.reliableSize {
+	reliableSizeReduced := frame.ReliableSize < s.reliableSize
+	if (!s.cancelledRemotely && s.reliableSize == 0) || reliableSizeReduced {
 		s.reliableSize = frame.ReliableSize
 	}
 	if s.readPos >= s.reliableSize {
 		// calling Abandon multiple times is a no-op
 		s.flowController.Abandon()
 	}
-	// ignore duplicate RESET_STREAM frames for this stream (after checking their final offset)
+	// A reduction can make the reset effective or shorten a waiting Peek.
+	// Wake at this transition: terminal storage admission rejects later data.
 	if s.cancelledRemotely {
+		if reliableSizeReduced {
+			s.signalRead()
+		}
 		return nil
 	}
 
@@ -569,6 +606,7 @@ func (s *ReceiveStream) SetReadDeadline(t time.Time) error {
 func (s *ReceiveStream) closeForShutdown(err error) {
 	s.mutex.Lock()
 	s.closeForShutdownErr = err
+	s.retireReadStorage()
 	s.receiveFinalSizeCallback = nil
 	s.mutex.Unlock()
 	s.signalRead()

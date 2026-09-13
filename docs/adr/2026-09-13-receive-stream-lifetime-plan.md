@@ -1,7 +1,7 @@
 # Receive STREAM lifetime implementation plan
 
 **Date:** 2026-09-13
-**Status:** In progress; R1 and R2 complete; R3 ready
+**Status:** Complete; R1, R2 and R3 delivered
 **Track:** R in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -10,7 +10,7 @@
 
 ## Goal and current shape
 
-`ReceiveStream.cancelReadImpl` signals local cancellation before preserving an earlier remote reset error, so Read and Peek waiting for the reliable prefix wake without further traffic. Parser failures, skipped connection dispatch, stream-map lookup rejection and ReceiveStream admission rejection now dispose incoming owning STREAM frames; successful handoffs transfer ownership to the next concrete owner. The wire parser copies STREAM data into its own frame allocation (`internal/wire/stream_frame.go:59–84`); this lifetime is distinct from incoming UDP storage. `frameSorter.Push` consumes its incoming callback on every outcome, including distinct duplicate, trimming-copy and first gap-limit rejection paths. The current first-error lifecycle does not establish that trimming-copy and gap-limit failure occur together. Keep disposal authority inside the sorter rather than encoding assumptions about internal callback consumption at callers. `receive_stream.go:248–254` invokes the EOF callback without clearing the stored function. Read/Peek's early EOF predicate (`:159–165,294–301`) can hide an error if cleanup clears an unread FIN frame while retaining the final-frame flag. These are current source anchors, with diagnostic provenance behind the audit link.
+`ReceiveStream.cancelReadImpl` signals local cancellation before preserving an earlier remote reset error, so Read and Peek waiting for the reliable prefix wake without further traffic. Parser failures, skipped connection dispatch, stream-map lookup rejection and ReceiveStream admission rejection now dispose incoming owning STREAM frames; successful handoffs transfer ownership to the next concrete owner. The wire parser copies STREAM data into its own frame allocation (`internal/wire/stream_frame.go:59–84`); this lifetime is distinct from incoming UDP storage. `frameSorter.Push` consumes its incoming callback on every outcome, including distinct duplicate, trimming-copy and first gap-limit rejection paths. The current first-error lifecycle does not establish that trimming-copy and gap-limit failure occur together. Keep disposal authority inside the sorter rather than encoding assumptions about internal callback consumption at callers. ReceiveStream now takes and clears consumed callbacks, retires current and gapped queued storage at terminal transitions, and seals late STREAM storage admission after existing final-size validation. Retirement preserves consumed EOF while clearing the final-frame flag for discarded unread FIN data.
 
 ## Decision
 
@@ -26,7 +26,7 @@ Keep successive concrete owners and the existing ReceiveStream mutex. Separate w
 |---|---|---|---|---|
 | R1 | Complete | Wake readers when local cancellation follows partial reset | None | None |
 | R2 | Complete | Consume incoming STREAM frame ownership through dispatch | None | None |
-| R3 | New; frontier | Retire stored STREAM data at terminal transitions | None | None |
+| R3 | Complete | Retire stored STREAM data at terminal transitions | None | None |
 
 ## Implementation slices
 
@@ -151,12 +151,12 @@ Universal wording in these criteria is bounded by this slice's Representation co
 
 | Semantic class | Disposition | Enforcement owner | Finite evidence | Status |
 |---|---|---|---|---|
-| Normal consumption and actual EOF | Take and clear current callback; retain previously observable EOF | ReceiveStream current-release seam | Consume/repeat EOF regression | Required at implementation |
-| Local cancel or shutdown with current unread FIN and gapped queue | Discard storage; clear misleading final-frame flag; preserve intended error | ReceiveStream terminal retirement and sorter discard | One local-cancel and one shutdown case | Required at implementation |
-| Remote reset with unread reliable prefix | Retain data still readable | ReceiveStream terminal predicate | Prefix delivery preservation | Required at implementation |
-| Prefix consumed or lower duplicate reliableSize makes reset effective | Retire remaining storage without extra completion | ReceiveStream reset/read transitions | One consumption and one reduced-prefix case | Required at implementation |
-| Late STREAM after terminal retirement | Preserve required highest-received/final-size validation; dispose without repopulation | ReceiveStream admission | Valid late data and conflicting final size | Required at implementation |
-| Repeat cleanup and waiter resumption after queue discard | No double callback; safe empty Pop; same terminal outcome | Current-release and sorter discard | Repeated cleanup/resumption case | Required at implementation |
+| Normal consumption and actual EOF | Take and clear current callback; retain previously observable EOF | ReceiveStream current-release seam | Consume/repeat EOF regression | Covered |
+| Local cancel or shutdown with current unread FIN and gapped queue | Discard storage; clear misleading final-frame flag; preserve intended error | ReceiveStream terminal retirement and sorter discard | One local-cancel and one shutdown case | Covered |
+| Remote reset with unread reliable prefix | Retain data still readable | ReceiveStream terminal predicate | Prefix delivery preservation | Covered |
+| Prefix consumed or lower duplicate reliableSize makes reset effective | Retire remaining storage without extra completion | ReceiveStream reset/read transitions | One consumption and one reduced-prefix case | Covered |
+| Late STREAM after terminal retirement | Preserve required highest-received/final-size validation; dispose without repopulation | ReceiveStream admission | Valid late data and conflicting final size | Covered |
+| Repeat cleanup and waiter resumption after queue discard | No double callback; safe empty Pop; same terminal outcome | Current-release and sorter discard | Repeated cleanup/resumption case | Covered |
 
 **Evidence budget:** At most 10 new semantic cases, using callback counts and existing real-stream tests; one root package run and one focused race run. No memory benchmark or GC timing assertion. At most one guard bypass if inherited coverage alone must demonstrate the late-admission guard; otherwise no mutation. Terminate when the listed cases and applicable gates pass with no unresolved stop-for-decision finding; passing examples are evidence for the named enforcing representation, not a completeness proof.
 
@@ -168,11 +168,13 @@ Universal wording in these criteria is bounded by this slice's Representation co
 
 **Stop conditions:** Stop if cleanup cannot preserve first error and already-observed EOF, requires reusing a discarded sorter, drops unread reliable bytes, changes flow credit/completion, or depends on an unmerged handoff change. Shared representation, repeated-root, artifact and one-PR boundary stops also apply.
 
+**Implementation evidence:** `TestReceiveStreamReleasesConsumedStorage`, `TestReceiveStreamRetiresCancelledStorage` (four cases), `TestReceiveStreamRetiresReliablePrefixStorage` (two cases, including a blocked Peek resumed by prefix reduction), `TestReceiveStreamRetiredStorageRejectsLateData`, and `TestReceiveStreamRetiredStorageResumesWaiter` (Read/Peek) cover the ten-case budget. Existing reset, flow-control, completion, EOF and crypto tests remain preservation evidence.
+
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 
