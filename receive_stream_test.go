@@ -1331,41 +1331,67 @@ func TestReceiveStreamRetiresReliablePrefixStorage(t *testing.T) {
 			name = "reduce reliable size"
 		}
 		t.Run(name, func(t *testing.T) {
-			sender := NewMockStreamSender(gomock.NewController(t))
-			str := newReceiveStream(42, sender, newTestStreamFlowController(42))
-			var released int
-			require.NoError(t, str.frameQueue.Push([]byte("foobar"), 0, func() { released++ }))
-			require.NoError(t, str.frameQueue.Push([]byte("zz"), 8, func() { released++ }))
-			_, err := str.Read(make([]byte, 2))
-			require.NoError(t, err)
-			require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 7, FinalSize: 10, ReliableSize: 4}, monotime.Now()))
-			buf := make([]byte, 2)
-			n, err := str.Peek(buf)
-			require.NoError(t, err)
-			require.Equal(t, 2, n)
-			require.Equal(t, "ob", string(buf))
-			require.Zero(t, released)
-			if reduce {
-				require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 9, FinalSize: 10, ReliableSize: 2}, monotime.Now()))
+			synctest.Test(t, func(t *testing.T) {
+				sender := NewMockStreamSender(gomock.NewController(t))
+				str := newReceiveStream(42, sender, newTestStreamFlowController(42))
+				var released int
+				require.NoError(t, str.frameQueue.Push([]byte("foobar"), 0, func() { released++ }))
+				require.NoError(t, str.frameQueue.Push([]byte("zz"), 8, func() { released++ }))
+				_, err := str.Read(make([]byte, 2))
+				require.NoError(t, err)
+				require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 7, FinalSize: 10, ReliableSize: 8}, monotime.Now()))
+				buf := make([]byte, 2)
+				n, err := str.Peek(buf)
+				require.NoError(t, err)
+				require.Equal(t, 2, n)
+				require.Equal(t, "ob", string(buf))
+				require.Zero(t, released)
+				if reduce {
+					result := make(chan error, 1)
+					defer func() {
+						str.closeForShutdown(assert.AnError)
+						synctest.Wait()
+					}()
+					go func() {
+						_, err := str.Peek(make([]byte, 5))
+						result <- err
+					}()
+					synctest.Wait()
+					select {
+					case err := <-result:
+						t.Fatalf("Peek returned before prefix reduction: %v", err)
+					default:
+					}
+					require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 9, FinalSize: 10, ReliableSize: 2}, monotime.Now()))
+					require.Equal(t, 2, released)
+					synctest.Wait()
+					select {
+					case err := <-result:
+						require.ErrorIs(t, err, &StreamError{StreamID: 42, ErrorCode: 7, Remote: true})
+					default:
+						t.Fatal("Peek remained blocked after prefix reduction")
+					}
+				} else {
+					require.NoError(t, str.handleResetStreamFrame(&wire.ResetStreamFrame{StreamID: 42, ErrorCode: 9, FinalSize: 10, ReliableSize: 4}, monotime.Now()))
+				}
+				sender.EXPECT().onStreamCompleted(protocol.StreamID(42))
+				buf = make([]byte, 4)
+				n, err = str.Read(buf)
+				require.ErrorIs(t, err, &StreamError{StreamID: 42, ErrorCode: 7, Remote: true})
+				if reduce {
+					require.Zero(t, n)
+				} else {
+					// Preserve existing whole-frame copying beyond reliableSize.
+					require.Equal(t, 4, n)
+					require.Equal(t, "obar", string(buf))
+				}
 				require.Equal(t, 2, released)
-			}
-			sender.EXPECT().onStreamCompleted(protocol.StreamID(42))
-			buf = make([]byte, 4)
-			n, err = str.Read(buf)
-			require.ErrorIs(t, err, &StreamError{StreamID: 42, ErrorCode: 7, Remote: true})
-			if reduce {
-				require.Zero(t, n)
-			} else {
-				// Preserve existing whole-frame copying beyond reliableSize.
-				require.Equal(t, 4, n)
-				require.Equal(t, "obar", string(buf))
-			}
-			require.Equal(t, 2, released)
-			require.Nil(t, str.currentFrameDone)
-			require.False(t, str.frameQueue.HasMoreData())
-			str.CancelRead(10)
-			str.closeForShutdown(assert.AnError)
-			require.Equal(t, 2, released)
+				require.Nil(t, str.currentFrameDone)
+				require.False(t, str.frameQueue.HasMoreData())
+				str.CancelRead(10)
+				str.closeForShutdown(assert.AnError)
+				require.Equal(t, 2, released)
+			})
 		})
 	}
 }

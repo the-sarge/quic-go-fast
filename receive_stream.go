@@ -530,15 +530,20 @@ func (s *ReceiveStream) handleResetStreamFrameImpl(frame *wire.ResetStreamFrame,
 	s.finalOffset = frame.FinalSize
 
 	// senders are allowed to reduce the reliable size, but frames might have been reordered
-	if (!s.cancelledRemotely && s.reliableSize == 0) || frame.ReliableSize < s.reliableSize {
+	reliableSizeReduced := frame.ReliableSize < s.reliableSize
+	if (!s.cancelledRemotely && s.reliableSize == 0) || reliableSizeReduced {
 		s.reliableSize = frame.ReliableSize
 	}
 	if s.readPos >= s.reliableSize {
 		// calling Abandon multiple times is a no-op
 		s.flowController.Abandon()
 	}
-	// ignore duplicate RESET_STREAM frames for this stream (after checking their final offset)
+	// A reduction can make the reset effective or shorten a waiting Peek.
+	// Wake at this transition: terminal storage admission rejects later data.
 	if s.cancelledRemotely {
+		if reliableSizeReduced {
+			s.signalRead()
+		}
 		return nil
 	}
 

@@ -168,7 +168,7 @@ Universal wording in these criteria is bounded by this slice's Representation co
 
 **Stop conditions:** Stop if cleanup cannot preserve first error and already-observed EOF, requires reusing a discarded sorter, drops unread reliable bytes, changes flow credit/completion, or depends on an unmerged handoff change. Shared representation, repeated-root, artifact and one-PR boundary stops also apply.
 
-**Implementation evidence:** `TestReceiveStreamReleasesConsumedStorage`, `TestReceiveStreamRetiresCancelledStorage` (four cases), `TestReceiveStreamRetiresReliablePrefixStorage` (two cases), `TestReceiveStreamRetiredStorageRejectsLateData`, and `TestReceiveStreamRetiredStorageResumesWaiter` (Read/Peek) cover the ten-case budget. Existing reset, flow-control, completion, EOF and crypto tests remain preservation evidence.
+**Implementation evidence:** `TestReceiveStreamReleasesConsumedStorage`, `TestReceiveStreamRetiresCancelledStorage` (four cases), `TestReceiveStreamRetiresReliablePrefixStorage` (two cases, including a blocked Peek resumed by prefix reduction), `TestReceiveStreamRetiredStorageRejectsLateData`, and `TestReceiveStreamRetiredStorageResumesWaiter` (Read/Peek) cover the ten-case budget. Existing reset, flow-control, completion, EOF and crypto tests remain preservation evidence.
 
 **Acceptance criteria:**
 
