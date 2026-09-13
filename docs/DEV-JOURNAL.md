@@ -1566,3 +1566,22 @@ Final candidate `77b40e989e817271d7827e6ec4efdc85ce50decc` passed the Darwin foc
 ### Next
 
 Q1 and M1 remain independently ready; no successor was newly unblocked by C1. The [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live frontier view.
+
+---
+
+## HTTP/3 datagram queue references released - 2026-09-13 17:30 EDT
+
+**Main:** `ed1c6d0807b6`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #298](https://github.com/the-sarge/quic-go-fast/pull/298), completing [A13/Q1](https://github.com/the-sarge/quic-go-fast/issues/279). HTTP/3 ReceiveDatagram now clears the consumed queue slot under its existing mutex before advancing the slice. Returned bytes retain their identity; FIFO, capacity, cancellation and queued-data-before-error behavior remain intact. The product PR also records Q1 completion and M1 as the remaining independent frontier.
+
+### Validation
+
+The single retained-reference regression failed before the fix in open and closed receive states and passed afterward. Focused receive tests, the HTTP/3 package suite, go vet, module tidiness and clean-tree/diff checks passed at reviewed head `0cf0df511294b8a652023ad596d44fae99c1ee80`. All 33 hosted checks passed, including unit, integration, lint, cross-compilation and interop. The [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/298#issuecomment-5656270698) links the hosted runs and records RAS run `20260913T212037-2d44200047d7bb507c3f5b4c`: no required fixes or follow-ups; optional fixture cleanup rejected after independent disposition. Six reviewers completed, with two reviewer execution/output failures; quorum was met. No GC timing or performance claim, new maintained verification aid, or material untraced effect was introduced.
+
+### Next
+
+M1 remains independently ready; the [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live frontier view.
