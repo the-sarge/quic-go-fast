@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -255,14 +254,7 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 		return
 	}
 
-	// response not written to the client yet, set Content-Length
-	if !r.headerWritten {
-		if _, haveCL := r.header["Content-Length"]; !haveCL {
-			r.header.Set("Content-Length", strconv.FormatInt(r.numWritten, 10))
-		}
-	}
-	r.Flush()
-	r.flushTrailers()
+	r.finishResponse()
 
 	// If the EOF was read by the handler, CancelRead() is a no-op.
 	str.CancelRead(quic.StreamErrorCode(ErrCodeNoError))

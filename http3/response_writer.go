@@ -262,6 +262,18 @@ func (w *responseWriter) writeHeader(status int) error {
 	return err
 }
 
+// finishResponse completes a normal response before the server closes the stream.
+func (w *responseWriter) finishResponse() {
+	// Response not written to the client yet, set Content-Length.
+	if !w.headerWritten {
+		if _, haveCL := w.header["Content-Length"]; !haveCL {
+			w.header.Set("Content-Length", strconv.FormatInt(w.numWritten, 10))
+		}
+	}
+	w.Flush()
+	w.flushTrailers()
+}
+
 func (w *responseWriter) FlushError() error {
 	if !w.headerComplete {
 		w.WriteHeader(http.StatusOK)
