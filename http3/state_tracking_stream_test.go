@@ -298,6 +298,46 @@ func TestDatagramReceiving(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
+func TestDatagramReceivingReleasesConsumedReferences(t *testing.T) {
+	for _, closed := range []bool{false, true} {
+		name := "open"
+		if closed {
+			name = "closed"
+		}
+		t.Run(name, func(t *testing.T) {
+			str := &stateTrackingStream{hasData: make(chan struct{}, 1)}
+			first, second := []byte("first"), []byte("second")
+			str.enqueueDatagram(first)
+			str.enqueueDatagram(second)
+			// Retain a view of the backing storage to observe references after dequeue.
+			storage := str.queue
+			if closed {
+				str.closeReceive(io.EOF)
+			}
+
+			data, err := str.ReceiveDatagram(canceledCtx())
+			require.NoError(t, err)
+			require.Equal(t, []byte("first"), data)
+			require.Same(t, &first[0], &data[0])
+			require.Nil(t, storage[0])
+			require.Equal(t, []byte("second"), storage[1])
+
+			data, err = str.ReceiveDatagram(canceledCtx())
+			require.NoError(t, err)
+			require.Equal(t, []byte("second"), data)
+			require.Same(t, &second[0], &data[0])
+			require.Nil(t, storage[1])
+
+			_, err = str.ReceiveDatagram(canceledCtx())
+			if closed {
+				require.ErrorIs(t, err, io.EOF)
+			} else {
+				require.ErrorIs(t, err, context.Canceled)
+			}
+		})
+	}
+}
+
 func TestDatagramSending(t *testing.T) {
 	var sendQueue [][]byte
 	errors := []error{nil, nil, assert.AnError}
