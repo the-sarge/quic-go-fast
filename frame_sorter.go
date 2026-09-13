@@ -42,6 +42,8 @@ func newFrameSorter() *frameSorter {
 	return &s
 }
 
+// Push consumes doneCb on every outcome: it is called when data is discarded
+// or copied, or retained with the queued data until replacement or Pop.
 func (s *frameSorter) Push(data []byte, offset protocol.ByteCount, doneCb func()) error {
 	err := s.push(data, offset, doneCb)
 	if err == errDuplicateStreamData {
@@ -170,6 +172,9 @@ func (s *frameSorter) push(data []byte, offset protocol.ByteCount, doneCb func()
 	}
 
 	if s.gaps.Len() > protocol.MaxStreamFrameSorterGaps {
+		if doneCb != nil {
+			doneCb()
+		}
 		return errors.New("too many gaps in received data")
 	}
 

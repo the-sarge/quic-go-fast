@@ -680,3 +680,26 @@ func sendStreamSupportsResetStreamAt(t *testing.T, str *SendStream) bool {
 	require.True(t, ok)
 	return reset.ReliableSize > 0
 }
+
+func TestStreamsMapRejectedStreamFrame(t *testing.T) {
+	for _, deleted := range []bool{false, true} {
+		t.Run(fmt.Sprintf("deleted=%t", deleted), func(t *testing.T) {
+			m := newStreamsMap(context.Background(), nil, func(wire.Frame) {}, newTestStreamFlowController, 1, 1, protocol.PerspectiveClient)
+			id := protocol.FirstOutgoingUniStreamClient
+			if deleted {
+				id = protocol.FirstIncomingUniStreamClient
+				require.NoError(t, m.HandleStreamFrame(&wire.StreamFrame{StreamID: id}, monotime.Now()))
+				require.NoError(t, m.DeleteStream(id))
+			}
+			f := wire.GetStreamFrame()
+			f.StreamID, f.Offset, f.Fin = id, 0, false
+			f.Data = f.Data[:protocol.MinStreamFrameBufferSize]
+			err := m.HandleStreamFrame(f, monotime.Now())
+			if deleted {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, &qerr.TransportError{ErrorCode: qerr.StreamStateError})
+			}
+		})
+	}
+}

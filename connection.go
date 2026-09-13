@@ -1820,6 +1820,7 @@ func (c *Conn) handleFrames(
 			}
 			// an error occurred handling a previous frame, don't handle the current frame
 			if skipHandling {
+				streamFrame.PutBack()
 				continue
 			}
 			wire.LogFrame(c.logger, streamFrame, false)
