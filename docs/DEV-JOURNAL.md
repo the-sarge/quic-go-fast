@@ -1416,3 +1416,26 @@ Supported examples are timing factors 1, 3, 10 and 20, stream/connection limits,
 On macOS arm64 / Go 1.27.0, the baseline factor-20 race failed on its first run with five blocked frames and an indexing panic. The revised fixture passed all 16 factor/version/native-or-race cells, with 25 repetitions of all three affected tests per cell. Restoring the old read logic failed accepted400/read0 for both limiting modes at factors 1/20; excess-frame injections failed diagnostically without panic. All temporary mutations were removed before commit. The unscaled uncached full suite, vet, module tidiness, formatting and all 33 applicable hosted checks passed on candidate `fda5ea49f2c0889ec5bd416d284b051913042a53` against base `c087c0330aeada19937e9f3916706eafc9576357`.
 
 RAS run `20260913T025915-47fe04021e003e26bdba5656` completed with two approving reviewers and zero findings. No fix verification, replacement review or deferred follow-up was needed. See the [review and exact-head certification receipt](https://github.com/the-sarge/quic-go-fast/pull/263#issuecomment-5650545805). This journal is a post-merge documentation append and receives no RAS review.
+
+---
+
+## Architecture improvement handoff published - 2026-09-13 01:23 EDT
+
+**Main:** `5072c121643c`
+**Actor:** Codex
+
+### Completed
+
+Published the [A13 architecture improvement program](https://github.com/the-sarge/quic-go-fast/blob/5072c121643cd8c0fd8d8913b2cbcf7ecb5e992f/docs/adr/2026-09-13-architecture-deepening-program.md) through [PR #265](https://github.com/the-sarge/quic-go-fast/pull/265): seven normative tracks, nine audited one-PR slices, and the N01–N20 no-code decision ledger. The merged plan commit was verified reachable from remote main and byte-matched to the audited candidate before publishing seven parent issues and nine native child issues. Mirrored those tracks/slices under the corrected OmniFocus task `cxMRcPXrCD9`; the earlier incorrect task was untouched. No implementation or implementation-agent dispatch occurred.
+
+### Decisions
+
+The [track plans](https://github.com/the-sarge/quic-go-fast/blob/5072c121643cd8c0fd8d8913b2cbcf7ecb5e992f/docs/adr/2026-09-13-architecture-deepening-program.md) preserve API/wire behavior and existing ownership. All nine slices are independently green; receive-stream R1/R2/R3 have a recommended scheduling order for overlapping files, not hard dependency edges. Source/audit refinements preserve concurrent listener-close completion, narrow the sorter evidence to supported first-error behavior, and avoid unnecessary closure obligations on simple fixes. Standalone HEADERS/registry extraction and broader secondary leads remain deferred or closed in their decision ledger.
+
+### Validation
+
+Independent existing-work and per-slice audits passed after bounded corrections. Separate standards review found no findings; specification review found one low trailer-logging documentation error, corrected with source inspection and lightweight recertification under the shared low/nit policy. Final candidate `d9b99acc4b5fae7c8f48b894a3bccab0428471af` passed local document link/identity/graph/whitespace checks and all 33 applicable hosted checks before squash merge `5072c121643cd8c0fd8d8913b2cbcf7ecb5e992f`. Six frozen diagnostic/design evidence files match their original bytes. No runtime changes or new implementation test runs were part of the documentation handoff.
+
+### Next
+
+As of this entry, all nine children are ready and none is dispatched. Start with R1, then prioritize S1 and the remaining receive lifetime work; the [live program tracker #282](https://github.com/the-sarge/quic-go-fast/issues/282) owns current frontier/state. Dispatch one child per fresh context with `$implement-architecture-slice` when the operator chooses. Existing investigations, engine research, completed programs and frozen evidence retain their scopes.
