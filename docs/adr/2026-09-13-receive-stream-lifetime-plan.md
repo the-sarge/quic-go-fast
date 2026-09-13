@@ -1,7 +1,7 @@
 # Receive STREAM lifetime implementation plan
 
 **Date:** 2026-09-13
-**Status:** Accepted; not implemented
+**Status:** In progress; R1 complete; R2 and R3 ready
 **Track:** R in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -24,7 +24,7 @@ Keep successive concrete owners and the existing ReceiveStream mutex. Separate w
 
 | Slice | State | Delivery | Blocked by | Temporary seam removal |
 |---|---|---|---|---|
-| R1 | New; frontier | Wake readers when local cancellation follows partial reset | None | None |
+| R1 | Complete | Wake readers when local cancellation follows partial reset | None | None |
 | R2 | New; frontier | Consume incoming STREAM frame ownership through dispatch | None | None |
 | R3 | New; frontier | Retire stored STREAM data at terminal transitions | None | None |
 
@@ -54,8 +54,8 @@ Keep successive concrete owners and the existing ReceiveStream mutex. Separate w
 
 | Semantic class | Disposition | Enforcement owner | Finite evidence | Status |
 |---|---|---|---|---|
-| Partial remote reset with missing reliable bytes; Read and Peek waiting | Wake and return existing remote error | cancelReadImpl | Two regressions | Required at implementation |
-| Fresh local cancel / repeated cancel / shutdown / already observed EOF | Preserve first error, control frame and completion semantics | cancelReadImpl and existing terminal guards | Existing cancellation tests plus one table only if coverage absent | Required at implementation |
+| Partial remote reset with missing reliable bytes; Read and Peek waiting | Wake and return existing remote error | cancelReadImpl | Two regressions | Covered |
+| Fresh local cancel / repeated cancel / shutdown / already observed EOF | Preserve first error, control frame and completion semantics | cancelReadImpl and existing terminal guards | Existing cancellation tests plus one table only if coverage absent | Covered |
 
 **Evidence budget:** First write two red subtests (Read, Peek) using final size 10, reliable size 6, missing bytes, remote code 7 and local code 9. At most four preservation rows if existing cases are insufficient. One affected-package run and one focused race run; no repeat count or wall-clock SLA. No mutation needed because baseline red demonstrates the missed guard. Terminate when the listed cases and applicable gates pass with no unresolved stop-for-decision finding; passing examples are evidence for the named enforcing representation, not a completeness proof.
 
@@ -69,9 +69,9 @@ Keep successive concrete owners and the existing ReceiveStream mutex. Separate w
 
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 
