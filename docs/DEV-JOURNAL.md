@@ -1534,3 +1534,16 @@ All hosted PR checks passed on that candidate: [unit](https://github.com/the-sar
 ### Next
 
 H1, C1, Q1 and M1 remain independently ready. No new slice becomes ready through B1, and there are no deferred review findings. [A13 tracker #282](https://github.com/the-sarge/quic-go-fast/issues/282) is the live frontier view.
+
+---
+
+## HTTP/3 response completion ownership landed - 2026-09-13 16:16 EDT
+
+**Main:** `9ca196c86c8e`
+**Actor:** Codex
+
+**Completed:** [PR #294](https://github.com/the-sarge/quic-go-fast/pull/294) merged H1 and closed [#275](https://github.com/the-sarge/quic-go-fast/issues/275). Normal response completion now belongs to private `responseWriter.finishResponse()`: Content-Length inference uses the existing header-written and explicit-key predicates, followed by Flush and the trailer attempt. The server retains panic/hijack disposition and stream teardown. The product PR also records H1 complete and removes it from the committed frontier.
+
+**Validation:** Original-behavior characterizations passed; removing completion made them fail; restoring it through the extracted operation passed. Explicit Content-Length value/empty/nil, informational responses and trailers, and real-stream flush-failure/trailer-failure ordering join the existing preservation cases. `go test ./http3 -count=1`, `go vet ./http3`, `go mod tidy -diff`, whitespace and plan-link checks passed at candidate `c49a1e65664ecc5409b0107164f0c2802735c0fc` against base `e6169f9f42066486e9eb968287e285286a95e728`. RAS `20260913T200921-7387d0164438ea350e52b772` completed with zero findings; seven reviewers succeeded, Claude Fable's process failed, and quorum was met. No fix verification or replacement review was required. All 33 hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873311), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873293), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873267), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873309), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873300). The exact reviewed head was squash-merged as `9ca196c86c8e1499e9deea64d71b47e78416347c`; [review/certification receipt](https://github.com/the-sarge/quic-go-fast/pull/294#issuecomment-5655818848).
+
+**Next:** C1, Q1 and M1 remain independently ready; H1 unlocks no dependent slices. There are no deferred findings or newly identified untraced effects. [A13 tracker #282](https://github.com/the-sarge/quic-go-fast/issues/282) owns the live frontier.
