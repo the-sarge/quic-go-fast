@@ -1,7 +1,7 @@
 # Darwin Batch Send and Receive-Batching Experiment Implementation Plan
 
 **Date:** 2026-09-11
-**Status:** Accepted; D1 complete (#257), D2 frontier
+**Status:** Accepted; D1 complete (#257), D2 retired (#259) — Track D complete
 **Track:** D, 3 of 3 in the 2026-09-11 datapath offload program
 **Depends on:** Nothing technically — recommended after receive-side slices by the program's evidence-per-effort ordering; D2 requires D1
 **Related:** [Datapath offload plan](2026-09-11-datapath-offload-plan.md); ADRs [0001](0001-upstream-compatibility.md), [0003](0003-follow-stable-upstream-releases.md), [0004](0004-packet-emission-ownership.md)
@@ -29,7 +29,7 @@ Port the send half under the exact build, qualification, and error-attribution c
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 |---|---|---|---|---|
 | D1 | Complete (#257) | macOS `sendmsg_x` batch send with fail-closed qualification and adoption evidence | None | n/a |
-| D2 | new | Bounded `recvmsg_x` receive-batching experiment; adopt or retire | None (D1 complete) | n/a (experiment; retires cleanly) |
+| D2 | Retired (#259, closed unmerged) | Bounded `recvmsg_x` receive-batching experiment; adopt or retire | None (D1 complete) | n/a (retired with zero residue) |
 
 ## Implementation Slices
 
@@ -101,7 +101,7 @@ Port the send half under the exact build, qualification, and error-attribution c
 
 - [x] On qualified Darwin kernel majors, batch send engages (packets per submission > 1 reported) and meets its protocol's predeclared thresholds; on unqualified majors or the kill switch the path is inert (fallback counters observed), and for iOS builds and the opt-out tag it is absent at compile time — the terminating mechanism is that the active and stub files define the same symbols so exactly one compiles per tag set, verified by the cross-build matrix. Delivered by #257: 7.99 packets per submission ([results](../audits/2026-09-12-d1-sendmsgx-results.md)), and `cross-compile.sh` now builds the ios library packages and the opt-out tag instead of skipping them.
 - [x] MTU-discovery and handshake feedback attribution is preserved under every partial-acceptance class (#257 closure suite, `send_queue_batch_test.go`).
-- [ ] D2 ends in exactly one of the pre-accepted dispositions: adopted with positive predeclared results, or retired with the experimental path removed.
+- [x] D2 ends in exactly one of the pre-accepted dispositions: adopted with positive predeclared results, or retired with the experimental path removed. Disposed **retired** by the precommitted protocol's mechanical rule ([protocol](../audits/2026-09-12-d2-recvmsgx-protocol.md), [results](../audits/2026-09-12-d2-recvmsgx-results.md): primary 0.9049 against the ≤ 0.75 gate, throughput 0.6708 against the ≥ 0.95 gate, engagement 1.785 < 2.0): experiment PR #259 closed unmerged, so the tree never contained the experimental path and D1 is untouched.
 
 Universal criteria carry the per-slice domains, owners, guarantee levels, and terminating evidence above.
 
