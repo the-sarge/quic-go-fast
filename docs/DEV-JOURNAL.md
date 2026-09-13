@@ -1547,3 +1547,22 @@ H1, C1, Q1 and M1 remain independently ready. No new slice becomes ready through
 **Validation:** Original-behavior characterizations passed; removing completion made them fail; restoring it through the extracted operation passed. Explicit Content-Length value/empty/nil, informational responses and trailers, and real-stream flush-failure/trailer-failure ordering join the existing preservation cases. `go test ./http3 -count=1`, `go vet ./http3`, `go mod tidy -diff`, whitespace and plan-link checks passed at candidate `c49a1e65664ecc5409b0107164f0c2802735c0fc` against base `e6169f9f42066486e9eb968287e285286a95e728`. RAS `20260913T200921-7387d0164438ea350e52b772` completed with zero findings; seven reviewers succeeded, Claude Fable's process failed, and quorum was met. No fix verification or replacement review was required. All 33 hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873311), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873293), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873267), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873309), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34779873300). The exact reviewed head was squash-merged as `9ca196c86c8e1499e9deea64d71b47e78416347c`; [review/certification receipt](https://github.com/the-sarge/quic-go-fast/pull/294#issuecomment-5655818848).
 
 **Next:** C1, Q1 and M1 remain independently ready; H1 unlocks no dependent slices. There are no deferred findings or newly identified untraced effects. [A13 tracker #282](https://github.com/the-sarge/quic-go-fast/issues/282) owns the live frontier.
+
+---
+
+## Shared coalesced receive delivery - 2026-09-13 17:01 EDT
+
+**Main:** `b556451af960`
+**Actor:** Codex
+
+### Summary
+
+Merged [A13/C1, PR #296](https://github.com/the-sarge/quic-go-fast/pull/296) as `b556451af960e719142492f07eb59a7f93f903c9`, closing [#277](https://github.com/the-sarge/quic-go-fast/issues/277). A private per-reader holder now owns filled coalesced-buffer adoption, ordered pending-view delivery and disposal in both Unix and Windows readers. Returned views retain independent slab references; Unix native-batch cleanup, metadata, empty/non-offload bypass and existing backing allocation behavior are preserved. The product PR records C1 complete and leaves Q1/M1 as the independent frontier.
+
+### Validation
+
+Final candidate `77b40e989e817271d7827e6ec4efdc85ce50decc` passed the Darwin focused selection and root suite, vet, tidy, changed-file formatting and document checks. [Native unit evidence](https://github.com/the-sarge/quic-go-fast/actions/runs/34782080464) confirms the named Linux/Windows preservation cases and Linux concurrent slab release under the race detector. [Integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34782080421), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34782080390), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34782080465) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/34782080418) passed on the same head. The initial review and CI identified a shared-test portability error; exact-head verification confirmed its correction, and the final bounded RAS review found no remaining findings or follow-ups. See the [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/296#issuecomment-5656110739). No performance claim or material untraced effect was introduced.
+
+### Next
+
+Q1 and M1 remain independently ready; no successor was newly unblocked by C1. The [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live frontier view.
