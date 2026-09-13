@@ -35,7 +35,7 @@ const oobBufferSize = 128
 // transport-owned sockets, the UDP_RECV_MAX_COALESCED_SIZE receive-coalescing
 // (URO) capability with UDP_COALESCED_INFO parsing, splitting each coalesced
 // read into per-datagram views over G1's shared coalescedSlab and returning
-// them one per ReadPacket call through pendingSegments (W3).
+// them one per ReadPacket call through the coalesced delivery holder (W3).
 type windowsConn struct {
 	OOBCapablePacketConn
 
@@ -46,7 +46,7 @@ type windowsConn struct {
 
 	// Per-datagram views split from a coalesced (URO) read, not yet returned
 	// by ReadPacket(). Each holds one reference on the read's shared slab.
-	pendingSegments []receivedPacket
+	delivery coalescedDelivery
 
 	cap connCapabilities
 }
@@ -159,10 +159,7 @@ func isUROEnabledWith(conn syscall.RawConn, setRecvCoalescing func(fd uintptr) e
 func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 	// A coalesced read is split into per-datagram views, returned one per
 	// call to preserve ReadPacket's one-datagram contract.
-	if len(c.pendingSegments) > 0 {
-		p := c.pendingSegments[0]
-		c.pendingSegments[0] = receivedPacket{}
-		c.pendingSegments = c.pendingSegments[1:]
+	if p, ok := c.delivery.next(); ok {
 		return p, nil
 	}
 	var buffer *packetBuffer
@@ -192,39 +189,14 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 	if !c.cap.GRO || n == 0 {
 		return p, nil
 	}
-	// On a URO socket every non-empty read becomes a coalesced slab, even a
-	// single datagram: retention queues copy slab views out of the slab (or
-	// charge the retained-bytes budget), and that bound must hold for lone
-	// segments too. The datapath offload plan (2026-09-11) fixes this rule.
-	// Use the buffer's own storage (Winsock filled it in place) so the slab
-	// can only ever recycle coalesced-tier storage into the pool.
-	buffer.Data = buffer.Data[:n]
-	slab := &coalescedSlab{buf: buffer}
-	if segmentSize <= 0 {
-		// no UDP_COALESCED_INFO control message: the read is a single datagram
-		segmentSize = n
-	}
-	views := slab.split(segmentSize)
-	p.data = views[0].Data
-	p.buffer = views[0]
-	for _, view := range views[1:] {
-		sibling := p
-		sibling.data = view.Data
-		sibling.buffer = view
-		c.pendingSegments = append(c.pendingSegments, sibling)
-	}
-	return p, nil
+	return c.delivery.accept(p, segmentSize), nil
 }
 
 // releaseReadBuffers runs only after reading stops (the transport's read
 // loop releases the conn's undelivered segment views once it exits).
 // Returned packets belong to their consumers, and the socket stays open.
 func (c *windowsConn) releaseReadBuffers() {
-	for i, p := range c.pendingSegments {
-		p.buffer.Release()
-		c.pendingSegments[i] = receivedPacket{}
-	}
-	c.pendingSegments = nil
+	c.delivery.discard()
 }
 
 func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte, gsoSize uint16, ecn protocol.ECN) (int, error) {

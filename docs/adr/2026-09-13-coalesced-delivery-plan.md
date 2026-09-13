@@ -1,7 +1,7 @@
 # Coalesced receive delivery implementation plan
 
 **Date:** 2026-09-13
-**Status:** Accepted; not implemented
+**Status:** Complete
 **Track:** C in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -24,7 +24,7 @@ Introduce one private concrete per-reader holder with next/accept/discard operat
 
 | Slice | State | Delivery | Blocked by | Temporary seam removal |
 |---|---|---|---|---|
-| C1 | New; frontier | Share coalesced receive pending-view lifetime | None | None |
+| C1 | Complete | Share coalesced receive pending-view lifetime | None | None |
 
 ## Implementation slices
 
@@ -32,7 +32,7 @@ Introduce one private concrete per-reader holder with next/accept/discard operat
 
 **What it delivers:** Use one holder for nonempty coalesced buffer adoption, ordered view delivery and pending-view disposal on both platform implementations.
 
-**Existing-work disposition:** New slice. See the [existing-work audit](../audits/2026-09-13-architecture-handoff/existing-work.md); no unmerged PR or branch is a prerequisite. Recheck the exact changed surface before implementation if main advanced.
+**Existing-work disposition:** Completed slice. See the [existing-work audit](../audits/2026-09-13-architecture-handoff/existing-work.md); no unmerged PR or branch is a prerequisite. Recheck the exact changed surface before implementation if main advanced.
 
 **Blocked by:** None.
 
@@ -52,12 +52,12 @@ Introduce one private concrete per-reader holder with next/accept/discard operat
 
 | Semantic class | Disposition | Enforcement owner | Finite evidence | Status |
 |---|---|---|---|---|
-| Singleton, missing/nonpositive segment size, multiple segments and short tail | Adopt filled backing and initialize all sibling refs before publication | Holder accept | One per distinct split class | Required at implementation |
-| Empty or ordinary receive | Preserve bypass | Platform reader | Existing reader cases | Required at implementation |
-| Repeated next with full metadata | FIFO and clear consumed slot | Holder next | Shared fixture | Required at implementation |
-| Release first view before/after discard; repeat discard | Only pending references released; returned bytes valid | Holder discard and slab release | Both relative orders | Required at implementation |
-| Sibling releases concurrently | Safe shared reference lifetime | coalescedSlab | Existing race fixture | Required at implementation |
-| Unix native pending buffers on reader cleanup | Release native buffers independently of holder | Unix reader cleanup | Existing native cleanup regression | Required at implementation |
+| Singleton, missing/nonpositive segment size, multiple segments and short tail | Adopt filled backing and initialize all sibling refs before publication | Holder accept | One per distinct split class | Covered: `TestCoalescedDeliverySplits` |
+| Empty or ordinary receive | Preserve bypass | Platform reader | Existing reader cases | Covered: `TestGROReadEmptyDatagram`, `TestWindowsUROReadEmptyDatagram` and existing ordinary-reader tests |
+| Repeated next with full metadata | FIFO and clear consumed slot | Holder next | Shared fixture | Covered: `TestCoalescedDeliveryMetadataAndClearedSlots` |
+| Release first view before/after discard; repeat discard | Only pending references released; returned bytes valid | Holder discard and slab release | Both relative orders | Covered: `TestCoalescedDeliveryDiscard` |
+| Sibling releases concurrently | Safe shared reference lifetime | coalescedSlab | Existing race fixture | Covered: `TestCoalescedSlabConcurrentRelease` under Linux race detector |
+| Unix native pending buffers on reader cleanup | Release native buffers independently of holder | Unix reader cleanup | Existing native cleanup regression | Covered: `TestGROReleaseReadBuffersReleasesPendingViews` and `TestOOBReaderBatchProgressionAndCleanup` |
 
 **Evidence budget:** At most eight shared characterization additions; reuse slab fixtures. Existing named native wrapper tests are separately budgeted preservation evidence: Linux TestGROReadSplitsCoalescedRead, TestGROReadEmptyDatagram, TestGROReadPacketInfoInheritance and TestGROReleaseReadBuffersReleasesPendingViews; Windows TestWindowsUROReadEmptyDatagram, TestWindowsUROReadPacketInfoInheritance and TestWindowsUROReleaseReadBuffersReleasesPendingViews. One focused Linux race run (shared concurrent releases), one native Windows focused run for its different wrapper, and local Darwin focused tests for Unix integration. Existing hosted platform jobs can supply native evidence once, no platform Cartesian expansion. No performance run unless a concrete extra allocation is detected; then stop for a bounded decision. Terminate when the listed cases and applicable gates pass with no unresolved stop-for-decision finding; passing examples are evidence for the named enforcing representation, not a completeness proof.
 
@@ -71,9 +71,9 @@ Introduce one private concrete per-reader holder with next/accept/discard operat
 
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 
