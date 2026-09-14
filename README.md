@@ -43,7 +43,7 @@ Individual measurements establish improvements in specific workloads, rather tha
 
 These results were recorded at individual adoption commits, not remeasured as an aggregate comparison of the current fork. The DATAGRAM parser change saves allocation, but its original tail-latency noninferiority bound was not established. The [changelog](CHANGELOG.md#recorded-measurements) and [evidence index](docs/audit-evidence.md) provide context and links.
 
-Unit CI exercises Linux, macOS, and Windows on Go 1.26.x and 1.27.x. Integration CI covers Linux on both versions and macOS/Windows on Go 1.27.x, with additional Linux race coverage. Other cross-compiled targets are build-only. Intermittent macOS dial/HTTP timeouts and a Linux path-MTU convergence assertion remain unresolved; see the [known limitations](CHANGELOG.md#known-limitations). Evaluate the prerelease against your application's workloads.
+Unit CI exercises Linux, macOS, and Windows on Go 1.26.x and 1.27.x. Integration CI covers Linux on both versions and macOS/Windows on Go 1.27.x, with additional Linux race coverage. Other cross-compiled targets are build-only. Intermittent macOS dial/HTTP timeouts remain unresolved; see the [known limitations](CHANGELOG.md#known-limitations). The [path-MTU convergence fixture](https://github.com/the-sarge/quic-go-fast/blob/9e8cec69d76a80812737750709289d4925a927c1/docs/audits/issue-178-convergence/README.md) now keeps traffic active until its existing tolerance is reached; the historical hosted probe-loss source remains unknown. Evaluate the prerelease against your application's workloads.
 
 ## Use the fork
 

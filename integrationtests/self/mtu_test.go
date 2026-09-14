@@ -134,7 +134,8 @@ func TestPathMTUDiscovery(t *testing.T) {
 
 	clientErrChan := make(chan error, 1)
 	go func() {
-		data, err := io.ReadAll(str)
+		data := make([]byte, len(PRDataLong))
+		_, err := io.ReadFull(str, data)
 		if err != nil {
 			clientErrChan <- err
 			return
@@ -146,9 +147,9 @@ func TestPathMTUDiscovery(t *testing.T) {
 		clientErrChan <- nil
 	}()
 
+	require.NoError(t, str.SetDeadline(time.Now().Add(20*time.Second)))
 	_, err = str.Write(PRDataLong)
 	require.NoError(t, err)
-	str.Close()
 
 	select {
 	case err := <-clientErrChan:
@@ -158,6 +159,34 @@ func TestPathMTUDiscovery(t *testing.T) {
 	case <-time.After(20 * time.Second):
 		t.Fatal("timeout")
 	}
+
+	// The echo can finish while discovery is still waiting to send another probe.
+	// Keep traffic flowing until the existing tolerance is reached, within the
+	// test's existing 20-second budget. A final probe loss need not emit Done.
+	extra := PRData[:16*1024]
+	echoed := make([]byte, len(extra))
+	for {
+		updates := eventRecorder.Events(qlog.MTUUpdated{})
+		if len(updates) > 0 {
+			last := updates[len(updates)-1].(qlog.MTUUpdated)
+			if last.Value >= mtu-25 || last.Done {
+				break
+			}
+		}
+		_, err = str.Write(extra)
+		if err != nil {
+			t.Fatalf("MTU discovery echo write failed: %v (MTU updates: %v)", err, eventRecorder.Events(qlog.MTUUpdated{}))
+		}
+		_, err = io.ReadFull(str, echoed)
+		if err != nil {
+			t.Fatalf("MTU discovery echo read failed: %v (MTU updates: %v)", err, eventRecorder.Events(qlog.MTUUpdated{}))
+		}
+		require.Equal(t, extra, echoed)
+	}
+	require.NoError(t, str.Close())
+	trailing, err := io.ReadAll(str)
+	require.NoError(t, err)
+	require.Empty(t, trailing)
 
 	// Finish ACK processing before comparing the DATAGRAM limit with MTU events.
 	// MTUUpdated is recorded before the corresponding limit is published.

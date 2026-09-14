@@ -1,0 +1,26 @@
+using QUIC version: v1
+=== RUN   TestPathMTUDiscovery
+[DEBUG-mtu178] 2026-09-14T18:06:25.878209292Z SEND size=1326 min=1200 max=1452 srtt=16.041ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:25.878347958Z DROP probe=1326
+[DEBUG-mtu178] 2026-09-14T18:06:25.895393333Z LOSS size=1326 min=1200 max=1452 srtt=16.809ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:25.96651225Z SEND size=1263 min=1200 max=1452 srtt=17.648ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:25.9827915Z ACK size=1263 min=1263 max=1452 srtt=16.965ms next=68.544292ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.04566875Z SEND size=1357 min=1263 max=1452 srtt=15.789ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.045701375Z DROP probe=1357
+[DEBUG-mtu178] 2026-09-14T18:06:26.061648333Z LOSS size=1357 min=1263 max=1452 srtt=17.549ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.127369917Z SEND size=1294 min=1263 max=1452 srtt=16.251ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.142888875Z ACK size=1294 min=1294 max=1452 srtt=17.757ms next=73.263958ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.207336959Z SEND size=1373 min=1294 max=1452 srtt=15.963ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.223062834Z ACK size=1373 min=1373 max=1452 srtt=15.885ms next=63.696709ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.223253375Z ECHO_COMPLETE updates=[{1263 false} {1294 false} {1373 false}]
+[DEBUG-mtu178] 2026-09-14T18:06:26.291174042Z SEND size=1412 min=1373 max=1452 srtt=16.148ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.308559167Z LOSS size=1412 min=1373 max=1452 srtt=16.269ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.377705459Z SEND size=1392 min=1373 max=1452 srtt=16.553ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.395090792Z ACK size=1392 min=1392 max=1452 srtt=16.553ms next=65.375125ms done=false
+[DEBUG-mtu178] 2026-09-14T18:06:26.412423584Z CONVERGED updates=[{1263 false} {1294 false} {1373 false} {1392 false}]
+[DEBUG-mtu178] 2026-09-14T18:06:26.413007584Z CLOSED datagram=1355 updates=[{1263 false} {1294 false} {1373 false} {1392 false}]
+    mtu_test.go:212: max client packet size: 1392, MTU: 1400
+    mtu_test.go:213: max datagram size: initial: 1163, final: 1355
+    mtu_test.go:214: max server packet size: 1234, MTU: 1400
+--- PASS: TestPathMTUDiscovery (0.65s)
+PASS

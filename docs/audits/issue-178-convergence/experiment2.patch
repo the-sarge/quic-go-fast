@@ -1,0 +1,128 @@
+diff --git i/integrationtests/self/mtu_test.go w/integrationtests/self/mtu_test.go
+index 0f68c7e1..d7260bd2 100644
+--- i/integrationtests/self/mtu_test.go
++++ w/integrationtests/self/mtu_test.go
+@@ -80,11 +80,17 @@ func TestPathMTUDiscovery(t *testing.T) {
+ 	var mx sync.Mutex
+ 	var maxPacketSizeServer int
+ 	var clientPacketSizes []int
++	droppedProbe := map[int]bool{}
+ 	proxy := &quicproxy.Proxy{
+ 		Conn:        newUDPConnLocalhost(t),
+ 		ServerAddr:  ln.Addr().(*net.UDPAddr),
+ 		DelayPacket: func(quicproxy.Direction, net.Addr, net.Addr, []byte) time.Duration { return rtt / 2 },
+ 		DropPacket: func(dir quicproxy.Direction, _, _ net.Addr, packet []byte) bool {
++			if dir == quicproxy.DirectionIncoming && (len(packet) == 1326 || len(packet) == 1357) && !droppedProbe[len(packet)] {
++				droppedProbe[len(packet)] = true
++				fmt.Printf("[DEBUG-mtu178] %s DROP probe=%d\n", time.Now().Format(time.RFC3339Nano), len(packet))
++				return true
++			}
+ 			if len(packet) > mtu {
+ 				return true
+ 			}
+@@ -134,7 +140,8 @@ func TestPathMTUDiscovery(t *testing.T) {
+ 
+ 	clientErrChan := make(chan error, 1)
+ 	go func() {
+-		data, err := io.ReadAll(str)
++		data := make([]byte, len(PRDataLong))
++		_, err := io.ReadFull(str, data)
+ 		if err != nil {
+ 			clientErrChan <- err
+ 			return
+@@ -146,9 +153,9 @@ func TestPathMTUDiscovery(t *testing.T) {
+ 		clientErrChan <- nil
+ 	}()
+ 
++	require.NoError(t, str.SetDeadline(time.Now().Add(20*time.Second)))
+ 	_, err = str.Write(PRDataLong)
+ 	require.NoError(t, err)
+-	str.Close()
+ 
+ 	select {
+ 	case err := <-clientErrChan:
+@@ -159,6 +166,30 @@ func TestPathMTUDiscovery(t *testing.T) {
+ 		t.Fatal("timeout")
+ 	}
+ 
++	fmt.Printf("[DEBUG-mtu178] %s ECHO_COMPLETE updates=%v\n", time.Now().Format(time.RFC3339Nano), eventRecorder.Events(qlog.MTUUpdated{}))
++
++	// The echo can finish while discovery is still waiting to send another probe.
++	// Keep traffic flowing until the existing tolerance is reached, within the
++	// stream's original timeout budget. A final probe loss need not emit Done.
++	extra := PRData[:16*1024]
++	echoed := make([]byte, len(extra))
++	for {
++		updates := eventRecorder.Events(qlog.MTUUpdated{})
++		if len(updates) > 0 && updates[len(updates)-1].(qlog.MTUUpdated).Value >= mtu-25 {
++			break
++		}
++		_, err = str.Write(extra)
++		require.NoError(t, err)
++		_, err = io.ReadFull(str, echoed)
++		require.NoError(t, err)
++		require.Equal(t, extra, echoed)
++	}
++	require.NoError(t, str.Close())
++	trailing, err := io.ReadAll(str)
++	require.NoError(t, err)
++	require.Empty(t, trailing)
++	fmt.Printf("[DEBUG-mtu178] %s CONVERGED updates=%v\n", time.Now().Format(time.RFC3339Nano), eventRecorder.Events(qlog.MTUUpdated{}))
++
+ 	// Finish ACK processing before comparing the DATAGRAM limit with MTU events.
+ 	// MTUUpdated is recorded before the corresponding limit is published.
+ 	require.NoError(t, conn.CloseWithError(0, ""))
+@@ -166,6 +197,7 @@ func TestPathMTUDiscovery(t *testing.T) {
+ 	require.Error(t, err)
+ 	require.ErrorAs(t, err, &datagramErr)
+ 	finalMaxDatagramSize := datagramErr.MaxDatagramPayloadSize
++	fmt.Printf("[DEBUG-mtu178] %s CLOSED datagram=%d updates=%v\n", time.Now().Format(time.RFC3339Nano), finalMaxDatagramSize, eventRecorder.Events(qlog.MTUUpdated{}))
+ 
+ 	mx.Lock()
+ 	defer mx.Unlock()
+diff --git i/mtu_discoverer.go w/mtu_discoverer.go
+index 76b28e72..2aeca549 100644
+--- i/mtu_discoverer.go
++++ w/mtu_discoverer.go
+@@ -1,6 +1,7 @@
+ package quic
+ 
+ import (
++	"fmt"
+ 	"github.com/quic-go/quic-go/internal/ackhandler"
+ 	"github.com/quic-go/quic-go/internal/monotime"
+ 	"github.com/quic-go/quic-go/internal/protocol"
+@@ -8,6 +9,7 @@ import (
+ 	"github.com/quic-go/quic-go/internal/wire"
+ 	"github.com/quic-go/quic-go/qlog"
+ 	"github.com/quic-go/quic-go/qlogwriter"
++	"time"
+ )
+ 
+ const (
+@@ -158,6 +160,9 @@ func (f *mtuFinder) GetPing(now monotime.Time) (ackhandler.Frame, protocol.ByteC
+ 	}
+ 	f.lastProbeTime = now
+ 	f.inFlight = size
++	if f.qlogger != nil {
++		fmt.Printf("[DEBUG-mtu178] %s SEND size=%d min=%d max=%d srtt=%v done=%v\n", time.Now().Format(time.RFC3339Nano), size, f.min, f.max(), f.rttStats.SmoothedRTT(), f.done())
++	}
+ 	return ackhandler.Frame{
+ 		Frame:   &wire.PingFrame{},
+ 		Handler: &mtuFinderAckHandler{mtuFinder: f, generation: f.generation},
+@@ -213,6 +218,7 @@ func (h *mtuFinderAckHandler) OnAcked(wire.Frame) {
+ 		}
+ 	}
+ 	if h.qlogger != nil {
++		fmt.Printf("[DEBUG-mtu178] %s ACK size=%d min=%d max=%d srtt=%v next=%v done=%v\n", time.Now().Format(time.RFC3339Nano), size, h.min, h.max(), h.rttStats.SmoothedRTT(), time.Duration(h.lastProbeTime.Add(mtuProbeDelay*h.rttStats.SmoothedRTT())-monotime.Now()), h.done())
+ 		h.qlogger.RecordEvent(qlog.MTUUpdated{
+ 			Value: int(size),
+ 			Done:  h.done(),
+@@ -238,4 +244,7 @@ func (h *mtuFinderAckHandler) OnLost(wire.Frame) {
+ 			break
+ 		}
+ 	}
++	if h.qlogger != nil {
++		fmt.Printf("[DEBUG-mtu178] %s LOSS size=%d min=%d max=%d srtt=%v done=%v\n", time.Now().Format(time.RFC3339Nano), size, h.min, h.max(), h.rttStats.SmoothedRTT(), h.done())
++	}
+ }
