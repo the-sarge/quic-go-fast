@@ -32,6 +32,9 @@ type corruptionCapture struct {
 	err     error
 	done    bool
 	limited bool
+
+	// Scheduling seam for batch-boundary regressions, set before use.
+	afterBatchResult func()
 }
 
 type corruptionCaptureRecord struct {
@@ -77,6 +80,12 @@ func (c *corruptionCapture) record(at time.Time, source, data string) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.recordLocked(at, source, data)
+}
+
+// recordLocked shares the bounded writer with admitted operation groups.
+// The caller holds mu.
+func (c *corruptionCapture) recordLocked(at time.Time, source, data string) {
 	if c.done || c.err != nil {
 		return
 	}

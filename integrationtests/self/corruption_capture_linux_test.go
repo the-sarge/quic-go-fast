@@ -38,3 +38,7 @@ func TestCorruptionCaptureSuccessfulReadBatch(t *testing.T) {
 	require.Contains(t, records[3].Source, "batch=1 index=1 count=2")
 	require.Contains(t, records[3].Data, "payload=7365636f6e64")
 }
+
+func TestCorruptionCaptureBatchFinalizationMultiple(t *testing.T) {
+	testCorruptionCaptureBatchFinalization(t, 2)
+}
