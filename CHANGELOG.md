@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.62.1-fast.2 — 2026-09-14
+
+Dependency and tooling refresh after the first fork prerelease. The upstream baseline remains quic-go v0.62.0, the minimum Go version remains 1.26.0, and the existing public API and module-replacement adoption model are unchanged.
+
+| Dependency or tool | Previous | Updated |
+| --- | --- | --- |
+| `golang.org/x/crypto` | `v0.54.0` | `v0.57.0` |
+| `golang.org/x/net` | `v0.56.0` | `v0.59.0` |
+| `golang.org/x/sync` | `v0.22.0` | `v0.23.0` |
+| `golang.org/x/sys` | `v0.47.0` | `v0.48.0` |
+| `golang.org/x/text` | `v0.40.0` | `v0.42.0` |
+| `golang.org/x/tools` | `v0.47.0` | `v0.50.0` |
+| `golang.org/x/mod` | `v0.37.0` | `v0.41.0` |
+| `go.uber.org/mock` / mockgen | `v0.5.2` | `v0.6.0` |
+| golangci-lint | `v2.13.0` | `v2.13.2` |
+| Interop image Go toolchain | `1.27.0` | `1.27.1` |
+
+The FIPS and module-vendor integration fixtures follow the refreshed dependency graph. Generated code is regenerated with the updated mockgen and checked for consistency. Go 1.26.x and 1.27.x remain in CI; upgrading the interop image's build toolchain does not raise the library's Go requirement.
+
+The [first prerelease](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.1) records the fork's changes relative to upstream, scoped performance measurements, tested versus build-only platforms, and unresolved investigations. Those limitations still apply; dependency updates do not establish fixes for the intermittent dial, HTTP, or path-MTU failures. This release distributes library source without binary or container assets.
+
 ## v0.62.1-fast.1 — 2026-09-14
 
 First quic-go-fast prerelease for evaluation, based on upstream **quic-go v0.62.0**. Existing public APIs, the `github.com/quic-go/quic-go` module identity, and QUIC/HTTP/3 wire compatibility are preserved. Go **1.26.0 or newer** is required. This release keeps the validated dependency baseline; dependency and tool updates are a separate follow-up.
