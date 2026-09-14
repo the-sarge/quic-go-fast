@@ -6,7 +6,7 @@ The approved outcome is a bounded diagnosis and focused fixture correction for [
 
 Capture echo completion, probe eligibility/emission, ACK/loss progress, discovered MTU, DATAGRAM publication and closure. Correct only the demonstrated fixture owner, with a controlled regression showing the old lifecycle fails and the corrected lifecycle succeeds. Preserve the 1375-byte minimum on the 1400-byte path, existing initial/final DATAGRAM relationships, disabled server discovery with 1234-byte server packets, at most one recorded client packet above the discovered MTU, and PR #145's close-before-final-sampling guarantee.
 
-No arbitrary sleeps, increased deadlines, weakened thresholds, public completion API, maintained diagnostics framework, CI changes, unrelated timeout work or speculative transport changes. Temporary instrumentation is removed from the candidate. A production correction's blast radius remains untraced and requires a separate decision.
+No arbitrary sleeps, increased deadlines, weakened thresholds, public completion API, maintained diagnostics framework, CI changes, unrelated timeout work or speculative transport changes. Temporary instrumentation is removed from the candidate. An observed terminal MTU result below tolerance must reach the existing numeric assertion; convergence-loop I/O errors retain the MTU progression in their diagnostics. Reconcile README current-status wording while preserving released changelog history. A production correction's blast radius remains untraced and requires a separate decision.
 
 ## Representation and artifacts
 

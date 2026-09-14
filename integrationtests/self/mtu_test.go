@@ -167,13 +167,20 @@ func TestPathMTUDiscovery(t *testing.T) {
 	echoed := make([]byte, len(extra))
 	for {
 		updates := eventRecorder.Events(qlog.MTUUpdated{})
-		if len(updates) > 0 && updates[len(updates)-1].(qlog.MTUUpdated).Value >= mtu-25 {
-			break
+		if len(updates) > 0 {
+			last := updates[len(updates)-1].(qlog.MTUUpdated)
+			if last.Value >= mtu-25 || last.Done {
+				break
+			}
 		}
 		_, err = str.Write(extra)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("MTU discovery echo write failed: %v (MTU updates: %v)", err, eventRecorder.Events(qlog.MTUUpdated{}))
+		}
 		_, err = io.ReadFull(str, echoed)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("MTU discovery echo read failed: %v (MTU updates: %v)", err, eventRecorder.Events(qlog.MTUUpdated{}))
+		}
 		require.Equal(t, extra, echoed)
 	}
 	require.NoError(t, str.Close())
