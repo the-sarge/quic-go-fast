@@ -1701,3 +1701,26 @@ Controlled failure subprocesses demonstrated attributable retained evidence for 
 RAS review `20260914T191704-a5af40a44edfcf05fd3c130d` completed with both reviewers and synthesis. Its sole finding was independently rejected because the alleged non-nil body-close result is unreachable for this fixture's concrete response body; no fix verification, replacement review or deferred finding was required. The [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/312#issuecomment-5669532728) records the evidence and retry rationale. No RAS is run for this post-merge journal.
 
 The capture installation is complete. [#151](https://github.com/the-sarge/quic-go-fast/issues/151) and [#301](https://github.com/the-sarge/quic-go-fast/issues/301) remain the live investigation trackers awaiting natural causal evidence; neither cause is established or repaired by this change. Existing deadlines, retry/cache and channel behavior, response consumption and transport decisions remain intact. No new reproduction campaign was run.
+
+---
+
+## HTTP idle-timeout retry fixture repaired - 2026-09-14 19:28 EDT
+
+**Main:** `e182f4404106`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #315](https://github.com/the-sarge/quic-go-fast/pull/315) as `e182f440410602b0ca25cd83e602cf091a3137dd`, closing the separate fixture repair [#314](https://github.com/the-sarge/quic-go-fast/issues/314). The idle-timeout fixture now publishes its latest successful dial through an atomic pointer, so a retry can finish and the idle assertion observes the successful connection. The shared regression closes a handshaken first connection, uses the real retry path, checks the second connection and returns through fixture cleanup. Connection-publication capture assertions and maintained documentation were updated.
+
+### Decisions
+
+Keep this repair fixture-local under the [approved contract](agents/http-idle-retry.md). Preserve production retry/cache semantics, idle timing, deadlines and connection/socket ownership. The repair does not explain or resolve the original returned timeout in #151, nor establish a common cause with #169 or #301.
+
+### Validation
+
+The original channel handoff failed the controlled retry at its bounded 15-second timeout, with the second callback blocked sending and GET waiting for that dial; the corrected regression passed. Final candidate `b49890eee30d0240268ee9f683f407085786ef6d` passed focused QUIC v1/v2 and race coverage, the full affected package, vet, module tidiness, changed-file formatting, affected-package lint and all 33 applicable hosted checks. Repository-wide formatting reported only a pre-existing trailing blank line in an unchanged opt-in experiment file; it was left untouched. RAS run `20260914T231840-93edb5b152fafb768f559f7f` completed with no required fixes after independent disposition. See the [red/green evidence](https://github.com/the-sarge/quic-go-fast/pull/315#issuecomment-5672127179) and [review/certification receipt](https://github.com/the-sarge/quic-go-fast/pull/315#issuecomment-5672222176).
+
+### Next
+
+Complete repair task `hdsml2cfy7e` after this journal merges. Keep #151 and waiting task `lOLFMmA0JFX` open; the [live investigation](https://github.com/the-sarge/quic-go-fast/issues/151) still needs causal evidence for the original failure. Optional redundant assertion cleanup was not promoted into a follow-up task.
