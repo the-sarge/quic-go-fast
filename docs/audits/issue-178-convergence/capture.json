@@ -1,0 +1,16 @@
+{
+  "base": "f4d13bd8d5edff5e57706499b2f7b7837a7bd4fe",
+  "go": "go1.27.1",
+  "build": "darwin/arm64 cross-compiled GOOS=linux GOARCH=arm64 CGO_ENABLED=0",
+  "runtime": "Ubuntu 24.04 in Docker Desktop Linux arm64; not the original hosted runner",
+  "files": {
+    "baseline-ubuntu-v1.log": "b15266c43a2d10763aef53ce62234fad031bbd05f4e371c67b19c28b9b989687",
+    "self-linux-arm64.test": "403854059c0d916b9fcf03d2981dcbfff8c5ff86b1215f61105f2e92fa441f8e",
+    "experiment1.test": "ab08b71f12557e1ea250db561038e03362c1645d71584cc8cc4e9cc5833b6075",
+    "experiment2.test": "d05385543b7572353daa31ab5b9800f378f4cb0c1deaa9df92496d0cf41ee781",
+    "experiment1.patch": "c3934ae43e68e1230fa38bdcdbf065ee9c44346c91010f9bd91455c7115778bc",
+    "experiment2.patch": "75d3ebd83a316e111f11b36496b5f2503b831c92f3b8450ee28dff75b1ca1bf6",
+    "experiment1.log": "c771cbb472d5b308ea95a15ab58f2103d3869910d286faa2957ca76440299253",
+    "experiment2.log": "a00ec05f9f02e761e73cbdb672555468be0eca2c308fd0b86dc8ccf4b801f246"
+  }
+}

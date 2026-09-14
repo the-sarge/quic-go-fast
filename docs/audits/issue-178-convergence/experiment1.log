@@ -1,0 +1,21 @@
+using QUIC version: v1
+=== RUN   TestPathMTUDiscovery
+[DEBUG-mtu178] 2026-09-14T18:05:05.390944713Z SEND size=1326 min=1200 max=1452 srtt=16.427ms done=false
+[DEBUG-mtu178] 2026-09-14T18:05:05.39104538Z DROP probe=1326
+[DEBUG-mtu178] 2026-09-14T18:05:05.407783463Z LOSS size=1326 min=1200 max=1452 srtt=16.768ms done=false
+[DEBUG-mtu178] 2026-09-14T18:05:05.473312005Z SEND size=1263 min=1200 max=1452 srtt=16.157ms done=false
+[DEBUG-mtu178] 2026-09-14T18:05:05.489970463Z ACK size=1263 min=1263 max=1452 srtt=17.294ms next=69.809583ms done=false
+[DEBUG-mtu178] 2026-09-14T18:05:05.558794213Z SEND size=1357 min=1263 max=1452 srtt=16.586ms done=false
+[DEBUG-mtu178] 2026-09-14T18:05:05.55967588Z DROP probe=1357
+[DEBUG-mtu178] 2026-09-14T18:05:05.57637688Z LOSS size=1357 min=1263 max=1452 srtt=16.751ms done=false
+[DEBUG-mtu178] 2026-09-14T18:05:05.637939963Z ECHO_COMPLETE updates=[{1263 false}]
+[DEBUG-mtu178] 2026-09-14T18:05:05.638394213Z CLOSED datagram=1226 updates=[{1263 false}]
+    mtu_test.go:189: max client packet size: 1263, MTU: 1400
+    mtu_test.go:190: max datagram size: initial: 1163, final: 1226
+    mtu_test.go:191: max server packet size: 1234, MTU: 1400
+    mtu_test.go:193: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/mtu-convergence-178/integrationtests/self/mtu_test.go:193
+        	Error:      	"1263" is not greater than or equal to "1375"
+        	Test:       	TestPathMTUDiscovery
+--- FAIL: TestPathMTUDiscovery (0.37s)
+FAIL
