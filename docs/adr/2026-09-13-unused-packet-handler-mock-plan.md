@@ -10,7 +10,7 @@
 
 ## Goal and current shape
 
-`mockgen.go:38` generates MockPacketHandler; `mock_packet_handler_test.go` contains its generated definitions. Maintained-source search found no consumers. This is distinct from the live packetHandler interface, ConnRunner callbacks and other used mocks. Frozen audit manifests can legitimately mention the generated file.
+Before M1, `mockgen.go` generated MockPacketHandler in `mock_packet_handler_test.go`; maintained-source search found no consumers. M1 removed that generated output, its directive and the build-tagged PacketHandler alias. The live packetHandler interface, ConnRunner callbacks and other used mocks remain unchanged. Frozen audit manifests can legitimately mention the removed generated file.
 
 ## Decision
 
