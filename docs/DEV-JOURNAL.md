@@ -1652,3 +1652,24 @@ Fresh govulncheck v1.8.0 source scans with Go 1.27.1 for darwin/arm64, linux/amd
 ### Next
 
 Complete exact-commit CI, annotated-tag and consumer verification, then publish `v0.62.1-fast.2` under the [release runbook](runbooks/release.md). The [release list](https://github.com/the-sarge/quic-go-fast/releases) is the live publication record; this entry captures the dependency merge before the second prerelease is published.
+
+---
+
+## Receive-batch capture finalization landed - 2026-09-14 13:50 EDT
+
+**Main:** `8465c5208208`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #308](https://github.com/the-sarge/quic-go-fast/pull/308), resolving [issue #149](https://github.com/the-sarge/quic-go-fast/issues/149). Receive-batch capture now serializes an admitted result and its indexed members against Dial finalization. The existing record format, 32 MiB event budget, 256 KiB record limit, incomplete-evidence/error rules, socket results and Dial deadline remain intact.
+
+### Decisions
+
+The [accepted brief](https://github.com/the-sarge/quic-go-fast/issues/149#issuecomment-5631322497) and [maintained capture contract](agents/corruption-capture.md#receive-batch-finalization-verification) define admission after the socket read, bounded streaming persistence and the remaining interruption/observer limits. This diagnostic-only enhancement does not reopen #46. The two real batch-success regressions skip Windows because x/net does not implement PacketConn.ReadBatch there; recorder and socket-error coverage remains enabled.
+
+### Validation
+
+The deterministic native regression failed on a missing member after a clean terminal record before the fix, then passed with the bounded limit/error cases. Final Go 1.27.1 macOS/arm64 and Linux/arm64 focused race runs passed once each, including Linux's real multi-message batch case. The affected-package suite, vet, repository lint, changed-Go formatting, root/FIPS module tidiness and documentation checks passed on head `5b0997d3ccd3e521d1425fd3f3c3b388183a5fcb`; all 33 hosted checks passed before the exact-head squash merge.
+
+Initial RAS review `20260914T173731-f26db150c01f8b2703374dc4` and replacement `20260914T174153-a19a9c8d2079ad24b1809e36` each completed with codex-astra, codex-sol and synthesis, with zero findings. The replacement covered the Windows test-portability correction exposed by hosted CI. No deferred findings, randomized campaign, automated fixer or unchanged failed-CI rerun was needed. Exact commands and review receipts are retained in [the PR description](https://github.com/the-sarge/quic-go-fast/pull/308).
