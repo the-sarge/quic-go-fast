@@ -1,7 +1,7 @@
 # Unused packet-handler mock implementation plan
 
 **Date:** 2026-09-13
-**Status:** Accepted; not implemented
+**Status:** Complete
 **Track:** M in architecture deepening program A13
 **Depends on:** No hard prerequisites
 **Normative scope:** Current contract only
@@ -10,7 +10,7 @@
 
 ## Goal and current shape
 
-`mockgen.go:38` generates MockPacketHandler; `mock_packet_handler_test.go` contains its generated definitions. Maintained-source search found no consumers. This is distinct from the live packetHandler interface, ConnRunner callbacks and other used mocks. Frozen audit manifests can legitimately mention the generated file.
+Before M1, `mockgen.go` generated MockPacketHandler in `mock_packet_handler_test.go`; maintained-source search found no consumers. M1 removed that generated output, its directive and the build-tagged PacketHandler alias. The live packetHandler interface, ConnRunner callbacks and other used mocks remain unchanged. Frozen audit manifests can legitimately mention the removed generated file.
 
 ## Decision
 
@@ -24,7 +24,7 @@ Remove the unused generated mock and its generation directive plus now-unused bu
 
 | Slice | State | Delivery | Blocked by | Temporary seam removal |
 |---|---|---|---|---|
-| M1 | New; frontier | Remove the unused MockPacketHandler generator output | None | None |
+| M1 | Complete | Remove the unused MockPacketHandler generator output | None | None |
 
 ## Implementation slices
 
@@ -62,9 +62,9 @@ Remove the unused generated mock and its generation directive plus now-unused bu
 
 **Acceptance criteria:**
 
-- [ ] Deliver the behavior stated in this slice's What it delivers field at its named owner.
-- [ ] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
-- [ ] Introduce no temporary second owner or unapproved public/API/storage representation change.
+- [x] Deliver the behavior stated in this slice's What it delivers field at its named owner.
+- [x] Preserve the explicitly listed existing behavior and satisfy the finite evidence budget.
+- [x] Introduce no temporary second owner or unapproved public/API/storage representation change.
 
 Universal wording in these criteria is bounded by this slice's Representation contract and semantic classes; no external syntax or unknown consumer census is implied.
 
