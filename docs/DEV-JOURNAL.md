@@ -1673,3 +1673,16 @@ The [accepted brief](https://github.com/the-sarge/quic-go-fast/issues/149#issuec
 The deterministic native regression failed on a missing member after a clean terminal record before the fix, then passed with the bounded limit/error cases. Final Go 1.27.1 macOS/arm64 and Linux/arm64 focused race runs passed once each, including Linux's real multi-message batch case. The affected-package suite, vet, repository lint, changed-Go formatting, root/FIPS module tidiness and documentation checks passed on head `5b0997d3ccd3e521d1425fd3f3c3b388183a5fcb`; all 33 hosted checks passed before the exact-head squash merge.
 
 Initial RAS review `20260914T173731-f26db150c01f8b2703374dc4` and replacement `20260914T174153-a19a9c8d2079ad24b1809e36` each completed with codex-astra, codex-sol and synthesis, with zero findings. The replacement covered the Windows test-portability correction exposed by hosted CI. No deferred findings, randomized campaign, automated fixer or unchanged failed-CI rerun was needed. Exact commands and review receipts are retained in [the PR description](https://github.com/the-sarge/quic-go-fast/pull/308).
+
+---
+
+## MTU convergence fixture corrected - 2026-09-14 14:38 EDT
+
+**Main:** `d8ed77403ff5`
+**Actor:** Codex
+
+[PR #310](https://github.com/the-sarge/quic-go-fast/pull/310) corrected the path-MTU integration fixture and closed [#178](https://github.com/the-sarge/quic-go-fast/issues/178). A controlled capture observed the original 50 MB echo completing at MTU 1373 while another probe remained due; continued verified traffic let the unchanged finder reach 1392. The fixture now keeps traffic active within the existing 20-second bound until the 1375-byte tolerance or an observed terminal state, preserves MTU progress on I/O failure, and closes before final MTU/DATAGRAM sampling. Numeric assertions and production code are unchanged. The historical hosted loss source remains unknown; [captured evidence](audits/issue-178-convergence/README.md) records that limit.
+
+The bounded investigation used one Ubuntu 24.04/Go 1.27.1 arm64 suite replay and two controlled red/green captures. Focused QUIC v1/v2 MTU/DATAGRAM/snapshot tests, finder tests, the focused race check, and final affected-package/vet/tidiness/formatting checks passed. All 33 reported hosted checks passed on the final candidate `2a88e292884931995164e0691533112fb8f7ff2c`, including ordinary Ubuntu/Go 1.27 integration. [Local certification](https://github.com/the-sarge/quic-go-fast/pull/310#issuecomment-5668802921) records the exact head/base and platform limitations.
+
+Initial RAS review `20260914T180935-726ba2da3d881567f3cc4489` and exact-head verification resolved diagnostic and current-status findings. Replacement review `20260914T182446-fca271052ecf28883552dca6` produced two documentation fixes, checked under the docs-only polish exception without another RAS cycle. Both review panels and their adjudication/synthesis completed; no deferred findings or unresolved stops remain. The [initial dispositions](https://github.com/the-sarge/quic-go-fast/pull/310#issuecomment-5668650328) and [replacement dispositions](https://github.com/the-sarge/quic-go-fast/pull/310#issuecomment-5668782860) retain the review history.
