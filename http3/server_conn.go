@@ -57,16 +57,37 @@ func newRawServerConn(
 	// Keep the identity captured by newRawConn's qlogger shutdown callback.
 	c.rawConn = newRawConn(conn, enableDatagrams, c.onStreamsEmpty, c.handleControlStream, qlogger, logger)
 	if idleTimeout > 0 {
+		c.logIdleTimer("start")
 		c.idleTimer = time.AfterFunc(idleTimeout, func() {
+			c.logIdleTimer("fire")
 			conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeNoError), "idle timeout")
 		})
 	}
 	return c
 }
 
+// logIdleTimer reports observations, not a total order of timer transitions.
+// In particular, Stop can race an already running callback.
+func (c *RawServerConn) logIdleTimer(action string) {
+	if c.logger == nil || !c.logger.Enabled(c.serverContext, slog.LevelDebug) {
+		return
+	}
+	conn := c.rawConn.conn
+	complete := false
+	select {
+	case <-conn.HandshakeComplete():
+		complete = true
+	default:
+	}
+	c.logger.DebugContext(c.serverContext, "HTTP idle timer", "action", action,
+		"local", conn.LocalAddr().String(), "remote", conn.RemoteAddr().String(),
+		"timeout", c.idleTimeout, "handshake_complete", complete)
+}
+
 func (c *RawServerConn) onStreamsEmpty() {
 	if c.idleTimeout > 0 {
 		c.idleTimer.Reset(c.idleTimeout)
+		c.logIdleTimer("reset")
 	}
 }
 
@@ -74,6 +95,7 @@ func (c *RawServerConn) onStreamsEmpty() {
 func (c *RawServerConn) CloseWithError(code quic.ApplicationErrorCode, msg string) error {
 	if c.idleTimer != nil {
 		c.idleTimer.Stop()
+		c.logIdleTimer("stop")
 	}
 	return c.rawConn.CloseWithError(code, msg)
 }
@@ -102,6 +124,7 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 		// This only applies if the stream is the first active stream,
 		// but it's ok to stop a stopped timer.
 		c.idleTimer.Stop()
+		c.logIdleTimer("stop")
 	}
 
 	conn := c.rawConn

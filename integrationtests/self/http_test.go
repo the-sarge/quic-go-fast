@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	mrand "math/rand/v2"
 	"net"
@@ -54,6 +55,11 @@ func randomString(length int) string {
 
 func startHTTPServer(t *testing.T, mux *http.ServeMux, opts ...func(*http3.Server)) (port int) {
 	t.Helper()
+	return startHTTPServerWithCapture(t, mux, nil, opts...)
+}
+
+func startHTTPServerWithCapture(t *testing.T, mux *http.ServeMux, capture *httpCapture, opts ...func(*http3.Server)) (port int) {
+	t.Helper()
 	server := &http3.Server{
 		Handler:    mux,
 		TLSConfig:  getTLSConfig(),
@@ -63,14 +69,34 @@ func startHTTPServer(t *testing.T, mux *http.ServeMux, opts ...func(*http3.Serve
 		opt(server)
 	}
 
+	if capture != nil {
+		server.QUICConfig = capture.config(server.QUICConfig, "server")
+		server.Logger = slog.New(&httpCaptureLog{capture: capture})
+		server.ConnContext = func(ctx context.Context, conn *quic.Conn) context.Context {
+			capture.observeConn("server accepted", conn)
+			return ctx
+		}
+	}
 	conn := newUDPConnLocalhost(t)
+	if capture != nil {
+		capture.record("server", "listener", conn.LocalAddr().String())
+	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		server.Serve(conn)
+		if capture != nil {
+			capture.record("server", "serve_enter", nil)
+		}
+		err := server.Serve(conn)
+		if capture != nil {
+			capture.record("server", "serve_return", fmt.Sprint(err))
+		}
 	}()
 
 	t.Cleanup(func() {
+		if capture != nil {
+			capture.record("server", "socket_cleanup", nil)
+		}
 		conn.Close()
 		select {
 		case <-done:
@@ -587,32 +613,55 @@ func TestHTTPDifferentOrigins(t *testing.T) {
 }
 
 func TestHTTPServerIdleTimeout(t *testing.T) {
+	capture := newHTTPCapture(t)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "Hello, World!\n")
+		capture.record("server", "handler_enter", r.URL.Path)
+		n, err := io.WriteString(w, "Hello, World!\n")
+		capture.record("server", "handler_write", fmt.Sprintf("bytes=%d error=%v", n, err))
 	})
 	idleTimeout := scaleDuration(10 * time.Millisecond)
-	port := startHTTPServer(t, mux, func(s *http3.Server) { s.IdleTimeout = idleTimeout })
+	port := startHTTPServerWithCapture(t, mux, capture, func(s *http3.Server) { s.IdleTimeout = idleTimeout })
 
 	connChan := make(chan *quic.Conn, 1)
+	var dialCounter atomic.Int64
 	tr := &http3.Transport{
 		TLSClientConfig: getTLSClientConfigWithoutServerName(),
 		QUICConfig:      getQuicConfig(nil),
 		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+			attempt := fmt.Sprintf("client dial=%d", dialCounter.Add(1))
+			capture.record(attempt, "dial_enter", addr)
+			cfg = capture.config(cfg, attempt)
 			conn, err := quic.DialAddrEarly(ctx, addr, tlsCfg, cfg)
+			capture.record(attempt, "dial_return", fmt.Sprintf("conn=%p error=%v", conn, err))
+			capture.observeConn(attempt, conn)
+			capture.record(attempt, "channel_send_enter", fmt.Sprintf("length=%d", len(connChan)))
 			connChan <- conn
+			capture.record(attempt, "channel_send_exit", nil)
 			return conn, err
 		},
 	}
-	t.Cleanup(func() { tr.Close() })
+	t.Cleanup(func() {
+		capture.record("client", "transport_cleanup", nil)
+		tr.Close()
+	})
+	t.Cleanup(capture.beginCleanup)
 	cl := &http.Client{Transport: tr}
 
+	capture.record("client", "get_enter", nil)
 	resp, err := cl.Get(fmt.Sprintf("https://localhost:%d/hello", port))
+	capture.record("client", "get_return", fmt.Sprint(err))
+	if resp != nil {
+		capture.record("client", "response_headers", resp.StatusCode)
+	}
+	maybeFailHTTPCaptureFixture(t)
 	require.NoError(t, err)
 	// Wait for the server to close the request stream and start the idle timer.
 	_, err = io.Copy(io.Discard, resp.Body)
+	capture.record("client", "body_consumed", fmt.Sprint(err))
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
+	capture.record("client", "body_closed", nil)
 
 	var conn *quic.Conn
 	select {
@@ -629,11 +678,14 @@ func TestHTTPServerIdleTimeout(t *testing.T) {
 }
 
 func TestHTTPReestablishConnectionAfterDialError(t *testing.T) {
+	capture := newHTTPCapture(t)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "Hello, World!\n")
+		capture.record("server", "handler_enter", r.URL.Path)
+		n, err := io.WriteString(w, "Hello, World!\n")
+		capture.record("server", "handler_write", fmt.Sprintf("bytes=%d error=%v", n, err))
 	})
-	port := startHTTPServer(t, mux)
+	port := startHTTPServerWithCapture(t, mux, capture)
 
 	var dialCounter int
 	cl := http.Client{
@@ -642,20 +694,40 @@ func TestHTTPReestablishConnectionAfterDialError(t *testing.T) {
 			QUICConfig:      getQuicConfig(nil),
 			Dial: func(ctx context.Context, addr string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
 				dialCounter++
+				attempt := fmt.Sprintf("client dial=%d", dialCounter)
+				capture.record(attempt, "dial_enter", addr)
 				if dialCounter == 1 { // make the first dial fail
+					capture.record(attempt, "deliberate_dial_error", assert.AnError.Error())
 					return nil, assert.AnError
 				}
-				return quic.DialAddrEarly(ctx, addr, tlsConf, conf)
+				conf = capture.config(conf, attempt)
+				conn, err := quic.DialAddrEarly(ctx, addr, tlsConf, conf)
+				capture.record(attempt, "dial_return", fmt.Sprintf("conn=%p error=%v", conn, err))
+				capture.observeConn(attempt, conn)
+				return conn, err
 			},
 		},
 	}
-	defer cl.Transport.(io.Closer).Close()
+	defer func() {
+		capture.beginCleanup()
+		capture.record("client", "transport_cleanup", nil)
+		cl.Transport.(io.Closer).Close()
+	}()
 
+	capture.record("client", "first_get_enter", nil)
 	_, err := cl.Get(fmt.Sprintf("https://localhost:%d/hello", port))
+	capture.record("client", "first_get_return", fmt.Sprint(err))
 	require.ErrorIs(t, err, assert.AnError)
+	capture.record("client", "get_enter", nil)
 	resp, err := cl.Get(fmt.Sprintf("https://localhost:%d/hello", port))
+	capture.record("client", "get_return", fmt.Sprint(err))
+	if resp != nil {
+		capture.record("client", "response_headers", resp.StatusCode)
+	}
+	maybeFailHTTPCaptureFixture(t)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	capture.record("client", "body_not_consumed", "fixture checks headers only")
 }
 
 func TestHTTPClientRequestContextCancellation(t *testing.T) {
