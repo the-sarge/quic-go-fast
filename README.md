@@ -1,108 +1,63 @@
 # quic-go-fast
 
-A fork of [quic-go](https://github.com/quic-go/quic-go) focused on lower allocation costs, explicit packet buffer ownership, and transport correctness. The fork is based on **quic-go v0.62.0** and preserves its existing public APIs, import paths, and QUIC/HTTP/3 wire compatibility.
+A fork of [quic-go](https://github.com/quic-go/quic-go) focused on lower allocation and copying costs, efficient platform I/O, and reliable transport lifetimes. The upstream baseline is **quic-go v0.62.0**. Existing public APIs, import paths, and QUIC/HTTP/3 wire compatibility are preserved; Go **1.26.0 or newer** is required.
 
-The work started with bulk transfer using 1071-byte application DATAGRAM records and has expanded to handshake recovery, stream writes, HTTP/3 exchange lifetimes, shutdown cleanup, and platform datapath offloads. This README describes the changes shipped here relative to that upstream baseline. General QUIC and HTTP/3 usage is covered by the [upstream documentation](https://quic-go.net/docs/).
+The fork began with bulk DATAGRAM transfer and now includes stream, handshake, HTTP/3, and shutdown improvements. The themes below summarize what ships here. See the [detailed changelog](CHANGELOG.md) and [GitHub Releases](https://github.com/the-sarge/quic-go-fast/releases) for individual changes, validation boundaries, and known limitations. General protocol and API usage is covered by the [upstream documentation](https://quic-go.net/docs/).
 
-## What changed
+## Improvements over upstream
 
-### DATAGRAM receive allocation
+### Less allocation, copying, and retained memory
 
-- **Drop overflow before copying.** A full receive queue allocated and copied each incoming payload before discarding it, spending memory and CPU on messages it could not admit. Capacity is now checked first, preserving the existing 128-message limit, FIFO ordering, and drop-new behavior.
-- **Remove the parser's extra payload copy.** The parser copied each DATAGRAM payload, then the receive queue copied it again. Parsing now borrows a bounded view of packet bytes during synchronous processing. The queue still makes the owning copy before delivery, so applications retain independent buffers with the existing lifetime contract.
+DATAGRAM receive overflow is rejected before allocating, and the parser no longer makes an intermediate payload copy. Large stream writes use linear copying rather than repeatedly copying the remaining payload. Consumed HTTP/3 datagrams and abandoned receive-stream data release their references promptly. Optional HTTP/3 tracing avoids building header collections when no recorder exists. Existing APIs keep their caller-buffer ownership contracts.
 
-These changes ship through the existing DATAGRAM APIs. The ring and head-index receive queues evaluated during development remain archived experiments; production retains the existing queue representation. See [overflow admission #9](https://github.com/the-sarge/quic-go-fast/pull/9), [parser copy removal #16](https://github.com/the-sarge/quic-go-fast/pull/16), and the [measurement evidence index](docs/audit-evidence.md).
+### More efficient platform I/O
 
-### Large stream writes
+Linux gains UDP coalesced receive (GRO). Windows gains message I/O with packet metadata, segmented send (USO), and coalesced receive (URO). Qualified macOS hosts can batch sends with `sendmsg_x`. Capability checks, runtime controls, and ordinary socket fallbacks constrain activation; availability depends on the host.
 
-Large `TryWriteAll` calls repeatedly copied already queued bytes when appending and the remaining unsent buffer when emitting each packet. Copying work could therefore grow quadratically with the amount of queued data. Pending storage now grows geometrically, and segmentation copies packet-sized prefixes while advancing the unsent tail, making total copying linear. Retransmission keeps bounded packet storage; cancellation copies the reliable prefix once so a small retained range cannot keep a large discarded suffix alive. Atomic admission and caller-buffer ownership are preserved. See [large stream write changes #190](https://github.com/the-sarge/quic-go-fast/pull/190).
+macOS batching uses a private syscall guarded by kernel qualification and a startup self-check. Set `QUIC_GO_DISABLE_SENDMSG_X=true` or build with `-tags quic_go_no_private_syscalls` to disable it. `QUIC_GO_DISABLE_GSO=true` disables segmented send and `QUIC_GO_DISABLE_GRO=true` disables coalesced receive. Receive coalescing is enabled only on sockets created by the transport. The macOS receive-batching experiment and alternative DATAGRAM receive-queue representations were evaluated and retired; they do not ship.
 
-### Platform datapath offloads
+### Explicit packet and stream lifetimes
 
-Beyond Linux's existing GSO send path and `recvmmsg` receive batching, platform facilities for moving more data per socket call sat unused: Linux kernels can coalesce received datagrams, Windows can segment sends and coalesce receives, and macOS can batch sends. The transport now adopts datapath offloads on all three major platforms, each landed through a precommitted measurement protocol with predeclared pass bounds and its own correctness gate (the protocol and results pairs live under [docs/audits](docs/audit-evidence.md); the [program index](docs/adr/2026-09-11-datapath-offload-program.md) and [binding plan](docs/adr/2026-09-11-datapath-offload-plan.md) record the decisions):
+A private emission component owns packet construction, recovery registration, and handoff to socket I/O. Receive processing and coalesced reads track storage ownership through delivery and cleanup. The associated repairs release buffers on errors, cancellation, connection shutdown, and rejected admission, close internally owned sockets after setup failures, and wake readers canceled after partial stream resets. Invalid batch-send progress stops the send path instead of risking an ambiguous retry.
 
-- **Linux coalesced receive (UDP_GRO).** The kernel merges consecutive same-flow datagrams into one buffer per read, and the transport splits them back into individual datagrams before any packet parsing, preserving `ReadPacket()`'s one-datagram contract. Sibling segments can route to different connections and release concurrently, so coalesced storage uses an atomically reference-counted slab confined to the segments of a single read (a recorded amendment to [ADR 0005](docs/adr/0005-incoming-packet-lifetime.md)), with a dedicated 64 KiB pool tier and retention queues that copy segments out of slabs under per-connection byte budgets. See [storage contract #236](https://github.com/the-sarge/quic-go-fast/pull/236) and [activation #239](https://github.com/the-sarge/quic-go-fast/pull/239).
-- **Windows datapath rebuild with segmented send (USO) and coalesced receive (URO).** Windows previously used a featureless plain-socket path. It now reads and writes through the standard library's message I/O (`WSARecvMsg`/`WSASendMsg` on the runtime's IOCP poller) with control-message encoding, packet-info parity, and preserved deadline/close semantics ([foundation #242](https://github.com/the-sarge/quic-go-fast/pull/242)); probes `UDP_SEND_MSG_SIZE` and reuses the existing platform-neutral segmented-send logic ([USO #245](https://github.com/the-sarge/quic-go-fast/pull/245)); and probes `UDP_RECV_MAX_COALESCED_SIZE`, feeding `UDP_COALESCED_INFO` segment sizes to the same split seam Linux uses ([URO #248](https://github.com/the-sarge/quic-go-fast/pull/248)).
-- **macOS batch send (`sendmsg_x`).** Queued datagrams go out in batches through XNU's private `sendmsg_x` syscall under fail-closed qualification: a Darwin-kernel-major allowlist recording tested version floors, a startup self-check that exercises the production call shape and verifies delivered bytes, destinations, ECN marks, and accepted counts semantically, per-call accepted-count bounds, and a process-lifetime latch on any structurally invalid result. Partial kernel acceptance never resends accepted entries and keeps message-size errors and handshake MTU feedback attached to the correct packet. iOS builds and the `quic_go_no_private_syscalls` opt-out tag exclude the private-syscall path at compile time. See [batch send #257](https://github.com/the-sarge/quic-go-fast/pull/257). The matching `recvmsg_x` receive-batching experiment was built, measured, and **retired** by its own predeclared gates — shallow receive fills never amortize the private call's per-invocation cost — with the experimental path never merged ([experiment #259](https://github.com/the-sarge/quic-go-fast/pull/259), [record #260](https://github.com/the-sarge/quic-go-fast/pull/260)).
+### More reliable handshakes and HTTP/3 lifecycles
 
-Offloads engage only through runtime capability probes on transport-owned sockets — a caller-supplied socket never has socket-wide coalescing enabled — and each honors a kill switch following the existing convention: `QUIC_GO_DISABLE_GSO` (segmented send, now including Windows), `QUIC_GO_DISABLE_GRO` (coalesced receive on Linux and Windows), and `QUIC_GO_DISABLE_SENDMSG_X` (macOS batch send). When a probe, qualification, or self-check fails, the connection keeps the prior per-datagram behavior. No public API changed.
+Eligible local message-size errors reduce oversized handshake flights and enter the existing recovery path. Repeated successful path probes complete their waiters, and send-path publication is synchronized. HTTP/3 keeps pooled connections busy through complete uploads and response consumption, preserves replacement connections during stale failure cleanup, honors cancellation while waiting for SETTINGS, and makes server admission atomic with shutdown. Response completion has one owner for buffered output, lengths, and trailers.
 
-### Handshake and path recovery
+### Stronger validation and useful diagnostics
 
-- **Recover from local handshake message-size errors.** When the socket rejected an oversized Initial/Handshake flight, recovery could keep sending packets at the unusable size until the handshake timed out. Eligible errors now reach the connection, which lowers handshake packetization to 1200 bytes and uses existing loss/PTO recovery. Feedback is guarded by handshake phase and path generation. This addresses explicit local errors, not paths that silently drop oversized traffic. See [handshake MTU recovery #20](https://github.com/the-sarge/quic-go-fast/pull/20).
-- **Complete repeated successful path probes.** Once a path had been validated, another probe could receive a matching PATH_RESPONSE without completing its waiter; old challenge and retry state could also survive into the next probe. Responses now complete the current probe independently of previous validation, and new probes clear stale challenges and retries while preserving path-switch eligibility. See [path probe repair #187](https://github.com/the-sarge/quic-go-fast/pull/187).
-- **Synchronize send-path publication.** Active send-connection changes and the socket worker's GSO fallback updates could race with reads in other goroutines. Both updates now have synchronized publication. See [active connection #125](https://github.com/the-sarge/quic-go-fast/pull/125) and [GSO fallback #122](https://github.com/the-sarge/quic-go-fast/pull/122).
+CI actually enables the race detector, integration fixtures honor the selected QUIC version, and tests assert observable transfer and lifecycle outcomes. Deterministic loss/corruption cases and retained failure diagnostics make recovery behavior easier to assess. Qlog reports the selected fork revision and handles optional logging failures without terminating the process. Archived audit data remains accessible in Git but is excluded from Go module downloads.
 
-### Outgoing packet ownership
+## Performance evidence and current limits
 
-Sending paths spread capacity checks, destructive packet construction, recovery registration, accounting, logging, and buffer handoff across callers. Each caller had to get the ordering and cleanup right, making changes difficult to reason about and test. A private packet-emission component now owns that sequence across ordinary/GSO sends, handshake packets, ACKs, PTO probes, path/MTU probes, and connection close. The connection goroutine still owns protocol state, and the asynchronous send worker still performs socket I/O.
+Individual measurements establish improvements in specific workloads, rather than an overall speedup for every application:
 
-Fatal writes and stopped workers could leave packet buffers unreleased, and the pooled buffer used to construct a CONNECTION_CLOSE remained pinned for the closed-connection retention window. Cleanup now releases failed and abandoned sends, while close emission copies the retained payload once and releases its construction buffer. Version-negotiation recreation also avoids emitting a close packet in the old version. Follow-up work removed partially assembled emission state from constructors and moved maintained tests onto the shipped sending path, reducing the chance of testing a composition that production never uses. See the [ownership decision](docs/adr/0004-packet-emission-ownership.md), [completed emission program](docs/adr/2026-09-07-packet-emission-program.md), and [constructor assembly #183](https://github.com/the-sarge/quic-go-fast/pull/183).
-
-### Incoming packet ownership and cleanup
-
-Several QUIC packets can share one received UDP buffer. Previously, processing could continue with a zero reference count, making the bytes vulnerable to premature recycling when a retained view was released. Early returns and shutdown paths also left gaps in buffer disposal. Receive processing now holds an explicit active reference, and each handoff transfers or disposes of ownership. The changes address:
-
-- **Parsing and retained views:** rejected retention could be reported as successful, and deferred-decryption/replay cleanup could leave views behind. Admission now reports whether it actually retained a view, and processing exits and shutdown dispose of their owned references.
-- **Queued and discarded inputs:** terminal transport routes, response/non-QUIC queues, and server-held 0-RTT groups lacked complete disposal paths. Their owners now release abandoned storage.
-- **Server shutdown:** enqueue could race with closure, allowing input to arrive after cleanup. Admission is now sealed before workers drain their queues, and active Retry responses release their input.
-- **Socket readers:** read failures could miss buffer returns, and failed batches could leave stale entries available for replay. Readers now explicitly transfer slot ownership, discard failed batches, retry zero-progress reads, and reclaim unread storage on termination.
-- **Failed Initial construction:** a connection that never reached the protocol loop could retain its Initial packet and TLS/qlog resources without ordinary teardown running. Construction and registration failures now abort those resources without starting or waiting for that loop.
-
-The address-based dial/listen helpers could also leave their internally allocated UDP sockets open when setup failed. They now close those sockets on failure, preserving caller-owned socket lifetimes. See the [receive ownership decision](docs/adr/0005-incoming-packet-lifetime.md), [completed receive lifetime plan](docs/adr/2026-09-08-incoming-lifetime-plan.md), and [socket cleanup #127](https://github.com/the-sarge/quic-go-fast/pull/127).
-
-### HTTP/3 lifetime and allocation fixes
-
-- **Keep active exchanges out of idle cleanup.** A pooled connection could be counted as idle while its response was still being consumed or its request upload was still running. Usage now remains held through both response consumption and asynchronous upload cleanup, including compressed responses. One lifetime owner also prevents duplicate input closure and preserves untouched input for supported stream-opening retries. See [exchange lifetime #136](https://github.com/the-sarge/quic-go-fast/pull/136).
-- **Preserve replacement connections.** A delayed failure from an old attempt could remove a newer connection cached under the same hostname. Failure cleanup now evicts the entry only if it still belongs to that attempt. See [conditional eviction #138](https://github.com/the-sarge/quic-go-fast/pull/138).
-- **Honor Extended CONNECT cancellation.** A request waiting for peer SETTINGS could remain blocked after its context was canceled. The wait now observes request cancellation. See [cancellation #129](https://github.com/the-sarge/quic-go-fast/pull/129).
-- **Skip tracing-only header collection when no recorder exists.** Request and response decoding allocated logging fields even when nothing would record them. Collection is now conditional on a recorder, preserving decoded headers and complete tracing when enabled. See [header allocation #197](https://github.com/the-sarge/quic-go-fast/pull/197).
-
-### Logging and defensive fixes
-
-- **Make optional tracing failures nonfatal and close resources reliably.** A qlog directory error could terminate the process, HTTP/3 shutdown could wait on a different producer group from the one doing the logging, and a flush error could skip closing the sink. Directory failures now return without exiting, recorder shutdown waits for the correct producers, and buffered sinks attempt close even after a failed flush. See [tracing resource ownership #185](https://github.com/the-sarge/quic-go-fast/pull/185).
-- **Identify the code that produced a trace.** Qlog could report the upstream dependency version even when a fork replacement supplied the code, and interop linker flags targeted the wrong package. It now reports the replacement version, identifies local replacements, and honors explicit linker overrides through the corrected target. See [qlog provenance #192](https://github.com/the-sarge/quic-go-fast/pull/192).
-- **Reject oversized close reasons safely on 32-bit systems.** Narrowing an untrusted reason length before checking its bounds could lead to an allocation panic. Validation now happens before narrowing. See [parser hardening #104](https://github.com/the-sarge/quic-go-fast/pull/104).
-- **Reject short HTTP/0.9 requests safely.** The interop server sliced the request prefix without first checking its length, so short input could panic. It now checks the length before parsing. See [request validation #194](https://github.com/the-sarge/quic-go-fast/pull/194).
-
-### Tests, diagnostics, and module packaging
-
-Some existing checks gave misleading coverage: the unit CI step named for race detection omitted `-race`, version-specific self-suite fixtures could use the default QUIC version, and the leak guard looked for a retired connection-loop name. These checks now exercise the behavior they claim to cover. Fixtures that left transport/TLS workers and sockets alive now close resources and join their workers, preventing cleanup from spilling into later tests. The fork also adds regressions for the runtime changes above.
-
-Random loss and corruption could produce permitted fault sequences that exceeded fixed test deadlines, while missing or cleanup-deleted diagnostics made those failures difficult to explain. Mandatory tests now use deterministic cases with bounded failure diagnostics and retained corruption captures; historical random stress remains opt-in. See [packet-loss tests #145](https://github.com/the-sarge/quic-go-fast/pull/145), [corruption tests #157](https://github.com/the-sarge/quic-go-fast/pull/157), and the [development journal](docs/DEV-JOURNAL.md) for the individual repairs and validation records.
-
-This fork's archived audits, captures, profiles, and experimental patches inflated every Go module download despite being unnecessary to build or use the library. A nested module boundary now excludes that archive from the published module while preserving it in Git. Consumers get the [evidence index](docs/audit-evidence.md) with pinned repository links. See [module packaging #176](https://github.com/the-sarge/quic-go-fast/pull/176).
-
-## What the measurements establish
-
-These are bounded observations from individual changes, not a benchmark of the entire current fork against upstream:
-
-| Change | Recorded result | Scope |
+| Change | Recorded result | Measurement scope |
 | --- | --- | --- |
-| DATAGRAM overflow admission | 1 allocation and 1152 bytes per rejected 1071-byte record → zero | Queue microbenchmark on macOS/arm64, Go 1.27.0 |
-| DATAGRAM parser copy removal | About 47% lower receiver allocation per delivered record, with smaller CPU savings | Native Linux QUIC loopback workload; tail-latency uncertainty remains |
-| HTTP/3 tracing-only header collection | Request fixture: 14 → 10 allocations; response fixture: 12 → 9 | Isolated decoder fixtures without collection; throughput unmeasured |
-| Linux coalesced receive (GRO) | Receive syscalls per delivered datagram ×0.263; loopback throughput ×1.26 | Paired 10-round loopback bulk protocol on a Linux host |
-| Windows segmented send (USO) | Send submissions per packet ×0.0815 (12.27 packets per submission); loopback throughput ×3.01 | Paired 10-round loopback bulk protocol on hosted `windows-latest` |
-| Windows coalesced receive (URO) | Receive syscalls per delivered datagram ×0.098; 95.7% of datagrams coalesced; throughput ×1.34 | Two-endpoint KVM virtual-NIC transfer — single-host Windows traffic cannot engage URO |
-| macOS batch send (sendmsg_x) | Send syscalls per packet ×0.126 (7.99 packets per submission); loopback throughput ×1.17 | Paired 10-round loopback bulk protocol, Darwin 25 arm64 |
-| macOS receive batching (recvmsg_x) | Retired: syscall ratio only ×0.905 with throughput ×0.671 — predeclared gates failed | Same protocol shape; experimental path never merged |
+| DATAGRAM overflow admission | One allocation per rejected record → zero | Queue microbenchmark with 1071-byte records |
+| DATAGRAM parser copy removal | About 47% less receiver allocation per delivered record | Native Linux QUIC loopback workload |
+| Linux GRO | Receive syscalls ×0.263; throughput ×1.26 | Paired loopback bulk transfers |
+| Windows USO | Send submissions ×0.0815; throughput ×3.01 | Paired hosted Windows loopback transfers |
+| Windows URO | Receive syscalls ×0.098; throughput ×1.34 | Two-endpoint KVM virtual-NIC transfers |
+| macOS batch send | Send syscalls ×0.126; throughput ×1.17 | Paired Darwin 25 arm64 loopback transfers |
 
-The [evidence index](docs/audit-evidence.md) links the measurements and adoption decisions; the [journal](docs/DEV-JOURNAL.md) records subsequent validation and known limitations.
+These results were recorded at individual adoption commits, not remeasured as an aggregate comparison of the current fork. The DATAGRAM parser change saves allocation, but its original tail-latency noninferiority bound was not established. The [changelog](CHANGELOG.md#recorded-measurements) and [evidence index](docs/audit-evidence.md) provide context and links.
+
+Unit CI exercises Linux, macOS, and Windows on Go 1.26.x and 1.27.x. Integration CI covers Linux on both versions and macOS/Windows on Go 1.27.x, with additional Linux race coverage. Other cross-compiled targets are build-only. Intermittent macOS dial/HTTP timeouts and a Linux path-MTU convergence assertion remain unresolved; see the [known limitations](CHANGELOG.md#known-limitations). Evaluate the prerelease against your application's workloads.
 
 ## Use the fork
 
-The module still declares `github.com/quic-go/quic-go`. Keep existing imports and select the fork with a `replace` directive in your application's main module. For example, this Go-resolved pseudo-version pins commit `e22303402af2`, which includes the changes described above:
+Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. This verified Go-generated pseudo-version pins `c67493709612`, including all runtime changes summarized above:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-0.20260913002850-e22303402af2
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-0.20260914021556-c67493709612
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
 
-In the final command's output, the module and version after `=>` identify the selected fork; the left side shows the upstream requirement, which may be a placeholder version in a new application. Commit the resulting `go.mod` and `go.sum` changes in your application. A dependency's replacement does not propagate to its consumers: each application must select the fork explicitly. The module requires Go 1.26.0 or newer; see [go.mod](go.mod) for the declared requirement.
+For a tagged version, substitute an exact published tag from [GitHub Releases](https://github.com/the-sarge/quic-go-fast/releases). Avoid `@latest`: inherited upstream release tags can take precedence over fork prereleases. In `go list` output, the version after `=>` identifies the selected fork. Commit the resulting `go.mod` and `go.sum` changes.
 
-This replacement applies to every selected version of `github.com/quic-go/quic-go`; if another dependency expects APIs newer than v0.62.0, verify that the application still builds against this fork.
+A dependency's replacement does not propagate to its consumers: each application must select the fork explicitly. The replacement applies to every selected version of `github.com/quic-go/quic-go`; verify compatibility if another dependency expects APIs newer than the upstream v0.62.0 baseline.
 
 To return to upstream, remove the replacement and tidy:
 
@@ -113,6 +68,6 @@ go mod tidy
 
 ## Development and attribution
 
-Report fork-specific issues in [the-sarge/quic-go-fast](https://github.com/the-sarge/quic-go-fast/issues). The [development journal](docs/DEV-JOURNAL.md) records merged work, evidence, and follow-ups; [CONTEXT.md](CONTEXT.md) defines the transport terminology used in the design documents.
+Report fork-specific issues in [the-sarge/quic-go-fast](https://github.com/the-sarge/quic-go-fast/issues). The [development journal](docs/DEV-JOURNAL.md) records merged work and validation evidence; [CONTEXT.md](CONTEXT.md) defines domain terminology; the [release runbook](docs/runbooks/release.md) describes publication. Fork releases follow [validated stable upstream releases](docs/adr/0003-follow-stable-upstream-releases.md).
 
 quic-go-fast builds on the work of the quic-go authors and contributors. Code is licensed under the [MIT license](LICENSE). Upstream logo and brand assets have a [separate usage policy](assets/LICENSE.md).
