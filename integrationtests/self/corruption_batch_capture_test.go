@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +15,9 @@ import (
 )
 
 func TestCorruptionCaptureBatchFinalization(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("ipv4.PacketConn.ReadBatch is not implemented on Windows")
+	}
 	testCorruptionCaptureBatchFinalization(t, 1)
 }
 
@@ -82,6 +86,9 @@ func testCorruptionCaptureBatchFinalization(t *testing.T, count int) {
 }
 
 func TestCorruptionCaptureBatchAfterFinalization(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("ipv4.PacketConn.ReadBatch is not implemented on Windows")
+	}
 	t.Setenv("QUIC_GO_CORRUPTION_CAPTURE_DIR", t.TempDir())
 	c := newCorruptionCapture(t, "batch outside admission")
 	udp, sender := newUDPConnLocalhost(t), newUDPConnLocalhost(t)
