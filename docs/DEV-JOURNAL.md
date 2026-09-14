@@ -1608,3 +1608,26 @@ An earlier candidate's macOS Go 1.27 QUIC-v2 integration check intermittently ti
 ### Next
 
 A13 implementation is complete with no successor slices; the [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) remains the live status view. Investigate [#301](https://github.com/the-sarge/quic-go-fast/issues/301) independently through bounded triage; its OmniFocus follow-up remains open.
+
+---
+
+## Bounded HTTP reconnection diagnosis recorded - 2026-09-13 22:09 EDT
+
+**Main:** `49ddcb29f9ea`
+**Actor:** Codex
+
+### Summary
+
+Merged the [bounded #301 diagnosis and frozen evidence](https://github.com/the-sarge/quic-go-fast/pull/303) as `49ddcb29f9ea1e216fbd8012420a330c24333c3f`. The original second-GET timeout was not reproduced. Preserved logs plus unchanged source support a fresh client connection timing out before handshake completion; packet-level cause remains unresolved.
+
+### Completed
+
+Read #151's completed experiments and #169's triage notes before selecting #301's observations. One instrumented seeded suite replay and one isolated comparison passed; two conditional experiment slots remain unused. Recorded dial attempts, both endpoints' connection/handshake events, request/response milestones, and teardown. Removed temporary source instrumentation and retained checksummed historical/new captures and exact patches. Shared DialAddrEarly reachability is established; a common cause across the issues is not. The [diagnosis report](audits/issue-301/diagnosis.md) owns the evidence and boundaries.
+
+### Validation
+
+Go 1.27.1 darwin/arm64, macOS 26.6.2 build 25G83, QUIC v2, timescale 3, original shuffle seed: suite PASS 24.325s, isolated package PASS 0.474s. RAS `20260914T014930-0c82500103ccfb7a91ac008b` completed with six successful reviewers and two adapter failures, preserving quorum; two documentation findings were corrected and one rejected. The shared high-confidence docs-only exemption avoided an additional RAS cycle. Final head `824698fcb9a795b795ce65445b7e638603860dd0` passed documentation/source-restoration/hash checks and all 33 hosted checks before pinned-head squash merge. No shipped Go behavior changed.
+
+### Next
+
+[#301 remains the live tracker](https://github.com/the-sarge/quic-go-fast/issues/301) for the unresolved failure and minimal natural-failure capture. Retained diagnostics, further experiments, or a correction require separately agreed scope; #151 and #169 keep their independent limits. No deferred review findings remain.
