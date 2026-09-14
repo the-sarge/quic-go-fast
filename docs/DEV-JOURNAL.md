@@ -1631,3 +1631,24 @@ Go 1.27.1 darwin/arm64, macOS 26.6.2 build 25G83, QUIC v2, timescale 3, original
 ### Next
 
 [#301 remains the live tracker](https://github.com/the-sarge/quic-go-fast/issues/301) for the unresolved failure and minimal natural-failure capture. Retained diagnostics, further experiments, or a correction require separately agreed scope; #151 and #169 keep their independent limits. No deferred review findings remain.
+
+---
+
+## Dependency baseline refreshed after first prerelease - 2026-09-14 09:54 EDT
+
+**Main:** `6861a14ba67d`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #306](https://github.com/the-sarge/quic-go-fast/pull/306) as `6861a14ba67d9987d7e6a1ba68625248497c1b12`, refreshing the dependency and tooling baseline after the published [first fork prerelease](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.1). Updated seven golang.org/x modules, mock/mockgen to v0.6.0, golangci-lint to v2.13.2, and the interop image's Go toolchain to 1.27.1. FIPS and vendor-test module graphs are synchronized. The minimum remains Go 1.26.0; maintained Go source, generated output, and frozen evidence are unchanged.
+
+### Validation
+
+Candidate `17874640ddac5796d845e532c580ffe42db78ea6` passed all 33 hosted checks and full local package suites with Go 1.26.8 and 1.27.1. Go 1.26.0 builds the library and HTTP/3. An external application downloaded the candidate from the public Go proxy, selected the updated modules, and built/ran the qlog smoke with Go 1.26.0 and 1.27.1, reporting the expected fork revision. Vet, go fix with the existing ackhandler exception, compiler assertions, golangci-lint v2.13.2, regeneration, module checksum/tidiness checks, FIPS tests, and a vendor-mode build passed. Manual review verified version consistency and the nine-file scope; no source repairs were required. [PR #306](https://github.com/the-sarge/quic-go-fast/pull/306) records the validation and hosted checks.
+
+Fresh govulncheck v1.8.0 source scans with Go 1.27.1 for darwin/arm64, linux/amd64, and windows/amd64 found no reachable or imported-package vulnerabilities. The three unused SSH advisories seen in the first release are absent after the crypto update; the unused OpenPGP module advisory GO-2026-5932 remains. This does not establish fixes for the repository's independent intermittent dial, HTTP, or path-MTU investigations.
+
+### Next
+
+Complete exact-commit CI, annotated-tag and consumer verification, then publish `v0.62.1-fast.2` under the [release runbook](runbooks/release.md). The [release list](https://github.com/the-sarge/quic-go-fast/releases) is the live publication record; this entry captures the dependency merge before the second prerelease is published.
