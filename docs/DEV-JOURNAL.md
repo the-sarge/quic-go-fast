@@ -1585,3 +1585,26 @@ The single retained-reference regression failed before the fix in open and close
 ### Next
 
 M1 remains independently ready; the [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) is the live frontier view.
+
+---
+
+## Unused packet handler mock removed; A13 complete - 2026-09-13 20:31 EDT
+
+**Main:** `0db5e9ba4326`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #300](https://github.com/the-sarge/quic-go-fast/pull/300) as `0db5e9ba43262231ec4a1851b6a33f1868d69786`, completing [A13/M1](https://github.com/the-sarge/quic-go-fast/issues/281). Removed the unused MockPacketHandler generated test file, generator directive and build-tagged PacketHandler alias together. Runtime packetHandler, ConnRunner callbacks, other mocks and frozen evidence remain unchanged. The product PR records M1 and all seven A13 tracks complete, with no remaining frontier.
+
+### Validation
+
+Maintained-source census found definitions and generator input only. The generation script passed without drift. Final candidate `26dc87a3e1dbc008765ca8b03d7e372e2a3bf282` passed root tests, vet, module tidiness and clean-tree/diff checks, plus all 33 hosted checks. The [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/300#issuecomment-5657400692) links the hosted runs and RAS review `20260913T223329-17bb45002458642ce95a85a2`: seven reviewers completed and one process failed; quorum was met. One low documentation finding was independently accepted and corrected, with another RAS cycle skipped under the docs-only low/nit policy. No deferred review findings or new runtime effects remain.
+
+### Decisions
+
+An earlier candidate's macOS Go 1.27 QUIC-v2 integration check intermittently timed out in TestHTTPReestablishConnectionAfterDialError. Its separate push run and one seeded local replay passed; the operator authorized one retry, which passed. [Issue #301](https://github.com/the-sarge/quic-go-fast/issues/301) retains the original failure and comparison evidence. The cause is unknown, and the successful retry is not a fix. This CI diagnosis did not require architecture re-planning.
+
+### Next
+
+A13 implementation is complete with no successor slices; the [A13 tracker](https://github.com/the-sarge/quic-go-fast/issues/282) remains the live status view. Investigate [#301](https://github.com/the-sarge/quic-go-fast/issues/301) independently through bounded triage; its OmniFocus follow-up remains open.
