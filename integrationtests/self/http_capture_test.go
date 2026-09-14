@@ -151,7 +151,7 @@ func TestHTTPCaptureFixtureFailure(t *testing.T) {
 			require.Contains(t, string(data), `"complete_recording_window":true`)
 			require.FileExists(t, filepath.Join(filepath.Dir(files[0]), "SHA256SUMS"))
 			if fixture == "TestHTTPServerIdleTimeout" {
-				require.Contains(t, string(data), "channel_send_exit")
+				require.Contains(t, string(data), "connection_published")
 				require.Contains(t, string(data), "HTTP idle timer")
 			} else {
 				require.Contains(t, string(data), "deliberate_dial_error")

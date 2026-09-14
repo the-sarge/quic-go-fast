@@ -613,6 +613,46 @@ func TestHTTPDifferentOrigins(t *testing.T) {
 }
 
 func TestHTTPServerIdleTimeout(t *testing.T) {
+	testHTTPServerIdleTimeout(t, nil)
+}
+
+func TestHTTPServerIdleTimeoutAfterRetry(t *testing.T) {
+	var attempts atomic.Int64
+	var first, second atomic.Pointer[quic.Conn]
+	ok := t.Run("unusable first connection", func(t *testing.T) {
+		observed := testHTTPServerIdleTimeout(t, func(ctx context.Context, conn *quic.Conn) error {
+			if attempts.Add(1) != 1 {
+				second.Store(conn)
+				return nil
+			}
+			first.Store(conn)
+			// A completed handshake lets the real HTTP transport reach stream
+			// opening on this closed connection and take its normal retry path.
+			select {
+			case <-conn.HandshakeComplete():
+			case <-ctx.Done():
+				return context.Cause(ctx)
+			}
+			if err := conn.CloseWithError(0, "controlled unusable first connection"); err != nil {
+				return err
+			}
+			select {
+			case <-conn.Context().Done():
+				return nil
+			case <-ctx.Done():
+				return context.Cause(ctx)
+			}
+		})
+		require.Equal(t, int64(2), attempts.Load())
+		require.NotSame(t, first.Load(), observed)
+		require.Same(t, second.Load(), observed)
+	})
+	// Run returns only after the fixture's transport, server and recorder cleanups.
+	require.True(t, ok, "retry GET and fixture cleanup must complete")
+}
+
+func testHTTPServerIdleTimeout(t *testing.T, beforeReturn func(context.Context, *quic.Conn) error) *quic.Conn {
+	t.Helper()
 	capture := newHTTPCapture(t)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
@@ -623,7 +663,7 @@ func TestHTTPServerIdleTimeout(t *testing.T) {
 	idleTimeout := scaleDuration(10 * time.Millisecond)
 	port := startHTTPServerWithCapture(t, mux, capture, func(s *http3.Server) { s.IdleTimeout = idleTimeout })
 
-	connChan := make(chan *quic.Conn, 1)
+	var latestConn atomic.Pointer[quic.Conn]
 	var dialCounter atomic.Int64
 	tr := &http3.Transport{
 		TLSClientConfig: getTLSClientConfigWithoutServerName(),
@@ -635,9 +675,18 @@ func TestHTTPServerIdleTimeout(t *testing.T) {
 			conn, err := quic.DialAddrEarly(ctx, addr, tlsCfg, cfg)
 			capture.record(attempt, "dial_return", fmt.Sprintf("conn=%p error=%v", conn, err))
 			capture.observeConn(attempt, conn)
-			capture.record(attempt, "channel_send_enter", fmt.Sprintf("length=%d", len(connChan)))
-			connChan <- conn
-			capture.record(attempt, "channel_send_exit", nil)
+			if err == nil && beforeReturn != nil {
+				if err := beforeReturn(ctx, conn); err != nil {
+					conn.CloseWithError(0, "fixture preparation failed")
+					return nil, err
+				}
+			}
+			if err == nil {
+				// This fixture has one GET with sequential retries. Publish the
+				// latest connection without waiting for the GET's consumer.
+				latestConn.Store(conn)
+				capture.record(attempt, "connection_published", fmt.Sprintf("conn=%p", conn))
+			}
 			return conn, err
 		},
 	}
@@ -663,18 +712,15 @@ func TestHTTPServerIdleTimeout(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	capture.record("client", "body_closed", nil)
 
-	var conn *quic.Conn
-	select {
-	case conn = <-connChan:
-	case <-time.After(time.Second):
-		t.Fatal("connection was not opened")
-	}
+	conn := latestConn.Load()
+	require.NotNil(t, conn, "connection was not opened")
 
 	select {
 	case <-time.After(3 * idleTimeout):
 		t.Fatal("connection was not closed")
 	case <-conn.Context().Done():
 	}
+	return conn
 }
 
 func TestHTTPReestablishConnectionAfterDialError(t *testing.T) {
