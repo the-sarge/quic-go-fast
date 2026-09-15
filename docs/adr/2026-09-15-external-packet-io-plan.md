@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01 complete
+**Status:** In progress; Q01 and R01-A complete
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md)
@@ -24,7 +24,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Q03 | Enable permissioned Linux coalesced receive | Q01, E01-L | New |
 | Q04 | Enable permissioned Windows coalesced receive | Q01, E01-W | New |
 | Q05 | Accelerate checked batch writers on Darwin | Q01, E01-D | New |
-| R01-A | Create ordinary managed endpoints and exclusive leases | None | New |
+| R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | New |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | New |
 | R01-W | Windows managed coalesced normalization | R01-B, Q04 | New |
@@ -39,7 +39,7 @@ Cross-repository blockers refer to the other track in the program index. The tra
 
 ### Q01 — Register external packet I/O and provide ordinary writer
 
-**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 is unblocked; other Q01 successors retain their independent blockers. R01-A and P01-A remain the fork frontier. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 is unblocked; other Q01 successors retain their independent blockers. R01-B and P01-A are the fork frontier. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Implement immutable registration and its binding checks in the fork transport/socket initialization module. Deliver both extension methods, including a working synchronous UDP writer using ordinary WriteMsgUDP with the declared prefix/error semantics, so W01 can discover the complete extension without Q05. Q05 adds accelerated Darwin submission behind that factory. Freeze the standard-type structural signatures using isolated upstream/fork consumer builds. Keep newly registered receive coalescing unavailable until platform implementations land. Define diagnostics for requested, permitted, supported/enabled, disabled reason and exercised counters through the existing tracing/diagnostic route; do not expose a private-state API merely for tests.
 
@@ -192,6 +192,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### R01-A — Create ordinary managed endpoints and exclusive leases
+
+**Current state:** Complete. The ordinary endpoint and exclusive lease factory is implemented on `*Transport`. R01-B is ready because R01-A and Q01 are complete; P01-A remains independently ready. QUIC binding and platform normalization retain their separate slice contracts.
 
 **What it delivers and acceptance criteria:** Add NewManagedPacketEndpointV1(network string, laddr *net.UDPAddr) (net.PacketConn, func() (net.PacketConn, error), error). It creates and owns a fresh UDP socket, returning ordinary endpoint and acquire closure. No raw adoption/detach API. Each lease initially supports ordinary establishment datagrams. Lease Close revokes its generation, interrupts and joins active I/O, restores endpoint logical deadlines, then releases acquisition. Endpoint Close is terminal and interrupts parent/lease operations. Reject parent I/O during lease and concurrent acquisition; acquisition returns busy if parent I/O is active, without silently canceling it. No receive coalescing yet.
 
