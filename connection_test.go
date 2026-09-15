@@ -3195,6 +3195,35 @@ func TestConnectionMigrationServer(t *testing.T) {
 	require.ErrorContains(t, err, "server cannot initiate connection migration")
 }
 
+func TestConnectionAddPathConcurrentPathSwitch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	c := &Conn{
+		conn:       NewMockSendConn(ctrl),
+		peerParams: &wire.TransportParameters{},
+	}
+	c.emission.conn = &c.conn
+	oldQueue := NewMockSender(ctrl)
+	oldQueue.EXPECT().Close()
+	c.emission.queue = oldQueue
+	c.pathManagerOutgoing.Store(newPathManagerOutgoing(nil, nil, func() {}))
+	target := &Transport{Conn: newUDPConnLocalhost(t)}
+	defer target.Close()
+
+	nextConn := NewMockSendConn(ctrl)
+	start := make(chan struct{})
+	switched := make(chan struct{})
+	go func() {
+		<-start
+		c.emission.replacePath(nextConn, nil)
+		close(switched)
+	}()
+	close(start)
+	path, err := c.AddPath(target)
+	<-switched
+	require.NoError(t, err)
+	require.NotNil(t, path)
+}
+
 func TestConnectionMigration(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		testConnectionMigration(t, false)

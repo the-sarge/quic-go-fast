@@ -36,9 +36,10 @@ func TestSendmsgXBatchSendEndToEnd(t *testing.T) {
 
 	senderUDP, err := net.ListenUDP("udp", nil) // dual-stack, the production shape
 	require.NoError(t, err)
-	senderRaw, err := wrapConn(senderUDP, true)
-	require.NoError(t, err)
-	sc := newSendConn(senderRaw, receiverUDP.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+	sender := &Transport{Conn: senderUDP}
+	require.NoError(t, sender.init(false))
+	defer sender.Close()
+	sc := newSendConn(sender.conn, receiverUDP.LocalAddr(), packetInfo{}, utils.DefaultLogger)
 	defer sc.Close()
 
 	q := newSendQueue(sc, nil)
@@ -57,9 +58,10 @@ func TestSendmsgXBatchSendEndToEnd(t *testing.T) {
 
 	received := make(map[string]int, len(payloads))
 	require.NoError(t, receiverUDP.SetReadDeadline(time.Now().Add(5*time.Second)))
-	for range payloads {
+	for i := range payloads {
 		p, err := receiver.ReadPacket()
 		require.NoError(t, err)
+		require.Equal(t, payloads[i], p.data, "datagram order must survive submission")
 		received[string(p.data)]++
 		require.Equal(t, protocol.ECT0, p.ecn, "the batch's shared ECN control message must reach the receiver")
 		p.buffer.Release()
@@ -70,6 +72,9 @@ func TestSendmsgXBatchSendEndToEnd(t *testing.T) {
 
 	q.Close()
 	require.NoError(t, <-done)
+	// The transport reader can reuse released send buffers from the pool.
+	// Join it before inspecting those buffers after send-worker completion.
+	require.NoError(t, sender.Close())
 	for _, buf := range bufs {
 		require.Zero(t, buf.refCount)
 	}
@@ -113,9 +118,10 @@ func TestSendmsgXCustomConnKeepsWriteMsgUDP(t *testing.T) {
 	senderUDP, err := net.ListenUDP("udp", nil)
 	require.NoError(t, err)
 	custom := &customWriteMsgConn{UDPConn: senderUDP}
-	senderRaw, err := newConn(custom, true, true)
-	require.NoError(t, err)
-	sc := newSendConn(senderRaw, receiverUDP.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+	sender := &Transport{Conn: custom}
+	require.NoError(t, sender.init(false))
+	defer sender.Close()
+	sc := newSendConn(sender.conn, receiverUDP.LocalAddr(), packetInfo{}, utils.DefaultLogger)
 	defer sc.Close()
 
 	q := newSendQueue(sc, nil)
@@ -161,9 +167,10 @@ func TestSendmsgXDisabledPathInert(t *testing.T) {
 
 	senderUDP, err := net.ListenUDP("udp", nil)
 	require.NoError(t, err)
-	senderRaw, err := wrapConn(senderUDP, true)
-	require.NoError(t, err)
-	sc := newSendConn(senderRaw, receiverUDP.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+	sender := &Transport{Conn: senderUDP}
+	require.NoError(t, sender.init(false))
+	defer sender.Close()
+	sc := newSendConn(sender.conn, receiverUDP.LocalAddr(), packetInfo{}, utils.DefaultLogger)
 	defer sc.Close()
 
 	q := newSendQueue(sc, nil)
@@ -179,9 +186,10 @@ func TestSendmsgXDisabledPathInert(t *testing.T) {
 
 	received := make(map[string]int, len(payloads))
 	require.NoError(t, receiverUDP.SetReadDeadline(time.Now().Add(5*time.Second)))
-	for range payloads {
+	for i := range payloads {
 		p, err := receiver.ReadPacket()
 		require.NoError(t, err)
+		require.Equal(t, payloads[i], p.data, "datagram order must survive submission")
 		received[string(p.data)]++
 		p.buffer.Release()
 	}
