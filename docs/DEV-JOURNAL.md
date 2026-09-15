@@ -1773,3 +1773,22 @@ The maintainer [explicitly approved merging with 32/33 hosted checks](https://gi
 Published the audited external packet-I/O handoff in [PR #323](https://github.com/the-sarge/quic-go-fast/pull/323). The [fork plan](adr/2026-09-15-external-packet-io-plan.md) owns 13 of the complete cross-repository program's 32 slices, including ordinary registration, platform offloads, generation-safe managed endpoints, fixed-peer enforcement and release.
 
 Independent source/slice audit, exact-head documentation certification, and hosted unit/integration/lint/cross-compilation/interop workflows passed. No runtime implementation or agent dispatch occurred. The [program index](https://github.com/GridSwarm/wiremux/blob/main/docs/adr/2026-09-14-quic-packet-io-program.md) points to the contracts; GitHub/OmniFocus synchronization follows both merged plans.
+
+---
+
+## Q01 external packet I/O landed - 2026-09-15 11:20 EDT
+
+**Main:** `5dd2ebb84994`
+**Actor:** Codex
+
+### Summary
+
+Merged [Q01 / PR #339](https://github.com/the-sarge/quic-go-fast/pull/339), adding exact-pointer external packet-I/O registration and an ordinary synchronous UDP batch writer. Registered callbacks use the existing send worker for definite-prefix fallback, per-packet feedback and disposal; caller-owned sockets remain caller-owned. External receive coalescing stays unavailable until its platform slices.
+
+### Validation
+
+The bounded initial/replacement RAS reviews and final exact-head verification are complete. The certified candidate passed the configured unit and integration suites, focused race/opt-out coverage, vet, module tidiness, lint and upstream/fork structural consumers; all 33 applicable hosted checks passed. [The certification receipt](https://github.com/the-sarge/quic-go-fast/pull/339#issuecomment-5682873840) records commands, heads, hosted links and dispositions. An earlier unscaled HTTP capture-fixture failure remains unexplained; the configured integration suite passes and no HTTP fixture change was made. No deferred review findings remain.
+
+### Next
+
+At merge, Q01's completion unblocks [W01](https://github.com/GridSwarm/wiremux/issues/1522); other direct successors retain their platform-baseline or endpoint/policy blockers. The product PR includes the committed Q01 completion transition. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns the live frontier.
