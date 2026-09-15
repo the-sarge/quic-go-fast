@@ -1845,3 +1845,24 @@ Retained the accepted binding and handback contract. Direct managed-lease identi
 At this merge, P01-A remains the fork frontier; R01-L retains Q03, R01-W retains Q04, and R02 retains W02. No successor becomes ready from R01-B alone. [Program tracker — live view](https://github.com/GridSwarm/wiremux/issues/1540).
 
 Surviving deferred work is tracked separately: [final-stream qlog lifetime #345](https://github.com/the-sarge/quic-go-fast/issues/345), [GOAWAY qlog synchronization #346](https://github.com/the-sarge/quic-go-fast/issues/346), [managed native capabilities #347](https://github.com/the-sarge/quic-go-fast/issues/347), and [persistent temporary read errors #348](https://github.com/the-sarge/quic-go-fast/issues/348). These do not add audited program blockers. Native coalesced receive, raw handback, fixed-peer policy and capability parity remain outside this completed slice.
+
+---
+
+## P01-A inert packet policy seams merged - 2026-09-15 14:52 EDT
+
+**Main:** `aa02a246fa95`
+**Actor:** Codex
+
+### Completed
+
+Merged [P01-A / PR #350](https://github.com/the-sarge/quic-go-fast/pull/350) as `aa02a246fa958b3527f19abf15d46b445c452538`, closing [#335](https://github.com/the-sarge/quic-go-fast/issues/335). The transport-owned inert packet adapter covers ingress and ordinary/stateless output; native Darwin and registered batches share its send-admission hook while preserving extraction and wrapper callbacks. AddPath has a synchronized origin/target admission seam. No policy API or active filtering is introduced. The product PR includes the plan's completion/frontier transition.
+
+### Validation
+
+[Final certification receipt](https://github.com/the-sarge/quic-go-fast/pull/350#issuecomment-5686224743): exact candidate `aeee9535fe036003643f265d10d78cbde77e45d8` passed the full local suite, focused race/native tests, vet, module tidiness, lint and diff checks on Go 1.27.1 darwin/arm64. All existing hosted unit, integration, lint, cross-compilation and interop PR workflows passed on that head. Native Darwin tests exercised batching through initialized transports, preserving order and ECN.
+
+Initial RAS run `20260915T182010-a49f32f8872a5ee6925b22b8` found an AddPath socket-slot race: a focused regression failed before the fix and passed with the existing synchronized accessor; exact-head verification resolved it. Replacement review `20260915T183909-ec9c7c13018e93516e79752a` completed without findings or follow-ups. Five reviewers completed each round; one reviewer failed structured output, with quorum and synthesis intact. A hosted fixture failure was corrected by joining the new reader before inspecting pooled buffer references. [Dispositions](https://github.com/the-sarge/quic-go-fast/pull/350#issuecomment-5685921128) and [fixture diagnosis](https://github.com/the-sarge/quic-go-fast/pull/350#issuecomment-5685723566) retain the evidence.
+
+### Next
+
+P01-B's P01-A and Q01 blockers are closed, so [#336](https://github.com/the-sarge/quic-go-fast/issues/336) is the next ready fork slice. Fixed-peer activation remains unimplemented. [Program tracker #1540](https://github.com/GridSwarm/wiremux/issues/1540) owns live cross-track readiness; no program parent is closed by this slice.
