@@ -8,17 +8,17 @@ Implementation is bounded to endpoint construction/state, managed registration m
 
 ## Representation, artifacts and terminating evidence
 
-The supported domain is exact Go factory values and validated registration identities. The endpoint owns setup evidence; existing registration owns binding; existing platform helpers own sizing and inspection. Identity and one-time-setup invariants apply throughout this supported domain. Native observations are example-level evidence, not universal OS-capacity or performance guarantees. Unknown inspection results never establish configured capacity. Queue sizes are operating-system reported limits, not physical memory or throughput claims.
+The supported domain is exact Go factory values and validated registration identities. The endpoint owns setup evidence; existing registration owns binding; existing platform helpers own sizing and inspection. Identity and one-time-setup invariants apply throughout this supported domain. Native observations are example-level evidence, not universal OS-capacity or performance guarantees. Unknown inspection results never establish configured capacity. Existing sizing helpers own warning policy; errors from the additional diagnostic inspection remain visible in debug/tracer output without consuming the warning budget. Queue sizes are operating-system reported limits, not physical memory or throughput claims.
 
 Runtime setup and diagnostics are shipped behavior. Existing binding/lifecycle guards are required safety enforcement. Tests are verification aids, and this contract and review/certification records are process metadata. No new maintained analyzer or verification framework is an approved deliverable. Expanded contract closure is not triggered: immutable evidence does not move packet authority, and focused tests cover the new paths. A required ownership/lifecycle redesign stops for a decision.
 
 | Behavior | Finite evidence |
 | --- | --- |
-| Independent setup and reuse | `TestManagedEndpointBufferSetupOnce`: both setters succeed, receive fails, send fails, both fail; publication ordering; usable socket; two lease/transport intervals; retained errors and honest unknown capacity where inspection is unavailable |
+| Independent setup and reuse | `TestManagedEndpointBufferSetupOnce` (isolated process): both setters succeed, receive fails, send fails, both fail; publication ordering; usable socket; two lease/transport intervals; retained errors and honest unknown capacity where inspection is unavailable |
 | Native queues and ordinary I/O | `TestManagedEndpointNativeBuffers`: inspect the private native socket and compare diagnostics to its actual limits; capped hosts remain asserted, not skipped; actual UDP datagram and zero offload flags |
 | Provenance and callback availability | `TestManagedEndpointDiagnosticProvenance`: direct parent/lease, direct registration and explicitly registered wrappers, callback absent/present, unknown and ordinarily externally registered wrappers |
 | Warning policy and durable diagnostics | `TestManagedEndpointBufferWarnings`: isolated processes for enabled, disabled, consumed budget, and closed-receive/failed-send cases; both failures in one warning; managed debug and tracer status retained |
-| Inspection failure | `TestManagedEndpointInspectionFailure`: real usable UDP socket with denied inspection; unknown status and error in both directions |
+| Inspection failure | `TestManagedEndpointInspectionFailure` (isolated process): real usable UDP socket with denied inspection; unknown status and error in both directions; `TestManagedEndpointDiagnosticInspectionDoesNotWarn` retains diagnostic errors while preserving the warning budget for a later sizing failure |
 | Wrapper packet authority | `TestManagedEndpointPreservesPeerPolicy`: ordinary and registered batch writes reject a foreign peer; non-QUIC reads remain filtered |
 | Existing lifecycle and interfaces | Existing `TestManagedEndpoint*`, `TestManagedPacketIO*`, `TestExternalPacketIO*` and structural registration/factory tests; no public signature changes |
 

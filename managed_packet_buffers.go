@@ -60,13 +60,15 @@ func checkedManagedBuffer(r managedBufferResult, inspectErr error) managedBuffer
 	return r
 }
 
-func (b managedBufferSetup) warning() error {
+// Only the existing sizing helpers own warning policy. Additional diagnostic
+// inspection can establish unknown capacity without consuming that warning budget.
+func managedBufferWarning(receiveErr, sendErr error) error {
 	var errs []error
-	if b.receive.err != nil && !strings.Contains(b.receive.err.Error(), "use of closed network connection") {
-		errs = append(errs, fmt.Errorf("managed receive buffer: %w", b.receive.err))
+	if receiveErr != nil && !strings.Contains(receiveErr.Error(), "use of closed network connection") {
+		errs = append(errs, fmt.Errorf("managed receive buffer: %w", receiveErr))
 	}
-	if b.send.err != nil && !strings.Contains(b.send.err.Error(), "use of closed network connection") {
-		errs = append(errs, fmt.Errorf("managed send buffer: %w", b.send.err))
+	if sendErr != nil && !strings.Contains(sendErr.Error(), "use of closed network connection") {
+		errs = append(errs, fmt.Errorf("managed send buffer: %w", sendErr))
 	}
 	return errors.Join(errs...)
 }

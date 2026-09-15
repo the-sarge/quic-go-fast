@@ -49,6 +49,9 @@ func (c *managedBufferSocket) SetWriteBuffer(size int) error {
 }
 
 func TestManagedEndpointBufferSetupOnce(t *testing.T) {
+	if runManagedBufferFixtureProcess(t) {
+		return
+	}
 	for _, failure := range []string{"none", "receive", "send", "both"} {
 		t.Run(failure, func(t *testing.T) {
 			socket := &managedBufferSocket{PacketConn: listenExternalUDP(t)}
@@ -352,6 +355,9 @@ func (c *managedUninspectableSocket) SyscallConn() (syscall.RawConn, error) {
 }
 
 func TestManagedEndpointInspectionFailure(t *testing.T) {
+	if runManagedBufferFixtureProcess(t) {
+		return
+	}
 	socket := &managedUninspectableSocket{UDPConn: listenExternalUDP(t)}
 	endpoint, acquire, err := newManagedPacketEndpoint(socket)
 	require.NoError(t, err)
@@ -368,4 +374,63 @@ func TestManagedEndpointInspectionFailure(t *testing.T) {
 	require.Contains(t, message, "receive_buffer_status=unknown")
 	require.Contains(t, message, "send_buffer_status=unknown")
 	require.Equal(t, 2, strings.Count(message, "inspection denied"))
+}
+
+func TestManagedEndpointDiagnosticInspectionDoesNotWarn(t *testing.T) {
+	mode := os.Getenv("QUIC_TEST_MANAGED_INSPECTION")
+	if mode == "" {
+		for _, kind := range []string{"unavailable", "denied"} {
+			t.Run(kind, func(t *testing.T) {
+				cmd := exec.Command(os.Args[0], "-test.run=^TestManagedEndpointDiagnosticInspectionDoesNotWarn$", "-test.count=1")
+				cmd.Env = append(os.Environ(), "QUIC_TEST_MANAGED_INSPECTION="+kind, "QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING=false", "QUIC_GO_LOG_LEVEL=debug")
+				output, err := cmd.CombinedOutput()
+				require.NoError(t, err, "%s", output)
+			})
+		}
+		return
+	}
+	var output bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&output)
+	defer log.SetOutput(previous)
+	var socket net.PacketConn = &managedBufferSocket{PacketConn: listenExternalUDP(t)}
+	reason := "socket buffer inspection unavailable"
+	if mode == "denied" {
+		socket = &managedUninspectableSocket{UDPConn: listenExternalUDP(t)}
+		reason = "inspection denied"
+	}
+	endpoint, acquire, err := newManagedPacketEndpoint(socket)
+	require.NoError(t, err)
+	defer endpoint.Close()
+	lease, err := acquire()
+	require.NoError(t, err)
+	defer lease.Close()
+	var recorder events.Recorder
+	tr := &Transport{Conn: lease, Tracer: &recorder}
+	_, err = tr.WriteTo([]byte("usable"), listenExternalUDP(t).LocalAddr())
+	require.NoError(t, err)
+	require.NoError(t, tr.Close())
+	message := managedBufferEvent(t, &recorder)
+	require.Contains(t, message, "receive_buffer_status=unknown")
+	require.Contains(t, message, "send_buffer_status=unknown")
+	require.Contains(t, message, reason)
+	require.Contains(t, output.String(), reason)
+	require.NotContains(t, output.String(), "UDP-Buffer-Sizes")
+	warnBufferSize(errors.New("later genuine sizing failure"))
+	require.Contains(t, output.String(), "later genuine sizing failure")
+	require.Equal(t, 1, strings.Count(output.String(), "UDP-Buffer-Sizes"))
+}
+
+// Intentional setup failures run separately from tests that may inspect the
+// process warning budget. The child executes this test once and owns its logger.
+func runManagedBufferFixtureProcess(t *testing.T) bool {
+	t.Helper()
+	if os.Getenv("QUIC_TEST_MANAGED_BUFFER_FIXTURE") == t.Name() {
+		return false
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$", "-test.count=1")
+	cmd.Env = append(os.Environ(), "QUIC_TEST_MANAGED_BUFFER_FIXTURE="+t.Name())
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	return true
 }

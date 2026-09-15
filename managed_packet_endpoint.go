@@ -46,7 +46,7 @@ func newManagedPacketEndpoint(conn net.PacketConn) (net.PacketConn, func() (net.
 	receiveErr := setReceiveBuffer(conn)
 	sendErr := setSendBuffer(conn)
 	e := &managedPacketEndpoint{conn: conn, buffers: inspectManagedBuffers(conn, receiveErr, sendErr)}
-	warnBufferSize(e.buffers.warning())
+	warnBufferSize(managedBufferWarning(receiveErr, sendErr))
 	if socket, ok := conn.(udpMessageWriter); ok {
 		e.sendBatch = newUDPBatchWriter(socket)
 	}
