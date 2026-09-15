@@ -55,7 +55,7 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 **Transitional-seam budget:** No temporary duplicate owner. Ordinary upstream/fallback paths remain supported permanently.
 
-**Blast radius:** Limited to transport.go:382,441,477; sys_conn.go; send_conn.go; focused init tests. Both factory and registration signatures must land together. Shared/global state changes are forbidden. The ownership, concurrency, public interface, failure, security, performance and dependency effects are those explicitly named in delivery and tests; any newly found effect outside these owners is a stop condition, not an accepted unknown.
+**Blast radius:** Limited to transport initialization/WriteTo/Close in `transport.go`, socket initialization in `sys_conn.go` and `external_packet_io*`, common send dispatch in `send_conn.go`, and focused tests. The send module includes the Darwin active/stub native-method adapters, non-Darwin stubs, and platform-specific OOB encoding. `sconn` satisfies `batchSender` across platforms; unregistered non-Darwin availability remains false, while unregistered Darwin dispatch retains existing qualification and native submission. Both factory and registration signatures must land together. Shared/global state changes are forbidden. The ownership, concurrency, public interface, failure, security, performance and dependency effects are those explicitly named in delivery and tests; any newly found effect outside these owners is a stop condition, not an accepted unknown.
 
 **Artifact classification:** Runtime API and diagnostics: shipped behavior. Admission, progress and lifecycle guards: required safety enforcement. Tests: verification aids; no maintained-aid exception.
 

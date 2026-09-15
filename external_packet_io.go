@@ -39,7 +39,10 @@ type packetIOConfig struct {
 // must preserve the wrapper's policy, support concurrent calls, and borrow each
 // call's complete UDP payloads and shared OOB data only until return. It returns
 // the definitely accepted prefix. Any error is terminal: uncertain data is not
-// retried. Zero progress with no error uses the ordinary per-packet fallback.
+// retried. Known zero-progress message-size or first-send permission rejections
+// should return the accepted prefix with no error, allowing the ordinary
+// per-packet path to retain its feedback and retry handling. Zero progress with
+// no error also uses that fallback.
 // Initialization reports capability state to Transport.Tracer as the
 // external_packet_io debug event; debug logging reports per-registration
 // batch_calls and accepted_packets counters after callback submissions.
@@ -80,8 +83,10 @@ func (t *Transport) beginPacketIO() error {
 // The writer neither starts a reader nor owns Close, and constructing it does
 // not initialize or configure the transport. It is safe for concurrent calls.
 // Each payload is one UDP message with the supplied destination and OOB data.
-// It returns the number of complete messages preceding a terminal error; callers
-// must not resend uncertain data after an error. Buffers are borrowed until return.
+// Known zero-progress message-size and first-send permission rejections return
+// the definite prefix with no error for per-packet fallback. Other errors are
+// terminal; callers must not resend uncertain data after an error. Buffers are
+// borrowed until return.
 func (t *Transport) UDPBatchWriterV1(conn *net.UDPConn) (func([][]byte, []byte, *net.UDPAddr) (int, error), error) {
 	if conn == nil {
 		return nil, errors.New("quic: nil UDP batch writer socket")
@@ -90,6 +95,9 @@ func (t *Transport) UDPBatchWriterV1(conn *net.UDPConn) (func([][]byte, []byte, 
 		for i, buf := range bufs {
 			n, oobn, err := conn.WriteMsgUDP(buf, oob, addr)
 			if err != nil {
+				if isSendMsgSizeErr(err) || isPermissionError(err) {
+					return i, nil
+				}
 				return i, err
 			}
 			// Go's overlapped WSASendMsg path can report zero bytes on
@@ -123,7 +131,7 @@ func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
 		if c.sendBatch == nil {
 			batchReason = "no_callback"
 		}
-		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_supported=false receive_enabled=false receive_disabled_reason=external_coalescing_unavailable batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s batch_calls=0 accepted_packets=0 receive_exercised=0", c.allowReceiveCoalescing, c.allowReceiveCoalescing, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
+		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_supported=false receive_enabled=false receive_disabled_reason=external_coalescing_unavailable batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", c.allowReceiveCoalescing, c.allowReceiveCoalescing, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
 	}
 	return &externalPacketConn{rawConn: conn, config: c}
 }

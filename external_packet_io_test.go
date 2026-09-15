@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"net"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -39,7 +40,8 @@ func TestExternalPacketIORegistration(t *testing.T) {
 func TestExternalPacketIOBatchDispatch(t *testing.T) {
 	sender := listenExternalUDP(t)
 	receiver := listenExternalUDP(t)
-	tr := &Transport{Conn: sender}
+	var recorder events.Recorder
+	tr := &Transport{Conn: sender, Tracer: &recorder}
 	writer, err := tr.UDPBatchWriterV1(sender)
 	require.NoError(t, err)
 	calls := 0
@@ -67,6 +69,9 @@ func TestExternalPacketIOBatchDispatch(t *testing.T) {
 	q.Close()
 	require.NoError(t, <-done)
 	require.Equal(t, 1, calls, "registered wrapper must own batch submission")
+	recorded := recorder.Events(qlog.DebugEvent{})
+	require.Len(t, recorded, 1)
+	require.NotContains(t, recorded[0].(qlog.DebugEvent).Message, "batch_calls", "initialization only reports capability state; live counters use debug logging")
 }
 
 func listenExternalUDP(t *testing.T) *net.UDPConn {
@@ -165,9 +170,13 @@ func TestUDPBatchWriter(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expected, string(buf[:n]))
 	}
-	// A failure after a definite prefix stops before the final payload.
+	// A known size rejection returns the definite prefix for ordinary fallback.
 	n, err = writer([][]byte{[]byte("prefix"), make([]byte, 65536), []byte("not sent")}, nil, receiver.LocalAddr().(*net.UDPAddr))
-	require.Error(t, err)
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		require.NoError(t, err)
+	} else {
+		require.Error(t, err)
+	}
 	require.Equal(t, 1, n)
 	buf := make([]byte, 64)
 	size, _, err := receiver.ReadFromUDP(buf)
@@ -209,7 +218,7 @@ func TestExternalPacketIODiagnostics(t *testing.T) {
 	require.Equal(t, "transport:external_packet_io", event.Name())
 	require.Contains(t, event.Message, "receive_requested=true receive_permitted=true receive_supported=false receive_enabled=false")
 	require.Contains(t, event.Message, "receive_disabled_reason=external_coalescing_unavailable")
-	require.Contains(t, event.Message, "batch_calls=0 accepted_packets=0 receive_exercised=0")
+	require.NotContains(t, event.Message, "batch_calls")
 }
 
 func TestExternalPacketIOConcurrentWriters(t *testing.T) {

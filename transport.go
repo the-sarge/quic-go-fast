@@ -481,6 +481,11 @@ func (t *Transport) runSendQueue() {
 //
 // If a server was started, it will be closed as well.
 // It is not possible to start any new server or dial new connections after that.
+//
+// For a registered external connection, Close reports initialization or binding
+// errors after stopping any initialized listener and connections. A binding
+// failure before initialization may mean no reader was started. Close does not
+// close a caller-owned socket.
 func (t *Transport) Close() error {
 	// avoid race condition if the transport is currently being initialized
 	initErr := t.init(false)
