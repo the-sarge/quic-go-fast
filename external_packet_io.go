@@ -50,6 +50,16 @@ func (t *Transport) ConfigureExternalPacketIOV1(conn net.PacketConn, allowReceiv
 	c := &t.packetIO
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	if err := t.checkPacketIORegistration(conn); err != nil {
+		return err
+	}
+	c.external = &externalPacketIO{conn: conn, allowReceiveCoalescing: allowReceiveCoalescing, sendBatch: sendBatch}
+	return nil
+}
+
+// checkPacketIORegistration requires the packetIO mutex.
+func (t *Transport) checkPacketIORegistration(conn net.PacketConn) error {
+	c := &t.packetIO
 	if c.started {
 		return errors.New("quic: external packet I/O registration after initialization")
 	}
@@ -59,7 +69,50 @@ func (t *Transport) ConfigureExternalPacketIOV1(conn net.PacketConn, allowReceiv
 	if !samePacketConn(conn, t.Conn) {
 		return errors.New("quic: external packet I/O requires the same non-nil pointer as Transport.Conn")
 	}
-	c.external = &externalPacketIO{conn: conn, allowReceiveCoalescing: allowReceiveCoalescing, sendBatch: sendBatch}
+	return nil
+}
+
+// ConfigureManagedPacketIOV1 binds an active factory lease and the exact outer
+// connection to this transport. It claims the same immutable slot as
+// ConfigureExternalPacketIOV1. lease must be the original factory value, never
+// a wrapper with promoted methods; conn may be a caller's policy wrapper.
+//
+// The caller must join ordinary establishment readers and stop starting ordinary
+// operations before registration. Registration rejects active lease I/O and
+// seals the QUIC phase until lease Close, including on initialization failure.
+// Packet and deadline methods continue serving the registered transport/wrapper.
+// Registration preserves lease deadlines. Clear any establishment deadlines
+// before handing the lease to QUIC if they should no longer apply.
+// A non-nil sendBatch must preserve that wrapper's policy and submit through the
+// lease's WriteBatchV1 method, following ConfigureExternalPacketIOV1's callback
+// contract. Nil retains ordinary sends. Receive coalescing remains disabled.
+// Transport.Close does not release the lease or own the native socket; lease
+// Close revokes and joins I/O before another lease can use the endpoint.
+func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.PacketConn, sendBatch func([][]byte, []byte, *net.UDPAddr) (int, error)) error {
+	c := &t.packetIO
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if err := t.checkPacketIORegistration(conn); err != nil {
+		return err
+	}
+	l, ok := lease.(*managedPacketConn)
+	if !ok || l == nil || l.lease == nil {
+		return errors.New("quic: managed packet I/O requires an exact factory lease")
+	}
+	if direct, ok := conn.(*managedPacketConn); ok && direct != l {
+		return errors.New("quic: managed packet I/O connection is not the supplied lease")
+	}
+	e := l.endpoint
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err := l.checkLocked(); err != nil {
+		return err
+	}
+	if l.lease.quic || e.active != 0 {
+		return errors.New("quic: managed packet lease already bound or I/O active")
+	}
+	l.lease.quic = true
+	c.external = &externalPacketIO{conn: conn, sendBatch: sendBatch}
 	return nil
 }
 
@@ -91,6 +144,14 @@ func (t *Transport) UDPBatchWriterV1(conn *net.UDPConn) (func([][]byte, []byte, 
 	if conn == nil {
 		return nil, errors.New("quic: nil UDP batch writer socket")
 	}
+	return newUDPBatchWriter(conn), nil
+}
+
+type udpMessageWriter interface {
+	WriteMsgUDP([]byte, []byte, *net.UDPAddr) (int, int, error)
+}
+
+func newUDPBatchWriter(conn udpMessageWriter) func([][]byte, []byte, *net.UDPAddr) (int, error) {
 	return func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
 		for i, buf := range bufs {
 			n, oobn, err := conn.WriteMsgUDP(buf, oob, addr)
@@ -111,7 +172,7 @@ func (t *Transport) UDPBatchWriterV1(conn *net.UDPConn) (func([][]byte, []byte, 
 			}
 		}
 		return len(bufs), nil
-	}, nil
+	}
 }
 
 // The wrapper carries explicit registration without promoting any native
