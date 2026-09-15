@@ -143,6 +143,7 @@ func TestExternalPacketIOLateRegistration(t *testing.T) {
 				defer ln.Close()
 			case "AddPath":
 				c := &Conn{peerParams: &wire.TransportParameters{}}
+				c.emission.conn = &c.conn
 				c.pathManagerOutgoing.Store(newPathManagerOutgoing(nil, nil, func() {}))
 				_, err := c.AddPath(tr)
 				require.NoError(t, err)
