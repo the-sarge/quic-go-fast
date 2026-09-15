@@ -23,7 +23,9 @@ import (
 // the endpoint and is returned by Close. Close is safe to call concurrently.
 //
 // The endpoint and leases expose no raw socket or descriptor. They provide
-// ordinary datagrams only; QUIC binding and receive coalescing are not supported.
+// ordinary datagrams only; receive coalescing is not supported. After ordinary
+// establishment I/O has joined, ConfigureManagedPacketIOV1 can bind a lease to
+// one transport until lease Close. Transport.Close alone does not return it.
 func (t *Transport) NewManagedPacketEndpointV1(network string, laddr *net.UDPAddr) (net.PacketConn, func() (net.PacketConn, error), error) {
 	conn, err := net.ListenUDP(network, laddr)
 	if err != nil {
@@ -36,6 +38,9 @@ func (t *Transport) NewManagedPacketEndpointV1(network string, laddr *net.UDPAdd
 // newly created UDP socket; only the endpoint owns its deadlines and lifetime.
 func newManagedPacketEndpoint(conn net.PacketConn) (net.PacketConn, func() (net.PacketConn, error), error) {
 	e := &managedPacketEndpoint{conn: conn}
+	if socket, ok := conn.(udpMessageWriter); ok {
+		e.sendBatch = newUDPBatchWriter(socket)
+	}
 	e.idle = sync.NewCond(&e.mutex)
 	return &managedPacketConn{endpoint: e}, e.acquire, nil
 }
@@ -44,6 +49,7 @@ type managedPacketEndpoint struct {
 	mutex         sync.Mutex
 	idle          *sync.Cond
 	conn          net.PacketConn
+	sendBatch     func([][]byte, []byte, *net.UDPAddr) (int, error)
 	lease         *managedPacketLease
 	active        int
 	closed        bool
@@ -55,6 +61,7 @@ type managedPacketEndpoint struct {
 // Pointer identity is the generation token. It is never recycled, including
 // when a lease has been returned or the endpoint has terminated.
 type managedPacketLease struct {
+	quic      bool
 	returning bool
 	done      chan struct{}
 	closeErr  error
@@ -124,6 +131,21 @@ func (c *managedPacketConn) WriteTo(p []byte, addr net.Addr) (int, error) {
 	}
 	defer c.endpoint.end()
 	return c.endpoint.conn.WriteTo(p, addr)
+}
+
+// WriteBatchV1 submits complete UDP datagrams through the endpoint's private
+// writer. It has UDPBatchWriterV1's prefix/error and synchronous-buffer contract.
+// Calls are generation checked and joined by Close, including concurrent calls.
+// Only leases have batch authority; the ordinary parent rejects this method.
+func (c *managedPacketConn) WriteBatchV1(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
+	if c.lease == nil {
+		return 0, errors.New("quic: batch writing requires a managed packet lease")
+	}
+	if err := c.begin(); err != nil {
+		return 0, err
+	}
+	defer c.endpoint.end()
+	return c.endpoint.sendBatch(bufs, oob, addr)
 }
 
 func (c *managedPacketConn) LocalAddr() net.Addr { return c.endpoint.conn.LocalAddr() }
