@@ -37,3 +37,13 @@ Language for QUIC transport behavior and the fork's transmission work.
 **Segmented send**: A single socket submission carrying a payload that the network stack splits into several equal-sized UDP datagrams before transmission. It is distinct from a send batch of separately submitted datagrams and from several QUIC packets sharing one UDP datagram.
 
 **Reliable stream prefix**: The initial range of stream bytes that a partial stream reset still requires the receiver to be able to read before observing that reset. Local cancellation can abandon reading that range.
+
+**External packet-I/O binding**: An explicit association between one transport, its exact supplied packet resource and the optimized operations its owner permits. It is distinct from discovering native support or acquiring responsibility for closing the resource.
+
+**Receive-format permission**: Authority from a packet resource's owner to enable reads containing coalesced UDP datagrams during a controlled use interval. It does not itself guarantee that the socket can later be returned as an ordinary raw socket.
+
+**Managed packet endpoint**: A reusable packet resource that preserves ordinary datagram behavior across transport-use intervals while retaining responsibility for its underlying socket and receive format.
+
+**Packet-I/O lease**: The exclusive per-attempt packet resource borrowed from a managed packet endpoint. Ending the lease releases that interval; ending the parent endpoint ends the underlying resource.
+
+**Fixed-peer transport**: A transport whose permitted remote endpoint is fixed before packet processing and remains fixed for its lifetime. The address restriction is distinct from authenticating the peer's identity.
