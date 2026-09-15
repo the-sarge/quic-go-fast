@@ -1,0 +1,9 @@
+package quic
+
+import "testing"
+
+// Temporary experiment: explicit predecessor order, with the original tests.
+func TestFixtureSequence317(t *testing.T) {
+	t.Run("TestListenAddr", TestListenAddr)
+	t.Run("TestDial", TestDial)
+}
