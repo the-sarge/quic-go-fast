@@ -5,10 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/quic-go/quic-go/internal/protocol"
-	"github.com/quic-go/quic-go/internal/utils"
-	"github.com/quic-go/quic-go/qlog"
-	"github.com/quic-go/quic-go/testutils/events"
 	"log"
 	"net"
 	"os"
@@ -19,6 +15,11 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/require"
 )
@@ -38,6 +39,7 @@ func (c *managedBufferSocket) SetReadBuffer(size int) error {
 	}
 	return c.readErr
 }
+
 func (c *managedBufferSocket) SetWriteBuffer(size int) error {
 	c.writeCalls++
 	if size != desiredBufferSize {
@@ -268,6 +270,7 @@ func (c *managedPeerFilter) WriteTo(b []byte, addr net.Addr) (int, error) {
 	}
 	return c.PacketConn.WriteTo(b, addr)
 }
+
 func (c *managedPeerFilter) ReadFrom(b []byte) (int, net.Addr, error) {
 	for {
 		n, addr, err := c.PacketConn.ReadFrom(b)
@@ -277,6 +280,7 @@ func (c *managedPeerFilter) ReadFrom(b []byte) (int, net.Addr, error) {
 		c.rejectedReads <- struct{}{}
 	}
 }
+
 func (c *managedPeerFilter) sendBatch(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
 	if addr.String() != c.peer.String() {
 		return 0, errors.New("foreign peer")
