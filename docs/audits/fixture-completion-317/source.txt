@@ -1,0 +1,7 @@
+Baseline: 555b52fb22c73a59819357b8e13e2d18631506aa
+Planning source: 4fcf07fd9836a6dafebfde7bbbf21fef436d2dc7
+Intervening changes: documentation/evidence only. All Go source unchanged.
+Worktree: /Volumes/worktrees/quic-go-fast/fixture-completion-317
+Branch: codex/fixture-completion-317
+Image: sha256:20dfa9aeeb42795279e3e73318bdd425f1fe09e3cebed05484fce1a3ca9aef20
+Host: Darwin arm64; linux/amd64 container execution is emulated.
