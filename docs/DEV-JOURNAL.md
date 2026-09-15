@@ -1737,3 +1737,28 @@ Recovered the missing post-merge journal delivery for [PR #122](https://github.c
 The original Linux race regression failed before the fix and passed afterward. The reviewed product head passed the complete send-connection race family, full local suite, vet and all 33 hosted checks. Standards, Spec and the completed RAS review reported no required fixes. These are historical product-validation results, not new test runs during this journal recovery. [PR #124](https://github.com/the-sarge/quic-go-fast/pull/124) retains the original draft entry and its unrelated failed nobody-speaks packet-loss check; recovering the journal does not erase that failure or resolve [#44](https://github.com/the-sarge/quic-go-fast/issues/44).
 
 The independently tracked active send-connection publication issue [#123](https://github.com/the-sarge/quic-go-fast/issues/123) subsequently closed through [PR #125](https://github.com/the-sarge/quic-go-fast/pull/125), already recorded above. Current failure investigations remain in [GitHub Issues](https://github.com/the-sarge/quic-go-fast/issues).
+
+---
+
+## ListenAddr fixture completion repaired - 2026-09-14 23:48 EDT
+
+**Main:** `cbb35ca1b456`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #319](https://github.com/the-sarge/quic-go-fast/pull/319) as `cbb35ca1b456cf9e816aa2587681cf362a8e2eb0`, closing [#317](https://github.com/the-sarge/quic-go-fast/issues/317). The real `ListenAddr` test fixture now joins its own transport receive-completion channel after listener close. A child-test regression checks completion before fixture return. Production source, public listener/socket semantics, incoming storage, existing dial assertions and the process-wide observer are unchanged.
+
+### Validation
+
+The explicit predecessor sequence reproduced `TestDial/Dial` at repetition 928 without lifecycle instrumentation; the synchronization-only intervention passed 1,000 repetitions. The fixture regression failed on its first execution without the join and passed 1,000 with it. All four approved experimental slots were used on the existing Ubuntu amd64 image emulated on an ARM Mac; original hosted attribution remains an inference. [Contract](agents/fixture-completion-317.md) and [frozen evidence](https://github.com/the-sarge/quic-go-fast/blob/cbb35ca1b456cf9e816aa2587681cf362a8e2eb0/docs/audits/fixture-completion-317/README.md).
+
+Exact candidate `4857152faae503ba8ed6f7d2ff37b0d1bfb7fa1e` passed the seeded root package, root race pass, vet, module tidiness, formatting, link/hash checks and bounded RAS review `20260915T033439-58d87a5c327363c452de15d4` with no required fixes. Raw archived patch context was preserved rather than whitespace-normalized. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/319#issuecomment-5674398370).
+
+### Decisions
+
+The maintainer [explicitly approved merging with 32/33 hosted checks](https://github.com/the-sarge/quic-go-fast/pull/319#issuecomment-5674427498), preserving the separate macOS QUIC-v2 blocked-data assertion failure. Its push-event run observed five frames instead of three, with repeated offset 300; the independent PR-event integration run passed. No failed check was manually rerun and no integration repair was folded into the fixture change.
+
+### Next
+
+[Follow-up #320](https://github.com/the-sarge/quic-go-fast/issues/320) is the live tracker for the blocked-data failure, revalidated against the merged source and linked to closed #222 without claiming a common cause. Its diagnosis scope remains to be approved. Complete OmniFocus repair task `cvzC8rrsPc-` and mirror the separate follow-up after journal delivery; #241 and HTTP investigations retain their own causes and budgets.
