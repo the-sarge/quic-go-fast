@@ -1889,3 +1889,22 @@ Completed one initial and one replacement RAS review, with accepted findings ver
 ### Next
 
 P02's prerequisites are closed; no additional fork slice becomes ready from this merge. [Program tracker #1540](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier and [P02](https://github.com/GridSwarm/wiremux/issues/1528) owns selective wrapper evaluation. No review follow-up issues are required.
+
+---
+
+## GOAWAY qlog shutdown synchronized - 2026-09-15 16:42 EDT
+
+**Main:** `e8e524aaea26`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #356](https://github.com/the-sarge/quic-go-fast/pull/356) for [issue #346](https://github.com/the-sarge/quic-go-fast/issues/346). Server GOAWAY recording now uses rawConn admission and completion accounting, so admitted events finish before recorder closure and attempts after sealing are skipped without suppressing the wire path.
+
+### Validation
+
+The real server regression failed on the original direct-recording path and passed after the fix; its revised version observes admission sealing before checking recorder lifetime. HTTP/3 package tests, focused race/shutdown tests, vet, module tidiness, lint, and all applicable hosted checks passed at `b92f27b686861a6db0566934bea3810d071d0dbc`. Initial RAS review `20260915T201935-2c23b5602a77a2ac200700d8` had two accepted findings, both verified resolved. Replacement review `20260915T203735-36960872a33ee43be7ed06bf` had no findings. [Certification and review history](https://github.com/the-sarge/quic-go-fast/pull/356#issuecomment-5687788655) retain the evidence; no deferred findings remain.
+
+### Next
+
+Implement the separately approved handler/returned-stream lifetime correction in [issue #345](https://github.com/the-sarge/quic-go-fast/issues/345), which remains the live work-tracking surface.
