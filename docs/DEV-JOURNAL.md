@@ -1724,3 +1724,16 @@ The original channel handoff failed the controlled retry at its bounded 15-secon
 ### Next
 
 Complete repair task `hdsml2cfy7e` after this journal merges. Keep #151 and waiting task `lOLFMmA0JFX` open; the [live investigation](https://github.com/the-sarge/quic-go-fast/issues/151) still needs causal evidence for the original failure. Optional redundant assertion cleanup was not promoted into a follow-up task.
+
+---
+
+## GSO fallback journal recovered - 2026-09-14 22:48 EDT
+
+**Main:** `4fcf07fd9836`
+**Actor:** Codex
+
+Recovered the missing post-merge journal delivery for [PR #122](https://github.com/the-sarge/quic-go-fast/pull/122), which merged as `5e9ae2ab3e46067335ea409a689b638a82877bd3` and closed [#65](https://github.com/the-sarge/quic-go-fast/issues/65). GSO fallback publishes its capability through `atomic.Bool`, preserving the asynchronous socket worker, connection-goroutine protocol owner and public contracts.
+
+The original Linux race regression failed before the fix and passed afterward. The reviewed product head passed the complete send-connection race family, full local suite, vet and all 33 hosted checks. Standards, Spec and the completed RAS review reported no required fixes. These are historical product-validation results, not new test runs during this journal recovery. [PR #124](https://github.com/the-sarge/quic-go-fast/pull/124) retains the original draft entry and its unrelated failed nobody-speaks packet-loss check; recovering the journal does not erase that failure or resolve [#44](https://github.com/the-sarge/quic-go-fast/issues/44).
+
+The independently tracked active send-connection publication issue [#123](https://github.com/the-sarge/quic-go-fast/issues/123) subsequently closed through [PR #125](https://github.com/the-sarge/quic-go-fast/pull/125), already recorded above. Current failure investigations remain in [GitHub Issues](https://github.com/the-sarge/quic-go-fast/issues).
