@@ -141,6 +141,8 @@ type Transport struct {
 	handlers    map[protocol.ConnectionID]packetHandler
 	resetTokens map[protocol.StatelessResetToken]packetHandler
 
+	packetIO packetIOConfig
+
 	initOnce sync.Once
 	initErr  error
 
@@ -380,6 +382,9 @@ func (t *Transport) doDial(
 }
 
 func (t *Transport) init(allowZeroLengthConnIDs bool) error {
+	if err := t.beginPacketIO(); err != nil {
+		return err
+	}
 	t.initOnce.Do(func() {
 		var conn rawConn
 		if c, ok := t.Conn.(rawConn); ok {
@@ -392,6 +397,8 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 				return
 			}
 		}
+
+		conn = t.wrapExternalPacketIO(conn)
 
 		t.logger = utils.DefaultLogger // TODO: make this configurable
 		t.conn = conn
@@ -476,7 +483,7 @@ func (t *Transport) runSendQueue() {
 // It is not possible to start any new server or dial new connections after that.
 func (t *Transport) Close() error {
 	// avoid race condition if the transport is currently being initialized
-	t.init(false)
+	initErr := t.init(false)
 
 	t.close(nil)
 	if t.createdConn {
@@ -489,6 +496,9 @@ func (t *Transport) Close() error {
 	}
 	if t.listening != nil {
 		<-t.listening // wait until listening returns
+	}
+	if t.packetIO.external != nil {
+		return initErr
 	}
 	return nil
 }

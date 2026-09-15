@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** Accepted after slice audit; not implemented
+**Status:** In progress; Q01 complete
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md)
@@ -19,7 +19,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 
 | Slice | Delivery | Blocked by | Disposition |
 | --- | --- | --- | --- |
-| Q01 | Register external packet I/O and provide ordinary writer | None | New |
+| Q01 | Register external packet I/O and provide ordinary writer | None | Complete |
 | Q02 | Enable external Windows segmented sends | Q01, E01-W | New |
 | Q03 | Enable permissioned Linux coalesced receive | Q01, E01-L | New |
 | Q04 | Enable permissioned Windows coalesced receive | Q01, E01-W | New |
@@ -38,6 +38,8 @@ Cross-repository blockers refer to the other track in the program index. The tra
 ## Implementation slices
 
 ### Q01 — Register external packet I/O and provide ordinary writer
+
+**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 is unblocked; other Q01 successors retain their independent blockers. R01-A and P01-A remain the fork frontier. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Implement immutable registration and its binding checks in the fork transport/socket initialization module. Deliver both extension methods, including a working synchronous UDP writer using ordinary WriteMsgUDP with the declared prefix/error semantics, so W01 can discover the complete extension without Q05. Q05 adds accelerated Darwin submission behind that factory. Freeze the standard-type structural signatures using isolated upstream/fork consumer builds. Keep newly registered receive coalescing unavailable until platform implementations land. Define diagnostics for requested, permitted, supported/enabled, disabled reason and exercised counters through the existing tracing/diagnostic route; do not expose a private-state API merely for tests.
 
