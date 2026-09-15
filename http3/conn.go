@@ -344,8 +344,8 @@ func (c *rawConn) beginQlogWork() error {
 	return nil
 }
 
-// closeQlogger waits for all admitted goroutines that may produce qlog events to finish,
-// then closes the qlogger.
+// closeQlogger seals admission and waits for the existing tracked work before
+// closing the qlogger. Stream tracking retains its stream-map cleanup boundary.
 func (c *rawConn) closeQlogger() {
 	if c.qlogger == nil {
 		return
