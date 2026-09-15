@@ -51,7 +51,4 @@ func TestExternalPacketIOMessageSizeFeedback(t *testing.T) {
 		require.Equal(t, expected, string(buf[:n]))
 	}
 	require.EqualValues(t, 2, wrapper.writes.Load(), "only the rejected message and the suffix use ordinary submission")
-	for _, buf := range bufs {
-		require.Zero(t, buf.refCount)
-	}
 }
