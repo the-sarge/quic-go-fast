@@ -1866,3 +1866,26 @@ Initial RAS run `20260915T182010-a49f32f8872a5ee6925b22b8` found an AddPath sock
 ### Next
 
 P01-B's P01-A and Q01 blockers are closed, so [#336](https://github.com/the-sarge/quic-go-fast/issues/336) is the next ready fork slice. Fixed-peer activation remains unimplemented. [Program tracker #1540](https://github.com/GridSwarm/wiremux/issues/1540) owns live cross-track readiness; no program parent is closed by this slice.
+
+---
+
+## P01-B immutable fixed-peer policy landed - 2026-09-15 16:06 EDT
+
+**Main:** `02e07ceb9982`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #352](https://github.com/the-sarge/quic-go-fast/pull/352) as `02e07ceb9982bd0cdee33f40f6096761c9d0bb3c`, closing [P01-B / #336](https://github.com/the-sarge/quic-go-fast/issues/336). `ConfigureFixedPeerV1` copies and binds a UDP peer before initialization; one immutable policy admits ingress, ordinary/stateless/segmented and native/registered batch output, and rejects fixed-origin or fixed-target path attachment. The product PR includes the committed completion/frontier transition.
+
+### Decisions
+
+Retained direct UDP sockets as the supported configuration domain, IPv4/mapped equivalence, directional IPv6-zone comparison, existing buffer/socket ownership, and unrestricted transport behavior. Path admission seals configuration under the existing packet-I/O lock. The [accepted P01-B contract](adr/2026-09-15-external-packet-io-plan.md#p01-b--activate-complete-immutable-fixed-peer-policy) remains the design authority; [review dispositions](https://github.com/the-sarge/quic-go-fast/pull/352#issuecomment-5686997629) keep telemetry expansion outside this slice.
+
+### Validation
+
+Completed one initial and one replacement RAS review, with accepted findings verified on their pushed heads. Final candidate `48b7400631a2113e11b3892c62c1f4e5dc7029b2` passed the uncached full suite using the existing CI timing scale, focused race tests, real native Darwin batches, vet, lint, module tidiness, and all applicable hosted checks. A central byte-comparison mutation failed the corrected IPv4/mapped regression. See the [exact-head receipt](https://github.com/the-sarge/quic-go-fast/pull/352#issuecomment-5687280899) and [hosted unit run](https://github.com/the-sarge/quic-go-fast/actions/runs/35016803436). The receipt records the corrected Windows test assumption and one unscaled HTTP capture fixture failure; no HTTP behavior was changed and no performance claim is made.
+
+### Next
+
+P02's prerequisites are closed; no additional fork slice becomes ready from this merge. [Program tracker #1540](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier and [P02](https://github.com/GridSwarm/wiremux/issues/1528) owns selective wrapper evaluation. No review follow-up issues are required.
