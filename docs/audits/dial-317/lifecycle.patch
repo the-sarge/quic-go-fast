@@ -1,0 +1,133 @@
+diff --git i/client_test.go w/client_test.go
+index b974cc03..37a5a92a 100644
+--- i/client_test.go
++++ w/client_test.go
+@@ -68,10 +68,12 @@ func testDial(t *testing.T,
+ 	server.SetReadDeadline(time.Now().Add(time.Second))
+ 	_, addr, err := server.ReadFrom(make([]byte, 1500))
+ 	require.NoError(t, err)
++	diagnostic317Test(t.Name(), addr.String(), "before-cancel")
+ 	cancel()
+ 	select {
+ 	case err := <-errChan:
+ 		require.ErrorIs(t, err, context.Canceled)
++		diagnostic317Test(t.Name(), addr.String(), "dial-result-received")
+ 	case <-time.After(time.Second):
+ 		t.Fatal("timeout")
+ 	}
+diff --git i/quic_test.go w/quic_test.go
+index 9ddcc792..f41ea954 100644
+--- i/quic_test.go
++++ w/quic_test.go
+@@ -97,7 +97,11 @@ func TestAreConnsRunning(t *testing.T) {
+ func areTransportsRunning() bool {
+ 	var b bytes.Buffer
+ 	pprof.Lookup("goroutine").WriteTo(&b, 1)
+-	return strings.Contains(b.String(), "quic-go.(*Transport).listen")
++	running := strings.Contains(b.String(), "quic-go.(*Transport).listen")
++	if running {
++		fmt.Fprintf(os.Stderr, "[DEBUG-317] matching observer profile\n%s[DEBUG-317] end profile\n", b.String())
++	}
++	return running
+ }
+ 
+ func TestMain(m *testing.M) {
+diff --git i/transport.go w/transport.go
+index 34821d33..6e2a73b9 100644
+--- i/transport.go
++++ w/transport.go
+@@ -7,6 +7,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"net"
++	"runtime/pprof"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+@@ -141,8 +142,9 @@ type Transport struct {
+ 	handlers    map[protocol.ConnectionID]packetHandler
+ 	resetTokens map[protocol.StatelessResetToken]packetHandler
+ 
+-	initOnce sync.Once
+-	initErr  error
++	diagnostic317ID uint64
++	initOnce        sync.Once
++	initErr         error
+ 
+ 	// If no ConnectionIDGenerator is set, this is the ConnectionIDLength.
+ 	connIDLen int
+@@ -423,10 +425,20 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
+ 			t.connIDGenerator = &protocol.DefaultConnectionIDGenerator{ConnLen: t.connIDLen}
+ 		}
+ 		t.statelessResetter = newStatelessResetter(t.StatelessResetKey)
++		t.diagnostic317ID = diagnostic317Counter.Add(1)
++		diagnostic317Event(t, "initialized", true)
+ 
+ 		go func() {
+-			defer close(t.listening)
+-			t.listen(conn)
++			defer func() {
++				diagnostic317Event(t, "completion-before-close", false)
++				close(t.listening)
++				diagnostic317Event(t, "completion-after-close", false)
++			}()
++			pprof.Do(context.Background(), pprof.Labels("transport317", fmt.Sprint(t.diagnostic317ID), "socket317", diagnostic317Socket(t)), func(context.Context) {
++				diagnostic317Event(t, "receive-before-call", false)
++				t.listen(conn)
++				diagnostic317Event(t, "receive-returned", false)
++			})
+ 
+ 			if t.createdConn {
+ 				conn.Close()
+@@ -477,6 +489,8 @@ func (t *Transport) runSendQueue() {
+ func (t *Transport) Close() error {
+ 	// avoid race condition if the transport is currently being initialized
+ 	t.init(false)
++	diagnostic317Event(t, "Close-after-init", false)
++	defer diagnostic317Event(t, "Close-returning", false)
+ 
+ 	t.close(nil)
+ 	if t.createdConn {
+diff --git 1/diagnostic_317.go 2/diagnostic_317.go
+new file mode 100644
+index 00000000..81989cc2
+--- /dev/null
++++ 2/diagnostic_317.go
+@@ -0,0 +1,37 @@
++package quic
++
++import (
++	"fmt"
++	"net"
++	"os"
++	"runtime/debug"
++	"sync/atomic"
++)
++
++var diagnostic317Counter atomic.Uint64
++
++func diagnostic317Socket(t *Transport) string {
++	// Avoid adding LocalAddr calls to mocked PacketConns.
++	if c, ok := t.Conn.(*net.UDPConn); ok {
++		return c.LocalAddr().String()
++	}
++	return fmt.Sprintf("unavailable:%T", t.Conn)
++}
++
++func diagnostic317Event(t *Transport, event string, origin bool) {
++	completed := false
++	select {
++	case <-t.listening:
++		completed = true
++	default:
++	}
++	stack := []byte(nil)
++	if origin {
++		stack = debug.Stack()
++	}
++	fmt.Fprintf(os.Stderr, "[DEBUG-317] event=%s id=%d transport=%p socket=%s owned=%t completed=%t\n%s", event, t.diagnostic317ID, t, diagnostic317Socket(t), t.createdConn, completed, stack)
++}
++
++func diagnostic317Test(name, socket, event string) {
++	fmt.Fprintf(os.Stderr, "[DEBUG-317] test=%s socket=%s event=%s\n", name, socket, event)
++}

@@ -1,0 +1,45 @@
+package quic
+
+import (
+	"fmt"
+	"net"
+	"os"
+	"sync"
+	"time"
+)
+
+// Temporary, issue-241-only observation; removed after the bounded diagnosis.
+var diag241Sockets sync.Map
+
+type diag241Socket struct {
+	name  string
+	start time.Time
+}
+
+func diag241Log(c *net.UDPConn, event string, err error) {
+	v, ok := diag241Sockets.Load(c)
+	if !ok {
+		return
+	}
+	d := v.(diag241Socket)
+	fmt.Fprintf(os.Stderr, "[DEBUG-241] at=%s elapsed=%s test=%s socket=%p local=%s event=%s error_type=%T error=%v\n", time.Now().UTC().Format(time.RFC3339Nano), time.Since(d.start), d.name, c, c.LocalAddr(), event, err, err)
+}
+
+func diag241Transport(t *Transport, event string, err error) {
+	c, ok := t.Conn.(*net.UDPConn)
+	if !ok {
+		return
+	}
+	if _, ok := diag241Sockets.Load(c); !ok {
+		return
+	}
+	stopped := false
+	if t.listening != nil {
+		select {
+		case <-t.listening:
+			stopped = true
+		default:
+		}
+	}
+	diag241Log(c, fmt.Sprintf("transport=%p %s created=%t listening_closed=%t", t, event, t.createdConn, stopped), err)
+}

@@ -1,0 +1,40 @@
+-test.shuffle 1789160702392383000
+=== RUN   TestDial
+=== RUN   TestDial/Dial
+=== RUN   TestDial/DialEarly
+=== RUN   TestDial/DialAddr
+[DEBUG-241] at=2026-09-15T00:12:25.797607Z elapsed=6.375µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=created network=udp requested=0.0.0.0:0 fd=5 server=127.0.0.1:57877 error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798082Z test=TestDial/DialAddr received_from=127.0.0.1:59643 server=127.0.0.1:57877 cancel_requested
+[DEBUG-241] at=2026-09-15T00:12:25.798109Z elapsed=506.917µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 Close_enter created=true listening_closed=false error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798129Z elapsed=527.084µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 receive_loop_socket_close_return created=true listening_closed=false error_type=*net.OpError error=close udp [::]:59643: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798133Z elapsed=530.75µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 listening_closed created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798136Z elapsed=533.959µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 owned_socket_close_return created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798137Z elapsed=535.459µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 Close_return created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.79814Z elapsed=538.417µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 Close_enter created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798141Z elapsed=539.667µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 owned_socket_close_return created=true listening_closed=true error_type=*net.OpError error=close udp [::]:59643: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798143Z elapsed=540.959µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=transport=0x5388255f0280 Close_return created=true listening_closed=true error_type=*net.OpError error=close udp [::]:59643: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798148Z elapsed=545.75µs test=TestDial/DialAddr socket=0x53882558a088 local=[::]:59643 event=dial_returned_context_canceled received_from=127.0.0.1:59643 error_type=*net.OpError error=raw-control udp [::]:59643: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798173Z test=TestDial/DialAddr rebind_begin attempt=1 address=127.0.0.1:59643
+[DEBUG-241] at=2026-09-15T00:12:25.798196Z test=TestDial/DialAddr rebind_end attempt=1 duration=24µs address=127.0.0.1:59643 error_type=<nil> error=<nil>
+=== RUN   TestDial/DialAddrEarly
+[DEBUG-241] at=2026-09-15T00:12:25.798412Z elapsed=5.458µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=created network=udp requested=0.0.0.0:0 fd=5 server=127.0.0.1:56762 error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798606Z test=TestDial/DialAddrEarly received_from=127.0.0.1:62404 server=127.0.0.1:56762 cancel_requested
+[DEBUG-241] at=2026-09-15T00:12:25.798621Z elapsed=213.291µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 Close_enter created=true listening_closed=false error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798632Z elapsed=224.458µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 receive_loop_socket_close_return created=true listening_closed=false error_type=*net.OpError error=close udp [::]:62404: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798636Z elapsed=228.375µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 listening_closed created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798638Z elapsed=230.333µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 owned_socket_close_return created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798639Z elapsed=231.708µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 Close_return created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.79864Z elapsed=233.166µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 Close_enter created=true listening_closed=true error_type=<nil> error=<nil>
+[DEBUG-241] at=2026-09-15T00:12:25.798642Z elapsed=234.25µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 owned_socket_close_return created=true listening_closed=true error_type=*net.OpError error=close udp [::]:62404: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798643Z elapsed=235.625µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=transport=0x538825572000 Close_return created=true listening_closed=true error_type=*net.OpError error=close udp [::]:62404: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798646Z elapsed=238.583µs test=TestDial/DialAddrEarly socket=0x538825502040 local=[::]:62404 event=dial_returned_context_canceled received_from=127.0.0.1:62404 error_type=*net.OpError error=raw-control udp [::]:62404: use of closed network connection
+[DEBUG-241] at=2026-09-15T00:12:25.798651Z test=TestDial/DialAddrEarly rebind_begin attempt=1 address=127.0.0.1:62404
+[DEBUG-241] at=2026-09-15T00:12:25.798663Z test=TestDial/DialAddrEarly rebind_end attempt=1 duration=12.708µs address=127.0.0.1:62404 error_type=<nil> error=<nil>
+--- PASS: TestDial (0.00s)
+    --- PASS: TestDial/Dial (0.00s)
+    --- PASS: TestDial/DialEarly (0.00s)
+    --- PASS: TestDial/DialAddr (0.00s)
+    --- PASS: TestDial/DialAddrEarly (0.00s)
+PASS
+coverage: 20.1% of statements
+ok  	github.com/quic-go/quic-go	0.239s	coverage: 20.1% of statements

@@ -1,0 +1,113 @@
+diff --git i/client_test.go w/client_test.go
+index b974cc03..480b42c1 100644
+--- i/client_test.go
++++ w/client_test.go
+@@ -3,7 +3,9 @@ package quic
+ import (
+ 	"context"
+ 	"crypto/tls"
++	"fmt"
+ 	"net"
++	"os"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+@@ -60,6 +62,25 @@ func testDial(t *testing.T,
+ 	shouldCloseConn bool,
+ ) {
+ 	server := newUDPConnLocalhost(t)
++	var captured *net.UDPConn
++	if shouldCloseConn {
++		original := listenUDPConn
++		listenUDPConn = func(network string, addr *net.UDPAddr) (*net.UDPConn, error) {
++			c, err := original(network, addr)
++			if err == nil {
++				captured = c
++				diag241Sockets.Store(c, diag241Socket{name: t.Name(), start: time.Now()})
++				raw, rawErr := c.SyscallConn()
++				fd := ^uintptr(0)
++				if rawErr == nil {
++					rawErr = raw.Control(func(v uintptr) { fd = v })
++				}
++				diag241Log(c, fmt.Sprintf("created network=%s requested=%s fd=%d server=%s", network, addr, fd, server.LocalAddr()), rawErr)
++			}
++			return c, err
++		}
++		t.Cleanup(func() { listenUDPConn = original })
++	}
+ 
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	errChan := make(chan error, 1)
+@@ -68,6 +89,9 @@ func testDial(t *testing.T,
+ 	server.SetReadDeadline(time.Now().Add(time.Second))
+ 	_, addr, err := server.ReadFrom(make([]byte, 1500))
+ 	require.NoError(t, err)
++	if shouldCloseConn {
++		fmt.Fprintf(os.Stderr, "[DEBUG-241] at=%s test=%s received_from=%s server=%s cancel_requested\n", time.Now().UTC().Format(time.RFC3339Nano), t.Name(), addr, server.LocalAddr())
++	}
+ 	cancel()
+ 	select {
+ 	case err := <-errChan:
+@@ -77,10 +101,23 @@ func testDial(t *testing.T,
+ 	}
+ 
+ 	if shouldCloseConn {
++		// errChan receipt above synchronizes access to the captured socket.
++		if captured != nil {
++			raw, probeErr := captured.SyscallConn()
++			if probeErr == nil {
++				probeErr = raw.Control(func(uintptr) {})
++			}
++			diag241Log(captured, fmt.Sprintf("dial_returned_context_canceled received_from=%s", addr), probeErr)
++		}
++		attempts := 0
+ 		// The socket that the client used for dialing should be closed now.
+ 		// Binding to the same address would error if the address was still in use.
+ 		require.Eventually(t, func() bool {
++			attempts++
++			start := time.Now()
++			fmt.Fprintf(os.Stderr, "[DEBUG-241] at=%s test=%s rebind_begin attempt=%d address=%s\n", start.UTC().Format(time.RFC3339Nano), t.Name(), attempts, addr)
+ 			conn, err := net.ListenUDP("udp", addr.(*net.UDPAddr))
++			fmt.Fprintf(os.Stderr, "[DEBUG-241] at=%s test=%s rebind_end attempt=%d duration=%s address=%s error_type=%T error=%v\n", time.Now().UTC().Format(time.RFC3339Nano), t.Name(), attempts, time.Since(start), addr, err, err)
+ 			if err != nil {
+ 				return false
+ 			}
+diff --git i/transport.go w/transport.go
+index 34821d33..4f1d13f9 100644
+--- i/transport.go
++++ w/transport.go
+@@ -425,11 +425,12 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
+ 		t.statelessResetter = newStatelessResetter(t.StatelessResetKey)
+ 
+ 		go func() {
+-			defer close(t.listening)
++			defer func() { close(t.listening); diag241Transport(t, "listening_closed", nil) }()
+ 			t.listen(conn)
+ 
+ 			if t.createdConn {
+-				conn.Close()
++				closeErr := conn.Close()
++				diag241Transport(t, "receive_loop_socket_close_return", closeErr)
+ 			}
+ 		}()
+ 		go t.runSendQueue()
+@@ -474,13 +475,17 @@ func (t *Transport) runSendQueue() {
+ //
+ // If a server was started, it will be closed as well.
+ // It is not possible to start any new server or dial new connections after that.
+-func (t *Transport) Close() error {
++func (t *Transport) Close() (result error) {
++	diag241Transport(t, "Close_enter", nil)
++	defer func() { diag241Transport(t, "Close_return", result) }()
+ 	// avoid race condition if the transport is currently being initialized
+ 	t.init(false)
+ 
+ 	t.close(nil)
+ 	if t.createdConn {
+-		if err := t.Conn.Close(); err != nil {
++		err := t.Conn.Close()
++		diag241Transport(t, "owned_socket_close_return", err)
++		if err != nil {
+ 			return err
+ 		}
+ 	} else if t.conn != nil {

@@ -1,0 +1,17 @@
+diff --git i/quic_test.go w/quic_test.go
+index 9ddcc792..f41ea954 100644
+--- i/quic_test.go
++++ w/quic_test.go
+@@ -97,7 +97,11 @@ func TestAreConnsRunning(t *testing.T) {
+ func areTransportsRunning() bool {
+ 	var b bytes.Buffer
+ 	pprof.Lookup("goroutine").WriteTo(&b, 1)
+-	return strings.Contains(b.String(), "quic-go.(*Transport).listen")
++	running := strings.Contains(b.String(), "quic-go.(*Transport).listen")
++	if running {
++		fmt.Fprintf(os.Stderr, "[DEBUG-317] matching observer profile\n%s[DEBUG-317] end profile\n", b.String())
++	}
++	return running
+ }
+ 
+ func TestMain(m *testing.M) {

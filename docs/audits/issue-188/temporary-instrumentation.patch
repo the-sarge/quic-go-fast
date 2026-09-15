@@ -1,0 +1,213 @@
+diff --git i/integrationtests/self/http_capture_helper_test.go w/integrationtests/self/http_capture_helper_test.go
+index 089543f6..8d61bba9 100644
+--- i/integrationtests/self/http_capture_helper_test.go
++++ w/integrationtests/self/http_capture_helper_test.go
+@@ -33,6 +33,7 @@ const (
+ // process keeps its reservation and evidence; only an intact passing capture
+ // releases its own slot. This directory belongs exclusively to this recorder.
+ type httpCapture struct {
++	diag188Keep                                 bool // DEBUG-188: temporary passing capture retention.
+ 	mu                                          sync.Mutex
+ 	file                                        *os.File
+ 	path                                        string
+@@ -221,7 +222,7 @@ func (c *httpCapture) finish(failed bool) {
+ 	if err := checksumHTTPFile(c.path); err != nil && c.err == nil {
+ 		c.err = err
+ 	}
+-	if !failed && c.err == nil && c.dropped == 0 && c.encodingErrors == 0 {
++	if !failed && !c.diag188Keep && c.err == nil && c.dropped == 0 && c.encodingErrors == 0 {
+ 		for _, path := range []string{filepath.Join(filepath.Dir(c.path), "SHA256SUMS"), c.path, filepath.Dir(c.path)} {
+ 			if err := os.Remove(path); err != nil {
+ 				c.err = err
+diff --git i/integrationtests/self/http_hotswap_test.go w/integrationtests/self/http_hotswap_test.go
+index c144fb0b..6c9e50b2 100644
+--- i/integrationtests/self/http_hotswap_test.go
++++ w/integrationtests/self/http_hotswap_test.go
+@@ -1,7 +1,10 @@
+ package self_test
+ 
+ import (
++	"context"
++	"fmt"
+ 	"io"
++	"log/slog"
+ 	"net"
+ 	"net/http"
+ 	"strconv"
+@@ -14,14 +17,22 @@ import (
+ )
+ 
+ func TestHTTP3ServerHotswap(t *testing.T) {
++	// DEBUG-188: temporary observation-only wiring; preserve passing evidence.
++	capture := newHTTPCapture(t)
++	capture.diag188Keep = true
++	capture.record("fixture", "DEBUG-188", "temporary capture; passing recordings retained")
+ 	mux1 := http.NewServeMux()
+ 	mux1.HandleFunc("/hello1", func(w http.ResponseWriter, r *http.Request) {
+-		io.WriteString(w, "Hello, World 1!\n") // don't check the error here. Stream may be reset.
++		capture.record("server1", "handler_enter", r.URL.Path)
++		n, err := io.WriteString(w, "Hello, World 1!\n") // don't assert: stream may be reset.
++		capture.record("server1", "handler_write", fmt.Sprintf("bytes=%d error=%v", n, err))
+ 	})
+ 
+ 	mux2 := http.NewServeMux()
+ 	mux2.HandleFunc("/hello2", func(w http.ResponseWriter, r *http.Request) {
+-		io.WriteString(w, "Hello, World 2!\n") // don't check the error here. Stream may be reset.
++		capture.record("server2", "handler_enter", r.URL.Path)
++		n, err := io.WriteString(w, "Hello, World 2!\n") // don't assert: stream may be reset.
++		capture.record("server2", "handler_write", fmt.Sprintf("bytes=%d error=%v", n, err))
+ 	})
+ 
+ 	server1 := &http3.Server{
+@@ -33,17 +44,29 @@ func TestHTTP3ServerHotswap(t *testing.T) {
+ 		QUICConfig: getQuicConfig(nil),
+ 	}
+ 
++	for i, server := range []*http3.Server{server1, server2} {
++		name := fmt.Sprintf("server%d", i+1)
++		server.Logger = slog.New(&httpCaptureLog{capture: capture, group: name + "."})
++		server.ConnContext = func(ctx context.Context, conn *quic.Conn) context.Context {
++			capture.record(name, "admitted", fmt.Sprintf("conn=%p", conn))
++			return ctx
++		}
++	}
++
+ 	tlsConf := http3.ConfigureTLSConfig(getTLSConfig())
+-	ln, err := quic.ListenEarly(newUDPConnLocalhost(t), tlsConf, getQuicConfig(nil))
++	ln, err := quic.ListenEarly(newUDPConnLocalhost(t), tlsConf, capture.config(getQuicConfig(nil), "listener"))
+ 	require.NoError(t, err)
+ 	port := strconv.Itoa(ln.Addr().(*net.UDPAddr).Port)
+ 
++	clientNumber := 0
+ 	newClient := func() *http.Client {
++		clientNumber++
++		capture.record("fixture", "new_client", clientNumber)
+ 		return &http.Client{
+ 			Transport: &http3.Transport{
+ 				TLSClientConfig:    getTLSClientConfig(),
+ 				DisableCompression: true,
+-				QUICConfig:         getQuicConfig(&quic.Config{MaxIdleTimeout: 10 * time.Second}),
++				QUICConfig:         capture.config(getQuicConfig(&quic.Config{MaxIdleTimeout: 10 * time.Second}), fmt.Sprintf("client%d", clientNumber)),
+ 			},
+ 		}
+ 	}
+@@ -51,23 +74,41 @@ func TestHTTP3ServerHotswap(t *testing.T) {
+ 	client := newClient()
+ 
+ 	defer func() {
+-		require.NoError(t, ln.Close())
++		capture.beginCleanup()
++		capture.record("listener", "close_enter", nil)
++		err := ln.Close()
++		capture.record("listener", "close_return", fmt.Sprint(err))
++		require.NoError(t, err)
+ 	}()
+ 
+ 	// open first server and make single request to it
+ 	errChan1 := make(chan error, 1)
+-	go func() { errChan1 <- server1.ServeListener(ln) }()
++	go func() {
++		capture.record("server1", "serve_enter", nil)
++		err := server1.ServeListener(&diag188Listener{EarlyListener: ln, capture: capture, name: "server1"})
++		capture.record("server1", "serve_return", fmt.Sprint(err))
++		errChan1 <- err
++	}()
+ 
++	capture.record("client1", "get_enter", nil)
+ 	resp, err := client.Get("https://localhost:" + port + "/hello1")
++	capture.record("client1", "get_return", fmt.Sprint(err))
+ 	require.NoError(t, err)
++	capture.record(fmt.Sprintf("client%d", clientNumber), "response_headers", resp.StatusCode)
+ 	require.Equal(t, http.StatusOK, resp.StatusCode)
+ 	body, err := io.ReadAll(resp.Body)
+ 	require.NoError(t, err)
++	capture.record(fmt.Sprintf("client%d", clientNumber), "body_consumed", fmt.Sprintf("bytes=%d error=%v", len(body), err))
+ 	require.Equal(t, "Hello, World 1!\n", string(body))
+ 
+ 	// open second server with same underlying listener
+ 	errChan2 := make(chan error, 1)
+-	go func() { errChan2 <- server2.ServeListener(ln) }()
++	go func() {
++		capture.record("server2", "serve_enter", nil)
++		err := server2.ServeListener(&diag188Listener{EarlyListener: ln, capture: capture, name: "server2"})
++		capture.record("server2", "serve_return", fmt.Sprint(err))
++		errChan2 <- err
++	}()
+ 
+ 	time.Sleep(scaleDuration(20 * time.Millisecond))
+ 	select {
+@@ -79,29 +120,46 @@ func TestHTTP3ServerHotswap(t *testing.T) {
+ 	}
+ 
+ 	// now close first server
+-	require.NoError(t, server1.Close())
++	capture.record("server1", "close_enter", nil)
++	err = server1.Close()
++	capture.record("server1", "close_return", fmt.Sprint(err))
++	require.NoError(t, err)
+ 	select {
+ 	case err := <-errChan1:
+ 		require.ErrorIs(t, err, http.ErrServerClosed)
+ 	case <-time.After(5 * time.Second):
+ 		t.Fatal("timed out waiting for server1 to stop")
+ 	}
+-	require.NoError(t, client.Transport.(*http3.Transport).Close())
++	capture.record(fmt.Sprintf("client%d", clientNumber), "close_enter", nil)
++	err = client.Transport.(*http3.Transport).Close()
++	capture.record(fmt.Sprintf("client%d", clientNumber), "close_return", fmt.Sprint(err))
++	require.NoError(t, err)
+ 	client = newClient()
+ 	defer func() {
+-		require.NoError(t, client.Transport.(*http3.Transport).Close())
++		capture.beginCleanup()
++		capture.record(fmt.Sprintf("client%d", clientNumber), "close_enter", nil)
++		err := client.Transport.(*http3.Transport).Close()
++		capture.record(fmt.Sprintf("client%d", clientNumber), "close_return", fmt.Sprint(err))
++		require.NoError(t, err)
+ 	}()
+ 
+ 	// verify that new connections are handled by the second server now
++	capture.record("client2", "get_enter", nil)
+ 	resp, err = client.Get("https://localhost:" + port + "/hello2")
++	capture.record("client2", "get_return", fmt.Sprint(err))
+ 	require.NoError(t, err)
++	capture.record(fmt.Sprintf("client%d", clientNumber), "response_headers", resp.StatusCode)
+ 	require.Equal(t, http.StatusOK, resp.StatusCode)
+ 	body, err = io.ReadAll(resp.Body)
+ 	require.NoError(t, err)
++	capture.record(fmt.Sprintf("client%d", clientNumber), "body_consumed", fmt.Sprintf("bytes=%d error=%v", len(body), err))
+ 	require.Equal(t, "Hello, World 2!\n", string(body))
+ 
+ 	// close the other server
+-	require.NoError(t, server2.Close())
++	capture.record("server2", "close_enter", nil)
++	err = server2.Close()
++	capture.record("server2", "close_return", fmt.Sprint(err))
++	require.NoError(t, err)
+ 	select {
+ 	case err := <-errChan2:
+ 		require.ErrorIs(t, err, http.ErrServerClosed)
+@@ -109,3 +167,23 @@ func TestHTTP3ServerHotswap(t *testing.T) {
+ 		t.Fatal("timed out waiting for server2 to stop")
+ 	}
+ }
++
++// DEBUG-188: preserves the original listener and Accept context/result.
++type diag188Listener struct {
++	*quic.EarlyListener
++	capture *httpCapture
++	name    string
++}
++
++func (l *diag188Listener) Accept(ctx context.Context) (*quic.Conn, error) {
++	l.capture.record(l.name, "accept_enter", fmt.Sprint(ctx.Err()))
++	conn, err := l.EarlyListener.Accept(ctx)
++	l.capture.record(l.name, "accept_return", fmt.Sprintf("conn=%p error=%v context=%v", conn, err, ctx.Err()))
++	l.capture.observeConn(l.name, conn)
++	return conn, err
++}
++
++func (l *diag188Listener) Close() error {
++	l.capture.record(l.name, "unexpected_listener_close", nil)
++	return l.EarlyListener.Close()
++}

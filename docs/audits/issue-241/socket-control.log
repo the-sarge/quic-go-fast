@@ -1,0 +1,10 @@
+original=0x456734382020 local=[::]:54249 target=127.0.0.1:54249
+original=0x456734382020 local=[::]:54249 closed=true error=raw-control udp [::]:54249: use of closed network connection
+at=2026-09-15T00:13:02.507969Z pid=22735 bind=127.0.0.1:54249 socket=0x456734382030 want_busy=false error_type=<nil> errno=0 error=<nil>
+at=2026-09-15T00:13:02.507998Z pid=22735 bind=127.0.0.1:54249 socket=0x456734382038 want_busy=false error_type=<nil> errno=0 error=<nil>
+competitor=0x456734382038 local=127.0.0.1:54249
+original=0x456734382020 local=[::]:54249 closed=true error=raw-control udp [::]:54249: use of closed network connection
+at=2026-09-15T00:13:02.508045Z pid=22735 bind=127.0.0.1:54249 socket=0x0 want_busy=true error_type=*net.OpError errno=48 error=listen udp 127.0.0.1:54249: bind: address already in use
+original=0x456734382020 local=[::]:54249 closed=true error=raw-control udp [::]:54249: use of closed network connection
+at=2026-09-15T00:13:02.508079Z pid=22735 bind=127.0.0.1:54249 socket=0x456734382040 want_busy=false error_type=<nil> errno=0 error=<nil>
+PASS: rebind error distinguishes occupancy, not original ownership

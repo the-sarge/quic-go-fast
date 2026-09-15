@@ -1,0 +1,11 @@
+{
+  "root_observer_captures": 1,
+  "failing_tests": [
+    "--- FAIL: TestDial (0.06s)",
+    "    --- FAIL: TestDial/Dial (0.00s)"
+  ],
+  "failing_packages": [
+    "FAIL\tgithub.com/quic-go/quic-go\t4.785s"
+  ],
+  "root_time_seconds": 4.785
+}

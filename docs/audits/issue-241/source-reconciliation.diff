@@ -1,0 +1,326 @@
+diff --git a/go.mod b/go.mod
+index 36fecc7a..4bc638f1 100644
+--- a/go.mod
++++ b/go.mod
+@@ -6,19 +6,19 @@ require (
+ 	github.com/quic-go/go-ossfuzz-seeds v0.1.0
+ 	github.com/quic-go/qpack v0.6.0
+ 	github.com/stretchr/testify v1.12.1
+-	go.uber.org/mock v0.5.2
+-	golang.org/x/crypto v0.54.0
+-	golang.org/x/net v0.56.0
+-	golang.org/x/sync v0.22.0
+-	golang.org/x/sys v0.47.0
++	go.uber.org/mock v0.6.0
++	golang.org/x/crypto v0.57.0
++	golang.org/x/net v0.59.0
++	golang.org/x/sync v0.23.0
++	golang.org/x/sys v0.48.0
+ )
+ 
+ require (
+ 	github.com/jordanlewis/gcassert v0.0.0-20250430164644-389ef753e22e // indirect
+ 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+-	golang.org/x/mod v0.37.0 // indirect
+-	golang.org/x/text v0.40.0 // indirect
+-	golang.org/x/tools v0.47.0 // indirect
++	golang.org/x/mod v0.41.0 // indirect
++	golang.org/x/text v0.42.0 // indirect
++	golang.org/x/tools v0.50.0 // indirect
+ )
+ 
+ tool (
+diff --git a/send_conn.go b/send_conn.go
+index 67c4778c..a5cf694f 100644
+--- a/send_conn.go
++++ b/send_conn.go
+@@ -40,6 +40,10 @@ type sconn struct {
+ 	// Used to catch the error sometimes returned by the first sendmsg call on Linux,
+ 	// see https://github.com/golang/go/issues/63322.
+ 	wroteFirstPacket bool
++
++	// The platform's batched-send state; empty on platforms without a
++	// batched send path.
++	sconnBatchState
+ }
+ 
+ var _ sendConn = &sconn{}
+@@ -62,6 +66,9 @@ func newSendConn(c rawConn, remote net.Addr, info packetInfo, logger utils.Logge
+ 		rawConn:   c,
+ 		localAddr: localAddr,
+ 		logger:    logger,
++		// The platform's batched-send state starts zero; only the darwin
++		// sendmsg_x path populates it, from the send worker's goroutine.
++		sconnBatchState: sconnBatchState{},
+ 	}
+ 	sc.remoteAddrInfo.Store(&remoteAddrInfo{
+ 		addr: remote,
+diff --git a/send_queue.go b/send_queue.go
+index c81aec18..5e11918f 100644
+--- a/send_queue.go
++++ b/send_queue.go
+@@ -1,6 +1,7 @@
+ package quic
+ 
+ import (
++	"fmt"
+ 	"net"
+ 	"sync"
+ 
+@@ -60,6 +61,23 @@ type queueEntry struct {
+ 	ecn      protocol.ECN
+ }
+ 
++// batchSender is an optional sendConn capability: submit several packets that
++// share an ECN marking (and use no GSO segmentation) as one batched send.
++// sendBatch returns how many leading packets the kernel accepted
++// (0 <= accepted <= len(bufs)); accepted packets are on the wire and must
++// never be resent. A nil error with accepted < len(bufs) means the kernel
++// observably declined the remainder (a short count, or an errno that the
++// kernel only reports when nothing was sent); the worker then retries the
++// first unaccepted entry through the per-packet path, where size errors and
++// handshake MTU feedback attach to the correct entry. A non-nil error means
++// kernel progress for the offered packets is unknowable (the syscall's error
++// convention discards the count); the worker must fail the send path without
++// resending anything, so no packet can be duplicated.
++type batchSender interface {
++	batchSendAvailable() bool
++	sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error)
++}
++
+ type sendQueue struct {
+ 	queue       chan queueEntry
+ 	closeCalled chan struct{} // runStopped when Close() is called
+@@ -67,12 +85,19 @@ type sendQueue struct {
+ 	available   chan struct{}
+ 	conn        sendConn
+ 	feedback    *handshakeSendFeedback
++
++	// Scratch reused across batched sends; the run loop is the only user.
++	batchScratch []queueEntry
++	bufsScratch  [][]byte
+ }
+ 
+ var _ sender = &sendQueue{}
+ 
+ const sendQueueCapacity = 8
+ 
++// maxSendBatch caps how many queued packets one batched send coalesces.
++const maxSendBatch = sendQueueCapacity
++
+ func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
+ 	return &sendQueue{
+ 		conn:        conn,
+@@ -132,18 +157,15 @@ func (h *sendQueue) Run() error {
+ 			// make sure that all queued packets are actually sent out
+ 			shouldClose = true
+ 		case e := <-h.queue:
+-			if err := h.conn.Write(e.buf.Data, e.gsoSize, e.ecn); err != nil {
+-				// This additional check enables:
+-				// 1. Checking for "datagram too large" message from the kernel, as such,
+-				// 2. Path MTU discovery,and
+-				// 3. Eventual detection of loss PingFrame.
+-				if !isSendMsgSizeErr(err) {
+-					e.buf.Release()
++			if bs, ok := h.conn.(batchSender); ok && bs.batchSendAvailable() {
++				if err := h.runBatched(e, bs); err != nil {
+ 					return err
+ 				}
+-				if h.feedback != nil && e.metadata.handshake && e.gsoSize == 0 && e.buf.Len() > protocol.MinInitialPacketSize {
+-					h.feedback.publish(e.metadata.pathGeneration)
+-				}
++				continue
++			}
++			if err := h.writeEntry(e); err != nil {
++				e.buf.Release()
++				return err
+ 			}
+ 			e.buf.Release()
+ 			select {
+@@ -154,6 +176,100 @@ func (h *sendQueue) Run() error {
+ 	}
+ }
+ 
++// writeEntry sends one entry through the per-packet path with the existing
++// per-entry error attribution. The additional size-error check enables:
++// 1. Checking for "datagram too large" message from the kernel, as such,
++// 2. Path MTU discovery, and
++// 3. Eventual detection of loss PingFrame.
++// The caller keeps ownership of the entry's buffer.
++func (h *sendQueue) writeEntry(e queueEntry) error {
++	if err := h.conn.Write(e.buf.Data, e.gsoSize, e.ecn); err != nil {
++		if !isSendMsgSizeErr(err) {
++			return err
++		}
++		if h.feedback != nil && e.metadata.handshake && e.gsoSize == 0 && e.buf.Len() > protocol.MinInitialPacketSize {
++			h.feedback.publish(e.metadata.pathGeneration)
++		}
++	}
++	return nil
++}
++
++// runBatched drains entries already queued behind e that share its
++// (gsoSize, ecn) into one group and sends each group through
++// sendBatchEntries. An entry that differs flushes the current group and
++// starts a new one, preserving submission order.
++func (h *sendQueue) runBatched(e queueEntry, bs batchSender) error {
++	group := append(h.batchScratch[:0], e)
++	defer func() { h.batchScratch = group[:0] }()
++	for len(h.queue) > 0 && len(group) < maxSendBatch {
++		next := <-h.queue
++		if next.gsoSize != group[0].gsoSize || next.ecn != group[0].ecn {
++			if err := h.sendBatchEntries(group, bs); err != nil {
++				next.buf.Release()
++				return err
++			}
++			group = append(group[:0], next)
++			continue
++		}
++		group = append(group, next)
++	}
++	return h.sendBatchEntries(group, bs)
++}
++
++// sendBatchEntries owns every entry in the group: it releases all their
++// buffers and signals availability before returning. Accepted entries are
++// never resent; after every batched submission the first unaccepted entry is
++// retried through the per-packet path so error attribution lands on the
++// correct entry, and the remaining tail re-enters batching. Each iteration
++// consumes at least one entry, so the loop terminates.
++func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
++	defer func() {
++		for _, e := range group {
++			e.buf.Release()
++		}
++		select {
++		case h.available <- struct{}{}:
++		default:
++		}
++	}()
++	i := 0
++	for i < len(group) {
++		if remaining := group[i:]; len(remaining) >= 2 && remaining[0].gsoSize == 0 && bs.batchSendAvailable() {
++			bufs := h.bufsScratch[:0]
++			for _, e := range remaining {
++				bufs = append(bufs, e.buf.Data)
++			}
++			accepted, err := bs.sendBatch(bufs, remaining[0].ecn)
++			clear(bufs)
++			h.bufsScratch = bufs[:0]
++			if accepted < 0 || accepted > len(remaining) {
++				// Invalid progress cannot identify a safe remainder to retry.
++				if err != nil {
++					return err
++				}
++				return fmt.Errorf("quic: invalid send batch accepted count %d of %d", accepted, len(remaining))
++			}
++			i += accepted
++			if err != nil {
++				// Progress for the unaccepted remainder is unknowable, so a
++				// per-packet retry could resend a packet the kernel already
++				// sent. Fail the send path instead — the same fatal handling
++				// the per-packet path applies to this error class — and never
++				// duplicate.
++				return err
++			}
++			if accepted == len(remaining) {
++				continue
++			}
++		}
++		if err := h.writeEntry(group[i]); err != nil {
++			return err
++		}
++		i++
++	}
++	return nil
++}
++
+ func (h *sendQueue) Close() {
+ 	close(h.closeCalled)
+ 	// wait until the run loop returned
+diff --git a/sys_conn_helper_darwin.go b/sys_conn_helper_darwin.go
+index 49e41706..44248db4 100644
+--- a/sys_conn_helper_darwin.go
++++ b/sys_conn_helper_darwin.go
+@@ -21,6 +21,14 @@ const ecnIPv4DataLen = 4
+ // see https://godoc.org/golang.org/x/net/ipv4#PacketConn.ReadBatch.
+ const batchSize = 1
+ 
++// Exactly one of the sendmsg_x active/stub file pair
++// (send_conn_sendmsg_x_darwin.go / send_conn_sendmsg_x_stub_darwin.go) must
++// compile for every darwin tag set. This assertion breaks the build if the
++// pair ever leaves a gap, and the compiler rejects the duplicate definitions
++// if they overlap — the terminating mechanism for the compile-time-absence
++// claim of the iOS and opt-out builds.
++var _ batchSender = (*sconn)(nil)
++
+ func parseIPv4PktInfo(body []byte) (ip netip.Addr, ifIndex uint32, ok bool) {
+ 	// struct in_pktinfo {
+ 	// 	unsigned int   ipi_ifindex;  /* Interface index */
+diff --git a/sys_conn_oob.go b/sys_conn_oob.go
+index 617faf7a..70421578 100644
+--- a/sys_conn_oob.go
++++ b/sys_conn_oob.go
+@@ -53,7 +53,7 @@ type oobConn struct {
+ 	buffers [batchSize]*packetBuffer
+ 	// Per-datagram views split from a coalesced (GRO) read, not yet returned
+ 	// by ReadPacket(). Each holds one reference on the read's shared slab.
+-	pendingSegments []receivedPacket
++	delivery coalescedDelivery
+ 
+ 	cap connCapabilities
+ }
+@@ -151,10 +151,7 @@ var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
+ func (c *oobConn) ReadPacket() (receivedPacket, error) {
+ 	// A coalesced read is split into per-datagram views, returned one per
+ 	// call to preserve ReadPacket's one-datagram contract.
+-	if len(c.pendingSegments) > 0 {
+-		p := c.pendingSegments[0]
+-		c.pendingSegments[0] = receivedPacket{}
+-		c.pendingSegments = c.pendingSegments[1:]
++	if p, ok := c.delivery.next(); ok {
+ 		return p, nil
+ 	}
+ 	for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
+@@ -260,39 +257,13 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
+ 	if !c.cap.GRO || len(payload) == 0 {
+ 		return p, nil
+ 	}
+-	// On a GRO socket every non-empty read becomes a coalesced slab, even a
+-	// single datagram: retention queues copy slab views out of the slab (or
+-	// charge the retained-bytes budget), and that bound must hold for lone
+-	// segments too. The datapath offload plan (2026-09-11) fixes this rule.
+-	// Use the buffer's own storage (the kernel filled it in place) so the
+-	// slab can only ever recycle coalesced-tier storage into the pool.
+-	buffer.Data = buffer.Data[:msg.N]
+-	slab := &coalescedSlab{buf: buffer}
+-	segmentSize := groSegmentSize
+-	if segmentSize <= 0 {
+-		// no UDP_GRO control message: the read is a single datagram
+-		segmentSize = len(payload)
+-	}
+-	views := slab.split(segmentSize)
+-	p.data = views[0].Data
+-	p.buffer = views[0]
+-	for _, view := range views[1:] {
+-		sibling := p
+-		sibling.data = view.Data
+-		sibling.buffer = view
+-		c.pendingSegments = append(c.pendingSegments, sibling)
+-	}
+-	return p, nil
++	return c.delivery.accept(p, groSegmentSize), nil
+ }
+ 
+ // releaseReadBuffers runs only after reading stops, or while discarding a failed
+ // batch. Returned packets belong to their consumers, and the socket stays open.
+ func (c *oobConn) releaseReadBuffers() {
+-	for i, p := range c.pendingSegments {
+-		p.buffer.Release()
+-		c.pendingSegments[i] = receivedPacket{}
+-	}
+-	c.pendingSegments = nil
++	c.delivery.discard()
+ 	c.messages = c.messages[:batchSize]
+ 	for i, buffer := range c.buffers {
+ 		if buffer != nil {

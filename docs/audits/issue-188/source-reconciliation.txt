@@ -1,0 +1,397 @@
+$ git diff --stat 9820d966cd72fbfe70d55829b971797b05d3ed3f 4fcf07fd9836a6dafebfde7bbbf21fef436d2dc7 -- integrationtests/self/http_hotswap_test.go http3/server.go http3/transport.go http3/client.go client.go server.go
+ http3/server.go | 167 ++++++++++++++++++++++++++++++++++----------------------
+ server.go       |  73 +++++++++++++++++++------
+ 2 files changed, 158 insertions(+), 82 deletions(-)
+
+$ git log --oneline 9820d966..4fcf07fd -- connection.go transport.go sys_conn* send_conn* send_queue.go http3 integrationtests/self/http* go.mod
+e182f440 test: keep HTTP idle connection observation live across retries (#315)
+47a2e96f Retain paired HTTP fixture failure captures (#312)
+6861a14b build: refresh dependencies and tools for second prerelease (#306)
+ed1c6d08 http3: release consumed datagram queue references (#298)
+b556451a refactor: share coalesced receive delivery ownership (#296)
+9ca196c8 http3: own normal response completion in responseWriter (#294)
+e36e69f7 fix: fail closed on invalid send batch progress (#292)
+96a7c9eb fix(http3): make server admission atomic with shutdown (#290)
+494affd9 fix: consume incoming STREAM frame ownership through dispatch (#286)
+8e6fae46 feat: macOS sendmsg_x batch send with fail-closed qualification (D1) (#257)
+2dc1ac99 test: injectable URO probe error-classification fixture (#250) (#255)
+9b2227a7 test: pin kill switch off in TestWindowsUSOProbeFailure (#246) (#253)
+4adee07c test: remove stale Windows skip in TestSendConnOOB (#251)
+b76174c9 feat: Windows coalesced receive (URO) (W3) (#248)
+69d70161 feat: Windows segmented send (USO) (W2) (#245)
+fc97e463 feat: Windows message-I/O foundation (W1) (#242)
+14b8832b feat: Linux UDP_GRO receive end to end (G2) (#239)
+f9bbf13d feat: coalesced-storage contract (slab, third tier, split, retention) (#236)
+fefe59fe test(http3): isolate graceful shutdown deadline observations (#165) (#219)
+45b9fa84 test(http3): observe applied priority and async completion (#211)
+11363384 test: restore connection leak guard and close TLS fixtures (#80) (#200)
+488fcd48 http3: skip tracing header collection without a recorder (#197)
+
+$ git diff 9820d966 4fcf07fd -- http3/server.go server.go
+diff --git a/http3/server.go b/http3/server.go
+index 6dce97fb..247c0186 100644
+--- a/http3/server.go
++++ b/http3/server.go
+@@ -13,7 +13,6 @@ import (
+ 	"slices"
+ 	"strings"
+ 	"sync"
+-	"sync/atomic"
+ 	"time"
+ 
+ 	"github.com/quic-go/quic-go"
+@@ -124,6 +123,14 @@ var ServerContextKey = &contextKey{"http3-server"}
+ // than its string representation.
+ var RemoteAddrContextKey = &contextKey{"remote-addr"}
+ 
++// listenerCloseWork keeps a shutdown call's snapshot and completion separate
++// from the active listener list, which serving goroutines can remove from.
++type listenerCloseWork struct {
++	listeners []listener
++	previous  <-chan struct{}
++	done      chan struct{}
++}
++
+ // listener contains info about specific listener added with addListener
+ type listener struct {
+ 	ln   *QUICListener
+@@ -192,15 +199,17 @@ type Server struct {
+ 
+ 	Logger *slog.Logger
+ 
+-	mutex     sync.RWMutex
+-	listeners []listener
++	mutex              sync.RWMutex
++	listenerCloseMutex sync.Mutex // serializes owned-listener Close calls, never connection completion
++	listeners          []listener
++	listenerCloseDone  chan struct{} // last registered listener-close work; protected by mutex
+ 
+ 	closed           bool
+ 	closeCtx         context.Context    // canceled when the server is closed
+ 	closeCancel      context.CancelFunc // cancels the closeCtx
+ 	graceCtx         context.Context    // canceled when the server is closed or gracefully closed
+ 	graceCancel      context.CancelFunc // cancels the graceCtx
+-	connCount        atomic.Int64
++	connCount        int
+ 	connHandlingDone chan struct{}
+ 
+ 	altSvcHeader string
+@@ -261,30 +270,83 @@ func (s *Server) init() {
+ 	if s.closeCtx == nil {
+ 		s.closeCtx, s.closeCancel = context.WithCancel(context.Background())
+ 		s.graceCtx, s.graceCancel = context.WithCancel(s.closeCtx)
++		s.connHandlingDone = make(chan struct{})
+ 	}
+-	s.connHandlingDone = make(chan struct{}, 1)
++}
++
++// admitConn reserves the full managed handleConn lifetime before setup starts.
++func (s *Server) admitConn() bool {
++	s.mutex.Lock()
++	defer s.mutex.Unlock()
++	if s.closed {
++		return false
++	}
++	s.init()
++	s.connCount++
++	return true
+ }
+ 
+ func (s *Server) decreaseConnCount() {
+-	if s.connCount.Add(-1) == 0 && s.graceCtx.Err() != nil {
++	s.mutex.Lock()
++	defer s.mutex.Unlock()
++	s.connCount--
++	if s.connCount == 0 && s.closed {
+ 		close(s.connHandlingDone)
+ 	}
+ }
+ 
++// seal stops admission and snapshots listener work. Neither listener closure nor
++// connection completion may be awaited while holding the admission mutex.
++func (s *Server) seal(immediate bool) (listenerCloseWork, <-chan struct{}) {
++	s.mutex.Lock()
++	defer s.mutex.Unlock()
++	s.init()
++	if !s.closed {
++		s.closed = true
++		if s.connCount == 0 {
++			close(s.connHandlingDone)
++		}
++	}
++	if immediate {
++		s.closeCancel()
++	} else {
++		s.graceCancel()
++	}
++	work := listenerCloseWork{
++		listeners: slices.Clone(s.listeners),
++		previous:  s.listenerCloseDone,
++		done:      make(chan struct{}),
++	}
++	s.listenerCloseDone = work.done
++	return work, s.connHandlingDone
++}
++
++func (s *Server) closeListeners(work listenerCloseWork) []error {
++	// Registering the predecessor in seal prevents a later shutdown from
++	// overtaking this call before it reaches the listener-close mutex.
++	if work.previous != nil {
++		<-work.previous
++	}
++	defer close(work.done)
++	s.listenerCloseMutex.Lock()
++	defer s.listenerCloseMutex.Unlock()
++	var errs []error
++	for _, l := range work.listeners {
++		if l.createdLocally {
++			if err := (*l.ln).Close(); err != nil {
++				errs = append(errs, err)
++			}
++		}
++	}
++	return errs
++}
++
+ // ServeQUICConn serves a single QUIC connection.
+ func (s *Server) ServeQUICConn(conn *quic.Conn) error {
+-	s.mutex.Lock()
+-	if s.closed {
+-		s.mutex.Unlock()
++	if !s.admitConn() {
+ 		return http.ErrServerClosed
+ 	}
+-
+-	s.init()
+-	s.mutex.Unlock()
+-
+-	s.connCount.Add(1)
+ 	defer s.decreaseConnCount()
+-
+ 	return s.handleConn(conn)
+ }
+ 
+@@ -308,14 +370,16 @@ func (s *Server) ServeListener(ln QUICListener) error {
+ func (s *Server) serveListener(ln QUICListener) error {
+ 	for {
+ 		conn, err := ln.Accept(s.graceCtx)
+-		// server closed
+-		if errors.Is(err, quic.ErrServerClosed) || s.graceCtx.Err() != nil {
+-			return http.ErrServerClosed
+-		}
+ 		if err != nil {
++			if errors.Is(err, quic.ErrServerClosed) || s.graceCtx.Err() != nil {
++				return http.ErrServerClosed
++			}
+ 			return err
+ 		}
+-		s.connCount.Add(1)
++		if !s.admitConn() {
++			conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeNoError), "")
++			return http.ErrServerClosed
++		}
+ 		go func() {
+ 			defer s.decreaseConnCount()
+ 			if err := s.handleConn(conn); err != nil {
+@@ -607,30 +671,13 @@ func (s *Server) maxHeaderBytes() int {
+ // use [Server.Serve] to avoid this.
+ // It is the caller's responsibility to close any connection passed to [Server.ServeQUICConn].
+ func (s *Server) Close() error {
+-	s.mutex.Lock()
+-	defer s.mutex.Unlock()
+-
+-	s.closed = true
+-	// server is never used
+-	if s.closeCtx == nil {
+-		return nil
++	work, done := s.seal(true)
++	errs := s.closeListeners(work)
++	<-done
++	if len(errs) > 0 {
++		return errs[0]
+ 	}
+-	s.closeCancel()
+-
+-	var err error
+-	for _, l := range s.listeners {
+-		if l.createdLocally {
+-			if cerr := (*l.ln).Close(); cerr != nil && err == nil {
+-				err = cerr
+-			}
+-		}
+-	}
+-	if s.connCount.Load() == 0 {
+-		return err
+-	}
+-	// wait for all connections to be closed
+-	<-s.connHandlingDone
+-	return err
++	return nil
+ }
+ 
+ // Shutdown gracefully shuts down the server without interrupting any active connections.
+@@ -638,34 +685,22 @@ func (s *Server) Close() error {
+ // Calling Shutdown concurrently with [Server.ListenAndServe] may race with UDP socket creation;
+ // use [Server.Serve] to avoid this.
+ func (s *Server) Shutdown(ctx context.Context) error {
+-	s.mutex.Lock()
+-	s.closed = true
+-	// server was never used
+-	if s.closeCtx == nil {
+-		s.mutex.Unlock()
+-		return nil
+-	}
+-	s.graceCancel()
+-
+-	// close all listeners
+-	var closeErrs []error
+-	for _, l := range s.listeners {
+-		if l.createdLocally {
+-			if err := (*l.ln).Close(); err != nil {
+-				closeErrs = append(closeErrs, err)
+-			}
+-		}
+-	}
+-	s.mutex.Unlock()
++	work, done := s.seal(false)
++	closeErrs := s.closeListeners(work)
+ 	if len(closeErrs) > 0 {
+ 		return errors.Join(closeErrs...)
+ 	}
+ 
+-	if s.connCount.Load() == 0 {
+-		return s.Close()
+-	}
++	// Preserve immediate success when there is no managed work, even if ctx
++	// was already canceled.
+ 	select {
+-	case <-s.connHandlingDone: // all connections were closed
++	case <-done:
++		return s.Close()
++	default:
++	}
++
++	select {
++	case <-done: // all connections were closed
+ 		// When receiving a GOAWAY frame, HTTP/3 clients are expected to close the connection
+ 		// once all requests were successfully handled...
+ 		return s.Close()
+diff --git a/server.go b/server.go
+index f0c29725..694edb60 100644
+--- a/server.go
++++ b/server.go
+@@ -67,6 +67,11 @@ type baseServer struct {
+ 	receivedPacketsMx sync.Mutex
+ 	receivedPackets   chan receivedPacket
+ 
++	// coalescedRetention bounds the coalesced-slab bytes pinned by the
++	// server's queues (receive, version negotiation, 0-RTT) through
++	// oversized segment views.
++	coalescedRetention coalescedRetentionBudget
++
+ 	nextZeroRTTCleanup monotime.Time
+ 	zeroRTTQueues      map[protocol.ConnectionID]*zeroRTTQueue // only initialized if acceptEarlyConns == true
+ 
+@@ -455,21 +460,39 @@ func (s *baseServer) handlePacket(p receivedPacket) {
+ 		return
+ 	default:
+ 	}
+-	select {
+-	case s.receivedPackets <- p:
++	// A packet backed by a coalesced slab must not pin the slab while queued:
++	// it is copied into an ordinary tier, or, if oversized, kept on the slab
++	// and charged against the server's retained-bytes budget. Check capacity
++	// first so a doomed packet doesn't pay for a retention copy; the mutex
++	// serializes producers, so the queue cannot fill between check and send.
++	if len(s.receivedPackets) == cap(s.receivedPackets) {
+ 		s.receivedPacketsMx.Unlock()
++		defer p.buffer.Release()
++		s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
++		s.qlogPacketDropDOSPrevention(p)
+ 		return
+-	default:
+ 	}
++	var retained bool
++	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
++	if !retained {
++		s.receivedPacketsMx.Unlock()
++		defer p.buffer.Release()
++		s.logger.Debugf("Dropping packet from %s (%d bytes). Coalesced retention budget exhausted.", p.remoteAddr, p.Size())
++		s.qlogPacketDropDOSPrevention(p)
++		return
++	}
++	s.receivedPackets <- p
+ 	s.receivedPacketsMx.Unlock()
+-	defer p.buffer.Release()
+-	s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
+-	if s.qlogger != nil {
+-		s.qlogger.RecordEvent(qlog.PacketDropped{
+-			Raw:     qlog.RawInfo{Length: int(p.Size())},
+-			Trigger: qlog.PacketDropDOSPrevention,
+-		})
++}
++
++func (s *baseServer) qlogPacketDropDOSPrevention(p receivedPacket) {
++	if s.qlogger == nil {
++		return
+ 	}
++	s.qlogger.RecordEvent(qlog.PacketDropped{
++		Raw:     qlog.RawInfo{Length: int(p.Size())},
++		Trigger: qlog.PacketDropDOSPrevention,
++	})
+ }
+ 
+ func (s *baseServer) handlePacketImpl(p receivedPacket) bool /* is the buffer still in use? */ {
+@@ -657,6 +680,12 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
+ 			}
+ 			return false
+ 		}
++		// a queued 0-RTT packet must not pin a coalesced slab
++		var retained bool
++		p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
++		if !retained {
++			return false
++		}
+ 		q.packets = append(q.packets, p)
+ 		return true
+ 	}
+@@ -676,6 +705,12 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
+ 		}
+ 		return false
+ 	}
++	// a queued 0-RTT packet must not pin a coalesced slab
++	var retained bool
++	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
++	if !retained {
++		return false
++	}
+ 	queue := &zeroRTTQueue{packets: make([]receivedPacket, 1, 8)}
+ 	queue.packets[0] = p
+ 	expiration := p.rcvTime.Add(protocol.Max0RTTQueueingDuration)
+@@ -1152,13 +1187,19 @@ func (s *baseServer) sendError(remoteAddr net.Addr, hdr *wire.Header, sealer han
+ }
+ 
+ func (s *baseServer) enqueueVersionNegotiationPacket(p receivedPacket) (bufferInUse bool) {
+-	select {
+-	case s.versionNegotiationQueue <- p:
+-		return true
+-	default:
+-		// it's fine to not send version negotiation packets when we are busy
++	// it's fine to not send version negotiation packets when we are busy;
++	// only the run goroutine enqueues, so the capacity check cannot race
++	if len(s.versionNegotiationQueue) == cap(s.versionNegotiationQueue) {
++		return false
+ 	}
+-	return false
++	// a queued packet must not pin a coalesced slab
++	var retained bool
++	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
++	if !retained {
++		return false
++	}
++	s.versionNegotiationQueue <- p
++	return true
+ }
+ 
+ func (s *baseServer) maybeSendVersionNegotiationPacket(p receivedPacket) {
+

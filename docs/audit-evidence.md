@@ -73,3 +73,13 @@ Historical [development journal](DEV-JOURNAL.md) paragraphs are unchanged. Their
 | `issue-46/REVIEW.md` | [View](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/issue-46/REVIEW.md) |
 | `mtu-snapshot-race.md` | [View](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/mtu-snapshot-race.md) |
 | `pacing-ci-103/README.md` | [View](https://github.com/the-sarge/quic-go-fast/blob/3db9121a2c91bce8acb7b6f871adfcaf51bc560b/docs/audits/pacing-ci-103/README.md) |
+
+## Bounded diagnoses — 2026-09-15
+
+These archives preserve the completed investigations at immutable publication commit `be59a71822d2fd8071032cd8b79b18320542c0fc`. Publication does not deploy the temporary probes, renew experiment budgets, or resolve the tracked failures. The issue threads hold current next-step decisions; the archived reports retain their original source, environment, limitations and checksums.
+
+| Investigation | Recorded outcome | Immutable report | Live tracking |
+| --- | --- | --- | --- |
+| Ubuntu transport-running assertion | Reproduced locally; the triggering profile identifies an earlier TestListenAddr transport still completing. Hosted attribution remains an inference; confirmation and repair remain separate work. | [Report](https://github.com/the-sarge/quic-go-fast/blob/be59a71822d2fd8071032cd8b79b18320542c0fc/docs/audits/dial-317/README.md) | [#317](https://github.com/the-sarge/quic-go-fast/issues/317) |
+| macOS socket-rebind timeout | Bounded non-reproduction; concrete bind errors and socket-ownership observations are needed on a natural failure. | [Report](https://github.com/the-sarge/quic-go-fast/blob/be59a71822d2fd8071032cd8b79b18320542c0fc/docs/audits/issue-241/diagnosis.md) | [#241](https://github.com/the-sarge/quic-go-fast/issues/241) |
+| macOS HTTP/3 server hotswap timeout | Bounded non-reproduction; retained capture of the caller-owned listener and both endpoints is proposed separately. | [Report](https://github.com/the-sarge/quic-go-fast/blob/be59a71822d2fd8071032cd8b79b18320542c0fc/docs/audits/issue-188/diagnosis.md) | [#188](https://github.com/the-sarge/quic-go-fast/issues/188) |

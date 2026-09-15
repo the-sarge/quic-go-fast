@@ -1,0 +1,16 @@
+{
+  "command": [
+    "go",
+    "run",
+    "/Volumes/worktrees/quic-go-fast/diagnose-dial-241/diag241_control.go"
+  ],
+  "changed_variable": "Same closed original socket and target address; acquire and release one explicit replacement socket",
+  "prediction": "If rebinding measures address occupancy rather than identity of the original owner, it will fail with EADDRINUSE while the replacement is held even though the original returns net.ErrClosed, then succeed after replacement closure. This control cannot establish the historical cause.",
+  "start": "2026-09-15T00:13:02.156651+00:00",
+  "env": {
+    "GOTOOLCHAIN": "go1.27.1",
+    "TIMESCALE_FACTOR": "10"
+  },
+  "exit_code": 0,
+  "end": "2026-09-15T00:13:02.512097+00:00"
+}

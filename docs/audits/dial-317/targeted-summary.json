@@ -1,0 +1,20 @@
+{
+  "events": {
+    "initialized": 800,
+    "receive-before-call": 800,
+    "Close-after-init": 1600,
+    "receive-returned": 800,
+    "completion-before-close": 800,
+    "completion-after-close": 800,
+    "Close-returning": 1600
+  },
+  "passed_subtests": {
+    "Dial": 200,
+    "DialEarly": 200,
+    "DialAddr": 200,
+    "DialAddrEarly": 200
+  },
+  "observer_true_captures": 0,
+  "Close_returning_incomplete": 0,
+  "e2_passed_Dial": 1000
+}
