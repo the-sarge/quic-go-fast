@@ -376,7 +376,8 @@ func TestConnSendAndReceiveDatagram(t *testing.T) {
 	// Stream 0 provides a delivery barrier before stream 4 is registered.
 	str0, err := clientConn.OpenStreamSync(ctx)
 	require.NoError(t, err)
-	barrierStr := conn.TrackStream(str0)
+	barrierStr, err := conn.TrackStream(str0)
+	require.NoError(t, err)
 
 	const strID = 4
 
@@ -411,7 +412,8 @@ func TestConnSendAndReceiveDatagram(t *testing.T) {
 	str, err := clientConn.OpenStream()
 	require.NoError(t, err)
 	require.Equal(t, quic.StreamID(strID), str.StreamID())
-	datagramStr := conn.TrackStream(str)
+	datagramStr, err := conn.TrackStream(str)
+	require.NoError(t, err)
 
 	// now open the stream...
 	require.NoError(t, serverConn.SendDatagram(append(quarterStreamID, []byte("bar")...)))
