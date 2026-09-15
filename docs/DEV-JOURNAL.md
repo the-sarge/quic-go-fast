@@ -1908,3 +1908,24 @@ The real server regression failed on the original direct-recording path and pass
 ### Next
 
 Implement the separately approved handler/returned-stream lifetime correction in [issue #345](https://github.com/the-sarge/quic-go-fast/issues/345), which remains the live work-tracking surface.
+
+---
+
+## HTTP3 final-stream qlog lifetime protected - 2026-09-15 17:00 EDT
+
+**Main:** `786c00bc6fff`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #359](https://github.com/the-sarge/quic-go-fast/pull/359) for [issue #345](https://github.com/the-sarge/quic-go-fast/issues/345). HTTP/3 handlers retain recording protection through response completion, and stream operations acquire local recording permission through the existing rawConn admission owner. Already admitted handler events survive cancellation; inactive retained streams do not hold shutdown open, and later operations preserve their I/O errors without accessing the closed recorder. Header, DATA, response-writer, and trailer paths share this boundary.
+
+### Validation
+
+The incomplete-request-header, returned-stream late-DATA, and client-response probes each failed before their corresponding fixes. Finite synchronized regressions also cover admitted stream recording and final handler DATA/trailers after cancellation. HTTP/3 package tests, the full HTTP/3 race suite, vet, module tidiness, lint, and all applicable hosted workflows passed on `50d5acb5687b60927fb56fd27790b1684411e6a3`.
+
+RAS review `20260915T205044-70f7fa756ecf81937b90978a` found no correctness failure. [Independent disposition and exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/359#issuecomment-5688008343) record the nonblocking suggestion to narrow Stream.Read accounting and the rejected generic-recorder suggestion. No accepted fixes required another review cycle.
+
+### Decisions
+
+Revalidated the optional read-accounting optimization at merged commit `786c00bc6fff252673858bc4ac1dd25b9845ea82`, `http3/stream.go:77`: payload-only reads still participate in operation-level accounting. This remains an unmeasured marginal optimization with no accepted invariant failure; it is recorded in the PR disposition without creating a follow-up ticket. Both requested lifetime bugs are now fixed, including the earlier [GOAWAY fix](https://github.com/the-sarge/quic-go-fast/pull/356).
