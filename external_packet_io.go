@@ -81,6 +81,8 @@ func (t *Transport) checkPacketIORegistration(conn net.PacketConn) error {
 // operations before registration. Registration rejects active lease I/O and
 // seals the QUIC phase until lease Close, including on initialization failure.
 // Packet and deadline methods continue serving the registered transport/wrapper.
+// Registration preserves lease deadlines. Clear any establishment deadlines
+// before handing the lease to QUIC if they should no longer apply.
 // A non-nil sendBatch must preserve that wrapper's policy and submit through the
 // lease's WriteBatchV1 method, following ConfigureExternalPacketIOV1's callback
 // contract. Nil retains ordinary sends. Receive coalescing remains disabled.
