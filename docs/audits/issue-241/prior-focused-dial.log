@@ -1,0 +1,14 @@
+-test.shuffle 1789160702392383000
+=== RUN   TestDial
+=== RUN   TestDial/Dial
+=== RUN   TestDial/DialEarly
+=== RUN   TestDial/DialAddr
+=== RUN   TestDial/DialAddrEarly
+--- PASS: TestDial (0.00s)
+    --- PASS: TestDial/Dial (0.00s)
+    --- PASS: TestDial/DialEarly (0.00s)
+    --- PASS: TestDial/DialAddr (0.00s)
+    --- PASS: TestDial/DialAddrEarly (0.00s)
+PASS
+coverage: 17.2% of statements
+ok  	github.com/quic-go/quic-go	0.251s	coverage: 17.2% of statements

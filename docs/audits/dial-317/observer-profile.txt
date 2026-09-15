@@ -1,0 +1,39 @@
+goroutine profile: total 5
+1 @ 0x42d81c 0x424338 0x489833 0x48e109 0x92266b 0x49f5f1 0x7e1785 0x7e174f 0x7e7084 0x7e609a 0x5e1d4c 0x7e5fd9 0x493ac1
+# labels: {"socket317":"127.0.0.1:55526", "transport317":"14"}
+#	0x92266a	github.com/quic-go/quic-go.init.0.func3+0x2a			/workspace/buffer_pool.go:120
+#	0x49f5f0	sync.(*Pool).Get+0xb0						/usr/local/go/src/sync/pool.go:155
+#	0x7e1784	github.com/quic-go/quic-go.getCoalescedPacketBuffer+0x404	/workspace/buffer_pool.go:106
+#	0x7e174e	github.com/quic-go/quic-go.(*oobConn).ReadPacket+0x3ce		/workspace/sys_conn_oob.go:164
+#	0x7e7083	github.com/quic-go/quic-go.(*Transport).listen+0x163		/workspace/transport.go:575
+#	0x7e6099	github.com/quic-go/quic-go.(*Transport).init.func1.1.2+0x59	/workspace/transport.go:439
+#	0x5e1d4b	runtime/pprof.Do+0x8b						/usr/local/go/src/runtime/pprof/runtime.go:57
+#	0x7e5fd8	github.com/quic-go/quic-go.(*Transport).init.func1.1+0x198	/workspace/transport.go:437
+
+1 @ 0x449eb1 0x48ad5d 0x5d7951 0x5d7785 0x5d4609 0x88912a 0x7eb58a 0x922117 0x58640a 0x493ac1
+#	0x5d7950	runtime/pprof.writeRuntimeProfile+0xb0			/usr/local/go/src/runtime/pprof/pprof.go:851
+#	0x5d7784	runtime/pprof.writeGoroutine+0x44			/usr/local/go/src/runtime/pprof/pprof.go:784
+#	0x5d4608	runtime/pprof.(*Profile).WriteTo+0x148			/usr/local/go/src/runtime/pprof/pprof.go:408
+#	0x889129	github.com/quic-go/quic-go.areTransportsRunning+0x49	/workspace/quic_test.go:99
+#	0x7eb589	github.com/quic-go/quic-go.testDial+0x609		/workspace/client_test.go:106
+#	0x922116	github.com/quic-go/quic-go.TestDial.func1+0x56		/workspace/client_test.go:16
+#	0x586409	testing.tRunner+0xe9					/usr/local/go/src/testing/testing.go:2036
+
+1 @ 0x48bf2e 0x41b0ae 0x41abd2 0x587425 0x58987e 0x58640a 0x589745 0x5880cc 0x889297 0x939585 0x4548f5 0x493ac1
+#	0x587424	testing.(*T).Run+0x4e4				/usr/local/go/src/testing/testing.go:2109
+#	0x58987d	testing.runTests.func1+0x3d			/usr/local/go/src/testing/testing.go:2585
+#	0x586409	testing.tRunner+0xe9				/usr/local/go/src/testing/testing.go:2036
+#	0x589744	testing.runTests+0x504				/usr/local/go/src/testing/testing.go:2583
+#	0x5880cb	testing.(*M).Run+0x6ab				/usr/local/go/src/testing/testing.go:2443
+#	0x889296	github.com/quic-go/quic-go.TestMain+0x16	/workspace/quic_test.go:108
+#	0x939584	main.main+0xa4					_testmain.go:1066
+#	0x4548f4	runtime.main+0x2d4				/usr/local/go/src/runtime/proc.go:290
+
+1 @ 0x48bf2e 0x41b0ae 0x41abd2 0x587425 0x7eaeef 0x58640a 0x493ac1
+#	0x587424	testing.(*T).Run+0x4e4				/usr/local/go/src/testing/testing.go:2109
+#	0x7eaeee	github.com/quic-go/quic-go.TestDial+0x2e	/workspace/client_test.go:15
+#	0x586409	testing.tRunner+0xe9				/usr/local/go/src/testing/testing.go:2036
+
+1 @ 0x48bf2e 0x4680c5 0x7e63a5 0x493ac1
+#	0x7e63a4	github.com/quic-go/quic-go.(*Transport).runSendQueue+0x124	/workspace/transport.go:462
+

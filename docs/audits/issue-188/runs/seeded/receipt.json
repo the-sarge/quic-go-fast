@@ -1,0 +1,24 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-v",
+    "-timeout",
+    "5m",
+    "-shuffle=1789088800293547000",
+    "-count=1",
+    "./integrationtests/self",
+    "-version=2"
+  ],
+  "env": {
+    "GOTOOLCHAIN": "go1.27.1",
+    "TIMESCALE_FACTOR": "3",
+    "QUIC_GO_HTTP_CAPTURE_DIR": "/Volumes/worktrees/quic-go-fast/diagnose-hotswap-188/docs/audits/issue-188/runs/seeded/http",
+    "QUIC_GO_CORRUPTION_CAPTURE_DIR": "/Volumes/worktrees/quic-go-fast/diagnose-hotswap-188/docs/audits/issue-188/runs/seeded/corruption"
+  },
+  "prediction": "Locate first missing replacement endpoint boundary if the historical symptom reproduces; a pass does not exclude any historical failure hypothesis.",
+  "changed_variable": "Current pinned main plus observation-only probes relative to prior exact-source local suite.",
+  "start": "2026-09-15T00:49:40.662514+00:00",
+  "exit_code": 0,
+  "end": "2026-09-15T00:50:07.611196+00:00"
+}

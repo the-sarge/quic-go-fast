@@ -1,0 +1,26 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-v",
+    "-timeout",
+    "5m",
+    "-shuffle=1789088800293547000",
+    "-count=1",
+    "-run",
+    "^TestHTTP3ServerHotswap$",
+    "./integrationtests/self",
+    "-version=2"
+  ],
+  "env": {
+    "GOTOOLCHAIN": "go1.27.1",
+    "TIMESCALE_FACTOR": "3",
+    "QUIC_GO_HTTP_CAPTURE_DIR": "/Volumes/worktrees/quic-go-fast/diagnose-hotswap-188/docs/audits/issue-188/runs/focused/http",
+    "QUIC_GO_CORRUPTION_CAPTURE_DIR": "/Volumes/worktrees/quic-go-fast/diagnose-hotswap-188/docs/audits/issue-188/runs/focused/corruption"
+  },
+  "prediction": "Failure without predecessors would show suite predecessors are unnecessary; a pass cannot establish or exclude interference.",
+  "changed_variable": "Only test selection relative to seeded run; separate evidence output directory.",
+  "start": "2026-09-15T00:50:27.994557+00:00",
+  "exit_code": 0,
+  "end": "2026-09-15T00:50:29.021775+00:00"
+}

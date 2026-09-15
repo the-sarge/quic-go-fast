@@ -1,0 +1,14 @@
+{
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\n",
+  "go": "go1.27.1\ndarwin\narm64\n1\n",
+  "head": "4fcf07fd9836a6dafebfde7bbbf21fef436d2dc7\n",
+  "tree": "ad4ae2c7788f29de890c24ac18a522c5473b12fa\n",
+  "status": "## codex/diagnose-hotswap-188...origin/main\n M integrationtests/self/http_capture_helper_test.go\n M integrationtests/self/http_hotswap_test.go\n?? docs/audits/issue-188/\n",
+  "environment": {
+    "GODEBUG": "",
+    "GOMAXPROCS": "",
+    "GOFLAGS": "",
+    "QUIC_GO_DISABLE_GSO": "",
+    "QUIC_GO_DISABLE_ECN": ""
+  }
+}

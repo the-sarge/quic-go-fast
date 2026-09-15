@@ -1,0 +1,62 @@
+[
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/environment.log",
+    "expected": "a2ab2dfd3f51b8ef365dedebd95afdd950402bc0d35d71c275eb6bd3a70d5d55",
+    "actual": "a2ab2dfd3f51b8ef365dedebd95afdd950402bc0d35d71c275eb6bd3a70d5d55",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/seeded-suite.log",
+    "expected": "ab8bdb78dda9fd5f52fc4ef2bd72688ef88c5595bb8386bc5666af337d40600b",
+    "actual": "ab8bdb78dda9fd5f52fc4ef2bd72688ef88c5595bb8386bc5666af337d40600b",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/focused-dial.log",
+    "expected": "8600853fefd13bc636c5bef047ba176737e7812f80f062cb1743184b1d846d94",
+    "actual": "8600853fefd13bc636c5bef047ba176737e7812f80f062cb1743184b1d846d94",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/coverage.txt",
+    "expected": "3c8ebef1620d72f88d7fa97eda9c1985c82d66ff5e0510543e0701c4fb48790f",
+    "actual": "3c8ebef1620d72f88d7fa97eda9c1985c82d66ff5e0510543e0701c4fb48790f",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/status.txt",
+    "expected": "ef566ef7544fc2d2c6dadb6aad3bb48e49fa95f9da5a943bdbc88d713ca2df48",
+    "actual": "ef566ef7544fc2d2c6dadb6aad3bb48e49fa95f9da5a943bdbc88d713ca2df48",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/Dockerfile",
+    "expected": "52dfd3b17c53535562f0b2a290efdb77848029fd7651d15cade1355a3cd6656b",
+    "actual": "52dfd3b17c53535562f0b2a290efdb77848029fd7651d15cade1355a3cd6656b",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/run.sh",
+    "expected": "1611981ad689362ac55e6712bea5c14065d830435a000a5574b806402fb477f9",
+    "actual": "1611981ad689362ac55e6712bea5c14065d830435a000a5574b806402fb477f9",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/image-id.txt",
+    "expected": "664d8affb60a6e2df6b37ef711dcf71c8241dd886b023f5cbd1123621325bf9f",
+    "actual": "664d8affb60a6e2df6b37ef711dcf71c8241dd886b023f5cbd1123621325bf9f",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/image-build.log",
+    "expected": "700a4c0b9f94ec20d6cb045a7410170b4d66aba0809eb8a48aaec3f4279370e7",
+    "actual": "700a4c0b9f94ec20d6cb045a7410170b4d66aba0809eb8a48aaec3f4279370e7",
+    "ok": true
+  },
+  {
+    "path": "/Users/josh/diagnostics/triage-dial-317-2026-09-15/driver.log",
+    "expected": "8abbba605082d8393f58352207267435b42e1135777547cdb532ddb2389a9ca5",
+    "actual": "8abbba605082d8393f58352207267435b42e1135777547cdb532ddb2389a9ca5",
+    "ok": true
+  }
+]

@@ -1,0 +1,428 @@
+[
+  {
+    "line": 1,
+    "time": "2026-09-15T00:50:28.922172Z",
+    "phase": "test",
+    "source": "fixture",
+    "event": "capture_start",
+    "data": {
+      "arch": "arm64",
+      "args": [
+        "/var/folders/ph/8tf9wjq95wjcv0qf93zg96c00000gn/T/go-build949061446/b001/self.test",
+        "-test.paniconexit0",
+        "-test.v=true",
+        "-test.timeout=5m0s",
+        "-test.shuffle=1789088800293547000",
+        "-test.count=1",
+        "-test.run=^TestHTTP3ServerHotswap$",
+        "-version=2"
+      ],
+      "environment": {
+        "GITHUB_JOB": "",
+        "GITHUB_RUN_ATTEMPT": "",
+        "GITHUB_RUN_ID": "",
+        "GITHUB_SHA": "",
+        "GODEBUG": "",
+        "GOMAXPROCS": "",
+        "GOTOOLCHAIN": "go1.27.1",
+        "QUIC_GO_DISABLE_ECN": "",
+        "QUIC_GO_DISABLE_GSO": "",
+        "QUIC_GO_HTTP_RUN_ID": "",
+        "TIMESCALE_FACTOR": "3"
+      },
+      "event_bytes": 262144,
+      "go": "go1.27.1",
+      "os": "darwin",
+      "provenance": "full command output and actual seed belong to the matching run artifact",
+      "schema": 1,
+      "slot_bytes": 33554432,
+      "source": {
+        "head": "4fcf07fd9836a6dafebfde7bbbf21fef436d2dc7",
+        "status": "M integrationtests/self/http_capture_helper_test.go\n M integrationtests/self/http_hotswap_test.go\n?? docs/audits/issue-188/",
+        "tree": "ad4ae2c7788f29de890c24ac18a522c5473b12fa"
+      },
+      "test": "TestHTTP3ServerHotswap",
+      "version": "v2"
+    }
+  },
+  {
+    "line": 2,
+    "time": "2026-09-15T00:50:28.922563Z",
+    "phase": "test",
+    "source": "fixture",
+    "event": "DEBUG-188",
+    "data": "temporary capture; passing recordings retained"
+  },
+  {
+    "line": 3,
+    "time": "2026-09-15T00:50:28.92308Z",
+    "phase": "test",
+    "source": "fixture",
+    "event": "new_client",
+    "data": 1
+  },
+  {
+    "line": 5,
+    "time": "2026-09-15T00:50:28.923135Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "serve_enter",
+    "data": null
+  },
+  {
+    "line": 6,
+    "time": "2026-09-15T00:50:28.923247Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "accept_enter",
+    "data": "<nil>"
+  },
+  {
+    "line": 39,
+    "time": "2026-09-15T00:50:28.926675Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "accept_return",
+    "data": "conn=0x67c55f002508 error=<nil> context=<nil>"
+  },
+  {
+    "line": 40,
+    "time": "2026-09-15T00:50:28.92668Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "connection",
+    "data": "conn=0x67c55f002508 local=127.0.0.1:54723 remote=127.0.0.1:63891"
+  },
+  {
+    "line": 41,
+    "time": "2026-09-15T00:50:28.926701Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "accept_enter",
+    "data": "<nil>"
+  },
+  {
+    "line": 42,
+    "time": "2026-09-15T00:50:28.926717Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "admitted",
+    "data": "conn=0x67c55f002508"
+  },
+  {
+    "line": 96,
+    "time": "2026-09-15T00:50:28.927408Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "handshake_complete",
+    "data": "conn=0x67c55f002508"
+  },
+  {
+    "line": 112,
+    "time": "2026-09-15T00:50:28.927595Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "handler_enter",
+    "data": "/hello1"
+  },
+  {
+    "line": 113,
+    "time": "2026-09-15T00:50:28.927602Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "handler_write",
+    "data": "bytes=16 error=<nil>"
+  },
+  {
+    "line": 129,
+    "time": "2026-09-15T00:50:28.927765Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "serve_enter",
+    "data": null
+  },
+  {
+    "line": 130,
+    "time": "2026-09-15T00:50:28.927774Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "accept_enter",
+    "data": "<nil>"
+  },
+  {
+    "line": 162,
+    "time": "2026-09-15T00:50:28.98798Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "close_enter",
+    "data": null
+  },
+  {
+    "line": 163,
+    "time": "2026-09-15T00:50:28.988022Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "accept_return",
+    "data": "conn=0x0 error=context canceled context=context canceled"
+  },
+  {
+    "line": 164,
+    "time": "2026-09-15T00:50:28.988031Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "serve_return",
+    "data": "http: Server closed"
+  },
+  {
+    "line": 171,
+    "time": "2026-09-15T00:50:28.988201Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "close_return",
+    "data": "<nil>"
+  },
+  {
+    "line": 172,
+    "time": "2026-09-15T00:50:28.988207Z",
+    "phase": "test",
+    "source": "server1",
+    "event": "connection_done",
+    "data": "conn=0x67c55f002508 cause=Application error 0x100 (local)"
+  },
+  {
+    "line": 178,
+    "time": "2026-09-15T00:50:28.988314Z",
+    "phase": "test",
+    "source": "fixture",
+    "event": "new_client",
+    "data": 2
+  },
+  {
+    "line": 179,
+    "time": "2026-09-15T00:50:28.988319Z",
+    "phase": "test",
+    "source": "client2",
+    "event": "get_enter",
+    "data": null
+  },
+  {
+    "line": 208,
+    "time": "2026-09-15T00:50:28.989398Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "accept_return",
+    "data": "conn=0x67c55f200008 error=<nil> context=<nil>"
+  },
+  {
+    "line": 209,
+    "time": "2026-09-15T00:50:28.989405Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "connection",
+    "data": "conn=0x67c55f200008 local=127.0.0.1:54723 remote=127.0.0.1:59735"
+  },
+  {
+    "line": 212,
+    "time": "2026-09-15T00:50:28.989443Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "accept_enter",
+    "data": "<nil>"
+  },
+  {
+    "line": 217,
+    "time": "2026-09-15T00:50:28.989485Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "admitted",
+    "data": "conn=0x67c55f200008"
+  },
+  {
+    "line": 247,
+    "time": "2026-09-15T00:50:28.989845Z",
+    "phase": "test",
+    "source": "client2 client=true initial_cid=5943f672cc7c7430f232195b",
+    "event": "transport:packet_sent",
+    "data": {
+      "encode_error": "<nil>",
+      "encoded": "{\"header\":{\"packet_type\":\"1RTT\",\"packet_number\":1,\"version\":\"6b3343cf\",\"dcil\":4,\"dcid\":\"dfc56cd0\",\"key_phase_bit\":\"0\"},\"raw\":{\"length\":76,\"payload_length\":69},\"datagram_payload_checksum\":756003362,\"frames\":[{\"frame_type\":\"stream\",\"stream_id\":2,\"offset\":0,\"length\":8},{\"frame_type\":\"stream\",\"stream_id\":0,\"offset\":0,\"length\":40,\"fin\":true}],\"ecn\":\"ECT(0)\"}\n"
+    }
+  },
+  {
+    "line": 268,
+    "time": "2026-09-15T00:50:28.990099Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "handshake_complete",
+    "data": "conn=0x67c55f200008"
+  },
+  {
+    "line": 281,
+    "time": "2026-09-15T00:50:28.990237Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "handler_enter",
+    "data": "/hello2"
+  },
+  {
+    "line": 282,
+    "time": "2026-09-15T00:50:28.990246Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "handler_write",
+    "data": "bytes=16 error=<nil>"
+  },
+  {
+    "line": 283,
+    "time": "2026-09-15T00:50:28.990273Z",
+    "phase": "test",
+    "source": "client2 client=true initial_cid=5943f672cc7c7430f232195b",
+    "event": "transport:packet_received",
+    "data": {
+      "encode_error": "<nil>",
+      "encoded": "{\"header\":{\"packet_type\":\"1RTT\",\"packet_number\":2,\"dcil\":4,\"dcid\":\"004db5a4\",\"key_phase_bit\":\"0\"},\"raw\":{\"length\":301,\"payload_length\":294},\"frames\":[{\"frame_type\":\"ack\",\"ack_delay\":0.216,\"acked_ranges\":[[0,1]],\"ect0\":1,\"ect1\":0,\"ce\":0},{\"frame_type\":\"new_token\",\"token\":{\"data\":\"ff3fd6b2c4e9f7e68cc46656eb1c24ce99cf3451ec6c0e60a343d71a74eab63476a2ca65f0de12fb14434dace70c5f824e5498addb3f547ad55c0987cbefc8fd3886a6b9607317a0be991606702fd73365ac1e3abaa5bd76f1e0\"}},{\"frame_type\":\"retire_connection_id\",\"sequence_number\":0},{\"frame_type\":\"handshake_done\"},{\"frame_type\":\"crypto\",\"offset\":0,\"length\":170}],\"ecn\":\"ECT(0)\"}\n"
+    }
+  },
+  {
+    "line": 289,
+    "time": "2026-09-15T00:50:28.99038Z",
+    "phase": "test",
+    "source": "client2 client=true initial_cid=5943f672cc7c7430f232195b",
+    "event": "transport:packet_received",
+    "data": {
+      "encode_error": "<nil>",
+      "encoded": "{\"header\":{\"packet_type\":\"1RTT\",\"packet_number\":3,\"dcil\":4,\"dcid\":\"004db5a4\",\"key_phase_bit\":\"0\"},\"raw\":{\"length\":97,\"payload_length\":90},\"frames\":[{\"frame_type\":\"stream\",\"stream_id\":0,\"offset\":0,\"length\":72,\"fin\":true}],\"ecn\":\"ECT(0)\"}\n"
+    }
+  },
+  {
+    "line": 292,
+    "time": "2026-09-15T00:50:28.990423Z",
+    "phase": "test",
+    "source": "client2",
+    "event": "get_return",
+    "data": "<nil>"
+  },
+  {
+    "line": 293,
+    "time": "2026-09-15T00:50:28.990429Z",
+    "phase": "test",
+    "source": "client2",
+    "event": "response_headers",
+    "data": 200
+  },
+  {
+    "line": 301,
+    "time": "2026-09-15T00:50:28.990496Z",
+    "phase": "test",
+    "source": "client2",
+    "event": "body_consumed",
+    "data": "bytes=16 error=<nil>"
+  },
+  {
+    "line": 302,
+    "time": "2026-09-15T00:50:28.990502Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "close_enter",
+    "data": null
+  },
+  {
+    "line": 303,
+    "time": "2026-09-15T00:50:28.990508Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "accept_return",
+    "data": "conn=0x0 error=context canceled context=context canceled"
+  },
+  {
+    "line": 304,
+    "time": "2026-09-15T00:50:28.990512Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "serve_return",
+    "data": "http: Server closed"
+  },
+  {
+    "line": 312,
+    "time": "2026-09-15T00:50:28.990592Z",
+    "phase": "test",
+    "source": "server2",
+    "event": "close_return",
+    "data": "<nil>"
+  },
+  {
+    "line": 313,
+    "time": "2026-09-15T00:50:28.990597Z",
+    "phase": "test",
+    "source": "fixture",
+    "event": "pre_teardown",
+    "data": "observations after this boundary belong to cleanup"
+  },
+  {
+    "line": 314,
+    "time": "2026-09-15T00:50:28.9906Z",
+    "phase": "cleanup",
+    "source": "client2",
+    "event": "close_enter",
+    "data": null
+  },
+  {
+    "line": 315,
+    "time": "2026-09-15T00:50:28.990604Z",
+    "phase": "cleanup",
+    "source": "server2",
+    "event": "connection_done",
+    "data": "conn=0x67c55f200008 cause=Application error 0x100 (local)"
+  },
+  {
+    "line": 316,
+    "time": "2026-09-15T00:50:28.990608Z",
+    "phase": "cleanup",
+    "source": "client2 client=true initial_cid=5943f672cc7c7430f232195b",
+    "event": "transport:connection_closed",
+    "data": {
+      "encode_error": "<nil>",
+      "encoded": "{\"initiator\":\"remote\",\"application_error\":\"unknown\",\"error_code\":256,\"reason\":\"\"}\n"
+    }
+  },
+  {
+    "line": 319,
+    "time": "2026-09-15T00:50:28.990633Z",
+    "phase": "cleanup",
+    "source": "client2",
+    "event": "close_return",
+    "data": "<nil>"
+  },
+  {
+    "line": 320,
+    "time": "2026-09-15T00:50:28.990637Z",
+    "phase": "cleanup",
+    "source": "listener",
+    "event": "close_enter",
+    "data": null
+  },
+  {
+    "line": 321,
+    "time": "2026-09-15T00:50:28.990644Z",
+    "phase": "cleanup",
+    "source": "listener",
+    "event": "close_return",
+    "data": "<nil>"
+  },
+  {
+    "line": 322,
+    "time": "2026-09-15T00:50:28.990682Z",
+    "phase": "cleanup",
+    "source": "fixture",
+    "event": "capture_finished",
+    "data": {
+      "complete_recording_window": true,
+      "dropped": 0,
+      "encoding_errors": 0,
+      "failed": false,
+      "observed": 321,
+      "retained_before_summary": 321,
+      "scope": "admitted observations through fixture cleanup; not proof of absent protocol activity"
+    }
+  }
+]

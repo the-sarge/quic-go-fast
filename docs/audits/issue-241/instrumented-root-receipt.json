@@ -1,0 +1,23 @@
+{
+  "base": "4fcf07fd9836a6dafebfde7bbbf21fef436d2dc7",
+  "command": [
+    "go",
+    "test",
+    "-v",
+    "-shuffle=1789160702392383000",
+    "-cover",
+    "-count=1",
+    "-timeout=2m",
+    "."
+  ],
+  "env": {
+    "GOTOOLCHAIN": "go1.27.1",
+    "TIMESCALE_FACTOR": "10",
+    "GOMAXPROCS": null,
+    "GODEBUG": null,
+    "QUIC_GO_DISABLE_GSO": null
+  },
+  "start": "2026-09-15T00:11:48.604251+00:00",
+  "exit_code": 0,
+  "end": "2026-09-15T00:11:55.452717+00:00"
+}

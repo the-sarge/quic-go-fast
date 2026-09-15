@@ -1,0 +1,128 @@
+=== RUN   TestListenAddr
+[DEBUG-317] event=initialized id=14 transport=0x23a45f63e500 socket=127.0.0.1:55526 owned=true completed=false
+goroutine 1223 [running]:
+runtime/debug.Stack()
+	/usr/local/go/src/runtime/debug/stack.go:26 +0x5e
+github.com/quic-go/quic-go.diagnostic317Event(0x23a45f63e500, {0xaab647, 0xb}, 0x1)
+	/workspace/diagnostic_317.go:30 +0xbb
+github.com/quic-go/quic-go.(*Transport).init.func1()
+	/workspace/transport.go:429 +0x4bc
+sync.(*Once).doSlow(0xaa957f?, 0x6?)
+	/usr/local/go/src/sync/once.go:78 +0xac
+sync.(*Once).Do(...)
+	/usr/local/go/src/sync/once.go:69
+github.com/quic-go/quic-go.(*Transport).init(0x23a45f63e500, 0xa0?)
+	/workspace/transport.go:385 +0x6f
+github.com/quic-go/quic-go.(*Transport).createServer(0x23a45f63e500, 0x23a45f205680, 0x23a45f35b5f0, 0x0)
+	/workspace/transport.go:219 +0x16c
+github.com/quic-go/quic-go.(*Transport).Listen(0xaab75a?, 0x23a45f17dec8?, 0x424765?)
+	/workspace/transport.go:183 +0x45
+github.com/quic-go/quic-go.ListenAddr({0xaab75a?, 0x23a45f1e4b48?}, 0x23a45f205680, 0x23a45f35b5f0)
+	/workspace/server.go:198 +0xb4
+github.com/quic-go/quic-go.TestListenAddr(0x23a45f1e4b48)
+	/workspace/server_test.go:229 +0x1d3
+testing.tRunner(0x23a45f1e4b48, 0xadce58)
+	/usr/local/go/src/testing/testing.go:2036 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:2101 +0x4c5
+[DEBUG-317] event=receive-before-call id=14 transport=0x23a45f63e500 socket=127.0.0.1:55526 owned=true completed=false
+--- PASS: TestListenAddr (0.01s)
+=== RUN   TestConnectionVersionNegotiationInvalidPackets
+--- PASS: TestConnectionVersionNegotiationInvalidPackets (0.00s)
+=== RUN   TestPackConnectionClose1RTT
+--- PASS: TestPackConnectionClose1RTT (0.00s)
+=== RUN   TestStreamsMap0RTT
+--- PASS: TestStreamsMap0RTT (0.00s)
+=== RUN   TestStreamsMapCreatingStreams
+=== RUN   TestStreamsMapCreatingStreams/client
+=== RUN   TestStreamsMapCreatingStreams/server
+--- PASS: TestStreamsMapCreatingStreams (0.00s)
+    --- PASS: TestStreamsMapCreatingStreams/client (0.00s)
+    --- PASS: TestStreamsMapCreatingStreams/server (0.00s)
+=== RUN   TestDial
+=== RUN   TestDial/Dial
+[DEBUG-317] event=initialized id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=false
+goroutine 1240 [running]:
+runtime/debug.Stack()
+	/usr/local/go/src/runtime/debug/stack.go:26 +0x5e
+github.com/quic-go/quic-go.diagnostic317Event(0x23a45f242500, {0xaab647, 0xb}, 0x1)
+	/workspace/diagnostic_317.go:30 +0xbb
+github.com/quic-go/quic-go.(*Transport).init.func1()
+	/workspace/transport.go:429 +0x4bc
+sync.(*Once).doSlow(0x23a45f549ec8?, 0x58564b?)
+	/usr/local/go/src/sync/once.go:78 +0xac
+sync.(*Once).Do(...)
+	/usr/local/go/src/sync/once.go:69
+github.com/quic-go/quic-go.(*Transport).init(0x23a45f242500, 0x90?)
+	/workspace/transport.go:385 +0x6f
+github.com/quic-go/quic-go.(*Transport).dial(0x23a45f242500, {0xaebe08, 0x23a45f302e10}, {0xae8700, 0x23a45f7547e0}, {0x0, 0x0}, 0x23a45f3a4960, 0x0, 0x0)
+	/workspace/transport.go:257 +0x8a
+github.com/quic-go/quic-go.(*Transport).Dial(...)
+	/workspace/transport.go:248
+github.com/quic-go/quic-go.Dial({0xaebe08, 0x23a45f302e10}, {0xaf14d0?, 0x23a45f524200?}, {0xae8700, 0x23a45f7547e0}, 0x23a45f3a4960, 0x0)
+	/workspace/client.go:96 +0x1be
+github.com/quic-go/quic-go.TestDial.func1.1({0xaebe08, 0x23a45f302e10}, {0xae8700, 0x23a45f7547e0})
+	/workspace/client_test.go:19 +0x70
+github.com/quic-go/quic-go.testDial.func1()
+	/workspace/client_test.go:66 +0x4d
+created by github.com/quic-go/quic-go.testDial in goroutine 1239
+	/workspace/client_test.go:66 +0x12f
+[DEBUG-317] event=receive-before-call id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=false
+[DEBUG-317] test=TestDial/Dial socket=127.0.0.1:58722 event=before-cancel
+[DEBUG-317] event=Close-after-init id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=false
+[DEBUG-317] event=receive-returned id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=false
+[DEBUG-317] event=completion-before-close id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=false
+[DEBUG-317] event=completion-after-close id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=true
+[DEBUG-317] event=Close-returning id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=true
+[DEBUG-317] event=Close-after-init id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=true
+[DEBUG-317] event=Close-returning id=15 transport=0x23a45f242500 socket=127.0.0.1:58722 owned=false completed=true
+[DEBUG-317] test=TestDial/Dial socket=127.0.0.1:58722 event=dial-result-received
+[DEBUG-317] matching observer profile
+goroutine profile: total 5
+1 @ 0x42d81c 0x424338 0x489833 0x48e109 0x92266b 0x49f5f1 0x7e1785 0x7e174f 0x7e7084 0x7e609a 0x5e1d4c 0x7e5fd9 0x493ac1
+# labels: {"socket317":"127.0.0.1:55526", "transport317":"14"}
+#	0x92266a	github.com/quic-go/quic-go.init.0.func3+0x2a			/workspace/buffer_pool.go:120
+#	0x49f5f0	sync.(*Pool).Get+0xb0						/usr/local/go/src/sync/pool.go:155
+#	0x7e1784	github.com/quic-go/quic-go.getCoalescedPacketBuffer+0x404	/workspace/buffer_pool.go:106
+#	0x7e174e	github.com/quic-go/quic-go.(*oobConn).ReadPacket+0x3ce		/workspace/sys_conn_oob.go:164
+#	0x7e7083	github.com/quic-go/quic-go.(*Transport).listen+0x163		/workspace/transport.go:575
+#	0x7e6099	github.com/quic-go/quic-go.(*Transport).init.func1.1.2+0x59	/workspace/transport.go:439
+#	0x5e1d4b	runtime/pprof.Do+0x8b						/usr/local/go/src/runtime/pprof/runtime.go:57
+#	0x7e5fd8	github.com/quic-go/quic-go.(*Transport).init.func1.1+0x198	/workspace/transport.go:437
+
+1 @ 0x449eb1 0x48ad5d 0x5d7951 0x5d7785 0x5d4609 0x88912a 0x7eb58a 0x922117 0x58640a 0x493ac1
+#	0x5d7950	runtime/pprof.writeRuntimeProfile+0xb0			/usr/local/go/src/runtime/pprof/pprof.go:851
+#	0x5d7784	runtime/pprof.writeGoroutine+0x44			/usr/local/go/src/runtime/pprof/pprof.go:784
+#	0x5d4608	runtime/pprof.(*Profile).WriteTo+0x148			/usr/local/go/src/runtime/pprof/pprof.go:408
+#	0x889129	github.com/quic-go/quic-go.areTransportsRunning+0x49	/workspace/quic_test.go:99
+#	0x7eb589	github.com/quic-go/quic-go.testDial+0x609		/workspace/client_test.go:106
+#	0x922116	github.com/quic-go/quic-go.TestDial.func1+0x56		/workspace/client_test.go:16
+#	0x586409	testing.tRunner+0xe9					/usr/local/go/src/testing/testing.go:2036
+
+1 @ 0x48bf2e 0x41b0ae 0x41abd2 0x587425 0x58987e 0x58640a 0x589745 0x5880cc 0x889297 0x939585 0x4548f5 0x493ac1
+#	0x587424	testing.(*T).Run+0x4e4				/usr/local/go/src/testing/testing.go:2109
+#	0x58987d	testing.runTests.func1+0x3d			/usr/local/go/src/testing/testing.go:2585
+#	0x586409	testing.tRunner+0xe9				/usr/local/go/src/testing/testing.go:2036
+#	0x589744	testing.runTests+0x504				/usr/local/go/src/testing/testing.go:2583
+#	0x5880cb	testing.(*M).Run+0x6ab				/usr/local/go/src/testing/testing.go:2443
+#	0x889296	github.com/quic-go/quic-go.TestMain+0x16	/workspace/quic_test.go:108
+#	0x939584	main.main+0xa4					_testmain.go:1066
+#	0x4548f4	runtime.main+0x2d4				/usr/local/go/src/runtime/proc.go:290
+
+1 @ 0x48bf2e 0x41b0ae 0x41abd2 0x587425 0x7eaeef 0x58640a 0x493ac1
+#	0x587424	testing.(*T).Run+0x4e4				/usr/local/go/src/testing/testing.go:2109
+#	0x7eaeee	github.com/quic-go/quic-go.TestDial+0x2e	/workspace/client_test.go:15
+#	0x586409	testing.tRunner+0xe9				/usr/local/go/src/testing/testing.go:2036
+
+1 @ 0x48bf2e 0x4680c5 0x7e63a5 0x493ac1
+#	0x7e63a4	github.com/quic-go/quic-go.(*Transport).runSendQueue+0x124	/workspace/transport.go:462
+
+[DEBUG-317] end profile
+    client_test.go:106: 
+        	Error Trace:	/workspace/client_test.go:106
+        	            				/workspace/client_test.go:16
+        	Error:      	Should be false
+        	Test:       	TestDial/Dial
+[DEBUG-317] event=receive-returned id=14 transport=0x23a45f63e500 socket=127.0.0.1:55526 owned=true completed=false
+[DEBUG-317] event=completion-before-close id=14 transport=0x23a45f63e500 socket=127.0.0.1:55526 owned=true completed=false
+[DEBUG-317] event=completion-after-close id=14 transport=0x23a45f63e500 socket=127.0.0.1:55526 owned=true completed=true

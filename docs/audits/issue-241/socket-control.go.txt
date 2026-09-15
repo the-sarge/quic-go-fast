@@ -1,0 +1,70 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"syscall"
+	"time"
+)
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func originalClosed(c *net.UDPConn) {
+	raw, err := c.SyscallConn()
+	if err == nil {
+		err = raw.Control(func(uintptr) {})
+	}
+	fmt.Printf("original=%p local=%s closed=%t error=%v\n", c, c.LocalAddr(), errors.Is(err, net.ErrClosed), err)
+	if !errors.Is(err, net.ErrClosed) {
+		panic("original socket is not closed")
+	}
+}
+
+func bind(addr *net.UDPAddr, wantBusy bool) *net.UDPConn {
+	c, err := net.ListenUDP("udp", addr)
+	var errno syscall.Errno
+	errors.As(err, &errno)
+	fmt.Printf("at=%s pid=%d bind=%s socket=%p want_busy=%t error_type=%T errno=%d error=%v\n", time.Now().UTC().Format(time.RFC3339Nano), os.Getpid(), addr, c, wantBusy, err, errno, err)
+	if wantBusy {
+		if c != nil {
+			c.Close()
+		}
+		if !errors.Is(err, syscall.EADDRINUSE) {
+			panic("expected EADDRINUSE")
+		}
+	} else {
+		must(err)
+	}
+	return c
+}
+
+func main() {
+	original, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero})
+	must(err)
+	defer original.Close()
+	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: original.LocalAddr().(*net.UDPAddr).Port}
+	fmt.Printf("original=%p local=%s target=%s\n", original, original.LocalAddr(), addr)
+	must(original.Close())
+	originalClosed(original)
+	// Control A: the original has closed, with no replacement owner.
+	baseline := bind(addr, false)
+	must(baseline.Close())
+	// Control B: only address occupancy changes; original remains closed.
+	competitor := bind(addr, false)
+	defer competitor.Close()
+	fmt.Printf("competitor=%p local=%s\n", competitor, competitor.LocalAddr())
+	originalClosed(original)
+	bind(addr, true)
+	// Remove the changed variable and check the same address again.
+	must(competitor.Close())
+	originalClosed(original)
+	rebound := bind(addr, false)
+	must(rebound.Close())
+	fmt.Println("PASS: rebind error distinguishes occupancy, not original ownership")
+}

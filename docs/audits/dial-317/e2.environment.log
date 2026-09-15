@@ -1,0 +1,25 @@
+Tue Sep 15 00:59:26 UTC 2026
+Linux cfe8045ae2f0 7.0.12-linuxkit #1 SMP PREEMPT Thu Aug 27 14:02:21 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+uid=1001(runner) gid=1001(runner) groups=1001(runner)
+go version go1.26.8 linux/amd64
+linux
+amd64
+v1
+1
+local
+10
+GOMAXPROCS=default
+command: timeout 600 go test -v -run \^TestDial\$/\^Dial\$ -shuffle=1789428569339240250 -cover -count=1000 -failfast -timeout=9m .

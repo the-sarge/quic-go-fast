@@ -1,0 +1,6 @@
+using QUIC version: v2
+-test.shuffle 1789088800293547000
+=== RUN   TestHTTP3ServerHotswap
+--- PASS: TestHTTP3ServerHotswap (0.13s)
+PASS
+ok  	github.com/quic-go/quic-go/integrationtests/self	0.677s

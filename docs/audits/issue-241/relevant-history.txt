@@ -1,0 +1,4 @@
+6861a14b build: refresh dependencies and tools for second prerelease (#306)
+b556451a refactor: share coalesced receive delivery ownership (#296)
+e36e69f7 fix: fail closed on invalid send batch progress (#292)
+8e6fae46 feat: macOS sendmsg_x batch send with fail-closed qualification (D1) (#257)
