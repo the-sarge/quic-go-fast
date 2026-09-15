@@ -1,0 +1,7 @@
+# Container launches
+
+Each launch used `docker run --rm --platform linux/amd64 --name fixture-317-NAME -v /Volumes/worktrees/quic-go-fast/fixture-completion-317:/source:ro -v /Users/josh/diagnostics/fixture-completion-317-2026-09-15:/evidence sha256:20dfa9aeeb42795279e3e73318bdd425f1fe09e3cebed05484fce1a3ca9aef20 bash /evidence/run.sh NAME COMMAND`. Names were e1, e2, e3, e4. Exact COMMAND arguments and runtime environments are recorded in each environment log. The source mount was read-only; each disposable container copied it into its private workspace and used private writable build/module caches as UID 1001.
+
+Go source was the baseline in source.txt plus the matching eN.patch and sequence.go.txt as fixture_sequence_317_test.go. e1.patch is intentionally empty. The temporary sequence executes the original TestListenAddr before the original TestDial; the -run expression selects only Dial among its children. Each top-level repetition creates a fresh real fixture. e3/e4 compile the temporary sequence but select only the fixture regression. No observer or lifecycle instrumentation was applied. The plan document was also present but excluded from runtime copies.
+
+The Go command, including compilation and downloads, had an outer `timeout --signal=TERM --kill-after=5 595` and inner `-timeout=9m`. Source copy and environment inspection preceded that command. All observed launches completed within ten minutes. No native VM was started or provisioned.

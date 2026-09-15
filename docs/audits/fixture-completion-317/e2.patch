@@ -1,0 +1,20 @@
+diff --git i/server_test.go w/server_test.go
+index f990815c..544a022d 100644
+--- i/server_test.go
++++ w/server_test.go
+@@ -228,7 +228,14 @@ func TestListenAddr(t *testing.T) {
+ 
+ 	ln, err := ListenAddr("127.0.0.1:0", &tls.Config{}, &Config{})
+ 	require.NoError(t, err)
+-	defer ln.Close()
++	defer func() {
++		require.NoError(t, ln.Close())
++		select {
++		case <-(*Transport)(ln.baseServer.tr).listening:
++		case <-time.After(scaleDuration(time.Second)):
++			t.Fatal("listener fixture transport did not stop")
++		}
++	}()
+ }
+ 
+ func TestServerPacketDropping(t *testing.T) {

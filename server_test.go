@@ -226,9 +226,37 @@ func TestListenAddr(t *testing.T) {
 	require.Error(t, err)
 	require.IsType(t, &net.OpError{}, err)
 
+	newTestListenAddr(t)
+}
+
+func newTestListenAddr(t *testing.T) *Listener {
+	t.Helper()
 	ln, err := ListenAddr("127.0.0.1:0", &tls.Config{}, &Config{})
 	require.NoError(t, err)
-	defer ln.Close()
+	t.Cleanup(func() {
+		require.NoError(t, ln.Close())
+		// Listener.Close stops the server, but this fixture also owns the
+		// transport observed by subsequent tests' process-wide leak checks.
+		select {
+		case <-(*Transport)(ln.baseServer.tr).listening:
+		case <-time.After(scaleDuration(time.Second)):
+			t.Fatal("listener fixture transport did not stop")
+		}
+	})
+	return ln
+}
+
+func TestListenAddrFixtureStopsTransport(t *testing.T) {
+	var stopped <-chan struct{}
+	t.Run("fixture", func(t *testing.T) {
+		ln := newTestListenAddr(t)
+		stopped = (*Transport)(ln.baseServer.tr).listening
+	})
+	select {
+	case <-stopped:
+	default:
+		t.Fatal("listener fixture returned before its transport listener stopped")
+	}
 }
 
 func TestServerPacketDropping(t *testing.T) {
