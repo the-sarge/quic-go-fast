@@ -203,3 +203,39 @@ func TestSendmsgXDisabledPathInert(t *testing.T) {
 	require.Equal(t, subsBefore, subsAfter, "the disabled path must never submit a batch")
 	require.Greater(t, fallbackAfter, fallbackBefore, "fallback counters must observe the inert path")
 }
+
+func TestFixedPeerNativeBatch(t *testing.T) {
+	major, err := getMacOSVersion()
+	require.NoError(t, err)
+	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+		t.Skipf("unqualified Darwin kernel %d", major)
+	}
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	require.True(t, sendmsgXAvailable())
+	selected, foreign := newUDPConnLocalhost(t), newUDPConnLocalhost(t)
+	tr := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, configureFixedPeer(t, tr, selected.LocalAddr().(*net.UDPAddr)))
+	require.NoError(t, tr.init(false))
+	defer tr.Close()
+	sc := newSendConn(tr.conn, selected.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+	before, _, _ := sendmsgXCountersSnapshot()
+	n, err := sc.sendBatch([][]byte{[]byte("one"), []byte("two")}, protocol.ECNUnsupported)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	after, _, _ := sendmsgXCountersSnapshot()
+	require.Greater(t, after, before)
+	sc.ChangeRemoteAddr(foreign.LocalAddr(), packetInfo{})
+	n, err = sc.sendBatch([][]byte{[]byte("blocked")}, protocol.ECNUnsupported)
+	require.Error(t, err)
+	require.Zero(t, n)
+	final, _, _ := sendmsgXCountersSnapshot()
+	require.Equal(t, after, final)
+	require.NoError(t, selected.SetReadDeadline(time.Now().Add(time.Second)))
+	for _, want := range []string{"one", "two"} {
+		b := make([]byte, 64)
+		n, _, err := selected.ReadFrom(b)
+		require.NoError(t, err)
+		require.Equal(t, want, string(b[:n]))
+	}
+}

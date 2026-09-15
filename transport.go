@@ -485,7 +485,7 @@ func (t *Transport) runSendQueue() {
 // If a server was started, it will be closed as well.
 // It is not possible to start any new server or dial new connections after that.
 //
-// For a registered external connection, Close reports initialization or binding
+// For external packet I/O or fixed-peer configuration, Close reports initialization or binding
 // errors after stopping any initialized listener and connections. A binding
 // failure before initialization may mean no reader was started. Close does not
 // close a caller-owned socket.
@@ -505,7 +505,7 @@ func (t *Transport) Close() error {
 	if t.listening != nil {
 		<-t.listening // wait until listening returns
 	}
-	if t.packetIO.external != nil {
+	if t.packetIO.external != nil || t.policyConn.policy != nil {
 		return initErr
 	}
 	return nil
