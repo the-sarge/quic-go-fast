@@ -104,7 +104,10 @@ func (c *RawServerConn) CloseWithError(code quic.ApplicationErrorCode, msg strin
 // The stream can either be obtained by calling [quic.Conn.AcceptStream] on the underlying QUIC connection,
 // or (internally) by using the server's stream accept loop.
 func (c *RawServerConn) HandleRequestStream(str *quic.Stream) {
-	hstr := c.rawConn.TrackStream(str)
+	hstr, err := c.rawConn.TrackStream(str)
+	if err != nil {
+		return
+	}
 	c.handleRequestStream(hstr)
 }
 
