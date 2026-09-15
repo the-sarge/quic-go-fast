@@ -155,7 +155,8 @@ type Transport struct {
 
 	server *baseServer
 
-	conn rawConn
+	conn       rawConn
+	policyConn packetPolicyConn
 
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
@@ -399,6 +400,8 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 		}
 
 		conn = t.wrapExternalPacketIO(conn)
+		t.policyConn.rawConn = conn
+		conn = &t.policyConn
 
 		t.logger = utils.DefaultLogger // TODO: make this configurable
 		t.conn = conn

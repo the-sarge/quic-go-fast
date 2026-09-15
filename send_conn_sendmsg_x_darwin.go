@@ -99,8 +99,11 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 	if !ok {
 		return 0, nil
 	}
+	if err := c.checkPacketSend(udpAddr); err != nil {
+		return 0, err
+	}
 	if bs.raw == nil {
-		rc, ok := c.rawConn.(interface {
+		rc, ok := packetIOConn(c.rawConn).(interface {
 			udpSyscallConn() (syscall.RawConn, bool)
 		})
 		if !ok {

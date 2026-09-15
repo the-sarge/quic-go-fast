@@ -46,6 +46,46 @@ func (c *mockPacketConn) SetDeadline(t time.Time) error                      { r
 func (c *mockPacketConn) SetReadDeadline(t time.Time) error                  { return nil }
 func (c *mockPacketConn) SetWriteDeadline(t time.Time) error                 { return nil }
 
+type writeResultPacketConn struct {
+	net.PacketConn
+	payload []byte
+	addr    net.Addr
+	n       int
+	err     error
+}
+
+func (c *writeResultPacketConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	c.payload = p
+	c.addr = addr
+	return c.n, c.err
+}
+
+func TestTransportWriteToPreservesResult(t *testing.T) {
+	writeErr := errors.New("packet write failed")
+	for _, tc := range []struct {
+		name string
+		n    int
+		err  error
+	}{
+		{name: "complete", n: 7},
+		{name: "short", n: 3},
+		{name: "error", n: 2, err: writeErr},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			conn := &writeResultPacketConn{PacketConn: newUDPConnLocalhost(t), n: tc.n, err: tc.err}
+			tr := &Transport{Conn: conn}
+			defer tr.Close()
+			payload := []byte("payload")
+			addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 2), Port: 1234}
+			n, err := tr.WriteTo(payload, addr)
+			require.Equal(t, tc.n, n)
+			require.ErrorIs(t, err, tc.err)
+			require.Same(t, &payload[0], &conn.payload[0], "write borrows the original storage")
+			require.Same(t, addr, conn.addr)
+		})
+	}
+}
+
 type mockPacketHandler struct {
 	packets     chan<- receivedPacket
 	destruction chan<- error

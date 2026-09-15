@@ -2889,6 +2889,9 @@ func (c *Conn) AddPath(t *Transport) (*Path, error) {
 	if c.peerParams.DisableActiveMigration {
 		return nil, errors.New("server disabled connection migration")
 	}
+	if err := t.checkPathPolicy(c.conn); err != nil {
+		return nil, err
+	}
 	if err := t.init(false); err != nil {
 		return nil, err
 	}

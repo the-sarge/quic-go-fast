@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, R01-A and R01-B complete
+**Status:** In progress; Q01, R01-A, R01-B and P01-A complete; P01-B is the fork frontier
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md)
@@ -29,8 +29,8 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | New |
 | R01-W | Windows managed coalesced normalization | R01-B, Q04 | New |
 | R03 | Decide raw handback feasibility | R01-L, R01-W | New |
-| P01-A | Consolidate packet-policy hooks without activating policy | None | New |
-| P01-B | Activate complete immutable fixed-peer policy | P01-A, Q01 | New |
+| P01-A | Consolidate packet-policy hooks without activating policy | None | Complete |
+| P01-B | Activate complete immutable fixed-peer policy | P01-A, Q01 | Ready |
 | L01 | Release qualified fork capability | E02 | New |
 
 Cross-repository blockers refer to the other track in the program index. The tracker owns live completion state. A stage is one intended PR in its named code/evidence repository; consumer PRs live in their own repositories while their issue and normative contract stay with this integration track.
@@ -39,7 +39,7 @@ Cross-repository blockers refer to the other track in the program index. The tra
 
 ### Q01 — Register external packet I/O and provide ordinary writer
 
-**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 is complete; other Q01 successors retain their independent blockers. P01-A is the fork frontier. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 is complete; other Q01 successors retain their independent blockers. P01-B is the fork frontier. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Implement immutable registration and its binding checks in the fork transport/socket initialization module. Deliver both extension methods, including a working synchronous UDP writer using ordinary WriteMsgUDP with the declared prefix/error semantics, so W01 can discover the complete extension without Q05. Q05 adds accelerated Darwin submission behind that factory. Freeze the standard-type structural signatures using isolated upstream/fork consumer builds. Keep newly registered receive coalescing unavailable until platform implementations land. Define diagnostics for requested, permitted, supported/enabled, disabled reason and exercised counters through the existing tracing/diagnostic route; do not expose a private-state API merely for tests.
 
@@ -193,7 +193,7 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### R01-A — Create ordinary managed endpoints and exclusive leases
 
-**Current state:** Complete. The ordinary endpoint and exclusive lease factory is implemented on `*Transport`. R01-B is complete; P01-A remains independently ready. Platform normalization retains its separate slice contracts.
+**Current state:** Complete. The ordinary endpoint and exclusive lease factory is implemented on `*Transport`. R01-B is complete; P01-A is complete; P01-B is ready. Platform normalization retains its separate slice contracts.
 
 **What it delivers and acceptance criteria:** Add NewManagedPacketEndpointV1(network string, laddr *net.UDPAddr) (net.PacketConn, func() (net.PacketConn, error), error). It creates and owns a fresh UDP socket, returning ordinary endpoint and acquire closure. No raw adoption/detach API. Each lease initially supports ordinary establishment datagrams. Lease Close revokes its generation, interrupts and joins active I/O, restores endpoint logical deadlines, then releases acquisition. Endpoint Close is terminal and interrupts parent/lease operations. Reject parent I/O during lease and concurrent acquisition; acquisition returns busy if parent I/O is active, without silently canceling it. No receive coalescing yet.
 
@@ -225,7 +225,7 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### R01-B — Bind a lease to QUIC with generation-safe handback
 
-**Current state:** Complete. Managed registration seals the exact active lease under the endpoint's operation lock; its private batch writer participates in generation checks and I/O joining. Lease Close, rather than Transport.Close, permits reuse. P01-A remains the fork frontier. R01-L and R01-W retain Q03 and Q04 blockers; R02 retains its W02 blocker. No additional successor becomes ready from this slice alone.
+**Current state:** Complete. Managed registration seals the exact active lease under the endpoint's operation lock; its private batch writer participates in generation checks and I/O joining. Lease Close, rather than Transport.Close, permits reuse. P01-B is the fork frontier. R01-L and R01-W retain Q03 and Q04 blockers; R02 retains its W02 blocker. No additional successor becomes ready from this slice alone.
 
 **What it delivers and acceptance criteria:** Add ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.PacketConn, sendBatch func([][]byte, []byte, *net.UDPAddr) (int,error)) error. Exact lease must originate from the factory and still be active; exact outer conn binds through normal registration rules. Explicit registration transitions ordinary establishment to exclusive QUIC only after caller readers join. Serialize phase transition with active operations, reject any concurrent ordinary operation, and seal phase until lease Close. Keep ordinary receive on every platform. The factory-proven lease exposes WriteBatchV1([][]byte, []byte, *net.UDPAddr) (int,error), backed by its endpoint-private Q01 native writer; ordinary fallback works now, and Q05 acceleration remains conditional. Managed registration claims the same immutable slot instead of calling ordinary registration first. Generation checks cover every lease I/O/deadline method and native writer closure. Delayed QUIC workers must fail after lease revocation; Transport.Close alone is not handback evidence.
 
@@ -347,6 +347,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### P01-A — Consolidate packet-policy hooks without activating policy
 
+**Current state:** Complete. The transport-owned inert packet adapter covers socket ingress and ordinary/stateless egress; native and registered batches share its send-admission hook while retaining existing capability extraction. Path attachment has an inert origin/target admission seam. P01-B is ready because both P01-A and Q01 are complete.
+
 **What it delivers and acceptance criteria:** Refactor the current packet admission and output seams into internal pass-through hooks owned by the existing transport/raw connection/send worker. Cover socket ingress before routing, ordinary and stateless egress, native Darwin batches and connection path attachment. Preserve native extraction, batching, buffer ownership, errors and packet order. No public policy API, new configurable callback framework, new persisted state or active filtering. The hooks must be behaviorally inert and usable by P01-B without a second policy state machine.
 
 **Blocked by:** None.
@@ -376,6 +378,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 **Stop conditions:** Non-inert behavior, a second owner, loss of a native path, or a wider migration design means return to slicing before activation.
 
 ### P01-B — Activate complete immutable fixed-peer policy
+
+**Current state:** Ready. P01-A and Q01 are complete; fixed-peer activation remains unimplemented.
 
 **What it delivers and acceptance criteria:** Implement immutable transport-wide peer admission before initialization, with no changes to ordinary unrestricted transports. Census the packet entry/exit paths listed above against current source and enforce at shared receive/send owners. Test address canonicalization, pre-connection foreign traffic, known-connection-ID foreign traffic, stateless output, direct/batch sends, path-add/switch attempts and teardown. Preserve fork emission and incoming-storage ownership. Scope excludes authenticated migration, multipath, identity, NAT traversal and UDP-connect shortcuts. The optional setter uses standard types and explicitly rejects late/unsupported configuration. Freeze ConfigureFixedPeerV1(peer *net.UDPAddr) error with pre-init validation. Store the policy in one object used by ingress/egress and connection path admission. Reject Conn.AddPath on fixed-origin connections and attachment to fixed target transports, preserving the selected local socket as well as remote address. Deep-copy address; no UDP-connect substitution. Private native batch output must use the same policy.
 
