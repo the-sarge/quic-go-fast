@@ -2,6 +2,9 @@ package http3
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -66,7 +69,10 @@ func TestServerGOAWAYRecorderShutdown(t *testing.T) {
 	// Transport setup has already acquired its nil recorder. Configure only the
 	// next producer, acquired synchronously by HTTP/3 server setup below.
 	conn.QlogTrace().(*qlogTrace).recorder = recorder
-	server := &Server{}
+	connections := make(chan *rawConn, 1)
+	server := &Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		connections <- w.(*responseWriter).conn
+	})}
 	serveDone := make(chan struct{})
 	var shutdownDone chan struct{}
 	var releaseOnce sync.Once
@@ -105,6 +111,18 @@ func TestServerGOAWAYRecorderShutdown(t *testing.T) {
 	require.NoError(t, err)
 	require.IsType(t, &settingsFrame{}, frame)
 
+	// Obtain the actual connection owner through a completed request, so the
+	// test can observe admission sealing without adding production hooks.
+	request, err := client.OpenStream()
+	require.NoError(t, err)
+	require.NoError(t, request.SetDeadline(time.Now().Add(3*time.Second)))
+	_, err = request.Write(encodeRequest(t, httptest.NewRequest(http.MethodGet, "https://example.com/", nil)))
+	require.NoError(t, err)
+	require.NoError(t, request.Close())
+	_, err = io.ReadAll(request)
+	require.NoError(t, err)
+	owner := <-connections
+
 	shutdownDone = make(chan struct{})
 	go func() {
 		defer close(shutdownDone)
@@ -116,10 +134,15 @@ func TestServerGOAWAYRecorderShutdown(t *testing.T) {
 		t.Fatal("GOAWAY recording did not start")
 	}
 	require.NoError(t, conn.CloseWithError(0, "cancellation during GOAWAY"))
+	require.Eventually(t, func() bool {
+		owner.qloggerMx.Lock()
+		defer owner.qloggerMx.Unlock()
+		return owner.qloggerClosing
+	}, time.Second, time.Millisecond, "qlog shutdown did not seal admission")
 	select {
 	case <-recorder.closed:
 		t.Error("recorder closed while GOAWAY recording was blocked")
-	case <-time.After(50 * time.Millisecond):
+	default:
 	}
 	release()
 	select {
@@ -133,7 +156,7 @@ func TestServerGOAWAYRecorderShutdown(t *testing.T) {
 	require.False(t, recorder.late)
 	require.Equal(t, qlog.FrameCreated{
 		StreamID: control.StreamID(),
-		Frame:    qlog.Frame{Frame: qlog.GoAwayFrame{StreamID: 0}},
+		Frame:    qlog.Frame{Frame: qlog.GoAwayFrame{StreamID: 4}},
 	}, recorder.event)
 }
 
