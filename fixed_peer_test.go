@@ -116,23 +116,24 @@ func (s *policyWriteSocket) WritePacket(b []byte, _ net.Addr, _ []byte, _ uint16
 
 func TestFixedPeerAddressAndSegmentAdmission(t *testing.T) {
 	for _, tc := range []struct {
-		name, selected, observed, zone, observedZone string
-		allow                                        bool
+		name, selected, zone, observedZone string
+		observed                           net.IP
+		allow                              bool
 	}{
-		{name: "IPv4 mapped", selected: "127.0.0.1", observed: "::ffff:127.0.0.1", allow: true},
-		{name: "foreign IP", selected: "127.0.0.1", observed: "127.0.0.2"},
-		{name: "IPv6", selected: "::1", observed: "::1", allow: true},
-		{name: "observed scope", selected: "fe80::1", observed: "fe80::1", observedZone: "en0", allow: true},
-		{name: "same scope", selected: "fe80::1", observed: "fe80::1", zone: "en0", observedZone: "en0", allow: true},
-		{name: "missing scope", selected: "fe80::1", observed: "fe80::1", zone: "en0"},
-		{name: "conflicting scope", selected: "fe80::1", observed: "fe80::1", zone: "en0", observedZone: "en1"},
+		{name: "IPv4 mapped", selected: "::ffff:127.0.0.1", observed: net.IP{127, 0, 0, 1}, allow: true},
+		{name: "foreign IP", selected: "127.0.0.1", observed: net.ParseIP("127.0.0.2")},
+		{name: "IPv6", selected: "::1", observed: net.ParseIP("::1"), allow: true},
+		{name: "observed scope", selected: "fe80::1", observed: net.ParseIP("fe80::1"), observedZone: "en0", allow: true},
+		{name: "same scope", selected: "fe80::1", observed: net.ParseIP("fe80::1"), zone: "en0", observedZone: "en0", allow: true},
+		{name: "missing scope", selected: "fe80::1", observed: net.ParseIP("fe80::1"), zone: "en0"},
+		{name: "conflicting scope", selected: "fe80::1", observed: net.ParseIP("fe80::1"), zone: "en0", observedZone: "en1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tr := &Transport{Conn: newUDPConnLocalhost(t)}
 			require.NoError(t, configureFixedPeer(t, tr, &net.UDPAddr{IP: net.ParseIP(tc.selected), Port: 12345, Zone: tc.zone}))
 			socket := &policyWriteSocket{}
 			tr.policyConn.rawConn = socket
-			addr := &net.UDPAddr{IP: net.ParseIP(tc.observed), Port: 12345, Zone: tc.observedZone}
+			addr := &net.UDPAddr{IP: tc.observed, Port: 12345, Zone: tc.observedZone}
 			n, err := tr.policyConn.WritePacket([]byte("aabb"), addr, nil, 2, protocol.ECNUnsupported)
 			if tc.allow {
 				require.NoError(t, err)
