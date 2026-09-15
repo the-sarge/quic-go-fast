@@ -1813,3 +1813,35 @@ The exact reviewed and locally certified head `2619ea4c18d9b718b6bbd1e7a295e0b11
 ### Next
 
 R01-B is eligible because R01-A and Q01 are closed; P01-A remains independently ready. [Fork parent #324](https://github.com/the-sarge/quic-go-fast/issues/324) and [program tracker #1540](https://github.com/GridSwarm/wiremux/issues/1540) own live readiness. Only Z01 closes the complete program.
+
+---
+
+## Managed QUIC lease binding landed - 2026-09-15 13:56 EDT
+
+**Main:** `5d2bfb4ba29f`
+**Actor:** Codex
+
+### Summary
+
+Merged R01-B in [PR #343](https://github.com/the-sarge/quic-go-fast/pull/343), closing [#331](https://github.com/the-sarge/quic-go-fast/issues/331). The exact active factory lease and outer PacketConn now bind through the shared immutable registration slot; lease Close revokes and joins packet and batch I/O before endpoint reuse. Transport.Close does not hand back the lease. Managed registration preserves caller deadlines, and the API comment makes the establishment-deadline handoff requirement explicit.
+
+### Completed
+
+- Product merge: `5d2bfb4ba29fefe043c3ae4aa3f27ac9d80dd9b9`. The product PR also owns the committed plan completion and successor state.
+- Isolated prerequisite [PR #344](https://github.com/the-sarge/quic-go-fast/pull/344), merged as `637f850c4f74db11e497452f63004fb855b3fe67`, serializes HTTP/3 qlog worker admission with shutdown waiting. A race reproduced on the untouched baseline during R01-B CI; the fix was reviewed and merged separately.
+
+### Validation
+
+R01-B's final candidate `ba7a6c499270176eb67ac485ea96867f0b1bdead` passed the full local suite with `TIMESCALE_FACTOR=3`, focused managed-endpoint race tests, `go vet .`, `go mod tidy -diff`, and diff checks. All 33 hosted checks passed before exact-head squash merge, including native platform tests, race-enabled integration tests, lint, cross compilation and interoperability. [Final local receipt](https://github.com/the-sarge/quic-go-fast/pull/343#issuecomment-5685226094); [hosted integration run](https://github.com/the-sarge/quic-go-fast/actions/runs/35003670328).
+
+The prerequisite also passed its bounded race regression with the CI timing scale, HTTP/3 race suite, full local suite, vet/tidy and all 33 hosted checks. [Prerequisite certification](https://github.com/the-sarge/quic-go-fast/pull/344#issuecomment-5684766971). Earlier unscaled timeout failures are retained in that evidence and were not counted as passing checks.
+
+### Decisions
+
+Retained the accepted binding and handback contract. Direct managed-lease identity and worker test assertions were fixed and verified; native capability parity and automatic caller-deadline normalization stayed outside this slice. [Initial dispositions](https://github.com/the-sarge/quic-go-fast/pull/343#issuecomment-5684176212); [replacement dispositions](https://github.com/the-sarge/quic-go-fast/pull/343#issuecomment-5685160262).
+
+### Next
+
+At this merge, P01-A remains the fork frontier; R01-L retains Q03, R01-W retains Q04, and R02 retains W02. No successor becomes ready from R01-B alone. [Program tracker — live view](https://github.com/GridSwarm/wiremux/issues/1540).
+
+Surviving deferred work is tracked separately: [final-stream qlog lifetime #345](https://github.com/the-sarge/quic-go-fast/issues/345), [GOAWAY qlog synchronization #346](https://github.com/the-sarge/quic-go-fast/issues/346), [managed native capabilities #347](https://github.com/the-sarge/quic-go-fast/issues/347), and [persistent temporary read errors #348](https://github.com/the-sarge/quic-go-fast/issues/348). These do not add audited program blockers. Native coalesced receive, raw handback, fixed-peer policy and capability parity remain outside this completed slice.
