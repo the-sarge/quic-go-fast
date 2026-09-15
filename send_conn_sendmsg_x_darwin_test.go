@@ -72,6 +72,9 @@ func TestSendmsgXBatchSendEndToEnd(t *testing.T) {
 
 	q.Close()
 	require.NoError(t, <-done)
+	// The transport reader can reuse released send buffers from the pool.
+	// Join it before inspecting those buffers after send-worker completion.
+	require.NoError(t, sender.Close())
 	for _, buf := range bufs {
 		require.Zero(t, buf.refCount)
 	}
