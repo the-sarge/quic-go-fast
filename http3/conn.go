@@ -356,3 +356,18 @@ func (c *rawConn) closeQlogger() {
 	c.qloggerWG.Wait()
 	c.qlogger.Close()
 }
+
+// recordGoAway joins recorder shutdown without changing GOAWAY wire handling.
+func (c *rawConn) recordGoAway(controlStreamID, nextStreamID quic.StreamID) {
+	if c.qlogger == nil {
+		return
+	}
+	if err := c.beginQlogWork(); err != nil {
+		return
+	}
+	defer c.qloggerWG.Done()
+	c.qlogger.RecordEvent(qlog.FrameCreated{
+		StreamID: controlStreamID,
+		Frame:    qlog.Frame{Frame: qlog.GoAwayFrame{StreamID: nextStreamID}},
+	})
+}
