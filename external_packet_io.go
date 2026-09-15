@@ -126,6 +126,9 @@ func (t *Transport) beginPacketIO() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.started = true
+	if p := t.policyConn.policy; p != nil && !samePacketConn(p.conn, t.Conn) {
+		return errors.New("quic: Transport.Conn changed after fixed peer configuration")
+	}
 	if c.external != nil && !samePacketConn(c.external.conn, t.Conn) {
 		return errors.New("quic: Transport.Conn changed after external packet I/O registration")
 	}

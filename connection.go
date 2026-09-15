@@ -2889,10 +2889,16 @@ func (c *Conn) AddPath(t *Transport) (*Path, error) {
 	if c.peerParams.DisableActiveMigration {
 		return nil, errors.New("server disabled connection migration")
 	}
-	if err := t.checkPathPolicy(c.emission.activeConn()); err != nil {
+	origin := c.emission.activeConn()
+	if err := t.checkPathPolicy(origin); err != nil {
 		return nil, err
 	}
 	if err := t.init(false); err != nil {
+		return nil, err
+	}
+	// Initialization seals configuration. Recheck in case fixed-peer configuration
+	// won the race between the first admission check and initialization.
+	if err := t.checkPathPolicy(origin); err != nil {
 		return nil, err
 	}
 	return c.getPathManager().NewPath(
