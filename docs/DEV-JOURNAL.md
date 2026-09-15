@@ -1929,3 +1929,24 @@ RAS review `20260915T205044-70f7fa756ecf81937b90978a` found no correctness failu
 ### Decisions
 
 Revalidated the optional read-accounting optimization at merged commit `786c00bc6fff252673858bc4ac1dd25b9845ea82`, `http3/stream.go:77`: payload-only reads still participate in operation-level accounting. This remains an unmeasured marginal optimization with no accepted invariant failure; it is recorded in the PR disposition without creating a follow-up ticket. Both requested lifetime bugs are now fixed, including the earlier [GOAWAY fix](https://github.com/the-sarge/quic-go-fast/pull/356).
+
+---
+
+## Managed endpoint buffers and diagnostics landed - 2026-09-15 17:46 EDT
+
+**Main:** `30647ace7a91`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #361](https://github.com/the-sarge/quic-go-fast/pull/361) for [issue #347](https://github.com/the-sarge/quic-go-fast/issues/347). Managed endpoints configure private receive/send buffers once before publication and retain nonfatal setup evidence across leases. Transport debug/tracer events distinguish configured, capped and unknown limits, ordinary receive mode and registered callback availability. Existing sizing helpers retain warning policy; supplemental inspection cannot consume its once-only budget. Exact registration and outer-wrapper packet policy remain intact.
+
+### Validation
+
+Final candidate `29c23c5091454ccc83a9fbb0deaf105834b54699` passed focused managed race tests, root-package tests, vet, module tidiness, lint, formatting/diff checks and all applicable hosted workflows. [Native unit evidence](https://github.com/the-sarge/quic-go-fast/actions/runs/35026355157) verifies private socket limits, ordinary datagrams, selected-peer filtering and inspection-warning regressions on Linux, macOS and Windows. The hosted Linux queues were capped at 2,097,152 receive / 425,984 send bytes; hosted macOS at 6,291,456 bytes each; Windows reached the existing 7,340,032-byte target in both directions. Capped results remained usable and accurately reported. Local macOS also reached the target. These are queue limits, not throughput or physical-memory guarantees.
+
+Initial RAS review `20260915T212129-ac55d85f9f1aea44af66ef7c` led to two bounded fixes: separate supplemental inspection from warning policy and isolate intentional failure fixtures. Exact-head verification resolved them with all four source clusters covered. Replacement review `20260915T213746-ed75b8ed1c64e53b25d56b5b` reported no findings or follow-ups. One initial adjudicator launch failed, while reviewer quorum and synthesis completed. The [product PR](https://github.com/the-sarge/quic-go-fast/pull/361) records the final review and validation details.
+
+### Decisions
+
+The [accepted contract](agents/managed-endpoint-buffers-347.md) preserves public interfaces, lease/deadline/close ownership, ordinary datagrams, selected-peer enforcement and existing ordinary external-registration behavior. No new native offload capability or wiremux implementation is enabled. No deferred review finding survives; [DF/PMTU #353](https://github.com/the-sarge/quic-go-fast/issues/353) and [ECN #354](https://github.com/the-sarge/quic-go-fast/issues/354) remain separate live qualification work.
