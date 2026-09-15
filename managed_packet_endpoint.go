@@ -11,6 +11,11 @@ import (
 // endpoint supports ordinary net.PacketConn operations and the closure acquires
 // an exclusive lease on the same socket. Construction does not initialize t.
 //
+// Receive and send socket buffers are configured best-effort once, before the
+// endpoint is returned, using the platform buffer policy. Failures are nonfatal
+// and remain available in managed transport diagnostics. Queue limits persist
+// across leases; they are not guarantees of memory consumption or throughput.
+//
 // Acquisition fails while parent I/O is active or another lease is held; it
 // never cancels parent I/O. During a lease, parent packet and deadline operations
 // fail. LocalAddr remains available. Each lease starts with the parent's logical
@@ -37,7 +42,11 @@ func (t *Transport) NewManagedPacketEndpointV1(network string, laddr *net.UDPAdd
 // The socket interface is the native I/O boundary. Production always supplies a
 // newly created UDP socket; only the endpoint owns its deadlines and lifetime.
 func newManagedPacketEndpoint(conn net.PacketConn) (net.PacketConn, func() (net.PacketConn, error), error) {
-	e := &managedPacketEndpoint{conn: conn}
+	// Complete both directions before any view can perform ordinary I/O.
+	receiveErr := setReceiveBuffer(conn)
+	sendErr := setSendBuffer(conn)
+	e := &managedPacketEndpoint{conn: conn, buffers: inspectManagedBuffers(conn, receiveErr, sendErr)}
+	warnBufferSize(managedBufferWarning(receiveErr, sendErr))
 	if socket, ok := conn.(udpMessageWriter); ok {
 		e.sendBatch = newUDPBatchWriter(socket)
 	}
@@ -49,6 +58,7 @@ type managedPacketEndpoint struct {
 	mutex         sync.Mutex
 	idle          *sync.Cond
 	conn          net.PacketConn
+	buffers       managedBufferSetup
 	sendBatch     func([][]byte, []byte, *net.UDPAddr) (int, error)
 	lease         *managedPacketLease
 	active        int

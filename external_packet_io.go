@@ -18,6 +18,7 @@ import (
 type externalPacketIO struct {
 	batchCalls             atomic.Uint64
 	acceptedPackets        atomic.Uint64
+	managedBuffers         *managedBufferSetup
 	conn                   net.PacketConn
 	allowReceiveCoalescing bool
 	sendBatch              func([][]byte, []byte, *net.UDPAddr) (int, error)
@@ -112,7 +113,7 @@ func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.Pa
 		return errors.New("quic: managed packet lease already bound or I/O active")
 	}
 	l.lease.quic = true
-	c.external = &externalPacketIO{conn: conn, sendBatch: sendBatch}
+	c.external = &externalPacketIO{conn: conn, sendBatch: sendBatch, managedBuffers: &e.buffers}
 	return nil
 }
 

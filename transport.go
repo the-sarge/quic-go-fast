@@ -388,17 +388,19 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 	}
 	t.initOnce.Do(func() {
 		var conn rawConn
+		managed := t.managedBuffers()
 		if c, ok := t.Conn.(rawConn); ok {
 			conn = c
 		} else {
 			var err error
-			conn, err = wrapConn(t.Conn, t.createdConn)
+			conn, err = wrapConnWithManagedBuffers(t.Conn, t.createdConn, managed)
 			if err != nil {
 				t.initErr = err
 				return
 			}
 		}
 
+		t.traceManagedBuffers(managed, conn)
 		conn = t.wrapExternalPacketIO(conn)
 		t.policyConn.rawConn = conn
 		conn = &t.policyConn

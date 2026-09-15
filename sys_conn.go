@@ -63,25 +63,13 @@ var _ OOBCapablePacketConn = &net.UDPConn{}
 // mutate socket-wide options like UDP_GRO); it must be false for
 // caller-supplied sockets.
 func wrapConn(pc net.PacketConn, ownsSocket bool) (rawConn, error) {
-	if err := setReceiveBuffer(pc); err != nil {
-		if !strings.Contains(err.Error(), "use of closed network connection") {
-			setBufferWarningOnce.Do(func() {
-				if disable, _ := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING")); disable {
-					return
-				}
-				log.Printf("%s. See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.", err)
-			})
-		}
-	}
-	if err := setSendBuffer(pc); err != nil {
-		if !strings.Contains(err.Error(), "use of closed network connection") {
-			setBufferWarningOnce.Do(func() {
-				if disable, _ := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING")); disable {
-					return
-				}
-				log.Printf("%s. See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.", err)
-			})
-		}
+	return wrapConnWithManagedBuffers(pc, ownsSocket, nil)
+}
+
+func wrapConnWithManagedBuffers(pc net.PacketConn, ownsSocket bool, managed *managedBufferSetup) (rawConn, error) {
+	if managed == nil {
+		warnBufferSize(setReceiveBuffer(pc))
+		warnBufferSize(setSendBuffer(pc))
 	}
 
 	conn, ok := pc.(interface {
@@ -105,10 +93,25 @@ func wrapConn(pc net.PacketConn, ownsSocket bool) (rawConn, error) {
 	}
 	c, ok := pc.(OOBCapablePacketConn)
 	if !ok {
-		utils.DefaultLogger.Infof("PacketConn is not a net.UDPConn. Disabling optimizations possible on UDP connections.")
+		if managed == nil {
+			utils.DefaultLogger.Infof("PacketConn is not a net.UDPConn. Disabling optimizations possible on UDP connections.")
+		}
 		return &basicConn{PacketConn: pc, supportsDF: supportsDF}, nil
 	}
 	return newConn(c, supportsDF, ownsSocket)
+}
+
+// Preserve the shared warning budget and opt-out for ordinary and managed setup.
+func warnBufferSize(err error) {
+	if err == nil || strings.Contains(err.Error(), "use of closed network connection") {
+		return
+	}
+	setBufferWarningOnce.Do(func() {
+		if disable, _ := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING")); disable {
+			return
+		}
+		log.Printf("%s. See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.", err)
+	})
 }
 
 // The basicConn is the most trivial implementation of a rawConn.
