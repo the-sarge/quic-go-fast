@@ -1792,3 +1792,24 @@ The bounded initial/replacement RAS reviews and final exact-head verification ar
 ### Next
 
 At merge, Q01's completion unblocks [W01](https://github.com/GridSwarm/wiremux/issues/1522); other direct successors retain their platform-baseline or endpoint/policy blockers. The product PR includes the committed Q01 completion transition. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns the live frontier.
+
+---
+
+## R01-A ordinary managed endpoints merged - 2026-09-15 11:57 EDT
+
+**Main:** `da58b0d50ff7`
+**Actor:** Codex
+
+### Completed
+
+Merged [R01-A / #341](https://github.com/the-sarge/quic-go-fast/pull/341), closing [#330](https://github.com/the-sarge/quic-go-fast/issues/330). `Transport.NewManagedPacketEndpointV1` creates a fresh ordinary UDP endpoint with exclusive per-attempt leases. One endpoint owns socket lifetime, active I/O, deadlines and lease identity. Lease Close revokes access, interrupts and joins I/O, restores parent deadlines and permits reuse; parent Close is terminal. The product PR includes the committed completion/frontier transition. QUIC binding and native coalescing remain separate slices.
+
+### Validation
+
+Factory and lease tests went red before implementation. Removing the central generation guard made the stale-write regression fail; the guard was restored before validation. Focused race tests, the complete local suite, affected-package vet, module tidiness, formatting and lint passed on Go 1.27.1 Darwin/arm64. [RAS disposition receipt](https://github.com/the-sarge/quic-go-fast/pull/341#issuecomment-5683483416): five reviewers approved, zero Fix First clusters, one reviewer structured-output failure, no accepted fix or stop. Optional error refinements and hypothetical future hardening did not expand R01-A.
+
+The exact reviewed and locally certified head `2619ea4c18d9b718b6bbd1e7a295e0b1163c1359` passed all 33 attached hosted checks, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/34989802302), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/34989802365), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/34989802470), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/34989802310) and [interoperability](https://github.com/the-sarge/quic-go-fast/actions/runs/34989802358), then merged with a matching-head squash as `da58b0d50ff74b37b9ac138081b4582de01c48b1`.
+
+### Next
+
+R01-B is eligible because R01-A and Q01 are closed; P01-A remains independently ready. [Fork parent #324](https://github.com/the-sarge/quic-go-fast/issues/324) and [program tracker #1540](https://github.com/GridSwarm/wiremux/issues/1540) own live readiness. Only Z01 closes the complete program.
