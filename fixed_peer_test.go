@@ -93,9 +93,10 @@ func TestFixedPeerWriteToCopiesAddress(t *testing.T) {
 	n, err := tr.WriteTo([]byte("blocked"), foreign.LocalAddr())
 	require.Error(t, err)
 	require.Zero(t, n)
-	n, err = tr.WriteTo([]byte("selected"), selected.LocalAddr())
+	// Native Windows writes may report zero bytes on success; receipt below
+	// establishes delivery without strengthening the underlying write contract.
+	_, err = tr.WriteTo([]byte("selected"), selected.LocalAddr())
 	require.NoError(t, err)
-	require.Equal(t, 8, n)
 	require.NoError(t, selected.SetReadDeadline(time.Now().Add(time.Second)))
 	b := make([]byte, 64)
 	n, _, err = selected.ReadFrom(b)
@@ -323,4 +324,15 @@ func TestFixedPeerClosePreservesBorrowedSocket(t *testing.T) {
 	n, _, err := foreign.ReadFrom(b)
 	require.NoError(t, err)
 	require.Equal(t, "caller reuse", string(b[:n]))
+}
+
+func TestFixedPeerPathAdmissionSealsConfiguration(t *testing.T) {
+	target := &Transport{Conn: newUDPConnLocalhost(t)}
+	defer target.Close()
+	// Pause at the existing admission seam, before init starts any workers.
+	// If attachment wins this lock, a concurrent setter must already be late.
+	require.NoError(t, target.checkPathPolicy(nil))
+	require.Nil(t, target.conn)
+	require.ErrorContains(t, configureFixedPeer(t, target, newUDPConnLocalhost(t).LocalAddr().(*net.UDPAddr)), "after initialization")
+	require.NoError(t, target.init(false))
 }

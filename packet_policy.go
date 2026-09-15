@@ -85,7 +85,9 @@ func (t *Transport) checkPathPolicy(origin sendConn) error {
 	if t.policyConn.policy != nil {
 		return errors.New("quic: fixed peer transport cannot accept a path")
 	}
-	return nil
+	// Reserve the target while still holding the configuration lock. No setter
+	// can install a fixed policy between successful admission and initialization.
+	return t.beginPacketIOLocked()
 }
 
 // fixedPeerPolicy is published before initialization under packetIO.mutex and
@@ -96,7 +98,9 @@ type fixedPeerPolicy struct {
 }
 
 // ConfigureFixedPeerV1 restricts this transport to one remote UDP endpoint and
-// its current local socket. Call it once before Dial, Listen, WriteTo or Close.
+// its current local socket. Call it once before any operation that initializes
+// the transport, including Dial, Listen, WriteTo, ReadNonQUICPacket, Close, or
+// using this transport as a Conn.AddPath target.
 // Conn must be a direct, non-nil *net.UDPConn and must not subsequently change.
 // Wrappers and managed leases are unsupported. The peer must have a valid,
 // non-unspecified IP and a port in [1, 65535]; its address is copied.

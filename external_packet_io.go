@@ -122,9 +122,15 @@ func samePacketConn(a, b net.PacketConn) bool {
 }
 
 func (t *Transport) beginPacketIO() error {
+	t.packetIO.mutex.Lock()
+	defer t.packetIO.mutex.Unlock()
+	return t.beginPacketIOLocked()
+}
+
+// beginPacketIOLocked seals configuration, including when path admission reserves
+// the transport before initialization starts I/O. Requires packetIO.mutex.
+func (t *Transport) beginPacketIOLocked() error {
 	c := &t.packetIO
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
 	c.started = true
 	if p := t.policyConn.policy; p != nil && !samePacketConn(p.conn, t.Conn) {
 		return errors.New("quic: Transport.Conn changed after fixed peer configuration")
