@@ -1762,3 +1762,14 @@ The maintainer [explicitly approved merging with 32/33 hosted checks](https://gi
 ### Next
 
 [Follow-up #320](https://github.com/the-sarge/quic-go-fast/issues/320) is the live tracker for the blocked-data failure, revalidated against the merged source and linked to closed #222 without claiming a common cause. Its diagnosis scope remains to be approved. Complete OmniFocus repair task `cvzC8rrsPc-` and mirror the separate follow-up after journal delivery; #241 and HTTP investigations retain their own causes and budgets.
+
+---
+
+## Publish external packet I/O handoff - 2026-09-15 01:27 EDT
+
+**Main:** `b29bab9b9616`
+**Actor:** Codex
+
+Published the audited external packet-I/O handoff in [PR #323](https://github.com/the-sarge/quic-go-fast/pull/323). The [fork plan](adr/2026-09-15-external-packet-io-plan.md) owns 13 of the complete cross-repository program's 32 slices, including ordinary registration, platform offloads, generation-safe managed endpoints, fixed-peer enforcement and release.
+
+Independent source/slice audit, exact-head documentation certification, and hosted unit/integration/lint/cross-compilation/interop workflows passed. No runtime implementation or agent dispatch occurred. The [program index](https://github.com/GridSwarm/wiremux/blob/main/docs/adr/2026-09-14-quic-packet-io-program.md) points to the contracts; GitHub/OmniFocus synchronization follows both merged plans.
