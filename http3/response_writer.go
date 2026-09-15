@@ -165,6 +165,8 @@ func (w *responseWriter) Write(p []byte) (int, error) {
 }
 
 func (w *responseWriter) doWrite(p []byte) (int, error) {
+	work := w.str.conn.startQlogWork(w.str.qlogger, w.str.qlogParent)
+	defer work.done()
 	if !w.headerWritten {
 		w.sniffContentType(w.smallResponseBuf)
 		if err := w.writeHeader(w.status); err != nil {
@@ -180,8 +182,8 @@ func (w *responseWriter) doWrite(p []byte) (int, error) {
 	df := &dataFrame{Length: l}
 	w.buf = w.buf[:0]
 	w.buf = df.Append(w.buf)
-	if w.str.qlogger != nil {
-		w.str.qlogger.RecordEvent(qlog.FrameCreated{
+	if work.recorder != nil {
+		work.recorder.RecordEvent(qlog.FrameCreated{
 			StreamID: w.str.StreamID(),
 			Raw:      qlog.RawInfo{Length: len(w.buf) + int(l), PayloadLength: int(l)},
 			Frame:    qlog.Frame{Frame: qlog.DataFrame{}},
@@ -208,13 +210,15 @@ func (w *responseWriter) doWrite(p []byte) (int, error) {
 }
 
 func (w *responseWriter) writeHeader(status int) error {
+	work := w.str.conn.startQlogWork(w.str.qlogger, w.str.qlogParent)
+	defer work.done()
 	var headerFields []qlog.HeaderField // only used for qlog
 	var headers bytes.Buffer
 	enc := qpack.NewEncoder(&headers)
 	if err := enc.WriteField(qpack.HeaderField{Name: ":status", Value: strconv.Itoa(status)}); err != nil {
 		return err
 	}
-	if w.str.qlogger != nil {
+	if work.recorder != nil {
 		headerFields = append(headerFields, qlog.HeaderField{Name: ":status", Value: strconv.Itoa(status)})
 	}
 
@@ -244,7 +248,7 @@ func (w *responseWriter) writeHeader(status int) error {
 			if err := enc.WriteField(qpack.HeaderField{Name: name, Value: value}); err != nil {
 				return err
 			}
-			if w.str.qlogger != nil {
+			if work.recorder != nil {
 				headerFields = append(headerFields, qlog.HeaderField{Name: name, Value: value})
 			}
 		}
@@ -254,8 +258,8 @@ func (w *responseWriter) writeHeader(status int) error {
 	buf = (&headersFrame{Length: uint64(headers.Len())}).Append(buf)
 	buf = append(buf, headers.Bytes()...)
 
-	if w.str.qlogger != nil {
-		qlogCreatedHeadersFrame(w.str.qlogger, w.str.StreamID(), len(buf), headers.Len(), headerFields)
+	if work.recorder != nil {
+		qlogCreatedHeadersFrame(work.recorder, w.str.StreamID(), len(buf), headers.Len(), headerFields)
 	}
 
 	_, err := w.str.writeUnframed(buf)
@@ -319,6 +323,8 @@ func (w *responseWriter) declareTrailer(k string) {
 
 // writeTrailers will write trailers to the stream if there are any.
 func (w *responseWriter) writeTrailers() error {
+	work := w.str.conn.startQlogWork(w.str.qlogger, w.str.qlogParent)
+	defer work.done()
 	// promote headers added via "Trailer:" convention as trailers, these can be added after
 	// streaming the status/headers have been written.
 	for k := range w.header {
@@ -338,7 +344,7 @@ func (w *responseWriter) writeTrailers() error {
 		}
 	}
 
-	written, err := writeTrailers(w.str.datagramStream, trailers, w.str.StreamID(), w.str.qlogger)
+	written, err := writeTrailers(w.str.datagramStream, trailers, w.str.StreamID(), work.recorder)
 	if written {
 		w.trailerWritten = true
 	}

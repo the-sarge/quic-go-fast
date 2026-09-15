@@ -104,11 +104,14 @@ func (c *RawServerConn) CloseWithError(code quic.ApplicationErrorCode, msg strin
 // The stream can either be obtained by calling [quic.Conn.AcceptStream] on the underlying QUIC connection,
 // or (internally) by using the server's stream accept loop.
 func (c *RawServerConn) HandleRequestStream(str *quic.Stream) {
+	work := c.rawConn.startQlogWork(c.qlogger, nil)
+	defer work.done()
+
 	hstr, err := c.rawConn.TrackStream(str)
 	if err != nil {
 		return
 	}
-	c.handleRequestStream(hstr)
+	c.handleRequestStream(hstr, &work)
 }
 
 func (c *RawServerConn) requestMaxHeaderBytes() int {
@@ -122,7 +125,7 @@ func (c *RawServerConn) openControlStream(settings *settingsFrame) (*quic.SendSt
 	return c.rawConn.openControlStream(settings)
 }
 
-func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
+func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlogWork) {
 	if c.idleTimeout > 0 {
 		// This only applies if the stream is the first active stream,
 		// but it's ok to stop a stopped timer.
@@ -131,7 +134,7 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 	}
 
 	conn := c.rawConn
-	qlogger := c.qlogger
+	qlogger := work.recorder
 	decoder := c.decoder
 	connCtx := c.serverContext
 	maxHeaderBytes := c.requestMaxHeaderBytes()
@@ -157,7 +160,7 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 		// stop the client from sending more data
 		str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
 		// send a 431 Response (Request Header Fields Too Large)
-		c.rejectWithHeaderFieldsTooLarge(str)
+		c.rejectWithHeaderFieldsTooLarge(str, work)
 		return
 	}
 	headerBlock := make([]byte, hf.Length)
@@ -183,7 +186,7 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 			// stop the client from sending more data
 			str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
 			// send a 431 Response (Request Header Fields Too Large)
-			c.rejectWithHeaderFieldsTooLarge(str)
+			c.rejectWithHeaderFieldsTooLarge(str, work)
 			return
 		}
 
@@ -206,8 +209,8 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 	if _, ok := req.Header["Content-Length"]; ok && req.ContentLength >= 0 {
 		contentLength = req.ContentLength
 	}
-	hstr := newStream(str, conn, nil, func(r io.Reader, hf *headersFrame) error {
-		trailers, err := decodeTrailers(r, hf, maxHeaderBytes, decoder, qlogger, str.StreamID())
+	hstr := newStream(str, conn, nil, func(r io.Reader, hf *headersFrame, recorder qlogwriter.Recorder) error {
+		trailers, err := decodeTrailers(r, hf, maxHeaderBytes, decoder, recorder, str.StreamID())
 		if err != nil {
 			return err
 		}
@@ -227,6 +230,7 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream) {
 		c.priorityAware.Store(true)
 		urgency, incremental = parsePriority(strings.Join(values, ","))
 	}
+	hstr.qlogParent = work
 	hstr.SetPriority(urgency, incremental)
 
 	body := newRequestBody(hstr, contentLength, connCtx, conn.ReceivedSettings(), conn.Settings)
@@ -323,8 +327,9 @@ func (c *RawServerConn) handleControlStream(_ *quic.ReceiveStream, fp *framePars
 	}
 }
 
-func (c *RawServerConn) rejectWithHeaderFieldsTooLarge(str *stateTrackingStream) {
-	hstr := newStream(str, c.rawConn, nil, nil, c.qlogger)
+func (c *RawServerConn) rejectWithHeaderFieldsTooLarge(str *stateTrackingStream, work *qlogWork) {
+	hstr := newStream(str, c.rawConn, nil, nil, work.recorder)
+	hstr.qlogParent = work
 	defer hstr.Close()
 	r := newResponseWriter(hstr, c.rawConn, false, c.logger)
 	r.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
