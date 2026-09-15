@@ -180,8 +180,8 @@ func (c *ClientConn) openRequestStream(
 	rsp := &http.Response{}
 	trace := httptrace.ContextClientTrace(ctx)
 	return newRequestStream(
-		newStream(hstr, c.rawConn, trace, func(r io.Reader, hf *headersFrame) error {
-			hdr, err := decodeTrailers(r, hf, maxHeaderBytes, c.decoder, c.qlogger, str.StreamID())
+		newStream(hstr, c.rawConn, trace, func(r io.Reader, hf *headersFrame, recorder qlogwriter.Recorder) error {
+			hdr, err := decodeTrailers(r, hf, maxHeaderBytes, c.decoder, recorder, str.StreamID())
 			if err != nil {
 				return err
 			}

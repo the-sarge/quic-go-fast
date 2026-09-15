@@ -42,7 +42,7 @@ func TestStreamReadDataFrames(t *testing.T) {
 		qstr,
 		newRawConn(clientConn, false, nil, nopControlStrHandler, &eventRecorder, nil),
 		nil,
-		func(io.Reader, *headersFrame) error { return nil },
+		func(io.Reader, *headersFrame, qlogwriter.Recorder) error { return nil },
 		&eventRecorder,
 	)
 
@@ -110,7 +110,7 @@ func TestStreamInvalidFrame(t *testing.T) {
 		qstr,
 		newRawConn(clientConn, false, nil, nopControlStrHandler, nil, nil),
 		nil,
-		func(io.Reader, *headersFrame) error { return nil },
+		func(io.Reader, *headersFrame, qlogwriter.Recorder) error { return nil },
 		nil,
 	)
 
@@ -134,7 +134,7 @@ func TestStreamWrite(t *testing.T) {
 	qstr.EXPECT().StreamID().Return(quic.StreamID(42)).AnyTimes()
 	qstr.EXPECT().Write(gomock.Any()).DoAndReturn(buf.Write).AnyTimes()
 	var eventRecorder events.Recorder
-	str := newStream(qstr, nil, nil, func(io.Reader, *headersFrame) error { return nil }, &eventRecorder)
+	str := newStream(qstr, nil, nil, func(io.Reader, *headersFrame, qlogwriter.Recorder) error { return nil }, &eventRecorder)
 	str.Write([]byte("foo"))
 	str.Write([]byte("foobar"))
 
@@ -183,7 +183,7 @@ func TestStreamTryWriteAll(t *testing.T) {
 	qstr.EXPECT().TryWriteAll(getDataFrame([]byte("blocked"))).Return(quic.ErrWouldBlock)
 
 	var eventRecorder events.Recorder
-	str := newStream(qstr, nil, nil, func(io.Reader, *headersFrame) error { return nil }, &eventRecorder)
+	str := newStream(qstr, nil, nil, func(io.Reader, *headersFrame, qlogwriter.Recorder) error { return nil }, &eventRecorder)
 	require.NoError(t, str.TryWriteAll([]byte("foobar")))
 	require.ErrorIs(t, str.TryWriteAll([]byte("blocked")), quic.ErrWouldBlock)
 
@@ -211,7 +211,7 @@ func TestRequestStream(t *testing.T) {
 			qstr,
 			newRawConn(clientConn, false, nil, nopControlStrHandler, nil, nil),
 			&httptrace.ClientTrace{},
-			func(io.Reader, *headersFrame) error { return nil },
+			func(io.Reader, *headersFrame, qlogwriter.Recorder) error { return nil },
 			nil,
 		),
 		requestWriter,

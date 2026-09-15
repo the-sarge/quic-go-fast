@@ -46,7 +46,7 @@ type rawConn struct {
 	receivedSettings chan struct{}
 
 	qlogger        qlogwriter.Recorder
-	qloggerWG      sync.WaitGroup // tracks goroutines that may produce qlog events
+	qloggerWG      sync.WaitGroup // tracks active qlog producers and stream cleanup
 	qloggerMx      sync.Mutex     // serializes new producers with shutdown
 	qloggerClosing bool
 }
@@ -335,13 +335,51 @@ func (c *rawConn) Settings() *Settings { return c.settings }
 // starts, delayed control-stream workers and application calls cannot add work
 // to an empty wait group or record through the closed producer.
 func (c *rawConn) beginQlogWork() error {
-	c.qloggerMx.Lock()
-	defer c.qloggerMx.Unlock()
-	if c.qloggerClosing {
+	if !c.admitQlogWork(nil) {
 		return context.Cause(c.conn.Context())
 	}
-	c.qloggerWG.Add(1)
 	return nil
+}
+
+// admitQlogWork permits independent producers before sealing, and child work
+// while its admitted parent still holds an obligation. The same mutex protects
+// parent release, so a retained stream cannot revive a finished handler.
+func (c *rawConn) admitQlogWork(parent *qlogWork) bool {
+	c.qloggerMx.Lock()
+	defer c.qloggerMx.Unlock()
+	if c.qloggerClosing && (parent == nil || parent.conn != c || !parent.active) {
+		return false
+	}
+	c.qloggerWG.Add(1)
+	return true
+}
+
+// qlogWork owns recording permission for one active handler or operation.
+// It must not be copied after being shared as the parent of stream operations.
+type qlogWork struct {
+	conn     *rawConn
+	recorder qlogwriter.Recorder
+	active   bool // guarded by conn.qloggerMx when used as a parent
+}
+
+func (c *rawConn) startQlogWork(recorder qlogwriter.Recorder, parent *qlogWork) qlogWork {
+	if recorder == nil || c == nil {
+		return qlogWork{recorder: recorder}
+	}
+	if !c.admitQlogWork(parent) {
+		return qlogWork{}
+	}
+	return qlogWork{conn: c, recorder: recorder, active: true}
+}
+
+func (w *qlogWork) done() {
+	if w.conn == nil {
+		return
+	}
+	w.conn.qloggerMx.Lock()
+	w.active = false
+	w.conn.qloggerWG.Done()
+	w.conn.qloggerMx.Unlock()
 }
 
 // closeQlogger seals admission and waits for the existing tracked work before

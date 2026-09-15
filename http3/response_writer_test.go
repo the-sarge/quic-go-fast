@@ -9,6 +9,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/assert"
@@ -83,7 +84,7 @@ func newTestResponseWriter(t *testing.T) *testResponseWriter {
 	str.EXPECT().SetReadDeadline(gomock.Any()).Return(nil).AnyTimes()
 	str.EXPECT().SetWriteDeadline(gomock.Any()).Return(nil).AnyTimes()
 	rw := newResponseWriter(
-		newStream(str, nil, nil, func(io.Reader, *headersFrame) error { return nil }, &eventRecorder),
+		newStream(str, nil, nil, func(io.Reader, *headersFrame, qlogwriter.Recorder) error { return nil }, &eventRecorder),
 		nil,
 		false,
 		slog.Default(),
