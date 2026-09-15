@@ -29,6 +29,7 @@ type sconn struct {
 	rawConn
 
 	localAddr net.Addr
+	external  *externalPacketIO
 
 	remoteAddrInfo atomic.Pointer[remoteAddrInfo]
 
@@ -69,6 +70,9 @@ func newSendConn(c rawConn, remote net.Addr, info packetInfo, logger utils.Logge
 		// The platform's batched-send state starts zero; only the darwin
 		// sendmsg_x path populates it, from the send worker's goroutine.
 		sconnBatchState: sconnBatchState{},
+	}
+	if ec, ok := c.(*externalPacketConn); ok {
+		sc.external = ec.config
 	}
 	sc.remoteAddrInfo.Store(&remoteAddrInfo{
 		addr: remote,
@@ -130,3 +134,32 @@ func (c *sconn) ChangeRemoteAddr(addr net.Addr, info packetInfo) {
 
 func (c *sconn) RemoteAddr() net.Addr { return c.remoteAddrInfo.Load().addr }
 func (c *sconn) LocalAddr() net.Addr  { return c.localAddr }
+
+func (c *sconn) batchSendAvailable() bool {
+	if c.external != nil {
+		addr, ok := c.remoteAddrInfo.Load().addr.(*net.UDPAddr)
+		return c.external.sendBatch != nil && ok && addr != nil
+	}
+	return c.nativeBatchSendAvailable()
+}
+
+func (c *sconn) sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
+	if c.external == nil {
+		return c.sendNativeBatch(bufs, ecn)
+	}
+	ai := c.remoteAddrInfo.Load()
+	addr, ok := ai.addr.(*net.UDPAddr)
+	if !ok || addr == nil || c.external.sendBatch == nil {
+		return 0, nil
+	}
+	oob := appendExternalECN(ai.oob, addr, ecn)
+	n, err := c.external.sendBatch(bufs, oob, addr)
+	calls := c.external.batchCalls.Add(1)
+	if n >= 0 && n <= len(bufs) {
+		c.external.acceptedPackets.Add(uint64(n))
+	}
+	if c.logger.Debug() {
+		c.logger.Debugf("external_packet_io batch_calls=%d accepted_packets=%d receive_exercised=0", calls, c.external.acceptedPackets.Load())
+	}
+	return n, err
+}

@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** Accepted after slice audit; not implemented
+**Status:** In progress; Q01 complete
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md)
@@ -19,7 +19,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 
 | Slice | Delivery | Blocked by | Disposition |
 | --- | --- | --- | --- |
-| Q01 | Register external packet I/O and provide ordinary writer | None | New |
+| Q01 | Register external packet I/O and provide ordinary writer | None | Complete |
 | Q02 | Enable external Windows segmented sends | Q01, E01-W | New |
 | Q03 | Enable permissioned Linux coalesced receive | Q01, E01-L | New |
 | Q04 | Enable permissioned Windows coalesced receive | Q01, E01-W | New |
@@ -39,6 +39,8 @@ Cross-repository blockers refer to the other track in the program index. The tra
 
 ### Q01 — Register external packet I/O and provide ordinary writer
 
+**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 is unblocked; other Q01 successors retain their independent blockers. R01-A and P01-A remain the fork frontier. Live cross-track readiness remains in the linked issues.
+
 **What it delivers and acceptance criteria:** Implement immutable registration and its binding checks in the fork transport/socket initialization module. Deliver both extension methods, including a working synchronous UDP writer using ordinary WriteMsgUDP with the declared prefix/error semantics, so W01 can discover the complete extension without Q05. Q05 adds accelerated Darwin submission behind that factory. Freeze the standard-type structural signatures using isolated upstream/fork consumer builds. Keep newly registered receive coalescing unavailable until platform implementations land. Define diagnostics for requested, permitted, supported/enabled, disabled reason and exercised counters through the existing tracing/diagnostic route; do not expose a private-state API merely for tests.
 
 Acceptance: upstream import compatibility; valid registration accepted; duplicate, late, swapped, typed-nil and unsupported identity rejected; ordinary unregistered connections unchanged; absence and invalid configuration distinguishable; baseline writer preserves complete UDP messages and definite-prefix/terminal-error semantics. Factory writers and registered callbacks support concurrent calls from multiple connection send workers; factory scratch is synchronized or per-call. Include one concurrent-call race regression. Constructor state is not close authority. Tests own these finite classes, including Close-before-register and WriteTo-before-register. Bounds: transport init/registration, ordinary writer factory, private capability state and focused tests; no accelerated packet algorithm, new helper module, wiremux runtime or receive restoration changes.
@@ -53,7 +55,7 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 **Transitional-seam budget:** No temporary duplicate owner. Ordinary upstream/fallback paths remain supported permanently.
 
-**Blast radius:** Limited to transport.go:382,441,477; sys_conn.go; send_conn.go; focused init tests. Both factory and registration signatures must land together. Shared/global state changes are forbidden. The ownership, concurrency, public interface, failure, security, performance and dependency effects are those explicitly named in delivery and tests; any newly found effect outside these owners is a stop condition, not an accepted unknown.
+**Blast radius:** Limited to transport initialization/WriteTo/Close in `transport.go`, socket initialization in `sys_conn.go` and `external_packet_io*`, common send dispatch in `send_conn.go`, and focused tests. The send module includes the Darwin active/stub native-method adapters, non-Darwin stubs, and platform-specific OOB encoding. `sconn` satisfies `batchSender` across platforms; unregistered non-Darwin availability remains false, while unregistered Darwin dispatch retains existing qualification and native submission. Both factory and registration signatures must land together. Shared/global state changes are forbidden. The ownership, concurrency, public interface, failure, security, performance and dependency effects are those explicitly named in delivery and tests; any newly found effect outside these owners is a stop condition, not an accepted unknown.
 
 **Artifact classification:** Runtime API and diagnostics: shipped behavior. Admission, progress and lifecycle guards: required safety enforcement. Tests: verification aids; no maintained-aid exception.
 

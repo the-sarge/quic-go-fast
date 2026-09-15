@@ -50,7 +50,7 @@ func (bs *darwinBatch) scratch(n int) ([]msghdrX, []syscall.Iovec) {
 // remote is a UDP address, and the socket exposes a raw fd. Every datagram
 // that proceeds per-packet because this returned false is counted as a
 // fallback, which is what makes the inert path observable.
-func (c *sconn) batchSendAvailable() bool {
+func (c *sconn) nativeBatchSendAvailable() bool {
 	if !sendmsgXAvailable() {
 		sendmsgX.fallbackPackets.Add(1)
 		return false
@@ -92,7 +92,7 @@ func (c *oobConn) udpSyscallConn() (syscall.RawConn, bool) {
 // a nil error, and the send worker retries the first unaccepted entry
 // through the per-packet path. A non-nil error means kernel progress is
 // unknowable; the worker fails the send path without resending.
-func (c *sconn) sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
+func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 	bs := c.darwinBatchState()
 	ai := c.remoteAddrInfo.Load()
 	udpAddr, ok := ai.addr.(*net.UDPAddr)
