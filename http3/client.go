@@ -173,7 +173,10 @@ func (c *ClientConn) openRequestStream(
 		return nil, errGoAway
 	}
 
-	hstr := c.rawConn.TrackStream(str)
+	hstr, err := c.rawConn.TrackStream(str)
+	if err != nil {
+		return nil, err
+	}
 	rsp := &http.Response{}
 	trace := httptrace.ContextClientTrace(ctx)
 	return newRequestStream(

@@ -45,8 +45,10 @@ type rawConn struct {
 	settings         *Settings
 	receivedSettings chan struct{}
 
-	qlogger   qlogwriter.Recorder
-	qloggerWG sync.WaitGroup // tracks goroutines that may produce qlog events
+	qlogger        qlogwriter.Recorder
+	qloggerWG      sync.WaitGroup // tracks goroutines that may produce qlog events
+	qloggerMx      sync.Mutex     // serializes new producers with shutdown
+	qloggerClosing bool
 }
 
 func newRawConn(
@@ -80,7 +82,9 @@ func (c *rawConn) OpenUniStream() (*quic.SendStream, error) {
 // openControlStream opens the control stream and sends the SETTINGS frame.
 // It returns the control stream (needed by the server for sending GOAWAY later).
 func (c *rawConn) openControlStream(settings *settingsFrame) (*quic.SendStream, error) {
-	c.qloggerWG.Add(1)
+	if err := c.beginQlogWork(); err != nil {
+		return nil, err
+	}
 	defer c.qloggerWG.Done()
 
 	str, err := c.conn.OpenUniStream()
@@ -113,14 +117,16 @@ func (c *rawConn) openControlStream(settings *settingsFrame) (*quic.SendStream, 
 	return str, nil
 }
 
-func (c *rawConn) TrackStream(str *quic.Stream) *stateTrackingStream {
+func (c *rawConn) TrackStream(str *quic.Stream) (*stateTrackingStream, error) {
+	if err := c.beginQlogWork(); err != nil {
+		return nil, err
+	}
 	hstr := newStateTrackingStream(str, c, func(b []byte) error { return c.sendDatagram(str.StreamID(), b) })
 
 	c.streamMx.Lock()
 	c.streams[str.StreamID()] = hstr
-	c.qloggerWG.Add(1)
 	c.streamMx.Unlock()
-	return hstr
+	return hstr, nil
 }
 
 func (c *rawConn) UpdateStreamPriority(id quic.StreamID, urgency int8, incremental bool) {
@@ -166,7 +172,9 @@ func (c *rawConn) CloseWithError(code quic.ApplicationErrorCode, msg string) err
 }
 
 func (c *rawConn) handleUnidirectionalStream(str *quic.ReceiveStream, isServer bool) {
-	c.qloggerWG.Add(1)
+	if err := c.beginQlogWork(); err != nil {
+		return
+	}
 	defer c.qloggerWG.Done()
 
 	streamType, err := quicvarint.Read(quicvarint.NewReader(str))
@@ -259,6 +267,10 @@ func (c *rawConn) handleControlStream(str *quic.ReceiveStream) {
 }
 
 func (c *rawConn) sendDatagram(streamID quic.StreamID, b []byte) error {
+	if err := c.beginQlogWork(); err != nil {
+		return err
+	}
+	defer c.qloggerWG.Done()
 	// TODO: this creates a lot of garbage and an additional copy
 	data := make([]byte, 0, len(b)+8)
 	quarterStreamID := uint64(streamID / 4)
@@ -319,12 +331,28 @@ func (c *rawConn) ReceivedSettings() <-chan struct{} { return c.receivedSettings
 // It is only valid to call this function after the channel returned by ReceivedSettings was closed.
 func (c *rawConn) Settings() *Settings { return c.settings }
 
-// closeQlogger waits for all goroutines that may produce qlog events to finish,
+// beginQlogWork admits a producer before it can record events. Once shutdown
+// starts, delayed control-stream workers and application calls cannot add work
+// to an empty wait group or record through the closed producer.
+func (c *rawConn) beginQlogWork() error {
+	c.qloggerMx.Lock()
+	defer c.qloggerMx.Unlock()
+	if c.qloggerClosing {
+		return context.Cause(c.conn.Context())
+	}
+	c.qloggerWG.Add(1)
+	return nil
+}
+
+// closeQlogger waits for all admitted goroutines that may produce qlog events to finish,
 // then closes the qlogger.
 func (c *rawConn) closeQlogger() {
 	if c.qlogger == nil {
 		return
 	}
+	c.qloggerMx.Lock()
+	c.qloggerClosing = true
+	c.qloggerMx.Unlock()
 	c.qloggerWG.Wait()
 	c.qlogger.Close()
 }
