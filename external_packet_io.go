@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -90,6 +91,12 @@ func (t *Transport) UDPBatchWriterV1(conn *net.UDPConn) (func([][]byte, []byte, 
 			n, oobn, err := conn.WriteMsgUDP(buf, oob, addr)
 			if err != nil {
 				return i, err
+			}
+			// Go's overlapped WSASendMsg path can report zero bytes on
+			// synchronous success. UDP messages are atomic, so success
+			// still accounts for this complete payload (including empty).
+			if runtime.GOOS == "windows" && n == 0 {
+				n = len(buf)
 			}
 			if n != len(buf) || oobn != len(oob) {
 				return i, io.ErrShortWrite
