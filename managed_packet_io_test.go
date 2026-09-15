@@ -81,6 +81,28 @@ func TestManagedPacketIOOuterBinding(t *testing.T) {
 			require.Error(t, tr.ConfigureManagedPacketIOV1(outer, lease, nil))
 		})
 	}
+	for _, parent := range []bool{false, true} {
+		t.Run(map[bool]string{false: "different lease", true: "managed parent"}[parent], func(t *testing.T) {
+			endpoint, acquire := newTestManagedEndpoint(t)
+			lease, err := acquire()
+			require.NoError(t, err)
+			defer lease.Close()
+			_, otherAcquire := newTestManagedEndpoint(t)
+			other, err := otherAcquire()
+			require.NoError(t, err)
+			defer other.Close()
+			outer := other
+			if parent {
+				outer = endpoint
+			}
+			tr := &Transport{Conn: outer}
+			require.Error(t, tr.ConfigureManagedPacketIOV1(outer, lease, nil))
+			tr.Conn = lease
+			require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil), "rejection must preserve transport slot and supplied lease authority")
+			otherTransport := &Transport{Conn: other}
+			require.NoError(t, otherTransport.ConfigureManagedPacketIOV1(other, other, nil), "rejection must preserve outer lease authority")
+		})
+	}
 }
 
 func TestManagedPacketIOProbeThenQUIC(t *testing.T) {
@@ -292,10 +314,11 @@ func TestManagedPacketIOConcurrentBatchClose(t *testing.T) {
 				writer := lease.(managedBatchWriterV1).WriteBatchV1
 				require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, writer))
 				var wg sync.WaitGroup
+				results := make(chan error, 2)
 				for range 2 {
 					wg.Go(func() {
 						_, err := writer([][]byte{[]byte("pending")}, nil, nil)
-						require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+						results <- err
 					})
 				}
 				<-socket.writes
@@ -319,6 +342,9 @@ func TestManagedPacketIOConcurrentBatchClose(t *testing.T) {
 				require.ErrorIs(t, err, net.ErrClosed)
 				close(socket.finish)
 				wg.Wait()
+				for range 2 {
+					require.ErrorIs(t, <-results, os.ErrDeadlineExceeded)
+				}
 				require.NoError(t, <-closed)
 				if !parentClose {
 					next, err := acquire()

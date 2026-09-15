@@ -97,6 +97,9 @@ func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.Pa
 	if !ok || l == nil || l.lease == nil {
 		return errors.New("quic: managed packet I/O requires an exact factory lease")
 	}
+	if direct, ok := conn.(*managedPacketConn); ok && direct != l {
+		return errors.New("quic: managed packet I/O connection is not the supplied lease")
+	}
 	e := l.endpoint
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
