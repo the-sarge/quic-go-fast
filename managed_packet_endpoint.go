@@ -29,7 +29,7 @@ import (
 // the endpoint and is returned by Close. Close is safe to call concurrently.
 //
 // The endpoint and leases expose no raw socket or descriptor. They provide
-// ordinary datagrams only. Linux managed registration installs persistent receive
+// ordinary datagrams only. Linux and Windows managed registration installs persistent receive
 // normalization before enabling coalescing; it remains across leases to decode
 // queued kernel data. Lease Close discards already consumed QUIC receive storage.
 // After ordinary establishment I/O has joined, ConfigureManagedPacketIOV1 can
@@ -174,7 +174,7 @@ func (c *managedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 	defer packet.buffer.Release()
 	addr := packet.remoteAddr
 	if udp, ok := addr.(*net.UDPAddr); ok {
-		// GRO siblings share their internal source. Public callers may mutate
+		// Coalesced siblings share their internal source. Public callers may mutate
 		// the returned address, so detach it before crossing that boundary.
 		cloned := *udp
 		cloned.IP = append(net.IP(nil), udp.IP...)
