@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, P01-A and P01-B complete; R03 forms the fork frontier; E02-W is ready in track W; E02-L and E02-D are complete
+**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, R03, P01-A and P01-B complete; no fork slice is ready until E02 completes; E02-W is ready in track W; E02-L and E02-D are complete
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -38,7 +38,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | Complete |
 | R01-W | Windows managed coalesced normalization | R01-B, Q04 | Complete |
-| R03 | Decide raw handback feasibility | R01-L, R01-W | New |
+| R03 | Decide raw handback feasibility | R01-L, R01-W | Complete: raw return rejected; managed reuse supported |
 | P01-A | Consolidate packet-policy hooks without activating policy | None | Complete |
 | P01-B | Activate complete immutable fixed-peer policy | P01-A, Q01 | Complete |
 | L01 | Release qualified fork capability | E02 | New |
@@ -347,6 +347,8 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### R03 — Decide raw handback feasibility
+
+**Current state:** Complete with a recorded rejection of raw return after coalescing; managed reuse is the supported route. The [bounded decision receipt](../audits/2026-09-16-r03-raw-handback.md) records Linux queued-buffer source evidence, the Windows contract limitation and why neither conditional native experiment was triggered. No raw-return implementation children are proposed. E02 retains E02-W; L01 remains blocked by E02, so this completion makes no successor ready. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Inspect native Linux/Windows option and queued-buffer semantics and perform one predeclared finite handback experiment per platform if a plausible bounded procedure exists. Required result: either a separately scoped safe raw-return proposal with explicit pending implementation children, or a recorded rejection of raw return after coalescing with managed reuse as the supported route. Draining unbounded traffic, discarding unrelated queued data, hoping queues are empty, or suppressing restoration errors cannot pass. No additional repeated experiments without a distinct corrected hypothesis. The program cannot close with this decision unresolved; raw borrowed sockets remain ordinary-receive meanwhile.
 
