@@ -1,0 +1,271 @@
+2026/09/16 18:13:31 connection doesn't allow setting of receive buffer size. Not a *net.UDPConn?. See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
+2026/09/16 18:13:31 Received invalid UDP_COALESCED_INFO control message: 6400. This should never occur, please open a new issue and include details about the architecture.
+binary SHA256: 9d6bf20d7c8bb18be65ddbc6381d49bbc9bb6ecfbdab2a6769cc9503d861bb78
+
+
+Caption        : Microsoft Windows Server 2025 Standard Evaluation
+Version        : 10.0.26100
+OSArchitecture : 64-bit
+
+
+
+=== RUN   TestWindowsExternalReceivePermission
+=== RUN   TestWindowsExternalReceivePermission/ordinary
+=== RUN   TestWindowsExternalReceivePermission/opaque_permitted_wrapper
+=== RUN   TestWindowsExternalReceivePermission/registered_without_permission
+=== RUN   TestWindowsExternalReceivePermission/permitted_native
+=== RUN   TestWindowsExternalReceivePermission/permitted_wrapper
+=== RUN   TestWindowsExternalReceivePermission/disabled_wrapper
+--- PASS: TestWindowsExternalReceivePermission (0.07s)
+    --- PASS: TestWindowsExternalReceivePermission/ordinary (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/opaque_permitted_wrapper (0.07s)
+    --- PASS: TestWindowsExternalReceivePermission/registered_without_permission (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/permitted_native (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/permitted_wrapper (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/disabled_wrapper (0.00s)
+=== RUN   TestWindowsExternalURORejectsInvalidRead
+=== RUN   TestWindowsExternalURORejectsInvalidRead/zero_segment
+=== RUN   TestWindowsExternalURORejectsInvalidRead/segment_beyond_payload
+=== RUN   TestWindowsExternalURORejectsInvalidRead/short_segment_metadata
+=== RUN   TestWindowsExternalURORejectsInvalidRead/duplicate_segment_metadata
+=== RUN   TestWindowsExternalURORejectsInvalidRead/truncated_payload
+=== RUN   TestWindowsExternalURORejectsInvalidRead/truncated_control
+=== RUN   TestWindowsExternalURORejectsInvalidRead/Winsock_truncated_control_error
+=== RUN   TestWindowsExternalURORejectsInvalidRead/malformed_control
+=== RUN   TestWindowsExternalURORejectsInvalidRead/malformed_trailing_control
+--- PASS: TestWindowsExternalURORejectsInvalidRead (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/zero_segment (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/segment_beyond_payload (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/short_segment_metadata (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/duplicate_segment_metadata (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/truncated_payload (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/truncated_control (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/Winsock_truncated_control_error (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/malformed_control (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/malformed_trailing_control (0.00s)
+=== RUN   TestWindowsExternalUROWrapperLifecycle
+=== RUN   TestWindowsExternalUROWrapperLifecycle/udp4
+=== RUN   TestWindowsExternalUROWrapperLifecycle/udp6
+--- PASS: TestWindowsExternalUROWrapperLifecycle (0.00s)
+    --- PASS: TestWindowsExternalUROWrapperLifecycle/udp4 (0.00s)
+    --- PASS: TestWindowsExternalUROWrapperLifecycle/udp6 (0.00s)
+=== RUN   TestWindowsExternalUROSetupFailureRemainsCallerOwned
+--- PASS: TestWindowsExternalUROSetupFailureRemainsCallerOwned (0.00s)
+=== RUN   TestWindowsExternalUROReadErrorDoesNotReplay
+--- PASS: TestWindowsExternalUROReadErrorDoesNotReplay (0.00s)
+=== RUN   TestWindowsExternalURONativeEngagement
+    external_packet_io_windows_test.go:233: requires a separate endpoint via QUIC_GO_Q04_URO_PEER
+--- SKIP: TestWindowsExternalURONativeEngagement (0.00s)
+=== RUN   TestManagedEndpointBufferSetupOnce
+--- PASS: TestManagedEndpointBufferSetupOnce (0.03s)
+=== RUN   TestManagedEndpointNativeBuffers
+    managed_packet_buffers_test.go:126: native queue limits: receive=7340032 send=7340032 target=7340032
+--- PASS: TestManagedEndpointNativeBuffers (0.00s)
+=== RUN   TestManagedEndpointDiagnosticProvenance
+=== RUN   TestManagedEndpointDiagnosticProvenance/parent
+=== RUN   TestManagedEndpointDiagnosticProvenance/lease
+=== RUN   TestManagedEndpointDiagnosticProvenance/registered
+=== RUN   TestManagedEndpointDiagnosticProvenance/registered_batch
+=== RUN   TestManagedEndpointDiagnosticProvenance/wrapper
+=== RUN   TestManagedEndpointDiagnosticProvenance/wrapper_batch
+=== RUN   TestManagedEndpointDiagnosticProvenance/unknown_wrapper
+=== RUN   TestManagedEndpointDiagnosticProvenance/external_wrapper
+--- PASS: TestManagedEndpointDiagnosticProvenance (0.01s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/parent (0.00s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/lease (0.00s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/registered (0.00s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/registered_batch (0.00s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/wrapper (0.00s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/wrapper_batch (0.00s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/unknown_wrapper (0.00s)
+    --- PASS: TestManagedEndpointDiagnosticProvenance/external_wrapper (0.00s)
+=== RUN   TestManagedEndpointBufferWarnings
+=== RUN   TestManagedEndpointBufferWarnings/enabled
+=== RUN   TestManagedEndpointBufferWarnings/disabled
+=== RUN   TestManagedEndpointBufferWarnings/consumed
+=== RUN   TestManagedEndpointBufferWarnings/closed_receive
+--- PASS: TestManagedEndpointBufferWarnings (0.10s)
+    --- PASS: TestManagedEndpointBufferWarnings/enabled (0.03s)
+    --- PASS: TestManagedEndpointBufferWarnings/disabled (0.03s)
+    --- PASS: TestManagedEndpointBufferWarnings/consumed (0.02s)
+    --- PASS: TestManagedEndpointBufferWarnings/closed_receive (0.02s)
+=== RUN   TestManagedEndpointPreservesPeerPolicy
+--- PASS: TestManagedEndpointPreservesPeerPolicy (0.00s)
+=== RUN   TestManagedEndpointInspectionFailure
+--- PASS: TestManagedEndpointInspectionFailure (0.02s)
+=== RUN   TestManagedEndpointDiagnosticInspectionDoesNotWarn
+=== RUN   TestManagedEndpointDiagnosticInspectionDoesNotWarn/unavailable
+=== RUN   TestManagedEndpointDiagnosticInspectionDoesNotWarn/denied
+--- PASS: TestManagedEndpointDiagnosticInspectionDoesNotWarn (0.05s)
+    --- PASS: TestManagedEndpointDiagnosticInspectionDoesNotWarn/unavailable (0.03s)
+    --- PASS: TestManagedEndpointDiagnosticInspectionDoesNotWarn/denied (0.02s)
+=== RUN   TestManagedEndpointOrdinaryDatagrams
+--- PASS: TestManagedEndpointOrdinaryDatagrams (0.00s)
+=== RUN   TestManagedEndpointExclusiveLease
+--- PASS: TestManagedEndpointExclusiveLease (0.00s)
+=== RUN   TestManagedEndpointRestoresDeadlines
+=== RUN   TestManagedEndpointRestoresDeadlines/read
+=== RUN   TestManagedEndpointRestoresDeadlines/write
+--- PASS: TestManagedEndpointRestoresDeadlines (0.00s)
+    --- PASS: TestManagedEndpointRestoresDeadlines/read (0.00s)
+    --- PASS: TestManagedEndpointRestoresDeadlines/write (0.00s)
+=== RUN   TestManagedEndpointTerminalClose
+--- PASS: TestManagedEndpointTerminalClose (0.00s)
+=== RUN   TestManagedEndpointJoinsIO
+=== RUN   TestManagedEndpointJoinsIO/read/parent=false
+=== RUN   TestManagedEndpointJoinsIO/read/parent=true
+=== RUN   TestManagedEndpointJoinsIO/write/parent=false
+=== RUN   TestManagedEndpointJoinsIO/write/parent=true
+--- PASS: TestManagedEndpointJoinsIO (0.00s)
+    --- PASS: TestManagedEndpointJoinsIO/read/parent=false (0.00s)
+    --- PASS: TestManagedEndpointJoinsIO/read/parent=true (0.00s)
+    --- PASS: TestManagedEndpointJoinsIO/write/parent=false (0.00s)
+    --- PASS: TestManagedEndpointJoinsIO/write/parent=true (0.00s)
+=== RUN   TestManagedEndpointHandbackFailureIsTerminal
+=== RUN   TestManagedEndpointHandbackFailureIsTerminal/interrupt
+=== RUN   TestManagedEndpointHandbackFailureIsTerminal/read
+=== RUN   TestManagedEndpointHandbackFailureIsTerminal/write
+--- PASS: TestManagedEndpointHandbackFailureIsTerminal (0.00s)
+    --- PASS: TestManagedEndpointHandbackFailureIsTerminal/interrupt (0.00s)
+    --- PASS: TestManagedEndpointHandbackFailureIsTerminal/read (0.00s)
+    --- PASS: TestManagedEndpointHandbackFailureIsTerminal/write (0.00s)
+=== RUN   TestManagedEndpointConcurrentAcquisition
+--- PASS: TestManagedEndpointConcurrentAcquisition (0.00s)
+=== RUN   TestManagedEndpointConstructorFailure
+--- PASS: TestManagedEndpointConstructorFailure (0.00s)
+=== RUN   TestManagedEndpointParentCloseInterruptsLease
+--- PASS: TestManagedEndpointParentCloseInterruptsLease (0.00s)
+=== RUN   TestManagedPacketIOInvalidLease
+=== RUN   TestManagedPacketIOInvalidLease/nil
+=== RUN   TestManagedPacketIOInvalidLease/typed_nil
+=== RUN   TestManagedPacketIOInvalidLease/parent
+=== RUN   TestManagedPacketIOInvalidLease/foreign
+=== RUN   TestManagedPacketIOInvalidLease/promoted
+=== RUN   TestManagedPacketIOInvalidLease/closed
+--- PASS: TestManagedPacketIOInvalidLease (0.00s)
+    --- PASS: TestManagedPacketIOInvalidLease/nil (0.00s)
+    --- PASS: TestManagedPacketIOInvalidLease/typed_nil (0.00s)
+    --- PASS: TestManagedPacketIOInvalidLease/parent (0.00s)
+    --- PASS: TestManagedPacketIOInvalidLease/foreign (0.00s)
+    --- PASS: TestManagedPacketIOInvalidLease/promoted (0.00s)
+    --- PASS: TestManagedPacketIOInvalidLease/closed (0.00s)
+=== RUN   TestManagedPacketIOOuterBinding
+=== RUN   TestManagedPacketIOOuterBinding/nil
+=== RUN   TestManagedPacketIOOuterBinding/nonpointer
+=== RUN   TestManagedPacketIOOuterBinding/different
+=== RUN   TestManagedPacketIOOuterBinding/external_first
+=== RUN   TestManagedPacketIOOuterBinding/initialized
+=== RUN   TestManagedPacketIOOuterBinding/swapped
+=== RUN   TestManagedPacketIOOuterBinding/different_lease
+=== RUN   TestManagedPacketIOOuterBinding/managed_parent
+--- PASS: TestManagedPacketIOOuterBinding (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/nil (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/nonpointer (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/different (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/external_first (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/initialized (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/swapped (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/different_lease (0.00s)
+    --- PASS: TestManagedPacketIOOuterBinding/managed_parent (0.00s)
+=== RUN   TestManagedPacketIOProbeThenQUIC
+--- PASS: TestManagedPacketIOProbeThenQUIC (0.01s)
+=== RUN   TestManagedPacketIODelayedQueuedSend
+--- PASS: TestManagedPacketIODelayedQueuedSend (0.00s)
+=== RUN   TestManagedPacketIOBatchDatagrams
+--- PASS: TestManagedPacketIOBatchDatagrams (0.00s)
+=== RUN   TestManagedPacketIOFailedInit
+--- PASS: TestManagedPacketIOFailedInit (0.00s)
+=== RUN   TestManagedPacketIORequiresOrdinaryIOJoin
+--- PASS: TestManagedPacketIORequiresOrdinaryIOJoin (0.00s)
+=== RUN   TestManagedPacketIOConcurrentBatchClose
+=== RUN   TestManagedPacketIOConcurrentBatchClose/lease
+=== RUN   TestManagedPacketIOConcurrentBatchClose/parent
+--- PASS: TestManagedPacketIOConcurrentBatchClose (0.00s)
+    --- PASS: TestManagedPacketIOConcurrentBatchClose/lease (0.00s)
+    --- PASS: TestManagedPacketIOConcurrentBatchClose/parent (0.00s)
+=== RUN   TestManagedPacketIORegistration
+--- PASS: TestManagedPacketIORegistration (0.00s)
+=== RUN   TestWindowsManagedReceiveRegistration
+--- PASS: TestWindowsManagedReceiveRegistration (0.00s)
+=== RUN   TestWindowsManagedReceiveWrapperLifecycle
+=== RUN   TestWindowsManagedReceiveWrapperLifecycle/udp4
+=== RUN   TestWindowsManagedReceiveWrapperLifecycle/udp6
+--- PASS: TestWindowsManagedReceiveWrapperLifecycle (0.00s)
+    --- PASS: TestWindowsManagedReceiveWrapperLifecycle/udp4 (0.00s)
+    --- PASS: TestWindowsManagedReceiveWrapperLifecycle/udp6 (0.00s)
+=== RUN   TestWindowsManagedReceiveDisabled
+--- PASS: TestWindowsManagedReceiveDisabled (0.00s)
+=== RUN   TestWindowsManagedReceiveHandback
+=== RUN   TestWindowsManagedReceiveHandback/ordinary_sibling_retained
+=== RUN   TestWindowsManagedReceiveHandback/QUIC_sibling_discarded
+--- PASS: TestWindowsManagedReceiveHandback (0.00s)
+    --- PASS: TestWindowsManagedReceiveHandback/ordinary_sibling_retained (0.00s)
+    --- PASS: TestWindowsManagedReceiveHandback/QUIC_sibling_discarded (0.00s)
+=== RUN   TestWindowsManagedReceiveRejectsTruncatedMetadata
+--- PASS: TestWindowsManagedReceiveRejectsTruncatedMetadata (0.00s)
+=== RUN   TestWindowsManagedReceiveNativeHandback
+    managed_packet_receive_windows_test.go:275: queued bytes before lease return: 38692
+    managed_packet_receive_windows_test.go:299: managed Windows handback: 1 coalesced read(s); 32 exact datagrams across ordinary read and next lease
+--- PASS: TestWindowsManagedReceiveNativeHandback (0.00s)
+=== RUN   TestWindowsUROProbeOnTransportOwnedSocket
+--- PASS: TestWindowsUROProbeOnTransportOwnedSocket (0.00s)
+=== RUN   TestWindowsURONotEnabledOnCallerSuppliedSocket
+--- PASS: TestWindowsURONotEnabledOnCallerSuppliedSocket (0.00s)
+=== RUN   TestWindowsURODisabledByEnv
+--- PASS: TestWindowsURODisabledByEnv (0.00s)
+=== RUN   TestWindowsUROProbeFailure
+=== RUN   TestWindowsUROProbeFailure/control_error
+=== RUN   TestWindowsUROProbeFailure/setsockopt_error
+--- PASS: TestWindowsUROProbeFailure (0.00s)
+    --- PASS: TestWindowsUROProbeFailure/control_error (0.00s)
+    --- PASS: TestWindowsUROProbeFailure/setsockopt_error (0.00s)
+=== RUN   TestWindowsUROProbeErrorClassification
+=== RUN   TestWindowsUROProbeErrorClassification/WSAENOPROTOOPT_reports_capability_off
+=== RUN   TestWindowsUROProbeErrorClassification/any_other_failure_classifies_the_same
+=== RUN   TestWindowsUROProbeErrorClassification/success_enables_the_capability
+--- PASS: TestWindowsUROProbeErrorClassification (0.00s)
+    --- PASS: TestWindowsUROProbeErrorClassification/WSAENOPROTOOPT_reports_capability_off (0.00s)
+    --- PASS: TestWindowsUROProbeErrorClassification/any_other_failure_classifies_the_same (0.00s)
+    --- PASS: TestWindowsUROProbeErrorClassification/success_enables_the_capability (0.00s)
+=== RUN   TestWindowsUROReadSplitsCoalescedRead
+--- PASS: TestWindowsUROReadSplitsCoalescedRead (0.00s)
+=== RUN   TestWindowsUROReadEmptyDatagram
+--- PASS: TestWindowsUROReadEmptyDatagram (0.00s)
+=== RUN   TestWindowsUROReadPacketInfoInheritance
+--- PASS: TestWindowsUROReadPacketInfoInheritance (0.00s)
+=== RUN   TestWindowsUROReleaseReadBuffersReleasesPendingViews
+--- PASS: TestWindowsUROReleaseReadBuffersReleasesPendingViews (0.00s)
+=== RUN   TestWindowsUSOUROInteractionMatrix
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=true,uro=true
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=true,uro=false
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=false,uro=true
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=false,uro=false
+--- PASS: TestWindowsUSOUROInteractionMatrix (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=true,uro=true (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=true,uro=false (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=false,uro=true (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=false,uro=false (0.00s)
+=== RUN   TestWindowsUROEndToEndLoopback
+    sys_conn_windows_uro_test.go:462: 8 datagrams in 1 socket reads (8 arrived coalesced)
+--- PASS: TestWindowsUROEndToEndLoopback (0.00s)
+=== RUN   TestWindowsExternalSegmentedSend
+=== RUN   TestWindowsExternalSegmentedSend/ordinary_IPv4
+=== RUN   TestWindowsExternalSegmentedSend/registered_IPv4
+=== RUN   TestWindowsExternalSegmentedSend/ordinary_IPv6
+=== RUN   TestWindowsExternalSegmentedSend/registered_IPv6
+=== RUN   TestWindowsExternalSegmentedSend/registered_disabled
+=== RUN   TestWindowsExternalSegmentedSend/unavailable
+--- PASS: TestWindowsExternalSegmentedSend (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/ordinary_IPv4 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/registered_IPv4 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/ordinary_IPv6 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/registered_IPv6 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/registered_disabled (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/unavailable (0.00s)
+=== RUN   TestWindowsUSOProbeFailure
+=== RUN   TestWindowsUSOProbeFailure/control_error
+=== RUN   TestWindowsUSOProbeFailure/getsockopt_error
+--- PASS: TestWindowsUSOProbeFailure (0.00s)
+    --- PASS: TestWindowsUSOProbeFailure/control_error (0.00s)
+    --- PASS: TestWindowsUSOProbeFailure/getsockopt_error (0.00s)
+PASS
