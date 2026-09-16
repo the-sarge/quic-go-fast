@@ -32,7 +32,7 @@ const oobBufferSize = 128
 // same authoritative local-address handling as the OOB platforms; the
 // per-send UDP_SEND_MSG_SIZE segment-size message that hands a batched send
 // to USO the way UDP_SEGMENT hands one to Linux GSO (W2); and, on
-// transport-owned sockets, the UDP_RECV_MAX_COALESCED_SIZE receive-coalescing
+// explicitly permitted sockets, the UDP_RECV_MAX_COALESCED_SIZE receive-coalescing
 // (URO) capability with UDP_COALESCED_INFO parsing, splitting each coalesced
 // read into per-datagram views over G1's shared coalescedSlab and returning
 // them one per ReadPacket call through the coalesced delivery holder (W3).
@@ -53,10 +53,10 @@ type windowsConn struct {
 
 var _ rawConn = &windowsConn{}
 
-// ownsSocket grants receive-format mutation only for transport-created sockets.
+// allowReceiveCoalescing grants receive-format mutation independently of Close.
 // The read-only USO probe is independent of that permission and close ownership;
 // segmented sends still go through the supplied connection's WriteMsgUDP.
-func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn, error) {
+func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*windowsConn, error) {
 	var needsPacketInfo bool
 	if udpAddr, ok := c.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP.IsUnspecified() {
 		needsPacketInfo = true
@@ -89,10 +89,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn,
 	}
 	uso := isUSOEnabled(rawConn)
 	var uro bool
-	if ownsSocket {
-		// The ownsSocket gate is load-bearing: isUROEnabled issues the
-		// UDP_RECV_MAX_COALESCED_SIZE setsockopt, which must never reach a
-		// caller-supplied socket.
+	if allowReceiveCoalescing {
+		// isUROEnabled mutates the socket-wide receive format. Only the
+		// transport grant authorizes this, never native method discovery.
 		uro = isUROEnabled(rawConn)
 	}
 	return &windowsConn{
@@ -125,8 +124,8 @@ func isUSOEnabled(conn syscall.RawConn) bool {
 // the Linux UDP_GRO probe: on success Winsock coalesces consecutive
 // same-flow datagrams into a single read of up to the coalesced buffer
 // tier's capacity and reports the segment size in a UDP_COALESCED_INFO
-// control message. It must only be called on sockets the transport created
-// and owns, and honors the QUIC_GO_DISABLE_GRO kill switch that governs
+// control message. It requires explicit receive-format permission and
+// honors the QUIC_GO_DISABLE_GRO kill switch that governs
 // coalesced receive on every platform.
 func isUROEnabled(conn syscall.RawConn) bool {
 	return isUROEnabledWith(conn, func(fd uintptr) error {
@@ -158,34 +157,51 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 	if p, ok := c.delivery.next(); ok {
 		return p, nil
 	}
-	var buffer *packetBuffer
-	if c.cap.GRO {
-		// a single coalesced read can deliver up to 65535 bytes
-		buffer = getCoalescedPacketBuffer()
-		buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
-	} else {
-		// The packet size should not exceed protocol.MaxPacketBufferSize bytes
-		// If it does, we only read a truncated packet, which will then end up undecryptable
-		buffer = getPacketBuffer()
-		buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+	// A rejected read publishes no sibling views. Keep reading after malformed
+	// metadata or truncation, while real socket errors retain their identity.
+	for {
+		var buffer *packetBuffer
+		if c.cap.GRO {
+			// a single coalesced read can deliver up to 65535 bytes
+			buffer = getCoalescedPacketBuffer()
+			buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
+		} else {
+			// The packet size should not exceed protocol.MaxPacketBufferSize bytes
+			// If it does, we only read a truncated packet, which will then end up undecryptable
+			buffer = getPacketBuffer()
+			buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+		}
+		n, oobn, flags, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
+		if err != nil {
+			buffer.Release()
+			// Winsock reports truncated payload or control data as WSAEMSGSIZE.
+			// That datagram has been consumed; it must not terminate the reader.
+			if c.cap.GRO && errors.Is(err, windows.WSAEMSGSIZE) {
+				continue
+			}
+			return receivedPacket{}, err
+		}
+		if c.cap.GRO && (flags&(windows.MSG_TRUNC|windows.MSG_CTRUNC) != 0 || n < 0 || n > len(buffer.Data) || oobn < 0 || oobn > len(c.oobBuffer)) {
+			buffer.Release()
+			continue
+		}
+		info, segmentSize, valid := parseControlMessagesChecked(c.oobBuffer[:oobn])
+		if c.cap.GRO && (!valid || segmentSize < 0 || segmentSize > n) {
+			buffer.Release()
+			continue
+		}
+		p := receivedPacket{
+			remoteAddr: addr,
+			rcvTime:    monotime.Now(),
+			data:       buffer.Data[:n],
+			buffer:     buffer,
+			info:       info,
+		}
+		if !c.cap.GRO || n == 0 {
+			return p, nil
+		}
+		return c.delivery.accept(p, segmentSize), nil
 	}
-	n, oobn, _, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
-	if err != nil {
-		buffer.Release()
-		return receivedPacket{}, err
-	}
-	info, segmentSize := parseControlMessages(c.oobBuffer[:oobn])
-	p := receivedPacket{
-		remoteAddr: addr,
-		rcvTime:    monotime.Now(),
-		data:       buffer.Data[:n],
-		buffer:     buffer,
-		info:       info,
-	}
-	if !c.cap.GRO || n == 0 {
-		return p, nil
-	}
-	return c.delivery.accept(p, segmentSize), nil
 }
 
 // releaseReadBuffers runs only after reading stops (the transport's read
@@ -308,20 +324,35 @@ func parsePacketInfo(oob []byte) packetInfo {
 // absent-info fallback, so a structurally invalid buffer stops parsing
 // without failing the read.
 func parseControlMessages(oob []byte) (packetInfo, int) {
+	info, size, _ := parseControlMessagesChecked(oob)
+	return info, size
+}
+
+// The ordinary packet-info API retains its best-effort fallback. Coalesced
+// receive also requires a complete, unambiguous control buffer before splitting.
+func parseControlMessagesChecked(oob []byte) (packetInfo, int, bool) {
+	valid := true
 	var info packetInfo
 	var segmentSize int
 	for len(oob) >= wsaCmsgDataOffset {
 		hdr := (*windows.WSACMSGHDR)(unsafe.Pointer(&oob[0]))
 		if hdr.Len < uintptr(wsaCmsgDataOffset) || hdr.Len > uintptr(len(oob)) {
-			return info, segmentSize
+			return info, segmentSize, false
 		}
 		body := oob[wsaCmsgDataOffset:hdr.Len]
 		if hdr.Level == windows.IPPROTO_UDP && hdr.Type == windows.UDP_COALESCED_INFO {
 			// payload is one DWORD: the size of every segment of the
 			// coalesced read except a possibly shorter final one
 			if len(body) == 4 {
+				if segmentSize != 0 {
+					valid = false
+				}
 				segmentSize = int(binary.NativeEndian.Uint32(body))
+				if segmentSize <= 0 {
+					valid = false
+				}
 			} else {
+				valid = false
 				invalidCmsgOnceCoalesced.Do(func() {
 					log.Printf("Received invalid UDP_COALESCED_INFO control message: %+x. "+
 						"This should never occur, please open a new issue and include details about the architecture.", body)
@@ -335,6 +366,7 @@ func parseControlMessages(oob []byte) (packetInfo, int) {
 				info.ifIndex = binary.NativeEndian.Uint32(body[4:])
 				info.pktinfoV6 = false
 			} else {
+				valid = false
 				invalidCmsgOnceV4.Do(func() {
 					log.Printf("Received invalid IPv4 packet info control message: %+x. "+
 						"This should never occur, please open a new issue and include details about the architecture.", body)
@@ -348,6 +380,7 @@ func parseControlMessages(oob []byte) (packetInfo, int) {
 				info.ifIndex = binary.NativeEndian.Uint32(body[16:])
 				info.pktinfoV6 = true
 			} else {
+				valid = false
 				invalidCmsgOnceV6.Do(func() {
 					log.Printf("Received invalid IPv6 packet info control message: %+x. "+
 						"This should never occur, please open a new issue and include details about the architecture.", body)
@@ -355,12 +388,13 @@ func parseControlMessages(oob []byte) (packetInfo, int) {
 			}
 		}
 		next := wsaCmsgAlign(int(hdr.Len))
-		if next > len(oob) {
-			return info, segmentSize
+		if next >= len(oob) {
+			// The final message need not include trailing alignment padding.
+			return info, segmentSize, valid
 		}
 		oob = oob[next:]
 	}
-	return info, segmentSize
+	return info, segmentSize, valid && len(oob) == 0
 }
 
 func (info *packetInfo) OOB() []byte {

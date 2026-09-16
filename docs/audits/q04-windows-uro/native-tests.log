@@ -1,0 +1,107 @@
+2026/09/16 13:53:02 connection doesn't allow setting of receive buffer size. Not a *net.UDPConn?. See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
+2026/09/16 13:53:02 Received invalid UDP_COALESCED_INFO control message: 6400. This should never occur, please open a new issue and include details about the architecture.
+{"os":"Microsoft Windows Server 2025 Standard Evaluation","build":"10.0.26100.0","arch":"AMD64","processors":4}
+ECFDF965B153BEE1BA4BE71D2DEE5C5D269B7F2840DBEE94795192DB42C8CE04
+=== RUN   TestWindowsExternalReceivePermission
+=== RUN   TestWindowsExternalReceivePermission/ordinary
+=== RUN   TestWindowsExternalReceivePermission/opaque_permitted_wrapper
+=== RUN   TestWindowsExternalReceivePermission/registered_without_permission
+=== RUN   TestWindowsExternalReceivePermission/permitted_native
+=== RUN   TestWindowsExternalReceivePermission/permitted_wrapper
+=== RUN   TestWindowsExternalReceivePermission/disabled_wrapper
+--- PASS: TestWindowsExternalReceivePermission (0.03s)
+    --- PASS: TestWindowsExternalReceivePermission/ordinary (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/opaque_permitted_wrapper (0.03s)
+    --- PASS: TestWindowsExternalReceivePermission/registered_without_permission (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/permitted_native (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/permitted_wrapper (0.00s)
+    --- PASS: TestWindowsExternalReceivePermission/disabled_wrapper (0.00s)
+=== RUN   TestWindowsExternalURORejectsInvalidRead
+=== RUN   TestWindowsExternalURORejectsInvalidRead/zero_segment
+=== RUN   TestWindowsExternalURORejectsInvalidRead/segment_beyond_payload
+=== RUN   TestWindowsExternalURORejectsInvalidRead/short_segment_metadata
+=== RUN   TestWindowsExternalURORejectsInvalidRead/duplicate_segment_metadata
+=== RUN   TestWindowsExternalURORejectsInvalidRead/truncated_payload
+=== RUN   TestWindowsExternalURORejectsInvalidRead/truncated_control
+=== RUN   TestWindowsExternalURORejectsInvalidRead/Winsock_truncated_control_error
+=== RUN   TestWindowsExternalURORejectsInvalidRead/malformed_control
+=== RUN   TestWindowsExternalURORejectsInvalidRead/malformed_trailing_control
+--- PASS: TestWindowsExternalURORejectsInvalidRead (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/zero_segment (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/segment_beyond_payload (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/short_segment_metadata (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/duplicate_segment_metadata (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/truncated_payload (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/truncated_control (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/Winsock_truncated_control_error (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/malformed_control (0.00s)
+    --- PASS: TestWindowsExternalURORejectsInvalidRead/malformed_trailing_control (0.00s)
+=== RUN   TestWindowsExternalUROWrapperLifecycle
+=== RUN   TestWindowsExternalUROWrapperLifecycle/udp4
+=== RUN   TestWindowsExternalUROWrapperLifecycle/udp6
+--- PASS: TestWindowsExternalUROWrapperLifecycle (0.00s)
+    --- PASS: TestWindowsExternalUROWrapperLifecycle/udp4 (0.00s)
+    --- PASS: TestWindowsExternalUROWrapperLifecycle/udp6 (0.00s)
+=== RUN   TestWindowsExternalUROSetupFailureRemainsCallerOwned
+--- PASS: TestWindowsExternalUROSetupFailureRemainsCallerOwned (0.00s)
+=== RUN   TestWindowsExternalUROReadErrorDoesNotReplay
+--- PASS: TestWindowsExternalUROReadErrorDoesNotReplay (0.00s)
+=== RUN   TestWindowsExternalURONativeEngagement
+    external_packet_io_windows_test.go:272: external Windows wrapper: 1 coalesced read(s); 32 exact datagrams delivered
+--- PASS: TestWindowsExternalURONativeEngagement (0.00s)
+=== RUN   TestWindowsUROProbeOnTransportOwnedSocket
+--- PASS: TestWindowsUROProbeOnTransportOwnedSocket (0.00s)
+=== RUN   TestWindowsURONotEnabledOnCallerSuppliedSocket
+--- PASS: TestWindowsURONotEnabledOnCallerSuppliedSocket (0.00s)
+=== RUN   TestWindowsURODisabledByEnv
+--- PASS: TestWindowsURODisabledByEnv (0.00s)
+=== RUN   TestWindowsUROProbeFailure
+=== RUN   TestWindowsUROProbeFailure/control_error
+=== RUN   TestWindowsUROProbeFailure/setsockopt_error
+--- PASS: TestWindowsUROProbeFailure (0.00s)
+    --- PASS: TestWindowsUROProbeFailure/control_error (0.00s)
+    --- PASS: TestWindowsUROProbeFailure/setsockopt_error (0.00s)
+=== RUN   TestWindowsUROProbeErrorClassification
+=== RUN   TestWindowsUROProbeErrorClassification/WSAENOPROTOOPT_reports_capability_off
+=== RUN   TestWindowsUROProbeErrorClassification/any_other_failure_classifies_the_same
+=== RUN   TestWindowsUROProbeErrorClassification/success_enables_the_capability
+--- PASS: TestWindowsUROProbeErrorClassification (0.00s)
+    --- PASS: TestWindowsUROProbeErrorClassification/WSAENOPROTOOPT_reports_capability_off (0.00s)
+    --- PASS: TestWindowsUROProbeErrorClassification/any_other_failure_classifies_the_same (0.00s)
+    --- PASS: TestWindowsUROProbeErrorClassification/success_enables_the_capability (0.00s)
+=== RUN   TestWindowsUROReadSplitsCoalescedRead
+--- PASS: TestWindowsUROReadSplitsCoalescedRead (0.00s)
+=== RUN   TestWindowsUROReadEmptyDatagram
+--- PASS: TestWindowsUROReadEmptyDatagram (0.00s)
+=== RUN   TestWindowsUROReadPacketInfoInheritance
+--- PASS: TestWindowsUROReadPacketInfoInheritance (0.00s)
+=== RUN   TestWindowsUROReleaseReadBuffersReleasesPendingViews
+--- PASS: TestWindowsUROReleaseReadBuffersReleasesPendingViews (0.00s)
+=== RUN   TestWindowsUSOUROInteractionMatrix
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=true,uro=true
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=true,uro=false
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=false,uro=true
+=== RUN   TestWindowsUSOUROInteractionMatrix/uso=false,uro=false
+--- PASS: TestWindowsUSOUROInteractionMatrix (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=true,uro=true (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=true,uro=false (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=false,uro=true (0.00s)
+    --- PASS: TestWindowsUSOUROInteractionMatrix/uso=false,uro=false (0.00s)
+=== RUN   TestWindowsUROEndToEndLoopback
+    sys_conn_windows_uro_test.go:462: 8 datagrams in 1 socket reads (8 arrived coalesced)
+--- PASS: TestWindowsUROEndToEndLoopback (0.00s)
+=== RUN   TestWindowsExternalSegmentedSend
+=== RUN   TestWindowsExternalSegmentedSend/ordinary_IPv4
+=== RUN   TestWindowsExternalSegmentedSend/registered_IPv4
+=== RUN   TestWindowsExternalSegmentedSend/ordinary_IPv6
+=== RUN   TestWindowsExternalSegmentedSend/registered_IPv6
+=== RUN   TestWindowsExternalSegmentedSend/registered_disabled
+=== RUN   TestWindowsExternalSegmentedSend/unavailable
+--- PASS: TestWindowsExternalSegmentedSend (0.01s)
+    --- PASS: TestWindowsExternalSegmentedSend/ordinary_IPv4 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/registered_IPv4 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/ordinary_IPv6 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/registered_IPv6 (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/registered_disabled (0.00s)
+    --- PASS: TestWindowsExternalSegmentedSend/unavailable (0.00s)
+PASS
