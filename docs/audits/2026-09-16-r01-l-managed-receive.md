@@ -12,14 +12,14 @@ The [G2 adoption receipt](2026-09-11-g2-gro-results.md) remains historical evide
 
 | Contract class | Evidence |
 | --- | --- |
-| Queued aggregate at release, parent read, next lease; address and short-tail preservation | `TestManagedReceiveQueuedAcrossHandback`, native IPv4 and IPv6 |
+| Queued aggregate at release, parent read, next lease; independently mutable public addresses and short-tail preservation | `TestManagedReceiveQueuedAcrossHandback`, native IPv4 and IPv6 |
 | Selected/foreign traffic, actual aggregate engagement, no consumed-tail replay, bounded storage | `TestManagedReceiveDiscardsConsumedQUICStorage`; endpoint storage stays within eight 65535-byte backing buffers, excluding caller-owned copies and existing pool caches |
 | Truncated metadata rejected before publication | `TestManagedReceiveRejectsTruncatedMetadata`, plus existing `TestExternalGRORejectsInvalidRead` and partial-batch tests |
 | Retained sibling lifetime | Existing `TestExternalGRORetainedSibling`; public endpoint reads copy one datagram and do not export slab references |
 | Logical deadlines with buffered siblings | `TestManagedReceiveBufferedDeadline` plus existing endpoint deadline-restoration tests |
 | Cancellation/returning, serialized active readers, parent Close | `TestManagedReceiveCloseJoinsReaders`, existing generation and active-I/O joining tests |
 | Terminal restoration failure | `TestManagedReceiveFailedRestoreDisposesStorage` plus the existing interrupt/read/write restoration-failure table |
-| Explicit provenance, disabled fallback and normalized diagnostics | `TestManagedReceiveDiagnostics`, existing registration/provenance tests |
+| Explicit provenance, disabled fallback and normalized diagnostics | `TestManagedReceiveDiagnostics`, `TestManagedReceiveRetainedDiagnostics`, existing registration/provenance tests |
 | Initialization failure after normalization, stale writers and actual QUIC use | Existing `TestManagedPacketIOFailedInit`, delayed queued send, concurrent batch-close and probe-then-QUIC regressions |
 
 The native focused command is `CGO_ENABLED=1 go test -race . -run '^TestManaged|^TestExternalGRO' -count=1 -v`, followed by root package tests and vet. The host suite uses `TIMESCALE_FACTOR=3 go test ./...`, affected-package vet, module tidiness and repository lint. Hosted workflows provide their existing OS/compiler and integration coverage. No extra fuzz, repetition, mutation campaign or maintained verification aid is introduced; the red regressions directly establish sensitivity to the changed behavior.

@@ -49,6 +49,12 @@ func testManagedReceiveQueuedAcrossHandback(t *testing.T, network, ip string) {
 	require.NoError(t, err)
 	require.Equal(t, segments[0], buf[:n])
 	require.Equal(t, peer.LocalAddr(), addr)
+	// Public callers own the returned mutable address. It must not remain
+	// shared with a buffered sibling consumed by another view/generation.
+	returned := addr.(*net.UDPAddr)
+	returned.Port = 1
+	returned.IP[0] ^= 0xff
+	returned.Zone = "changed"
 	next, err := acquire()
 	require.NoError(t, err)
 	defer next.Close()
@@ -222,6 +228,31 @@ func TestManagedReceiveDiagnostics(t *testing.T) {
 				require.Contains(t, message, "receive_mode=normalized")
 				require.Contains(t, message, "coalescing=true")
 			}
+		})
+	}
+}
+
+func TestManagedReceiveRetainedDiagnostics(t *testing.T) {
+	for _, useLease := range []bool{false, true} {
+		t.Run(map[bool]string{false: "parent", true: "next lease"}[useLease], func(t *testing.T) {
+			t.Setenv("QUIC_GO_DISABLE_GRO", "false")
+			endpoint, acquire := newTestManagedEndpoint(t)
+			lease, err := acquire()
+			require.NoError(t, err)
+			require.NoError(t, (&Transport{Conn: lease}).ConfigureManagedPacketIOV1(lease, lease, nil))
+			require.NoError(t, lease.Close())
+			conn := endpoint
+			if useLease {
+				conn, err = acquire()
+				require.NoError(t, err)
+				defer conn.Close()
+			}
+			var recorder events.Recorder
+			tr := &Transport{Conn: conn, Tracer: &recorder}
+			require.NoError(t, tr.Close())
+			message := managedBufferEvent(t, &recorder)
+			require.Contains(t, message, "receive_mode=normalized")
+			require.Contains(t, message, "coalescing=true")
 		})
 	}
 }

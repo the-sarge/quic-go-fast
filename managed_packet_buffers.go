@@ -102,6 +102,18 @@ func (t *Transport) managedBuffers() *managedBufferSetup {
 	return nil
 }
 
+func (t *Transport) managedReceiveNormalized() bool {
+	if c := t.packetIO.external; c != nil {
+		return c.managedReceiveCoalescing
+	}
+	if c, ok := t.Conn.(*managedPacketConn); ok && c != nil {
+		c.endpoint.mutex.Lock()
+		defer c.endpoint.mutex.Unlock()
+		return c.endpoint.receiver != nil
+	}
+	return false
+}
+
 func (t *Transport) traceManagedBuffers(b *managedBufferSetup, conn rawConn) {
 	if b == nil {
 		return
@@ -112,7 +124,7 @@ func (t *Transport) traceManagedBuffers(b *managedBufferSetup, conn rawConn) {
 	if _, ok := conn.(*basicConn); ok {
 		receiveMode = "ordinary"
 	}
-	if c := t.packetIO.external; c != nil && c.managedReceiveCoalescing {
+	if t.managedReceiveNormalized() {
 		receiveMode = "normalized"
 		cap.GRO = true
 	}

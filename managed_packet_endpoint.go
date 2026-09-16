@@ -172,7 +172,15 @@ func (c *managedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 		return 0, nil, err
 	}
 	defer packet.buffer.Release()
-	return copy(p, packet.data), packet.remoteAddr, nil
+	addr := packet.remoteAddr
+	if udp, ok := addr.(*net.UDPAddr); ok {
+		// GRO siblings share their internal source. Public callers may mutate
+		// the returned address, so detach it before crossing that boundary.
+		cloned := *udp
+		cloned.IP = append(net.IP(nil), udp.IP...)
+		addr = &cloned
+	}
+	return copy(p, packet.data), addr, nil
 }
 
 func (c *managedPacketConn) WriteTo(p []byte, addr net.Addr) (int, error) {
