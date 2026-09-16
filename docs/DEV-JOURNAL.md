@@ -2009,3 +2009,18 @@ Validation: a native Windows red regression first demonstrated the old ownership
 Bounded RAS review `20260916T044842-f14c5d36d91be8a5d3104260` completed with no fix-now findings. The frozen W2 collector and dated prerelease changelog remain unchanged; the review's native-qualification reminder was discharged before merge. [Independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/367#issuecomment-5692308826) record the scope decisions. No review follow-up issues or additional performance campaign are required.
 
 Next snapshot: Q03, Q04 and Q05 remain ready; Q02 alone unlocks no new slice, and E02-W still requires Q04 and R01-W. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live readiness. Native engagement evidence establishes these tested correctness paths, not assembled Wire performance; E02-W retains that separate qualification obligation.
+
+---
+
+## Permissioned external Linux GRO landed - 2026-09-16 02:21 EDT
+
+**Main:** `bb4337fcc373`
+**Actor:** Codex
+
+Merged [PR #369](https://github.com/the-sarge/quic-go-fast/pull/369) as `bb4337fcc3739ad6682f5aed671eb7dd52214ed3`, closing [Q03 / #327](https://github.com/the-sarge/quic-go-fast/issues/327). Explicit external receive permission now enables Linux GRO for native UDP sockets and participating ReadBatch wrappers while retaining caller Close ownership. The receive owner discards invalid GRO segment metadata and truncated reads before splitting; actual socket read errors remain terminal. The product PR records Q03 completion and successor readiness in the [normative plan](adr/2026-09-15-external-packet-io-plan.md#q03--enable-permissioned-linux-coalesced-receive).
+
+Validation: native Linux IPv4 and IPv6 exercises prove wrapper engagement, selected/foreign filtering and datagram boundaries. A timestamp-plus-TTL ancillary truncation reproduction failed before the fix and passed with a subsequent valid read afterward. Final head `a1dbf5a0768685ad6518e1d7d9c51e54ef0ab794` passed affected-package tests, focused Linux race coverage, vet, module tidiness, static analysis and all applicable hosted unit, integration, lint, cross-compilation and interop jobs. The [local certification](https://github.com/the-sarge/quic-go-fast/pull/369#issuecomment-5692893586) and [hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/369#issuecomment-5692944385) retain exact-head evidence and run links.
+
+Bounded RAS review and verification completed with independent dispositions. The [replacement-round receipt](https://github.com/the-sarge/quic-go-fast/pull/369#issuecomment-5692879277) records the accepted boundary and nonblocking follow-ups: ordinary wrapper receive-policy fallback and external GRO diagnostic clarity. These follow-ups require merged-head revalidation before tracking; the implemented slice does not transfer disposal ownership or provide managed normalization.
+
+Next snapshot: Q04, Q05 and R01-L are ready after Q03; E02-L still requires R01-L. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live readiness. Native socket correctness evidence does not discharge E02-L's assembled Wire qualification obligation.
