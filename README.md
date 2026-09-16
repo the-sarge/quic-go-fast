@@ -43,14 +43,16 @@ Individual measurements establish improvements in specific workloads, rather tha
 
 These results were recorded at individual adoption commits, not remeasured as an aggregate comparison of the current fork. The DATAGRAM parser change saves allocation, but its original tail-latency noninferiority bound was not established. The [changelog](CHANGELOG.md#recorded-measurements) and [evidence index](docs/audit-evidence.md) provide context and links.
 
+The [assembled support decision](https://github.com/GridSwarm/wiremux/blob/main/docs/research/e02-support.md) records native external packet-I/O and managed-reuse correctness on its specific Linux, Windows and Darwin hosts. Its final performance comparisons were unavailable; it retains ordinary upstream defaults and makes no assembled-Wire speedup or resource-preservation claim.
+
 Unit CI exercises Linux, macOS, and Windows on Go 1.26.x and 1.27.x. Integration CI covers Linux on both versions and macOS/Windows on Go 1.27.x, with additional Linux race coverage. Other cross-compiled targets are build-only. Intermittent macOS dial/HTTP timeouts remain unresolved; see the [known limitations](CHANGELOG.md#known-limitations). The [path-MTU convergence fixture](https://github.com/the-sarge/quic-go-fast/blob/9e8cec69d76a80812737750709289d4925a927c1/docs/audits/issue-178-convergence/README.md) now keeps traffic active until its existing tolerance is reached; the historical hosted probe-loss source remains unknown. Evaluate the prerelease against your application's workloads.
 
 ## Use the fork
 
-Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. This verified Go-generated pseudo-version pins `c67493709612`, including all runtime changes summarized above:
+Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. This verified Go-generated pseudo-version pins `3a739c2bff33`, including the external packet-I/O, managed-endpoint and fixed-peer extensions described above:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-0.20260914021556-c67493709612
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.2.0.20260916215829-3a739c2bff33
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
@@ -59,7 +61,7 @@ For a tagged version, substitute an exact published tag from [GitHub Releases](h
 
 A dependency's replacement does not propagate to its consumers: each application must select the fork explicitly. The replacement applies to every selected version of `github.com/quic-go/quic-go`; verify compatibility if another dependency expects APIs newer than the upstream v0.62.0 baseline.
 
-To return to upstream, remove the replacement and tidy:
+To return to upstream, first remove or adapt fork-only factory, registration and fixed-peer calls, including any required managed-endpoint option. Then remove the replacement and tidy:
 
 ```sh
 go mod edit -dropreplace=github.com/quic-go/quic-go
