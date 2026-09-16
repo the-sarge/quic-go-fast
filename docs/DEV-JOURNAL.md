@@ -1973,3 +1973,24 @@ Independent pre-commit slice audit passed; all 32 stable IDs and genuine blocker
 ### Next
 
 Q02–Q05 form the revised frontier after tracker reconciliation. Finish pending native implementations, assembled qualification, releases and named consumers; the [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live status and P02 completion.
+
+---
+
+## Bounded temporary read retries landed - 2026-09-16 00:31 EDT
+
+**Main:** `d2a478af2332`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #363](https://github.com/the-sarge/quic-go-fast/pull/363) and closed [issue #348](https://github.com/the-sarge/quic-go-fast/issues/348). Temporary transport read errors now wait from 5 ms up to a 100 ms exponential cap, reset after a successful read, and wake promptly during shutdown. Ordinary and explicitly registered managed wrappers share the policy while preserving caller deadlines, packet ownership, fatal errors and Windows oversized-datagram handling. Single-use cancellation remains owned by final-handler retirement.
+
+### Decisions
+
+With explicit approval, the same PR repaired a CI failure in the blocked-data verification fixture using existing simulated packet delivery and virtual time. It preserves real QUIC/TLS processing, logical delays and all exact byte, frame-count, offset and bundling assertions; no production flow-control change or retransmission filtering was introduced. The [maintained fixture contract](agents/blocked-data-delivery.md) owns the bounded scenarios. A controlled PTO probe reproduced duplicate blocked frames, but did not establish the precise scheduling cause of the historical CI failure.
+
+### Validation
+
+Final candidate `ef6bed4e158bb0bc53bae08426e66ce88db34a97`, based on `6ac04941ebf44f4245803d1289c7d3373aa5b02b`, passed affected-package tests, focused transport/managed race coverage, vet, module tidiness, lint, Windows compilation, clean-tree/diff checks and all 33 applicable hosted checks. The fixture passed all 16 declared factor/version/race cells; temporary old-completion mutations failed both limiting modes at factors 1 and 20 with accepted 400 / received 0, then were removed. [Hosted integration](https://github.com/the-sarge/quic-go-fast/actions/runs/35055298501) includes the previously failing macOS boundary.
+
+The initial production review led to the final-handler cancellation fix and its red/green regression. Source verification's broader pre-existing lifetime claims were independently rejected; the production replacement reported Fix First 0. Final combined review `20260916T042200-e07cf87528061119853e345b` completed with both reviewers and zero findings. The [PR review record](https://github.com/the-sarge/quic-go-fast/pull/363) contains run history, the earlier structural-validation failure and interrupted attempts, dispositions and exact-head certification. No deferred findings remain. This is a standalone nonblocking follow-up; audited architecture dependencies are unchanged.
