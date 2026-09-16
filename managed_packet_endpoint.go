@@ -3,6 +3,7 @@ package quic
 import (
 	"errors"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
@@ -28,9 +29,12 @@ import (
 // the endpoint and is returned by Close. Close is safe to call concurrently.
 //
 // The endpoint and leases expose no raw socket or descriptor. They provide
-// ordinary datagrams only; receive coalescing is not supported. After ordinary
-// establishment I/O has joined, ConfigureManagedPacketIOV1 can bind a lease to
-// one transport until lease Close. Transport.Close alone does not return it.
+// ordinary datagrams only. Linux managed registration installs persistent receive
+// normalization before enabling coalescing; it remains across leases to decode
+// queued kernel data. Lease Close discards already consumed QUIC receive storage.
+// After ordinary establishment I/O has joined, ConfigureManagedPacketIOV1 can
+// bind a lease to one transport until lease Close. Transport.Close alone does
+// not return it.
 func (t *Transport) NewManagedPacketEndpointV1(network string, laddr *net.UDPAddr) (net.PacketConn, func() (net.PacketConn, error), error) {
 	conn, err := net.ListenUDP(network, laddr)
 	if err != nil {
@@ -56,6 +60,8 @@ func newManagedPacketEndpoint(conn net.PacketConn) (net.PacketConn, func() (net.
 
 type managedPacketEndpoint struct {
 	mutex         sync.Mutex
+	readMutex     sync.Mutex
+	receiver      managedPacketReceiver
 	idle          *sync.Cond
 	conn          net.PacketConn
 	buffers       managedBufferSetup
@@ -68,13 +74,21 @@ type managedPacketEndpoint struct {
 	writeDeadline time.Time
 }
 
+// The endpoint retains this decoder across generations. Only serialized reads
+// or cleanup after all I/O has joined may touch its bounded receive storage.
+type managedPacketReceiver interface {
+	ReadPacket() (receivedPacket, error)
+	releaseReadBuffers()
+}
+
 // Pointer identity is the generation token. It is never recycled, including
 // when a lease has been returned or the endpoint has terminated.
 type managedPacketLease struct {
-	quic      bool
-	returning bool
-	done      chan struct{}
-	closeErr  error
+	quic         bool
+	returning    bool
+	done         chan struct{}
+	closeErr     error
+	readDeadline time.Time
 }
 
 type managedPacketConn struct {
@@ -91,7 +105,7 @@ func (e *managedPacketEndpoint) acquire() (net.PacketConn, error) {
 	if e.lease != nil || e.active != 0 {
 		return nil, errors.New("quic: managed packet endpoint busy")
 	}
-	e.lease = &managedPacketLease{done: make(chan struct{})}
+	e.lease = &managedPacketLease{done: make(chan struct{}), readDeadline: e.readDeadline}
 	return &managedPacketConn{endpoint: e, lease: e.lease}, nil
 }
 
@@ -132,7 +146,41 @@ func (c *managedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 		return 0, nil, err
 	}
 	defer c.endpoint.end()
-	return c.endpoint.conn.ReadFrom(p)
+	e := c.endpoint
+	e.readMutex.Lock()
+	defer e.readMutex.Unlock()
+	// A read waiting for serialization is active I/O too. Revocation must
+	// prevent it from consuming buffered data after the current reader exits.
+	e.mutex.Lock()
+	err := c.checkLocked()
+	deadline := e.readDeadline
+	if c.lease != nil {
+		deadline = c.lease.readDeadline
+	}
+	if err == nil && e.receiver != nil && !deadline.IsZero() && !time.Now().Before(deadline) {
+		err = &net.OpError{Op: "read", Net: e.conn.LocalAddr().Network(), Source: e.conn.LocalAddr(), Err: os.ErrDeadlineExceeded}
+	}
+	e.mutex.Unlock()
+	if err != nil {
+		return 0, nil, err
+	}
+	if e.receiver == nil {
+		return e.conn.ReadFrom(p)
+	}
+	packet, err := e.receiver.ReadPacket()
+	if err != nil {
+		return 0, nil, err
+	}
+	defer packet.buffer.Release()
+	addr := packet.remoteAddr
+	if udp, ok := addr.(*net.UDPAddr); ok {
+		// GRO siblings share their internal source. Public callers may mutate
+		// the returned address, so detach it before crossing that boundary.
+		cloned := *udp
+		cloned.IP = append(net.IP(nil), udp.IP...)
+		addr = &cloned
+	}
+	return copy(p, packet.data), addr, nil
 }
 
 func (c *managedPacketConn) WriteTo(p []byte, addr net.Addr) (int, error) {
@@ -198,6 +246,8 @@ func (c *managedPacketConn) setDeadline(t time.Time, read, write bool) error {
 		if write {
 			e.writeDeadline = t
 		}
+	} else if read {
+		c.lease.readDeadline = t
 	}
 	return nil
 }
@@ -219,6 +269,9 @@ func (c *managedPacketConn) Close() error {
 		e.terminateLocked(nil)
 		for e.active != 0 {
 			e.idle.Wait()
+		}
+		if e.receiver != nil {
+			e.receiver.releaseReadBuffers()
 		}
 		return e.closeErr
 	}
@@ -244,6 +297,9 @@ func (c *managedPacketConn) Close() error {
 		} else if err := e.conn.SetWriteDeadline(e.writeDeadline); err != nil {
 			e.terminateLocked(err)
 		}
+	}
+	if e.receiver != nil && (lease.quic || e.closed) {
+		e.receiver.releaseReadBuffers()
 	}
 	lease.closeErr = e.closeErr
 	e.lease = nil

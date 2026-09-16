@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, P01-A and P01-B complete; R01-L and R01-W form the fork frontier; E02-D is ready in track W
+**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, P01-A and P01-B complete; R01-W forms the fork frontier; E02-L and E02-D are ready in track W
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -36,7 +36,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Q05 | Accelerate checked batch writers on Darwin | Q01 | Complete |
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
-| R01-L | Linux managed coalesced normalization | R01-B, Q03 | New |
+| R01-L | Linux managed coalesced normalization | R01-B, Q03 | Complete |
 | R01-W | Windows managed coalesced normalization | R01-B, Q04 | New |
 | R03 | Decide raw handback feasibility | R01-L, R01-W | New |
 | P01-A | Consolidate packet-policy hooks without activating policy | None | Complete |
@@ -283,6 +283,8 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### R01-L — Linux managed coalesced normalization
+
+**Current state:** Complete. The Linux endpoint retains the existing decoder and bounded receive storage across leases; public reads preserve one-datagram semantics through the supplied policy wrapper. Lease return joins active readers, discards consumed QUIC storage, and restores logical deadlines while preserving kernel-queued data for normalization. Native IPv4/IPv6 handback, filtering, storage and cancellation evidence is recorded in the [native receipt](../audits/2026-09-16-r01-l-managed-receive.md). E02-L is ready after completed W02, R02, P02, Q03 and R01-L. R03 retains R01-W; E02-W also retains R01-W. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Enable managed receive coalescing on Linux only after persistent endpoint normalization is installed. Reuse the platform decoder and bounded storage owner. Ordinary endpoint/lease reads always return one datagram; optimized coalesced representation stays inside registered QUIC mode. Retain normalization across leases to interpret pending kernel data. Dispose old consumed QUIC storage without replay. Failure to restore logical readiness is terminal.
 
