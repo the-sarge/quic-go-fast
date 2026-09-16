@@ -20,10 +20,13 @@ Use the first matching row. Eligibility remains independently reported.
 | No receive-format permission | false | `no_permission` |
 | Platform lacks the receive path | false | `unsupported_platform` |
 | Supplied receive path is ineligible | false | `ineligible_wrapper` |
+| Managed Linux setup retained ordinary reads after dual-family ECN `EPERM`, without required packet-info failure | false | `ancillary_setup_denied` |
 | Eligible setup explicitly opted out through `QUIC_GO_DISABLE_GRO` | false | `explicit_opt_out` |
 | Otherwise eligible activation remains unavailable | false | `activation_failed_or_unavailable` |
 
 The final reason covers the existing Linux kernel-version gate, socket-control failure, and failed activation. It does not distinguish native lack of support from another activation failure. Unattempted capability is not presented as conclusively unsupported.
+
+The [managed Linux fallback](linux-managed-fallback.md) produces `ancillary_setup_denied` before GRO activation or its environment opt-out is evaluated. Required packet-info failures and other setup errors remain fatal, so they do not produce a successful fallback registration event.
 
 Setup captures its opt-out result when it evaluates the existing environment setting. Event formatting does not reread the environment or probe the socket. Managed setup retains the result under the endpoint's existing lock and copies it into the registration. Once a managed normalizer is active, it stays active across leases even if the environment later disables new activation attempts; reporting follows that existing behavior.
 
@@ -37,7 +40,7 @@ Acceptance evidence is `TestExternalPacketIODiagnostics` (permission, platform, 
 
 Run affected-package tests, focused race tests, `go vet .`, `go mod tidy -diff`, formatting and diff checks. Existing hosted workflows supply the repository's platform, integration, lint and cross-compilation checks. No new stress repetitions, performance campaign, or CI redesign is required. Review is bounded to one initial RAS review, verification of accepted fixes, and at most one replacement review, using the [repository execution overlay](../REVIEW-LOOP.md).
 
-The blast radius is private setup-state retention, external/managed diagnostics, focused tests and maintained prose. Preserve receive policy, activation ordering, wrapper policy, packet delivery, buffers, lifetimes, batching and close ownership. Add no public Go API, dependencies, global state or telemetry-driven socket mutation. The separate decoder-setup fallback investigation in #379 is out of scope. Stop for a decision if truthful reporting requires changed receive policy, broader ownership changes, missing required native evidence or work beyond this boundary. Implementation context is this contract, the linked issue's acceptance criteria, relevant setup owners/tests and unresolved review findings; historical architecture-program records are not required.
+The blast radius is private setup-state retention, external/managed diagnostics, focused tests and maintained prose. Preserve receive policy, activation ordering, wrapper policy, packet delivery, buffers, lifetimes, batching and close ownership. Add no public Go API, dependencies, global state or telemetry-driven socket mutation. The decoder-setup fallback from #379 is governed by its [separate contract](linux-managed-fallback.md); this table documents its diagnostic integration without expanding the #372 implementation scope. Stop for a decision if truthful reporting requires changed receive policy, broader ownership changes, missing required native evidence or work beyond this boundary. Implementation context is this contract, the linked issue's acceptance criteria, relevant setup owners/tests and unresolved review findings; historical architecture-program records are not required.
 
 ## Approved integration-fixture correction
 
