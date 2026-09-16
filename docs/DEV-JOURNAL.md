@@ -2153,3 +2153,24 @@ The maintainer also approved a narrow version-negotiation fixture correction: bi
 Initial RAS review `20260916T203649-fa552f4238d92a6de7603ef6` led to the existing Windows URO host-qualification guard being applied to the new managed activation test. Exact-head verification resolved that finding; optional performance/style observations were independently rejected as current-work obligations. Replacement review `20260916T205318-db5c2b43e28991d22b1c2e36` was clean. [Final certification](https://github.com/the-sarge/quic-go-fast/pull/388#issuecomment-5704477646) records Darwin/Linux package, focused race, vet, tidiness and formatting checks; real Linux GRO aggregates; native Windows URO and managed assertions without skips; and all 33 hosted checks passing on candidate `b915c97d3cfe82c8c08111b8a321bd14baab66e4` against base `e5fca3f348457e91932cffa982eed00c1f03b8da`. No failed unchanged head was rerun and no timeout was relaxed.
 
 An earlier candidate produced a natural macOS QUIC-v2 HTTP idle-boundary failure: retained paired evidence shows the 30ms server timer firing before handshake completion, followed by the first GET returning a remote application error. The checksummed artifact and full job log are preserved at `/Users/josh/diagnostics/issue-151-2026-09-16-pr388`. This remains evidence for the open [HTTP idle-boundary investigation #151](https://github.com/the-sarge/quic-go-fast/issues/151), not a claim to have explained its historical five-second timeout or repaired HTTP behavior. That issue is the live view for further decisions.
+
+---
+
+## Restricted Linux managed receive fallback landed - 2026-09-16 17:52 EDT
+
+**Main:** `941514d2e77b`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #390](https://github.com/the-sarge/quic-go-fast/pull/390), closing [issue #379](https://github.com/the-sarge/quic-go-fast/issues/379). Real Linux seccomp evidence showed that a factory-created UDP socket remained usable for ordinary reads and writes while both ECN receive-option setup calls returned `EPERM`. Managed registration now retains ordinary receive for that narrow case and reports `ancillary_setup_denied`.
+
+### Decisions
+
+Preserved fatal descriptor errors, other ECN setup errors, required packet-info failures, historical shared-decoder error text, and endpoint/lease ownership. Packet-info fallback remains outside the [accepted contract](agents/linux-managed-fallback.md). The [investigation receipt](audits/2026-09-16-linux-managed-fallback.md) records the native reproduction and its limits. This standalone follow-up does not reopen R01-L qualification.
+
+### Validation
+
+The registration regression failed before the fix and passed afterward. Native restricted controls covered ECN denial, other errors, packet-info denial, combined denial and unusable sockets; ordinary I/O, diagnostics, transport close and endpoint reuse passed. Linux focused race tests, Linux/macOS root-package tests and vet, module tidiness and Linux lint passed. All 33 hosted checks passed on final head `d4551a17ec5dee18473a38a3840b023aab1ce9a5` before matched-head squash merge.
+
+RAS review `20260916T213053-368a1a88f8a3e71c2c86481a` completed with all five reviewers. Independent dispositions retained existing error precedence, declined additional verification hardening, and reconciled maintained diagnostics documentation. The final docs-only polish used the shared rerun exemption. [Review dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/390#issuecomment-5705036864) record the evidence; no deferred follow-up survived.
