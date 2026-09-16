@@ -33,7 +33,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Q02 | Enable external Windows segmented sends | Q01 | Complete |
 | Q03 | Enable permissioned Linux coalesced receive | Q01 | Complete |
 | Q04 | Enable permissioned Windows coalesced receive | Q01 | Complete |
-| Q05 | Accelerate checked batch writers on Darwin | Q01 | New |
+| Q05 | Accelerate checked batch writers on Darwin | Q01 | Retain/rework [PR #375](https://github.com/the-sarge/quic-go-fast/pull/375) |
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | New |
@@ -183,9 +183,9 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 **Blocked by:** Q01.
 
-**Existing-work disposition:** New slice. Prior local design commits are replaced by this audited plan; no unmerged implementation is adopted. See audit for source/history disposition.
+**Existing-work disposition:** Retain and rework [product PR #375](https://github.com/the-sarge/quic-go-fast/pull/375) within Q05. Dispatch is paused until the child pointer is synchronized with this scoped contract revision; then resume the triggering review's inner fix/verify loop. The [re-audit receipt](https://github.com/the-sarge/quic-go-fast/pull/375#issuecomment-5699832633) owns review chronology and dispositions.
 
-**Single owner after merge:** Native writer owns qualification/syscall scratch; registered wrapper authorizes output; existing send worker owns retry.
+**Single owner after merge:** Native writer owns qualification/syscall scratch and the internal distinction between a submission that never ran and a native progress result; registered wrapper authorizes output; existing send worker owns retry. The send-worker adapter retains zero-progress per-packet attribution for pre-dispatch socket failures. Factory callers use ordinary WriteMsgUDP when native submission never ran, preserving terminal deadline and closed-socket errors at UDPBatchWriterV1 and managed WriteBatchV1. Never retry a native result with unknown progress.
 
 **Authority completeness:** No new persisted fact or restart format. For in-memory authority, construction, validation, failure cleanup and each destructive/security-sensitive consumer named in this slice land together. Unregistered existing behavior retains its current owner.
 
@@ -197,11 +197,20 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 **Representation contract:** The standard-library packet/address and explicit registration domain in the design contract; universal enforcement within that domain, finite regression evidence.
 
-**Contract closure:** Use the matching owner row in the design contract semantic matrix; write the named positive and distinct failure regressions first.
+**Contract closure:** Retain the matching send-worker and lifecycle owner rows in the design contract semantic matrix. The scoped error correction has no new material-risk closure root: it restores the existing public terminal-error behavior at the single native submission result owner, with the following finite semantic census.
 
-**Evidence budget and TDD:** Native qualified/disabled/unqualified; full/short/zero/invalid counts, unknown progress, wrong peer, MTU feedback, cancellation and disposal. One positive per materially distinct behavior and one negative per failure mode; at most one discriminating guard-bypass per new owner when necessary, no mutation required for prose. Only E02-L/W/D run the final assembled performance comparison; this slice adds no standalone adoption campaign. One initial review and at most one replacement. Terminate when named evidence passes or records an allowed negative design disposition; missing required environment stays blocked.
+| Native outcome / consumer | Required behavior | Enforcement owner | Evidence / status |
+| --- | --- | --- | --- |
+| Raw submission never ran / send worker | Preserve zero-progress per-packet error attribution | Shared native result, existing send-worker adapter | Existing queue progress and MTU regressions retained |
+| Raw submission never ran / factory and managed lease | Ordinary WriteMsgUDP surfaces terminal deadline or closed-socket error | Shared native result, factory fallback | Real native factory expired-deadline and cached closed-socket regressions; real managed-lease expired-deadline regression required |
+| Native known full/short/zero progress / either consumer | Preserve definite prefix; send worker owns suffix fallback | Existing native classifier and send worker | Existing progress regressions retained |
+| Native unknown progress / either consumer | Preserve terminal error and never resend | Existing native classifier and send worker | Existing unknown-progress regressions retained |
 
-**Dispatch context budget:** This slice, referenced design subsections/matrix rows and send_conn_sendmsg_x_darwin.go:95; send_queue.go; Q01 writer factory and existing qualified syscall tests. Load at most these named owners and their focused tests (target under 25k source/context tokens, no whole historical plan); reserve the rest of a fresh context for implementation, review fixes and verification. If the relevant diff cannot fit, re-audit before implementation rather than overflow into a second implicit PR. No unresolved implementation history is inherited.
+The deadline regression clears the deadline and confirms subsequent native delivery, covering recovery without a timing campaign. Socket Close and lease generation ownership remain unchanged. The only uncovered cells before implementation are the named real-native pre-dispatch failure regressions; fake socket joining tests remain evidence for joining, not for native dispatch errors.
+
+**Evidence budget and TDD:** Native qualified/disabled/unqualified; full/short/zero/invalid counts, unknown progress, wrong peer, MTU feedback, cancellation and disposal. One positive per materially distinct behavior and one negative per failure mode; at most one discriminating guard-bypass per new owner when necessary, no mutation required for prose. Only E02-L/W/D run the final assembled performance comparison; this slice adds no standalone adoption campaign. The scoped re-audit admits the three real-native pre-dispatch failure regressions named above, then verification of the triggering review and at most one final fully briefed fresh review. This replaces the exhausted initial/replacement budget only for the accepted error-contract repair, under implement-architecture-slice's scoped re-audit branch; it does not authorize an open-ended fix loop. Any further unmet obligation requiring another fresh cycle stops for operator routing. Terminate when this finite evidence passes or records an allowed negative design disposition; missing required environment stays blocked.
+
+**Dispatch context budget:** This slice, referenced design subsections/matrix rows and send_conn_sendmsg_x_darwin.go:95; send_queue.go; Q01 writer factory and existing qualified syscall tests. Load at most these named owners and their focused tests (target under 25k source/context tokens, no whole historical plan); reserve the rest of a fresh context for implementation, review fixes and verification. If the relevant diff cannot fit, re-audit before implementation rather than overflow into a second implicit PR. Load only the linked PR's unresolved pre-dispatch error finding and its re-audit disposition; other findings retain their settled dispositions.
 
 **Slice decision audit:** One real callback path must include progress interpretation and native helper; splitting would expose unsafe retries. W02 is not needed for fork test wrapper qualification.
 
