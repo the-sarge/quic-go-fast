@@ -3,7 +3,9 @@
 package quic
 
 import (
+	"fmt"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -237,5 +239,193 @@ func TestFixedPeerNativeBatch(t *testing.T) {
 		n, _, err := selected.ReadFrom(b)
 		require.NoError(t, err)
 		require.Equal(t, want, string(b[:n]))
+	}
+}
+
+// The registered callback remains the policy boundary even when its private
+// factory writer accelerates submission.
+func TestExternalDarwinBatchWriterEngagement(t *testing.T) {
+	major, err := getMacOSVersion()
+	require.NoError(t, err)
+	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+		t.Skipf("unqualified Darwin kernel %d", major)
+	}
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	require.True(t, sendmsgXAvailable())
+	sender, receiver := listenExternalUDP(t), listenExternalUDP(t)
+	wrapper := &externalWriteObserver{PacketConn: sender}
+	tr := &Transport{Conn: wrapper}
+	writer, err := tr.UDPBatchWriterV1(sender)
+	require.NoError(t, err)
+	calls := 0
+	require.NoError(t, tr.ConfigureExternalPacketIOV1(wrapper, false, func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
+		calls++
+		if addr.String() != receiver.LocalAddr().String() {
+			return 0, net.ErrClosed
+		}
+		return writer(bufs, oob, addr)
+	}))
+	require.NoError(t, tr.init(false))
+	defer tr.Close()
+	sc := newSendConn(tr.conn, receiver.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+	before, _, _ := sendmsgXCountersSnapshot()
+	n, err := sc.sendBatch([][]byte{[]byte("first"), []byte("second")}, protocol.ECNUnsupported)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	after, _, _ := sendmsgXCountersSnapshot()
+	require.Greater(t, after, before, "factory writer must engage qualified native submission")
+	require.NoError(t, receiver.SetReadDeadline(time.Now().Add(time.Second)))
+	for _, want := range []string{"first", "second"} {
+		buf := make([]byte, 64)
+		n, _, err := receiver.ReadFromUDP(buf)
+		require.NoError(t, err)
+		require.Equal(t, want, string(buf[:n]))
+	}
+	foreign := listenExternalUDP(t)
+	sc.ChangeRemoteAddr(foreign.LocalAddr(), packetInfo{})
+	n, err = sc.sendBatch([][]byte{[]byte("blocked"), []byte("blocked")}, protocol.ECNUnsupported)
+	require.ErrorIs(t, err, net.ErrClosed)
+	require.Zero(t, n)
+	final, _, _ := sendmsgXCountersSnapshot()
+	require.Equal(t, after, final)
+	require.Equal(t, 2, calls)
+	require.Zero(t, wrapper.writes.Load())
+}
+
+func TestExternalDarwinBatchWriterFallback(t *testing.T) {
+	for _, mode := range []string{"disabled", "unqualified"} {
+		t.Run(mode, func(t *testing.T) {
+			resetSendmsgXForTesting(t)
+			if mode == "disabled" {
+				t.Setenv(sendmsgXDisableEnv, "true")
+			} else {
+				original := sendmsgXKernelMajor
+				sendmsgXKernelMajor = func() (int, error) { return -1, nil }
+				t.Cleanup(func() { sendmsgXKernelMajor = original })
+			}
+			sendmsgXEnsureQualified()
+			require.False(t, sendmsgXAvailable())
+			sender, receiver := listenExternalUDP(t), listenExternalUDP(t)
+			writer, err := (&Transport{}).UDPBatchWriterV1(sender)
+			require.NoError(t, err)
+			before, _, fallback := sendmsgXCountersSnapshot()
+			n, err := writer([][]byte{[]byte("first"), []byte("second")}, nil, receiver.LocalAddr().(*net.UDPAddr))
+			require.NoError(t, err)
+			require.Equal(t, 2, n)
+			after, _, fallbackAfter := sendmsgXCountersSnapshot()
+			require.Equal(t, before, after)
+			require.Greater(t, fallbackAfter, fallback)
+			require.NoError(t, receiver.SetReadDeadline(time.Now().Add(time.Second)))
+			for _, want := range []string{"first", "second"} {
+				buf := make([]byte, 64)
+				n, _, err := receiver.ReadFromUDP(buf)
+				require.NoError(t, err)
+				require.Equal(t, want, string(buf[:n]))
+			}
+		})
+	}
+}
+
+func TestExternalDarwinBatchWriterConcurrent(t *testing.T) {
+	major, err := getMacOSVersion()
+	require.NoError(t, err)
+	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+		t.Skipf("unqualified Darwin kernel %d", major)
+	}
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	require.True(t, sendmsgXAvailable())
+	udp, err := net.ListenUDP("udp", nil)
+	require.NoError(t, err)
+	defer udp.Close()
+	tr := &Transport{Conn: udp}
+	writer, err := tr.UDPBatchWriterV1(udp)
+	require.NoError(t, err)
+	receivers := make([]rawConn, 2)
+	for i, network := range []string{"udp4", "udp6"} {
+		ip := net.IPv4(127, 0, 0, 1)
+		if i == 1 {
+			ip = net.IPv6loopback
+		}
+		conn, err := net.ListenUDP(network, &net.UDPAddr{IP: ip})
+		require.NoError(t, err)
+		t.Cleanup(func() { conn.Close() })
+		require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
+		receivers[i], err = wrapConn(conn, true)
+		require.NoError(t, err)
+	}
+	// A single transport callback is shared by two independent send workers.
+	require.NoError(t, tr.ConfigureExternalPacketIOV1(udp, false, func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
+		if addr.String() != receivers[0].LocalAddr().String() && addr.String() != receivers[1].LocalAddr().String() {
+			return 0, net.ErrClosed
+		}
+		return writer(bufs, oob, addr)
+	}))
+	require.NoError(t, tr.init(false))
+	defer tr.Close()
+	before, _, _ := sendmsgXCountersSnapshot()
+	var wg sync.WaitGroup
+	errors := make(chan error, 2)
+	start := make(chan struct{})
+	for i, receiver := range receivers {
+		sc := newSendConn(tr.conn, receiver.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+		wg.Go(func() {
+			<-start
+			payloads := [][]byte{[]byte(fmt.Sprintf("%d-first", i)), []byte(fmt.Sprintf("%d-second", i))}
+			n, err := sc.sendBatch(payloads, protocol.ECT0)
+			if err == nil && n != 2 {
+				err = fmt.Errorf("accepted %d packets", n)
+			}
+			errors <- err
+		})
+	}
+	close(start)
+	wg.Wait()
+	for range receivers {
+		require.NoError(t, <-errors)
+	}
+	for i, receiver := range receivers {
+		for _, suffix := range []string{"first", "second"} {
+			packet, err := receiver.ReadPacket()
+			require.NoError(t, err)
+			require.Equal(t, fmt.Sprintf("%d-%s", i, suffix), string(packet.data))
+			require.Equal(t, protocol.ECT0, packet.ecn)
+			packet.buffer.Release()
+		}
+	}
+	after, _, _ := sendmsgXCountersSnapshot()
+	require.Equal(t, uint64(2), after-before)
+}
+
+func TestExternalDarwinBatchWriterStandardInputs(t *testing.T) {
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	sender, receiver := listenExternalUDP(t), listenExternalUDP(t)
+	writer, err := (&Transport{}).UDPBatchWriterV1(sender)
+	require.NoError(t, err)
+	payloads := [][]byte{[]byte("first"), []byte("second")}
+	for _, addr := range []*net.UDPAddr{nil, {IP: net.IPv4(127, 0, 0, 1), Port: 65536}, {IP: net.IP{1, 2, 3}, Port: 1234}} {
+		n, err := writer(payloads, nil, addr)
+		require.Error(t, err)
+		require.Zero(t, n)
+	}
+	connected, err := net.DialUDP("udp4", nil, receiver.LocalAddr().(*net.UDPAddr))
+	require.NoError(t, err)
+	defer connected.Close()
+	writer, err = (&Transport{}).UDPBatchWriterV1(connected)
+	require.NoError(t, err)
+	n, err := writer(payloads, nil, receiver.LocalAddr().(*net.UDPAddr))
+	require.Error(t, err, "connected WriteMsgUDP rejects an explicit destination")
+	require.Zero(t, n)
+	n, err = writer(payloads, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	require.NoError(t, receiver.SetReadDeadline(time.Now().Add(time.Second)))
+	for _, want := range []string{"first", "second"} {
+		buf := make([]byte, 64)
+		n, _, err := receiver.ReadFromUDP(buf)
+		require.NoError(t, err)
+		require.Equal(t, want, string(buf[:n]))
 	}
 }

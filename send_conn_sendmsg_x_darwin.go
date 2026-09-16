@@ -9,6 +9,7 @@ package quic
 
 import (
 	"net"
+	"sync"
 	"syscall"
 
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -16,8 +17,8 @@ import (
 
 // darwinBatch caches the per-connection state for sendmsg_x batching: the
 // destination sockaddr (rebuilt when the remote address changes, e.g. on
-// migration) and reusable msghdr/iovec scratch. Held on the sconn and
-// touched only from the sendQueue.Run goroutine, so it needs no locking.
+// migration) and reusable msghdr/iovec scratch. The native sconn uses it only
+// from its send worker; a factory writer serializes access with its own mutex.
 type darwinBatch struct {
 	raw      syscall.RawConn
 	rawErr   bool // the underlying conn exposes no usable raw fd; decline forever
@@ -117,6 +118,25 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 		}
 		bs.raw = raw
 	}
+
+	// Build the control message the way WritePacket does. gsoSize is always 0
+	// here (batches never carry GSO segments), so the only control message is
+	// the ECN marking; it is constant across the batch (one remote, one ecn),
+	// so build it once. ai.oob carries spare capacity for exactly this append.
+	oob := ai.oob
+	if ecn != protocol.ECNUnsupported {
+		if udpAddr.IP.To4() != nil {
+			oob = appendIPv4ECNMsg(oob, ecn)
+		} else {
+			oob = appendIPv6ECNMsg(oob, ecn)
+		}
+	}
+
+	return bs.submit(bufs, oob, udpAddr)
+}
+
+// submit is the shared native owner. Callers serialize access and own fallback.
+func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (int, error) {
 	if bs.family == 0 { // determine the socket's address family once
 		var family int
 		if err := bs.raw.Control(func(fd uintptr) {
@@ -139,20 +159,10 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 		bs.destAddr = udpAddr.String()
 	}
 
-	// Build the control message the way WritePacket does. gsoSize is always 0
-	// here (batches never carry GSO segments), so the only control message is
-	// the ECN marking; it is constant across the batch (one remote, one ecn),
-	// so build it once. ai.oob carries spare capacity for exactly this append.
-	oob := ai.oob
-	if ecn != protocol.ECNUnsupported {
-		if udpAddr.IP.To4() != nil {
-			oob = appendIPv4ECNMsg(oob, ecn)
-		} else {
-			oob = appendIPv6ECNMsg(oob, ecn)
-		}
-	}
-
 	msgs, iovs := bs.scratch(len(bufs))
+	// Borrowed payloads and OOB must not remain reachable through cached scratch.
+	defer clear(msgs)
+	defer clear(iovs)
 	var accepted int
 	var submitErr error
 	if err := bs.raw.Write(func(fd uintptr) bool {
@@ -164,4 +174,43 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 		return 0, nil
 	}
 	return accepted, submitErr
+}
+
+// newUDPBatchWriter accelerates only the existing unconnected, nonempty native
+// batch domain. The ordinary writer preserves net.UDPConn validation and the
+// remaining message shapes, without widening the private syscall contract.
+func newUDPBatchWriter(conn udpMessageWriter) func([][]byte, []byte, *net.UDPAddr) (int, error) {
+	fallback := ordinaryUDPBatchWriter(conn)
+	udp, ok := conn.(*net.UDPConn)
+	if !ok || udp.RemoteAddr() != nil {
+		return fallback
+	}
+	raw, err := udp.SyscallConn()
+	if err != nil {
+		return fallback
+	}
+	bs := &darwinBatch{raw: raw}
+	var mutex sync.Mutex
+	return func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
+		// Keep scratch bounded to the send worker's existing batch size. Empty
+		// payloads and addresses outside the native domain retain standard writes.
+		if len(bufs) < 2 || len(bufs) > maxSendBatch || addr == nil || addr.Port < 0 || addr.Port > 65535 || addr.IP.To16() == nil {
+			return fallback(bufs, oob, addr)
+		}
+		for _, buf := range bufs {
+			if len(buf) == 0 {
+				return fallback(bufs, oob, addr)
+			}
+		}
+		if !sendmsgXAvailable() {
+			sendmsgX.fallbackPackets.Add(uint64(len(bufs)))
+			return fallback(bufs, oob, addr)
+		}
+		mutex.Lock()
+		defer mutex.Unlock()
+		if bs.rawErr || !sendmsgXAvailable() {
+			return fallback(bufs, oob, addr)
+		}
+		return bs.submit(bufs, oob, addr)
+	}
 }

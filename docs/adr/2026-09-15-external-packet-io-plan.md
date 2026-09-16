@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, R01-A, R01-B, P01-A and P01-B complete; Q05, R01-L and R01-W form the fork frontier
+**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, P01-A and P01-B complete; R01-L and R01-W form the fork frontier; E02-D is ready in track W
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -33,7 +33,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Q02 | Enable external Windows segmented sends | Q01 | Complete |
 | Q03 | Enable permissioned Linux coalesced receive | Q01 | Complete |
 | Q04 | Enable permissioned Windows coalesced receive | Q01 | Complete |
-| Q05 | Accelerate checked batch writers on Darwin | Q01 | New |
+| Q05 | Accelerate checked batch writers on Darwin | Q01 | Complete |
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | New |
@@ -178,6 +178,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### Q05 — Accelerate checked batch writers on Darwin
+
+**Current state:** Complete. Checked external and managed factory writers share the existing qualified Darwin submission owner with synchronized, bounded scratch and ordinary fallback. Native wrapper engagement, concurrent IPv4/IPv6 calls, progress/error handling and lifecycle preservation are qualified by the [native receipt](../audits/2026-09-16-q05-darwin-batch.md). E02-D is ready after completed W02, R02, P02 and Q05. R01-L and R01-W remain ready; E02-L/W retain their respective R01 blockers. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Refactor existing qualified Darwin submission into the fork-owned writer factory without duplicating the kernel implementation. Register a checked outer-wrapper callback; keep the current one-destination/one-OOB batch domain. Validate qualified, disabled and unqualified behavior, wrong destination, full/short/zero/invalid progress, unknown-progress error, packet-specific MTU feedback, and release on cancellation. The helper's baseline fallback uses standard socket writes; the existing send worker remains retry/order owner. Native Darwin evidence retains private-syscall build/runtime opt-outs. The factory owns concurrency-safe scratch; current per-sconn single-worker assumptions must not leak into a transport-wide callback. Exercise concurrent calls under the race detector. Bounds: current batch helper, send adapter and progress interpretation; no new OS qualification claims or `recvmsg_x` revival.
 

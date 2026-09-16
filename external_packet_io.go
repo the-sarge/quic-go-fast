@@ -149,9 +149,10 @@ func (t *Transport) beginPacketIOLocked() error {
 	return nil
 }
 
-// UDPBatchWriterV1 creates an ordinary synchronous writer for a known UDP socket.
+// UDPBatchWriterV1 creates a synchronous writer for a known UDP socket.
 // The writer neither starts a reader nor owns Close, and constructing it does
 // not initialize or configure the transport. It is safe for concurrent calls.
+// Qualified Darwin sockets use native batching; other cases use ordinary writes.
 // Each payload is one UDP message with the supplied destination and OOB data.
 // Known zero-progress message-size and first-send permission rejections return
 // the definite prefix with no error for per-packet fallback. Other errors are
@@ -168,7 +169,7 @@ type udpMessageWriter interface {
 	WriteMsgUDP([]byte, []byte, *net.UDPAddr) (int, int, error)
 }
 
-func newUDPBatchWriter(conn udpMessageWriter) func([][]byte, []byte, *net.UDPAddr) (int, error) {
+func ordinaryUDPBatchWriter(conn udpMessageWriter) func([][]byte, []byte, *net.UDPAddr) (int, error) {
 	return func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
 		for i, buf := range bufs {
 			n, oobn, err := conn.WriteMsgUDP(buf, oob, addr)
