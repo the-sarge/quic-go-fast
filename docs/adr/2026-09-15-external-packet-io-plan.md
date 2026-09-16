@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, P01-A and P01-B complete; R03 forms the fork frontier; E02-L and E02-W are ready in track W; E02-D is complete
+**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, P01-A and P01-B complete; R03 forms the fork frontier; E02-W is ready in track W; E02-L and E02-D are complete
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
