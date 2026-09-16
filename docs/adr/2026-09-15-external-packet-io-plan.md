@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, R01-A, R01-B, P01-A and P01-B complete; Q04, Q05 and R01-L form the fork frontier
+**Status:** In progress; Q01, Q02, Q03, Q04, R01-A, R01-B, P01-A and P01-B complete; Q05, R01-L and R01-W form the fork frontier
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -32,7 +32,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Q01 | Register external packet I/O and provide ordinary writer | None | Complete |
 | Q02 | Enable external Windows segmented sends | Q01 | Complete |
 | Q03 | Enable permissioned Linux coalesced receive | Q01 | Complete |
-| Q04 | Enable permissioned Windows coalesced receive | Q01 | New |
+| Q04 | Enable permissioned Windows coalesced receive | Q01 | Complete |
 | Q05 | Accelerate checked batch writers on Darwin | Q01 | New |
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
@@ -146,6 +146,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### Q04 — Enable permissioned Windows coalesced receive
+
+**Current state:** Complete. Explicit external receive permission enables Windows URO through the supplied message-I/O wrapper without transferring Close ownership. The receive owner rejects malformed or truncated coalesced reads before splitting and preserves genuine socket errors. Separate-endpoint Windows wrapper engagement is qualified; see the [native receipt](../audits/2026-09-16-q04-windows-uro.md). R01-W is ready after completed R01-B and Q04. Q05 and R01-L remain ready; E02-W retains R01-W. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Apply the same explicit permission contract to URO, retaining Windows message I/O and supported ancillary metadata. Use the same receive-owner semantic classes; do not depend on Linux implementation state. Require a two-endpoint native Windows environment that actually engages URO; hosted same-host loopback is not equivalent evidence. Bounds: Windows receive setup/decoder, common permission wiring and focused tests. Preserve USO and ordinary Windows reads.
 
