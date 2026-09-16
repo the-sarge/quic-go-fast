@@ -84,7 +84,7 @@ func isGSOEnabled(conn syscall.RawConn) bool {
 // succeeded. The setsockopt is itself the probe: on success the kernel
 // coalesces consecutive same-flow datagrams into a single read and reports
 // the segment size in a UDP_GRO control message.
-// It must only be called on sockets the transport created and owns.
+// It requires transport ownership or explicit external receive-format permission.
 func isGROEnabled(conn syscall.RawConn) bool {
 	if kernelVersionMajor < 5 {
 		return false
@@ -103,15 +103,16 @@ func isGROEnabled(conn syscall.RawConn) bool {
 }
 
 // parseUDPGROSegmentSize parses the segment size from a UDP_GRO control
-// message, reporting ok == false for any other control message. The kernel
+// message, reporting ok == false for any other control message and size zero
+// for a malformed GRO body, so the receive owner can reject it. The kernel
 // attaches this cmsg to a coalesced read; the payload is the size of every
 // segment except a possibly shorter final one.
 func parseUDPGROSegmentSize(hdr *unix.Cmsghdr, body []byte) (segmentSize int, ok bool) {
 	if hdr.Level != unix.IPPROTO_UDP || hdr.Type != unix.UDP_GRO {
 		return 0, false
 	}
-	if len(body) < 4 {
-		return 0, false
+	if len(body) != 4 {
+		return 0, true
 	}
 	return int(int32(binary.NativeEndian.Uint32(body))), true
 }

@@ -60,7 +60,7 @@ type oobConn struct {
 
 var _ rawConn = &oobConn{}
 
-func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, error) {
+func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*oobConn, error) {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
 		return nil, err
@@ -118,6 +118,11 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, err
 			return nil, errors.New("quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
 		}
 		bc = ipv4.NewPacketConn(c)
+		// Descriptor-backed batching is safe for receive-format mutation only
+		// on an exact native socket. A wrapper must participate via ReadBatch;
+		// permission alone cannot make this fallback preserve its receive policy.
+		_, nativeUDP := c.(*net.UDPConn)
+		allowReceiveCoalescing = allowReceiveCoalescing && nativeUDP
 	}
 
 	msgs := make([]ipv4.Message, batchSize)
@@ -135,9 +140,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, err
 			GSO: isGSOEnabled(rawConn),
 			ECN: isECNEnabled(),
 			// The && short-circuit is load-bearing: isGROEnabled issues the
-			// UDP_GRO setsockopt, which must never reach a caller-supplied
-			// socket.
-			GRO: ownsSocket && isGROEnabled(rawConn),
+			// UDP_GRO setsockopt, which requires explicit receive-format
+			// permission on an externally supplied socket.
+			GRO: allowReceiveCoalescing && isGROEnabled(rawConn),
 		},
 	}
 	for i := range batchSize {
@@ -149,45 +154,69 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, err
 var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
 
 func (c *oobConn) ReadPacket() (receivedPacket, error) {
-	// A coalesced read is split into per-datagram views, returned one per
-	// call to preserve ReadPacket's one-datagram contract.
-	if p, ok := c.delivery.next(); ok {
-		return p, nil
-	}
-	for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
-		c.messages = c.messages[:batchSize]
-		for i := range c.buffers {
-			if c.buffers[i] == nil {
-				var buffer *packetBuffer
-				if c.cap.GRO {
-					// a single GRO read can deliver up to 65535 bytes
-					buffer = getCoalescedPacketBuffer()
-					buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
-				} else {
-					buffer = getPacketBuffer()
-					buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
-				}
-				c.buffers[i] = buffer
-			}
-			c.messages[i].Buffers[0] = c.buffers[i].Data
+	for {
+		// A coalesced read is split into per-datagram views, returned one per
+		// call to preserve ReadPacket's one-datagram contract.
+		if p, ok := c.delivery.next(); ok {
+			return p, nil
 		}
-		c.readPos = 0
+		for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
+			c.messages = c.messages[:batchSize]
+			for i := range c.buffers {
+				if c.buffers[i] == nil {
+					var buffer *packetBuffer
+					if c.cap.GRO {
+						// a single GRO read can deliver up to 65535 bytes
+						buffer = getCoalescedPacketBuffer()
+						buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
+					} else {
+						buffer = getPacketBuffer()
+						buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+					}
+					c.buffers[i] = buffer
+				}
+				c.messages[i].Buffers[0] = c.buffers[i].Data
+			}
+			c.readPos = 0
 
-		n, err := c.batchConn.ReadBatch(c.messages, 0)
-		if err != nil {
-			// Preserve the existing policy: even a non-empty failed batch is discarded.
-			c.releaseReadBuffers()
+			n, err := c.batchConn.ReadBatch(c.messages, 0)
+			if err != nil {
+				// Preserve the existing policy: even a non-empty failed batch is discarded.
+				c.releaseReadBuffers()
+				return receivedPacket{}, err
+			}
+			c.messages = c.messages[:n]
+		}
+
+		msg := c.messages[c.readPos]
+		buffer := c.buffers[c.readPos]
+		readBuffer := msg.Buffers[0]
+		c.buffers[c.readPos] = nil
+		c.messages[c.readPos].Buffers[0] = nil
+		c.readPos++
+
+		p, err := c.decodeReadPacket(msg, readBuffer, buffer)
+		if err == nil {
+			return p, nil
+		}
+		buffer.Release()
+		if !c.cap.GRO {
 			return receivedPacket{}, err
 		}
-		c.messages = c.messages[:n]
+		// Ancillary truncation can result from caller-enabled socket options.
+		// Reject this read, not every connection sharing the transport. Actual
+		// socket errors still terminate through the ReadBatch branch above.
+		utils.DefaultLogger.Debugf("Dropping packet with invalid coalesced receive metadata: %s", err)
 	}
+}
 
-	msg := c.messages[c.readPos]
-	buffer := c.buffers[c.readPos]
-	payload := msg.Buffers[0][:msg.N]
-	c.buffers[c.readPos] = nil
-	c.messages[c.readPos].Buffers[0] = nil
-	c.readPos++
+// decodeReadPacket transfers storage only on success. The reader releases a
+// rejected read; parsing metadata never publishes a partial set of siblings.
+func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *packetBuffer) (receivedPacket, error) {
+	if c.cap.GRO && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > len(readBuffer) || msg.NN < 0 || msg.NN > len(msg.OOB)) {
+		return receivedPacket{}, errors.New("quic: truncated or invalid coalesced read")
+	}
+	payload := readBuffer[:msg.N]
 
 	data := msg.OOB[:msg.NN]
 	p := receivedPacket{
@@ -200,17 +229,18 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 	for len(data) > 0 {
 		hdr, body, remainder, err := unix.ParseOneSocketControlMessage(data)
 		if err != nil {
-			buffer.Release()
 			return receivedPacket{}, err
 		}
 		if size, ok := parseUDPGROSegmentSize(&hdr, body); ok {
+			if c.cap.GRO && (groSegmentSize != 0 || size <= 0 || size > len(payload)) {
+				return receivedPacket{}, errors.New("quic: invalid UDP_GRO segment size")
+			}
 			groSegmentSize = size
 		}
 		if hdr.Level == unix.IPPROTO_IP {
 			switch hdr.Type {
 			case msgTypeIPTOS:
 				if len(body) != 1 {
-					buffer.Release()
 					return receivedPacket{}, errors.New("invalid IPTOS size")
 				}
 				p.ecn = protocol.ParseECNHeaderBits(body[0] & ecnMask)
@@ -231,7 +261,6 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 			switch hdr.Type {
 			case unix.IPV6_TCLASS:
 				if len(body) != 4 {
-					buffer.Release()
 					return receivedPacket{}, errors.New("invalid IPV6_TCLASS size")
 				}
 				bits := uint8(binary.NativeEndian.Uint32(body)) & ecnMask
