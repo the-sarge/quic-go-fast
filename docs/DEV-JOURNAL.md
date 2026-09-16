@@ -2024,3 +2024,24 @@ Validation: native Linux IPv4 and IPv6 exercises prove wrapper engagement, selec
 Bounded RAS review and verification completed with independent dispositions. The [replacement-round receipt](https://github.com/the-sarge/quic-go-fast/pull/369#issuecomment-5692879277) records the accepted boundary and nonblocking follow-ups: ordinary wrapper receive-policy fallback and external GRO diagnostic clarity. These follow-ups require merged-head revalidation before tracking; the implemented slice does not transfer disposal ownership or provide managed normalization.
 
 Next snapshot: Q04, Q05 and R01-L are ready after Q03; E02-L still requires R01-L. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live readiness. Native socket correctness evidence does not discharge E02-L's assembled Wire qualification obligation.
+
+---
+
+## Q04 Windows external URO completed - 2026-09-16 10:17 EDT
+
+**Main:** `b9fd919d1a24`
+**Actor:** Codex
+
+### Completed
+
+Merged [Q04 / PR #373](https://github.com/the-sarge/quic-go-fast/pull/373) as `b9fd919d1a24e29c7dc814675d9d4d0fcb9cfd3a`, closing [#328](https://github.com/the-sarge/quic-go-fast/issues/328). Explicit external receive permission now enables Windows URO through the supplied message-I/O wrapper while retaining caller Close ownership and ordinary/USO behavior. Invalid or truncated coalesced reads are discarded before splitting; genuine socket errors preserve identity. The product PR includes the Q04 completion and affected frontier transition.
+
+### Validation
+
+The [native Windows receipt](audits/2026-09-16-q04-windows-uro.md) records one coalesced wrapper read delivering 32 exact datagrams from a separate Linux endpoint on a disposable Windows Server 2025 guest. Focused permission, malformed metadata, cancellation, setup failure, storage and USO checks passed; the guest and admission reservation were removed. Hosted Windows regressions were observed red before the corresponding fixes.
+
+RAS review `20260916T135812-907db9cf2c6f543c2af576cf` completed with all five reviewers, adjudication and synthesis. Its README platform correction landed; logging-parity obligation claims were rejected as unsupported by Q04. The documentation-only exception avoided another review cycle. [Independent dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/373#issuecomment-5698899808) record clean candidate `e4900220508d80e4616ef93798214e64052bc321` against base `8979d13393038afb59f38cebdb93da26b41dd790`: full Go tests, affected-package vet, Windows cross-compilation/vet, module tidiness and docs checks passed. All 33 applicable hosted checks passed, including [interop run 35106394291](https://github.com/the-sarge/quic-go-fast/actions/runs/35106394291). Runtime code remained identical to the native-qualified source; no deferred findings or untraced material effects remain.
+
+### Next
+
+The merge makes R01-W ready alongside Q05 and R01-L; E02-W retains R01-W. The [program tracking issue](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier. Managed handback, raw socket reuse, additional Windows platforms and assembled performance measurements remain outside Q04.
