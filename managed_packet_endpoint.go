@@ -32,6 +32,8 @@ import (
 // ordinary datagrams only. Linux and Windows managed registration installs persistent receive
 // normalization before enabling coalescing; it remains across leases to decode
 // queued kernel data. Lease Close discards already consumed QUIC receive storage.
+// Normalized reads copy at most len(p) bytes; an oversized datagram is truncated
+// without a short-buffer error.
 // After ordinary establishment I/O has joined, ConfigureManagedPacketIOV1 can
 // bind a lease to one transport until lease Close. Transport.Close alone does
 // not return it.
