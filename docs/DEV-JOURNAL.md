@@ -1950,3 +1950,26 @@ Initial RAS review `20260915T212129-ac55d85f9f1aea44af66ef7c` led to two bounded
 ### Decisions
 
 The [accepted contract](agents/managed-endpoint-buffers-347.md) preserves public interfaces, lease/deadline/close ownership, ordinary datagrams, selected-peer enforcement and existing ordinary external-registration behavior. No new native offload capability or wiremux implementation is enabled. No deferred review finding survives; [DF/PMTU #353](https://github.com/the-sarge/quic-go-fast/issues/353) and [ECN #354](https://github.com/the-sarge/quic-go-fast/issues/354) remain separate live qualification work.
+
+---
+
+## QUIC evidence reuse and wrapper retention - 2026-09-15 23:46 EDT
+
+**Main:** `57ae458bc830`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #364](https://github.com/the-sarge/quic-go-fast/pull/364) to reuse existing fork adoption evidence, supersede three standalone baseline campaigns and retain focused native correctness/engagement checks. Final assembled qualification is one bounded paired comparison per platform. The full release, consumer-adoption, rollback and closeout sequence remains required.
+
+### Decisions
+
+Wiremux keeps its selected-peer wrapper, as selected by the owner in P02. Its existing documentation execution owns completion and historical experiment receipts. See the [evidence revision audit](adr/2026-09-15-packet-io-evidence-reuse-audit.md) for the current disposition ledger and source evidence.
+
+### Validation
+
+Independent pre-commit slice audit passed; all 32 stable IDs and genuine blockers were reconciled, with three explicitly retired. Local documentation certification and applicable exact-head hosted checks passed before merge. No runtime behavior or measurement captures changed, and no implementation agent was dispatched.
+
+### Next
+
+Q02–Q05 form the revised frontier after tracker reconciliation. Finish pending native implementations, assembled qualification, releases and named consumers; the [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live status and P02 completion.
