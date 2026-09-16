@@ -2045,3 +2045,18 @@ RAS review `20260916T135812-907db9cf2c6f543c2af576cf` completed with all five re
 ### Next
 
 The merge makes R01-W ready alongside Q05 and R01-L; E02-W retains R01-W. The [program tracking issue](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier. Managed handback, raw socket reuse, additional Windows platforms and assembled performance measurements remain outside Q04.
+
+---
+
+## Q05 checked Darwin batch writers completed - 2026-09-16 11:53 EDT
+
+**Main:** `415680ac177d`
+**Actor:** Codex
+
+Merged [Q05 / PR #375](https://github.com/the-sarge/quic-go-fast/pull/375) as `415680ac177dcac7e090c8541707ee3478bcc037`, closing [#329](https://github.com/the-sarge/quic-go-fast/issues/329). External and managed factory writers now share the qualified Darwin native sender with synchronized, bounded scratch. Registered callbacks retain policy checks; the send worker retains retries, ordering, MTU feedback and disposal. Ordinary UDP shapes and private-syscall opt-outs keep standard writes. The product PR includes Q05 completion and E02-D readiness.
+
+The [scoped contract clarification / PR #376](https://github.com/the-sarge/quic-go-fast/pull/376) preserves public terminal errors when the raw native callback never ran, while retaining the send worker's zero-progress attribution. A real native deadline regression failed before that fix; factory deadline recovery, cached closed-socket behavior and managed-lease deadline recovery passed afterward. No kernel algorithm, public interface, close owner or OS qualification changed.
+
+[Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/375#issuecomment-5700424361) records candidate `0b01c3fa37ae380ce9d9bd0e8dd54cd742ed1761` against base `def24aaf5126a09fbe4332a1715753836d9a9ff5`: native Darwin 25 arm64 engagement and concurrent IPv4/IPv6/ECN tests under the race detector, progress/error/MTU/lifecycle regressions, opt-out tests, the full suite with the integration timing setting, vet, tidy and lint passed. All 33 hosted check entries passed, including [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/35116114609) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/35116114530). The [native receipt](audits/2026-09-16-q05-darwin-batch.md) records the finite evidence and initial timing-configuration error. Final bounded review required no further fix; remaining comments were marginal documentation, diagnostic or lock-scope polish, not material behavioral follow-ups.
+
+Next snapshot: E02-D's prerequisites are complete; R01-L and R01-W remain ready. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live readiness. E02-D retains responsibility for the assembled Wire performance comparison; Q05 makes no new throughput or platform claim.
