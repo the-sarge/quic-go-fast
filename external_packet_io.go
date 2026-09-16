@@ -94,7 +94,7 @@ func (t *Transport) checkPacketIORegistration(conn net.PacketConn) error {
 // before handing the lease to QUIC if they should no longer apply.
 // A non-nil sendBatch must preserve that wrapper's policy and submit through the
 // lease's WriteBatchV1 method, following ConfigureExternalPacketIOV1's callback
-// contract. Nil retains ordinary sends. On Linux, registration installs the
+// contract. Nil retains ordinary sends. On Linux and Windows, registration installs the
 // endpoint's persistent normalization before enabling receive coalescing.
 // Wrappers continue receiving ordinary datagrams through their ReadFrom path.
 // Transport.Close does not release the lease or own the native socket; lease

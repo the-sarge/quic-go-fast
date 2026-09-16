@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, P01-A and P01-B complete; R01-W forms the fork frontier; E02-L and E02-D are ready in track W
+**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, P01-A and P01-B complete; R03 forms the fork frontier; E02-L and E02-W are ready in track W; E02-D is complete
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -37,7 +37,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | Complete |
-| R01-W | Windows managed coalesced normalization | R01-B, Q04 | New |
+| R01-W | Windows managed coalesced normalization | R01-B, Q04 | Complete |
 | R03 | Decide raw handback feasibility | R01-L, R01-W | New |
 | P01-A | Consolidate packet-policy hooks without activating policy | None | Complete |
 | P01-B | Activate complete immutable fixed-peer policy | P01-A, Q01 | Complete |
@@ -315,6 +315,8 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### R01-W — Windows managed coalesced normalization
+
+**Current state:** Complete in [PR #381](https://github.com/the-sarge/quic-go-fast/pull/381). The endpoint installs and retains the existing Windows decoder before enabling URO; ordinary datagrams continue through policy wrappers. Queued native coalescing, ordinary reads and next-lease reuse are qualified by the [native receipt](../audits/2026-09-16-r01-w-managed-receive.md). R03 and E02-W are ready after their completed prerequisites. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Enable managed receive coalescing on Windows only after persistent endpoint normalization is installed. Reuse the platform decoder and bounded storage owner. Ordinary endpoint/lease reads always return one datagram; optimized coalesced representation stays inside registered QUIC mode. Retain normalization across leases to interpret pending kernel data. Dispose old consumed QUIC storage without replay. Failure to restore logical readiness is terminal.
 
