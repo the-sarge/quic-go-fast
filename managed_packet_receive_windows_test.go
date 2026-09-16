@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 
@@ -215,4 +216,85 @@ func TestWindowsManagedReceiveRejectsTruncatedMetadata(t *testing.T) {
 	require.Equal(t, "ok!", string(b[:n]))
 	require.NoError(t, lease.Close())
 	require.Empty(t, receiver.delivery.pending)
+}
+
+type windowsManagedNativeObserver struct {
+	OOBCapablePacketConn
+	aggregates int
+}
+
+func (c *windowsManagedNativeObserver) ReadMsgUDP(b, oob []byte) (int, int, int, *net.UDPAddr, error) {
+	n, nn, flags, addr, err := c.OOBCapablePacketConn.ReadMsgUDP(b, oob)
+	if err == nil && n > 1232 {
+		c.aggregates++
+	}
+	return n, nn, flags, addr, err
+}
+
+// The separate peer uses Q04's existing one-burst protocol. FIONREAD observes
+// queued bytes without consuming them before lease return. The platform decoder
+// remains the metadata interpreter; this fixture only counts large native reads.
+func TestWindowsManagedReceiveNativeHandback(t *testing.T) {
+	peerAddress := os.Getenv("QUIC_GO_R01_W_URO_PEER")
+	if peerAddress == "" {
+		t.Skip("requires a separate endpoint via QUIC_GO_R01_W_URO_PEER")
+	}
+	peer, err := net.ResolveUDPAddr("udp4", peerAddress)
+	require.NoError(t, err)
+	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+	endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1("udp4", &net.UDPAddr{IP: net.IPv4zero})
+	require.NoError(t, err)
+	t.Cleanup(func() { endpoint.Close() })
+	lease, err := acquire()
+	require.NoError(t, err)
+	t.Cleanup(func() { lease.Close() })
+	tr := &Transport{Conn: lease}
+	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+	require.NoError(t, tr.Close())
+	e := endpoint.(*managedPacketConn).endpoint
+	receiver, ok := e.receiver.(*windowsConn)
+	require.True(t, ok, "native managed coalescing must be enabled")
+	observer := &windowsManagedNativeObserver{OOBCapablePacketConn: receiver.OOBCapablePacketConn}
+	receiver.OOBCapablePacketConn = observer
+	udp := e.conn.(*net.UDPConn)
+	raw, err := udp.SyscallConn()
+	require.NoError(t, err)
+	_, err = lease.WriteTo([]byte("Q04 URO"), peer)
+	require.NoError(t, err)
+	var queued uint32
+	require.Eventually(t, func() bool {
+		var ioctlErr error
+		var returned uint32
+		require.NoError(t, raw.Control(func(fd uintptr) {
+			// winsock2.h: FIONREAD = _IOR('f', 127, u_long).
+			ioctlErr = windows.WSAIoctl(windows.Handle(fd), 0x4004667f, nil, 0, (*byte)(unsafe.Pointer(&queued)), 4, &returned, nil, 0)
+		}))
+		require.NoError(t, ioctlErr)
+		return queued > 0
+	}, 10*time.Second, time.Millisecond)
+	t.Logf("queued bytes before lease return: %d", queued)
+	require.NoError(t, lease.Close())
+	require.NoError(t, endpoint.SetReadDeadline(time.Now().Add(10*time.Second)))
+	b := make([]byte, 1500)
+	read := func(c net.PacketConn, i int) {
+		t.Helper()
+		size := 1232
+		if i == 32 {
+			size = 500
+		}
+		n, addr, err := c.ReadFrom(b)
+		require.NoError(t, err)
+		require.Equal(t, peer.String(), addr.String())
+		require.Equal(t, bytes.Repeat([]byte{byte(i)}, size), b[:n])
+	}
+	read(endpoint, 1)
+	next, err := acquire()
+	require.NoError(t, err)
+	t.Cleanup(func() { next.Close() })
+	for i := 2; i <= 32; i++ {
+		read(next, i)
+	}
+	require.Positive(t, observer.aggregates, "kernel coalescing must engage across separate endpoints")
+	require.NoError(t, next.Close())
+	t.Logf("managed Windows handback: %d coalesced read(s); 32 exact datagrams across ordinary read and next lease", observer.aggregates)
 }
