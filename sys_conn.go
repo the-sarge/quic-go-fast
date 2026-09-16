@@ -25,9 +25,8 @@ type connCapabilities struct {
 	// ECN (Explicit Congestion Notifications) supported
 	ECN bool
 	// GRO (Generic Receive Offload) enabled on this socket. Only ever set on
-	// sockets the transport created and owns: coalescing is socket-wide, and
-	// a caller-supplied socket must never have it enabled without an explicit
-	// opt-in (ADR 0001; datapath offload plan 2026-09-11).
+	// transport-created sockets or explicitly permissioned external sockets.
+	// Receive-format permission never transfers Close ownership.
 	GRO bool
 }
 
@@ -60,14 +59,13 @@ type OOBCapablePacketConn interface {
 var _ OOBCapablePacketConn = &net.UDPConn{}
 
 // wrapConn prepares a net.PacketConn for use by the transport.
-// ownsSocket reports whether the transport created the socket (and so may
-// mutate socket-wide options like UDP_GRO); it must be false for
-// caller-supplied sockets.
-func wrapConn(pc net.PacketConn, ownsSocket bool) (rawConn, error) {
-	return wrapConnWithManagedBuffers(pc, ownsSocket, nil)
+// allowReceiveCoalescing grants socket-wide receive-format mutation. External
+// permission is resolved by Transport after validating the exact binding.
+func wrapConn(pc net.PacketConn, allowReceiveCoalescing bool) (rawConn, error) {
+	return wrapConnWithManagedBuffers(pc, allowReceiveCoalescing, nil)
 }
 
-func wrapConnWithManagedBuffers(pc net.PacketConn, ownsSocket bool, managed *managedBufferSetup) (rawConn, error) {
+func wrapConnWithManagedBuffers(pc net.PacketConn, allowReceiveCoalescing bool, managed *managedBufferSetup) (rawConn, error) {
 	if managed == nil {
 		warnBufferSize(setReceiveBuffer(pc))
 		warnBufferSize(setSendBuffer(pc))
@@ -99,7 +97,7 @@ func wrapConnWithManagedBuffers(pc net.PacketConn, ownsSocket bool, managed *man
 		}
 		return &basicConn{PacketConn: pc, supportsDF: supportsDF}, nil
 	}
-	return newConn(c, supportsDF, ownsSocket)
+	return newConn(c, supportsDF, allowReceiveCoalescing)
 }
 
 // Preserve the shared warning budget and opt-out for ordinary and managed setup.

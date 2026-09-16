@@ -35,8 +35,13 @@ type packetIOConfig struct {
 // be the same non-nil pointer as Transport.Conn; replacing Conn invalidates the
 // binding. Registration does not transfer ownership of Close.
 //
-// Receive coalescing is currently unavailable on externally registered sockets,
-// even when allowed. A nil sendBatch retains ordinary sends. A non-nil callback
+// Allowing receive coalescing grants permission to change the socket receive
+// format on supported platforms (currently Linux). The caller must guarantee
+// exclusive packet I/O, preserve large buffers and ancillary metadata through
+// any wrapper, and dispose of the socket on every terminal path, including
+// initialization failure. Transport.Close does not restore ordinary raw reads.
+// Borrowed sockets that will be reused must not grant this permission.
+// A nil sendBatch retains ordinary sends. A non-nil callback
 // must preserve the wrapper's policy, support concurrent calls, and borrow each
 // call's complete UDP payloads and shared OOB data only until return. It returns
 // the definitely accepted prefix. Any error is terminal: uncertain data is not
@@ -192,6 +197,13 @@ type externalPacketConn struct {
 	config *externalPacketIO
 }
 
+// Receive-format permission is independent of the existing Close owner.
+// Managed normalization and Windows external receive are separate capabilities.
+func (t *Transport) receiveCoalescingAllowed() bool {
+	c := t.packetIO.external
+	return t.createdConn || (runtime.GOOS == "linux" && c != nil && c.allowReceiveCoalescing)
+}
+
 func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
 	c := t.packetIO.external
 	if c == nil {
@@ -202,7 +214,17 @@ func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
 		if c.sendBatch == nil {
 			batchReason = "no_callback"
 		}
-		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_supported=false receive_enabled=false receive_disabled_reason=external_coalescing_unavailable batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", c.allowReceiveCoalescing, c.allowReceiveCoalescing, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
+		receiveEnabled := conn.capabilities().GRO
+		receiveReason := "none"
+		if !receiveEnabled {
+			receiveReason = "disabled_or_unavailable"
+			if !c.allowReceiveCoalescing {
+				receiveReason = "no_permission"
+			} else if runtime.GOOS != "linux" {
+				receiveReason = "external_coalescing_unavailable"
+			}
+		}
+		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_supported=%t receive_enabled=%t receive_disabled_reason=%s batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", c.allowReceiveCoalescing, c.allowReceiveCoalescing, receiveEnabled, receiveEnabled, receiveReason, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
 	}
 	return &externalPacketConn{rawConn: conn, config: c}
 }

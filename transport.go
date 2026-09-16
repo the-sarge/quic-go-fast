@@ -394,7 +394,7 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 			conn = c
 		} else {
 			var err error
-			conn, err = wrapConnWithManagedBuffers(t.Conn, t.createdConn, managed)
+			conn, err = wrapConnWithManagedBuffers(t.Conn, t.receiveCoalescingAllowed(), managed)
 			if err != nil {
 				t.initErr = err
 				return

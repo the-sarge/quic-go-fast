@@ -211,14 +211,14 @@ func TestExternalPacketIODiagnostics(t *testing.T) {
 	conn := listenExternalUDP(t)
 	var recorder events.Recorder
 	tr := &Transport{Conn: conn, Tracer: &recorder}
-	require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, true, nil))
+	require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, false, nil))
 	require.NoError(t, tr.Close())
 	recorded := recorder.Events(qlog.DebugEvent{})
 	require.Len(t, recorded, 1)
 	event := recorded[0].(qlog.DebugEvent)
 	require.Equal(t, "transport:external_packet_io", event.Name())
-	require.Contains(t, event.Message, "receive_requested=true receive_permitted=true receive_supported=false receive_enabled=false")
-	require.Contains(t, event.Message, "receive_disabled_reason=external_coalescing_unavailable")
+	require.Contains(t, event.Message, "receive_requested=false receive_permitted=false receive_supported=false receive_enabled=false")
+	require.Contains(t, event.Message, "receive_disabled_reason=no_permission")
 	require.NotContains(t, event.Message, "batch_calls")
 }
 

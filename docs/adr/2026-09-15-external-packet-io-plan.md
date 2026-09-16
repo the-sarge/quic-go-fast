@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, R01-A, R01-B, P01-A and P01-B complete; Q03–Q05 form the fork frontier
+**Status:** In progress; Q01, Q02, Q03, R01-A, R01-B, P01-A and P01-B complete; Q04, Q05 and R01-L form the fork frontier
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -31,7 +31,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | --- | --- | --- | --- |
 | Q01 | Register external packet I/O and provide ordinary writer | None | Complete |
 | Q02 | Enable external Windows segmented sends | Q01 | Complete |
-| Q03 | Enable permissioned Linux coalesced receive | Q01 | New |
+| Q03 | Enable permissioned Linux coalesced receive | Q01 | Complete |
 | Q04 | Enable permissioned Windows coalesced receive | Q01 | New |
 | Q05 | Accelerate checked batch writers on Darwin | Q01 | New |
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
@@ -114,6 +114,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### Q03 — Enable permissioned Linux coalesced receive
+
+**Current state:** Complete. Explicit external receive permission enables Linux GRO through the participating wrapper without transferring Close ownership. The receive owner rejects invalid or truncated aggregate metadata before splitting. Native wrapper engagement and selected/foreign filtering are qualified on Linux IPv4 and IPv6; the existing direct and TURN packet profiles are unchanged. R01-L is ready after completed R01-B and Q03. Q04 and Q05 remain ready; E02-L retains R01-L. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Enable GRO on explicitly registered, disposal-guaranteed native wrapper paths only. Validate ReadBatch large-buffer/metadata preservation, selected/foreign filtering, coalesced split boundaries, invalid/truncated metadata handling, sibling storage lifetime, read error, cancellation and initialization failure after mutation. Preserve existing 1232-byte direct and fixed 1200-byte TURN packet profiles; coalescing is not a path-MTU or Datagram-ceiling change. Native engagement and focused correctness regressions are required; reuse G2 adoption evidence for the unchanged algorithm, with assembled performance owned by E02-L. Bounds: socket initialization, existing receive/split owner and relevant wrapper evidence; no reusable raw handback.
 

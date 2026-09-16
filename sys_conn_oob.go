@@ -60,7 +60,7 @@ type oobConn struct {
 
 var _ rawConn = &oobConn{}
 
-func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, error) {
+func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*oobConn, error) {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
 		return nil, err
@@ -135,9 +135,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*oobConn, err
 			GSO: isGSOEnabled(rawConn),
 			ECN: isECNEnabled(),
 			// The && short-circuit is load-bearing: isGROEnabled issues the
-			// UDP_GRO setsockopt, which must never reach a caller-supplied
-			// socket.
-			GRO: ownsSocket && isGROEnabled(rawConn),
+			// UDP_GRO setsockopt, which requires explicit receive-format
+			// permission on an externally supplied socket.
+			GRO: allowReceiveCoalescing && isGROEnabled(rawConn),
 		},
 	}
 	for i := range batchSize {
@@ -184,10 +184,15 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 
 	msg := c.messages[c.readPos]
 	buffer := c.buffers[c.readPos]
-	payload := msg.Buffers[0][:msg.N]
+	readBuffer := msg.Buffers[0]
 	c.buffers[c.readPos] = nil
 	c.messages[c.readPos].Buffers[0] = nil
 	c.readPos++
+	if c.cap.GRO && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > len(readBuffer) || msg.NN < 0 || msg.NN > len(msg.OOB)) {
+		buffer.Release()
+		return receivedPacket{}, errors.New("quic: truncated or invalid coalesced read")
+	}
+	payload := readBuffer[:msg.N]
 
 	data := msg.OOB[:msg.NN]
 	p := receivedPacket{
@@ -204,6 +209,10 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 			return receivedPacket{}, err
 		}
 		if size, ok := parseUDPGROSegmentSize(&hdr, body); ok {
+			if c.cap.GRO && (groSegmentSize != 0 || size <= 0 || size > len(payload)) {
+				buffer.Release()
+				return receivedPacket{}, errors.New("quic: invalid UDP_GRO segment size")
+			}
 			groSegmentSize = size
 		}
 		if hdr.Level == unix.IPPROTO_IP {
