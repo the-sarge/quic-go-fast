@@ -36,12 +36,13 @@ type packetIOConfig struct {
 // binding. Registration does not transfer ownership of Close.
 //
 // Allowing receive coalescing grants permission to change the socket receive
-// format on supported platforms (currently Linux). The caller must guarantee
+// format on supported platforms (currently Linux and Windows). The caller must guarantee
 // exclusive packet I/O, preserve large buffers and ancillary metadata through
 // any wrapper, and dispose of the socket on every terminal path, including
 // initialization failure. Transport.Close does not restore ordinary raw reads.
 // Borrowed sockets that will be reused must not grant this permission.
-// External GRO requires an exact *net.UDPConn or a wrapper providing ReadBatch.
+// External Linux GRO requires an exact *net.UDPConn or a wrapper providing
+// ReadBatch. Windows URO retains the supplied ReadMsgUDP path.
 // A nil sendBatch retains ordinary sends. A non-nil callback
 // must preserve the wrapper's policy, support concurrent calls, and borrow each
 // call's complete UDP payloads and shared OOB data only until return. It returns
@@ -199,10 +200,10 @@ type externalPacketConn struct {
 }
 
 // Receive-format permission is independent of the existing Close owner.
-// Managed normalization and Windows external receive are separate capabilities.
+// Managed normalization remains a separate capability.
 func (t *Transport) receiveCoalescingAllowed() bool {
 	c := t.packetIO.external
-	return t.createdConn || (runtime.GOOS == "linux" && c != nil && c.allowReceiveCoalescing)
+	return t.createdConn || ((runtime.GOOS == "linux" || runtime.GOOS == "windows") && c != nil && c.allowReceiveCoalescing)
 }
 
 func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
@@ -221,7 +222,7 @@ func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
 			receiveReason = "disabled_or_unavailable"
 			if !c.allowReceiveCoalescing {
 				receiveReason = "no_permission"
-			} else if runtime.GOOS != "linux" {
+			} else if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
 				receiveReason = "external_coalescing_unavailable"
 			}
 		}

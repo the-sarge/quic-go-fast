@@ -3,9 +3,12 @@
 package quic
 
 import (
+	"encoding/binary"
 	"net"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/windows"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/qlog"
@@ -44,7 +47,7 @@ func TestWindowsExternalReceivePermission(t *testing.T) {
 				require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, tc.permitted, nil))
 			}
 			// Close initializes the transport, exercising the real binding and
-			// platform setup without starting a competing receive operation.
+			// platform setup and joining the transport reader before readback.
 			require.NoError(t, tr.Close())
 			want := 0
 			if tc.permitted && !tc.disabled {
@@ -64,6 +67,38 @@ func TestWindowsExternalReceivePermission(t *testing.T) {
 					require.Contains(t, message, "receive_disabled_reason=no_permission")
 				}
 			}
+		})
+	}
+}
+
+// Invalid receive metadata must discard the entire read before any sibling is
+// exposed, then allow the next ordinary datagram through the same reader.
+func TestWindowsExternalURORejectsInvalidRead(t *testing.T) {
+	short := coalescedInfoMsg(t, 100)
+	binary.LittleEndian.PutUint64(short[:8], 18)
+	for _, tc := range []struct {
+		name  string
+		oob   []byte
+		flags int
+	}{
+		{name: "zero segment", oob: coalescedInfoMsg(t, 0)},
+		{name: "segment beyond payload", oob: coalescedInfoMsg(t, 201)},
+		{name: "short segment metadata", oob: short},
+		{name: "duplicate segment metadata", oob: append(coalescedInfoMsg(t, 100), coalescedInfoMsg(t, 50)...)},
+		{name: "truncated payload", oob: coalescedInfoMsg(t, 100), flags: windows.MSG_TRUNC},
+		{name: "truncated control", flags: windows.MSG_CTRUNC},
+		{name: "malformed control", oob: []byte{1}},
+		{name: "malformed trailing control", oob: append(coalescedInfoMsg(t, 100), 1)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rc := &uroReadConn{t: t, payloads: [][]byte{make([]byte, 200), []byte("fresh")}, oobs: [][]byte{tc.oob, nil}, flags: []int{tc.flags, 0}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}}
+			conn := newUROConn(t, rc)
+			t.Cleanup(conn.releaseReadBuffers)
+			p, err := conn.ReadPacket()
+			require.NoError(t, err)
+			defer p.buffer.Release()
+			require.Equal(t, "fresh", string(p.data))
+			require.Equal(t, 2, rc.callCounter)
 		})
 	}
 }

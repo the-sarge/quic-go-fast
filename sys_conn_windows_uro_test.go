@@ -194,6 +194,7 @@ type uroReadConn struct {
 	t           *testing.T
 	payloads    [][]byte
 	oobs        [][]byte
+	flags       []int
 	addr        *net.UDPAddr
 	callCounter int
 }
@@ -205,8 +206,11 @@ func (c *uroReadConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *net.U
 	payload, oobData := c.payloads[c.callCounter], c.oobs[c.callCounter]
 	n = copy(b, payload)
 	oobn = copy(oob, oobData)
+	if len(c.flags) > c.callCounter {
+		flags = c.flags[c.callCounter]
+	}
 	c.callCounter++
-	return n, oobn, 0, c.addr, nil
+	return n, oobn, flags, c.addr, nil
 }
 
 func newUROConn(t *testing.T, rc *uroReadConn) *windowsConn {

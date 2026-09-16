@@ -32,7 +32,7 @@ const oobBufferSize = 128
 // same authoritative local-address handling as the OOB platforms; the
 // per-send UDP_SEND_MSG_SIZE segment-size message that hands a batched send
 // to USO the way UDP_SEGMENT hands one to Linux GSO (W2); and, on
-// transport-owned sockets, the UDP_RECV_MAX_COALESCED_SIZE receive-coalescing
+// explicitly permitted sockets, the UDP_RECV_MAX_COALESCED_SIZE receive-coalescing
 // (URO) capability with UDP_COALESCED_INFO parsing, splitting each coalesced
 // read into per-datagram views over G1's shared coalescedSlab and returning
 // them one per ReadPacket call through the coalesced delivery holder (W3).
@@ -53,10 +53,10 @@ type windowsConn struct {
 
 var _ rawConn = &windowsConn{}
 
-// ownsSocket grants receive-format mutation only for transport-created sockets.
+// allowReceiveCoalescing grants receive-format mutation independently of Close.
 // The read-only USO probe is independent of that permission and close ownership;
 // segmented sends still go through the supplied connection's WriteMsgUDP.
-func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn, error) {
+func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*windowsConn, error) {
 	var needsPacketInfo bool
 	if udpAddr, ok := c.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP.IsUnspecified() {
 		needsPacketInfo = true
@@ -89,10 +89,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn,
 	}
 	uso := isUSOEnabled(rawConn)
 	var uro bool
-	if ownsSocket {
-		// The ownsSocket gate is load-bearing: isUROEnabled issues the
-		// UDP_RECV_MAX_COALESCED_SIZE setsockopt, which must never reach a
-		// caller-supplied socket.
+	if allowReceiveCoalescing {
+		// isUROEnabled mutates the socket-wide receive format. Only the
+		// transport grant authorizes this, never native method discovery.
 		uro = isUROEnabled(rawConn)
 	}
 	return &windowsConn{
@@ -125,8 +124,8 @@ func isUSOEnabled(conn syscall.RawConn) bool {
 // the Linux UDP_GRO probe: on success Winsock coalesces consecutive
 // same-flow datagrams into a single read of up to the coalesced buffer
 // tier's capacity and reports the segment size in a UDP_COALESCED_INFO
-// control message. It must only be called on sockets the transport created
-// and owns, and honors the QUIC_GO_DISABLE_GRO kill switch that governs
+// control message. It requires explicit receive-format permission and
+// honors the QUIC_GO_DISABLE_GRO kill switch that governs
 // coalesced receive on every platform.
 func isUROEnabled(conn syscall.RawConn) bool {
 	return isUROEnabledWith(conn, func(fd uintptr) error {
