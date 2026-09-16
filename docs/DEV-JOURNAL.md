@@ -2075,3 +2075,24 @@ Merged [R01-L / PR #378](https://github.com/the-sarge/quic-go-fast/pull/378) as 
 Initial RAS review `20260916T161751-ea96b7ab7fc6540032483a56` completed with all five reviewers. Two accepted findings were reproduced red, fixed at their central boundaries and verified on the exact head. Replacement `20260916T163829-1b9a4277a6d0a6ea6be446f1` found no new issues with three successful reviewers and quorum; both Claude reviewer processes failed. The deferred restricted-socket setup-fallback question was revalidated against the merge and filed as non-blocking [#379](https://github.com/the-sarge/quic-go-fast/issues/379). Other review observations were rejected with recorded reasons.
 
 Next: E02-L's prerequisites are closed; R01-W remains ready and E02-D qualification is in progress, while R03/E02-W retain R01-W. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier. Releases, named consumers and Z01 remain required.
+
+---
+
+## Windows managed receive normalization - 2026-09-16 14:36 EDT
+
+**Main:** `aacb266c3367`
+**Actor:** Codex
+
+### Completed
+
+[PR #381](https://github.com/the-sarge/quic-go-fast/pull/381) merged R01-W at `aacb266c336728f0e85d6ddc21ddf8c6ceb390f0`: Windows managed endpoints now normalize coalesced receives across lease generations through the existing Windows decoder, with logical deadline restoration and bounded retained storage. Disabled URO retains the full public UDP payload fallback.
+
+### Validation
+
+A dedicated Windows Server 2025 guest built from the sealed VM image passed the focused managed endpoint and Windows suite. Native handback observed 38,692 queued bytes, one coalesced receive, and all 32 datagrams delivered exactly across ordinary reads and the next lease. The guest, overlay, reservation, and host admission were removed after qualification. See the [native receipt](audits/2026-09-16-r01-w-managed-receive.md).
+
+RAS review `20260916T181557-a6541bfa21d12b5186091d82` completed; accepted fixes clarified platform support and normalized short-buffer semantics in documentation. No deferred findings remained. [Dispositions](https://github.com/the-sarge/quic-go-fast/pull/381#issuecomment-5702499200) and [certification](https://github.com/the-sarge/quic-go-fast/pull/381#issuecomment-5702528622) record the result. Final head `62e2837c3d9f9886b41761c4eb394d4c2151c930` passed affected-package tests, focused race tests, host and Windows vet, tidy-diff, Windows compilation, and every hosted PR check, including [unit run 35134407563](https://github.com/the-sarge/quic-go-fast/actions/runs/35134407563).
+
+### Next
+
+The merged plan marks R01-W complete and makes R03 and E02-W dispatchable; E02-L remains independently ready. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier view.
