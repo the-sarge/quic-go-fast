@@ -2096,3 +2096,26 @@ RAS review `20260916T181557-a6541bfa21d12b5186091d82` completed; accepted fixes 
 ### Next
 
 R01-W completion makes R03 and E02-W dispatchable. E02-L independently completed in [PR #1560](https://github.com/GridSwarm/wiremux/pull/1560); its concurrent merge supersedes the product plan's ready snapshot. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier view.
+
+---
+
+## R03 raw handback decision merged - 2026-09-16 15:15 EDT
+
+**Main:** `ef7717ca3251`
+**Actor:** Codex
+
+### Completed
+
+Merged [R03 PR #384](https://github.com/the-sarge/quic-go-fast/pull/384) as `ef7717ca3251d2b1b88a52852d9fdf0ea397c512`, closing [#334](https://github.com/the-sarge/quic-go-fast/issues/334). The fork design and plan now record the completed raw-handback decision and its frontier transition. No runtime code or archived native evidence changed.
+
+### Decisions
+
+Raw return after receive coalescing is unsupported; managed endpoint reuse remains the supported alternative. The [bounded decision receipt](audits/2026-09-16-r03-raw-handback.md) records the Linux queued-buffer evidence, Windows contract limitation and conditional-experiment disposition. No R03 native experiment ran and no universal impossibility claim is made.
+
+### Validation
+
+RAS review `20260916T185515-eae3918b0a9044698eeef883` completed with four successful reviewers; one configured reviewer failed its CLI capability preflight. Stale plan-state wording was corrected under the shared documentation-only policy, with no further review cycle or deferred finding. Exact final head `b865d44750c1300ed4528db27658fd80493249e6` passed clean-tree, relative-link/anchor, slice-graph, stale-state and whitespace checks. All 33 hosted checks passed: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/35138564562), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/35138564551), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/35138564569), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/35138564689) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/35138564613). The exact head was squash-merged.
+
+### Next
+
+E02-W remains the frontier; E02 retains E02-W, and L01 retains E02. No successor became ready from R03 alone. The operator authorized a companion wiremux index correction, which is pending alongside mutable tracking reconciliation at this timestamp. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live state.
