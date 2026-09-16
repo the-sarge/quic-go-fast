@@ -3,14 +3,17 @@ package quic
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/testdata"
+	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/require"
 )
@@ -380,4 +383,48 @@ func TestManagedPacketIORegistration(t *testing.T) {
 	other := &Transport{Conn: lease}
 	require.Error(t, any(other).(managedPacketIOV1).ConfigureManagedPacketIOV1(lease, lease, nil))
 	require.NoError(t, tr.Close())
+}
+
+// Registration decides receive setup before transport initialization emits the
+// event. Subsequent environment changes must not rewrite that decision.
+func TestManagedPacketIOReceiveDiagnostics(t *testing.T) {
+	for _, disabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("disabled=%t", disabled), func(t *testing.T) {
+			t.Setenv("QUIC_GO_DISABLE_GRO", fmt.Sprint(disabled))
+			_, acquire := newTestManagedEndpoint(t)
+			lease, err := acquire()
+			require.NoError(t, err)
+			t.Cleanup(func() { lease.Close() })
+			outer := &nonOOBPacketConn{PacketConn: lease}
+			var recorder events.Recorder
+			tr := &Transport{Conn: outer, Tracer: &recorder}
+			require.NoError(t, tr.ConfigureManagedPacketIOV1(outer, lease, nil))
+			t.Setenv("QUIC_GO_DISABLE_GRO", fmt.Sprint(!disabled))
+			require.NoError(t, tr.Close())
+			want := "receive_permitted=true receive_eligible=false receive_enabled=false receive_disabled_reason=unsupported_platform"
+			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+				if disabled {
+					want = "receive_permitted=true receive_eligible=true receive_enabled=false receive_disabled_reason=explicit_opt_out"
+				} else {
+					want = "receive_permitted=true receive_eligible=true receive_enabled=true receive_disabled_reason=none"
+				}
+			}
+			require.Contains(t, externalPacketIOEvent(t, &recorder), want)
+			if disabled {
+				return
+			}
+			// An active normalizer persists into the next lease, even when the
+			// environment now disables new activation attempts.
+			require.NoError(t, lease.Close())
+			next, err := acquire()
+			require.NoError(t, err)
+			t.Cleanup(func() { next.Close() })
+			outer = &nonOOBPacketConn{PacketConn: next}
+			var nextRecorder events.Recorder
+			nextTransport := &Transport{Conn: outer, Tracer: &nextRecorder}
+			require.NoError(t, nextTransport.ConfigureManagedPacketIOV1(outer, next, nil))
+			require.NoError(t, nextTransport.Close())
+			require.Contains(t, externalPacketIOEvent(t, &nextRecorder), want)
+		})
+	}
 }

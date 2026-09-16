@@ -75,9 +75,11 @@ func TestWindowsExternalReceivePermission(t *testing.T) {
 				require.Len(t, recorded, 1)
 				message := recorded[0].(qlog.DebugEvent).Message
 				if want != 0 {
-					require.Contains(t, message, "receive_supported=true receive_enabled=true")
-				} else if tc.disabled || tc.opaque {
-					require.Contains(t, message, "receive_disabled_reason=disabled_or_unavailable")
+					require.Contains(t, message, "receive_eligible=true receive_enabled=true")
+				} else if tc.opaque {
+					require.Contains(t, message, "receive_eligible=false receive_enabled=false receive_disabled_reason=ineligible_wrapper")
+				} else if tc.disabled {
+					require.Contains(t, message, "receive_eligible=true receive_enabled=false receive_disabled_reason=explicit_opt_out")
 				} else {
 					require.Contains(t, message, "receive_disabled_reason=no_permission")
 				}

@@ -47,9 +47,11 @@ func (c *externalGROReadMsgConn) ReadMsgUDP(b, oob []byte) (int, int, int, *net.
 func TestExternalGRONonBatchWrapper(t *testing.T) {
 	udp := listenExternalUDP(t)
 	conn := &externalGROReadMsgConn{UDPConn: udp, selected: udp.LocalAddr().(*net.UDPAddr)}
-	tr := &Transport{Conn: conn}
+	var recorder events.Recorder
+	tr := &Transport{Conn: conn, Tracer: &recorder}
 	require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, true, nil))
 	require.NoError(t, tr.Close())
+	require.Contains(t, externalPacketIOEvent(t, &recorder), "receive_eligible=false receive_enabled=false receive_disabled_reason=ineligible_wrapper")
 	require.Equal(t, 0, groSocketOption(t, udp), "permission cannot activate descriptor-backed GRO around the wrapper")
 }
 
@@ -246,7 +248,7 @@ func TestExternalGROWrapperNative(t *testing.T) {
 			require.Positive(t, filtered.Load(), "foreign traffic must traverse the wrapper filter")
 			t.Logf("native wrapper: %d GRO aggregate(s), %d foreign read(s) filtered; 1232/1232/500-byte datagrams delivered", aggregates.Load(), filtered.Load())
 			recorded := recorder.Events(qlog.DebugEvent{})
-			require.Contains(t, recorded[0].(qlog.DebugEvent).Message, "receive_supported=true receive_enabled=true receive_disabled_reason=none")
+			require.Contains(t, recorded[0].(qlog.DebugEvent).Message, "receive_eligible=true receive_enabled=true receive_disabled_reason=none")
 			require.NoError(t, tr.Close())
 			require.NoError(t, udp.SetReadDeadline(time.Time{}))
 		})
@@ -272,9 +274,11 @@ func TestExternalGROSetupFailureRemainsCallerOwned(t *testing.T) {
 func TestExternalGROUnavailableWrapper(t *testing.T) {
 	udp := listenExternalUDP(t)
 	conn := &nonOOBPacketConn{PacketConn: udp}
-	tr := &Transport{Conn: conn}
+	var recorder events.Recorder
+	tr := &Transport{Conn: conn, Tracer: &recorder}
 	require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, true, nil))
 	require.NoError(t, tr.Close())
+	require.Contains(t, externalPacketIOEvent(t, &recorder), "receive_eligible=false receive_enabled=false receive_disabled_reason=ineligible_wrapper")
 	require.Equal(t, 0, groSocketOption(t, udp))
 }
 

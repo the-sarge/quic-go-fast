@@ -20,6 +20,7 @@ type externalPacketIO struct {
 	acceptedPackets          atomic.Uint64
 	managedBuffers           *managedBufferSetup
 	managedReceiveCoalescing bool
+	managedReceiveState      receiveCoalescingState
 	conn                     net.PacketConn
 	allowReceiveCoalescing   bool
 	sendBatch                func([][]byte, []byte, *net.UDPAddr) (int, error)
@@ -53,7 +54,10 @@ type packetIOConfig struct {
 // per-packet path to retain its feedback and retry handling. Zero progress with
 // no error also uses that fallback.
 // Initialization reports capability state to Transport.Tracer as the
-// external_packet_io debug event; debug logging reports per-registration
+// external_packet_io debug event. receive_eligible describes platform/wrapper
+// eligibility, not proven kernel support; receive_enabled reports activation.
+// Permission and QUIC_GO_DISABLE_GRO remain independent of eligibility.
+// Debug logging reports per-registration
 // batch_calls and accepted_packets counters after callback submissions.
 func (t *Transport) ConfigureExternalPacketIOV1(conn net.PacketConn, allowReceiveCoalescing bool, sendBatch func([][]byte, []byte, *net.UDPAddr) (int, error)) error {
 	c := &t.packetIO
@@ -126,7 +130,13 @@ func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.Pa
 		return err
 	}
 	l.lease.quic = true
-	c.external = &externalPacketIO{conn: conn, sendBatch: sendBatch, managedBuffers: &e.buffers, managedReceiveCoalescing: e.receiver != nil}
+	c.external = &externalPacketIO{
+		conn:                     conn,
+		sendBatch:                sendBatch,
+		managedBuffers:           &e.buffers,
+		managedReceiveCoalescing: e.receiver != nil,
+		managedReceiveState:      e.receiveState,
+	}
 	return nil
 }
 
@@ -223,18 +233,27 @@ func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
 		if c.sendBatch == nil {
 			batchReason = "no_callback"
 		}
-		receiveEnabled := conn.capabilities().GRO || c.managedReceiveCoalescing
+		cap := conn.capabilities()
+		receive := cap.receiveCoalescing
+		if c.managedBuffers != nil {
+			receive = c.managedReceiveState
+		}
+		receiveEnabled := cap.GRO || c.managedReceiveCoalescing
 		receivePermitted := c.allowReceiveCoalescing || c.managedBuffers != nil
 		receiveReason := "none"
 		if !receiveEnabled {
-			receiveReason = "disabled_or_unavailable"
+			receiveReason = "activation_failed_or_unavailable"
 			if !receivePermitted {
 				receiveReason = "no_permission"
 			} else if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
-				receiveReason = "external_coalescing_unavailable"
+				receiveReason = "unsupported_platform"
+			} else if !receive.eligible {
+				receiveReason = "ineligible_wrapper"
+			} else if receive.disabledReason != "" {
+				receiveReason = receive.disabledReason
 			}
 		}
-		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_supported=%t receive_enabled=%t receive_disabled_reason=%s batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", receivePermitted, receivePermitted, receiveEnabled, receiveEnabled, receiveReason, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
+		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_eligible=%t receive_enabled=%t receive_disabled_reason=%s batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", receivePermitted, receivePermitted, receive.eligible, receiveEnabled, receiveReason, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
 	}
 	return &externalPacketConn{rawConn: conn, config: c}
 }

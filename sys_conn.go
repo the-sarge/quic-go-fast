@@ -15,6 +15,13 @@ import (
 	"github.com/quic-go/quic-go/internal/utils"
 )
 
+// receiveCoalescingState records setup decisions, not hypothetical kernel support.
+// It is diagnostic-only; GRO remains the receive path's activation flag.
+type receiveCoalescingState struct {
+	eligible       bool
+	disabledReason string
+}
+
 type connCapabilities struct {
 	// This connection has the Don't Fragment (DF) bit set.
 	// This means it makes to run DPLPMTUD.
@@ -27,7 +34,8 @@ type connCapabilities struct {
 	// GRO (Generic Receive Offload) enabled on this socket. Only ever set on
 	// transport-created sockets or explicitly permissioned external sockets.
 	// Receive-format permission never transfers Close ownership.
-	GRO bool
+	GRO               bool
+	receiveCoalescing receiveCoalescingState
 }
 
 // rawConn is a connection that allow reading of a receivedPackeh.

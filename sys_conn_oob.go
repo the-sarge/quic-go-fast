@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"syscall"
@@ -125,6 +126,7 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 
 	// A participating wrapper owns batch receive. Only exact native sockets may
 	// bypass ReadMsgUDP through descriptor-backed batching.
+	receive := receiveCoalescingState{eligible: runtime.GOOS == "linux"}
 	var bc batchConn
 	if ibc, ok := c.(batchConn); ok {
 		bc = ibc
@@ -138,6 +140,7 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 			bc = readMsgConn{c}
 			// Ordinary wrappers have not opted into the batched coalesced format.
 			allowReceiveCoalescing = false
+			receive.eligible = false
 		}
 	}
 
@@ -152,14 +155,15 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		messages:             msgs,
 		readPos:              batchSize,
 		cap: connCapabilities{
-			DF:  supportsDF,
-			GSO: isGSOEnabled(rawConn),
-			ECN: isECNEnabled(),
-			// The && short-circuit is load-bearing: isGROEnabled issues the
-			// UDP_GRO setsockopt, which requires explicit receive-format
-			// permission on an externally supplied socket.
-			GRO: allowReceiveCoalescing && isGROEnabled(rawConn),
+			DF:                supportsDF,
+			GSO:               isGSOEnabled(rawConn),
+			ECN:               isECNEnabled(),
+			receiveCoalescing: receive,
 		},
+	}
+	if allowReceiveCoalescing {
+		// Permission and wrapper policy gate the mutating activation attempt.
+		oobConn.cap.GRO, oobConn.cap.receiveCoalescing.disabledReason = enableGRO(rawConn)
 	}
 	for i := range batchSize {
 		oobConn.messages[i].OOB = make([]byte, oobBufferSize)

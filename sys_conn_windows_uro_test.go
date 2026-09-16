@@ -110,10 +110,14 @@ func TestWindowsUROProbeFailure(t *testing.T) {
 	// and these subtests would pass vacuously.
 	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
 	t.Run("control error", func(t *testing.T) {
-		require.False(t, isUROEnabled(&probeFailingRawConn{controlErr: assert.AnError}))
+		enabled, reason := enableURO(&probeFailingRawConn{controlErr: assert.AnError})
+		require.False(t, enabled)
+		require.Equal(t, "activation_failed_or_unavailable", reason)
 	})
 	t.Run("setsockopt error", func(t *testing.T) {
-		require.False(t, isUROEnabled(&probeFailingRawConn{}))
+		enabled, reason := enableURO(&probeFailingRawConn{})
+		require.False(t, enabled)
+		require.Equal(t, "activation_failed_or_unavailable", reason)
 	})
 }
 
@@ -140,11 +144,16 @@ func TestWindowsUROProbeErrorClassification(t *testing.T) {
 			// the injected setter ignores the fd it passes.
 			conn := &probeFailingRawConn{}
 			var setterCalled bool
-			enabled := isUROEnabledWith(conn, func(uintptr) error {
+			enabled, reason := enableUROWith(conn, func(uintptr) error {
 				setterCalled = true
 				return tc.serr
 			})
 			require.Equal(t, tc.enabled, enabled)
+			if tc.enabled {
+				require.Equal(t, "none", reason)
+			} else {
+				require.Equal(t, "activation_failed_or_unavailable", reason)
+			}
 			require.True(t, conn.controlCalled, "the probe must reach Control")
 			require.True(t, setterCalled, "the probe must issue the setsockopt")
 		})
