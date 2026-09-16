@@ -2138,3 +2138,18 @@ Use a private single-message adapter feeding the existing decoder and buffer own
 ### Validation
 
 The IPv4/IPv6 regression delivered foreign datagrams before the fix and passed afterward. Full root-package tests, focused race tests, vet, module tidiness and lint passed on reviewed head `911b88743144e56acd05651828aef71cbecc6991`. RAS run `20260916T195804-568edc7ca0dafb183b177452` completed with two reviewers and zero findings; no follow-ups or verification cycle were required. All 33 hosted checks passed, including native Linux filtering/GRO-denial evidence and existing platform/toolchain gates. The [exact-head receipt](https://github.com/the-sarge/quic-go-fast/pull/386#issuecomment-5703734425) records the review and local certification. Product squash commit: `3665c8abe75d83c4e48e6b646bc48977931ecf72`.
+
+---
+
+## External receive diagnostics clarified - 2026-09-16 17:05 EDT
+
+**Main:** `dfbd5020e036`
+**Actor:** Codex
+
+Merged [PR #388](https://github.com/the-sarge/quic-go-fast/pull/388) as `dfbd5020e0360b94ff113691efe8a131d1913ec1`, closing [issue #372](https://github.com/the-sarge/quic-go-fast/issues/372). The `external_packet_io` event now reports platform/wrapper eligibility separately from receive permission and activation: `receive_eligible` replaces the old activation-duplicating `receive_supported`. Setup retains its opt-out/failure decision without additional probes; managed registration preserves the native endpoint's result behind ordinary-datagram wrappers and across active leases. Runtime receive policy, packet ownership, batching and close ownership remain unchanged. The [maintained diagnostic contract](agents/external-receive-diagnostics.md) documents field migration and reason precedence.
+
+The maintainer also approved a narrow version-negotiation fixture correction: bind the listener to IPv4 to match its proxy and require `VersionNegotiationError` before the unchanged timing assertion. A forced-IPv6 reproduction demonstrated the proxy forwarding failure and five-second idle timeout; the corrected IPv4 fixture passed in one RTT. That establishes a fixture defect without asserting it caused the original hosted failure.
+
+Initial RAS review `20260916T203649-fa552f4238d92a6de7603ef6` led to the existing Windows URO host-qualification guard being applied to the new managed activation test. Exact-head verification resolved that finding; optional performance/style observations were independently rejected as current-work obligations. Replacement review `20260916T205318-db5c2b43e28991d22b1c2e36` was clean. [Final certification](https://github.com/the-sarge/quic-go-fast/pull/388#issuecomment-5704477646) records Darwin/Linux package, focused race, vet, tidiness and formatting checks; real Linux GRO aggregates; native Windows URO and managed assertions without skips; and all 33 hosted checks passing on candidate `b915c97d3cfe82c8c08111b8a321bd14baab66e4` against base `e5fca3f348457e91932cffa982eed00c1f03b8da`. No failed unchanged head was rerun and no timeout was relaxed.
+
+An earlier candidate produced a natural macOS QUIC-v2 HTTP idle-boundary failure: retained paired evidence shows the 30ms server timer firing before handshake completion, followed by the first GET returning a remote application error. The checksummed artifact and full job log are preserved at `/Users/josh/diagnostics/issue-151-2026-09-16-pr388`. This remains evidence for the open [HTTP idle-boundary investigation #151](https://github.com/the-sarge/quic-go-fast/issues/151), not a claim to have explained its historical five-second timeout or repaired HTTP behavior. That issue is the live view for further decisions.
