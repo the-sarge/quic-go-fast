@@ -522,7 +522,6 @@ func (t *Transport) closeServer() {
 	t.server = nil
 	if t.isSingleUse {
 		t.closeErr = ErrServerClosed
-		t.cancelReadRetry()
 	}
 
 	if len(t.handlers) == 0 {
@@ -645,6 +644,7 @@ func (t *Transport) listen(conn rawConn) {
 
 func (t *Transport) maybeStopListening() {
 	if t.isSingleUse && t.closeErr != nil {
+		t.cancelReadRetry()
 		t.conn.SetReadDeadline(time.Now())
 	}
 }

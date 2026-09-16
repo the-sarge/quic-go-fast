@@ -9,6 +9,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/protocol"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -161,7 +163,7 @@ func TestTransportTemporaryReadShutdown(t *testing.T) {
 	t.Setenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING", "true")
 	for _, managed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "ordinary", true: "managed"}[managed], func(t *testing.T) {
-			for _, shutdown := range []string{"Close", "internal", "single_use_server"} {
+			for _, shutdown := range []string{"Close", "internal", "single_use_server", "single_use_drain"} {
 				t.Run(shutdown, func(t *testing.T) {
 					synctest.Test(t, func(t *testing.T) {
 						tr, conn := newRetryTestTransport(t, managed)
@@ -173,9 +175,13 @@ func TestTransportTemporaryReadShutdown(t *testing.T) {
 							}
 							return conn.PacketConn.ReadFrom(b)
 						}
-						tr.isSingleUse = shutdown == "single_use_server"
+						tr.isSingleUse = shutdown == "single_use_server" || shutdown == "single_use_drain"
 						require.NoError(t, tr.init(false))
 						defer tr.Close()
+						connID := protocol.ParseConnectionID([]byte{1, 2, 3, 4})
+						if shutdown == "single_use_drain" {
+							require.True(t, (*packetHandlerMap)(tr).Add(connID, &mockPacketHandler{}))
+						}
 						time.Sleep(155 * time.Millisecond)
 						synctest.Wait()
 						require.EqualValues(t, 6, attempts.Load())
@@ -187,8 +193,19 @@ func TestTransportTemporaryReadShutdown(t *testing.T) {
 							tr.close(errors.New("internal shutdown"))
 						case "single_use_server":
 							tr.closeServer()
+						case "single_use_drain":
+							tr.closeServer()
+							synctest.Wait()
+							select {
+							case <-tr.listening:
+								t.Fatal("closing the listener stopped reception for a retained handler")
+							default:
+							}
+							// Retiring the last handler owns the eventual receive shutdown.
+							(*packetHandlerMap)(tr).ReplaceWithClosed([]protocol.ConnectionID{connID}, nil, 0)
 						}
 						<-tr.listening
+						synctest.Wait() // join the final-handler callback's deadline wakeup
 						require.Zero(t, time.Since(start), "shutdown must interrupt the pending 100 ms wait")
 						require.EqualValues(t, 6, attempts.Load(), "shutdown must not issue another read")
 						// Transport shutdown must not close the caller's socket or lease.
