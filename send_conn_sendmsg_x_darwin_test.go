@@ -405,6 +405,12 @@ func TestExternalDarwinBatchWriterStandardInputs(t *testing.T) {
 	writer, err := (&Transport{}).UDPBatchWriterV1(sender)
 	require.NoError(t, err)
 	payloads := [][]byte{[]byte("first"), []byte("second")}
+	before, _, _ := sendmsgXCountersSnapshot()
+	n, err := writer(payloads, nil, &net.UDPAddr{IP: net.IPv6loopback, Port: 1234})
+	require.Error(t, err, "IPv4 sockets reject IPv6 destinations through standard writes")
+	require.Zero(t, n)
+	after, _, _ := sendmsgXCountersSnapshot()
+	require.Equal(t, before, after, "incompatible socket families must not attempt native submission")
 	for _, addr := range []*net.UDPAddr{nil, {IP: net.IPv4(127, 0, 0, 1), Port: 65536}, {IP: net.IP{1, 2, 3}, Port: 1234}} {
 		n, err := writer(payloads, nil, addr)
 		require.Error(t, err)
@@ -415,7 +421,7 @@ func TestExternalDarwinBatchWriterStandardInputs(t *testing.T) {
 	defer connected.Close()
 	writer, err = (&Transport{}).UDPBatchWriterV1(connected)
 	require.NoError(t, err)
-	n, err := writer(payloads, nil, receiver.LocalAddr().(*net.UDPAddr))
+	n, err = writer(payloads, nil, receiver.LocalAddr().(*net.UDPAddr))
 	require.Error(t, err, "connected WriteMsgUDP rejects an explicit destination")
 	require.Zero(t, n)
 	n, err = writer(payloads, nil, nil)

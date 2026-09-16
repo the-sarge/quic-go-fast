@@ -135,8 +135,8 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 	return bs.submit(bufs, oob, udpAddr)
 }
 
-// submit is the shared native owner. Callers serialize access and own fallback.
-func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (int, error) {
+// initFamily caches the socket family for native encoding and factory admission.
+func (bs *darwinBatch) initFamily() bool {
 	if bs.family == 0 { // determine the socket's address family once
 		var family int
 		if err := bs.raw.Control(func(fd uintptr) {
@@ -150,9 +150,17 @@ func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (
 			}
 		}); err != nil || family == 0 {
 			bs.rawErr = true
-			return 0, nil
+			return false
 		}
 		bs.family = family
+	}
+	return true
+}
+
+// submit is the shared native owner. Callers serialize access and own fallback.
+func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (int, error) {
+	if !bs.initFamily() {
+		return 0, nil
 	}
 	if bs.dest == nil || bs.destAddr != udpAddr.String() {
 		bs.dest = newSendmsgXDest(udpAddr, bs.family)
@@ -208,7 +216,7 @@ func newUDPBatchWriter(conn udpMessageWriter) func([][]byte, []byte, *net.UDPAdd
 		}
 		mutex.Lock()
 		defer mutex.Unlock()
-		if bs.rawErr || !sendmsgXAvailable() {
+		if bs.rawErr || !sendmsgXAvailable() || !bs.initFamily() || (bs.family == syscall.AF_INET && addr.IP.To4() == nil) {
 			return fallback(bufs, oob, addr)
 		}
 		return bs.submit(bufs, oob, addr)
