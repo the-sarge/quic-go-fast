@@ -112,6 +112,10 @@ func (t *Transport) traceManagedBuffers(b *managedBufferSetup, conn rawConn) {
 	if _, ok := conn.(*basicConn); ok {
 		receiveMode = "ordinary"
 	}
+	if c := t.packetIO.external; c != nil && c.managedReceiveCoalescing {
+		receiveMode = "normalized"
+		cap.GRO = true
+	}
 	message := fmt.Sprintf("provenance=managed_endpoint %s %s buffer_target_bytes=%d receive_mode=%s batch_callback_available=%t df=%t ecn=%t segmentation=%t coalescing=%t", b.receive.diagnostic("receive"), b.send.diagnostic("send"), desiredBufferSize, receiveMode, batch, cap.DF, cap.ECN, cap.GSO, cap.GRO)
 	utils.DefaultLogger.Debugf("managed_packet_io: %s", message)
 	if t.Tracer != nil {

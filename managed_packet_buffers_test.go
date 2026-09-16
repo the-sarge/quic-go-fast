@@ -151,6 +151,7 @@ func TestManagedEndpointNativeBuffers(t *testing.T) {
 }
 
 func TestManagedEndpointDiagnosticProvenance(t *testing.T) {
+	t.Setenv("QUIC_GO_DISABLE_GRO", "true") // exercise ordinary diagnostics on every platform
 	for _, kind := range []string{"parent", "lease", "registered", "registered batch", "wrapper", "wrapper batch", "unknown wrapper", "external wrapper"} {
 		t.Run(kind, func(t *testing.T) {
 			endpoint, acquire := newTestManagedEndpoint(t)

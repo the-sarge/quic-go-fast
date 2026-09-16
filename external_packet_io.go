@@ -16,12 +16,13 @@ import (
 // externalPacketIO holds immutable registration and atomic diagnostic counters.
 // Registration is synchronized independently of the connection-handler lock.
 type externalPacketIO struct {
-	batchCalls             atomic.Uint64
-	acceptedPackets        atomic.Uint64
-	managedBuffers         *managedBufferSetup
-	conn                   net.PacketConn
-	allowReceiveCoalescing bool
-	sendBatch              func([][]byte, []byte, *net.UDPAddr) (int, error)
+	batchCalls               atomic.Uint64
+	acceptedPackets          atomic.Uint64
+	managedBuffers           *managedBufferSetup
+	managedReceiveCoalescing bool
+	conn                     net.PacketConn
+	allowReceiveCoalescing   bool
+	sendBatch                func([][]byte, []byte, *net.UDPAddr) (int, error)
 }
 
 type packetIOConfig struct {
@@ -93,7 +94,9 @@ func (t *Transport) checkPacketIORegistration(conn net.PacketConn) error {
 // before handing the lease to QUIC if they should no longer apply.
 // A non-nil sendBatch must preserve that wrapper's policy and submit through the
 // lease's WriteBatchV1 method, following ConfigureExternalPacketIOV1's callback
-// contract. Nil retains ordinary sends. Receive coalescing remains disabled.
+// contract. Nil retains ordinary sends. On Linux, registration installs the
+// endpoint's persistent normalization before enabling receive coalescing.
+// Wrappers continue receiving ordinary datagrams through their ReadFrom path.
 // Transport.Close does not release the lease or own the native socket; lease
 // Close revokes and joins I/O before another lease can use the endpoint.
 func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.PacketConn, sendBatch func([][]byte, []byte, *net.UDPAddr) (int, error)) error {
@@ -119,8 +122,11 @@ func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.Pa
 	if l.lease.quic || e.active != 0 {
 		return errors.New("quic: managed packet lease already bound or I/O active")
 	}
+	if err := e.configureReceive(); err != nil {
+		return err
+	}
 	l.lease.quic = true
-	c.external = &externalPacketIO{conn: conn, sendBatch: sendBatch, managedBuffers: &e.buffers}
+	c.external = &externalPacketIO{conn: conn, sendBatch: sendBatch, managedBuffers: &e.buffers, managedReceiveCoalescing: e.receiver != nil}
 	return nil
 }
 
@@ -217,17 +223,18 @@ func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
 		if c.sendBatch == nil {
 			batchReason = "no_callback"
 		}
-		receiveEnabled := conn.capabilities().GRO
+		receiveEnabled := conn.capabilities().GRO || c.managedReceiveCoalescing
+		receivePermitted := c.allowReceiveCoalescing || c.managedBuffers != nil
 		receiveReason := "none"
 		if !receiveEnabled {
 			receiveReason = "disabled_or_unavailable"
-			if !c.allowReceiveCoalescing {
+			if !receivePermitted {
 				receiveReason = "no_permission"
 			} else if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
 				receiveReason = "external_coalescing_unavailable"
 			}
 		}
-		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_supported=%t receive_enabled=%t receive_disabled_reason=%s batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", c.allowReceiveCoalescing, c.allowReceiveCoalescing, receiveEnabled, receiveEnabled, receiveReason, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
+		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_supported=%t receive_enabled=%t receive_disabled_reason=%s batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", receivePermitted, receivePermitted, receiveEnabled, receiveEnabled, receiveReason, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
 	}
 	return &externalPacketConn{rawConn: conn, config: c}
 }
