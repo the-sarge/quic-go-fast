@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, R03, P01-A and P01-B complete; no fork slice is ready until E02 completes; E02-W is ready in track W; E02-L and E02-D are complete
+**Status:** Fork implementation and E02 qualification complete; L01 release preparation owns the current frontier. L02 becomes ready only after the immutable release passes publication and consumer verification.
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -41,7 +41,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | R03 | Decide raw handback feasibility | R01-L, R01-W | Complete: raw return rejected; managed reuse supported |
 | P01-A | Consolidate packet-policy hooks without activating policy | None | Complete |
 | P01-B | Activate complete immutable fixed-peer policy | P01-A, Q01 | Complete |
-| L01 | Release qualified fork capability | E02 | New |
+| L01 | Release qualified fork capability | E02 | Release source prepared; publication receipt owns completion |
 
 Cross-repository blockers refer to the other track in the program index. The tracker owns live completion state. A stage is one intended PR in its named code/evidence repository; consumer PRs live in their own repositories while their issue and normative contract stay with this integration track.
 
@@ -443,6 +443,8 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### L01 — Release qualified fork capability
+
+**Current state:** Release source and support notes prepared for `v0.62.1-fast.3`; E02 is complete. The [release record](../releases/v0.62.1-fast.3.md) and its linked GitHub release own the remaining exact-source audit, immutable tag, archive/consumer and publication receipts. This source PR alone does not complete L01 or unblock L02. Successful publication completes L01 and makes only [L02](https://github.com/GridSwarm/wiremux/issues/1533) ready; the [live tracker](https://github.com/GridSwarm/wiremux/issues/1540) records that transition. No additional committed frontier change is required by publication.
 
 **What it delivers and acceptance criteria:** L01 follows the fork release runbook: reviewed default-branch source, exact-head hosted checks, vulnerability/dependency audit on the release graph, immutable tag, consumer module download and provenance, accurate support/limitations, explicit version. Choose the real version at execution, never invent a published tag in advance.
 

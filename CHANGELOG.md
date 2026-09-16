@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.62.1-fast.3 — release candidate
+
+Qualified external packet I/O and managed endpoint reuse, based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path and dependency versions are unchanged from fast.2. The [release record](docs/releases/v0.62.1-fast.3.md) supplies support and source reconciliation and links the GitHub release that will carry publication and exact-source validation receipts after the runbook gates succeed. This entry selects the next version; it does not assert that the tag is already published.
+
+- Explicit `ConfigureExternalPacketIOV1` registration binds the exact supplied connection and a checked batch writer before transport initialization. Participating wrappers retain receive and destination policy. Receive-format permission is separate from close ownership; inherited methods do not grant it. `UDPBatchWriterV1` keeps platform batching in the fork.
+- `NewManagedPacketEndpointV1` creates a parent endpoint with exclusive leases; `ConfigureManagedPacketIOV1` binds the original lease through its participating wrapper. Closing a lease joins its I/O and permits reuse; closing the parent ends the socket. Linux GRO and Windows URO normalization persists across leases, while Darwin receive stays ordinary. Already consumed QUIC data is not replayed. Raw socket return after coalescing remains unsupported.
+- `ConfigureFixedPeerV1` fixes a transport's permitted UDP peer before initialization and guards receive, ordinary/batched/stateless output and alternate paths. It does not authenticate identity or enable migration. Wiremux retains its selected-peer wrapper.
+- Checked external paths support Linux GSO/GRO, Windows USO/URO and qualified Darwin `sendmsg_x`. Permission, platform qualification and existing disable switches still govern activation. Diagnostics distinguish receive eligibility from activation. A specifically denied optional ECN setup leaves a managed Linux endpoint in ordinary receive mode; descriptor and required packet-info failures remain errors.
+- Ordinary OOB wrappers without `ReadBatch` now retain their supplied `ReadMsgUDP` policy. Temporary read retries are bounded, and HTTP/3 qlog shutdown joins admitted GOAWAY, handler and stream producers. Maintained integration fixtures and failure captures were also repaired; those changes do not establish a general timing or packet-loss guarantee.
+
+The [assembled support decision](https://github.com/GridSwarm/wiremux/blob/main/docs/research/e02-support.md) qualifies example-level native correctness and managed reuse on its recorded Linux, Windows and Darwin domains. All final performance comparisons were unavailable with zero admitted pairs: retain ordinary upstream defaults, with no assembled-Wire CPU, allocation, latency, memory or capacity claim. Historical fork measurements remain scoped to their original revisions and workloads. See the [release support matrix](docs/releases/v0.62.1-fast.3.md#support-and-limitations) for tested versus build-only platforms, adoption and rollback.
+
 ## v0.62.1-fast.2 — 2026-09-14
 
 Dependency and tooling refresh after the first fork prerelease. The upstream baseline remains quic-go v0.62.0, the minimum Go version remains 1.26.0, and the existing public API and module-replacement adoption model are unchanged.
