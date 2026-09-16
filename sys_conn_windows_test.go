@@ -24,7 +24,6 @@ func TestWindowsConn(t *testing.T) {
 		conn, err := newConn(udpConn, true, false)
 		require.NoError(t, err)
 		require.True(t, conn.capabilities().DF)
-		require.False(t, conn.capabilities().GSO)
 		require.False(t, conn.capabilities().ECN)
 		require.False(t, conn.capabilities().GRO)
 		require.NoError(t, conn.Close())

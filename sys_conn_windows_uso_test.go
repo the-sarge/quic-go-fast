@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 	"unsafe"
@@ -20,7 +21,7 @@ import (
 )
 
 // Tests for Slice W2 (Windows segmented send, USO): the UDP_SEND_MSG_SIZE
-// capability probe on transport-owned sockets, the per-send segment-size
+// read-only capability probe, the per-send segment-size
 // control message, and the send-error classification the MTU discovery
 // feedback path depends on.
 
@@ -42,7 +43,7 @@ func requireUSOCapableHost(t *testing.T, conn rawConn) {
 	t.Skip("USO probe reported unsupported on this host; the USO-capable CI matrix asserts this capability strictly")
 }
 
-// The probe runs only on transport-owned sockets and honors the existing
+// The probe is independent of socket ownership and honors the existing
 // QUIC_GO_DISABLE_GSO kill switch, mirroring the Linux isGSOEnabled probe.
 func TestWindowsConnUSOCapability(t *testing.T) {
 	newOwnedConn := func(t *testing.T, ownsSocket bool) *windowsConn {
@@ -63,7 +64,8 @@ func TestWindowsConnUSOCapability(t *testing.T) {
 
 	t.Run("caller-supplied socket", func(t *testing.T) {
 		conn := newOwnedConn(t, false)
-		require.False(t, conn.capabilities().GSO)
+		requireUSOCapableHost(t, conn)
+		require.False(t, conn.capabilities().GRO, "send capability must not enable receive coalescing")
 	})
 
 	t.Run("kill switch", func(t *testing.T) {
@@ -200,6 +202,128 @@ func TestWindowsConnSegmentedSend(t *testing.T) {
 	n, _, err = receiver.ReadFromUDP(buf)
 	require.NoError(t, err)
 	require.Equal(t, single, buf[:n])
+}
+
+// externalUSOConn represents a participating policy wrapper. The unavailable
+// case denies only the read-only probe at newConn's socket boundary.
+type externalUSOConn struct {
+	*net.UDPConn
+	peer        *net.UDPAddr
+	oobs        [][]byte
+	unavailable bool
+}
+
+func (c *externalUSOConn) SyscallConn() (syscall.RawConn, error) {
+	if c.unavailable {
+		return &probeFailingRawConn{}, nil
+	}
+	return c.UDPConn.SyscallConn()
+}
+
+func (c *externalUSOConn) WriteMsgUDP(b, oob []byte, addr *net.UDPAddr) (int, int, error) {
+	if addr.String() != c.peer.String() {
+		return 0, 0, os.ErrPermission
+	}
+	c.oobs = append(c.oobs, append([]byte(nil), oob...))
+	return c.UDPConn.WriteMsgUDP(b, oob, addr)
+}
+
+func TestWindowsExternalSegmentedSend(t *testing.T) {
+	for _, tc := range []struct {
+		name, network string
+		registered    bool
+		disabled      bool
+		unavailable   bool
+	}{
+		{name: "ordinary IPv4", network: "udp4"},
+		{name: "registered IPv4", network: "udp4", registered: true},
+		{name: "ordinary IPv6", network: "udp6"},
+		{name: "registered IPv6", network: "udp6", registered: true},
+		{name: "registered disabled", network: "udp4", registered: true, disabled: true},
+		{name: "unavailable", network: "udp4", unavailable: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("QUIC_GO_DISABLE_GSO", "0")
+			if tc.disabled {
+				t.Setenv("QUIC_GO_DISABLE_GSO", "1")
+			}
+			ip := net.IPv4(127, 0, 0, 1)
+			if tc.network == "udp6" {
+				ip = net.IPv6loopback
+			}
+			sender, err := net.ListenUDP(tc.network, &net.UDPAddr{IP: ip})
+			require.NoError(t, err)
+			defer sender.Close()
+			receiver, err := net.ListenUDP(tc.network, &net.UDPAddr{IP: ip})
+			require.NoError(t, err)
+			defer receiver.Close()
+			peer := receiver.LocalAddr().(*net.UDPAddr)
+			wrapper := &externalUSOConn{UDPConn: sender, peer: peer, unavailable: tc.unavailable}
+			var conn rawConn
+			tr := &Transport{Conn: wrapper}
+			if tc.unavailable {
+				// Isolate the unsupported USO probe from unrelated DF/buffer
+				// setup, which also uses SyscallConn during transport init.
+				conn, err = newConn(wrapper, true, false)
+				require.NoError(t, err)
+			} else {
+				if tc.registered {
+					require.NoError(t, tr.ConfigureExternalPacketIOV1(wrapper, false, nil))
+				}
+				_, err = tr.WriteTo([]byte("prime"), peer)
+				require.NoError(t, err)
+				defer tr.Close()
+				conn = tr.conn
+				require.NoError(t, receiver.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+				buf := make([]byte, 64)
+				n, _, err := receiver.ReadFromUDP(buf)
+				require.NoError(t, err)
+				require.Equal(t, "prime", string(buf[:n]))
+				wrapper.oobs = nil
+			}
+			if tc.disabled || tc.unavailable {
+				require.False(t, conn.capabilities().GSO)
+			} else {
+				requireUSOCapableHost(t, conn)
+			}
+			require.False(t, conn.capabilities().GRO)
+			info := packetInfo{addr: sender.LocalAddr().(*net.UDPAddr).AddrPort().Addr().Unmap()}
+			oob := info.OOB()
+			payload := []byte("abcdefghij")
+			const segmentSize = 4
+			if conn.capabilities().GSO {
+				n, err := conn.WritePacket(payload, peer, oob, segmentSize, protocol.ECNUnsupported)
+				require.NoError(t, err)
+				require.Equal(t, len(payload), n)
+				require.Len(t, wrapper.oobs, 1, "the wrapper must own segmented submission")
+				require.Greater(t, len(wrapper.oobs[0]), len(oob))
+			} else {
+				for _, p := range [][]byte{payload[:4], payload[4:8], payload[8:]} {
+					_, err := conn.WritePacket(p, peer, oob, 0, protocol.ECNUnsupported)
+					require.NoError(t, err)
+				}
+				require.Len(t, wrapper.oobs, 3)
+				for _, sentOOB := range wrapper.oobs {
+					require.Equal(t, oob, sentOOB, "ordinary sends must not acquire a segment-size message")
+				}
+			}
+			require.Equal(t, oob, wrapper.oobs[0][:len(oob)], "packet info must reach the wrapper unchanged")
+			for _, want := range []string{"abcd", "efgh", "ij"} {
+				require.NoError(t, receiver.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+				buf := make([]byte, 64)
+				n, from, err := receiver.ReadFromUDP(buf)
+				require.NoError(t, err)
+				require.Equal(t, want, string(buf[:n]))
+				require.Equal(t, sender.LocalAddr().String(), from.String())
+			}
+			_, err = conn.WritePacket([]byte("blocked"), sender.LocalAddr(), oob, 0, protocol.ECNUnsupported)
+			require.ErrorIs(t, err, os.ErrPermission, "initialization must not bypass wrapper policy")
+			if !tc.unavailable {
+				require.NoError(t, tr.Close())
+				require.NoError(t, sender.SetWriteDeadline(time.Time{}), "transport close must leave the caller's socket open")
+			}
+		})
+	}
 }
 
 // Message-size closure class: the error a too-large send surfaces through

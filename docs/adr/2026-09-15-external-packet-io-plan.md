@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, R01-A, R01-B, P01-A and P01-B complete; Q02–Q05 form the fork frontier
+**Status:** In progress; Q01, Q02, R01-A, R01-B, P01-A and P01-B complete; Q03–Q05 form the fork frontier
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -30,7 +30,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Slice | Delivery | Blocked by | Disposition |
 | --- | --- | --- | --- |
 | Q01 | Register external packet I/O and provide ordinary writer | None | Complete |
-| Q02 | Enable external Windows segmented sends | Q01 | New |
+| Q02 | Enable external Windows segmented sends | Q01 | Complete |
 | Q03 | Enable permissioned Linux coalesced receive | Q01 | New |
 | Q04 | Enable permissioned Windows coalesced receive | Q01 | New |
 | Q05 | Accelerate checked batch writers on Darwin | Q01 | New |
@@ -82,6 +82,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### Q02 — Enable external Windows segmented sends
+
+**Current state:** Complete. The read-only USO probe supports external ordinary and registered connections while preserving wrapper submission, receive-format permission and close ownership. Q03–Q05 remain ready; E02-W remains blocked by Q04 and R01-W. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Separate the read-only USO capability probe from receive-format permission and close ownership. Preserve wrapper WriteMsgUDP submission and ordinary fallback. Validate actual segmented delivery and ancillary metadata on native Windows, with ordinary and registered external sockets plus capability-disabled/unavailable cases. Preserve existing Linux GSO. Bounds: Windows capability plumbing, relevant cross-platform capability declaration and focused tests. No URO or caller reuse semantics.
 
