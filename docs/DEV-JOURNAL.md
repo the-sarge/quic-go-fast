@@ -2174,3 +2174,32 @@ Preserved fatal descriptor errors, other ECN setup errors, required packet-info 
 The registration regression failed before the fix and passed afterward. Native restricted controls covered ECN denial, other errors, packet-info denial, combined denial and unusable sockets; ordinary I/O, diagnostics, transport close and endpoint reuse passed. Linux focused race tests, Linux/macOS root-package tests and vet, module tidiness and Linux lint passed. All 33 hosted checks passed on final head `d4551a17ec5dee18473a38a3840b023aab1ce9a5` before matched-head squash merge.
 
 RAS review `20260916T213053-368a1a88f8a3e71c2c86481a` completed with all five reviewers. Independent dispositions retained existing error precedence, declined additional verification hardening, and reconciled maintained diagnostics documentation. The final docs-only polish used the shared rerun exemption. [Review dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/390#issuecomment-5705036864) record the evidence; no deferred follow-up survived.
+
+---
+
+## Qualified packet I/O prerelease published - 2026-09-16 18:53 EDT
+
+**Main:** `81b06388832a`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #392](https://github.com/the-sarge/quic-go-fast/pull/392) at `81b06388832a97d51af5bc408d27ca6c47eb66a9` to prepare the qualified external packet-I/O and managed-reuse release. The source PR changes documentation only: support/source reconciliation, explicit version, corrected adoption pin, fork-only rollback prerequisite and the publication-conditional L02 frontier. The [release record](releases/v0.62.1-fast.3.md) delegates immutable release receipts to GitHub.
+
+Published [v0.62.1-fast.3](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.3) after all exact-source and tag gates passed. Annotated tag `4b640d4b4dd0fcab579bfca1dbd8f53f8155f55b` peels to the merged source. The release is a prerelease with no binary assets.
+
+### Decisions
+
+L01 retains E02's correct opt-in support and ordinary defaults without an assembled-Wire performance claim. Managed reuse is supported; raw handback after coalescing is unsupported; wiremux retains its selected-peer wrapper. Later diagnostics and restricted Linux ECN-denial fallback were reconciled without expanding native qualification. See the [support decision](https://github.com/GridSwarm/wiremux/blob/main/docs/research/e02-support.md) and [L01 contract](adr/2026-09-15-external-packet-io-plan.md#l01--release-qualified-fork-capability).
+
+### Validation
+
+Local `TIMESCALE_FACTOR=3 go test ./...`, documentation links and whitespace checks passed. RAS `20260916T222348-c8507b005fa9a9f785b763a3` produced three accepted prose corrections; no deferred findings survived. The shared docs-only policy waived a second RAS cycle; corrected head `60fdb66dedbf436a7af87c9a713ad4703fbce4f2` was recertified and all five hosted PR workflows passed before matched-head squash merge.
+
+Fresh exact-main govulncheck v1.7.0 with Go 1.27.1 on Darwin arm64 found no reachable or imported-package vulnerabilities. GO-2026-5932 remains an uncalled/unimported OpenPGP module advisory in x/crypto v0.57.0. All five exact-main workflows passed. A separate consumer passed before tagging, then downloaded `v0.62.1-fast.3` through the public proxy into a fresh cache, built QUIC/HTTP3, exercised managed registration and joined teardown, and passed `go mod verify`. The archive includes runtime APIs and HTTP/3, excludes the nested audit module, and names source `81b06388832a97d51af5bc408d27ca6c47eb66a9`; binary provenance records the tagged replacement. The [PR certification](https://github.com/the-sarge/quic-go-fast/pull/392#issuecomment-5705527356) and release notes retain exact identities, workflow links, checksums and initial verification-fixture/cache failures.
+
+All five tag-triggered workflows and their jobs succeeded before publication. The tagged module sum is `h1:e63jncqjH9Jga2M8D84idhGkC4BTTDstH+iApHWQ2NY=`; its ZIP SHA-256 is `43e419e8a5f974e002ce6d324b77010827eafb62361fbd292bd245695c215c41`.
+
+### Next
+
+L01 publication is complete. Close its child/task and promote only L02 after journal closure; downstream consumers and Z01 remain required. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier. No deferred review follow-up or newly untraced runtime effect remains.
