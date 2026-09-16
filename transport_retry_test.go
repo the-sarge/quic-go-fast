@@ -63,6 +63,7 @@ func TestTransportTemporaryReadBackoff(t *testing.T) {
 						return 0, nil, stop
 					}
 					n, addr, err := conn.PacketConn.ReadFrom(b)
+					//nolint:staticcheck // Exercise the existing transport retry classification.
 					if e, ok := err.(net.Error); ok && e.Timeout() && e.Temporary() {
 						timeouts++
 					}
