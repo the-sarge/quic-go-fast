@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -40,6 +41,10 @@ func TestWindowsExternalReceivePermission(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+			if tc.permitted && !tc.disabled && !tc.opaque {
+				probe, _ := newWindowsOwnedConn(t, true)
+				requireUROCapableHost(t, probe)
+			}
 			if tc.disabled {
 				t.Setenv("QUIC_GO_DISABLE_GRO", "1")
 			}
@@ -119,15 +124,22 @@ func TestWindowsExternalURORejectsInvalidRead(t *testing.T) {
 // Loopback validates this policy and lifecycle, not native URO engagement.
 type externalUROFilter struct {
 	*net.UDPConn
-	peer     *net.UDPAddr
-	filtered atomic.Int32
+	peer       *net.UDPAddr
+	filtered   atomic.Int32
+	aggregates atomic.Int32
 }
 
 func (c *externalUROFilter) ReadMsgUDP(b, oob []byte) (int, int, int, *net.UDPAddr, error) {
 	for {
 		n, nn, flags, addr, err := c.UDPConn.ReadMsgUDP(b, oob)
-		if err != nil || addr.String() == c.peer.String() {
+		if err != nil {
 			return n, nn, flags, addr, err
+		}
+		if addr.String() == c.peer.String() {
+			if n > 1232 {
+				c.aggregates.Add(1)
+			}
+			return n, nn, flags, addr, nil
 		}
 		c.filtered.Add(1)
 	}
@@ -137,6 +149,8 @@ func TestWindowsExternalUROWrapperLifecycle(t *testing.T) {
 	for _, network := range []string{"udp4", "udp6"} {
 		t.Run(network, func(t *testing.T) {
 			t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+			probe, _ := newWindowsOwnedConn(t, true)
+			requireUROCapableHost(t, probe)
 			listen := func() *net.UDPConn {
 				t.Helper()
 				ip := net.IPv4(127, 0, 0, 1)
@@ -180,6 +194,8 @@ func TestWindowsExternalUROWrapperLifecycle(t *testing.T) {
 
 func TestWindowsExternalUROSetupFailureRemainsCallerOwned(t *testing.T) {
 	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+	probe, _ := newWindowsOwnedConn(t, true)
+	requireUROCapableHost(t, probe)
 	udp := listenExternalUDP(t)
 	tr := &Transport{Conn: udp}
 	require.NoError(t, tr.ConfigureExternalPacketIOV1(udp, true, nil))
@@ -205,4 +221,53 @@ func TestWindowsExternalUROReadErrorDoesNotReplay(t *testing.T) {
 	defer p.buffer.Release()
 	require.Equal(t, "fresh", string(p.data))
 	require.Equal(t, 2, rc.callCounter)
+}
+
+// Run only against a separate native endpoint. The peer receives "Q04 URO"
+// and replies from the same UDP socket with one segmented burst: 32 datagrams,
+// each filled with its 1-based index, 1232 bytes each except a 500-byte tail.
+// This is an engagement regression, not a performance measurement.
+func TestWindowsExternalURONativeEngagement(t *testing.T) {
+	peerAddress := os.Getenv("QUIC_GO_Q04_URO_PEER")
+	if peerAddress == "" {
+		t.Skip("requires a separate endpoint via QUIC_GO_Q04_URO_PEER")
+	}
+	localAddress := os.Getenv("QUIC_GO_Q04_URO_LOCAL")
+	if localAddress == "" {
+		localAddress = "0.0.0.0:0"
+	}
+	peer, err := net.ResolveUDPAddr("udp4", peerAddress)
+	require.NoError(t, err)
+	local, err := net.ResolveUDPAddr("udp4", localAddress)
+	require.NoError(t, err)
+	udp, err := net.ListenUDP("udp4", local)
+	require.NoError(t, err)
+	defer udp.Close()
+	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+	wrapper := &externalUROFilter{UDPConn: udp, peer: peer}
+	tr := &Transport{Conn: wrapper}
+	require.NoError(t, tr.ConfigureExternalPacketIOV1(wrapper, true, nil))
+	defer tr.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err = tr.ReadNonQUICPacket(ctx, make([]byte, 1500))
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, protocol.MaxCoalescedPacketBufferSize, uroSocketOption(t, udp))
+	_, err = tr.WriteTo([]byte("Q04 URO"), peer)
+	require.NoError(t, err)
+	ctx, cancel = context.WithTimeout(context.Background(), scaleDuration(10*time.Second))
+	defer cancel()
+	for i := 1; i <= 32; i++ {
+		size := 1232
+		if i == 32 {
+			size = 500
+		}
+		b := make([]byte, 1500)
+		n, addr, err := tr.ReadNonQUICPacket(ctx, b)
+		require.NoError(t, err)
+		require.Equal(t, peer.String(), addr.String())
+		require.Equal(t, bytes.Repeat([]byte{byte(i)}, size), b[:n])
+	}
+	require.Positive(t, wrapper.aggregates.Load(), "separate-endpoint kernel coalescing must actually engage")
+	t.Logf("external Windows wrapper: %d coalesced read(s); 32 exact datagrams delivered", wrapper.aggregates.Load())
 }

@@ -174,6 +174,11 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 		n, oobn, flags, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
 		if err != nil {
 			buffer.Release()
+			// Winsock reports truncated payload or control data as WSAEMSGSIZE.
+			// That datagram has been consumed; it must not terminate the reader.
+			if c.cap.GRO && errors.Is(err, windows.WSAEMSGSIZE) {
+				continue
+			}
 			return receivedPacket{}, err
 		}
 		if c.cap.GRO && (flags&(windows.MSG_TRUNC|windows.MSG_CTRUNC) != 0 || n < 0 || n > len(buffer.Data) || oobn < 0 || oobn > len(c.oobBuffer)) {
