@@ -2119,3 +2119,22 @@ RAS review `20260916T185515-eae3918b0a9044698eeef883` completed with four succes
 ### Next
 
 E02-W remains the frontier; E02 retains E02-W, and L01 retains E02. No successor became ready from R03 alone. The operator authorized a companion wiremux index correction, which is pending alongside mutable tracking reconciliation at this timestamp. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) owns live state.
+
+---
+
+## Preserve ordinary UDP wrapper receive policy - 2026-09-16 16:04 EDT
+
+**Main:** `3665c8abe75d`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #386](https://github.com/the-sarge/quic-go-fast/pull/386), closing [issue #371](https://github.com/the-sarge/quic-go-fast/issues/371). Supported non-batch OOB UDP wrappers now receive through their overridden `ReadMsgUDP` method, preserving ordinary receive filtering instead of bypassing it through the socket descriptor. Native UDP sockets and participating `ReadBatch` wrappers retain batching; GRO eligibility, unsupported-wrapper rejection and write behavior remain unchanged.
+
+### Decisions
+
+Use a private single-message adapter feeding the existing decoder and buffer owner. Affected Linux wrappers trade descriptor batching for preserved receive policy. The [approved maintenance contract](agents/ordinary-wrapper-receive-371.md) defines the supported domain and finite evidence budget.
+
+### Validation
+
+The IPv4/IPv6 regression delivered foreign datagrams before the fix and passed afterward. Full root-package tests, focused race tests, vet, module tidiness and lint passed on reviewed head `911b88743144e56acd05651828aef71cbecc6991`. RAS run `20260916T195804-568edc7ca0dafb183b177452` completed with two reviewers and zero findings; no follow-ups or verification cycle were required. All 33 hosted checks passed, including native Linux filtering/GRO-denial evidence and existing platform/toolchain gates. The [exact-head receipt](https://github.com/the-sarge/quic-go-fast/pull/386#issuecomment-5703734425) records the review and local certification. Product squash commit: `3665c8abe75d83c4e48e6b646bc48977931ecf72`.
