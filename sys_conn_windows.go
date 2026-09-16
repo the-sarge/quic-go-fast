@@ -53,21 +53,17 @@ type windowsConn struct {
 
 var _ rawConn = &windowsConn{}
 
-// ownsSocket reports whether the transport created the socket. The W plan
-// scopes offload probes to transport-owned sockets, so a caller-supplied
-// socket keeps the W1 foundation behavior with no offload capability.
+// ownsSocket grants receive-format mutation only for transport-created sockets.
+// The read-only USO probe is independent of that permission and close ownership;
+// segmented sends still go through the supplied connection's WriteMsgUDP.
 func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn, error) {
 	var needsPacketInfo bool
 	if udpAddr, ok := c.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP.IsUnspecified() {
 		needsPacketInfo = true
 	}
-	var rawConn syscall.RawConn
-	if needsPacketInfo || ownsSocket {
-		var err error
-		rawConn, err = c.SyscallConn()
-		if err != nil {
-			return nil, err
-		}
+	rawConn, err := c.SyscallConn()
+	if err != nil {
+		return nil, err
 	}
 	if needsPacketInfo {
 		// We don't know if this a IPv4-only, IPv6-only or a IPv4-and-IPv6
@@ -91,9 +87,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, ownsSocket bool) (*windowsConn,
 			return nil, errors.New("activating packet info failed for both IPv4 and IPv6")
 		}
 	}
-	var uso, uro bool
+	uso := isUSOEnabled(rawConn)
+	var uro bool
 	if ownsSocket {
-		uso = isUSOEnabled(rawConn)
 		// The ownsSocket gate is load-bearing: isUROEnabled issues the
 		// UDP_RECV_MAX_COALESCED_SIZE setsockopt, which must never reach a
 		// caller-supplied socket.

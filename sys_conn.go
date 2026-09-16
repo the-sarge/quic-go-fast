@@ -19,7 +19,8 @@ type connCapabilities struct {
 	// This connection has the Don't Fragment (DF) bit set.
 	// This means it makes to run DPLPMTUD.
 	DF bool
-	// GSO (Generic Segmentation Offload) supported
+	// Segmented sends supported (Linux GSO or Windows USO).
+	// Read-only discovery does not grant receive-format or close authority.
 	GSO bool
 	// ECN (Explicit Congestion Notifications) supported
 	ECN bool
