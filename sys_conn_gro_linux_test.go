@@ -47,8 +47,8 @@ func TestGROProbeOnTransportOwnedSocket(t *testing.T) {
 	require.Equal(t, 1, groSocketOption(t, udpConn))
 }
 
-// The transport must never issue a UDP_GRO setsockopt on a caller-supplied
-// socket: coalescing is socket-wide, and reads the caller performs after
+// The transport must not enable UDP_GRO on a caller-supplied socket without
+// explicit receive-format permission: coalescing is socket-wide, and reads after
 // transport close must not see silently truncated coalesced payloads.
 func TestGRONotEnabledOnCallerSuppliedSocket(t *testing.T) {
 	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})

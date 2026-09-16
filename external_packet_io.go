@@ -41,6 +41,7 @@ type packetIOConfig struct {
 // any wrapper, and dispose of the socket on every terminal path, including
 // initialization failure. Transport.Close does not restore ordinary raw reads.
 // Borrowed sockets that will be reused must not grant this permission.
+// External GRO requires an exact *net.UDPConn or a wrapper providing ReadBatch.
 // A nil sendBatch retains ordinary sends. A non-nil callback
 // must preserve the wrapper's policy, support concurrent calls, and borrow each
 // call's complete UDP payloads and shared OOB data only until return. It returns

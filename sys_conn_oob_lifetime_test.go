@@ -141,6 +141,8 @@ func TestOOBReaderAncillaryFailure(t *testing.T) {
 				ms[0].NN = copy(ms[0].OOB, tc.oob)
 				return 1, nil
 			})
+			// Ordinary receive retains its existing fatal ancillary-error contract.
+			c.cap.GRO = false
 			defer c.releaseReadBuffers()
 			p, err := c.ReadPacket()
 			require.Error(t, err)
@@ -170,7 +172,7 @@ func TestOOBReaderListenerCleanup(t *testing.T) {
 		calls++
 		ms[0].N = copy(ms[0].Buffers[0], "consumer")
 		if calls == 2 {
-			ms[0].NN = copy(ms[0].OOB, []byte{1})
+			return 1, net.ErrClosed
 		}
 		return 1, nil
 	})

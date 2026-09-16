@@ -28,6 +28,31 @@ type externalGROConn struct {
 	batch batchConn
 }
 
+// This outer wrapper filters ReadMsgUDP but inherits net.Conn / SyscallConn.
+// It has no participating ReadBatch path.
+type externalGROReadMsgConn struct {
+	*net.UDPConn
+	selected *net.UDPAddr
+}
+
+func (c *externalGROReadMsgConn) ReadMsgUDP(b, oob []byte) (int, int, int, *net.UDPAddr, error) {
+	for {
+		n, nn, flags, addr, err := c.UDPConn.ReadMsgUDP(b, oob)
+		if err != nil || addr.String() == c.selected.String() {
+			return n, nn, flags, addr, err
+		}
+	}
+}
+
+func TestExternalGRONonBatchWrapper(t *testing.T) {
+	udp := listenExternalUDP(t)
+	conn := &externalGROReadMsgConn{UDPConn: udp, selected: udp.LocalAddr().(*net.UDPAddr)}
+	tr := &Transport{Conn: conn}
+	require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, true, nil))
+	require.NoError(t, tr.Close())
+	require.Equal(t, 0, groSocketOption(t, udp), "permission cannot activate descriptor-backed GRO around the wrapper")
+}
+
 type externalGROBatchFunc func([]ipv4.Message, int) (int, error)
 
 func (f externalGROBatchFunc) ReadBatch(ms []ipv4.Message, flags int) (int, error) {
@@ -50,9 +75,18 @@ func TestExternalGRORejectsInvalidRead(t *testing.T) {
 		{name: "truncated payload", oob: appendUDPGROMsg(nil, 100), flags: unix.MSG_TRUNC},
 		{name: "truncated control", flags: unix.MSG_CTRUNC},
 		{name: "malformed control", oob: []byte{1}},
+		{name: "invalid IPv4 ECN", oob: lifetimeControlMessage(unix.IPPROTO_IP, msgTypeIPTOS, nil)},
+		{name: "invalid IPv6 ECN", oob: lifetimeControlMessage(unix.IPPROTO_IPV6, unix.IPV6_TCLASS, []byte{1})},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			reads := 0
 			oc := newGROConn(t, externalGROBatchFunc(func(ms []ipv4.Message, _ int) (int, error) {
+				reads++
+				if reads > 1 {
+					ms[0].N = copy(ms[0].Buffers[0], []byte("fresh"))
+					ms[0].NN, ms[0].Flags = 0, 0
+					return 1, nil
+				}
 				ms[0].N = copy(ms[0].Buffers[0], make([]byte, 200))
 				ms[0].NN = copy(ms[0].OOB, tc.oob)
 				ms[0].Flags = tc.flags
@@ -60,10 +94,9 @@ func TestExternalGRORejectsInvalidRead(t *testing.T) {
 			}))
 			t.Cleanup(oc.releaseReadBuffers)
 			p, err := oc.ReadPacket()
-			if err == nil {
-				p.buffer.Release()
-			}
-			require.Error(t, err, "invalid aggregate must not reach QUIC parsing")
+			require.NoError(t, err)
+			require.Equal(t, "fresh", string(p.data), "invalid aggregate must be discarded before QUIC parsing")
+			p.buffer.Release()
 		})
 	}
 }
@@ -259,4 +292,73 @@ func TestExternalGRORetainedSibling(t *testing.T) {
 	slab := second.buffer.slab
 	second.buffer.Release()
 	require.True(t, slab.released())
+}
+
+// Ancillary options on a caller-owned dual-stack socket can exceed the fixed
+// OOB capacity even for an ordinary datagram received with GRO enabled.
+func TestExternalGROTruncatedControlKeepsTransportAlive(t *testing.T) {
+	udp, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv6unspecified})
+	require.NoError(t, err)
+	t.Cleanup(func() { udp.Close() })
+	raw, err := udp.SyscallConn()
+	require.NoError(t, err)
+	setExtraControl := func(enabled int) error {
+		var optionErr error
+		err := raw.Control(func(fd uintptr) {
+			optionErr = errors.Join(
+				unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_TIMESTAMPNS, enabled),
+				unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_RECVTTL, enabled),
+			)
+		})
+		return errors.Join(err, optionErr)
+	}
+	require.NoError(t, setExtraControl(1))
+	start := make(chan struct{})
+	observed := make(chan int, 1)
+	var reads atomic.Int32
+	native := ipv4.NewPacketConn(udp)
+	conn := &externalGROConn{OOBCapablePacketConn: udp}
+	conn.batch = externalGROBatchFunc(func(ms []ipv4.Message, flags int) (int, error) {
+		first := reads.Add(1) == 1
+		if first {
+			<-start
+		}
+		n, err := native.ReadBatch(ms[:1], flags)
+		if err == nil && first {
+			// The next datagram has the ordinary metadata set. This isolates
+			// recovery from one truncated read, not sustained option overflow.
+			if err := setExtraControl(0); err != nil {
+				return 0, err
+			}
+			observed <- ms[0].Flags
+		}
+		return n, err
+	})
+	tr := &Transport{Conn: conn}
+	require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, true, nil))
+	t.Cleanup(func() { require.NoError(t, tr.Close()) })
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err = tr.ReadNonQUICPacket(canceled, nil)
+	close(start)
+	require.ErrorIs(t, err, context.Canceled)
+	sender := listenExternalUDP(t)
+	target := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: udp.LocalAddr().(*net.UDPAddr).Port}
+	_, err = sender.WriteToUDP([]byte("truncated"), target)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	select {
+	case flags := <-observed:
+		require.NotZero(t, flags&unix.MSG_CTRUNC, "native ancillary options must reproduce truncation")
+		t.Logf("native receive flags=%#x (MSG_CTRUNC=%#x)", flags, unix.MSG_CTRUNC)
+	case <-ctx.Done():
+		t.Fatal("no native read observed")
+	}
+	_, err = sender.WriteToUDP([]byte("\x01fresh"), target)
+	require.NoError(t, err)
+	b := make([]byte, 1232)
+	n, _, err := tr.ReadNonQUICPacket(ctx, b)
+	require.NoError(t, err, "rejecting truncated metadata must not close unrelated connections")
+	require.Equal(t, "\x01fresh", string(b[:n]))
 }
