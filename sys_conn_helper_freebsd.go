@@ -33,6 +33,6 @@ func isGSOEnabled(syscall.RawConn) bool { return false }
 func isECNEnabled() bool { return !isECNDisabledUsingEnv() }
 
 // GRO is a Linux/Windows receive offload; no FreeBSD equivalent is adopted.
-func isGROEnabled(syscall.RawConn) bool { return false }
+func enableGRO(syscall.RawConn) (bool, string) { return false, "unsupported_platform" }
 
 func parseUDPGROSegmentSize(*unix.Cmsghdr, []byte) (segmentSize int, ok bool) { return 0, false }

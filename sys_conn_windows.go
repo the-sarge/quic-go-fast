@@ -88,16 +88,17 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		}
 	}
 	uso := isUSOEnabled(rawConn)
+	receive := receiveCoalescingState{eligible: true}
 	var uro bool
 	if allowReceiveCoalescing {
-		// isUROEnabled mutates the socket-wide receive format. Only the
+		// enableURO mutates the socket-wide receive format. Only the
 		// transport grant authorizes this, never native method discovery.
-		uro = isUROEnabled(rawConn)
+		uro, receive.disabledReason = enableURO(rawConn)
 	}
 	return &windowsConn{
 		OOBCapablePacketConn: c,
 		oobBuffer:            make([]byte, oobBufferSize),
-		cap:                  connCapabilities{DF: supportsDF, GSO: uso, GRO: uro},
+		cap:                  connCapabilities{DF: supportsDF, GSO: uso, GRO: uro, receiveCoalescing: receive},
 	}, nil
 }
 
@@ -119,7 +120,7 @@ func isUSOEnabled(conn syscall.RawConn) bool {
 	return serr == nil
 }
 
-// isUROEnabled enables UDP receive coalescing (URO) on the socket and
+// enableURO enables UDP receive coalescing (URO) on the socket and
 // reports whether it succeeded. The setsockopt is itself the probe, as with
 // the Linux UDP_GRO probe: on success Winsock coalesces consecutive
 // same-flow datagrams into a single read of up to the coalesced buffer
@@ -127,28 +128,28 @@ func isUSOEnabled(conn syscall.RawConn) bool {
 // control message. It requires explicit receive-format permission and
 // honors the QUIC_GO_DISABLE_GRO kill switch that governs
 // coalesced receive on every platform.
-func isUROEnabled(conn syscall.RawConn) bool {
-	return isUROEnabledWith(conn, func(fd uintptr) error {
+func enableURO(conn syscall.RawConn) (bool, string) {
+	return enableUROWith(conn, func(fd uintptr) error {
 		return windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_UDP, windows.UDP_RECV_MAX_COALESCED_SIZE, protocol.MaxCoalescedPacketBufferSize)
 	})
 }
 
-// isUROEnabledWith separates the probe's control flow from the live Winsock
+// enableUROWith separates the probe's control flow from the live Winsock
 // call so the error classification is testable without a URO-incapable
 // Windows build: every setRecvCoalescing failure — WSAENOPROTOOPT from a
 // build without URO, or any other error — classifies uniformly as
 // "capability off".
-func isUROEnabledWith(conn syscall.RawConn, setRecvCoalescing func(fd uintptr) error) bool {
+func enableUROWith(conn syscall.RawConn, setRecvCoalescing func(fd uintptr) error) (bool, string) {
 	if disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_GRO")); err == nil && disabled {
-		return false
+		return false, "explicit_opt_out"
 	}
 	var serr error
 	if err := conn.Control(func(fd uintptr) {
 		serr = setRecvCoalescing(fd)
-	}); err != nil {
-		return false
+	}); err != nil || serr != nil {
+		return false, "activation_failed_or_unavailable"
 	}
-	return serr == nil
+	return true, "none"
 }
 
 func (c *windowsConn) ReadPacket() (receivedPacket, error) {

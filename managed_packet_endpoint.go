@@ -64,6 +64,7 @@ type managedPacketEndpoint struct {
 	mutex         sync.Mutex
 	readMutex     sync.Mutex
 	receiver      managedPacketReceiver
+	receiveState  receiveCoalescingState
 	idle          *sync.Cond
 	conn          net.PacketConn
 	buffers       managedBufferSetup

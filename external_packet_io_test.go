@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"runtime"
 	"sync/atomic"
@@ -207,19 +208,58 @@ func TestExternalPacketIOSwappedAfterInitialization(t *testing.T) {
 	require.NoError(t, conn.SetWriteDeadline(time.Time{}))
 }
 
+func externalPacketIOEvent(t *testing.T, recorder *events.Recorder) string {
+	t.Helper()
+	var messages []string
+	for _, recorded := range recorder.Events(qlog.DebugEvent{}) {
+		event := recorded.(qlog.DebugEvent)
+		if event.EventName == "external_packet_io" {
+			messages = append(messages, event.Message)
+		}
+	}
+	require.Len(t, messages, 1)
+	return messages[0]
+}
+
 func TestExternalPacketIODiagnostics(t *testing.T) {
-	conn := listenExternalUDP(t)
-	var recorder events.Recorder
-	tr := &Transport{Conn: conn, Tracer: &recorder}
-	require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, false, nil))
-	require.NoError(t, tr.Close())
-	recorded := recorder.Events(qlog.DebugEvent{})
-	require.Len(t, recorded, 1)
-	event := recorded[0].(qlog.DebugEvent)
-	require.Equal(t, "transport:external_packet_io", event.Name())
-	require.Contains(t, event.Message, "receive_requested=false receive_permitted=false receive_supported=false receive_enabled=false")
-	require.Contains(t, event.Message, "receive_disabled_reason=no_permission")
-	require.NotContains(t, event.Message, "batch_calls")
+	for _, tc := range []struct {
+		name                        string
+		permitted, opaque, disabled bool
+		reason                      string
+	}{
+		{name: "no permission", reason: "no_permission"},
+		{name: "no permission wins over wrapper and opt out", opaque: true, disabled: true, reason: "no_permission"},
+		{name: "opaque wrapper", permitted: true, opaque: true, reason: "ineligible_wrapper"},
+		{name: "wrapper wins over opt out", permitted: true, opaque: true, disabled: true, reason: "ineligible_wrapper"},
+		{name: "eligible opt out", permitted: true, disabled: true, reason: "explicit_opt_out"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("QUIC_GO_DISABLE_GRO", fmt.Sprint(tc.disabled))
+			udp := listenExternalUDP(t)
+			var conn net.PacketConn = udp
+			if tc.opaque {
+				conn = &nonOOBPacketConn{PacketConn: udp}
+			}
+			var recorder events.Recorder
+			tr := &Transport{Conn: conn, Tracer: &recorder}
+			require.NoError(t, tr.ConfigureExternalPacketIOV1(conn, tc.permitted, nil))
+			require.NoError(t, tr.Close())
+			message := externalPacketIOEvent(t, &recorder)
+			reason := tc.reason
+			eligible := !tc.opaque
+			if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
+				eligible = false
+				if tc.permitted {
+					reason = "unsupported_platform"
+				}
+			}
+			require.Contains(t, message, fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_eligible=%t receive_enabled=false receive_disabled_reason=%s", tc.permitted, tc.permitted, eligible, reason))
+			require.NotContains(t, message, "receive_supported=")
+			require.Contains(t, message, "batch_requested=false batch_permitted=false batch_supported=true batch_enabled=false batch_disabled_reason=no_callback")
+			require.NotContains(t, message, "batch_calls")
+			require.NoError(t, udp.SetReadDeadline(time.Time{}), "diagnostics must preserve caller close ownership")
+		})
+	}
 }
 
 func TestExternalPacketIOConcurrentWriters(t *testing.T) {

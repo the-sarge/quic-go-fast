@@ -298,3 +298,11 @@ func TestWindowsManagedReceiveNativeHandback(t *testing.T) {
 	require.NoError(t, next.Close())
 	t.Logf("managed Windows handback: %d coalesced read(s); 32 exact datagrams across ordinary read and next lease", observer.aggregates)
 }
+
+// Use the same host posture as the native URO tests before setup snapshots the
+// opt-out setting: unsupported local hosts skip, hosted CI must activate URO.
+func requireManagedReceiveCoalescingHost(t *testing.T) {
+	t.Helper()
+	probe, _ := newWindowsOwnedConn(t, true)
+	requireUROCapableHost(t, probe)
+}

@@ -80,26 +80,27 @@ func isGSOEnabled(conn syscall.RawConn) bool {
 	return serr == nil
 }
 
-// isGROEnabled enables UDP_GRO on the socket and reports whether it
+// enableGRO enables UDP_GRO on the socket and reports whether it
 // succeeded. The setsockopt is itself the probe: on success the kernel
 // coalesces consecutive same-flow datagrams into a single read and reports
 // the segment size in a UDP_GRO control message.
 // It requires transport ownership or explicit external receive-format permission.
-func isGROEnabled(conn syscall.RawConn) bool {
-	if kernelVersionMajor < 5 {
-		return false
-	}
+// It also returns the decision made by the normal activation attempt.
+func enableGRO(conn syscall.RawConn) (bool, string) {
 	disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_GRO"))
 	if err == nil && disabled {
-		return false
+		return false, "explicit_opt_out"
+	}
+	if kernelVersionMajor < 5 {
+		return false, "activation_failed_or_unavailable"
 	}
 	var serr error
 	if err := conn.Control(func(fd uintptr) {
 		serr = unix.SetsockoptInt(int(fd), unix.IPPROTO_UDP, unix.UDP_GRO, 1)
-	}); err != nil {
-		return false
+	}); err != nil || serr != nil {
+		return false, "activation_failed_or_unavailable"
 	}
-	return serr == nil
+	return true, "none"
 }
 
 // parseUDPGROSegmentSize parses the segment size from a UDP_GRO control

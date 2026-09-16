@@ -30,7 +30,8 @@ func TestVersionNegotiationFailure(t *testing.T) {
 
 	serverConfig := &quic.Config{}
 	serverConfig.Versions = protocol.SupportedVersions[:1]
-	ln, err := quic.ListenAddr("localhost:0", getTLSConfig(), serverConfig)
+	// The proxy forwards through an IPv4-only socket.
+	ln, err := quic.ListenAddr("127.0.0.1:0", getTLSConfig(), serverConfig)
 	require.NoError(t, err)
 	defer ln.Close()
 
@@ -53,6 +54,7 @@ func TestVersionNegotiationFailure(t *testing.T) {
 		getTLSClientConfig(),
 		maybeAddQLOGTracer(&quic.Config{Versions: protocol.SupportedVersions[1:2]}),
 	)
-	require.Error(t, err)
+	var negotiationError *quic.VersionNegotiationError
+	require.ErrorAs(t, err, &negotiationError)
 	expectDurationInRTTs(t, startTime, 1)
 }

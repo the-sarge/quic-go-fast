@@ -24,7 +24,8 @@ func (e *managedPacketEndpoint) configureReceive() error {
 	}
 	// Install normalization before the socket can queue coalesced data.
 	e.receiver = receiver
-	receiver.cap.GRO = isUROEnabled(raw)
+	receiver.cap.GRO, receiver.cap.receiveCoalescing.disabledReason = enableURO(raw)
+	e.receiveState = receiver.cap.receiveCoalescing
 	if !receiver.cap.GRO {
 		// Ordinary socket reads preserve the full public UDP payload domain
 		// when coalescing is disabled or unavailable.
