@@ -157,34 +157,46 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 	if p, ok := c.delivery.next(); ok {
 		return p, nil
 	}
-	var buffer *packetBuffer
-	if c.cap.GRO {
-		// a single coalesced read can deliver up to 65535 bytes
-		buffer = getCoalescedPacketBuffer()
-		buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
-	} else {
-		// The packet size should not exceed protocol.MaxPacketBufferSize bytes
-		// If it does, we only read a truncated packet, which will then end up undecryptable
-		buffer = getPacketBuffer()
-		buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+	// A rejected read publishes no sibling views. Keep reading after malformed
+	// metadata or truncation, while real socket errors retain their identity.
+	for {
+		var buffer *packetBuffer
+		if c.cap.GRO {
+			// a single coalesced read can deliver up to 65535 bytes
+			buffer = getCoalescedPacketBuffer()
+			buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
+		} else {
+			// The packet size should not exceed protocol.MaxPacketBufferSize bytes
+			// If it does, we only read a truncated packet, which will then end up undecryptable
+			buffer = getPacketBuffer()
+			buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+		}
+		n, oobn, flags, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
+		if err != nil {
+			buffer.Release()
+			return receivedPacket{}, err
+		}
+		if c.cap.GRO && (flags&(windows.MSG_TRUNC|windows.MSG_CTRUNC) != 0 || n < 0 || n > len(buffer.Data) || oobn < 0 || oobn > len(c.oobBuffer)) {
+			buffer.Release()
+			continue
+		}
+		info, segmentSize, valid := parseControlMessagesChecked(c.oobBuffer[:oobn])
+		if c.cap.GRO && (!valid || segmentSize < 0 || segmentSize > n) {
+			buffer.Release()
+			continue
+		}
+		p := receivedPacket{
+			remoteAddr: addr,
+			rcvTime:    monotime.Now(),
+			data:       buffer.Data[:n],
+			buffer:     buffer,
+			info:       info,
+		}
+		if !c.cap.GRO || n == 0 {
+			return p, nil
+		}
+		return c.delivery.accept(p, segmentSize), nil
 	}
-	n, oobn, _, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
-	if err != nil {
-		buffer.Release()
-		return receivedPacket{}, err
-	}
-	info, segmentSize := parseControlMessages(c.oobBuffer[:oobn])
-	p := receivedPacket{
-		remoteAddr: addr,
-		rcvTime:    monotime.Now(),
-		data:       buffer.Data[:n],
-		buffer:     buffer,
-		info:       info,
-	}
-	if !c.cap.GRO || n == 0 {
-		return p, nil
-	}
-	return c.delivery.accept(p, segmentSize), nil
 }
 
 // releaseReadBuffers runs only after reading stops (the transport's read
@@ -307,20 +319,35 @@ func parsePacketInfo(oob []byte) packetInfo {
 // absent-info fallback, so a structurally invalid buffer stops parsing
 // without failing the read.
 func parseControlMessages(oob []byte) (packetInfo, int) {
+	info, size, _ := parseControlMessagesChecked(oob)
+	return info, size
+}
+
+// The ordinary packet-info API retains its best-effort fallback. Coalesced
+// receive also requires a complete, unambiguous control buffer before splitting.
+func parseControlMessagesChecked(oob []byte) (packetInfo, int, bool) {
+	valid := true
 	var info packetInfo
 	var segmentSize int
 	for len(oob) >= wsaCmsgDataOffset {
 		hdr := (*windows.WSACMSGHDR)(unsafe.Pointer(&oob[0]))
 		if hdr.Len < uintptr(wsaCmsgDataOffset) || hdr.Len > uintptr(len(oob)) {
-			return info, segmentSize
+			return info, segmentSize, false
 		}
 		body := oob[wsaCmsgDataOffset:hdr.Len]
 		if hdr.Level == windows.IPPROTO_UDP && hdr.Type == windows.UDP_COALESCED_INFO {
 			// payload is one DWORD: the size of every segment of the
 			// coalesced read except a possibly shorter final one
 			if len(body) == 4 {
+				if segmentSize != 0 {
+					valid = false
+				}
 				segmentSize = int(binary.NativeEndian.Uint32(body))
+				if segmentSize <= 0 {
+					valid = false
+				}
 			} else {
+				valid = false
 				invalidCmsgOnceCoalesced.Do(func() {
 					log.Printf("Received invalid UDP_COALESCED_INFO control message: %+x. "+
 						"This should never occur, please open a new issue and include details about the architecture.", body)
@@ -334,6 +361,7 @@ func parseControlMessages(oob []byte) (packetInfo, int) {
 				info.ifIndex = binary.NativeEndian.Uint32(body[4:])
 				info.pktinfoV6 = false
 			} else {
+				valid = false
 				invalidCmsgOnceV4.Do(func() {
 					log.Printf("Received invalid IPv4 packet info control message: %+x. "+
 						"This should never occur, please open a new issue and include details about the architecture.", body)
@@ -347,6 +375,7 @@ func parseControlMessages(oob []byte) (packetInfo, int) {
 				info.ifIndex = binary.NativeEndian.Uint32(body[16:])
 				info.pktinfoV6 = true
 			} else {
+				valid = false
 				invalidCmsgOnceV6.Do(func() {
 					log.Printf("Received invalid IPv6 packet info control message: %+x. "+
 						"This should never occur, please open a new issue and include details about the architecture.", body)
@@ -354,12 +383,13 @@ func parseControlMessages(oob []byte) (packetInfo, int) {
 			}
 		}
 		next := wsaCmsgAlign(int(hdr.Len))
-		if next > len(oob) {
-			return info, segmentSize
+		if next >= len(oob) {
+			// The final message need not include trailing alignment padding.
+			return info, segmentSize, valid
 		}
 		oob = oob[next:]
 	}
-	return info, segmentSize
+	return info, segmentSize, valid && len(oob) == 0
 }
 
 func (info *packetInfo) OOB() []byte {

@@ -80,7 +80,7 @@ func TestWindowsUROProbeOnTransportOwnedSocket(t *testing.T) {
 }
 
 // The transport must never issue the UDP_RECV_MAX_COALESCED_SIZE setsockopt
-// on a caller-supplied socket: coalescing is socket-wide, and reads the
+// on an unregistered caller-supplied socket: coalescing is socket-wide, and reads the
 // caller performs after transport close must not see silently truncated
 // coalesced payloads (the acceptance criteria's negative criterion).
 func TestWindowsURONotEnabledOnCallerSuppliedSocket(t *testing.T) {
@@ -195,6 +195,7 @@ type uroReadConn struct {
 	payloads    [][]byte
 	oobs        [][]byte
 	flags       []int
+	errs        []error
 	addr        *net.UDPAddr
 	callCounter int
 }
@@ -209,8 +210,11 @@ func (c *uroReadConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *net.U
 	if len(c.flags) > c.callCounter {
 		flags = c.flags[c.callCounter]
 	}
+	if len(c.errs) > c.callCounter {
+		err = c.errs[c.callCounter]
+	}
 	c.callCounter++
-	return n, oobn, flags, c.addr, nil
+	return n, oobn, flags, c.addr, err
 }
 
 func newUROConn(t *testing.T, rc *uroReadConn) *windowsConn {
