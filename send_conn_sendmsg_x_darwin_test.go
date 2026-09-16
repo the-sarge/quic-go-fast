@@ -5,6 +5,7 @@ package quic
 import (
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -434,4 +435,104 @@ func TestExternalDarwinBatchWriterStandardInputs(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, want, string(buf[:n]))
 	}
+}
+
+func TestExternalDarwinBatchWriterDeadline(t *testing.T) {
+	major, err := getMacOSVersion()
+	require.NoError(t, err)
+	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+		t.Skipf("unqualified Darwin kernel %d", major)
+	}
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	require.True(t, sendmsgXAvailable())
+	sender := listenExternalUDP(t)
+	writer, err := (&Transport{}).UDPBatchWriterV1(sender)
+	require.NoError(t, err)
+	checkNativeBatchDeadline(t, sender, writer)
+}
+
+func checkNativeBatchDeadline(t *testing.T, sender net.PacketConn, writer func([][]byte, []byte, *net.UDPAddr) (int, error)) {
+	t.Helper()
+	receiver := listenExternalUDP(t)
+	addr := receiver.LocalAddr().(*net.UDPAddr)
+	payloads := [][]byte{[]byte("first"), []byte("second")}
+	receive := func() {
+		t.Helper()
+		require.NoError(t, receiver.SetReadDeadline(time.Now().Add(time.Second)))
+		for _, want := range []string{"first", "second"} {
+			buf := make([]byte, 64)
+			n, _, err := receiver.ReadFromUDP(buf)
+			require.NoError(t, err)
+			require.Equal(t, want, string(buf[:n]))
+		}
+	}
+	before, _, _ := sendmsgXCountersSnapshot()
+	n, err := writer(payloads, nil, addr)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	receive()
+	warm, _, _ := sendmsgXCountersSnapshot()
+	require.Greater(t, warm, before)
+	require.NoError(t, sender.SetWriteDeadline(time.Now().Add(-time.Second)))
+	n, err = writer(payloads, nil, addr)
+	require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+	require.Zero(t, n)
+	expired, _, _ := sendmsgXCountersSnapshot()
+	require.Equal(t, warm, expired, "deadline failure occurs before native dispatch")
+	require.NoError(t, sender.SetWriteDeadline(time.Time{}))
+	n, err = writer(payloads, nil, addr)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	receive()
+	recovered, _, _ := sendmsgXCountersSnapshot()
+	require.Greater(t, recovered, expired, "clearing a deadline must restore native writing")
+}
+
+func TestExternalDarwinBatchWriterClosedSocket(t *testing.T) {
+	major, err := getMacOSVersion()
+	require.NoError(t, err)
+	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+		t.Skipf("unqualified Darwin kernel %d", major)
+	}
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	require.True(t, sendmsgXAvailable())
+	sender, receiver := listenExternalUDP(t), listenExternalUDP(t)
+	writer, err := (&Transport{}).UDPBatchWriterV1(sender)
+	require.NoError(t, err)
+	payloads := [][]byte{[]byte("first"), []byte("second")}
+	addr := receiver.LocalAddr().(*net.UDPAddr)
+	before, _, _ := sendmsgXCountersSnapshot()
+	n, err := writer(payloads, nil, addr)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	warm, _, _ := sendmsgXCountersSnapshot()
+	require.Greater(t, warm, before, "cache the native socket family before closing")
+	require.NoError(t, sender.Close())
+	n, err = writer(payloads, nil, addr)
+	require.ErrorIs(t, err, net.ErrClosed)
+	require.Zero(t, n)
+	closed, _, _ := sendmsgXCountersSnapshot()
+	require.Equal(t, warm, closed)
+}
+
+func TestExternalDarwinManagedBatchDeadline(t *testing.T) {
+	major, err := getMacOSVersion()
+	require.NoError(t, err)
+	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+		t.Skipf("unqualified Darwin kernel %d", major)
+	}
+	resetSendmsgXForTesting(t)
+	sendmsgXEnsureQualified()
+	require.True(t, sendmsgXAvailable())
+	endpoint, acquire := newTestManagedEndpoint(t)
+	defer endpoint.Close()
+	lease, err := acquire()
+	require.NoError(t, err)
+	defer lease.Close()
+	writer := lease.(managedBatchWriterV1).WriteBatchV1
+	tr := &Transport{Conn: lease}
+	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, writer))
+	checkNativeBatchDeadline(t, lease, writer)
 }

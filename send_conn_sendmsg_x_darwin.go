@@ -132,7 +132,12 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 		}
 	}
 
-	return bs.submit(bufs, oob, udpAddr)
+	n, err, submitted := bs.submit(bufs, oob, udpAddr)
+	if !submitted {
+		// The send worker owns per-packet attribution.
+		return 0, nil
+	}
+	return n, err
 }
 
 // initFamily caches the socket family for native encoding and factory admission.
@@ -157,10 +162,12 @@ func (bs *darwinBatch) initFamily() bool {
 	return true
 }
 
-// submit is the shared native owner. Callers serialize access and own fallback.
-func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (int, error) {
+// submit is the shared native owner. The final result reports whether the raw
+// callback ran, so adapters can distinguish socket errors from native progress.
+// Callers serialize access and own fallback.
+func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (int, error, bool) {
 	if !bs.initFamily() {
-		return 0, nil
+		return 0, nil, false
 	}
 	if bs.dest == nil || bs.destAddr != udpAddr.String() {
 		bs.dest = newSendmsgXDest(udpAddr, bs.family)
@@ -173,15 +180,17 @@ func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (
 	defer clear(iovs)
 	var accepted int
 	var submitErr error
+	submitted := false
 	if err := bs.raw.Write(func(fd uintptr) bool {
+		submitted = true
 		accepted, submitErr = sendmsgXSubmit(int(fd), bufs, bs.dest.name(), bs.dest.namelen, oob, msgs, iovs)
 		return true // never wait for writability: the worker's per-packet retry owns backpressure
 	}); err != nil {
-		// The conn is closed or unusable and the submission never ran; the
-		// per-packet retry surfaces the real error with correct attribution.
-		return 0, nil
+		// A pre-dispatch failure permits ordinary writing. Never turn an
+		// error after dispatch into a retry of potentially accepted data.
+		return 0, err, submitted
 	}
-	return accepted, submitErr
+	return accepted, submitErr, submitted
 }
 
 // newUDPBatchWriter accelerates only the existing unconnected, nonempty native
@@ -219,6 +228,10 @@ func newUDPBatchWriter(conn udpMessageWriter) func([][]byte, []byte, *net.UDPAdd
 		if bs.rawErr || !sendmsgXAvailable() || !bs.initFamily() || (bs.family == syscall.AF_INET && addr.IP.To4() == nil) {
 			return fallback(bufs, oob, addr)
 		}
-		return bs.submit(bufs, oob, addr)
+		n, err, submitted := bs.submit(bufs, oob, addr)
+		if !submitted {
+			return fallback(bufs, oob, addr)
+		}
+		return n, err
 	}
 }

@@ -1,6 +1,6 @@
 # Q05 Darwin checked batch writer qualification
 
-Q05 shares the existing Darwin submission owner with `UDPBatchWriterV1` and the managed endpoint's private writer. Explicitly registered callbacks retain destination authorization; the send worker retains retry, ordering, packet-specific error feedback and buffer disposal. The factory serializes its own bounded scratch and clears borrowed payload/OOB pointers before returning. No socket Close ownership changes.
+Q05 shares the existing Darwin submission owner with `UDPBatchWriterV1` and the managed endpoint's private writer. Explicitly registered callbacks retain destination authorization; the send worker retains retry, ordering, packet-specific error feedback and buffer disposal. The factory serializes its own bounded scratch and clears borrowed payload/OOB pointers before returning. No socket Close ownership changes. The shared result distinguishes a raw callback that never ran from native progress: factory callers then use ordinary writes to preserve terminal errors, while the send-worker adapter retains per-packet attribution.
 
 ## Domain and retained evidence
 
@@ -17,6 +17,7 @@ The standard library owns UDP/address semantics. Acceleration admits the existin
 | Two connection callbacks; distinct IPv4/IPv6 destinations and OOB | Factory mutex and shared native scratch | `TestExternalDarwinBatchWriterConcurrent` under race detector, exact delivery and ECN preservation | Covered |
 | Standard UDP shapes and invalid addresses | Standard `WriteMsgUDP` fallback | `TestUDPBatchWriter`, `TestExternalDarwinBatchWriterStandardInputs` | Covered |
 | Full/short/zero/invalid prefix and unknown-progress errors | Existing native classifier and send worker | `TestSendmsgX*`, `TestExternalPacketIOBatchProgress`, `TestSendQueueBatch*` | Covered |
+| Native callback never ran: deadline, recovery and closed socket | Shared native result; factory ordinary fallback; send-worker attribution unchanged | `TestExternalDarwinBatchWriterDeadline`, `TestExternalDarwinBatchWriterClosedSocket`, `TestExternalDarwinManagedBatchDeadline` | Covered |
 | Packet-specific MTU feedback and suffix delivery | Existing send worker | `TestExternalPacketIOMessageSizeFeedback`, `TestSendQueueBatchPartialAcceptanceMsgSizeFeedback` | Covered |
 | Cancellation, terminal failures, release and lease-close joining | Existing queue and endpoint lifecycle owners | `TestManagedPacketIODelayedQueuedSend`, `TestManagedPacketIOConcurrentBatchClose`, queue failure/disposal regressions | Covered by retained regressions |
 | Arbitrary wrapper unwrapping, new OS qualification, raw receive handback and performance campaigns | Outside Q05 | Existing opaque-wrapper preservation; separate program slices | Explicit non-goals |
