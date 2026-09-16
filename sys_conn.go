@@ -46,8 +46,11 @@ type rawConn interface {
 
 // OOBCapablePacketConn is a connection that allows the reading of ECN bits from the IP header.
 // If the PacketConn passed to the [Transport] satisfies this interface, quic-go will use it.
-// In this case, packets will be read in batches, and [OOBCapablePacketConn.WriteMsgUDP]
-// will be used instead of [net.PacketConn.WriteTo] to write packets.
+// On platforms that support batch reads, native UDP connections and wrappers
+// implementing ReadBatch use batching. Other supported wrappers receive through
+// [OOBCapablePacketConn.ReadMsgUDP], preserving their receive policy.
+// [OOBCapablePacketConn.WriteMsgUDP] is used instead of [net.PacketConn.WriteTo]
+// to write packets.
 type OOBCapablePacketConn interface {
 	net.PacketConn
 	SyscallConn() (syscall.RawConn, error)
