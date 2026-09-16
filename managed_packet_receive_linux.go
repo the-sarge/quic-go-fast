@@ -14,6 +14,13 @@ func (e *managedPacketEndpoint) configureReceive() error {
 	}
 	// Complete all fallible decoder setup without receive-format mutation.
 	reader, err := newConn(udp, false, false)
+	if err == errECNSetupDenied {
+		// The factory socket still has ordinary receive format. Only the
+		// demonstrated optional ECN denial permits this fallback; descriptor
+		// failures and required packet-info failures remain fatal.
+		e.receiveState = receiveCoalescingState{eligible: true, disabledReason: "ancillary_setup_denied"}
+		return nil
+	}
 	if err != nil {
 		return err
 	}

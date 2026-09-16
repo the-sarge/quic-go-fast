@@ -77,6 +77,10 @@ type oobConn struct {
 
 var _ rawConn = &oobConn{}
 
+// Managed endpoints can retain ordinary reads when only ECN setup is denied.
+// Other callers still return this error, with the historical error text.
+var errECNSetupDenied = errors.New("activating ECN failed for both IPv4 and IPv6")
+
 func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*oobConn, error) {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
@@ -109,6 +113,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 	case errECNIPv4 != nil && errECNIPv6 == nil:
 		utils.DefaultLogger.Debugf("Activating reading of ECN bits for IPv6.")
 	case errECNIPv4 != nil && errECNIPv6 != nil:
+		if errECNIPv4 == unix.EPERM && errECNIPv6 == unix.EPERM && (!needsPacketInfo || errPIIPv4 == nil || errPIIPv6 == nil) {
+			return nil, errECNSetupDenied
+		}
 		return nil, errors.New("activating ECN failed for both IPv4 and IPv6")
 	}
 	if needsPacketInfo {
