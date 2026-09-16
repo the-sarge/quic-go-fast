@@ -161,10 +161,11 @@ type Transport struct {
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
 
-	listening   chan struct{} // is closed when listen returns
-	closeErr    error
-	createdConn bool
-	isSingleUse bool // was created for a single server or client, i.e. by calling quic.Listen or quic.Dial
+	listening         chan struct{} // is closed when listen returns
+	readRetryCanceled chan struct{} // closed under mutex when temporary reads must stop
+	closeErr          error
+	createdConn       bool
+	isSingleUse       bool // was created for a single server or client, i.e. by calling quic.Listen or quic.Dial
 
 	readingNonQUICPackets atomic.Bool
 	nonQUICPackets        chan receivedPacket
@@ -410,6 +411,7 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 		t.handlers = make(map[protocol.ConnectionID]packetHandler)
 		t.resetTokens = make(map[protocol.StatelessResetToken]packetHandler)
 		t.listening = make(chan struct{})
+		t.readRetryCanceled = make(chan struct{})
 
 		t.closeQueue = make(chan closePacket, 4)
 		t.statelessResetQueue = make(chan receivedPacket, 4)
@@ -537,6 +539,7 @@ func (t *Transport) close(e error) {
 
 	e = &errTransportClosed{err: e}
 	t.closeErr = e
+	t.cancelReadRetry()
 	server := t.server
 	t.server = nil
 	if server != nil {
@@ -558,8 +561,28 @@ func (t *Transport) close(e error) {
 	}
 }
 
+// cancelReadRetry interrupts a pending temporary-read wait. The caller holds mutex.
+// It is separate from listening, which only closes after the receive goroutine exits.
+func (t *Transport) cancelReadRetry() {
+	if t.readRetryCanceled == nil {
+		return // initialization failed before a reader was started
+	}
+	select {
+	case <-t.readRetryCanceled:
+	default:
+		close(t.readRetryCanceled)
+	}
+}
+
 // only print warnings about the UDP receive buffer size once
 var setBufferWarningOnce sync.Once
+
+// Temporary read failures (including expired caller deadlines) must not spin.
+// Keep recovery responsive while bounding retries during a persistent failure.
+const (
+	initialReadRetryDelay = 5 * time.Millisecond
+	maxReadRetryDelay     = 100 * time.Millisecond
+)
 
 func (t *Transport) listen(conn rawConn) {
 	if reader, ok := conn.(interface{ releaseReadBuffers() }); ok {
@@ -577,6 +600,7 @@ func (t *Transport) listen(conn rawConn) {
 			}
 		}
 	}()
+	var retryDelay time.Duration
 	for {
 		p, err := conn.ReadPacket()
 		//nolint:staticcheck // SA1019 ignore this!
@@ -591,6 +615,18 @@ func (t *Transport) listen(conn rawConn) {
 				return
 			}
 			t.logger.Debugf("Temporary error reading from conn: %w", err)
+			if retryDelay == 0 {
+				retryDelay = initialReadRetryDelay
+			} else {
+				retryDelay = min(2*retryDelay, maxReadRetryDelay)
+			}
+			timer := time.NewTimer(retryDelay)
+			select {
+			case <-t.readRetryCanceled:
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
 			continue
 		}
 		if err != nil {
@@ -601,12 +637,14 @@ func (t *Transport) listen(conn rawConn) {
 			t.close(err)
 			return
 		}
+		retryDelay = 0
 		t.handlePacket(p)
 	}
 }
 
 func (t *Transport) maybeStopListening() {
 	if t.isSingleUse && t.closeErr != nil {
+		t.cancelReadRetry()
 		t.conn.SetReadDeadline(time.Now())
 	}
 }

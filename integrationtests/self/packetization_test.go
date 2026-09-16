@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -16,6 +17,7 @@ import (
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/quic-go/quic-go/quicvarint"
+	"github.com/quic-go/quic-go/testutils/simnet"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,19 +135,27 @@ func TestACKBundling(t *testing.T) {
 }
 
 func TestStreamDataBlocked(t *testing.T) {
-	testConnAndStreamDataBlocked(t, true, false, false)
+	synctest.Test(t, func(t *testing.T) {
+		testConnAndStreamDataBlocked(t, true, false, false)
+	})
 }
 
 func TestConnDataBlocked(t *testing.T) {
-	testConnAndStreamDataBlocked(t, false, true, false)
+	synctest.Test(t, func(t *testing.T) {
+		testConnAndStreamDataBlocked(t, false, true, false)
+	})
 }
 
 func TestDataBlockedDelayedDelivery(t *testing.T) {
 	t.Run("stream", func(t *testing.T) {
-		testConnAndStreamDataBlocked(t, true, false, true)
+		synctest.Test(t, func(t *testing.T) {
+			testConnAndStreamDataBlocked(t, true, false, true)
+		})
 	})
 	t.Run("connection", func(t *testing.T) {
-		testConnAndStreamDataBlocked(t, false, true, true)
+		synctest.Test(t, func(t *testing.T) {
+			testConnAndStreamDataBlocked(t, false, true, true)
+		})
 	})
 }
 
@@ -171,8 +181,32 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn, delayLas
 		rtt = min(rtt, 15*time.Millisecond)
 	}
 
+	// Exact packet counts require controlled delivery and timer ordering. A real
+	// UDP proxy can trigger PTO retransmissions when its goroutines are delayed.
+	var delayDelivery atomic.Bool
+	network := &simnet.Simnet{Router: &simnet.PerfectRouter{}}
+	clientSocket := network.NewEndpoint(
+		&net.UDPAddr{IP: net.IPv4(1, 0, 0, 1), Port: 9001},
+		simnet.NodeBiDiLinkSettings{Latency: rtt / 2},
+	)
+	serverSocket := network.NewEndpoint(
+		&net.UDPAddr{IP: net.IPv4(1, 0, 0, 2), Port: 9002},
+		simnet.NodeBiDiLinkSettings{LatencyFunc: func(simnet.Packet) time.Duration {
+			if delayDelivery.Load() {
+				return 3 * rtt
+			}
+			return rtt / 2
+		}},
+	)
+	require.NoError(t, network.Start())
+	defer func() {
+		require.NoError(t, clientSocket.Close())
+		require.NoError(t, serverSocket.Close())
+		require.NoError(t, network.Close())
+	}()
+
 	ln, err := quic.Listen(
-		newUDPConnLocalhost(t),
+		serverSocket,
 		getTLSConfig(),
 		getQuicConfig(&quic.Config{
 			InitialStreamReceiveWindow:     initialStreamWindow,
@@ -182,27 +216,13 @@ func testConnAndStreamDataBlocked(t *testing.T, limitStream, limitConn, delayLas
 	require.NoError(t, err)
 	defer ln.Close()
 
-	var delayDelivery atomic.Bool
-	proxy := quicproxy.Proxy{
-		Conn:       newUDPConnLocalhost(t),
-		ServerAddr: ln.Addr().(*net.UDPAddr),
-		DelayPacket: func(dir quicproxy.Direction, _, _ net.Addr, _ []byte) time.Duration {
-			if dir == quicproxy.DirectionIncoming && delayDelivery.Load() {
-				return 3 * rtt
-			}
-			return rtt / 2
-		},
-	}
-	require.NoError(t, proxy.Start())
-	defer proxy.Close()
-
 	counter, tracer := newPacketTracer()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	conn, err := quic.Dial(
 		ctx,
-		newUDPConnLocalhost(t),
-		proxy.LocalAddr(),
+		clientSocket,
+		serverSocket.LocalAddr(),
 		getTLSClientConfig(),
 		getQuicConfig(&quic.Config{
 			Tracer: func(context.Context, bool, quic.ConnectionID) qlogwriter.Trace { return tracer },
