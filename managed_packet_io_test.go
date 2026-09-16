@@ -391,6 +391,9 @@ func TestManagedPacketIOReceiveDiagnostics(t *testing.T) {
 	for _, disabled := range []bool{true, false} {
 		t.Run(fmt.Sprintf("disabled=%t", disabled), func(t *testing.T) {
 			t.Setenv("QUIC_GO_DISABLE_GRO", fmt.Sprint(disabled))
+			if !disabled {
+				requireManagedReceiveCoalescingHost(t)
+			}
 			_, acquire := newTestManagedEndpoint(t)
 			lease, err := acquire()
 			require.NoError(t, err)
