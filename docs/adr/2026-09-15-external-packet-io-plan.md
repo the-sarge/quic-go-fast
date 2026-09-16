@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, R01-A, R01-B, P01-A and P01-B complete; Q05, R01-L and R01-W form the fork frontier
+**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, P01-A and P01-B complete; R01-L and R01-W form the fork frontier; E02-D is ready in track W
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -33,7 +33,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Q02 | Enable external Windows segmented sends | Q01 | Complete |
 | Q03 | Enable permissioned Linux coalesced receive | Q01 | Complete |
 | Q04 | Enable permissioned Windows coalesced receive | Q01 | Complete |
-| Q05 | Accelerate checked batch writers on Darwin | Q01 | Retain/rework [PR #375](https://github.com/the-sarge/quic-go-fast/pull/375) |
+| Q05 | Accelerate checked batch writers on Darwin | Q01 | Complete |
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | New |
@@ -179,6 +179,8 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### Q05 — Accelerate checked batch writers on Darwin
 
+**Current state:** Complete. Checked external and managed factory writers share the existing qualified Darwin submission owner with synchronized, bounded scratch and ordinary fallback. Native wrapper engagement, concurrent IPv4/IPv6 calls, progress/error handling and lifecycle preservation are qualified by the [native receipt](../audits/2026-09-16-q05-darwin-batch.md). E02-D is ready after completed W02, R02, P02 and Q05. R01-L and R01-W remain ready; E02-L/W retain their respective R01 blockers. Live cross-track readiness remains in the linked issues.
+
 **What it delivers and acceptance criteria:** Refactor existing qualified Darwin submission into the fork-owned writer factory without duplicating the kernel implementation. Register a checked outer-wrapper callback; keep the current one-destination/one-OOB batch domain. Validate qualified, disabled and unqualified behavior, wrong destination, full/short/zero/invalid progress, unknown-progress error, packet-specific MTU feedback, and release on cancellation. The helper's baseline fallback uses standard socket writes; the existing send worker remains retry/order owner. Native Darwin evidence retains private-syscall build/runtime opt-outs. The factory owns concurrency-safe scratch; current per-sconn single-worker assumptions must not leak into a transport-wide callback. Exercise concurrent calls under the race detector. Bounds: current batch helper, send adapter and progress interpretation; no new OS qualification claims or `recvmsg_x` revival.
 
 **Blocked by:** Q01.
@@ -202,11 +204,11 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 | Native outcome / consumer | Required behavior | Enforcement owner | Evidence / status |
 | --- | --- | --- | --- |
 | Raw submission never ran / send worker | Preserve zero-progress per-packet error attribution | Shared native result, existing send-worker adapter | Existing queue progress and MTU regressions retained |
-| Raw submission never ran / factory and managed lease | Ordinary WriteMsgUDP surfaces terminal deadline or closed-socket error | Shared native result, factory fallback | Real native factory expired-deadline and cached closed-socket regressions; real managed-lease expired-deadline regression required |
+| Raw submission never ran / factory and managed lease | Ordinary WriteMsgUDP surfaces terminal deadline or closed-socket error | Shared native result, factory fallback | Covered by `TestExternalDarwinBatchWriterDeadline`, `TestExternalDarwinBatchWriterClosedSocket` and `TestExternalDarwinManagedBatchDeadline` |
 | Native known full/short/zero progress / either consumer | Preserve definite prefix; send worker owns suffix fallback | Existing native classifier and send worker | Existing progress regressions retained |
 | Native unknown progress / either consumer | Preserve terminal error and never resend | Existing native classifier and send worker | Existing unknown-progress regressions retained |
 
-The deadline regression clears the deadline and confirms subsequent native delivery, covering recovery without a timing campaign. Socket Close and lease generation ownership remain unchanged. The only uncovered cells before implementation are the named real-native pre-dispatch failure regressions; fake socket joining tests remain evidence for joining, not for native dispatch errors.
+The deadline regression clears the deadline and confirms subsequent native delivery, covering recovery without a timing campaign. Socket Close and lease generation ownership remain unchanged. The named real-native pre-dispatch failure regressions cover the remaining error cells; fake socket joining tests remain evidence for joining, not for native dispatch errors.
 
 **Evidence budget and TDD:** Native qualified/disabled/unqualified; full/short/zero/invalid counts, unknown progress, wrong peer, MTU feedback, cancellation and disposal. One positive per materially distinct behavior and one negative per failure mode; at most one discriminating guard-bypass per new owner when necessary, no mutation required for prose. Only E02-L/W/D run the final assembled performance comparison; this slice adds no standalone adoption campaign. The scoped re-audit admits the three real-native pre-dispatch failure regressions named above, then verification of the triggering review and at most one final fully briefed fresh review. This replaces the exhausted initial/replacement budget only for the accepted error-contract repair, under implement-architecture-slice's scoped re-audit branch; it does not authorize an open-ended fix loop. Any further unmet obligation requiring another fresh cycle stops for operator routing. Terminate when this finite evidence passes or records an allowed negative design disposition; missing required environment stays blocked.
 

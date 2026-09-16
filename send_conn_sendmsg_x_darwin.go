@@ -9,6 +9,7 @@ package quic
 
 import (
 	"net"
+	"sync"
 	"syscall"
 
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -16,8 +17,8 @@ import (
 
 // darwinBatch caches the per-connection state for sendmsg_x batching: the
 // destination sockaddr (rebuilt when the remote address changes, e.g. on
-// migration) and reusable msghdr/iovec scratch. Held on the sconn and
-// touched only from the sendQueue.Run goroutine, so it needs no locking.
+// migration) and reusable msghdr/iovec scratch. The native sconn uses it only
+// from its send worker; a factory writer serializes access with its own mutex.
 type darwinBatch struct {
 	raw      syscall.RawConn
 	rawErr   bool // the underlying conn exposes no usable raw fd; decline forever
@@ -117,27 +118,6 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 		}
 		bs.raw = raw
 	}
-	if bs.family == 0 { // determine the socket's address family once
-		var family int
-		if err := bs.raw.Control(func(fd uintptr) {
-			if sa, err := syscall.Getsockname(int(fd)); err == nil {
-				switch sa.(type) {
-				case *syscall.SockaddrInet4:
-					family = syscall.AF_INET
-				case *syscall.SockaddrInet6:
-					family = syscall.AF_INET6
-				}
-			}
-		}); err != nil || family == 0 {
-			bs.rawErr = true
-			return 0, nil
-		}
-		bs.family = family
-	}
-	if bs.dest == nil || bs.destAddr != udpAddr.String() {
-		bs.dest = newSendmsgXDest(udpAddr, bs.family)
-		bs.destAddr = udpAddr.String()
-	}
 
 	// Build the control message the way WritePacket does. gsoSize is always 0
 	// here (batches never carry GSO segments), so the only control message is
@@ -152,16 +132,106 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 		}
 	}
 
+	n, err, submitted := bs.submit(bufs, oob, udpAddr)
+	if !submitted {
+		// The send worker owns per-packet attribution.
+		return 0, nil
+	}
+	return n, err
+}
+
+// initFamily caches the socket family for native encoding and factory admission.
+func (bs *darwinBatch) initFamily() bool {
+	if bs.family == 0 { // determine the socket's address family once
+		var family int
+		if err := bs.raw.Control(func(fd uintptr) {
+			if sa, err := syscall.Getsockname(int(fd)); err == nil {
+				switch sa.(type) {
+				case *syscall.SockaddrInet4:
+					family = syscall.AF_INET
+				case *syscall.SockaddrInet6:
+					family = syscall.AF_INET6
+				}
+			}
+		}); err != nil || family == 0 {
+			bs.rawErr = true
+			return false
+		}
+		bs.family = family
+	}
+	return true
+}
+
+// submit is the shared native owner. The final result reports whether the raw
+// callback ran, so adapters can distinguish socket errors from native progress.
+// Callers serialize access and own fallback.
+func (bs *darwinBatch) submit(bufs [][]byte, oob []byte, udpAddr *net.UDPAddr) (int, error, bool) {
+	if !bs.initFamily() {
+		return 0, nil, false
+	}
+	if bs.dest == nil || bs.destAddr != udpAddr.String() {
+		bs.dest = newSendmsgXDest(udpAddr, bs.family)
+		bs.destAddr = udpAddr.String()
+	}
+
 	msgs, iovs := bs.scratch(len(bufs))
+	// Borrowed payloads and OOB must not remain reachable through cached scratch.
+	defer clear(msgs)
+	defer clear(iovs)
 	var accepted int
 	var submitErr error
+	submitted := false
 	if err := bs.raw.Write(func(fd uintptr) bool {
+		submitted = true
 		accepted, submitErr = sendmsgXSubmit(int(fd), bufs, bs.dest.name(), bs.dest.namelen, oob, msgs, iovs)
 		return true // never wait for writability: the worker's per-packet retry owns backpressure
 	}); err != nil {
-		// The conn is closed or unusable and the submission never ran; the
-		// per-packet retry surfaces the real error with correct attribution.
-		return 0, nil
+		// A pre-dispatch failure permits ordinary writing. Never turn an
+		// error after dispatch into a retry of potentially accepted data.
+		return 0, err, submitted
 	}
-	return accepted, submitErr
+	return accepted, submitErr, submitted
+}
+
+// newUDPBatchWriter accelerates only the existing unconnected, nonempty native
+// batch domain. The ordinary writer preserves net.UDPConn validation and the
+// remaining message shapes, without widening the private syscall contract.
+func newUDPBatchWriter(conn udpMessageWriter) func([][]byte, []byte, *net.UDPAddr) (int, error) {
+	fallback := ordinaryUDPBatchWriter(conn)
+	udp, ok := conn.(*net.UDPConn)
+	if !ok || udp.RemoteAddr() != nil {
+		return fallback
+	}
+	raw, err := udp.SyscallConn()
+	if err != nil {
+		return fallback
+	}
+	bs := &darwinBatch{raw: raw}
+	var mutex sync.Mutex
+	return func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
+		// Keep scratch bounded to the send worker's existing batch size. Empty
+		// payloads and addresses outside the native domain retain standard writes.
+		if len(bufs) < 2 || len(bufs) > maxSendBatch || addr == nil || addr.Port < 0 || addr.Port > 65535 || addr.IP.To16() == nil {
+			return fallback(bufs, oob, addr)
+		}
+		for _, buf := range bufs {
+			if len(buf) == 0 {
+				return fallback(bufs, oob, addr)
+			}
+		}
+		if !sendmsgXAvailable() {
+			sendmsgX.fallbackPackets.Add(uint64(len(bufs)))
+			return fallback(bufs, oob, addr)
+		}
+		mutex.Lock()
+		defer mutex.Unlock()
+		if bs.rawErr || !sendmsgXAvailable() || !bs.initFamily() || (bs.family == syscall.AF_INET && addr.IP.To4() == nil) {
+			return fallback(bufs, oob, addr)
+		}
+		n, err, submitted := bs.submit(bufs, oob, addr)
+		if !submitted {
+			return fallback(bufs, oob, addr)
+		}
+		return n, err
+	}
 }
