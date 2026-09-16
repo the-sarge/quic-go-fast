@@ -33,7 +33,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | Q02 | Enable external Windows segmented sends | Q01 | Complete |
 | Q03 | Enable permissioned Linux coalesced receive | Q01 | Complete |
 | Q04 | Enable permissioned Windows coalesced receive | Q01 | Complete |
-| Q05 | Accelerate checked batch writers on Darwin | Q01 | New |
+| Q05 | Accelerate checked batch writers on Darwin | Q01 | Retain/rework [PR #375](https://github.com/the-sarge/quic-go-fast/pull/375) |
 | R01-A | Create ordinary managed endpoints and exclusive leases | None | Complete |
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | New |
