@@ -37,6 +37,22 @@ type batchConn interface {
 	ReadBatch(ms []ipv4.Message, flags int) (int, error)
 }
 
+// readMsgConn preserves a wrapper's receive policy. The reader supplies at least
+// one message with one payload buffer and always uses zero input flags.
+type readMsgConn struct {
+	OOBCapablePacketConn
+}
+
+func (c readMsgConn) ReadBatch(ms []ipv4.Message, _ int) (int, error) {
+	m := &ms[0]
+	n, nn, flags, addr, err := c.ReadMsgUDP(m.Buffers[0], m.OOB)
+	m.N, m.NN, m.Flags, m.Addr = n, nn, flags, addr
+	if err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
 func isECNDisabledUsingEnv() bool {
 	disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_ECN"))
 	return err == nil && disabled
@@ -107,9 +123,8 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		}
 	}
 
-	// Allows callers to pass in a connection that already satisfies batchConn interface
-	// to make use of the optimisation. Otherwise, ipv4.NewPacketConn would unwrap the file descriptor
-	// via SyscallConn(), and read it that way, which might not be what the caller wants.
+	// A participating wrapper owns batch receive. Only exact native sockets may
+	// bypass ReadMsgUDP through descriptor-backed batching.
 	var bc batchConn
 	if ibc, ok := c.(batchConn); ok {
 		bc = ibc
@@ -117,12 +132,13 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		if _, ok := c.(net.Conn); !ok {
 			return nil, errors.New("quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
 		}
-		bc = ipv4.NewPacketConn(c)
-		// Descriptor-backed batching is safe for receive-format mutation only
-		// on an exact native socket. A wrapper must participate via ReadBatch;
-		// permission alone cannot make this fallback preserve its receive policy.
-		_, nativeUDP := c.(*net.UDPConn)
-		allowReceiveCoalescing = allowReceiveCoalescing && nativeUDP
+		if udp, ok := c.(*net.UDPConn); ok {
+			bc = ipv4.NewPacketConn(udp)
+		} else {
+			bc = readMsgConn{c}
+			// Ordinary wrappers have not opted into the batched coalesced format.
+			allowReceiveCoalescing = false
+		}
 	}
 
 	msgs := make([]ipv4.Message, batchSize)
