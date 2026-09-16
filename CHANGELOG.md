@@ -2,7 +2,7 @@
 
 ## v0.62.1-fast.3 — release candidate
 
-Qualified external packet I/O and managed endpoint reuse, based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path and dependency versions are unchanged from fast.2. Publication and exact-source validation are recorded in the [release record](docs/releases/v0.62.1-fast.3.md). This entry selects the next version; it does not assert that the tag is already published.
+Qualified external packet I/O and managed endpoint reuse, based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path and dependency versions are unchanged from fast.2. The [release record](docs/releases/v0.62.1-fast.3.md) supplies support and source reconciliation and links the GitHub release that will carry publication and exact-source validation receipts after the runbook gates succeed. This entry selects the next version; it does not assert that the tag is already published.
 
 - Explicit `ConfigureExternalPacketIOV1` registration binds the exact supplied connection and a checked batch writer before transport initialization. Participating wrappers retain receive and destination policy. Receive-format permission is separate from close ownership; inherited methods do not grant it. `UDPBatchWriterV1` keeps platform batching in the fork.
 - `NewManagedPacketEndpointV1` creates a parent endpoint with exclusive leases; `ConfigureManagedPacketIOV1` binds the original lease through its participating wrapper. Closing a lease joins its I/O and permits reuse; closing the parent ends the socket. Linux GRO and Windows URO normalization persists across leases, while Darwin receive stays ordinary. Already consumed QUIC data is not replayed. Raw socket return after coalescing remains unsupported.

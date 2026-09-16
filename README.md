@@ -24,6 +24,8 @@ A private emission component owns packet construction, recovery registration, an
 
 Eligible local message-size errors reduce oversized handshake flights and enter the existing recovery path. Repeated successful path probes complete their waiters, and send-path publication is synchronized. HTTP/3 keeps pooled connections busy through complete uploads and response consumption, preserves replacement connections during stale failure cleanup, honors cancellation while waiting for SETTINGS, and makes server admission atomic with shutdown. Response completion has one owner for buffered output, lengths, and trailers.
 
+`ConfigureFixedPeerV1` fixes a transport's permitted UDP peer before initialization, guarding receive, ordinary/batched/stateless output and alternate paths. It does not authenticate identity or enable migration. Wiremux retains its selected-peer wrapper.
+
 ### Stronger validation and useful diagnostics
 
 CI actually enables the race detector, integration fixtures honor the selected QUIC version, and tests assert observable transfer and lifecycle outcomes. Deterministic loss/corruption cases and retained failure diagnostics make recovery behavior easier to assess. Qlog reports the selected fork revision and handles optional logging failures without terminating the process. Archived audit data remains accessible in Git but is excluded from Go module downloads.
