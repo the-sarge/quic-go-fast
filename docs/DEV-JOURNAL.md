@@ -2095,4 +2095,4 @@ RAS review `20260916T181557-a6541bfa21d12b5186091d82` completed; accepted fixes 
 
 ### Next
 
-The merged plan marks R01-W complete and makes R03 and E02-W dispatchable; E02-L remains independently ready. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier view.
+R01-W completion makes R03 and E02-W dispatchable. E02-L independently completed in [PR #1560](https://github.com/GridSwarm/wiremux/pull/1560); its concurrent merge supersedes the product plan's ready snapshot. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier view.
