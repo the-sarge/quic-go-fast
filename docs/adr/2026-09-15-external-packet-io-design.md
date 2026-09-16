@@ -80,6 +80,8 @@ The endpoint admits ordinary reads only after the lease's readers/writers have j
 
 Legacy raw borrowed sockets keep receive coalescing disabled. R03 must explicitly settle whether any native raw-return protocol can be supported: changing an option back does not establish that queued aggregates disappeared, and draining indefinitely or silently discarding unrelated traffic is not a valid restoration contract. Managed reuse is mandatory delivery; a supported raw-return variant is conditional on the bounded evidence gate. A negative raw-return finding is a documented limitation with a working managed alternative, not an indefinitely deferred feature.
 
+R03 is resolved: raw return after coalescing is rejected for this program, with managed reuse as the supported route. The [decision receipt](../audits/2026-09-16-r03-raw-handback.md) records the bounded Linux/Windows source inspection and experiment disposition. Borrowed raw sockets remain ordinary-receive; the managed endpoint retains normalization across leases and exposes no raw detach operation. No raw-return implementation is pending.
+
 ### Later fixed-peer enforcement
 
 Add an optional immutable fixed-peer mode to one QUIC transport before it processes its first packet. Use a standard-library address representation and deep-copy it. Preserve wiremux's existing IPv4/mapped-address and directional IPv6-zone matching semantics, including explicit invalid-input rejection; do not replace them with a superficially equivalent equality test. Ordinary fork transports retain existing behavior.

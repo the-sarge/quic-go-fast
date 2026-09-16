@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, P01-A and P01-B complete; R03 forms the fork frontier; E02-W is ready in track W; E02-L and E02-D are complete
+**Status:** In progress; Q01, Q02, Q03, Q04, Q05, R01-A, R01-B, R01-L, R01-W, R03, P01-A and P01-B complete; no fork slice is ready until E02 completes; E02-W is ready in track W; E02-L and E02-D are complete
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -15,7 +15,7 @@ Deliver the complete optional integration through real external sockets, wrapper
 
 The fork's existing adoption receipts are the baseline evidence for unchanged native algorithms. Reuse their protocols, source identities, raw results, known venue limitations and fallback tests; do not repeat their adoption campaigns. E01 is complete. E01-L/E01-W/E01-D are retired as superseded baseline campaigns, not completed measurements. Their removal unblocks Q02–Q05 after Q01; it does not waive native correctness or observed engagement on the new external/wrapped paths.
 
-Q02–Q05 and R01-L/W own only their named finite correctness, native engagement and lifecycle regressions. Compare changed source owners with the adoption receipt before relying on it. A materially changed kernel algorithm or newly supported OS/architecture requires a scoped re-audit of that affected capability; unchanged neighboring algorithms do not inherit another campaign. R03 retains its bounded raw-handback investigation.
+Q02–Q05 and R01-L/W own only their named finite correctness, native engagement and lifecycle regressions. Compare changed source owners with the adoption receipt before relying on it. A materially changed kernel algorithm or newly supported OS/architecture requires a scoped re-audit of that affected capability; unchanged neighboring algorithms do not inherit another campaign. R03 completed its bounded raw-handback investigation with raw return rejected and managed reuse supported.
 
 E02-L/W/D each own one final assembled comparison under the current wiremux measurement protocol: one predeclared control/candidate pair, three paced workloads, ten pairs per workload, and no separate baseline campaign. Managed reuse, mixed upstream/fork peers, TURN, disabled/unavailable and IPv6 cases retain representative correctness checks where their behavior differs; they do not multiply the performance matrix. No capacity pilot, impairment campaign or TURN performance harness is a required deliverable. Historical results establish only their recorded native domains, not current full-Wire performance. Insufficient statistical resolution terminates with an explicit limitation and ordinary defaults; correctness failure or absent native qualification still blocks the affected capability. Releases, named consumers, rollback and Z01 remain required.
 
@@ -38,7 +38,7 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | R01-B | Bind a lease to QUIC with generation-safe handback | R01-A, Q01 | Complete |
 | R01-L | Linux managed coalesced normalization | R01-B, Q03 | Complete |
 | R01-W | Windows managed coalesced normalization | R01-B, Q04 | Complete |
-| R03 | Decide raw handback feasibility | R01-L, R01-W | New |
+| R03 | Decide raw handback feasibility | R01-L, R01-W | Complete: raw return rejected; managed reuse supported |
 | P01-A | Consolidate packet-policy hooks without activating policy | None | Complete |
 | P01-B | Activate complete immutable fixed-peer policy | P01-A, Q01 | Complete |
 | L01 | Release qualified fork capability | E02 | New |
@@ -284,7 +284,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### R01-L — Linux managed coalesced normalization
 
-**Current state:** Complete. The Linux endpoint retains the existing decoder and bounded receive storage across leases; public reads preserve one-datagram semantics through the supplied policy wrapper. Lease return joins active readers, discards consumed QUIC storage, and restores logical deadlines while preserving kernel-queued data for normalization. Native IPv4/IPv6 handback, filtering, storage and cancellation evidence is recorded in the [native receipt](../audits/2026-09-16-r01-l-managed-receive.md). E02-L is ready after completed W02, R02, P02, Q03 and R01-L. R03 retains R01-W; E02-W also retains R01-W. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. The Linux endpoint retains the existing decoder and bounded receive storage across leases; public reads preserve one-datagram semantics through the supplied policy wrapper. Lease return joins active readers, discards consumed QUIC storage, and restores logical deadlines while preserving kernel-queued data for normalization. Native IPv4/IPv6 handback, filtering, storage and cancellation evidence is recorded in the [native receipt](../audits/2026-09-16-r01-l-managed-receive.md). E02-L is ready after completed W02, R02, P02, Q03 and R01-L. R03 is complete with raw return rejected; E02-W also retains R01-W. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Enable managed receive coalescing on Linux only after persistent endpoint normalization is installed. Reuse the platform decoder and bounded storage owner. Ordinary endpoint/lease reads always return one datagram; optimized coalesced representation stays inside registered QUIC mode. Retain normalization across leases to interpret pending kernel data. Dispose old consumed QUIC storage without replay. Failure to restore logical readiness is terminal.
 
@@ -316,7 +316,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### R01-W — Windows managed coalesced normalization
 
-**Current state:** Complete in [PR #381](https://github.com/the-sarge/quic-go-fast/pull/381). The endpoint installs and retains the existing Windows decoder before enabling URO; ordinary datagrams continue through policy wrappers. Queued native coalescing, ordinary reads and next-lease reuse are qualified by the [native receipt](../audits/2026-09-16-r01-w-managed-receive.md). R03 and E02-W are ready after their completed prerequisites. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete in [PR #381](https://github.com/the-sarge/quic-go-fast/pull/381). The endpoint installs and retains the existing Windows decoder before enabling URO; ordinary datagrams continue through policy wrappers. Queued native coalescing, ordinary reads and next-lease reuse are qualified by the [native receipt](../audits/2026-09-16-r01-w-managed-receive.md). R03 is complete with raw return rejected; E02-W is ready after its completed prerequisites. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Enable managed receive coalescing on Windows only after persistent endpoint normalization is installed. Reuse the platform decoder and bounded storage owner. Ordinary endpoint/lease reads always return one datagram; optimized coalesced representation stays inside registered QUIC mode. Retain normalization across leases to interpret pending kernel data. Dispose old consumed QUIC storage without replay. Failure to restore logical readiness is terminal.
 
@@ -347,6 +347,8 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 **Stop conditions:** Stop on unsupported representation, second mutation owner, missing full reader/writer join where this slice requires it, a newly required public topology or capability bypass, untraced blast radius, or inability to fit the accepted outcome in this PR. Use the shared precise-root comparison before declaring repeated review roots. Missing native access blocks only dependent evidence; do not weaken required correctness or inflate repetitions.
 
 ### R03 — Decide raw handback feasibility
+
+**Current state:** Complete with a recorded rejection of raw return after coalescing; managed reuse is the supported route. The [bounded decision receipt](../audits/2026-09-16-r03-raw-handback.md) records Linux queued-buffer source evidence, the Windows contract limitation and why neither conditional native experiment was triggered. No raw-return implementation children are proposed. E02 retains E02-W; L01 remains blocked by E02, so this completion makes no successor ready. Live cross-track readiness remains in the linked issues.
 
 **What it delivers and acceptance criteria:** Inspect native Linux/Windows option and queued-buffer semantics and perform one predeclared finite handback experiment per platform if a plausible bounded procedure exists. Required result: either a separately scoped safe raw-return proposal with explicit pending implementation children, or a recorded rejection of raw return after coalescing with managed reuse as the supported route. Draining unbounded traffic, discarding unrelated queued data, hoping queues are empty, or suppressing restoration errors cannot pass. No additional repeated experiments without a distinct corrected hypothesis. The program cannot close with this decision unresolved; raw borrowed sockets remain ordinary-receive meanwhile.
 
