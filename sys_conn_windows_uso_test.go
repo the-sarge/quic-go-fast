@@ -20,7 +20,7 @@ import (
 )
 
 // Tests for Slice W2 (Windows segmented send, USO): the UDP_SEND_MSG_SIZE
-// capability probe on transport-owned sockets, the per-send segment-size
+// read-only capability probe, the per-send segment-size
 // control message, and the send-error classification the MTU discovery
 // feedback path depends on.
 
@@ -42,7 +42,7 @@ func requireUSOCapableHost(t *testing.T, conn rawConn) {
 	t.Skip("USO probe reported unsupported on this host; the USO-capable CI matrix asserts this capability strictly")
 }
 
-// The probe runs only on transport-owned sockets and honors the existing
+// The probe is independent of socket ownership and honors the existing
 // QUIC_GO_DISABLE_GSO kill switch, mirroring the Linux isGSOEnabled probe.
 func TestWindowsConnUSOCapability(t *testing.T) {
 	newOwnedConn := func(t *testing.T, ownsSocket bool) *windowsConn {
@@ -63,7 +63,8 @@ func TestWindowsConnUSOCapability(t *testing.T) {
 
 	t.Run("caller-supplied socket", func(t *testing.T) {
 		conn := newOwnedConn(t, false)
-		require.False(t, conn.capabilities().GSO)
+		requireUSOCapableHost(t, conn)
+		require.False(t, conn.capabilities().GRO, "send capability must not enable receive coalescing")
 	})
 
 	t.Run("kill switch", func(t *testing.T) {
