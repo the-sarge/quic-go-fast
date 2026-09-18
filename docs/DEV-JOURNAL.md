@@ -2230,3 +2230,28 @@ RAS run `20260918T183253-d112c6de1efc96b72a7cc4fa` completed with all five revie
 ### Next
 
 After this journal merges, revalidate and file the six surviving repair batches and reconcile OmniFocus/#320 pointers. Each repair needs a separate scope and evidence budget; no implementation or renewed investigation campaign is authorized by the audit. [GitHub Issues](https://github.com/the-sarge/quic-go-fast/issues) is the live tracking surface.
+
+---
+
+## Real-UDP proxy shutdown joined - 2026-09-18 16:05 EDT
+
+**Main:** `4cbad64e50ad`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #411](https://github.com/the-sarge/quic-go-fast/pull/411) at `4cbad64e50ad1c9eb7a2a0502e1f7240815788d2`, closing [issue #396](https://github.com/the-sarge/quic-go-fast/issues/396). The real-UDP proxy now rejects admission and socket switching after its terminal transition, interrupts pending I/O, cancels both delayed handoffs, and joins every worker and synchronous callback before returning its caller-owned listener with cleared deadlines. Original proxy sockets and active replacements close; retired caller replacements remain open. Repeated/concurrent closes share one completion boundary.
+
+### Decisions
+
+Preserved the [accepted shutdown contract](https://github.com/the-sarge/quic-go-fast/issues/396#issuecomment-5735198264), real UDP behavior, callback-driven switching, existing behavioral assertions, and frozen evidence. Callback code must eventually return and cannot synchronously wait for its own proxy's Close. The [implementation receipt](agents/proxy-shutdown-396.md) records ownership and the three bounded regression families. Unrelated fixture ownership and failure-reporting work remain outside this repair.
+
+### Validation
+
+All three regression families discriminated their old-behavior or targeted-removal controls. The full local suite, affected proxy normal/race tests, NAT rebinding, vet, module tidiness, and final local lint passed. Hosted lint initially found one test-layout issue; the formatting-only correction was recertified. All 33 hosted checks passed on final head `f3d76653f8940d7948168caee7b769e188243bff` before matched-head squash merge.
+
+Parallel standards/spec reviews reported zero findings. Initial RAS run `20260918T194545-9122c0bdc9aee45d96329ddd` completed with zero Fix First or Follow Up items. Replacement run `20260918T195606-1c8c42821125a3f6ad6536cb` completed all five reviews and five adjudications, but its final codex-cli synthesis process failed; no successful replacement synthesis is claimed. The implementing agent independently dispositioned the complete stored evidence, retaining only out-of-contract failure-path observations and optional documentation polish, with no fix-now or stop-for-decision finding. The [PR review record](https://github.com/the-sarge/quic-go-fast/pull/411) records this tool failure and the manual final disposition. No third review, additional campaign, or marginal follow-up ticket was opened. Deferred observations were rechecked against the merged code; none warrants a new tracked task under this bounded repair.
+
+### Next
+
+Issue #396 is complete. The OmniFocus implementation task was already marked completed when reread after merge; preserve its completion timestamp and reconcile its note with the merged outcome. [GitHub Issues](https://github.com/the-sarge/quic-go-fast/issues) remains the live surface for the separate audit follow-ups.
