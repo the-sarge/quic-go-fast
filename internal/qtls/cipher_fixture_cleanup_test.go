@@ -60,7 +60,7 @@ func checkCipherFixtureCleanup(t *testing.T, mode string, fail bool) {
 				require.NoError(t, err)
 				result := f.wait(t)
 				require.NoError(t, result.err)
-				require.Equal(t, uint16(tls.TLS_AES_128_GCM_SHA256), result.cipher)
+				require.Equal(t, tls.TLS_AES_128_GCM_SHA256, result.cipher)
 				// Completion must not be published before the accepted socket is closed.
 				require.ErrorIs(t, f.accepted.SetDeadline(time.Now()), net.ErrClosed)
 			}
