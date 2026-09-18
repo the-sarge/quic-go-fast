@@ -138,7 +138,9 @@ func TestVersionGreasing(t *testing.T) {
 				if i == len(greased)-1 {
 					greasedVersionLast++
 				}
-				greasedVersionMiddle++
+				if i > 0 && i < len(greased)-1 {
+					greasedVersionMiddle++
+				}
 				continue
 			}
 			require.Equal(t, supported[j], v)
