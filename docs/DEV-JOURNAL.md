@@ -2255,3 +2255,24 @@ Parallel standards/spec reviews reported zero findings. Initial RAS run `2026091
 ### Next
 
 Issue #396 is complete. The OmniFocus implementation task was already marked completed when reread after merge; preserve its completion timestamp and reconcile its note with the merged outcome. [GitHub Issues](https://github.com/the-sarge/quic-go-fast/issues) remains the live surface for the separate audit follow-ups.
+
+---
+
+## Proxy and cipher fixture ownership repaired - 2026-09-18 18:40 EDT
+
+**Main:** `ca4b2668700f`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #413](https://github.com/the-sarge/quic-go-fast/pull/413), closing [issue #397](https://github.com/the-sarge/quic-go-fast/issues/397). The seven proxy-test clients now register deterministic socket cleanup, and both outgoing client readers cancel abandoned result publication and join during teardown. The cipher-selection fixture closes its acquired connections, publishes worker results to the owning test, and joins before restoring the cipher override. Existing packet, address, ordering, timing, cipher and FIPS assertions remain in place; runtime and shared proxy shutdown behavior are unchanged.
+
+### Validation
+
+Two cleanup-boundary regression families cover normal and intentional fatal exits with real sockets, plus cipher partial setup. One old-behavior control per family failed at the intended ownership boundary and the repaired runs passed. Review identified a scheduling gap in abandoned-result coverage; a receipt counter now establishes the full-buffer publication state before teardown. [Review dispositions and final certification](https://github.com/the-sarge/quic-go-fast/pull/413#issuecomment-5737032269) record the accepted fix, successful verification, final replacement review with no required fixes, and the deliberately deferred marginal harness diagnostic.
+
+Final local certification at `5104cb866d5ee99a453bc01876bddd22a5105a6e` on Go 1.27.1 darwin/arm64 passed both affected packages normally and with the race detector, affected-package vet, module tidiness, configured lint, and clean-tree/diff checks. All 33 hosted checks succeeded on that exact candidate before squash merge. No unchanged-head CI retry, additional mutation campaign, or stress expansion was used. The journal follow-up uses the repository's documentation path without RAS.
+
+### Next
+
+Record the merged cipher worker-reporting resolution in [#406](https://github.com/the-sarge/quic-go-fast/issues/406) and [#398](https://github.com/the-sarge/quic-go-fast/issues/398), whose other scopes remain open; those issues are the live tracking view. Complete the mirrored OmniFocus task after this journal follow-up lands.
