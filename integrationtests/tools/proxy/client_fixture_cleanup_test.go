@@ -42,15 +42,19 @@ func checkProxyClientCleanup(t *testing.T, mode string, fail bool) {
 	t.Run("owner", func(t *testing.T) {
 		client = dialProxyClient(t, server.LocalAddr().(*net.UDPAddr))
 		if mode != "socket" {
-			var packets <-chan []byte
-			packets, done = readProxyClient(t, client, 1)
+			reader := readProxyClient(t, client, 1)
+			done = reader.done
 			if mode == "abandoned" {
 				// Fill the result buffer, then abandon consumption while another packet arrives.
 				_, err := server.WriteToUDP([]byte("first"), client.LocalAddr().(*net.UDPAddr))
 				require.NoError(t, err)
-				require.Eventually(t, func() bool { return len(packets) == 1 }, time.Second, time.Millisecond)
+				require.Eventually(t, func() bool { return len(reader.packets) == 1 }, time.Second, time.Millisecond)
 				_, err = server.WriteToUDP([]byte("second"), client.LocalAddr().(*net.UDPAddr))
 				require.NoError(t, err)
+				// Receipt is published before the send. With no consumer and a full
+				// channel, teardown must release publication through its stop case.
+				require.Eventually(t, func() bool { return reader.received.Load() == 2 }, time.Second, time.Millisecond)
+				require.Len(t, reader.packets, 1)
 			}
 		}
 		if fail {

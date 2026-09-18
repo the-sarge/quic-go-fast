@@ -2,6 +2,7 @@ package quicproxy
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,34 +18,40 @@ func dialProxyClient(t testing.TB, addr *net.UDPAddr) *net.UDPConn {
 	return conn
 }
 
-func readProxyClient(t testing.TB, conn *net.UDPConn, capacity int) (<-chan []byte, <-chan struct{}) {
+type proxyClientReader struct {
+	packets  chan []byte
+	done     chan struct{}
+	received atomic.Int32
+}
+
+func readProxyClient(t testing.TB, conn *net.UDPConn, capacity int) *proxyClientReader {
 	t.Helper()
-	packets := make(chan []byte, capacity)
-	done := make(chan struct{})
+	reader := &proxyClientReader{packets: make(chan []byte, capacity), done: make(chan struct{})}
 	stop := make(chan struct{})
 	t.Cleanup(func() {
 		close(stop)
 		conn.Close()
 		select {
-		case <-done:
+		case <-reader.done:
 		case <-time.After(time.Second):
 			t.Error("timeout joining proxy client reader")
 		}
 	})
 	go func() {
-		defer close(done)
+		defer close(reader.done)
 		for {
 			buf := make([]byte, protocol.MaxPacketBufferSize)
 			n, _, err := conn.ReadFromUDP(buf)
 			if err != nil {
 				return
 			}
+			reader.received.Add(1)
 			select {
-			case packets <- buf[:n]:
+			case reader.packets <- buf[:n]:
 			case <-stop:
 				return
 			}
 		}
 	}()
-	return packets, done
+	return reader
 }

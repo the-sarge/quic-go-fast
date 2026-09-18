@@ -201,7 +201,7 @@ func TestDropOutgoingPackets(t *testing.T) {
 	defer proxy.Close()
 	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
-	clientReceivedPackets, _ := readProxyClient(t, clientConn, numPackets)
+	clientReceivedPackets := readProxyClient(t, clientConn, numPackets).packets
 
 	for i := 1; i <= numPackets; i++ {
 		_, err := clientConn.Write(makePacket(t, protocol.PacketNumber(i), []byte("foobar"+strconv.Itoa(i))))
@@ -370,7 +370,7 @@ func TestDelayOutgoingPackets(t *testing.T) {
 	defer proxy.Close()
 	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
-	clientReceivedPackets, _ := readProxyClient(t, clientConn, numPackets)
+	clientReceivedPackets := readProxyClient(t, clientConn, numPackets).packets
 
 	start := time.Now()
 	for i := 1; i <= numPackets; i++ {
