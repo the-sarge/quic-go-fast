@@ -25,13 +25,23 @@ type connection struct {
 	ServerConn *net.UDPConn // UDP connection to server
 
 	incomingPackets chan packetEntry
+	incomingDone    chan struct{}
+	originalConn    *net.UDPConn
+	// All sockets accepted for this client; guarded by Proxy.mutex.
+	sockets map[*net.UDPConn]struct{}
 
 	Incoming *queue
 	Outgoing *queue
 }
 
-func (c *connection) queuePacket(t monotime.Time, b []byte) {
-	c.incomingPackets <- packetEntry{Time: t, Raw: b}
+func (c *connection) queuePacket(t monotime.Time, b []byte, shutdown <-chan struct{}) bool {
+	select {
+	case c.incomingPackets <- packetEntry{Time: t, Raw: b}:
+		return true
+	case <-c.incomingDone:
+	case <-shutdown:
+	}
+	return false
 }
 
 func (c *connection) SwitchConn(conn *net.UDPConn) {
@@ -117,7 +127,10 @@ func (q *queue) Get() []byte {
 
 func (q *queue) Timer() <-chan time.Time { return q.timer.C }
 
-func (q *queue) Close() { q.timer.Stop() }
+func (q *queue) Close() {
+	q.timer.Stop()
+	q.Packets = nil
+}
 
 func (d Direction) String() string {
 	switch d {
@@ -142,14 +155,18 @@ func (d Direction) Is(dir Direction) bool {
 }
 
 // DropCallback is a callback that determines which packet gets dropped.
+// It must eventually return and must not call or wait for its own proxy's Close.
 type DropCallback func(dir Direction, from, to net.Addr, packet []byte) bool
 
 // DelayCallback is a callback that determines how much delay to apply to a packet.
+// It must eventually return and must not call or wait for its own proxy's Close.
+// Calling SwitchConn while the proxy is running is supported.
 type DelayCallback func(dir Direction, from, to net.Addr, packet []byte) time.Duration
 
 // SocketEvent observes a completed proxy socket operation, not a forwarding
 // decision. Data is borrowed and is valid only during the synchronous callback.
-// Observers must not mutate Data or block on another proxy operation.
+// Observers must not mutate Data. They must eventually return and must not
+// call or wait for their own proxy's Close.
 type SocketEvent struct {
 	Direction Direction
 	Operation string
@@ -162,7 +179,11 @@ type SocketEvent struct {
 
 // Proxy is a QUIC proxy that can drop and delay packets.
 type Proxy struct {
-	// Conn is the UDP socket that the proxy listens on for incoming packets from clients.
+	// Conn is the caller-owned UDP listening socket. Supply it without active
+	// deadlines. From successful Start until Close returns, the proxy exclusively
+	// uses its I/O and deadlines; the caller may still close it to abort I/O.
+	// Close leaves an otherwise-open socket open and clears shutdown deadlines.
+	// Socket buffer settings are not restored.
 	Conn *net.UDPConn
 
 	// ServerAddr is the address of the server that the proxy forwards packets to.
@@ -179,6 +200,10 @@ type Proxy struct {
 	ObserveSocket func(SocketEvent)
 
 	closeChan chan struct{}
+	closeOnce sync.Once
+	closeErr  error
+	workers   sync.WaitGroup
+	closing   bool // guarded by mutex
 	logger    utils.Logger
 
 	// mapping from client addresses (as host:port) to connection
@@ -186,10 +211,14 @@ type Proxy struct {
 	clientDict map[string]*connection
 }
 
+// Start begins the exclusive-use interval documented on Conn.
+// A proxy instance cannot be restarted. Failed setup starts no workers.
 func (p *Proxy) Start() error {
-	p.clientDict = make(map[string]*connection)
-	p.closeChan = make(chan struct{})
-	p.logger = utils.DefaultLogger.WithPrefix("proxy")
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.closeChan != nil {
+		return errors.New("proxy already started")
+	}
 
 	if err := p.Conn.SetReadBuffer(desiredBufferSize); err != nil {
 		return err
@@ -198,44 +227,91 @@ func (p *Proxy) Start() error {
 		return err
 	}
 
+	p.clientDict = make(map[string]*connection)
+	p.closeChan = make(chan struct{})
+	p.logger = utils.DefaultLogger.WithPrefix("proxy")
 	p.logger.Debugf("Starting UDP Proxy %s <-> %s", p.Conn.LocalAddr(), p.ServerAddr)
-	go p.runProxy()
+	p.workers.Go(func() { p.runProxy() })
 	return nil
 }
 
 // SwitchConn switches the connection for a client,
-// identified the address that the client is sending from.
+// identified by the address that the client is sending from.
+// A rejected switch leaves conn owned by the caller. An accepted active socket
+// is closed at shutdown; retired caller-supplied sockets remain caller-owned.
 func (p *Proxy) SwitchConn(clientAddr *net.UDPAddr, conn *net.UDPConn) error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.closing {
+		return net.ErrClosed
+	}
 	if err := conn.SetReadBuffer(desiredBufferSize); err != nil {
 		return err
 	}
 	if err := conn.SetWriteBuffer(desiredBufferSize); err != nil {
 		return err
 	}
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
 	c, ok := p.clientDict[clientAddr.String()]
 	if !ok {
 		return fmt.Errorf("client %s not found", clientAddr)
 	}
 	c.SwitchConn(conn)
+	c.sockets[conn] = struct{}{}
 	return nil
 }
 
-// Close stops the UDP Proxy
+// Close stops admission, interrupts I/O, and joins all proxy workers and
+// callbacks. Concurrent and repeated calls wait for the same completed shutdown.
+// Pending delayed packets may be discarded. Callbacks must eventually return
+// and must not synchronously call or wait for this method on their own proxy.
 func (p *Proxy) Close() error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.closeOnce.Do(func() {
+		p.mutex.Lock()
+		p.closing = true
+		close(p.closeChan)
+		p.mutex.Unlock()
 
-	close(p.closeChan)
-	for _, c := range p.clientDict {
-		if err := c.GetServerConn().Close(); err != nil {
-			return err
+		record := func(err error) {
+			if err != nil && !errors.Is(err, net.ErrClosed) {
+				p.closeErr = errors.Join(p.closeErr, err)
+			}
 		}
-		c.Incoming.Close()
-		c.Outgoing.Close()
-	}
-	return nil
+		// Both reads and writes can be pending on the borrowed listener.
+		record(p.Conn.SetDeadline(time.Now()))
+		for _, c := range p.clientDict {
+			active := c.GetServerConn()
+			for socket := range c.sockets {
+				if socket == c.originalConn || socket == active {
+					record(socket.Close())
+				} else {
+					// A worker may still hold this retired caller-owned socket.
+					// Interrupt its I/O without taking ownership of closing it.
+					record(socket.SetDeadline(time.Now()))
+				}
+			}
+		}
+		// No lock needed by callbacks is held during the join. Admission registered
+		// every worker under mutex before shutdown could begin waiting.
+		p.workers.Wait()
+		for _, c := range p.clientDict {
+			c.Incoming.Close()
+			c.Outgoing.Close()
+			for len(c.incomingPackets) > 0 {
+				<-c.incomingPackets
+			}
+			active := c.GetServerConn()
+			for socket := range c.sockets {
+				if socket != c.originalConn && socket != active {
+					record(socket.SetDeadline(time.Time{}))
+				}
+			}
+		}
+		record(p.Conn.SetDeadline(time.Time{}))
+		p.mutex.Lock()
+		clear(p.clientDict)
+		p.mutex.Unlock()
+	})
+	return p.closeErr
 }
 
 // LocalAddr is the address the proxy is listening on.
@@ -247,15 +323,20 @@ func (p *Proxy) newConnection(cliAddr *net.UDPAddr) (*connection, error) {
 		return nil, err
 	}
 	if err := conn.SetReadBuffer(desiredBufferSize); err != nil {
+		conn.Close()
 		return nil, err
 	}
 	if err := conn.SetWriteBuffer(desiredBufferSize); err != nil {
+		conn.Close()
 		return nil, err
 	}
 	return &connection{
 		ClientAddr:      cliAddr,
 		ServerAddr:      p.ServerAddr,
 		incomingPackets: make(chan packetEntry, 10),
+		incomingDone:    make(chan struct{}),
+		originalConn:    conn,
+		sockets:         map[*net.UDPConn]struct{}{conn: {}},
 		Incoming:        newQueue(),
 		Outgoing:        newQueue(),
 		ServerConn:      conn,
@@ -274,6 +355,10 @@ func (p *Proxy) runProxy() error {
 		raw := buffer[:n]
 
 		p.mutex.Lock()
+		if p.closing {
+			p.mutex.Unlock()
+			return nil
+		}
 		conn, ok := p.clientDict[cliaddr.String()]
 
 		if !ok {
@@ -283,8 +368,8 @@ func (p *Proxy) runProxy() error {
 				return err
 			}
 			p.clientDict[cliaddr.String()] = conn
-			go p.runIncomingConnection(conn)
-			go p.runOutgoingConnection(conn)
+			p.workers.Go(func() { p.runIncomingConnection(conn) })
+			p.workers.Go(func() { p.runOutgoingConnection(conn) })
 		}
 		p.mutex.Unlock()
 
@@ -312,7 +397,9 @@ func (p *Proxy) runProxy() error {
 			if p.logger.Debug() {
 				p.logger.Debugf("delaying incoming packet (%d bytes) to %s by %s", len(raw), conn.ServerAddr, delay)
 			}
-			conn.queuePacket(now.Add(delay), raw)
+			if !conn.queuePacket(now.Add(delay), raw, p.closeChan) {
+				return nil
+			}
 		}
 	}
 }
@@ -320,8 +407,18 @@ func (p *Proxy) runProxy() error {
 // runConnection handles packets from server to a single client
 func (p *Proxy) runOutgoingConnection(conn *connection) error {
 	outgoingPackets := make(chan packetEntry, 10)
-	go func() {
+	outgoingDone := make(chan struct{})
+	defer close(outgoingDone)
+	// This consumer remains counted while registering its nested reader.
+	p.workers.Go(func() {
 		for {
+			select {
+			case <-p.closeChan:
+				return
+			case <-outgoingDone:
+				return
+			default:
+			}
 			buffer := make([]byte, protocol.MaxPacketBufferSize)
 			socket := conn.GetServerConn()
 			n, addr, err := socket.ReadFrom(buffer)
@@ -359,10 +456,16 @@ func (p *Proxy) runOutgoingConnection(conn *connection) error {
 				if p.logger.Debug() {
 					p.logger.Debugf("delaying outgoing packet (%d bytes) to %s by %s", len(raw), conn.ClientAddr, delay)
 				}
-				outgoingPackets <- packetEntry{Time: now.Add(delay), Raw: raw}
+				select {
+				case outgoingPackets <- packetEntry{Time: now.Add(delay), Raw: raw}:
+				case <-outgoingDone:
+					return
+				case <-p.closeChan:
+					return
+				}
 			}
 		}
-	}()
+	})
 
 	for {
 		select {
@@ -380,6 +483,7 @@ func (p *Proxy) runOutgoingConnection(conn *connection) error {
 }
 
 func (p *Proxy) runIncomingConnection(conn *connection) error {
+	defer close(conn.incomingDone)
 	for {
 		select {
 		case <-p.closeChan:
