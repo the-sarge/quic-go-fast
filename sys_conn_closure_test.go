@@ -354,7 +354,7 @@ func TestRawConnLateReadDoesNotEstablishReadiness(t *testing.T) {
 				require.Contains(t, string(stack), "goroutine "+reader.id+" [")
 				require.False(t, closureReaderInIOWait(stack, complete, reader.id), "gated reader must not count as ready\n%s", stack)
 
-				want := error(os.ErrDeadlineExceeded)
+				want := os.ErrDeadlineExceeded
 				if action == "deadline" {
 					require.NoError(t, conn.SetReadDeadline(time.Now()))
 				} else {
