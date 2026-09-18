@@ -92,7 +92,8 @@ func TestProxyShutdownDelayedHandoffs(t *testing.T) {
 			writes := make(chan error, 1)
 			var delayed int
 			var p *Proxy
-			p = &Proxy{Conn: listener, ServerAddr: server.LocalAddr().(*net.UDPAddr),
+			p = &Proxy{
+				Conn: listener, ServerAddr: server.LocalAddr().(*net.UDPAddr),
 				DelayPacket: func(d Direction, _, _ net.Addr, _ []byte) time.Duration {
 					if d != dir {
 						return 0
