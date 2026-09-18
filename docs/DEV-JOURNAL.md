@@ -2203,3 +2203,30 @@ All five tag-triggered workflows and their jobs succeeded before publication. Th
 ### Next
 
 L01 publication is complete. Close its child/task and promote only L02 after journal closure; downstream consumers and Z01 remain required. The [program tracker](https://github.com/GridSwarm/wiremux/issues/1540) is the live frontier. No deferred review follow-up or newly untraced runtime effect remains.
+
+---
+
+## Test-quality audit published - 2026-09-18 14:59 EDT
+
+**Main:** `7029bfa1539e`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #394](https://github.com/the-sarge/quic-go-fast/pull/394) at `7029bfa1539e5a2a493ee43f3386f06e8a8ea9b8`, closing [audit issue #357](https://github.com/the-sarge/quic-go-fast/issues/357). The [test-quality report](audits/test-quality-357/README.md) accounts for all 327 tracked test files at source `07d8716ddd00b193f2c331d443a123c62a516cd6`: 356 selected Go files, 2,550 maintained declarations, ten declaration-less infrastructure assessments, and 40 additional infrastructure records. All entries have initial assessments or justified exclusions; deeper semantic inspection is selective and explicit.
+
+Seven findings cover shared proxy completion, fixture sockets, worker fatal assertions, an ineffective greasing-position predicate, statistical test policy, native blocked-read readiness, and optional transport qlog collisions. Six proposed repair batches preserve existing assertions and fixture contracts. No test, production code, CI policy or frozen evidence changed.
+
+### Decisions
+
+The [audit contract](agents/test-quality-357.md) limits this work to evidence and recommendations. Source-confirmed mechanisms are separated from unproven incident causes; completed investigations and exhausted evidence budgets remain intact. The open #320 discussion refers to a fixture subsequently replaced by #363, so its current-state pointer needs reconciliation without claiming the historical offset-300 event is explained. Statistical checks retain per-owner impact estimates rather than being declared universally invalid.
+
+### Validation
+
+Pinned Git-tree and Go-parser reconciliation, hashes, declarations/spans, assessment and exclusion coverage, filename platform constraints, source anchors, relative links and whitespace checks passed. No new product-test, mutation, stress or causal experiment was invoked for the audit. All 33 applicable hosted checks passed on final candidate `e4e179a2fbb79407b5892adcab11094e660570d3` before matched-head squash merge; these publication checks do not prove the suite flake-free.
+
+RAS run `20260918T183253-d112c6de1efc96b72a7cc4fa` completed with all five reviewers, adjudication and synthesis. Confirmed documentation corrections were applied and locally recertified under the shared docs-only rerun exemption. The [independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/394#issuecomment-5734718277), [local receipt](https://github.com/the-sarge/quic-go-fast/pull/394#issuecomment-5734727920), and [hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/394#issuecomment-5734784466) retain the exact evidence.
+
+### Next
+
+After this journal merges, revalidate and file the six surviving repair batches and reconcile OmniFocus/#320 pointers. Each repair needs a separate scope and evidence budget; no implementation or renewed investigation campaign is authorized by the audit. [GitHub Issues](https://github.com/the-sarge/quic-go-fast/issues) is the live tracking surface.
