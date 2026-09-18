@@ -2297,3 +2297,24 @@ Protocol package tests, package vet, module tidy diff and whitespace checks pass
 ### Decisions
 
 The [accepted agent brief](https://github.com/the-sarge/quic-go-fast/issues/399#issuecomment-5735018362) limits this repair to the middle-position assertion. The separate RNG-average policy remains tracked in [issue #402](https://github.com/the-sarge/quic-go-fast/issues/402).
+
+---
+
+## Blocked-read readiness established in closure regressions - 2026-09-18 19:54 EDT
+
+**Main:** `435bb0dc9de3`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #417](https://github.com/the-sarge/quic-go-fast/pull/417), closing [issue #400](https://github.com/the-sarge/quic-go-fast/issues/400). Raw-connection deadline-expiry, deadline-update and close regressions now observe their particular reader in Go runtime I/O wait before triggering the action. Platform and basicConn coverage retain their error identities; four gated late-start controls demonstrate that the original error oracle can pass without readiness. Worker gates, completion and cleanup are bounded, and sustained-transfer, write-after-close and concurrent-burst assertions and counts remain intact.
+
+### Validation
+
+Final clean-head certification at `cd12481a387f9656ec7f950f89ac43199d3bcd47` on Go 1.27.1 Darwin/arm64 passed uncached root-package tests, vet, module tidy diff, full lint, formatting and whitespace checks. All 33 hosted checks passed, including Linux/Windows/macOS on Go 1.26/1.27 and the configured Linux race coverage. Initial RAS review `20260918T233334-fe5511dc26984d50384d59a4` found a redundant conversion; its one-line fix was verified at the final head. Replacement review `20260918T234530-bda6231baefadd3ec48833ed` completed with five successful reviewers and no findings. Optional diagnostic-volume polish was rejected as outside the accepted contract. [PR receipts](https://github.com/the-sarge/quic-go-fast/pull/417#issuecomment-5737578745) retain the review dispositions and certification.
+
+The first candidate also encountered the existing oversized-packet-count assertion tracked by [#322](https://github.com/the-sarge/quic-go-fast/issues/322) in a Windows integration push job. That repository assertion failure was preserved and not rerun. The necessary lint correction produced the final candidate and its new successful checks; no production or integration code changed, and no shared underlying cause was inferred.
+
+### Decisions
+
+The [accepted agent brief](https://github.com/the-sarge/quic-go-fast/issues/400#issuecomment-5735063200) permits a narrowly scoped test-only dependency on Go diagnostic formatting. The guarantee is prior observation of runtime parking, not a blocked kernel syscall or continuous parking until the trigger. Production behavior, public API, wire behavior, CI policy and frozen qualification evidence are unchanged. No additional platform or statistical campaign was run.
