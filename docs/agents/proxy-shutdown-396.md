@@ -1,0 +1,25 @@
+# Real-UDP proxy shutdown (#396)
+
+The normative contract is the [accepted issue #396 agent brief](https://github.com/the-sarge/quic-go-fast/issues/396#issuecomment-5735198264). This repair is confined to the real-UDP test proxy and its regression tests. Production transport APIs and wire behavior, unrelated fixture ownership (#397), worker assertion owners (#398), CI policy, and frozen investigation evidence are unchanged.
+
+## Ownership and completion
+
+A successful `Start` borrows the listener's I/O and deadlines until `Close` completes. The caller supplies no active deadlines, performs no independent I/O or deadline changes during that interval, and may close the socket to abort I/O. Shutdown interrupts reads and writes, joins every registered worker (including the nested outgoing reader and synchronous callbacks), and clears shutdown deadlines before returning the otherwise-open listener. It does not restore socket buffer settings. Callbacks must eventually return and must not synchronously call or wait for their own proxy's `Close`; callback-driven `SwitchConn` remains supported while running.
+
+Admission and replacement acceptance share the shutdown mutex and terminal state. The join holds no lock callbacks need. The original per-client socket remains proxy-owned after switching; shutdown closes it and the active accepted replacement. Retired caller-supplied replacements are interrupted and have shutdown deadlines cleared after joining, but are not closed. A rejected replacement stays with its caller. Socket close errors are aggregated, with already-closed sockets treated as normal, without skipping other cleanup. Timers and queued payloads are discarded after the last worker use.
+
+The guarantee covers supported real `net.UDPConn` use, synchronous callbacks that meet the stated obligations, and successful single-start lifetimes. Restart, arbitrary callback cancellation, reentrant shutdown, and concurrent independent listener I/O/deadline mutation are outside the contract. This is a fixture lifecycle guarantee, not a claim about causes or frequency of historical QUIC failures.
+
+## Finite regression evidence
+
+The three maintained regression families use real UDP and callback/channel coordination. Watchdogs diagnose missing completion; they are not implementation timeouts, readiness sleeps, or goroutine-count assertions.
+
+- `TestProxyShutdownListenerHandback` checks completed read observation and caller read/write reuse without replacing listener deadlines, including prior caller closure. Against the original implementation at `3fa4eba4e1219df7b958f2031d2cb1c496ed4df1`, both cases failed because `Close` returned before the listener read completed. The repaired run passed.
+- `TestProxyShutdownDelayedHandoffs` holds a failed forwarding operation's observer, fills the ten-slot delayed handoff and supplies the next packet, then overlaps shutdown and consumer exit in each direction. A single targeted-removal control deleting both cancellation alternatives in both handoffs failed both cases at the worker-completion watchdog. The repaired package run passed.
+- `TestProxyShutdownAdmissionAndSwitch` holds a pre-admission read observer across shutdown, exercises concurrent/repeated closes, rejects a replacement after the terminal transition, and exercises live delay-callback switching plus original/active/retired/rejected socket ownership. A single targeted-removal control deleting the shutdown guard in `SwitchConn` failed the expected terminal error assertion. The repaired package run passed.
+
+Initial implementation validation on darwin/arm64 with Go 1.27.1: `go test ./integrationtests/tools/proxy -count=1 -timeout=30s`, `go test -race ./integrationtests/tools/proxy -count=1 -timeout=45s`, `go test ./integrationtests/self -run '^TestNATRebinding$' -count=1 -timeout=30s`, `go vet ./integrationtests/tools/proxy`, and `go mod tidy -diff` passed. The proxy package includes the existing packet direction, address, count, payload, order, timing, switching, and socket-observation assertions. Final-candidate certification and hosted check results are recorded in the PR; the initial candidate was subsequently simplified to `WaitGroup.Go` and shutdown now interrupts both read and write I/O on retained caller sockets before clearing those deadlines.
+
+## Review and certification bounds
+
+Shipped fixture behavior and resource safety are implementation artifacts; regressions and this receipt are proportionate verification/process artifacts. Review is bounded to one initial fully briefed RAS review and at most one replacement after accepted fixes, with targeted verification of accepted findings. Each regression family has one discriminating control; no additional mutation campaign, stress campaign, repeated unchanged-head tests, platform cross-product, or recursive verification-aid audit is required. Final-candidate changes justify recertification. Required existing hosted checks remain applicable under [the repository execution overlay](../REVIEW-LOOP.md).
