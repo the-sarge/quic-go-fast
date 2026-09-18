@@ -2276,3 +2276,24 @@ Final local certification at `5104cb866d5ee99a453bc01876bddd22a5105a6e` on Go 1.
 ### Next
 
 Record the merged cipher worker-reporting resolution in [#406](https://github.com/the-sarge/quic-go-fast/issues/406) and [#398](https://github.com/the-sarge/quic-go-fast/issues/398), whose other scopes remain open; those issues are the live tracking view. Complete the mirrored OmniFocus task after this journal follow-up lands.
+
+---
+
+## Greasing middle-position assertion repaired - 2026-09-18 19:19 EDT
+
+**Main:** `e5cbf4241f97`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #415](https://github.com/the-sarge/quic-go-fast/pull/415), closing [issue #399](https://github.com/the-sarge/quic-go-fast/issues/399). `TestVersionGreasing` now counts a reserved version as middle only at a strictly interior index. Existing assertions, thresholds, iteration counts, production code and randomness remain unchanged.
+
+### Validation
+
+On Go 1.27.1 Darwin/arm64, a temporary alternating-endpoint generator passed the original assertion and failed the corrected assertion specifically at the middle counter; the restored real generator passed. Each focused case ran once with caching disabled. Mutation machinery was removed and production source restored byte-for-byte. This is assertion-sensitivity evidence, not a reliability estimate.
+
+Protocol package tests, package vet, module tidy diff and whitespace checks passed on the exact clean pushed head `ecd2c3d0f5bfb1c3a65686069913d4ea74b340c5`. RAS run `20260918T231307-1398914677c20589129324f7` completed with five successful reviewers and no findings or follow-ups. All 33 hosted checks passed before the squash merge. The [PR](https://github.com/the-sarge/quic-go-fast/pull/415) records the finite evidence and certification.
+
+### Decisions
+
+The [accepted agent brief](https://github.com/the-sarge/quic-go-fast/issues/399#issuecomment-5735018362) limits this repair to the middle-position assertion. The separate RNG-average policy remains tracked in [issue #402](https://github.com/the-sarge/quic-go-fast/issues/402).
