@@ -119,11 +119,10 @@ func TestProxyingBackAndForth(t *testing.T) {
 	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
-	clientConn, err := net.DialUDP("udp", nil, proxy.LocalAddr().(*net.UDPAddr))
-	require.NoError(t, err)
+	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
 	// send the first packet
-	_, err = clientConn.Write(makePacket(t, 1, []byte("foobar")))
+	_, err := clientConn.Write(makePacket(t, 1, []byte("foobar")))
 	require.NoError(t, err)
 	// send the second packet
 	_, err = clientConn.Write(makePacket(t, 2, []byte("decafbad")))
@@ -157,8 +156,7 @@ func TestDropIncomingPackets(t *testing.T) {
 	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
-	clientConn, err := net.DialUDP("udp", nil, proxy.LocalAddr().(*net.UDPAddr))
-	require.NoError(t, err)
+	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
 	for i := 1; i <= numPackets; i++ {
 		_, err := clientConn.Write(makePacket(t, protocol.PacketNumber(i), []byte("foobar"+strconv.Itoa(i))))
@@ -201,20 +199,9 @@ func TestDropOutgoingPackets(t *testing.T) {
 	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
-	clientConn, err := net.DialUDP("udp", nil, proxy.LocalAddr().(*net.UDPAddr))
-	require.NoError(t, err)
+	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
-	clientReceivedPackets := make(chan struct{}, numPackets)
-	// receive the packets echoed by the server on client side
-	go func() {
-		for {
-			buf := make([]byte, protocol.MaxPacketBufferSize)
-			if _, _, err := clientConn.ReadFromUDP(buf); err != nil {
-				return
-			}
-			clientReceivedPackets <- struct{}{}
-		}
-	}()
+	clientReceivedPackets := readProxyClient(t, clientConn, numPackets).packets
 
 	for i := 1; i <= numPackets; i++ {
 		_, err := clientConn.Write(makePacket(t, protocol.PacketNumber(i), []byte("foobar"+strconv.Itoa(i))))
@@ -260,8 +247,7 @@ func TestDelayIncomingPackets(t *testing.T) {
 	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
-	clientConn, err := net.DialUDP("udp", nil, proxy.LocalAddr().(*net.UDPAddr))
-	require.NoError(t, err)
+	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
 	start := time.Now()
 	for i := 1; i <= numPackets; i++ {
@@ -307,8 +293,7 @@ func TestPacketReordering(t *testing.T) {
 	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
-	clientConn, err := net.DialUDP("udp", nil, proxy.LocalAddr().(*net.UDPAddr))
-	require.NoError(t, err)
+	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
 	// send 3 packets
 	start := time.Now()
@@ -342,8 +327,7 @@ func TestConstantDelay(t *testing.T) { // no reordering expected here
 	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
-	clientConn, err := net.DialUDP("udp", nil, proxy.LocalAddr().(*net.UDPAddr))
-	require.NoError(t, err)
+	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
 	// send 100 packets
 	for i := range 100 {
@@ -384,21 +368,9 @@ func TestDelayOutgoingPackets(t *testing.T) {
 	}
 	require.NoError(t, proxy.Start())
 	defer proxy.Close()
-	clientConn, err := net.DialUDP("udp", nil, proxy.LocalAddr().(*net.UDPAddr))
-	require.NoError(t, err)
+	clientConn := dialProxyClient(t, proxy.LocalAddr().(*net.UDPAddr))
 
-	clientReceivedPackets := make(chan []byte, numPackets)
-	// receive the packets echoed by the server on client side
-	go func() {
-		for {
-			buf := make([]byte, protocol.MaxPacketBufferSize)
-			n, _, err := clientConn.ReadFromUDP(buf)
-			if err != nil {
-				return
-			}
-			clientReceivedPackets <- buf[:n]
-		}
-	}()
+	clientReceivedPackets := readProxyClient(t, clientConn, numPackets).packets
 
 	start := time.Now()
 	for i := 1; i <= numPackets; i++ {

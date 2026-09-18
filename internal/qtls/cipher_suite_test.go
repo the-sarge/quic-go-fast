@@ -3,11 +3,7 @@ package qtls
 import (
 	"crypto/fips140"
 	"crypto/tls"
-	"fmt"
-	"net"
 	"testing"
-
-	"github.com/quic-go/quic-go/internal/testdata"
 
 	"github.com/stretchr/testify/require"
 )
@@ -23,32 +19,14 @@ func testCipherSuiteSelection(t *testing.T, cs uint16) {
 		t.Skip("ChaCha20-Poly1305 is not allowed in FIPS 140-3 mode")
 	}
 
-	reset := SetCipherSuite(cs)
-	defer reset()
-
-	ln, err := tls.Listen("tcp4", "localhost:0", testdata.GetTLSConfig())
-	require.NoError(t, err)
-	defer ln.Close()
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		conn, err := ln.Accept()
-		require.NoError(t, err)
-		_, err = conn.Read(make([]byte, 10))
-		require.NoError(t, err)
-		require.Equal(t, cs, conn.(*tls.Conn).ConnectionState().CipherSuite)
-	}()
-
-	conn, err := tls.Dial(
-		"tcp4",
-		fmt.Sprintf("localhost:%d", ln.Addr().(*net.TCPAddr).Port),
-		&tls.Config{RootCAs: testdata.GetRootCA()},
-	)
+	f := newCipherFixture(t, cs)
+	conn, err := f.dial(t.Context())
 	require.NoError(t, err)
 	_, err = conn.Write([]byte("foobar"))
 	require.NoError(t, err)
 	require.Equal(t, cs, conn.ConnectionState().CipherSuite)
 	require.NoError(t, conn.Close())
-	<-done
+	result := f.wait(t)
+	require.NoError(t, result.err)
+	require.Equal(t, cs, result.cipher)
 }
