@@ -2,6 +2,7 @@ package quic
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
@@ -12,6 +13,50 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+func TestSchedulingPacketPayloadTruncated(t *testing.T) {
+	packet, err := wire.AppendShortHeader(nil, protocol.ConnectionID{}, 1, protocol.PacketNumberLen2, protocol.KeyPhaseZero)
+	require.NoError(t, err)
+	packet = append(packet, make([]byte, 6)...)
+	_, err = schedulingPacketPayload(packet, 0)
+	require.ErrorContains(t, err, "protection tag")
+}
+
+func TestSchedulingDatagramMalformed(t *testing.T) {
+	_, err := decodeSchedulingDatagram(nil, 0)
+	require.Error(t, err)
+	for _, test := range []struct {
+		name    string
+		payload []byte
+		message string
+	}{
+		{name: "wrong frame", payload: []byte{0x01}, message: "expected DATAGRAM"},
+		{name: "truncated data", payload: []byte{0x31, 0x02, 'a'}, message: "EOF"},
+		{name: "trailing data", payload: []byte{0x31, 0x01, 'a', 'b'}, message: "consumed 3 of 4"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			packet, err := wire.AppendShortHeader(nil, protocol.ConnectionID{}, 1, protocol.PacketNumberLen2, protocol.KeyPhaseZero)
+			require.NoError(t, err)
+			packet = append(packet, test.payload...)
+			packet = append(packet, make([]byte, 7)...)
+			_, err = decodeSchedulingDatagram(packet, 0)
+			require.ErrorContains(t, err, test.message)
+		})
+	}
+}
+
+// The real packer fixtures use transparent protection with a seven-byte tag.
+// Decode only a snapshot and metadata captured by the protocol-state owner.
+func schedulingPacketPayload(packet []byte, connIDLen int) ([]byte, error) {
+	hdrLen, _, _, _, err := wire.ParseShortHeader(packet, connIDLen)
+	if err != nil {
+		return nil, err
+	}
+	if len(packet)-hdrLen < 7 {
+		return nil, fmt.Errorf("packet is missing the seven-byte protection tag")
+	}
+	return packet[hdrLen : len(packet)-7], nil
+}
 
 // Only scheduling inputs are controlled. Packet numbers, registration and
 // recovery storage remain with the connection's real recovery handler.
@@ -46,17 +91,38 @@ func useSchedulingPacketPacker(t *testing.T, ctrl *gomock.Controller, tc *testCo
 
 func schedulingDatagram(t *testing.T, tc *testConnection, packet []byte) []byte {
 	t.Helper()
-	hdrLen, _, _, _, err := wire.ParseShortHeader(packet, tc.conn.connIDManager.Get().Len())
+	data, err := decodeSchedulingDatagram(packet, tc.conn.connIDManager.Get().Len())
 	require.NoError(t, err)
-	payload := packet[hdrLen : len(packet)-7]
+	return data
+}
+
+type schedulingWriteObservation struct {
+	data    []byte
+	segment uint16
+	ecn     protocol.ECN
+}
+
+func decodeSchedulingDatagram(packet []byte, connIDLen int) ([]byte, error) {
+	payload, err := schedulingPacketPayload(packet, connIDLen)
+	if err != nil {
+		return nil, err
+	}
 	parser := wire.NewFrameParser(true, false, false)
 	typ, n, err := parser.ParseType(payload, protocol.Encryption1RTT)
-	require.NoError(t, err)
-	require.True(t, typ.IsDatagramFrameType())
+	if err != nil {
+		return nil, err
+	}
+	if !typ.IsDatagramFrameType() {
+		return nil, fmt.Errorf("expected DATAGRAM frame, got %d", typ)
+	}
 	f, m, err := parser.ParseDatagramFrame(typ, payload[n:], protocol.Version1)
-	require.NoError(t, err)
-	require.Equal(t, len(payload), n+m)
-	return f.Data
+	if err != nil {
+		return nil, err
+	}
+	if n+m != len(payload) {
+		return nil, fmt.Errorf("DATAGRAM consumed %d of %d payload bytes", n+m, len(payload))
+	}
+	return f.Data, nil
 }
 
 // Decode control output with the existing wire parser; transparent protection
@@ -119,13 +185,15 @@ func queueGSODatagrams(t *testing.T, tc *testConnection, payloadSizes ...int) []
 	return payloads
 }
 
-func schedulingGSODatagrams(t *testing.T, tc *testConnection, batch []byte, segment uint16) [][]byte {
+func schedulingGSODatagrams(t *testing.T, connIDLen int, batch []byte, segment uint16) [][]byte {
 	t.Helper()
 	require.Positive(t, segment)
 	var payloads [][]byte
 	for len(batch) > 0 {
 		n := min(len(batch), int(segment))
-		payloads = append(payloads, schedulingDatagram(t, tc, batch[:n]))
+		data, err := decodeSchedulingDatagram(batch[:n], connIDLen)
+		require.NoError(t, err)
+		payloads = append(payloads, data)
 		batch = batch[n:]
 	}
 	return payloads
