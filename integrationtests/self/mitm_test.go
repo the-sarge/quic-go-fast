@@ -257,7 +257,7 @@ func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Dura
 	conn, err := clientTr.Dial(ctx, proxy.LocalAddr(), getTLSClientConfig(), getQuicConfig(conf))
 	d.phase(true, fmt.Sprintf("Dial returned: %v", err))
 	if d != nil {
-		d.capture.finish(fmt.Sprintf("Dial returned: %v", err))
+		d.capture.seal(fmt.Sprintf("Dial returned: %v", err))
 	}
 	require.NoError(t, err)
 	defer conn.CloseWithError(0, "")

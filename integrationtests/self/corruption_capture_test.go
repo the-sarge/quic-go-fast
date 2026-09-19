@@ -14,6 +14,7 @@ import (
 	"github.com/quic-go/quic-go"
 	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
 	"github.com/quic-go/quic-go/qlog"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/ipv4"
 )
@@ -218,4 +219,26 @@ func TestCorruptionCaptureUnicodeLimit(t *testing.T) {
 		require.NotContains(t, record.Data, "�", "truncation must preserve complete UTF-8 characters")
 		require.Contains(t, record.Data, "[capture record truncated]")
 	}
+}
+
+// Disk persistence must not consume the deadline shared by Dial, Accept and the
+// stream exchange, or stall their diagnostic callbacks behind the capture mutex.
+func TestCorruptionCaptureSyncAfterExchange(t *testing.T) {
+	t.Setenv("QUIC_GO_CORRUPTION_CAPTURE_DIR", t.TempDir())
+	var syncObserved bool
+	t.Cleanup(func() { assert.True(t, syncObserved, "capture cleanup did not sync") })
+	d := newHandshakeDiagnostics(t, "capture persistence after exchange")
+	d.capture = newCorruptionCapture(t, d.scenario)
+	var exchangeComplete bool
+	d.capture.beforeSync = func() {
+		syncObserved = true
+		assert.True(t, exchangeComplete, "capture sync preceded completion of the network exchange")
+	}
+	serverTr, clientTr := getTransportsForMITMTest(t)
+	d.observeCorruptionSocket(serverTr, false)
+	d.observeCorruptionSocket(clientTr, true)
+	d.addCorruptionTransport(serverTr, false)
+	d.addCorruptionTransport(clientTr, true)
+	runMITMTest(t, serverTr, clientTr, scaleDuration(5*time.Millisecond), func(quicproxy.Direction, net.Addr, net.Addr, []byte) bool { return false }, d)
+	exchangeComplete = true
 }

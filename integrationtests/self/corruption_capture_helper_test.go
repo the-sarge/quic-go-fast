@@ -31,10 +31,14 @@ type corruptionCapture struct {
 	dropped uint64
 	err     error
 	done    bool
+	closed  bool
 	limited bool
 
 	// Scheduling seam for batch-boundary regressions, set before use.
 	afterBatchResult func()
+
+	// Observe the persistence boundary in the real fixture regression. Set before use.
+	beforeSync func()
 }
 
 type corruptionCaptureRecord struct {
@@ -132,23 +136,43 @@ func (c *corruptionCapture) write(at time.Time, source, data string, terminal bo
 	}
 }
 
-// Finalization precedes transport/proxy cleanup. Later traffic cannot evict or
-// append to the handshake prefix. A missing final record means incomplete capture.
+// seal fixes the handshake prefix at Dial return. Later traffic cannot append to
+// it, but slow disk persistence must not block the remaining network exchange.
+func (c *corruptionCapture) seal(outcome string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.sealLocked(outcome)
+}
+
+func (c *corruptionCapture) sealLocked(outcome string) {
+	if c.done {
+		return
+	}
+	c.done = true
+	if c.file != nil && c.err == nil {
+		c.write(time.Now(), "dial_finished", fmt.Sprintf("%s dropped_or_truncated=%d", outcome, c.dropped), true)
+	}
+}
+
+// finish seals an unfinished capture and persists/closes its file. The real
+// fixture calls this from cleanup, after transport/proxy shutdown, so Sync cannot
+// consume its shared Dial/Accept/stream deadline or stall their capture callbacks.
 func (c *corruptionCapture) finish(outcome string) {
 	if c == nil {
 		return
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.done {
+	c.sealLocked(outcome)
+	if c.file == nil || c.closed {
 		return
 	}
-	c.done = true
-	if c.file == nil {
-		return
-	}
-	if c.err == nil {
-		c.write(time.Now(), "dial_finished", fmt.Sprintf("%s dropped_or_truncated=%d", outcome, c.dropped), true)
+	c.closed = true
+	if c.beforeSync != nil {
+		c.beforeSync()
 	}
 	if err := c.file.Sync(); err != nil && c.err == nil {
 		c.err = err
