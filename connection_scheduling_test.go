@@ -45,6 +45,40 @@ func TestSchedulingDatagramMalformed(t *testing.T) {
 	}
 }
 
+func TestSchedulingFramesMalformed(t *testing.T) {
+	_, err := decodeSchedulingFrames(nil, 0)
+	require.Error(t, err)
+	packet, err := wire.AppendShortHeader(nil, protocol.ConnectionID{}, 1, protocol.PacketNumberLen2, protocol.KeyPhaseZero)
+	require.NoError(t, err)
+	// PATH_CHALLENGE requires eight data bytes.
+	packet = append(packet, 0x1a, 1)
+	packet = append(packet, make([]byte, 7)...)
+	_, err = decodeSchedulingFrames(packet, 0)
+	require.ErrorContains(t, err, "EOF")
+}
+
+func TestSchedulingProbeMalformed(t *testing.T) {
+	_, err := decodeSchedulingProbe(nil, protocol.ConnectionID{})
+	require.Error(t, err)
+	for _, test := range []struct {
+		name    string
+		payload []byte
+		message string
+	}{
+		{name: "missing frame", message: "expected one PATH_CHALLENGE"},
+		{name: "wrong frame", payload: []byte{0x01}, message: "expected PATH_CHALLENGE"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			packet, err := wire.AppendShortHeader(nil, protocol.ConnectionID{}, 1, protocol.PacketNumberLen2, protocol.KeyPhaseZero)
+			require.NoError(t, err)
+			packet = append(packet, test.payload...)
+			packet = append(packet, make([]byte, 7)...)
+			_, err = decodeSchedulingProbe(packet, protocol.ConnectionID{})
+			require.ErrorContains(t, err, test.message)
+		})
+	}
+}
+
 // The real packer fixtures use transparent protection with a seven-byte tag.
 // Decode only a snapshot and metadata captured by the protocol-state owner.
 func schedulingPacketPayload(packet []byte, connIDLen int) ([]byte, error) {
@@ -129,14 +163,23 @@ func decodeSchedulingDatagram(packet []byte, connIDLen int) ([]byte, error) {
 // contributes the same seven-byte tag used by the packer fixtures.
 func schedulingFrames(t *testing.T, tc *testConnection, packet []byte) []wire.Frame {
 	t.Helper()
-	n, _, _, _, err := wire.ParseShortHeader(packet, tc.conn.connIDManager.Get().Len())
+	frames, err := decodeSchedulingFrames(packet, tc.conn.connIDManager.Get().Len())
 	require.NoError(t, err)
-	payload := packet[n : len(packet)-7]
+	return frames
+}
+
+func decodeSchedulingFrames(packet []byte, connIDLen int) ([]wire.Frame, error) {
+	payload, err := schedulingPacketPayload(packet, connIDLen)
+	if err != nil {
+		return nil, err
+	}
 	parser := wire.NewFrameParser(true, false, false)
 	var frames []wire.Frame
 	for len(payload) > 0 {
 		typ, n, err := parser.ParseType(payload, protocol.Encryption1RTT)
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 		payload = payload[n:]
 		if typ == 0 {
 			continue
@@ -148,11 +191,34 @@ func schedulingFrames(t *testing.T, tc *testConnection, packet []byte) []wire.Fr
 		} else {
 			f, m, err = parser.ParseLessCommonFrame(typ, payload, protocol.Version1)
 		}
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 		frames = append(frames, f)
 		payload = payload[m:]
 	}
-	return frames
+	return frames, nil
+}
+
+func decodeSchedulingProbe(packet []byte, destConnID protocol.ConnectionID) (*wire.PathChallengeFrame, error) {
+	if len(packet) < 1+destConnID.Len() {
+		return nil, fmt.Errorf("probe is missing destination connection ID")
+	}
+	if !bytes.Equal(destConnID.Bytes(), packet[1:1+destConnID.Len()]) {
+		return nil, fmt.Errorf("probe destination connection ID mismatch")
+	}
+	frames, err := decodeSchedulingFrames(packet, destConnID.Len())
+	if err != nil {
+		return nil, err
+	}
+	if len(frames) != 1 {
+		return nil, fmt.Errorf("expected one PATH_CHALLENGE frame, got %d frames", len(frames))
+	}
+	challenge, ok := frames[0].(*wire.PathChallengeFrame)
+	if !ok {
+		return nil, fmt.Errorf("expected PATH_CHALLENGE frame, got %T", frames[0])
+	}
+	return challenge, nil
 }
 
 func newGSOBatchTestConnection(t *testing.T) (*testConnection, *mockackhandler.MockSentPacketHandler) {

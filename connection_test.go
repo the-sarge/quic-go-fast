@@ -1668,15 +1668,12 @@ func testConnectionReceivePrioritization(t *testing.T, handshakeComplete bool, n
 	} else {
 		tc.conn.retransmissionQueue.addInitial(&wire.PingFrame{})
 	}
+	var sent []byte
+	var connIDLen int
 	sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
 		defer b.Release()
-		if handshakeComplete {
-			require.Contains(t, schedulingFrames(t, tc, b.Data), &wire.PingFrame{})
-		} else {
-			headers, _ := parsePacket(t, b.Data)
-			require.Len(t, headers, 1)
-			require.Equal(t, protocol.PacketTypeInitial, headers[0].Type)
-		}
+		sent = bytes.Clone(b.Data)
+		connIDLen = tc.conn.connIDManager.Get().Len()
 		events = append(events, "send")
 		close(done)
 	})
@@ -1687,6 +1684,22 @@ func testConnectionReceivePrioritization(t *testing.T, handshakeComplete bool, n
 
 	tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
 	errChan := make(chan error, 1)
+	defer func() {
+		sender.EXPECT().Close()
+		tc.conn.destroy(nil)
+		select {
+		case err := <-errChan:
+			assert.NoError(t, err)
+		case <-time.After(time.Second):
+			t.Error("connection did not stop")
+		}
+		// The connection can finish before its worker starts on a single P.
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Error("sender did not start")
+		}
+	}()
 	go func() { errChan <- tc.conn.run() }()
 
 	select {
@@ -1695,23 +1708,14 @@ func testConnectionReceivePrioritization(t *testing.T, handshakeComplete bool, n
 		t.Fatal("timeout")
 	}
 
-	// The connection can finish before its worker starts on a single P.
-	// Join startup before allowing the mock controller to finish.
-	select {
-	case <-started:
-	case <-time.After(time.Second):
-		t.Fatal("sender did not start")
-	}
-
-	// test teardown
-	sender.EXPECT().Close()
-	tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-	tc.conn.destroy(nil)
-	select {
-	case err := <-errChan:
-		require.NoError(t, err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
+	if handshakeComplete {
+		frames, err := decodeSchedulingFrames(sent, connIDLen)
+		require.NoError(t, err, "receive-prioritization send")
+		require.Contains(t, frames, &wire.PingFrame{})
+	} else {
+		headers, _ := parsePacket(t, sent)
+		require.Len(t, headers, 1, "receive-prioritization Initial send")
+		require.Equal(t, protocol.PacketTypeInitial, headers[0].Type)
 	}
 	return events
 }
@@ -2039,16 +2043,32 @@ func TestConnectionIdleTimeout(t *testing.T) {
 		sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
 		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).AnyTimes()
 		sph.EXPECT().ECNMode(gomock.Any()).AnyTimes()
+		// This fixture never rotates its destination ID. Snapshot before run owns it.
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var sent []byte
 		var lastSendTime monotime.Time
 		tc.conn.framer.QueueControlFrame(&wire.PingFrame{})
 		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(b []byte, _ uint16, _ protocol.ECN) error {
-			require.Contains(t, schedulingFrames(t, tc, b), &wire.PingFrame{})
+			sent = bytes.Clone(b)
 			lastSendTime = monotime.Now()
 			return nil
 		})
 		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
 
 		errChan := make(chan error, 1)
+		joined := false
+		defer func() {
+			if joined {
+				return
+			}
+			tc.conn.destroy(nil)
+			synctest.Wait()
+			select {
+			case <-errChan:
+			case <-time.After(time.Hour):
+				t.Error("connection did not stop")
+			}
+		}()
 		go func() { errChan <- tc.conn.run() }()
 		tc.conn.scheduleSending()
 
@@ -2056,9 +2076,13 @@ func TestConnectionIdleTimeout(t *testing.T) {
 
 		select {
 		case err := <-errChan:
+			joined = true
 			require.ErrorIs(t, err, &IdleTimeoutError{})
 			require.NotZero(t, lastSendTime)
 			require.Equal(t, idleTimeout, monotime.Since(lastSendTime))
+			frames, err := decodeSchedulingFrames(sent, connIDLen)
+			require.NoError(t, err, "idle-timeout send")
+			require.Contains(t, frames, &wire.PingFrame{})
 		case <-time.After(time.Hour):
 			t.Fatal("should have timed out")
 		}
@@ -2106,7 +2130,27 @@ func testConnectionKeepAlive(t *testing.T, enable, expectKeepAlive bool) {
 		require.NoError(t, err)
 		buf.Data = append(buf.Data, []byte("packet")...)
 
+		// No destination-ID changes are configured in this scenario.
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var sent []byte
 		errChan := make(chan error, 1)
+		defer func() {
+			if expectKeepAlive {
+				tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+				tc.conn.destroy(nil)
+			}
+			synctest.Wait()
+			select {
+			case err := <-errChan:
+				if expectKeepAlive {
+					assert.NoError(t, err)
+				} else {
+					assert.ErrorIs(t, err, &IdleTimeoutError{})
+				}
+			case <-time.After(time.Hour):
+				t.Error("connection did not stop")
+			}
+		}()
 		go func() { errChan <- tc.conn.run() }()
 
 		var unpackTime, packTime monotime.Time
@@ -2121,7 +2165,7 @@ func testConnectionKeepAlive(t *testing.T, enable, expectKeepAlive bool) {
 		case true:
 			// record the time of the keep-alive is sent
 			tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(b []byte, _ uint16, _ protocol.ECN) error {
-				require.Contains(t, schedulingFrames(t, tc, b), &wire.PingFrame{})
+				sent = bytes.Clone(b)
 				packTime = monotime.Now()
 				close(done)
 				return nil
@@ -2131,31 +2175,15 @@ func testConnectionKeepAlive(t *testing.T, enable, expectKeepAlive bool) {
 			case <-done:
 				// the keep-alive packet should be sent after half the idle timeout
 				require.Equal(t, unpackTime.Add(idleTimeout/2), packTime)
+				frames, err := decodeSchedulingFrames(sent, connIDLen)
+				require.NoError(t, err, "keep-alive send")
+				require.Contains(t, frames, &wire.PingFrame{})
 			case <-time.After(idleTimeout):
 				t.Fatal("timeout")
 			}
 		case false: // if keep-alives are disabled, the connection will run into an idle timeout
 			tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
 			tc.conn.handlePacket(receivedPacket{data: buf.Data, buffer: buf, rcvTime: monotime.Now(), remoteAddr: tc.remoteAddr})
-		}
-
-		// test teardown
-		if expectKeepAlive {
-			tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-			tc.conn.destroy(nil)
-		}
-
-		synctest.Wait()
-
-		select {
-		case err := <-errChan:
-			if expectKeepAlive {
-				require.NoError(t, err)
-			} else {
-				require.ErrorIs(t, err, &IdleTimeoutError{})
-			}
-		case <-time.After(time.Hour):
-			t.Fatal("timeout")
 		}
 	})
 }
@@ -2415,17 +2443,31 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		sph.EXPECT().GetLossDetectionTimeout().AnyTimes()
 		sph.EXPECT().SendMode(gomock.Any()).Return(ackhandler.SendAny).AnyTimes()
 		sph.EXPECT().ECNMode(gomock.Any()).AnyTimes()
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var firstSent, nextSent []byte
 		first := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("first")}
 		next := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("next")}
 		require.NoError(t, tc.conn.datagramQueue.Add(first))
 		require.NoError(t, tc.conn.datagramQueue.Add(next))
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
-			require.Equal(t, first.Data, schedulingDatagram(t, tc, b.Data))
+			firstSent = bytes.Clone(b.Data)
 			full = true
 			b.Release()
 		})
 
 		errChan := make(chan error, 1)
+		defer func() {
+			sender.EXPECT().Close()
+			tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+			tc.conn.destroy(nil)
+			synctest.Wait()
+			select {
+			case err := <-errChan:
+				assert.NoError(t, err)
+			default:
+				t.Error("connection did not stop")
+			}
+		}()
 		go func() { errChan <- tc.conn.run() }()
 		tc.conn.scheduleSending()
 
@@ -2448,7 +2490,7 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		full = false
 		unblocked := make(chan struct{}, 1)
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {
-			require.Equal(t, next.Data, schedulingDatagram(t, tc, b.Data))
+			nextSent = bytes.Clone(b.Data)
 			b.Release()
 			close(unblocked)
 		})
@@ -2462,19 +2504,12 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 			t.Fatal("should have unblocked")
 		}
 
-		// test teardown
-		sender.EXPECT().Close()
-		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-		tc.conn.destroy(nil)
-
-		synctest.Wait()
-
-		select {
-		case err := <-errChan:
-			require.NoError(t, err)
-		default:
-			t.Fatal("timeout")
-		}
+		firstData, err := decodeSchedulingDatagram(firstSent, connIDLen)
+		require.NoError(t, err, "first queued send")
+		require.Equal(t, first.Data, firstData)
+		nextData, err := decodeSchedulingDatagram(nextSent, connIDLen)
+		require.NoError(t, err, "next queued send")
+		require.Equal(t, next.Data, nextData)
 	})
 }
 
@@ -3059,12 +3094,12 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 			connectionOptRTT(time.Second),
 		)
 		useSchedulingPacketPacker(t, mockCtrl, tc, nil)
+		// Ordinary writes retain the fixture's fixed destination ID across migration.
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var queued [][]byte
 		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 			func(data []byte, _ uint16, _ protocol.ECN) error {
-				for _, frame := range schedulingFrames(t, tc, data) {
-					_, isChallenge := frame.(*wire.PathChallengeFrame)
-					require.False(t, isChallenge, "probes use the direct destination")
-				}
+				queued = append(queued, bytes.Clone(data))
 				return nil
 			},
 		).AnyTimes()
@@ -3074,10 +3109,34 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 		require.NotEqual(t, tc.remoteAddr, newRemoteAddr)
 
 		errChan := make(chan error, 1)
+		defer func() {
+			tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+			tc.conn.destroy(nil)
+			synctest.Wait()
+			select {
+			case err := <-errChan:
+				assert.NoError(t, err)
+			default:
+				t.Error("connection did not stop")
+				return // The worker may still own the observations.
+			}
+			// run joins the send worker. Check every write, even after an earlier failure.
+			for i, packet := range queued {
+				frames, err := decodeSchedulingFrames(packet, connIDLen)
+				if !assert.NoError(t, err, "queued path write %d", i) {
+					continue
+				}
+				for _, frame := range frames {
+					_, isChallenge := frame.(*wire.PathChallengeFrame)
+					assert.False(t, isChallenge, "queued path write %d: probes use the direct destination", i)
+				}
+			}
+		}()
 		go func() { errChan <- tc.conn.run() }()
 
 		probeSent := make(chan struct{})
-		var pathChallenge *wire.PathChallengeFrame
+		var probe []byte
+		var probeConnID protocol.ConnectionID
 		payload := []byte{0} // PADDING frame
 		if isNATRebinding {
 			payload = []byte{1} // PING frame
@@ -3088,11 +3147,9 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 			),
 			tc.sendConn.EXPECT().WriteTo(gomock.Any(), newRemoteAddr, packetInfo{}).DoAndReturn(
 				func(data []byte, _ net.Addr, _ packetInfo) error {
-					require.Equal(t, tc.conn.connIDManager.Get().Bytes(), data[1:1+tc.conn.connIDManager.Get().Len()])
-					frames := schedulingFrames(t, tc, data)
-					require.Len(t, frames, 1)
-					require.IsType(t, &wire.PathChallengeFrame{}, frames[0])
-					pathChallenge = frames[0].(*wire.PathChallengeFrame)
+					probe = bytes.Clone(data)
+					// WriteTo runs synchronously on the connection goroutine.
+					probeConnID = tc.conn.connIDManager.Get()
 					close(probeSent)
 					return nil
 				},
@@ -3113,6 +3170,9 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 		case <-time.After(time.Second):
 			t.Fatal("timeout")
 		}
+
+		pathChallenge, err := decodeSchedulingProbe(probe, probeConnID)
+		require.NoError(t, err, "direct path probe")
 
 		// TestEmissionDirectProbe covers temporary-storage release at this handoff.
 
@@ -3185,19 +3245,6 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 		case <-migrated:
 		default:
 			t.Fatal("should have migrated")
-		}
-
-		// test teardown
-		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
-		tc.conn.destroy(nil)
-
-		synctest.Wait()
-
-		select {
-		case err := <-errChan:
-			require.NoError(t, err)
-		default:
-			t.Fatal("should have shut down")
 		}
 	})
 }
