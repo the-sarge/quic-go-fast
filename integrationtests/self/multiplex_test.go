@@ -18,31 +18,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func runMultiplexTestServer(t *testing.T, ln *quic.Listener) {
-	t.Helper()
-	for {
-		conn, err := ln.Accept(context.Background())
-		if err != nil {
-			return
-		}
-		str, err := conn.OpenUniStream()
-		require.NoError(t, err)
-		go func() {
-			defer str.Close()
-			_, err = str.Write(PRData)
-			require.NoError(t, err)
-		}()
-
-		t.Cleanup(func() { conn.CloseWithError(0, "") })
-	}
-}
-
-func dialAndReceiveData(tr *quic.Transport, addr net.Addr) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+func dialAndReceiveData(f *multiplexTest, tr *quic.Transport, addr net.Addr) error {
+	ctx, cancel := context.WithTimeout(f.ctx, time.Second)
 	defer cancel()
 	conn, err := tr.Dial(ctx, addr, getTLSClientConfig(), getQuicConfig(nil))
 	if err != nil {
 		return fmt.Errorf("error dialing: %w", err)
+	}
+	if !f.ownConn(conn) {
+		return context.Canceled
 	}
 	str, err := conn.AcceptUniStream(ctx)
 	if err != nil {
@@ -59,132 +43,88 @@ func dialAndReceiveData(tr *quic.Transport, addr net.Addr) error {
 }
 
 func TestMultiplexesConnectionsToSameServer(t *testing.T) {
+	fixture := newMultiplexTest()
+	defer fixture.close(t)
 	server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
-	defer server.Close()
-	go runMultiplexTestServer(t, server)
+	fixture.serve(server, nil)
 
 	tr := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	addTracer(tr)
-	defer tr.Close()
+	fixture.transports = append(fixture.transports, tr)
 
-	errChan1 := make(chan error, 1)
-	go func() { errChan1 <- dialAndReceiveData(tr, server.Addr()) }()
-	errChan2 := make(chan error, 1)
-	go func() { errChan2 <- dialAndReceiveData(tr, server.Addr()) }()
+	errChan1 := fixture.receive(tr, server.Addr())
+	errChan2 := fixture.receive(tr, server.Addr())
 
-	select {
-	case err := <-errChan1:
-		require.NoError(t, err, "error dialing server 1")
-	case <-time.After(5 * time.Second):
-		t.Error("timeout waiting for done1 to close")
-	}
-	select {
-	case err := <-errChan2:
-		require.NoError(t, err)
-	case <-time.After(5 * time.Second):
-		t.Error("timeout waiting for done2 to close")
-	}
+	require.NoError(t, fixture.wait(errChan1, 5*time.Second), "error dialing server 1")
+	require.NoError(t, fixture.wait(errChan2, 5*time.Second))
 }
 
 func TestMultiplexingToDifferentServers(t *testing.T) {
+	fixture := newMultiplexTest()
+	defer fixture.close(t)
 	server1, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
-	defer server1.Close()
-	go runMultiplexTestServer(t, server1)
+	fixture.serve(server1, nil)
 
 	server2, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
-	defer server2.Close()
-	go runMultiplexTestServer(t, server2)
+	fixture.serve(server2, nil)
 
 	tr := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	addTracer(tr)
-	defer tr.Close()
+	fixture.transports = append(fixture.transports, tr)
 
-	errChan1 := make(chan error, 1)
-	go func() { errChan1 <- dialAndReceiveData(tr, server1.Addr()) }()
-	errChan2 := make(chan error, 1)
-	go func() { errChan2 <- dialAndReceiveData(tr, server2.Addr()) }()
+	errChan1 := fixture.receive(tr, server1.Addr())
+	errChan2 := fixture.receive(tr, server2.Addr())
 
-	select {
-	case err := <-errChan1:
-		require.NoError(t, err, "error dialing server 1")
-	case <-time.After(5 * time.Second):
-		t.Error("timeout waiting for done1 to close")
-	}
-	select {
-	case err := <-errChan2:
-		require.NoError(t, err, "error dialing server 2")
-	case <-time.After(5 * time.Second):
-		t.Error("timeout waiting for done2 to close")
-	}
+	require.NoError(t, fixture.wait(errChan1, 5*time.Second), "error dialing server 1")
+	require.NoError(t, fixture.wait(errChan2, 5*time.Second), "error dialing server 2")
 }
 
 func TestMultiplexingConnectToSelf(t *testing.T) {
+	fixture := newMultiplexTest()
+	defer fixture.close(t)
 	tr := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	addTracer(tr)
-	defer tr.Close()
+	fixture.transports = append(fixture.transports, tr)
 
 	server, err := tr.Listen(getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
-	defer server.Close()
-	go runMultiplexTestServer(t, server)
+	fixture.serve(server, nil)
 
-	errChan := make(chan error, 1)
-	go func() { errChan <- dialAndReceiveData(tr, server.Addr()) }()
+	errChan := fixture.receive(tr, server.Addr())
 
-	select {
-	case err := <-errChan:
-		require.NoError(t, err, "error dialing server")
-	case <-time.After(5 * time.Second):
-		t.Error("timeout waiting for connection to close")
-	}
+	require.NoError(t, fixture.wait(errChan, 5*time.Second), "error dialing server")
 }
 
 func TestMultiplexingServerAndClientOnSameConn(t *testing.T) {
+	fixture := newMultiplexTest()
+	defer fixture.close(t)
 	if runtime.GOOS == "linux" {
 		t.Skip("This test requires setting of iptables rules on Linux, see https://stackoverflow.com/questions/23859164/linux-udp-socket-sendto-operation-not-permitted.")
 	}
 
 	tr1 := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	addTracer(tr1)
-	defer tr1.Close()
+	fixture.transports = append(fixture.transports, tr1)
 	server1, err := tr1.Listen(getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
-	defer server1.Close()
-	go runMultiplexTestServer(t, server1)
+	fixture.serve(server1, nil)
 
 	tr2 := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	addTracer(tr2)
-	defer tr2.Close()
+	fixture.transports = append(fixture.transports, tr2)
 	server2, err := tr2.Listen(getTLSConfig(), getQuicConfig(nil))
 	require.NoError(t, err)
-	defer server2.Close()
-	go runMultiplexTestServer(t, server2)
+	fixture.serve(server2, nil)
 
-	errChan1 := make(chan error, 1)
-	go func() {
-		errChan1 <- dialAndReceiveData(tr2, server1.Addr())
-	}()
+	errChan1 := fixture.receive(tr2, server1.Addr())
 
-	errChan2 := make(chan error, 1)
-	go func() {
-		errChan2 <- dialAndReceiveData(tr1, server2.Addr())
-	}()
+	errChan2 := fixture.receive(tr1, server2.Addr())
 
-	select {
-	case err := <-errChan1:
-		require.NoError(t, err, "error receiving from server 1")
-	case <-time.After(5 * time.Second):
-		t.Error("timeout receiving from server 1")
-	}
-	select {
-	case err := <-errChan2:
-		require.NoError(t, err, "error receiving from server 2")
-	case <-time.After(time.Second):
-		t.Error("timeout receiving from server 2")
-	}
+	require.NoError(t, fixture.wait(errChan1, 5*time.Second), "error receiving from server 1")
+	require.NoError(t, fixture.wait(errChan2, time.Second), "error receiving from server 2")
 }
 
 func TestMultiplexingNonQUICPackets(t *testing.T) {

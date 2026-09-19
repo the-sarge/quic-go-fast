@@ -710,28 +710,35 @@ func TestGetConfigForClient(t *testing.T) {
 	ln, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), serverConfig)
 	require.NoError(t, err)
 
-	acceptDone := make(chan struct{})
-	go func() {
-		_, err := ln.Accept(context.Background())
-		require.NoError(t, err)
-		close(acceptDone)
+	fixtureCtx, stopFixture := context.WithCancel(context.Background())
+	var workers []*configForClientWorker
+	defer func() {
+		stopFixture()
+		if err := ln.Close(); err != nil {
+			t.Error(err)
+		}
+		for _, worker := range workers {
+			if err := worker.join(); err != nil {
+				t.Error(err)
+			}
+		}
 	}()
+	accept := startConfigForClientWorker(fixtureCtx, ln.Accept)
+	workers = append(workers, accept)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(fixtureCtx, time.Second)
 	defer cancel()
-	conn, err := quic.Dial(ctx, newUDPConnLocalhost(t), ln.Addr(), getTLSClientConfig(), getQuicConfig(&quic.Config{EnableDatagrams: true}))
+	udp := newUDPConnLocalhost(t)
+	dial := startConfigForClientWorker(fixtureCtx, func(context.Context) (*quic.Conn, error) {
+		return quic.Dial(ctx, udp, ln.Addr(), getTLSClientConfig(), getQuicConfig(&quic.Config{EnableDatagrams: true}))
+	})
+	workers = append(workers, dial)
+	conn, err := waitConfigForClient(accept, dial)
 	require.NoError(t, err)
-	defer conn.CloseWithError(0, "")
 
 	cs := conn.ConnectionState()
 	require.True(t, cs.SupportsDatagrams.Remote, "server should advertise datagram support")
 	require.True(t, cs.SupportsDatagrams.Local, "client should have datagram support enabled")
-
-	select {
-	case <-acceptDone:
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for accept")
-	}
 
 	require.NoError(t, ln.Close())
 	require.Equal(t, conn.LocalAddr().(*net.UDPAddr).Port, calledFrom.(*net.UDPAddr).Port)
