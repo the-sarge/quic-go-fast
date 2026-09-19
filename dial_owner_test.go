@@ -122,7 +122,11 @@ func TestDialOwnerHeldPort(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("macOS lsof adapter")
 	}
+	// An expired CI opt-in must disable natural probes without breaking this
+	// independent held-port control.
+	t.Setenv("QUIC_GO_DIAL_OWNER_UNTIL", "2000-01-01T00:00:00Z")
 	capture := newDialCapture(t.Name())
+	capture.ownerDeadline = time.Time{}
 	capture.ownerEnabled = true
 	capture.ownerBudget = new(atomic.Bool)
 	retained := captureAddrSocket(t, capture)
@@ -145,6 +149,8 @@ func TestDialOwnerHeldPort(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, conn)
 	require.NotNil(t, capture.ownerProbe)
+	require.Len(t, capture.ownerProbe.failures, 1)
+	require.False(t, capture.ownerProbe.failures[0].After(capture.ownerProbe.trigger), "triggering bind must predate observer admission")
 	report := capture.finish(true)
 	var summary struct {
 		Events []struct {
@@ -155,7 +161,8 @@ func TestDialOwnerHeldPort(t *testing.T) {
 		} `json:"events"`
 		Complete bool `json:"complete_observations"`
 		Owner    struct {
-			Probe dialOwnerResult `json:"probe"`
+			Probe  dialOwnerResult `json:"probe"`
+			During int             `json:"bind_failures_during_query"`
 		} `json:"port_owner_observation"`
 	}
 	require.NoError(t, json.Unmarshal(report, &summary))
@@ -167,6 +174,7 @@ func TestDialOwnerHeldPort(t *testing.T) {
 		}
 	}
 	require.NotNil(t, descriptor, string(report))
+	require.Zero(t, summary.Owner.During, "no later bind occurred during the query")
 	probe := summary.Owner.Probe
 	require.False(t, probe.TimedOut, string(report))
 	require.False(t, probe.Truncated, string(report))
@@ -179,4 +187,15 @@ func TestDialOwnerHeldPort(t *testing.T) {
 		}
 	}
 	require.True(t, found, string(report))
+}
+
+func TestDialOwnerOverlap(t *testing.T) {
+	start := time.Now()
+	done := make(chan dialOwnerResult, 1)
+	done <- dialOwnerResult{Started: start, Ended: start.Add(time.Millisecond)}
+	p := &dialOwnerProbe{
+		cancel: func() {}, result: done,
+		failures: []time.Time{start.Add(-time.Nanosecond), start.Add(time.Microsecond), start.Add(time.Second)},
+	}
+	require.Equal(t, 1, p.finish(true)["bind_failures_during_query"])
 }

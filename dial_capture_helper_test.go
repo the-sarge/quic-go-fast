@@ -127,6 +127,7 @@ func (c *dialCapture) rebindWith(addr *net.UDPAddr, listen func(string, *net.UDP
 	}
 	c.mu.Unlock()
 	conn, err := listen("udp", addr)
+	returned := time.Now()
 	c.mu.Lock()
 	if !c.done {
 		c.rebindStarted = time.Time{}
@@ -143,7 +144,7 @@ func (c *dialCapture) rebindWith(addr *net.UDPAddr, listen func(string, *net.UDP
 			}
 			if p := c.ownerProbe; p != nil {
 				if len(p.failures) < 64 {
-					p.failures = append(p.failures, time.Now())
+					p.failures = append(p.failures, returned)
 				} else {
 					p.failuresTruncated = true
 				}
