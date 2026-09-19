@@ -2457,3 +2457,18 @@ Final certification at `7c7d0dbb9652004fb7e2e6047f6a3ff916a7820a` passed expande
 **Validation:** The focused close/GSO family and malformed-snapshot checks passed. One injected close-decode error and one first-write ECN mismatch in each GSO scenario each failed informatively without a deadlock panic, timeout, missing result or skipped write; temporary mutations were removed. The affected package, focused race run, `go vet .`, `go mod tidy -diff`, formatting and diff checks passed. All 33 applicable hosted checks passed on head `d2ca630d4f629175a35deb31c9fa7b831c9d2b51`. RAS run `20260919T050948-302f4f09e50a2cf61539ff28` completed with no fix or follow-up obligations; its hypothetical stuck-connection cleanup finding was independently rejected as unsupported within the [approved bounded contract](https://github.com/the-sarge/quic-go-fast/issues/405#issuecomment-5735134959).
 
 **Next:** The five deferred callback groups remain owned by [issue #407](https://github.com/the-sarge/quic-go-fast/issues/407); [parent #398](https://github.com/the-sarge/quic-go-fast/issues/398) remains open as the live tracking view for the remaining fixture repairs.
+
+---
+
+## NAT rebinding worker ownership landed - 2026-09-19 02:06 EDT
+
+**Main:** `bb9d674af078`
+**Actor:** Codex
+
+**Summary:** Merged [PR #444](https://github.com/the-sarge/quic-go-fast/pull/444), closing [issue #408](https://github.com/the-sarge/quic-go-fast/issues/408). The NAT-rebinding scenario now owns one stream worker, receives operation-specific errors without worker assertions, interrupts dependent local waits on failure, and stops local I/O before a five-second worker join. Cleanup is registered at acquisition, including the client connection, and outlives worker use of the fixture. Complete PRData, rebinding, path latency and PATH_CHALLENGE/PATH_RESPONSE identity assertions remain unchanged; no production or shared proxy code changed.
+
+**Validation:** One targeted removal of worker-error handoff failed at the expected sentinel-identity assertion and was restored. The repaired scenario, injected open/write failures, parent-deadline preservation and normal/fatal early-owner cleanup passed normally and with race detection for QUIC v1; the original scenario passed normally for v2, with 45-second test timeouts. Final certification at `89b22d012c28b5ae80fb3dfa43eddd95ed25a8bf` against `dcebf5bd2053ba1df92b87380ae10f5d4be8eeb1` passed full affected-package tests, vet, tidy, lint and whitespace checks. All 33 hosted checks passed before squash merge to `bb9d674af078caf3f296c5c01f091c0cbd2362ef`.
+
+**Decisions:** Initial RAS run `20260919T053917-a4948600413a39870f2cfb76` identified receive-error masking and regression timing/lifecycle weaknesses; accepted fixes were independently applied and verified. Replacement run `20260919T055710-e8f2ee6cfc1ef945ced1c9aa` required no fixes. The [final review and certification record](https://github.com/the-sarge/quic-go-fast/pull/444#issuecomment-5739823786) records the bounded dispositions. The conditional loss of a receive error if a worker ever exceeds its join bound was rechecked at merged `bb9d674a`, `integrationtests/self/nat_rebinding_fixture_test.go:166`; the branch remains but no accepted case reaches it, so no speculative follow-up ticket or stress campaign is warranted.
+
+**Next:** [Parent #406](https://github.com/the-sarge/quic-go-fast/issues/406) and [umbrella #398](https://github.com/the-sarge/quic-go-fast/issues/398) remain the live tracking surfaces for the other independent repairs. Record this child's closure evidence and complete its OmniFocus task after this journal lands; this slice does not close either parent or reopen cipher reconciliation.
