@@ -21,19 +21,60 @@ import (
 )
 
 func TestHTTPShutdown(t *testing.T) {
+	requestCtx, cancelRequest := context.WithCancel(context.Background())
+	defer cancelRequest()
+	fixtureCtx, cancelFixture := context.WithCancel(context.Background())
+	defer cancelFixture()
 	mux := http.NewServeMux()
 	var server *http3.Server
 	port := startHTTPServer(t, mux, func(s *http3.Server) { server = s })
 	client := newHTTP3Client(t)
-
+	handlerDone := make(chan struct{})
+	closeDone := make(chan struct{})
+	var closeErr error
+	var resp *http.Response
+	t.Cleanup(func() {
+		cancelRequest()
+		cancelFixture()
+		if resp != nil {
+			assert.NoError(t, resp.Body.Close(), "close shutdown response body")
+		}
+		assert.NoError(t, client.Transport.(*http3.Transport).Close(), "close shutdown client")
+		closeHTTPFixtureServer(t, server)
+		select {
+		case <-handlerDone:
+			select {
+			case <-closeDone:
+				assert.NoError(t, closeErr)
+			case <-time.After(time.Second):
+				t.Error("shutdown close worker did not finish")
+			}
+		default: // no handler or close worker was started
+		}
+	})
 	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
+		defer close(handlerDone)
 		go func() {
-			require.NoError(t, server.Close())
+			defer close(closeDone)
+			if err := server.Close(); err != nil {
+				closeErr = fmt.Errorf("close active HTTP server: %w", err)
+				cancelRequest()
+			}
 		}()
-		time.Sleep(scaleDuration(10 * time.Millisecond)) // make sure the server started shutting down
+		// Close waits for this handler. Request cancellation observes actual
+		// shutdown without waiting for Close to return or allowing an OK reply.
+		select {
+		case <-r.Context().Done():
+		case <-closeDone: // an unsuccessful Close must not strand the handler
+			panic(http.ErrAbortHandler)
+		case <-fixtureCtx.Done():
+			panic(http.ErrAbortHandler)
+		}
 	})
 
-	_, err := client.Get(fmt.Sprintf("https://localhost:%d/shutdown", port))
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, fmt.Sprintf("https://localhost:%d/shutdown", port), nil)
+	require.NoError(t, err)
+	resp, err = client.Do(req)
 	require.Error(t, err)
 	var appErr *http3.Error
 	require.ErrorAs(t, err, &appErr)
