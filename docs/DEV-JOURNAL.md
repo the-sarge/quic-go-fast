@@ -2421,3 +2421,26 @@ The [approved Agent Brief](https://github.com/the-sarge/quic-go-fast/issues/403#
 ### Next
 
 [#398](https://github.com/the-sarge/quic-go-fast/issues/398) remains the live tracking surface for the remaining fixture-worker slices. Revalidate and record the regression-cleanup hardening follow-up, record this slice's precise closure evidence, and complete its OmniFocus task after this journal lands; completing #403 does not close the umbrella.
+
+---
+
+## HTTP fixture failure reporting landed - 2026-09-19 00:34 EDT
+
+**Main:** `b7689a9ca03a`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #440](https://github.com/the-sarge/quic-go-fast/pull/440), closing [#404](https://github.com/the-sarge/quic-go-fast/issues/404). The deadline, gzip, context/accept and shutdown HTTP fixtures report callback/worker errors to the owning test and observe complete work after cancellation and bounded cleanup. Production behavior and the existing HTTP predicates are unchanged.
+
+### Decisions
+
+The approved [repair and validation record](https://github.com/the-sarge/quic-go-fast/pull/440) includes a bounded corruption-capture correction prompted by Windows CI: seal the capture prefix at Dial completion and defer final Sync/Close to existing cleanup after the network exchange. A controlled delay and a maintained real-UDP regression discriminated the old and corrected ordering without increasing timeouts.
+
+### Validation
+
+Final certification at `7c7d0dbb9652004fb7e2e6047f6a3ff916a7820a` passed expanded focused tests normally and with race detection, the full affected package with the existing integration CI time scale, vet, tidy, formatting and whitespace checks. Five operation-error diagnostics and five early-owner-exit diagnostics reported their intentional failures and completed. Initial RAS findings were independently dispositioned and accepted fixes verified; the one replacement review completed with zero findings. All 33 hosted checks passed, including Windows integration. Earlier default-scale full-package runs exposed unchanged HTTP idle-fixture failures, retained and disclosed in the PR; this work makes no claim to resolve those scenarios.
+
+### Next
+
+[#398 remains the live tracking umbrella](https://github.com/the-sarge/quic-go-fast/issues/398) for the remaining fixture slices and explicit dispositions. The deferred shutdown cleanup/comment polish was rechecked against merged code and remains marginal; no additional follow-up ticket is warranted.
