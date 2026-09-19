@@ -17,12 +17,17 @@ const dialCaptureEventBytes = 32 << 10
 type dialCapture struct {
 	mu                             sync.Mutex
 	events                         []json.RawMessage
+	milestones                     map[string]string
 	bytes, dropped, encodingErrors int
 	done                           bool
 }
 
 func newDialCapture(name string) *dialCapture {
-	c := &dialCapture{}
+	c := &dialCapture{milestones: map[string]string{
+		"original_socket":  "unavailable: dial-result synchronization not observed",
+		"cancel_requested": "not reached in fixture; deferred cleanup may cancel",
+		"dial_return":      "unobserved",
+	}}
 	c.record("start", map[string]any{"test": name, "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH, "args": os.Args, "run_id": os.Getenv("QUIC_GO_HTTP_RUN_ID"), "timescale": os.Getenv("TIMESCALE_FACTOR"), "source": "source and actual shuffle seed belong to the matching command artifact"})
 	return c
 }
@@ -45,6 +50,9 @@ func (c *dialCapture) record(event string, data any) {
 	if c.bytes+len(line) > dialCaptureEventBytes {
 		c.dropped++
 		return
+	}
+	if _, tracked := c.milestones[event]; tracked {
+		c.milestones[event] = "recorded"
 	}
 	c.events = append(c.events, line)
 	c.bytes += len(line)
@@ -108,7 +116,7 @@ func (c *dialCapture) finish(failed bool) []byte {
 	stack := make([]byte, 64<<10)
 	n := runtime.Stack(stack, true)
 	report := map[string]any{
-		"schema": 1, "events": c.events, "dropped": c.dropped, "encoding_errors": c.encodingErrors,
+		"schema": 1, "events": c.events, "milestones": c.milestones, "dropped": c.dropped, "encoding_errors": c.encodingErrors,
 		"complete_observations": c.dropped == 0 && c.encodingErrors == 0,
 		"goroutines":            string(stack[:n]), "goroutines_truncated": n == len(stack),
 		"scope":                   "admitted observations before fixture cleanup; not transport quiescence",

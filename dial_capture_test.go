@@ -52,6 +52,7 @@ func TestDialCaptureFixture(t *testing.T) {
 			require.NotNil(t, report)
 			require.Equal(t, true, report["complete_observations"])
 			require.NotEmpty(t, report["goroutines"])
+			require.Equal(t, map[string]any{"original_socket": "recorded", "cancel_requested": "recorded", "dial_return": "recorded"}, report["milestones"])
 			var sockets int
 			for _, raw := range report["events"].([]any) {
 				event := raw.(map[string]any)
@@ -128,4 +129,18 @@ func TestDialCaptureIncomplete(t *testing.T) {
 	require.Nil(t, capture.finish(false))
 	capture.record("late", "outside window")
 	require.Nil(t, capture.finish(true))
+}
+
+func TestDialCaptureEarlyExit(t *testing.T) {
+	capture := newDialCapture(t.Name())
+	capture.record("datagram_received", map[string]any{"error": "receive failed before dial completion"})
+	var report struct {
+		Milestones map[string]string
+	}
+	require.NoError(t, json.Unmarshal(capture.finish(true), &report))
+	require.Equal(t, map[string]string{
+		"original_socket":  "unavailable: dial-result synchronization not observed",
+		"cancel_requested": "not reached in fixture; deferred cleanup may cancel",
+		"dial_return":      "unobserved",
+	}, report.Milestones)
 }
