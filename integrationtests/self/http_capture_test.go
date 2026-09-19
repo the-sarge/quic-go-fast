@@ -158,7 +158,7 @@ func TestHTTPCaptureFixtureFailure(t *testing.T) {
 				for _, milestone := range []string{"client1", "client2", "server1", "server2", "listener client=false", "accept_enter", "accept_return", "admitted", "body_consumed", "handshake_complete"} {
 					require.Contains(t, string(data), milestone)
 				}
-				var milestones = make(map[string]string)
+				milestones := make(map[string]string)
 				for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
 					var record httpCaptureRecord
 					require.NoError(t, json.Unmarshal(line, &record))
