@@ -20,6 +20,8 @@ type dialCapture struct {
 	milestones                     map[string]string
 	bytes, dropped, encodingErrors int
 	done                           bool
+	rebindStarted                  time.Time
+	rebindAddress                  string
 }
 
 func newDialCapture(name string) *dialCapture {
@@ -38,6 +40,10 @@ func (c *dialCapture) record(event string, data any) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.recordLocked(event, data)
+}
+
+func (c *dialCapture) recordLocked(event string, data any) {
 	if c.done {
 		return
 	}
@@ -93,10 +99,24 @@ func (c *dialCapture) observeSocket(socket *net.UDPConn) {
 }
 
 func (c *dialCapture) rebind(addr *net.UDPAddr) (*net.UDPConn, error) {
+	return c.rebindWith(addr, net.ListenUDP)
+}
+
+func (c *dialCapture) rebindWith(addr *net.UDPAddr, listen func(string, *net.UDPAddr) (*net.UDPConn, error)) (*net.UDPConn, error) {
 	started := time.Now()
-	c.record("rebind_enter", map[string]any{"network": "udp", "address": addr.String()})
-	conn, err := net.ListenUDP("udp", addr)
-	c.record("rebind_return", map[string]any{"address": addr.String(), "duration_ns": time.Since(started).Nanoseconds(), "error": dialCaptureError(err)})
+	c.mu.Lock()
+	if !c.done {
+		c.rebindStarted, c.rebindAddress = started, addr.String()
+		c.recordLocked("rebind_enter", map[string]any{"network": "udp", "address": addr.String()})
+	}
+	c.mu.Unlock()
+	conn, err := listen("udp", addr)
+	c.mu.Lock()
+	if !c.done {
+		c.rebindStarted = time.Time{}
+		c.recordLocked("rebind_return", map[string]any{"address": addr.String(), "duration_ns": time.Since(started).Nanoseconds(), "error": dialCaptureError(err)})
+	}
+	c.mu.Unlock()
 	return conn, err
 }
 
@@ -117,10 +137,15 @@ func (c *dialCapture) finish(failed bool) []byte {
 	n := runtime.Stack(stack, true)
 	report := map[string]any{
 		"schema": 1, "events": c.events, "milestones": c.milestones, "dropped": c.dropped, "encoding_errors": c.encodingErrors,
-		"complete_observations": c.dropped == 0 && c.encodingErrors == 0,
+		"complete_observations": c.dropped == 0 && c.encodingErrors == 0 && c.rebindStarted.IsZero(),
 		"goroutines":            string(stack[:n]), "goroutines_truncated": n == len(stack),
 		"scope":                   "admitted observations before fixture cleanup; not transport quiescence",
 		"production_close_result": "unavailable", "receive_loop_completion": "unavailable", "other_port_owner": "unavailable",
+	}
+	if !c.rebindStarted.IsZero() {
+		report["unfinished_rebind"] = map[string]any{
+			"address": c.rebindAddress, "result": "unavailable", "elapsed_ns": time.Since(c.rebindStarted).Nanoseconds(),
+		}
 	}
 	data, err := json.Marshal(report)
 	if err != nil || len(data) > 256<<10 {

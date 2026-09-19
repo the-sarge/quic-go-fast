@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -143,4 +144,38 @@ func TestDialCaptureEarlyExit(t *testing.T) {
 		"cancel_requested": "not requested before fixture exit",
 		"dial_return":      "unobserved",
 	}, report.Milestones)
+}
+
+func TestDialCaptureUnfinishedRebind(t *testing.T) {
+	capture := newDialCapture(t.Name())
+	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345}
+	entered, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	releaseBind := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(func() {
+		releaseBind()
+		<-done
+	})
+	go func() {
+		defer close(done)
+		capture.rebindWith(addr, func(string, *net.UDPAddr) (*net.UDPConn, error) {
+			close(entered)
+			<-release
+			return nil, net.ErrClosed
+		})
+	}()
+	<-entered
+	data := capture.finish(true)
+	var report map[string]any
+	require.NoError(t, json.Unmarshal(data, &report))
+	require.Equal(t, false, report["complete_observations"])
+	pending := report["unfinished_rebind"].(map[string]any)
+	require.Equal(t, addr.String(), pending["address"])
+	require.Equal(t, "unavailable", pending["result"])
+	require.GreaterOrEqual(t, pending["elapsed_ns"].(float64), float64(0))
+	require.NotContains(t, pending, "duration_ns")
+	require.Contains(t, string(data), "rebind_enter")
+	require.NotContains(t, string(data), "rebind_return")
+	releaseBind()
+	<-done
+	require.Nil(t, capture.finish(true))
 }
