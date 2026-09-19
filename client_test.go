@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -59,6 +60,17 @@ func testDial(t *testing.T,
 	dialFn func(context.Context, net.Addr) error,
 	shouldCloseConn bool,
 ) {
+	var capture *dialCapture
+	var socket **net.UDPConn
+	if shouldCloseConn {
+		capture = newDialCapture(t.Name())
+		socket = captureAddrSocket(t)
+		defer func() {
+			if report := capture.finish(t.Failed()); report != nil {
+				t.Logf("dial-capture %s", report)
+			}
+		}()
+	}
 	server := newUDPConnLocalhost(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,12 +79,19 @@ func testDial(t *testing.T,
 
 	server.SetReadDeadline(time.Now().Add(time.Second))
 	_, addr, err := server.ReadFrom(make([]byte, 1500))
+	capture.record("datagram_received", map[string]any{"source": addr, "server": server.LocalAddr().String(), "error": dialCaptureError(err)})
 	require.NoError(t, err)
+	capture.record("cancel_requested", nil)
 	cancel()
 	select {
 	case err := <-errChan:
+		capture.record("dial_return", map[string]any{"error": dialCaptureError(err), "canceled": ctx.Err() == context.Canceled})
+		if capture != nil {
+			capture.observeSocket(*socket)
+		}
 		require.ErrorIs(t, err, context.Canceled)
 	case <-time.After(time.Second):
+		capture.record("dial_result_timeout", "original socket state unavailable without dial completion")
 		t.Fatal("timeout")
 	}
 
@@ -80,14 +99,18 @@ func testDial(t *testing.T,
 		// The socket that the client used for dialing should be closed now.
 		// Binding to the same address would error if the address was still in use.
 		require.Eventually(t, func() bool {
-			conn, err := net.ListenUDP("udp", addr.(*net.UDPAddr))
+			conn, err := capture.rebind(addr.(*net.UDPAddr))
 			if err != nil {
 				return false
 			}
-			conn.Close()
+			closeErr := conn.Close()
+			capture.record("rebind_socket_close", dialCaptureError(closeErr))
 			return true
 		}, scaleDuration(200*time.Millisecond), scaleDuration(10*time.Millisecond))
 		require.False(t, areTransportsRunning())
+		if os.Getenv("QUIC_GO_DIAL_CAPTURE_FAIL_TEST") == t.Name() {
+			t.Error("controlled dial capture failure")
+		}
 		return
 	}
 
