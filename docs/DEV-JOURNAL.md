@@ -2444,3 +2444,16 @@ Final certification at `7c7d0dbb9652004fb7e2e6047f6a3ff916a7820a` passed expande
 ### Next
 
 [#398 remains the live tracking umbrella](https://github.com/the-sarge/quic-go-fast/issues/398) for the remaining fixture slices and explicit dispositions. The deferred shutdown cleanup/comment polish was rechecked against merged code and remains marginal; no additional follow-up ticket is warranted.
+
+---
+
+## Close and GSO callback repair landed - 2026-09-19 01:20 EDT
+
+**Main:** `1b54fed97487`
+**Actor:** Codex
+
+**Summary:** Merged [PR #442](https://github.com/the-sarge/quic-go-fast/pull/442) and closed [issue #405](https://github.com/the-sarge/quic-go-fast/issues/405). Both connection-close variants and the three GSO scenarios now capture owned packet observations in background callbacks and validate them after connection/send-worker teardown. Decoding uses captured metadata and a local wire parser, with malformed-snapshot guards; callback returns, write expectations, protocol ownership and existing success predicates remain intact. The change is confined to two test files.
+
+**Validation:** The focused close/GSO family and malformed-snapshot checks passed. One injected close-decode error and one first-write ECN mismatch in each GSO scenario each failed informatively without a deadlock panic, timeout, missing result or skipped write; temporary mutations were removed. The affected package, focused race run, `go vet .`, `go mod tidy -diff`, formatting and diff checks passed. All 33 applicable hosted checks passed on head `d2ca630d4f629175a35deb31c9fa7b831c9d2b51`. RAS run `20260919T050948-302f4f09e50a2cf61539ff28` completed with no fix or follow-up obligations; its hypothetical stuck-connection cleanup finding was independently rejected as unsupported within the [approved bounded contract](https://github.com/the-sarge/quic-go-fast/issues/405#issuecomment-5735134959).
+
+**Next:** The five deferred callback groups remain owned by [issue #407](https://github.com/the-sarge/quic-go-fast/issues/407); [parent #398](https://github.com/the-sarge/quic-go-fast/issues/398) remains open as the live tracking view for the remaining fixture repairs.
