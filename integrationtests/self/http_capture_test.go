@@ -156,22 +156,32 @@ func TestHTTPCaptureFixtureFailure(t *testing.T) {
 				require.Contains(t, string(data), "connection_published")
 				require.Contains(t, string(data), "HTTP idle timer")
 			case "TestHTTP3ServerHotswap":
-				for _, milestone := range []string{"client1", "client2", "server1", "server2", "listener client=false", "accept_enter", "accept_return", "admitted", "body_consumed", "handshake_complete"} {
-					require.Contains(t, string(data), milestone)
-				}
 				milestones := make(map[string]string)
 				for line := range bytes.SplitSeq(bytes.TrimSpace(data), []byte("\n")) {
 					var record httpCaptureRecord
 					require.NoError(t, json.Unmarshal(line, &record))
 					milestones[record.Source+"/"+record.Event] = record.Phase
+					if record.Event == "transport:packet_sent" || record.Event == "transport:packet_received" {
+						// Initial CID suffixes vary; endpoint identity does not.
+						endpoint, _, _ := strings.Cut(record.Source, " client=")
+						milestones[endpoint+"/"+record.Event] = "observed"
+					}
 				}
 				for _, source := range []string{"client1", "client2"} {
 					for _, event := range []string{"early_dial_return", "response_headers", "body_consumed", "response_tls"} {
 						require.Equal(t, "test", milestones[source+"/"+event], source+"/"+event)
 					}
 				}
+				for _, source := range []string{"client1", "client2", "listener"} {
+					for _, event := range []string{"transport:packet_sent", "transport:packet_received"} {
+						require.Contains(t, milestones, source+"/"+event)
+					}
+				}
 				for _, source := range []string{"server1", "server2"} {
-					for _, event := range []string{"accept_enter", "admitted", "handler_enter", "handler_write", "serve_return"} {
+					// Watcher scheduling can place its handshake observation in
+					// cleanup; phase is observation time, not handshake time.
+					require.Contains(t, milestones, source+"/handshake_complete")
+					for _, event := range []string{"accept_enter", "accept_return", "admitted", "handler_enter", "handler_write", "serve_return"} {
 						require.Equal(t, "test", milestones[source+"/"+event], source+"/"+event)
 					}
 				}

@@ -265,6 +265,16 @@ func (c *httpCapture) observeConn(source string, conn *quic.Conn) {
 	go func() {
 		defer c.workers.Done()
 		handshake := conn.HandshakeComplete()
+		// Closure or recorder shutdown can win the select even after the
+		// handshake signal is ready. Retain that final observation without
+		// waiting, and avoid emitting it twice after the normal signal path.
+		defer func() {
+			select {
+			case <-handshake:
+				c.record(source, "handshake_complete", fmt.Sprintf("conn=%p", conn))
+			default:
+			}
+		}()
 		for {
 			select {
 			case <-handshake:
