@@ -2491,3 +2491,22 @@ The bounded lifecycle family covers successful completion, an injected error aft
 ### Next
 
 [#410](https://github.com/the-sarge/quic-go-fast/issues/410) remains the independent simnet repair in the [live #406 tracker](https://github.com/the-sarge/quic-go-fast/issues/406); #406 and [#398](https://github.com/the-sarge/quic-go-fast/issues/398) remain open. No historical-failure attribution or sibling repair is claimed.
+
+---
+
+## Simnet deadline writer ownership repair - 2026-09-19 10:22 EDT
+
+**Main:** `3fe1b081e0c2`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #448](https://github.com/the-sarge/quic-go-fast/pull/448), closing [#410](https://github.com/the-sarge/quic-go-fast/issues/410). The simnet read-deadline subtest now checks its writer's original byte count/error on the owning goroutine. Cleanup is registered before fallible work, stops local endpoints, and observes completion within a five-second bound before reset. Result publication does not depend on an active consumer. All four deadline scenarios, deadline-error identity, payload/address predicates, and the 50 ms read deadline versus 100 ms delivery latency remain intact; no production simulator/router or timer behavior changed.
+
+### Validation
+
+One error-handoff removal control failed the sentinel-identity/owner-reporting regression and was restored byte-for-byte. Success, controlled write error and early fatal parent exit passed as contained lifecycle cases, including release and actual completion before reset. The full deadline/lifecycle family passed once normally and once under the race detector; affected-package tests, vet, module tidiness, lint and diff checks passed. Initial RAS review `20260919T141357-de02706341561d3918e0e183` required no fixes or follow-ups; an alias-spelling observation was independently rejected because both references remain identical until ordered cleanup. All 33 hosted checks passed on certified head `8f7dbd6cf507b2a0bb66e187b3c4b28e68e891ed`. The [review and exact-head certification record](https://github.com/the-sarge/quic-go-fast/pull/448#issuecomment-5742606420) retains the evidence, control-driver diagnostic caveat, and bounded scope. The existing join was useful; this repair makes no claim that triage reproduced a missing join or identified historical failure causes.
+
+### Next
+
+Record this child's closure in the [live #406 tracker](https://github.com/the-sarge/quic-go-fast/issues/406) and complete its OmniFocus task after the journal lands. Keep #406 and [umbrella #398](https://github.com/the-sarge/quic-go-fast/issues/398) open for their aggregate disposition; no additional review follow-ups are warranted.
