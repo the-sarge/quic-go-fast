@@ -2338,6 +2338,27 @@ RAS review `20260919T001610-363f17dac3f05c69322372fb` completed with all five re
 
 ---
 
+## Deterministic RNG conversion coverage landed - 2026-09-18 21:03 EDT
+
+**Main:** `9fe6c5043143`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #431](https://github.com/the-sarge/quic-go-fast/pull/431), closing [issue #402](https://github.com/the-sarge/quic-go-fast/issues/402). Replaced the RNG sample-average acceptance rule with 14 deterministic conversion cases through the actual `Rand` methods in an isolated child test process. Retained all 1,000 real-randomness range checks at bound 12345678. Production code and runtime behavior are unchanged.
+
+### Decisions
+
+The [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/402#issuecomment-5735108352) limits the guarantee to finite conversion mappings and trusts `crypto/rand` for entropy quality. The [maintained test contract](agents/rng-conversion-402.md) records fixture ownership, exact consumption, bounded child execution, evidence limits and non-goals.
+
+### Validation
+
+Go 1.26.0 and 1.27.1 focused RNG checks, utilities package tests, the focused race gate, vet, module tidiness and targeted lint passed. The 1,000-zero-input positive control passed; a temporary consume-one-draw/return-midpoint mutant passed the range test but failed nine corpus cases. Production source was restored byte-for-byte. These are finite assertion-sensitivity controls, not an empirical flake-rate estimate.
+
+RAS run `20260919T005531-24fb7441353e3ba22256ee54` completed with all five reviewers and adjudicators, no required fixes, and no required follow-ups. The two optional fixture-hardening/diagnostic observations were independently deferred as marginal out-of-contract improvements and rechecked at merged commit `9fe6c50431438dfdba0586b619ac1e868bd3a79b`; neither warrants a tracking task. [The PR receipt](https://github.com/the-sarge/quic-go-fast/pull/431#issuecomment-5738078105) records dispositions and exact-head certification. All 33 hosted checks succeeded before squash merge. No RAS review was run for this journal-only append.
+
+---
+
 ## Retained HTTP/3 hotswap capture delivered - 2026-09-18 21:08 EDT
 
 **Main:** `2b14360d3814`
