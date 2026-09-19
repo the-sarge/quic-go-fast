@@ -2335,3 +2335,24 @@ Merged [PR #419](https://github.com/the-sarge/quic-go-fast/pull/419), closing [i
 The deterministic same-second regression failed against the original allocator with one file instead of three. The repair passes sequential and bounded four-caller tests asserting preserved pre-existing bytes and separate, parseable histories with exact per-owner payloads. Tools and qlogwriter tests, focused race coverage, the self integration suite, affected-package vet, tidy-diff, and focused lint passed. A qlog-enabled two-transport integration run completed and retained two parseable transport artifacts matching the existing collection glob; normal transport output contained headers, while event isolation was exercised by the unit regressions.
 
 RAS review `20260919T001610-363f17dac3f05c69322372fb` completed with all five reviewers successful, no findings, and no follow-ups or fix verification required. Exact-head local certification passed at `7aa89f52a977ab2942a8c8992f81828c90562e31`; all 33 hosted checks were successful before the matching head was squash-merged. No RAS review was run for this journal entry.
+
+---
+
+## Deterministic RNG conversion coverage landed - 2026-09-18 21:03 EDT
+
+**Main:** `9fe6c5043143`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #431](https://github.com/the-sarge/quic-go-fast/pull/431), closing [issue #402](https://github.com/the-sarge/quic-go-fast/issues/402). Replaced the RNG sample-average acceptance rule with 14 deterministic conversion cases through the actual `Rand` methods in an isolated child test process. Retained all 1,000 real-randomness range checks at bound 12345678. Production code and runtime behavior are unchanged.
+
+### Decisions
+
+The [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/402#issuecomment-5735108352) limits the guarantee to finite conversion mappings and trusts `crypto/rand` for entropy quality. The [maintained test contract](agents/rng-conversion-402.md) records fixture ownership, exact consumption, bounded child execution, evidence limits and non-goals.
+
+### Validation
+
+Go 1.26.0 and 1.27.1 focused RNG checks, utilities package tests, the focused race gate, vet, module tidiness and targeted lint passed. The 1,000-zero-input positive control passed; a temporary consume-one-draw/return-midpoint mutant passed the range test but failed nine corpus cases. Production source was restored byte-for-byte. These are finite assertion-sensitivity controls, not an empirical flake-rate estimate.
+
+RAS run `20260919T005531-24fb7441353e3ba22256ee54` completed with all five reviewers and adjudicators, no required fixes, and no required follow-ups. The two optional fixture-hardening/diagnostic observations were independently deferred as marginal out-of-contract improvements and rechecked at merged commit `9fe6c50431438dfdba0586b619ac1e868bd3a79b`; neither warrants a tracking task. [The PR receipt](https://github.com/the-sarge/quic-go-fast/pull/431#issuecomment-5738078105) records dispositions and exact-head certification. All 33 hosted checks succeeded before squash merge. No RAS review was run for this journal-only append.
