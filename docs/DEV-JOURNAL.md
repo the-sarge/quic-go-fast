@@ -2510,3 +2510,22 @@ One error-handoff removal control failed the sentinel-identity/owner-reporting r
 ### Next
 
 Record this child's closure in the [live #406 tracker](https://github.com/the-sarge/quic-go-fast/issues/406) and complete its OmniFocus task after the journal lands. Keep #406 and [umbrella #398](https://github.com/the-sarge/quic-go-fast/issues/398) open for their aggregate disposition; no additional review follow-ups are warranted.
+
+---
+
+## Scheduling and path callback validation repair - 2026-09-19 16:20 EDT
+
+**Main:** `5ed92c46f509`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #450](https://github.com/the-sarge/quic-go-fast/pull/450), closing [#407](https://github.com/the-sarge/quic-go-fast/issues/407). Receive prioritization, idle timeout, keep-alive, both send-queue stages and queued/direct path validation now capture owned packet observations and validate them on the owning test goroutine. Scenario-local teardown is guaranteed before fatal validation, including mid-scenario probe extraction; ordinary path writes are all retained and checked after the send worker joins. Timing, event order, queue state, routing/migration gates, releases, real packet construction and recovery registration remain intact. Production code, generated mocks and frozen evidence are unchanged.
+
+### Validation
+
+All eight observation-only negative checks produced the intended parent-side diagnostic and exited without bubble panic, secondary timeout, missing mock call or watchdog expiry. Temporary injections were removed byte-for-byte. The focused family passed normally and under race detection; affected-package tests, bounded malformed-decoder regressions, vet, module tidiness, lint and diff checks passed. RAS review `20260919T201140-b25a38e9c19c744704bf0a0d` completed with five reviewers, zero findings and no follow-ups. Exact-head local certification and all 33 hosted check entries passed for `237756dcc512bd6821a7c2f23f5d5ecba9e32b6a` against base `1a36f3a2441f7bf0bb335c3f9e9a76a7dc866a1c`; [PR #450's validation record](https://github.com/the-sarge/quic-go-fast/pull/450) retains the contract, finite evidence and review receipt. The first RAS launch failed before reviewer execution because its dedicated worktree directory was absent; creating it resolved the tooling failure. Controlled negatives establish failure handling, not natural corruption incidence or historical failure causes.
+
+### Next
+
+Complete the mirrored OmniFocus task after this journal lands. [The live #398 tracker](https://github.com/the-sarge/quic-go-fast/issues/398) remains open for its remaining independently tracked work; no child issues or additional evidence campaign are introduced.
