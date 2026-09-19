@@ -25,7 +25,7 @@ type dialCapture struct {
 func newDialCapture(name string) *dialCapture {
 	c := &dialCapture{milestones: map[string]string{
 		"original_socket":  "unavailable: dial-result synchronization not observed",
-		"cancel_requested": "not reached in fixture; deferred cleanup may cancel",
+		"cancel_requested": "not requested before fixture exit",
 		"dial_return":      "unobserved",
 	}}
 	c.record("start", map[string]any{"test": name, "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH, "args": os.Args, "run_id": os.Getenv("QUIC_GO_HTTP_RUN_ID"), "timescale": os.Getenv("TIMESCALE_FACTOR"), "source": "source and actual shuffle seed belong to the matching command artifact"})

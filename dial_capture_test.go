@@ -140,7 +140,7 @@ func TestDialCaptureEarlyExit(t *testing.T) {
 	require.NoError(t, json.Unmarshal(capture.finish(true), &report))
 	require.Equal(t, map[string]string{
 		"original_socket":  "unavailable: dial-result synchronization not observed",
-		"cancel_requested": "not reached in fixture; deferred cleanup may cancel",
+		"cancel_requested": "not requested before fixture exit",
 		"dial_return":      "unobserved",
 	}, report.Milestones)
 }
