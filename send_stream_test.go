@@ -10,6 +10,7 @@ import (
 	mrand "math/rand/v2"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
 	"slices"
 	"testing"
@@ -1425,6 +1426,12 @@ func TestSendStreamRetransmissionFraming(t *testing.T) {
 // Half of these STREAM frames are then received and their content saved, while the other half is reported lost
 // and has to be retransmitted.
 func TestSendStreamRetransmitDataUntilAcknowledged(t *testing.T) {
+	testSendStreamRetransmission(t, (*SendStream).Write, nil)
+}
+
+// The hooks belong only to the writer-lifecycle regressions below.
+func testSendStreamRetransmission(t *testing.T, write func(*SendStream, []byte) (int, error), beforeDrain func(*SendStream)) {
+	t.Helper()
 	const streamID protocol.StreamID = 123456
 	const dataLen = 1 << 22 // 4 MB
 	mockCtrl := gomock.NewController(t)
@@ -1438,21 +1445,53 @@ func TestSendStreamRetransmitDataUntilAcknowledged(t *testing.T) {
 	data := make([]byte, dataLen)
 	_, err := rand.Read(data)
 	require.NoError(t, err)
+	type writeResult struct {
+		n   int
+		err error
+	}
+	results := make(chan writeResult, 1)
+	var result writeResult
 	done := make(chan struct{})
+	// Register after the controller so the writer joins before mock teardown.
+	// Shutdown wakes a blocked Write even when the owner exits via Fatal.
+	t.Cleanup(func() {
+		str.closeForShutdown(errors.New("retransmission fixture shutdown"))
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("timeout joining retransmission writer")
+		}
+		if results != nil {
+			result = <-results
+		}
+		t.Logf("retransmission writer joined: n=%d err=%v", result.n, result.err)
+	})
 	go func() {
 		defer close(done)
-		_, err := str.Write(data)
-		require.NoError(t, err)
-		str.Close()
+		n, err := write(str, data)
+		results <- writeResult{n: n, err: err}
 	}()
 
 	var completed bool
-	mockSender.EXPECT().onStreamCompleted(streamID).Do(func(protocol.StreamID) { completed = true })
+	// Completion is mandatory on success, but an early failure shuts down
+	// locally without acknowledging FIN. Enforce success in the drain below.
+	mockSender.EXPECT().onStreamCompleted(streamID).MaxTimes(1).Do(func(protocol.StreamID) { completed = true })
+	if beforeDrain != nil {
+		beforeDrain(str)
+	}
 
 	received := make([]byte, dataLen)
 	var counter int
 	frameQueue := make([]ackhandler.StreamFrame, 0, 32)
-	for !completed || len(frameQueue) > 0 {
+	for results != nil || !completed || len(frameQueue) > 0 {
+		select {
+		case result = <-results:
+			results = nil
+			require.NoError(t, result.err, "writing retransmission payload")
+			require.Equal(t, len(data), result.n)
+			require.NoError(t, str.Close())
+		default:
+		}
 		counter++
 		if counter > 1e6 {
 			t.Fatal("stream should have completed")
@@ -1486,6 +1525,69 @@ func TestSendStreamRetransmitDataUntilAcknowledged(t *testing.T) {
 		runtime.Gosched()
 	}
 	require.Equal(t, data, received)
+}
+
+func TestSendStreamRetransmissionWriterLifecycle(t *testing.T) {
+	const env = "QUIC_GO_RETRANSMISSION_WRITER_SCENARIO"
+	if scenario := os.Getenv(env); scenario != "" {
+		switch scenario {
+		case "success":
+			testSendStreamRetransmission(t, (*SendStream).Write, nil)
+		case "writer-error":
+			testSendStreamRetransmission(t, func(str *SendStream, data []byte) (int, error) {
+				n, err := str.Write(data)
+				if err != nil {
+					return n, err
+				}
+				return n, errors.New("injected retransmission write error")
+			}, nil)
+		case "parent-failure":
+			synctest.Test(t, func(t *testing.T) {
+				testSendStreamRetransmission(t, (*SendStream).Write, func(str *SendStream) {
+					synctest.Wait()
+					str.mutex.Lock()
+					outstanding := len(str.dataForWriting)
+					str.mutex.Unlock()
+					require.Equal(t, 1<<22, outstanding, "writer must still own the payload")
+					t.Fatal("injected retransmission parent failure")
+				})
+			})
+		default:
+			t.Fatalf("unknown retransmission scenario %q", scenario)
+		}
+		return
+	}
+
+	executable, err := os.Executable()
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name, failure, result string
+	}{
+		{"success", "", "n=4194304 err=<nil>"},
+		{"writer-error", "injected retransmission write error", "n=4194304 err=injected retransmission write error"},
+		{"parent-failure", "injected retransmission parent failure", "n=0 err=retransmission fixture shutdown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, executable, "-test.run=^TestSendStreamRetransmissionWriterLifecycle$", "-test.v", "-test.timeout=8s")
+			cmd.Env = append(os.Environ(), env+"="+tc.name)
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, ctx.Err(), "%s", output)
+			if tc.failure == "" {
+				require.NoError(t, err, "%s", output)
+			} else {
+				var exitErr *exec.ExitError
+				require.ErrorAs(t, err, &exitErr, "%s", output)
+				require.Equal(t, 1, exitErr.ExitCode(), "%s", output)
+				require.Contains(t, string(output), tc.failure)
+			}
+			require.Contains(t, string(output), "retransmission writer joined: "+tc.result)
+			require.NotContains(t, string(output), "stream should have completed")
+			require.NotContains(t, string(output), "missing call(s)")
+			require.NotContains(t, string(output), "DATA RACE")
+		})
+	}
 }
 
 func TestSendStreamResetStreamAtCancelBeforeSend(t *testing.T) {
