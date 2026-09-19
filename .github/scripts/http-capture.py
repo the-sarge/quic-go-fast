@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Retain bounded self-test output and provenance without changing its exit code."""
+"""Retain bounded test output and provenance without changing its exit code."""
 import argparse
 import hashlib
 import json
@@ -56,7 +56,7 @@ def checksums(root):
         (slot / "SHA256SUMS").write_text("".join(lines), encoding="utf-8")
 
 
-def run(root, label, argv):
+def run(root, label, argv, unit_source=False):
     slot = None
     log = None
     errors = []
@@ -65,6 +65,14 @@ def run(root, label, argv):
     run_id = f"{label}-{time.time_ns()}"
     try:
         slot = reserve(root)
+        source_paths = []
+        if unit_source:
+            prefix = command_text("git", "rev-parse", "--show-prefix")
+            if prefix["exit"] != 0 or prefix["output"].strip():
+                raise OSError("unit source capture requires the repository root")
+            if os.path.lexists("integrationtests"):
+                raise OSError("integrationtests must be absent for unit source capture")
+            source_paths = ["--", ".", ":(top,exclude)integrationtests"]
         metadata = {
             "schema": 1, "run_id": run_id, "command": argv,
             "cwd": os.getcwd(), "started_ns": time.time_ns(),
@@ -72,7 +80,11 @@ def run(root, label, argv):
             "python": platform.python_version(),
             "head": command_text("git", "rev-parse", "HEAD"),
             "tree": command_text("git", "rev-parse", "HEAD^{tree}"),
-            "status": command_text("git", "status", "--porcelain"),
+            "status": command_text("git", "status", "--porcelain", *source_paths),
+            "source_scope": {
+                "excluded_paths": ["integrationtests"] if unit_source else [],
+                "reason": "unit workflow removes integrationtests before testing" if unit_source else "whole checkout",
+            },
             "go": command_text("go", "version"),
             "environment": {key: os.environ.get(key, "") for key in (
                 "TIMESCALE_FACTOR", "GOTOOLCHAIN", "GODEBUG", "GOMAXPROCS",
@@ -81,12 +93,15 @@ def run(root, label, argv):
         }
         # Preserve a bounded patch for local instrumentation. Clean CI has an
         # empty patch and immutable checked-out HEAD/tree (including merge refs).
-        patch = subprocess.check_output(["git", "diff", "--binary", "HEAD"], timeout=20)
+        patch = subprocess.check_output(["git", "diff", "--binary", "HEAD", *source_paths], timeout=20)
         if len(patch) > RESERVE_BYTES // 2:
             raise OSError("HTTP capture source patch budget exceeded")
         (slot / "source.patch").write_bytes(patch)
         metadata["patch_sha256"] = hashlib.sha256(patch).hexdigest()
-        metadata["source_complete"] = not command_text("git", "ls-files", "--others", "--exclude-standard")["output"]
+        untracked = command_text("git", "ls-files", "--others", "--exclude-standard", *source_paths)
+        metadata["source_complete"] = untracked["exit"] == 0 and not untracked["output"] and all(
+            metadata[key]["exit"] == 0 for key in ("head", "tree", "status")
+        )
         write_json(slot / "run.json", metadata)
         log = (slot / "output.log").open("wb", buffering=0)
     except (OSError, subprocess.SubprocessError) as exc:
@@ -131,6 +146,7 @@ def main():
     parser.add_argument("action", choices=["run", "finalize"])
     parser.add_argument("--root", default=os.environ.get("QUIC_GO_HTTP_CAPTURE_DIR"))
     parser.add_argument("--label", default="local")
+    parser.add_argument("--unit-source", action="store_true", help="record the unit checkout with integrationtests removed")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if not args.root:
@@ -144,7 +160,7 @@ def main():
         argv = argv[1:]
     if not argv:
         parser.error("a command after -- is required")
-    return run(root, args.label, argv)
+    return run(root, args.label, argv, unit_source=args.unit_source)
 
 
 if __name__ == "__main__":
