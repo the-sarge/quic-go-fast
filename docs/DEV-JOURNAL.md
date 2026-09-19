@@ -2356,3 +2356,24 @@ The [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/402#
 Go 1.26.0 and 1.27.1 focused RNG checks, utilities package tests, the focused race gate, vet, module tidiness and targeted lint passed. The 1,000-zero-input positive control passed; a temporary consume-one-draw/return-midpoint mutant passed the range test but failed nine corpus cases. Production source was restored byte-for-byte. These are finite assertion-sensitivity controls, not an empirical flake-rate estimate.
 
 RAS run `20260919T005531-24fb7441353e3ba22256ee54` completed with all five reviewers and adjudicators, no required fixes, and no required follow-ups. The two optional fixture-hardening/diagnostic observations were independently deferred as marginal out-of-contract improvements and rechecked at merged commit `9fe6c50431438dfdba0586b619ac1e868bd3a79b`; neither warrants a tracking task. [The PR receipt](https://github.com/the-sarge/quic-go-fast/pull/431#issuecomment-5738078105) records dispositions and exact-head certification. All 33 hosted checks succeeded before squash merge. No RAS review was run for this journal-only append.
+
+---
+
+## Retained HTTP/3 hotswap capture delivered - 2026-09-18 21:08 EDT
+
+**Main:** `2b14360d3814`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #421](https://github.com/the-sarge/quic-go-fast/pull/421), installing retained HTTP/3 hotswap observations for [#188](https://github.com/the-sarge/quic-go-fast/issues/188). Both clients, both HTTP/3 servers and the actual shared listener now record acceptance/admission, handshake, request/header/body and closure boundaries through the existing bounded recorder. The recorder also retains an already-ready handshake signal when its watcher exits. The [maintained contract](agents/hotswap-failure-capture.md) records scope and interpretation limits.
+
+### Validation
+
+Controlled-failure and passing-cleanup regressions passed, as did earlier focused native race and affected-package runs, vet, module tidiness, modernization and lint. Initial RAS review `20260919T004141-f4d32de3caf1e819875ca293` findings were independently fixed; pinned verification resolved all five clusters; replacement review `20260919T005826-b657a57ac52e8abad485a5e2` was clean. All 33 hosted checks passed on candidate `3d1b29533fca77ac4f59c1506537b7861dee0567`.
+
+Final local race certification nevertheless encountered the existing #151 early-idle-expiry boundary in the idle capture subprocess. The maintainer [explicitly authorized that local-check exception](https://github.com/the-sarge/quic-go-fast/pull/421#issuecomment-5738114139); the failed gate was not relabeled as passing or rerun. [Partial natural-failure evidence and limitations](https://github.com/the-sarge/quic-go-fast/issues/151#issuecomment-5738105171) are retained. No idle-timer repair or historical-cause claim is made.
+
+### Next
+
+Keep #188 open while waiting for natural hotswap evidence. Continue the separately planned [#241 socket-rebind capture](https://github.com/the-sarge/quic-go-fast/issues/241); its capture delivery is still pending. The linked issues are the live investigation state.
