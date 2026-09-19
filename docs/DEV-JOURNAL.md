@@ -2472,3 +2472,22 @@ Final certification at `7c7d0dbb9652004fb7e2e6047f6a3ff916a7820a` passed expande
 **Decisions:** Initial RAS run `20260919T053917-a4948600413a39870f2cfb76` identified receive-error masking and regression timing/lifecycle weaknesses; accepted fixes were independently applied and verified. Replacement run `20260919T055710-e8f2ee6cfc1ef945ced1c9aa` required no fixes. The [final review and certification record](https://github.com/the-sarge/quic-go-fast/pull/444#issuecomment-5739823786) records the bounded dispositions. The conditional loss of a receive error if a worker ever exceeds its join bound was rechecked at merged `bb9d674a`, `integrationtests/self/nat_rebinding_fixture_test.go:166`; the branch remains but no accepted case reaches it, so no speculative follow-up ticket or stress campaign is warranted.
 
 **Next:** [Parent #406](https://github.com/the-sarge/quic-go-fast/issues/406) and [umbrella #398](https://github.com/the-sarge/quic-go-fast/issues/398) remain the live tracking surfaces for the other independent repairs. Record this child's closure evidence and complete its OmniFocus task after this journal lands; this slice does not close either parent or reopen cipher reconciliation.
+
+---
+
+## Retransmission writer ownership repair - 2026-09-19 09:52 EDT
+
+**Main:** `e6f1213f9b20`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #446](https://github.com/the-sarge/quic-go-fast/pull/446), closing [#409](https://github.com/the-sarge/quic-go-fast/issues/409). The retransmission fixture now returns the writer byte count/error to its parent, closes the stream from the owner after successful writing, and shuts down and joins the writer before mock teardown. The 4 MiB payload equality, randomized framing/reordering/loss processing and success-path completion requirement remain intact; production code is unchanged.
+
+### Validation
+
+The bounded lifecycle family covers successful completion, an injected error after the real Write, and a fatal parent exit while the real writer still owns the outstanding payload. One shutdown-removal control exposed the blocked writer and bounded join failure; restored focused normal/race runs, affected-package tests, vet, module tidiness and formatting/diff checks passed. RAS review `20260919T133502-bf8db395c77981be63b9a6b7` required no fixes or follow-ups; all 33 hosted checks passed on the certified head. [Review disposition and exact-head evidence](https://github.com/the-sarge/quic-go-fast/pull/446#issuecomment-5742410010) preserve the finite validation boundary.
+
+### Next
+
+[#410](https://github.com/the-sarge/quic-go-fast/issues/410) remains the independent simnet repair in the [live #406 tracker](https://github.com/the-sarge/quic-go-fast/issues/406); #406 and [#398](https://github.com/the-sarge/quic-go-fast/issues/398) remain open. No historical-failure attribution or sibling repair is claimed.
