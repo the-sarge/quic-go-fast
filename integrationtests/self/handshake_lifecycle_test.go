@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -11,6 +12,44 @@ import (
 )
 
 func TestGetConfigForClientLifecycle(t *testing.T) {
+	t.Run("dial error before accept error", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			original := errors.New("controlled handshake accept failure")
+			accept := &configForClientWorker{result: make(chan configForClientResult, 1)}
+			dial := &configForClientWorker{result: make(chan configForClientResult)}
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				// The unbuffered handoff makes the owner see the secondary error first.
+				dial.result <- configForClientResult{err: errors.New("secondary dial failure")}
+				time.Sleep(time.Nanosecond)
+				accept.result <- configForClientResult{err: original}
+			}()
+			_, err := waitConfigForClient(accept, dial)
+			<-done
+			require.ErrorIs(t, err, original)
+		})
+	})
+
+	t.Run("missing publication", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			accept := &configForClientWorker{result: make(chan configForClientResult)}
+			dial := &configForClientWorker{result: make(chan configForClientResult)}
+			_, err := waitConfigForClient(accept, dial)
+			require.ErrorContains(t, err, "timeout waiting for config-for-client")
+		})
+	})
+	t.Run("dial error without accept publication", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			accept := &configForClientWorker{result: make(chan configForClientResult)}
+			dial := &configForClientWorker{result: make(chan configForClientResult, 1)}
+			original := errors.New("dial failure without acceptance")
+			dial.result <- configForClientResult{err: original}
+			_, err := waitConfigForClient(accept, dial)
+			require.ErrorIs(t, err, original)
+		})
+	})
+
 	for _, fail := range []bool{false, true} {
 		name := "success"
 		if fail {

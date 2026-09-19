@@ -82,11 +82,9 @@ func (f *multiplexTest) serve(ln *quic.Listener, write func(*quic.SendStream) er
 			return err
 		}
 	}
-	f.workers.Add(1)
-	go func() {
-		defer f.workers.Done()
+	f.workers.Go(func() {
 		runMultiplexTestServer(f, ln, write)
-	}()
+	})
 }
 
 func runMultiplexTestServer(f *multiplexTest, ln *quic.Listener, write func(*quic.SendStream) error) {
@@ -105,13 +103,11 @@ func runMultiplexTestServer(f *multiplexTest, ln *quic.Listener, write func(*qui
 			return
 		}
 		// The accept worker remains counted until it can no longer admit writers.
-		f.workers.Add(1)
-		go func() {
-			defer f.workers.Done()
+		f.workers.Go(func() {
 			err := write(str)
 			f.recordError(wrapMultiplexWriteError(ln.Addr(), err))
 			f.recordError(wrapMultiplexWriteError(ln.Addr(), str.Close()))
-		}()
+		})
 	}
 }
 
@@ -124,11 +120,9 @@ func wrapMultiplexWriteError(addr net.Addr, err error) error {
 
 func (f *multiplexTest) receive(tr *quic.Transport, addr net.Addr) <-chan error {
 	result := make(chan error, 1)
-	f.workers.Add(1)
-	go func() {
-		defer f.workers.Done()
+	f.workers.Go(func() {
 		result <- dialAndReceiveData(f, tr, addr)
-	}()
+	})
 	return result
 }
 

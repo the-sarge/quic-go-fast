@@ -47,7 +47,10 @@ func (w *configForClientWorker) join() error {
 func waitConfigForClient(accept, dial *configForClientWorker) (*quic.Conn, error) {
 	acceptResult, dialResult := accept.result, dial.result
 	var conn *quic.Conn
-	var timeout <-chan time.Time
+	var dialErr error
+	// Preserve the original one-second dial plus one-second accept allowance,
+	// but diagnose missing publication even if neither worker reports a result.
+	timeout := time.After(2 * time.Second)
 	for acceptResult != nil || dialResult != nil {
 		select {
 		case result := <-acceptResult:
@@ -56,25 +59,20 @@ func waitConfigForClient(accept, dial *configForClientWorker) (*quic.Conn, error
 			}
 			acceptResult = nil
 		case result := <-dialResult:
-			if result.err != nil {
-				// Prefer an already-published accept failure over its client symptom.
-				if acceptResult != nil {
-					select {
-					case accepted := <-acceptResult:
-						if accepted.err != nil {
-							return nil, fmt.Errorf("config-for-client accepting connection: %w", accepted.err)
-						}
-					default:
-					}
-				}
-				return nil, fmt.Errorf("config-for-client dialing: %w", result.err)
-			}
+			// Retain the dial error while acceptance can still report its cause.
+			dialErr = result.err
 			conn = result.conn
 			dialResult = nil
 			timeout = time.After(time.Second)
 		case <-timeout:
+			if dialErr != nil {
+				return nil, fmt.Errorf("config-for-client dialing: %w", dialErr)
+			}
 			return nil, errors.New("timeout waiting for config-for-client accept result")
 		}
+	}
+	if dialErr != nil {
+		return nil, fmt.Errorf("config-for-client dialing: %w", dialErr)
 	}
 	return conn, nil
 }
