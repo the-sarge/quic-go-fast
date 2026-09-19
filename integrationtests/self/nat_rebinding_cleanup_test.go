@@ -1,6 +1,7 @@
 package self_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNATRebindingReceiveFailure(t *testing.T) {
+	f := newNATRebindingFixture(t)
+	acquired := make(chan struct{})
+	f.startWriter(t, nil, func(str *quic.SendStream) error {
+		close(acquired)
+		<-str.Context().Done()
+		return context.Cause(str.Context())
+	})
+	select {
+	case <-acquired:
+	case <-time.After(time.Second):
+		t.Fatal("NAT writer did not acquire its stream")
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	f.ctx = ctx
+	_, err := f.receive()
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorContains(t, err, "accepting NAT stream")
+	require.ErrorContains(t, err, "writing NAT stream")
+}
+
 func TestNATRebindingWorkerFailure(t *testing.T) {
 	for _, operation := range []string{"opening", "writing"} {
 		t.Run(operation, func(t *testing.T) {
@@ -22,12 +45,9 @@ func TestNATRebindingWorkerFailure(t *testing.T) {
 			if operation == "opening" {
 				open = func() (*quic.SendStream, error) { return nil, sentinel }
 			} else {
-				write = func(str *quic.SendStream) error {
-					if _, err := str.Write(PRData); err != nil {
-						return err
-					}
-					return sentinel
-				}
+				// No bytes or FIN are sent: the local failure interruption must
+				// release the parent's accept, not successful stream completion.
+				write = func(*quic.SendStream) error { return sentinel }
 			}
 			f.startWriter(t, open, write)
 			_, err := f.receive()
@@ -36,6 +56,9 @@ func TestNATRebindingWorkerFailure(t *testing.T) {
 			// The worker must release dependent waits before the existing scenario
 			// context expires, rather than hiding the cause behind its timeout.
 			require.NoError(t, f.ctx.Err())
+			var closeErr *quic.ApplicationError
+			require.ErrorAs(t, context.Cause(f.conn.Context()), &closeErr)
+			require.Equal(t, "NAT writer failed", closeErr.ErrorMessage)
 			select {
 			case <-f.workerDone:
 			default:
@@ -72,8 +95,8 @@ func checkNATRebindingCleanup(t *testing.T, fail bool) {
 		acquired := make(chan struct{})
 		f.startWriter(t, nil, func(str *quic.SendStream) error {
 			close(acquired)
-			_, err := str.Write(PRData)
-			return err
+			<-str.Context().Done()
+			return context.Cause(str.Context())
 		})
 		select {
 		case <-acquired:
@@ -85,6 +108,8 @@ func checkNATRebindingCleanup(t *testing.T, fail bool) {
 		}
 		// Return without receiving either stream data or the worker result.
 	})
+	require.NotNil(t, f, "NAT fixture setup failed")
+	require.NotNil(t, f.workerDone, "NAT writer was not started")
 	select {
 	case <-f.workerDone:
 	default:

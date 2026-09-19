@@ -120,10 +120,10 @@ func (f *natRebindingFixture) startWriter(t *testing.T, open func() (*quic.SendS
 			if err != nil {
 				return fmt.Errorf("opening NAT stream: %w", err)
 			}
-			defer str.Close()
 			if err := write(str); err != nil {
 				return fmt.Errorf("writing NAT stream: %w", err)
 			}
+			str.Close()
 			return nil
 		}()
 		if f.workerErr != nil {
@@ -154,6 +154,11 @@ func (f *natRebindingFixture) receive() ([]byte, error) {
 	if err == nil {
 		str.SetReadDeadline(time.Now().Add(5 * time.Second))
 		data, err = io.ReadAll(str)
+		if err != nil {
+			err = fmt.Errorf("reading NAT stream: %w", err)
+		}
+	} else {
+		err = fmt.Errorf("accepting NAT stream: %w", err)
 	}
 	if err != nil {
 		f.stopIO()
@@ -161,8 +166,7 @@ func (f *natRebindingFixture) receive() ([]byte, error) {
 	if joinErr := f.join(); joinErr != nil {
 		return nil, joinErr
 	}
-	if f.workerErr != nil {
-		return nil, f.workerErr
-	}
-	return data, err
+	// Stopping I/O can make the writer fail too. Preserve the initiating receive
+	// error as well as the worker's operation/error instead of masking either.
+	return data, errors.Join(f.workerErr, err)
 }
