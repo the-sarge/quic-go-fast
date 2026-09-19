@@ -151,15 +151,16 @@ func TestHTTPCaptureFixtureFailure(t *testing.T) {
 			require.Contains(t, string(data), `"failed":true`)
 			require.Contains(t, string(data), `"complete_recording_window":true`)
 			require.FileExists(t, filepath.Join(filepath.Dir(files[0]), "SHA256SUMS"))
-			if fixture == "TestHTTPServerIdleTimeout" {
+			switch fixture {
+			case "TestHTTPServerIdleTimeout":
 				require.Contains(t, string(data), "connection_published")
 				require.Contains(t, string(data), "HTTP idle timer")
-			} else if fixture == "TestHTTP3ServerHotswap" {
+			case "TestHTTP3ServerHotswap":
 				for _, milestone := range []string{"client1", "client2", "server1", "server2", "listener client=false", "accept_enter", "accept_return", "admitted", "body_consumed", "handshake_complete"} {
 					require.Contains(t, string(data), milestone)
 				}
 				milestones := make(map[string]string)
-				for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+				for line := range bytes.SplitSeq(bytes.TrimSpace(data), []byte("\n")) {
 					var record httpCaptureRecord
 					require.NoError(t, json.Unmarshal(line, &record))
 					milestones[record.Source+"/"+record.Event] = record.Phase
@@ -176,7 +177,7 @@ func TestHTTPCaptureFixtureFailure(t *testing.T) {
 				}
 				require.Equal(t, "cleanup", milestones["listener/close_enter"])
 				require.Equal(t, "cleanup", milestones["client2/close_enter"])
-			} else {
+			default:
 				require.Contains(t, string(data), "deliberate_dial_error")
 				require.Contains(t, string(data), "client dial=2")
 			}
