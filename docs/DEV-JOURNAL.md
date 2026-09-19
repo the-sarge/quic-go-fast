@@ -2529,3 +2529,26 @@ All eight observation-only negative checks produced the intended parent-side dia
 ### Next
 
 Complete the mirrored OmniFocus task after this journal lands. [The live #398 tracker](https://github.com/the-sarge/quic-go-fast/issues/398) remains open for its remaining independently tracked work; no child issues or additional evidence campaign are introduced.
+
+---
+
+## Handshake regression cleanup completes after errors - 2026-09-19 18:21 EDT
+
+**Main:** `aa75bb7f814b`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #452](https://github.com/the-sarge/quic-go-fast/pull/452) for [issue #439](https://github.com/the-sarge/quic-go-fast/issues/439). Explicit and deferred `TestGetConfigForClientLifecycle` cleanup now share a private helper that cancels, attempts listener closure and attempts every registered worker join before returning accumulated errors for nonfatal reporting. Worker deadlines, result semantics, real-network assertions and production code are unchanged.
+
+### Validation
+
+One deterministic cleanup family covers successful repeated cleanup, earlier join errors, listener-close errors, combined error retention and deferred fallback. A controlled early-return version omitted the later join and failed the focused check; the repaired helper passed. The cleanup family, lifecycle regression and actual handshake scenario passed once normally and once under race with explicit timeouts on Go 1.27.1, darwin/arm64, QUIC v1. The affected package, vet, module tidiness, formatting and diff checks passed. RAS run `20260919T221526-80208f15f1e91e0baae715c9` completed with five reviewers and no findings; no replacement review or verification was needed. All 33 product-PR hosted checks passed on certified head `9ff031b272ab3bf44d6cd79cf666ff0a0b409624`, merged as `aa75bb7f814b5897da167724380d49ea6ef773ac`.
+
+### Decisions
+
+Kept this verification-aid repair within the [approved Agent Brief](https://github.com/the-sarge/quic-go-fast/issues/439#issuecomment-5742719771): no broader fixture sweep, stress campaign, natural worker-leak claim or historical-failure attribution. No deferred review findings remain.
+
+### Next
+
+Keep [umbrella #398](https://github.com/the-sarge/quic-go-fast/issues/398) open for its explicit aggregate disposition; that issue remains the live tracking view.
