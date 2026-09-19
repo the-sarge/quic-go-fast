@@ -554,34 +554,88 @@ func TestHTTPErrAbortHandler(t *testing.T) {
 	require.True(t, bytes.HasPrefix([]byte("foobar"), body))
 }
 
+// closeHTTPFixtureServer seals handler admission and joins managed handlers before
+// the fixture inspects their completion signals. The caller first cancels its
+// request and closes its client so cleanup also releases blocked I/O.
+func closeHTTPFixtureServer(t *testing.T, server *http3.Server) {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() { done <- server.Close() }()
+	select {
+	case err := <-done:
+		assert.NoError(t, err, "close HTTP fixture server")
+	case <-time.After(time.Second):
+		t.Error("HTTP fixture server did not finish closing")
+	}
+}
+
 func TestHTTPGzip(t *testing.T) {
+	requestCtx, cancelRequest := context.WithCancel(context.Background())
+	defer cancelRequest()
+	var result struct {
+		acceptEncoding string
+		err            error
+	}
+	handlerDone := make(chan struct{})
 	mux := http.NewServeMux()
-	var acceptEncoding string
 	mux.HandleFunc("/hellogz", func(w http.ResponseWriter, r *http.Request) {
-		acceptEncoding = r.Header.Get("Accept-Encoding")
+		defer func() {
+			if result.err != nil {
+				cancelRequest()
+			}
+			close(handlerDone)
+		}()
+		result.acceptEncoding = r.Header.Get("Accept-Encoding")
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Header().Set("foo", "bar")
 
 		gw := gzip.NewWriter(w)
-		defer gw.Close()
-		_, err := gw.Write([]byte("Hello, World!\n"))
-		require.NoError(t, err)
+		if _, err := gw.Write([]byte("Hello, World!\n")); err != nil {
+			result.err = fmt.Errorf("write gzip response: %w", err)
+		}
+		if err := gw.Close(); err != nil {
+			result.err = errors.Join(result.err, fmt.Errorf("finalize gzip response: %w", err))
+		}
 	})
-	port := startHTTPServer(t, mux)
-
+	var server *http3.Server
+	port := startHTTPServer(t, mux, func(s *http3.Server) { server = s })
 	cl := newHTTP3Client(t)
 	cl.Transport.(*http3.Transport).DisableCompression = false
-	resp, err := cl.Get(fmt.Sprintf("https://localhost:%d/hellogz", port))
+	var resp *http.Response
+	t.Cleanup(func() {
+		cancelRequest()
+		if resp != nil {
+			assert.NoError(t, resp.Body.Close(), "close gzip response body")
+		}
+		assert.NoError(t, cl.Transport.(*http3.Transport).Close(), "close gzip client")
+		closeHTTPFixtureServer(t, server)
+		select {
+		case <-handlerDone:
+			assert.NoError(t, result.err)
+		default: // request setup can fail before the handler starts
+		}
+	})
+
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, fmt.Sprintf("https://localhost:%d/hellogz", port), nil)
+	require.NoError(t, err)
+	resp, err = cl.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.True(t, resp.Uncompressed)
+	require.Equal(t, "bar", resp.Header.Get("foo"))
 
 	body, err := io.ReadAll(&readerWithTimeout{Reader: resp.Body, Timeout: 3 * time.Second})
 	require.NoError(t, err)
 	require.Equal(t, "Hello, World!\n", string(body))
 
-	// make sure the server received the Accept-Encoding header
-	require.Equal(t, "gzip", acceptEncoding)
+	select {
+	case <-handlerDone:
+		// Finalization and the header observation are published together.
+		require.NoError(t, result.err)
+		require.Equal(t, "gzip", result.acceptEncoding)
+	case <-time.After(time.Second):
+		t.Fatal("gzip handler did not finish")
+	}
 }
 
 func TestHTTPDifferentOrigins(t *testing.T) {
@@ -837,31 +891,56 @@ func TestHTTPClientRequestContextCancellation(t *testing.T) {
 func TestHTTPDeadlines(t *testing.T) {
 	const deadlineDelay = 50 * time.Millisecond
 
-	mux := http.NewServeMux()
-	port := startHTTPServer(t, mux)
-	cl := newHTTP3Client(t)
-
 	t.Run("read deadline", func(t *testing.T) {
-		type result struct {
-			body []byte
-			err  error
+		requestCtx, cancelRequest := context.WithCancel(context.Background())
+		defer cancelRequest()
+		var result struct {
+			body    []byte
+			readErr error
+			err     error
 		}
-
-		resultChan := make(chan result, 1)
+		handlerDone := make(chan struct{})
+		mux := http.NewServeMux()
 		mux.HandleFunc("/read-deadline", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if result.err != nil {
+					cancelRequest()
+				}
+				close(handlerDone)
+			}()
 			rc := http.NewResponseController(w)
-			require.NoError(t, rc.SetReadDeadline(time.Now().Add(deadlineDelay)))
-			body, err := io.ReadAll(r.Body)
-			resultChan <- result{body: body, err: err}
-			io.WriteString(w, "ok")
+			if err := rc.SetReadDeadline(time.Now().Add(deadlineDelay)); err != nil {
+				result.err = fmt.Errorf("set read deadline: %w", err)
+				return
+			}
+			result.body, result.readErr = io.ReadAll(r.Body)
+			if _, err := io.WriteString(w, "ok"); err != nil {
+				result.err = fmt.Errorf("write read-deadline response: %w", err)
+			}
+		})
+		var server *http3.Server
+		port := startHTTPServer(t, mux, func(s *http3.Server) { server = s })
+		cl := newHTTP3Client(t)
+		var resp *http.Response
+		t.Cleanup(func() {
+			cancelRequest()
+			if resp != nil {
+				assert.NoError(t, resp.Body.Close(), "close read-deadline response body")
+			}
+			assert.NoError(t, cl.Transport.(*http3.Transport).Close(), "close read-deadline client")
+			closeHTTPFixtureServer(t, server)
+			select {
+			case <-handlerDone:
+				assert.NoError(t, result.err)
+			default: // handler admission is sealed, including setup failure
+			}
 		})
 
+		req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, fmt.Sprintf("https://localhost:%d/read-deadline", port), neverEnding('a'))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "text/plain")
 		expectedEnd := time.Now().Add(deadlineDelay)
-		resp, err := cl.Post(
-			fmt.Sprintf("https://localhost:%d/read-deadline", port),
-			"text/plain",
-			neverEnding('a'),
-		)
+		resp, err = cl.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -871,27 +950,60 @@ func TestHTTPDeadlines(t *testing.T) {
 		require.Equal(t, "ok", string(body))
 
 		select {
-		case result := <-resultChan:
-			require.ErrorIs(t, result.err, os.ErrDeadlineExceeded)
+		case <-handlerDone:
+			require.NoError(t, result.err)
+			require.ErrorIs(t, result.readErr, os.ErrDeadlineExceeded)
 			require.Contains(t, string(result.body), "aa")
-		default:
-			t.Fatal("handler was not called")
+		case <-time.After(2 * deadlineDelay):
+			t.Fatal("read-deadline handler did not finish")
 		}
 	})
 
 	t.Run("write deadline", func(t *testing.T) {
-		errChan := make(chan error, 1)
+		requestCtx, cancelRequest := context.WithCancel(context.Background())
+		defer cancelRequest()
+		var result struct {
+			copyErr error
+			err     error
+		}
+		handlerDone := make(chan struct{})
+		mux := http.NewServeMux()
 		mux.HandleFunc("/write-deadline", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if result.err != nil {
+					cancelRequest()
+				}
+				close(handlerDone)
+			}()
 			rc := http.NewResponseController(w)
-			require.NoError(t, rc.SetWriteDeadline(time.Now().Add(deadlineDelay)))
-
-			_, err := io.Copy(w, neverEnding('a'))
-			errChan <- err
+			if err := rc.SetWriteDeadline(time.Now().Add(deadlineDelay)); err != nil {
+				result.err = fmt.Errorf("set write deadline: %w", err)
+				return
+			}
+			_, result.copyErr = io.Copy(w, neverEnding('a'))
+		})
+		var server *http3.Server
+		port := startHTTPServer(t, mux, func(s *http3.Server) { server = s })
+		cl := newHTTP3Client(t)
+		var resp *http.Response
+		t.Cleanup(func() {
+			cancelRequest()
+			if resp != nil {
+				assert.NoError(t, resp.Body.Close(), "close write-deadline response body")
+			}
+			assert.NoError(t, cl.Transport.(*http3.Transport).Close(), "close write-deadline client")
+			closeHTTPFixtureServer(t, server)
+			select {
+			case <-handlerDone:
+				assert.NoError(t, result.err)
+			default: // handler admission is sealed, including setup failure
+			}
 		})
 
+		req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, fmt.Sprintf("https://localhost:%d/write-deadline", port), nil)
+		require.NoError(t, err)
 		expectedEnd := time.Now().Add(deadlineDelay)
-
-		resp, err := cl.Get(fmt.Sprintf("https://localhost:%d/write-deadline", port))
+		resp, err = cl.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -901,10 +1013,11 @@ func TestHTTPDeadlines(t *testing.T) {
 		require.Contains(t, string(body), "aa")
 
 		select {
-		case err := <-errChan:
-			require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+		case <-handlerDone:
+			require.NoError(t, result.err)
+			require.ErrorIs(t, result.copyErr, os.ErrDeadlineExceeded)
 		case <-time.After(2 * deadlineDelay):
-			t.Fatal("handler was not called")
+			t.Fatal("write-deadline handler did not finish")
 		}
 	})
 }
@@ -951,6 +1064,10 @@ func TestHTTPServeQUICConn(t *testing.T) {
 }
 
 func TestHTTPContextFromQUIC(t *testing.T) {
+	requestCtx, cancelRequest := context.WithCancel(context.Background())
+	defer cancelRequest()
+	acceptCtx, cancelAccept := context.WithCancel(context.Background())
+	defer cancelAccept()
 	conn := newUDPConnLocalhost(t)
 	tr := &quic.Transport{
 		Conn: conn,
@@ -958,38 +1075,90 @@ func TestHTTPContextFromQUIC(t *testing.T) {
 			return context.WithValue(ctx, "foo", "bar"), nil
 		},
 	}
-	defer tr.Close()
+	t.Cleanup(func() { assert.NoError(t, tr.Close(), "close context transport") })
 	tlsConf := getTLSConfig()
 	tlsConf.NextProtos = []string{http3.NextProtoH3}
 	ln, err := tr.Listen(tlsConf, getQuicConfig(nil))
 	require.NoError(t, err)
-	defer ln.Close()
+	t.Cleanup(func() { assert.NoError(t, ln.Close(), "close context listener") })
 
 	mux := http.NewServeMux()
-	ctxChan := make(chan context.Context, 1)
+	var requestContext context.Context
+	handlerDone := make(chan struct{})
 	mux.HandleFunc("/quic-conn-context", func(w http.ResponseWriter, r *http.Request) {
-		ctxChan <- r.Context()
+		defer close(handlerDone)
+		requestContext = r.Context()
 	})
 
 	server := &http3.Server{Handler: mux}
+	cl := newHTTP3Client(t)
+	var resp *http.Response
+	accepted := make(chan *quic.Conn, 1)
+	workerDone := make(chan struct{})
+	var workerErr error
+	var stopping atomic.Bool
+	t.Cleanup(func() {
+		stopping.Store(true)
+		cancelRequest()
+		cancelAccept()
+		if resp != nil {
+			assert.NoError(t, resp.Body.Close(), "close context response body")
+		}
+		assert.NoError(t, cl.Transport.(*http3.Transport).Close(), "close context client")
+		assert.NoError(t, ln.Close(), "close context listener")
+		select {
+		case c := <-accepted:
+			if c != nil {
+				// ServeQUICConn leaves ownership of this connection with us.
+				assert.NoError(t, c.CloseWithError(quic.ApplicationErrorCode(http3.ErrCodeNoError), ""), "close accepted context connection")
+			}
+		case <-time.After(time.Second):
+			t.Error("context accept did not finish")
+		}
+		assert.NoError(t, tr.Close(), "close context transport")
+		closeHTTPFixtureServer(t, server)
+		select {
+		case <-workerDone:
+			assert.NoError(t, workerErr)
+		case <-time.After(time.Second):
+			t.Error("context accept/serve worker did not finish")
+		}
+	})
 	go func() {
-		c, err := ln.Accept(context.Background())
-		require.NoError(t, err)
-		server.ServeQUICConn(c)
+		defer close(workerDone)
+		c, err := ln.Accept(acceptCtx)
+		accepted <- c
+		if err != nil {
+			if !stopping.Load() || (!errors.Is(err, context.Canceled) && !errors.Is(err, quic.ErrServerClosed)) {
+				workerErr = fmt.Errorf("accept context connection: %w", err)
+				cancelRequest()
+			}
+			return
+		}
+		err = server.ServeQUICConn(c)
+		// Immediate server closure and the client's ordinary transport-close
+		// code are expected only after this fixture has initiated teardown.
+		appErr, isAppErr := errors.AsType[*quic.ApplicationError](err)
+		expected := stopping.Load() && (errors.Is(err, http.ErrServerClosed) || (isAppErr && appErr.Remote && appErr.ErrorCode == 0))
+		if err != nil && !expected {
+			workerErr = fmt.Errorf("serve context connection: %w", err)
+			cancelRequest()
+		}
 	}()
 
-	cl := newHTTP3Client(t)
-	resp, err := cl.Get(fmt.Sprintf("https://localhost:%d/quic-conn-context", conn.LocalAddr().(*net.UDPAddr).Port))
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, fmt.Sprintf("https://localhost:%d/quic-conn-context", conn.LocalAddr().(*net.UDPAddr).Port), nil)
+	require.NoError(t, err)
+	resp, err = cl.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	select {
-	case ctx := <-ctxChan:
-		v, ok := ctx.Value("foo").(string)
+	case <-handlerDone:
+		v, ok := requestContext.Value("foo").(string)
 		require.True(t, ok)
 		require.Equal(t, "bar", v)
-	default:
-		t.Fatal("context not set")
+	case <-time.After(time.Second):
+		t.Fatal("context handler did not finish")
 	}
 }
 
