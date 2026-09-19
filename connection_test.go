@@ -327,28 +327,48 @@ func testConnectionClose(t *testing.T, useApplicationClose bool, expectedErr err
 		queued.Data = append(queued.Data, "queued before close"...)
 		tc.conn.emission.queue.Send(queued, 0, protocol.ECNNon, sendMetadata{})
 		queuedWrite := tc.sendConn.EXPECT().Write([]byte("queued before close"), uint16(0), protocol.ECNNon)
+		var closePacket []byte
+		var closeConnIDLen int
 		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).After(queuedWrite.Call).DoAndReturn(func(data []byte, _ uint16, _ protocol.ECN) error {
-			hdrLen, _, _, _, err := wire.ParseShortHeader(data, tc.conn.connIDManager.Get().Len())
-			require.NoError(t, err)
-			typ, n, err := tc.conn.frameParser.ParseType(data[hdrLen:], protocol.Encryption1RTT)
-			require.NoError(t, err)
-			frame, _, err := tc.conn.frameParser.ParseLessCommonFrame(typ, data[hdrLen+n:], protocol.Version1)
-			require.NoError(t, err)
-			closeFrame := frame.(*wire.ConnectionCloseFrame)
-			require.Equal(t, useApplicationClose, closeFrame.IsApplicationError)
-			require.EqualValues(t, 1337, closeFrame.ErrorCode)
-			require.Equal(t, "foobar", closeFrame.ReasonPhrase)
-			if !useApplicationClose {
-				require.EqualValues(t, 42, closeFrame.FrameType)
-			}
+			closePacket = bytes.Clone(data)
+			// This callback still runs on the connection goroutine.
+			closeConnIDLen = tc.conn.connIDManager.Get().Len()
 			return nil
 		})
 		tc.connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+
+		defer func() {
+			tc.conn.destroy(nil)
+			synctest.Wait()
+		}()
 
 		go func() { errChan <- tc.conn.run() }()
 		tc.conn.closeLocal(expectedErr)
 
 		synctest.Wait()
+
+		// Join the connection and drained send worker before any fatal validation.
+		select {
+		case err := <-errChan:
+			require.ErrorIs(t, err, expectedErr)
+		default:
+			t.Fatal("connection was not closed")
+		}
+		payload, err := schedulingPacketPayload(closePacket, closeConnIDLen)
+		require.NoError(t, err)
+		parser := wire.NewFrameParser(true, false, false)
+		typ, n, err := parser.ParseType(payload, protocol.Encryption1RTT)
+		require.NoError(t, err)
+		frame, _, err := parser.ParseLessCommonFrame(typ, payload[n:], protocol.Version1)
+		require.NoError(t, err)
+		closeFrame, ok := frame.(*wire.ConnectionCloseFrame)
+		require.True(t, ok, "expected CONNECTION_CLOSE, got %T", frame)
+		require.Equal(t, useApplicationClose, closeFrame.IsApplicationError)
+		require.EqualValues(t, 1337, closeFrame.ErrorCode)
+		require.Equal(t, "foobar", closeFrame.ReasonPhrase)
+		if !useApplicationClose {
+			require.EqualValues(t, 42, closeFrame.FrameType)
+		}
 
 		var want qlog.ConnectionClosed
 		if useApplicationClose {
@@ -371,13 +391,6 @@ func testConnectionClose(t *testing.T, useApplicationClose bool, expectedErr err
 			eventRecorder.Events(qlog.ConnectionClosed{}),
 		)
 		eventRecorder.Clear()
-
-		select {
-		case err := <-errChan:
-			require.ErrorIs(t, err, expectedErr)
-		default:
-			t.Fatal("connection was not closed")
-		}
 
 		// further calls to CloseWithError don't do anything
 		tc.conn.CloseWithError(42, "another error")
@@ -2210,29 +2223,27 @@ func TestConnectionGSOBatch(t *testing.T) {
 		payloadSize := gsoDatagramPayloadSize(tc)
 		want := queueGSODatagrams(t, tc, payloadSize, payloadSize, payloadSize, payloadSize)
 
-		done := make(chan struct{})
+		// The connection ID is fixed for this fixture; capture it before startup.
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var writes []schedulingWriteObservation
 		tc.sendConn.EXPECT().Write(gomock.Any(), uint16(maxPacketSize), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
-			require.Equal(t, protocol.ECT1, ecn)
-			require.Len(t, b, int(maxPacketSize)*4)
-			require.Equal(t, want, schedulingGSODatagrams(t, tc, b, segment))
-			close(done)
+			writes = append(writes, schedulingWriteObservation{data: bytes.Clone(b), segment: segment, ecn: ecn})
 			return nil
 		}).Times(1)
 
 		errChan := make(chan error, 1)
+		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		defer func() {
+			tc.conn.destroy(nil)
+			synctest.Wait()
+		}()
+
 		go func() { errChan <- tc.conn.run() }()
 		tc.conn.scheduleSending()
 
 		synctest.Wait()
 
-		select {
-		case <-done:
-		default:
-			t.Fatal("should have sent a packet")
-		}
-
-		// test teardown
-		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		// Drain all writes and stop both producers before validating snapshots.
 		tc.conn.destroy(nil)
 
 		synctest.Wait()
@@ -2243,6 +2254,11 @@ func TestConnectionGSOBatch(t *testing.T) {
 		default:
 			t.Fatal("connection did not stop")
 		}
+		require.Len(t, writes, 1)
+		require.Equal(t, uint16(maxPacketSize), writes[0].segment)
+		require.Equal(t, protocol.ECT1, writes[0].ecn)
+		require.Len(t, writes[0].data, int(maxPacketSize)*4)
+		require.Equal(t, want, schedulingGSODatagrams(t, connIDLen, writes[0].data, writes[0].segment))
 	})
 }
 
@@ -2256,38 +2272,27 @@ func TestConnectionGSOBatchPacketSize(t *testing.T) {
 		payloadSize := gsoDatagramPayloadSize(tc)
 		want := queueGSODatagrams(t, tc, payloadSize, payloadSize, payloadSize, payloadSize-1)
 		require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("foobar")}))
-		done := make(chan struct{})
-		writes := 0
+		// The connection ID is fixed for this fixture; capture it before startup.
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var writes []schedulingWriteObservation
 		tc.sendConn.EXPECT().Write(gomock.Any(), uint16(maxPacketSize), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
-			writes++
-			if writes == 1 {
-				require.Equal(t, protocol.ECT1, ecn)
-				require.Len(t, b, int(maxPacketSize)*4-1)
-				require.Equal(t, want, schedulingGSODatagrams(t, tc, b, segment))
-			} else {
-				require.Equal(t, protocol.ECT1, ecn)
-				require.Equal(t, []byte("foobar"), schedulingDatagram(t, tc, b))
-			}
-			if writes == 2 {
-				close(done)
-			}
+			writes = append(writes, schedulingWriteObservation{data: bytes.Clone(b), segment: segment, ecn: ecn})
 			return nil
 		}).Times(2)
 
 		errChan := make(chan error, 1)
+		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		defer func() {
+			tc.conn.destroy(nil)
+			synctest.Wait()
+		}()
+
 		go func() { errChan <- tc.conn.run() }()
 		tc.conn.scheduleSending()
 
 		synctest.Wait()
 
-		select {
-		case <-done:
-		default:
-			t.Fatal("should have sent a packet")
-		}
-
-		// test teardown
-		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		// Drain all writes and stop both producers before validating snapshots.
 		tc.conn.destroy(nil)
 
 		synctest.Wait()
@@ -2298,6 +2303,16 @@ func TestConnectionGSOBatchPacketSize(t *testing.T) {
 		default:
 			t.Fatal("connection did not stop")
 		}
+		require.Len(t, writes, 2)
+		require.Equal(t, uint16(maxPacketSize), writes[0].segment)
+		require.Equal(t, protocol.ECT1, writes[0].ecn)
+		require.Len(t, writes[0].data, int(maxPacketSize)*4-1)
+		require.Equal(t, want, schedulingGSODatagrams(t, connIDLen, writes[0].data, writes[0].segment))
+		require.Equal(t, uint16(maxPacketSize), writes[1].segment)
+		require.Equal(t, protocol.ECT1, writes[1].ecn)
+		payload, err := decodeSchedulingDatagram(writes[1].data, connIDLen)
+		require.NoError(t, err)
+		require.Equal(t, []byte("foobar"), payload)
 	})
 }
 
@@ -2316,38 +2331,27 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 		payloadSize := gsoDatagramPayloadSize(tc)
 		want := queueGSODatagrams(t, tc, payloadSize, payloadSize, payloadSize)
 		require.NoError(t, tc.conn.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("foobar")}))
-		done := make(chan struct{})
-		writes := 0
+		// The connection ID is fixed for this fixture; capture it before startup.
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var writes []schedulingWriteObservation
 		tc.sendConn.EXPECT().Write(gomock.Any(), uint16(maxPacketSize), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
-			writes++
-			if writes == 1 {
-				require.Equal(t, protocol.ECT1, ecn)
-				require.Len(t, b, int(maxPacketSize)*3)
-				require.Equal(t, want, schedulingGSODatagrams(t, tc, b, segment))
-			} else {
-				require.Equal(t, protocol.ECNCE, ecn)
-				require.Equal(t, []byte("foobar"), schedulingDatagram(t, tc, b))
-			}
-			if writes == 2 {
-				close(done)
-			}
+			writes = append(writes, schedulingWriteObservation{data: bytes.Clone(b), segment: segment, ecn: ecn})
 			return nil
 		}).Times(2)
 
 		errChan := make(chan error, 1)
+		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		defer func() {
+			tc.conn.destroy(nil)
+			synctest.Wait()
+		}()
+
 		go func() { errChan <- tc.conn.run() }()
 		tc.conn.scheduleSending()
 
 		synctest.Wait()
 
-		select {
-		case <-done:
-		default:
-			t.Fatal("should have sent a packet")
-		}
-
-		// test teardown
-		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		// Drain all writes and stop both producers before validating snapshots.
 		tc.conn.destroy(nil)
 
 		synctest.Wait()
@@ -2358,6 +2362,16 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 		default:
 			t.Fatal("connection did not stop")
 		}
+		require.Len(t, writes, 2)
+		require.Equal(t, uint16(maxPacketSize), writes[0].segment)
+		require.Equal(t, protocol.ECT1, writes[0].ecn)
+		require.Len(t, writes[0].data, int(maxPacketSize)*3)
+		require.Equal(t, want, schedulingGSODatagrams(t, connIDLen, writes[0].data, writes[0].segment))
+		require.Equal(t, uint16(maxPacketSize), writes[1].segment)
+		require.Equal(t, protocol.ECNCE, writes[1].ecn)
+		payload, err := decodeSchedulingDatagram(writes[1].data, connIDLen)
+		require.NoError(t, err)
+		require.Equal(t, []byte("foobar"), payload)
 	})
 }
 
