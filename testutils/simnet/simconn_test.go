@@ -3,7 +3,6 @@ package simnet
 import (
 	"crypto/rand"
 	"net"
-	"sync"
 	"testing"
 	"time"
 
@@ -165,23 +164,27 @@ func TestSimConnDeadlinesWithLatency(t *testing.T) {
 	})
 
 	t.Run("read fails after deadline", func(t *testing.T) {
-		defer reset()
+		writerConn, readerConn := conn1, conn2
+		writer := newSimConnDeadlineWriter(t, func() {
+			writerConn.Close()
+			readerConn.Close()
+		}, reset)
 		// Set a short deadline
 		deadline := time.Now().Add(50 * time.Millisecond) // Less than router latency
 		err := conn2.SetReadDeadline(deadline)
 		require.NoError(t, err)
 
-		var wg sync.WaitGroup
-		defer wg.Wait()
-		wg.Go(func() {
+		writer.start(func() (int, error) {
 			// Send data after setting deadline
-			_, err := conn1.WriteTo([]byte("test"), addr2)
-			require.NoError(t, err)
+			return writerConn.WriteTo([]byte("test"), addr2)
 		})
 
 		// Read should fail due to deadline
 		buf := make([]byte, 1024)
 		_, _, err = conn2.ReadFrom(buf)
 		require.ErrorIs(t, err, ErrDeadlineExceeded)
+		n, err := writer.wait(t)
+		require.NoError(t, err)
+		require.Equal(t, 4, n)
 	})
 }
