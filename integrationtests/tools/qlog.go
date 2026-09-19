@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"time"
 
 	"github.com/quic-go/quic-go"
 	h3qlog "github.com/quic-go/quic-go/http3/qlog"
@@ -17,13 +16,12 @@ import (
 )
 
 func QlogTracer(logger io.Writer) qlogwriter.Trace {
-	filename := fmt.Sprintf("log_%s_transport.qlog", time.Now().Format("2006-01-02T15:04:05"))
-	fmt.Fprintf(logger, "Creating %s.\n", filename)
-	f, err := os.Create(filename)
+	f, err := os.CreateTemp(".", "log_*_transport.qlog")
 	if err != nil {
 		log.Fatalf("failed to create qlog file: %s", err)
 		return nil
 	}
+	fmt.Fprintf(logger, "Creating %s.\n", f.Name())
 	bw := bufio.NewWriter(f)
 	fileSeq := qlogwriter.NewFileSeq(utils.NewBufferedWriteCloser(bw, f))
 	go fileSeq.Run()
