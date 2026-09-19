@@ -888,6 +888,22 @@ func TestHTTPClientRequestContextCancellation(t *testing.T) {
 	})
 }
 
+// reportHTTPDeadlineOutcome preserves errors even if an earlier parent assertion
+// skipped the success-path checks. Cancellation is expected only if the operation
+// observed a canceled fixture request, and only for the codes cleanup can cause.
+func reportHTTPDeadlineOutcome(t *testing.T, operation string, err error, canceled bool) {
+	t.Helper()
+	if err == nil || errors.Is(err, os.ErrDeadlineExceeded) {
+		return
+	}
+	h3Err, isH3Err := errors.AsType[*http3.Error](err)
+	if canceled && (errors.Is(err, context.Canceled) || (isH3Err && (h3Err.ErrorCode == http3.ErrCodeRequestCanceled || h3Err.ErrorCode == http3.ErrCodeNoError || (h3Err.Remote && h3Err.ErrorCode == 0)))) {
+		t.Logf("%s ended during fixture cancellation: %v", operation, err)
+		return
+	}
+	t.Errorf("%s: %v", operation, err)
+}
+
 func TestHTTPDeadlines(t *testing.T) {
 	const deadlineDelay = 50 * time.Millisecond
 
@@ -895,9 +911,10 @@ func TestHTTPDeadlines(t *testing.T) {
 		requestCtx, cancelRequest := context.WithCancel(context.Background())
 		defer cancelRequest()
 		var result struct {
-			body    []byte
-			readErr error
-			err     error
+			body     []byte
+			readErr  error
+			canceled bool
+			err      error
 		}
 		handlerDone := make(chan struct{})
 		mux := http.NewServeMux()
@@ -914,6 +931,7 @@ func TestHTTPDeadlines(t *testing.T) {
 				return
 			}
 			result.body, result.readErr = io.ReadAll(r.Body)
+			result.canceled = requestCtx.Err() != nil
 			if _, err := io.WriteString(w, "ok"); err != nil {
 				result.err = fmt.Errorf("write read-deadline response: %w", err)
 			}
@@ -932,6 +950,7 @@ func TestHTTPDeadlines(t *testing.T) {
 			select {
 			case <-handlerDone:
 				assert.NoError(t, result.err)
+				reportHTTPDeadlineOutcome(t, "read deadline request body", result.readErr, result.canceled)
 			default: // handler admission is sealed, including setup failure
 			}
 		})
@@ -963,8 +982,9 @@ func TestHTTPDeadlines(t *testing.T) {
 		requestCtx, cancelRequest := context.WithCancel(context.Background())
 		defer cancelRequest()
 		var result struct {
-			copyErr error
-			err     error
+			copyErr  error
+			canceled bool
+			err      error
 		}
 		handlerDone := make(chan struct{})
 		mux := http.NewServeMux()
@@ -981,6 +1001,7 @@ func TestHTTPDeadlines(t *testing.T) {
 				return
 			}
 			_, result.copyErr = io.Copy(w, neverEnding('a'))
+			result.canceled = requestCtx.Err() != nil
 		})
 		var server *http3.Server
 		port := startHTTPServer(t, mux, func(s *http3.Server) { server = s })
@@ -996,6 +1017,7 @@ func TestHTTPDeadlines(t *testing.T) {
 			select {
 			case <-handlerDone:
 				assert.NoError(t, result.err)
+				reportHTTPDeadlineOutcome(t, "write deadline response copy", result.copyErr, result.canceled)
 			default: // handler admission is sealed, including setup failure
 			}
 		})
@@ -1097,6 +1119,7 @@ func TestHTTPContextFromQUIC(t *testing.T) {
 	workerDone := make(chan struct{})
 	var workerErr error
 	var stopping atomic.Bool
+	var closingAccepted atomic.Bool
 	t.Cleanup(func() {
 		stopping.Store(true)
 		cancelRequest()
@@ -1110,6 +1133,7 @@ func TestHTTPContextFromQUIC(t *testing.T) {
 		case c := <-accepted:
 			if c != nil {
 				// ServeQUICConn leaves ownership of this connection with us.
+				closingAccepted.Store(true)
 				assert.NoError(t, c.CloseWithError(quic.ApplicationErrorCode(http3.ErrCodeNoError), ""), "close accepted context connection")
 			}
 		case <-time.After(time.Second):
@@ -1137,9 +1161,12 @@ func TestHTTPContextFromQUIC(t *testing.T) {
 		}
 		err = server.ServeQUICConn(c)
 		// Immediate server closure and the client's ordinary transport-close
-		// code are expected only after this fixture has initiated teardown.
+		// code are expected only after this fixture has initiated teardown. The
+		// explicit local close can also race control-stream setup after acceptance.
 		appErr, isAppErr := errors.AsType[*quic.ApplicationError](err)
-		expected := stopping.Load() && (errors.Is(err, http.ErrServerClosed) || (isAppErr && appErr.Remote && appErr.ErrorCode == 0))
+		expectedConnectionClose := isAppErr && ((appErr.Remote && appErr.ErrorCode == 0) ||
+			(closingAccepted.Load() && !appErr.Remote && appErr.ErrorCode == quic.ApplicationErrorCode(http3.ErrCodeNoError)))
+		expected := stopping.Load() && (errors.Is(err, http.ErrServerClosed) || expectedConnectionClose)
 		if err != nil && !expected {
 			workerErr = fmt.Errorf("serve context connection: %w", err)
 			cancelRequest()
