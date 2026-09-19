@@ -2318,3 +2318,20 @@ The first candidate also encountered the existing oversized-packet-count asserti
 ### Decisions
 
 The [accepted agent brief](https://github.com/the-sarge/quic-go-fast/issues/400#issuecomment-5735063200) permits a narrowly scoped test-only dependency on Go diagnostic formatting. The guarantee is prior observation of runtime parking, not a blocked kernel syscall or continuous parking until the trigger. Production behavior, public API, wire behavior, CI policy and frozen qualification evidence are unchanged. No additional platform or statistical campaign was run.
+
+---
+
+## Optional transport qlog histories preserved - 2026-09-18 20:33 EDT
+
+**Main:** `08b884a430d3`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #419](https://github.com/the-sarge/quic-go-fast/pull/419), closing [issue #401](https://github.com/the-sarge/quic-go-fast/issues/401). Optional transport qlogs now use exclusive file creation in the existing output directory, with unique random-suffix names, the existing `.qlog` suffix, owner-only permissions, and logger output identifying the actual artifact. Connection traces, opt-in installation, and the existing last-producer drain/join/flush boundary remain unchanged.
+
+### Validation
+
+The deterministic same-second regression failed against the original allocator with one file instead of three. The repair passes sequential and bounded four-caller tests asserting preserved pre-existing bytes and separate, parseable histories with exact per-owner payloads. Tools and qlogwriter tests, focused race coverage, the self integration suite, affected-package vet, tidy-diff, and focused lint passed. A qlog-enabled two-transport integration run completed and retained two parseable transport artifacts matching the existing collection glob; normal transport output contained headers, while event isolation was exercised by the unit regressions.
+
+RAS review `20260919T001610-363f17dac3f05c69322372fb` completed with all five reviewers successful, no findings, and no follow-ups or fix verification required. Exact-head local certification passed at `7aa89f52a977ab2942a8c8992f81828c90562e31`; all 33 hosted checks were successful before the matching head was squash-merged. No RAS review was run for this journal entry.
