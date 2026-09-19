@@ -2377,3 +2377,24 @@ Final local race certification nevertheless encountered the existing #151 early-
 ### Next
 
 Keep #188 open while waiting for natural hotswap evidence. Continue the separately planned [#241 socket-rebind capture](https://github.com/the-sarge/quic-go-fast/issues/241); its capture delivery is still pending. The linked issues are the live investigation state.
+
+---
+
+## Retained socket-rebind capture delivered - 2026-09-18 22:29 EDT
+
+**Main:** `b6174cf814dd`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #435](https://github.com/the-sarge/quic-go-fast/pull/435), installing bounded failure-only socket-rebind capture for the address-owned `TestDial` cases. The actual dial socket, cancellation and dial completion, bind entries/results and concrete errors, and a bounded failure-time goroutine snapshot are now recorded. Early exits explicitly identify unavailable milestones; finalization during a pending bind marks the report incomplete. Unit CI retains bounded command output, source metadata and checksums for 14 days, explicitly accounting for its removal of `integrationtests`. The [maintained contract](agents/socket-rebind-failure-capture.md) preserves existing assertions, deadlines, caller-owned socket behavior and production transport behavior.
+
+### Validation and decisions
+
+Controlled failure/passing children, socket evidence, incomplete-report cases and wrapper provenance checks passed. Initial RAS findings were independently fixed and verified. The final replacement review found an unfinished-bind completeness gap; the user authorized one bounded correction and verification, which resolved the finding without a third fresh review. All 33 hosted checks passed at final head `4d287c0fbc8229363a4184d715aff36e70324e03`, as did root-package tests, vet, tidy, modernization, lint, changed-file formatting and provenance checks. An existing formatter difference in an unchanged test file was left untouched.
+
+Final local race certification naturally hit the socket-rebind assertion before the controlled failure marker: the original Go handle was observed closed, but 20 bind attempts returned macOS `EADDRINUSE` in the unchanged 200 ms window. The capture retained complete admitted observations and an untruncated stack; actual port ownership and the historical cause remain unknown. Full evidence was preserved locally with source/command metadata and checksums and linked in [#241](https://github.com/the-sarge/quic-go-fast/issues/241#issuecomment-5738582106). No same-head retry, timeout adjustment or production repair followed. The user explicitly approved the [local-certification exception](https://github.com/the-sarge/quic-go-fast/pull/435#issuecomment-5738614829) before the pinned-head merge.
+
+### Next
+
+[#241](https://github.com/the-sarge/quic-go-fast/issues/241) remains the live investigation: assess the new natural evidence and scope any need for contemporaneous port-owner observations; a closed handle alone does not establish a leak or runner fault. Capture delivery is complete, while diagnosis remains unresolved. Keep #188, #151, #301, #169 and #44 separate, preserve frozen evidence, and do not renew prior reproduction budgets.
