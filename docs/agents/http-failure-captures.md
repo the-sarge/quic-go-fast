@@ -14,6 +14,8 @@ The recorder, instrumentation, regressions and upload steps are maintained verif
 
 The representation domain is these two fixtures, existing typed qlog events and scalar logger fields, Go serialization/file APIs, and the current integration matrix. Existing encoders own protocol representation; `httpCapture` owns observation admission and persistence. The guarantee is example-level diagnostic coverage, not exhaustive protocol observation. Contract closure is not triggered: focused lifecycle and failure tests are proportionate to this bounded aid. No recursive validation framework, mutation campaign or semantic cross-product is required.
 
+The separately approved [hotswap capture contract](hotswap-failure-capture.md) extends this recorder to #188 while preserving the scope of the two investigations above.
+
 ## Capture boundaries and interpretation
 
 `http_capture_helper_test.go` installs an independent recorder in `TestHTTPServerIdleTimeout` and `TestHTTPReestablishConnectionAfterDialError`. It is enabled in ordinary runs without DEBUG. Each connection trace records its endpoint role, initial connection ID and client dial attempt where applicable. Connection observations retain addresses and local pointer identity. Typed transport events include Initial/Handshake packets, recovery/PTO progress, handshake state and close causes; HTTP events and fixture milestones distinguish handler activity, response headers and application body consumption.

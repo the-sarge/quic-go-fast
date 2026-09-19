@@ -3,6 +3,7 @@ package self_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -127,7 +128,7 @@ func TestHTTPCaptureConcurrentFinalization(t *testing.T) {
 func TestHTTPCaptureFixtureFailure(t *testing.T) {
 	binary, err := os.Executable()
 	require.NoError(t, err)
-	for _, fixture := range []string{"TestHTTPServerIdleTimeout", "TestHTTPReestablishConnectionAfterDialError"} {
+	for _, fixture := range []string{"TestHTTPServerIdleTimeout", "TestHTTPReestablishConnectionAfterDialError", "TestHTTP3ServerHotswap"} {
 		t.Run(fixture, func(t *testing.T) {
 			root := t.TempDir()
 			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
@@ -150,13 +151,61 @@ func TestHTTPCaptureFixtureFailure(t *testing.T) {
 			require.Contains(t, string(data), `"failed":true`)
 			require.Contains(t, string(data), `"complete_recording_window":true`)
 			require.FileExists(t, filepath.Join(filepath.Dir(files[0]), "SHA256SUMS"))
-			if fixture == "TestHTTPServerIdleTimeout" {
+			switch fixture {
+			case "TestHTTPServerIdleTimeout":
 				require.Contains(t, string(data), "connection_published")
 				require.Contains(t, string(data), "HTTP idle timer")
-			} else {
+			case "TestHTTP3ServerHotswap":
+				milestones := make(map[string]string)
+				for line := range bytes.SplitSeq(bytes.TrimSpace(data), []byte("\n")) {
+					var record httpCaptureRecord
+					require.NoError(t, json.Unmarshal(line, &record))
+					milestones[record.Source+"/"+record.Event] = record.Phase
+					if record.Event == "transport:packet_sent" || record.Event == "transport:packet_received" {
+						// Initial CID suffixes vary; endpoint identity does not.
+						endpoint, _, _ := strings.Cut(record.Source, " client=")
+						milestones[endpoint+"/"+record.Event] = "observed"
+					}
+				}
+				for _, source := range []string{"client1", "client2"} {
+					for _, event := range []string{"early_dial_return", "response_headers", "body_consumed", "response_tls"} {
+						require.Equal(t, "test", milestones[source+"/"+event], source+"/"+event)
+					}
+				}
+				for _, source := range []string{"client1", "client2", "listener"} {
+					for _, event := range []string{"transport:packet_sent", "transport:packet_received"} {
+						require.Contains(t, milestones, source+"/"+event)
+					}
+				}
+				for _, source := range []string{"server1", "server2"} {
+					// Watcher scheduling can place its handshake observation in
+					// cleanup; phase is observation time, not handshake time.
+					require.Contains(t, milestones, source+"/handshake_complete")
+					for _, event := range []string{"accept_enter", "accept_return", "admitted", "handler_enter", "handler_write", "serve_return"} {
+						require.Equal(t, "test", milestones[source+"/"+event], source+"/"+event)
+					}
+				}
+				require.Equal(t, "cleanup", milestones["listener/close_enter"])
+				require.Equal(t, "cleanup", milestones["client2/close_enter"])
+			default:
 				require.Contains(t, string(data), "deliberate_dial_error")
 				require.Contains(t, string(data), "client dial=2")
 			}
 		})
 	}
+}
+
+func TestHTTPCaptureHotswapPassingCleanup(t *testing.T) {
+	binary, err := os.Executable()
+	require.NoError(t, err)
+	root := t.TempDir()
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, "-test.run=^TestHTTP3ServerHotswap$", "-test.timeout=15s", "-version=2")
+	cmd.Env = append(os.Environ(), "QUIC_GO_HTTP_CAPTURE_DIR="+root, "QUIC_GO_HTTP_CAPTURE_FAIL_TEST=")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+	entries, err := os.ReadDir(root)
+	require.NoError(t, err)
+	require.Empty(t, entries)
 }
