@@ -2398,3 +2398,26 @@ Final local race certification naturally hit the socket-rebind assertion before 
 ### Next
 
 [#241](https://github.com/the-sarge/quic-go-fast/issues/241) remains the live investigation: assess the new natural evidence and scope any need for contemporaneous port-owner observations; a closed handle alone does not establish a leak or runner fault. Capture delivery is complete, while diagnosis remains unresolved. Keep #188, #151, #301, #169 and #44 separate, preserve frozen evidence, and do not renew prior reproduction budgets.
+
+---
+
+## Fixture worker failure ownership landed - 2026-09-18 23:32 EDT
+
+**Main:** `b34d4b1eaff9`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #437](https://github.com/the-sarge/quic-go-fast/pull/437), closing [#403](https://github.com/the-sarge/quic-go-fast/issues/403): multiplexing and handshake-accept workers now return errors to their owning tests. All six multiplexing launches use explicit connection and worker ownership, cancellation/close before bounded joins, and publication that cannot strand a worker when its consumer exits. The handshake fixture publishes typed results, preserves a late accept error over a secondary dial error, and diagnoses missing publication within the original dial-plus-accept allowance. Production code, wire/API behavior, payload assertions, datagram predicates, address checks, platform skips, and scenario deadlines are unchanged.
+
+### Validation
+
+The five existing scenarios and both lifecycle families passed normally and under the race detector on darwin/arm64 with Go 1.27.1 and QUIC v1. One targeted repair removal per fixture owner failed as expected and was restored; deterministic handshake waiter regressions also demonstrated dial-first misattribution and missing-publication deadlock before the corresponding corrections. Final exact-head certification at `6e5f0c056f4bc5f90265356c3de62e67df03070b` against base `8d7863c238fc23bd0d1b851e97f5c24c8366a24c` passed affected-package tests, vet, tidy-diff, go-fix, and diff checks; formatting/lint checks passed on unchanged candidate content. All 33 hosted checks passed on that head before squash merge to `b34d4b1eaff92a326718f9e4877535a1bc43c7e3`.
+
+### Decisions
+
+The [approved Agent Brief](https://github.com/the-sarge/quic-go-fast/issues/403#issuecomment-5735051189) remained the contract ceiling. Initial RAS run `20260919T025957-d547192b47ebf1824d533915` and its verification resolved the accepted modernization, bounded-publication, and accept-error-attribution findings. Replacement run `20260919T032030-81eca42be203b8754f24c18a` completed with four successful reviewers and one output-format failure, meeting quorum. Its new regression-only timeout-cleanup hardening finding was deferred under the bounded review policy; the actual handshake scenario already attempts every join nonfatally. Stronger causal writer-join mutation coverage was rejected as exceeding the finite evidence budget, and cosmetic duplicate error text was deferred without a ticket. [PR #437](https://github.com/the-sarge/quic-go-fast/pull/437) records the current dispositions and the earlier, unchanged migration-test CI failure; no same-head retry or historical-cause claim was made.
+
+### Next
+
+[#398](https://github.com/the-sarge/quic-go-fast/issues/398) remains the live tracking surface for the remaining fixture-worker slices. Revalidate and record the regression-cleanup hardening follow-up, record this slice's precise closure evidence, and complete its OmniFocus task after this journal lands; completing #403 does not close the umbrella.
