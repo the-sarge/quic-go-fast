@@ -32,6 +32,8 @@ jobs:
       - name: Run tests
         env:
           TIMESCALE_FACTOR: 10
+          # Temporary opt-in for #241, automatically rejected after its RFC3339 expiry.
+          QUIC_GO_DIAL_OWNER_UNTIL: ${{ matrix.os == 'macos' && matrix.go == '1.27.x' && vars.QUIC_GO_DIAL_OWNER_UNTIL || '' }}
         run: python3 .github/scripts/http-capture.py --unit-source --label unit run -- go test -v -shuffle on -cover -coverprofile coverage.txt ./... 2>&1 | go-junit-report -set-exit-code -iocopy -out report.xml
       - name: Run tests as root
         if: ${{ matrix.os == 'ubuntu' }}

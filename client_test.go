@@ -64,7 +64,7 @@ func testDial(t *testing.T,
 	var socket **net.UDPConn
 	if shouldCloseConn {
 		capture = newDialCapture(t.Name())
-		socket = captureAddrSocket(t)
+		socket = captureAddrSocket(t, capture)
 		defer func() {
 			if report := capture.finish(t.Failed()); report != nil {
 				t.Logf("dial-capture %s", report)
@@ -129,7 +129,7 @@ func testDial(t *testing.T,
 
 // captureAddrSocket retains the actual socket so finalizers cannot hide missing cleanup.
 // These tests must remain sequential while the socket factory is replaced.
-func captureAddrSocket(t *testing.T) **net.UDPConn {
+func captureAddrSocket(t *testing.T, capture *dialCapture) **net.UDPConn {
 	t.Helper()
 	original := listenUDPConn
 	var socket *net.UDPConn
@@ -137,6 +137,14 @@ func captureAddrSocket(t *testing.T) **net.UDPConn {
 		conn, err := original(network, addr)
 		if err == nil {
 			socket = conn
+			if capture != nil && capture.ownerEnabled {
+				raw, controlErr := conn.SyscallConn()
+				var descriptor *uintptr
+				if controlErr == nil {
+					controlErr = raw.Control(func(fd uintptr) { descriptor = &fd })
+				}
+				capture.record("original_socket_created", map[string]any{"descriptor": descriptor, "address": conn.LocalAddr().String(), "control_error": dialCaptureError(controlErr)})
+			}
 			t.Cleanup(func() { conn.Close() })
 		}
 		return conn, err
@@ -166,7 +174,7 @@ func TestDialAddrSetupFailureClosesSocket(t *testing.T) {
 				{"QUIC configuration", "127.0.0.1:443", &tls.Config{}, &Config{Versions: []Version{0x1234}}, "invalid QUIC version"},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					socket := captureAddrSocket(t)
+					socket := captureAddrSocket(t, nil)
 					conn, err := dial.fn(context.Background(), tc.addr, tc.tlsConf, tc.conf)
 					require.ErrorContains(t, err, tc.errorText)
 					require.Nil(t, conn)

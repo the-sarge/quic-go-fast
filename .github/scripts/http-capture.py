@@ -88,7 +88,7 @@ def run(root, label, argv, unit_source=False):
             "go": command_text("go", "version"),
             "environment": {key: os.environ.get(key, "") for key in (
                 "TIMESCALE_FACTOR", "GOTOOLCHAIN", "GODEBUG", "GOMAXPROCS",
-                "QUIC_GO_DISABLE_GSO", "QUIC_GO_DISABLE_ECN", "GITHUB_SHA",
+                "QUIC_GO_DISABLE_GSO", "QUIC_GO_DISABLE_ECN", "QUIC_GO_DIAL_OWNER_UNTIL", "GITHUB_SHA",
                 "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_JOB", "RUNNER_OS", "RUNNER_ARCH")},
         }
         # Preserve a bounded patch for local instrumentation. Clean CI has an

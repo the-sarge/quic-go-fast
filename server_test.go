@@ -1460,7 +1460,7 @@ func TestListenAddrSetupFailureClosesSocket(t *testing.T) {
 				{"QUIC configuration", &tls.Config{}, &Config{Versions: []Version{0x1234}}, "invalid QUIC version"},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					socket := captureAddrSocket(t)
+					socket := captureAddrSocket(t, nil)
 					require.ErrorContains(t, listen.fn("127.0.0.1:0", tc.tlsConf, tc.conf), tc.errorText)
 					require.NotNil(t, *socket)
 					require.ErrorIs(t, (*socket).SetReadDeadline(time.Now()), net.ErrClosed)
