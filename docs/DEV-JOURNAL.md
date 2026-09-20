@@ -2601,3 +2601,18 @@ Initial RAS review `20260920T173258-7f5fd5f737c126719d1e0ebc` identified two fix
 ### Next
 
 Wait for a natural qualifying failure from ordinary validation and assess any retained owner evidence; if the bounded window expires without one, record that outcome and define any next observation separately. The active [OmniFocus task](https://github.com/the-sarge/quic-go-fast/issues/241) remains available under the reliability follow-up parent.
+
+---
+
+## HTTP/3 caller configuration ownership repair - 2026-09-20 16:08 EDT
+
+**Main:** `6878a16e46c9`
+**Actor:** Codex
+
+Fixed HTTP/3 client transport initialization so applying the client-only `MaxIncomingStreams = -1` default no longer mutates a caller-owned `quic.Config`. The effective configuration passed to custom dialing retains the intended default and caller settings.
+
+Merged [PR #463](https://github.com/the-sarge/quic-go-fast/pull/463) for [issue #427](https://github.com/the-sarge/quic-go-fast/issues/427). The transport now clones the explicit-version configuration before applying the stream-limit default. Focused regressions cover explicit versions, empty-version defaulting, caller immutability, effective dialing values, and nonzero stream limits.
+
+The final head passed `go test ./http3 -count=1`, `go vet ./http3`, `go mod tidy -diff`, formatting, and whitespace checks. All 33 applicable hosted checks passed on the reviewed head. RAS review `20260920T200011-a6a5592ce3bf35b36469a750` found no fix-now findings; one optional shallow-snapshot test-hardening item was deferred.
+
+Issue #427 is closed. The remaining active reconciliation frontier is tracked by [issue #422](https://github.com/the-sarge/quic-go-fast/issues/422).
