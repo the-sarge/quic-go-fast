@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.62.1-fast.3 — release candidate
+## v0.62.1-fast.3 — 2026-09-16
 
-Qualified external packet I/O and managed endpoint reuse, based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path and dependency versions are unchanged from fast.2. The [release record](docs/releases/v0.62.1-fast.3.md) supplies support and source reconciliation and links the GitHub release that will carry publication and exact-source validation receipts after the runbook gates succeed. This entry selects the next version; it does not assert that the tag is already published.
+Qualified external packet I/O and managed endpoint reuse, based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path and dependency versions are unchanged from fast.2. The [release record](docs/releases/v0.62.1-fast.3.md) and [GitHub release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.3) supply the support, source and publication receipts.
 
 - Explicit `ConfigureExternalPacketIOV1` registration binds the exact supplied connection and a checked batch writer before transport initialization. Participating wrappers retain receive and destination policy. Receive-format permission is separate from close ownership; inherited methods do not grant it. `UDPBatchWriterV1` keeps platform batching in the fork.
 - `NewManagedPacketEndpointV1` creates a parent endpoint with exclusive leases; `ConfigureManagedPacketIOV1` binds the original lease through its participating wrapper. Closing a lease joins its I/O and permits reuse; closing the parent ends the socket. Linux GRO and Windows URO normalization persists across leases, while Darwin receive stays ordinary. Already consumed QUIC data is not replayed. Raw socket return after coalescing remains unsupported.
@@ -153,6 +153,6 @@ The [evidence index](docs/audit-evidence.md) covers the earlier archive. The [da
 
 ### Known limitations
 
-Intermittent macOS dial, initial-request, reconnection, and server-hotswap timeouts remain under investigation: [#151](https://github.com/the-sarge/quic-go-fast/issues/151), [#169](https://github.com/the-sarge/quic-go-fast/issues/169), [#188](https://github.com/the-sarge/quic-go-fast/issues/188), [#241](https://github.com/the-sarge/quic-go-fast/issues/241), and [#301](https://github.com/the-sarge/quic-go-fast/issues/301). The Linux path-MTU convergence assertion in [#178](https://github.com/the-sarge/quic-go-fast/issues/178) also remains unexplained. Passing runs do not establish infrastructure causality or resolve these failures.
+Intermittent macOS dial, initial-request, reconnection, and server-hotswap timeouts remain under investigation: [#151](https://github.com/the-sarge/quic-go-fast/issues/151), [#169](https://github.com/the-sarge/quic-go-fast/issues/169), [#188](https://github.com/the-sarge/quic-go-fast/issues/188), [#241](https://github.com/the-sarge/quic-go-fast/issues/241), and [#301](https://github.com/the-sarge/quic-go-fast/issues/301). The fixture repair for the Linux path-MTU convergence assertion in [#178](https://github.com/the-sarge/quic-go-fast/issues/178) is complete; the historical hosted probe-loss source remains unknown. Passing runs do not establish infrastructure causality or resolve these failures.
 
 The historical server-first packet-loss investigation [#44](https://github.com/the-sarge/quic-go-fast/issues/44) remains open. Bounded deterministic recovery tests do not promise successful recovery within a deadline under arbitrary loss patterns. Evaluate the prerelease against application workloads before adoption.

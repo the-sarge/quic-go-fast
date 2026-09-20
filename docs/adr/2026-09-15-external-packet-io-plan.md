@@ -1,7 +1,7 @@
 # External packet I/O and managed endpoints implementation plan
 
 **Date:** 2026-09-15
-**Status:** Fork implementation and E02 qualification complete; L01 release preparation owns the current frontier. L02 becomes ready only after the immutable release passes publication and consumer verification.
+**Status:** Fork implementation, E02 qualification, L01 release, named-consumer adoption and Z01 closeout complete. The current follow-up frontier is capability qualification outside this completed program: DF/PMTU in [#353](https://github.com/the-sarge/quic-go-fast/issues/353) and managed ECN in [#354](https://github.com/the-sarge/quic-go-fast/issues/354).
 **Track:** Q of the QUIC packet-I/O program
 **Normative scope:** Current slice contracts plus the [design contract](2026-09-15-external-packet-io-design.md)
 **Audit history:** [Handoff audit](2026-09-15-packet-io-handoff-audit.md); [evidence revision](2026-09-15-packet-io-evidence-reuse-audit.md)
@@ -11,19 +11,19 @@
 
 Deliver the complete optional integration through real external sockets, wrappers, safe reusable endpoints, fixed-peer enforcement, native qualification and consumer adoption. The design contract records the accepted interface and ownership decisions. Upstream builds, authenticated same-socket establishment and existing close-transfer contracts remain intact. Do not implement socket replacement after probing, automatic authority inferred from methods, opaque-wrapper unwrapping, receive-format mutation on borrowed raw sockets, or raw handback inferred from toggling an option. No new wire grammar, authenticated migration, helper module, monitoring service or verification framework is in scope.
 
-## Evidence reuse and remaining qualification
+## Evidence reuse and completed qualification
 
-The fork's existing adoption receipts are the baseline evidence for unchanged native algorithms. Reuse their protocols, source identities, raw results, known venue limitations and fallback tests; do not repeat their adoption campaigns. E01 is complete. E01-L/E01-W/E01-D are retired as superseded baseline campaigns, not completed measurements. Their removal unblocks Q02–Q05 after Q01; it does not waive native correctness or observed engagement on the new external/wrapped paths.
+The fork's existing adoption receipts are the baseline evidence for unchanged native algorithms. Reuse their protocols, source identities, raw results, known venue limitations and fallback tests; do not repeat their adoption campaigns. E01 is complete. E01-L/E01-W/E01-D are retired as superseded baseline campaigns, not completed measurements. Their removal unblocked Q02–Q05 after Q01; native correctness and observed engagement on the new external/wrapped paths were completed before release.
 
 Q02–Q05 and R01-L/W own only their named finite correctness, native engagement and lifecycle regressions. Compare changed source owners with the adoption receipt before relying on it. A materially changed kernel algorithm or newly supported OS/architecture requires a scoped re-audit of that affected capability; unchanged neighboring algorithms do not inherit another campaign. R03 completed its bounded raw-handback investigation with raw return rejected and managed reuse supported.
 
-E02-L/W/D each own one final assembled comparison under the current wiremux measurement protocol: one predeclared control/candidate pair, three paced workloads, ten pairs per workload, and no separate baseline campaign. Managed reuse, mixed upstream/fork peers, TURN, disabled/unavailable and IPv6 cases retain representative correctness checks where their behavior differs; they do not multiply the performance matrix. No capacity pilot, impairment campaign or TURN performance harness is a required deliverable. Historical results establish only their recorded native domains, not current full-Wire performance. Insufficient statistical resolution terminates with an explicit limitation and ordinary defaults; correctness failure or absent native qualification still blocks the affected capability. Releases, named consumers, rollback and Z01 remain required.
+E02-L/W/D each own one final assembled comparison under the current wiremux measurement protocol: one predeclared control/candidate pair, three paced workloads, ten pairs per workload, and no separate baseline campaign. Managed reuse, mixed upstream/fork peers, TURN, disabled/unavailable and IPv6 cases retain representative correctness checks where their behavior differs; they do not multiply the performance matrix. No capacity pilot, impairment campaign or TURN performance harness is a required deliverable. Historical results establish only their recorded native domains, not current full-Wire performance. Insufficient statistical resolution terminates with an explicit limitation and ordinary defaults; correctness failure or absent native qualification still blocks the affected capability. Releases, named consumers, rollback and Z01 are complete; the final support decision retains ordinary defaults and makes no assembled-Wire performance claim.
 
-P02's owner has selected wrapper retention. The wiremux selected-peer wrapper remains the enforcement owner on direct and managed paths; the fork's fixed-peer API remains independently useful to other consumers. E02 evaluates acceleration through the retained wrapper and cannot reopen its removal. P02's existing experiment keeps its original protocol and conclusions; its documentation PR must finish its own merge/journal gates before P02 is complete.
+P02's owner has selected wrapper retention. The wiremux selected-peer wrapper remains the enforcement owner on direct and managed paths; the fork's fixed-peer API remains independently useful to other consumers. E02 evaluates acceleration through the retained wrapper and cannot reopen its removal. P02's existing experiment keeps its original protocol and conclusions; its documentation and cross-repository closeout are complete.
 
-## Current shape
+## Pre-implementation shape (2026-09-15)
 
-At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializes socket wrapping with createdConn, `:441` initializes WriteTo and `:477` initializes Close. `:448` owns asynchronous stateless/close output; Close waits for listening, not every send. `send_conn_sendmsg_x_darwin.go:95` owns native batch dispatch. `connection.go:2885` admits alternate local paths; fixed-peer mode must guard both origin and target. Current Q/R/P interfaces do not exist.
+At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializes socket wrapping with createdConn, `:441` initializes WriteTo and `:477` initializes Close. `:448` owns asynchronous stateless/close output; Close waits for listening, not every send. `send_conn_sendmsg_x_darwin.go:95` owns native batch dispatch. `connection.go:2885` admits alternate local paths; fixed-peer mode must guard both origin and target. At that baseline the Q/R/P interfaces did not exist; the completed slices below delivered them.
 
 ## Slice graph
 
@@ -41,15 +41,17 @@ At fork `8d3d151a4da565a21c6c2e77c17d83bd5e07ff06`, `transport.go:382` initializ
 | R03 | Decide raw handback feasibility | R01-L, R01-W | Complete: raw return rejected; managed reuse supported |
 | P01-A | Consolidate packet-policy hooks without activating policy | None | Complete |
 | P01-B | Activate complete immutable fixed-peer policy | P01-A, Q01 | Complete |
-| L01 | Release qualified fork capability | E02 | Release source prepared; publication receipt owns completion |
+| L01 | Release qualified fork capability | E02 | Complete: v0.62.1-fast.3 published |
 
 Cross-repository blockers refer to the other track in the program index. The tracker owns live completion state. A stage is one intended PR in its named code/evidence repository; consumer PRs live in their own repositories while their issue and normative contract stay with this integration track.
+
+The following slice contracts retain their original acceptance criteria and dependency graph. Their current-state paragraphs record completion; historical dependency edges are not open blockers or authorization to repeat their evidence campaigns. The [Z01 closeout](https://github.com/GridSwarm/wiremux/blob/main/docs/research/z01-program-closeout.md) records final delivery, and the [E02 support decision](https://github.com/GridSwarm/wiremux/blob/main/docs/research/e02-support.md) records unavailable performance comparisons with zero official pairs.
 
 ## Implementation slices
 
 ### Q01 — Register external packet I/O and provide ordinary writer
 
-**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 is complete; other Q01 successors retain their independent blockers. P01-B is complete; P02 retains the wrapper; its documentation is in progress in the wiremux track. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. Both standard-type signatures below are implemented as named in the design contract. W01 and all Q01 successors are complete. P01-B and P02 are complete; the cross-repository program closed through Z01.
 
 **What it delivers and acceptance criteria:** Implement immutable registration and its binding checks in the fork transport/socket initialization module. Deliver both extension methods, including a working synchronous UDP writer using ordinary WriteMsgUDP with the declared prefix/error semantics, so W01 can discover the complete extension without Q05. Q05 adds accelerated Darwin submission behind that factory. Freeze the standard-type structural signatures using isolated upstream/fork consumer builds. Keep newly registered receive coalescing unavailable until platform implementations land. Define diagnostics for requested, permitted, supported/enabled, disabled reason and exercised counters through the existing tracing/diagnostic route; do not expose a private-state API merely for tests.
 
@@ -83,7 +85,7 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### Q02 — Enable external Windows segmented sends
 
-**Current state:** Complete. The read-only USO probe supports external ordinary and registered connections while preserving wrapper submission, receive-format permission and close ownership. Q03–Q05 remain ready; E02-W remains blocked by Q04 and R01-W. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. The read-only USO probe supports external ordinary and registered connections while preserving wrapper submission, receive-format permission and close ownership. Q03–Q05, R01-W and E02-W are complete.
 
 **What it delivers and acceptance criteria:** Separate the read-only USO capability probe from receive-format permission and close ownership. Preserve wrapper WriteMsgUDP submission and ordinary fallback. Validate actual segmented delivery and ancillary metadata on native Windows, with ordinary and registered external sockets plus capability-disabled/unavailable cases. Preserve existing Linux GSO. Bounds: Windows capability plumbing, relevant cross-platform capability declaration and focused tests. No URO or caller reuse semantics.
 
@@ -115,7 +117,7 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### Q03 — Enable permissioned Linux coalesced receive
 
-**Current state:** Complete. Explicit external receive permission enables Linux GRO through the participating wrapper without transferring Close ownership. The receive owner rejects invalid GRO segment metadata and truncated reads before splitting. Native wrapper engagement and selected/foreign filtering are qualified on Linux IPv4 and IPv6; the existing direct and TURN packet profiles are unchanged. R01-L is ready after completed R01-B and Q03. Q04 and Q05 remain ready; E02-L retains R01-L. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. Explicit external receive permission enables Linux GRO through the participating wrapper without transferring Close ownership. The receive owner rejects invalid GRO segment metadata and truncated reads before splitting. Native wrapper engagement and selected/foreign filtering are qualified on Linux IPv4 and IPv6; the existing direct and TURN packet profiles are unchanged. R01-L and E02-L are complete.
 
 **What it delivers and acceptance criteria:** Enable GRO on explicitly registered, disposal-guaranteed native wrapper paths only. Validate ReadBatch large-buffer/metadata preservation, selected/foreign filtering, coalesced split boundaries, invalid/truncated metadata handling, sibling storage lifetime, read error, cancellation and initialization failure after mutation. Preserve existing 1232-byte direct and fixed 1200-byte TURN packet profiles; coalescing is not a path-MTU or Datagram-ceiling change. Native engagement and focused correctness regressions are required; reuse G2 adoption evidence for the unchanged algorithm, with assembled performance owned by E02-L. Bounds: socket initialization, existing receive/split owner and relevant wrapper evidence; no reusable raw handback.
 
@@ -147,7 +149,7 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### Q04 — Enable permissioned Windows coalesced receive
 
-**Current state:** Complete. Explicit external receive permission enables Windows URO through the supplied message-I/O wrapper without transferring Close ownership. The receive owner rejects malformed or truncated coalesced reads before splitting and preserves genuine socket errors. Separate-endpoint Windows wrapper engagement is qualified; see the [native receipt](../audits/2026-09-16-q04-windows-uro.md). R01-W is ready after completed R01-B and Q04. Q05 and R01-L remain ready; E02-W retains R01-W. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. Explicit external receive permission enables Windows URO through the supplied message-I/O wrapper without transferring Close ownership. The receive owner rejects malformed or truncated coalesced reads before splitting and preserves genuine socket errors. Separate-endpoint Windows wrapper engagement is qualified; see the [native receipt](../audits/2026-09-16-q04-windows-uro.md). R01-W and E02-W are complete.
 
 **What it delivers and acceptance criteria:** Apply the same explicit permission contract to URO, retaining Windows message I/O and supported ancillary metadata. Use the same receive-owner semantic classes; do not depend on Linux implementation state. Require a two-endpoint native Windows environment that actually engages URO; hosted same-host loopback is not equivalent evidence. Bounds: Windows receive setup/decoder, common permission wiring and focused tests. Preserve USO and ordinary Windows reads.
 
@@ -179,13 +181,13 @@ Acceptance: upstream import compatibility; valid registration accepted; duplicat
 
 ### Q05 — Accelerate checked batch writers on Darwin
 
-**Current state:** Complete. Checked external and managed factory writers share the existing qualified Darwin submission owner with synchronized, bounded scratch and ordinary fallback. Native wrapper engagement, concurrent IPv4/IPv6 calls, progress/error handling and lifecycle preservation are qualified by the [native receipt](../audits/2026-09-16-q05-darwin-batch.md). E02-D is ready after completed W02, R02, P02 and Q05. R01-L and R01-W remain ready; E02-L/W retain their respective R01 blockers. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. Checked external and managed factory writers share the existing qualified Darwin submission owner with synchronized, bounded scratch and ordinary fallback. Native wrapper engagement, concurrent IPv4/IPv6 calls, progress/error handling and lifecycle preservation are qualified by the [native receipt](../audits/2026-09-16-q05-darwin-batch.md). E02-D is complete. R01-L, R01-W and E02-L/W are complete.
 
 **What it delivers and acceptance criteria:** Refactor existing qualified Darwin submission into the fork-owned writer factory without duplicating the kernel implementation. Register a checked outer-wrapper callback; keep the current one-destination/one-OOB batch domain. Validate qualified, disabled and unqualified behavior, wrong destination, full/short/zero/invalid progress, unknown-progress error, packet-specific MTU feedback, and release on cancellation. The helper's baseline fallback uses standard socket writes; the existing send worker remains retry/order owner. Native Darwin evidence retains private-syscall build/runtime opt-outs. The factory owns concurrency-safe scratch; current per-sconn single-worker assumptions must not leak into a transport-wide callback. Exercise concurrent calls under the race detector. Bounds: current batch helper, send adapter and progress interpretation; no new OS qualification claims or `recvmsg_x` revival.
 
 **Blocked by:** Q01.
 
-**Existing-work disposition:** Retain and rework [product PR #375](https://github.com/the-sarge/quic-go-fast/pull/375) within Q05. Dispatch is paused until the child pointer is synchronized with this scoped contract revision; then resume the triggering review's inner fix/verify loop. The [re-audit receipt](https://github.com/the-sarge/quic-go-fast/pull/375#issuecomment-5699832633) owns review chronology and dispositions.
+**Existing-work disposition:** [Product PR #375](https://github.com/the-sarge/quic-go-fast/pull/375) merged with the scoped Q05 correction. The [re-audit receipt](https://github.com/the-sarge/quic-go-fast/pull/375#issuecomment-5699832633) preserves review chronology and dispositions; no Q05 dispatch remains.
 
 **Single owner after merge:** Native writer owns qualification/syscall scratch and the internal distinction between a submission that never ran and a native progress result; registered wrapper authorizes output; existing send worker owns retry. The send-worker adapter retains zero-progress per-packet attribution for pre-dispatch socket failures. Factory callers use ordinary WriteMsgUDP when native submission never ran, preserving terminal deadline and closed-socket errors at UDPBatchWriterV1 and managed WriteBatchV1. Never retry a native result with unknown progress.
 
@@ -252,7 +254,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### R01-B — Bind a lease to QUIC with generation-safe handback
 
-**Current state:** Complete. Managed registration seals the exact active lease under the endpoint's operation lock; its private batch writer participates in generation checks and I/O joining. Lease Close, rather than Transport.Close, permits reuse. P01-B is complete; P02 retains the wrapper; its documentation is in progress in the wiremux track. R01-L and R01-W retain Q03 and Q04 blockers; R02 retains its W02 blocker. No additional successor becomes ready from this slice alone.
+**Current state:** Complete. Managed registration seals the exact active lease under the endpoint's operation lock; its private batch writer participates in generation checks and I/O joining. Lease Close, rather than Transport.Close, permits reuse. P01-B is complete; P02 retains the wrapper; its documentation and cross-repository closeout are complete. R01-L, R01-W and R02 are complete.
 
 **What it delivers and acceptance criteria:** Add ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.PacketConn, sendBatch func([][]byte, []byte, *net.UDPAddr) (int,error)) error. Exact lease must originate from the factory and still be active; exact outer conn binds through normal registration rules. Explicit registration transitions ordinary establishment to exclusive QUIC only after caller readers join. Serialize phase transition with active operations, reject any concurrent ordinary operation, and seal phase until lease Close. Keep ordinary receive on every platform. The factory-proven lease exposes WriteBatchV1([][]byte, []byte, *net.UDPAddr) (int,error), backed by its endpoint-private Q01 native writer; ordinary fallback works now, and Q05 acceleration remains conditional. Managed registration claims the same immutable slot instead of calling ordinary registration first. Generation checks cover every lease I/O/deadline method and native writer closure. Delayed QUIC workers must fail after lease revocation; Transport.Close alone is not handback evidence.
 
@@ -284,7 +286,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### R01-L — Linux managed coalesced normalization
 
-**Current state:** Complete. The Linux endpoint retains the existing decoder and bounded receive storage across leases; public reads preserve one-datagram semantics through the supplied policy wrapper. Lease return joins active readers, discards consumed QUIC storage, and restores logical deadlines while preserving kernel-queued data for normalization. Native IPv4/IPv6 handback, filtering, storage and cancellation evidence is recorded in the [native receipt](../audits/2026-09-16-r01-l-managed-receive.md). E02-L is ready after completed W02, R02, P02, Q03 and R01-L. R03 is complete with raw return rejected; E02-W also retains R01-W. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete. The Linux endpoint retains the existing decoder and bounded receive storage across leases; public reads preserve one-datagram semantics through the supplied policy wrapper. Lease return joins active readers, discards consumed QUIC storage, and restores logical deadlines while preserving kernel-queued data for normalization. Native IPv4/IPv6 handback, filtering, storage and cancellation evidence is recorded in the [native receipt](../audits/2026-09-16-r01-l-managed-receive.md). E02-L and E02-W are complete. R03 is complete with raw return rejected and managed reuse supported.
 
 **What it delivers and acceptance criteria:** Enable managed receive coalescing on Linux only after persistent endpoint normalization is installed. Reuse the platform decoder and bounded storage owner. Ordinary endpoint/lease reads always return one datagram; optimized coalesced representation stays inside registered QUIC mode. Retain normalization across leases to interpret pending kernel data. Dispose old consumed QUIC storage without replay. Failure to restore logical readiness is terminal.
 
@@ -316,7 +318,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### R01-W — Windows managed coalesced normalization
 
-**Current state:** Complete in [PR #381](https://github.com/the-sarge/quic-go-fast/pull/381). The endpoint installs and retains the existing Windows decoder before enabling URO; ordinary datagrams continue through policy wrappers. Queued native coalescing, ordinary reads and next-lease reuse are qualified by the [native receipt](../audits/2026-09-16-r01-w-managed-receive.md). R03 is complete with raw return rejected; E02-W is ready after its completed prerequisites. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete in [PR #381](https://github.com/the-sarge/quic-go-fast/pull/381). The endpoint installs and retains the existing Windows decoder before enabling URO; ordinary datagrams continue through policy wrappers. Queued native coalescing, ordinary reads and next-lease reuse are qualified by the [native receipt](../audits/2026-09-16-r01-w-managed-receive.md). R03 and E02-W are complete; raw return remains rejected and managed reuse is the supported route.
 
 **What it delivers and acceptance criteria:** Enable managed receive coalescing on Windows only after persistent endpoint normalization is installed. Reuse the platform decoder and bounded storage owner. Ordinary endpoint/lease reads always return one datagram; optimized coalesced representation stays inside registered QUIC mode. Retain normalization across leases to interpret pending kernel data. Dispose old consumed QUIC storage without replay. Failure to restore logical readiness is terminal.
 
@@ -348,7 +350,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### R03 — Decide raw handback feasibility
 
-**Current state:** Complete with a recorded rejection of raw return after coalescing; managed reuse is the supported route. The [bounded decision receipt](../audits/2026-09-16-r03-raw-handback.md) records Linux queued-buffer source evidence, the Windows contract limitation and why neither conditional native experiment was triggered. No raw-return implementation children are proposed. E02 retains E02-W; L01 remains blocked by E02, so this completion makes no successor ready. Live cross-track readiness remains in the linked issues.
+**Current state:** Complete with a recorded rejection of raw return after coalescing; managed reuse is the supported route. The [bounded decision receipt](../audits/2026-09-16-r03-raw-handback.md) records Linux queued-buffer source evidence, the Windows contract limitation and why neither conditional native experiment was triggered. No raw-return implementation children are proposed. E02 and L01 are complete; the cross-repository program closed through Z01.
 
 **What it delivers and acceptance criteria:** Inspect native Linux/Windows option and queued-buffer semantics and perform one predeclared finite handback experiment per platform if a plausible bounded procedure exists. Required result: either a separately scoped safe raw-return proposal with explicit pending implementation children, or a recorded rejection of raw return after coalescing with managed reuse as the supported route. Draining unbounded traffic, discarding unrelated queued data, hoping queues are empty, or suppressing restoration errors cannot pass. No additional repeated experiments without a distinct corrected hypothesis. The program cannot close with this decision unresolved; raw borrowed sockets remain ordinary-receive meanwhile.
 
@@ -380,7 +382,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### P01-A — Consolidate packet-policy hooks without activating policy
 
-**Current state:** Complete. The transport-owned packet adapter established the socket ingress, ordinary/stateless egress and native/registered batch admission seams while retaining existing capability extraction. P01-B activated those seams and the origin/target path guard. P01-B is complete; P02 retains the wrapper; its documentation is in progress in the wiremux track.
+**Current state:** Complete. The transport-owned packet adapter established the socket ingress, ordinary/stateless egress and native/registered batch admission seams while retaining existing capability extraction. P01-B activated those seams and the origin/target path guard. P01-B is complete; P02 retains the wrapper; its documentation and cross-repository closeout are complete.
 
 **What it delivers and acceptance criteria:** Refactor the current packet admission and output seams into internal pass-through hooks owned by the existing transport/raw connection/send worker. Cover socket ingress before routing, ordinary and stateless egress, native Darwin batches and connection path attachment. Preserve native extraction, batching, buffer ownership, errors and packet order. No public policy API, new configurable callback framework, new persisted state or active filtering. The hooks must be behaviorally inert and usable by P01-B without a second policy state machine.
 
@@ -412,7 +414,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### P01-B — Activate complete immutable fixed-peer policy
 
-**Current state:** Complete. `ConfigureFixedPeerV1` binds a copied UDP peer and the direct local socket before initialization. One immutable policy gates receive routing, ordinary/stateless/segmented and batch output, and origin/target path admission. P02 has selected wrapper retention; its documentation remains in progress. No additional fork slice becomes ready; its remaining blockers are unchanged.
+**Current state:** Complete. `ConfigureFixedPeerV1` binds a copied UDP peer and the direct local socket before initialization. One immutable policy gates receive routing, ordinary/stateless/segmented and batch output, and origin/target path admission. P02 has selected wrapper retention and its documentation is complete. The fork program has no remaining implementation frontier.
 
 **What it delivers and acceptance criteria:** Implement immutable transport-wide peer admission before initialization, with no changes to ordinary unrestricted transports. Census the packet entry/exit paths listed above against current source and enforce at shared receive/send owners. Test address canonicalization, pre-connection foreign traffic, known-connection-ID foreign traffic, stateless output, direct/batch sends, path-add/switch attempts and teardown. Preserve fork emission and incoming-storage ownership. Scope excludes authenticated migration, multipath, identity, NAT traversal and UDP-connect shortcuts. The optional setter uses standard types and explicitly rejects late/unsupported configuration. Freeze ConfigureFixedPeerV1(peer *net.UDPAddr) error with pre-init validation. Store the policy in one object used by ingress/egress and connection path admission. Reject Conn.AddPath on fixed-origin connections and attachment to fixed target transports, preserving the selected local socket as well as remote address. Deep-copy address; no UDP-connect substitution. Private native batch output must use the same policy.
 
@@ -444,7 +446,7 @@ The deadline regression clears the deadline and confirms subsequent native deliv
 
 ### L01 — Release qualified fork capability
 
-**Current state:** Release source and support notes prepared for `v0.62.1-fast.3`; E02 is complete. The [release record](../releases/v0.62.1-fast.3.md) and its linked GitHub release own the remaining exact-source audit, immutable tag, archive/consumer and publication receipts. This source PR alone does not complete L01 or unblock L02. Successful publication completes L01 and makes only [L02](https://github.com/GridSwarm/wiremux/issues/1533) ready; the [live tracker](https://github.com/GridSwarm/wiremux/issues/1540) records that transition. No additional committed frontier change is required by publication.
+**Current state:** Complete. `v0.62.1-fast.3` was published after exact-source, tag, archive and consumer verification; the [release record](../releases/v0.62.1-fast.3.md), [GitHub release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.3), [#324](https://github.com/the-sarge/quic-go-fast/issues/324) and wiremux closeout own the receipts. L02 and Z01 are complete in the cross-repository program.
 
 **What it delivers and acceptance criteria:** L01 follows the fork release runbook: reviewed default-branch source, exact-head hosted checks, vulnerability/dependency audit on the release graph, immutable tag, consumer module download and provenance, accurate support/limitations, explicit version. Choose the real version at execution, never invent a published tag in advance.
 
