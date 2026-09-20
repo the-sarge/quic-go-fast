@@ -2616,3 +2616,30 @@ Merged [PR #463](https://github.com/the-sarge/quic-go-fast/pull/463) for [issue 
 The final head passed `go test ./http3 -count=1`, `go vet ./http3`, `go mod tidy -diff`, formatting, and whitespace checks. All 33 applicable hosted checks passed on the reviewed head. RAS review `20260920T200011-a6a5592ce3bf35b36469a750` found no fix-now findings; one optional shallow-snapshot test-hardening item was deferred.
 
 Issue #427 is closed. The remaining active reconciliation frontier is tracked by [issue #422](https://github.com/the-sarge/quic-go-fast/issues/422).
+
+---
+
+## TransportError unwrap nil-member repair - 2026-09-20 16:30 EDT
+
+**Main:** `4f8b9ea310a0`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #466](https://github.com/the-sarge/quic-go-fast/pull/466) for [issue #429](https://github.com/the-sarge/quic-go-fast/issues/429). `TransportError.Unwrap()` now omits nil underlying errors while preserving `net.ErrClosed` and non-nil crypto errors.
+
+### Completed
+
+The repair is limited to `internal/qerr/errors.go` and focused qerr tests. Ordinary transport errors, non-nil crypto errors and nil crypto construction are covered; existing error identity, message, wire-code and crypto unwrapping behavior remain unchanged. The issue is closed.
+
+### Validation
+
+The final product head `9cb6803f94f8f1955aafcc1e12aa493d7d6b80ff` passed `go test ./...`, `go vet ./internal/qerr`, `go mod tidy -diff`, `git diff --check`, and all applicable hosted unit, integration, lint, cross-compilation and interop checks. RAS review `20260920T202408-08369bd66e8fdb72837d197b` found no fix-now findings, follow-ups or stop-for-decision findings; no verification cycle was required. The PR squash-merged to `main` as `4f8b9ea310a0b031be2b173bb30c07259639fcee`.
+
+### Decisions
+
+Kept the compatibility-preserving repair within the approved [agent brief](https://github.com/the-sarge/quic-go-fast/issues/429#issuecomment-5750412555). Qlog provenance, other multi-error implementations, public error identity, wire codes and error strings remain out of scope.
+
+### Next
+
+The remaining reconciliation frontier is tracked by [issue #422](https://github.com/the-sarge/quic-go-fast/issues/422); its other active candidates remain independently scoped.
