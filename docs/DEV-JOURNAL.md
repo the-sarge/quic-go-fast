@@ -2574,3 +2574,30 @@ The final PR head `cef23df9366c4031071a9e48a718afb5ec790312` passed `git diff --
 
 ### Next
 The live next step is to finish bounded socket-rebind evidence for [#241](https://github.com/the-sarge/quic-go-fast/issues/241), including the current [PR #454](https://github.com/the-sarge/quic-go-fast/pull/454), then reconcile its GitHub and OmniFocus disposition.
+
+---
+
+## Bounded socket-rebind evidence follow-up - 2026-09-20 14:55 EDT
+
+**Main:** `88b2f95509aa`
+**Actor:** Codex
+
+### Summary
+
+Merged the bounded port-owner observation follow-up for [#241](https://github.com/the-sarge/quic-go-fast), preserving the investigation's unresolved status and the original natural-failure evidence.
+
+### Completed
+
+Merged [PR #454](https://github.com/the-sarge/quic-go-fast/pull/454) at `88b2f95509aaa77b2370dc710edb3122d2918664`. The diagnostic aid keeps the real `DialAddr` and `DialAddrEarly` paths, assertions, polling and production socket behavior unchanged; its opt-in macOS owner query records only bounded visible-process observations after a qualifying closed-handle `EADDRINUSE`. The natural observer remains capped at 250 ms, and the held-port control uses the suite-scaled deadline. The retained evidence still does not identify the production close result, receive-loop completion, actual port owner or historical cause.
+
+### Decisions
+
+Keep [#241](https://github.com/the-sarge/quic-go-fast/issues/241) open with `bug` and `needs-triage`. Preserve the one-query-per-process allowance because releasing a discarded passing probe would violate the accepted bounded contract. Do not rerun the historical failure blindly, relax the assertion, renew the exhausted diagnosis campaign or infer a production defect from the current capture. The [bounded disposition](https://github.com/the-sarge/quic-go-fast/issues/241#issuecomment-5751896147) is the live tracker record.
+
+### Validation
+
+Initial RAS review `20260920T173258-7f5fd5f737c126719d1e0ebc` identified two fix-first findings; commit `3d1c27a07c8f2ad7d7c581dfddfc087fbf61d8cb` applied them, and exact-head RAS verification cleared the blocking projection. Local focused race tests, capture tests, full package tests, vet, module tidy, go-fix, wrapper tests, formatting and diff checks passed. All applicable hosted checks passed on the exact head across the existing OS/toolchain, race, integration, lint, cross-compilation and interop matrix. GitHub and OmniFocus were reconciled after merge.
+
+### Next
+
+Wait for a natural qualifying failure from ordinary validation and assess any retained owner evidence; if the bounded window expires without one, record that outcome and define any next observation separately. The active [OmniFocus task](https://github.com/the-sarge/quic-go-fast/issues/241) remains available under the reliability follow-up parent.
