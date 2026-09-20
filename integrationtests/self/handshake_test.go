@@ -565,18 +565,18 @@ func TestALPN(t *testing.T) {
 
 func TestTokensFromNewTokenFrames(t *testing.T) {
 	t.Run("MaxTokenAge: 1 hour", func(t *testing.T) {
-		testTokensFromNewTokenFrames(t, 0, true)
+		require.Equal(t, time.Hour, testTokensFromNewTokenFrames(t, time.Hour, true))
 	})
 	// If unset, the default value is 24h.
 	t.Run("MaxTokenAge: default", func(t *testing.T) {
-		testTokensFromNewTokenFrames(t, 0, true)
+		require.Zero(t, testTokensFromNewTokenFrames(t, 0, true))
 	})
 	t.Run("MaxTokenAge: very short", func(t *testing.T) {
-		testTokensFromNewTokenFrames(t, time.Microsecond, false)
+		require.Equal(t, time.Microsecond, testTokensFromNewTokenFrames(t, time.Microsecond, false))
 	})
 }
 
-func testTokensFromNewTokenFrames(t *testing.T, maxTokenAge time.Duration, expectTokenUsed bool) {
+func testTokensFromNewTokenFrames(t *testing.T, maxTokenAge time.Duration, expectTokenUsed bool) time.Duration {
 	addrVerifiedChan := make(chan bool, 2)
 	quicConf := getQuicConfig(nil)
 	quicConf.GetConfigForClient = func(info *quic.ClientInfo) (*quic.Config, error) {
@@ -659,6 +659,7 @@ func testTokensFromNewTokenFrames(t *testing.T, maxTokenAge time.Duration, expec
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for accept")
 	}
+	return tr.MaxTokenAge
 }
 
 func TestInvalidToken(t *testing.T) {
