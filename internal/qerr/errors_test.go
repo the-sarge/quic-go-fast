@@ -25,6 +25,27 @@ func TestTransportError(t *testing.T) {
 	require.False(t, errors.Is(&TransportError{Remote: false}, &TransportError{Remote: true}))
 }
 
+func TestTransportErrorUnwrap(t *testing.T) {
+	t.Run("omits nil underlying error", func(t *testing.T) {
+		require.Equal(t, []error{net.ErrClosed}, (&TransportError{}).Unwrap())
+	})
+
+	t.Run("preserves non-nil underlying error", func(t *testing.T) {
+		underlying := myError(1337)
+		err := NewLocalCryptoError(0x42, underlying)
+
+		require.Equal(t, []error{net.ErrClosed, underlying}, err.Unwrap())
+		require.True(t, errors.Is(err, underlying))
+		got, ok := errors.AsType[myError](err)
+		require.True(t, ok)
+		require.Equal(t, underlying, got)
+	})
+
+	t.Run("omits nil crypto error", func(t *testing.T) {
+		require.Equal(t, []error{net.ErrClosed}, NewLocalCryptoError(0x42, nil).Unwrap())
+	})
+}
+
 func TestTransportErrorStringer(t *testing.T) {
 	t.Run("with error message", func(t *testing.T) {
 		err := &TransportError{

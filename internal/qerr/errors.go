@@ -48,7 +48,12 @@ func (e *TransportError) Error() string {
 	return str + ": " + msg
 }
 
-func (e *TransportError) Unwrap() []error { return []error{net.ErrClosed, e.error} }
+func (e *TransportError) Unwrap() []error {
+	if e.error == nil {
+		return []error{net.ErrClosed}
+	}
+	return []error{net.ErrClosed, e.error}
+}
 
 func (e *TransportError) Is(target error) bool {
 	t, ok := target.(*TransportError)
