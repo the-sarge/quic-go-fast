@@ -1,6 +1,6 @@
 # External packet I/O design contract
 
-**Status:** Accepted; not implemented. Fork-owned contract supporting [its slice plan](2026-09-15-external-packet-io-plan.md). The wiremux adapter details are boundary constraints; wiremux implementation is owned by its plan.
+**Status:** Accepted and implemented. The fork-owned contract is delivered by [its completed slice plan](2026-09-15-external-packet-io-plan.md); the wiremux adapter details remain boundary constraints, and wiremux owns its cross-repository closeout.
 
 ## Destination
 

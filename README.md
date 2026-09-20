@@ -51,15 +51,15 @@ Unit CI exercises Linux, macOS, and Windows on Go 1.26.x and 1.27.x. Integration
 
 ## Use the fork
 
-Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. This verified Go-generated pseudo-version pins `3a739c2bff33`, including the external packet-I/O, managed-endpoint and fixed-peer extensions described above:
+Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. The published `v0.62.1-fast.3` tag includes the external packet-I/O, managed-endpoint and fixed-peer extensions described above:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.2.0.20260916215829-3a739c2bff33
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.3
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
 
-For a tagged version, substitute an exact published tag from [GitHub Releases](https://github.com/the-sarge/quic-go-fast/releases). Avoid `@latest`: inherited upstream release tags can take precedence over fork prereleases. In `go list` output, the version after `=>` identifies the selected fork. Commit the resulting `go.mod` and `go.sum` changes.
+For another version, select an exact published tag from [GitHub Releases](https://github.com/the-sarge/quic-go-fast/releases). Avoid `@latest`: inherited upstream release tags can take precedence over fork prereleases. In `go list` output, the version after `=>` identifies the selected fork. Commit the resulting `go.mod` and `go.sum` changes.
 
 A dependency's replacement does not propagate to its consumers: each application must select the fork explicitly. The replacement applies to every selected version of `github.com/quic-go/quic-go`; verify compatibility if another dependency expects APIs newer than the upstream v0.62.0 baseline.
 
