@@ -32,7 +32,7 @@ Three interface designs were compared. Automatic socket capability markers were 
 
 ### Optional fork extension
 
-The selected initial shape is two methods on the fork's `*quic.Transport`: one registers external packet-I/O permission and a policy-preserving batch callback; the other creates a native batch writer for a known `*net.UDPConn`. Names below are proposed new interfaces, not existing callable code. Q01 freezes names and exact signatures after compiling the two-module examples; it may simplify names without changing this contract.
+The selected shipped shape is two methods on the fork's `*quic.Transport`: one registers external packet-I/O permission and a policy-preserving batch callback; the other creates a native batch writer for a known `*net.UDPConn`. Q01 froze and shipped these names and exact signatures after compiling the two-module examples. The structural illustration below shows the public shape; the methods are implemented on the fork's `*quic.Transport`.
 
 ```go
 // Illustrative structural interface; every parameter is a standard-library type.
