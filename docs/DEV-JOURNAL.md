@@ -2643,3 +2643,26 @@ Kept the compatibility-preserving repair within the approved [agent brief](https
 ### Next
 
 The remaining reconciliation frontier is tracked by [issue #422](https://github.com/the-sarge/quic-go-fast/issues/422); its other active candidates remain independently scoped.
+
+---
+
+## Explicit one-hour token-age test repair - 2026-09-20 18:45 EDT
+
+**Main:** `ffb9a7dfee53`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #468](https://github.com/the-sarge/quic-go-fast/pull/468) for [issue #430](https://github.com/the-sarge/quic-go-fast/issues/430), repairing the misleading one-hour NEW_TOKEN integration case.
+
+### Completed
+
+The `MaxTokenAge: 1 hour` subtest now passes `time.Hour`, while the default and very-short cases retain their existing inputs. The shared helper returns the raw `Transport.MaxTokenAge`, and each named case asserts that configuration so a regression to the unset default fails deterministically. Production code, public APIs, handshake behavior and unrelated test scope remain unchanged.
+
+### Validation
+
+The reviewed product head `04a39a44ce9565ad93ff65984766b8a97ecef008` passed the focused token test, `go vet ./integrationtests/self`, `go mod tidy -diff`, formatting and diff checks, plus all applicable hosted unit, integration, race, lint, cross-compilation and interop checks. A deliberate zero-value mutation failed with `expected: 1h0m0s, actual: 0s`. The broader local package run encountered unrelated HTTP capture/idle-timeout flakes; those targeted tests passed when isolated. RAS review `20260920T221708-f80fd658630948c95f25e88c` found no fix-first, follow-up or rejected findings. The PR squash-merged to `main` as `ffb9a7dfee5306a3f2eaa27c4693c69f195d7fb0`.
+
+### Next
+
+The remaining active reconciliation frontier is tracked by [issue #422](https://github.com/the-sarge/quic-go-fast/issues/422).
