@@ -65,10 +65,10 @@ func TestDialOwnerBudget(t *testing.T) {
 		close(entered)
 		<-ctx.Done()
 		return dialOwnerResult{TimedOut: ctx.Err() == context.DeadlineExceeded}
-	})
+	}, dialOwnerTimeout)
 	require.NotNil(t, p)
 	<-entered // starting a probe must not wait for its completion
-	require.Nil(t, startDialOwnerProbe(12345, &budget, nil))
+	require.Nil(t, startDialOwnerProbe(12345, &budget, nil, dialOwnerTimeout))
 	require.Nil(t, p.finish(false)) // passing fixture cancels and drains the worker
 }
 
@@ -129,6 +129,7 @@ func TestDialOwnerHeldPort(t *testing.T) {
 	capture.ownerDeadline = time.Time{}
 	capture.ownerEnabled = true
 	capture.ownerBudget = new(atomic.Bool)
+	capture.ownerTimeout = scaleDuration(dialOwnerTimeout)
 	retained := captureAddrSocket(t, capture)
 	original, err := listenUDPConn("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	require.NoError(t, err)

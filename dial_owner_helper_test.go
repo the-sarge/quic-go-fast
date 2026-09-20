@@ -60,12 +60,12 @@ type dialOwnerProbe struct {
 
 // Called with the recorder lock held. Tests use a separate budget so their
 // controlled observations never consume the real fixture's process allowance.
-func startDialOwnerProbe(port int, budget *atomic.Bool, run func(context.Context, int) dialOwnerResult) *dialOwnerProbe {
+func startDialOwnerProbe(port int, budget *atomic.Bool, run func(context.Context, int) dialOwnerResult, timeout time.Duration) *dialOwnerProbe {
 	if !budget.CompareAndSwap(false, true) {
 		return nil
 	}
 	now := time.Now()
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(dialOwnerTimeout))
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(timeout))
 	done := make(chan dialOwnerResult, 1)
 	go func() {
 		defer cancel()

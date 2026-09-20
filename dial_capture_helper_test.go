@@ -29,10 +29,11 @@ type dialCapture struct {
 	ownerProbe                     *dialOwnerProbe
 	ownerStatus                    string
 	ownerDeadline                  time.Time
+	ownerTimeout                   time.Duration
 }
 
 func newDialCapture(name string) *dialCapture {
-	c := &dialCapture{ownerEnabled: dialOwnerOptIn(name), ownerBudget: &dialOwnerClaimed, milestones: map[string]string{
+	c := &dialCapture{ownerEnabled: dialOwnerOptIn(name), ownerBudget: &dialOwnerClaimed, ownerTimeout: dialOwnerTimeout, milestones: map[string]string{
 		"original_socket":  "unavailable: dial-result synchronization not observed",
 		"cancel_requested": "not requested before fixture exit",
 		"dial_return":      "unobserved",
@@ -136,7 +137,7 @@ func (c *dialCapture) rebindWith(addr *net.UDPAddr, listen func(string, *net.UDP
 			if c.ownerProbe == nil && !c.ownerDeadline.IsZero() && !time.Now().Before(c.ownerDeadline) {
 				c.ownerStatus = "expired_before_trigger"
 			} else if c.ownerProbe == nil {
-				c.ownerProbe = startDialOwnerProbe(addr.Port, c.ownerBudget, runDialOwnerProbe)
+				c.ownerProbe = startDialOwnerProbe(addr.Port, c.ownerBudget, runDialOwnerProbe, c.ownerTimeout)
 				c.ownerStatus = "process_allowance_consumed"
 				if c.ownerProbe != nil {
 					c.ownerStatus = "requested"
@@ -173,10 +174,11 @@ func (c *dialCapture) finish(failed bool) []byte {
 		}
 		return nil
 	}
+	snapshotStarted := time.Now().UTC()
 	stack := make([]byte, 64<<10)
 	n := runtime.Stack(stack, true)
 	report := map[string]any{
-		"port_owner_status": c.ownerStatus, "snapshot_started": time.Now().UTC(),
+		"port_owner_status": c.ownerStatus, "snapshot_started": snapshotStarted,
 		"schema": 1, "events": c.events, "milestones": c.milestones, "dropped": c.dropped, "encoding_errors": c.encodingErrors,
 		"complete_observations": c.dropped == 0 && c.encodingErrors == 0 && c.rebindStarted.IsZero(),
 		"goroutines":            string(stack[:n]), "goroutines_truncated": n == len(stack),
