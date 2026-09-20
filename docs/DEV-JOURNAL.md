@@ -2552,3 +2552,25 @@ Kept this verification-aid repair within the [approved Agent Brief](https://gith
 ### Next
 
 Keep [umbrella #398](https://github.com/the-sarge/quic-go-fast/issues/398) open for its explicit aggregate disposition; that issue remains the live tracking view.
+
+---
+
+## Release and program status reconciliation - 2026-09-20 14:15 EDT
+
+**Main:** `c55952102047`
+**Actor:** Codex
+
+### Summary
+Merged [PR #460](https://github.com/the-sarge/quic-go-fast/pull/460), reconciling the published `v0.62.1-fast.3` release, external packet-I/O and managed-endpoint documentation, and the completed QUIC-IO/Z01 program state.
+
+### Completed
+- Updated README adoption guidance from the fast.2 pseudo-version to the published `v0.62.1-fast.3` tag.
+- Reconciled the external packet-I/O ADR and plan through Q/R/P, E02, L01, named-consumer adoption and Z01 closeout while preserving unavailable assembled-performance claims and separate DF/PMTU and ECN follow-ups.
+- Corrected the shipped API and release-receipt wording identified during review.
+- Reconciled the live GitHub and OmniFocus tracking surfaces; #241 remains the bounded next reliability follow-up.
+
+### Validation
+The final PR head `cef23df9366c4031071a9e48a718afb5ec790312` passed `git diff --check`, added-relative-link validation, the independent review, and all 33 applicable hosted checks, including unit, integration, race, cross-compilation, lint and interop. The PR squash-merged to `main` as `c55952102047de25a9ba5512f7fa2f6b41587562`.
+
+### Next
+The live next step is to finish bounded socket-rebind evidence for [#241](https://github.com/the-sarge/quic-go-fast/issues/241), including the current [PR #454](https://github.com/the-sarge/quic-go-fast/pull/454), then reconcile its GitHub and OmniFocus disposition.
