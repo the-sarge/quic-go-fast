@@ -215,6 +215,56 @@ func TestTransportMultipleQUICVersions(t *testing.T) {
 	require.EqualError(t, err, "can only use a single QUIC version for dialing a HTTP/3 connection")
 }
 
+func TestTransportQUICConfigOwnership(t *testing.T) {
+	qconf := &quic.Config{
+		Versions:              []quic.Version{quic.SupportedVersions()[0]},
+		MaxIncomingStreams:    0,
+		MaxIncomingUniStreams: 7,
+		MaxIdleTimeout:        3 * time.Second,
+	}
+	original := *qconf
+	var effective *quic.Config
+	tr := &Transport{
+		QUICConfig: qconf,
+		Dial: func(_ context.Context, _ string, _ *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+			effective = cfg
+			return nil, assert.AnError
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	_, err := tr.RoundTrip(req)
+	require.ErrorIs(t, err, assert.AnError)
+	require.Equal(t, original, *qconf)
+	require.NotNil(t, effective)
+	require.Equal(t, int64(-1), effective.MaxIncomingStreams)
+	require.Equal(t, int64(7), effective.MaxIncomingUniStreams)
+	require.Equal(t, 3*time.Second, effective.MaxIdleTimeout)
+}
+
+func TestTransportQUICConfigPreservesNonzeroMaxIncomingStreams(t *testing.T) {
+	qconf := &quic.Config{
+		Versions:           []quic.Version{quic.SupportedVersions()[0]},
+		MaxIncomingStreams: 5,
+	}
+	original := *qconf
+	var effective *quic.Config
+	tr := &Transport{
+		QUICConfig: qconf,
+		Dial: func(_ context.Context, _ string, _ *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+			effective = cfg
+			return nil, assert.AnError
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	_, err := tr.RoundTrip(req)
+	require.ErrorIs(t, err, assert.AnError)
+	require.Equal(t, original, *qconf)
+	require.NotNil(t, effective)
+	require.Equal(t, int64(5), effective.MaxIncomingStreams)
+}
+
 func TestTransportConnectionReuse(t *testing.T) {
 	conn, _ := newConnPair(t)
 	mockCtrl := gomock.NewController(t)

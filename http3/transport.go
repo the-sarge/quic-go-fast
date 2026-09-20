@@ -154,6 +154,7 @@ func (t *Transport) init() error {
 		return errors.New("can only use a single QUIC version for dialing a HTTP/3 connection")
 	}
 	if t.QUICConfig.MaxIncomingStreams == 0 {
+		t.QUICConfig = t.QUICConfig.Clone()
 		t.QUICConfig.MaxIncomingStreams = -1 // don't allow any bidirectional streams
 	}
 	if t.Dial == nil {
