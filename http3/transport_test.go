@@ -242,6 +242,32 @@ func TestTransportQUICConfigOwnership(t *testing.T) {
 	require.Equal(t, 3*time.Second, effective.MaxIdleTimeout)
 }
 
+func TestTransportQUICConfigDefaultsWithoutMutation(t *testing.T) {
+	qconf := &quic.Config{
+		MaxIncomingUniStreams: 7,
+		MaxIdleTimeout:        3 * time.Second,
+	}
+	original := *qconf
+	var effective *quic.Config
+	tr := &Transport{
+		QUICConfig: qconf,
+		Dial: func(_ context.Context, _ string, _ *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
+			effective = cfg
+			return nil, assert.AnError
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+	_, err := tr.RoundTrip(req)
+	require.ErrorIs(t, err, assert.AnError)
+	require.Equal(t, original, *qconf)
+	require.NotNil(t, effective)
+	require.Equal(t, []quic.Version{quic.SupportedVersions()[0]}, effective.Versions)
+	require.Equal(t, int64(-1), effective.MaxIncomingStreams)
+	require.Equal(t, int64(7), effective.MaxIncomingUniStreams)
+	require.Equal(t, 3*time.Second, effective.MaxIdleTimeout)
+}
+
 func TestTransportQUICConfigPreservesNonzeroMaxIncomingStreams(t *testing.T) {
 	qconf := &quic.Config{
 		Versions:           []quic.Version{quic.SupportedVersions()[0]},
