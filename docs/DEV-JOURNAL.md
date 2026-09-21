@@ -2725,3 +2725,18 @@ Red/green tests reproduced raw-error leaks at stream, datagram, header/trailer, 
 CI exposed a fixture teardown classifier that still recognized only raw QUIC application errors. Its correction preserves teardown guards while recognizing HTTP/3 acceptance errors; subsequent hosted suites passed. Tool-download HTTP 504 failures were diagnosed as external infrastructure before same-head failed-job reruns.
 
 Initial RAS review `20260921T144332-9f04984179c6a64950221c29` and replacement `20260921T145032-bb82f61b3554dae826676ecd` each reported one migration-documentation omission. Both were independently accepted and fixed under the docs-only polish exemption, without another review/verification cycle. There were no runtime findings or deferred follow-ups. Review quorum was met with three then four successful reviewers; the initial codex-sol and grok reviewers failed, and replacement grok failed. [PR #478 records dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/478). No RAS review was run for this journal append.
+
+---
+
+## HTTP/3 configuration snapshots hardened - 2026-09-21 11:26 EDT
+
+**Main:** `f6c0b0440628`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #480](https://github.com/the-sarge/quic-go-fast/pull/480), closing [issue #464](https://github.com/the-sarge/quic-go-fast/issues/464). The two nonempty HTTP/3 QUIC configuration ownership snapshots now clone `Versions`, so later in-place element writes cannot change their expected values. The empty-version fixture, existing assertions, and production code are unchanged.
+
+### Validation
+
+At reviewed head `5cf7c1d9aa71e38b8e7e203957429b9e852c5fd1`, focused ownership tests, the HTTP/3 package suite, `go vet ./http3`, `go mod tidy -diff`, formatting, and diff checks passed. One temporary in-place version mutation failed at the existing equality assertion and was removed. RAS review `20260921T151854-ca69d36a3091c7dd4f801e22` returned no findings with four successful reviewers; the Grok process failed, while quorum was met. No fixes, verification round, or deferred findings were required. All 33 hosted checks succeeded before the exact reviewed head was squash-merged as `f6c0b044062841e3f043ea6abb98b0f7c4948910`.
