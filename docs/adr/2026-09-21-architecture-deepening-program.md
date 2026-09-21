@@ -1,7 +1,7 @@
 # Architecture deepening program — 2026-09-21
 
 **Program:** `QGF-ARCH-20260921`
-**Status:** In progress; P and C complete, L1 remains on the independent frontier
+**Status:** Complete
 **Normative scope:** Track identity, plan pointers, graph, frontier and binding rules.
 **Audit history:** [Source/history dispositions and slice audit](../audits/2026-09-21-architecture-handoff/README.md).
 
@@ -15,9 +15,9 @@ Three grilled, bounded changes. The track plans are the normative contracts; iss
 | --- | --- | --- | --- | --- | --- |
 | P | [Terminal path admission](2026-09-21-terminal-path-admission-plan.md) | [#483](https://github.com/the-sarge/quic-go-fast/issues/483) | None | P1 | Complete |
 | C | [Configuration numeric preparation](2026-09-21-configuration-preparation-plan.md) | [#484](https://github.com/the-sarge/quic-go-fast/issues/484) | None | C1 | Complete |
-| L | [Endpoint-owned managed lease binding](2026-09-21-managed-lease-binding-plan.md) | [#485](https://github.com/the-sarge/quic-go-fast/issues/485) | None | L1 | FRONTIER |
+| L | [Endpoint-owned managed lease binding](2026-09-21-managed-lease-binding-plan.md) | [#485](https://github.com/the-sarge/quic-go-fast/issues/485) | None | L1 | Complete |
 
-There are no cross-track blocking edges. P1 and C1 are complete; L1 remains independently ready in its own dedicated worktree. Shared root-package test execution is not a runtime dependency. Rebase and re-audit any actual overlap if main advances.
+All three tracks are complete. There are no remaining implementation-frontier slices in this program.
 
 ## Outcomes closed with no code
 

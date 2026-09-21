@@ -99,6 +99,12 @@ type managedPacketConn struct {
 	lease    *managedPacketLease // nil identifies the ordinary parent view
 }
 
+type managedPacketIOSetup struct {
+	buffers           *managedBufferSetup
+	receiveCoalescing bool
+	receiveState      receiveCoalescingState
+}
+
 func (e *managedPacketEndpoint) acquire() (net.PacketConn, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
@@ -122,6 +128,27 @@ func (c *managedPacketConn) checkLocked() error {
 		return errors.New("quic: managed packet endpoint leased")
 	}
 	return nil
+}
+
+func (c *managedPacketConn) bindQUIC() (managedPacketIOSetup, error) {
+	e := c.endpoint
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	if err := c.checkLocked(); err != nil {
+		return managedPacketIOSetup{}, err
+	}
+	if c.lease.quic || e.active != 0 {
+		return managedPacketIOSetup{}, errors.New("quic: managed packet lease already bound or I/O active")
+	}
+	if err := e.configureReceive(); err != nil {
+		return managedPacketIOSetup{}, err
+	}
+	c.lease.quic = true
+	return managedPacketIOSetup{
+		buffers:           &e.buffers,
+		receiveCoalescing: e.receiver != nil,
+		receiveState:      e.receiveState,
+	}, nil
 }
 
 func (c *managedPacketConn) begin() error {

@@ -117,25 +117,16 @@ func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.Pa
 	if direct, ok := conn.(*managedPacketConn); ok && direct != l {
 		return errors.New("quic: managed packet I/O connection is not the supplied lease")
 	}
-	e := l.endpoint
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	if err := l.checkLocked(); err != nil {
+	setup, err := l.bindQUIC()
+	if err != nil {
 		return err
 	}
-	if l.lease.quic || e.active != 0 {
-		return errors.New("quic: managed packet lease already bound or I/O active")
-	}
-	if err := e.configureReceive(); err != nil {
-		return err
-	}
-	l.lease.quic = true
 	c.external = &externalPacketIO{
 		conn:                     conn,
 		sendBatch:                sendBatch,
-		managedBuffers:           &e.buffers,
-		managedReceiveCoalescing: e.receiver != nil,
-		managedReceiveState:      e.receiveState,
+		managedBuffers:           setup.buffers,
+		managedReceiveCoalescing: setup.receiveCoalescing,
+		managedReceiveState:      setup.receiveState,
 	}
 	return nil
 }

@@ -1,7 +1,7 @@
 # Endpoint-owned managed lease binding implementation plan
 
 **Date:** 2026-09-21
-**Status:** Accepted; not yet implemented
+**Status:** Complete via [#495](https://github.com/the-sarge/quic-go-fast/pull/495)
 **Track:** L, 3 of 3 in QGF-ARCH-20260921
 **Depends on:** Nothing; this slice is on the independent frontier.
 **Related:** [Program index](2026-09-21-architecture-deepening-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0003](0003-follow-stable-upstream-releases.md), [ADR 0006](0006-explicit-external-packet-io.md), [N01–N20](2026-09-13-architecture-decisions.md).
@@ -88,13 +88,13 @@ Names are illustrative private names. The behavior, ownership and ordering above
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| L1 | New; not yet implemented | Endpoint-owned managed lease binding through its real entrypoints and tests | None | None introduced |
+| L1 | Complete via [#495](https://github.com/the-sarge/quic-go-fast/pull/495) | Endpoint-owned managed lease binding through its real entrypoints and tests | None | None introduced |
 
 ## Implementation slices
 
 ### Slice L1 — Endpoint-owned managed lease binding
 
-**Stable identity:** `QGF-ARCH-20260921/L1`. One intended PR; GitHub child: pending.
+**Stable identity:** `QGF-ARCH-20260921/L1`. One intended PR; GitHub child: [#488](https://github.com/the-sarge/quic-go-fast/issues/488).
 
 **What it delivers:** The managed endpoint already controls who may use its socket and when a lease ends. Let it also own the decision that binds a lease for QUIC, instead of requiring Transport to manipulate its private state. Acceptance criteria below define the complete one-PR outcome.
 
@@ -136,19 +136,19 @@ Names are illustrative private names. The behavior, ownership and ordering above
 
 ## Acceptance criteria
 
-- [ ] L1: Yes, as a small separate cleanup after the correctness repairs. It concentrates lifecycle rules in their existing owner. It does not warrant a new packet-I/O architecture or equal urgency with the first two changes.
-- [ ] L2: A private method on the exact managed lease binds it for QUIC and returns a small set of setup facts. The method hides endpoint locking, generation validation, active-I/O checks, receive setup, and the phase transition.
-- [ ] L3: Its registration lock and slot, exact outer-resource identity check, exact factory-lease check, supplied checked send callback, and publication of the resulting registration. External registration and fixed-peer policy continue to compose.
-- [ ] L4: The stable pointer to immutable endpoint buffer-setup evidence, a copied normalization-enabled flag, and copied receive diagnostics. They confer no raw-socket or descriptor authority. Live send counters remain in the existing registration object.
-- [ ] L5: No, provided Transport keeps its registration lock through the whole operation and nothing fallible remains after endpoint binding succeeds. Initialization and other registration attempts pass through that lock. Capture the facts under the endpoint lock; release it; publish the registration before releasing the Transport lock.
-- [ ] L6: Treat binding as having happened when the endpoint commits the QUIC phase, followed by Close. Close may finish before registration returns even with today’s deferred unlocks. A returned setup record is not a promise that the lease stays alive; old-lease operations still fail their generation checks and cannot use a replacement lease.
-- [ ] L7: Not necessary here. A private synchronous publication callback would retain today’s exact internal lock span but add a rule about what callbacks may do while locked. A prepare/commit/abort object adds still more states and misleading rollback expectations. Prefer the ordinary returned facts under the proven locking conditions.
-- [ ] L8: Transport validation comes first, then lease state checks and fallible receive setup. On ordinary returned errors, preserve prior registration-slot and QUIC-binding state without additional consumption: previously free slots remain free, and occupied slots remain occupied. After the phase commits, only infallible registration assembly/publication remains. Do not promise reversal of every benign native setup side effect on an earlier failure.
-- [ ] L9: No. Preserve eager binding: once registration succeeds, the lease remains in its QUIC phase until lease Close, even if Transport initialization fails. Transport.Close still does not release the lease or own the endpoint socket.
-- [ ] L10: Preserve packet-I/O-lock then endpoint-lock ordering; normalizer installation before receive-format activation; Linux/Windows fallback differences; persistent normalization across leases; caller policy adapters; deadlines; close/join behavior; and exact lease provenance. Do not reject wrapper reads after binding—they are how the registered transport operates.
-- [ ] L11: If it requires a generic transaction, new exported types, raw socket handoff, a broader activation plan, or changes to native capability lifetimes, stop expanding it. The approved direction is only a small existing-owner extraction. Its benefit depends on actually removing endpoint-field and lock choreography from Transport.
-- [ ] ConfigureManagedPacketIOV1 no longer takes the endpoint mutex or reads active I/O, lease.quic, the receiver, or receive-state fields. It handles Transport authority and the returned result.
-- [ ] Focused evidence and affected-package validation pass at the exact pushed head, with successful applicable hosted checks on that same head and no unresolved stop-for-decision disposition.
+- [x] L1: Yes, as a small separate cleanup after the correctness repairs. It concentrates lifecycle rules in their existing owner. It does not warrant a new packet-I/O architecture or equal urgency with the first two changes.
+- [x] L2: A private method on the exact managed lease binds it for QUIC and returns a small set of setup facts. The method hides endpoint locking, generation validation, active-I/O checks, receive setup, and the phase transition.
+- [x] L3: Its registration lock and slot, exact outer-resource identity check, exact factory-lease check, supplied checked send callback, and publication of the resulting registration. External registration and fixed-peer policy continue to compose.
+- [x] L4: The stable pointer to immutable endpoint buffer-setup evidence, a copied normalization-enabled flag, and copied receive diagnostics. They confer no raw-socket or descriptor authority. Live send counters remain in the existing registration object.
+- [x] L5: No, provided Transport keeps its registration lock through the whole operation and nothing fallible remains after endpoint binding succeeds. Initialization and other registration attempts pass through that lock. Capture the facts under the endpoint lock; release it; publish the registration before releasing the Transport lock.
+- [x] L6: Treat binding as having happened when the endpoint commits the QUIC phase, followed by Close. Close may finish before registration returns even with today’s deferred unlocks. A returned setup record is not a promise that the lease stays alive; old-lease operations still fail their generation checks and cannot use a replacement lease.
+- [x] L7: Not necessary here. A private synchronous publication callback would retain today’s exact internal lock span but add a rule about what callbacks may do while locked. A prepare/commit/abort object adds still more states and misleading rollback expectations. Prefer the ordinary returned facts under the proven locking conditions.
+- [x] L8: Transport validation comes first, then lease state checks and fallible receive setup. On ordinary returned errors, preserve prior registration-slot and QUIC-binding state without additional consumption: previously free slots remain free, and occupied slots remain occupied. After the phase commits, only infallible registration assembly/publication remains. Do not promise reversal of every benign native setup side effect on an earlier failure.
+- [x] L9: No. Preserve eager binding: once registration succeeds, the lease remains in its QUIC phase until lease Close, even if Transport initialization fails. Transport.Close still does not release the lease or own the endpoint socket.
+- [x] L10: Preserve packet-I/O-lock then endpoint-lock ordering; normalizer installation before receive-format activation; Linux/Windows fallback differences; persistent normalization across leases; caller policy adapters; deadlines; close/join behavior; and exact lease provenance. Do not reject wrapper reads after binding—they are how the registered transport operates.
+- [x] L11: If it requires a generic transaction, new exported types, raw socket handoff, a broader activation plan, or changes to native capability lifetimes, stop expanding it. The approved direction is only a small existing-owner extraction. Its benefit depends on actually removing endpoint-field and lock choreography from Transport.
+- [x] ConfigureManagedPacketIOV1 no longer takes the endpoint mutex or reads active I/O, lease.quic, the receiver, or receive-state fields. It handles Transport authority and the returned result.
+- [x] Focused evidence and affected-package validation pass at the exact pushed head, with successful applicable hosted checks on that same head and no unresolved stop-for-decision disposition.
 
 The typed-domain representation contract above bounds every “all,” “no,” “only,” “each” and “exactly” claim in these criteria. The case table and evidence budget terminate verification; tests do not claim complete schedule enumeration.
 
