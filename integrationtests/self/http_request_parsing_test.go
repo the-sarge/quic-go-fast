@@ -22,28 +22,6 @@ import (
 // and quic-go's HTTP/3 server parse different requests. It aims for equivalent
 // behavior wherever the protocols allow it.
 func TestHTTPServerRequestParsing(t *testing.T) {
-	requests := make(chan *http.Request, 1)
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := io.Copy(io.Discard, r.Body); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		requests <- r.Clone(context.Background())
-		w.WriteHeader(http.StatusTeapot)
-	})
-
-	h2Server := httptest.NewUnstartedServer(handler)
-	h2Server.EnableHTTP2 = true
-	h2Server.Config.DisableGeneralOptionsHandler = true
-	h2Server.StartTLS()
-	defer h2Server.Close()
-	h2Client := h2Server.Client()
-	h2Transport := h2Client.Transport.(*http.Transport)
-	h2Transport.DisableCompression = true
-	h2Transport.ForceAttemptHTTP2 = true
-
-	h3Client := &http.Client{Transport: newRequestParsingClient(t, handler)}
-
 	// Cover origin, asterisk and authority request-target forms, URL parsing
 	// edge cases, host authorities, body lengths and trailers.
 	// Extended CONNECT is covered separately below; it is not compared to HTTP/2.
@@ -147,6 +125,28 @@ func TestHTTPServerRequestParsing(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			requests := make(chan *http.Request, 1)
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if _, err := io.Copy(io.Discard, r.Body); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				requests <- r.Clone(context.Background())
+				w.WriteHeader(http.StatusTeapot)
+			})
+
+			h2Server := httptest.NewUnstartedServer(handler)
+			h2Server.EnableHTTP2 = true
+			h2Server.Config.DisableGeneralOptionsHandler = true
+			h2Server.StartTLS()
+			defer h2Server.Close()
+			h2Client := h2Server.Client()
+			h2Transport := h2Client.Transport.(*http.Transport)
+			h2Transport.DisableCompression = true
+			h2Transport.ForceAttemptHTTP2 = true
+
+			h3Client := &http.Client{Transport: newRequestParsingClient(t, handler)}
+
 			requestURL := &url.URL{Scheme: "https", Host: h2Server.Listener.Addr().String()}
 			if tc.path != "" {
 				parsedURL, err := url.ParseRequestURI(tc.path)
@@ -275,21 +275,6 @@ func receiveParsedRequest(t *testing.T, requests <-chan *http.Request) *http.Req
 }
 
 func TestHTTPServerExtendedConnectRequestParsing(t *testing.T) {
-	requests := make(chan *http.Request, 1)
-	client := newRequestParsingClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := io.Copy(io.Discard, r.Body); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		requests <- r.Clone(context.Background())
-		w.WriteHeader(http.StatusTeapot)
-	}))
-	select {
-	case <-client.ReceivedSettings():
-		require.True(t, client.Settings().EnableExtendedConnect)
-	case <-time.After(scaleDuration(time.Second)):
-		t.Fatal("did not receive Extended CONNECT setting")
-	}
 	for _, tc := range []struct {
 		name, target, path, rawPath, rawQuery string
 		forceQuery                            bool
@@ -299,6 +284,22 @@ func TestHTTPServerExtendedConnectRequestParsing(t *testing.T) {
 		{name: "empty query", target: "/foo?", path: "/foo", forceQuery: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			requests := make(chan *http.Request, 1)
+			client := newRequestParsingClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if _, err := io.Copy(io.Discard, r.Body); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				requests <- r.Clone(context.Background())
+				w.WriteHeader(http.StatusTeapot)
+			}))
+			select {
+			case <-client.ReceivedSettings():
+				require.True(t, client.Settings().EnableExtendedConnect)
+			case <-time.After(scaleDuration(time.Second)):
+				t.Fatal("did not receive Extended CONNECT setting")
+			}
+
 			u, err := url.ParseRequestURI(tc.target)
 			require.NoError(t, err)
 			u.Scheme, u.Host = "https", "[2001:db8::1]:443"
