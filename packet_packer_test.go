@@ -490,6 +490,43 @@ func testPackConnectionCloseCoalesced(t *testing.T, pers protocol.Perspective) {
 	}
 }
 
+// Regression for https://github.com/quic-go/quic-go/issues/5857.
+// Adapted from upstream commit fcb5bedbbcd74a3a80cd247f9f02660b98fc36f6.
+func TestPackConnectionCloseCoalescedClient1RTT(t *testing.T) {
+	const maxPacketSize protocol.ByteCount = protocol.MaxPacketBufferSize
+	ctrl := gomock.NewController(t)
+	tp := newTestPacketPacker(t, ctrl, protocol.PerspectiveClient)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(ctrl), nil)
+	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(ctrl), nil)
+	tp.sealingManager.EXPECT().Get0RTTSealer().Return(nil, handshake.ErrKeysDropped)
+	tp.sealingManager.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil)
+	for i, level := range []protocol.EncryptionLevel{protocol.EncryptionInitial, protocol.EncryptionHandshake, protocol.Encryption1RTT} {
+		pn := protocol.PacketNumber(i + 1)
+		tp.pnManager.EXPECT().PeekPacketNumber(level).Return(pn, protocol.PacketNumberLen2)
+		tp.pnManager.EXPECT().PopPacketNumber(level).Return(pn)
+	}
+	observed := observeConstructionBuffer(t)
+	p, err := tp.packer.PackApplicationClose(&qerr.ApplicationError{ErrorMessage: "connection closed"}, maxPacketSize, protocol.Version1)
+	require.NoError(t, err)
+	defer func() {
+		p.buffer.Release()
+		require.Zero(t, (*observed).refCount)
+	}()
+	require.Same(t, *observed, p.buffer)
+	require.Len(t, p.longHdrPackets, 2)
+	require.NotNil(t, p.shortHdrPacket)
+	require.Equal(t, protocol.PacketTypeInitial, p.longHdrPackets[0].header.Type)
+	require.Equal(t, protocol.PacketTypeHandshake, p.longHdrPackets[1].header.Type)
+	require.Equal(t, protocol.PacketNumber(1), p.longHdrPackets[0].header.PacketNumber)
+	require.Equal(t, protocol.PacketNumber(2), p.longHdrPackets[1].header.PacketNumber)
+	require.Equal(t, protocol.PacketNumber(3), p.shortHdrPacket.PacketNumber)
+	require.Equal(t, maxPacketSize, p.buffer.Len())
+	hdrs, more := parsePacket(t, p.buffer.Data)
+	require.Len(t, hdrs, 2)
+	require.NotEmpty(t, more)
+	parseShortHeaderPacket(t, more, testPackerConnIDLen)
+}
+
 func TestPackConnectionCloseCryptoError(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveServer)

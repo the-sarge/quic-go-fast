@@ -93,7 +93,13 @@ func TestDialOwnerCommand(t *testing.T) {
 	require.NoError(t, err)
 	for _, mode := range []string{"timeout", "overflow", "denied"} {
 		t.Run(mode, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(t.Context(), dialOwnerTimeout)
+			// Only the timeout case exercises the probe deadline. Ordinary child
+			// startup can exceed it on a loaded or instrumented runner.
+			timeout := scaleDuration(5 * time.Second)
+			if mode == "timeout" {
+				timeout = dialOwnerTimeout
+			}
+			ctx, cancel := context.WithTimeout(t.Context(), timeout)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, binary, "-test.run=^TestDialOwnerChild$")
 			cmd.Env = append(os.Environ(), "QUIC_GO_DIAL_OWNER_CHILD="+mode)
@@ -105,10 +111,12 @@ func TestDialOwnerCommand(t *testing.T) {
 				require.True(t, result.TimedOut)
 				require.NotEmpty(t, result.Error)
 			case "overflow":
+				require.False(t, result.TimedOut, "%+v", result)
 				require.True(t, result.Truncated)
 				require.True(t, result.ParseIncomplete)
 				require.Len(t, result.Warnings, 4<<10)
 			case "denied":
+				require.False(t, result.TimedOut, "%+v", result)
 				require.Equal(t, 1, result.ExitCode)
 				require.Equal(t, "permission denied", result.Warnings)
 			}

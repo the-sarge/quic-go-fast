@@ -228,3 +228,42 @@ func testTransportClose(t *testing.T, conn net.PacketConn, closeFn func(), expec
 		require.ErrorIs(t, err, expectedErr)
 	}
 }
+
+// Regression scenario from https://github.com/quic-go/quic-go/issues/5857.
+func TestCloseImmediatelyAfterDial(t *testing.T) {
+	config := func() *quic.Config {
+		return getQuicConfig(&quic.Config{InitialPacketSize: 1452, DisablePathMTUDiscovery: true})
+	}
+	server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), config())
+	require.NoError(t, err)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(5*time.Second))
+	defer cancel()
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		conn, err := server.Accept(ctx)
+		if err != nil {
+			return
+		}
+		defer conn.CloseWithError(0, "cleanup")
+		select {
+		case <-conn.Context().Done():
+		case <-ctx.Done():
+		}
+	}()
+	// Cancel and join the accept worker even when dialing or closing fails.
+	defer func() {
+		cancel()
+		<-workerDone
+	}()
+	conn, err := quic.Dial(ctx, newUDPConnLocalhost(t), server.Addr(), getTLSClientConfig(), config())
+	require.NoError(t, err)
+	defer conn.CloseWithError(0, "cleanup")
+	require.NoError(t, conn.CloseWithError(42, "immediate close"))
+	var appErr *quic.ApplicationError
+	require.ErrorAs(t, context.Cause(conn.Context()), &appErr)
+	require.False(t, appErr.Remote)
+	require.Equal(t, quic.ApplicationErrorCode(42), appErr.ErrorCode)
+	require.Equal(t, "immediate close", appErr.ErrorMessage)
+}
