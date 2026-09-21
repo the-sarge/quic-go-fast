@@ -163,7 +163,7 @@ func (c *ClientConn) openRequestStream(
 		if context.Cause(openCtx) == errGoAway {
 			return nil, errGoAway
 		}
-		return nil, err
+		return nil, maybeReplaceError(err)
 	}
 
 	// Check again in case GOAWAY raced with OpenStreamSync.
@@ -175,7 +175,7 @@ func (c *ClientConn) openRequestStream(
 
 	hstr, err := c.rawConn.TrackStream(str)
 	if err != nil {
-		return nil, err
+		return nil, maybeReplaceError(err)
 	}
 	rsp := &http.Response{}
 	trace := httptrace.ContextClientTrace(ctx)
@@ -322,7 +322,7 @@ func (c *ClientConn) roundTrip(req *http.Request, lifetime *requestLifetime) (rs
 		case <-req.Context().Done():
 			return nil, req.Context().Err()
 		case <-connCtx.Done():
-			return nil, context.Cause(connCtx)
+			return nil, maybeReplaceError(context.Cause(connCtx))
 		}
 		if !c.rawConn.Settings().EnableExtendedConnect {
 			return nil, errors.New("http3: server didn't enable Extended CONNECT")
@@ -344,7 +344,7 @@ func (c *ClientConn) roundTrip(req *http.Request, lifetime *requestLifetime) (rs
 	requestStarted = true
 	rsp, err = c.doRequest(req, str, lifetime)
 	if err != nil {
-		return nil, maybeReplaceError(err)
+		return nil, err
 	}
 	rsp.Body = &exchangeBody{ReadCloser: rsp.Body, lifetime: lifetime}
 	return rsp, nil

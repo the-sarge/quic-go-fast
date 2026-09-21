@@ -7,7 +7,9 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-// Error is returned by [Transport.RoundTrip], [Transport.RoundTripOpt], and
+// Error is returned, possibly wrapped, by HTTP/3 stream read, write and datagram
+// operations, request header/trailer and response parsing operations,
+// [ClientConn.OpenRequestStream], [Transport.RoundTrip], [Transport.RoundTripOpt], and
 // [ClientConn.RoundTrip] for HTTP clients, and from request-body reads and response
 // writes inside HTTP handlers for HTTP servers, when an HTTP/3 error occurs.
 // See section 8 of RFC 9114.

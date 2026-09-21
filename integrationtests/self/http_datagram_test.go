@@ -158,7 +158,15 @@ func TestHTTPDatagrams(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		str := w.(http3.HTTPStreamer).HTTPStream()
-		go str.Read([]byte{0}) // need to continue reading from stream to observe state transitions
+		readDone := make(chan struct{})
+		go func() {
+			defer close(readDone)
+			_, _ = str.Read([]byte{0}) // observe stream state transitions
+		}()
+		defer func() {
+			str.CancelRead(0)
+			<-readDone
+		}()
 
 		for {
 			if _, err := str.ReceiveDatagram(context.Background()); err != nil {
@@ -196,9 +204,7 @@ loop:
 
 	select {
 	case err := <-errChan:
-		var serr *quic.StreamError
-		require.ErrorAs(t, err, &serr)
-		require.Equal(t, quic.StreamErrorCode(42), serr.ErrorCode)
+		require.ErrorIs(t, err, &http3.Error{ErrorCode: 42, Remote: true})
 	case <-time.After(time.Second):
 		t.Fatal("didn't receive error")
 	}
@@ -280,7 +286,15 @@ func TestHTTPDatagramStreamReset(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		str := w.(http3.HTTPStreamer).HTTPStream()
-		go str.Read([]byte{0}) // need to continue reading from stream to observe state transitions
+		readDone := make(chan struct{})
+		go func() {
+			defer close(readDone)
+			_, _ = str.Read([]byte{0}) // observe stream state transitions
+		}()
+		defer func() {
+			str.CancelRead(0)
+			<-readDone
+		}()
 
 		for {
 			data, err := str.ReceiveDatagram(context.Background())
@@ -295,7 +309,15 @@ func TestHTTPDatagramStreamReset(t *testing.T) {
 
 	port := startHTTPServer(t, mux, func(s *http3.Server) { s.EnableDatagrams = true })
 	str := dialAndOpenHTTPDatagramStream(t, fmt.Sprintf("https://localhost:%d/datagrams", port))
-	go str.Read([]byte{0})
+	readDone := make(chan struct{})
+	go func() {
+		defer close(readDone)
+		_, _ = str.Read([]byte{0})
+	}()
+	t.Cleanup(func() {
+		str.CancelRead(0)
+		<-readDone
+	})
 
 	require.NoError(t, str.SendDatagram([]byte("foo")))
 	select {
@@ -311,7 +333,7 @@ func TestHTTPDatagramStreamReset(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("didn't receive error")
 	}
-	require.Equal(t, &quic.StreamError{ErrorCode: 42, Remote: false}, resetErr)
+	require.Equal(t, &http3.Error{ErrorCode: 42, Remote: false}, resetErr)
 
 	var err error
 	require.Eventually(t, func() bool {
@@ -319,5 +341,5 @@ func TestHTTPDatagramStreamReset(t *testing.T) {
 		return err != nil
 	}, time.Second, 10*time.Millisecond)
 	// make sure we can't send anymore
-	require.Equal(t, &quic.StreamError{ErrorCode: 42, Remote: true}, err)
+	require.Equal(t, &http3.Error{ErrorCode: 42, Remote: true}, err)
 }
