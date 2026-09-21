@@ -36,23 +36,26 @@ type Path struct {
 }
 
 func (p *Path) Probe(ctx context.Context) error {
-	path := p.pathManager.addPath(p, p.enablePath)
-
-	p.pathManager.enqueueProbe(p)
+	if err := p.pathManager.beginProbe(p); err != nil {
+		return err
+	}
 	nextProbeDur := p.initialRTT
 	var timer *time.Timer
 	var timerChan <-chan time.Time
 	for {
+		probeSent, validated := p.pathManager.probeSignals(p.id)
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case <-path.Validated():
+		case <-validated:
 			p.validated.Store(true)
 			return nil
 		case <-timerChan:
 			nextProbeDur *= 2 // exponential backoff
-			p.pathManager.enqueueProbe(p)
-		case <-path.ProbeSent():
+			if !p.pathManager.retryProbe(p) {
+				continue
+			}
+		case <-probeSent:
 		case <-p.abandon:
 			return ErrPathClosed
 		}
@@ -90,17 +93,7 @@ func (p *Path) Switch() error {
 // It is not possible to close the path that’s currently active.
 // After closing, the path cannot be successfully probed again with [Path.Probe].
 func (p *Path) Close() error {
-	select {
-	case <-p.abandon:
-		return nil
-	default:
-	}
-
-	if err := p.pathManager.removePath(p.id); err != nil {
-		return err
-	}
-	close(p.abandon)
-	return nil
+	return p.pathManager.closePath(p)
 }
 
 type pathOutgoing struct {
@@ -111,9 +104,6 @@ type pathOutgoing struct {
 	validated      chan struct{} // closed when the path the corresponding PATH_RESPONSE is received
 	enablePath     func()
 }
-
-func (p *pathOutgoing) ProbeSent() <-chan struct{} { return p.probeSent }
-func (p *pathOutgoing) Validated() <-chan struct{} { return p.validated }
 
 type pathManagerOutgoing struct {
 	getConnID       func(pathID) (_ protocol.ConnectionID, ok bool)
@@ -146,9 +136,14 @@ func newPathManagerOutgoing(
 	}
 }
 
-func (pm *pathManagerOutgoing) addPath(p *Path, enablePath func()) *pathOutgoing {
+func (pm *pathManagerOutgoing) beginProbe(p *Path) error {
 	pm.mx.Lock()
-	defer pm.mx.Unlock()
+	select {
+	case <-p.abandon:
+		pm.mx.Unlock()
+		return ErrPathClosed
+	default:
+	}
 
 	// path might already exist, and just being re-probed
 	if existingPath, ok := pm.paths[p.id]; ok {
@@ -157,46 +152,75 @@ func (pm *pathManagerOutgoing) addPath(p *Path, enablePath func()) *pathOutgoing
 		existingPath.pathChallenges = nil
 		pm.pathsToProbe = slices.DeleteFunc(pm.pathsToProbe, func(id pathID) bool { return id == p.id })
 		existingPath.validated = make(chan struct{})
-		return existingPath
+		pm.pathsToProbe = append(pm.pathsToProbe, p.id)
+		pm.mx.Unlock()
+		pm.scheduleSending()
+		return nil
 	}
 
 	path := &pathOutgoing{
 		tr:         p.tr,
 		probeSent:  make(chan struct{}, 1),
 		validated:  make(chan struct{}),
-		enablePath: enablePath,
+		enablePath: p.enablePath,
 	}
 	pm.paths[p.id] = path
-	return path
-}
-
-func (pm *pathManagerOutgoing) enqueueProbe(p *Path) {
-	pm.mx.Lock()
 	pm.pathsToProbe = append(pm.pathsToProbe, p.id)
 	pm.mx.Unlock()
-	pm.scheduleSending()
-}
-
-func (pm *pathManagerOutgoing) removePath(id pathID) error {
-	if err := pm.removePathImpl(id); err != nil {
-		return err
-	}
 	pm.scheduleSending()
 	return nil
 }
 
-func (pm *pathManagerOutgoing) removePathImpl(id pathID) error {
+func (pm *pathManagerOutgoing) probeSignals(id pathID) (<-chan struct{}, <-chan struct{}) {
 	pm.mx.Lock()
 	defer pm.mx.Unlock()
 
-	if id == pm.activePath {
+	p, ok := pm.paths[id]
+	if !ok {
+		return nil, nil
+	}
+	return p.probeSent, p.validated
+}
+
+func (pm *pathManagerOutgoing) retryProbe(p *Path) bool {
+	pm.mx.Lock()
+	select {
+	case <-p.abandon:
+		pm.mx.Unlock()
+		return false
+	default:
+	}
+	if _, ok := pm.paths[p.id]; !ok {
+		pm.mx.Unlock()
+		return false
+	}
+	pm.pathsToProbe = append(pm.pathsToProbe, p.id)
+	pm.mx.Unlock()
+	pm.scheduleSending()
+	return true
+}
+
+func (pm *pathManagerOutgoing) closePath(path *Path) error {
+	pm.mx.Lock()
+	if path.id == pm.activePath {
+		pm.mx.Unlock()
 		return errors.New("cannot close active path")
 	}
-	if _, ok := pm.paths[id]; !ok {
+	select {
+	case <-path.abandon:
+		pm.mx.Unlock()
 		return nil
+	default:
 	}
-	pm.retireConnID(id)
-	delete(pm.paths, id)
+	if _, ok := pm.paths[path.id]; ok {
+		pm.retireConnID(path.id)
+		delete(pm.paths, path.id)
+	}
+	pm.pathsToProbe = slices.DeleteFunc(pm.pathsToProbe, func(id pathID) bool { return id == path.id })
+	close(path.abandon)
+	pm.mx.Unlock()
+
+	pm.scheduleSending()
 	return nil
 }
 
