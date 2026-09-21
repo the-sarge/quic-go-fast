@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"testing"
 
 	ossfuzzseeds "github.com/quic-go/go-ossfuzz-seeds"
@@ -51,7 +52,7 @@ func TestRequestHeaderParsing(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, http.MethodGet, req.Method)
 			require.Equal(t, tc.path, req.URL.Path)
-			require.Equal(t, "quic-go.net:443", req.URL.Host)
+			require.Empty(t, req.URL.Host)
 			require.Equal(t, "HTTP/3.0", req.Proto)
 			require.Equal(t, 3, req.ProtoMajor)
 			require.Zero(t, req.ProtoMinor)
@@ -61,9 +62,7 @@ func TestRequestHeaderParsing(t *testing.T) {
 			require.Nil(t, req.Body)
 			require.Equal(t, "quic-go.net:443", req.Host)
 			require.Equal(t, tc.path, req.RequestURI)
-			require.Equal(t, "quic-go.net", req.URL.Hostname())
-			require.Equal(t, "https", req.URL.Scheme)
-			require.Equal(t, "443", req.URL.Port())
+			require.Empty(t, req.URL.Scheme)
 		})
 	}
 }
@@ -79,7 +78,56 @@ func TestRequestHeaderParsingWithHostHeader(t *testing.T) {
 	req, err := requestFromHeaders(decodeFromSlice(headers), math.MaxInt, nil)
 	require.NoError(t, err)
 	require.Equal(t, "quic-go.net", req.Host)
-	require.Equal(t, "quic-go.net", req.URL.Host)
+	require.Empty(t, req.URL.Host)
+}
+
+func TestRequestHeadersPathForms(t *testing.T) {
+	for _, kind := range []struct {
+		name, method, protocol string
+	}{
+		{name: "ordinary", method: http.MethodGet},
+		{name: "extended CONNECT", method: http.MethodConnect, protocol: "webtransport"},
+		{name: "OPTIONS", method: http.MethodOptions},
+	} {
+		t.Run(kind.name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name, path string
+				want       url.URL
+				invalid    bool
+			}{
+				{name: "escaped path and query", path: "/foo%2Fbar?q=a%2Fb%20c", want: url.URL{Path: "/foo/bar", RawPath: "/foo%2Fbar", RawQuery: "q=a%2Fb%20c"}},
+				{name: "empty query", path: "/foo?", want: url.URL{Path: "/foo", ForceQuery: true}},
+				{name: "double slash", path: "//foo", want: url.URL{Path: "//foo"}},
+				{name: "asterisk", path: "*", want: url.URL{Path: "*"}, invalid: kind.method != http.MethodOptions},
+				{name: "absolute URI", path: "https://other.example/foo", invalid: true},
+				{name: "relative path", path: "foo/bar", invalid: true},
+				{name: "query only", path: "?foo=bar", invalid: true},
+				{name: "invalid escape", path: "/foo%zz", invalid: true},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					headers := []qpack.HeaderField{
+						{Name: ":method", Value: kind.method},
+						{Name: ":scheme", Value: "https"},
+						{Name: ":authority", Value: "[2001:db8::1]:443"},
+						{Name: ":path", Value: tc.path},
+					}
+					if kind.protocol != "" {
+						headers = append(headers, qpack.HeaderField{Name: ":protocol", Value: kind.protocol})
+					}
+					req, err := requestFromHeaders(decodeFromSlice(headers), math.MaxInt, nil)
+					if tc.invalid {
+						require.Error(t, err)
+						require.Nil(t, req)
+						return
+					}
+					require.NoError(t, err)
+					require.Equal(t, &tc.want, req.URL)
+					require.Equal(t, tc.path, req.RequestURI)
+					require.Equal(t, "[2001:db8::1]:443", req.Host)
+				})
+			}
+		})
+	}
 }
 
 func TestRequestHeadersContentLength(t *testing.T) {
@@ -324,7 +372,49 @@ func TestRequestHeadersValidation(t *testing.T) {
 				{Name: ":authority", Value: "quic-go.net"},
 				{Name: ":method", Value: http.MethodGet},
 			},
-			errContains: "invalid request URI",
+			err: `invalid :path: "invalid path"`,
+		},
+		{
+			name: "absolute URI in :path",
+			headers: []qpack.HeaderField{
+				{Name: ":scheme", Value: "https"},
+				{Name: ":path", Value: "https://attacker.example/foo"},
+				{Name: ":authority", Value: "quic-go.net"},
+				{Name: ":method", Value: http.MethodGet},
+			},
+			err: `invalid :path: "https://attacker.example/foo"`,
+		},
+		{
+			name: "absolute URI in :path for Extended CONNECT",
+			headers: []qpack.HeaderField{
+				{Name: ":protocol", Value: "webtransport"},
+				{Name: ":scheme", Value: "https"},
+				{Name: ":path", Value: "https://attacker.example/foo"},
+				{Name: ":authority", Value: "quic-go.net"},
+				{Name: ":method", Value: http.MethodConnect},
+			},
+			err: `invalid :path: "https://attacker.example/foo"`,
+		},
+		{
+			name: "asterisk-form for non-OPTIONS request",
+			headers: []qpack.HeaderField{
+				{Name: ":scheme", Value: "https"},
+				{Name: ":path", Value: "*"},
+				{Name: ":authority", Value: "quic-go.net"},
+				{Name: ":method", Value: http.MethodGet},
+			},
+			err: `invalid :path: "*"`,
+		},
+		{
+			name: "asterisk-form for Extended CONNECT",
+			headers: []qpack.HeaderField{
+				{Name: ":protocol", Value: "webtransport"},
+				{Name: ":scheme", Value: "https"},
+				{Name: ":path", Value: "*"},
+				{Name: ":authority", Value: "quic-go.net"},
+				{Name: ":method", Value: http.MethodConnect},
+			},
+			err: `invalid :path: "*"`,
 		},
 		{
 			name: "userinfo in :authority",
@@ -392,6 +482,9 @@ func TestRequestHeadersConnect(t *testing.T) {
 	require.Equal(t, http.MethodConnect, req.Method)
 	require.Equal(t, "HTTP/3.0", req.Proto)
 	require.Equal(t, "quic-go.net:443", req.RequestURI)
+	require.Equal(t, "quic-go.net:443", req.URL.Host)
+	require.Empty(t, req.URL.Scheme)
+	require.Empty(t, req.URL.Path)
 }
 
 func TestRequestHeadersConnectValidation(t *testing.T) {
@@ -465,7 +558,11 @@ func TestRequestHeadersExtendedConnect(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.MethodConnect, req.Method)
 	require.Equal(t, "webtransport", req.Proto)
-	require.Equal(t, "ftp://quic-go.net/foo?val=1337", req.URL.String())
+	require.Equal(t, "quic-go.net", req.Host)
+	require.Equal(t, "/foo?val=1337", req.RequestURI)
+	require.Equal(t, "/foo?val=1337", req.URL.String())
+	require.Empty(t, req.URL.Scheme)
+	require.Empty(t, req.URL.Host)
 	require.Equal(t, "1337", req.URL.Query().Get("val"))
 	require.Empty(t, req.Header)
 }

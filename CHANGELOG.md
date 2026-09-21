@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+HTTP/3 server request parsing now follows `net/http` request-target conventions. Ordinary requests and Extended CONNECT leave `Request.URL.Scheme` and `Request.URL.Host` empty; handlers should use `Request.Host` for the authority and `Request.TLS` for TLS information. Extended CONNECT uses its path and query as `RequestURI` and retains its protocol identity. Regular CONNECT continues to use authority-form `RequestURI` and `URL.Host`. Absolute URIs and other invalid `:path` forms are rejected, and `*` is accepted only for OPTIONS. Adapted from upstream quic-go [#5839](https://github.com/quic-go/quic-go/pull/5839), [#5842](https://github.com/quic-go/quic-go/pull/5842), and [#5841](https://github.com/quic-go/quic-go/pull/5841).
+
 ## v0.62.1-fast.3 — 2026-09-16
 
 Qualified external packet I/O and managed endpoint reuse, based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path and dependency versions are unchanged from fast.2. The [release record](docs/releases/v0.62.1-fast.3.md) and [GitHub release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.3) supply the support, source and publication receipts.
