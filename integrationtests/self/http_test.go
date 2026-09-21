@@ -1162,10 +1162,13 @@ func TestHTTPContextFromQUIC(t *testing.T) {
 		err = server.ServeQUICConn(c)
 		// Immediate server closure and the client's ordinary transport-close
 		// code are expected only after this fixture has initiated teardown. The
-		// explicit local close can also race control-stream setup after acceptance.
+		// explicit local close can also race control-stream setup after acceptance,
+		// which still returns a raw QUIC error. Stream acceptance returns HTTP/3 errors.
 		appErr, isAppErr := errors.AsType[*quic.ApplicationError](err)
 		expectedConnectionClose := isAppErr && ((appErr.Remote && appErr.ErrorCode == 0) ||
 			(closingAccepted.Load() && !appErr.Remote && appErr.ErrorCode == quic.ApplicationErrorCode(http3.ErrCodeNoError)))
+		expectedConnectionClose = expectedConnectionClose || errors.Is(err, &http3.Error{Remote: true, ErrorCode: 0}) ||
+			(closingAccepted.Load() && errors.Is(err, &http3.Error{ErrorCode: http3.ErrCodeNoError}))
 		expected := stopping.Load() && (errors.Is(err, http.ErrServerClosed) || expectedConnectionClose)
 		if err != nil && !expected {
 			workerErr = fmt.Errorf("serve context connection: %w", err)
