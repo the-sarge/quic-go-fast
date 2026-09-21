@@ -18,6 +18,7 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/quicvarint"
 	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/assert"
@@ -212,9 +213,26 @@ func TestListen(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "quic: tls.Config not set")
 
-	_, err = Listen(nil, &tls.Config{}, &Config{Versions: []protocol.Version{0x1234}})
+	conf := &Config{
+		Versions:                       []protocol.Version{0x1234},
+		InitialStreamReceiveWindow:     quicvarint.Max + 1,
+		MaxStreamReceiveWindow:         quicvarint.Max + 1,
+		InitialConnectionReceiveWindow: quicvarint.Max + 2,
+		MaxConnectionReceiveWindow:     quicvarint.Max + 2,
+		MaxIncomingStreams:             1<<60 + 1,
+		MaxIncomingUniStreams:          1<<60 + 2,
+		InitialPacketSize:              1,
+	}
+	_, err = Listen(nil, &tls.Config{}, conf)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid QUIC version: 0x1234")
+	require.Equal(t, uint64(quicvarint.Max+1), conf.InitialStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max), conf.MaxStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max+2), conf.InitialConnectionReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max), conf.MaxConnectionReceiveWindow)
+	require.Equal(t, int64(1<<60), conf.MaxIncomingStreams)
+	require.Equal(t, int64(1<<60), conf.MaxIncomingUniStreams)
+	require.Equal(t, uint16(protocol.MinInitialPacketSize), conf.InitialPacketSize)
 }
 
 func TestListenAddr(t *testing.T) {
@@ -686,6 +704,7 @@ type connConstructorArgs struct {
 	clientDestConnID protocol.ConnectionID
 	destConnID       protocol.ConnectionID
 	srcConnID        protocol.ConnectionID
+	version          protocol.Version
 }
 
 type connConstructorRecorder struct {
@@ -722,7 +741,7 @@ func (r *connConstructorRecorder) NewConn(
 	_ time.Duration,
 	_ qlogwriter.Trace,
 	_ utils.Logger,
-	_ protocol.Version,
+	version protocol.Version,
 ) *wrappedConn {
 	r.ch <- connConstructorArgs{
 		ctx:              ctx,
@@ -733,6 +752,7 @@ func (r *connConstructorRecorder) NewConn(
 		clientDestConnID: clientDestConnID,
 		destConnID:       destConnID,
 		srcConnID:        srcConnID,
+		version:          version,
 	}
 	hooks := r.hooks[0]
 	r.hooks = r.hooks[1:]
@@ -878,10 +898,21 @@ func TestServerClose(t *testing.T) {
 
 func TestServerGetConfigForClientAccept(t *testing.T) {
 	recorder := newConnConstructorRecorder(&connTestHooks{})
+	nestedCallbackCalls := 0
+	callbackConfig := &Config{
+		GetConfigForClient: func(*ClientInfo) (*Config, error) {
+			nestedCallbackCalls++
+			return nil, nil
+		},
+		Versions:                       []Version{0x1234},
+		InitialStreamReceiveWindow:     quicvarint.Max + 1,
+		InitialConnectionReceiveWindow: quicvarint.Max + 1,
+		MaxIncomingStreams:             1234,
+	}
 	server := newTestServer(t, &serverOpts{
 		config: &Config{
 			GetConfigForClient: func(*ClientInfo) (*Config, error) {
-				return &Config{MaxIncomingStreams: 1234}, nil
+				return callbackConfig, nil
 			},
 		},
 		newConn: recorder.NewConn,
@@ -900,10 +931,19 @@ func TestServerGetConfigForClientAccept(t *testing.T) {
 	select {
 	case args = <-recorder.Args():
 		require.EqualValues(t, 1234, args.config.MaxIncomingStreams)
+		require.Equal(t, uint64(quicvarint.Max), args.config.InitialStreamReceiveWindow)
+		require.Equal(t, uint64(quicvarint.Max), args.config.InitialConnectionReceiveWindow)
+		require.Equal(t, []Version{0x1234}, args.config.Versions)
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
 	}
 
+	require.Equal(t, []Version{0x1234}, callbackConfig.Versions)
+	require.Equal(t, uint64(quicvarint.Max+1), callbackConfig.InitialStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max+1), callbackConfig.InitialConnectionReceiveWindow)
+	require.EqualValues(t, 1234, callbackConfig.MaxIncomingStreams)
+	require.Zero(t, nestedCallbackCalls)
+	require.Equal(t, protocol.SupportedVersions[0], args.version)
 	assert.Equal(t, protocol.ParseConnectionID([]byte{5, 4, 3, 2, 1}), args.destConnID)
 	assert.NotEqual(t, args.origDestConnID, args.srcConnID)
 }

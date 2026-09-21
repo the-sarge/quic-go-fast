@@ -1,7 +1,7 @@
 # Configuration numeric preparation implementation plan
 
 **Date:** 2026-09-21
-**Status:** Accepted; not yet implemented
+**Status:** Complete via [#493](https://github.com/the-sarge/quic-go-fast/pull/493)
 **Track:** C, 2 of 3 in QGF-ARCH-20260921
 **Depends on:** Nothing; this slice is on the independent frontier.
 **Related:** [Program index](2026-09-21-architecture-deepening-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0003](0003-follow-stable-upstream-releases.md), [ADR 0006](0006-explicit-external-packet-io.md), [N01–N20](2026-09-13-architecture-decisions.md).
@@ -92,13 +92,13 @@ Names are illustrative private names. The behavior, ownership and ordering above
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| C1 | New; not yet implemented | Configuration numeric preparation through its real entrypoints and tests | None | None introduced |
+| C1 | Complete via [#493](https://github.com/the-sarge/quic-go-fast/pull/493) | Configuration numeric preparation through its real entrypoints and tests | None | None introduced |
 
 ## Implementation slices
 
 ### Slice C1 — Configuration numeric preparation
 
-**Stable identity:** `QGF-ARCH-20260921/C1`. One intended PR; GitHub child: pending.
+**Stable identity:** `QGF-ARCH-20260921/C1`. One intended PR; GitHub child: [#487](https://github.com/the-sarge/quic-go-fast/issues/487).
 
 **What it delivers:** Applications can supply settings when starting a connection/listener or return settings for an individual incoming connection. Share the numeric rules, while preserving the meaningful differences between those routes. Acceptance criteria below define the complete one-PR outcome.
 
@@ -140,20 +140,20 @@ Names are illustrative private names. The behavior, ownership and ordering above
 
 ## Acceptance criteria
 
-- [ ] C1: No. Keep the original callback clipping fix and include the newly traced initial-window gap. Refactoring alone could preserve both errors; the completion criteria must prove the promised bounds reach connection construction and encoding.
-- [ ] C2: Both initial and maximum receive windows, both incoming stream-count caps, and existing initial packet-size bounds/defaults. Preserve zero-as-default and negative-stream-count-as-disabled. Do not introduce new timeout restrictions or an initial-window-versus-maximum-window relationship in this change.
-- [ ] C3: Clamp where the existing comments promise clipping. Preserve the established initial packet-size normalization. Avoid new error categories for these numeric values; restoring the published behavior is smaller and more compatible than introducing rejection.
-- [ ] C4: Use two named private entry points in the existing configuration module: one for Dial/Listen, one for callback results. Share the numeric implementation beneath them. Avoid a boolean validation flag, a policy registry, or a new exported configuration representation.
-- [ ] C5: Preserve the existing in-place writes to direct Dial/Listen inputs, including their ordering before an unsupported-version error. Apply the newly required initial-window caps to the effective prepared copy; do not add new writes to those caller fields. The compatibility step mirrors only the shared clipping-stage result for MaxIncomingStreams, MaxIncomingUniStreams, MaxStreamReceiveWindow, MaxConnectionReceiveWindow and InitialPacketSize, before defaults or negative-stream-count conversion. Raw zero values and negative stream counts remain unchanged in the caller, including before an unsupported-version error; only the effective copy receives defaults and negative-to-zero conversion. The compatibility step reuses the shared clipping rules rather than duplicating bounds. Callback preparation works on a shallow local copy because it currently leaves the returned object unchanged; applications may reuse that object.
-- [ ] C6: No new callback rejection or renegotiation. The listener checks the packet version before invoking the callback and passes the selected header version to the new connection. Keep root version validation, preserve callback version-list behavior, and do not invent a second version-selection gate.
-- [ ] C7: Keep existing behavior: nil root settings use defaults; a successful callback returning nil uses defaults rather than inheriting every listener setting; a callback error refuses the connection. Do not recursively invoke a callback found in a returned Config.
-- [ ] C8: No. Keep public Config.Clone shallow and preserve existing Versions references, callbacks, and TokenStore identity. A broad copy/immutability change is not necessary to fix numeric correctness and would add compatibility questions.
-- [ ] C9: Dial still initializes Transport before validating configuration. Listen still reports missing TLS first and validates configuration before closed/duplicate-listener checks. Callback execution and refusal stay in the server. Moving pure default calculation earlier is acceptable only if it changes no visible error or initialization order.
-- [ ] C10: Do not assume so. A negative stream count becomes effective zero to disable streams; treating that effective zero as raw input again would restore defaults. Prepare raw settings once per entry route. Keep defaults and normalization together and test sentinel behavior explicitly.
-- [ ] C11: No. HTTP/3 has separate client/server defaults, ownership behavior, and custom dialing. Retain those tests and keep the root QUIC change independent.
-- [ ] C12: One shared numeric-rule owner and two small role operations are enough. Reject a new immutable Config type, a constructor overhaul, general policy injection, and deep-copying everything. If the diff grows across unrelated construction paths, split out the numeric repair and reduce the refactor.
-- [ ] Callers stop deciding which numeric preparation half to run. The module retains one implementation of each bound while hiding the direct-versus-callback ownership differences.
-- [ ] Focused evidence and affected-package validation pass at the exact pushed head, with successful applicable hosted checks on that same head and no unresolved stop-for-decision disposition.
+- [x] C1: No. Keep the original callback clipping fix and include the newly traced initial-window gap. Refactoring alone could preserve both errors; the completion criteria must prove the promised bounds reach connection construction and encoding.
+- [x] C2: Both initial and maximum receive windows, both incoming stream-count caps, and existing initial packet-size bounds/defaults. Preserve zero-as-default and negative-stream-count-as-disabled. Do not introduce new timeout restrictions or an initial-window-versus-maximum-window relationship in this change.
+- [x] C3: Clamp where the existing comments promise clipping. Preserve the established initial packet-size normalization. Avoid new error categories for these numeric values; restoring the published behavior is smaller and more compatible than introducing rejection.
+- [x] C4: Use two named private entry points in the existing configuration module: one for Dial/Listen, one for callback results. Share the numeric implementation beneath them. Avoid a boolean validation flag, a policy registry, or a new exported configuration representation.
+- [x] C5: Preserve the existing in-place writes to direct Dial/Listen inputs, including their ordering before an unsupported-version error. Apply the newly required initial-window caps to the effective prepared copy; do not add new writes to those caller fields. The compatibility step mirrors only the shared clipping-stage result for MaxIncomingStreams, MaxIncomingUniStreams, MaxStreamReceiveWindow, MaxConnectionReceiveWindow and InitialPacketSize, before defaults or negative-stream-count conversion. Raw zero values and negative stream counts remain unchanged in the caller, including before an unsupported-version error; only the effective copy receives defaults and negative-to-zero conversion. The compatibility step reuses the shared clipping rules rather than duplicating bounds. Callback preparation works on a shallow local copy because it currently leaves the returned object unchanged; applications may reuse that object.
+- [x] C6: No new callback rejection or renegotiation. The listener checks the packet version before invoking the callback and passes the selected header version to the new connection. Keep root version validation, preserve callback version-list behavior, and do not invent a second version-selection gate.
+- [x] C7: Keep existing behavior: nil root settings use defaults; a successful callback returning nil uses defaults rather than inheriting every listener setting; a callback error refuses the connection. Do not recursively invoke a callback found in a returned Config.
+- [x] C8: No. Keep public Config.Clone shallow and preserve existing Versions references, callbacks, and TokenStore identity. A broad copy/immutability change is not necessary to fix numeric correctness and would add compatibility questions.
+- [x] C9: Dial still initializes Transport before validating configuration. Listen still reports missing TLS first and validates configuration before closed/duplicate-listener checks. Callback execution and refusal stay in the server. Moving pure default calculation earlier is acceptable only if it changes no visible error or initialization order.
+- [x] C10: Do not assume so. A negative stream count becomes effective zero to disable streams; treating that effective zero as raw input again would restore defaults. Prepare raw settings once per entry route. Keep defaults and normalization together and test sentinel behavior explicitly.
+- [x] C11: No. HTTP/3 has separate client/server defaults, ownership behavior, and custom dialing. Retain those tests and keep the root QUIC change independent.
+- [x] C12: One shared numeric-rule owner and two small role operations are enough. Reject a new immutable Config type, a constructor overhaul, general policy injection, and deep-copying everything. If the diff grows across unrelated construction paths, split out the numeric repair and reduce the refactor.
+- [x] Callers stop deciding which numeric preparation half to run. The module retains one implementation of each bound while hiding the direct-versus-callback ownership differences.
+- [x] Focused evidence and affected-package validation pass at the exact pushed head, with successful applicable hosted checks on that same head and no unresolved stop-for-decision disposition.
 
 The typed-domain representation contract above bounds every “all,” “no,” “only,” “each” and “exactly” claim in these criteria. The case table and evidence budget terminate verification; tests do not claim complete schedule enumeration.
 

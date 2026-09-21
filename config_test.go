@@ -3,69 +3,18 @@ package quic
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/quic-go/quic-go/quicvarint"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestConfigValidation(t *testing.T) {
-	t.Run("nil config", func(t *testing.T) {
-		require.NoError(t, validateConfig(nil))
-	})
-
-	t.Run("config with a few values set", func(t *testing.T) {
-		conf := populateConfig(&Config{
-			MaxIncomingStreams:     5,
-			MaxStreamReceiveWindow: 10,
-		})
-		require.NoError(t, validateConfig(conf))
-		require.Equal(t, int64(5), conf.MaxIncomingStreams)
-		require.Equal(t, uint64(10), conf.MaxStreamReceiveWindow)
-	})
-
-	t.Run("stream limits", func(t *testing.T) {
-		conf := &Config{
-			MaxIncomingStreams:    1<<60 + 1,
-			MaxIncomingUniStreams: 1<<60 + 2,
-		}
-		require.NoError(t, validateConfig(conf))
-		require.Equal(t, int64(1<<60), conf.MaxIncomingStreams)
-		require.Equal(t, int64(1<<60), conf.MaxIncomingUniStreams)
-	})
-
-	t.Run("flow control windows", func(t *testing.T) {
-		conf := &Config{
-			MaxStreamReceiveWindow:     quicvarint.Max + 1,
-			MaxConnectionReceiveWindow: quicvarint.Max + 2,
-		}
-		require.NoError(t, validateConfig(conf))
-		require.Equal(t, uint64(quicvarint.Max), conf.MaxStreamReceiveWindow)
-		require.Equal(t, uint64(quicvarint.Max), conf.MaxConnectionReceiveWindow)
-	})
-
-	t.Run("initial packet size", func(t *testing.T) {
-		// not set
-		conf := &Config{InitialPacketSize: 0}
-		require.NoError(t, validateConfig(conf))
-		require.Zero(t, conf.InitialPacketSize)
-
-		// too small
-		conf = &Config{InitialPacketSize: 10}
-		require.NoError(t, validateConfig(conf))
-		require.Equal(t, uint16(1200), conf.InitialPacketSize)
-
-		// too large
-		conf = &Config{InitialPacketSize: protocol.MaxPacketBufferSize + 1}
-		require.NoError(t, validateConfig(conf))
-		require.Equal(t, uint16(protocol.MaxPacketBufferSize), conf.InitialPacketSize)
-	})
-}
 
 func TestConfigHandshakeIdleTimeout(t *testing.T) {
 	c := &Config{HandshakeIdleTimeout: time.Second * 11 / 2}
@@ -184,6 +133,7 @@ func TestConfigDefaultValues(t *testing.T) {
 	require.EqualValues(t, protocol.DefaultMaxReceiveConnectionFlowControlWindow, c.MaxConnectionReceiveWindow)
 	require.EqualValues(t, protocol.DefaultMaxIncomingStreams, c.MaxIncomingStreams)
 	require.EqualValues(t, protocol.DefaultMaxIncomingUniStreams, c.MaxIncomingUniStreams)
+	require.Equal(t, uint16(protocol.InitialPacketSize), c.InitialPacketSize)
 	require.False(t, c.DisablePathMTUDiscovery)
 	require.Nil(t, c.GetConfigForClient)
 }
@@ -196,4 +146,173 @@ func TestConfigZeroLimits(t *testing.T) {
 	c := populateConfig(config)
 	require.Zero(t, c.MaxIncomingStreams)
 	require.Zero(t, c.MaxIncomingUniStreams)
+}
+
+func TestConfigPreparationForTransport(t *testing.T) {
+	t.Run("nil uses defaults", func(t *testing.T) {
+		prepared, err := prepareConfig(nil)
+		require.NoError(t, err)
+		require.Equal(t, protocol.SupportedVersions, prepared.Versions)
+		require.EqualValues(t, protocol.DefaultInitialMaxStreamData, prepared.InitialStreamReceiveWindow)
+		require.EqualValues(t, protocol.DefaultInitialMaxData, prepared.InitialConnectionReceiveWindow)
+	})
+
+	t.Run("prepares effective values without widening caller mutation", func(t *testing.T) {
+		versions := []Version{protocol.SupportedVersions[0]}
+		tokenStore := NewLRUTokenStore(2, 3)
+		conf := &Config{
+			Versions:                       versions,
+			TokenStore:                     tokenStore,
+			InitialStreamReceiveWindow:     quicvarint.Max + 1,
+			MaxStreamReceiveWindow:         0,
+			InitialConnectionReceiveWindow: quicvarint.Max + 2,
+			MaxConnectionReceiveWindow:     0,
+			MaxIncomingStreams:             -1,
+			MaxIncomingUniStreams:          0,
+			InitialPacketSize:              0,
+		}
+
+		prepared, err := prepareConfig(conf)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(quicvarint.Max), prepared.InitialStreamReceiveWindow)
+		require.EqualValues(t, protocol.DefaultMaxReceiveStreamFlowControlWindow, prepared.MaxStreamReceiveWindow)
+		require.Equal(t, uint64(quicvarint.Max), prepared.InitialConnectionReceiveWindow)
+		require.EqualValues(t, protocol.DefaultMaxReceiveConnectionFlowControlWindow, prepared.MaxConnectionReceiveWindow)
+		require.Zero(t, prepared.MaxIncomingStreams)
+		require.EqualValues(t, protocol.DefaultMaxIncomingUniStreams, prepared.MaxIncomingUniStreams)
+		require.Equal(t, uint16(protocol.InitialPacketSize), prepared.InitialPacketSize)
+
+		require.Equal(t, uint64(quicvarint.Max+1), conf.InitialStreamReceiveWindow)
+		require.Zero(t, conf.MaxStreamReceiveWindow)
+		require.Equal(t, uint64(quicvarint.Max+2), conf.InitialConnectionReceiveWindow)
+		require.Zero(t, conf.MaxConnectionReceiveWindow)
+		require.Equal(t, int64(-1), conf.MaxIncomingStreams)
+		require.Zero(t, conf.MaxIncomingUniStreams)
+		require.Zero(t, conf.InitialPacketSize)
+		require.Same(t, &versions[0], &prepared.Versions[0])
+		require.Same(t, tokenStore, prepared.TokenStore)
+	})
+
+	t.Run("preserves legacy clipping before version errors", func(t *testing.T) {
+		conf := &Config{
+			Versions:                       []Version{0x1234},
+			InitialStreamReceiveWindow:     quicvarint.Max + 1,
+			MaxStreamReceiveWindow:         quicvarint.Max + 1,
+			InitialConnectionReceiveWindow: quicvarint.Max + 2,
+			MaxConnectionReceiveWindow:     quicvarint.Max + 2,
+			MaxIncomingStreams:             1<<60 + 1,
+			MaxIncomingUniStreams:          1<<60 + 2,
+			InitialPacketSize:              1,
+		}
+
+		prepared, err := prepareConfig(conf)
+		require.Nil(t, prepared)
+		require.ErrorContains(t, err, "invalid QUIC version: 0x1234")
+		require.Equal(t, uint64(quicvarint.Max+1), conf.InitialStreamReceiveWindow)
+		require.Equal(t, uint64(quicvarint.Max), conf.MaxStreamReceiveWindow)
+		require.Equal(t, uint64(quicvarint.Max+2), conf.InitialConnectionReceiveWindow)
+		require.Equal(t, uint64(quicvarint.Max), conf.MaxConnectionReceiveWindow)
+		require.Equal(t, int64(1<<60), conf.MaxIncomingStreams)
+		require.Equal(t, int64(1<<60), conf.MaxIncomingUniStreams)
+		require.Equal(t, uint16(protocol.MinInitialPacketSize), conf.InitialPacketSize)
+	})
+}
+
+func TestConfigPreparationConcurrentInRangeConfig(t *testing.T) {
+	conf := &Config{
+		Versions:                   []Version{protocol.SupportedVersions[0]},
+		MaxStreamReceiveWindow:     1024,
+		MaxConnectionReceiveWindow: 2048,
+		MaxIncomingStreams:         7,
+		MaxIncomingUniStreams:      8,
+		InitialPacketSize:          1350,
+	}
+	type result struct {
+		prepared *Config
+		err      error
+	}
+	results := make(chan result, 2)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Go(func() {
+			<-start
+			prepared, err := prepareConfig(conf)
+			results <- result{prepared: prepared, err: err}
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	for result := range results {
+		require.NoError(t, result.err)
+		require.Equal(t, int64(7), result.prepared.MaxIncomingStreams)
+		require.Equal(t, uint16(1350), result.prepared.InitialPacketSize)
+	}
+}
+
+func TestConfigPreparationForClient(t *testing.T) {
+	nestedCallbackCalls := 0
+	conf := &Config{
+		GetConfigForClient: func(*ClientInfo) (*Config, error) {
+			nestedCallbackCalls++
+			return nil, nil
+		},
+		Versions:                       []Version{0x1234},
+		InitialStreamReceiveWindow:     quicvarint.Max + 1,
+		MaxStreamReceiveWindow:         quicvarint.Max + 2,
+		InitialConnectionReceiveWindow: quicvarint.Max + 3,
+		MaxConnectionReceiveWindow:     quicvarint.Max + 4,
+		MaxIncomingStreams:             1<<60 + 1,
+		MaxIncomingUniStreams:          1<<60 + 2,
+		InitialPacketSize:              protocol.MaxPacketBufferSize + 1,
+	}
+	prepared := prepareConfigForClient(conf)
+
+	require.Equal(t, []Version{0x1234}, conf.Versions)
+	require.Equal(t, uint64(quicvarint.Max+1), conf.InitialStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max+2), conf.MaxStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max+3), conf.InitialConnectionReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max+4), conf.MaxConnectionReceiveWindow)
+	require.Equal(t, int64(1<<60+1), conf.MaxIncomingStreams)
+	require.Equal(t, int64(1<<60+2), conf.MaxIncomingUniStreams)
+	require.Equal(t, uint16(protocol.MaxPacketBufferSize+1), conf.InitialPacketSize)
+	require.Equal(t, uint64(quicvarint.Max), prepared.InitialStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max), prepared.MaxStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max), prepared.InitialConnectionReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max), prepared.MaxConnectionReceiveWindow)
+	require.Equal(t, int64(1<<60), prepared.MaxIncomingStreams)
+	require.Equal(t, int64(1<<60), prepared.MaxIncomingUniStreams)
+	require.Equal(t, uint16(protocol.MaxPacketBufferSize), prepared.InitialPacketSize)
+	require.Equal(t, []Version{0x1234}, prepared.Versions)
+	require.Zero(t, nestedCallbackCalls)
+
+	defaults := prepareConfigForClient(nil)
+	require.Equal(t, protocol.SupportedVersions, defaults.Versions)
+	require.EqualValues(t, protocol.DefaultInitialMaxStreamData, defaults.InitialStreamReceiveWindow)
+	require.EqualValues(t, protocol.DefaultInitialMaxData, defaults.InitialConnectionReceiveWindow)
+}
+
+func TestConfigInitialReceiveWindowsCanBeEncoded(t *testing.T) {
+	prepared, err := prepareConfig(&Config{
+		InitialStreamReceiveWindow:     quicvarint.Max + 1,
+		InitialConnectionReceiveWindow: quicvarint.Max + 1,
+	})
+	require.NoError(t, err)
+
+	params := &wire.TransportParameters{
+		InitialMaxStreamDataBidiLocal:  protocol.ByteCount(prepared.InitialStreamReceiveWindow),
+		InitialMaxStreamDataBidiRemote: protocol.ByteCount(prepared.InitialStreamReceiveWindow),
+		InitialMaxStreamDataUni:        protocol.ByteCount(prepared.InitialStreamReceiveWindow),
+		InitialMaxData:                 protocol.ByteCount(prepared.InitialConnectionReceiveWindow),
+		MaxBidiStreamNum:               protocol.StreamNum(prepared.MaxIncomingStreams),
+		MaxUniStreamNum:                protocol.StreamNum(prepared.MaxIncomingUniStreams),
+		MaxAckDelay:                    protocol.MaxAckDelayInclGranularity,
+		AckDelayExponent:               protocol.AckDelayExponent,
+		MaxUDPPayloadSize:              protocol.MaxPacketBufferSize,
+		ActiveConnectionIDLimit:        protocol.MaxActiveConnectionIDs,
+	}
+	require.NotPanics(t, func() { params.Marshal(protocol.PerspectiveClient) })
 }
