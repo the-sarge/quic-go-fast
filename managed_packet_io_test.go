@@ -22,6 +22,35 @@ type managedPacketIOV1 interface {
 	ConfigureManagedPacketIOV1(net.PacketConn, net.PacketConn, func([][]byte, []byte, *net.UDPAddr) (int, error)) error
 }
 
+func TestManagedPacketIOBindReturnsEndpointSetup(t *testing.T) {
+	endpoint, acquire := newTestManagedEndpoint(t)
+	lease, err := acquire()
+	require.NoError(t, err)
+
+	managed := lease.(*managedPacketConn)
+	setup, err := managed.bindQUIC()
+	require.NoError(t, err)
+
+	e := endpoint.(*managedPacketConn).endpoint
+	e.mutex.Lock()
+	bound := managed.lease.quic
+	receiveCoalescing := e.receiver != nil
+	receiveState := e.receiveState
+	e.mutex.Unlock()
+	require.True(t, bound)
+	require.Same(t, &e.buffers, setup.buffers)
+	require.Equal(t, receiveCoalescing, setup.receiveCoalescing)
+	require.Equal(t, receiveState, setup.receiveState)
+
+	// Binding is committed before publication. The captured endpoint-owned facts
+	// remain valid even when the lease closes in that interval.
+	require.NoError(t, lease.Close())
+	require.Same(t, &e.buffers, setup.buffers)
+	next, err := acquire()
+	require.NoError(t, err)
+	require.NoError(t, next.Close())
+}
+
 func TestManagedPacketIOInvalidLease(t *testing.T) {
 	for _, kind := range []string{"nil", "typed nil", "parent", "foreign", "promoted", "closed"} {
 		t.Run(kind, func(t *testing.T) {
