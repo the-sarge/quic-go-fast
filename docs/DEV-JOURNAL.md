@@ -2666,3 +2666,22 @@ The reviewed product head `04a39a44ce9565ad93ff65984766b8a97ecef008` passed the 
 ### Next
 
 The remaining active reconciliation frontier is tracked by [issue #422](https://github.com/the-sarge/quic-go-fast/issues/422).
+
+---
+
+## Coalesced close-packet sizing backport landed - 2026-09-21 09:29 EDT
+
+**Main:** `2b1704632b04`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #474](https://github.com/the-sarge/quic-go-fast/pull/474), closing [issue #470](https://github.com/the-sarge/quic-go-fast/issues/470). Coalesced connection-close sizing now includes the selected 1-RTT sealer overhead before Initial padding, adapting upstream [quic-go/quic-go#5858](https://github.com/quic-go/quic-go/pull/5858), commit `fcb5bedbbcd74a3a80cd247f9f02660b98fc36f6`.
+
+The fork-specific regressions cover packet composition, packet-number allocation, exact 1452-byte datagrams, construction-buffer release, and retained bytes on successful and failed writes through real emission construction. Native UDP/TLS immediate-close coverage asserts the local close cause and joins its accept worker without requiring server acceptance. An approved test-only repair separates ordinary diagnostic subprocess startup from the deliberate 250 ms timeout case while preserving output caps and error assertions; the probe deadline is unchanged.
+
+### Validation
+
+The deterministic regression panicked before the sizing fix and passed afterward. A temporary 500 ms child delay reproduced the subprocess overflow fixture failure, then passed with the separate startup budget; the diagnostic delay was removed. Exact-head certification at `98e0b79123ac832fefb971451f1a21bbd8421dca`, against base `660c7dd04c9ffccd7aba54be7605e979c3774648`, passed the full root and self-integration suites, focused close/emission/subprocess race tests, 1,000 immediate-close race iterations, affected-package vet, module tidiness and diff checks on Go 1.27.1 darwin/arm64. All 33 hosted checks were successful before the exact-head squash merge.
+
+RAS review `20260921T062424-08683f46d93bb0eee65a0f61` identified the integration test's invalid guaranteed-accept assumption; verification resolved it at the certified head. Final review `20260921T132246-52b9f97ca59d92c4cd9d5999` completed with four successful reviewers and no findings or follow-ups. The initial review's grok execution failed; the remaining panel produced synthesis. The [PR records the accepted contract, scope extension and review dispositions](https://github.com/the-sarge/quic-go-fast/pull/474). No RAS review was run for this journal append.
