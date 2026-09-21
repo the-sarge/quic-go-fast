@@ -1,7 +1,7 @@
 # Terminal path admission implementation plan
 
 **Date:** 2026-09-21
-**Status:** Accepted; not yet implemented
+**Status:** Complete
 **Track:** P, 1 of 3 in QGF-ARCH-20260921
 **Depends on:** Nothing; this slice is on the independent frontier.
 **Related:** [Program index](2026-09-21-architecture-deepening-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0003](0003-follow-stable-upstream-releases.md), [ADR 0006](0006-explicit-external-packet-io.md), [N01–N20](2026-09-13-architecture-decisions.md).
@@ -87,13 +87,13 @@ Names are illustrative private names. The behavior, ownership and ordering above
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| P1 | New; not yet implemented | Terminal path admission through its real entrypoints and tests | None | None introduced |
+| P1 | Complete | Terminal path admission through its real entrypoints and tests | None | None introduced |
 
 ## Implementation slices
 
 ### Slice P1 — Terminal path admission
 
-**Stable identity:** `QGF-ARCH-20260921/P1`. One intended PR; GitHub child: pending.
+**Stable identity:** `QGF-ARCH-20260921/P1`. One intended PR; GitHub child: [#486](https://github.com/the-sarge/quic-go-fast/issues/486).
 
 **What it delivers:** A path is an alternative route for an existing connection. Once the application abandons it, asking to probe it again must not recreate work. Keep the repair inside the existing outgoing path manager. Acceptance criteria below define the complete one-PR outcome.
 
@@ -136,19 +136,19 @@ Names are illustrative private names. The behavior, ownership and ordering above
 
 ## Acceptance criteria
 
-- [ ] P1: No. Repair the existing manager’s admission and closure operations. A check at the beginning of Probe alone would leave the race between checking and queueing.
-- [ ] P2: The existing manager lock serializes that decision with map and queue changes. Retain the existing abandonment signal on the Path handle; close it only while holding that lock. Do not add a second competing state flag or an ever-growing list of retired path IDs.
-- [ ] P3: Initial terminal check, creation/reset of probe state, and initial queue admission form one locked operation. Closing rejects the active path first; otherwise it removes live state and pending queue entries, retires the path’s connection-ID allocation when applicable, and closes the abandonment signal exactly once. Retrying must check terminality and live membership under the same lock.
-- [ ] P4: No. It stops new admission and prevents pending manager work from dispatching. A frame already handed to packet emission may still be sent. Keep Close from becoming a wait-for-network-drain operation; that would need a much larger design and could delay shutdown.
-- [ ] P5: Whichever obtains the manager lock first determines admission. If Close wins, Probe returns ErrPathClosed without creating work. If admission wins, Close can remove its still-pending work. A probe that completed validation before closure may report success; it must not restore a closed path afterward.
-- [ ] P6: Keep scheduling notifications outside the lock. A notification issued late by already-admitted work is harmless when the manager has no eligible path. Do not confuse a wakeup with packet admission. A new Probe invoked after Close returns should neither admit work nor request a fresh wakeup.
-- [ ] P7: Return success after the first successful terminal transition, without double-closing the signal or repeating retirement. Closing the currently active path continues to return the existing error and must leave that path usable.
-- [ ] P8: No. Preserve context cancellation as ending that wait, not permanently abandoning the path. Preserve future reprobes and previously earned switch eligibility. Do not add cancellation of every queued network action or change context-error precedence for an already-running probe.
-- [ ] P9: Keep the existing sequential-reprobe rules: discard previous challenges and queued retries when starting the next attempt, while keeping earlier switch eligibility. Preserve the tests that distinguish old and current responses.
-- [ ] P10: No new busy error, coalescing rule, or attempt-epoch framework. Preserve the current re-fetching of wait signals; if access moves behind the manager seam, copy the current signal handles under the lock on each wait-loop iteration. Do not permanently snapshot one attempt and silently strand an older caller. Terminal Close must wake every waiter; this repair makes no new promise about which overlapping probe receives validation success.
-- [ ] P11: Only the terminal-admission decision in N20. Keep migration eligibility, path generation, connection-ID policy, MTU, sender ownership, and packet emission unchanged. Existing manager callbacks remain the dependencies; no new generic lifecycle adapter is needed.
-- [ ] Transport callers and Path methods stop coordinating separate “insert, enqueue, then notice abandonment” steps. No extra lifecycle framework survives the deletion test.
-- [ ] Focused evidence and affected-package validation pass at the exact pushed head, with successful applicable hosted checks on that same head and no unresolved stop-for-decision disposition.
+- [x] P1: No. Repair the existing manager’s admission and closure operations. A check at the beginning of Probe alone would leave the race between checking and queueing.
+- [x] P2: The existing manager lock serializes that decision with map and queue changes. Retain the existing abandonment signal on the Path handle; close it only while holding that lock. Do not add a second competing state flag or an ever-growing list of retired path IDs.
+- [x] P3: Initial terminal check, creation/reset of probe state, and initial queue admission form one locked operation. Closing rejects the active path first; otherwise it removes live state and pending queue entries, retires the path’s connection-ID allocation when applicable, and closes the abandonment signal exactly once. Retrying must check terminality and live membership under the same lock.
+- [x] P4: No. It stops new admission and prevents pending manager work from dispatching. A frame already handed to packet emission may still be sent. Keep Close from becoming a wait-for-network-drain operation; that would need a much larger design and could delay shutdown.
+- [x] P5: Whichever obtains the manager lock first determines admission. If Close wins, Probe returns ErrPathClosed without creating work. If admission wins, Close can remove its still-pending work. A probe that completed validation before closure may report success; it must not restore a closed path afterward.
+- [x] P6: Keep scheduling notifications outside the lock. A notification issued late by already-admitted work is harmless when the manager has no eligible path. Do not confuse a wakeup with packet admission. A new Probe invoked after Close returns should neither admit work nor request a fresh wakeup.
+- [x] P7: Return success after the first successful terminal transition, without double-closing the signal or repeating retirement. Closing the currently active path continues to return the existing error and must leave that path usable.
+- [x] P8: No. Preserve context cancellation as ending that wait, not permanently abandoning the path. Preserve future reprobes and previously earned switch eligibility. Do not add cancellation of every queued network action or change context-error precedence for an already-running probe.
+- [x] P9: Keep the existing sequential-reprobe rules: discard previous challenges and queued retries when starting the next attempt, while keeping earlier switch eligibility. Preserve the tests that distinguish old and current responses.
+- [x] P10: No new busy error, coalescing rule, or attempt-epoch framework. Preserve the current re-fetching of wait signals; if access moves behind the manager seam, copy the current signal handles under the lock on each wait-loop iteration. Do not permanently snapshot one attempt and silently strand an older caller. Terminal Close must wake every waiter; this repair makes no new promise about which overlapping probe receives validation success.
+- [x] P11: Only the terminal-admission decision in N20. Keep migration eligibility, path generation, connection-ID policy, MTU, sender ownership, and packet emission unchanged. Existing manager callbacks remain the dependencies; no new generic lifecycle adapter is needed.
+- [x] Transport callers and Path methods stop coordinating separate “insert, enqueue, then notice abandonment” steps. No extra lifecycle framework survives the deletion test.
+- [x] Focused evidence and affected-package validation pass at the exact pushed head, with successful applicable hosted checks on that same head and no unresolved stop-for-decision disposition.
 
 The typed-domain representation contract above bounds every “all,” “no,” “only,” “each” and “exactly” claim in these criteria. The case table and evidence budget terminate verification; tests do not claim complete schedule enumeration.
 

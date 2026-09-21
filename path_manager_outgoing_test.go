@@ -2,6 +2,8 @@ package quic
 
 import (
 	"context"
+	"runtime"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -333,6 +335,218 @@ func TestPathManagerOutgoingRetransmissions(t *testing.T) {
 		default:
 			t.Fatal("should have received a context canceled error")
 		}
+	})
+}
+
+func TestPathManagerOutgoingCloseBeforeProbe(t *testing.T) {
+	var connIDRequests, scheduledSends int
+	pm := newPathManagerOutgoing(
+		func(pathID) (protocol.ConnectionID, bool) {
+			connIDRequests++
+			return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+		},
+		func(pathID) { t.Fatal("didn't expect any connection ID to be retired") },
+		func() { scheduledSends++ },
+	)
+	var enabled bool
+	p := pm.NewPath(&Transport{}, time.Second, func() { enabled = true })
+
+	require.NoError(t, p.Close())
+	scheduledAfterClose := scheduledSends
+	require.ErrorIs(t, p.Probe(context.Background()), ErrPathClosed)
+	require.Equal(t, scheduledAfterClose, scheduledSends, "probing a closed path must not schedule sending")
+	_, _, _, ok := pm.NextPathToProbe()
+	require.False(t, ok)
+	require.Zero(t, connIDRequests)
+	require.False(t, enabled)
+}
+
+func TestPathManagerOutgoingConcurrentClose(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		retireStarted := make(chan struct{})
+		allowRetire := make(chan struct{})
+		var retireCount int
+		pm := newPathManagerOutgoing(
+			func(pathID) (protocol.ConnectionID, bool) {
+				return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+			},
+			func(pathID) {
+				retireCount++
+				close(retireStarted)
+				<-allowRetire
+			},
+			func() {},
+		)
+		p := pm.NewPath(&Transport{}, time.Second, func() {})
+		probeResult := make(chan error, 1)
+		go func() { probeResult <- p.Probe(context.Background()) }()
+		synctest.Wait()
+
+		type closeOutcome struct {
+			err       error
+			recovered any
+		}
+		closeResult := make(chan closeOutcome, 2)
+		closePath := func() {
+			var outcome closeOutcome
+			defer func() {
+				outcome.recovered = recover()
+				closeResult <- outcome
+			}()
+			outcome.err = p.Close()
+		}
+		go closePath()
+		<-retireStarted
+		secondStarted := make(chan struct{})
+		go func() {
+			close(secondStarted)
+			closePath()
+		}()
+		<-secondStarted
+		runtime.Gosched()
+		close(allowRetire)
+		synctest.Wait()
+
+		for range 2 {
+			outcome := <-closeResult
+			require.Nil(t, outcome.recovered, "Close panicked")
+			require.NoError(t, outcome.err)
+		}
+		require.Equal(t, 1, retireCount)
+		require.ErrorIs(t, <-probeResult, ErrPathClosed)
+	})
+}
+
+func TestPathManagerOutgoingCloseWinsRetryAdmission(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		retireStarted := make(chan struct{})
+		allowRetire := make(chan struct{})
+		var scheduledSends atomic.Int32
+		pm := newPathManagerOutgoing(
+			func(pathID) (protocol.ConnectionID, bool) {
+				return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+			},
+			func(pathID) {
+				close(retireStarted)
+				<-allowRetire
+			},
+			func() { scheduledSends.Add(1) },
+		)
+		p := pm.NewPath(&Transport{}, time.Second, func() {})
+		probeResult := make(chan error, 1)
+		go func() { probeResult <- p.Probe(context.Background()) }()
+		synctest.Wait()
+		_, _, _, ok := pm.NextPathToProbe()
+		require.True(t, ok)
+		synctest.Wait()
+
+		closeResult := make(chan error, 1)
+		go func() { closeResult <- p.Close() }()
+		<-retireStarted
+		time.Sleep(time.Second)
+		runtime.Gosched()
+		close(allowRetire)
+		synctest.Wait()
+
+		require.NoError(t, <-closeResult)
+		require.ErrorIs(t, <-probeResult, ErrPathClosed)
+		require.EqualValues(t, 2, scheduledSends.Load(), "a rejected retry must not schedule sending")
+		_, _, _, ok = pm.NextPathToProbe()
+		require.False(t, ok)
+	})
+}
+
+func TestPathManagerOutgoingCloseDiscardsAdmittedRetry(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var scheduledSends atomic.Int32
+		pm := newPathManagerOutgoing(
+			func(pathID) (protocol.ConnectionID, bool) {
+				return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+			},
+			func(pathID) {},
+			func() { scheduledSends.Add(1) },
+		)
+		p := pm.NewPath(&Transport{}, time.Second, func() {})
+		probeResult := make(chan error, 1)
+		go func() { probeResult <- p.Probe(context.Background()) }()
+		synctest.Wait()
+		_, _, _, ok := pm.NextPathToProbe()
+		require.True(t, ok)
+		synctest.Wait()
+
+		time.Sleep(time.Second)
+		synctest.Wait()
+		require.EqualValues(t, 2, scheduledSends.Load())
+		require.NoError(t, p.Close())
+		synctest.Wait()
+
+		require.ErrorIs(t, <-probeResult, ErrPathClosed)
+		require.EqualValues(t, 3, scheduledSends.Load())
+		_, _, _, ok = pm.NextPathToProbe()
+		require.False(t, ok)
+	})
+}
+
+func TestPathManagerOutgoingCloseWakesOverlappingProbes(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		pm := newPathManagerOutgoing(
+			func(pathID) (protocol.ConnectionID, bool) {
+				return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+			},
+			func(pathID) {},
+			func() {},
+		)
+		p := pm.NewPath(&Transport{}, time.Second, func() {})
+		probeResults := make(chan error, 2)
+		go func() { probeResults <- p.Probe(context.Background()) }()
+		synctest.Wait()
+		_, _, _, ok := pm.NextPathToProbe()
+		require.True(t, ok)
+		synctest.Wait()
+
+		go func() { probeResults <- p.Probe(context.Background()) }()
+		synctest.Wait()
+		_, _, _, ok = pm.NextPathToProbe()
+		require.True(t, ok)
+		require.NoError(t, p.Close())
+		synctest.Wait()
+
+		for range 2 {
+			require.ErrorIs(t, <-probeResults, ErrPathClosed)
+		}
+		_, _, _, ok = pm.NextPathToProbe()
+		require.False(t, ok)
+	})
+}
+
+func TestPathManagerOutgoingCanceledProbeCanBeRetried(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		pm := newPathManagerOutgoing(
+			func(pathID) (protocol.ConnectionID, bool) {
+				return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+			},
+			func(pathID) { t.Fatal("didn't expect any connection ID to be retired") },
+			func() {},
+		)
+		p := pm.NewPath(&Transport{}, time.Second, func() {})
+		probeResults := make(chan error, 1)
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() { probeResults <- p.Probe(ctx) }()
+		synctest.Wait()
+		_, _, _, ok := pm.NextPathToProbe()
+		require.True(t, ok)
+		cancel()
+		synctest.Wait()
+		require.ErrorIs(t, <-probeResults, context.Canceled)
+
+		go func() { probeResults <- p.Probe(context.Background()) }()
+		synctest.Wait()
+		_, f, _, ok := pm.NextPathToProbe()
+		require.True(t, ok)
+		pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: f.Frame.(*wire.PathChallengeFrame).Data})
+		synctest.Wait()
+		require.NoError(t, <-probeResults)
+		require.NoError(t, p.Switch())
 	})
 }
 

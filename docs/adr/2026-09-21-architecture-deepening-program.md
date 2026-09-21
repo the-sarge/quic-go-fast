@@ -1,7 +1,7 @@
 # Architecture deepening program — 2026-09-21
 
 **Program:** `QGF-ARCH-20260921`
-**Status:** Accepted; not yet implemented
+**Status:** In progress; P complete, C1 and L1 remain on the independent frontier
 **Normative scope:** Track identity, plan pointers, graph, frontier and binding rules.
 **Audit history:** [Source/history dispositions and slice audit](../audits/2026-09-21-architecture-handoff/README.md).
 
@@ -13,7 +13,7 @@ Three grilled, bounded changes. The track plans are the normative contracts; iss
 
 | Track | Plan | Parent issue | Blocked by | Slices | Status |
 | --- | --- | --- | --- | --- | --- |
-| P | [Terminal path admission](2026-09-21-terminal-path-admission-plan.md) | pending | None | P1 | FRONTIER after verified default-branch publication |
+| P | [Terminal path admission](2026-09-21-terminal-path-admission-plan.md) | [#483](https://github.com/the-sarge/quic-go-fast/issues/483) | None | P1 | Complete |
 | C | [Configuration numeric preparation](2026-09-21-configuration-preparation-plan.md) | pending | None | C1 | FRONTIER after verified default-branch publication |
 | L | [Endpoint-owned managed lease binding](2026-09-21-managed-lease-binding-plan.md) | pending | None | L1 | FRONTIER after verified default-branch publication |
 
