@@ -24,4 +24,6 @@ if errors.Is(err, &http3.Error{ErrorCode: http3.ErrCodeRequestCanceled, Remote: 
 
 These checks replace checks against `*quic.StreamError` or `*quic.ApplicationError` at the affected HTTP/3 APIs. `http3.Error.Is` compares the code and `Remote` flag; it does not compare `ErrorMessage`. The converted error does not retain the original QUIC error or its stream ID. When using a low-level HTTP/3 stream, obtain its ID from `StreamID()` separately. Raw QUIC APIs and connection context causes keep their QUIC error types.
 
+Response-parsing failures returned by `Transport.RoundTrip`, `Transport.RoundTripOpt`, and `ClientConn.RoundTrip` could previously be bare `*http3.Error` values. They can now be wrapped with operation context. Existing callers using a direct type assertion such as `err.(*http3.Error)` should also migrate to `errors.As`; use `errors.Is` to match code and local/remote identity.
+
 Unrelated errors, including EOF, context cancellation, deadlines, transport errors, and `quic.ErrWouldBlock`, retain their existing identity and wrapping behavior. Error conversion does not change request retry rules or when an exchange releases its pooled connection.
