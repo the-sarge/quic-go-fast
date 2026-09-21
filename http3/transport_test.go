@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -223,6 +224,7 @@ func TestTransportQUICConfigOwnership(t *testing.T) {
 		MaxIdleTimeout:        3 * time.Second,
 	}
 	original := *qconf
+	original.Versions = slices.Clone(qconf.Versions)
 	var effective *quic.Config
 	tr := &Transport{
 		QUICConfig: qconf,
@@ -274,6 +276,7 @@ func TestTransportQUICConfigPreservesNonzeroMaxIncomingStreams(t *testing.T) {
 		MaxIncomingStreams: 5,
 	}
 	original := *qconf
+	original.Versions = slices.Clone(qconf.Versions)
 	var effective *quic.Config
 	tr := &Transport{
 		QUICConfig: qconf,
