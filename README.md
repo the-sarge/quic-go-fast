@@ -51,10 +51,10 @@ Unit CI exercises Linux, macOS, and Windows on Go 1.26.x and 1.27.x. Integration
 
 ## Use the fork
 
-Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. The published `v0.62.1-fast.3` tag includes the external packet-I/O, managed-endpoint and fixed-peer extensions described above:
+Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. The published `v0.62.1-fast.4` tag includes the external packet-I/O, managed-endpoint and fixed-peer extensions described above, plus the HTTP/3 compatibility and correctness changes in the changelog:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.3
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.4
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
