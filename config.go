@@ -22,36 +22,64 @@ func (c *Config) maxRetryTokenAge() time.Duration {
 	return c.handshakeTimeout()
 }
 
-func validateConfig(config *Config) error {
+func prepareConfig(config *Config) (*Config, error) {
+	prepared := clipConfig(config)
 	if config == nil {
-		return nil
+		return populateConfig(prepared), nil
 	}
-	const maxStreams = 1 << 60
-	if config.MaxIncomingStreams > maxStreams {
-		config.MaxIncomingStreams = maxStreams
-	}
-	if config.MaxIncomingUniStreams > maxStreams {
-		config.MaxIncomingUniStreams = maxStreams
-	}
-	if config.MaxStreamReceiveWindow > quicvarint.Max {
-		config.MaxStreamReceiveWindow = quicvarint.Max
-	}
-	if config.MaxConnectionReceiveWindow > quicvarint.Max {
-		config.MaxConnectionReceiveWindow = quicvarint.Max
-	}
-	if config.InitialPacketSize > 0 && config.InitialPacketSize < protocol.MinInitialPacketSize {
-		config.InitialPacketSize = protocol.MinInitialPacketSize
-	}
-	if config.InitialPacketSize > protocol.MaxPacketBufferSize {
-		config.InitialPacketSize = protocol.MaxPacketBufferSize
-	}
-	// check that all QUIC versions are actually supported
+	// Preserve the caller-visible clipping performed by the old validation path.
+	// Defaults, negative stream conversion, and the newly enforced initial window
+	// bounds only apply to the effective copy.
+	config.MaxIncomingStreams = prepared.MaxIncomingStreams
+	config.MaxIncomingUniStreams = prepared.MaxIncomingUniStreams
+	config.MaxStreamReceiveWindow = prepared.MaxStreamReceiveWindow
+	config.MaxConnectionReceiveWindow = prepared.MaxConnectionReceiveWindow
+	config.InitialPacketSize = prepared.InitialPacketSize
+
+	// Check that all QUIC versions are actually supported.
 	for _, v := range config.Versions {
 		if !protocol.IsValidVersion(v) {
-			return fmt.Errorf("invalid QUIC version: %s", v)
+			return nil, fmt.Errorf("invalid QUIC version: %s", v)
 		}
 	}
-	return nil
+	return populateConfig(prepared), nil
+}
+
+func prepareConfigForClient(config *Config) *Config {
+	return populateConfig(clipConfig(config))
+}
+
+func clipConfig(config *Config) *Config {
+	if config == nil {
+		config = &Config{}
+	}
+	clipped := config.Clone()
+	const maxStreams = 1 << 60
+	if clipped.MaxIncomingStreams > maxStreams {
+		clipped.MaxIncomingStreams = maxStreams
+	}
+	if clipped.MaxIncomingUniStreams > maxStreams {
+		clipped.MaxIncomingUniStreams = maxStreams
+	}
+	if clipped.InitialStreamReceiveWindow > quicvarint.Max {
+		clipped.InitialStreamReceiveWindow = quicvarint.Max
+	}
+	if clipped.MaxStreamReceiveWindow > quicvarint.Max {
+		clipped.MaxStreamReceiveWindow = quicvarint.Max
+	}
+	if clipped.InitialConnectionReceiveWindow > quicvarint.Max {
+		clipped.InitialConnectionReceiveWindow = quicvarint.Max
+	}
+	if clipped.MaxConnectionReceiveWindow > quicvarint.Max {
+		clipped.MaxConnectionReceiveWindow = quicvarint.Max
+	}
+	if clipped.InitialPacketSize > 0 && clipped.InitialPacketSize < protocol.MinInitialPacketSize {
+		clipped.InitialPacketSize = protocol.MinInitialPacketSize
+	}
+	if clipped.InitialPacketSize > protocol.MaxPacketBufferSize {
+		clipped.InitialPacketSize = protocol.MaxPacketBufferSize
+	}
+	return clipped
 }
 
 // populateConfig populates fields in the quic.Config with their default values, if none are set

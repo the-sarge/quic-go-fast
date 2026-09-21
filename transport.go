@@ -204,7 +204,9 @@ func (t *Transport) createServer(tlsConf *tls.Config, conf *Config, allow0RTT bo
 	if tlsConf == nil {
 		return nil, errors.New("quic: tls.Config not set")
 	}
-	if err := validateConfig(conf); err != nil {
+	var err error
+	conf, err = prepareConfig(conf)
+	if err != nil {
 		return nil, err
 	}
 
@@ -217,7 +219,6 @@ func (t *Transport) createServer(tlsConf *tls.Config, conf *Config, allow0RTT bo
 	if t.server != nil {
 		return nil, errListenerAlreadySet
 	}
-	conf = populateConfig(conf)
 	if err := t.init(false); err != nil {
 		return nil, err
 	}
@@ -259,10 +260,10 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr, host string, tlsCon
 	if err := t.init(t.isSingleUse); err != nil {
 		return nil, err
 	}
-	if err := validateConfig(conf); err != nil {
+	conf, err := prepareConfig(conf)
+	if err != nil {
 		return nil, err
 	}
-	conf = populateConfig(conf)
 	tlsConf = tlsConf.Clone()
 	setTLSConfigServerName(tlsConf, addr, host)
 	return t.doDial(ctx,

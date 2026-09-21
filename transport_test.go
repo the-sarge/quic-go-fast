@@ -19,6 +19,7 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/quicvarint"
 	"github.com/quic-go/quic-go/testutils/events"
 	"github.com/quic-go/quic-go/testutils/simnet"
 
@@ -529,6 +530,60 @@ func TestTransportDial(t *testing.T) {
 	t.Run("early", func(t *testing.T) {
 		testTransportDial(t, true)
 	})
+}
+
+func TestTransportConfigPreparation(t *testing.T) {
+	originalClientConnConstructor := newClientConnection
+	t.Cleanup(func() { newClientConnection = originalClientConnConstructor })
+
+	effectiveConfig := make(chan *Config, 1)
+	newClientConnection = func(
+		_ context.Context,
+		_ sendConn,
+		_ connRunner,
+		_ protocol.ConnectionID,
+		_ protocol.ConnectionID,
+		_ ConnectionIDGenerator,
+		_ *statelessResetter,
+		conf *Config,
+		_ *tls.Config,
+		_ protocol.PacketNumber,
+		_ bool,
+		_ bool,
+		_ qlogwriter.Trace,
+		_ utils.Logger,
+		_ protocol.Version,
+	) *wrappedConn {
+		effectiveConfig <- conf
+		return &wrappedConn{testHooks: &connTestHooks{
+			run:               func() error { return assert.AnError },
+			handshakeComplete: func() <-chan struct{} { return make(chan struct{}) },
+		}}
+	}
+
+	conf := &Config{
+		InitialStreamReceiveWindow:     quicvarint.Max + 1,
+		InitialConnectionReceiveWindow: quicvarint.Max + 2,
+		MaxIncomingStreams:             -1,
+	}
+	serverConn := newUDPConnLocalhost(t)
+	tr := &Transport{Conn: newUDPConnLocalhost(t)}
+	t.Cleanup(func() { tr.Close() })
+
+	_, err := tr.Dial(context.Background(), serverConn.LocalAddr(), &tls.Config{}, conf)
+	require.ErrorIs(t, err, assert.AnError)
+	prepared := <-effectiveConfig
+	require.Equal(t, uint64(quicvarint.Max), prepared.InitialStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max), prepared.InitialConnectionReceiveWindow)
+	require.Zero(t, prepared.MaxIncomingStreams)
+	require.EqualValues(t, protocol.DefaultMaxIncomingUniStreams, prepared.MaxIncomingUniStreams)
+	require.Equal(t, uint16(protocol.InitialPacketSize), prepared.InitialPacketSize)
+
+	require.Equal(t, uint64(quicvarint.Max+1), conf.InitialStreamReceiveWindow)
+	require.Equal(t, uint64(quicvarint.Max+2), conf.InitialConnectionReceiveWindow)
+	require.Equal(t, int64(-1), conf.MaxIncomingStreams)
+	require.Zero(t, conf.MaxIncomingUniStreams)
+	require.Zero(t, conf.InitialPacketSize)
 }
 
 func testTransportDial(t *testing.T, early bool) {

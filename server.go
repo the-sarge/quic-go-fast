@@ -882,7 +882,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 			s.refuseNewConn(p, hdr)
 			return nil
 		}
-		config = populateConfig(conf)
+		config = prepareConfigForClient(conf)
 	}
 
 	var conn *wrappedConn
