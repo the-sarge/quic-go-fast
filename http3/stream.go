@@ -36,6 +36,8 @@ type datagramStream interface {
 // A Stream is an HTTP/3 stream.
 //
 // When writing to and reading from the stream, data is framed in HTTP/3 DATA frames.
+// Read, write and datagram operations return stream and application errors as
+// *[Error], possibly wrapped.
 type Stream struct {
 	datagramStream
 	conn        *rawConn
@@ -84,7 +86,7 @@ func (s *Stream) Read(b []byte) (int, error) {
 				if errors.Is(err, errPriorityUpdateForPush) {
 					s.conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeFrameUnexpected), "")
 				}
-				return 0, err
+				return 0, maybeReplaceError(err)
 			}
 			switch f := frame.(type) {
 			case *dataFrame:
@@ -99,7 +101,7 @@ func (s *Stream) Read(b []byte) (int, error) {
 					return 0, errors.New("additional HEADERS frame received after trailers")
 				}
 				s.parsedTrailer = true
-				return 0, s.parseTrailer(s.datagramStream, f, work.recorder)
+				return 0, maybeReplaceError(s.parseTrailer(s.datagramStream, f, work.recorder))
 			default:
 				s.conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeFrameUnexpected), "")
 				// parseNextFrame skips over unknown frame types
@@ -117,7 +119,7 @@ func (s *Stream) Read(b []byte) (int, error) {
 		n, err = s.datagramStream.Read(b)
 	}
 	s.bytesRemainingInFrame -= uint64(n)
-	return n, err
+	return n, maybeReplaceError(err)
 }
 
 func (s *Stream) hasMoreData() bool {
@@ -139,10 +141,10 @@ func (s *Stream) Write(b []byte) (int, error) {
 			Frame: qlog.Frame{Frame: qlog.DataFrame{}},
 		})
 	}
-	if _, err := s.datagramStream.Write(s.buf); err != nil {
+	if _, err := s.writeUnframed(s.buf); err != nil {
 		return 0, err
 	}
-	return s.datagramStream.Write(b)
+	return s.writeUnframed(b)
 }
 
 // TryWriteAll writes b in a DATA frame if the entire frame can be queued immediately.
@@ -154,7 +156,7 @@ func (s *Stream) TryWriteAll(b []byte) error {
 	data = (&dataFrame{Length: uint64(len(b))}).Append(data)
 	data = append(data, b...)
 	if err := s.datagramStream.TryWriteAll(data); err != nil {
-		return err
+		return maybeReplaceError(err)
 	}
 	if work.recorder != nil {
 		work.recorder.RecordEvent(qlog.FrameCreated{
@@ -170,7 +172,8 @@ func (s *Stream) TryWriteAll(b []byte) error {
 }
 
 func (s *Stream) writeUnframed(b []byte) (int, error) {
-	return s.datagramStream.Write(b)
+	n, err := s.datagramStream.Write(b)
+	return n, maybeReplaceError(err)
 }
 
 func (s *Stream) StreamID() quic.StreamID {
@@ -179,12 +182,13 @@ func (s *Stream) StreamID() quic.StreamID {
 
 func (s *Stream) SendDatagram(b []byte) error {
 	// TODO: reject if datagrams are not negotiated (yet)
-	return s.datagramStream.SendDatagram(b)
+	return maybeReplaceError(s.datagramStream.SendDatagram(b))
 }
 
 func (s *Stream) ReceiveDatagram(ctx context.Context) ([]byte, error) {
 	// TODO: reject if datagrams are not negotiated (yet)
-	return s.datagramStream.ReceiveDatagram(ctx)
+	b, err := s.datagramStream.ReceiveDatagram(ctx)
+	return b, maybeReplaceError(err)
 }
 
 // A RequestStream is a low-level abstraction representing an HTTP/3 request stream.
@@ -194,6 +198,8 @@ func (s *Stream) ReceiveDatagram(ctx context.Context) ([]byte, error) {
 //
 // This is only needed for advanced use case, e.g. WebTransport and the various
 // MASQUE proxying protocols.
+// Read, write, datagram, header and response operations return stream and
+// application errors as *[Error], possibly wrapped.
 type RequestStream struct {
 	str *Stream
 
@@ -345,7 +351,7 @@ func (s *RequestStream) sendRequestHeader(req *http.Request) error {
 	}
 	s.isConnect = req.Method == http.MethodConnect
 	s.sentRequest = true
-	return s.requestWriter.WriteRequestHeader(s.str.datagramStream, req, s.requestedGzip, s.str.StreamID(), work.recorder)
+	return maybeReplaceError(s.requestWriter.WriteRequestHeader(s.str.datagramStream, req, s.requestedGzip, s.str.StreamID(), work.recorder))
 }
 
 // sendRequestTrailer sends request trailers to the stream.
@@ -353,7 +359,7 @@ func (s *RequestStream) sendRequestHeader(req *http.Request) error {
 func (s *RequestStream) sendRequestTrailer(req *http.Request) error {
 	work := s.str.conn.startQlogWork(s.str.qlogger, s.str.qlogParent)
 	defer work.done()
-	return s.requestWriter.WriteRequestTrailer(s.str.datagramStream, req, s.str.StreamID(), work.recorder)
+	return maybeReplaceError(s.requestWriter.WriteRequestTrailer(s.str.datagramStream, req, s.str.StreamID(), work.recorder))
 }
 
 // ReadResponse reads the HTTP response from the stream.
@@ -375,7 +381,7 @@ func (s *RequestStream) ReadResponse() (*http.Response, error) {
 		}
 		s.str.CancelRead(quic.StreamErrorCode(ErrCodeFrameError))
 		s.str.CancelWrite(quic.StreamErrorCode(ErrCodeFrameError))
-		return nil, fmt.Errorf("http3: parsing frame failed: %w", err)
+		return nil, fmt.Errorf("http3: parsing frame failed: %w", maybeReplaceError(err))
 	}
 	hf, ok := frame.(*headersFrame)
 	if !ok {
@@ -393,7 +399,7 @@ func (s *RequestStream) ReadResponse() (*http.Response, error) {
 		maybeQlogInvalidHeadersFrame(work.recorder, s.str.StreamID(), hf.Length)
 		s.str.CancelRead(quic.StreamErrorCode(ErrCodeRequestIncomplete))
 		s.str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestIncomplete))
-		return nil, fmt.Errorf("http3: failed to read response headers: %w", err)
+		return nil, fmt.Errorf("http3: failed to read response headers: %w", maybeReplaceError(err))
 	}
 	decodeFn := s.decoder.Decode(headerBlock)
 	var hfs []qpack.HeaderField
