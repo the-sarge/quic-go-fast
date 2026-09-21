@@ -4,7 +4,7 @@ quic-go-fast uses an annotated Git tag and a GitHub Release without a dedicated 
 
 ## Version selection
 
-Choose the version deliberately and record it in [CHANGELOG.md](../../CHANGELOG.md) or a release issue before tagging. The first fork prerelease is `v0.62.1-fast.1`, based on upstream `v0.62.0`. The `-fast.1` suffix identifies a Go semantic prerelease; it sorts after `v0.62.0` and before `v0.62.1`. The next prerelease on this base can use `v0.62.1-fast.2`. Future upstream-base and final-release version choices remain deliberate maintainer decisions.
+Choose the version deliberately and record it in [CHANGELOG.md](../../CHANGELOG.md) or a release issue before tagging. The fork's `v0.62.1-fast.N` series is based on upstream `v0.62.0`; each `-fast.N` suffix identifies a Go semantic prerelease that sorts after `v0.62.0` and before `v0.62.1`. Increment the suffix only after selecting and recording the next release. Future upstream-base and final-release version choices remain deliberate maintainer decisions.
 
 Never move or reuse an existing tag, or replace an existing published release in place. A correction gets a new version. Inherited upstream tags are not fork releases. Consumers must pin an explicit fork version; `@latest` can select an inherited upstream release instead of a fork prerelease.
 
