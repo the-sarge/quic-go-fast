@@ -2685,3 +2685,22 @@ The fork-specific regressions cover packet composition, packet-number allocation
 The deterministic regression panicked before the sizing fix and passed afterward. A temporary 500 ms child delay reproduced the subprocess overflow fixture failure, then passed with the separate startup budget; the diagnostic delay was removed. Exact-head certification at `98e0b79123ac832fefb971451f1a21bbd8421dca`, against base `660c7dd04c9ffccd7aba54be7605e979c3774648`, passed the full root and self-integration suites, focused close/emission/subprocess race tests, 1,000 immediate-close race iterations, affected-package vet, module tidiness and diff checks on Go 1.27.1 darwin/arm64. All 33 hosted checks were successful before the exact-head squash merge.
 
 RAS review `20260921T062424-08683f46d93bb0eee65a0f61` identified the integration test's invalid guaranteed-accept assumption; verification resolved it at the certified head. Final review `20260921T132246-52b9f97ca59d92c4cd9d5999` completed with four successful reviewers and no findings or follow-ups. The initial review's grok execution failed; the remaining panel produced synthesis. The [PR records the accepted contract, scope extension and review dispositions](https://github.com/the-sarge/quic-go-fast/pull/474). No RAS review was run for this journal append.
+
+---
+
+## HTTP/3 request-parsing backport landed - 2026-09-21 10:05 EDT
+
+**Main:** `348fb9afb8ca`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #476](https://github.com/the-sarge/quic-go-fast/pull/476), closing [issue #471](https://github.com/the-sarge/quic-go-fast/issues/471). The combined upstream request-parsing backport from [#5839](https://github.com/quic-go/quic-go/pull/5839), [#5842](https://github.com/quic-go/quic-go/pull/5842), and [#5841](https://github.com/quic-go/quic-go/pull/5841) gives ordinary and Extended CONNECT requests path-only URLs, retains authority in `Request.Host`, uses the Extended CONNECT path as `RequestURI`, preserves regular CONNECT authority form, and rejects invalid `:path` forms, including asterisk targets outside OPTIONS.
+
+Added positive and negative parser coverage, HTTP/2-versus-HTTP/3 handler comparisons, independent Extended CONNECT integration coverage, and a changelog compatibility note. Each parsing subtest owns its channel and server/client fixtures, with explicit transport and server completion. Exchange lifetime and qlog ownership are unchanged.
+
+### Validation
+
+Focused regressions reproduced the three parsing defects before their fixes. Exact-head local certification at `b0fc186d5829c64488c01c2eeb0d3936d4968486`, against base `a2ec03cf33e46119346974b4368088a0dba7ea8e`, passed HTTP/3 package and race tests, the full self-integration suite on QUIC v1, the new parsing tests on QUIC v2 and under race, affected-package vet and lint, module tidiness, and diff checks on Go 1.27.1 darwin/arm64. All applicable hosted unit, integration, lint, cross-compilation, and interop jobs passed on that exact head before squash merge as `348fb9afb8caf6a3a4e11f496234362b590ddef4`.
+
+Initial RAS review `20260921T134746-e1e64e41e1b4597565485904` identified one low-priority shared-channel failure cascade in the tests; the implementing agent accepted and fixed it by isolating fixtures per subtest. Verification resolved C-001 at the certified head. Replacement review `20260921T135802-33e747396e1d17963ebdb657` completed with four successful reviewers and no findings or follow-ups. An earlier setup-only attempt produced no review because its worktree root did not exist; the initial review's Grok adapter also failed to launch, with the remaining panel satisfying quorum. [PR #476 records review dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/476). No RAS review was run for this journal append.
