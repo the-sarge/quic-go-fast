@@ -2852,3 +2852,34 @@ Initial RAS review `20260921T221522-6fb9df51494c825648dd6cb0` found no fix-first
 ### Next
 
 All slices in `QGF-ARCH-20260921` are implemented and no successor becomes ready. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) remains the live view for final parent and task reconciliation.
+
+---
+
+## v0.62.1-fast.4 preparation landed; publication blocked - 2026-09-21 19:23 EDT
+
+**Main:** `d971e618f42e`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #497](https://github.com/the-sarge/quic-go-fast/pull/497) as `d971e618f42e2619238941a96950a55d54d78512`, selecting `v0.62.1-fast.4` as the next source-only library prerelease and recording its change, compatibility, support, adoption, provenance, and immutability boundaries. Publication is blocked: the exact-main integration workflow failed in the Linux Go 1.27 race lane at `TestHTTPServerIdleTimeoutAfterRetry`, so no tag or GitHub Release was created.
+
+### Completed
+
+The preparation documents HTTP/3 request-target and error compatibility changes, caller-config nonmutation for the private HTTP/3 stream default, the immediate-close buffer correction, configuration clipping, terminal path closure, `TransportError` unwrapping, endpoint-owned managed lease binding, and the test-only qlog fixture repair. The release runbook now describes deliberate `v0.62.1-fast.N` selection without implying a particular next suffix. The README remains pinned to the published `v0.62.1-fast.3` tag.
+
+### Decisions
+
+The release remains Library tier: annotated immutable tag, GitHub prerelease, public Go module verification, and no binary or container assets. The exact-main failure is consistent with the open HTTP idle-timeout boundary tracked in [issue #151](https://github.com/the-sarge/quic-go-fast/issues/151), but the release runbook requires a successful integration workflow at the exact source commit and forbids an unexplained pass-seeking rerun. The failed run is retained; publication did not weaken or bypass the gate.
+
+### Validation
+
+PR head `4b9f913b0a61604f310c660d2b1fd75569d9f645` passed the complete hosted pull-request matrix, including Linux race and interop. RAS review `20260921T225638-20fc11ce9f823a972d75ccdd` produced three accepted documentation corrections for tag provenance, test-only qlog scope, and the removed HTTP/3 caller-config side effect; one optional-link request and one duplicate were rejected, with no follow-ups. The configured Grok reviewer failed to launch; four reviewers and synthesis completed. New-head documentation checks and exact-head merge checks passed before squash merge.
+
+A fresh exact-main `govulncheck -show verbose ./...` used scanner v1.7.0, Go 1.27.1, darwin/arm64, and database timestamp 2026-09-16 18:00:43 UTC. It found zero reachable vulnerabilities and zero vulnerabilities in imported packages; required `golang.org/x/crypto v0.57.0` retains module-only [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932) in unimported `openpgp`, with no fix listed. An isolated application-owned replacement resolved pseudo-version `v0.62.1-fast.3.0.20260921231622-d971e618f42e` to exact source `d971e618f42e2619238941a96950a55d54d78512`; QUIC/HTTP3 compilation, managed registration and two lease teardowns, `go mod verify`, and binary build-info inspection passed.
+
+Exact-main [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/35666805559), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/35666805473), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/35666806121), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/35666805463) workflows succeeded. The [integration workflow](https://github.com/the-sarge/quic-go-fast/actions/runs/35666811073) failed only in `Integration (ubuntu, Go 1.27.x, race)`: the first controlled unusable connection was followed by an early HTTP idle timeout on the retry, returning `H3_NO_ERROR: idle timeout`. Other integration jobs passed. No unchanged-head rerun was requested.
+
+### Next
+
+Keep `v0.62.1-fast.4` unpublished and the README on fast.3. A future candidate must use a new exact `main` commit and repeat the complete source, vulnerability, consumer, tag, public-module, and tag-workflow gates. Do not create or move the planned tag from the blocked commit.
