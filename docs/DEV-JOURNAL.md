@@ -2823,3 +2823,32 @@ Initial RAS review `20260921T194852-b280d9150ec655de5688741c` identified uncondi
 ### Next
 
 [L1 #488](https://github.com/the-sarge/quic-go-fast/issues/488) is the only remaining ready slice and has no blockers. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) is the live view.
+
+---
+
+## Endpoint-owned managed lease binding landed - 2026-09-21 18:26 EDT
+
+**Main:** `71f1ea7c8ade`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #495](https://github.com/the-sarge/quic-go-fast/pull/495), closing [issue #488](https://github.com/the-sarge/quic-go-fast/issues/488). Managed lease binding now runs through a private endpoint-owned operation that validates the lease generation, excludes active ordinary I/O, prepares native receive handling, commits the QUIC phase, and captures immutable setup facts under the endpoint lock. Transport retains exact outer-resource and factory-lease validation, registration-slot authority, the supplied send callback, and infallible publication under `packetIO.mutex`.
+
+### Completed
+
+Removed endpoint locking and direct reads of active I/O, lease phase, receiver state, and receive diagnostics from `ConfigureManagedPacketIOV1`. Added a focused bind-seam regression covering endpoint-owned setup facts and the legal bind-then-lease-Close interval. Existing invalid-lease, exact-resource, busy-I/O, failed-initialization, exchange/reuse, deadline/wrapper, and concurrent close/batch coverage remained green. The normative L plan and architecture program now record L1 and all three tracks complete, with no successor slice.
+
+### Decisions
+
+The implementation retains the [accepted managed lease binding plan](adr/2026-09-21-managed-lease-binding-plan.md): binding commits before publication, returned setup facts do not promise a live lease, generation checks retain later I/O authority, and no exported API, callback-under-lock rule, prepare/commit/abort framework, raw-socket handoff, native capability redesign, or performance claim was added.
+
+### Validation
+
+Exact-head local certification at `ea52aed239c5064e2809909ab1edc3c31fd8f099`, against base `92b8600c08ad82c85ad12a2ab784bcc723c5cbd4`, passed focused managed/fixed-peer tests, their race-detector run, the full root package suite, `go vet .`, `go mod tidy -diff`, clean-tree verification, and diff checks. Pull-request runs [unit 35661480576](https://github.com/the-sarge/quic-go-fast/actions/runs/35661480576), [integration 35661480555](https://github.com/the-sarge/quic-go-fast/actions/runs/35661480555), [lint 35661480512](https://github.com/the-sarge/quic-go-fast/actions/runs/35661480512), [cross-compilation 35661480514](https://github.com/the-sarge/quic-go-fast/actions/runs/35661480514), and [interop 35661480513](https://github.com/the-sarge/quic-go-fast/actions/runs/35661480513) all succeeded on that exact head before squash merge as `71f1ea7c8ade89ce5691e5a256f596ccd1266441`.
+
+Initial RAS review `20260921T221522-6fb9df51494c825648dd6cb0` found no fix-first or follow-up clusters. Its sole low advisory requested a nearby private-method comment but established no behavioral or contract failure, so the implementing agent rejected it under the accepted finite review policy. No verification or replacement review was required. [PR #495 records the contract and certification](https://github.com/the-sarge/quic-go-fast/pull/495). No RAS review was run for this journal append.
+
+### Next
+
+All slices in `QGF-ARCH-20260921` are implemented and no successor becomes ready. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) remains the live view for final parent and task reconciliation.
