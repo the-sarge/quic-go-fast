@@ -2740,3 +2740,30 @@ Merged [PR #480](https://github.com/the-sarge/quic-go-fast/pull/480), closing [i
 ### Validation
 
 At reviewed head `5cf7c1d9aa71e38b8e7e203957429b9e852c5fd1`, focused ownership tests, the HTTP/3 package suite, `go vet ./http3`, `go mod tidy -diff`, formatting, and diff checks passed. One temporary in-place version mutation failed at the existing equality assertion and was removed. RAS review `20260921T151854-ca69d36a3091c7dd4f801e22` returned no findings with four successful reviewers; the Grok process failed, while quorum was met. No fixes, verification round, or deferred findings were required. All 33 hosted checks succeeded before the exact reviewed head was squash-merged as `f6c0b044062841e3f043ea6abb98b0f7c4948910`.
+
+---
+
+## Architecture handoff published - 2026-09-21 14:29 EDT
+
+**Main:** `1f085db2cce9`
+**Actor:** Codex (Astra)
+
+### Summary
+
+Published the audited architecture handoff in [PR #482](https://github.com/the-sarge/quic-go-fast/pull/482), covering terminal path admission (P1), numeric configuration preparation (C1), and endpoint-owned managed lease binding (L1). All 34 grilled decisions now live in three implementation plans and a [program index](adr/2026-09-21-architecture-deepening-program.md). No implementation was started or dispatched.
+
+### Completed
+
+Created track issues [#483](https://github.com/the-sarge/quic-go-fast/issues/483), [#484](https://github.com/the-sarge/quic-go-fast/issues/484), and [#485](https://github.com/the-sarge/quic-go-fast/issues/485), with native child relationships to [#486](https://github.com/the-sarge/quic-go-fast/issues/486), [#487](https://github.com/the-sarge/quic-go-fast/issues/487), and [#488](https://github.com/the-sarge/quic-go-fast/issues/488). Each child names the dispatch skill and exact reachable merged plan commit. Mirrored the three tracks and three slice tasks under OmniFocus parent gjr4K2ByhS5; notes contain pointers rather than duplicate contracts.
+
+### Decisions
+
+The [accepted plans and audit](adr/2026-09-21-architecture-deepening-program.md) retain one independently green PR per track, zero technical blocking edges, bounded evidence and context budgets, and no new public framework. Recommended priority is P1 → C1 → L1; all three are parallel-safe in dedicated worktrees. The audit tightened raw configuration sentinel preservation, unchanged prior lease/registration state on errors, and overlapping-probe waiter evidence within existing budgets.
+
+### Validation
+
+Independent source/contract audit passed. Local documentation certification verified 34 decisions, three unique unblocked slices, 30 relative file links, source anchors, clean pushed head and whitespace. All 33 applicable hosted checks passed on PR head 0fc42d27f546e9ca36746945b924fc155c1aa23c. Squash merge 1f085db2cce922a3bc87cdc24fe942b7564e749b is reachable on remote main, and all five merged document blobs match the audited candidate. No runtime implementation or local Go test result is claimed.
+
+### Next
+
+At this entry's timestamp, P1, C1 and L1 are ready and unimplemented. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) is the live view. The operator may dispatch each child to a fresh agent with implement-architecture-slice; parent issues are not implementation tasks.
