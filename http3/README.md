@@ -26,4 +26,6 @@ These checks replace checks against `*quic.StreamError` or `*quic.ApplicationErr
 
 Response-parsing failures returned by `Transport.RoundTrip`, `Transport.RoundTripOpt`, and `ClientConn.RoundTrip` could previously be bare `*http3.Error` values. They can now be wrapped with operation context. Existing callers using a direct type assertion such as `err.(*http3.Error)` should also migrate to `errors.As`; use `errors.Is` to match code and local/remote identity.
 
+`Server.ServeQUICConn` returns contextually wrapped `*http3.Error` values for connection failures while accepting request streams. Failures during control-stream setup retain their contextually wrapped `*quic.ApplicationError` representation. Shutdown classifiers should use `errors.As` for both types, checking the code and local/remote identity appropriate to each path.
+
 Unrelated errors, including EOF, context cancellation, deadlines, transport errors, and `quic.ErrWouldBlock`, retain their existing identity and wrapping behavior. Error conversion does not change request retry rules or when an exchange releases its pooled connection.
