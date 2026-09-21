@@ -2794,3 +2794,32 @@ Exact-head local certification at `ba3bf1f55b4c5918f7a064d8f6bfdc7be1a47acd`, ag
 ### Next
 
 At this entry's timestamp, [C1 #487](https://github.com/the-sarge/quic-go-fast/issues/487) and [L1 #488](https://github.com/the-sarge/quic-go-fast/issues/488) remain independently ready with no blockers. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) is the live view.
+
+---
+
+## Configuration numeric preparation landed - 2026-09-21 16:31 EDT
+
+**Main:** `bd9157073316`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #493](https://github.com/the-sarge/quic-go-fast/pull/493), closing [issue #487](https://github.com/the-sarge/quic-go-fast/issues/487). Direct Dial/Listen preparation and `GetConfigForClient` results now share one private numeric clipping owner. Direct preparation retains the five legacy caller-visible compatibility writes only when clipping changes a value and performs them before unsupported-version rejection; callback preparation shallow-copies without mutating the returned configuration or adding a version gate. Defaults, negative sentinels, selected listener versions, `Clone` alias behavior, HTTP/3 behavior, and the public `Config` representation remain unchanged.
+
+### Completed
+
+Centralized clipping for initial and maximum stream/connection receive windows, incoming stream counts, and packet size. Added finite scalar-domain coverage, direct-route compatibility and invalid-version ordering checks, callback nonmutation and selected-version checks, a real wire-encoder regression, a transport constructor seam, and a focused concurrent in-range configuration race regression. The normative C plan and program index now record C1 complete; L1 is the only remaining frontier.
+
+### Decisions
+
+The implementation retains the [accepted configuration preparation plan](adr/2026-09-21-configuration-preparation-plan.md): the typed Go `Config` remains the universal domain, direct and callback ingress keep distinct compatibility policies, callback results are copied before numeric clipping, and no public API, second configuration representation, reflection framework, or HTTP/3 unification was added. Conditional compatibility writes preserve the historical mutation contract while avoiding new writes for already-valid shared configurations.
+
+### Validation
+
+Exact-head local certification at `a5109dac7198a601bead9d911378740661f378b9`, against base `42fcdda7bf6a2c5d83b5df5b82f66ddcc3dcfbe2`, passed focused configuration and route tests, their race-detector run, affected package tests, `go vet .`, `go mod tidy -diff`, and diff checks. Pull-request runs [unit 35649391971](https://github.com/the-sarge/quic-go-fast/actions/runs/35649391971), [integration 35649392076](https://github.com/the-sarge/quic-go-fast/actions/runs/35649392076), [lint 35649391868](https://github.com/the-sarge/quic-go-fast/actions/runs/35649391868), [cross-compilation 35649391857](https://github.com/the-sarge/quic-go-fast/actions/runs/35649391857), and [interop 35649391991](https://github.com/the-sarge/quic-go-fast/actions/runs/35649391991) all succeeded on that exact head before squash merge as `bd915707331647f7a70ec5e52dc274a93311c959`.
+
+Initial RAS review `20260921T194852-b280d9150ec655de5688741c` identified unconditional legacy copy-back writes as a high-priority race risk; the implementing agent accepted the finding, added the concurrent regression first, and made copy-back conditional. Verification `20260921T194852-b280d9150ec655de5688741c-verification-1790021920533686000` resolved that finding and the diagnosed hosted-check observation; the low request for redundant constructor coverage no longer applied. Replacement review `20260921T202007-902e820664f94e25bc988a78` returned no findings or follow-ups and exhausted the review budget. One earlier macOS capture-fixture failure was diagnosed as nondeterministic because the same test and exact-head push matrix passed; the complete exact-head pull-request matrix subsequently passed. [PR #493 records dispositions, verification, and replacement-review receipts](https://github.com/the-sarge/quic-go-fast/pull/493). No RAS review was run for this journal append.
+
+### Next
+
+[L1 #488](https://github.com/the-sarge/quic-go-fast/issues/488) is the only remaining ready slice and has no blockers. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) is the live view.
