@@ -2704,3 +2704,24 @@ Added positive and negative parser coverage, HTTP/2-versus-HTTP/3 handler compar
 Focused regressions reproduced the three parsing defects before their fixes. Exact-head local certification at `b0fc186d5829c64488c01c2eeb0d3936d4968486`, against base `a2ec03cf33e46119346974b4368088a0dba7ea8e`, passed HTTP/3 package and race tests, the full self-integration suite on QUIC v1, the new parsing tests on QUIC v2 and under race, affected-package vet and lint, module tidiness, and diff checks on Go 1.27.1 darwin/arm64. All applicable hosted unit, integration, lint, cross-compilation, and interop jobs passed on that exact head before squash merge as `348fb9afb8caf6a3a4e11f496234362b590ddef4`.
 
 Initial RAS review `20260921T134746-e1e64e41e1b4597565485904` identified one low-priority shared-channel failure cascade in the tests; the implementing agent accepted and fixed it by isolating fixtures per subtest. Verification resolved C-001 at the certified head. Replacement review `20260921T135802-33e747396e1d17963ebdb657` completed with four successful reviewers and no findings or follow-ups. An earlier setup-only attempt produced no review because its worktree root did not exist; the initial review's Grok adapter also failed to launch, with the remaining panel satisfying quorum. [PR #476 records review dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/476). No RAS review was run for this journal append.
+
+---
+
+## HTTP/3 error consistency backport landed - 2026-09-21 11:06 EDT
+
+**Main:** `b0640931376a`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #478](https://github.com/the-sarge/quic-go-fast/pull/478), closing [issue #472](https://github.com/the-sarge/quic-go-fast/issues/472). HTTP/3 stream and request APIs consistently convert applicable QUIC stream/application errors to `*http3.Error`, adapting upstream [quic-go/quic-go#5852](https://github.com/quic-go/quic-go/pull/5852), commit `510e6fa00c66419d4a4d836036aae8671aa6d0a3`. Conversion preserves codes, local/remote identity, application messages, partial I/O counts, and HTTP/3 operation context. Unrelated errors, exchange completion, pooled release, retry decisions, and qlog ownership retain their existing behavior.
+
+Added focused boundary tests and public stream cancellation/application-close regressions, updated datagram and server-accept assertions, joined affected datagram readers, and documented migration to `errors.As` / `errors.Is`. The migration notes distinguish formerly bare RoundTrip errors from new contextual wrapping and the unchanged QUIC setup errors from converted acceptance errors returned by `Server.ServeQUICConn`.
+
+### Validation
+
+Red/green tests reproduced raw-error leaks at stream, datagram, header/trailer, opening, SETTINGS-wait, and server-accept boundaries. Exact-head local certification at `fd8087c9af65553575ef59293f9567e6348b12ad`, against base `992f7d4362c3ff1a6cbad4928cfe93488998d0b4`, passed HTTP/3 package tests, the full self-integration suite, HTTP/3 race tests, focused HTTP integration race tests, affected-package vet/lint, module tidiness, and diff checks on Go 1.27.1 darwin/arm64. Existing exchange, response completion, transport eviction, and qlog-lifetime coverage remained green. All applicable hosted unit, integration/race, lint, cross-compilation, and interop checks passed before squash merge as `b0640931376aba329f3cd9148308711595384ab5`.
+
+CI exposed a fixture teardown classifier that still recognized only raw QUIC application errors. Its correction preserves teardown guards while recognizing HTTP/3 acceptance errors; subsequent hosted suites passed. Tool-download HTTP 504 failures were diagnosed as external infrastructure before same-head failed-job reruns.
+
+Initial RAS review `20260921T144332-9f04984179c6a64950221c29` and replacement `20260921T145032-bb82f61b3554dae826676ecd` each reported one migration-documentation omission. Both were independently accepted and fixed under the docs-only polish exemption, without another review/verification cycle. There were no runtime findings or deferred follow-ups. Review quorum was met with three then four successful reviewers; the initial codex-sol and grok reviewers failed, and replacement grok failed. [PR #478 records dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/478). No RAS review was run for this journal append.
