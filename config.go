@@ -30,11 +30,21 @@ func prepareConfig(config *Config) (*Config, error) {
 	// Preserve the caller-visible clipping performed by the old validation path.
 	// Defaults, negative stream conversion, and the newly enforced initial window
 	// bounds only apply to the effective copy.
-	config.MaxIncomingStreams = prepared.MaxIncomingStreams
-	config.MaxIncomingUniStreams = prepared.MaxIncomingUniStreams
-	config.MaxStreamReceiveWindow = prepared.MaxStreamReceiveWindow
-	config.MaxConnectionReceiveWindow = prepared.MaxConnectionReceiveWindow
-	config.InitialPacketSize = prepared.InitialPacketSize
+	if config.MaxIncomingStreams != prepared.MaxIncomingStreams {
+		config.MaxIncomingStreams = prepared.MaxIncomingStreams
+	}
+	if config.MaxIncomingUniStreams != prepared.MaxIncomingUniStreams {
+		config.MaxIncomingUniStreams = prepared.MaxIncomingUniStreams
+	}
+	if config.MaxStreamReceiveWindow != prepared.MaxStreamReceiveWindow {
+		config.MaxStreamReceiveWindow = prepared.MaxStreamReceiveWindow
+	}
+	if config.MaxConnectionReceiveWindow != prepared.MaxConnectionReceiveWindow {
+		config.MaxConnectionReceiveWindow = prepared.MaxConnectionReceiveWindow
+	}
+	if config.InitialPacketSize != prepared.InitialPacketSize {
+		config.InitialPacketSize = prepared.InitialPacketSize
+	}
 
 	// Check that all QUIC versions are actually supported.
 	for _, v := range config.Versions {

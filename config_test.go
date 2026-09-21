@@ -3,6 +3,7 @@ package quic
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -216,6 +217,40 @@ func TestConfigPreparationForTransport(t *testing.T) {
 		require.Equal(t, int64(1<<60), conf.MaxIncomingUniStreams)
 		require.Equal(t, uint16(protocol.MinInitialPacketSize), conf.InitialPacketSize)
 	})
+}
+
+func TestConfigPreparationConcurrentInRangeConfig(t *testing.T) {
+	conf := &Config{
+		Versions:                   []Version{protocol.SupportedVersions[0]},
+		MaxStreamReceiveWindow:     1024,
+		MaxConnectionReceiveWindow: 2048,
+		MaxIncomingStreams:         7,
+		MaxIncomingUniStreams:      8,
+		InitialPacketSize:          1350,
+	}
+	type result struct {
+		prepared *Config
+		err      error
+	}
+	results := make(chan result, 2)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Go(func() {
+			<-start
+			prepared, err := prepareConfig(conf)
+			results <- result{prepared: prepared, err: err}
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	for result := range results {
+		require.NoError(t, result.err)
+		require.Equal(t, int64(7), result.prepared.MaxIncomingStreams)
+		require.Equal(t, uint16(1350), result.prepared.InitialPacketSize)
+	}
 }
 
 func TestConfigPreparationForClient(t *testing.T) {
