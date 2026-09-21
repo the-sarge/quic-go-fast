@@ -2767,3 +2767,30 @@ Independent source/contract audit passed. Local documentation certification veri
 ### Next
 
 At this entry's timestamp, P1, C1 and L1 are ready and unimplemented. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) is the live view. The operator may dispatch each child to a fresh agent with implement-architecture-slice; parent issues are not implementation tasks.
+
+---
+
+## Terminal path admission landed - 2026-09-21 15:15 EDT
+
+**Main:** `389ec4f34b2a`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #491](https://github.com/the-sarge/quic-go-fast/pull/491), closing [issue #486](https://github.com/the-sarge/quic-go-fast/issues/486). The outgoing path manager now serializes initial and retry probe admission with terminal closure under its existing mutex. Closing a non-active path retires live connection-ID allocation once, purges pending manager work, closes the existing abandonment signal once, and prevents later probes or retries from recreating work. Cancellation, active-path rejection, successful reprobes, stale-response handling, switch eligibility, packet-emission ownership, and public APIs remain unchanged.
+
+### Completed
+
+Added six deterministic regressions for close-before-probe, simultaneous Close, both retry/Close lock orderings, overlapping waiters followed by Close, and canceled-probe reuse. The normative P plan and program index now record P1 complete; C1 and L1 remain on their pre-existing independent frontier.
+
+### Decisions
+
+The implementation retains the [accepted terminal path admission plan](adr/2026-09-21-terminal-path-admission-plan.md): one outgoing-manager mutex is the terminal admission owner, `Path` retains abandonment identity, sender notifications remain outside the lock, and no attempt epoch, tombstone set, lifecycle framework, persistence, or packet-recall contract was added.
+
+### Validation
+
+Exact-head local certification at `ba3bf1f55b4c5918f7a064d8f6bfdc7be1a47acd`, against base `ff4047050c1121002e3a11ddf087d8fb331600e1`, passed the focused path-manager tests, focused race tests, full root package tests, `go vet .`, `go mod tidy -diff`, and diff checks. Initial RAS review `20260921T185746-e594a0fd30d39a4130c5cd9b` found no Fix First or follow-up clusters; two low process/evidence observations required no action under the accepted finite evidence budget. All applicable pull-request unit, integration/race, lint, cross-compilation, and interop workflows succeeded on the exact head before squash merge as `389ec4f34b2ab4d75c48c9e7e165a406138d1279`. [PR #491 records the review dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/491). No RAS review was run for this journal append.
+
+### Next
+
+At this entry's timestamp, [C1 #487](https://github.com/the-sarge/quic-go-fast/issues/487) and [L1 #488](https://github.com/the-sarge/quic-go-fast/issues/488) remain independently ready with no blockers. [Program tracker #489](https://github.com/the-sarge/quic-go-fast/issues/489) is the live view.
