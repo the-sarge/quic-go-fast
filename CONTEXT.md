@@ -47,3 +47,9 @@ Language for QUIC transport behavior and the fork's transmission work.
 **Packet-I/O lease**: The exclusive per-attempt packet resource borrowed from a managed packet endpoint. Ending the lease releases that interval; ending the parent endpoint ends the underlying resource.
 
 **Fixed-peer transport**: A transport whose permitted remote endpoint is fixed before packet processing and remains fixed for its lifetime. The address restriction is distinct from authenticating the peer's identity.
+
+**ECN metadata path**: The transport-preserved mapping between IP-level Explicit Congestion Notification bits on a UDP datagram and the QUIC packet's received ECN value or outgoing mark. Socket support alone does not establish an ECN metadata path.
+
+**Managed ECN capability**: A managed endpoint's proven ability to receive ECN-marked datagrams and apply outgoing ECN marks through an exclusive lease while keeping native socket authority private.
+
+**Platform ECN qualification**: Native evidence that one platform preserves a managed ECN capability across every address family admitted by the tested socket, ordinary and batched sends, peer filtering, fallback, lease reuse and terminal cleanup. A platform without a native metadata path remains unqualified rather than inheriting another platform's result.
