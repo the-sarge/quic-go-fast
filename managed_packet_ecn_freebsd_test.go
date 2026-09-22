@@ -6,12 +6,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/quic-go/quic-go/internal/utils"
 	"net"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/quic-go/quic-go/internal/utils"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/stretchr/testify/require"
@@ -45,6 +46,7 @@ func newFreeBSDManagedECN(t *testing.T, family freeBSDManagedECNFamily, wrapped 
 	require.NoError(t, err)
 	t.Cleanup(func() { peer.Close() })
 	require.NoError(t, peer.SetDeadline(time.Now().Add(5*time.Second)))
+	require.NoError(t, peer.SetWriteBuffer(1<<20))
 	conn := lease
 	callback := lease.(managedBatchWriterV1).WriteBatchV1
 	if wrapped {
@@ -133,6 +135,7 @@ func TestManagedFreeBSDNativeRepresentation(t *testing.T) {
 			require.NoError(t, err)
 			defer peer.Close()
 			require.NoError(t, peer.SetDeadline(time.Now().Add(5*time.Second)))
+			require.NoError(t, peer.SetWriteBuffer(1<<20))
 			receiver, err := newConn(peer, false, false)
 			require.NoError(t, err)
 			defer receiver.releaseReadBuffers()
@@ -255,7 +258,7 @@ func TestManagedFreeBSDFullDatagramsAndRelease(t *testing.T) {
 			for _, size := range []int{0, 1452, 2000, 65507} {
 				payload := bytes.Repeat([]byte{0x5a}, size)
 				_, err := peer.WriteToUDP(payload, destination)
-				require.NoError(t, err)
+				require.NoError(t, err, "payload size %d", size)
 				buffer := make([]byte, 65535)
 				n, _, err := lease.ReadFrom(buffer)
 				require.NoError(t, err)
@@ -373,7 +376,7 @@ func TestManagedFreeBSDSingletonResults(t *testing.T) {
 			if tc.err == nil {
 				require.NoError(t, err)
 			} else {
-				require.Same(t, tc.err, err)
+				require.Equal(t, tc.err, err)
 			}
 			require.Len(t, native.writes, 1, "FreeBSD must never retry EPERM")
 		})
@@ -399,7 +402,7 @@ func TestManagedFreeBSDSingletonResults(t *testing.T) {
 	}
 }
 
-func TestManagedFreeBSDCloseJoinsRead(t *testing.T) {
+func TestManagedFreeBSDReadCloseRace(t *testing.T) {
 	t.Setenv("QUIC_GO_DISABLE_ECN", "false")
 	for _, parentClose := range []bool{false, true} {
 		t.Run(fmt.Sprint(parentClose), func(t *testing.T) {
@@ -427,6 +430,52 @@ func TestManagedFreeBSDCloseJoinsRead(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, next.Close())
 			}
+		})
+	}
+}
+
+// Reuse the L1 socket fixture while varying only FreeBSD's native metadata
+// failure classes. The decoder remains the sole ancillary representation owner.
+type freeBSDManagedReadFixture struct {
+	managedReadMsgFixture
+	oob   []byte
+	flags int
+	calls int
+}
+
+func (c *freeBSDManagedReadFixture) ReadMsgUDP(b, oob []byte) (int, int, int, *net.UDPAddr, error) {
+	c.calls++
+	n := copy(b, []byte("payload"))
+	metadata, flags := c.oob, c.flags
+	if c.calls > 1 {
+		metadata = lifetimeControlMessage(unix.IPPROTO_IP, msgTypeIPTOS, []byte{protocol.ECT0.ToHeaderBits()})
+		flags = 0
+	}
+	return n, copy(oob, metadata), flags, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}, nil
+}
+
+func TestManagedFreeBSDMetadataFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		oob   []byte
+		flags int
+		want  protocol.ECN
+		reads int
+	}{
+		{"absent", nil, 0, protocol.ECNUnsupported, 1},
+		{"malformed", []byte{1}, 0, protocol.ECT0, 2},
+		{"truncated payload", nil, unix.MSG_TRUNC, protocol.ECT0, 2},
+		{"truncated ancillary", nil, unix.MSG_CTRUNC, protocol.ECT0, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := &freeBSDManagedReadFixture{oob: tc.oob, flags: tc.flags}
+			reader := &oobConn{OOBCapablePacketConn: fixture, managedRead: true, managedOOB: make([]byte, oobBufferSize)}
+			p, err := reader.ReadPacket()
+			require.NoError(t, err)
+			defer p.buffer.Release()
+			require.Equal(t, tc.want, p.ecn)
+			require.Equal(t, "payload", string(p.data))
+			require.Equal(t, tc.reads, fixture.calls)
 		})
 	}
 }
