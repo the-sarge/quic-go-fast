@@ -1,0 +1,17 @@
+{
+  "counts": {
+    "pass": 1454,
+    "fail": 0,
+    "skip": 7
+  },
+  "skips": [
+    "TestConnectionStatePathCapabilities",
+    "TestManagedPacketECNRejectsStaleGeneration/lease_close_joins_correlation",
+    "TestSendConnDetectGSOFailure",
+    "TestSendConnGSOFallbackConcurrentCapabilities",
+    "TestSendConnSendmsgFailures",
+    "TestOOBReaderBatchProgressionAndCleanup",
+    "TestSysConnSendGSO"
+  ],
+  "failures": []
+}

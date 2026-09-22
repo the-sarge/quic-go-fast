@@ -1,0 +1,218 @@
+[
+  {
+    "name": "focused",
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=10m",
+      "-overlay=/Volumes/worktrees/quic-go-fast/darwin27-qualification/docs/audits/2026-09-22-darwin27/overlay.json",
+      "-run",
+      "Test(SendmsgX|FixedPeerNativeBatch|ExternalDarwin|DarwinManagedECN|SendQueueBatch|ExternalPacketIOMessageSizeFeedback|ManagedEndpoint|ManagedPacketIO)",
+      "."
+    ],
+    "exit_code": 0,
+    "seconds": 3.19
+  },
+  {
+    "name": "package",
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=10m",
+      "-overlay=/Volumes/worktrees/quic-go-fast/darwin27-qualification/docs/audits/2026-09-22-darwin27/overlay.json",
+      "."
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 2.12,
+    "counts": {
+      "pass": 1454,
+      "fail": 0,
+      "skip": 7
+    }
+  },
+  {
+    "name": "race",
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=10m",
+      "-overlay=/Volumes/worktrees/quic-go-fast/darwin27-qualification/docs/audits/2026-09-22-darwin27/overlay.json",
+      "-race",
+      "."
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 19.93,
+    "counts": {
+      "pass": 1454,
+      "fail": 0,
+      "skip": 7
+    }
+  },
+  {
+    "name": "opt-out",
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=10m",
+      "-tags",
+      "quic_go_no_private_syscalls",
+      "-run",
+      "Test(UDPBatchWriter|ManagedPacketIOBatchDatagrams|ExternalPacketIOMessageSizeFeedback)",
+      "."
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 1.89,
+    "counts": {
+      "pass": 4,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "name": "build-arm64",
+    "command": [
+      "go",
+      "build",
+      "./..."
+    ],
+    "env": {
+      "GOOS": "darwin",
+      "GOARCH": "arm64"
+    },
+    "exit_code": 0,
+    "seconds": 1.1
+  },
+  {
+    "name": "build-arm64-opt-out",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "quic_go_no_private_syscalls",
+      "./..."
+    ],
+    "env": {
+      "GOOS": "darwin",
+      "GOARCH": "arm64"
+    },
+    "exit_code": 0,
+    "seconds": 1.01
+  },
+  {
+    "name": "build-amd64",
+    "command": [
+      "go",
+      "build",
+      "./..."
+    ],
+    "env": {
+      "GOOS": "darwin",
+      "GOARCH": "amd64"
+    },
+    "exit_code": 0,
+    "seconds": 1.41
+  },
+  {
+    "name": "build-amd64-opt-out",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "quic_go_no_private_syscalls",
+      "./..."
+    ],
+    "env": {
+      "GOOS": "darwin",
+      "GOARCH": "amd64"
+    },
+    "exit_code": 0,
+    "seconds": 1.02
+  },
+  {
+    "name": "ios-build",
+    "command": [
+      ".github/workflows/cross-compile.sh",
+      "ios/arm64"
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 1.11
+  },
+  {
+    "name": "ios-files",
+    "command": [
+      "go",
+      "list",
+      "-f",
+      "{{.GoFiles}}",
+      "."
+    ],
+    "env": {
+      "CGO_ENABLED": "0",
+      "GOOS": "ios",
+      "GOARCH": "arm64"
+    },
+    "exit_code": 0,
+    "seconds": 0.04
+  },
+  {
+    "name": "opt-out-files",
+    "command": [
+      "go",
+      "list",
+      "-tags",
+      "quic_go_no_private_syscalls",
+      "-f",
+      "{{.GoFiles}}",
+      "."
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 0.03
+  },
+  {
+    "name": "vet",
+    "command": [
+      "go",
+      "vet",
+      "."
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 0.52
+  },
+  {
+    "name": "tidy",
+    "command": [
+      "go",
+      "mod",
+      "tidy",
+      "-diff"
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 0.04
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "env": {},
+    "exit_code": 0,
+    "seconds": 0.01
+  }
+]

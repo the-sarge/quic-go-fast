@@ -1,6 +1,6 @@
 # Darwin 27 arm64 batch compatibility protocol
 
-Status: approved for one bounded collection; runtime admission requires pass. Issue: [#516](https://github.com/the-sarge/quic-go-fast/issues/516). Governing policy: [Darwin batch compatibility](../../darwin-batch-compatibility.md). Base: `67c5232464364e6d453fb41f5d51dd4f54d600cd`. The user approved this plan on 2026-09-22. This protocol is committed before qualification collection; the exact prepared candidate SHA and overlay hashes must be recorded in `identity.json` before execution.
+Status: bounded collection complete, [inconclusive](results.md); Darwin 27 runtime admission remains disabled. Issue: [#516](https://github.com/the-sarge/quic-go-fast/issues/516). Governing policy: [Darwin batch compatibility](../../darwin-batch-compatibility.md). Base: `67c5232464364e6d453fb41f5d51dd4f54d600cd`. The user approved this plan on 2026-09-22. This protocol is committed before qualification collection; the exact prepared candidate SHA and overlay hashes must be recorded in `identity.json` before execution.
 
 ## Outcome and acceptance criteria
 
