@@ -15,3 +15,7 @@ The invariant remains exact incoming and outgoing ECN on every admitted route. T
 Splitting receive from send would still publish a half-capability; adding a platform track or a second owner remains unnecessary. The current owner can enforce the corrected family policy centrally and the native matrix terminates the evidence obligation. The provisional implementation is preserved and paused until this clarification reaches main and the child pointer is synchronized.
 
 Darwin 27 sendmsg_x qualification is tracked separately in [#516](https://github.com/the-sarge/quic-go-fast/issues/516); D1's native qualification uses the already admitted Darwin 25 host.
+
+## Dispatch fit
+
+The named post-L1 dispatch manifest measures 102,134 bytes / 12,928 whitespace words, giving 25,856 input tokens by `max(bytes/4, words*2)`, within 26,000. The plan input is Decision plus the exact D1 slice, acceptance criteria and validation gates; duplicate introductory narrative is excluded. Other inputs are program lines 1–80, ADRs 0006/0007, both shared baselines, overlay, the named source declarations/ranges and eight named preservation tests. No L1 test helper is reused. Re-measure when these inputs change; this receipt is not code certification.
