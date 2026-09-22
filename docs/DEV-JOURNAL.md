@@ -3046,3 +3046,26 @@ Final production gates passed 22 test/subtest cases and three opt-out cases with
 Initial RAS run `20260922T212455-6f98b1776ed75cad3a04ffdc` retained three completed reviewers/adjudications but failed Codex synthesis; the one-shot verification attempt then failed because no synthesis was available. Neither is counted as successful verification. Replacement review `20260922T215714-e06a144a0aa2687efedee4b6` completed with three reviewers, adjudication and synthesis, independently checked the accepted guard fix and kernel mask/mapping, and required no further fixes or follow-up clusters. The stale-path polish request was rejected because maintained reproduction instructions already exist. Adjacent unscaled test waits remain outside the bounded CI repair, revalidated on this merged head at `sys_conn_oob_test.go:76` and related unchanged cases; no speculative cleanup ticket is added. The diagnostic-manifest suggestion was rejected as required work after exact-head guard certification.
 
 [Issue #516](https://github.com/the-sarge/quic-go-fast/issues/516) is closed. Its OmniFocus mirror is being reconciled after this journal follow-up. No additional native collection or performance campaign is pending for this qualification.
+
+---
+
+## Darwin qualification procedure updated - 2026-09-22 18:54 EDT
+
+**Main:** `68329797858b`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #527](https://github.com/the-sarge/quic-go-fast/pull/527), updating the [maintained Darwin qualification policy](darwin-batch-compatibility.md) and [ADR 0008](adr/0008-darwin-batch-compatibility.md). Future qualification declares same-architecture reference comparisons and transient-error cases in the first collection, identifies evidence routes and their limits, and checks actual shipped architecture admission data. Frozen qualification artifacts and runtime code are unchanged.
+
+### Decisions
+
+Reference qualification requires recorded native architecture evidence. An unavailable reference is an explicit comparison gap rather than an assumed difference; target qualification may pass only when its required cases and assumptions are independently established. Verified target-kernel binary inspection may establish specific count/error assumptions, while shared batch-owner evidence remains distinct from native UDP error observations. The maintained policy is the normative record.
+
+### Validation
+
+RAS review `20260922T223851-799b46ec2d512cfa4a2173dc` completed; three accepted documentation findings were corrected and locally verified. The shared docs-only polish exemption avoided another RAS cycle. Exact final head `7e1c49ca54b431a682e159d43436ab63ad2a3122` passed relative-link checks, clean-tree/diff certification and all 33 hosted checks before squash merge `68329797858bb3379cef6140eaa14780b15a524f`.
+
+### Next
+
+The Darwin 27 qualification remains complete under [#516](https://github.com/the-sarge/quic-go-fast/issues/516). The earlier docs candidate exposed a recurring Darwin 25 dual-stack ECN receive timeout after the full configured ten-second wait. Matching-host isolated and shuffled diagnostic replays passed without reproducing it; no infrastructure cause or fix was established. [#528](https://github.com/the-sarge/quic-go-fast/issues/528) tracks that separate diagnosis with failed-job evidence and a bounded next step.
