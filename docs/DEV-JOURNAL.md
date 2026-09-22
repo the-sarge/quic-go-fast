@@ -2883,3 +2883,32 @@ Exact-main [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/3566680
 ### Next
 
 Keep `v0.62.1-fast.4` unpublished and the README on fast.3. A future candidate must use a new exact `main` commit and repeat the complete source, vulnerability, consumer, tag, public-module, and tag-workflow gates. Do not create or move the planned tag from the blocked commit.
+
+---
+
+## v0.62.1-fast.4 published - 2026-09-21 19:54 EDT
+
+**Main:** `6950b192ed59`
+**Actor:** Codex
+
+### Summary
+
+Published [v0.62.1-fast.4](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.4) as an immutable source prerelease based on upstream quic-go v0.62.0. Annotated tag object `01099ab5824b08fc1c703b22fe2e3b3c9b17f4b6` peels to release source `79c968ce9ffbabf1a7d8eb860e2eead3ff17327f`. The release has no binary or container assets.
+
+### Completed
+
+[PR #497](https://github.com/the-sarge/quic-go-fast/pull/497) prepared the changelog, release record and generalized version-selection runbook. Exact-main candidate `d971e618f42e2619238941a96950a55d54d78512` was correctly stopped after its Linux Go 1.27 race integration lane hit the open HTTP idle-timeout/retry boundary; [PR #498](https://github.com/the-sarge/quic-go-fast/pull/498) preserved that event. The required append produced the later exact-main source `79c968ce9ffbabf1a7d8eb860e2eead3ff17327f`, for which every gate was repeated and passed before tagging. [PR #499](https://github.com/the-sarge/quic-go-fast/pull/499) then updated the README to the verified public tag and reconciled the changelog and release record.
+
+### Decisions
+
+The release remains Library tier: application-owned Go module replacement, immutable annotated tag, GitHub prerelease and no assets or release workflow. HTTP/3 request-target, error-wrapping and caller-config compatibility notes are explicit. Existing platform, performance, packet-loss, raw-socket handback and adoption limits remain unchanged. Consumers should pin `v0.62.1-fast.4`, avoid `@latest`, and evaluate the prerelease against their workloads.
+
+### Validation
+
+All exact-main and tag-triggered unit, integration/race, lint, cross-compilation and interop-image workflows succeeded at the tagged source. Fresh `govulncheck -show verbose ./...` used scanner v1.7.0, Go 1.27.1, darwin/arm64 and database timestamp 2026-09-16 18:00:43 UTC; it found zero reachable or imported-package vulnerabilities and retained module-only [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932) in unimported `golang.org/x/crypto/openpgp`. Isolated candidate and public-tag consumers built QUIC/HTTP3, exercised managed registration and repeated lease teardown, and passed `go mod verify`.
+
+The public module resolves to the annotated tag's peeled commit. Module sum is `h1:meeXf6Q9x6GZfT288xftjkv0uVpccoZGO0r6pskjRzo=`; go.mod sum is `h1:A0IgFhkxhEhQ/w/ofhmS62ViKO7YefJ8iRBpSR6gw/s=`. The 714-entry module ZIP has SHA-256 `93f9477c5a0bdf3d7e08cd83eef16c033d3f7822211af6082d83660359fba620`, includes runtime, HTTP/3 and release records, excludes the nested `docs/audits` module, and matches selected release-source bytes. The [GitHub release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.4) retains all workflow URLs, provenance, compatibility and archive receipts.
+
+### Next
+
+The fast.4 release is complete. Keep the documented intermittent HTTP, dial, reconnection, server-hotswap and server-first loss investigations open; passing release gates do not resolve them or establish new performance and native-platform claims.
