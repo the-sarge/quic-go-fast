@@ -4,6 +4,12 @@ set -eu
 uname -a
 go version
 status=0
-go test -v -count=1 -timeout=5m . -run '^TestManagedFreeBSD' || status=$?
+if go test -v -count=1 -timeout=5m . -run 'TestManaged|TestOOBReaderAncillaryFailure|TestReadECNFlags|TestSendPacketsWithECNOn'; then
+ go test -count=1 -timeout=8m . || status=$?
+ if [ "$status" -eq 0 ]; then go vet . || status=$?; fi
+ if [ "$status" -eq 0 ]; then CGO_ENABLED=1 go test -race -count=1 -timeout=5m . -run 'TestManaged' || status=$?; fi
+else
+ status=$?
+fi
 printf '{"candidate":"%s","test_exit":%s}\n' "$INFRA_CANDIDATE_SHA" "$status" > "$INFRA_RESULT_PATH"
 exit "$status"

@@ -36,6 +36,10 @@ func refreshManagedECNAvailability(q managedECNQualification) managedECNQualific
 	return q
 }
 
-func managedIPv4ECNSetupError(_ managedECNQualification, setup oobConnSetup) error {
+func managedIPv4ECNSetupError(q managedECNQualification, setup oobConnSetup) error {
+	// FreeBSD delivers mapped IPv4 ECN through IPV6_TCLASS on AF_INET6.
+	if q.admittedIPv6 {
+		return setup.ecnIPv6Err
+	}
 	return setup.ecnIPv4Err
 }
