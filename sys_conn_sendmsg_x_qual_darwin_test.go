@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"runtime"
 	"sync"
 	"syscall"
 	"testing"
@@ -37,7 +38,7 @@ func TestSendmsgXSelfCheckAgainstRunningKernel(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
 	err = sendmsgXSelfCheck()
-	if _, qualified := qualifiedDarwinKernelMajors[major]; !qualified {
+	if _, qualified := sendmsgXQualifiedKernel(major, runtime.GOARCH); !qualified {
 		t.Logf("Darwin kernel major %d is not in the qualified set; self-check result: %v", major, err)
 		return
 	}
@@ -68,7 +69,7 @@ func TestSendmsgXKernelMajorAllowlist(t *testing.T) {
 	t.Run("listed major engages after self-check", func(t *testing.T) {
 		major, err := getMacOSVersion()
 		require.NoError(t, err)
-		if _, qualified := qualifiedDarwinKernelMajors[major]; !qualified {
+		if _, qualified := sendmsgXQualifiedKernel(major, runtime.GOARCH); !qualified {
 			t.Skipf("running Darwin kernel major %d is not in the qualified set", major)
 		}
 		resetSendmsgXForTesting(t)
@@ -147,5 +148,31 @@ func TestSendmsgXUnknownProgressErrnoIsFatal(t *testing.T) {
 			require.ErrorIs(t, err, errno)
 			require.False(t, sendmsgX.latched.Load(), "an ordinary send error must not latch the capability")
 		})
+	}
+}
+
+// A qualification entry admits only the architectures backed by its evidence.
+// The empty architecture preserves the historical Darwin 25 admission policy.
+func TestSendmsgXArchitectureAdmission(t *testing.T) {
+	original := qualifiedDarwinKernelMajors
+	qualifiedDarwinKernelMajors = map[int]sendmsgXQualification{
+		25: {product: "historical Darwin 25"},
+		27: {product: "test-only Darwin 27", arch: "arm64"},
+	}
+	t.Cleanup(func() { qualifiedDarwinKernelMajors = original })
+	for _, tc := range []struct {
+		major int
+		arch  string
+		want  bool
+	}{
+		{25, "arm64", true},
+		{25, "amd64", true},
+		{27, "arm64", true},
+		{27, "amd64", false},
+		{26, "arm64", false},
+		{28, "arm64", false},
+	} {
+		_, admitted := sendmsgXQualifiedKernel(tc.major, tc.arch)
+		require.Equal(t, tc.want, admitted, "Darwin %d/%s", tc.major, tc.arch)
 	}
 }

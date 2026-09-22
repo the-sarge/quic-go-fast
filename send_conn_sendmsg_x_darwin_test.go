@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ import (
 func TestSendmsgXBatchSendEndToEnd(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, qualified := qualifiedDarwinKernelMajors[major]; !qualified {
+	if _, qualified := sendmsgXQualifiedKernel(major, runtime.GOARCH); !qualified {
 		t.Skipf("running Darwin kernel major %d is not in the qualified set", major)
 	}
 	resetSendmsgXForTesting(t)
@@ -107,7 +108,7 @@ func (c *customWriteMsgConn) WriteMsgUDP(b, oob []byte, addr *net.UDPAddr) (int,
 func TestSendmsgXCustomConnKeepsWriteMsgUDP(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, qualified := qualifiedDarwinKernelMajors[major]; !qualified {
+	if _, qualified := sendmsgXQualifiedKernel(major, runtime.GOARCH); !qualified {
 		t.Skipf("running Darwin kernel major %d is not in the qualified set", major)
 	}
 	resetSendmsgXForTesting(t)
@@ -210,7 +211,7 @@ func TestSendmsgXDisabledPathInert(t *testing.T) {
 func TestFixedPeerNativeBatch(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+	if _, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH); !ok {
 		t.Skipf("unqualified Darwin kernel %d", major)
 	}
 	resetSendmsgXForTesting(t)
@@ -248,7 +249,7 @@ func TestFixedPeerNativeBatch(t *testing.T) {
 func TestExternalDarwinBatchWriterEngagement(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+	if _, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH); !ok {
 		t.Skipf("unqualified Darwin kernel %d", major)
 	}
 	resetSendmsgXForTesting(t)
@@ -295,11 +296,19 @@ func TestExternalDarwinBatchWriterEngagement(t *testing.T) {
 }
 
 func TestExternalDarwinBatchWriterFallback(t *testing.T) {
-	for _, mode := range []string{"disabled", "unqualified"} {
+	for _, mode := range []string{"disabled", "unqualified", "architecture"} {
 		t.Run(mode, func(t *testing.T) {
 			resetSendmsgXForTesting(t)
 			if mode == "disabled" {
 				t.Setenv(sendmsgXDisableEnv, "true")
+			} else if mode == "architecture" {
+				major, err := getMacOSVersion()
+				require.NoError(t, err)
+				original := qualifiedDarwinKernelMajors
+				qualifiedDarwinKernelMajors = map[int]sendmsgXQualification{
+					major: {product: "test-only excluded architecture", arch: "excluded"},
+				}
+				t.Cleanup(func() { qualifiedDarwinKernelMajors = original })
 			} else {
 				original := sendmsgXKernelMajor
 				sendmsgXKernelMajor = func() (int, error) { return -1, nil }
@@ -331,7 +340,7 @@ func TestExternalDarwinBatchWriterFallback(t *testing.T) {
 func TestExternalDarwinBatchWriterConcurrent(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+	if _, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH); !ok {
 		t.Skipf("unqualified Darwin kernel %d", major)
 	}
 	resetSendmsgXForTesting(t)
@@ -440,7 +449,7 @@ func TestExternalDarwinBatchWriterStandardInputs(t *testing.T) {
 func TestExternalDarwinBatchWriterDeadline(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+	if _, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH); !ok {
 		t.Skipf("unqualified Darwin kernel %d", major)
 	}
 	resetSendmsgXForTesting(t)
@@ -492,7 +501,7 @@ func checkNativeBatchDeadline(t *testing.T, sender net.PacketConn, writer func([
 func TestExternalDarwinBatchWriterClosedSocket(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+	if _, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH); !ok {
 		t.Skipf("unqualified Darwin kernel %d", major)
 	}
 	resetSendmsgXForTesting(t)
@@ -520,7 +529,7 @@ func TestExternalDarwinBatchWriterClosedSocket(t *testing.T) {
 func TestExternalDarwinManagedBatchDeadline(t *testing.T) {
 	major, err := getMacOSVersion()
 	require.NoError(t, err)
-	if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+	if _, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH); !ok {
 		t.Skipf("unqualified Darwin kernel %d", major)
 	}
 	resetSendmsgXForTesting(t)

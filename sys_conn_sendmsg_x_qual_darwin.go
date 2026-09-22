@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -42,8 +43,23 @@ const sendmsgXDisableEnv = "QUIC_GO_DISABLE_SENDMSG_X"
 // rule. An unlisted or newer major stays in the per-packet fallback path
 // until qualified. Recorded versions describe tested evidence, not a
 // guarantee that later kernels preserve the private ABI.
-var qualifiedDarwinKernelMajors = map[int]string{
-	25: "macOS 26 (qualified on product 26.6.2, Darwin 25.6.0, arm64)",
+var qualifiedDarwinKernelMajors = map[int]sendmsgXQualification{
+	25: {product: "macOS 26 (qualified on product 26.6.2, Darwin 25.6.0, arm64)"},
+}
+
+type sendmsgXQualification struct {
+	product string
+	// An empty arch preserves the historical Darwin 25 admission. New
+	// entries must restrict admission to their native architecture evidence.
+	arch string
+}
+
+func sendmsgXQualifiedKernel(major int, arch string) (string, bool) {
+	q, ok := qualifiedDarwinKernelMajors[major]
+	if !ok || (q.arch != "" && q.arch != arch) {
+		return "", false
+	}
+	return q.product, true
 }
 
 // sendmsgXKernelMajor reports the running Darwin kernel major; tests inject
@@ -107,9 +123,9 @@ func sendmsgXQualify() {
 		utils.DefaultLogger.Debugf("sendmsg_x batch send disabled: reading Darwin kernel version: %s.", err)
 		return
 	}
-	product, ok := qualifiedDarwinKernelMajors[major]
+	product, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH)
 	if !ok {
-		utils.DefaultLogger.Debugf("sendmsg_x batch send disabled: Darwin kernel major %d is not in the qualified set.", major)
+		utils.DefaultLogger.Debugf("sendmsg_x batch send disabled: Darwin kernel major %d/%s is not in the qualified set.", major, runtime.GOARCH)
 		return
 	}
 	if err := sendmsgXSelfCheck(); err != nil {
