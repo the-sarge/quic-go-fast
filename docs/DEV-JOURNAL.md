@@ -2968,3 +2968,28 @@ RAS review `20260922T144304-dcfb4c78c8f37711ecf5ba55` and replacement review `20
 ### Next
 
 L1 is complete. D1 ([issue #504](https://github.com/the-sarge/quic-go-fast/issues/504)) and F1 ([issue #505](https://github.com/the-sarge/quic-go-fast/issues/505)) join the existing O1 and W1 slices on the dispatchable frontier; [issue #354](https://github.com/the-sarge/quic-go-fast/issues/354) remains the live source for program progress and dispatch state.
+
+---
+
+## Darwin managed ECN qualified - 2026-09-22 14:08 EDT
+
+**Main:** `18869070e920`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #518](https://github.com/the-sarge/quic-go-fast/pull/518) as `18869070e92088fadf84fcb7e18f63d32c508a79`, completing Darwin slice D1 and closing [issue #504](https://github.com/the-sarge/quic-go-fast/issues/504). Native Darwin endpoints now qualify managed ECN through the existing endpoint-owned adapter while preserving lease correlation, complete datagrams, checked send results and wrapper authority. iOS retains its unsupported receive path.
+
+### Decisions
+
+Native characterization established that Darwin AF_INET6 sockets receive both IPv6 and mapped IPv4 ECN through IPV6_TCLASS. The scoped contract clarification landed in [PR #517](https://github.com/the-sarge/quic-go-fast/pull/517); the [Darwin plan](adr/2026-09-22-darwin-managed-ecn-plan.md) remains normative. D1 marks Darwin supported and removes it from the committed program frontier. Darwin 27 private batch qualification is a separate [issue #516](https://github.com/the-sarge/quic-go-fast/issues/516).
+
+### Validation
+
+Exact candidate `48854eb2dd9d04d3899fdab26c1c2b30669a4605` passed all ten native qualification functions without skips on m4mini (Darwin 25.6.0, macOS 26.6.2, arm64, Go 1.27.0), including actual native batch engagement. Affected-package tests, the native race gate, no-private-syscalls qualification, vet, dependency consistency, lint, Darwin/FreeBSD/OpenBSD compilation and iOS library builds passed. All applicable hosted unit, integration, cross-compilation, lint and interop checks passed; [the certification receipt](https://github.com/the-sarge/quic-go-fast/pull/518#issuecomment-5781506682) links exact-head evidence.
+
+Initial RAS review `20260922T173557-1578cca0d0c467776032b338` identified the iOS build-selection issue; it was fixed and exact-head verification resolved the finding. Replacement review `20260922T175257-399a5c3f9fd799cfaec06b91` raised stricter packet-info family setup as an investigation. It was independently deferred because the policy predates D1, native reachability was unobserved, and packet-info metadata is outside this ECN-only contract. No RAS review is required for this administrative journal append.
+
+### Next
+
+D1 is complete with no successors newly unblocked by it. F1 #505, O1 #506 and W1 #507 remain the parallel frontier in the [program index](adr/2026-09-22-managed-ecn-program.md); [issue #354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live tracking surface. Revalidate and track the deferred packet-info investigation against the merged product head.
