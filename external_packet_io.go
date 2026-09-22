@@ -21,6 +21,8 @@ type externalPacketIO struct {
 	managedBuffers           *managedBufferSetup
 	managedReceiveCoalescing bool
 	managedReceiveState      receiveCoalescingState
+	managedECNSetup          managedECNQualification
+	managedRawFactory        func(rawConn, *externalPacketIO) rawConn
 	conn                     net.PacketConn
 	allowReceiveCoalescing   bool
 	sendBatch                func([][]byte, []byte, *net.UDPAddr) (int, error)
@@ -96,11 +98,20 @@ func (t *Transport) checkPacketIORegistration(conn net.PacketConn) error {
 // Packet and deadline methods continue serving the registered transport/wrapper.
 // Registration preserves lease deadlines. Clear any establishment deadlines
 // before handing the lease to QUIC if they should no longer apply.
-// A non-nil sendBatch must preserve that wrapper's policy and submit through the
-// lease's WriteBatchV1 method, following ConfigureExternalPacketIOV1's callback
-// contract. Nil retains ordinary sends. On Linux and Windows, registration installs the
-// endpoint's persistent normalization before enabling receive coalescing.
-// Wrappers continue receiving ordinary datagrams through their ReadFrom path.
+// A direct registration may omit sendBatch. A non-nil callback must preserve
+// the wrapper's policy and synchronously forward the exact borrowed payloads,
+// shared OOB and destination through this lease's WriteBatchV1 method, following
+// ConfigureExternalPacketIOV1's definite-prefix and terminal-error contract.
+// A policy wrapper that participates in managed ECN must additionally delegate
+// ReadFrom synchronously with the supplied backing buffer and return the final
+// lease read's exact range and source address. Its callback must synchronously
+// forward marked singleton writes unchanged, including the lease's count and
+// error result. Buffering, substitution, reordering, synthetic addresses,
+// delayed forwarding and result normalization do not qualify for managed ECN.
+// Nil retains ordinary sends but cannot qualify a policy wrapper for ECN. On
+// Linux and Windows, registration installs the endpoint's persistent
+// normalization before enabling receive coalescing. Wrappers continue receiving
+// ordinary datagrams through their ReadFrom path.
 // Transport.Close does not release the lease or own the native socket; lease
 // Close revokes and joins I/O before another lease can use the endpoint.
 func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.PacketConn, sendBatch func([][]byte, []byte, *net.UDPAddr) (int, error)) error {
@@ -127,6 +138,8 @@ func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.Pa
 		managedBuffers:           setup.buffers,
 		managedReceiveCoalescing: setup.receiveCoalescing,
 		managedReceiveState:      setup.receiveState,
+		managedECNSetup:          setup.ecn,
+		managedRawFactory:        setup.rawFactory,
 	}
 	return nil
 }
@@ -207,6 +220,8 @@ type externalPacketConn struct {
 	config *externalPacketIO
 }
 
+func (c *externalPacketConn) packetIOConfig() *externalPacketIO { return c.config }
+
 // Receive-format permission is independent of the existing Close owner.
 // Managed normalization remains a separate capability.
 func (t *Transport) receiveCoalescingAllowed() bool {
@@ -246,7 +261,11 @@ func (t *Transport) wrapExternalPacketIO(conn rawConn) rawConn {
 		}
 		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "external_packet_io", Message: fmt.Sprintf("receive_requested=%t receive_permitted=%t receive_eligible=%t receive_enabled=%t receive_disabled_reason=%s batch_requested=%t batch_permitted=%t batch_supported=true batch_enabled=%t batch_disabled_reason=%s", receivePermitted, receivePermitted, receive.eligible, receiveEnabled, receiveReason, c.sendBatch != nil, c.sendBatch != nil, c.sendBatch != nil, batchReason)})
 	}
-	return &externalPacketConn{rawConn: conn, config: c}
+	external := &externalPacketConn{rawConn: conn, config: c}
+	if c.managedRawFactory != nil {
+		return c.managedRawFactory(external, c)
+	}
+	return external
 }
 
 func (c *externalPacketConn) releaseReadBuffers() {

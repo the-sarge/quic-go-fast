@@ -1,7 +1,7 @@
 # Linux managed ECN implementation plan
 
 **Date:** 2026-09-22
-**Status:** Accepted; not yet implemented
+**Status:** Complete via [#508](https://github.com/the-sarge/quic-go-fast/pull/508)
 **Track:** L, 1 of 5 in `QGF-ECN-20260922`
 **Depends on:** Nothing — safe to start first
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md), [managed lease binding](2026-09-21-managed-lease-binding-plan.md)
@@ -42,13 +42,13 @@ Malformed ECN control data must not publish a partial or stale mark. Preserve th
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| L1 | New | Complete Linux managed ECN receive/send capability and native qualification | None | None introduced |
+| L1 | Complete via [#508](https://github.com/the-sarge/quic-go-fast/pull/508) | Complete Linux managed ECN receive/send capability and native qualification | None | None introduced |
 
 ## Implementation slices
 
 ### Slice L1 — Deliver and qualify Linux managed ECN
 
-**Stable identity:** `QGF-ECN-20260922/L1`. One intended PR; GitHub child pending default-branch plan publication.
+**Stable identity:** `QGF-ECN-20260922/L1`. One intended PR; GitHub child [#503](https://github.com/the-sarge/quic-go-fast/issues/503).
 
 **What it delivers:** The decision above through `ConfigureManagedPacketIOV1`, direct managed leases, registered selected-peer wrappers, QUIC receive processing, ordinary sends, registered batch sends, fallback, generation reuse and terminal cleanup.
 
@@ -95,21 +95,25 @@ Malformed ECN control data must not publish a partial or stale mark. Preserve th
 
 ## Acceptance criteria
 
-- [ ] Native Linux IPv4 and IPv6 tests deliver Not-ECT, ECT(0), ECT(1) and CE from the endpoint-owned native reader through a current managed lease to QUIC with no stale metadata.
-- [ ] Non-GRO managed receive preserves full accepted UDP payloads, consumes one kernel datagram per outer lease read, does not strand read-ahead across release and retains no ECN-only decoder when ECN and GRO are both disabled.
-- [ ] Native Linux ordinary and registered batch sends apply each requested supported ECN class to the selected destination for IPv4 and IPv6, while foreign destinations remain rejected.
-- [ ] ECN-capable wrappers return checked-singleton lease results unchanged; injected native `EPERM` and `EMSGSIZE` preserve first-send retry and message-size handling, while normalized `(0,nil)` and other invalid results fail without retry or fabricated success.
-- [ ] Direct registrations advertise ECN only with a nil batch callback or synchronous exact payload/OOB/destination forwarding through the exact lease under existing batch semantics; supported policy wrappers additionally satisfy exact read and checked-singleton forwarding, and every usable admitted socket family plus both directions qualify.
-- [ ] Endpoint-managed setup supplies the adapter's private per-family outcome record while preserving unregistered `newConn`; a partial-family failure disables managed ECN and identifies the failed admitted family.
-- [ ] A partial-family failure publishes no correlated mark and retains no ECN-only reader when GRO is inactive; active coalescing normalization may retain its decoder independently.
-- [ ] Managed capability projection changes only the qualified ECN fact, derives GRO, `receive_mode`, `coalescing` and `receive_enabled` from explicit coalescing/normalization activation rather than ECN-reader retention, preserves existing DF/other facts and never gains native GSO or packet-info by composition.
-- [ ] Overlapping checked singletons preserve distinct payload/OOB/generation/result association without stale reuse; no parallel-throughput guarantee is added.
-- [ ] Managed ECN-only receive drops one consumed malformed ancillary datagram and returns a following valid datagram, while unregistered non-GRO ancillary failure remains fatal.
-- [ ] Lease release/reacquisition, stale generations, transport Close and endpoint Close preserve generation authority, join I/O and release retained metadata/socket state.
-- [ ] `QUIC_GO_DISABLE_ECN`, ancillary setup denial, unavailable routes, malformed/absent/unmatched metadata and unsupported wrappers remain usable without claiming managed ECN or replaying a prior mark.
-- [ ] `ConfigureManagedPacketIOV1` documents synchronous exact forwarding and unchanged checked-singleton result propagation; public signatures, ordinary one-datagram behavior, unregistered callers, selected-peer policy and batch definite-prefix/terminal-error semantics remain unchanged.
+- [x] Native Linux IPv4 and IPv6 tests deliver Not-ECT, ECT(0), ECT(1) and CE from the endpoint-owned native reader through a current managed lease to QUIC with no stale metadata.
+- [x] Non-GRO managed receive preserves full accepted UDP payloads, consumes one kernel datagram per outer lease read, does not strand read-ahead across release and retains no ECN-only decoder when ECN and GRO are both disabled.
+- [x] Native Linux ordinary and registered batch sends apply each requested supported ECN class to the selected destination for IPv4 and IPv6, while foreign destinations remain rejected.
+- [x] ECN-capable wrappers return checked-singleton lease results unchanged; injected native `EPERM` and `EMSGSIZE` preserve first-send retry and message-size handling, while normalized `(0,nil)` and other invalid results fail without retry or fabricated success.
+- [x] Direct registrations advertise ECN only with a nil batch callback or synchronous exact payload/OOB/destination forwarding through the exact lease under existing batch semantics; supported policy wrappers additionally satisfy exact read and checked-singleton forwarding, and every usable admitted socket family plus both directions qualify.
+- [x] Endpoint-managed setup supplies the adapter's private per-family outcome record while preserving unregistered `newConn`; a partial-family failure disables managed ECN and identifies the failed admitted family.
+- [x] A partial-family failure publishes no correlated mark and retains no ECN-only reader when GRO is inactive; active coalescing normalization may retain its decoder independently.
+- [x] Managed capability projection changes only the qualified ECN fact, derives GRO, `receive_mode`, `coalescing` and `receive_enabled` from explicit coalescing/normalization activation rather than ECN-reader retention, preserves existing DF/other facts and never gains native GSO or packet-info by composition.
+- [x] Overlapping checked singletons preserve distinct payload/OOB/generation/result association without stale reuse; no parallel-throughput guarantee is added.
+- [x] Managed ECN-only receive drops one consumed malformed ancillary datagram and returns a following valid datagram, while unregistered non-GRO ancillary failure remains fatal.
+- [x] Lease release/reacquisition, stale generations, transport Close and endpoint Close preserve generation authority, join I/O and release retained metadata/socket state.
+- [x] `QUIC_GO_DISABLE_ECN`, ancillary setup denial, unavailable routes, malformed/absent/unmatched metadata and unsupported wrappers remain usable without claiming managed ECN or replaying a prior mark.
+- [x] `ConfigureManagedPacketIOV1` documents synchronous exact forwarding and unchanged checked-singleton result propagation; public signatures, ordinary one-datagram behavior, unregistered callers, selected-peer policy and batch definite-prefix/terminal-error semantics remain unchanged.
 
 Every quantified criterion is limited to the representation contract above, owned by the endpoint/native parser and managed adapter, and terminated by the matrix/evidence budget rather than wrapper or ancillary-language exhaustiveness.
+
+## Implementation receipt
+
+[PR #508](https://github.com/the-sarge/quic-go-fast/pull/508) implements L1. Native Linux qualification passed on Linux kernel 7.0 with Go 1.27.1 on arm64 for `udp4`, `udp6` and admitted dual-stack `udp`; the dual-stack socket reported `IPV6_V6ONLY=false` and accepted IPv4-mapped direct and checked-wrapper sends. The focused managed package race gate, repository suite, `go vet ./...`, `go mod tidy -diff`, Linux/arm64 and Windows/amd64 cross-compilation, and the four bounded guard mutations all passed.
 
 ## Validation gates
 

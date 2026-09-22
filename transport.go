@@ -402,8 +402,8 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 			}
 		}
 
-		t.traceManagedBuffers(managed, conn)
 		conn = t.wrapExternalPacketIO(conn)
+		t.traceManagedBuffers(managed, conn)
 		t.policyConn.rawConn = conn
 		conn = &t.policyConn
 

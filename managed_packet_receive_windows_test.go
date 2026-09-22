@@ -143,6 +143,17 @@ func TestWindowsManagedReceiveDisabled(t *testing.T) {
 	n, _, err := endpoint.ReadFrom(b)
 	require.NoError(t, err)
 	require.Equal(t, want, b[:n])
+
+	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+	requireManagedReceiveCoalescingHost(t)
+	next, err := acquire()
+	require.NoError(t, err)
+	t.Cleanup(func() { next.Close() })
+	nextTransport := &Transport{Conn: next}
+	require.NoError(t, nextTransport.ConfigureManagedPacketIOV1(next, next, nil))
+	e := endpoint.(*managedPacketConn).endpoint
+	require.True(t, e.receiveCoalescing, "an inactive first lease must not latch URO off")
+	require.NotNil(t, e.receiver)
 }
 
 // Script only the native message-I/O boundary; the Windows decoder and the

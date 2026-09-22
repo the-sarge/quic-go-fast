@@ -41,3 +41,7 @@ Run focused regressions, one final Linux race run of `^TestManaged|^TestExternal
 Use one initial RAS review, verification of independently accepted fixes and at most one replacement review. A broader fallback, changed ownership, incompatible error behavior, required evidence beyond this budget or a repeated precise semantic root is a stop for decision. The implementation context consists of this contract, the linked issue acceptance criteria, receipt, changed source and relevant unresolved review findings.
 
 Follow the [repository execution overlay](../REVIEW-LOOP.md): draft PR, exact-head local certification, successful applicable hosted checks on that head, ready transition and matched-head squash merge. There is no `task preflight` or portfolio `ci-*` gate. A changed base requires reconciliation and renewed applicable gates. After the product merge, append the dev journal without RAS, revalidate surviving deferred findings against the merged code, then complete the linked OmniFocus task.
+
+## Managed ECN integration
+
+The later Linux managed ECN qualification records each admitted family separately. The original dual-`EPERM` fallback above remains the only suppressed setup error when both receive options fail. A one-family receive-option failure on an admitted dual-stack socket is instead a usable partial-family fallback: managed ECN is false, the failed family is reported by `ecn_failed_family`, and an ECN-only reader is not retained when coalescing is inactive. Required packet-info failures and the fatal cases above remain unchanged.

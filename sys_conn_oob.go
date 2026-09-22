@@ -73,6 +73,10 @@ type oobConn struct {
 	delivery coalescedDelivery
 
 	cap connCapabilities
+	// managedRead uses one full-size ReadMsgUDP receive when ECN metadata is
+	// retained without GRO. It never batches ahead across a lease boundary.
+	managedRead bool
+	managedOOB  []byte
 }
 
 var _ rawConn = &oobConn{}
@@ -81,10 +85,20 @@ var _ rawConn = &oobConn{}
 // Other callers still return this error, with the historical error text.
 var errECNSetupDenied = errors.New("activating ECN failed for both IPv4 and IPv6")
 
+type oobConnSetup struct {
+	ecnIPv4Err error
+	ecnIPv6Err error
+}
+
 func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*oobConn, error) {
+	conn, _, err := newConnWithSetup(c, supportsDF, allowReceiveCoalescing)
+	return conn, err
+}
+
+func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*oobConn, oobConnSetup, error) {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
-		return nil, err
+		return nil, oobConnSetup{}, err
 	}
 	var needsPacketInfo bool
 	if udpAddr, ok := c.LocalAddr().(*net.UDPAddr); ok && udpAddr.IP.IsUnspecified() {
@@ -103,8 +117,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 			errPIIPv6 = unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_RECVPKTINFO, 1)
 		}
 	}); err != nil {
-		return nil, err
+		return nil, oobConnSetup{}, err
 	}
+	setup := oobConnSetup{ecnIPv4Err: errECNIPv4, ecnIPv6Err: errECNIPv6}
 	switch {
 	case errECNIPv4 == nil && errECNIPv6 == nil:
 		utils.DefaultLogger.Debugf("Activating reading of ECN bits for IPv4 and IPv6.")
@@ -114,9 +129,9 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		utils.DefaultLogger.Debugf("Activating reading of ECN bits for IPv6.")
 	case errECNIPv4 != nil && errECNIPv6 != nil:
 		if errECNIPv4 == unix.EPERM && errECNIPv6 == unix.EPERM && (!needsPacketInfo || errPIIPv4 == nil || errPIIPv6 == nil) {
-			return nil, errECNSetupDenied
+			return nil, setup, errECNSetupDenied
 		}
-		return nil, errors.New("activating ECN failed for both IPv4 and IPv6")
+		return nil, setup, errors.New("activating ECN failed for both IPv4 and IPv6")
 	}
 	if needsPacketInfo {
 		switch {
@@ -127,7 +142,7 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		case errPIIPv4 != nil && errPIIPv6 == nil:
 			utils.DefaultLogger.Debugf("Activating reading of packet info bits for IPv6.")
 		case errPIIPv4 != nil && errPIIPv6 != nil:
-			return nil, errors.New("activating packet info failed for both IPv4 and IPv6")
+			return nil, setup, errors.New("activating packet info failed for both IPv4 and IPv6")
 		}
 	}
 
@@ -139,7 +154,7 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 		bc = ibc
 	} else {
 		if _, ok := c.(net.Conn); !ok {
-			return nil, errors.New("quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
+			return nil, setup, errors.New("quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
 		}
 		if udp, ok := c.(*net.UDPConn); ok {
 			bc = ipv4.NewPacketConn(udp)
@@ -167,6 +182,7 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 			ECN:               isECNEnabled(),
 			receiveCoalescing: receive,
 		},
+		managedOOB: make([]byte, oobBufferSize),
 	}
 	if allowReceiveCoalescing {
 		// Permission and wrapper policy gate the mutating activation attempt.
@@ -175,12 +191,15 @@ func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*
 	for i := range batchSize {
 		oobConn.messages[i].OOB = make([]byte, oobBufferSize)
 	}
-	return oobConn, nil
+	return oobConn, setup, nil
 }
 
 var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
 
 func (c *oobConn) ReadPacket() (receivedPacket, error) {
+	if c.managedRead && !c.cap.GRO {
+		return c.readManagedPacket()
+	}
 	for {
 		// A coalesced read is split into per-datagram views, returned one per
 		// call to preserve ReadPacket's one-datagram contract.
@@ -237,10 +256,29 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 	}
 }
 
+func (c *oobConn) readManagedPacket() (receivedPacket, error) {
+	for {
+		buffer := getCoalescedPacketBuffer()
+		buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
+		n, oobn, flags, addr, err := c.ReadMsgUDP(buffer.Data, c.managedOOB)
+		if err != nil {
+			buffer.Release()
+			return receivedPacket{}, err
+		}
+		msg := ipv4.Message{Buffers: [][]byte{buffer.Data}, OOB: c.managedOOB, N: n, NN: oobn, Flags: flags, Addr: addr}
+		packet, err := c.decodeReadPacket(msg, buffer.Data, buffer)
+		if err == nil {
+			return packet, nil
+		}
+		buffer.Release()
+		utils.DefaultLogger.Debugf("Dropping packet with invalid managed ECN metadata: %s", err)
+	}
+}
+
 // decodeReadPacket transfers storage only on success. The reader releases a
 // rejected read; parsing metadata never publishes a partial set of siblings.
 func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *packetBuffer) (receivedPacket, error) {
-	if c.cap.GRO && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > len(readBuffer) || msg.NN < 0 || msg.NN > len(msg.OOB)) {
+	if (c.cap.GRO || c.managedRead) && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > len(readBuffer) || msg.NN < 0 || msg.NN > len(msg.OOB)) {
 		return receivedPacket{}, errors.New("quic: truncated or invalid coalesced read")
 	}
 	payload := readBuffer[:msg.N]

@@ -2,6 +2,10 @@
 
 package quic
 
+func (e *managedPacketEndpoint) managedPacketRawFactory(*managedPacketConn) func(rawConn, *externalPacketIO) rawConn {
+	return nil
+}
+
 // configureReceive runs under the endpoint lock after ordinary I/O has joined.
 // The endpoint owns the native socket and retains the decoder across leases;
 // public reads still pass individual datagrams through the supplied wrapper.
@@ -26,6 +30,7 @@ func (e *managedPacketEndpoint) configureReceive() error {
 	e.receiver = receiver
 	receiver.cap.GRO, receiver.cap.receiveCoalescing.disabledReason = enableURO(raw)
 	e.receiveState = receiver.cap.receiveCoalescing
+	e.receiveCoalescing = receiver.cap.GRO
 	if !receiver.cap.GRO {
 		// Ordinary socket reads preserve the full public UDP payload domain
 		// when coalescing is disabled or unavailable.

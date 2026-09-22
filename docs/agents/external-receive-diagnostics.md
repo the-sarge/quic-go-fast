@@ -4,7 +4,7 @@ The `external_packet_io` debug event distinguishes receive-format permission, kn
 
 ## Fields and compatibility
 
-`receive_requested` retains its existing meaning and matches `receive_permitted`: the external registration grants receive-format permission, or registration uses a managed endpoint. `receive_eligible` means the platform and supplied receive path meet the implementation's prerequisites. It does not assert that this kernel or socket can activate coalescing. Eligibility is independent of permission and explicit opt-out. `receive_enabled` means native GRO/URO or persistent managed normalization is active; `connCapabilities.GRO` retains its runtime meaning of enabled native coalescing.
+`receive_requested` retains its existing meaning and matches `receive_permitted`: the external registration grants receive-format permission, or registration uses a managed endpoint. `receive_eligible` means the platform and supplied receive path meet the implementation's prerequisites. It does not assert that this kernel or socket can activate coalescing. Eligibility is independent of permission and explicit opt-out. `receive_enabled` means native GRO/URO or persistent managed normalization is active; `connCapabilities.GRO` retains its runtime meaning of enabled native coalescing. A Linux endpoint may retain an ECN-only native reader while `receive_enabled`, `GRO`, `coalescing` and `receive_mode=normalized` all remain false; ECN reader retention is not coalescing activation.
 
 `receive_eligible` replaces `receive_supported`, whose old value merely duplicated activation. Consumers of this debug-event text must use the new field for eligibility, or `receive_enabled` when preserving their old activation check. Event identity, requested/permitted fields, and batch fields are unchanged.
 
@@ -29,6 +29,8 @@ The final reason covers the existing Linux kernel-version gate, socket-control f
 The [managed Linux fallback](linux-managed-fallback.md) produces `ancillary_setup_denied` before GRO activation or its environment opt-out is evaluated. Required packet-info failures and other setup errors remain fatal, so they do not produce a successful fallback registration event.
 
 Setup captures its opt-out result when it evaluates the existing environment setting. Event formatting does not reread the environment or probe the socket. Managed setup retains the result under the endpoint's existing lock and copies it into the registration. Once a managed normalizer is active, it stays active across leases even if the environment later disables new activation attempts; reporting follows that existing behavior.
+
+The `managed_packet_io` diagnostic reports `ecn_setup_qualified`, `ecn_admitted_ipv4`, `ecn_admitted_ipv6`, `ecn_receive_ipv4`, `ecn_receive_ipv6`, `ecn_ipv4_mapped`, `ecn_ipv6_only`, `ecn_disabled`, `ecn_kernel_unsupported` and `ecn_failed_family` from the endpoint-owned setup record. `ecn_failed_family` names only an admitted family whose ancillary setup failed; opt-out and the Linux kernel gate have their own fields. `ecn_setup_qualified` is the endpoint's complete native setup fact, while the event's `ecn` capability additionally requires a policy-safe marked-send route for the registration. These are setup facts, not a claim that an unknown wrapper is honest.
 
 ## Boundary and finite evidence
 

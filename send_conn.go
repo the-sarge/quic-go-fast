@@ -71,8 +71,8 @@ func newSendConn(c rawConn, remote net.Addr, info packetInfo, logger utils.Logge
 		// sendmsg_x path populates it, from the send worker's goroutine.
 		sconnBatchState: sconnBatchState{},
 	}
-	if ec, ok := packetIOConn(c).(*externalPacketConn); ok {
-		sc.external = ec.config
+	if ec, ok := packetIOConn(c).(interface{ packetIOConfig() *externalPacketIO }); ok {
+		sc.external = ec.packetIOConfig()
 	}
 	sc.remoteAddrInfo.Store(&remoteAddrInfo{
 		addr: remote,
