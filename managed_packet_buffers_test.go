@@ -182,7 +182,12 @@ func TestManagedEndpointDiagnosticProvenance(t *testing.T) {
 			_, err = tr.WriteTo([]byte("init"), listenExternalUDP(t).LocalAddr())
 			require.NoError(t, err)
 			defer tr.Close()
-			require.Equal(t, connCapabilities{}, tr.conn.capabilities())
+			cap := tr.conn.capabilities()
+			wantECN := runtime.GOOS == "linux" && (kind == "registered" || kind == "registered batch" || kind == "wrapper batch")
+			require.Equal(t, wantECN, cap.ECN)
+			require.False(t, cap.DF)
+			require.False(t, cap.GSO)
+			require.False(t, cap.GRO)
 			if kind == "unknown wrapper" || kind == "external wrapper" {
 				for _, event := range recorder.Events(qlog.DebugEvent{}) {
 					require.NotEqual(t, "managed_packet_io", event.(qlog.DebugEvent).EventName)
@@ -193,7 +198,7 @@ func TestManagedEndpointDiagnosticProvenance(t *testing.T) {
 			require.Contains(t, message, "provenance=managed_endpoint")
 			require.Contains(t, message, "receive_mode=ordinary")
 			require.Contains(t, message, fmt.Sprintf("batch_callback_available=%t", batch))
-			require.Contains(t, message, "df=false ecn=false segmentation=false coalescing=false")
+			require.Contains(t, message, fmt.Sprintf("df=false ecn=%t segmentation=false coalescing=false", wantECN))
 		})
 	}
 }

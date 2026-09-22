@@ -2,10 +2,14 @@ package quic
 
 import (
 	"errors"
+	"io"
 	"net"
 	"os"
 	"sync"
 	"time"
+	"unsafe"
+
+	"github.com/quic-go/quic-go/internal/protocol"
 )
 
 // NewManagedPacketEndpointV1 creates and owns a fresh UDP socket. The returned
@@ -29,9 +33,11 @@ import (
 // the endpoint and is returned by Close. Close is safe to call concurrently.
 //
 // The endpoint and leases expose no raw socket or descriptor. They provide
-// ordinary datagrams only. Linux and Windows managed registration installs persistent receive
-// normalization before enabling coalescing; it remains across leases to decode
-// queued kernel data. Lease Close discards already consumed QUIC receive storage.
+// ordinary datagrams only. Linux managed registration may retain private ECN
+// metadata I/O while public reads remain ordinary datagrams; Windows and Linux
+// registration install persistent receive normalization before enabling
+// coalescing. Retained normalization remains across leases to decode queued
+// kernel data. Lease Close discards already consumed QUIC receive storage.
 // Normalized reads copy at most len(p) bytes; an oversized datagram is truncated
 // without a short-buffer error.
 // After ordinary establishment I/O has joined, ConfigureManagedPacketIOV1 can
@@ -61,20 +67,58 @@ func newManagedPacketEndpoint(conn net.PacketConn) (net.PacketConn, func() (net.
 }
 
 type managedPacketEndpoint struct {
-	mutex         sync.Mutex
-	readMutex     sync.Mutex
-	receiver      managedPacketReceiver
-	receiveState  receiveCoalescingState
-	idle          *sync.Cond
-	conn          net.PacketConn
-	buffers       managedBufferSetup
-	sendBatch     func([][]byte, []byte, *net.UDPAddr) (int, error)
-	lease         *managedPacketLease
-	active        int
-	closed        bool
-	closeErr      error
-	readDeadline  time.Time
-	writeDeadline time.Time
+	mutex             sync.Mutex
+	readMutex         sync.Mutex
+	receiver          managedPacketReceiver
+	managedNative     rawConn
+	managedRead       *managedReadOperation
+	managedSend       *managedSingletonOperation
+	managedECN        bool
+	managedECNSetup   managedECNQualification
+	receiveCoalescing bool
+	receiveState      receiveCoalescingState
+	idle              *sync.Cond
+	conn              net.PacketConn
+	buffers           managedBufferSetup
+	sendBatch         func([][]byte, []byte, *net.UDPAddr) (int, error)
+	lease             *managedPacketLease
+	active            int
+	closed            bool
+	closeErr          error
+	readDeadline      time.Time
+	writeDeadline     time.Time
+}
+
+type managedECNQualification struct {
+	qualified    bool
+	admittedIPv4 bool
+	admittedIPv6 bool
+	ipv4Mapped   bool
+	ipv6Only     bool
+	receiveIPv4  bool
+	receiveIPv6  bool
+	sendIPv4     bool
+	sendIPv6     bool
+	failedFamily string
+}
+
+type managedReadOperation struct {
+	lease     *managedPacketLease
+	buffer    *byte
+	bufferLen int
+	n         int
+	addr      net.Addr
+	ecn       protocol.ECN
+}
+
+type managedSingletonOperation struct {
+	lease     *managedPacketLease
+	payload   []byte
+	oob       []byte
+	addr      *net.UDPAddr
+	forwarded bool
+	count     int
+	err       error
 }
 
 // The endpoint retains this decoder across generations. Only serialized reads
@@ -103,6 +147,8 @@ type managedPacketIOSetup struct {
 	buffers           *managedBufferSetup
 	receiveCoalescing bool
 	receiveState      receiveCoalescingState
+	ecn               managedECNQualification
+	rawFactory        func(rawConn, *externalPacketIO) rawConn
 }
 
 func (e *managedPacketEndpoint) acquire() (net.PacketConn, error) {
@@ -146,8 +192,10 @@ func (c *managedPacketConn) bindQUIC() (managedPacketIOSetup, error) {
 	c.lease.quic = true
 	return managedPacketIOSetup{
 		buffers:           &e.buffers,
-		receiveCoalescing: e.receiver != nil,
+		receiveCoalescing: e.receiveCoalescing,
 		receiveState:      e.receiveState,
+		ecn:               e.managedECNSetup,
+		rawFactory:        e.managedPacketRawFactory(c),
 	}, nil
 }
 
@@ -210,7 +258,17 @@ func (c *managedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
 		cloned.IP = append(net.IP(nil), udp.IP...)
 		addr = &cloned
 	}
-	return copy(p, packet.data), addr, nil
+	n := copy(p, packet.data)
+	e.mutex.Lock()
+	if op := e.managedRead; op != nil && op.lease == c.lease && e.lease == c.lease {
+		op.buffer = unsafe.SliceData(p)
+		op.bufferLen = len(p)
+		op.n = n
+		op.addr = addr
+		op.ecn = packet.ecn
+	}
+	e.mutex.Unlock()
+	return n, addr, nil
 }
 
 func (c *managedPacketConn) WriteTo(p []byte, addr net.Addr) (int, error) {
@@ -233,7 +291,41 @@ func (c *managedPacketConn) WriteBatchV1(bufs [][]byte, oob []byte, addr *net.UD
 		return 0, err
 	}
 	defer c.endpoint.end()
-	return c.endpoint.sendBatch(bufs, oob, addr)
+	e := c.endpoint
+	e.mutex.Lock()
+	op := e.managedSend
+	matched := op != nil && op.lease == c.lease && !op.forwarded && len(bufs) == 1 && sameManagedBorrowedSlice(op.payload, bufs[0]) && sameManagedBorrowedSlice(op.oob, oob) && op.addr == addr
+	if matched {
+		op.forwarded = true
+		native, qualified := e.managedNative, e.managedECN
+		e.mutex.Unlock()
+		count, err := 0, errors.New("quic: managed ECN unavailable")
+		if native != nil && qualified {
+			n, writeErr := native.WritePacket(bufs[0], addr, oob, 0, protocol.ECNUnsupported)
+			switch {
+			case writeErr != nil:
+				err = writeErr
+			case n != len(bufs[0]):
+				err = io.ErrShortWrite
+			default:
+				count, err = 1, nil
+			}
+		}
+		e.mutex.Lock()
+		op.count, op.err = count, err
+		e.mutex.Unlock()
+		return count, err
+	}
+	sendBatch := e.sendBatch
+	e.mutex.Unlock()
+	if sendBatch == nil {
+		return 0, errors.New("quic: managed batch writing unavailable")
+	}
+	return sendBatch(bufs, oob, addr)
+}
+
+func sameManagedBorrowedSlice(a, b []byte) bool {
+	return len(a) == len(b) && unsafe.SliceData(a) == unsafe.SliceData(b)
 }
 
 func (c *managedPacketConn) LocalAddr() net.Addr { return c.endpoint.conn.LocalAddr() }

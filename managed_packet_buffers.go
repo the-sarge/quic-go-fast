@@ -109,9 +109,21 @@ func (t *Transport) managedReceiveNormalized() bool {
 	if c, ok := t.Conn.(*managedPacketConn); ok && c != nil {
 		c.endpoint.mutex.Lock()
 		defer c.endpoint.mutex.Unlock()
-		return c.endpoint.receiver != nil
+		return c.endpoint.receiveCoalescing
 	}
 	return false
+}
+
+func (t *Transport) managedECNQualification() managedECNQualification {
+	if c := t.packetIO.external; c != nil {
+		return c.managedECNSetup
+	}
+	if c, ok := t.Conn.(*managedPacketConn); ok && c != nil {
+		c.endpoint.mutex.Lock()
+		defer c.endpoint.mutex.Unlock()
+		return c.endpoint.managedECNSetup
+	}
+	return managedECNQualification{}
 }
 
 func (t *Transport) traceManagedBuffers(b *managedBufferSetup, conn rawConn) {
@@ -121,14 +133,15 @@ func (t *Transport) traceManagedBuffers(b *managedBufferSetup, conn rawConn) {
 	batch := t.packetIO.external != nil && t.packetIO.external.sendBatch != nil
 	cap := conn.capabilities()
 	receiveMode := "native"
-	if _, ok := conn.(*basicConn); ok {
+	if b != nil {
 		receiveMode = "ordinary"
 	}
 	if t.managedReceiveNormalized() {
 		receiveMode = "normalized"
 		cap.GRO = true
 	}
-	message := fmt.Sprintf("provenance=managed_endpoint %s %s buffer_target_bytes=%d receive_mode=%s batch_callback_available=%t df=%t ecn=%t segmentation=%t coalescing=%t", b.receive.diagnostic("receive"), b.send.diagnostic("send"), desiredBufferSize, receiveMode, batch, cap.DF, cap.ECN, cap.GSO, cap.GRO)
+	ecn := t.managedECNQualification()
+	message := fmt.Sprintf("provenance=managed_endpoint %s %s buffer_target_bytes=%d receive_mode=%s batch_callback_available=%t df=%t ecn=%t segmentation=%t coalescing=%t ecn_admitted_ipv4=%t ecn_admitted_ipv6=%t ecn_ipv4_mapped=%t ecn_ipv6_only=%t ecn_failed_family=%q", b.receive.diagnostic("receive"), b.send.diagnostic("send"), desiredBufferSize, receiveMode, batch, cap.DF, cap.ECN, cap.GSO, cap.GRO, ecn.admittedIPv4, ecn.admittedIPv6, ecn.ipv4Mapped, ecn.ipv6Only, ecn.failedFamily)
 	utils.DefaultLogger.Debugf("managed_packet_io: %s", message)
 	if t.Tracer != nil {
 		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "managed_packet_io", Message: message})

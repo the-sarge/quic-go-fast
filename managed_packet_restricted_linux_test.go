@@ -22,7 +22,7 @@ func TestManagedReceiveRestrictedSocket(t *testing.T) {
 	if mode == "" {
 		executable, err := os.Executable()
 		require.NoError(t, err)
-		for _, mode := range []string{"ecn", "other-error", "packet-info", "ecn-and-packet-info"} {
+		for _, mode := range []string{"ecn", "ecn-v4", "ecn-v6", "other-error", "packet-info", "ecn-and-packet-info"} {
 			t.Run(mode, func(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
@@ -39,8 +39,13 @@ func TestManagedReceiveRestrictedSocket(t *testing.T) {
 		return
 	}
 	denyManagedAncillarySetup(t, mode)
+	t.Setenv("QUIC_GO_DISABLE_GRO", "true")
 	// Wildcard binding also exercises the required packet-info boundary.
-	endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1("udp4", &net.UDPAddr{IP: net.IPv4zero})
+	network, localAddr := "udp4", &net.UDPAddr{IP: net.IPv4zero}
+	if mode == "ecn-v4" || mode == "ecn-v6" {
+		network, localAddr = "udp", &net.UDPAddr{IP: net.IPv6zero}
+	}
+	endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1(network, localAddr)
 	require.NoError(t, err)
 	defer endpoint.Close()
 	peer := listenExternalUDP(t)
@@ -52,6 +57,21 @@ func TestManagedReceiveRestrictedSocket(t *testing.T) {
 	tr := &Transport{Conn: lease, Tracer: &recorder}
 	err = tr.ConfigureManagedPacketIOV1(lease, lease, nil)
 	t.Logf("registration: %v", err)
+	if mode == "ecn-v4" || mode == "ecn-v6" {
+		require.NoError(t, err)
+		e := endpoint.(*managedPacketConn).endpoint
+		require.False(t, e.managedECN)
+		require.Nil(t, e.receiver, "a partial-family failure must not retain an ECN-only reader")
+		require.True(t, e.managedECNSetup.admittedIPv4)
+		require.True(t, e.managedECNSetup.admittedIPv6)
+		wantFamily := "ipv" + strings.TrimPrefix(mode, "ecn-v")
+		require.Equal(t, wantFamily, e.managedECNSetup.failedFamily)
+		exchangeRestrictedDatagram(t, lease, peer, "after partial-family fallback")
+		require.NoError(t, tr.Close())
+		require.Contains(t, managedBufferEvent(t, &recorder), "ecn=false")
+		require.Contains(t, managedBufferEvent(t, &recorder), "ecn_failed_family=\""+wantFamily+"\"")
+		return
+	}
 	if mode != "ecn" {
 		want := "activating ECN failed for both IPv4 and IPv6"
 		if mode == "packet-info" {
@@ -119,7 +139,11 @@ func exchangeRestrictedDatagram(t *testing.T, conn net.PacketConn, peer *net.UDP
 	n, addr, err = conn.ReadFrom(b)
 	require.NoError(t, err)
 	require.Equal(t, payload, string(b[:n]))
-	require.Equal(t, peer.LocalAddr(), addr)
+	wantAddr := peer.LocalAddr().(*net.UDPAddr)
+	gotAddr := addr.(*net.UDPAddr)
+	require.Equal(t, wantAddr.Port, gotAddr.Port)
+	require.Equal(t, wantAddr.Zone, gotAddr.Zone)
+	require.True(t, wantAddr.IP.Equal(gotAddr.IP))
 	t.Logf("ordinary ReadFrom/WriteTo succeeded: %s", payload)
 }
 
@@ -135,6 +159,10 @@ func denyManagedAncillarySetup(t *testing.T, mode string) {
 	deniedErrno := uint32(unix.EPERM)
 	switch mode {
 	case "ecn":
+	case "ecn-v4":
+		ecn6 = ^uint32(0)
+	case "ecn-v6":
+		ecn4 = ^uint32(0)
 	case "other-error":
 		deniedErrno = uint32(unix.EINVAL)
 	case "packet-info":
