@@ -2912,3 +2912,30 @@ The public module resolves to the annotated tag's peeled commit. Module sum is `
 ### Next
 
 The fast.4 release is complete. Keep the documented intermittent HTTP, dial, reconnection, server-hotswap and server-first loss investigations open; passing release gates do not resolve them or establish new performance and native-platform claims.
+
+---
+
+## Managed ECN architecture handoff published - 2026-09-22 02:21 EDT
+
+**Main:** `ec68b82228b4`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #501](https://github.com/the-sarge/quic-go-fast/pull/501), publishing the audited `QGF-ECN-20260922` managed ECN qualification program. The package defines one Linux implementation/qualification slice, Darwin and FreeBSD follow-up qualification slices, and OpenBSD and Windows native-feasibility slices while keeping the managed endpoint and exact lease as the native socket, generation, metadata and cleanup authority.
+
+### Completed
+
+Added the program index, five platform plans, ADR 0007, managed ECN domain language and the linked architecture audit. The accepted graph has L1, O1 and W1 on the parallel frontier; D1 and F1 are blocked only by L1. The contracts bound wrapper authority, checked-singleton result preservation, full-datagram non-GRO receive, family-complete capability, diagnostic projection, platform-specific evidence and dispatch context.
+
+### Decisions
+
+No platform may advertise partial managed ECN capability or infer it from socket options, cross-compilation, another platform, GRO/GSO, packet info or promoted native methods. OpenBSD and Windows remain feasibility-only; a positive result must return through scoped architecture handoff before implementation. The normative source is the [managed ECN program](adr/2026-09-22-managed-ecn-program.md), with [issue #354](https://github.com/the-sarge/quic-go-fast/issues/354) as the live program tracker.
+
+### Validation
+
+The final focused RAS consideration `20260922T060749-046cc0bb4b453d96be7c3080` returned no actionable findings after three prior source-aware review rounds were dispositioned. Exact-head docs certification at `1723e517d815bb28d140b2ca72b17d3972faf03b` passed clean-tree, diff, relative-link and slice identity/graph checks. All 33 hosted PR checks passed before squash merge as `ec68b82228b4f15eaa7036a7c7dab7f257851ba5`. No RAS review was run for this journal append.
+
+### Next
+
+Synchronize tracking issue #354, platform issues #455–#459, one child issue per audited slice and the mirrored OmniFocus task tree to the merged plan commit. Then dispatch only verified frontier children L1, O1 and W1 with `$implement-architecture-slice`; D1 and F1 remain blocked by L1.
