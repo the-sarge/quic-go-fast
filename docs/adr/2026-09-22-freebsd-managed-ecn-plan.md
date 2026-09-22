@@ -1,7 +1,7 @@
 # FreeBSD managed ECN qualification plan
 
 **Date:** 2026-09-22
-**Status:** Accepted; blocked by Linux slice L1
+**Status:** Complete — supported; native evidence in the [F1 qualification record](../audits/2026-09-22-freebsd-managed-ecn/README.md)
 **Track:** F, 3 of 5 in `QGF-ECN-20260922`
 **Depends on:** `QGF-ECN-20260922/L1`
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [Linux plan](2026-09-22-linux-managed-ecn-plan.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md)
@@ -14,11 +14,11 @@ Qualify FreeBSD against the accepted managed ECN contract using the endpoint-own
 
 ## Current shape (verified 2026-09-22)
 
-FreeBSD builds the shared `oobConn`, uses `IP_RECVTOS` / `IPV6_RECVTCLASS`, parses received ECN into `receivedPacket.ecn`, appends family-specific outgoing marks and reports ECN unless opted out (`sys_conn_oob.go:57-178,240-317,335-362`; `sys_conn_helper_freebsd.go:12-38`). It has no adopted GRO or GSO path. Managed setup is currently disabled by `managed_packet_receive_other.go:1-5`, and registered batch submission therefore uses the endpoint's ordinary multi-write callback rather than a separate native acceleration.
+FreeBSD builds the shared `oobConn`, uses `IP_RECVTOS` / `IPV6_RECVTCLASS`, parses received ECN into `receivedPacket.ecn`, appends family-specific outgoing marks and reports ECN unless opted out (`sys_conn_oob.go:57-178,240-317,335-362`; `sys_conn_helper_freebsd.go:12-38`). It has no adopted GRO or GSO path. Managed setup is provided by `managed_packet_receive_freebsd.go`; registered batch submission continues to use the endpoint's ordinary multi-write callback rather than a separate native acceleration. AF_INET6 qualifies mapped IPv4 through its `IPV6_RECVTCLASS` setup, as established by the native qualification record.
 
 ## Decision
 
-After L1 merges, narrow the shared `managed_packet_receive_other.go` build constraint so FreeBSD alone gains the endpoint-owned platform setup needed to retain its existing `oobConn`; OpenBSD and every still-unsupported platform must continue to compile exactly one stub. Reuse L1's current-generation buffer/range/address correlation, full-datagram non-GRO single-read mode, checked-singleton result translator, family-complete capability gate and managed-only capability projection. Direct marked ordinary writes use the endpoint-owned native writer; wrapped ordinary and batch marked writes use the explicitly checked callback and existing ordinary `WriteMsgUDP` loop. No FreeBSD-specific managed adapter or acceleration is authorized, and packet info remains outside correlated metadata.
+The narrowed shared `managed_packet_receive_other.go` build constraint gives FreeBSD the endpoint-owned platform setup needed to retain its existing `oobConn`; OpenBSD and every still-unsupported platform must continue to compile exactly one stub. Reuse L1's current-generation buffer/range/address correlation, full-datagram non-GRO single-read mode, checked-singleton result translator, family-complete capability gate and managed-only capability projection. Direct marked ordinary writes use the endpoint-owned native writer; wrapped ordinary and batch marked writes use the explicitly checked callback and existing ordinary `WriteMsgUDP` loop. No FreeBSD-specific managed adapter or acceleration is authorized, and packet info remains outside correlated metadata.
 
 Support is accepted only if native FreeBSD `udp4`, `udp6` and any admitted `udp` dual-stack domain demonstrate receive values, full-size payload preservation, ordinary/batch outgoing marks, checked-singleton native results, selected/foreign peer policy, lease reuse/revocation, fallback and cleanup. The test records `IPV6_V6ONLY` and IPv4-mapped behavior; any usable family failure disables the endpoint capability. If the platform cannot satisfy a required family/path, remove partial capability code and publish an explicit unsupported disposition with exact evidence. Missing native host access is blocked evidence, not unsupported evidence.
 
@@ -30,19 +30,19 @@ Support is accepted only if native FreeBSD `udp4`, `udp6` and any admitted `udp`
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| F1 | New | Native FreeBSD supported or explicit unsupported managed ECN disposition | L1 | None introduced |
+| F1 | Complete — supported | Native FreeBSD supported or explicit unsupported managed ECN disposition | L1 | None introduced |
 
 ## Implementation slices
 
 ### Slice F1 — Qualify FreeBSD managed ECN
 
-**Stable identity:** `QGF-ECN-20260922/F1`. One intended PR; GitHub child pending default-branch plan publication.
+**Stable identity:** `QGF-ECN-20260922/F1`. One product PR; GitHub child [#505](https://github.com/the-sarge/quic-go-fast/issues/505).
 
 **What it delivers:** A complete supported FreeBSD managed ECN path through the L1 adapter and existing OOB/ordinary batch owners, or a docs-only explicit unsupported disposition after removing partial code.
 
-**Existing-work disposition:** New slice. No open PR or implementation branch exists. Existing FreeBSD OOB behavior is retained evidence, not managed qualification.
+**Existing-work disposition:** Completed as one new product slice using the shared L1 adapter and existing FreeBSD OOB owners. The [qualification record](../audits/2026-09-22-freebsd-managed-ecn/README.md) holds native evidence; no prior implementation branch was retained.
 
-**Blocked by:** L1, because F1 reuses its central correlation, policy-safe route selection and capability gate.
+**Blocked by:** None; L1 is complete. F1 reuses its central correlation, policy-safe route selection and capability gate.
 
 **Single owner after merge:** Managed endpoint and shared `oobConn` own metadata/socket lifecycle; L1 adapter owns correlation/capability; registered wrapper callback owns policy-safe multi-write submission; caller wrapper owns peer policy.
 
@@ -82,10 +82,10 @@ Support is accepted only if native FreeBSD `udp4`, `udp6` and any admitted `udp`
 
 ## Acceptance criteria
 
-- [ ] Native FreeBSD evidence records an exact supported or unsupported disposition for IPv4/IPv6 receive metadata and ordinary/batch marked output.
-- [ ] A supported result covers full-size non-GRO payloads, `udp4`/`udp6`/admitted dual-stack families, selected/foreign peers, singleton native-result preservation including terminal no-retry EPERM, opt-out/setup failure, malformed/absent metadata, lease reuse/revocation and cleanup through the shared owner.
-- [ ] An unsupported result leaves managed ECN false and removes partial capability code while recording the exact blocker.
-- [ ] Darwin, FreeBSD and OpenBSD each cross-build with exactly one `(*managedPacketEndpoint).configureReceive` definition; public signatures, ordinary datagrams, managed capability projection, existing batch progress/error semantics and raw-socket authority remain unchanged.
+- [x] Native FreeBSD evidence records an exact supported or unsupported disposition for IPv4/IPv6 receive metadata and ordinary/batch marked output.
+- [x] A supported result covers full-size non-GRO payloads, `udp4`/`udp6`/admitted dual-stack families, selected/foreign peers, singleton native-result preservation including terminal no-retry EPERM, opt-out/setup failure, malformed/absent metadata, lease reuse/revocation and cleanup through the shared owner.
+- [x] An unsupported result leaves managed ECN false and removes partial capability code while recording the exact blocker. Not applicable: the qualified result is supported.
+- [x] Darwin, FreeBSD and OpenBSD each cross-build with exactly one `(*managedPacketEndpoint).configureReceive` definition; public signatures, ordinary datagrams, managed capability projection, existing batch progress/error semantics and raw-socket authority remain unchanged.
 
 ## Validation gates
 

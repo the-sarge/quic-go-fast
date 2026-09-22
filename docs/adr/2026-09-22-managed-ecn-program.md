@@ -1,7 +1,7 @@
 # Managed ECN qualification program — 2026-09-22
 
 **Program:** `QGF-ECN-20260922`
-**Status:** In progress; Linux L1 and Darwin D1 complete; F1, O1 and W1 remain on the frontier
+**Status:** In progress; Linux L1, Darwin D1 and FreeBSD F1 complete; O1 and W1 remain on the frontier
 **Normative scope:** Track identity, plan pointers, slice graph, frontier and binding rules
 **Audit history:** [Source, existing-work and slice audit](../audits/2026-09-22-managed-ecn-handoff/README.md)
 
@@ -19,11 +19,11 @@ Socket-option success, another platform's evidence, packet-info support, segment
 | --- | --- | --- | --- | --- | --- |
 | L | [Linux managed ECN](2026-09-22-linux-managed-ecn-plan.md) | [#455](https://github.com/the-sarge/quic-go-fast/issues/455) | None | L1 | Complete via [#508](https://github.com/the-sarge/quic-go-fast/pull/508) |
 | D | [Darwin managed ECN](2026-09-22-darwin-managed-ecn-plan.md) | [#456](https://github.com/the-sarge/quic-go-fast/issues/456) | L1 | D1 | Complete — supported |
-| F | [FreeBSD managed ECN](2026-09-22-freebsd-managed-ecn-plan.md) | [#457](https://github.com/the-sarge/quic-go-fast/issues/457) | L1 | F1 | FRONTIER |
+| F | [FreeBSD managed ECN](2026-09-22-freebsd-managed-ecn-plan.md) | [#457](https://github.com/the-sarge/quic-go-fast/issues/457) | L1 | F1 | Complete — supported |
 | O | [OpenBSD managed ECN feasibility](2026-09-22-openbsd-managed-ecn-plan.md) | [#458](https://github.com/the-sarge/quic-go-fast/issues/458) | None | O1 | FRONTIER |
 | W | [Windows managed ECN feasibility](2026-09-22-windows-managed-ecn-plan.md) | [#459](https://github.com/the-sarge/quic-go-fast/issues/459) | None | W1 | FRONTIER |
 
-L1 delivered the central managed metadata path and capability gate. D1 has completed native Darwin qualification. F1, O1 and W1 remain parallel-safe frontier slices; D1 has no successors in this program. O1 and W1 may close their platform tracks as unsupported. A supported feasibility result requires a scoped `$architecture-handoff` update that adds an implementation slice with the proven native representation before code implementation begins.
+L1 delivered the central managed metadata path and capability gate. D1 and F1 have completed native Darwin and FreeBSD qualification. O1 and W1 remain parallel-safe frontier slices; D1 and F1 have no successors in this program. O1 and W1 may close their platform tracks as unsupported. A supported feasibility result requires a scoped `$architecture-handoff` update that adds an implementation slice with the proven native representation before code implementation begins.
 
 ## Rules that bind every track
 
