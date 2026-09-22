@@ -86,8 +86,11 @@ var _ rawConn = &oobConn{}
 var errECNSetupDenied = errors.New("activating ECN failed for both IPv4 and IPv6")
 
 type oobConnSetup struct {
-	ecnIPv4Err error
-	ecnIPv6Err error
+	// ecnUnavailable identifies optional-only ECN setup failure after descriptor
+	// access and any required packet-info setup succeeded. Callers retain policy.
+	ecnUnavailable bool
+	ecnIPv4Err     error
+	ecnIPv6Err     error
 }
 
 func newConn(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing bool) (*oobConn, error) {
@@ -120,6 +123,7 @@ func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing
 		return nil, oobConnSetup{}, err
 	}
 	setup := oobConnSetup{ecnIPv4Err: errECNIPv4, ecnIPv6Err: errECNIPv6}
+	setup.ecnUnavailable = errECNIPv4 != nil && errECNIPv6 != nil && (!needsPacketInfo || errPIIPv4 == nil || errPIIPv6 == nil)
 	switch {
 	case errECNIPv4 == nil && errECNIPv6 == nil:
 		utils.DefaultLogger.Debugf("Activating reading of ECN bits for IPv4 and IPv6.")

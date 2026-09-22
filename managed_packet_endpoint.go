@@ -33,7 +33,7 @@ import (
 // the endpoint and is returned by Close. Close is safe to call concurrently.
 //
 // The endpoint and leases expose no raw socket or descriptor. They provide
-// ordinary datagrams only. Linux managed registration may retain private ECN
+// ordinary datagrams only. Linux and Darwin managed registration may retain private ECN
 // metadata I/O while public reads remain ordinary datagrams; Windows and Linux
 // registration install persistent receive normalization before enabling
 // coalescing. Retained normalization remains across leases to decode queued

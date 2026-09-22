@@ -183,7 +183,7 @@ func TestManagedEndpointDiagnosticProvenance(t *testing.T) {
 			require.NoError(t, err)
 			defer tr.Close()
 			cap := tr.conn.capabilities()
-			wantECN := runtime.GOOS == "linux" && (kind == "registered" || kind == "registered batch" || kind == "wrapper batch")
+			wantECN := (runtime.GOOS == "linux" || runtime.GOOS == "darwin") && (kind == "registered" || kind == "registered batch" || kind == "wrapper batch")
 			require.Equal(t, wantECN, cap.ECN)
 			require.False(t, cap.DF)
 			require.False(t, cap.GSO)

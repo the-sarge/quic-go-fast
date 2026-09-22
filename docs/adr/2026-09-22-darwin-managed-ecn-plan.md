@@ -1,7 +1,7 @@
 # Darwin managed ECN qualification plan
 
 **Date:** 2026-09-22
-**Status:** Accepted; ready after Linux L1
+**Status:** Complete; Darwin managed ECN supported through D1
 **Track:** D, 2 of 5 in `QGF-ECN-20260922`
 **Depends on:** `QGF-ECN-20260922/L1`
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [Linux plan](2026-09-22-linux-managed-ecn-plan.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md), [Darwin batch plan](2026-09-11-darwin-batch-plan.md)
@@ -14,7 +14,7 @@ Qualify Darwin against the accepted managed ECN contract using the endpoint-owne
 
 ## Current shape (verified 2026-09-22)
 
-Darwin's shared `oobConn` receives and parses ECN through `newConnWithSetup`, `readManagedPacket` and `decodeReadPacket`, and marks sends through `WritePacket` (`sys_conn_oob.go:98-193,259-357,374-397`; platform constants in `sys_conn_helper_darwin.go`). Registered callbacks reach `managedPacketConn.WriteBatchV1` (`managed_packet_endpoint.go:286-325`) and the existing Darwin `newUDPBatchWriter` (`send_conn_sendmsg_x_darwin.go:199-238`). The unsupported stub currently provides both `configureReceive` and `managedPacketRawFactory` (`managed_packet_receive_other.go:1-9`), so Darwin does not yet install the shared managed ECN adapter. Re-resolve these named declarations at dispatch; these ranges describe the post-L1 base.
+Darwin installs endpoint-owned ECN setup through `managed_packet_receive_darwin.go`; `managed_packet_receive_ecn.go` shares the existing L1 family inspection and raw factory with Linux while platform hooks retain each platform's option/kernel policy. The shared `oobConn` remains the native representation owner, the L1 adapter remains the correlation and checked-singleton owner, and the registered callback remains the wrapper-policy boundary. The unsupported stub still supplies both setup methods on FreeBSD and OpenBSD. Native evidence and coverage are recorded in [the D1 qualification receipt](../audits/2026-09-22-darwin-managed-ecn/qualification.md).
 
 ## Decision
 
@@ -32,7 +32,7 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| D1 | New | Native Darwin supported or explicit unsupported managed ECN disposition | L1 | None introduced |
+| D1 | Complete — supported | Native Darwin supported or explicit unsupported managed ECN disposition | L1 | None introduced |
 
 ## Implementation slices
 
@@ -42,9 +42,9 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 
 **What it delivers:** A complete supported Darwin managed ECN path through the L1 adapter and native OOB/sendmsg_x owners, or a docs-only explicit unsupported disposition after removing partial code.
 
-**Existing-work disposition:** Rework the provisional uncommitted implementation on branch `codex/d1-darwin-managed-ecn` in `/Volumes/worktrees/quic-go-fast/d1-darwin-managed-ecn`, based on `0449f0bdd3f7bc75528275b9938e028022152409`; its native-validation counterpart is on m4mini at `/Volumes/worktrees/quic-go-fast/d1-native-validation`. No product PR exists. This work is evidence, not design authority: reconcile it with the current default-branch contract and corrected family row before resuming. Merged Darwin batch behavior is retained evidence, not proof of managed receive/send qualification.
+**Existing-work disposition:** The provisional branch was reconciled with the family-mapping re-audit and completed as the single D1 product change. Native tests retain the shared adapter and existing batch owner; no provisional setup branch remains in the shipped runtime.
 
-**Blocked by:** L1, because D1 reuses its central metadata correlation, route selection and capability gate. D1 must not reimplement those owners.
+**Blocked by:** None. L1 completed via #508 and supplied the shared metadata correlation, route selection and capability gate retained by D1.
 
 **Single owner after merge:** The managed endpoint and shared native `oobConn` own metadata and socket lifecycle; the L1 adapter owns correlation/capability; existing sendmsg_x or registered wrapper callback owns native batch submission; the caller wrapper owns policy.
 
@@ -84,10 +84,10 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 
 ## Acceptance criteria
 
-- [ ] Native Darwin evidence records an exact supported or unsupported disposition for IPv4/IPv6 receive metadata, ordinary marked sends and batch marked sends.
-- [ ] A supported result covers full-size non-GRO payloads, `udp4`/`udp6`/admitted dual-stack families, selected/foreign peers, singleton native-result preservation including terminal no-retry EPERM, opt-out/setup failure, malformed/absent metadata, lease reuse/revocation and terminal cleanup through the shared managed owner.
-- [ ] An unsupported result leaves managed ECN false, removes partial capability code and records the exact native blocker.
-- [ ] Darwin, FreeBSD and OpenBSD each cross-build with exactly one definition each of `(*managedPacketEndpoint).configureReceive` and `(*managedPacketEndpoint).managedPacketRawFactory`; public signatures, ordinary datagrams, managed capability projection, sendmsg_x progress/error semantics and raw-socket authority remain unchanged.
+- [x] Native Darwin evidence records an exact supported or unsupported disposition for IPv4/IPv6 receive metadata, ordinary marked sends and batch marked sends.
+- [x] A supported result covers full-size non-GRO payloads, `udp4`/`udp6`/admitted dual-stack families, selected/foreign peers, singleton native-result preservation including terminal no-retry EPERM, opt-out/setup failure, malformed/absent metadata, lease reuse/revocation and terminal cleanup through the shared managed owner.
+- [x] An unsupported result leaves managed ECN false, removes partial capability code and records the exact native blocker.
+- [x] Darwin, FreeBSD and OpenBSD each cross-build with exactly one definition each of `(*managedPacketEndpoint).configureReceive` and `(*managedPacketEndpoint).managedPacketRawFactory`; public signatures, ordinary datagrams, managed capability projection, sendmsg_x progress/error semantics and raw-socket authority remain unchanged.
 
 ## Validation gates
 
