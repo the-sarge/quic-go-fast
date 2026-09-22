@@ -1,4 +1,4 @@
-//go:build (darwin && !ios) || linux
+//go:build (darwin && !ios) || linux || freebsd
 
 package quic
 
