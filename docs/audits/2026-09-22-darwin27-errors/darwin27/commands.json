@@ -1,0 +1,291 @@
+[
+  {
+    "name": "identity",
+    "args": [
+      "/bin/sh",
+      "-c",
+      "uname -srvmp; sw_vers; sysctl kern.uuid; xcrun clang --version; xcrun --show-sdk-version"
+    ],
+    "exit": 0,
+    "stdout": "Darwin 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:48 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6041 arm64 arm\nProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428\nkern.uuid: D46FC75B-A889-3796-A66C-D28FDD50FB68\nApple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n27.0\n",
+    "stderr": "",
+    "started_unix": 1790111828.1224189,
+    "elapsed_seconds": 1.2583129405975342
+  },
+  {
+    "name": "compile",
+    "args": [
+      "xcrun",
+      "clang",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-Wno-deprecated-declarations",
+      "-pthread",
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/probe.c",
+      "-o",
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "started_unix": 1790111829.3813179,
+    "elapsed_seconds": 0.05669713020324707
+  },
+  {
+    "name": "ipv4-positive",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv4",
+      "positive",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=positive prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.079 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111829.4382699,
+    "elapsed_seconds": 0.3241710662841797
+  },
+  {
+    "name": "ipv4-EAGAIN-single",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv4",
+      "EAGAIN",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EAGAIN prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.040 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111829.7627678,
+    "elapsed_seconds": 0.2582683563232422
+  },
+  {
+    "name": "ipv4-EAGAIN-batch-0",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv4",
+      "EAGAIN",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EAGAIN prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.035 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111830.024975,
+    "elapsed_seconds": 0.26430702209472656
+  },
+  {
+    "name": "ipv4-EAGAIN-batch-1",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv4",
+      "EAGAIN",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EAGAIN prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.081 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111830.2895842,
+    "elapsed_seconds": 0.2621438503265381
+  },
+  {
+    "name": "ipv4-EINTR-single",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv4",
+      "EINTR",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EINTR prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=104.977 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111830.5520482,
+    "elapsed_seconds": 0.36844873428344727
+  },
+  {
+    "name": "ipv4-EINTR-batch-0",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv4",
+      "EINTR",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EINTR prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=104.558 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111830.92088,
+    "elapsed_seconds": 0.367095947265625
+  },
+  {
+    "name": "ipv4-EINTR-batch-1",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv4",
+      "EINTR",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EINTR prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=105.035 signals_at_return=1 signals_final=1\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111831.292674,
+    "elapsed_seconds": 0.3690168857574463
+  },
+  {
+    "name": "ipv6-positive",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv6",
+      "positive",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=positive prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.075 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111831.665681,
+    "elapsed_seconds": 0.2631092071533203
+  },
+  {
+    "name": "ipv6-EAGAIN-single",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv6",
+      "EAGAIN",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EAGAIN prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.041 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111831.933961,
+    "elapsed_seconds": 0.264362096786499
+  },
+  {
+    "name": "ipv6-EAGAIN-batch-0",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv6",
+      "EAGAIN",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EAGAIN prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.039 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111832.1986141,
+    "elapsed_seconds": 0.2649667263031006
+  },
+  {
+    "name": "ipv6-EAGAIN-batch-1",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv6",
+      "EAGAIN",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EAGAIN prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.077 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111832.4673998,
+    "elapsed_seconds": 0.26483631134033203
+  },
+  {
+    "name": "ipv6-EINTR-single",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv6",
+      "EINTR",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EINTR prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=105.042 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111832.732638,
+    "elapsed_seconds": 0.36929893493652344
+  },
+  {
+    "name": "ipv6-EINTR-batch-0",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv6",
+      "EINTR",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EINTR prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=102.958 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111833.102711,
+    "elapsed_seconds": 0.3648810386657715
+  },
+  {
+    "name": "ipv6-EINTR-batch-1",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "ipv6",
+      "EINTR",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EINTR prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=104.510 signals_at_return=1 signals_final=1\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111833.4679658,
+    "elapsed_seconds": 0.36490321159362793
+  },
+  {
+    "name": "unix-ENOBUFS-single",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "unix",
+      "ENOBUFS",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=unix error=ENOBUFS prefix=0 method=single\nsndbuf=16384 rcvbuf=1024 suffix_bytes=1280 control_bytes=0\nresult=-1 errno=55 errno_text=No buffer space available elapsed_ms=0.007 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111833.833218,
+    "elapsed_seconds": 0.26381993293762207
+  },
+  {
+    "name": "unix-ENOBUFS-batch-0",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "unix",
+      "ENOBUFS",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=unix error=ENOBUFS prefix=0 method=batch\nsndbuf=16384 rcvbuf=1024 suffix_bytes=1280 control_bytes=0\nresult=-1 errno=55 errno_text=No buffer space available elapsed_ms=0.010 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111834.097994,
+    "elapsed_seconds": 0.2686300277709961
+  },
+  {
+    "name": "unix-ENOBUFS-batch-1",
+    "args": [
+      "/Volumes/worktrees/quic-go-fast/darwin27-error-comparison/docs/audits/2026-09-22-darwin27-errors/darwin27/probe",
+      "unix",
+      "ENOBUFS",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=unix error=ENOBUFS prefix=1 method=batch\nsndbuf=16384 rcvbuf=1024 suffix_bytes=1280 control_bytes=0\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.010 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=-1 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111834.373465,
+    "elapsed_seconds": 0.27013301849365234
+  }
+]
