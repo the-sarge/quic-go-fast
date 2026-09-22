@@ -2993,3 +2993,26 @@ Initial RAS review `20260922T173557-1578cca0d0c467776032b338` identified the iOS
 ### Next
 
 D1 is complete with no successors newly unblocked by it. F1 #505, O1 #506 and W1 #507 remain the parallel frontier in the [program index](adr/2026-09-22-managed-ecn-program.md); [issue #354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live tracking surface. Revalidate and track the deferred packet-info investigation against the merged product head.
+
+---
+
+## Darwin batch compatibility policy - 2026-09-22 14:39 EDT
+
+**Main:** `d92e1366fa44`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #521](https://github.com/the-sarge/quic-go-fast/pull/521) at `d92e1366fa44c1b3959ca25f927d3c9c28407b0d`. Added the maintained [Darwin batch compatibility policy](darwin-batch-compatibility.md), recorded [ADR 0008](adr/0008-darwin-batch-compatibility.md), and linked the governing plans and allowlist comment. Runtime admission and frozen D1 evidence are unchanged.
+
+### Decisions
+
+Future Darwin kernel qualification uses bounded native correctness, engagement, error-semantics and fallback evidence, with runtime architecture admission matching the native evidence. It does not automatically repeat the original performance-adoption campaign; [ADR 0008](adr/0008-darwin-batch-compatibility.md) records the decision and rationale.
+
+### Validation
+
+RAS review `20260922T182849-706c38af1a38176db72abede` completed with no required fixes or follow-ups; all three findings were independently rejected against the accepted contract. Four reviewers completed and one failed structured-delivery parsing; quorum was satisfied. Exact-head certification at `8eb108276eeb8b896c778dd0e51ba2dcbf0225d8` passed clean-tree, diff whitespace, 25 relative-link and comment-only Go checks. All 33 hosted checks passed before squash merge; one push cross-compilation job required a same-head rerun after a demonstrated external package-mirror mismatch. No native qualification or runtime behavior tests were claimed for this documentation change. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/521#issuecomment-5781930507).
+
+### Next
+
+Darwin 27 native qualification remains open; the target protocol and architecture/admission scope are still to be fixed. [Issue #516](https://github.com/the-sarge/quic-go-fast/issues/516) is the live tracking view, separate from the completed Darwin 25 managed ECN work.
