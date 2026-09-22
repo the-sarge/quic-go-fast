@@ -18,6 +18,8 @@ Darwin sends and receives one datagram per syscall (`sys_conn_helper_darwin.go:2
 
 ## Decision
 
+**Subsequent compatibility policy:** New kernel qualifications follow [ADR 0008](0008-darwin-batch-compatibility.md) and the maintained [Darwin batch compatibility policy](../darwin-batch-compatibility.md). The D1 performance-adoption protocol/results remain historical evidence; its statistical campaign is not repeated automatically for each OS major.
+
 Port the send half under the exact build, qualification, and error-attribution contract in the [datapath offload plan](2026-09-11-datapath-offload-plan.md): active path `darwin && !ios && !quic_go_no_private_syscalls`, fallback stub, Darwin-kernel-major allowlist with recorded product-version mapping, production-shape startup self-check (unconnected `msg_name` destinations, shared ECN control buffer, semantic payload verification), accepted-count bounds, process-latched fallback, engaged/fallback counters. Run `recvmsg_x` receive batching as a separate bounded experiment with its own gate. That plan is binding; this document adds only the slice decomposition.
 
 **Rejected alternative (do not do this):** Porting the KeibiSoft receive half as-is (it has never batched; its commit leaves `batchSize = 1`). Presenting a tested version ceiling as future compatibility. Justifying the opt-out tag by symbol scanning (raw syscalls import no symbol). Folding the receive experiment into the send slice's gate.

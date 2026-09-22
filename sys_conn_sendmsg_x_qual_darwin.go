@@ -36,11 +36,12 @@ const sendmsgXDisableEnv = "QUIC_GO_DISABLE_SENDMSG_X"
 // the kernel release string (uname -r). Each entry records the macOS product
 // version observed on the qualifying host, because the two namespaces differ
 // (a host can report product 26.x with Darwin 25.x) and comparing the
-// product number would silently misqualify. Entries are populated by the D1
-// protocol's qualification runs (docs/audits/2026-09-12-d1-sendmsgx-protocol.md)
-// and record the tested version floor, never a ceiling: an unlisted or newer
-// major starts in the per-packet fallback path until a qualification run
-// adds it.
+// product number would silently misqualify. The initial entry comes from
+// docs/audits/2026-09-12-d1-sendmsgx-protocol.md; future entries follow
+// docs/darwin-batch-compatibility.md, including its architecture admission
+// rule. An unlisted or newer major stays in the per-packet fallback path
+// until qualified. Recorded versions describe tested evidence, not a
+// guarantee that later kernels preserve the private ABI.
 var qualifiedDarwinKernelMajors = map[int]string{
 	25: "macOS 26 (qualified on product 26.6.2, Darwin 25.6.0, arm64)",
 }
