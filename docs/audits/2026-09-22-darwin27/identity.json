@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-09-22T19:08:50.739702+00:00",
+  "candidate": "129ebfc835eb4cb5e918f7d7726a17326b48f322",
+  "base": "67c5232464364e6d453fb41f5d51dd4f54d600cd",
+  "protocol_commit": "c6839da74315561bd254658daf51d8308232f0f9",
+  "uname": "Darwin 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:48 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6041 arm64 arm",
+  "macos": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428",
+  "go": "go version go1.27.1 darwin/arm64",
+  "overlay_sha256": "dc1e3f4cb4cf24235abfb3ef27e7dcb7f6a266c4611b582737f733a90ee4ea77",
+  "replacement_sha256": "52fd58c24354d7997b89c4d6e4f91743a1b7b931b394cf5551ccd506b777b4cd",
+  "source_sha256": "af1b55e5d86d96c2cb29e1e11274691ce11633011ec8d2e3d1215eeed701a4dd",
+  "source_inventory_command": "gh api repos/apple-oss-distributions/xnu/tags --paginate --jq .[].name",
+  "target_xnu_tag_present": false
+}

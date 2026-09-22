@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func TestDarwinManagedECNNativeBatch(t *testing.T) {
 			} else {
 				major, err := getMacOSVersion()
 				require.NoError(t, err)
-				if _, ok := qualifiedDarwinKernelMajors[major]; !ok {
+				if _, ok := sendmsgXQualifiedKernel(major, runtime.GOARCH); !ok {
 					t.Skipf("native evidence requires a qualified Darwin host; kernel %d", major)
 				}
 			}

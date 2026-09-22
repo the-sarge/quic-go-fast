@@ -44,6 +44,7 @@ const sendmsgXDisableEnv = "QUIC_GO_DISABLE_SENDMSG_X"
 // until qualified. Recorded versions describe tested evidence, not a
 // guarantee that later kernels preserve the private ABI.
 var qualifiedDarwinKernelMajors = map[int]sendmsgXQualification{
+	27: {product: "test-only Darwin 27 arm64 qualification", arch: "arm64"},
 	25: {product: "macOS 26 (qualified on product 26.6.2, Darwin 25.6.0, arm64)"},
 }
 

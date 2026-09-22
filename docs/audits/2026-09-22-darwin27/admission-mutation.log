@@ -1,0 +1,14 @@
+Preparation only: bypass the architecture guard in sendmsgXQualifiedKernel using a temporary Go overlay.
+Command: go test -count=1 -overlay=<temporary overlay> -run ^TestSendmsgXArchitectureAdmission$ .
+Expected: failure for Darwin 27/amd64.
+--- FAIL: TestSendmsgXArchitectureAdmission (0.00s)
+    sys_conn_sendmsg_x_qual_darwin_test.go:176: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/darwin27-qualification/sys_conn_sendmsg_x_qual_darwin_test.go:176
+        	Error:      	Not equal: 
+        	            	expected: false
+        	            	actual  : true
+        	Test:       	TestSendmsgXArchitectureAdmission
+        	Messages:   	Darwin 27/amd64
+FAIL
+FAIL	github.com/quic-go/quic-go	0.242s
+FAIL
