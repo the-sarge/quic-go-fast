@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -66,6 +67,19 @@ func (c *copyingManagedPacketConn) ReadFrom(b []byte) (int, net.Addr, error) {
 type rotatingManagedPacketConn struct {
 	net.PacketConn
 	afterRead func()
+}
+
+type pausingManagedPacketConn struct {
+	net.PacketConn
+	readDone chan struct{}
+	resume   chan struct{}
+}
+
+func (c *pausingManagedPacketConn) ReadFrom(b []byte) (int, net.Addr, error) {
+	n, addr, err := c.PacketConn.ReadFrom(b)
+	close(c.readDone)
+	<-c.resume
+	return n, addr, err
 }
 
 func (c *rotatingManagedPacketConn) ReadFrom(b []byte) (int, net.Addr, error) {
@@ -132,24 +146,98 @@ func TestManagedPacketECNDoesNotPublishForUncheckedWrapper(t *testing.T) {
 }
 
 func TestManagedPacketECNRejectsStaleGeneration(t *testing.T) {
-	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}
-	native := &managedECNFixtureConn{packet: receivedPacket{data: []byte("stale"), remoteAddr: addr, ecn: protocol.ECT1}}
-	lease := &managedPacketLease{done: make(chan struct{})}
-	endpoint := &managedPacketEndpoint{receiver: native, managedNative: native, managedECN: true, lease: lease}
-	endpoint.idle = sync.NewCond(&endpoint.mutex)
-	conn := &managedPacketConn{endpoint: endpoint, lease: lease}
-	wrapper := &rotatingManagedPacketConn{PacketConn: conn, afterRead: func() {
-		endpoint.mutex.Lock()
-		endpoint.lease = &managedPacketLease{done: make(chan struct{})}
-		endpoint.mutex.Unlock()
-	}}
-	raw := newManagedPacketRawConn(&basicConn{PacketConn: wrapper}, conn, &externalPacketIO{}, true)
+	t.Run("manual stale token", func(t *testing.T) {
+		addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}
+		native := &managedECNFixtureConn{packet: receivedPacket{data: []byte("stale"), remoteAddr: addr, ecn: protocol.ECT1}}
+		lease := &managedPacketLease{done: make(chan struct{})}
+		endpoint := &managedPacketEndpoint{receiver: native, managedNative: native, managedECN: true, lease: lease}
+		endpoint.idle = sync.NewCond(&endpoint.mutex)
+		conn := &managedPacketConn{endpoint: endpoint, lease: lease}
+		wrapper := &rotatingManagedPacketConn{PacketConn: conn, afterRead: func() {
+			endpoint.mutex.Lock()
+			endpoint.lease = &managedPacketLease{done: make(chan struct{})}
+			endpoint.mutex.Unlock()
+		}}
+		raw := newManagedPacketRawConn(&basicConn{PacketConn: wrapper}, conn, &externalPacketIO{}, true)
 
-	packet, err := raw.ReadPacket()
-	require.NoError(t, err)
-	defer packet.buffer.Release()
-	require.Equal(t, "stale", string(packet.data))
-	require.Equal(t, protocol.ECNUnsupported, packet.ecn)
+		packet, err := raw.ReadPacket()
+		require.NoError(t, err)
+		defer packet.buffer.Release()
+		require.Equal(t, "stale", string(packet.data))
+		require.Equal(t, protocol.ECNUnsupported, packet.ecn)
+	})
+	t.Run("lease close joins correlation", func(t *testing.T) {
+		if runtime.GOOS != "linux" {
+			t.Skip("managed ECN correlation is qualified on Linux")
+		}
+		t.Setenv("QUIC_GO_DISABLE_ECN", "false")
+		t.Setenv("QUIC_GO_DISABLE_GRO", "true")
+		endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1("udp4", &net.UDPAddr{IP: net.IPv4zero})
+		require.NoError(t, err)
+		defer endpoint.Close()
+		lease, err := acquire()
+		require.NoError(t, err)
+		wrapper := &pausingManagedPacketConn{PacketConn: lease, readDone: make(chan struct{}), resume: make(chan struct{})}
+		tr := &Transport{Conn: wrapper}
+		require.NoError(t, tr.ConfigureManagedPacketIOV1(wrapper, lease, lease.(managedBatchWriterV1).WriteBatchV1))
+		raw := tr.wrapExternalPacketIO(&basicConn{PacketConn: wrapper})
+		require.True(t, raw.capabilities().ECN)
+		sender, err := net.DialUDP("udp4", nil, endpoint.LocalAddr().(*net.UDPAddr))
+		require.NoError(t, err)
+		defer sender.Close()
+		_, err = sender.Write([]byte("old generation"))
+		require.NoError(t, err)
+		type readResult struct {
+			packet receivedPacket
+			err    error
+		}
+		readDone := make(chan readResult, 1)
+		go func() {
+			packet, err := raw.ReadPacket()
+			readDone <- readResult{packet: packet, err: err}
+		}()
+		<-wrapper.readDone
+		closeDone := make(chan error, 1)
+		go func() { closeDone <- lease.Close() }()
+		e := endpoint.(*managedPacketConn).endpoint
+		for {
+			e.mutex.Lock()
+			returning, active := lease.(*managedPacketConn).lease.returning, e.active
+			e.mutex.Unlock()
+			if returning {
+				if active <= 0 {
+					close(wrapper.resume)
+					result := <-readDone
+					if result.packet.buffer != nil {
+						result.packet.buffer.Release()
+					}
+					<-closeDone
+					t.Fatal("adapter correlation was not joined while the wrapper held the result")
+				}
+				break
+			}
+			runtime.Gosched()
+		}
+		close(wrapper.resume)
+		result := <-readDone
+		require.NoError(t, result.err)
+		result.packet.buffer.Release()
+		require.NoError(t, <-closeDone)
+		require.NoError(t, tr.Close())
+
+		next, err := acquire()
+		require.NoError(t, err)
+		defer next.Close()
+		nextTransport := &Transport{Conn: next}
+		require.NoError(t, nextTransport.ConfigureManagedPacketIOV1(next, next, nil))
+		nextRaw := nextTransport.wrapExternalPacketIO(&basicConn{PacketConn: next})
+		_, err = sender.Write([]byte("new generation"))
+		require.NoError(t, err)
+		packet, err := nextRaw.ReadPacket()
+		require.NoError(t, err)
+		defer packet.buffer.Release()
+		require.Equal(t, "new generation", string(packet.data))
+	})
 }
 
 func TestManagedPacketECNDirectMarkedWrite(t *testing.T) {

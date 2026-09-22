@@ -19,29 +19,28 @@ func (e *managedPacketEndpoint) managedPacketRawFactory(lease *managedPacketConn
 // Called with the endpoint lock and no active I/O. No view exposes the socket:
 // policy wrappers keep receiving normalized datagrams through their ReadFrom.
 func (e *managedPacketEndpoint) configureReceive() error {
-	if e.managedNative != nil || e.managedECNSetup.failedFamily != "" {
+	if e.receiveConfigured {
 		return nil
 	}
 	udp, ok := e.conn.(*net.UDPConn)
 	if !ok {
 		return nil
 	}
-	// Complete all fallible decoder setup without receive-format mutation.
+	// Complete all fallible decoder setup before publishing any endpoint state.
 	reader, setup, err := newConnWithSetup(udp, false, false)
-	qualification := inspectManagedECNQualification(udp, setup)
-	e.managedECNSetup = qualification
 	if err == errECNSetupDenied {
 		// The factory socket still has ordinary receive format. Only the
 		// demonstrated optional ECN denial permits this fallback; descriptor
 		// failures and required packet-info failures remain fatal.
+		e.managedECNSetup = inspectManagedECNQualification(udp, setup)
 		e.receiveState = receiveCoalescingState{eligible: true, disabledReason: "ancillary_setup_denied"}
+		e.receiveConfigured = true
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	e.managedNative = reader
-	e.managedECN = qualification.qualified
+	qualification := inspectManagedECNQualification(udp, setup)
 	raw, err := udp.SyscallConn()
 	if err != nil {
 		return err
@@ -51,15 +50,21 @@ func (e *managedPacketEndpoint) configureReceive() error {
 	reader.cap.GRO, reader.cap.receiveCoalescing.disabledReason = enableGRO(raw)
 	e.receiveState = reader.cap.receiveCoalescing
 	e.receiveCoalescing = reader.cap.GRO
+	e.managedECNSetup = qualification
+	e.managedECN = qualification.qualified
 	reader.managedRead = qualification.qualified && !reader.cap.GRO
+	if qualification.qualified {
+		e.managedNative = reader
+	}
 	if !reader.cap.GRO && !qualification.qualified {
 		e.receiver = nil
 	}
+	e.receiveConfigured = true
 	return nil
 }
 
 func inspectManagedECNQualification(udp *net.UDPConn, setup oobConnSetup) managedECNQualification {
-	q := managedECNQualification{sendIPv4: true, sendIPv6: true}
+	q := managedECNQualification{}
 	raw, err := udp.SyscallConn()
 	if err != nil {
 		q.failedFamily = "family_domain"
@@ -100,16 +105,15 @@ func inspectManagedECNQualification(udp *net.UDPConn, setup oobConnSetup) manage
 	q.receiveIPv4 = q.admittedIPv4 && setup.ecnIPv4Err == nil
 	q.receiveIPv6 = q.admittedIPv6 && setup.ecnIPv6Err == nil
 	var failed []string
-	if q.admittedIPv4 && (!q.receiveIPv4 || !q.sendIPv4) {
+	if q.admittedIPv4 && !q.receiveIPv4 {
 		failed = append(failed, "ipv4")
 	}
-	if q.admittedIPv6 && (!q.receiveIPv6 || !q.sendIPv6) {
+	if q.admittedIPv6 && !q.receiveIPv6 {
 		failed = append(failed, "ipv6")
 	}
-	if !isECNEnabled() {
-		failed = append(failed, "disabled")
-	}
+	q.disabled = isECNDisabledUsingEnv()
+	q.kernelUnsupported = kernelVersionMajor < 5
 	q.failedFamily = strings.Join(failed, ",")
-	q.qualified = q.failedFamily == "" && (q.admittedIPv4 || q.admittedIPv6)
+	q.qualified = q.failedFamily == "" && !q.disabled && !q.kernelUnsupported && (q.admittedIPv4 || q.admittedIPv6)
 	return q
 }

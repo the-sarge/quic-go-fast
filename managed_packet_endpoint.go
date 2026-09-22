@@ -75,6 +75,7 @@ type managedPacketEndpoint struct {
 	managedSend       *managedSingletonOperation
 	managedECN        bool
 	managedECNSetup   managedECNQualification
+	receiveConfigured bool
 	receiveCoalescing bool
 	receiveState      receiveCoalescingState
 	idle              *sync.Cond
@@ -90,16 +91,16 @@ type managedPacketEndpoint struct {
 }
 
 type managedECNQualification struct {
-	qualified    bool
-	admittedIPv4 bool
-	admittedIPv6 bool
-	ipv4Mapped   bool
-	ipv6Only     bool
-	receiveIPv4  bool
-	receiveIPv6  bool
-	sendIPv4     bool
-	sendIPv6     bool
-	failedFamily string
+	qualified         bool
+	admittedIPv4      bool
+	admittedIPv6      bool
+	ipv4Mapped        bool
+	ipv6Only          bool
+	receiveIPv4       bool
+	receiveIPv6       bool
+	disabled          bool
+	kernelUnsupported bool
+	failedFamily      string
 }
 
 type managedReadOperation struct {

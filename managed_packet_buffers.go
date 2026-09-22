@@ -141,7 +141,7 @@ func (t *Transport) traceManagedBuffers(b *managedBufferSetup, conn rawConn) {
 		cap.GRO = true
 	}
 	ecn := t.managedECNQualification()
-	message := fmt.Sprintf("provenance=managed_endpoint %s %s buffer_target_bytes=%d receive_mode=%s batch_callback_available=%t df=%t ecn=%t segmentation=%t coalescing=%t ecn_admitted_ipv4=%t ecn_admitted_ipv6=%t ecn_ipv4_mapped=%t ecn_ipv6_only=%t ecn_failed_family=%q", b.receive.diagnostic("receive"), b.send.diagnostic("send"), desiredBufferSize, receiveMode, batch, cap.DF, cap.ECN, cap.GSO, cap.GRO, ecn.admittedIPv4, ecn.admittedIPv6, ecn.ipv4Mapped, ecn.ipv6Only, ecn.failedFamily)
+	message := fmt.Sprintf("provenance=managed_endpoint %s %s buffer_target_bytes=%d receive_mode=%s batch_callback_available=%t df=%t ecn=%t segmentation=%t coalescing=%t ecn_admitted_ipv4=%t ecn_admitted_ipv6=%t ecn_ipv4_mapped=%t ecn_ipv6_only=%t ecn_disabled=%t ecn_kernel_unsupported=%t ecn_failed_family=%q", b.receive.diagnostic("receive"), b.send.diagnostic("send"), desiredBufferSize, receiveMode, batch, cap.DF, cap.ECN, cap.GSO, cap.GRO, ecn.admittedIPv4, ecn.admittedIPv6, ecn.ipv4Mapped, ecn.ipv6Only, ecn.disabled, ecn.kernelUnsupported, ecn.failedFamily)
 	utils.DefaultLogger.Debugf("managed_packet_io: %s", message)
 	if t.Tracer != nil {
 		t.Tracer.RecordEvent(qlog.DebugEvent{EventName: "managed_packet_io", Message: message})

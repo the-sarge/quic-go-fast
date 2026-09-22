@@ -62,6 +62,8 @@ func TestManagedReceiveRestrictedSocket(t *testing.T) {
 		e := endpoint.(*managedPacketConn).endpoint
 		require.False(t, e.managedECN)
 		require.Nil(t, e.receiver, "a partial-family failure must not retain an ECN-only reader")
+		require.Nil(t, e.managedNative, "a partial-family failure must not retain the native metadata route")
+		require.Nil(t, e.managedPacketRawFactory(lease.(*managedPacketConn)))
 		require.True(t, e.managedECNSetup.admittedIPv4)
 		require.True(t, e.managedECNSetup.admittedIPv6)
 		wantFamily := "ipv" + strings.TrimPrefix(mode, "ecn-v")
@@ -78,7 +80,14 @@ func TestManagedReceiveRestrictedSocket(t *testing.T) {
 			want = "activating packet info failed for both IPv4 and IPv6"
 		}
 		require.EqualError(t, err, want)
+		require.EqualError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil), want, "fatal setup must remain fatal on retry")
 		exchangeRestrictedDatagram(t, lease, peer, "after rejected registration")
+		require.NoError(t, lease.Close())
+		next, acquireErr := acquire()
+		require.NoError(t, acquireErr)
+		nextTransport := &Transport{Conn: next}
+		require.EqualError(t, nextTransport.ConfigureManagedPacketIOV1(next, next, nil), want, "fatal setup must remain fatal in the next generation")
+		require.NoError(t, next.Close())
 		return
 	}
 	require.NoError(t, err)
@@ -117,6 +126,7 @@ func TestManagedReceiveClosedSocket(t *testing.T) {
 	require.NoError(t, endpoint.(*managedPacketConn).endpoint.conn.Close())
 	tr := &Transport{Conn: lease}
 	require.ErrorIs(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil), net.ErrClosed)
+	require.ErrorIs(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil), net.ErrClosed, "closed-socket setup must remain fatal on retry")
 	_, _, err = lease.ReadFrom(make([]byte, 1))
 	require.ErrorIs(t, err, net.ErrClosed)
 	_, err = lease.WriteTo([]byte("closed"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345})

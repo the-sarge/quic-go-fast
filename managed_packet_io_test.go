@@ -34,7 +34,7 @@ func TestManagedPacketIOBindReturnsEndpointSetup(t *testing.T) {
 	e := endpoint.(*managedPacketConn).endpoint
 	e.mutex.Lock()
 	bound := managed.lease.quic
-	receiveCoalescing := e.receiver != nil
+	receiveCoalescing := e.receiveCoalescing
 	receiveState := e.receiveState
 	e.mutex.Unlock()
 	require.True(t, bound)

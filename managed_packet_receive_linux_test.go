@@ -478,6 +478,34 @@ func TestManagedECNQualificationMatchesAdmittedFamilies(t *testing.T) {
 			require.True(t, tr.wrapExternalPacketIO(&basicConn{PacketConn: lease}).capabilities().ECN)
 		})
 	}
+	t.Run("opt out is not a family failure", func(t *testing.T) {
+		t.Setenv("QUIC_GO_DISABLE_ECN", "true")
+		t.Setenv("QUIC_GO_DISABLE_GRO", "true")
+		endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1("udp4", &net.UDPAddr{IP: net.IPv4zero})
+		require.NoError(t, err)
+		defer endpoint.Close()
+		lease, err := acquire()
+		require.NoError(t, err)
+		defer lease.Close()
+		var recorder events.Recorder
+		tr := &Transport{Conn: lease, Tracer: &recorder}
+		require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+		e := endpoint.(*managedPacketConn).endpoint
+		q := e.managedECNSetup
+		require.False(t, q.qualified)
+		require.True(t, q.disabled)
+		require.False(t, q.kernelUnsupported)
+		require.Empty(t, q.failedFamily)
+		require.Nil(t, e.receiver)
+		require.Nil(t, e.managedNative)
+		require.Nil(t, tr.packetIO.external.managedRawFactory)
+		require.NoError(t, tr.Close())
+		message := managedBufferEvent(t, &recorder)
+		require.Contains(t, message, "ecn=false")
+		require.Contains(t, message, "ecn_disabled=true")
+		require.Contains(t, message, "ecn_kernel_unsupported=false")
+		require.Contains(t, message, "ecn_failed_family=\"\"")
+	})
 }
 
 func TestManagedECNCheckedSingletonPreservesLinuxSendErrors(t *testing.T) {

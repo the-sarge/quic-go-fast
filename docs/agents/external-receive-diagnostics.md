@@ -30,7 +30,7 @@ The [managed Linux fallback](linux-managed-fallback.md) produces `ancillary_setu
 
 Setup captures its opt-out result when it evaluates the existing environment setting. Event formatting does not reread the environment or probe the socket. Managed setup retains the result under the endpoint's existing lock and copies it into the registration. Once a managed normalizer is active, it stays active across leases even if the environment later disables new activation attempts; reporting follows that existing behavior.
 
-The `managed_packet_io` diagnostic reports `ecn_admitted_ipv4`, `ecn_admitted_ipv6`, `ecn_ipv4_mapped`, `ecn_ipv6_only` and `ecn_failed_family` from the endpoint-owned setup record. These are setup facts, not a claim that an unknown wrapper is honest. The event's `ecn` capability is true only when every admitted family qualifies and the registration has a policy-safe marked-send route.
+The `managed_packet_io` diagnostic reports `ecn_admitted_ipv4`, `ecn_admitted_ipv6`, `ecn_ipv4_mapped`, `ecn_ipv6_only`, `ecn_disabled`, `ecn_kernel_unsupported` and `ecn_failed_family` from the endpoint-owned setup record. `ecn_failed_family` names only an admitted family whose ancillary setup failed; opt-out and the Linux kernel gate have their own fields. These are setup facts, not a claim that an unknown wrapper is honest. The event's `ecn` capability is true only when every admitted family qualifies and the registration has a policy-safe marked-send route.
 
 ## Boundary and finite evidence
 

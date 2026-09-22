@@ -31,6 +31,11 @@ func newManagedPacketRawConn(base rawConn, conn *managedPacketConn, config *exte
 }
 
 func (c *managedPacketRawConn) ReadPacket() (receivedPacket, error) {
+	if err := c.conn.begin(); err != nil {
+		return receivedPacket{}, err
+	}
+	defer c.conn.endpoint.end()
+
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
 
