@@ -1,0 +1,291 @@
+[
+  {
+    "name": "identity",
+    "args": [
+      "/bin/sh",
+      "-c",
+      "uname -srvmp; sw_vers; sysctl kern.uuid; xcrun clang --version; xcrun --show-sdk-version"
+    ],
+    "exit": 0,
+    "stdout": "Darwin 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:17:26 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6041 arm64 arm\nProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\nkern.uuid: 3F7964F9-C5A6-39D4-942D-02750C0980E0\nApple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.6.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n26.5\n",
+    "stderr": "",
+    "started_unix": 1790111828.3326259,
+    "elapsed_seconds": 0.03898429870605469
+  },
+  {
+    "name": "compile",
+    "args": [
+      "xcrun",
+      "clang",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-Wno-deprecated-declarations",
+      "-pthread",
+      "/private/tmp/quic-native-errors.MboHDu/probe.c",
+      "-o",
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "started_unix": 1790111828.3719969,
+    "elapsed_seconds": 0.3038032054901123
+  },
+  {
+    "name": "ipv4-positive",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv4",
+      "positive",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=positive prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.155 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111828.676044,
+    "elapsed_seconds": 0.5557708740234375
+  },
+  {
+    "name": "ipv4-EAGAIN-single",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv4",
+      "EAGAIN",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EAGAIN prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.045 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111829.23272,
+    "elapsed_seconds": 0.2661581039428711
+  },
+  {
+    "name": "ipv4-EAGAIN-batch-0",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv4",
+      "EAGAIN",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EAGAIN prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.072 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111829.500087,
+    "elapsed_seconds": 0.2720930576324463
+  },
+  {
+    "name": "ipv4-EAGAIN-batch-1",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv4",
+      "EAGAIN",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EAGAIN prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.159 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111829.773429,
+    "elapsed_seconds": 0.2634551525115967
+  },
+  {
+    "name": "ipv4-EINTR-single",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv4",
+      "EINTR",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EINTR prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=110.321 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111830.037895,
+    "elapsed_seconds": 0.37723302841186523
+  },
+  {
+    "name": "ipv4-EINTR-batch-0",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv4",
+      "EINTR",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EINTR prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=109.153 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111830.41646,
+    "elapsed_seconds": 0.38258886337280273
+  },
+  {
+    "name": "ipv4-EINTR-batch-1",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv4",
+      "EINTR",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv4 error=EINTR prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=101.698 signals_at_return=1 signals_final=1\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111830.800662,
+    "elapsed_seconds": 0.366757869720459
+  },
+  {
+    "name": "ipv6-positive",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv6",
+      "positive",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=positive prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.102 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111831.1686459,
+    "elapsed_seconds": 0.2680051326751709
+  },
+  {
+    "name": "ipv6-EAGAIN-single",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv6",
+      "EAGAIN",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EAGAIN prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.068 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111831.438317,
+    "elapsed_seconds": 0.2675168514251709
+  },
+  {
+    "name": "ipv6-EAGAIN-batch-0",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv6",
+      "EAGAIN",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EAGAIN prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=35 errno_text=Resource temporarily unavailable elapsed_ms=0.203 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111831.7071319,
+    "elapsed_seconds": 0.2628931999206543
+  },
+  {
+    "name": "ipv6-EAGAIN-batch-1",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv6",
+      "EAGAIN",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EAGAIN prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.204 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111831.9714901,
+    "elapsed_seconds": 0.2686038017272949
+  },
+  {
+    "name": "ipv6-EINTR-single",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv6",
+      "EINTR",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EINTR prefix=0 method=single\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=106.529 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111832.2409768,
+    "elapsed_seconds": 0.3739602565765381
+  },
+  {
+    "name": "ipv6-EINTR-batch-0",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv6",
+      "EINTR",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EINTR prefix=0 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=-1 errno=4 errno_text=Interrupted system call elapsed_ms=109.870 signals_at_return=1 signals_final=1\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111832.6165388,
+    "elapsed_seconds": 0.385129451751709
+  },
+  {
+    "name": "ipv6-EINTR-batch-1",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "ipv6",
+      "EINTR",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=ipv6 error=EINTR prefix=1 method=batch\nsndbuf=4096 rcvbuf=0 suffix_bytes=4096 control_bytes=16\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=104.245 signals_at_return=1 signals_final=1\npeer=good bytes=21 exact_prefix=1 tos=2 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111833.003086,
+    "elapsed_seconds": 0.37918686866760254
+  },
+  {
+    "name": "unix-ENOBUFS-single",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "unix",
+      "ENOBUFS",
+      "0",
+      "single"
+    ],
+    "exit": 0,
+    "stdout": "case family=unix error=ENOBUFS prefix=0 method=single\nsndbuf=16384 rcvbuf=1024 suffix_bytes=1280 control_bytes=0\nresult=-1 errno=55 errno_text=No buffer space available elapsed_ms=0.021 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111833.384258,
+    "elapsed_seconds": 0.27254796028137207
+  },
+  {
+    "name": "unix-ENOBUFS-batch-0",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "unix",
+      "ENOBUFS",
+      "0",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=unix error=ENOBUFS prefix=0 method=batch\nsndbuf=16384 rcvbuf=1024 suffix_bytes=1280 control_bytes=0\nresult=-1 errno=55 errno_text=No buffer space available elapsed_ms=0.033 signals_at_return=0 signals_final=0\nreceived=0 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111833.657751,
+    "elapsed_seconds": 0.27261805534362793
+  },
+  {
+    "name": "unix-ENOBUFS-batch-1",
+    "args": [
+      "/tmp/quic-native-errors.MboHDu/darwin25/probe",
+      "unix",
+      "ENOBUFS",
+      "1",
+      "batch"
+    ],
+    "exit": 0,
+    "stdout": "case family=unix error=ENOBUFS prefix=1 method=batch\nsndbuf=16384 rcvbuf=1024 suffix_bytes=1280 control_bytes=0\nresult=1 errno=0 errno_text=Undefined error: 0 elapsed_ms=0.020 signals_at_return=0 signals_final=0\npeer=good bytes=21 exact_prefix=1 tos=-1 flags=0\nreceived=1 bad_packets=0 verdict=MATCHED_PREDICTION\n",
+    "stderr": "",
+    "started_unix": 1790111833.932231,
+    "elapsed_seconds": 0.2670319080352783
+  }
+]

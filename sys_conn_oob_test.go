@@ -117,7 +117,7 @@ func TestReadECNFlagsDualStack(t *testing.T) {
 		require.True(t, isIPv4(p.remoteAddr.(*net.UDPAddr).IP))
 		require.Equal(t, sentFrom.String(), p.remoteAddr.String())
 		require.Equal(t, protocol.ECNCE, p.ecn)
-	case <-time.After(time.Second):
+	case <-time.After(scaleDuration(time.Second)):
 		t.Fatal("timeout waiting for packet")
 	}
 
@@ -135,7 +135,7 @@ func TestReadECNFlagsDualStack(t *testing.T) {
 		require.Equal(t, sentFrom, p.remoteAddr)
 		require.False(t, isIPv4(p.remoteAddr.(*net.UDPAddr).IP))
 		require.Equal(t, protocol.ECT1, p.ecn)
-	case <-time.After(time.Second):
+	case <-time.After(scaleDuration(time.Second)):
 		t.Fatal("timeout waiting for packet")
 	}
 }

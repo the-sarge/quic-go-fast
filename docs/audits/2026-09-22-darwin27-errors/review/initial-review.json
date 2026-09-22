@@ -1,0 +1,280 @@
+{
+  "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+  "head": "9f162e44e15c9e2d742b326d661422a3a280d379",
+  "status": "failed",
+  "synthesis_available": false,
+  "agent_runs": [
+    {
+      "agent": "claude-fable",
+      "round": "R1",
+      "status": "complete",
+      "error": null,
+      "duration": "6m36.566s"
+    },
+    {
+      "agent": "claude-opus",
+      "round": "R1",
+      "status": "complete",
+      "error": null,
+      "duration": "1m28.69s"
+    },
+    {
+      "agent": "codex-astra",
+      "round": "R1",
+      "status": "failed",
+      "error": "structured delivery execution: process_failed (codex-cli): codex process failed",
+      "duration": "45.051s"
+    },
+    {
+      "agent": "codex-sol",
+      "round": "R1",
+      "status": "failed",
+      "error": "structured delivery execution: process_failed (codex-cli): codex process failed",
+      "duration": "50.684s"
+    },
+    {
+      "agent": "grok",
+      "round": "R1",
+      "status": "complete",
+      "error": null,
+      "duration": "2m19.901s"
+    },
+    {
+      "agent": "claude-fable",
+      "round": "R2",
+      "status": "complete",
+      "error": null,
+      "duration": "1m16.864s"
+    },
+    {
+      "agent": "claude-opus",
+      "round": "R2",
+      "status": "complete",
+      "error": null,
+      "duration": "26.078s"
+    },
+    {
+      "agent": "grok",
+      "round": "R2",
+      "status": "complete",
+      "error": null,
+      "duration": "58.823s"
+    },
+    {
+      "agent": "codex-sol",
+      "round": "synthesis",
+      "status": "failed",
+      "error": "structured delivery execution: process_failed (codex-cli): codex process failed",
+      "duration": "3.848s"
+    }
+  ],
+  "findings": [
+    {
+      "id": "CLAUDEFABLE-F-001",
+      "agent": "claude-fable",
+      "severity": "medium",
+      "category": "test-coverage",
+      "file": "sys_conn_sendmsg_x_qual_darwin_test.go",
+      "line": 158,
+      "title": "Shipped Darwin 27 arm64 scoping is not asserted against the production table",
+      "problem": "Every test that exercises architecture scoping swaps in its own copy of the allowlist, so nothing asserts that the production table's new Darwin 27 entry is actually restricted to arm64 and that 27/amd64 is rejected by the shipped map.",
+      "evidence": [
+        "sys_conn_sendmsg_x_qual_darwin_test.go:157-162 replaces qualifiedDarwinKernelMajors with a test-local table before exhausting the kernel/architecture cases",
+        "send_conn_sendmsg_x_darwin_test.go:308-312 also replaces the table with a synthetic 'excluded' architecture entry",
+        "sys_conn_sendmsg_x_qual_darwin.go:50 is the only place the shipped arch: \"arm64\" scoping exists, and no test reads it",
+        "docs/darwin-batch-compatibility.md:17 requires runtime admission to match native architecture evidence; the original contract states admission table tests exhaust the declared kernel/architecture cases"
+      ],
+      "impact": "A future edit that drops or mistypes the arch constraint on the shipped Darwin 27 entry would silently admit Darwin 27 amd64, which has no native qualification, while TestSendmsgXArchitectureAdmission, TestExternalDarwinBatchWriterFallback/architecture and the production-gates command all continue to pass.",
+      "suggested_fix": "Add a subtest (or extend TestSendmsgXArchitectureAdmission) that runs the exhaustive declared cases against the real qualifiedDarwinKernelMajors without replacement: 25/arm64 and 25/amd64 admitted, 27/arm64 admitted, 27/amd64 rejected, 26 and 28 rejected. Test-only change; no product edit.",
+      "confidence": "high",
+      "fingerprint": "sha256:a2e1baed81848054e20f6180add013ce915ed87679f8da06cbdd0b25b63dca7e",
+      "review_axes": [
+        "release_safety",
+        "correctness"
+      ],
+      "axis_data_availability": "available"
+    },
+    {
+      "id": "CLAUDEFABLE-F-002",
+      "agent": "claude-fable",
+      "severity": "low",
+      "category": "docs",
+      "file": "docs/audits/2026-09-22-darwin27-errors/binary/README.md",
+      "line": 3,
+      "title": "Binary README reproduction command points at a stale temporary path",
+      "problem": "The binary evidence README documents a reproduction path from the original temporary extraction directory, and the extractor writes its outputs next to itself, so the archived instruction is not runnable as written and the safe procedure is documented elsewhere.",
+      "evidence": [
+        "docs/audits/2026-09-22-darwin27-errors/binary/README.md:3 instructs running python3 /tmp/quic-darwin27-binary-research/extract.py, a temporary path that does not exist after checkout",
+        "docs/audits/2026-09-22-darwin27-errors/binary/extract.py:4 sets out=pathlib.Path(__file__).parent and lines 40-43 write mapping.json and the three disassembly files beside the script",
+        "docs/audits/2026-09-22-darwin27-errors/results.md:54 acknowledges the stale path and prescribes copying the extractor to a scratch directory"
+      ],
+      "impact": "A reader following the README's own reproduction command gets a missing-file error, and running the archived extract.py in place would rewrite the frozen mapping and disassembly files (identical bytes on the same kernel, but it still touches frozen evidence and would dirty the checkout). The workaround lives only in results.md.",
+      "suggested_fix": "State the archived path and the copy-to-scratch step in binary/README.md itself (updating its digest in sha256.json), or have extract.py take an output directory argument so it never writes into the frozen directory.",
+      "confidence": "high",
+      "fingerprint": "sha256:78560ba1630c8c615b7043307daeedb5b54492e2bfc96311647742f5f3577b2f",
+      "review_axes": [
+        "operability"
+      ],
+      "axis_data_availability": "available"
+    },
+    {
+      "id": "CLAUDEOPUS-F-001",
+      "agent": "claude-opus",
+      "severity": "low",
+      "category": "test-coverage",
+      "file": "sys_conn_sendmsg_x_qual_darwin.go",
+      "line": 50,
+      "title": "No test checks that the shipped Darwin 27 entry is arm64-only",
+      "problem": "No test covers the shipped allowlist entry itself. TestSendmsgXArchitectureAdmission and the architecture-excluded fallback test both swap in a synthetic table, so they check the predicate, not the production data. The admission gate test only checks the host's own arm64 case.",
+      "evidence": [
+        "sys_conn_sendmsg_x_qual_darwin_test.go:157-162 replaces qualifiedDarwinKernelMajors with a synthetic table before checking {27, amd64} -> false",
+        "send_conn_sendmsg_x_darwin_test.go:308-312 (architecture fallback variant) also swaps in a synthetic table with arch \"excluded\"",
+        "sys_conn_sendmsg_x_qual_darwin_test.go:69-78 checks only the running host's (major, GOARCH), which is arm64",
+        "sys_conn_sendmsg_x_qual_darwin.go:48-50 shipped entry: 27: {product: ..., arch: \"arm64\"}"
+      ],
+      "impact": "If a later edit drops or changes `arch: \"arm64\"` on the shipped Darwin 27 entry, amd64 would be admitted without native evidence, against docs/darwin-batch-compatibility.md:17, and every existing test would still pass. The PR's statement that Darwin 27 amd64 remains excluded is currently checked only by reading the code.",
+      "suggested_fix": "Add a small table test against the unmodified production map: sendmsgXQualifiedKernel(27, \"amd64\") is false, (27, \"arm64\") is true, and (25, \"amd64\") and (25, \"arm64\") are both true. It runs without native execution, so exact-head certification can run it as an ordinary admission unit test.",
+      "confidence": "high",
+      "fingerprint": "sha256:831150e8f9235dccc4e1e487d2bc820cff86f946d82c5d673a1c427ca27a956f",
+      "review_axes": [
+        "release_safety",
+        "compatibility"
+      ],
+      "axis_data_availability": "available"
+    }
+  ],
+  "adjudications": [
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-claude-fable-001",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "claude-fable",
+      "round": "R2",
+      "cluster_id": "C-001",
+      "cluster_fingerprint": "sha256:78560ba1630c8c615b7043307daeedb5b54492e2bfc96311647742f5f3577b2f",
+      "cluster_kind": "finding",
+      "stance": "agree",
+      "confidence": "high",
+      "reason": "binary/README.md line 3 instructs running python3 /tmp/quic-darwin27-binary-research/extract.py. extract.py line 4 sets out=pathlib.Path(__file__).parent and lines 39-42 write mapping.json and the three disassembly files beside the script, so running the archived copy in place would rewrite frozen artifacts (byte-identical on the same kernel, per results.md, but still touching frozen evidence). results.md line 56 already documents the copy-to-scratch workaround, so the safe procedure exists but not in the README a reader is pointed at. This is traceability documentation, not shipped behavior or evidence validity.",
+      "correction": "Keep as low, non-blocking documentation polish. Note that the temporary directory still exists on the extraction host itself (this worktree's machine), so the instruction only breaks on a fresh checkout elsewhere. If binary/README.md is edited, its entry in binary/sha256.json must be regenerated; alternatively leave the frozen README untouched and rely on the results.md copy-to-scratch instruction. Do not change extract.py's frozen bytes unless the extract.py digest is also updated.",
+      "verification": "sed -n 3p docs/audits/2026-09-22-darwin27-errors/binary/README.md; sed -n 4p and 39-42p of binary/extract.py show out=Path(__file__).parent and writes into it; grep -n scratch docs/audits/2026-09-22-darwin27-errors/results.md shows the workaround at line 56; ls -d /tmp/quic-darwin27-binary-research succeeds on this host but the path is outside the repository.",
+      "raw_artifact_id": "sha256:08ac014b8af5f7508af0b6f21358af7af37362c68a0aadf15be7f80b12996029"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-claude-fable-002",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "claude-fable",
+      "round": "R2",
+      "cluster_id": "C-002",
+      "cluster_fingerprint": "sha256:831150e8f9235dccc4e1e487d2bc820cff86f946d82c5d673a1c427ca27a956f",
+      "cluster_kind": "finding",
+      "stance": "duplicate",
+      "confidence": "high",
+      "reason": "Identical gap to C-003: TestSendmsgXArchitectureAdmission (sys_conn_sendmsg_x_qual_darwin_test.go:157-162) and the architecture-excluded fallback variant (send_conn_sendmsg_x_darwin_test.go:308-312) both replace qualifiedDarwinKernelMajors before checking, and every other test call to sendmsgXQualifiedKernel passes runtime.GOARCH on an arm64 host. The suggested fix is the same table test against the unmodified production map.",
+      "correction": "Merge into C-003; same defect, same files, same suggested fix. C-003's case list additionally covers rejection of unlisted majors 26 and 28 and is the more complete statement.",
+      "verification": "grep -rn 'qualifiedDarwinKernelMajors\\|sendmsgXQualifiedKernel' --include='*_test.go' . shows only two table replacements and otherwise runtime.GOARCH lookups; a throwaway test asserting (27,amd64) false and (27,arm64) true against the shipped map passes, confirming the gap is coverage-only.",
+      "raw_artifact_id": "sha256:08ac014b8af5f7508af0b6f21358af7af37362c68a0aadf15be7f80b12996029"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-claude-fable-003",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "claude-fable",
+      "round": "R2",
+      "cluster_id": "C-003",
+      "cluster_fingerprint": "sha256:a2e1baed81848054e20f6180add013ce915ed87679f8da06cbdd0b25b63dca7e",
+      "cluster_kind": "finding",
+      "stance": "partially_agree",
+      "confidence": "high",
+      "reason": "Confirmed by inspection: sys_conn_sendmsg_x_qual_darwin_test.go:157-162 swaps in a synthetic table before the exhaustive cases; send_conn_sendmsg_x_darwin_test.go:308-312 swaps in a synthetic 'excluded' arch entry; all remaining test references to sendmsgXQualifiedKernel pass runtime.GOARCH, which is arm64 on every host that runs them. Therefore no test reads the shipped arch: \"arm64\" on sys_conn_sendmsg_x_qual_darwin.go:50. docs/darwin-batch-compatibility.md:17 requires admission to match native architecture evidence; the existing tests establish the predicate honors scoping but not that the shipped data carries it. Since the shipped map is currently correct, this is a regression-guard gap, not an unsupported admission, so medium overstates it.",
+      "correction": "Downgrade from medium to low and non-blocking. The shipped Darwin 27 entry is verifiably arm64-scoped today (a table test against the unmodified production map passes for 25/arm64, 25/amd64, 27/arm64 admitted and 27/amd64, 26, 28 rejected), and the production-gates run engaged the real allowlist on arm64. The gap is a missing regression guard against a future edit dropping the arch constraint. The fix is test-only, runs without native execution, and fits the original contract's allowance for ordinary admission unit tests at exact-head certification; it is not a product change and does not invalidate frozen evidence.",
+      "verification": "Add a test against the unmodified qualifiedDarwinKernelMajors: sendmsgXQualifiedKernel(25,\"arm64\"), (25,\"amd64\"), (27,\"arm64\") true; (27,\"amd64\"), (26,\"arm64\"), (28,\"arm64\") false; run go test -count=1 -run 'TestSendmsgX(ArchitectureAdmission|ShippedAllowlist)$' . (a throwaway version of this test passed on the current head, then mutate arch to \"\" on the 27 entry and confirm it fails).",
+      "raw_artifact_id": "sha256:08ac014b8af5f7508af0b6f21358af7af37362c68a0aadf15be7f80b12996029"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-claude-opus-001",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "claude-opus",
+      "round": "R2",
+      "cluster_id": "C-001",
+      "cluster_fingerprint": "sha256:78560ba1630c8c615b7043307daeedb5b54492e2bfc96311647742f5f3577b2f",
+      "cluster_kind": "finding",
+      "stance": "partially_agree",
+      "confidence": "high",
+      "reason": "Confirmed: binary/README.md line 3 tells the reader to run `python3 /tmp/quic-darwin27-binary-research/extract.py`, a temporary path that no longer exists. extract.py sets `out=pathlib.Path(__file__).parent`, so running the archived copy in place would rewrite the frozen mapping and disassembly files. results.md already records the stale path and the copy-to-scratch procedure, so the steps are published, just not beside the command. The script also checks the kernel SHA-256 and UUID before extracting, so the only possible effect is touching frozen files, not corrupting the evidence. This is a traceability and verification-aid problem that the contract says must not become a product blocker. It is non-blocking and optional.",
+      "correction": "Keep this low and non-blocking. At most, add one sentence to binary/README.md saying to copy extract.py into a scratch directory before running it, then refresh the README digest in sha256.json. Do not change extract.py or regenerate the frozen outputs. Deferring this is also acceptable because results.md already documents the procedure.",
+      "verification": "Code inspection: `sed -n 3p docs/audits/2026-09-22-darwin27-errors/binary/README.md` shows the /tmp path, and extract.py line 4 shows `out=pathlib.Path(__file__).parent`. If the README is edited, run `shasum -a 256 docs/audits/2026-09-22-darwin27-errors/binary/README.md` and check it against sha256.json, then run `git diff --check`.",
+      "raw_artifact_id": "sha256:c85d937636c6d5a1beba6c6b3d6603c1c33041540ae2ef58814f7d50a8f145e6"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-claude-opus-002",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "claude-opus",
+      "round": "R2",
+      "cluster_id": "C-002",
+      "cluster_fingerprint": "sha256:831150e8f9235dccc4e1e487d2bc820cff86f946d82c5d673a1c427ca27a956f",
+      "cluster_kind": "finding",
+      "stance": "agree",
+      "confidence": "high",
+      "reason": "Confirmed by inspection. TestSendmsgXArchitectureAdmission (sys_conn_sendmsg_x_qual_darwin_test.go:157-162) replaces qualifiedDarwinKernelMajors with a synthetic table before checking the (major, arch) cases. The architecture-excluded fallback (send_conn_sendmsg_x_darwin_test.go:308-312) also swaps in a synthetic table. Every other caller only looks up the running host's (major, runtime.GOARCH), which is arm64 here. So no test reads the shipped `27: {..., arch: \"arm64\"}` entry for amd64. Admission counts as shipped safety enforcement, and the original contract says admission table tests cover the declared kernel/architecture cases. Right now the claim that amd64 stays excluded is backed only by reading the code. The fix is a small test-only table test that needs no native run. It does not change the product and does not invalidate the frozen native evidence. It is low severity because the shipped entry is correct today.",
+      "verification": "Add a test with no table override that asserts sendmsgXQualifiedKernel(27,\"amd64\") is false, (27,\"arm64\") is true, (25,\"arm64\") and (25,\"amd64\") are true, and 26 and 28 are rejected. Run `go test -count=1 -run 'TestSendmsgXArchitectureAdmission' .` at the exact head. Temporarily deleting `arch: \"arm64\"` from the shipped entry should make the new check fail.",
+      "raw_artifact_id": "sha256:c85d937636c6d5a1beba6c6b3d6603c1c33041540ae2ef58814f7d50a8f145e6"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-claude-opus-003",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "claude-opus",
+      "round": "R2",
+      "cluster_id": "C-003",
+      "cluster_fingerprint": "sha256:a2e1baed81848054e20f6180add013ce915ed87679f8da06cbdd0b25b63dca7e",
+      "cluster_kind": "finding",
+      "stance": "duplicate",
+      "confidence": "high",
+      "reason": "C-003 has the same root cause, evidence (the synthetic tables at sys_conn_sendmsg_x_qual_darwin_test.go:157-162 and send_conn_sendmsg_x_darwin_test.go:308-312) and fix as C-002: nothing asserts the arm64 scoping of the shipped Darwin 27 entry. I would lower it from medium to low. The shipped entry is correct today, the admission predicate is already covered by the synthetic-table test, and the gap only matters if someone edits the entry later. It is a regression-guard gap, not a defect in this PR.",
+      "correction": "Merge into C-002 at low severity. One test-only table test against the unmodified production map resolves both findings.",
+      "verification": "Same as C-002: run `go test -count=1 -run 'TestSendmsgXArchitectureAdmission' .` with a subtest that uses the real qualifiedDarwinKernelMajors, and confirm that deleting the arch constraint makes it fail.",
+      "raw_artifact_id": "sha256:c85d937636c6d5a1beba6c6b3d6603c1c33041540ae2ef58814f7d50a8f145e6"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-grok-001",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "grok",
+      "round": "R2",
+      "cluster_id": "C-001",
+      "cluster_fingerprint": "sha256:78560ba1630c8c615b7043307daeedb5b54492e2bfc96311647742f5f3577b2f",
+      "cluster_kind": "finding",
+      "stance": "partially_agree",
+      "confidence": "high",
+      "reason": "binary/README.md:3 still tells readers to run python3 /tmp/quic-darwin27-binary-research/extract.py, and extract.py writes mapping/disassembly beside itself via Path(__file__).parent. results.md already records that stale temporary path and the copy-to-scratch workaround. The factual operability mismatch is real, but under this review brief verification-aid polish is outside product-blocking scope for the admission-only change.",
+      "correction": "Keep as optional verification-aid documentation polish; do not treat as an admission or product blocker.",
+      "verification": "Inspect docs/audits/2026-09-22-darwin27-errors/binary/README.md:3, binary/extract.py lines 4 and 40-43, and results.md reproduction note about copying the extractor to a scratch directory.",
+      "raw_artifact_id": "sha256:b898270af0bc0acff8611b93652bd6b9effb17dc738c26ef1d572c2bc57cd89f"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-grok-002",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "grok",
+      "round": "R2",
+      "cluster_id": "C-002",
+      "cluster_fingerprint": "sha256:831150e8f9235dccc4e1e487d2bc820cff86f946d82c5d673a1c427ca27a956f",
+      "cluster_kind": "finding",
+      "stance": "agree",
+      "confidence": "high",
+      "reason": "The shipped Darwin 27 entry sets arch:\"arm64\" in qualifiedDarwinKernelMajors, but TestSendmsgXArchitectureAdmission and the architecture-excluded fallback path both replace that map with synthetic tables before checking architecture rejection. Host gate checks only the running (major, GOARCH) pair. Nothing asserts sendmsgXQualifiedKernel(27, \"amd64\") is false against the unmodified production map, so dropping the arch constraint would admit unqualified Darwin 27 amd64 while existing tests still pass, contrary to docs/darwin-batch-compatibility.md architecture matching and the original admission-table obligation.",
+      "verification": "Read sys_conn_sendmsg_x_qual_darwin.go:48-50, sys_conn_sendmsg_x_qual_darwin_test.go:156-178 (synthetic map swap), and send_conn_sendmsg_x_darwin_test.go:308-312; confirm no unmodified-map assertion for 27/amd64.",
+      "raw_artifact_id": "sha256:b898270af0bc0acff8611b93652bd6b9effb17dc738c26ef1d572c2bc57cd89f"
+    },
+    {
+      "id": "20260922T212455-6f98b1776ed75cad3a04ffdc-R2-grok-003",
+      "run_id": "20260922T212455-6f98b1776ed75cad3a04ffdc",
+      "agent": "grok",
+      "round": "R2",
+      "cluster_id": "C-003",
+      "cluster_fingerprint": "sha256:a2e1baed81848054e20f6180add013ce915ed87679f8da06cbdd0b25b63dca7e",
+      "cluster_kind": "finding",
+      "stance": "duplicate",
+      "confidence": "high",
+      "reason": "C-003 restates the same defect as C-002: architecture-scoping tests replace the allowlist, so the production Darwin 27 arm64 constraint is never asserted and 27/amd64 rejection is unchecked against the shipped map. Same evidence, same suggested production-map table test; treat as duplicate of C-002.",
+      "verification": "Compare C-003 citations (sys_conn_sendmsg_x_qual_darwin_test.go:157-162 synthetic replacement and qual_darwin.go:50 shipped arch) with C-002; identical gap and fix.",
+      "raw_artifact_id": "sha256:b898270af0bc0acff8611b93652bd6b9effb17dc738c26ef1d572c2bc57cd89f"
+    }
+  ]
+}

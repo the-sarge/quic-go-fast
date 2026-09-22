@@ -1,0 +1,111 @@
+[
+  {
+    "name": "production-gates",
+    "args": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=10m",
+      "-run",
+      "Test(SendmsgXSelfCheckAgainstRunningKernel|SendmsgXKernelMajorAllowlist|SendmsgXArchitectureAdmission|SendmsgXKillSwitch|SendmsgXDisabledPathInert|ExternalDarwinBatchWriterFallback|DarwinManagedECNNativeBatch)$",
+      "."
+    ],
+    "env": {},
+    "candidate": "3bafe13e0e72587601a48d0b283f92d46ff7a602",
+    "exit": 0,
+    "started_unix": 1790112195.021667,
+    "elapsed_seconds": 4.595800876617432,
+    "log": "production-gates.log.gz",
+    "passed_tests": 22,
+    "skips": [],
+    "failures": []
+  },
+  {
+    "name": "opt-out",
+    "args": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=10m",
+      "-tags",
+      "quic_go_no_private_syscalls",
+      "-run",
+      "Test(UDPBatchWriter|ManagedPacketIOBatchDatagrams|ExternalPacketIOMessageSizeFeedback)",
+      "."
+    ],
+    "env": {},
+    "candidate": "3bafe13e0e72587601a48d0b283f92d46ff7a602",
+    "exit": 0,
+    "started_unix": 1790112199.617887,
+    "elapsed_seconds": 3.729599952697754,
+    "log": "opt-out.log.gz",
+    "passed_tests": 3,
+    "skips": [],
+    "failures": []
+  },
+  {
+    "name": "build-arm64",
+    "args": [
+      "go",
+      "build",
+      "./..."
+    ],
+    "env": {
+      "GOOS": "darwin",
+      "GOARCH": "arm64"
+    },
+    "candidate": "3bafe13e0e72587601a48d0b283f92d46ff7a602",
+    "exit": 0,
+    "started_unix": 1790112203.358451,
+    "elapsed_seconds": 2.3856911659240723,
+    "log": "build-arm64.log.gz"
+  },
+  {
+    "name": "build-amd64",
+    "args": [
+      "go",
+      "build",
+      "./..."
+    ],
+    "env": {
+      "GOOS": "darwin",
+      "GOARCH": "amd64"
+    },
+    "candidate": "3bafe13e0e72587601a48d0b283f92d46ff7a602",
+    "exit": 0,
+    "started_unix": 1790112205.74432,
+    "elapsed_seconds": 2.3025972843170166,
+    "log": "build-amd64.log.gz"
+  },
+  {
+    "name": "vet",
+    "args": [
+      "go",
+      "vet",
+      "."
+    ],
+    "env": {},
+    "candidate": "3bafe13e0e72587601a48d0b283f92d46ff7a602",
+    "exit": 0,
+    "started_unix": 1790112208.047134,
+    "elapsed_seconds": 0.8981480598449707,
+    "log": "vet.log.gz"
+  },
+  {
+    "name": "tidy",
+    "args": [
+      "go",
+      "mod",
+      "tidy",
+      "-diff"
+    ],
+    "env": {},
+    "candidate": "3bafe13e0e72587601a48d0b283f92d46ff7a602",
+    "exit": 0,
+    "started_unix": 1790112208.9455109,
+    "elapsed_seconds": 0.06033205986022949,
+    "log": "tidy.log.gz"
+  }
+]

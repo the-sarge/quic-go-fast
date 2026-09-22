@@ -154,12 +154,6 @@ func TestSendmsgXUnknownProgressErrnoIsFatal(t *testing.T) {
 // A qualification entry admits only the architectures backed by its evidence.
 // The empty architecture preserves the historical Darwin 25 admission policy.
 func TestSendmsgXArchitectureAdmission(t *testing.T) {
-	original := qualifiedDarwinKernelMajors
-	qualifiedDarwinKernelMajors = map[int]sendmsgXQualification{
-		25: {product: "historical Darwin 25"},
-		27: {product: "test-only Darwin 27", arch: "arm64"},
-	}
-	t.Cleanup(func() { qualifiedDarwinKernelMajors = original })
 	for _, tc := range []struct {
 		major int
 		arch  string

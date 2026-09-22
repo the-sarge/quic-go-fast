@@ -1,0 +1,7 @@
+{
+  "candidate": "3bafe13e0e72587601a48d0b283f92d46ff7a602",
+  "protocol": "55e93adf759c3a761b4a2319c8d29fdd32123b54",
+  "kernel_uuid": "D46FC75B-A889-3796-A66C-D28FDD50FB68",
+  "go": "go version go1.27.1 darwin/arm64",
+  "overlay": null
+}
