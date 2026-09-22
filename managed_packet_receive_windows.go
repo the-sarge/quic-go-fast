@@ -10,7 +10,7 @@ func (e *managedPacketEndpoint) managedPacketRawFactory(*managedPacketConn) func
 // The endpoint owns the native socket and retains the decoder across leases;
 // public reads still pass individual datagrams through the supplied wrapper.
 func (e *managedPacketEndpoint) configureReceive() error {
-	if e.receiveConfigured {
+	if e.receiver != nil {
 		return nil
 	}
 	socket, ok := e.conn.(OOBCapablePacketConn)
@@ -36,6 +36,5 @@ func (e *managedPacketEndpoint) configureReceive() error {
 		// when coalescing is disabled or unavailable.
 		e.receiver = nil
 	}
-	e.receiveConfigured = true
 	return nil
 }

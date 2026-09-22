@@ -257,6 +257,52 @@ func TestManagedReceiveRetainedDiagnostics(t *testing.T) {
 			require.Contains(t, message, "coalescing=true")
 		})
 	}
+	t.Run("inactive setup retries on the next lease", func(t *testing.T) {
+		t.Setenv("QUIC_GO_DISABLE_ECN", "true")
+		t.Setenv("QUIC_GO_DISABLE_GRO", "true")
+		endpoint, acquire := newTestManagedEndpoint(t)
+		lease, err := acquire()
+		require.NoError(t, err)
+		require.NoError(t, (&Transport{Conn: lease}).ConfigureManagedPacketIOV1(lease, lease, nil))
+		e := endpoint.(*managedPacketConn).endpoint
+		require.Nil(t, e.receiver)
+		require.Nil(t, e.managedNative)
+		require.NoError(t, lease.Close())
+
+		t.Setenv("QUIC_GO_DISABLE_ECN", "false")
+		t.Setenv("QUIC_GO_DISABLE_GRO", "false")
+		next, err := acquire()
+		require.NoError(t, err)
+		defer next.Close()
+		require.NoError(t, (&Transport{Conn: next}).ConfigureManagedPacketIOV1(next, next, nil))
+		require.True(t, e.receiveCoalescing)
+		require.True(t, e.managedECN)
+		require.NotNil(t, e.receiver)
+		require.NotNil(t, e.managedNative)
+	})
+	t.Run("retained normalizer gains ECN without replacement", func(t *testing.T) {
+		t.Setenv("QUIC_GO_DISABLE_ECN", "true")
+		t.Setenv("QUIC_GO_DISABLE_GRO", "false")
+		endpoint, acquire := newTestManagedEndpoint(t)
+		lease, err := acquire()
+		require.NoError(t, err)
+		require.NoError(t, (&Transport{Conn: lease}).ConfigureManagedPacketIOV1(lease, lease, nil))
+		e := endpoint.(*managedPacketConn).endpoint
+		require.True(t, e.receiveCoalescing)
+		retained := e.receiver
+		require.NotNil(t, retained)
+		require.Nil(t, e.managedNative)
+		require.NoError(t, lease.Close())
+
+		t.Setenv("QUIC_GO_DISABLE_ECN", "false")
+		next, err := acquire()
+		require.NoError(t, err)
+		defer next.Close()
+		require.NoError(t, (&Transport{Conn: next}).ConfigureManagedPacketIOV1(next, next, nil))
+		require.Same(t, retained, e.receiver)
+		require.Same(t, retained, e.managedNative)
+		require.True(t, e.managedECN)
+	})
 }
 
 func TestManagedReceiveBufferedDeadline(t *testing.T) {
@@ -285,29 +331,36 @@ func TestManagedReceiveBufferedDeadline(t *testing.T) {
 
 func TestManagedECNReceiveMarks(t *testing.T) {
 	for _, family := range []struct {
-		name    string
-		network string
-		ip      net.IP
-		setMark func(*testing.T, uintptr, protocol.ECN)
+		name            string
+		endpointNetwork string
+		endpointIP      net.IP
+		senderNetwork   string
+		senderIP        net.IP
+		setMark         func(*testing.T, uintptr, protocol.ECN)
 	}{
-		{name: "IPv4", network: "udp4", ip: net.IPv4(127, 0, 0, 1), setMark: func(t *testing.T, fd uintptr, ecn protocol.ECN) {
+		{name: "IPv4", endpointNetwork: "udp4", endpointIP: net.IPv4(127, 0, 0, 1), senderNetwork: "udp4", senderIP: net.IPv4(127, 0, 0, 1), setMark: func(t *testing.T, fd uintptr, ecn protocol.ECN) {
 			require.NoError(t, unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_TOS, int(ecn.ToHeaderBits())))
 		}},
-		{name: "IPv6", network: "udp6", ip: net.IPv6loopback, setMark: func(t *testing.T, fd uintptr, ecn protocol.ECN) {
+		{name: "IPv6", endpointNetwork: "udp6", endpointIP: net.IPv6loopback, senderNetwork: "udp6", senderIP: net.IPv6loopback, setMark: func(t *testing.T, fd uintptr, ecn protocol.ECN) {
 			require.NoError(t, unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_TCLASS, int(ecn.ToHeaderBits())))
+		}},
+		{name: "dual stack IPv4 mapped", endpointNetwork: "udp", endpointIP: net.IPv6zero, senderNetwork: "udp4", senderIP: net.IPv4(127, 0, 0, 1), setMark: func(t *testing.T, fd uintptr, ecn protocol.ECN) {
+			require.NoError(t, unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_TOS, int(ecn.ToHeaderBits())))
 		}},
 	} {
 		for _, wrapped := range []bool{false, true} {
 			t.Run(family.name+map[bool]string{false: "/direct", true: "/wrapped"}[wrapped], func(t *testing.T) {
 				t.Setenv("QUIC_GO_DISABLE_ECN", "false")
 				t.Setenv("QUIC_GO_DISABLE_GRO", "true")
-				endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1(family.network, &net.UDPAddr{IP: family.ip})
+				endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1(family.endpointNetwork, &net.UDPAddr{IP: family.endpointIP})
 				require.NoError(t, err)
 				defer endpoint.Close()
 				lease, err := acquire()
 				require.NoError(t, err)
 				defer lease.Close()
-				sender, err := net.DialUDP(family.network, nil, endpoint.LocalAddr().(*net.UDPAddr))
+				destination := *endpoint.LocalAddr().(*net.UDPAddr)
+				destination.IP = family.senderIP
+				sender, err := net.DialUDP(family.senderNetwork, nil, &destination)
 				require.NoError(t, err)
 				defer sender.Close()
 				conn := lease

@@ -75,7 +75,6 @@ type managedPacketEndpoint struct {
 	managedSend       *managedSingletonOperation
 	managedECN        bool
 	managedECNSetup   managedECNQualification
-	receiveConfigured bool
 	receiveCoalescing bool
 	receiveState      receiveCoalescingState
 	idle              *sync.Cond
