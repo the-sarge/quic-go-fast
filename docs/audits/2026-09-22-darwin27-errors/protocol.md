@@ -1,0 +1,25 @@
+# Native transient-error comparison
+
+## Contract
+
+Compare actual `sendmsg_x` results on the available arm64 Darwin 25 and Darwin 27 hosts before deciding whether their existing transient-error treatment differs. This is the targeted follow-up authorized by the user after the initial qualification omitted direct transient-error observations. Preserve production runtime policy and all frozen earlier evidence. The standalone probe is a verification aid, not shipped behavior. No claim of whole-kernel equivalence follows from these observations.
+
+Commit this protocol before collection, then commit the probe before executing it. Record both host identities, compiler versions, source revision and source digest, stdout/stderr, exit status, elapsed time, syscall counts/errno, and exact peer delivery. Older public XNU source guides trigger construction only; it is not evidence of the Darwin 27 implementation.
+
+## Finite experiment
+
+Run once per host and cell: IPv4 and IPv6 UDP, EAGAIN and EINTR, each with zero progress and a one-packet prefix (eight cells); unconnected AF_UNIX datagrams, ENOBUFS, zero progress and a one-packet prefix (two controls). Each cell uses fresh sockets, a five-second watchdog, and at most a 250 ms peer-drain window. Compare an ordinary single-message send of the failing element on a fresh socket as well, so a prefix result is paired with direct evidence that the second element produces the intended error on its own. Signal interruption uses a handler without SA_RESTART and a thread-directed signal after 100 ms; record signal count and elapsed syscall time. A two-second send timeout bounds waits independently of the watchdog.
+
+For UDP request SO_SNDBUF=4096, read actual B, and require B below 60000. The failing element has B payload bytes plus valid production-shaped ECT(0) ancillary data. Each component individually fits B but their combined size does not, predicting EAGAIN on nonblocking sockets and an interruptible wait on blocking sockets. The prefix is a distinct small datagram using identical destination and ECN. Require exact received payloads, no suffix delivery, and observed ECT(0) on UDP packets. A successful small standalone ECN datagram is the positive fixture control for each family on each host.
+
+For AF_UNIX request receiver SO_RCVBUF=1024, read actual R, and choose payload R+256 with sender SO_SNDBUF larger than that payload. The zero-progress element targets this constrained receiver. The prefix targets a separate roomy receiver. Both sender and receivers are bound, unconnected datagram sockets. These are common-syscall controls only: ENOBUFS on UDP remains unobserved unless separately demonstrated. Do not exhaust memory, change sysctls or network configuration, inject syscall results, or require elevated privileges.
+
+If a trigger fails, retain the failure and identify the concrete fixture cause before any new collection. One corrected probe revision is permitted for an identified implementation defect; a different trigger construction requires a committed protocol amendment. Never rerun an unchanged native cell merely to obtain a favorable result. A signal/timeout race, unexpected errno/count, invalid ancillary control, watchdog expiration, or missing receiver evidence makes that cell inconclusive. Matching measured outcomes support only the measured cases; unobserved cases remain explicit.
+
+## Review and termination
+
+Publish the measured table and its limits, then evaluate admission against the existing ADR and qualification contract. This probe does not independently authorize a new transient-error policy. Documentation/evidence PR review has one initial RAS review and at most one replacement review after fixes, followed by exact-head local documentation/source checks and required hosted checks. No product Go changes are part of this experiment. An admission change, if justified by the evidence and already approved qualification contract, must carry its own explicit acceptance evidence.
+
+## Trigger sources
+
+The construction follows the separate payload/control and combined-space checks in [sosendcheck](https://github.com/apple-oss-distributions/xnu/blob/ac9718fb1af618d5ce8678d0dc6e8a58f252216f/bsd/kern/uipc_socket.c#L1938-L1977), interruptible [socket-buffer waits](https://github.com/apple-oss-distributions/xnu/blob/ac9718fb1af618d5ce8678d0dc6e8a58f252216f/bsd/kern/uipc_socket2.c#L537-L585), and Unix-datagram [receiver-buffer failure](https://github.com/apple-oss-distributions/xnu/blob/ac9718fb1af618d5ce8678d0dc6e8a58f252216f/bsd/kern/uipc_usrreq.c#L535-L593). These are older source references, not a source match to either measured kernel build.
