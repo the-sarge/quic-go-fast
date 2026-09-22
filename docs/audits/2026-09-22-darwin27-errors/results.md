@@ -1,5 +1,7 @@
 # Native Darwin 25 / 27 transient-error comparison
 
+Qualification disposition: **pass for Darwin 27 arm64**, composing the original qualification, this native comparison and the exact target-binary count/error evidence below. The production allowlist now includes Darwin 27 arm64, retaining Darwin 25 admission and existing runtime error handling. Darwin 27 amd64 remains excluded.
+
 All 17 declared observations passed on each host on the first collection. Darwin 25 and Darwin 27 produced identical syscall returns, errno values, exact received payloads and ECN metadata in every paired observation. No behavioral difference was observed. These are direct native measurements; no syscall return was injected and no kernel identity was spoofed.
 
 ## Reproducibility
@@ -49,4 +51,16 @@ The native evidence directly supports the measured IPv4/IPv6 UDP EAGAIN and EINT
 
 The ENOBUFS observation is an AF_UNIX datagram control through the real `sendmsg_x` syscall. It is not a native UDP ENOBUFS observation. Older public XNU shares a generic per-message loop and error epilogue across these unconnected socket types, but that older source alone does not establish the target binary's ownership. Safe bounded UDP loopback constructions found for buffer-space shortage return EAGAIN or EMSGSIZE; allocation-failure ENOBUFS would require resource pressure outside this protocol. No such pressure was applied.
 
-This record makes no claim that all Darwin 27 behavior is identical to Darwin 25. Production policy remains unchanged while the remaining ENOBUFS ownership/zero-progress assumption is evaluated against the qualification contract.
+## Exact target-binary count/error evidence
+
+The [binary analysis](binary/README.md) maps syscall 481 through the actual dispatch table and authenticated chained-fixup entry to `0xfffffe00079b1544`. The installed kernel image SHA-256 is `d0cf2fb69845bc5a34624ba69aa2b4f35ee65b4dbca150068a6cc93c5bc13bae`; its UUID matches the running target's `kern.uuid`. The coordinating agent independently repeated extraction in a separate temporary directory and obtained byte-identical mapping and all three disassembly excerpts. Archived [tool/host commands](binary/tools-and-host.json), [digests](binary/sha256.json), [mapping](binary/mapping.json) and [extractor](binary/extract.py) make this check reproducible on the identified image. The README records the original temporary extraction path; after checkout, copy the extractor into a scratch directory to regenerate its neighboring outputs without modifying frozen evidence.
+
+For unconnected datagram sockets, the handler uses a common per-message loop without a family-specific branch. It increments the count only after a successful per-message helper return. Its shared epilogue preserves zero-count errors and, after progress, clears errors selected by mask `0x0100021000000021`: ERESTART, EINTR, EAGAIN/EWOULDBLOCK, EMSGSIZE and ENOBUFS, returning the accepted prefix count. This directly establishes the outstanding batch-owner suppression assumption for the target kernel, including ENOBUFS; it is not inherited from Darwin 25 or inferred solely from an AF_UNIX observation.
+
+The guarantee remains the original protocol's example-level compatibility qualification. Neither the native probes nor this common-owner inspection prove every possible lower-level UDP failure internally atomic or every future OS patch compatible. Ordinary per-datagram send semantics remain a lower-layer contract; this work establishes that the private batch wrapper does not hide preceding successful datagrams behind these errors. UDP ENOBUFS was not induced, and connected sockets are outside the admitted batch domain. There is no evidence supporting a different transient-error policy on Darwin 27.
+
+## Final production admission checks
+
+The conditional final gates were declared in protocol revision `55e93adf759c3a761b4a2319c8d29fdd32123b54`. The admission-only candidate `3bafe13e0e72587601a48d0b283f92d46ff7a602` adds one arm64-scoped Darwin 27 entry. On the same target kernel with Go 1.27.1, the production gate run passed 22 test/subtest cases with no skips, and the opt-out run passed three with no skips. The real allowlist and startup self-check engaged without an overlay; native counters and exact ECT(0) datagrams were checked for IPv4, IPv6, mapped IPv4 and native IPv6 through dual-stack sockets. Disabled, unqualified and architecture-excluded paths retained ordinary delivery without native batch submission.
+
+Darwin arm64 and amd64 builds, `go vet .` and `go mod tidy -diff` all passed. See the [candidate identity](admission/identity.json) and [exact commands, exit statuses and log references](admission/commands.json). The original full package/race and wider integration evidence is reused as explicitly allowed for this sole admission-entry change. Historical qualification artifacts remain unchanged; their original inconclusive disposition records what was known before this follow-up closed the missing batch-count evidence.

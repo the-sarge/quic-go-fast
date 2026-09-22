@@ -1,0 +1,9 @@
+{
+  "extract.py": "0ecfb2954176a8583622d9cefbd96b9fc4020875073d96b1cc3f6129f14890ba",
+  "mapping.json": "554c0e555f00ba6eea2f8d4fe1426c11c87dc81d2741785f43ffcda28824f6b4",
+  "sendmsg_x.disassembly.txt": "681423e934489ff8e831d30a97c64e86f1ec74542a3e0a6ef6a924ef7e7b6c27",
+  "sendit.disassembly.txt": "e4374c843eea59144de2fe114b8e4f0375dbd5244df23ca87acc7b93f04c4eef",
+  "dispatch.disassembly.txt": "f1505529fb90cf0db51bfd8021a28b82f5486848a8af7b67f246beed3935b3a9",
+  "README.md": "6b19bfbdf97b3491943edbb091ea069bcb6e9405cd78f6dcd558b51de231adef",
+  "tools-and-host.json": "4ce677ed2ec73ede13b67a4d5e905d66b7d6bad2d89d31c6fac31e492bc0969c"
+}
