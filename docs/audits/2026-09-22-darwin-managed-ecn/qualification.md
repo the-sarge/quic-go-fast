@@ -29,7 +29,7 @@ Required-option failure disables capability for every affected admitted family. 
 | Opt-out and optional/fatal setup failures | Endpoint setup plus OOB setup receipt | TestDarwinManagedECNFallback; TestDarwinManagedECNSetupFailure | Covered |
 | Missing/malformed metadata without stale ECN | Native parser and shared correlation owner | TestDarwinManagedECNMissingMetadata; existing ancillary/correlation tests | Covered |
 | Revocation, reacquisition, terminal close and joined active reads | Existing endpoint generation/lifecycle owner | TestDarwinManagedECNLeaseDatagrams; TestDarwinManagedECNCloseJoinsRead; shared stale/concurrent-singleton tests | Covered |
-| Managed capability projection and build selection | Shared adapter and Go build constraints | Existing projection/diagnostic tests; Darwin/FreeBSD/OpenBSD test-binary cross-builds, exactly one configureReceive and managedPacketRawFactory each | Covered |
+| Managed capability projection and build selection | Shared adapter and Go build constraints | Existing projection/diagnostic tests; Darwin/FreeBSD/OpenBSD test-binary cross-builds, iOS library/opt-out builds, exactly one configureReceive and managedPacketRawFactory each; iOS selects the unsupported stub | Covered |
 
 Ten new table-driven test functions were used. No correlation mutation was needed: that enforcement is unchanged and existing direct behavioral tests remain. No benchmark, timing campaign, extra platform qualification or recursive verification-aid closure was added. The one native package race gate and final certification bind to the reviewed product head in the product PR receipt. The product PR owns D1 completion and leaves only F1, O1 and W1 on the committed frontier; it creates no newly ready successor.
 

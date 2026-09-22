@@ -1,4 +1,4 @@
-//go:build darwin && !quic_go_no_private_syscalls
+//go:build darwin && !ios && !quic_go_no_private_syscalls
 
 package quic
 
