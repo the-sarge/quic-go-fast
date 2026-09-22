@@ -1,12 +1,12 @@
 # Darwin managed ECN qualification plan
 
 **Date:** 2026-09-22
-**Status:** Accepted; blocked by Linux slice L1
+**Status:** Accepted; ready after Linux L1
 **Track:** D, 2 of 5 in `QGF-ECN-20260922`
 **Depends on:** `QGF-ECN-20260922/L1`
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [Linux plan](2026-09-22-linux-managed-ecn-plan.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md), [Darwin batch plan](2026-09-11-darwin-batch-plan.md)
 **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions
-**Audit history:** [Architecture handoff audit](../audits/2026-09-22-managed-ecn-handoff/README.md)
+**Audit history:** [Architecture handoff audit](../audits/2026-09-22-managed-ecn-handoff/README.md), [Darwin family-mapping re-audit](../audits/2026-09-22-darwin-managed-ecn/reaudit.md)
 
 ## Goal
 
@@ -14,17 +14,19 @@ Qualify Darwin against the accepted managed ECN contract using the endpoint-owne
 
 ## Current shape (verified 2026-09-22)
 
-Darwin builds the shared `oobConn`, uses `IP_RECVTOS` / `IPV6_RECVTCLASS`, parses received ECN into `receivedPacket.ecn`, appends IPv4/IPv6 marks and reports ECN unless `QUIC_GO_DISABLE_ECN` is set (`sys_conn_oob.go:57-178,240-317,335-362`; `sys_conn_helper_darwin.go:13-47`). For a managed batch, `send_conn.go:146-166` invokes the registered callback, which delegates through `managedPacketConn.WriteBatchV1` to the endpoint-owned `newUDPBatchWriter` (`managed_packet_endpoint.go:224-236`; `send_conn_sendmsg_x_darwin.go:196-234`); eligible multi-buffer submissions use `sendmsg_x`, while singletons take its ordinary fallback. Managed setup is currently disabled by the non-Linux/Windows stub (`managed_packet_receive_other.go:1-5`), so no managed qualification exists.
+Darwin's shared `oobConn` receives and parses ECN through `newConnWithSetup`, `readManagedPacket` and `decodeReadPacket`, and marks sends through `WritePacket` (`sys_conn_oob.go:98-193,259-357,374-397`; platform constants in `sys_conn_helper_darwin.go`). Registered callbacks reach `managedPacketConn.WriteBatchV1` (`managed_packet_endpoint.go:286-325`) and the existing Darwin `newUDPBatchWriter` (`send_conn_sendmsg_x_darwin.go:199-238`). The unsupported stub currently provides both `configureReceive` and `managedPacketRawFactory` (`managed_packet_receive_other.go:1-9`), so Darwin does not yet install the shared managed ECN adapter. Re-resolve these named declarations at dispatch; these ranges describe the post-L1 base.
 
 ## Decision
 
 After L1 merges, narrow the shared `managed_packet_receive_other.go` build constraint so Darwin alone gains the endpoint-owned platform setup needed to retain its existing `oobConn`; OpenBSD and every still-unsupported platform must continue to compile exactly one stub. Do not fork the managed adapter or add a Darwin-specific authority path. Reuse L1's current-generation buffer/range/address receive correlation, full-datagram non-GRO single-read mode, checked-singleton result translator, family-complete capability gate and managed-only capability projection. Preserve Darwin's qualified native batch owner; a registered wrapper still uses its checked callback, not descriptor bypass, and packet info remains outside the correlated metadata.
 
+Darwin family admission uses the native option that actually carries each family's metadata: an AF_INET endpoint requires `IP_RECVTOS`; an AF_INET6 endpoint requires `IPV6_RECVTCLASS`, which supplies `IPV6_TCLASS` for both IPv6 and admitted IPv4-mapped datagrams. A failed `IP_RECVTOS` on AF_INET6 is not a failed usable family when the required IPv6 option and mapped native qualification pass. Keep this platform mapping inside the endpoint-owned setup policy and retain the common adapter/correlation owner. Factoring the existing family inspection/factory declarations into a Linux/Darwin shared file is allowed without changing Linux policy or behavior.
+
 The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and any admitted `udp` dual-stack domain demonstrate receive marks, ordinary marks, batch marks, selected/foreign peer behavior, checked-singleton native results, full-size payload preservation, lease reuse/revocation, opt-out/failure fallback and cleanup. The test records `IPV6_V6ONLY` and IPv4-mapped behavior; any usable family failure disables the endpoint capability. If a supported address family or native submission path cannot satisfy the contract, remove any partial capability code and publish an explicit unsupported disposition with the exact OS/runtime/API evidence in this PR. Missing native host access is blocked evidence, not unsupported evidence.
 
 **Rejected alternative (do not do this):** Do not generalize Linux setup blindly, infer support from shared build tags, bypass a wrapper through `SyscallConn`, treat sendmsg_x qualification as receive qualification, or keep a receive-only/send-only capability.
 
-**Non-goals:** Linux, FreeBSD, OpenBSD or Windows changes; redesign of sendmsg_x; public APIs; raw descriptor exposure; new performance measurements; new ECN recovery policy.
+**Non-goals:** Linux policy or behavior changes; FreeBSD, OpenBSD or Windows changes; redesign of sendmsg_x; public APIs; raw descriptor exposure; new performance measurements; new ECN recovery policy.
 
 ## Slice graph
 
@@ -36,21 +38,21 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 
 ### Slice D1 — Qualify Darwin managed ECN
 
-**Stable identity:** `QGF-ECN-20260922/D1`. One intended PR; GitHub child pending default-branch plan publication.
+**Stable identity:** `QGF-ECN-20260922/D1`. One intended product PR; GitHub child [#504](https://github.com/the-sarge/quic-go-fast/issues/504).
 
 **What it delivers:** A complete supported Darwin managed ECN path through the L1 adapter and native OOB/sendmsg_x owners, or a docs-only explicit unsupported disposition after removing partial code.
 
-**Existing-work disposition:** New slice. No open PR or implementation branch exists. Merged Darwin batch behavior is retained evidence, not proof of managed receive/send qualification.
+**Existing-work disposition:** Rework the provisional uncommitted implementation on branch `codex/d1-darwin-managed-ecn` in `/Volumes/worktrees/quic-go-fast/d1-darwin-managed-ecn`, based on `0449f0bdd3f7bc75528275b9938e028022152409`; its native-validation counterpart is on m4mini at `/Volumes/worktrees/quic-go-fast/d1-native-validation`. No product PR exists. This work is evidence, not design authority: reconcile it with the current default-branch contract and corrected family row before resuming. Merged Darwin batch behavior is retained evidence, not proof of managed receive/send qualification.
 
 **Blocked by:** L1, because D1 reuses its central metadata correlation, route selection and capability gate. D1 must not reimplement those owners.
 
 **Single owner after merge:** The managed endpoint and shared native `oobConn` own metadata and socket lifecycle; the L1 adapter owns correlation/capability; existing sendmsg_x or registered wrapper callback owns native batch submission; the caller wrapper owns policy.
 
-**Authority completeness:** No persistence. Platform setup, capability publication, native receive/send evidence, generation cleanup and unsupported rollback land together. An unsupported outcome leaves ECN false and no unused platform branch.
+**Authority completeness:** A qualified Darwin endpoint installs a non-nil managed raw factory so capability publication includes the shared lease adapter. No persistence. Platform setup, capability publication, native receive/send evidence, generation cleanup and unsupported rollback land together. An unsupported outcome leaves ECN false and no unused platform branch.
 
 **Transitional-seam budget:** Zero. No parallel Darwin adapter, provisional capability or lingering partial setup is allowed.
 
-**Blast radius:** Darwin build-tagged managed setup, the shared unsupported-stub build constraint, shared adapter hooks established by L1, native qualification tests and platform matrix/docs. Cross-builds for Darwin, FreeBSD and OpenBSD must each select exactly one `(*managedPacketEndpoint).configureReceive` definition. Existing sendmsg_x progress/error semantics, full ordinary datagrams, lease lifecycle, wrappers, managed GSO/GRO/DF projection and unregistered OOB behavior remain unchanged. No untraced effect is accepted.
+**Blast radius:** Mechanical relocation of the Linux family-inspection/factory declarations into a shared Linux/Darwin file with unchanged Linux policy, behavior and tests; Darwin build-tagged managed setup, the shared unsupported-stub build constraint, shared adapter hooks established by L1, native qualification tests and platform matrix/docs. Cross-builds for Darwin, FreeBSD and OpenBSD must each select exactly one definition each of `(*managedPacketEndpoint).configureReceive` and `(*managedPacketEndpoint).managedPacketRawFactory`. Existing sendmsg_x progress/error semantics, full ordinary datagrams, lease lifecycle, wrappers, managed GSO/GRO/DF projection and unregistered OOB behavior remain unchanged. No untraced effect is accepted.
 
 **Artifact classification:** Supported runtime path and capability are shipped behavior; correlation, policy, generation and cleanup gates are required safety enforcement. Native tests/probes are verification aids with no maintained-product exception. The supported/unsupported disposition, plan status, receipts and tracking updates are process metadata.
 
@@ -65,7 +67,7 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 | Direct ordinary and checked-wrapper ordinary marked send | Exact requested mark and selected destination | Native receiver observation; foreign rejection |
 | Checked singleton native result | Preserve success, message-size and terminal errors; Darwin EPERM remains terminal without Linux's retry; reject invalid callback results | Native Darwin result table excluding Linux retry expectations |
 | Registered batch marked send | Exact shared mark with existing prefix/error semantics | Native batch receiver plus existing error tests |
-| Single-family, dual-family and IPv4-mapped endpoint | Capability only when every usable admitted family qualifies | `udp4`/`udp6`/`udp` setup and mapping table |
+| Single-family, dual-family and IPv4-mapped endpoint | AF_INET requires IP_RECVTOS; AF_INET6 requires IPV6_RECVTCLASS for both IPv6 and admitted mapped IPv4; any required option failure disables the endpoint | `udp4`/`udp6`/`udp` native setup, four-mark receive table, and required-option failure table |
 | Managed capability projection | ECN only is newly gated; packet info/GSO are not imported | Focused capability table |
 | Opt-out/setup failure/absent or malformed metadata | Usable ordinary fallback, no capability or stale mark | Focused negative cases |
 | Release/reacquire/stale/Close | Current generation only; joined cleanup | Lifecycle and race cases |
@@ -74,7 +76,7 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 
 **TDD and preservation evidence:** Write the managed native receive/send/family qualification tables first, then add the smallest platform setup and build-tag narrowing. Preserve existing Darwin OOB, sendmsg_x qualification/disabled/fallback, selected-peer, full-datagram managed lease, capability projection, singleton error behavior and public compatibility tests. Cross-build Darwin, FreeBSD and OpenBSD to prove exactly one receive setup definition per target. A negative result records the failing characterization and lands only durable disposition/docs evidence.
 
-**Dispatch context budget:** Supply the current D1 contract, program lines 1-80, ADRs 0006/0007, skill-supplied shared baselines and overlay; `managed_packet_receive_other.go`; `sys_conn_helper_darwin.go`; `sys_conn_oob.go:57-362`; `send_conn_sendmsg_x_darwin.go:49-140,196-234`; and, from merged L1, only the named managed adapter type plus its `ReadPacket`, `WritePacket`, `capabilities` and checked-singleton translator declarations, the endpoint per-family/setup and normalization-activation declarations, `managedPacketConn.WriteBatchV1`, and the `ConfigureManagedPacketIOV1` comment/setup block. Test input is bounded to `TestSendmsgXBatchSendEndToEnd`, `TestFixedPeerNativeBatch`, `TestExternalDarwinBatchWriterEngagement`, `TestExternalDarwinBatchWriterFallback`, `TestExternalDarwinManagedBatchDeadline`, `TestManagedPacketIOBatchDatagrams`, `TestManagedPacketIORegistration`, `TestOOBReaderAncillaryFailure` and the L1 table helpers directly reused by D1. The publication-revision proxy uses the current declarations at their corresponding ranges and measures 66,904 bytes / 8,130 whitespace words, or 16,726 input tokens by `max(bytes/4, words*2)`. Resolve exact post-L1 line ranges and re-measure this named manifest at dispatch; stop before implementation if it exceeds 26,000. Load no whole L1 diff, Linux implementation chronology, whole test files or unrelated Darwin performance history.
+**Dispatch context budget:** Supply the current D1 contract (Decision, exact slice, acceptance criteria and validation gates), program lines 1-80, ADRs 0006/0007, skill-supplied shared baselines and overlay; `managed_packet_receive_other.go`; `sys_conn_helper_darwin.go`; `sys_conn_oob.go:57-362`; `send_conn_sendmsg_x_darwin.go:49-140,196-234`; and, from merged L1, only the named managed adapter type plus its `ReadPacket`, `WritePacket`, `capabilities` and checked-singleton translator declarations, the endpoint per-family/setup and normalization-activation declarations, `managedPacketConn.WriteBatchV1`, and the `ConfigureManagedPacketIOV1` comment/setup block. Test input is bounded to `TestSendmsgXBatchSendEndToEnd`, `TestFixedPeerNativeBatch`, `TestExternalDarwinBatchWriterEngagement`, `TestExternalDarwinBatchWriterFallback`, `TestExternalDarwinManagedBatchDeadline`, `TestManagedPacketIOBatchDatagrams`, `TestManagedPacketIORegistration`, `TestOOBReaderAncillaryFailure` and the L1 table helpers directly reused by D1. Resolve exact post-L1 line ranges and re-measure this named manifest at dispatch; stop before implementation if `max(bytes/4, words*2)` exceeds 26,000 input tokens. The current dispatch manifest is recorded in the linked re-audit; historical publication-size estimates do not certify the current revision. Load no whole L1 diff, Linux implementation chronology, whole test files or unrelated Darwin performance history.
 
 **Slice decision audit:** Splitting receive and send creates an unadvertisable half-capability; merging them preserves one capability decision. Merging D1 with L1 or F1 would couple native hosts/build tags and exceed a fresh context. L1 is a genuine blocker because it owns the shared managed representation; sendmsg_x alone is not. One PR can either land complete support or cleanly record unsupported status.
 
@@ -85,7 +87,7 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 - [ ] Native Darwin evidence records an exact supported or unsupported disposition for IPv4/IPv6 receive metadata, ordinary marked sends and batch marked sends.
 - [ ] A supported result covers full-size non-GRO payloads, `udp4`/`udp6`/admitted dual-stack families, selected/foreign peers, singleton native-result preservation including terminal no-retry EPERM, opt-out/setup failure, malformed/absent metadata, lease reuse/revocation and terminal cleanup through the shared managed owner.
 - [ ] An unsupported result leaves managed ECN false, removes partial capability code and records the exact native blocker.
-- [ ] Darwin, FreeBSD and OpenBSD each cross-build with exactly one `(*managedPacketEndpoint).configureReceive` definition; public signatures, ordinary datagrams, managed capability projection, sendmsg_x progress/error semantics and raw-socket authority remain unchanged.
+- [ ] Darwin, FreeBSD and OpenBSD each cross-build with exactly one definition each of `(*managedPacketEndpoint).configureReceive` and `(*managedPacketEndpoint).managedPacketRawFactory`; public signatures, ordinary datagrams, managed capability projection, sendmsg_x progress/error semantics and raw-socket authority remain unchanged.
 
 ## Validation gates
 
