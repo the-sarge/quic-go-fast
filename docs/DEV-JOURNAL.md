@@ -2939,3 +2939,32 @@ The final focused RAS consideration `20260922T060749-046cc0bb4b453d96be7c3080` r
 ### Next
 
 Synchronize tracking issue #354, platform issues #455–#459, one child issue per audited slice and the mirrored OmniFocus task tree to the merged plan commit. Then dispatch only verified frontier children L1, O1 and W1 with `$implement-architecture-slice`; D1 and F1 remain blocked by L1.
+
+---
+
+## Linux managed ECN delivered - 2026-09-22 12:25 EDT
+
+**Main:** `689d2dd232e0`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #508](https://github.com/the-sarge/quic-go-fast/pull/508) as `689d2dd232e0b9e013e05d3d686367ceaa454b63`, completing the L1 Linux slice of the audited managed ECN qualification program and closing [issue #503](https://github.com/the-sarge/quic-go-fast/issues/503). Managed Linux endpoints now bind native ECN metadata to the endpoint-owned exact socket lease, preserve full checked-singleton send results, qualify IPv4 and IPv6 families explicitly, and project capability and failure diagnostics through the managed endpoint contract.
+
+### Completed
+
+Implemented endpoint-owned Linux metadata send and receive routing, generation-safe lease correlation, mapped-address handling, explicit coalescing facts, family-complete qualification and stable diagnostics. Added native Linux coverage for IPv4, IPv6 and dual-stack mapped receive/send paths, restricted-socket fatal and partial setup cases, cleanup and stale-generation behavior, result preservation, and capability publication. Updated the Linux slice plan and managed ECN program to record L1 completion and the newly unblocked Darwin and FreeBSD frontier.
+
+### Decisions
+
+The managed endpoint and exact lease remain the authority for socket identity, generation, metadata setup and cleanup. Linux capability is published only after both required address families qualify; partial setup remains unavailable and diagnosable. The normative contracts and current dependency graph remain in the [managed ECN program](adr/2026-09-22-managed-ecn-program.md), with [issue #354](https://github.com/the-sarge/quic-go-fast/issues/354) as the live program tracker.
+
+### Validation
+
+Final candidate `7de2da93f8ffee92825bd720bab04205add01959` passed `go test ./...`, `go vet ./...`, `golangci-lint run --timeout=3m`, `go mod tidy -diff`, `git diff --check`, Linux/arm64, Windows/amd64 and FreeBSD/amd64 root test-binary cross-compilation, native Linux arm64 unit and focused race tests, direct and wrapped IPv4/IPv6/dual-stack mapped metadata rows, and restricted-socket failure cases. Four contract guard mutations for stale generation, full-payload preservation, raw-result preservation and capability gating each failed as expected and were reverted.
+
+RAS review `20260922T144304-dcfb4c78c8f37711ecf5ba55` and replacement review `20260922T152104-c8f961eaf9c983ab96441e2e` were dispositioned within the accepted review budget; final verification at the exact head reported a clear blocking projection. All 33 applicable hosted checks passed before squash merge. One unrelated macOS integration packet-count flake passed on the exact-head failed-job rerun.
+
+### Next
+
+L1 is complete. D1 ([issue #504](https://github.com/the-sarge/quic-go-fast/issues/504)) and F1 ([issue #505](https://github.com/the-sarge/quic-go-fast/issues/505)) join the existing O1 and W1 slices on the dispatchable frontier; [issue #354](https://github.com/the-sarge/quic-go-fast/issues/354) remains the live source for program progress and dispatch state.
