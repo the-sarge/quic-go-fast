@@ -377,13 +377,19 @@ func (c *managedReadMsgFixture) ReadMsgUDP(b, oob []byte) (int, int, int, *net.U
 	return n, copy(oob, lifetimeControlMessage(unix.IPPROTO_IP, msgTypeIPTOS, []byte{protocol.ECT0.ToHeaderBits()})), 0, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}, nil
 }
 
-func (*managedReadMsgFixture) ReadFrom([]byte) (int, net.Addr, error) { panic("unexpected ReadFrom") }
-func (*managedReadMsgFixture) WriteTo([]byte, net.Addr) (int, error)  { panic("unexpected WriteTo") }
-func (*managedReadMsgFixture) Close() error                           { return nil }
-func (*managedReadMsgFixture) LocalAddr() net.Addr                    { return &net.UDPAddr{} }
-func (*managedReadMsgFixture) SetDeadline(time.Time) error            { return nil }
-func (*managedReadMsgFixture) SetReadDeadline(time.Time) error        { return nil }
-func (*managedReadMsgFixture) SetWriteDeadline(time.Time) error       { return nil }
+func (*managedReadMsgFixture) ReadFrom([]byte) (int, net.Addr, error) {
+	panic("unexpected ReadFrom")
+}
+
+func (*managedReadMsgFixture) WriteTo([]byte, net.Addr) (int, error) {
+	panic("unexpected WriteTo")
+}
+
+func (*managedReadMsgFixture) Close() error                     { return nil }
+func (*managedReadMsgFixture) LocalAddr() net.Addr              { return &net.UDPAddr{} }
+func (*managedReadMsgFixture) SetDeadline(time.Time) error      { return nil }
+func (*managedReadMsgFixture) SetReadDeadline(time.Time) error  { return nil }
+func (*managedReadMsgFixture) SetWriteDeadline(time.Time) error { return nil }
 func (*managedReadMsgFixture) SyscallConn() (syscall.RawConn, error) {
 	return nil, errors.New("unused")
 }
