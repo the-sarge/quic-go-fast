@@ -3016,3 +3016,16 @@ RAS review `20260922T182849-706c38af1a38176db72abede` completed with no required
 ### Next
 
 Darwin 27 native qualification remains open; the target protocol and architecture/admission scope are still to be fixed. [Issue #516](https://github.com/the-sarge/quic-go-fast/issues/516) is the live tracking view, separate from the completed Darwin 25 managed ECN work.
+
+---
+
+## Darwin 27 qualification remains inconclusive - 2026-09-22 15:24 EDT
+
+**Main:** `3cf9758964f6`
+**Actor:** Codex
+
+Merged [PR #523](https://github.com/the-sarge/quic-go-fast/pull/523), recording the bounded Darwin 27 arm64 batch-send qualification as **inconclusive**. Architecture-aware admission preserves the historical Darwin 25 policy; no Darwin 27 production entry was added. Added native oversized-message progress and managed lease-reacquisition regressions, with the committed protocol, exact candidate/host identity, test-only overlay and raw results preserved under `docs/audits/2026-09-22-darwin27/`.
+
+The focused native matrix passed 196 test/subtest cases with no skips. Root package and race gates, private-syscall opt-out delivery, Darwin arm64/amd64 builds, iOS exclusion, vet, module tidiness and lint passed. All 33 hosted checks succeeded on the merged PR head. RAS review `20260922T191257-b629d954caf1c119074c06d4` required no fixes or follow-ups; the raw mutation log's whitespace was retained as frozen evidence.
+
+Native observations support oversized-first and accepted-prefix EMSGSIZE behavior. Applicable XNU 13432.1.9 source or direct evidence for EAGAIN/EINTR/ENOBUFS partial-progress assumptions remains missing. Per the [recorded result](audits/2026-09-22-darwin27/results.md), ordinary fallback remains in force. [Issue #516](https://github.com/the-sarge/quic-go-fast/issues/516) and its OmniFocus task stay open for that evidence and an explicitly bounded revalidation protocol; no performance campaign or automatic recollection was added.
