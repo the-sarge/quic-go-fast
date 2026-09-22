@@ -1,12 +1,12 @@
 # Darwin managed ECN qualification plan
 
 **Date:** 2026-09-22
-**Status:** Accepted; blocked by Linux slice L1
+**Status:** Accepted; ready after Linux L1
 **Track:** D, 2 of 5 in `QGF-ECN-20260922`
 **Depends on:** `QGF-ECN-20260922/L1`
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [Linux plan](2026-09-22-linux-managed-ecn-plan.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md), [Darwin batch plan](2026-09-11-darwin-batch-plan.md)
 **Normative scope:** Current outcome, boundaries, invariants, acceptance evidence, blockers and stop conditions
-**Audit history:** [Architecture handoff audit](../audits/2026-09-22-managed-ecn-handoff/README.md)
+**Audit history:** [Architecture handoff audit](../audits/2026-09-22-managed-ecn-handoff/README.md), [Darwin family-mapping re-audit](../audits/2026-09-22-darwin-managed-ecn/reaudit.md)
 
 ## Goal
 
@@ -19,6 +19,8 @@ Darwin builds the shared `oobConn`, uses `IP_RECVTOS` / `IPV6_RECVTCLASS`, parse
 ## Decision
 
 After L1 merges, narrow the shared `managed_packet_receive_other.go` build constraint so Darwin alone gains the endpoint-owned platform setup needed to retain its existing `oobConn`; OpenBSD and every still-unsupported platform must continue to compile exactly one stub. Do not fork the managed adapter or add a Darwin-specific authority path. Reuse L1's current-generation buffer/range/address receive correlation, full-datagram non-GRO single-read mode, checked-singleton result translator, family-complete capability gate and managed-only capability projection. Preserve Darwin's qualified native batch owner; a registered wrapper still uses its checked callback, not descriptor bypass, and packet info remains outside the correlated metadata.
+
+Darwin family admission uses the native option that actually carries each family's metadata: an AF_INET endpoint requires `IP_RECVTOS`; an AF_INET6 endpoint requires `IPV6_RECVTCLASS`, which supplies `IPV6_TCLASS` for both IPv6 and admitted IPv4-mapped datagrams. A failed `IP_RECVTOS` on AF_INET6 is not a failed usable family when the required IPv6 option and mapped native qualification pass. Keep this platform mapping inside the endpoint-owned setup policy and retain the common adapter/correlation owner. Factoring the existing family inspection/factory declarations into a Linux/Darwin shared file is allowed without changing Linux policy or behavior.
 
 The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and any admitted `udp` dual-stack domain demonstrate receive marks, ordinary marks, batch marks, selected/foreign peer behavior, checked-singleton native results, full-size payload preservation, lease reuse/revocation, opt-out/failure fallback and cleanup. The test records `IPV6_V6ONLY` and IPv4-mapped behavior; any usable family failure disables the endpoint capability. If a supported address family or native submission path cannot satisfy the contract, remove any partial capability code and publish an explicit unsupported disposition with the exact OS/runtime/API evidence in this PR. Missing native host access is blocked evidence, not unsupported evidence.
 
@@ -36,7 +38,7 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 
 ### Slice D1 — Qualify Darwin managed ECN
 
-**Stable identity:** `QGF-ECN-20260922/D1`. One intended PR; GitHub child pending default-branch plan publication.
+**Stable identity:** `QGF-ECN-20260922/D1`. One intended product PR; GitHub child [#504](https://github.com/the-sarge/quic-go-fast/issues/504).
 
 **What it delivers:** A complete supported Darwin managed ECN path through the L1 adapter and native OOB/sendmsg_x owners, or a docs-only explicit unsupported disposition after removing partial code.
 
@@ -65,7 +67,7 @@ The implementation outcome is accepted only if native Darwin `udp4`, `udp6` and 
 | Direct ordinary and checked-wrapper ordinary marked send | Exact requested mark and selected destination | Native receiver observation; foreign rejection |
 | Checked singleton native result | Preserve success, message-size and terminal errors; Darwin EPERM remains terminal without Linux's retry; reject invalid callback results | Native Darwin result table excluding Linux retry expectations |
 | Registered batch marked send | Exact shared mark with existing prefix/error semantics | Native batch receiver plus existing error tests |
-| Single-family, dual-family and IPv4-mapped endpoint | Capability only when every usable admitted family qualifies | `udp4`/`udp6`/`udp` setup and mapping table |
+| Single-family, dual-family and IPv4-mapped endpoint | AF_INET requires IP_RECVTOS; AF_INET6 requires IPV6_RECVTCLASS for both IPv6 and admitted mapped IPv4; any required option failure disables the endpoint | `udp4`/`udp6`/`udp` native setup, four-mark receive table, and required-option failure table |
 | Managed capability projection | ECN only is newly gated; packet info/GSO are not imported | Focused capability table |
 | Opt-out/setup failure/absent or malformed metadata | Usable ordinary fallback, no capability or stale mark | Focused negative cases |
 | Release/reacquire/stale/Close | Current generation only; joined cleanup | Lifecycle and race cases |

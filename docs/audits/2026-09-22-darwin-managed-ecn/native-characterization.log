@@ -1,0 +1,56 @@
+=== RUN   TestDarwinECNNativeCharacterization
+=== RUN   TestDarwinECNNativeCharacterization/ipv4
+    managed_packet_ecn_darwin_test.go:79: IP_RECVTOS=<nil> IPV6_RECVTCLASS=invalid argument IPV6_V6ONLY=0 (invalid argument)
+    managed_packet_ecn_darwin_test.go:98: receive requested=Not-ECT bytes=8 flags=0 source=127.0.0.1:55990 cmsgs=[{Header:{Len:24 Level:0 Type:26} Data:[1 0 0 0 0 0 0 0 127 0 0 1]} {Header:{Len:13 Level:0 Type:27} Data:[0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(0) bytes=8 flags=0 source=127.0.0.1:55990 cmsgs=[{Header:{Len:24 Level:0 Type:26} Data:[1 0 0 0 0 0 0 0 127 0 0 1]} {Header:{Len:13 Level:0 Type:27} Data:[2]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(1) bytes=8 flags=0 source=127.0.0.1:55990 cmsgs=[{Header:{Len:24 Level:0 Type:26} Data:[1 0 0 0 0 0 0 0 127 0 0 1]} {Header:{Len:13 Level:0 Type:27} Data:[1]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=CE bytes=8 flags=0 source=127.0.0.1:55990 cmsgs=[{Header:{Len:24 Level:0 Type:26} Data:[1 0 0 0 0 0 0 0 127 0 0 1]} {Header:{Len:13 Level:0 Type:27} Data:[3]}]
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=ECT(0) observed=ECT(0) payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=CE observed=CE payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="two"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="two"
+=== RUN   TestDarwinECNNativeCharacterization/ipv6
+    managed_packet_ecn_darwin_test.go:79: IP_RECVTOS=invalid argument IPV6_RECVTCLASS=<nil> IPV6_V6ONLY=1 (<nil>)
+    managed_packet_ecn_darwin_test.go:98: receive requested=Not-ECT bytes=8 flags=0 source=[::1]:57031 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[0 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(0) bytes=8 flags=0 source=[::1]:57031 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[2 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(1) bytes=8 flags=0 source=[::1]:57031 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[1 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=CE bytes=8 flags=0 source=[::1]:57031 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[3 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=ECT(0) observed=ECT(0) payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=CE observed=CE payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="two"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="two"
+=== RUN   TestDarwinECNNativeCharacterization/mapped
+    managed_packet_ecn_darwin_test.go:79: IP_RECVTOS=invalid argument IPV6_RECVTCLASS=<nil> IPV6_V6ONLY=0 (<nil>)
+    managed_packet_ecn_darwin_test.go:98: receive requested=Not-ECT bytes=8 flags=0 source=127.0.0.1:61962 cmsgs=[{Header:{Len:16 Level:41 Type:36} Data:[0 0 0 0]} {Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 255 255 127 0 0 1 1 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(0) bytes=8 flags=0 source=127.0.0.1:61962 cmsgs=[{Header:{Len:16 Level:41 Type:36} Data:[2 0 0 0]} {Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 255 255 127 0 0 1 1 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(1) bytes=8 flags=0 source=127.0.0.1:61962 cmsgs=[{Header:{Len:16 Level:41 Type:36} Data:[1 0 0 0]} {Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 255 255 127 0 0 1 1 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=CE bytes=8 flags=0 source=127.0.0.1:61962 cmsgs=[{Header:{Len:16 Level:41 Type:36} Data:[3 0 0 0]} {Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 255 255 127 0 0 1 1 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=ECT(0) observed=ECT(0) payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=CE observed=CE payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="two"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="two"
+=== RUN   TestDarwinECNNativeCharacterization/dual_ipv6
+    managed_packet_ecn_darwin_test.go:79: IP_RECVTOS=invalid argument IPV6_RECVTCLASS=<nil> IPV6_V6ONLY=0 (<nil>)
+    managed_packet_ecn_darwin_test.go:98: receive requested=Not-ECT bytes=8 flags=0 source=[::1]:61204 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[0 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(0) bytes=8 flags=0 source=[::1]:61204 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[2 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=ECT(1) bytes=8 flags=0 source=[::1]:61204 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[1 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:98: receive requested=CE bytes=8 flags=0 source=[::1]:61204 cmsgs=[{Header:{Len:32 Level:41 Type:46} Data:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0]} {Header:{Len:16 Level:41 Type:36} Data:[3 0 0 0]}]
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=ECT(0) observed=ECT(0) payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: ordinary requested=CE observed=CE payload="outgoing"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=ECT(0) observed=ECT(0) payload="two"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="one"
+    managed_packet_ecn_darwin_test.go:122: batch requested=CE observed=CE payload="two"
+--- PASS: TestDarwinECNNativeCharacterization (0.01s)
+    --- PASS: TestDarwinECNNativeCharacterization/ipv4 (0.00s)
+    --- PASS: TestDarwinECNNativeCharacterization/ipv6 (0.00s)
+    --- PASS: TestDarwinECNNativeCharacterization/mapped (0.00s)
+    --- PASS: TestDarwinECNNativeCharacterization/dual_ipv6 (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go	0.373s
