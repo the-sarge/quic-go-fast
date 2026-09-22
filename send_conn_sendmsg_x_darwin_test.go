@@ -299,9 +299,10 @@ func TestExternalDarwinBatchWriterFallback(t *testing.T) {
 	for _, mode := range []string{"disabled", "unqualified", "architecture"} {
 		t.Run(mode, func(t *testing.T) {
 			resetSendmsgXForTesting(t)
-			if mode == "disabled" {
+			switch mode {
+			case "disabled":
 				t.Setenv(sendmsgXDisableEnv, "true")
-			} else if mode == "architecture" {
+			case "architecture":
 				major, err := getMacOSVersion()
 				require.NoError(t, err)
 				original := qualifiedDarwinKernelMajors
@@ -309,7 +310,7 @@ func TestExternalDarwinBatchWriterFallback(t *testing.T) {
 					major: {product: "test-only excluded architecture", arch: "excluded"},
 				}
 				t.Cleanup(func() { qualifiedDarwinKernelMajors = original })
-			} else {
+			default:
 				original := sendmsgXKernelMajor
 				sendmsgXKernelMajor = func() (int, error) { return -1, nil }
 				t.Cleanup(func() { sendmsgXKernelMajor = original })
