@@ -3415,3 +3415,30 @@ Final head `59d44d1a8722a827b87beb313388baa0b4a1d61c` passed clean-head, diff-wh
 ### Next
 
 The final controller design and the ProbeRTT and queued-send sampling prototypes remain open. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) is the live planning map; this merge does not authorize campaign execution.
+
+---
+
+## fast.5 publication stop and Darwin qualification repair - 2026-09-23 18:16 EDT
+
+**Main:** `02ae1e70c920`
+**Actor:** Codex
+
+### Summary
+
+Stopped GitHub publication of `v0.62.1-fast.5` after its tag-triggered macOS Go 1.26.8 unit job timed out. The annotated tag and already cached public Go module remain unchanged; the GitHub prerelease stays draft. The [blocked release record](releases/v0.62.1-fast.5.md) preserves the source/tag/module provenance and failure link. No same-head rerun, tag movement or version reuse occurred; a successor version remains an operator decision.
+
+### Evidence and repair
+
+Source `af5fd384bf956b5c6efe278f146c7935e46c8c04` passed all five exact-main workflows and 17 jobs. Fresh `govulncheck -show verbose ./...` (v1.7.0, Go 1.27.1, darwin/arm64; database updated 2026-09-16 18:00:43 UTC) found zero reachable or imported-package vulnerabilities; the existing module-only openpgp advisory GO-2026-5932 remains. Candidate and tagged consumers built QUIC/HTTP3, passed module verification and confirmed two managed lease registrations/releases, retained ownership after `Transport.Close`, and ordinary UDP delivery after release.
+
+[Tag job 107385603438](https://github.com/the-sarge/quic-go-fast/actions/runs/35921293866/job/107385603438) then hung in `TestSendmsgXStructuralLatch/negative` at `resetSendmsgXForTesting` / `sync.Once.Do`, reaching the ten-minute root-package timeout. The artifact `unit-macos-go1.26.x` records macOS 26.6.2 arm64, Go 1.26.8, `TIMESCALE_FACTOR=10` and root shuffle seed `1790198199628875000`; its full output is untruncated. The other 16 tag jobs passed. This is distinct from ECN receive issue #528 and is not classified as infrastructure.
+
+A local focused race run and original-seed root replay on Darwin 27 initially passed. A bounded 100-generation check through the real asynchronous qualification entrypoint and test reset helper, with native qualification disabled, then reproduced data races on the reset `sync.Once` and the same mutex hang. `Once.Do` alone does not join every scheduled or finishing goroutine that uses the Once. [Repair PR #573](https://github.com/the-sarge/quic-go-fast/pull/573), merged as `02ae1e70c92095e89158fc2d72532900e33b25d1`, tracks and joins the background qualifier before test reset. Reset callers must quiesce ordinary senders; normal production use has no reset API. The send path remains asynchronous, with unchanged native qualification policy. No runtime packet-delivery failure was established by this investigation.
+
+### Validation
+
+The regression changed from race reports/deadlock to a pass under Go 1.26.8's race detector. On repair head `7776fc242c31b1e3a88ee4bfcf51b198ada0fe61`, the Darwin qualification race group, recorded-seed root run, Go 1.27.1 root tests, vet, module tidiness, documentation links and whitespace checks passed. A same seed with a changed test inventory is not an exact historical order replay. RAS review `20260923T220757-5604e7b751044bfe483f6131` completed with five reviewers and synthesis; no actionable findings or follow-ups remained. All 33 hosted checks passed; the five PR workflows, all 17 jobs and relevant steps were inspected before the reviewed head merged.
+
+### Next
+
+Follow the [release runbook](runbooks/release.md) for any corrected release: a new version must receive its own preparation, source and tag gates. The fix in later main history does not change fast.5's tagged source or authorize publishing its failed candidate. The [blocked release record](releases/v0.62.1-fast.5.md) remains the status pointer until an operator selects the next publication action.
