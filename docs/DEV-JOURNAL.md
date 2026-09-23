@@ -3115,3 +3115,28 @@ One native six-class run (`run-20260923T001048.801788000Z`) completed with all f
 ### Next
 
 At this entry, W1 is the only dispatchable slice; O1 has no defined successor and [OpenBSD parent #458](https://github.com/the-sarge/quic-go-fast/issues/458) awaits scoped handoff. The [program index](adr/2026-09-22-managed-ecn-program.md) and [live tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) own current frontier state.
+
+---
+
+## Windows ECN native feasibility landed - 2026-09-22 21:09 EDT
+
+**Main:** `78cc332cdb15`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #534](https://github.com/the-sarge/quic-go-fast/pull/534) as `78cc332cdb150e23f55ba73f50ce335177819ca8`, closing [W1 #507](https://github.com/the-sarge/quic-go-fast/issues/507). Native Windows Server 2025 build 26100.32230/amd64, Go 1.27.0 and x/sys 0.48.0 demonstrated separate IPv4-only and IPv6-only ECN receive/send feasibility. The product PR contains the [native receipt](audits/2026-09-23-windows-ecn-w1/README.md), ADR disposition, W1 completion and program transition to no dispatchable frontier. Production behavior, dependencies and public authority are unchanged; managed Windows ECN remains false.
+
+### Decisions
+
+[ADR 0007](adr/0007-managed-ecn-qualification.md#windows-native-feasibility-disposition) records the Winsock integer control-message representation and the requirement for scoped architecture handoff before implementation. All four received codepoints were observed, while the independent Linux peer confirmed outgoing Not-ECT, ECT(0) and ECT(1); Winsock rejects application-originated CE. The receipt distinguishes Go's observed zero-byte successful `WriteMsgUDP` returns from general Winsock semantics. Older builds, dual-stack/mapped sockets, managed wrappers and offload interaction remain unqualified.
+
+### Validation
+
+The bounded six-class native probe passed; extraction and marking bypasses failed as expected. `go test -count=1 -v -run '^TestWindows' .` passed at source `4905bb52d83174a0a9133265a70c87d7dca6d323`, with two separately gated URO engagement fixtures skipped. Disposable guest, network, probe files and overlays were removed; the retained Windows base matched its recorded SHA-256.
+
+RAS `20260923T005131-52995ce238b2f0abcb1b2801` completed with one accepted documentation correction, independently checked against the exact Go 1.27.0 archive. Remaining findings were rejected or duplicate; none were deferred. The shared docs-polish policy skipped another RAS cycle. [Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/534#issuecomment-5787217629) covers final head `02f924639528e43c4c3a20c66ab93b81662d96fe`, clean documentation checks and successful hosted [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/35804534349), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/35804534396), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/35804534318), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/35804534319) and [interop image](https://github.com/the-sarge/quic-go-fast/actions/runs/35804534336) runs.
+
+### Next
+
+As of this entry, all five defined slices are complete and no successor is dispatchable. Windows and OpenBSD implementation await scoped `$architecture-handoff`; see the [committed program index](adr/2026-09-22-managed-ecn-program.md) and [live tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354). No review follow-up issues are needed.
