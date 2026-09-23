@@ -3346,3 +3346,28 @@ Final head `b9e588b2d3c8f2ffc27c79144e239110c6bcab9b` passed clean-checkout cert
 ### Next
 
 At this timestamp, the next unclaimed frontier investigation is [Identify BBRv3 transport integration requirements](https://github.com/the-sarge/quic-go-fast/issues/556). [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) remains the live map for the current frontier and remaining human decisions.
+
+---
+
+## BBRv3 transport integration research landed - 2026-09-23 15:19 EDT
+
+**Main:** `e1e402594fb8`
+**Actor:** Codex
+
+### Summary
+
+Merged [docs: investigate BBRv3 transport integration requirements](https://github.com/the-sarge/quic-go-fast/pull/567) as `e1e402594fb8afd4c471b7812c53c0918cd34b25`. The [integration report](audits/2026-09-23-bbrv3-transport-integration.md) traces delivery snapshots, ACK/loss/CE events, lifecycle disposal, pacing/offloads, RTT/MTU, memory ownership and upstream-compatible GridCast/wiremux adoption. Added delivery snapshot and send quantum vocabulary. No controller or runtime behavior changed.
+
+### Decisions
+
+[Identify BBRv3 transport integration requirements](https://github.com/the-sarge/quic-go-fast/issues/556#issuecomment-5800417075) is resolved as research: retain registration before asynchronous I/O and connection-goroutine ownership, with a proposed private sampling/event adapter and opt-in controller policy. Public selection, persistent-congestion response, Retry/migration state and timing semantics remain owner decisions. [Test delivery sampling across queued and batched sends](https://github.com/the-sarge/quic-go-fast/issues/566) now owns the bounded modeled-departure prototype; it is unblocked and remains a human-in-the-loop investigation.
+
+### Validation
+
+Consideration `20260923T182336-36f554d0d25cfe875fd3a266` and PR review `20260923T185401-9f7b69074e8a3ebeac1e485f` completed with four successful reviewers each. Fable failed in consideration; Opus failed PR-review schema validation, and its raw Retry observation was independently checked. All accepted source-accuracy corrections were applied. The [review record](https://github.com/the-sarge/quic-go-fast/pull/567#issuecomment-5801229741) records dispositions; no substantive finding or deferred follow-up remains. Shared policy skipped further RAS cycles after cheap, high-confidence docs-only corrections.
+
+Final head `52023556cd05168e0b2a069f3a0d111f029a9471` passed clean exact-head certification, Markdown whitespace checks, 79 reference definitions and 78 immutable source targets/ranges, relative links, prototype-question consistency and issue-graph validation. All 33 hosted checks passed before matched-head squash merge. No local Go tests, native performance campaign or controller simulation was run for this documentation-only change. OmniFocus search found no matching task.
+
+### Next
+
+At this timestamp, [Choose acceptance criteria and an evidence budget](https://github.com/the-sarge/quic-go-fast/issues/557) is the next unclaimed frontier item in native order; ProbeRTT and queued-send sampling prototypes also remain open. Final design waits on those human decisions and experiments. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) is the live planning map.
