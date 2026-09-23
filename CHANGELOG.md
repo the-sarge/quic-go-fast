@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.62.1-fast.6 — selected for release
+## v0.62.1-fast.6 — 2026-09-23
 
-Managed ECN and path-MTU discovery rollup based on upstream quic-go v0.62.0, including the Darwin qualification-worker repair that follows the blocked fast.5 attempt. Go 1.26.0 remains the minimum; module identity, dependency versions and public API signatures are unchanged from fast.4. The [release record](docs/releases/v0.62.1-fast.6.md) describes compatibility, support and pending publication gates. This version is selected but not yet published.
+Managed ECN and path-MTU discovery rollup based on upstream quic-go v0.62.0, including the Darwin qualification-worker repair that follows the blocked fast.5 attempt. Go 1.26.0 remains the minimum; module identity, dependency versions and public API signatures are unchanged from fast.4. The [release record](docs/releases/v0.62.1-fast.6.md) and [GitHub release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.6) describe qualification, compatibility and verified publication receipts.
 
 - Managed ECN receives and emits marks on qualified Linux, Darwin, FreeBSD and Windows paths through exact leases and conforming synchronous policy wrappers. The socket's usable address families must qualify in both directions. Arbitrary wrappers do not acquire native capability.
 - Qualified Linux and Darwin managed leases enable DF and the existing configuration-controlled path-MTU discovery. Lease release restores saved options after joining I/O; failed restoration terminates the endpoint. Windows and other platforms remain unqualified for managed DF.
