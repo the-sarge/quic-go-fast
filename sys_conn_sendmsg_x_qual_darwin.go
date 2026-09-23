@@ -79,6 +79,7 @@ var sendmsgXKernelMajor = getMacOSVersion
 // group, or GSO-segmented groups — are deliberately not counted here.
 type sendmsgXState struct {
 	qualifyOnce    sync.Once
+	qualifyWorkers sync.WaitGroup
 	qualifyStarted atomic.Bool
 	qualified      atomic.Bool
 	latched        atomic.Bool
@@ -109,7 +110,7 @@ func sendmsgXAvailable() bool {
 	}
 	if !sendmsgX.qualified.Load() {
 		if !sendmsgX.qualifyStarted.Swap(true) {
-			go sendmsgX.qualifyOnce.Do(sendmsgXQualify)
+			sendmsgX.qualifyWorkers.Go(func() { sendmsgX.qualifyOnce.Do(sendmsgXQualify) })
 		}
 		return false
 	}

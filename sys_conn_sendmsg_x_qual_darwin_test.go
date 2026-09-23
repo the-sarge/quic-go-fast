@@ -16,8 +16,10 @@ import (
 func resetSendmsgXForTesting(t *testing.T) {
 	t.Helper()
 	reset := func() {
-		// Join any in-flight background qualification before replacing the
-		// process-wide state.
+		// Callers must have stopped their senders before resetting state.
+		// Once.Do alone cannot join a queued goroutine or another Do call's
+		// mutex epilogue after its done flag becomes visible.
+		sendmsgX.qualifyWorkers.Wait()
 		sendmsgX.qualifyOnce.Do(func() {})
 		sendmsgX.qualifyOnce = sync.Once{}
 		sendmsgX.qualifyStarted.Store(false)
@@ -168,5 +170,17 @@ func TestSendmsgXArchitectureAdmission(t *testing.T) {
 	} {
 		_, admitted := sendmsgXQualifiedKernel(tc.major, tc.arch)
 		require.Equal(t, tc.want, admitted, "Darwin %d/%s", tc.major, tc.arch)
+	}
+}
+
+// Reset must join qualification even when its goroutine has not started yet.
+// Disable native qualification so this checks only the worker/reset lifetime.
+func TestSendmsgXResetAfterAsyncQualification(t *testing.T) {
+	t.Setenv(sendmsgXDisableEnv, "true")
+	for range 100 {
+		t.Run("generation", func(t *testing.T) {
+			resetSendmsgXForTesting(t)
+			require.False(t, sendmsgXAvailable())
+		})
 	}
 }
