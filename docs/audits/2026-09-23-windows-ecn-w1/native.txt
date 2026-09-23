@@ -3,13 +3,13 @@ ENVIRONMENT AND SDK
 {"DisplayVersion":"24H2","CurrentBuild":"26100","UBR":32230}
 go version go1.27.0 windows/amd64
 
-C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:164:#define IP_ECN                    50 
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:164:#define IP_ECN                    50
 // IP ECN codepoint.
-C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:165:#define IP_RECVECN                50 
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:165:#define IP_RECVECN                50
 // Receive ECN codepoints in the IP header.
-C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:802:#define IPV6_ECN              50 // 
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:802:#define IPV6_ECN              50 //
 IPv6 ECN codepoint.
-C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:803:#define IPV6_RECVECN          50 // 
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:803:#define IPV6_RECVECN          50 //
 Receive ECN codepoints in the IPv6 header.
 
 NATIVE POSITIVE AND NEGATIVE TABLE

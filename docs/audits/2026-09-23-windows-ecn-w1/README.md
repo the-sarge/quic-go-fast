@@ -2,7 +2,7 @@
 
 **Disposition:** Feasible for separate IPv4-only and IPv6-only UDP sockets on the tested environment. This is example-level feasibility, not managed ECN qualification. Runtime Windows ECN remains unsupported. Scoped `$architecture-handoff` must define any implementation and qualification slice before production edits.
 
-**Contract:** [W1](../../adr/2026-09-22-windows-managed-ecn-plan.md#slice-w1--decide-windows-native-ecn-feasibility), child [#507](https://github.com/the-sarge/quic-go-fast/issues/507), parent [#459](https://github.com/the-sarge/quic-go-fast/issues/459). Source and preservation tests use `4905bb52d83174a0a9133265a70c87d7dca6d323`. [Native observations and test summary](native.txt) are frozen evidence, not a maintained test product.
+**Contract:** [W1](../../adr/2026-09-22-windows-managed-ecn-plan.md#slice-w1--decide-windows-native-ecn-feasibility), child [#507](https://github.com/the-sarge/quic-go-fast/issues/507), parent [#459](https://github.com/the-sarge/quic-go-fast/issues/459). Source and preservation tests use `4905bb52d83174a0a9133265a70c87d7dca6d323`. [Native observations and test summary](native.txt) are frozen evidence, not a maintained test product. The selected transcript normalizes line endings and trailing whitespace; it omits successful test subcases and shell progress noise.
 
 ## Environment and representation
 
