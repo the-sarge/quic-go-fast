@@ -1,0 +1,10 @@
+Linux 7.0.0-30-generic x86_64 GNU/Linux
+Python 3.14.4
+fd9928a795fed5dd8f10c41fb95cdc424b2de674ef749efe405956ee9e0a5e59  /srv/infra/libvirt/images/garm/windows-server-2025-amd64/v2/base.qcow2
+e5c59e57-e869-4b93-8154-bc763d17fa4f
+
+Domain 'quic-ecn-w1-507' is being shutdown
+
+Domain 'quic-ecn-w1-507' has been undefined
+Network quic-ecn-w1-507 destroyed
+CLEANUP PASS: exact-owned guest, network, overlay, NVRAM, TPM and remote probe files absent; base retained.
