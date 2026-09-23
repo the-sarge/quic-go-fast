@@ -3195,3 +3195,24 @@ Initial RAS review `20260923T045209-217a46e1790a3f6e3df03662` led to the accepte
 ### Next
 
 All audited Windows slices are complete; no new implementation child is ready. OpenBSD still requires its separately scoped architecture handoff. The [program tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live frontier view, backed by the [committed program index](adr/2026-09-22-managed-ecn-program.md).
+
+---
+
+## ECN receiver diagnostics landed; diagnosis unresolved - 2026-09-23 02:08 EDT
+
+**Main:** `9984c2ed04a0`
+**Actor:** Codex
+
+### Summary
+
+Merged test-only ECN receiver diagnostics in [PR #544](https://github.com/the-sarge/quic-go-fast/pull/544), commit `9984c2ed04a06a139d127460ae136432a98e0b56`. Receive errors now retain their identity and phase/listener/sender/destination context; queued results remain observable when the timer is also ready. Cleanup cancels blocked handoffs, joins the worker and releases buffers. Existing IPv4/IPv6 delivery, source-address and ECN assertions and timeout durations are preserved; no production code or dependencies changed.
+
+### Validation
+
+Two isolated and two original-seed root-package attempts passed on Darwin 25.6.0 arm64 / macOS 26.6.2 build 25G83 with Go 1.26.8 and TIMESCALE_FACTOR=10. The four attempts used 11.420 execution seconds, within the six-invocation/twenty-minute budget; optional probes were unused without a discriminating observation. The [investigation record](audits/2026-09-23-ecn-receive-diagnostics/results.md) retains exact source/environment receipts and the limits of current-source seeded replay. These passes do not establish a cause, fix or infrastructure classification.
+
+Initial RAS review `20260923T055106-3230e8fa561394b05f0820f0` produced two accepted fixes: consistent evidence pointers and queued-result handling at timeout. Exact-head verification resolved both. Replacement review `20260923T060245-f7e9b442eb998e3ae9a45a98` completed with four successful reviewers and no findings; the initial panel had one failed reviewer process. Final focused race tests, root-package tests, vet, module tidiness, lint and documentation checks passed, followed by all 33 hosted checks at `5b1dbd1b1ee224950b3c3e09e634ea83d79833e3`. See the [final certification](https://github.com/the-sarge/quic-go-fast/pull/544#issuecomment-5789958762). The verifier's marginal suggestion to force a particular select branch in the regression remains a nonblocking example-level evidence limitation, revalidated at the merged test on line 198; no busywork ticket was created.
+
+### Next
+
+Diagnosis remains unresolved. [Issue #528](https://github.com/the-sarge/quic-go-fast/issues/528) is the live tracking view, and its OmniFocus task remains open. The next missing observation is an instrumented failing Darwin 25 run distinguishing a receive error from no delivery, with exact phase, endpoints, source, seed and environment. GitHub's automatic closure from a negated closing keyword in the PR description was corrected by reopening the issue and rewording the description.
