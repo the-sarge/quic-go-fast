@@ -1,0 +1,8 @@
+ADDRESS: 127.0.0.1:52920
+2026/09/23 10:48:17 http: TLS handshake error from 127.0.0.1:52922: EOF
+QUIC: protocol=HTTP/3.0 status=200 body="issue-424-baseline" alt-svc=""
+TCP: protocol=HTTP/1.1 status=200 body="issue-424-baseline" alt-svc="h3=\":52920\"; ma=2592000"
+BASELINE_PASS; server cleanup is process exit, not helper shutdown
+PROCESS_EXIT: 0
+POST_PROCESS_EXIT_TCP_REBIND: success
+POST_PROCESS_EXIT_UDP_REBIND: success
