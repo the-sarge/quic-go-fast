@@ -3153,3 +3153,24 @@ Published the scoped Windows managed ECN successor handoff in [PR #536](https://
 Independent pre-publication slice audit passed. RAS review `20260923T014028-223bf71a5e39494aea288649` completed; three bounded documentation corrections clarified both native send routes, send-CMSG receipt fields and future qualification wording. Exact-head local docs checks and all applicable hosted jobs passed at `f35cbc1c41370919b6079c2f6e9c8ae292b95394`; [certification and review dispositions](https://github.com/the-sarge/quic-go-fast/pull/536#issuecomment-5787643556) are retained on the PR.
 
 Created [W2 #537](https://github.com/the-sarge/quic-go-fast/issues/537) and [W3 #538](https://github.com/the-sarge/quic-go-fast/issues/538), with native GitHub parent/blocker relationships and matching sequential OmniFocus children. Verified the plan commit is reachable from remote main, each child has the exact plan/dispatch marker, and W2 alone is ready while W3 is blocked. [Windows parent #459](https://github.com/the-sarge/quic-go-fast/issues/459) and [program tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) are the live status pointers. The next operator-selected action is W2 through a fresh `$implement-architecture-slice` context; OpenBSD remains separately awaiting scoped handoff.
+
+---
+
+## Windows native ECN qualification complete - 2026-09-22 22:45 EDT
+
+**Main:** `e5630849a110`
+**Actor:** Codex
+
+### Summary
+
+Completed Windows ECN qualification slice W2 in [PR #540](https://github.com/the-sarge/quic-go-fast/pull/540), merged as `e5630849a1103a40ad2ff30e43b259356ef131db`, closing [#537](https://github.com/the-sarge/quic-go-fast/issues/537). Production Windows ECN remains unsupported pending W3 implementation.
+
+### Validation
+
+Windows 11 Pro build 26200.8037 and Windows Server 2025 Standard Evaluation build 26100.32230 passed the four-path native matrix with Go 1.26.8 and 1.27.1: 152 matched exchanges and four expected CE rejections. Two bounded probe bypasses failed as intended. The unchanged `TestWindows` group passed on each OS with Go 1.27.1; two existing opt-in hardware-engagement cases skipped. No actual URO coalescing engagement is claimed. Disposable resources were retired and both baseline hashes preserved; see the [frozen receipt](audits/2026-09-23-windows-ecn-w2/README.md).
+
+RAS review `20260923T023324-4b2210d82033f914d955b941` found one accepted stale-status-table defect. Corrected it under the shared docs-only policy, then certified head `c8a3b082f233ad3a1405d8c9231bdb695d8bf587`; all 33 reported hosted checks passed. [Review disposition](https://github.com/the-sarge/quic-go-fast/pull/540#issuecomment-5788002825), [local certification](https://github.com/the-sarge/quic-go-fast/pull/540#issuecomment-5788010560), and [hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/540#issuecomment-5788062659) contain the details. No deferred findings remain.
+
+### Next
+
+[W3 #538](https://github.com/the-sarge/quic-go-fast/issues/538) is the committed Windows implementation frontier with W2 and L1 complete. Its accepted contract is unchanged. The [program tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live frontier view.
