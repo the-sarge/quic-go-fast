@@ -8,5 +8,7 @@ import (
 )
 
 func TestBandwidthFromDelta(t *testing.T) {
-	require.Equal(t, 1000*BytesPerSecond, BandwidthFromDelta(1, time.Millisecond))
+	require.Equal(t, Bandwidth(8000), BandwidthFromDelta(1, time.Millisecond))
+	require.Equal(t, Bandwidth(16000), BandwidthFromDelta(2, time.Millisecond))
+	require.Equal(t, Bandwidth(4000), BandwidthFromDelta(1, 2*time.Millisecond))
 }

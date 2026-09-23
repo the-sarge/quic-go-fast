@@ -69,3 +69,10 @@ func TestWriteAckFrequencyFrame(t *testing.T) {
 	require.Equal(t, expected, b)
 	require.Len(t, b, int(frame.Length(protocol.Version1)))
 }
+
+func TestWriteAckFrequencyFrameWireID(t *testing.T) {
+	frame := &AckFrequencyFrame{}
+	b, err := frame.Append(nil, protocol.Version1)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0x40, 0xaf, 0, 0, 0, 0}, b)
+}

@@ -66,6 +66,21 @@ func TestPacerPacing(t *testing.T) {
 	require.Equal(t, time.Second/10, p.TimeUntilSend().Sub(now))
 }
 
+func TestPacerDeadlineRounding(t *testing.T) {
+	p := &pacer{
+		maxDatagramSize:   1,
+		lastSentTime:      monotime.Time(1),
+		adjustedBandwidth: func() uint64 { return 3 },
+	}
+	next := p.TimeUntilSend()
+	t.Run("deadline", func(t *testing.T) {
+		require.Equal(t, 333333334*time.Nanosecond, next.Sub(p.lastSentTime))
+	})
+	t.Run("budget", func(t *testing.T) {
+		require.Equal(t, protocol.ByteCount(1), p.Budget(next))
+	})
+}
+
 func TestPacerUpdatePacketSize(t *testing.T) {
 	const bandwidth = 50 * initialMaxDatagramSize // 50 full-size packets per second
 	p := newPacer(func() Bandwidth { return Bandwidth(bandwidth) * BytesPerSecond * 4 / 5 })
