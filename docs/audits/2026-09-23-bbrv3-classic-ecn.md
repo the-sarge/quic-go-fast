@@ -52,6 +52,8 @@ The [GridCast workload investigation][workload] establishes a distinct consumer 
 
 RFC 9000 supplies cumulative counts per packet-number space, including each processed coalesced QUIC packet; duplicates do not add counts. Validate before consuming them. Lost ACKs can make count growth exceed newly ACKed packets; reordered ACKs that do not advance the largest ACK must not cause validation failure. Failure disables marking; new paths require validation. [RFC 9000 §13.4][transport-ecn]
 
+**Validation does not establish receiver honesty.** A peer can suppress CE reports while returning internally consistent totals, so the pinned validator's consistency checks do not prove that every received CE mark was reported. [RFC 9002 §8.3](https://www.rfc-editor.org/rfc/rfc9002.html#section-8.3) discusses occasional sender-generated CE probes as a possible detection method. This report neither establishes support for that countermeasure nor selects it; [Settle the implementation-ready BBRv3 design](https://github.com/the-sarge/quic-go-fast/issues/558) owns whether additional misreporting defenses are needed.
+
 The proposed adapter contract should preserve those facts rather than expose an unqualified boolean:
 
 | Information | Required interpretation in the design |
@@ -104,7 +106,7 @@ The acceptance investigation owns numeric thresholds, topology, durations, repet
 
 [Identify BBRv3 transport integration requirements](https://github.com/the-sarge/quic-go-fast/issues/556) should settle validated-feedback event shape, callback ordering, epoch anchors, missing-history behavior and migration attribution/baselines. [Choose acceptance criteria and an evidence budget](https://github.com/the-sarge/quic-go-fast/issues/557) should select A/B comparison conditions and coexistence thresholds. [Settle the implementation-ready BBRv3 design](https://github.com/the-sarge/quic-go-fast/issues/558) should choose the coefficient, pre-event reference quantities, phase effects, cap persistence/release and standards/deployment characterization together. These existing owners cover the newly precise questions; this investigation does not require a duplicate prototype ticket.
 
-This is source research only. No runtime change, network experiment or BBR simulation was performed. Protocol pages are versioned RFCs and draft 06; code citations pin complete commits. Validation checked all 36 reference definitions, source-file existence and cited line ranges, and all ten specification fragment anchors; Markdown whitespace checks passed. The report preserves ECN metadata authority and qualification constraints and proposes no conflict with their accepted ADR.
+This is source research only. No runtime change, network experiment or BBR simulation was performed. Protocol pages are versioned RFCs and draft 06; code citations pin complete commits. Validation checked all 36 reference definitions, source-file existence and cited line ranges, and all eleven distinct specification fragment anchors; Markdown whitespace checks passed. The report preserves ECN metadata authority and qualification constraints and proposes no conflict with their accepted ADR.
 
 [bbr-ecn]: https://www.ietf.org/archive/id/draft-ietf-ccwg-bbr-06.html#section-3.7
 [classic]: https://www.rfc-editor.org/rfc/rfc3168.html#section-5
