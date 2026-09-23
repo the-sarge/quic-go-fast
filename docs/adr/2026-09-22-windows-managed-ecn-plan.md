@@ -1,7 +1,7 @@
 # Windows managed ECN implementation plan
 
 **Date:** 2026-09-23
-**Status:** W1 and W2 complete; W3 implementation is the frontier
+**Status:** W1, W2 and W3 complete; managed Windows ECN is qualified
 **Track:** W, 5 of 5 in `QGF-ECN-20260922`
 **Depends on:** W1 and the merged L1 managed adapter; no incomplete cross-track blockers
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md), [Windows datapath plan](2026-09-11-windows-datapath-plan.md)
@@ -47,7 +47,7 @@ URO and ECN share one Windows decoder. [Microsoft's URO rules](https://learn.mic
 | --- | --- | --- | --- | --- |
 | W1 | Complete; retain #507 / #534 | Separate-family native feasibility receipt | None | Probe retired in W1 |
 | W2 | Complete — #537; native representation confirmed | Desktop/server and dual-stack native qualification receipt | W1 complete | Disposable probes retired in W2 |
-| W3 | Ready / frontier — #538; W2 and L1 complete | Complete managed Windows ECN receive/send qualification | W2; L1 complete | None; no runtime intermediate form |
+| W3 | Complete — #538 | Complete managed Windows ECN receive/send qualification | W2; L1 complete | None; no runtime intermediate form |
 
 ## Implementation slices
 
@@ -89,7 +89,7 @@ URO and ECN share one Windows decoder. [Microsoft's URO rules](https://learn.mic
 
 **Stable identity:** `QGF-ECN-20260922/W3`. One implementation PR; child [#538](https://github.com/the-sarge/quic-go-fast/issues/538).
 
-**Status:** Ready — W2 and L1 are complete.
+**Status:** Complete — both managed directions are qualified through the existing exact lease.
 
 **What it delivers:** Both ECN directions through direct leases and synchronous exact-forwarding wrappers on the W2-qualified IPv4, IPv6 and dual-stack paths, including ordinary and batch output, filtering, fallback, reuse and cleanup. Capability becomes true only for the qualified endpoint and route.
 
@@ -109,12 +109,12 @@ URO and ECN share one Windows decoder. [Microsoft's URO rules](https://learn.mic
 
 | Semantic class | Disposition / enforcement owner | Evidence status and gate |
 | --- | --- | --- |
-| Current direct or exact wrapper read; selected vs rejected peer | Publish only final correlated read / shared adapter | Planned: native selected-peer fixture and inherited buffer/range/address checks |
-| Missing, malformed or stale metadata; returned/replaced lease | Unsupported or reject before publication / Windows decoder then shared adapter | Planned: absent/invalid message table; lease return/reacquire regression |
-| Direct native marked send | Preserve Windows success/error / Windows managed native mode | Planned: independent peer and zero/short/error result table |
-| Checked singleton forwarding vs substituted payload/OOB/destination/result | Exact forwarding only / existing adapter and WriteBatchV1 operation | Planned: reuse inherited guard tests plus native checked-route case |
-| Concurrent checked calls and terminal Close | Distinct operation association; revoke then join / adapter send mutex and endpoint lifecycle | Planned: bounded concurrency/close fixture and one race run |
-| Registered general batch, partial progress and terminal failure | Preserve definite prefix / existing ordinary batch writer | Planned: existing progress tests plus Windows ECN batch peer observation |
+| Current direct or exact wrapper read; selected vs rejected peer | Publish only final correlated read / shared adapter | Covered: native independent-peer checked fixture and shared buffer/range/address checks |
+| Missing, malformed or stale metadata; returned/replaced lease | Unsupported or reject before publication / Windows decoder then shared adapter | Covered: Windows control-message/read-recovery tables and lease reuse regression |
+| Direct native marked send | Preserve Windows success/error / Windows managed native mode | Covered: independent peer and native send-result table |
+| Checked singleton forwarding vs substituted payload/OOB/destination/result | Exact forwarding only / existing adapter and WriteBatchV1 operation | Covered: shared guard tests, Windows native-error table and independent checked route |
+| Concurrent checked calls and terminal Close | Distinct operation association; revoke then join / adapter send mutex and endpoint lifecycle | Covered: shared concurrency/lease-close fixtures and focused native race gate |
+| Registered general batch, partial progress and terminal failure | Preserve definite prefix / existing ordinary batch writer | Covered: existing progress tests and independent Windows ECN batch peer observation |
 | Unknown/buffering wrappers, raw handles, persistent state | Explicit non-goal | No new authority or evidence obligation |
 
 **Evidence budget:** At most 12 new focused table-test functions, grouped by representation/setup, native routes, lifecycle and preservation; reuse existing adapter/batch/lifecycle tests. One positive per behavior and one negative per materially different failure mode. At most one deletion/bypass of the shared receive-correlation guard when inherited tests are the only evidence it protects Windows; no mutation quota on other owners and no recursive harness audit. Native managed smoke on both W2 OS builds using Go 1.27 for all four family paths (receive four marks, outgoing three permitted marks, direct and checked routes, ordinary and registered batch). CE input uses the independent Linux peer. Existing hosted Go 1.26/1.27 Windows unit jobs cover runtime-line regression without multiplying the native peer campaign. Run one native Windows race invocation for the focused managed group. No additional OS/architecture/NIC matrix, exact syscall-block timing, repeated stress loops or performance campaign. One initial review plus at most one replacement.
