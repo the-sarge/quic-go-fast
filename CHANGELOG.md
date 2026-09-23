@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.62.1-fast.5 — selected for release
+## v0.62.1-fast.5 — publication blocked
 
-Managed ECN and path-MTU discovery rollup based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path, dependencies and public API signatures are unchanged from fast.4. The [release record](docs/releases/v0.62.1-fast.5.md) describes qualification, compatibility and publication gates. This version is selected but not yet published.
+Managed ECN and path-MTU discovery rollup based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path, dependencies and public API signatures are unchanged from fast.4. The [release record](docs/releases/v0.62.1-fast.5.md) describes qualification, compatibility and publication gates. The annotated tag and Go module exist, but GitHub publication is blocked by a failed tag-triggered Darwin unit test; see the release record. The tag will not be moved or reused.
 
 - Managed endpoints support ECN receive metadata and outgoing marking on qualified Linux, Darwin, FreeBSD and Windows paths. Qualification covers the socket's admitted address families, including both dual-stack paths. Direct leases and synchronous exact-forwarding policy wrappers retain socket ownership, selected-peer filtering and lease reuse. Wrapper participation requires the checked send callback and exact read/result forwarding described by `ConfigureManagedPacketIOV1`; arbitrary wrappers do not acquire ECN capability. [Linux #508](https://github.com/the-sarge/quic-go-fast/pull/508), [Darwin #518](https://github.com/the-sarge/quic-go-fast/pull/518), [FreeBSD #530](https://github.com/the-sarge/quic-go-fast/pull/530), [Windows #542](https://github.com/the-sarge/quic-go-fast/pull/542).
 - Qualified Linux and Darwin managed leases enable DF and allow the existing QUIC path-MTU discovery when configuration permits. Lease close joins I/O and restores saved socket options; failed restoration terminates the endpoint. ECN disablement does not disable this DF capability. Windows and other platforms remain unqualified for managed DF. [#546](https://github.com/the-sarge/quic-go-fast/pull/546).
