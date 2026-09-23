@@ -1,0 +1,111 @@
+package main
+
+import (
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/quic-go/quic-go/http3"
+	"github.com/quic-go/quic-go/internal/testdata"
+)
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Println("BASELINE_FAIL:", err)
+		os.Exit(1)
+	}
+	fmt.Println("BASELINE_PASS; server cleanup is process exit, not helper shutdown")
+}
+
+func run() error {
+	// Select one candidate port. A concurrent bind collision fails this run; no retry campaign.
+	reservation, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	addr := reservation.Addr().String()
+	if err := reservation.Close(); err != nil {
+		return err
+	}
+	fmt.Println("ADDRESS:", addr)
+	cert, key := testdata.GetCertificatePaths()
+	returned := make(chan error, 1)
+	go func() {
+		err := http3.ListenAndServeTLS(addr, cert, key, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "issue-424-baseline")
+		}))
+		fmt.Println("HELPER_RETURN:", err)
+		returned <- err
+	}()
+	// Connection-only startup readiness polling, bounded to five seconds.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		c, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+		if err == nil {
+			c.Close()
+			break
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("TCP readiness: %w", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	config := &tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "quic.clemente.io"}
+	tcp := &http.Transport{TLSClientConfig: config, DisableKeepAlives: true}
+	defer tcp.CloseIdleConnections()
+	h3 := &http3.Transport{TLSClientConfig: config.Clone()}
+	defer h3.Close()
+	// H3 first ensures QUIC listener registration precedes the Alt-Svc assertion.
+	h3Err := request("QUIC", &http.Client{Transport: h3, Timeout: 5 * time.Second}, addr, false)
+	var helperErr error
+	select {
+	case helperErr = <-returned:
+	default:
+	}
+	tcpErr := request("TCP", &http.Client{Transport: tcp, Timeout: 5 * time.Second}, addr, h3Err == nil)
+	if helperErr != nil {
+		fmt.Printf("TCP_REQUEST_AFTER_HELPER_RETURN: success=%t\n", tcpErr == nil)
+		return fmt.Errorf("helper returned: %w", helperErr)
+	}
+	if h3Err != nil {
+		return h3Err
+	}
+	if tcpErr != nil {
+		return tcpErr
+	}
+	select {
+	case err := <-returned:
+		return fmt.Errorf("helper unexpectedly returned: %w", err)
+	default:
+	}
+	return nil
+}
+
+func request(label string, client *http.Client, addr string, checkAltSvc bool) error {
+	response, err := client.Get("https://" + addr + "/baseline")
+	if err != nil {
+		fmt.Printf("%s_ERROR: %v\n", label, err)
+		return err
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	fmt.Printf("%s: protocol=%s status=%d body=%q alt-svc=%q\n", label, response.Proto, response.StatusCode, body, response.Header.Get("Alt-Svc"))
+	if err != nil {
+		return err
+	}
+	if response.StatusCode != 200 || string(body) != "issue-424-baseline" {
+		return fmt.Errorf("%s response mismatch", label)
+	}
+	if label == "QUIC" && response.ProtoMajor != 3 {
+		return fmt.Errorf("not HTTP/3")
+	}
+	_, port, _ := net.SplitHostPort(addr)
+	if checkAltSvc && response.Header.Get("Alt-Svc") != "h3=\":"+port+"\"; ma=2592000" {
+		return fmt.Errorf("Alt-Svc mismatch")
+	}
+	return nil
+}

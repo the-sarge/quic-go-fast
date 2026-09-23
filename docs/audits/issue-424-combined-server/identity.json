@@ -1,0 +1,17 @@
+{
+  "source_sha": "19d90fd966cd438f7828cce6491a9d694b3ebd63",
+  "date": "2026-09-23",
+  "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "go": "go version go1.27.1 darwin/arm64",
+  "baseline_attempts": 2,
+  "extra_attempt_authorization": "User approved: Run one corrected baseline, after fixture hostname mismatch.",
+  "controlled_error_cases": 0,
+  "build_timeout_seconds": 120,
+  "runtime_timeout_seconds": 30,
+  "sha256": {
+    "baseline.go.txt": "3034685e19333655cc6ad9e437f4b36f945ae095f98cdd108670250139979a09",
+    "baseline-output.txt": "d9bf4d55872b833893cc4b614171e795cded4f4c2a0c433ea7c099ed3c55c3d5",
+    "initial-output.txt": "fd0db5fb98125a544a9232ddcc0a3597e9e600e377cc893a5ad3d0ca33317030",
+    "initial-baseline.go.txt": "e4f057cf71820f0f64ba19cebb127b05bbf63e08b9a86f1a40e736eff4daf31d"
+  }
+}
