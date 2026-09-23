@@ -3390,3 +3390,28 @@ RAS review `20260923T204338-05c3857d26b00a95b3f7cca9` completed with five review
 ### Next
 
 The version is not yet tagged or published. Follow the [release runbook](runbooks/release.md) at the exact main commit containing this journal: require source workflows, a fresh vulnerability scan and candidate consumer verification, then verify the immutable annotated tag, public module archive, tagged consumer and tag workflows before publishing. Keep [Darwin ECN receive issue #528](https://github.com/the-sarge/quic-go-fast/issues/528) unresolved; passing release checks do not diagnose it.
+
+---
+
+## BBRv3 acceptance evidence plan merged - 2026-09-23 17:11 EDT
+
+**Main:** `b6abfee6b329`
+**Actor:** Codex
+
+### Summary
+
+Merged [Record accepted BBRv3 evidence plan and budget](https://github.com/the-sarge/quic-go-fast/pull/570) at `b6abfee6b32940edf88bac29d24dde0c02a471ed`, publishing the owner-approved plan, counted inventory and source research. Required acceptance work remains inside quic-go-fast; real GridCast transfers are supplemental. No controller, emulator or performance campaign was implemented or run.
+
+### Decisions
+
+[Choose acceptance criteria and an evidence budget](https://github.com/the-sarge/quic-go-fast/issues/557#issuecomment-5802734749) is resolved: correctness and protocol compliance are hard gates; the owner judges performance after reviewing data, with a 20% goodput target rather than a floor. The accepted modeled campaign has a 48 experiment-hour ceiling plus eight separate preparation hours. The canonical resolution and linked plan hold the detailed criteria and scenarios.
+
+### Validation
+
+RAS review `20260923T205422-a724f297b795ad735df959e7` completed with five reviewers, five adjudicators and synthesis. Four documentation corrections clarify L3 queue preparation, Standard/Long durations, research chronology and completion-to-row references. All substantive findings are dispositioned in the [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/570#issuecomment-5802887618); none remains deferred or requires a design stop. The shared cheap docs-only policy skipped another RAS cycle.
+
+Final head `59d44d1a8722a827b87beb313388baa0b4a1d61c` passed clean-head, diff-whitespace, local-link and JSON arithmetic checks: 23 unique rows, 460 core runs, 36 core hours, 60 completion runs and 48 allocated experiment-hours. All 33 hosted checks passed before matched-head squash merge. No local Go tests were run for these documentation changes. OmniFocus search found no matching acceptance-decision task.
+
+### Next
+
+The final controller design and the ProbeRTT and queued-send sampling prototypes remain open. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) is the live planning map; this merge does not authorize campaign execution.
