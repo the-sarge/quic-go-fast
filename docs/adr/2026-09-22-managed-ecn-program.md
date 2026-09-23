@@ -1,7 +1,7 @@
 # Managed ECN qualification program — 2026-09-22
 
 **Program:** `QGF-ECN-20260922`
-**Status:** Windows W1/W2 complete; W3 is the frontier; OpenBSD implementation still awaits scoped handoff
+**Status:** Windows W1–W3 complete; no implementation frontier; OpenBSD implementation still awaits scoped handoff
 **Normative scope:** Track identity, plan pointers, slice graph, frontier and binding rules
 **Audit history:** [Source, existing-work and slice audit](../audits/2026-09-22-managed-ecn-handoff/README.md)
 
@@ -21,9 +21,9 @@ Socket-option success, another platform's evidence, packet-info support, segment
 | D | [Darwin managed ECN](2026-09-22-darwin-managed-ecn-plan.md) | [#456](https://github.com/the-sarge/quic-go-fast/issues/456) | L1 | D1 | Complete — supported |
 | F | [FreeBSD managed ECN](2026-09-22-freebsd-managed-ecn-plan.md) | [#457](https://github.com/the-sarge/quic-go-fast/issues/457) | L1 | F1 | Complete — supported |
 | O | [OpenBSD managed ECN feasibility](2026-09-22-openbsd-managed-ecn-plan.md) | [#458](https://github.com/the-sarge/quic-go-fast/issues/458) | None | O1 | Feasibility complete — IPv6 feasible, IPv4 receive unsupported; implementation awaits scoped handoff |
-| W | [Windows managed ECN](2026-09-22-windows-managed-ecn-plan.md) | [#459](https://github.com/the-sarge/quic-go-fast/issues/459) | W1 and L1 complete | W1, W2, W3 | W1/W2 complete; [W3 #538](https://github.com/the-sarge/quic-go-fast/issues/538) implementation FRONTIER |
+| W | [Windows managed ECN](2026-09-22-windows-managed-ecn-plan.md) | [#459](https://github.com/the-sarge/quic-go-fast/issues/459) | W1 and L1 complete | W1, W2, W3 | W1–W3 complete; managed Windows ECN supported |
 
-L1 delivered the central managed metadata path and capability gate. D1 and F1 completed native qualification. O1 completed native feasibility: IPv6-only receive/send is feasible, IPv4 receive is unsupported through the tested API, and runtime capability remains false pending a separate scoped handoff. W1 established separate-family Windows feasibility. [W2 #537](https://github.com/the-sarge/quic-go-fast/issues/537) completed Windows 11, Server 2025 and dual-stack native qualification; its [receipt](../audits/2026-09-23-windows-ecn-w2/README.md) confirms the accepted W3 representation. W3 #538 is the only current frontier: W2 and the L1 adapter are complete. There is no second incomplete audited slice safe to dispatch in parallel. The program tracker owns current administrative state.
+L1 delivered the central managed metadata path and capability gate. D1 and F1 completed native qualification. O1 completed native feasibility: IPv6-only receive/send is feasible, IPv4 receive is unsupported through the tested API, and runtime capability remains false pending a separate scoped handoff. W1 established separate-family Windows feasibility. [W2 #537](https://github.com/the-sarge/quic-go-fast/issues/537) completed Windows 11, Server 2025 and dual-stack native qualification; its [receipt](../audits/2026-09-23-windows-ecn-w2/README.md) confirms the accepted W3 representation. W3 #538 completes both managed Windows ECN directions through the exact lease. All audited slices are complete; no successor is ready for implementation. OpenBSD implementation still requires its separately scoped handoff. The program tracker owns current administrative state.
 
 ## Rules that bind every track
 

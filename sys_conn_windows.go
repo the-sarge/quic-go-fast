@@ -48,7 +48,9 @@ type windowsConn struct {
 	// by ReadPacket(). Each holds one reference on the read's shared slab.
 	delivery coalescedDelivery
 
-	cap connCapabilities
+	// managed confines full-datagram metadata and native send normalization to the endpoint.
+	managed bool
+	cap     connCapabilities
 }
 
 var _ rawConn = &windowsConn{}
@@ -162,7 +164,7 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 	// metadata or truncation, while real socket errors retain their identity.
 	for {
 		var buffer *packetBuffer
-		if c.cap.GRO {
+		if c.cap.GRO || c.managed {
 			// a single coalesced read can deliver up to 65535 bytes
 			buffer = getCoalescedPacketBuffer()
 			buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
@@ -177,17 +179,17 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 			buffer.Release()
 			// Winsock reports truncated payload or control data as WSAEMSGSIZE.
 			// That datagram has been consumed; it must not terminate the reader.
-			if c.cap.GRO && errors.Is(err, windows.WSAEMSGSIZE) {
+			if (c.cap.GRO || c.managed) && errors.Is(err, windows.WSAEMSGSIZE) {
 				continue
 			}
 			return receivedPacket{}, err
 		}
-		if c.cap.GRO && (flags&(windows.MSG_TRUNC|windows.MSG_CTRUNC) != 0 || n < 0 || n > len(buffer.Data) || oobn < 0 || oobn > len(c.oobBuffer)) {
+		if (c.cap.GRO || c.managed) && (flags&(windows.MSG_TRUNC|windows.MSG_CTRUNC) != 0 || n < 0 || n > len(buffer.Data) || oobn < 0 || oobn > len(c.oobBuffer)) {
 			buffer.Release()
 			continue
 		}
-		info, segmentSize, valid := parseControlMessagesChecked(c.oobBuffer[:oobn])
-		if c.cap.GRO && (!valid || segmentSize < 0 || segmentSize > n) {
+		info, segmentSize, ecn, valid := parseWindowsControlMessages(c.oobBuffer[:oobn], c.managed)
+		if (c.cap.GRO || c.managed) && (!valid || segmentSize < 0 || segmentSize > n) {
 			buffer.Release()
 			continue
 		}
@@ -197,6 +199,7 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 			data:       buffer.Data[:n],
 			buffer:     buffer,
 			info:       info,
+			ecn:        ecn,
 		}
 		if !c.cap.GRO || n == 0 {
 			return p, nil
@@ -224,7 +227,7 @@ func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte,
 		oob, data = appendCmsg(oob, windows.IPPROTO_UDP, windows.UDP_SEND_MSG_SIZE, 4)
 		binary.NativeEndian.PutUint32(data, uint32(gsoSize))
 	}
-	if ecn != protocol.ECNUnsupported {
+	if ecn != protocol.ECNUnsupported && !c.managed {
 		panic("cannot use ECN with a windowsConn")
 	}
 	udpAddr, ok := addr.(*net.UDPAddr)
@@ -235,7 +238,15 @@ func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte,
 		// never sends.
 		return c.WriteTo(b, addr)
 	}
+	if c.managed {
+		oob = appendExternalECN(oob, udpAddr, ecn)
+	}
 	n, _, err := c.WriteMsgUDP(b, oob, udpAddr)
+	if c.managed && err == nil && n == 0 {
+		// Go overlapped native success can report zero despite complete delivery.
+		// Do not normalize nonzero short writes, errors, or wrapper callbacks.
+		n = len(b)
+	}
 	if err == nil && gsoSize > 0 {
 		// Winsock reports zero transferred bytes on send completions that
 		// carry UDP_SEND_MSG_SIZE (observed on Server 2025 for segmented
@@ -332,15 +343,27 @@ func parseControlMessages(oob []byte) (packetInfo, int) {
 // The ordinary packet-info API retains its best-effort fallback. Coalesced
 // receive also requires a complete, unambiguous control buffer before splitting.
 func parseControlMessagesChecked(oob []byte) (packetInfo, int, bool) {
+	info, size, _, valid := parseWindowsControlMessages(oob, false)
+	return info, size, valid
+}
+
+func parseWindowsControlMessages(oob []byte, managed bool) (packetInfo, int, protocol.ECN, bool) {
+	ecn := protocol.ECNUnsupported
 	valid := true
 	var info packetInfo
 	var segmentSize int
 	for len(oob) >= wsaCmsgDataOffset {
 		hdr := (*windows.WSACMSGHDR)(unsafe.Pointer(&oob[0]))
 		if hdr.Len < uintptr(wsaCmsgDataOffset) || hdr.Len > uintptr(len(oob)) {
-			return info, segmentSize, false
+			return info, segmentSize, ecn, false
 		}
 		body := oob[wsaCmsgDataOffset:hdr.Len]
+		if managed && (hdr.Level == windows.IPPROTO_IP || hdr.Level == windows.IPPROTO_IPV6) && hdr.Type == windowsECN {
+			if ecn != protocol.ECNUnsupported || len(body) != 4 || binary.NativeEndian.Uint32(body) > 3 {
+				return info, segmentSize, protocol.ECNUnsupported, false
+			}
+			ecn = protocol.ParseECNHeaderBits(byte(binary.NativeEndian.Uint32(body)))
+		}
 		if hdr.Level == windows.IPPROTO_UDP && hdr.Type == windows.UDP_COALESCED_INFO {
 			// payload is one DWORD: the size of every segment of the
 			// coalesced read except a possibly shorter final one
@@ -391,11 +414,11 @@ func parseControlMessagesChecked(oob []byte) (packetInfo, int, bool) {
 		next := wsaCmsgAlign(int(hdr.Len))
 		if next >= len(oob) {
 			// The final message need not include trailing alignment padding.
-			return info, segmentSize, valid
+			return info, segmentSize, ecn, valid
 		}
 		oob = oob[next:]
 	}
-	return info, segmentSize, valid && len(oob) == 0
+	return info, segmentSize, ecn, valid && len(oob) == 0
 }
 
 func (info *packetInfo) OOB() []byte {
