@@ -3371,3 +3371,22 @@ Final head `52023556cd05168e0b2a069f3a0d111f029a9471` passed clean exact-head ce
 ### Next
 
 At this timestamp, [Choose acceptance criteria and an evidence budget](https://github.com/the-sarge/quic-go-fast/issues/557) is the next unclaimed frontier item in native order; ProbeRTT and queued-send sampling prototypes also remain open. Final design waits on those human decisions and experiments. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) is the live planning map.
+
+---
+
+## v0.62.1-fast.5 release preparation - 2026-09-23 17:01 EDT
+
+**Main:** `3fbbd025e348`
+**Actor:** Codex
+
+### Summary
+
+Merged [release preparation PR #569](https://github.com/the-sarge/quic-go-fast/pull/569), selecting `v0.62.1-fast.5` for the managed ECN, Linux/Darwin managed DF and path-MTU discovery, and Darwin 27 arm64 batch-admission rollup. The changelog and release record distinguish qualified behavior from research and preserve the open incident and platform limitations. No Go code, dependency or public API signature changed.
+
+### Validation
+
+RAS review `20260923T204338-05c3857d26b00a95b3f7cca9` completed with five reviewers and synthesis. The accepted documentation correction identifies architecture-aware admission as new in #523 and Darwin 27 arm64 admission in #525. The interim changelog fragment is valid and will be updated together with any dated heading. No deferred or stop-for-decision findings remain; the shared cheap docs-only correction policy omitted another RAS cycle. Relative links, source attribution, whitespace and clean-tree checks passed at final PR head `fc1b0ebdb5a5c2a3de164ab6b09355ccc0f03595`; all 33 hosted checks passed, with the five PR workflows and all 17 individual jobs inspected.
+
+### Next
+
+The version is not yet tagged or published. Follow the [release runbook](runbooks/release.md) at the exact main commit containing this journal: require source workflows, a fresh vulnerability scan and candidate consumer verification, then verify the immutable annotated tag, public module archive, tagged consumer and tag workflows before publishing. Keep [Darwin ECN receive issue #528](https://github.com/the-sarge/quic-go-fast/issues/528) unresolved; passing release checks do not diagnose it.
