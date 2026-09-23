@@ -1,0 +1,24 @@
+{
+  "label": "darwin25-seeded-1",
+  "started_at": "2026-09-23T05:49:22.128191+00:00",
+  "elapsed_seconds": 5.849,
+  "cwd": "/Volumes/worktrees/quic-go-fast/ecn-receive-diagnostics",
+  "command": [
+    "/usr/local/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=180s",
+    "-shuffle=1790116749139531000",
+    "-cover",
+    "."
+  ],
+  "timeout_seconds": 180,
+  "source_sha": "2162ba68cb39ab8bec5e4fcdfd6ccef594af3464",
+  "worktree_status": "",
+  "environment": {
+    "GOTOOLCHAIN": "go1.26.8",
+    "TIMESCALE_FACTOR": "10"
+  },
+  "exit_code": 0,
+  "output": "ok  \tgithub.com/quic-go/quic-go\t3.688s\tcoverage: 91.1% of statements\n"
+}

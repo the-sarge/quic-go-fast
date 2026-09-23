@@ -1,0 +1,20 @@
+{
+  "label": "darwin25-environment",
+  "started_at": "2026-09-23T05:49:06.285245+00:00",
+  "elapsed_seconds": 0.07,
+  "cwd": "/Volumes/worktrees/quic-go-fast/ecn-receive-diagnostics",
+  "command": [
+    "sh",
+    "-c",
+    "uname -a; sw_vers; /usr/local/go/bin/go version; git status --short --branch; shasum -a 256 sys_conn_oob_test.go sys_conn_oob_receiver_test.go"
+  ],
+  "timeout_seconds": 30,
+  "source_sha": "2162ba68cb39ab8bec5e4fcdfd6ccef594af3464",
+  "worktree_status": "",
+  "environment": {
+    "GOTOOLCHAIN": "go1.26.8",
+    "TIMESCALE_FACTOR": "10"
+  },
+  "exit_code": 0,
+  "output": "Darwin m4mini.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:17:26 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6041 arm64\nProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\ngo version go1.26.8 darwin/arm64\n## codex/ecn-receive-diagnostics-528\nb694f7032f38c00e7a3aba2bbc357e6e26853319f95add054449791c37b3061a  sys_conn_oob_test.go\n383aa7a2673b4c2df749aec3b6282568651a402d71a4db47acd10b3013d8da7a  sys_conn_oob_receiver_test.go\n"
+}
