@@ -3069,3 +3069,26 @@ RAS review `20260922T223851-799b46ec2d512cfa4a2173dc` completed; three accepted 
 ### Next
 
 The Darwin 27 qualification remains complete under [#516](https://github.com/the-sarge/quic-go-fast/issues/516). The earlier docs candidate exposed a recurring Darwin 25 dual-stack ECN receive timeout after the full configured ten-second wait. Matching-host isolated and shuffled diagnostic replays passed without reproducing it; no infrastructure cause or fix was established. [#528](https://github.com/the-sarge/quic-go-fast/issues/528) tracks that separate diagnosis with failed-job evidence and a bounded next step.
+
+---
+
+## FreeBSD managed ECN qualification merged - 2026-09-22 19:55 EDT
+
+**Main:** `8141a56c4ae5`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #530](https://github.com/the-sarge/quic-go-fast/pull/530) as `8141a56c4ae5970151713df32c34cc24f5b7ebe8`, closing [F1 / #505](https://github.com/the-sarge/quic-go-fast/issues/505). FreeBSD managed endpoints now retain native ECN metadata and mark ordinary and batch output through the shared L1 adapter. AF_INET6 uses IPv6 ancillary setup for mapped IPv4. The product PR also records F1 completion and leaves O1/W1 on the program frontier.
+
+### Decisions
+
+FreeBSD is supported within the accepted managed endpoint/lease and synchronous checked-wrapper domain, with no new offload, public API or raw-socket authority. The [F1 plan](adr/2026-09-22-freebsd-managed-ecn-plan.md) remains normative; the [native qualification record](audits/2026-09-22-freebsd-managed-ecn/README.md) records the platform evidence and finite coverage.
+
+### Validation
+
+RAS review `20260922T234113-f27dd52ef5d26c3adf739d6f` completed with five successful reviewers and zero findings. Reviewed head `841f6e6409ab9505db1860412ac9c732630997e4` passed native FreeBSD 15.1-RELEASE-p3/amd64/Go 1.27.0 qualification in run `run-20260922T235125.535129000Z`, including four family rows without family skips, the affected package, vet, managed race tests and VM cleanup. Local tests, vet, module tidiness, lint and Darwin/FreeBSD/OpenBSD single-setup cross-builds passed. All applicable hosted PR workflows passed on that head; [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/530#issuecomment-5786436318). No deferred findings or untraced effects remained.
+
+### Next
+
+O1 / #506 and W1 / #507 remain the parallel frontier, as recorded by the [program index](adr/2026-09-22-managed-ecn-program.md); [#354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live tracking view. F1 has no newly unblocked successor.
