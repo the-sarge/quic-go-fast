@@ -1,0 +1,6 @@
+BYPASS=decoder
+{"error":"\u003cnil\u003e","event":"exchange","expected_receive":0,"flags":0,"from":"192.168.154.1:5537","id":"go1.27.1-v4-receive-1","match":false,"path":"v4","peer_bytes":49,"peer_mark":0,"phase":"receive","receive_cmsgs":[{"level":0,"type":50,"length":20,"value":0}],"receive_mark":-1,"send_cmsg":null,"send_n":0,"send_oobn":0,"submitted":49}
+EXPECTED_NONZERO_EXIT=2
+BYPASS=encoder
+{"error":"\u003cnil\u003e","event":"exchange","expected_receive":0,"flags":0,"from":"192.168.154.1:5537","id":"go1.27.1-v4-send-6","match":false,"path":"v4","peer_bytes":45,"peer_mark":0,"phase":"send","receive_cmsgs":[{"level":0,"type":50,"length":20,"value":0}],"receive_mark":0,"send_cmsg":{"level":0,"type":50,"length":20,"value":2},"send_n":0,"send_oobn":0,"submitted":45}
+EXPECTED_NONZERO_EXIT=2

@@ -1,7 +1,7 @@
 # Windows managed ECN implementation plan
 
 **Date:** 2026-09-23
-**Status:** W1 complete; W2 native qualification is the frontier; W3 implementation is blocked by W2
+**Status:** W1 and W2 complete; W3 implementation is the frontier
 **Track:** W, 5 of 5 in `QGF-ECN-20260922`
 **Depends on:** W1 and the merged L1 managed adapter; no incomplete cross-track blockers
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md), [Windows datapath plan](2026-09-11-windows-datapath-plan.md)
@@ -57,7 +57,7 @@ URO and ECN share one Windows decoder. [Microsoft's URO rules](https://learn.mic
 
 ### Slice W2 — Qualify Windows 11 and dual-stack native ECN
 
-**Stable identity:** `QGF-ECN-20260922/W2`. One evidence/docs PR; child issue pending.
+**Stable identity:** `QGF-ECN-20260922/W2`. Complete: [#537](https://github.com/the-sarge/quic-go-fast/issues/537); [native qualification receipt](../audits/2026-09-23-windows-ecn-w2/README.md). The accepted representation and all four required traffic paths are confirmed on the two recorded OS builds and both Go lines; W3 is eligible. Runtime ECN remains unchanged.
 
 **What it delivers:** A reproducible native disposition for the remaining platform/family/runtime questions, precise ABI observations and send-result interpretation, permitting W3 to start only when its accepted representation is confirmed. Windows runtime ECN remains false.
 
@@ -87,7 +87,9 @@ URO and ECN share one Windows decoder. [Microsoft's URO rules](https://learn.mic
 
 ### Slice W3 — Enable managed Windows ECN through the exact lease
 
-**Stable identity:** `QGF-ECN-20260922/W3`. One implementation PR; child issue pending.
+**Stable identity:** `QGF-ECN-20260922/W3`. One implementation PR; child [#538](https://github.com/the-sarge/quic-go-fast/issues/538).
+
+**Status:** Ready — W2 and L1 are complete.
 
 **What it delivers:** Both ECN directions through direct leases and synchronous exact-forwarding wrappers on the W2-qualified IPv4, IPv6 and dual-stack paths, including ordinary and batch output, filtering, fallback, reuse and cleanup. Capability becomes true only for the qualified endpoint and route.
 
