@@ -1,0 +1,8 @@
+BASE PRESERVED 4944486615fff58066e81a8b9ecdc994be4022541948eab8fc0163406a9708c2  /srv/infra/libvirt/images/windows-guests/windows-11-pro-amd64/baseline.qcow2
+BASE PRESERVED fd9928a795fed5dd8f10c41fb95cdc424b2de674ef749efe405956ee9e0a5e59  /srv/infra/libvirt/images/garm/windows-server-2025-amd64/v2/base.qcow2
+Domain 'quic-ecn-w2-537-win11' has been undefined
+Domain 'quic-ecn-w2-537-server' has been undefined
+STOPPED owned peer/HTTP PID 3278688
+STOPPED owned peer/HTTP PID 3280391
+Network quic-ecn-w2-537 destroyed
+CLEANUP PASS: task-owned guests, overlays, NVRAM, TPM copies, network, peer/HTTP, exported source, toolchains and remote probes absent; shared admission released; both base disk hashes unchanged.

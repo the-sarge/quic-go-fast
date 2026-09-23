@@ -1,0 +1,94 @@
+{
+  "win11": [
+    {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200",
+      "OSArchitecture": "64-bit"
+    },
+    {
+      "DisplayVersion": "25H2",
+      "CurrentBuild": "26200",
+      "UBR": 8037
+    },
+    [
+      {
+        "InterfaceAlias": "Ethernet",
+        "IPAddress": "fe80::d2d6:93a8:f199:aa4f%6"
+      },
+      {
+        "InterfaceAlias": "Ethernet",
+        "IPAddress": "fd71:537::a6a1:2bb2:ac07:7056"
+      },
+      {
+        "InterfaceAlias": "Ethernet",
+        "IPAddress": "fd71:537::49b4:5cb0:8580:130c"
+      },
+      {
+        "InterfaceAlias": "Ethernet",
+        "IPAddress": "192.168.154.104"
+      }
+    ],
+    {
+      "Source": "C:\\Go\\bin\\go.exe"
+    }
+  ],
+  "server": [
+    {
+      "Caption": "Microsoft Windows Server 2025 Standard Evaluation",
+      "Version": "10.0.26100",
+      "BuildNumber": "26100",
+      "OSArchitecture": "64-bit"
+    },
+    {
+      "DisplayVersion": "24H2",
+      "CurrentBuild": "26100",
+      "UBR": 32230
+    },
+    [
+      {
+        "InterfaceAlias": "Ethernet",
+        "IPAddress": "fe80::803d:920b:faf6:f160%6"
+      },
+      {
+        "InterfaceAlias": "Ethernet",
+        "IPAddress": "fd71:537::575b:64a5:7a11:3130"
+      },
+      {
+        "InterfaceAlias": "Ethernet",
+        "IPAddress": "192.168.154.105"
+      }
+    ],
+    {
+      "Source": "C:\\actions-runner\\_work\\_tool\\go\\1.27.0\\x64\\bin\\go.exe"
+    }
+  ],
+  "toolchains": [
+    {
+      "filename": "go1.26.8.windows-amd64.zip",
+      "os": "windows",
+      "arch": "amd64",
+      "version": "go1.26.8",
+      "sha256": "b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59",
+      "size": 74957586,
+      "kind": "archive"
+    },
+    {
+      "filename": "go1.27.1.windows-amd64.zip",
+      "os": "windows",
+      "arch": "amd64",
+      "version": "go1.27.1",
+      "sha256": "a3911b5e0e1b1053f25ed0675f4c1c6aad1e2bfcf253df2b9be4caabd2edd95d",
+      "size": 78931360,
+      "kind": "archive"
+    }
+  ],
+  "linux_peer": {
+    "kernel": "Linux 7.0.0-30-generic x86_64",
+    "python": "3.14.4"
+  },
+  "source_commit": "59143e0b98e5562539813f43abc52df646602b96",
+  "x_sys": "v0.48.0",
+  "probe_sha256": "475ac88972fc306e015f7377e87973e4079efd2112fa23597fd83fe6e3921d7f",
+  "peer_sha256": "e3903d0e774106ec78e630ffe1bfeca5804391455d1f5319ee9adca14f4fda57"
+}
