@@ -3273,3 +3273,26 @@ Reconcile the completed investigation action and preserve the pending scope deci
 Merged [PR #550](https://github.com/the-sarge/quic-go-fast/pull/550), completing test-cleanup issues #509–#514. Tests now exercise monotime self-equality, retain one zero-time conversion assertion, distinguish all three StreamError equality fields, use independent numeric bandwidth expectations, pin ACK_FREQUENCY encoding and dispatch to literal bytes, and cover non-integral pacer deadline rounding with sufficient deadline budget. Production behavior and dependencies are unchanged.
 
 The exact candidate `fb16f2f25c514598cde41197aee7a8e0f190f49f` passed affected-package tests, go vet, module tidiness, formatting and whitespace checks; all 33 hosted checks passed before matched-head squash merge. Five temporary mutations failed the intended assertions and were restored before commit. RAS run `20260923T153100-6f77d6e6c75001c6777ed1e9` completed with four successful reviewers, one failed reviewer process, and no findings or follow-ups; configured quorum and synthesis succeeded. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/550#issuecomment-5797788738).
+
+---
+
+## GridCast BBR workload research landed - 2026-09-23 13:01 EDT
+
+**Main:** `35c29ab34d17`
+**Actor:** Codex
+
+### Completed
+
+Merged [docs: characterize GridCast workload for BBR planning](https://github.com/the-sarge/quic-go-fast/pull/559). The pinned research traces GridCast’s scheduling, direct QUIC and reliable fallback, packet-I/O ownership, useful-delivery measurements and ordinary-path ECN eligibility. Added application-goodput vocabulary. No transport implementation or consumer behavior changed.
+
+### Decisions
+
+[Characterize GridCast’s WAN bulk-transfer workload](https://github.com/the-sarge/quic-go-fast/issues/553#issuecomment-5798749401) records the tentative macOS/arm64, Linux/amd64 and Windows/amd64 priorities and estimated 10–50 GiB files. Thresholds, exact workload matrix and controller API remain with later decisions.
+
+### Validation
+
+RAS run `20260923T164317-b2032a4b8411f75ca6fe8986` completed with four successful reviewers; one configured reviewer failed at startup. The accepted ECN documentation omission was corrected, its duplicate incorporated, and an unenforced whitespace nit rejected. The shared docs-only policy skipped a further RAS cycle. Final head `816e4a030c0576523bee1b29bf27bb2fed04337a` passed immutable-source/reference and whitespace checks plus all five applicable hosted PR workflows and every job. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/559#issuecomment-5798972670). No benchmarks or runtime changes were made.
+
+### Next
+
+Continue the remaining investigations in [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552), the live planning map.
