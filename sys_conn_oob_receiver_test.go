@@ -67,16 +67,23 @@ func (r *sysConnTestReceiver) receive(timeout time.Duration, phase string, sende
 	context := fmt.Sprintf("phase=%s listener=%s sender=%v destination=%v", phase, r.udpConn.LocalAddr(), sender, destination)
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
+	var result sysConnTestResult
 	select {
-	case result := <-r.results:
-		if result.err != nil {
-			return receivedPacket{}, fmt.Errorf("%s: receive error (%T): %w", context, result.err, result.err)
-		}
-		r.received = append(r.received, result.packet.buffer)
-		return result.packet, nil
+	case result = <-r.results:
 	case <-timer.C:
-		return receivedPacket{}, fmt.Errorf("%s: timeout waiting for packet", context)
+		// A result queued while the test was descheduled must not be hidden
+		// by the timer becoming ready too. This does not wait any longer.
+		select {
+		case result = <-r.results:
+		default:
+			return receivedPacket{}, fmt.Errorf("%s: timeout waiting for packet", context)
+		}
 	}
+	if result.err != nil {
+		return receivedPacket{}, fmt.Errorf("%s: receive error (%T): %w", context, result.err, result.err)
+	}
+	r.received = append(r.received, result.packet.buffer)
+	return result.packet, nil
 }
 
 func (r *sysConnTestReceiver) wait(t *testing.T, timeout time.Duration, phase string, sender, destination net.Addr) receivedPacket {
@@ -131,7 +138,7 @@ func TestSysConnReceiverPacketBeforeError(t *testing.T) {
 	// Wait for the real packet to reach the handoff before forcing termination.
 	require.Eventually(t, func() bool { return len(receiver.results) == 1 }, scaleDuration(time.Second), time.Millisecond)
 	require.NoError(t, receiver.udpConn.Close())
-	p, err := receiver.receive(scaleDuration(time.Second), "IPv4 packet", conn.LocalAddr(), addr)
+	p, err := receiver.receive(0, "IPv4 packet", conn.LocalAddr(), addr)
 	require.NoError(t, err)
 	require.Equal(t, "before close", string(p.data))
 	_, err = receiver.receive(scaleDuration(time.Second), "IPv4 termination", conn.LocalAddr(), addr)
@@ -176,4 +183,18 @@ func TestSysConnReceiverCleanup(t *testing.T) {
 			receiver.close()
 		})
 	}
+}
+
+func TestSysConnReceiverQueuedErrorAtTimeout(t *testing.T) {
+	addr, receiver := runSysConnServer(t, "udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, receiver.udpConn.Close())
+	// The worker only exits after publishing the error. Both the result and
+	// zero-duration timer are ready when receive selects between them.
+	select {
+	case <-receiver.done:
+	case <-time.After(scaleDuration(time.Second)):
+		t.Fatal("receiver did not publish its terminal error")
+	}
+	_, err := receiver.receive(0, "IPv4 expired wait", nil, addr)
+	require.ErrorIs(t, err, net.ErrClosed)
 }

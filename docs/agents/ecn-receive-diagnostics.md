@@ -26,4 +26,4 @@ Review budget: one initial RAS review, verification of independently accepted fi
 
 ## Results
 
-See the [investigation record](../audits/2026-09-23-ecn-receive-diagnostics/results.md) for source/environment receipts, replay outcomes, review dispositions and the remaining observation.
+See the [investigation record](../audits/2026-09-23-ecn-receive-diagnostics/results.md) for source/environment receipts, replay outcomes and the remaining observation. [PR #544](https://github.com/the-sarge/quic-go-fast/pull/544) retains review dispositions and final-head certification.
