@@ -3262,3 +3262,14 @@ The initial diagnostic used a stale fixture hostname and failed TLS verification
 ### Next
 
 Reconcile the completed investigation action and preserve the pending scope decision in [#424](https://github.com/the-sarge/quic-go-fast/issues/424); [#422](https://github.com/the-sarge/quic-go-fast/issues/422) is the live reconciliation tracker. A repair is not automatically authorized by this result.
+
+---
+
+## Independent test expectations landed - 2026-09-23 11:36 EDT
+
+**Main:** `66f8b7c076b6`
+**Actor:** Codex
+
+Merged [PR #550](https://github.com/the-sarge/quic-go-fast/pull/550), completing test-cleanup issues #509–#514. Tests now exercise monotime self-equality, retain one zero-time conversion assertion, distinguish all three StreamError equality fields, use independent numeric bandwidth expectations, pin ACK_FREQUENCY encoding and dispatch to literal bytes, and cover non-integral pacer deadline rounding with sufficient deadline budget. Production behavior and dependencies are unchanged.
+
+The exact candidate `fb16f2f25c514598cde41197aee7a8e0f190f49f` passed affected-package tests, go vet, module tidiness, formatting and whitespace checks; all 33 hosted checks passed before matched-head squash merge. Five temporary mutations failed the intended assertions and were restored before commit. RAS run `20260923T153100-6f77d6e6c75001c6777ed1e9` completed with four successful reviewers, one failed reviewer process, and no findings or follow-ups; configured quorum and synthesis succeeded. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/550#issuecomment-5797788738).
