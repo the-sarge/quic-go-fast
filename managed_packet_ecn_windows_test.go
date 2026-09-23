@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync"
@@ -166,6 +167,7 @@ func TestWindowsManagedECNReadRecovery(t *testing.T) {
 		flags int
 		err   error
 	}{
+		{name: "absent"},
 		{name: "malformed", oob: []byte{1}},
 		{name: "payload truncation", flags: windows.MSG_TRUNC},
 		{name: "control truncation", flags: windows.MSG_CTRUNC},
@@ -176,6 +178,14 @@ func TestWindowsManagedECNReadRecovery(t *testing.T) {
 			c := &windowsConn{OOBCapablePacketConn: f, managed: true, oobBuffer: make([]byte, oobBufferSize)}
 			p, err := c.ReadPacket()
 			require.NoError(t, err)
+			if tc.name == "absent" {
+				require.Equal(t, f.payload, p.data)
+				require.Equal(t, protocol.ECNUnsupported, p.ecn)
+				require.Equal(t, 1, f.calls)
+				p.buffer.Release()
+				p, err = c.ReadPacket()
+				require.NoError(t, err)
+			}
 			defer p.buffer.Release()
 			require.Equal(t, f.payload, p.data)
 			require.Equal(t, protocol.ECT1, p.ecn)
@@ -201,10 +211,24 @@ func TestWindowsManagedECNSendResults(t *testing.T) {
 			t.Run(tc.name+mark.String(), func(t *testing.T) {
 				f := &windowsECNMessageFixture{n: tc.n, writeErr: tc.err}
 				c := &windowsConn{OOBCapablePacketConn: f, managed: true}
-				oob := appendIPv4ECNMsg(nil, protocol.ECT0)
+				var oob []byte
+				if mark == protocol.ECNUnsupported {
+					oob = appendIPv4ECNMsg(nil, protocol.ECT0)
+				}
 				n, err := c.WritePacket([]byte("payload"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)}, oob, 0, mark)
 				require.Equal(t, tc.want, n)
 				require.Equal(t, tc.err, err)
+				lease := &managedPacketLease{done: make(chan struct{})}
+				endpoint := &managedPacketEndpoint{managedNative: c, managedECN: true, lease: lease}
+				endpoint.idle = sync.NewCond(&endpoint.mutex)
+				conn := &managedPacketConn{endpoint: endpoint, lease: lease}
+				raw := newManagedPacketRawConn(&managedECNFixtureConn{}, conn, &externalPacketIO{sendBatch: conn.WriteBatchV1}, mark != protocol.ECNUnsupported)
+				_, err = raw.WritePacket([]byte("payload"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)}, nil, 0, protocol.ECT0)
+				if tc.name == "short" {
+					require.ErrorIs(t, err, io.ErrShortWrite)
+				} else {
+					require.Equal(t, tc.err, err)
+				}
 			})
 		}
 	}
