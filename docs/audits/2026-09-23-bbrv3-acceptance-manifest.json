@@ -14,7 +14,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S1"
     },
     {
       "platform": "linux/amd64",
@@ -26,7 +27,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S2"
     },
     {
       "platform": "linux/amd64",
@@ -38,7 +40,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S3"
     },
     {
       "platform": "linux/amd64",
@@ -50,7 +53,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S4"
     },
     {
       "platform": "linux/amd64",
@@ -62,7 +66,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S5"
     },
     {
       "platform": "linux/amd64",
@@ -74,7 +79,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S6"
     },
     {
       "platform": "linux/amd64",
@@ -86,7 +92,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S7"
     },
     {
       "platform": "linux/amd64",
@@ -98,7 +105,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S8"
     },
     {
       "platform": "linux/amd64",
@@ -110,7 +118,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L0"
     },
     {
       "platform": "linux/amd64",
@@ -122,7 +131,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L1"
     },
     {
       "platform": "linux/amd64",
@@ -134,7 +144,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L2"
     },
     {
       "platform": "linux/amd64",
@@ -146,7 +157,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L3"
     },
     {
       "platform": "linux/amd64",
@@ -158,7 +170,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L4"
     },
     {
       "platform": "linux/amd64",
@@ -170,7 +183,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L5"
     },
     {
       "platform": "linux/amd64",
@@ -182,7 +196,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L6"
     },
     {
       "platform": "linux/amd64",
@@ -194,7 +209,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L7"
     },
     {
       "platform": "linux/amd64",
@@ -206,7 +222,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L8"
     },
     {
       "platform": "darwin/arm64",
@@ -218,7 +235,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S1"
     },
     {
       "platform": "darwin/arm64",
@@ -230,7 +248,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S3"
     },
     {
       "platform": "darwin/arm64",
@@ -242,7 +261,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L3"
     },
     {
       "platform": "windows/amd64",
@@ -254,7 +274,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S1"
     },
     {
       "platform": "windows/amd64",
@@ -266,7 +287,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 4200
+      "experiment_seconds": 4200,
+      "id": "S3"
     },
     {
       "platform": "windows/amd64",
@@ -278,7 +300,8 @@
       "controllers": 2,
       "workloads": 2,
       "runs": 20,
-      "experiment_seconds": 7200
+      "experiment_seconds": 7200,
+      "id": "L3"
     }
   ],
   "total_runs": 460,
@@ -292,12 +315,12 @@
   },
   "completion_checks": {
     "case_ids": [
-      "linux/S1",
-      "linux/S6",
-      "linux/L1",
-      "linux/L5",
-      "darwin/S3",
-      "windows/S3"
+      "linux/amd64/S1",
+      "linux/amd64/S6",
+      "linux/amd64/L1",
+      "linux/amd64/L5",
+      "darwin/arm64/S3",
+      "windows/amd64/S3"
     ],
     "paired_repetitions": 5,
     "individual_runs": 60,

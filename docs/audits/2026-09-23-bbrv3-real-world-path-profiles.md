@@ -53,7 +53,7 @@ Model the VSAT and fallback separately before considering a transition between t
 
 ## Candidate controlled experiments
 
-These values are proposed simulator inputs, not claimed real-world medians and not yet an accepted matrix. They provide a compact starting point for discussion; parameters and evidence budget still need to be fixed before collecting comparative results.
+At the time of this research, these values were proposed simulator inputs, not claimed real-world medians or an accepted matrix. They provided a starting point for discussion; the subsequent owner-approved selections and evidence budget are linked under [Accepted specification](#accepted-specification). The table preserves the broader research candidates.
 
 | Scenario | Sender upload / reverse capacity | Base RTT | Distinct purpose |
 | --- | ---: | ---: | --- |
