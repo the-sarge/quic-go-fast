@@ -1,0 +1,20 @@
+{"family": "AF_INET", "from": ["192.168.153.104", 64217], "request": {"case": "receive-disabled-red", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "receive-disabled-red", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "value-0", "reply_ecn": 0, "peer_observed_ecn": 0}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "value-2", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "value-1", "reply_ecn": 1, "peer_observed_ecn": 1}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "value-3", "reply_ecn": 3, "peer_observed_ecn": 0}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "send-omitted-red", "reply_ecn": 2, "peer_observed_ecn": 0}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "receive-extraction-positive", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64218], "request": {"case": "receive-option-cleared", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "receive-disabled-red", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "value-0", "reply_ecn": 0, "peer_observed_ecn": 0}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "value-2", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "value-1", "reply_ecn": 1, "peer_observed_ecn": 1}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "value-3", "reply_ecn": 3, "peer_observed_ecn": 0}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "send-omitted-red", "reply_ecn": 2, "peer_observed_ecn": 0}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "receive-extraction-positive", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET6", "from": ["fd71:507::d992:3edb:8665:9b1f", 64219, 0, 0], "request": {"case": "receive-option-cleared", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64220], "request": {"case": "receive-disabled-red", "reply_ecn": 2, "peer_observed_ecn": 2}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64220], "request": {"case": "value-0", "reply_ecn": 0, "peer_observed_ecn": 0}, "flags": 0}
+{"family": "AF_INET", "from": ["192.168.153.104", 64221], "request": {"case": "receive-disabled-red", "reply_ecn": 2, "peer_observed_ecn": 0}, "flags": 0}
