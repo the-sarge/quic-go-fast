@@ -3174,3 +3174,24 @@ RAS review `20260923T023324-4b2210d82033f914d955b941` found one accepted stale-s
 ### Next
 
 [W3 #538](https://github.com/the-sarge/quic-go-fast/issues/538) is the committed Windows implementation frontier with W2 and L1 complete. Its accepted contract is unchanged. The [program tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live frontier view.
+
+---
+
+## Managed Windows ECN implemented - 2026-09-23 01:20 EDT
+
+**Main:** `df156174c676`
+**Actor:** Codex
+
+### Summary
+
+Completed Windows managed ECN slice W3 in [PR #542](https://github.com/the-sarge/quic-go-fast/pull/542), merged as `df156174c676bf59fbdc25981346ea8a380a6d4e`, closing [#538](https://github.com/the-sarge/quic-go-fast/issues/538). Qualified endpoints now preserve received marks and send marked datagrams through direct, checked and registered batch routes on IPv4, IPv6 and dual-stack paths. The existing endpoint and shared adapter retain ownership; failed qualification and opt-out preserve ordinary I/O and URO, and unregistered Windows ECN stays unsupported. The product PR also owns the committed Windows completion and program-frontier transition.
+
+### Validation
+
+Windows 11 Pro 26200.8037 and Server 2025 Standard Evaluation 26100.32230 passed the focused managed and existing Windows tests using Go 1.27.1. An independent Linux peer checked all required incoming/outgoing marks, selected-peer correlation and native CE send rejection. One native managed race invocation passed. Task-owned guests, overlays, firmware/TPM copies, peer and network were retired without writing baseline images; see the [native receipt](https://github.com/the-sarge/quic-go-fast/pull/542#issuecomment-5789346549) and [cleanup receipt](https://github.com/the-sarge/quic-go-fast/pull/542#issuecomment-5789459475). No additional historical-release, hardware-engagement or performance guarantee is claimed.
+
+Initial RAS review `20260923T045209-217a46e1790a3f6e3df03662` led to the accepted Windows diagnostic-test correction, verified at final head `d0b4b5586a957a3ab4ee454dea53a281a75036c3`. Replacement review `20260923T051352-3c2d20d1368ee13dfa8c71f0` completed with no findings; four reviewers completed and one reviewer process failed. Local root tests, vet, module tidiness and diff checks passed, as did all 33 hosted checks, including both Windows Go lines. The earlier unchanged HTTP/3 CI failure did not reproduce in bounded investigation or recur on the necessary corrected candidate. [Independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/542#issuecomment-5789442818) and [final certification](https://github.com/the-sarge/quic-go-fast/pull/542#issuecomment-5789520702) preserve limitations and evidence. Optional nonqualified-host test portability and inherited pool-comment drift were marginal defers, not follow-up tickets.
+
+### Next
+
+All audited Windows slices are complete; no new implementation child is ready. OpenBSD still requires its separately scoped architecture handoff. The [program tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live frontier view, backed by the [committed program index](adr/2026-09-22-managed-ecn-program.md).
