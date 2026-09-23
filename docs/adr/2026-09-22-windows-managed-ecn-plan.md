@@ -1,7 +1,7 @@
 # Windows managed ECN feasibility plan
 
 **Date:** 2026-09-22
-**Status:** Accepted; native feasibility not yet run
+**Status:** W1 complete — IPv4-only and IPv6-only native ECN feasible on the tested Windows build; implementation awaits scoped handoff
 **Track:** W, 5 of 5 in `QGF-ECN-20260922`
 **Depends on:** Nothing — safe in parallel with L1
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md), [Windows datapath plan](2026-09-11-windows-datapath-plan.md)
@@ -30,13 +30,13 @@ W1 commits a concise native receipt and updates ADR 0007/program status to unsup
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| W1 | New | Native Windows feasible or unsupported disposition | None | Temporary probe retired in W1 |
+| W1 | Complete — feasible | Native Windows feasible or unsupported disposition | None | Temporary probe retired in W1 |
 
 ## Implementation slices
 
 ### Slice W1 — Decide Windows native ECN feasibility
 
-**Stable identity:** `QGF-ECN-20260922/W1`. One intended evidence/docs PR; GitHub child pending default-branch plan publication.
+**Stable identity:** `QGF-ECN-20260922/W1`. One evidence/docs PR; GitHub child [#507](https://github.com/the-sarge/quic-go-fast/issues/507).
 
 **What it delivers:** Native IPv4/IPv6 receive/send evidence and a current Windows disposition, without changing runtime capability.
 
@@ -70,10 +70,10 @@ W1 commits a concise native receipt and updates ADR 0007/program status to unsup
 
 ## Acceptance criteria
 
-- [ ] A native receipt records exact Windows build/architecture/Go environment and separate IPv4/IPv6 receive/send results.
-- [ ] The disposition distinguishes API availability, socket-option success, delivered per-datagram metadata and peer-observed outgoing marks from packet-info, USO and URO.
-- [ ] Unsupported leaves `windowsConn` ECN false; feasible names the representation and routes implementation through scoped `$architecture-handoff`.
-- [ ] No public/raw authority or production capability is introduced by W1.
+- [x] A native receipt records exact Windows build/architecture/Go environment and separate IPv4/IPv6 receive/send results.
+- [x] The disposition distinguishes API availability, socket-option success, delivered per-datagram metadata and peer-observed outgoing marks from packet-info, USO and URO.
+- [x] Unsupported leaves `windowsConn` ECN false; feasible names the representation and routes implementation through scoped `$architecture-handoff`.
+- [x] No public/raw authority or production capability is introduced by W1.
 
 ## Validation gates
 
@@ -82,3 +82,7 @@ Validate receipt completeness, temporary-probe cleanup, relative links, `git dif
 ## Operating discipline
 
 Follow the shared review-loop and contract-closure baselines supplied by `$implement-architecture-slice`, composed with [the repository overlay](../REVIEW-LOOP.md). W1 terminates with a native disposition, not an implementation.
+
+## Current disposition
+
+The [W1 native receipt](../audits/2026-09-23-windows-ecn-w1/README.md) establishes example-level IPv4-only and IPv6-only receive/send feasibility on Windows Server 2025 build 26100.32230, Go 1.27.0 and x/sys 0.48.0. Windows ECN capability remains false. The next action is scoped `$architecture-handoff` to define implementation and qualification; no successor slice is dispatchable. The receipt records native representation, family limits, zero-byte successful send results, preservation evidence and probe retirement.

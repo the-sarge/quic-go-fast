@@ -1,0 +1,105 @@
+ENVIRONMENT AND SDK
+{"Caption":"Microsoft Windows Server 2025 Standard Evaluation","Version":"10.0.26100","BuildNumber":"26100","OSArchitecture":"64-bit"}
+{"DisplayVersion":"24H2","CurrentBuild":"26100","UBR":32230}
+go version go1.27.0 windows/amd64
+
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:164:#define IP_ECN                    50
+// IP ECN codepoint.
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:165:#define IP_RECVECN                50
+// Receive ECN codepoints in the IP header.
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:802:#define IPV6_ECN              50 //
+IPv6 ECN codepoint.
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\ws2ipdef.h:803:#define IPV6_RECVECN          50 //
+Receive ECN codepoints in the IPv6 header.
+
+NATIVE POSITIVE AND NEGATIVE TABLE
+{"alignment":8,"arch":"amd64","go":"go1.27.0","hdr_size":16,"os":"windows"}
+{"case":"receive-disabled-red","family":"udp","flags":0,"oob_hex":"","payload_bytes":67,"peer":"192.168.153.1:45007","peer_observed_ecn":2,"received_ecn":-1,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"enable_error":"\u003cnil\u003e","family":"udp4","receive_option":50}
+{"case":"value-0","family":"udp","flags":0,"oob_hex":"140000000000000000000000320000000000000000000000","payload_bytes":54,"peer":"192.168.153.1:45007","peer_observed_ecn":0,"received_ecn":0,"reply_mark":0,"requested_send":0,"send_oob_bytes":24,"write_count":0}
+{"case":"value-2","family":"udp","flags":0,"oob_hex":"140000000000000000000000320000000200000000000000","payload_bytes":54,"peer":"192.168.153.1:45007","peer_observed_ecn":2,"received_ecn":2,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"case":"value-1","family":"udp","flags":0,"oob_hex":"140000000000000000000000320000000100000000000000","payload_bytes":54,"peer":"192.168.153.1:45007","peer_observed_ecn":1,"received_ecn":1,"reply_mark":1,"requested_send":1,"send_oob_bytes":24,"write_count":0}
+{"case":"value-3","family":"udp","flags":0,"oob_hex":"140000000000000000000000320000000300000000000000","payload_bytes":54,"peer":"192.168.153.1:45007","peer_observed_ecn":0,"received_ecn":3,"reply_mark":3,"requested_send":0,"send_oob_bytes":24,"write_count":0}
+{"case":"send-omitted-red","family":"udp","flags":0,"oob_hex":"140000000000000000000000320000000200000000000000","payload_bytes":63,"peer":"192.168.153.1:45007","peer_observed_ecn":0,"received_ecn":2,"reply_mark":2,"requested_send":-1,"send_oob_bytes":0,"write_count":0}
+{"case":"receive-extraction-positive","family":"udp","flags":0,"oob_hex":"140000000000000000000000320000000200000000000000","payload_bytes":74,"peer":"192.168.153.1:45007","peer_observed_ecn":2,"received_ecn":2,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"error":"write udp4 0.0.0.0:64218-\u003e192.168.153.1:45007: wsasendmsg: An invalid argument was supplied.","family":"udp4","invalid_send_mark":3,"is_WSAEINVAL":true}
+{"error":"write udp4 0.0.0.0:64218-\u003e192.168.153.1:45007: wsasendmsg: An invalid argument was supplied.","family":"udp4","invalid_send_mark":4,"is_WSAEINVAL":true}
+{"error":"write udp4 0.0.0.0:64218-\u003e192.168.153.1:45007: wsasendmsg: An invalid argument was supplied.","family":"udp4","is_WSAEINVAL":true,"malformed_send":true}
+{"case":"receive-option-cleared","family":"udp","flags":0,"oob_hex":"","payload_bytes":69,"peer":"192.168.153.1:45007","peer_observed_ecn":2,"received_ecn":-1,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"close_unblocks_read":true,"family":"udp4"}
+{"case":"receive-disabled-red","family":"udp","flags":0,"oob_hex":"","payload_bytes":67,"peer":"[fd71:507::1]:45007","peer_observed_ecn":2,"received_ecn":-1,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"enable_error":"\u003cnil\u003e","family":"udp6","receive_option":50}
+{"case":"value-0","family":"udp","flags":0,"oob_hex":"140000000000000029000000320000000000000000000000","payload_bytes":54,"peer":"[fd71:507::1]:45007","peer_observed_ecn":0,"received_ecn":0,"reply_mark":0,"requested_send":0,"send_oob_bytes":24,"write_count":0}
+{"case":"value-2","family":"udp","flags":0,"oob_hex":"140000000000000029000000320000000200000000000000","payload_bytes":54,"peer":"[fd71:507::1]:45007","peer_observed_ecn":2,"received_ecn":2,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"case":"value-1","family":"udp","flags":0,"oob_hex":"140000000000000029000000320000000100000000000000","payload_bytes":54,"peer":"[fd71:507::1]:45007","peer_observed_ecn":1,"received_ecn":1,"reply_mark":1,"requested_send":1,"send_oob_bytes":24,"write_count":0}
+{"case":"value-3","family":"udp","flags":0,"oob_hex":"140000000000000029000000320000000300000000000000","payload_bytes":54,"peer":"[fd71:507::1]:45007","peer_observed_ecn":0,"received_ecn":3,"reply_mark":3,"requested_send":0,"send_oob_bytes":24,"write_count":0}
+{"case":"send-omitted-red","family":"udp","flags":0,"oob_hex":"140000000000000029000000320000000200000000000000","payload_bytes":63,"peer":"[fd71:507::1]:45007","peer_observed_ecn":0,"received_ecn":2,"reply_mark":2,"requested_send":-1,"send_oob_bytes":0,"write_count":0}
+{"case":"receive-extraction-positive","family":"udp","flags":0,"oob_hex":"140000000000000029000000320000000200000000000000","payload_bytes":74,"peer":"[fd71:507::1]:45007","peer_observed_ecn":2,"received_ecn":2,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"error":"write udp6 [::]:64219-\u003e[fd71:507::1]:45007: wsasendmsg: An invalid argument was supplied.","family":"udp6","invalid_send_mark":3,"is_WSAEINVAL":true}
+{"error":"write udp6 [::]:64219-\u003e[fd71:507::1]:45007: wsasendmsg: An invalid argument was supplied.","family":"udp6","invalid_send_mark":4,"is_WSAEINVAL":true}
+{"error":"write udp6 [::]:64219-\u003e[fd71:507::1]:45007: wsasendmsg: An invalid argument was supplied.","family":"udp6","is_WSAEINVAL":true,"malformed_send":true}
+{"case":"receive-option-cleared","family":"udp","flags":0,"oob_hex":"","payload_bytes":69,"peer":"[fd71:507::1]:45007","peer_observed_ecn":2,"received_ecn":-1,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"close_unblocks_read":true,"family":"udp6"}
+W1 PROBE PASS
+
+EXTRACTION BYPASS (expected red; PowerShell stopped on native panic)
+pid 2520
+EXPECTED RED: extract
+{"alignment":8,"arch":"amd64","go":"go1.27.0","hdr_size":16,"os":"windows"}
+{"case":"receive-disabled-red","family":"udp","flags":0,"oob_hex":"","payload_bytes":67,"peer":"192.168.153.1:45007","peer_observed_ecn":2,"received_ecn":-1,"reply_mark":2,"requested_send":2,"send_oob_bytes":24,"write_count":0}
+{"enable_error":"\u003cnil\u003e","family":"udp4","receive_option":50}
+{"case":"value-0","family":"udp","flags":0,"oob_hex":"140000000000000000000000320000000000000000000000","payload_bytes":54,"peer":"192.168.153.1:45007","peer_observed_ecn":0,"received_ecn":-1,"reply_mark":0,"requested_send":0,"send_oob_bytes":24,"write_count":0}
+panic: observation mismatch got=-1 peer=0
+
+SEND BYPASS (expected red)
+pid 1212
+EXPECTED RED: send
+{"alignment":8,"arch":"amd64","go":"go1.27.0","hdr_size":16,"os":"windows"}
+{"case":"receive-disabled-red","family":"udp","flags":0,"oob_hex":"","payload_bytes":67,"peer":"192.168.153.1:45007","peer_observed_ecn":0,"received_ecn":-1,"reply_mark":2,"requested_send":2,"send_oob_bytes":0,"write_count":0}
+panic: observation mismatch got=-1 peer=0
+System.Management.Automation.RemoteException
+goroutine 1 [running]:
+main.exchange(0x326588a28090, 0x326588a46870, 0x0, {0x7ff740934be8, 0x14}, 0x2, 0x2, 0xffffffffffffffff, 0x2)
+	C:/w1probe/probe.go:114 +0xb5e
+main.main()
+	C:/w1probe/probe.go:130 +0x488
+MUTATION FAILED AS EXPECTED: 2
+
+PRESERVATION TEST SUMMARY
+--- PASS: TestWindowsExternalReceivePermission (0.02s)
+--- PASS: TestWindowsExternalURORejectsInvalidRead (0.00s)
+--- PASS: TestWindowsExternalUROWrapperLifecycle (0.00s)
+--- PASS: TestWindowsExternalUROSetupFailureRemainsCallerOwned (0.00s)
+--- PASS: TestWindowsExternalUROReadErrorDoesNotReplay (0.00s)
+--- SKIP: TestWindowsExternalURONativeEngagement (0.00s)
+--- PASS: TestWindowsManagedReceiveRegistration (0.00s)
+--- PASS: TestWindowsManagedReceiveWrapperLifecycle (0.00s)
+--- PASS: TestWindowsManagedReceiveDisabled (0.00s)
+--- PASS: TestWindowsManagedReceiveHandback (0.00s)
+--- PASS: TestWindowsManagedReceiveRejectsTruncatedMetadata (0.00s)
+--- SKIP: TestWindowsManagedReceiveNativeHandback (0.00s)
+--- PASS: TestWindowsConn (0.00s)
+--- PASS: TestWindowsConnPacketInfo (0.00s)
+--- PASS: TestWindowsPacketInfoRoundTrip (0.00s)
+--- PASS: TestWindowsPacketInfoParseLiteral (0.00s)
+--- PASS: TestWindowsConnWriteInvalidAddr (0.00s)
+--- PASS: TestWindowsPacketInfoMalformed (0.00s)
+--- PASS: TestWindowsUROProbeOnTransportOwnedSocket (0.00s)
+--- PASS: TestWindowsURONotEnabledOnCallerSuppliedSocket (0.00s)
+--- PASS: TestWindowsURODisabledByEnv (0.00s)
+--- PASS: TestWindowsUROProbeFailure (0.00s)
+--- PASS: TestWindowsUROProbeErrorClassification (0.00s)
+--- PASS: TestWindowsUROReadSplitsCoalescedRead (0.00s)
+--- PASS: TestWindowsUROReadEmptyDatagram (0.00s)
+--- PASS: TestWindowsUROReadPacketInfoInheritance (0.00s)
+--- PASS: TestWindowsUROReleaseReadBuffersReleasesPendingViews (0.00s)
+--- PASS: TestWindowsUSOUROInteractionMatrix (0.00s)
+--- PASS: TestWindowsUROEndToEndLoopback (0.00s)
+--- PASS: TestWindowsConnUSOCapability (0.00s)
+--- PASS: TestWindowsConnSegmentedSendEncoding (0.00s)
+--- PASS: TestWindowsConnSegmentedSend (0.00s)
+--- PASS: TestWindowsExternalSegmentedSend (0.00s)
+--- PASS: TestWindowsConnSendMsgSizeErrClassification (0.00s)
+--- PASS: TestWindowsUSOProbeFailure (0.00s)
+--- PASS: TestWindowsConnSegmentedSendRequiresCapability (0.00s)
+PASS
