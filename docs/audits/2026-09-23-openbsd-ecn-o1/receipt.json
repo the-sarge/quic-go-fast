@@ -1,0 +1,119 @@
+{
+  "schema": "the-sarge.infra.test-vm.receipt",
+  "schema_version": 2,
+  "run_id": "run-20260923T001048.801788000Z",
+  "target": "openbsd-amd64",
+  "candidate_sha": "4aa448eaf141477f693306dcc8abdf39d05e5e47",
+  "workload_kind": "candidate-driver",
+  "workload": {
+    "schema": "the-sarge.infra.test-vm.workload-fact",
+    "schema_version": 1,
+    "run_id": "run-20260923T001048.801788000Z",
+    "target": "openbsd-amd64",
+    "candidate_sha": "4aa448eaf141477f693306dcc8abdf39d05e5e47",
+    "workload_kind": "candidate-driver",
+    "started_at": "2026-09-23T00:11:32Z",
+    "ended_at": "2026-09-23T00:11:47Z",
+    "uname": "OpenBSD infra-openbsd-amd64.my.domain 7.9 GENERIC.MP#449 amd64",
+    "go_version": "go version go1.27.0 openbsd/amd64",
+    "go_env": {
+      "GOOS": "openbsd",
+      "GOARCH": "amd64"
+    },
+    "observed_candidate_sha": "4aa448eaf141477f693306dcc8abdf39d05e5e47",
+    "command": "o1probe/run.sh",
+    "phase": "result-admission",
+    "dependency": {
+      "mode": "hermetic-module-proxy",
+      "status": "ready",
+      "bundle_sha256": "3fbd67101b95509fd741975d8f5a40ab29a677d81ceb52d4dd72bf11a6a5f6cf",
+      "guest_network_required": false
+    },
+    "output": "",
+    "exit_status": 0,
+    "result": "pass",
+    "invocation_manifest_sha256": "e88ffb6b7ebac1c609a1da06c194dcc3d42f2a2b9682b2f3bc24ea2c0eab93dd",
+    "driver": {
+      "path": "o1probe/run.sh",
+      "mode": "100755",
+      "git_blob_sha": "6854ca7bc14c9994054a95edd7fffef76fa13127",
+      "sha256": "d536ad38f94ab2aae0613726cd2f96593f94e207e0846c3c2819d37f2ca60cdf"
+    },
+    "driver_result": {
+      "name": "o1.txt",
+      "present": true,
+      "sha256": "a743512d39f7fc1468693019783f5cd50d5dd0c1057750e4e8e6f81faf76e292",
+      "size_bytes": 12778
+    }
+  },
+  "lifecycle": {
+    "schema": "the-sarge.infra.test-vm.lifecycle-fact",
+    "schema_version": 1,
+    "run_id": "run-20260923T001048.801788000Z",
+    "target": "openbsd-amd64",
+    "candidate_sha": "4aa448eaf141477f693306dcc8abdf39d05e5e47",
+    "workload_kind": "candidate-driver",
+    "completed_at": "2026-09-23T00:11:53Z",
+    "evidence": {
+      "workload_fact_captured": true,
+      "workload_fact_sha256": "91a9ebc43692453a261e26232a0f6bb4f2913ec6ddafc9ae7c9255df01c637bb"
+    },
+    "interrupted": false,
+    "workload_exit_status": 0,
+    "guest": {
+      "shutdown_complete": true,
+      "cleanup_complete": true
+    },
+    "restoration": {
+      "snapshot": "powered-off-baseline",
+      "attempted": true,
+      "exit_status": 0,
+      "restored": true,
+      "powered_off": true
+    },
+    "lock_released": true,
+    "host_exit_status": 0,
+    "result": "pass"
+  },
+  "finalization": {
+    "facts_exported": true,
+    "host_staging_deleted": true,
+    "host_evidence_deleted": true,
+    "completed_at": "2026-09-23T00:11:54Z",
+    "result": "pass"
+  },
+  "started_at": "2026-09-23T00:11:32Z",
+  "ended_at": "2026-09-23T00:11:47Z",
+  "uname": "OpenBSD infra-openbsd-amd64.my.domain 7.9 GENERIC.MP#449 amd64",
+  "go_version": "go version go1.27.0 openbsd/amd64",
+  "go_env": {
+    "GOOS": "openbsd",
+    "GOARCH": "amd64"
+  },
+  "requested_candidate_sha": "4aa448eaf141477f693306dcc8abdf39d05e5e47",
+  "observed_candidate_sha": "4aa448eaf141477f693306dcc8abdf39d05e5e47",
+  "command": "o1probe/run.sh",
+  "phase": "result-admission",
+  "dependency": {
+    "mode": "hermetic-module-proxy",
+    "status": "ready",
+    "bundle_sha256": "3fbd67101b95509fd741975d8f5a40ab29a677d81ceb52d4dd72bf11a6a5f6cf",
+    "guest_network_required": false
+  },
+  "output": "",
+  "exit_status": 0,
+  "result": "pass",
+  "invocation_manifest_sha256": "e88ffb6b7ebac1c609a1da06c194dcc3d42f2a2b9682b2f3bc24ea2c0eab93dd",
+  "driver": {
+    "path": "o1probe/run.sh",
+    "mode": "100755",
+    "git_blob_sha": "6854ca7bc14c9994054a95edd7fffef76fa13127",
+    "sha256": "d536ad38f94ab2aae0613726cd2f96593f94e207e0846c3c2819d37f2ca60cdf"
+  },
+  "driver_result": {
+    "name": "o1.txt",
+    "present": true,
+    "sha256": "a743512d39f7fc1468693019783f5cd50d5dd0c1057750e4e8e6f81faf76e292",
+    "size_bytes": 12778
+  }
+}
