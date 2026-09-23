@@ -13,7 +13,8 @@ func TestStreamError(t *testing.T) {
 		&StreamError{StreamID: 1, ErrorCode: 2, Remote: true},
 	))
 	require.False(t, errors.Is(&StreamError{StreamID: 1}, &StreamError{StreamID: 2}))
-	require.False(t, errors.Is(&StreamError{StreamID: 1}, &StreamError{StreamID: 2}))
+	require.False(t, errors.Is(&StreamError{ErrorCode: 1}, &StreamError{ErrorCode: 2}))
+	require.False(t, errors.Is(&StreamError{Remote: true}, &StreamError{Remote: false}))
 	require.Equal(t,
 		"stream 1 canceled by remote with error code 2",
 		(&StreamError{StreamID: 1, ErrorCode: 2, Remote: true}).Error(),

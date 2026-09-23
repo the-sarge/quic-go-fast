@@ -10,7 +10,7 @@ import (
 
 func TestTimeRelations(t *testing.T) {
 	t1 := Now()
-	require.Equal(t, t1, t1)
+	require.True(t, t1.Equal(t1))
 	require.False(t, t1.IsZero())
 
 	t2 := t1.Add(time.Second)
@@ -56,7 +56,6 @@ func TestConversions(t *testing.T) {
 	require.Zero(t, t1Time.Sub(t1.ToTime()))
 
 	var zeroTime time.Time
-	require.Zero(t, FromTime(zeroTime))
 	require.Zero(t, FromTime(zeroTime))
 
 	var zero Time

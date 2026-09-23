@@ -543,6 +543,26 @@ func TestFrameParserResetStreamAtUnsupported(t *testing.T) {
 	checkFrameUnsupported(t, err, uint64(FrameTypeResetStreamAt))
 }
 
+func TestFrameParserAckFrequencyWireID(t *testing.T) {
+	data := []byte{0x40, 0xaf, 0, 0, 0, 0}
+	t.Run("enabled", func(t *testing.T) {
+		parser := NewFrameParser(true, true, true)
+		frameType, typeLen, err := parser.ParseType(data, protocol.Encryption1RTT)
+		require.NoError(t, err)
+		require.Equal(t, FrameType(0xaf), frameType)
+		require.Equal(t, 2, typeLen)
+		frame, bodyLen, err := parser.ParseLessCommonFrame(frameType, data[typeLen:], protocol.Version1)
+		require.NoError(t, err)
+		require.Equal(t, &AckFrequencyFrame{}, frame)
+		require.Equal(t, 4, bodyLen)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		parser := NewFrameParser(true, true, false)
+		_, _, err := parser.ParseType(data, protocol.Encryption1RTT)
+		checkFrameUnsupported(t, err, 0xaf)
+	})
+}
+
 func TestFrameParserAckFrequencyUnsupported(t *testing.T) {
 	parser := NewFrameParser(true, true, false)
 
