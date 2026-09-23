@@ -1,0 +1,25 @@
+{
+  "label": "darwin25-isolated-1",
+  "started_at": "2026-09-23T05:49:06.406238+00:00",
+  "elapsed_seconds": 0.814,
+  "cwd": "/Volumes/worktrees/quic-go-fast/ecn-receive-diagnostics",
+  "command": [
+    "/usr/local/go/bin/go",
+    "test",
+    "-v",
+    "-count=1",
+    "-timeout=60s",
+    "-run",
+    "^TestReadECNFlagsDualStack$",
+    "."
+  ],
+  "timeout_seconds": 60,
+  "source_sha": "2162ba68cb39ab8bec5e4fcdfd6ccef594af3464",
+  "worktree_status": "",
+  "environment": {
+    "GOTOOLCHAIN": "go1.26.8",
+    "TIMESCALE_FACTOR": "10"
+  },
+  "exit_code": 0,
+  "output": "=== RUN   TestReadECNFlagsDualStack\n    sys_conn_oob_test.go:79: send network=udp4 sender=127.0.0.1:61310 destination=127.0.0.1:62739\n    sys_conn_oob_test.go:87: phase=dual-stack IPv4 listener=[::]:62739 sender=127.0.0.1:61310 destination=127.0.0.1:62739\n    sys_conn_oob_test.go:94: send network=udp6 sender=[::1]:64184 destination=[::1]:62739\n    sys_conn_oob_test.go:102: phase=dual-stack IPv6 listener=[::]:62739 sender=[::1]:64184 destination=[::1]:62739\n--- PASS: TestReadECNFlagsDualStack (0.00s)\nPASS\nok  \tgithub.com/quic-go/quic-go\t0.383s\n"
+}

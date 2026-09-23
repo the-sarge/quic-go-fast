@@ -1,0 +1,21 @@
+{
+  "label": "local-tidy",
+  "started_at": "2026-09-23T05:48:49.083352+00:00",
+  "elapsed_seconds": 0.197,
+  "cwd": "/Volumes/worktrees/quic-go-fast/ecn-receive-diagnostics",
+  "command": [
+    "go",
+    "mod",
+    "tidy",
+    "-diff"
+  ],
+  "timeout_seconds": 120,
+  "source_sha": "2162ba68cb39ab8bec5e4fcdfd6ccef594af3464",
+  "worktree_status": "",
+  "environment": {
+    "GOTOOLCHAIN": "go1.26.8",
+    "TIMESCALE_FACTOR": null
+  },
+  "exit_code": 0,
+  "output": ""
+}

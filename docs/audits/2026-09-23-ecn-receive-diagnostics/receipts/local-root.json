@@ -1,0 +1,22 @@
+{
+  "label": "local-root",
+  "started_at": "2026-09-23T05:48:29.818369+00:00",
+  "elapsed_seconds": 5.722,
+  "cwd": "/Volumes/worktrees/quic-go-fast/ecn-receive-diagnostics",
+  "command": [
+    "go",
+    "test",
+    "-count=1",
+    "-timeout=120s",
+    "."
+  ],
+  "timeout_seconds": 180,
+  "source_sha": "2162ba68cb39ab8bec5e4fcdfd6ccef594af3464",
+  "worktree_status": "",
+  "environment": {
+    "GOTOOLCHAIN": "go1.26.8",
+    "TIMESCALE_FACTOR": "10"
+  },
+  "exit_code": 0,
+  "output": "ok  \tgithub.com/quic-go/quic-go\t3.497s\n"
+}
