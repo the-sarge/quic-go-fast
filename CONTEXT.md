@@ -16,6 +16,12 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Packet registration**: Recording a constructed outgoing QUIC packet in the transport's recovery accounting. Registration, socket-write completion, and acknowledgment by the peer are distinct events.
 
+**Transport delivery**: Receipt of transmitted data confirmed by the peer transport's acknowledgment. It does not establish that the receiving application has consumed, verified or published useful content.
+
+**Application-limited delivery sample**: A delivery-rate observation covering a period when the sender lacked enough eligible data to fully exercise the path. A low observed rate during that period does not establish a low path capacity.
+
+**Packet-timed round**: A round of transport feedback whose progress is determined by acknowledgments of transmissions from a recorded boundary. It is distinct from a fixed interval of wall-clock time.
+
 **Handshake MTU fallback**: Reduction of the handshake packetization budget in response to an eligible local message-size failure before handshake confirmation. It is distinct from recovery from a path that silently drops oversized traffic.
 
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
