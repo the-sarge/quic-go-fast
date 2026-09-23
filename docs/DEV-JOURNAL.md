@@ -3321,3 +3321,28 @@ Final head `b6554068d44ef768cd8c1b3840dd6415304ed2d0` passed clean-tree and Mark
 ### Next
 
 [Evaluate classic ECN responses for BBRv3](https://github.com/the-sarge/quic-go-fast/issues/555) is the next unclaimed frontier ticket at this entry's timestamp. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) remains the live map; algorithm selection, ECN response and implementation are still open.
+
+---
+
+## Classic ECN research reviewed and merged - 2026-09-23 13:59 EDT
+
+**Main:** `537c86c8b2e4`
+**Actor:** Codex
+
+### Summary
+
+Merged [docs: evaluate classic ECN responses for BBRv3](https://github.com/the-sarge/quic-go-fast/pull/564) as `537c86c8b2e488d665c0c02db88c92b952d9a81c`. The research report compares classic-ECN response candidates, documents validated feedback and path-transition requirements, and adds glossary terms for path ECN validation and validated CE feedback. No controller or other runtime behavior changed.
+
+### Decisions
+
+[Evaluate classic ECN responses for BBRv3](https://github.com/the-sarge/quic-go-fast/issues/555#issuecomment-5799891987) is resolved as research: explicit CE rate/flight bounds and separate loss accounting are recommended; coefficients, phase behavior, cap release and additional misreporting defenses remain human design decisions. The map's decision index and resolution now point to the reviewed, merged evidence.
+
+### Validation
+
+RAS review `20260923T174602-558c4e89e6f4d5d6a73fc90b` completed with four successful reviewers; one reviewer failed at startup, and the configured quorum was met. Independent disposition accepted one narrow clarification that counter consistency does not prove receiver honesty and rejected an out-of-scope punctuation nit. The shared docs-only policy skipped a further RAS cycle after that correction. The [review record](https://github.com/the-sarge/quic-go-fast/pull/564#issuecomment-5800043749) holds the dispositions and certification details.
+
+Final head `b9e588b2d3c8f2ffc27c79144e239110c6bcab9b` passed clean-checkout certification, Markdown whitespace checks, 36 reference definitions/source paths/ranges and eleven specification anchors. All 33 hosted checks passed before exact-head squash merge. No runtime, native-network or performance campaign was run locally. OmniFocus searches found no matching task to complete.
+
+### Next
+
+At this timestamp, the next unclaimed frontier investigation is [Identify BBRv3 transport integration requirements](https://github.com/the-sarge/quic-go-fast/issues/556). [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) remains the live map for the current frontier and remaining human decisions.
