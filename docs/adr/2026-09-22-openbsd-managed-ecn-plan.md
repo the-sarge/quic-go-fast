@@ -1,7 +1,7 @@
 # OpenBSD managed ECN feasibility plan
 
 **Date:** 2026-09-22
-**Status:** Accepted; native feasibility not yet run
+**Status:** O1 complete; IPv6-only native feasibility established, IPv4 receive unsupported; scoped handoff required before implementation
 **Track:** O, 4 of 5 in `QGF-ECN-20260922`
 **Depends on:** Nothing — safe in parallel with L1
 **Related:** [Program index](2026-09-22-managed-ecn-program.md), [ADR 0001](0001-upstream-compatibility.md), [ADR 0006](0006-explicit-external-packet-io.md), [ADR 0007](0007-managed-ecn-qualification.md)
@@ -11,6 +11,10 @@
 ## Goal
 
 Produce a native, evidence-backed OpenBSD disposition for both receive ECN metadata and outgoing ECN marking without changing public authority. An unsupported result closes the platform track explicitly. A supported result records the proven native representation and returns to a scoped `$architecture-handoff` before any implementation slice is dispatched.
+
+## Current disposition
+
+The [native O1 receipt](../audits/2026-09-23-openbsd-ecn-o1/README.md) establishes IPv6-only receive and per-datagram send feasibility on OpenBSD 7.9/amd64 with Go 1.27.0. IPv4 receive TOS has no supported API in the tested surface; IPv4 control-message sends succeed but outgoing marks remain unproven. Managed ECN remains false. O1 is complete with no defined successor: run scoped `$architecture-handoff` before dispatching any IPv6 implementation/qualification work. The OpenBSD parent remains pending that handoff.
 
 ## Current shape (verified 2026-09-22)
 
@@ -30,13 +34,13 @@ O1 does not add production ECN support. It commits a concise native receipt and 
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| O1 | New | Native OpenBSD feasible or unsupported disposition | None | Temporary probe retired in O1 |
+| O1 | Complete — IPv6 feasible; IPv4 receive unsupported | Native disposition recorded; no runtime capability added | None | Temporary probe retired in O1 |
 
 ## Implementation slices
 
 ### Slice O1 — Decide OpenBSD native ECN feasibility
 
-**Stable identity:** `QGF-ECN-20260922/O1`. One intended evidence/docs PR; GitHub child pending default-branch plan publication.
+**Stable identity:** `QGF-ECN-20260922/O1`. One evidence/docs PR; GitHub child [#506](https://github.com/the-sarge/quic-go-fast/issues/506).
 
 **What it delivers:** Native IPv4/IPv6 receive/send evidence and a current platform disposition. A feasible result names the representation but authorizes no product implementation; an unsupported result closes the track without code.
 
@@ -70,10 +74,10 @@ O1 does not add production ECN support. It commits a concise native receipt and 
 
 ## Acceptance criteria
 
-- [ ] A native receipt records the exact OpenBSD/kernel/architecture/Go environment and separate IPv4/IPv6 receive/send results.
-- [ ] The disposition distinguishes API availability, socket-option success, delivered per-datagram metadata and peer-observed outgoing marks.
-- [ ] Unsupported evidence updates the platform matrix and leaves ECN false; feasible evidence names the representation and routes a new implementation slice through scoped `$architecture-handoff`.
-- [ ] No public/raw authority or production capability is introduced by O1.
+- [x] A native receipt records the exact OpenBSD/kernel/architecture/Go environment and separate IPv4/IPv6 receive/send results.
+- [x] The disposition distinguishes API availability, socket-option success, delivered per-datagram metadata and peer-observed outgoing marks.
+- [x] Unsupported evidence updates the platform matrix and leaves ECN false; feasible evidence names the representation and routes a new implementation slice through scoped `$architecture-handoff`.
+- [x] No public/raw authority or production capability is introduced by O1.
 
 ## Validation gates
 

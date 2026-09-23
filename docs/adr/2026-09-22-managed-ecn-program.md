@@ -1,7 +1,7 @@
 # Managed ECN qualification program — 2026-09-22
 
 **Program:** `QGF-ECN-20260922`
-**Status:** In progress; Linux L1, Darwin D1 and FreeBSD F1 complete; O1 and W1 remain on the frontier
+**Status:** In progress; Linux L1, Darwin D1, FreeBSD F1 and OpenBSD feasibility O1 complete; W1 remains on the frontier; OpenBSD implementation awaits scoped handoff
 **Normative scope:** Track identity, plan pointers, slice graph, frontier and binding rules
 **Audit history:** [Source, existing-work and slice audit](../audits/2026-09-22-managed-ecn-handoff/README.md)
 
@@ -20,10 +20,10 @@ Socket-option success, another platform's evidence, packet-info support, segment
 | L | [Linux managed ECN](2026-09-22-linux-managed-ecn-plan.md) | [#455](https://github.com/the-sarge/quic-go-fast/issues/455) | None | L1 | Complete via [#508](https://github.com/the-sarge/quic-go-fast/pull/508) |
 | D | [Darwin managed ECN](2026-09-22-darwin-managed-ecn-plan.md) | [#456](https://github.com/the-sarge/quic-go-fast/issues/456) | L1 | D1 | Complete — supported |
 | F | [FreeBSD managed ECN](2026-09-22-freebsd-managed-ecn-plan.md) | [#457](https://github.com/the-sarge/quic-go-fast/issues/457) | L1 | F1 | Complete — supported |
-| O | [OpenBSD managed ECN feasibility](2026-09-22-openbsd-managed-ecn-plan.md) | [#458](https://github.com/the-sarge/quic-go-fast/issues/458) | None | O1 | FRONTIER |
+| O | [OpenBSD managed ECN feasibility](2026-09-22-openbsd-managed-ecn-plan.md) | [#458](https://github.com/the-sarge/quic-go-fast/issues/458) | None | O1 | Feasibility complete — IPv6 feasible, IPv4 receive unsupported; implementation awaits scoped handoff |
 | W | [Windows managed ECN feasibility](2026-09-22-windows-managed-ecn-plan.md) | [#459](https://github.com/the-sarge/quic-go-fast/issues/459) | None | W1 | FRONTIER |
 
-L1 delivered the central managed metadata path and capability gate. D1 and F1 have completed native Darwin and FreeBSD qualification. O1 and W1 remain parallel-safe frontier slices; D1 and F1 have no successors in this program. O1 and W1 may close their platform tracks as unsupported. A supported feasibility result requires a scoped `$architecture-handoff` update that adds an implementation slice with the proven native representation before code implementation begins.
+L1 delivered the central managed metadata path and capability gate. D1 and F1 have completed native Darwin and FreeBSD qualification. O1 completed native feasibility: IPv6-only receive/send is feasible, IPv4 receive is unsupported through the tested API, and runtime capability remains false. W1 is the only dispatchable frontier slice; D1, F1 and O1 have no defined successors in this program. W1 may close its platform track as unsupported. A supported feasibility result requires a scoped `$architecture-handoff` update that adds an implementation slice with the proven native representation before code implementation begins.
 
 ## Rules that bind every track
 
