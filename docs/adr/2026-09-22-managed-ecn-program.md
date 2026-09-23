@@ -1,7 +1,7 @@
 # Managed ECN qualification program — 2026-09-22
 
 **Program:** `QGF-ECN-20260922`
-**Status:** All five defined slices complete; no dispatchable frontier; OpenBSD and Windows implementation await scoped handoff
+**Status:** Windows W2 is the frontier; W3 blocked by W2; OpenBSD implementation still awaits scoped handoff
 **Normative scope:** Track identity, plan pointers, slice graph, frontier and binding rules
 **Audit history:** [Source, existing-work and slice audit](../audits/2026-09-22-managed-ecn-handoff/README.md)
 
@@ -21,9 +21,9 @@ Socket-option success, another platform's evidence, packet-info support, segment
 | D | [Darwin managed ECN](2026-09-22-darwin-managed-ecn-plan.md) | [#456](https://github.com/the-sarge/quic-go-fast/issues/456) | L1 | D1 | Complete — supported |
 | F | [FreeBSD managed ECN](2026-09-22-freebsd-managed-ecn-plan.md) | [#457](https://github.com/the-sarge/quic-go-fast/issues/457) | L1 | F1 | Complete — supported |
 | O | [OpenBSD managed ECN feasibility](2026-09-22-openbsd-managed-ecn-plan.md) | [#458](https://github.com/the-sarge/quic-go-fast/issues/458) | None | O1 | Feasibility complete — IPv6 feasible, IPv4 receive unsupported; implementation awaits scoped handoff |
-| W | [Windows managed ECN feasibility](2026-09-22-windows-managed-ecn-plan.md) | [#459](https://github.com/the-sarge/quic-go-fast/issues/459) | None | W1 | Feasibility complete — IPv4-only and IPv6-only feasible; implementation awaits scoped handoff |
+| W | [Windows managed ECN](2026-09-22-windows-managed-ecn-plan.md) | [#459](https://github.com/the-sarge/quic-go-fast/issues/459) | W1 and L1 complete | W1, W2, W3 | W1 complete; W2 native qualification FRONTIER; W3 implementation blocked by W2 |
 
-L1 delivered the central managed metadata path and capability gate. D1 and F1 have completed native Darwin and FreeBSD qualification. O1 completed native feasibility: IPv6-only receive/send is feasible, IPv4 receive is unsupported through the tested API, and runtime capability remains false. W1 completed native feasibility for IPv4-only and IPv6-only Windows sockets; runtime capability remains false. All five defined slices are complete, with no dispatchable frontier and no defined successors. OpenBSD and Windows implementation require scoped `$architecture-handoff` updates that add implementation slices with their proven native representations before code implementation begins.
+L1 delivered the central managed metadata path and capability gate. D1 and F1 completed native qualification. O1 completed native feasibility: IPv6-only receive/send is feasible, IPv4 receive is unsupported through the tested API, and runtime capability remains false pending a separate scoped handoff. W1 established separate-family Windows feasibility. Windows W2 now qualifies Windows 11, Server 2025 and dual-stack native behavior; W3 then implements the complete managed path using that confirmed representation. W2 is the only current frontier. W3 depends on W2 and the already merged L1 adapter; a contradictory W2 result leaves W3 blocked for scoped handoff. There is no second incomplete audited slice safe to dispatch in parallel. Child issue IDs for W2/W3 are pending publication; the program tracker owns their live mapping.
 
 ## Rules that bind every track
 
