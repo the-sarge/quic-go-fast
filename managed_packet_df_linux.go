@@ -1,3 +1,5 @@
+//go:build linux && !android
+
 package quic
 
 import "golang.org/x/sys/unix"
