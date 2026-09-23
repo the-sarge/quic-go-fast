@@ -1,0 +1,208 @@
+OpenBSD infra-openbsd-amd64.my.domain 7.9 GENERIC.MP#449 amd64
+go version go1.27.0 openbsd/amd64
+openbsd
+amd64
+golang.org/x/sys v0.48.0
+golang.org/x/net v0.59.0
+
+Native IPv4 header receive/send options:
+#define	IP_TOS			3    /* int; IP type of service and preced. */
+#define	IP_RECVOPTS		5    /* bool; receive all IP opts w/dgram */
+#define	IP_RECVRETOPTS		6    /* bool; receive IP opts for response */
+#define	IP_RECVDSTADDR		7    /* bool; receive IP dst addr w/dgram */
+#define IP_RECVIF		30   /* bool; receive reception if w/dgram */
+#define IP_RECVTTL		31   /* bool; receive IP TTL w/dgram */
+#define IP_RECVDSTPORT		33   /* bool; receive IP dst port w/dgram */
+#define IP_RECVRTABLE		35   /* bool; receive rdomain w/dgram */
+#define IP_SENDSRCADDR		IP_RECVDSTADDR  /* struct in_addr; */
+
+Native missing-API compilation:
+# github.com/quic-go/quic-go/o1probe [github.com/quic-go/quic-go/o1probe.test]
+o1probe/api.go:3:14: undefined: unix.IP_RECVTOS
+FAIL	github.com/quic-go/quic-go/o1probe [build failed]
+FAIL
+
+RED: receive parsing removed (must fail):
+=== RUN   TestIPv6Receive
+    probe_test.go:117: IPV6_RECVTCLASS=57 enable=<nil>
+=== RUN   TestIPv6Receive/0
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000000000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=00000000
+    probe_test.go:131: socket-default=0 peer-tclass=0 present=false parse=<nil>
+    probe_test.go:133: receive traffic class mismatch
+=== RUN   TestIPv6Receive/2
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000200000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=02000000
+    probe_test.go:131: socket-default=2 peer-tclass=0 present=false parse=<nil>
+    probe_test.go:133: receive traffic class mismatch
+=== RUN   TestIPv6Receive/1
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000100000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=01000000
+    probe_test.go:131: socket-default=1 peer-tclass=0 present=false parse=<nil>
+    probe_test.go:133: receive traffic class mismatch
+=== RUN   TestIPv6Receive/3
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000300000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=03000000
+    probe_test.go:131: socket-default=3 peer-tclass=0 present=false parse=<nil>
+    probe_test.go:133: receive traffic class mismatch
+--- FAIL: TestIPv6Receive (0.00s)
+    --- FAIL: TestIPv6Receive/0 (0.00s)
+    --- FAIL: TestIPv6Receive/2 (0.00s)
+    --- FAIL: TestIPv6Receive/1 (0.00s)
+    --- FAIL: TestIPv6Receive/3 (0.00s)
+FAIL
+FAIL	github.com/quic-go/quic-go/o1probe	0.006s
+FAIL
+
+RED: outgoing marking removed (must fail):
+=== RUN   TestIPv6Send
+=== RUN   TestIPv6Send/0
+    probe_test.go:154: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000002000000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=20000000
+    probe_test.go:159: requested=0 peer-tclass=32 present=true parse=<nil>
+    probe_test.go:161: per-datagram traffic class mismatch
+=== RUN   TestIPv6Send/2
+    probe_test.go:154: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000002000000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=20000000
+    probe_test.go:159: requested=2 peer-tclass=32 present=true parse=<nil>
+    probe_test.go:161: per-datagram traffic class mismatch
+=== RUN   TestIPv6Send/1
+    probe_test.go:154: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000002000000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=20000000
+    probe_test.go:159: requested=1 peer-tclass=32 present=true parse=<nil>
+    probe_test.go:161: per-datagram traffic class mismatch
+=== RUN   TestIPv6Send/3
+    probe_test.go:154: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000002000000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=20000000
+    probe_test.go:159: requested=3 peer-tclass=32 present=true parse=<nil>
+    probe_test.go:161: per-datagram traffic class mismatch
+--- FAIL: TestIPv6Send (0.00s)
+    --- FAIL: TestIPv6Send/0 (0.00s)
+    --- FAIL: TestIPv6Send/2 (0.00s)
+    --- FAIL: TestIPv6Send/1 (0.00s)
+    --- FAIL: TestIPv6Send/3 (0.00s)
+FAIL
+FAIL	github.com/quic-go/quic-go/o1probe	0.007s
+FAIL
+
+Characterization: six classes, normal probe:
+=== RUN   TestIPv6Receive
+    probe_test.go:117: IPV6_RECVTCLASS=57 enable=<nil>
+=== RUN   TestIPv6Receive/0
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000000000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=00000000
+    probe_test.go:131: socket-default=0 peer-tclass=0 present=true parse=<nil>
+=== RUN   TestIPv6Receive/2
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000200000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=02000000
+    probe_test.go:131: socket-default=2 peer-tclass=2 present=true parse=<nil>
+=== RUN   TestIPv6Receive/1
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000100000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=01000000
+    probe_test.go:131: socket-default=1 peer-tclass=1 present=true parse=<nil>
+=== RUN   TestIPv6Receive/3
+    probe_test.go:126: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:126: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000300000000000000
+    probe_test.go:126: native cmsg level=41 type=61 data=03000000
+    probe_test.go:131: socket-default=3 peer-tclass=3 present=true parse=<nil>
+--- PASS: TestIPv6Receive (0.00s)
+    --- PASS: TestIPv6Receive/0 (0.00s)
+    --- PASS: TestIPv6Receive/2 (0.00s)
+    --- PASS: TestIPv6Receive/1 (0.00s)
+    --- PASS: TestIPv6Receive/3 (0.00s)
+=== RUN   TestIPv6Send
+=== RUN   TestIPv6Send/0
+    probe_test.go:154: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=14000000290000003d000000000000000000000000000000
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000000000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=00000000
+    probe_test.go:159: requested=0 peer-tclass=0 present=true parse=<nil>
+=== RUN   TestIPv6Send/2
+    probe_test.go:154: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=14000000290000003d000000000000000200000000000000
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000200000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=02000000
+    probe_test.go:159: requested=2 peer-tclass=2 present=true parse=<nil>
+=== RUN   TestIPv6Send/1
+    probe_test.go:154: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=14000000290000003d000000000000000100000000000000
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000100000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=01000000
+    probe_test.go:159: requested=1 peer-tclass=1 present=true parse=<nil>
+=== RUN   TestIPv6Send/3
+    probe_test.go:154: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=14000000290000003d000000000000000300000000000000
+    probe_test.go:154: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000300000000000000
+    probe_test.go:154: native cmsg level=41 type=61 data=03000000
+    probe_test.go:159: requested=3 peer-tclass=3 present=true parse=<nil>
+--- PASS: TestIPv6Send (0.00s)
+    --- PASS: TestIPv6Send/0 (0.00s)
+    --- PASS: TestIPv6Send/2 (0.00s)
+    --- PASS: TestIPv6Send/1 (0.00s)
+    --- PASS: TestIPv6Send/3 (0.00s)
+=== RUN   TestIPv4Receive
+    probe_test.go:173: IPv4 receive option=7 err=<nil>
+    probe_test.go:173: IPv4 receive option=31 err=<nil>
+    probe_test.go:182: IPv4 socket-wide IP_TOS=0 accepted; peer ECN not inferred
+    probe_test.go:183: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:183: ReadMsgUDP flags=128 oob=140000000000000007000000000000007f0000010000000011000000000000001f000000000000004000000000000000
+    probe_test.go:183: native cmsg level=0 type=7 data=7f000001
+    probe_test.go:183: native cmsg level=0 type=31 data=40
+    probe_test.go:182: IPv4 socket-wide IP_TOS=2 accepted; peer ECN not inferred
+    probe_test.go:183: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:183: ReadMsgUDP flags=128 oob=140000000000000007000000000000007f0000010000000011000000000000001f000000000000004000000000000000
+    probe_test.go:183: native cmsg level=0 type=7 data=7f000001
+    probe_test.go:183: native cmsg level=0 type=31 data=40
+    probe_test.go:182: IPv4 socket-wide IP_TOS=1 accepted; peer ECN not inferred
+    probe_test.go:183: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:183: ReadMsgUDP flags=128 oob=140000000000000007000000000000007f0000010000000011000000000000001f000000000000004000000000000000
+    probe_test.go:183: native cmsg level=0 type=7 data=7f000001
+    probe_test.go:183: native cmsg level=0 type=31 data=40
+    probe_test.go:182: IPv4 socket-wide IP_TOS=3 accepted; peer ECN not inferred
+    probe_test.go:183: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:183: ReadMsgUDP flags=128 oob=140000000000000007000000000000007f0000010000000011000000000000001f000000000000004000000000000000
+    probe_test.go:183: native cmsg level=0 type=7 data=7f000001
+    probe_test.go:183: native cmsg level=0 type=31 data=40
+--- PASS: TestIPv4Receive (0.00s)
+=== RUN   TestIPv4Send
+    probe_test.go:192: IPv4 per-datagram IP_TOS=0
+    probe_test.go:193: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=140000000000000003000000000000000000000000000000
+    probe_test.go:193: ReadMsgUDP flags=128 oob=
+    probe_test.go:194: IPv4 outgoing result=<nil>; peer-observed TOS unavailable without receive API
+    probe_test.go:192: IPv4 per-datagram IP_TOS=2
+    probe_test.go:193: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=140000000000000003000000000000000200000000000000
+    probe_test.go:193: ReadMsgUDP flags=128 oob=
+    probe_test.go:194: IPv4 outgoing result=<nil>; peer-observed TOS unavailable without receive API
+    probe_test.go:192: IPv4 per-datagram IP_TOS=1
+    probe_test.go:193: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=140000000000000003000000000000000100000000000000
+    probe_test.go:193: ReadMsgUDP flags=128 oob=
+    probe_test.go:194: IPv4 outgoing result=<nil>; peer-observed TOS unavailable without receive API
+    probe_test.go:192: IPv4 per-datagram IP_TOS=3
+    probe_test.go:193: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=140000000000000003000000000000000300000000000000
+    probe_test.go:193: ReadMsgUDP flags=128 oob=
+    probe_test.go:194: IPv4 outgoing result=<nil>; peer-observed TOS unavailable without receive API
+--- PASS: TestIPv4Send (0.00s)
+=== RUN   TestAbsentMalformedNoOption
+    probe_test.go:200: WriteMsgUDP payload=2 control=24 err=<nil> sent-oob=14000000290000003d000000000000000200000000000000
+    probe_test.go:200: ReadMsgUDP flags=128 oob=
+    probe_test.go:211: WriteMsgUDP payload=2 control=0 err=<nil> sent-oob=
+    probe_test.go:211: ReadMsgUDP flags=128 oob=14000000290000003d000000000000000000000000000000
+    probe_test.go:211: native cmsg level=41 type=61 data=00000000
+    probe_test.go:222: WriteMsgUDP payload=0 control=0 err=write udp6 [::1]:20594->[::1]:1414: sendmsg: invalid argument sent-oob=58000000290000003d000000000000000200000000000000
+    probe_test.go:223: malformed cmsg authoritative parse=invalid argument kernel-send=write udp6 [::1]:20594->[::1]:1414: sendmsg: invalid argument
+--- PASS: TestAbsentMalformedNoOption (0.00s)
+=== RUN   TestCloseCleanup
+    probe_test.go:241: udp4 post-close write=write udp4 0.0.0.0:22035->127.0.0.1:20388: use of closed network connection
+    probe_test.go:241: udp6 post-close write=write udp6 [::]:47869->[::1]:35845: use of closed network connection
+--- PASS: TestCloseCleanup (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go/o1probe	0.008s
+
+Probe completed; guest lifecycle cleanup is recorded by infra.
