@@ -3140,3 +3140,16 @@ RAS `20260923T005131-52995ce238b2f0abcb1b2801` completed with one accepted docum
 ### Next
 
 As of this entry, all five defined slices are complete and no successor is dispatchable. Windows and OpenBSD implementation await scoped `$architecture-handoff`; see the [committed program index](adr/2026-09-22-managed-ecn-program.md) and [live tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354). No review follow-up issues are needed.
+
+---
+
+## Windows managed ECN successor handoff - 2026-09-22 21:59 EDT
+
+**Main:** `4fcbded1e27f`
+**Actor:** Codex
+
+Published the scoped Windows managed ECN successor handoff in [PR #536](https://github.com/the-sarge/quic-go-fast/pull/536). The current [Windows plan](adr/2026-09-22-windows-managed-ecn-plan.md) adds native Windows 11/Server 2025 and dual-stack qualification (W2), followed by one complete managed implementation (W3). W1 evidence remains frozen, older releases remain outside the native qualification claim, and no runtime behavior changed or implementation was dispatched.
+
+Independent pre-publication slice audit passed. RAS review `20260923T014028-223bf71a5e39494aea288649` completed; three bounded documentation corrections clarified both native send routes, send-CMSG receipt fields and future qualification wording. Exact-head local docs checks and all applicable hosted jobs passed at `f35cbc1c41370919b6079c2f6e9c8ae292b95394`; [certification and review dispositions](https://github.com/the-sarge/quic-go-fast/pull/536#issuecomment-5787643556) are retained on the PR.
+
+Created [W2 #537](https://github.com/the-sarge/quic-go-fast/issues/537) and [W3 #538](https://github.com/the-sarge/quic-go-fast/issues/538), with native GitHub parent/blocker relationships and matching sequential OmniFocus children. Verified the plan commit is reachable from remote main, each child has the exact plan/dispatch marker, and W2 alone is ready while W3 is blocked. [Windows parent #459](https://github.com/the-sarge/quic-go-fast/issues/459) and [program tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) are the live status pointers. The next operator-selected action is W2 through a fresh `$implement-architecture-slice` context; OpenBSD remains separately awaiting scoped handoff.
