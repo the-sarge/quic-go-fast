@@ -3296,3 +3296,28 @@ RAS run `20260923T164317-b2032a4b8411f75ca6fe8986` completed with four successfu
 ### Next
 
 Continue the remaining investigations in [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552), the live planning map.
+
+---
+
+## BBRv3 baseline research landed - 2026-09-23 13:19 EDT
+
+**Main:** `5dd88547fc14`
+**Actor:** Codex
+
+### Summary
+
+Merged [docs: establish BBRv3 baseline evidence for planning](https://github.com/the-sarge/quic-go-fast/pull/561) as `5dd88547fc14d198a16b2b91936924743cc39a07`. The [research report](audits/2026-09-23-bbrv3-algorithm-baseline.md) pins the published IETF draft, editor proposals, Google TCP BBRv3 and QUICHE, compares actual behavior, records reuse requirements and routes remaining design questions. The glossary adds transport delivery, application-limited delivery samples and packet-timed rounds. No controller or performance experiment was implemented.
+
+### Decisions
+
+The [algorithm-baseline resolution](https://github.com/the-sarge/quic-go-fast/issues/554#issuecomment-5799027711) recommends draft-06 precedence with explicit deviations; final selection remains with the owner. [Compare ProbeRTT filters on changing-RTT paths](https://github.com/the-sarge/quic-go-fast/issues/560) is the newly specified prototype, dependent on integration research and blocking final design closure.
+
+### Validation
+
+RAS run `20260923T170317-e86cbc5b78fda452ee9db8d4` produced three accepted documentation corrections: recovery-section citation, the TCP plateau application-limited guard, and explicit QUICHE ProbeRTT sampling/cwnd behavior. Four reviewers, adjudication and synthesis completed; Claude Fable failed to start. An earlier setup run was interrupted to correct its worktree location. The [review and certification record](https://github.com/the-sarge/quic-go-fast/pull/561#issuecomment-5799326994) records independent dispositions and the shared-policy decision to use local source checks instead of another RAS cycle for these narrow fixes. No substantive finding or follow-up remains unresolved.
+
+Final head `b6554068d44ef768cd8c1b3840dd6415304ed2d0` passed clean-tree and Markdown checks, 88 immutable source-link/range checks across 21 files, 40 reference-label checks, spec-anchor validation, corrected-claim source checks and issue-dependency verification. All 33 applicable hosted checks passed before matched-head squash merge. No local Go or native performance campaign was required for this documentation change.
+
+### Next
+
+[Evaluate classic ECN responses for BBRv3](https://github.com/the-sarge/quic-go-fast/issues/555) is the next unclaimed frontier ticket at this entry's timestamp. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) remains the live map; algorithm selection, ECN response and implementation are still open.
