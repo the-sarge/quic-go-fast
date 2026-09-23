@@ -16,6 +16,7 @@ import (
 // externalPacketIO holds immutable registration and atomic diagnostic counters.
 // Registration is synchronized independently of the connection-handler lock.
 type externalPacketIO struct {
+	managedLease             *managedPacketConn
 	batchCalls               atomic.Uint64
 	acceptedPackets          atomic.Uint64
 	managedBuffers           *managedBufferSetup
@@ -96,6 +97,10 @@ func (t *Transport) checkPacketIORegistration(conn net.PacketConn) error {
 // operations before registration. Registration rejects active lease I/O and
 // seals the QUIC phase until lease Close, including on initialization failure.
 // Packet and deadline methods continue serving the registered transport/wrapper.
+// Qualified Linux and Darwin sockets enable lease-scoped DF here. Lease Close
+// restores the saved options; failed restoration terminates the endpoint. DF
+// availability is independent of ECN and does not enable path-MTU discovery when
+// the QUIC configuration disables it.
 // Registration preserves lease deadlines. Clear any establishment deadlines
 // before handing the lease to QUIC if they should no longer apply.
 // A direct registration may omit sendBatch. A non-nil callback must preserve
@@ -135,6 +140,7 @@ func (t *Transport) ConfigureManagedPacketIOV1(conn net.PacketConn, lease net.Pa
 	c.external = &externalPacketIO{
 		conn:                     conn,
 		sendBatch:                sendBatch,
+		managedLease:             l,
 		managedBuffers:           setup.buffers,
 		managedReceiveCoalescing: setup.receiveCoalescing,
 		managedReceiveState:      setup.receiveState,
@@ -221,6 +227,17 @@ type externalPacketConn struct {
 }
 
 func (c *externalPacketConn) packetIOConfig() *externalPacketIO { return c.config }
+
+func (c *externalPacketConn) capabilities() connCapabilities {
+	cap := c.rawConn.capabilities()
+	if lease := c.config.managedLease; lease != nil {
+		e := lease.endpoint
+		e.mutex.Lock()
+		cap.DF = !e.closed && e.lease == lease.lease && !lease.lease.returning && lease.lease.dfRestore != nil
+		e.mutex.Unlock()
+	}
+	return cap
+}
 
 // Receive-format permission is independent of the existing Close owner.
 // Managed normalization remains a separate capability.

@@ -212,7 +212,7 @@ func TestDarwinManagedECNSendRoutes(t *testing.T) {
 				require.True(t, cap.ECN)
 				require.False(t, cap.GSO)
 				require.False(t, cap.GRO)
-				require.False(t, cap.DF)
+				require.True(t, cap.DF)
 				reader, err := newConn(peer, false, false)
 				require.NoError(t, err)
 				reader.managedRead = true
