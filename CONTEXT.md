@@ -24,6 +24,10 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Packet-timed round**: A round of transport feedback whose progress is determined by acknowledgments of transmissions from a recorded boundary. It is distinct from a fixed interval of wall-clock time.
 
+**Delivery snapshot**: The delivery-accounting state associated with an outgoing packet, used with later acknowledgment feedback to measure transport delivery over an interval. It is distinct from the packet's application payload and from a socket-write completion record.
+
+**Send quantum**: The amount of traffic a pacing decision permits to leave together before another pacing opportunity. It is distinct from the congestion window and from a socket API's maximum batch or segmentation capacity.
+
 **Handshake MTU fallback**: Reduction of the handshake packetization budget in response to an eligible local message-size failure before handshake confirmation. It is distinct from recovery from a path that silently drops oversized traffic.
 
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
