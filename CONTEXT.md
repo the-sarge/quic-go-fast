@@ -10,6 +10,8 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Application DATAGRAM message**: Unreliable application data carried by a QUIC DATAGRAM frame. Its admission for sending does not guarantee delivery to the peer.
 
+**Application goodput**: Unique useful application content delivered over a declared time interval, excluding protocol overhead, repair redundancy and repeated delivery. A transport acknowledgment or local send admission does not establish application acceptance; the application must define its useful-delivery boundary.
+
 **Send batch**: One or more UDP datagrams grouped for a single submission to the socket-writing path. A batch is not a packet-number space or an application delivery guarantee.
 
 **Local send capacity**: Room for additional outgoing work waiting for the socket writer. This is distinct from peer flow-control credit, congestion allowance, and application credit.
