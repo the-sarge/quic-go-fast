@@ -3092,3 +3092,26 @@ RAS review `20260922T234113-f27dd52ef5d26c3adf739d6f` completed with five succes
 ### Next
 
 O1 / #506 and W1 / #507 remain the parallel frontier, as recorded by the [program index](adr/2026-09-22-managed-ecn-program.md); [#354](https://github.com/the-sarge/quic-go-fast/issues/354) is the live tracking view. F1 has no newly unblocked successor.
+
+---
+
+## OpenBSD ECN native feasibility - 2026-09-22 20:26 EDT
+
+**Main:** `31d6cd40fe7a`
+**Actor:** Codex
+
+### Summary
+
+Completed OpenBSD feasibility slice O1 in [PR #532](https://github.com/the-sarge/quic-go-fast/pull/532), merged as `31d6cd40fe7a2c13fa8211604399dddd26913b45`, closing [#506](https://github.com/the-sarge/quic-go-fast/issues/506). The final change contains documentation and frozen native evidence only; temporary probes were retired and managed ECN remains false on OpenBSD.
+
+### Decisions
+
+The [native receipt](audits/2026-09-23-openbsd-ecn-o1/README.md) establishes IPv6-only receive and per-datagram marking feasibility on OpenBSD 7.9/amd64 with Go 1.27.0. IPv4 receive TOS lacks an API in the tested surface, and successful IPv4 control-message sends leave outgoing marks unproven. [ADR 0007](adr/0007-managed-ecn-qualification.md) requires scoped architecture handoff before any OpenBSD implementation or qualification slice.
+
+### Validation
+
+One native six-class run (`run-20260923T001048.801788000Z`) completed with all four IPv6 ECN values preserved, parsing/marking removal controls observed red, normal characterization green, and verified powered-off restoration and cleanup. Transcript SHA-256 matches the infra receipt. RAS review `20260923T001513-098fc52f217ff64c3b78aeea` yielded one accepted ADR sentence clarification and one duplicate rejected; the shared docs-only polish policy skipped another RAS cycle. Exact-head docs certification passed at `f3ac78e0c9567ce7964c9045870ea7e9331df82a`, followed by 17 successful hosted jobs across [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/35801603998), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/35801604023), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/35801604054), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/35801604026), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/35801603999). No deferred review findings remain.
+
+### Next
+
+At this entry, W1 is the only dispatchable slice; O1 has no defined successor and [OpenBSD parent #458](https://github.com/the-sarge/quic-go-fast/issues/458) awaits scoped handoff. The [program index](adr/2026-09-22-managed-ecn-program.md) and [live tracker #354](https://github.com/the-sarge/quic-go-fast/issues/354) own current frontier state.
