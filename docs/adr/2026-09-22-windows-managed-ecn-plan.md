@@ -46,8 +46,8 @@ URO and ECN share one Windows decoder. [Microsoft's URO rules](https://learn.mic
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | W1 | Complete; retain #507 / #534 | Separate-family native feasibility receipt | None | Probe retired in W1 |
-| W2 | New; frontier; child pending | Desktop/server and dual-stack native qualification receipt | W1 complete | Disposable probes retired in W2 |
-| W3 | New; blocked; child pending | Complete managed Windows ECN receive/send qualification | W2; L1 complete | None; no runtime intermediate form |
+| W2 | Complete — #537; native representation confirmed | Desktop/server and dual-stack native qualification receipt | W1 complete | Disposable probes retired in W2 |
+| W3 | Ready / frontier — #538; W2 and L1 complete | Complete managed Windows ECN receive/send qualification | W2; L1 complete | None; no runtime intermediate form |
 
 ## Implementation slices
 
