@@ -57,11 +57,19 @@ func TestHandshakeMTUFallbackPhaseAndPath(t *testing.T) {
 }
 
 func TestHandshakeMTUFallbackDiscovery(t *testing.T) {
-	for _, disabled := range []bool{false, true} {
-		t.Run(map[bool]string{false: "enabled", true: "disabled"}[disabled], func(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		disabled, df bool
+	}{
+		{"enabled", false, true},
+		{"disabled", true, true},
+		{"unavailable", false, false},
+		{"disabled unavailable", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			cs := mocks.NewMockCryptoSetup(ctrl)
-			c := newServerTestConnection(t, ctrl, &Config{InitialPacketSize: 1452, DisablePathMTUDiscovery: disabled}, false, connectionOptCryptoSetup(cs)).conn
+			c := newServerTestConnection(t, ctrl, &Config{InitialPacketSize: 1452, DisablePathMTUDiscovery: tc.disabled}, false, connectionOptCryptoSetup(cs)).conn
 			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, ActiveConnectionIDLimit: 2}
 			c.applyTransportParameters()
 			c.handshakeSendFeedback.publish(0)
@@ -72,12 +80,12 @@ func TestHandshakeMTUFallbackDiscovery(t *testing.T) {
 			cs.EXPECT().DiscardInitialKeys()
 			cs.EXPECT().SetHandshakeConfirmed()
 			sc := NewMockSendConn(ctrl)
-			sc.EXPECT().capabilities().Return(connCapabilities{DF: true}).AnyTimes()
+			sc.EXPECT().capabilities().Return(connCapabilities{DF: tc.df}).AnyTimes()
 			c.conn = sc
 			require.NoError(t, c.handleHandshakeConfirmed(now))
-			require.Equal(t, !disabled, c.mtuDiscoverer.ShouldSendProbe(now.Add(time.Hour)))
+			require.Equal(t, !tc.disabled && tc.df, c.mtuDiscoverer.ShouldSendProbe(now.Add(time.Hour)))
 			require.EqualValues(t, 1200, c.maxPacketSize())
-			if !disabled {
+			if !tc.disabled && tc.df {
 				ping, size := c.mtuDiscoverer.GetPing(now.Add(time.Hour))
 				require.EqualValues(t, 1326, size)
 				ping.Handler.OnAcked(ping.Frame)

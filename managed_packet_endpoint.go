@@ -27,10 +27,11 @@ import (
 // deadlines. Lease deadline changes are discarded on release.
 //
 // Lease Close revokes the lease, interrupts and joins its active I/O, restores
-// the parent's deadlines, and permits another acquisition. Old leases remain
-// closed. Endpoint Close is terminal, interrupts and joins parent or lease I/O,
-// and closes the socket. A failure to interrupt or restore deadlines terminates
-// the endpoint and is returned by Close. Close is safe to call concurrently.
+// lease-scoped DF options and the parent's deadlines, and permits another
+// acquisition. Old leases remain closed. Endpoint Close is terminal, interrupts
+// and joins parent or lease I/O, and closes the socket. A failure to interrupt or
+// restore DF options or deadlines terminates the endpoint and is returned by
+// Close. Close is safe to call concurrently.
 //
 // The endpoint and leases expose no raw socket or descriptor. They provide
 // ordinary datagrams only. Qualified managed registration may retain private ECN
@@ -57,7 +58,7 @@ func newManagedPacketEndpoint(conn net.PacketConn) (net.PacketConn, func() (net.
 	// Complete both directions before any view can perform ordinary I/O.
 	receiveErr := setReceiveBuffer(conn)
 	sendErr := setSendBuffer(conn)
-	e := &managedPacketEndpoint{conn: conn, buffers: inspectManagedBuffers(conn, receiveErr, sendErr)}
+	e := &managedPacketEndpoint{conn: conn, buffers: inspectManagedBuffers(conn, receiveErr, sendErr), dfControl: managedDFControlFor(conn)}
 	warnBufferSize(managedBufferWarning(receiveErr, sendErr))
 	if socket, ok := conn.(udpMessageWriter); ok {
 		e.sendBatch = newUDPBatchWriter(socket)
@@ -67,6 +68,7 @@ func newManagedPacketEndpoint(conn net.PacketConn) (net.PacketConn, func() (net.
 }
 
 type managedPacketEndpoint struct {
+	dfControl         managedDFControl
 	mutex             sync.Mutex
 	readMutex         sync.Mutex
 	receiver          managedPacketReceiver
@@ -131,6 +133,7 @@ type managedPacketReceiver interface {
 // Pointer identity is the generation token. It is never recycled, including
 // when a lease has been returned or the endpoint has terminated.
 type managedPacketLease struct {
+	dfRestore    func() error
 	quic         bool
 	returning    bool
 	done         chan struct{}
@@ -189,6 +192,14 @@ func (c *managedPacketConn) bindQUIC() (managedPacketIOSetup, error) {
 	if err := e.configureReceive(); err != nil {
 		return managedPacketIOSetup{}, err
 	}
+	df, err := setupManagedDF(e.dfControl)
+	if err != nil {
+		if df.terminal {
+			e.terminateLocked(err)
+		}
+		return managedPacketIOSetup{}, err
+	}
+	c.lease.dfRestore = df.restore
 	c.lease.quic = true
 	return managedPacketIOSetup{
 		buffers:           &e.buffers,
@@ -413,6 +424,12 @@ func (c *managedPacketConn) Close() error {
 	for e.active != 0 {
 		e.idle.Wait()
 	}
+	if !e.closed && lease.dfRestore != nil {
+		if err := lease.dfRestore(); err != nil {
+			e.terminateLocked(err)
+		}
+	}
+	lease.dfRestore = nil
 	if !e.closed {
 		if err := e.conn.SetReadDeadline(e.readDeadline); err != nil {
 			e.terminateLocked(err)

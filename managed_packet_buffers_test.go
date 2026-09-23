@@ -185,7 +185,8 @@ func TestManagedEndpointDiagnosticProvenance(t *testing.T) {
 			cap := tr.conn.capabilities()
 			wantECN := (runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "freebsd" || runtime.GOOS == "windows") && (kind == "registered" || kind == "registered batch" || kind == "wrapper batch")
 			require.Equal(t, wantECN, cap.ECN)
-			require.False(t, cap.DF)
+			wantDF := (runtime.GOOS == "linux" || runtime.GOOS == "darwin") && (kind == "registered" || kind == "registered batch" || kind == "wrapper" || kind == "wrapper batch")
+			require.Equal(t, wantDF, cap.DF)
 			require.False(t, cap.GSO)
 			require.False(t, cap.GRO)
 			if kind == "unknown wrapper" || kind == "external wrapper" {
@@ -198,7 +199,7 @@ func TestManagedEndpointDiagnosticProvenance(t *testing.T) {
 			require.Contains(t, message, "provenance=managed_endpoint")
 			require.Contains(t, message, "receive_mode=ordinary")
 			require.Contains(t, message, fmt.Sprintf("batch_callback_available=%t", batch))
-			require.Contains(t, message, fmt.Sprintf("df=false ecn=%t segmentation=false coalescing=false", wantECN))
+			require.Contains(t, message, fmt.Sprintf("df=%t ecn=%t segmentation=false coalescing=false", wantDF, wantECN))
 		})
 	}
 }
