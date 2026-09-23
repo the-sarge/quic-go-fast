@@ -3442,3 +3442,24 @@ The regression changed from race reports/deadlock to a pass under Go 1.26.8's ra
 ### Next
 
 Follow the [release runbook](runbooks/release.md) for any corrected release: a new version must receive its own preparation, source and tag gates. The fix in later main history does not change fast.5's tagged source or authorize publishing its failed candidate. The [blocked release record](releases/v0.62.1-fast.5.md) remains the status pointer until an operator selects the next publication action.
+
+---
+
+## fast.6 release selection and preparation - 2026-09-23 19:29 EDT
+
+**Main:** `f989d06a2eed`
+**Actor:** Codex
+
+### Summary
+
+Selected `v0.62.1-fast.6` with the operator's explicit authorization after fast.5's failed Darwin tag gate. [Preparation PR #575](https://github.com/the-sarge/quic-go-fast/pull/575) adds the changelog selection and [release record](releases/v0.62.1-fast.6.md). The successor includes [the qualification-worker reset repair #573](https://github.com/the-sarge/quic-go-fast/pull/573). Fast.5's tag, cached module and blocked draft remain unchanged.
+
+### Validation
+
+The preparation changes documentation only. Local relative-link and whitespace checks passed at `294fa07654b86fe3513b581841ae876f698b7ad8`, as did all 33 hosted checks. All five PR workflows, their 17 jobs and relevant steps were inspected. No new native qualification, performance claim or Go behavior change is introduced by this preparation.
+
+RAS review `20260923T231013-02763e5a134940f5e7f67794` completed with five reviewers, adjudication and synthesis. Documentation corrections identify production worker tracking, point to the original feature references and distinguish the cached fast.5 module from adoption and rollback targets. All findings were dispositioned; the shared cheap docs-only policy skipped another review cycle.
+
+### Next
+
+Pin the clean release source after this journal merges. Complete the exact-main workflow, fresh vulnerability and candidate-consumer gates, then create the new annotated tag and draft prerelease. Publish only after tagged module/consumer provenance and every tag workflow pass. README continues to identify fast.4 until successful fast.6 publication.
