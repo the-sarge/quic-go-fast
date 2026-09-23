@@ -3216,3 +3216,26 @@ Initial RAS review `20260923T055106-3230e8fa561394b05f0820f0` produced two accep
 ### Next
 
 Diagnosis remains unresolved. [Issue #528](https://github.com/the-sarge/quic-go-fast/issues/528) is the live tracking view, and its OmniFocus task remains open. The next missing observation is an instrumented failing Darwin 25 run distinguishing a receive error from no delivery, with exact phase, endpoints, source, seed and environment. GitHub's automatic closure from a negated closing keyword in the PR description was corrected by reopening the issue and rewording the description.
+
+---
+
+## Managed DF and path-MTU discovery landed - 2026-09-23 10:31 EDT
+
+**Main:** `8f09f9c52c33`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #546](https://github.com/the-sarge/quic-go-fast/pull/546), closing [#353](https://github.com/the-sarge/quic-go-fast/issues/353). Qualified Linux and Darwin managed endpoints now enable DF at validated QUIC registration and restore the saved native options after lease I/O joins. Failed rollback or restoration terminates the endpoint. Capability follows the active generation independently of ECN; unqualified Windows, Android, iOS and other targets remain disabled.
+
+### Decisions
+
+The [approved contract](agents/managed-df-353.md) selects lease-scoped restoration to preserve ordinary datagrams and later leases. The [native matrix](audits/2026-09-23-managed-df/qualification.md) records IPv4, IPv6 and both dual-stack paths on Linux and macOS, including attributable native message-size rejection and real QUIC discovery. No public API, wiremux profile, public DATAGRAM admission, ordinary socket setup, ECN or receive-coalescing behavior changed.
+
+### Validation
+
+[Exact-head receipt](https://github.com/the-sarge/quic-go-fast/pull/546#issuecomment-5796704772): initial review found Android inheriting Linux build tags; explicit exclusion was verified, and the replacement review had no findings. Four reviewers completed despite one provider startup failure. The focused race gate, native qualification, root/self suites with the repository CI time scale, vet, module tidiness, formatting, lint and all five hosted PR workflows passed for `c2ba779fb848a64ef2dcd8ba920643f1f4df65f7` before guarded squash merge. The unscaled local self suite also captured pre-existing HTTP idle expiry before response headers; [#151](https://github.com/the-sarge/quic-go-fast/issues/151) remains open and no HTTP repair is claimed.
+
+### Next
+
+Windows and other unqualified targets remain outside the enabled managed DF capability; the native matrix is the current support record. The existing [HTTP idle-timeout issue #151](https://github.com/the-sarge/quic-go-fast/issues/151) remains the live tracking surface for the unrelated local failure. No new review follow-up was required.
