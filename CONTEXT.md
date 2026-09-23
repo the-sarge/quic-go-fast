@@ -61,3 +61,7 @@ Language for QUIC transport behavior and the fork's transmission work.
 **Managed ECN capability**: A managed endpoint's proven ability to receive ECN-marked datagrams and apply outgoing ECN marks through an exclusive lease while keeping native socket authority private.
 
 **Platform ECN qualification**: Native evidence that one platform preserves a managed ECN capability across every address family admitted by the tested socket, ordinary and batched sends, peer filtering, fallback, lease reuse and terminal cleanup. A platform without a native metadata path remains unqualified rather than inheriting another platform's result.
+
+**Path ECN validation**: Evidence from sent markings and peer feedback that a network path preserves usable ECN signaling. It is distinct from platform ECN qualification and does not establish which congestion response is appropriate.
+
+**Validated CE feedback**: An accepted increase in the peer’s cumulative Congestion Experienced count for an identified feedback interval. It reports congestion on received packets, not packet loss, and does not identify which individual acknowledged packets were marked.
