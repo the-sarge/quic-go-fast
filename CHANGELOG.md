@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.62.1-fast.5 — selected for release
+
+Managed ECN and path-MTU discovery rollup based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path, dependencies and public API signatures are unchanged from fast.4. The [release record](docs/releases/v0.62.1-fast.5.md) describes qualification, compatibility and publication gates. This version is selected but not yet published.
+
+- Managed endpoints support ECN receive metadata and outgoing marking on qualified Linux, Darwin, FreeBSD and Windows paths. Qualification covers the socket's admitted address families, including both dual-stack paths. Direct leases and synchronous exact-forwarding policy wrappers retain socket ownership, selected-peer filtering and lease reuse. Wrapper participation requires the checked send callback and exact read/result forwarding described by `ConfigureManagedPacketIOV1`; arbitrary wrappers do not acquire ECN capability. [Linux #508](https://github.com/the-sarge/quic-go-fast/pull/508), [Darwin #518](https://github.com/the-sarge/quic-go-fast/pull/518), [FreeBSD #530](https://github.com/the-sarge/quic-go-fast/pull/530), [Windows #542](https://github.com/the-sarge/quic-go-fast/pull/542).
+- Qualified Linux and Darwin managed leases enable DF and allow the existing QUIC path-MTU discovery when configuration permits. Lease close joins I/O and restores saved socket options; failed restoration terminates the endpoint. ECN disablement does not disable this DF capability. Windows and other platforms remain unqualified for managed DF. [#546](https://github.com/the-sarge/quic-go-fast/pull/546).
+- Darwin 27 arm64 is admitted to the existing private `sendmsg_x` batch-send path after native and exact-kernel qualification. The startup self-check, kernel/architecture gate, process latch, kill switch and compile-time opt-out remain in force; Darwin 27 amd64 remains excluded. This is compatibility qualification, with no new performance claim. [#525](https://github.com/the-sarge/quic-go-fast/pull/525).
+- ECN receive tests report read errors and endpoint context and join cleanup; independent equality, bandwidth, wire and pacing expectations strengthen regression coverage. These test changes do not resolve the intermittent Darwin ECN receive timeout [#528](https://github.com/the-sarge/quic-go-fast/issues/528). [#544](https://github.com/the-sarge/quic-go-fast/pull/544), [#550](https://github.com/the-sarge/quic-go-fast/pull/550).
+
+OpenBSD managed ECN remains disabled; native feasibility research is not runtime support. BBRv3 research introduces no congestion-controller implementation or recovery-policy change. This release makes no new throughput, latency, packet-loss, raw-socket handback or downstream-adoption guarantee.
+
 ## v0.62.1-fast.4 — 2026-09-21
 
 Compatibility and correctness rollup based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; the declared module path and dependency versions are unchanged from fast.3. The [release record](docs/releases/v0.62.1-fast.4.md) and [GitHub release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.4) supply the compatibility, support, source and publication receipts.
