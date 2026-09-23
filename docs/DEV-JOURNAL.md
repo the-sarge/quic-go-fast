@@ -3239,3 +3239,26 @@ The [approved contract](agents/managed-df-353.md) selects lease-scoped restorati
 ### Next
 
 Windows and other unqualified targets remain outside the enabled managed DF capability; the native matrix is the current support record. The existing [HTTP idle-timeout issue #151](https://github.com/the-sarge/quic-go-fast/issues/151) remains the live tracking surface for the unrelated local failure. No new review follow-up was required.
+
+---
+
+## Combined HTTP/3 lifetime investigation - 2026-09-23 10:59 EDT
+
+**Main:** `9de6d2cfdafc`
+**Actor:** Codex
+
+### Summary
+
+Merged the bounded combined HTTP/3 server investigation in [PR #548](https://github.com/the-sarge/quic-go-fast/pull/548). The [report](audits/issue-424-combined-server/README.md) records the unchanged source-level TCP cleanup gap, a passing normal-serving baseline, and the absence of an established deterministic public QUIC-first trigger. Production behavior is unchanged; no TCP survival after helper return was reproduced.
+
+### Decisions
+
+The investigation ends with remaining uncertainty, not an implementation-ready repair. Further reproduction requires a concrete failing environment or separately approved fault injection; ownership, close/join, and error-selection changes remain outside this scope. The report is the evidence record; [#424](https://github.com/the-sarge/quic-go-fast/issues/424) retains the scope decision.
+
+### Validation
+
+The initial diagnostic used a stale fixture hostname and failed TLS verification. One user-approved correction to `localhost` passed HTTP/3 and TCP handler checks and TCP Alt-Svc. Both attempts and source hashes are archived; both subprocesses exited and their TCP/UDP ports were reusable afterward. That cleanup is not helper shutdown evidence. No controlled-error case or expanded campaign was run. RAS review `20260923T145124-9e613f361df7b7cbc15d44b0` returned no findings; exact-head documentation checks and all five hosted PR workflows passed on `c7ae6f177c08f58614a48e605ff83073699e9df8` before squash merge.
+
+### Next
+
+Reconcile the completed investigation action and preserve the pending scope decision in [#424](https://github.com/the-sarge/quic-go-fast/issues/424); [#422](https://github.com/the-sarge/quic-go-fast/issues/422) is the live reconciliation tracker. A repair is not automatically authorized by this result.
