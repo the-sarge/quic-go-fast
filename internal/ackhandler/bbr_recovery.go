@@ -74,6 +74,7 @@ func (r *recoveryEvidence) lost(key congestionPacketKey, congestionLoss, retaine
 	i, known := r.keys[key]
 	if known && r.outcomes[i].state == outcomeUnresolved {
 		r.outcomes[i].state = outcomeLost
+		r.unconfirmedLoss = true // ACK-only losses can complete a classified span too.
 	}
 	if !congestionLoss {
 		return
@@ -106,7 +107,7 @@ func (r *recoveryEvidence) invalidateUndo() {
 }
 
 func (r *recoveryEvidence) missing(ordinal uint64) {
-	if _, ok := r.members[ordinal]; ok {
+	if _, ok := r.members[ordinal]; ok || (r.episode.ID != 0 && ordinal == r.episode.Boundary) {
 		r.invalidateUndo()
 	}
 }
@@ -121,10 +122,10 @@ func (r *recoveryEvidence) discardSpace(level protocol.EncryptionLevel) {
 	for i := 0; i < r.count; i++ {
 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
 		if o.level == level {
+			r.missing(o.ordinal)
 			o.state = outcomeDisposed
 		}
 	}
-	r.invalidateUndo()
 }
 
 func (r *recoveryEvidence) reset() {
@@ -153,7 +154,9 @@ func (r *recoveryEvidence) feedback(e *congestion.FeedbackEvent, pto time.Durati
 		r.episode.Active = false
 		r.episode.Exited = true
 	}
-	if r.episode.UndoPossible && len(r.members) == 0 {
+	// An active episode can still acquire losses from unresolved transmissions.
+	// Publish its one-shot repair only after the boundary has been crossed.
+	if !r.episode.Active && r.episode.UndoPossible && len(r.members) == 0 {
 		r.episode.UndoEligible = true
 		r.episode.UndoPossible = false
 	}

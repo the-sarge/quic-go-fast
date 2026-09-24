@@ -44,6 +44,23 @@ func TestBBRPersistentCongestionAcrossSpaces(t *testing.T) {
 }
 
 func TestBBRRecoveryEpisodeAllSpurious(t *testing.T) {
+	t.Run("unresolved boundary member becomes lost", func(t *testing.T) {
+		h, r, now := measuredRecoveryHandler(t)
+		a := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
+		b := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1200)
+		latest := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1200)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(101*time.Millisecond), latest)
+		require.Len(t, r.feedback[len(r.feedback)-1].Lost, 1)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(105*time.Millisecond), a)
+		require.False(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
+		require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout()))
+		require.Equal(t, 1, r.feedback[len(r.feedback)-1].RecoveryEpisode.Pending)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(115*time.Millisecond), b)
+		require.False(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
+		next := sendCongestionTestPacket(h, now.Add(120*time.Millisecond), protocol.EncryptionInitial, 1200)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(130*time.Millisecond), next)
+		require.True(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
+	})
 	for _, all := range []bool{false, true} {
 		t.Run(map[bool]string{false: "mixed", true: "all"}[all], func(t *testing.T) {
 			h, r, now := measuredRecoveryHandler(t)
@@ -61,6 +78,11 @@ func TestBBRRecoveryEpisodeAllSpurious(t *testing.T) {
 			if all {
 				acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(130*time.Millisecond), b)
 				e = r.feedback[len(r.feedback)-1].RecoveryEpisode
+				require.False(t, e.UndoEligible, "the active episode can still acquire losses")
+				next := sendCongestionTestPacket(h, now.Add(140*time.Millisecond), protocol.EncryptionInitial, 1200)
+				acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(150*time.Millisecond), next)
+				e = r.feedback[len(r.feedback)-1].RecoveryEpisode
+				require.True(t, e.Exited)
 				require.True(t, e.UndoEligible)
 				require.Zero(t, e.Pending)
 				require.Equal(t, uint64(1), e.ID)
@@ -70,6 +92,22 @@ func TestBBRRecoveryEpisodeAllSpurious(t *testing.T) {
 }
 
 func TestBBRRecoveryEpisodeSupersededOrMissing(t *testing.T) {
+	for _, boundary := range []bool{false, true} {
+		t.Run(map[bool]string{false: "unrelated key discard", true: "boundary key discard"}[boundary], func(t *testing.T) {
+			h, r, now := measuredRecoveryHandler(t)
+			lost := sendCongestionTestPacket(h, now, protocol.Encryption1RTT, 1200)
+			carrier := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.Encryption1RTT, 1200)
+			if boundary {
+				sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionHandshake, 1200)
+			}
+			acknowledgeRecoveryPacket(t, h, protocol.Encryption1RTT, now.Add(110*time.Millisecond), carrier)
+			h.DropPackets(protocol.EncryptionHandshake, now.Add(115*time.Millisecond))
+			next := sendCongestionTestPacket(h, now.Add(120*time.Millisecond), protocol.Encryption1RTT, 1200)
+			acknowledgeRecoveryPacket(t, h, protocol.Encryption1RTT, now.Add(130*time.Millisecond), next)
+			acknowledgeRecoveryPacket(t, h, protocol.Encryption1RTT, now.Add(140*time.Millisecond), lost)
+			require.Equal(t, !boundary, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
+		})
+	}
 	t.Run("retained member eviction", func(t *testing.T) {
 		h, r, now := measuredRecoveryHandler(t)
 		members := make([]protocol.PacketNumber, 0, 4097)
@@ -98,6 +136,9 @@ func TestBBRRecoveryEpisodeSupersededOrMissing(t *testing.T) {
 		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(160*time.Millisecond), a)
 		require.False(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
 		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(170*time.Millisecond), b)
+		require.False(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
+		next := sendCongestionTestPacket(h, now.Add(180*time.Millisecond), protocol.EncryptionInitial, 1200)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(190*time.Millisecond), next)
 		require.True(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
 	})
 	for _, mode := range []string{"expired", "superseded", "discard", "retry", "path", "close"} {
@@ -233,6 +274,29 @@ func TestBBRPersistentCongestionGapAndEviction(t *testing.T) {
 }
 
 func TestBBRPersistentCongestionDeduplication(t *testing.T) {
+	t.Run("ACK-only timer loss completes cross-space proof", func(t *testing.T) {
+		h, r, now := measuredRecoveryHandler(t)
+		sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
+		gap := h.PopPacketNumber(protocol.EncryptionHandshake)
+		h.SentPacket(now.Add(999*time.Millisecond), gap, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionHandshake, protocol.ECNNon, 40, false, false)
+		sendCongestionTestPacket(h, now.Add(time.Second), protocol.EncryptionInitial, 1200)
+		hs := sendCongestionTestPacket(h, now.Add(time.Second), protocol.EncryptionHandshake, 1200)
+		sendCongestionTestPacket(h, now.Add(time.Second), protocol.EncryptionHandshake, 1200)
+		var receipts []protocol.PacketNumber
+		for range 3 {
+			receipts = append(receipts, sendCongestionTestPacket(h, now.Add(time.Second), protocol.EncryptionInitial, 1200))
+		}
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(1001*time.Millisecond), receipts...)
+		require.Len(t, r.feedback[len(r.feedback)-1].Lost, 2)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionHandshake, now.Add(1002*time.Millisecond), hs)
+		require.Zero(t, r.feedback[len(r.feedback)-1].PersistentCongestion.EndOrdinal)
+		require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout()))
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(1020*time.Millisecond), receipts...)
+		e := r.feedback[len(r.feedback)-1]
+		require.Equal(t, uint64(2), e.PersistentCongestion.StartOrdinal)
+		require.Equal(t, uint64(4), e.PersistentCongestion.EndOrdinal)
+		require.Empty(t, e.Lost, "an ACK-only loss must not enter congestion loss volume")
+	})
 	t.Run("validated duplicate ACK confirms timer losses", func(t *testing.T) {
 		h, r, now := measuredRecoveryHandler(t)
 		sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
