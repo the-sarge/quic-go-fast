@@ -367,6 +367,21 @@ func TestBBRECNRepeatedMigration(t *testing.T) {
 }
 
 func TestLegacyECNDispatchPreserved(t *testing.T) {
+	for _, level := range []protocol.EncryptionLevel{protocol.EncryptionInitial, protocol.EncryptionHandshake} {
+		t.Run(level.String()+" duplicate ACK", func(t *testing.T) {
+			h, r := newBBRECNTestHandler()
+			now := monotime.Now()
+			pn := sendCongestionTestPacket(h, now, level, 1000)
+			ack := &wire.AckFrame{AckRanges: ackRanges(pn)}
+			_, err := h.ReceivedAck(ack, level, now.Add(time.Millisecond))
+			require.NoError(t, err)
+			require.Len(t, r.feedback, 1)
+			_, err = h.ReceivedAck(ack, level, now.Add(2*time.Millisecond))
+			require.NoError(t, err)
+			require.Len(t, r.feedback, 1)
+		})
+	}
+
 	h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger).(*sentPacketHandler)
 	first := sendBBRECNPacket(h, h.ECNMode(true), false)
 	ackBBRECN(t, h, ackRanges(first), 1, 0)

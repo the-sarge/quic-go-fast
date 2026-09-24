@@ -433,7 +433,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 			h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, nil, largestAcked)
 			h.appendRetainedAck(ack, encLevel)
 			h.captureBBRECN(ack, encLevel)
-			if len(h.congestionEvents.event.Acked) > 0 || h.bbrECN != nil {
+			if len(h.congestionEvents.event.Acked) > 0 || (h.bbrECN != nil && encLevel == protocol.Encryption1RTT) {
 				h.finishCongestionFeedback()
 			}
 		}
