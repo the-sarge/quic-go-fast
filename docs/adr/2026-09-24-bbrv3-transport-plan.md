@@ -1,13 +1,13 @@
 # Transport feedback and send ownership implementation plan
 
 **Date:** 2026-09-24
-**Status:** Accepted; not implemented
+**Status:** T1 implemented; T3 ready; T2/T4 blocked by T3; T5 blocked by T2
 **Track:** T in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
 **Normative scope:** Current outcome, boundaries, invariants, evidence, blockers and stop conditions
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
-**Parent issue:** pending
+**Parent issue:** [#584](https://github.com/the-sarge/quic-go-fast/issues/584)
 
 ## Goal
 
@@ -29,7 +29,7 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| [T1](#t1) | new | Capture logical congestion feedback without changing Reno | None | None; see slice budget |
+| [T1](#t1) | Complete ([#587](https://github.com/the-sarge/quic-go-fast/issues/587)) | Capture logical congestion feedback without changing Reno | None | None; see slice budget |
 | [T2](#t2) | new | Deliver bounded registration-time sampling through real recovery | T1, T3 | None; see slice budget |
 | [T3](#t3) | new | Bound paced local sends across the complete worker lifetime | None | None; see slice budget |
 | [T4](#t4) | new | Validate bounded actual ECN marking through path changes | T1, T3 | None; see slice budget |
@@ -81,10 +81,10 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
-| ACK plus loss/CE and frame callbacks | Preserve legacy ordering; rich sink receives one complete event | sentPacketHandler dispatch | ordered callback characterization | Required before slice completion |
-| Timer-only loss | No fabricated ACK/round progress | sentPacketHandler dispatch | loss alarm fixture | Required before slice completion |
-| Cross-space/equal-time identities | Distinct ordinals, unchanged transport identity | sentPacketHandler registration | identity fixture | Required before slice completion |
-| Disposed/pooled records | No retained borrowed ownership | event capture boundary | pool reuse fixture | Required before slice completion |
+| ACK plus loss/CE and frame callbacks | Preserve legacy ordering; rich sink receives one complete event | sentPacketHandler dispatch | ordered callback characterization | Covered by `TestCongestionDispatchPreservesRenoOrder and TestCongestionEventPriorAndPostFlight` |
+| Timer-only loss | No fabricated ACK/round progress | sentPacketHandler dispatch | loss alarm fixture | Covered by `TestCongestionEventTimerOnlyLoss` |
+| Cross-space/equal-time identities | Distinct ordinals, unchanged transport identity | sentPacketHandler registration | identity fixture | Covered by `TestCongestionEventSpaceAndOrdinal` |
+| Disposed/pooled records | No retained borrowed ownership | event capture boundary | pool reuse fixture | Covered by `TestCongestionEventBorrowLifetime and TestCongestionLegacyLateOnlyAck` |
 
 **Evidence budget:** At most 6 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 
