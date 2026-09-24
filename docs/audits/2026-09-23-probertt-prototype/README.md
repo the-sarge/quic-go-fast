@@ -1,12 +1,12 @@
-# ProbeRTT filter comparison — owner review pending
+# ProbeRTT filter comparison — evidence accepted
 
-Prototype evidence for [Compare ProbeRTT filters on changing-RTT paths](https://github.com/the-sarge/quic-go-fast/issues/560), within [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552). Repository baseline: `254c57470d89b612713b63ee2b755a2e49c3cd48`. The investigation compares pinned algorithms; it does not choose the final baseline. **Owner reaction and disposition are pending.**
+Prototype evidence for [Compare ProbeRTT filters on changing-RTT paths](https://github.com/the-sarge/quic-go-fast/issues/560), within [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552). Repository baseline: `254c57470d89b612713b63ee2b755a2e49c3cd48`. The investigation compares pinned algorithms; it does not choose the final baseline. **The owner accepted this bounded evidence as sufficient for planning after reviewing a plain-language explanation.**
 
-The saved pre-expiration cap is worth carrying into final design discussion: in the deliberately aged-filter scenario, it prevents an inflated first sample from immediately increasing the probing cap. It does not guarantee a fully drained queue when the saved estimate is already inflated. The separate completed-round gate matters on long RTTs. These are model observations and an agent recommendation, not native performance evidence or an accepted design.
+The saved pre-expiration cap is worth carrying into final design discussion: in the deliberately aged-filter scenario, it prevents an inflated first sample from immediately increasing the probing cap. It does not guarantee a fully drained queue when the saved estimate is already inflated. The separate completed-round gate matters on long RTTs. These are model observations and an agent recommendation, not native performance evidence or a final algorithm selection.
 
 ## Inspect or replay
 
-[Run the disposable terminal viewer](../../../internal/congestion/prototype-probertt/README.md) with `go run ./internal/congestion/prototype-probertt -scenario expired-queue` from the worktree root. [Transition traces](events.txt), [campaign summary](summary.txt) and [full recorded snapshots](trace.csv) are checked-in outputs from the same code. The [source correspondence](../../../internal/congestion/prototype-probertt/SOURCES.md) pins all three algorithm variants and explicitly lists translation choices.
+[Replay the frozen disposable terminal viewer](https://github.com/the-sarge/quic-go-fast/blob/dd171b6625f30855739a6ef9029d9eb87e96fcd5/internal/congestion/prototype-probertt/README.md) with `go run ./internal/congestion/prototype-probertt -scenario expired-queue` from the root of the frozen prototype revision `dd171b6625f30855739a6ef9029d9eb87e96fcd5`. The disposable code has been retired from this branch; its immutable source remains available to reproduce the evidence. [Transition traces](events.txt), [campaign summary](summary.txt) and [full recorded snapshots](trace.csv) are checked-in outputs from the same code. The [source correspondence](https://github.com/the-sarge/quic-go-fast/blob/dd171b6625f30855739a6ef9029d9eb87e96fcd5/internal/congestion/prototype-probertt/SOURCES.md) pins all three algorithm variants and explicitly lists translation choices.
 
 Nine schedules times three variants were executed. No network was used by the model, and no production controller was added.
 
@@ -47,11 +47,13 @@ The aged snapshot starts at 12s with the main minimum last recorded at 1s, the d
 
 Normal schedules start at 1s. Down-exit opportunities are the first ACK at or after successive integer seconds, or successive five-second boundaries in `late-down-exit`; opportunities during ProbeRTT are ignored for entry. This explicitly substitutes a schedule for QUICHE's real Down transition logic. Timer comparison is strictly greater than 200ms for all variants, explaining the 201ms minimum observed hold. QUICHE expiry is greater-than-or-equal at ten seconds; draft expiry is strictly greater. Proposal equal RTT samples refresh the timestamp; draft/QUICHE ordinary minimum updates are strict-lower.
 
-## Disposition to obtain
+## Owner disposition
 
-The proposed disposition is to carry three findings to [Settle the implementation-ready BBRv3 design](https://github.com/the-sarge/quic-go-fast/issues/558): consider a pre-expiration cap, retain an explicit completed-round obligation unless a deviation is justified, and keep probing cadence, RTT input policy and idle detection as separate choices. This ticket need not select the proposal wholesale or accept its ten-second cadence.
+The owner requested a plain-language executive summary, then replied “ok agreed” to the recommendation to accept the simulation as useful planning evidence and carry its two safeguards into the final design discussion. The explanation explicitly distinguished the simplified model from demonstrated real-transfer performance.
 
-The owner should say whether this bounded evidence answers the comparison or identify the remaining concern. The ticket remains open until that live reaction is recorded. If the owner requires a claim about reachability or native impact, chart that precise follow-up instead of treating this reduced model as decisive evidence for it.
+This resolves the comparison investigation. Carry forward consideration of a pre-expiration cap and an explicit completed-feedback-round obligation, while keeping probing cadence, RTT input policy and idle detection as separate choices. [Settle the implementation-ready BBRv3 design](https://github.com/the-sarge/quic-go-fast/issues/558) retains the final baseline, discrepancy and algorithm choices; acceptance here does not select the proposal wholesale or its ten-second cadence.
+
+No stronger full-controller reachability investigation is required at this planning step. The frequency of the seeded state and native performance remain unestablished; implementation qualification must still follow the accepted evidence plan. No new investigation ticket is needed from this resolution. The disposable terminal shell and model were removed from this branch after capturing the answer; the pinned source and outputs remain frozen evidence.
 
 ## Verification
 
