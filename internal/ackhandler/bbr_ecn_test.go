@@ -135,7 +135,7 @@ func TestBBRECNReorderedAndInvalidCounters(t *testing.T) {
 
 func TestBBRECNRangeBudgetFallback(t *testing.T) {
 	t.Run("compress ACKed suffix behind unresolved loss", func(t *testing.T) {
-		h, _ := newBBRECNTestHandler()
+		h, r := newBBRECNTestHandler()
 		first := sendBBRECNPacket(h, h.ECNMode(true), false)
 		ackBBRECN(t, h, ackRanges(first), 1, 0)
 		sendBBRECNPacket(h, h.ECNMode(true), false) // unresolved marked packet 1
@@ -145,6 +145,9 @@ func TestBBRECNRangeBudgetFallback(t *testing.T) {
 		}
 		require.Equal(t, protocol.ECT0, h.ECNMode(true))
 		require.Len(t, h.bbrECN.ranges, 2, "one unresolved hole and one affine ACKed suffix")
+		e := r.feedback[len(r.feedback)-1].ECN
+		require.True(t, e.Eligible)
+		t.Logf("equivalent suffix: ranges=%d marking=%v eligible=%v accepted=%+v", len(h.bbrECN.ranges), h.ECNMode(true), e.Eligible, e.Accepted)
 	})
 
 	t.Run("insertion", func(t *testing.T) {
@@ -191,6 +194,52 @@ func TestBBRECNRangeBudgetFallback(t *testing.T) {
 		require.Equal(t, protocol.ECT0, h.ECNMode(true))
 		require.LessOrEqual(t, len(h.bbrECN.ranges), 1)
 	})
+}
+
+func TestBBRECNDistinctACKedSuffixPinsRangeBudget(t *testing.T) {
+	h, r := newBBRECNTestHandler()
+	first := sendBBRECNPacket(h, h.ECNMode(true), false)
+	ackBBRECN(t, h, ackRanges(first), 1, 0)
+	pinned := sendBBRECNPacket(h, h.ECNMode(true), false)
+	require.Equal(t, protocol.PacketNumber(1), pinned)
+	ect0 := uint64(1)
+	// Register contiguous packet numbers directly to exclude random skips.
+	// Alternating actual codepoints keep the individually ACKed suffix distinct.
+	for pn := protocol.PacketNumber(2); pn <= maxECNMarkRanges; pn++ {
+		mark := protocol.ECNNon
+		if pn%2 != 0 {
+			mark = h.ECNMode(true)
+			ect0++
+		}
+		h.SentPacket(monotime.Now(), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, mark, 1200, false, false)
+		ackBBRECN(t, h, ackRanges(pn), ect0, 0)
+	}
+	require.Len(t, h.bbrECN.ranges, maxECNMarkRanges)
+	require.False(t, h.bbrECN.ranges[0].acked)
+	require.Equal(t, pinned, h.bbrECN.ranges[0].first)
+	for _, entry := range h.bbrECN.ranges[1:] {
+		require.True(t, entry.acked)
+	}
+	before := r.feedback[len(r.feedback)-1].ECN
+	require.True(t, before.Eligible)
+	require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	t.Logf("distinct suffix at capacity: ranges=%d marking=%v eligible=%v accepted=%+v", len(h.bbrECN.ranges), h.ECNMode(true), before.Eligible, before.Accepted)
+
+	const overflow = protocol.PacketNumber(maxECNMarkRanges + 1)
+	h.SentPacket(monotime.Now(), overflow, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
+	// An advancing ACK also reports the old hole, but lost ledger evidence
+	// prevents this from manufacturing fresh eligibility or accepted counters.
+	ackBBRECN(t, h, ackRanges(pinned, overflow), ect0+2, 0)
+	after := r.feedback[len(r.feedback)-1].ECN
+	require.Len(t, h.bbrECN.ranges, maxECNMarkRanges)
+	require.LessOrEqual(t, cap(h.bbrECN.ranges), maxECNMarkRanges)
+	require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+	require.True(t, after.Failed)
+	require.False(t, after.Eligible)
+	require.Equal(t, before.Accepted, after.Accepted)
+	require.Equal(t, before.Watermark, after.Watermark)
+	require.Zero(t, after.Ordinal)
+	t.Logf("distinct suffix after overflow and late ACK: ranges=%d marking=%v eligible=%v accepted=%+v failed=%v", len(h.bbrECN.ranges), h.ECNMode(true), after.Eligible, after.Accepted, after.Failed)
 }
 
 func TestBBRECNTestingVersusCapableCE(t *testing.T) {
