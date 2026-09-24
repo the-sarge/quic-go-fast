@@ -227,6 +227,10 @@ func TestBBRECNDistinctACKedSuffixPinsRangeBudget(t *testing.T) {
 
 	const overflow = protocol.PacketNumber(maxECNMarkRanges + 1)
 	h.SentPacket(monotime.Now(), overflow, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
+	require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+	require.True(t, h.bbrECN.evidenceLost)
+	require.False(t, h.bbrECN.counterFailed)
+	require.Len(t, h.bbrECN.ranges, maxECNMarkRanges)
 	// An advancing ACK also reports the old hole, but lost ledger evidence
 	// prevents this from manufacturing fresh eligibility or accepted counters.
 	ackBBRECN(t, h, ackRanges(pinned, overflow), ect0+2, 0)
