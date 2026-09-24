@@ -15,7 +15,7 @@ type deliveryLifecycle interface {
 
 func (e *packetEmission) deliveryPendingBytes() protocol.ByteCount {
 	if e.bbr == nil {
-		return 0
+		return -1 // legacy queues expose no byte-credit authority
 	}
 	c := e.bbr.credit
 	c.mu.Lock()
@@ -54,7 +54,30 @@ func (e *packetEmission) observeDeliveryResult(result emissionResult) {
 		}
 	case emissionSendAny, emissionProbeSent:
 	}
+	if reason == congestion.SendApplicationLimited {
+		if policy, ok := e.policy.(interface{ emissionStreamOpenBlocked() bool }); !ok {
+			reason = congestion.SendUnknown
+		} else if policy.emissionStreamOpenBlocked() {
+			reason = congestion.SendFlowControlLimited
+		}
+	}
 	h.ObserveDeliveryLimitation(reason)
+}
+
+func (c *Conn) emissionStreamOpenBlocked() bool {
+	m := c.streamsMap
+	m.mutex.Lock()
+	reset, bidi, uni := m.reset, m.outgoingBidiStreams, m.outgoingUniStreams
+	m.mutex.Unlock()
+	return reset || bidi.deliveryOpenPending() || uni.deliveryOpenPending()
+}
+
+// The opener owner remains authoritative even after STREAMS_BLOCKED is sent.
+// A snapshot of waiters is conservative while an unblocked goroutine resumes.
+func (m *outgoingStreamsMap[T]) deliveryOpenPending() bool {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.closeErr == nil && len(m.openQueue) > 0
 }
 
 func (p *packetPacker) deliveryLimitation() congestion.SendLimitation {

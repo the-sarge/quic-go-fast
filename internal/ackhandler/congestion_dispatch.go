@@ -49,6 +49,7 @@ type congestionDispatch struct {
 	pending          func() protocol.ByteCount
 	sampler          deliverySampler
 	ordinal          uint64
+	registrationTime monotime.Time
 	pathGeneration   uint64
 	sampleGeneration uint64
 	sink             congestionEventSink
@@ -64,28 +65,36 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	}
 	d.ordinal++
 	d.expire(p.SendTime)
-	if p.IsAckEliciting() && !p.isPathProbePacket && prior == 0 && d.sampler.outstanding == 0 && d.pendingBytes() == 0 {
-		if !d.sampler.sendOrigin.IsZero() {
+	registrationValid := !p.SendTime.IsZero() && !p.SendTime.Before(d.registrationTime)
+	if registrationValid && p.IsAckEliciting() && !p.isPathProbePacket && d.pendingBytes() == 0 &&
+		(d.sampler.sendOrigin.IsZero() || (prior == 0 && d.sampler.outstanding == 0)) {
+		// A lifecycle fence leaves no usable current-generation origin. Records
+		// sent while credit was pending have no origin either; fence those out
+		// before establishing a baseline, without disposing their recovery.
+		if !d.sampler.sendOrigin.IsZero() || d.sampler.originlessRegistrations {
 			d.sampleGeneration++
 		}
 		d.sampler.sendOrigin, d.sampler.deliveredTime = p.SendTime, p.SendTime
 		d.sampler.evidenceLost = false
+		d.sampler.originlessRegistrations = false
 	}
 	info := congestion.PacketInfo{
-		Space:            congestionKey(p.EncryptionLevel, pn).space,
-		Ordinal:          d.ordinal,
-		PathGeneration:   d.pathGeneration,
-		SampleGeneration: d.sampleGeneration,
-		PacketNumber:     pn,
-		EncryptionLevel:  p.EncryptionLevel,
-		SendTime:         p.SendTime,
-		Length:           p.Length,
-		AckEliciting:     p.IsAckEliciting(),
-		InFlight:         p.includedInBytesInFlight,
-		PathProbe:        p.isPathProbePacket,
-		MTUProbe:         p.IsPathMTUProbePacket,
-		ECN:              ecn,
+		Space:             congestionKey(p.EncryptionLevel, pn).space,
+		Ordinal:           d.ordinal,
+		PathGeneration:    d.pathGeneration,
+		SampleGeneration:  d.sampleGeneration,
+		PacketNumber:      pn,
+		EncryptionLevel:   p.EncryptionLevel,
+		SendTime:          p.SendTime,
+		RegistrationValid: registrationValid,
+		Length:            p.Length,
+		AckEliciting:      p.IsAckEliciting(),
+		InFlight:          p.includedInBytesInFlight,
+		PathProbe:         p.isPathProbePacket,
+		MTUProbe:          p.IsPathMTUProbePacket,
+		ECN:               ecn,
 	}
+	d.registrationTime = max(d.registrationTime, p.SendTime)
 
 	if len(d.packets) < maxDeliveryLive {
 		d.sampler.sent(&info, prior, h.bytesInFlight)
@@ -191,6 +200,7 @@ func (h *sentPacketHandler) discardCongestionSpace(level protocol.EncryptionLeve
 		if level == protocol.Encryption0RTT {
 			d.sampleGeneration++
 			d.sampler.sendOrigin, d.sampler.deliveredTime = 0, 0
+			d.sampler.originlessRegistrations = false
 		}
 	}
 }
@@ -232,7 +242,7 @@ func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now mon
 		return
 	}
 	for _, info := range d.event.Acked {
-		if info.PacketNumber == p.PacketNumber && info.EncryptionLevel == p.EncryptionLevel && info.PathGeneration == d.pathGeneration && info.SampleGeneration == d.sampleGeneration {
+		if info.PacketNumber == p.PacketNumber && info.EncryptionLevel == p.EncryptionLevel && info.PathGeneration == d.pathGeneration && info.SampleGeneration == d.sampleGeneration && info.RegistrationValid {
 			d.event.RawRTT = now.Sub(p.SendTime)
 			return
 		}

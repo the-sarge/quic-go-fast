@@ -10,21 +10,22 @@ import (
 // PacketInfo contains transport facts copied before recovery retires a packet.
 // It never carries frames, payloads or pointers into pooled recovery storage.
 type PacketInfo struct {
-	Space            protocol.EncryptionLevel // 0-RTT and 1-RTT share Encryption1RTT
-	Ordinal          uint64                   // connection-wide registration order, never reset
-	PathGeneration   uint64
-	SampleGeneration uint64
-	PacketNumber     protocol.PacketNumber
-	EncryptionLevel  protocol.EncryptionLevel
-	SendTime         monotime.Time
-	Length           protocol.ByteCount
-	AckEliciting     bool
-	InFlight         bool
-	PathProbe        bool
-	MTUProbe         bool
-	ECN              protocol.ECN
-	Delivery         DeliverySnapshot
-	Retirement       DeliveryRetirement
+	Space             protocol.EncryptionLevel // 0-RTT and 1-RTT share Encryption1RTT
+	Ordinal           uint64                   // connection-wide registration order, never reset
+	PathGeneration    uint64
+	SampleGeneration  uint64
+	PacketNumber      protocol.PacketNumber
+	EncryptionLevel   protocol.EncryptionLevel
+	SendTime          monotime.Time
+	RegistrationValid bool // positive, nondecreasing connection registration time
+	Length            protocol.ByteCount
+	AckEliciting      bool
+	InFlight          bool
+	PathProbe         bool
+	MTUProbe          bool
+	ECN               protocol.ECN
+	Delivery          DeliverySnapshot
+	Retirement        DeliveryRetirement
 }
 
 // DeliveryRetirement describes recovery removal, not congestion-loss volume.

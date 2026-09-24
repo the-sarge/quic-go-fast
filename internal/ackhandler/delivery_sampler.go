@@ -15,18 +15,19 @@ import (
 // deliverySampler is used only by the private rich dispatcher. Recovery owns
 // frames and flight; this state owns only copied delivery evidence.
 type deliverySampler struct {
-	delivered, lost                     uint64
-	deliveredTime, sendOrigin, lastSend monotime.Time
-	outstanding                         protocol.ByteCount
-	minimumRTT                          time.Duration
-	retained                            map[congestionPacketKey]*retainedDelivery
-	order                               retainedDeliveryHeap
-	evicted, expired, missing           uint64
-	limitedUntil                        uint64
-	limited, stop                       congestion.SendLimitation
-	applicationExhausted                bool
-	evidenceLost                        bool
-	nextExpiry                          monotime.Time
+	delivered, lost           uint64
+	deliveredTime, sendOrigin monotime.Time
+	outstanding               protocol.ByteCount
+	minimumRTT                time.Duration
+	retained                  map[congestionPacketKey]*retainedDelivery
+	order                     retainedDeliveryHeap
+	evicted, expired, missing uint64
+	limitedUntil              uint64
+	limited, stop             congestion.SendLimitation
+	applicationExhausted      bool
+	evidenceLost              bool
+	nextExpiry                monotime.Time
+	originlessRegistrations   bool
 }
 
 const (
@@ -161,7 +162,7 @@ func (h *sentPacketHandler) CloseDelivery() { h.congestionEvents = nil }
 
 func (d *congestionDispatch) pendingBytes() protocol.ByteCount {
 	if d.pending == nil {
-		return 0
+		return -1 // unavailable authority cannot establish zero pending work
 	}
 	return d.pending()
 }
@@ -218,17 +219,19 @@ func (s *deliverySampler) sent(info *congestion.PacketInfo, prior, post protocol
 	if !info.AckEliciting || info.PathProbe {
 		return
 	}
+	if s.sendOrigin.IsZero() {
+		s.originlessRegistrations = true
+	}
 	info.Delivery = congestion.DeliverySnapshot{
 		Delivered: s.delivered, Lost: s.lost, DeliveredTime: s.deliveredTime, SendOrigin: s.sendOrigin,
 		PriorInFlight: prior, PostInFlight: post, Outstanding: s.outstanding,
-		Valid: info.Length > 0 && !s.sendOrigin.IsZero() && !info.SendTime.IsZero() && !info.SendTime.Before(s.lastSend) && !info.SendTime.Before(s.sendOrigin),
+		Valid: info.Length > 0 && info.RegistrationValid && !s.sendOrigin.IsZero() && !info.SendTime.Before(s.sendOrigin),
 	}
 	if s.limitedUntil != 0 && s.delivered <= s.limitedUntil {
 		info.Delivery.Limited = s.limited
 	}
 	s.outstanding += info.Length
 	s.applicationExhausted = false
-	s.lastSend = max(s.lastSend, info.SendTime)
 }
 
 func (s *deliverySampler) feedback(e *congestion.FeedbackEvent) {

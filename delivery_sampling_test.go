@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"context"
 	"slices"
 	"testing"
 	"testing/synctest"
@@ -28,6 +29,47 @@ func (s *deliveryTestSink) Feedback(e congestion.FeedbackEvent) {
 }
 
 func TestDeliverySamplerNoDataReasons(t *testing.T) {
+	t.Run("pending stream opener is not application idle", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			c := newEmissionTestConnection(t, false).conn
+			now := monotime.Now()
+			c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+			sink := &deliveryTestSink{}
+			ackhandler.EnableDeliverySampling(c.sentPacketHandler, sink, c.emission.deliveryPendingBytes)
+			c.framer.enableDeliveryObservations()
+			ctx, cancel := context.WithCancel(context.Background())
+			done := make(chan struct{})
+			go func() { _, _ = c.OpenUniStreamSync(ctx); close(done) }()
+			synctest.Wait()
+			t.Cleanup(func() { cancel(); synctest.Wait(); <-done })
+			require.True(t, c.triggerSending(now).progress, "STREAMS_BLOCKED is sent")
+			entry := <-c.emission.queue.(*sendQueue).queue
+			entry.release()
+			pn := sink.sends[0].Packet.PacketNumber
+			_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+			require.NoError(t, err)
+			require.NoError(t, c.triggerSending(now.Add(2*time.Millisecond)).err)
+			stats := c.sentPacketHandler.(interface {
+				DeliveryStats() congestion.DeliveryStats
+			}).DeliveryStats()
+			require.False(t, stats.Idle, "the opener still waits after its control frame is drained")
+			require.Equal(t, congestion.SendFlowControlLimited, stats.Stop)
+			cancel()
+			synctest.Wait()
+			require.NoError(t, c.triggerSending(now.Add(3*time.Millisecond)).err)
+			require.True(t, c.sentPacketHandler.(interface{ DeliveryIdle() bool }).DeliveryIdle(), "unused quota alone is not evidence of blocked supply")
+		})
+	})
+	t.Run("missing credit ledger is unknown", func(t *testing.T) {
+		c := newEmissionTestConnection(t, false).conn
+		sink := &deliveryTestSink{}
+		ackhandler.EnableDeliverySampling(c.sentPacketHandler, sink, c.emission.deliveryPendingBytes)
+		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{Data: []byte("no ledger"), DataLenPresent: true}))
+		require.True(t, c.triggerSending(monotime.Now()).progress)
+		entry := <-c.emission.queue.(*sendQueue).queue
+		defer entry.release()
+		require.False(t, sink.sends[0].Packet.Delivery.Valid)
+	})
 	t.Run("flow-controlled stream supply", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			c := newEmissionTestConnection(t, false).conn
