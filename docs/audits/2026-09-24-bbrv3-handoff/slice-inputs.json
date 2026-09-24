@@ -1,0 +1,1408 @@
+{
+  "program": "QGF-BBR3-20260924",
+  "source_revision": "c2157d0804ab6bfeef35fc570b7723a79fd456e9",
+  "slices": [
+    {
+      "id": "T1",
+      "source_ranges": {
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            67,
+            173
+          ],
+          [
+            252,
+            318
+          ],
+          [
+            378,
+            617
+          ],
+          [
+            787,
+            946
+          ],
+          [
+            1026,
+            1143
+          ]
+        ],
+        "internal/congestion/interface.go": [
+          [
+            1,
+            27
+          ]
+        ],
+        "internal/ackhandler/packet.go": [
+          [
+            1,
+            60
+          ]
+        ]
+      },
+      "design_sections": [
+        "State ownership and private boundaries",
+        "Byte domains, identities and clocks",
+        "Event order, losses and retained evidence"
+      ],
+      "proposed_tests": [
+        "TestCongestionDispatchPreservesRenoOrder",
+        "TestCongestionEventPriorAndPostFlight",
+        "TestCongestionEventTimerOnlyLoss",
+        "TestCongestionEventSpaceAndOrdinal",
+        "TestCongestionEventBorrowLifetime",
+        "TestCongestionLegacyLateOnlyAck"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 17355,
+      "additional_input_reserve_tokens": 17645,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "T2",
+      "source_ranges": {
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            120,
+            223
+          ],
+          [
+            252,
+            318
+          ],
+          [
+            378,
+            617
+          ],
+          [
+            767,
+            946
+          ],
+          [
+            1041,
+            1143
+          ]
+        ],
+        "packet_emission.go": [
+          [
+            95,
+            198
+          ],
+          [
+            283,
+            401
+          ],
+          [
+            441,
+            533
+          ],
+          [
+            543,
+            580
+          ]
+        ],
+        "internal/ackhandler/packet.go": [
+          [
+            1,
+            60
+          ]
+        ],
+        "internal/utils/rtt_stats.go": [
+          [
+            1,
+            159
+          ]
+        ]
+      },
+      "design_sections": [
+        "Byte domains, identities and clocks",
+        "Delivery sampling and limitation",
+        "Event order, losses and retained evidence",
+        "Lifecycle and migration"
+      ],
+      "proposed_tests": [
+        "TestDeliverySamplerPacketIdentity",
+        "TestDeliverySamplerCompressedAndLimitedAck",
+        "TestDeliverySamplerLateOnlyAck",
+        "TestDeliverySamplerPTOAndLossRetirement",
+        "TestDeliverySamplerSpaceRetryAndPathDisposal",
+        "TestDeliverySamplerIdleExpiry",
+        "TestDeliverySamplerBoundedEviction",
+        "TestDeliverySamplerNoDataReasons",
+        "TestDeliverySamplerRawRTT",
+        "TestDeliverySamplerRenoHasNoSidecar"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        },
+        {
+          "path": "packet_emission_test.go",
+          "declarations": [
+            "func TestEmissionResultQueueWakeup(t *testing.T) {",
+            "func TestEmissionResultRecoveryOutcome(t *testing.T) {",
+            "func TestEmissionResultConnection(t *testing.T) {",
+            "func TestEmissionEmptyCallerBuffer(t *testing.T) {",
+            "func TestEmissionECNBatchBoundary(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "internal/utils/rtt_stats_test.go",
+          "declarations": [
+            "func TestRTTStatsDefaults(t *testing.T) {",
+            "func TestRTTStatsSmoothedRTT(t *testing.T) {",
+            "func TestRTTStatsMinRTT(t *testing.T) {",
+            "func TestRTTStatsMaxAckDelay(t *testing.T) {",
+            "func TestRTTStatsComputePTO(t *testing.T) {",
+            "func TestRTTStatsPTOWithShortRTT(t *testing.T) {",
+            "func TestRTTStatsUpdateWithBadSendDeltas(t *testing.T) {",
+            "func TestRTTStatsRestore(t *testing.T) {",
+            "func TestRTTMeasurementAfterRestore(t *testing.T) {",
+            "func TestRTTStatsResetForPathMigration(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 23182,
+      "additional_input_reserve_tokens": 11818,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "T3",
+      "source_ranges": {
+        "send_queue.go": [
+          [
+            1,
+            282
+          ]
+        ],
+        "packet_emission.go": [
+          [
+            1,
+            95
+          ],
+          [
+            178,
+            322
+          ],
+          [
+            352,
+            580
+          ]
+        ],
+        "send_conn.go": [
+          [
+            1,
+            168
+          ]
+        ],
+        "internal/congestion/pacer.go": [
+          [
+            1,
+            110
+          ]
+        ],
+        "connection.go": [
+          [
+            924,
+            940
+          ]
+        ]
+      },
+      "design_sections": [
+        "State ownership and private boundaries",
+        "Pacing and pending local work",
+        "Lifecycle and migration"
+      ],
+      "proposed_tests": [
+        "TestBBRPacingQuantumAndDeadline",
+        "TestBBRPendingCreditWorkerOwned",
+        "TestBBRPendingCreditConcurrentDrainRefill",
+        "TestBBRPendingCreditPartialAndUnknownProgress",
+        "TestBBRPendingCreditStoppedAndClose",
+        "TestBBRPendingCreditGSOFallback",
+        "TestBBRPendingCreditRateDecrease",
+        "TestBBRPendingCreditMTUException",
+        "TestBBRPendingCreditMigrationDebt",
+        "TestLegacyRenoPacingPreserved"
+      ],
+      "existing_test_index": [
+        {
+          "path": "send_queue_test.go",
+          "declarations": [
+            "func TestSendQueueSendOnePacket(t *testing.T) {",
+            "func TestSendQueueBlocking(t *testing.T) {",
+            "func TestSendQueueWriteError(t *testing.T) {",
+            "func TestSendQueueStoppedSubmission(t *testing.T) {",
+            "func TestSendQueueEnqueueAtWorkerExit(t *testing.T) {",
+            "func TestSendQueueSendProbe(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "packet_emission_test.go",
+          "declarations": [
+            "func TestEmissionResultQueueWakeup(t *testing.T) {",
+            "func TestEmissionResultRecoveryOutcome(t *testing.T) {",
+            "func TestEmissionResultConnection(t *testing.T) {",
+            "func TestEmissionEmptyCallerBuffer(t *testing.T) {",
+            "func TestEmissionECNBatchBoundary(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "send_conn_test.go",
+          "declarations": [
+            "func TestSendConnLocalAndRemoteAddress(t *testing.T) {",
+            "func TestSendConnOOB(t *testing.T) {",
+            "func TestSendConnDetectGSOFailure(t *testing.T) {",
+            "func TestSendConnGSOFallbackConcurrentCapabilities(t *testing.T) {",
+            "func TestSendConnSendmsgFailures(t *testing.T) {",
+            "func TestSendConnRemoteAddrChange(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "internal/congestion/pacer_test.go",
+          "declarations": [
+            "func TestPacerPacing(t *testing.T) {",
+            "func TestPacerDeadlineRounding(t *testing.T) {",
+            "func TestPacerUpdatePacketSize(t *testing.T) {",
+            "func TestPacerFastPacing(t *testing.T) {",
+            "func TestPacerNoOverflows(t *testing.T) {",
+            "func BenchmarkPacer(b *testing.B) {"
+          ]
+        },
+        {
+          "path": "connection_test.go",
+          "declarations": [
+            "func TestConnectionHandleStreamRelatedFrames(t *testing.T) {",
+            "func TestConnectionHandleConnectionFlowControlFrames(t *testing.T) {",
+            "func TestConnectionServerInvalidFrames(t *testing.T) {",
+            "func TestConnectionClose(t *testing.T) {",
+            "func TestConnectionStatelessReset(t *testing.T) {",
+            "func TestConnectionServerInvalidPackets(t *testing.T) {",
+            "func TestConnectionClientDrop0RTT(t *testing.T) {",
+            "func TestConnectionUnpacking(t *testing.T) {",
+            "func TestConnectionUnpackCoalescedPacket(t *testing.T) {",
+            "func TestConnectionUnpackFailuresFatal(t *testing.T) {",
+            "func TestConnectionUnpackFailureDropped(t *testing.T) {",
+            "func TestConnectionMaxUnprocessedPackets(t *testing.T) {",
+            "func TestConnectionRemoteClose(t *testing.T) {",
+            "func TestConnectionIdleTimeoutDuringHandshake(t *testing.T) {",
+            "func TestConnectionHandshakeIdleTimeout(t *testing.T) {",
+            "func TestConnectionTransportParameters(t *testing.T) {",
+            "func TestConnectionHandleMaxStreamsFrame(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureServer(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureClient(t *testing.T) {",
+            "func TestConnectionHandshakeServer(t *testing.T) {",
+            "func TestConnectionFinishesCryptoStreamWhenReadKeysBecomeAvailable(t *testing.T) {",
+            "func TestConnectionHandshakeClient(t *testing.T) {",
+            "func TestConnection0RTTTransportParameters(t *testing.T) {",
+            "func TestConnectionReceivePrioritization(t *testing.T) {",
+            "func TestConnectionPacketBuffering(t *testing.T) {",
+            "func TestConnectionPacketPacing(t *testing.T) {",
+            "func TestConnectionIdleTimeout(t *testing.T) {",
+            "func TestConnectionKeepAlive(t *testing.T) {",
+            "func TestConnectionACKTimer(t *testing.T) {",
+            "func TestConnectionGSOBatch(t *testing.T) {",
+            "func TestConnectionGSOBatchPacketSize(t *testing.T) {",
+            "func TestConnectionGSOBatchECN(t *testing.T) {",
+            "func TestConnectionSendQueue(t *testing.T) {",
+            "func TestConnectionVersionNegotiation(t *testing.T) {",
+            "func TestConnectionVersionNegotiationNoMatch(t *testing.T) {",
+            "func TestConnectionVersionNegotiationInvalidPackets(t *testing.T) {",
+            "func TestConnectionRetryDrops(t *testing.T) {",
+            "func TestConnectionRetryAfterReceivedPacket(t *testing.T) {",
+            "func TestConnectionConnectionIDChanges(t *testing.T) {",
+            "func TestConnectionEarlyClose(t *testing.T) {",
+            "func TestConnectionPathValidation(t *testing.T) {",
+            "func TestConnectionMigrationServer(t *testing.T) {",
+            "func TestConnectionAddPathConcurrentPathSwitch(t *testing.T) {",
+            "func TestConnectionMigration(t *testing.T) {",
+            "func TestConnectionDatagrams(t *testing.T) {",
+            "func TestConnectionSkippedStreamFrameMetadata(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 19884,
+      "additional_input_reserve_tokens": 15116,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "T4",
+      "source_ranges": {
+        "internal/ackhandler/ecn.go": [
+          [
+            1,
+            340
+          ]
+        ],
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            252,
+            318
+          ],
+          [
+            378,
+            525
+          ],
+          [
+            951,
+            960
+          ],
+          [
+            1120,
+            1143
+          ]
+        ],
+        "packet_emission.go": [
+          [
+            352,
+            373
+          ],
+          [
+            401,
+            533
+          ],
+          [
+            543,
+            565
+          ]
+        ],
+        "connection.go": [
+          [
+            1280,
+            1340
+          ],
+          [
+            924,
+            940
+          ]
+        ]
+      },
+      "design_sections": [
+        "Classic ECN response",
+        "Lifecycle and migration"
+      ],
+      "proposed_tests": [
+        "TestBBRECNActualMarkingHoles",
+        "TestBBRECNCoalescedAndPathProbeMarking",
+        "TestBBRECNAdvancingLateOnlyFeedback",
+        "TestBBRECNReorderedAndInvalidCounters",
+        "TestBBRECNRangeBudgetFallback",
+        "TestBBRECNTestingVersusCapableCE",
+        "TestBBRECNMigrationCounterFence",
+        "TestBBRECNMissingOldMarkedPacket",
+        "TestBBRECNRepeatedMigration",
+        "TestLegacyECNDispatchPreserved"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/ackhandler/ecn_test.go",
+          "declarations": [
+            "func TestECNTestingPacketsLoss(t *testing.T) {",
+            "func TestECNValidationInTestingState(t *testing.T) {",
+            "func TestECNValidationInUnknownState(t *testing.T) {",
+            "func TestECNValidationFailures(t *testing.T) {",
+            "func TestECNValidationNotEnoughECNCounts(t *testing.T) {",
+            "func TestECNNonsensicalECNCountDecrease(t *testing.T) {",
+            "func TestECNACKReordering(t *testing.T) {",
+            "func TestECNManglingAllPacketsMarkedCE(t *testing.T) {",
+            "func TestECNManglingSomePacketsLostSomeMarkedCE(t *testing.T) {",
+            "func TestECNCongestionDetection(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        },
+        {
+          "path": "packet_emission_test.go",
+          "declarations": [
+            "func TestEmissionResultQueueWakeup(t *testing.T) {",
+            "func TestEmissionResultRecoveryOutcome(t *testing.T) {",
+            "func TestEmissionResultConnection(t *testing.T) {",
+            "func TestEmissionEmptyCallerBuffer(t *testing.T) {",
+            "func TestEmissionECNBatchBoundary(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "connection_test.go",
+          "declarations": [
+            "func TestConnectionHandleStreamRelatedFrames(t *testing.T) {",
+            "func TestConnectionHandleConnectionFlowControlFrames(t *testing.T) {",
+            "func TestConnectionServerInvalidFrames(t *testing.T) {",
+            "func TestConnectionClose(t *testing.T) {",
+            "func TestConnectionStatelessReset(t *testing.T) {",
+            "func TestConnectionServerInvalidPackets(t *testing.T) {",
+            "func TestConnectionClientDrop0RTT(t *testing.T) {",
+            "func TestConnectionUnpacking(t *testing.T) {",
+            "func TestConnectionUnpackCoalescedPacket(t *testing.T) {",
+            "func TestConnectionUnpackFailuresFatal(t *testing.T) {",
+            "func TestConnectionUnpackFailureDropped(t *testing.T) {",
+            "func TestConnectionMaxUnprocessedPackets(t *testing.T) {",
+            "func TestConnectionRemoteClose(t *testing.T) {",
+            "func TestConnectionIdleTimeoutDuringHandshake(t *testing.T) {",
+            "func TestConnectionHandshakeIdleTimeout(t *testing.T) {",
+            "func TestConnectionTransportParameters(t *testing.T) {",
+            "func TestConnectionHandleMaxStreamsFrame(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureServer(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureClient(t *testing.T) {",
+            "func TestConnectionHandshakeServer(t *testing.T) {",
+            "func TestConnectionFinishesCryptoStreamWhenReadKeysBecomeAvailable(t *testing.T) {",
+            "func TestConnectionHandshakeClient(t *testing.T) {",
+            "func TestConnection0RTTTransportParameters(t *testing.T) {",
+            "func TestConnectionReceivePrioritization(t *testing.T) {",
+            "func TestConnectionPacketBuffering(t *testing.T) {",
+            "func TestConnectionPacketPacing(t *testing.T) {",
+            "func TestConnectionIdleTimeout(t *testing.T) {",
+            "func TestConnectionKeepAlive(t *testing.T) {",
+            "func TestConnectionACKTimer(t *testing.T) {",
+            "func TestConnectionGSOBatch(t *testing.T) {",
+            "func TestConnectionGSOBatchPacketSize(t *testing.T) {",
+            "func TestConnectionGSOBatchECN(t *testing.T) {",
+            "func TestConnectionSendQueue(t *testing.T) {",
+            "func TestConnectionVersionNegotiation(t *testing.T) {",
+            "func TestConnectionVersionNegotiationNoMatch(t *testing.T) {",
+            "func TestConnectionVersionNegotiationInvalidPackets(t *testing.T) {",
+            "func TestConnectionRetryDrops(t *testing.T) {",
+            "func TestConnectionRetryAfterReceivedPacket(t *testing.T) {",
+            "func TestConnectionConnectionIDChanges(t *testing.T) {",
+            "func TestConnectionEarlyClose(t *testing.T) {",
+            "func TestConnectionPathValidation(t *testing.T) {",
+            "func TestConnectionMigrationServer(t *testing.T) {",
+            "func TestConnectionAddPathConcurrentPathSwitch(t *testing.T) {",
+            "func TestConnectionMigration(t *testing.T) {",
+            "func TestConnectionDatagrams(t *testing.T) {",
+            "func TestConnectionSkippedStreamFrameMetadata(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 19735,
+      "additional_input_reserve_tokens": 15265,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "T5",
+      "source_ranges": {
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            67,
+            223
+          ],
+          [
+            252,
+            318
+          ],
+          [
+            378,
+            617
+          ],
+          [
+            637,
+            946
+          ],
+          [
+            1041,
+            1143
+          ]
+        ],
+        "internal/utils/rtt_stats.go": [
+          [
+            1,
+            159
+          ]
+        ],
+        "internal/ackhandler/lost_packet_tracker.go": [
+          [
+            1,
+            73
+          ]
+        ]
+      },
+      "design_sections": [
+        "Event order, losses and retained evidence",
+        "Lifecycle and migration"
+      ],
+      "proposed_tests": [
+        "TestBBRPersistentCongestionAcrossSpaces",
+        "TestBBRPersistentCongestionMeasuredAtSend",
+        "TestBBRPersistentCongestionAckOnlyBreak",
+        "TestBBRPersistentCongestionGapAndEviction",
+        "TestBBRPersistentCongestionDeduplication",
+        "TestBBRRecoveryEpisodeAllSpurious",
+        "TestBBRRecoveryEpisodeSupersededOrMissing",
+        "TestBBRPTODoesNotFabricateLoss"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        },
+        {
+          "path": "internal/utils/rtt_stats_test.go",
+          "declarations": [
+            "func TestRTTStatsDefaults(t *testing.T) {",
+            "func TestRTTStatsSmoothedRTT(t *testing.T) {",
+            "func TestRTTStatsMinRTT(t *testing.T) {",
+            "func TestRTTStatsMaxAckDelay(t *testing.T) {",
+            "func TestRTTStatsComputePTO(t *testing.T) {",
+            "func TestRTTStatsPTOWithShortRTT(t *testing.T) {",
+            "func TestRTTStatsUpdateWithBadSendDeltas(t *testing.T) {",
+            "func TestRTTStatsRestore(t *testing.T) {",
+            "func TestRTTMeasurementAfterRestore(t *testing.T) {",
+            "func TestRTTStatsResetForPathMigration(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "internal/ackhandler/lost_packet_tracker_test.go",
+          "declarations": [
+            "func TestLostPacketTracker(t *testing.T) {",
+            "func TestLostPacketTrackerDeleteBefore(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 20059,
+      "additional_input_reserve_tokens": 14941,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "B1",
+      "source_ranges": {
+        "internal/congestion/interface.go": [
+          [
+            1,
+            27
+          ]
+        ],
+        "internal/congestion/cubic_sender.go": [
+          [
+            1,
+            145
+          ],
+          [
+            175,
+            325
+          ]
+        ],
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            120,
+            173
+          ],
+          [
+            252,
+            318
+          ],
+          [
+            378,
+            485
+          ],
+          [
+            981,
+            1040
+          ]
+        ],
+        "packet_emission.go": [
+          [
+            138,
+            198
+          ],
+          [
+            233,
+            322
+          ]
+        ]
+      },
+      "design_sections": [
+        "Baseline algorithm and ProbeRTT disposition",
+        "Byte domains, identities and clocks",
+        "Delivery sampling and limitation"
+      ],
+      "proposed_tests": [
+        "TestBBRStartupPlateau",
+        "TestBBRStartupLimitedSamples",
+        "TestBBRStartupLossRanges",
+        "TestBBRDrainFlightAndRoundExit",
+        "TestBBRInitialWindowAndArithmetic",
+        "TestBBRTransportFeedbackToAllowance",
+        "TestBBRPrivateResetAndClose",
+        "TestPublicConstructionStillReno"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/congestion/cubic_sender_test.go",
+          "declarations": [
+            "func TestCubicSenderStartup(t *testing.T) {",
+            "func TestCubicSenderPacing(t *testing.T) {",
+            "func TestCubicSenderApplicationLimitedSlowStart(t *testing.T) {",
+            "func TestCubicSenderExponentialSlowStart(t *testing.T) {",
+            "func TestCubicSenderSlowStartPacketLoss(t *testing.T) {",
+            "func TestCubicSenderSlowStartPacketLossPRR(t *testing.T) {",
+            "func TestCubicSenderSlowStartBurstPacketLossPRR(t *testing.T) {",
+            "func TestCubicSenderRTOCongestionWindow(t *testing.T) {",
+            "func TestCubicSenderTCPCubicResetEpochOnQuiescence(t *testing.T) {",
+            "func TestCubicSenderMultipleLossesInOneWindow(t *testing.T) {",
+            "func TestCubicSender1ConnectionCongestionAvoidanceAtEndOfRecovery(t *testing.T) {",
+            "func TestCubicSenderNoPRR(t *testing.T) {",
+            "func TestCubicSenderResetAfterConnectionMigration(t *testing.T) {",
+            "func TestCubicSenderSlowStartsUpToMaximumCongestionWindow(t *testing.T) {",
+            "func TestCubicSenderMaximumPacketSizeReduction(t *testing.T) {",
+            "func TestCubicSenderSlowStartsPacketSizeIncrease(t *testing.T) {",
+            "func TestCubicSenderLimitCwndIncreaseInCongestionAvoidance(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        },
+        {
+          "path": "packet_emission_test.go",
+          "declarations": [
+            "func TestEmissionResultQueueWakeup(t *testing.T) {",
+            "func TestEmissionResultRecoveryOutcome(t *testing.T) {",
+            "func TestEmissionResultConnection(t *testing.T) {",
+            "func TestEmissionEmptyCallerBuffer(t *testing.T) {",
+            "func TestEmissionECNBatchBoundary(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 17283,
+      "additional_input_reserve_tokens": 17717,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "B2",
+      "source_ranges": {
+        "internal/congestion/interface.go": [
+          [
+            1,
+            27
+          ]
+        ],
+        "internal/protocol/params.go": [
+          [
+            1,
+            140
+          ]
+        ]
+      },
+      "design_sections": [
+        "Baseline algorithm and ProbeRTT disposition",
+        "Event order, losses and retained evidence",
+        "Pacing and pending local work"
+      ],
+      "proposed_tests": [
+        "TestBBRProbeBWTransitions",
+        "TestBBRProbeBWPlateauAndRiskyReprobe",
+        "TestBBRProbeBWLossBoundAttribution",
+        "TestBBRProbeBWAckPhaseAging",
+        "TestBBRProbeBWAppLimitedFilter",
+        "TestBBRProbeBWCoexistenceUnits",
+        "TestBBRProbeBWRandomizedWait",
+        "TestBBRProbeBWAggregationBudget",
+        "TestBBRProbeBWDelayedFeedback",
+        "TestBBRProbeBWCapsAcrossPhases"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/protocol/params_test.go",
+          "declarations": [
+            "func TestPacketQueueCapacities(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 13838,
+      "additional_input_reserve_tokens": 21162,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "B3",
+      "source_ranges": {
+        "internal/utils/rtt_stats.go": [
+          [
+            1,
+            159
+          ]
+        ],
+        "packet_emission.go": [
+          [
+            95,
+            178
+          ],
+          [
+            283,
+            401
+          ]
+        ],
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            378,
+            485
+          ],
+          [
+            1026,
+            1040
+          ]
+        ]
+      },
+      "design_sections": [
+        "Delivery sampling and limitation",
+        "Baseline algorithm and ProbeRTT disposition",
+        "Lifecycle and migration"
+      ],
+      "proposed_tests": [
+        "TestBBRProbeRTTExpiredQueuedSample",
+        "TestBBRProbeRTTRisingBase",
+        "TestBBRProbeRTTAlreadyInflatedCap",
+        "TestBBRProbeRTTLongRoundGate",
+        "TestBBRProbeRTTIdleAndResume",
+        "TestBBRProbeRTTRestoreBounds",
+        "TestBBRProbeRTTSizeAndReset",
+        "TestBBRProbeRTTSendSideExitGate"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/utils/rtt_stats_test.go",
+          "declarations": [
+            "func TestRTTStatsDefaults(t *testing.T) {",
+            "func TestRTTStatsSmoothedRTT(t *testing.T) {",
+            "func TestRTTStatsMinRTT(t *testing.T) {",
+            "func TestRTTStatsMaxAckDelay(t *testing.T) {",
+            "func TestRTTStatsComputePTO(t *testing.T) {",
+            "func TestRTTStatsPTOWithShortRTT(t *testing.T) {",
+            "func TestRTTStatsUpdateWithBadSendDeltas(t *testing.T) {",
+            "func TestRTTStatsRestore(t *testing.T) {",
+            "func TestRTTMeasurementAfterRestore(t *testing.T) {",
+            "func TestRTTStatsResetForPathMigration(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "packet_emission_test.go",
+          "declarations": [
+            "func TestEmissionResultQueueWakeup(t *testing.T) {",
+            "func TestEmissionResultRecoveryOutcome(t *testing.T) {",
+            "func TestEmissionResultConnection(t *testing.T) {",
+            "func TestEmissionEmptyCallerBuffer(t *testing.T) {",
+            "func TestEmissionECNBatchBoundary(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 15441,
+      "additional_input_reserve_tokens": 19559,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "B4",
+      "source_ranges": {
+        "internal/ackhandler/ecn.go": [
+          [
+            1,
+            340
+          ]
+        ],
+        "internal/congestion/interface.go": [
+          [
+            1,
+            27
+          ]
+        ]
+      },
+      "design_sections": [
+        "Classic ECN response",
+        "Baseline algorithm and ProbeRTT disposition",
+        "Pacing and pending local work"
+      ],
+      "proposed_tests": [
+        "TestBBRCESparseAndSustained",
+        "TestBBRCEPhaseEffects",
+        "TestBBRCEBoundarySuppression",
+        "TestBBRCESimultaneousLoss",
+        "TestBBRCECapsSurviveProbeAndIdle",
+        "TestBBRCECleanRoundRecovery",
+        "TestBBRCEFailureRecovery",
+        "TestBBRCEFloorComposition",
+        "TestBBRCEUnknownAnchor",
+        "TestBBRCEIsNotLoss"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/ackhandler/ecn_test.go",
+          "declarations": [
+            "func TestECNTestingPacketsLoss(t *testing.T) {",
+            "func TestECNValidationInTestingState(t *testing.T) {",
+            "func TestECNValidationInUnknownState(t *testing.T) {",
+            "func TestECNValidationFailures(t *testing.T) {",
+            "func TestECNValidationNotEnoughECNCounts(t *testing.T) {",
+            "func TestECNNonsensicalECNCountDecrease(t *testing.T) {",
+            "func TestECNACKReordering(t *testing.T) {",
+            "func TestECNManglingAllPacketsMarkedCE(t *testing.T) {",
+            "func TestECNManglingSomePacketsLostSomeMarkedCE(t *testing.T) {",
+            "func TestECNCongestionDetection(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 15580,
+      "additional_input_reserve_tokens": 19420,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "B5",
+      "source_ranges": {
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            173,
+            223
+          ],
+          [
+            378,
+            525
+          ],
+          [
+            867,
+            946
+          ],
+          [
+            1041,
+            1143
+          ]
+        ],
+        "internal/utils/rtt_stats.go": [
+          [
+            1,
+            159
+          ]
+        ]
+      },
+      "design_sections": [
+        "Event order, losses and retained evidence",
+        "Classic ECN response",
+        "Lifecycle and migration"
+      ],
+      "proposed_tests": [
+        "TestBBRUndoAllSpuriousOnly",
+        "TestBBRUndoKeepsCEAndProbeCaps",
+        "TestBBRUndoMissingAndSuperseded",
+        "TestBBRPersistentRestartTwoPackets",
+        "TestBBRPersistentRestartOldAckExcluded",
+        "TestBBRPersistentRestartDeduplicated",
+        "TestBBRPTOAndRetryPolicy",
+        "TestBBRFullLifecycleDisposal"
+      ],
+      "existing_test_index": [
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        },
+        {
+          "path": "internal/utils/rtt_stats_test.go",
+          "declarations": [
+            "func TestRTTStatsDefaults(t *testing.T) {",
+            "func TestRTTStatsSmoothedRTT(t *testing.T) {",
+            "func TestRTTStatsMinRTT(t *testing.T) {",
+            "func TestRTTStatsMaxAckDelay(t *testing.T) {",
+            "func TestRTTStatsComputePTO(t *testing.T) {",
+            "func TestRTTStatsPTOWithShortRTT(t *testing.T) {",
+            "func TestRTTStatsUpdateWithBadSendDeltas(t *testing.T) {",
+            "func TestRTTStatsRestore(t *testing.T) {",
+            "func TestRTTMeasurementAfterRestore(t *testing.T) {",
+            "func TestRTTStatsResetForPathMigration(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 17537,
+      "additional_input_reserve_tokens": 17463,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "B6",
+      "source_ranges": {
+        "config.go": [
+          [
+            1,
+            167
+          ]
+        ],
+        "interface.go": [
+          [
+            102,
+            186
+          ]
+        ],
+        "connection.go": [
+          [
+            260,
+            510
+          ],
+          [
+            1280,
+            1340
+          ],
+          [
+            924,
+            940
+          ]
+        ],
+        "client.go": [
+          [
+            1,
+            113
+          ]
+        ],
+        "server.go": [
+          [
+            1,
+            300
+          ],
+          [
+            867,
+            956
+          ]
+        ],
+        "packet_emission.go": [
+          [
+            543,
+            580
+          ]
+        ],
+        "internal/ackhandler/sent_packet_handler.go": [
+          [
+            120,
+            173
+          ],
+          [
+            1120,
+            1143
+          ]
+        ],
+        "transport.go": [
+          [
+            184,
+            325
+          ]
+        ]
+      },
+      "design_sections": [
+        "Selection and compatibility contract",
+        "State ownership and private boundaries",
+        "Lifecycle and migration",
+        "Consumer adoption and diagnostics"
+      ],
+      "proposed_tests": [
+        "TestCongestionControlV1ValidationAndCopy",
+        "TestCongestionControlV1PerClientReplacement",
+        "TestCongestionControlV1IndependentConnections",
+        "TestCongestionControlV1RealStreamAndDatagram",
+        "TestCongestionControlV1MigrationKeepsIdentity",
+        "TestCongestionControlV1QueuedMigrationAndECNFence",
+        "TestCongestionControlV1UpstreamCapabilityDetection",
+        "TestCongestionControlV1DefaultReno"
+      ],
+      "existing_test_index": [
+        {
+          "path": "config_test.go",
+          "declarations": [
+            "func TestConfigHandshakeIdleTimeout(t *testing.T) {",
+            "func TestConfigClone(t *testing.T) {",
+            "func TestConfigDefaultValues(t *testing.T) {",
+            "func TestConfigZeroLimits(t *testing.T) {",
+            "func TestConfigPreparationForTransport(t *testing.T) {",
+            "func TestConfigPreparationConcurrentInRangeConfig(t *testing.T) {",
+            "func TestConfigPreparationForClient(t *testing.T) {",
+            "func TestConfigInitialReceiveWindowsCanBeEncoded(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "connection_test.go",
+          "declarations": [
+            "func TestConnectionHandleStreamRelatedFrames(t *testing.T) {",
+            "func TestConnectionHandleConnectionFlowControlFrames(t *testing.T) {",
+            "func TestConnectionServerInvalidFrames(t *testing.T) {",
+            "func TestConnectionClose(t *testing.T) {",
+            "func TestConnectionStatelessReset(t *testing.T) {",
+            "func TestConnectionServerInvalidPackets(t *testing.T) {",
+            "func TestConnectionClientDrop0RTT(t *testing.T) {",
+            "func TestConnectionUnpacking(t *testing.T) {",
+            "func TestConnectionUnpackCoalescedPacket(t *testing.T) {",
+            "func TestConnectionUnpackFailuresFatal(t *testing.T) {",
+            "func TestConnectionUnpackFailureDropped(t *testing.T) {",
+            "func TestConnectionMaxUnprocessedPackets(t *testing.T) {",
+            "func TestConnectionRemoteClose(t *testing.T) {",
+            "func TestConnectionIdleTimeoutDuringHandshake(t *testing.T) {",
+            "func TestConnectionHandshakeIdleTimeout(t *testing.T) {",
+            "func TestConnectionTransportParameters(t *testing.T) {",
+            "func TestConnectionHandleMaxStreamsFrame(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureServer(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureClient(t *testing.T) {",
+            "func TestConnectionHandshakeServer(t *testing.T) {",
+            "func TestConnectionFinishesCryptoStreamWhenReadKeysBecomeAvailable(t *testing.T) {",
+            "func TestConnectionHandshakeClient(t *testing.T) {",
+            "func TestConnection0RTTTransportParameters(t *testing.T) {",
+            "func TestConnectionReceivePrioritization(t *testing.T) {",
+            "func TestConnectionPacketBuffering(t *testing.T) {",
+            "func TestConnectionPacketPacing(t *testing.T) {",
+            "func TestConnectionIdleTimeout(t *testing.T) {",
+            "func TestConnectionKeepAlive(t *testing.T) {",
+            "func TestConnectionACKTimer(t *testing.T) {",
+            "func TestConnectionGSOBatch(t *testing.T) {",
+            "func TestConnectionGSOBatchPacketSize(t *testing.T) {",
+            "func TestConnectionGSOBatchECN(t *testing.T) {",
+            "func TestConnectionSendQueue(t *testing.T) {",
+            "func TestConnectionVersionNegotiation(t *testing.T) {",
+            "func TestConnectionVersionNegotiationNoMatch(t *testing.T) {",
+            "func TestConnectionVersionNegotiationInvalidPackets(t *testing.T) {",
+            "func TestConnectionRetryDrops(t *testing.T) {",
+            "func TestConnectionRetryAfterReceivedPacket(t *testing.T) {",
+            "func TestConnectionConnectionIDChanges(t *testing.T) {",
+            "func TestConnectionEarlyClose(t *testing.T) {",
+            "func TestConnectionPathValidation(t *testing.T) {",
+            "func TestConnectionMigrationServer(t *testing.T) {",
+            "func TestConnectionAddPathConcurrentPathSwitch(t *testing.T) {",
+            "func TestConnectionMigration(t *testing.T) {",
+            "func TestConnectionDatagrams(t *testing.T) {",
+            "func TestConnectionSkippedStreamFrameMetadata(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "client_test.go",
+          "declarations": [
+            "func TestDial(t *testing.T) {",
+            "func TestDialAddrSetupFailureClosesSocket(t *testing.T) {",
+            "func TestSetupFailurePreservesCallerSocket(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "server_test.go",
+          "declarations": [
+            "func TestListen(t *testing.T) {",
+            "func TestListenAddr(t *testing.T) {",
+            "func TestListenAddrFixtureStopsTransport(t *testing.T) {",
+            "func TestServerPacketDropping(t *testing.T) {",
+            "func TestServerVersionNegotiation(t *testing.T) {",
+            "func TestServerRetry(t *testing.T) {",
+            "func TestServerTokenValidation(t *testing.T) {",
+            "func TestServerCreateConnection(t *testing.T) {",
+            "func TestServerClose(t *testing.T) {",
+            "func TestServerGetConfigForClientAccept(t *testing.T) {",
+            "func TestServerGetConfigForClientReject(t *testing.T) {",
+            "func TestServerReceiveQueue(t *testing.T) {",
+            "func TestServerAccept(t *testing.T) {",
+            "func TestServerAcceptHandshakeFailure(t *testing.T) {",
+            "func TestServerAcceptQueue(t *testing.T) {",
+            "func TestServer0RTTReordering(t *testing.T) {",
+            "func TestServer0RTTQueueing(t *testing.T) {",
+            "func TestListenAddrSetupFailureClosesSocket(t *testing.T) {",
+            "func TestServerFixtureStopsTransport(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "packet_emission_test.go",
+          "declarations": [
+            "func TestEmissionResultQueueWakeup(t *testing.T) {",
+            "func TestEmissionResultRecoveryOutcome(t *testing.T) {",
+            "func TestEmissionResultConnection(t *testing.T) {",
+            "func TestEmissionEmptyCallerBuffer(t *testing.T) {",
+            "func TestEmissionECNBatchBoundary(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "internal/ackhandler/sent_packet_handler_test.go",
+          "declarations": [
+            "func TestAckRanges(t *testing.T) {",
+            "func TestSentPacketHandlerSendAndAcknowledge(t *testing.T) {",
+            "func TestSentPacketHandlerAcknowledgeSkippedPacket(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckEliciting(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAcrossPacketNumberSpaces(t *testing.T) {",
+            "func TestSentPacketHandlerRTTAckDelays(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitServer(t *testing.T) {",
+            "func TestSentPacketHandlerAmplificationLimitClient(t *testing.T) {",
+            "func TestSentPacketHandlerDelayBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPacketBasedLossDetection(t *testing.T) {",
+            "func TestSentPacketHandlerPTO(t *testing.T) {",
+            "func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {",
+            "func TestSentPacketHandler0RTT(t *testing.T) {",
+            "func TestSentPacketHandlerCongestion(t *testing.T) {",
+            "func TestSentPacketHandlerRetry(t *testing.T) {",
+            "func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {",
+            "func TestSentPacketHandlerECN(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbe(t *testing.T) {",
+            "func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {",
+            "func TestSentPacketHandlerRandomized(t *testing.T) {",
+            "func TestSentPacketHandlerSpuriousLoss(t *testing.T) {",
+            "func BenchmarkSendAndAcknowledge(b *testing.B) {"
+          ]
+        },
+        {
+          "path": "transport_test.go",
+          "declarations": [
+            "func TestTransportWriteToPreservesResult(t *testing.T) {",
+            "func TestTransportPacketHandling(t *testing.T) {",
+            "func TestTransportAndListenerConcurrentClose(t *testing.T) {",
+            "func TestTransportAndDialConcurrentClose(t *testing.T) {",
+            "func TestTransportErrFromConn(t *testing.T) {",
+            "func TestTransportStatelessResetReceiving(t *testing.T) {",
+            "func TestTransportStatelessResetSending(t *testing.T) {",
+            "func TestTransportUnparseableQUICPackets(t *testing.T) {",
+            "func TestTransportListening(t *testing.T) {",
+            "func TestTransportNonQUICPackets(t *testing.T) {",
+            "func TestTransportFaultySyscallConn(t *testing.T) {",
+            "func TestTransportSetTLSConfigServerName(t *testing.T) {",
+            "func TestTransportDial(t *testing.T) {",
+            "func TestTransportConfigPreparation(t *testing.T) {",
+            "func TestTransportDialingVersionNegotiation(t *testing.T) {",
+            "func TestTransportReplaceWithClosed(t *testing.T) {"
+          ]
+        }
+      ],
+      "measured_current_input_tokens": 24856,
+      "additional_input_reserve_tokens": 10144,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "Q1",
+      "source_ranges": {
+        "docs/audits/2026-09-23-bbrv3-acceptance-plan.md": [
+          [
+            1,
+            130
+          ]
+        ],
+        "docs/audits/2026-09-23-bbrv3-acceptance-manifest.json": [
+          [
+            1,
+            346
+          ]
+        ],
+        "integrationtests/self/benchmark_test.go": [
+          [
+            1,
+            151
+          ]
+        ]
+      },
+      "design_sections": [
+        "Qualification and budget",
+        "Consumer adoption and diagnostics"
+      ],
+      "proposed_tests": [
+        "Receiver counter integrity/duplicate fixture check",
+        "Directional rate/RTT/finite-queue/CE calibration",
+        "Native pair and CPU-isolation inventory",
+        "Experiment ledger arithmetic and command-cost check"
+      ],
+      "existing_test_index": [],
+      "measured_current_input_tokens": 18736,
+      "additional_input_reserve_tokens": 16264,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    },
+    {
+      "id": "Q2",
+      "source_ranges": {
+        "docs/audits/2026-09-23-bbrv3-acceptance-plan.md": [
+          [
+            1,
+            130
+          ]
+        ],
+        "docs/audits/2026-09-23-bbrv3-acceptance-manifest.json": [
+          [
+            1,
+            346
+          ]
+        ]
+      },
+      "design_sections": [
+        "Qualification and budget",
+        "Consumer adoption and diagnostics"
+      ],
+      "proposed_tests": [
+        "Pinned required correctness/calibration commands before comparative runs",
+        "460 core runs with original pair/seed/timing contract",
+        "60 completion observations including timeouts",
+        "Per-run integrity/controller/ECN/resource record and global ledger"
+      ],
+      "existing_test_index": [],
+      "measured_current_input_tokens": 17936,
+      "additional_input_reserve_tokens": 17064,
+      "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
+    }
+  ],
+  "role": "Frozen context inventory; normative contracts live only in the track plans. Remeasure after predecessors merge.",
+  "included_common_documents": [
+    "docs/adr/0001-upstream-compatibility.md",
+    "docs/adr/0002-adopt-through-module-replacement.md",
+    "docs/adr/0004-packet-emission-ownership.md",
+    "docs/adr/0007-managed-ecn-qualification.md",
+    "docs/adr/0009-opt-in-bbrv3.md",
+    "docs/REVIEW-LOOP.md"
+  ],
+  "measurement": "max(UTF-8 bytes / 4 rounded up, whitespace words * 2), counting current slice, common plan/gates, named design sections, listed ADRs/overlay, exact source ranges and existing test signatures. Later implementation/source excerpts use the explicit remaining reserve."
+}
