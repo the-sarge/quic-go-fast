@@ -47,7 +47,8 @@ type queuedStream struct {
 }
 
 type framer struct {
-	mutex sync.Mutex
+	deliveryStreams map[protocol.StreamID]streamFrameGetter // nil for default Reno
+	mutex           sync.Mutex
 
 	activeStreams         map[protocol.StreamID]queuedStream
 	retransmissionStreams map[protocol.StreamID]streamFrameGetter
@@ -298,6 +299,9 @@ func (f *framer) QueuedTooManyControlFrames() bool {
 func (f *framer) AddActiveStream(id protocol.StreamID, str streamFrameGetter) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
+	if f.deliveryStreams != nil {
+		f.deliveryStreams[id] = str
+	}
 
 	urgency, incremental, generation := str.priority()
 	if activeStr, ok := f.activeStreams[id]; ok && activeStr.generation == generation {
@@ -342,6 +346,7 @@ func (f *framer) RemoveActiveStream(id protocol.StreamID) {
 	// Instead, we check if the stream is still in active when appending STREAM frames.
 	delete(f.activeStreams, id)
 	delete(f.retransmissionStreams, id)
+	delete(f.deliveryStreams, id)
 }
 
 func (f *framer) UpdateStreamPriority(id protocol.StreamID) {
@@ -458,6 +463,7 @@ func (f *framer) Handle0RTTRejection() {
 	defer f.mutex.Unlock()
 	f.controlFrameMutex.Lock()
 	defer f.controlFrameMutex.Unlock()
+	clear(f.deliveryStreams)
 
 	for urgency := range f.incrementalStreams {
 		f.incrementalStreams[urgency].Clear()

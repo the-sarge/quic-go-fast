@@ -31,7 +31,9 @@ func (r *congestionRecorder) Feedback(e congestion.FeedbackEvent) {
 }
 
 func newCongestionTestHandler(r *congestionRecorder) *sentPacketHandler {
-	return newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger, r)
+	h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger, r)
+	h.congestionEvents.pending = func() protocol.ByteCount { return 0 } // isolated recovery fixture has no local worker
+	return h
 }
 
 func sendCongestionTestPacket(h *sentPacketHandler, now monotime.Time, level protocol.EncryptionLevel, size protocol.ByteCount) protocol.PacketNumber {

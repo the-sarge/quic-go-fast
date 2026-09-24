@@ -61,6 +61,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 				result.stop, result.available, result.deadline = emissionQueueFull, available, 0
 				result.blocked, result.retry = blockModeHardBlocked, false
 			}
+			e.observeDeliveryResult(result)
 		}
 	}()
 	if e.queue.WouldBlock() {
@@ -148,6 +149,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 }
 
 func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protocol.ByteCount) emissionResult {
+	exhausted := false
 	gso := (*e.conn).capabilities().GSO
 	buf := getPacketBuffer()
 	if gso {
@@ -162,9 +164,11 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 				buf.Release()
 				if err == errNothingToPack {
 					err = nil
+					exhausted = true
 				}
-				return emissionResult{err: err}
+				return emissionResult{err: err, supplyExhausted: exhausted}
 			}
+			exhausted = true
 			break
 		}
 		mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
@@ -177,7 +181,7 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		gsoSize = uint16(size)
 	}
 	e.handoff(buf, gsoSize, ecn, sendMetadata{})
-	return emissionResult{progress: true, retry: true}
+	return emissionResult{progress: true, retry: true, supplyExhausted: exhausted}
 }
 
 // A refused ordinary or isolated-probe request must not suppress control

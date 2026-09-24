@@ -421,10 +421,24 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 
 	priorInFlight := h.bytesInFlight
 	ackedPackets, hasAckEliciting, err := h.detectAndRemoveAckedPackets(ack, encLevel)
-	if err != nil || len(ackedPackets) == 0 {
+	if err != nil {
 		return false, err
 	}
+	if h.congestionEvents != nil {
+		h.ExpireDelivery(rcvTime)
+	}
+	if len(ackedPackets) == 0 {
+		if h.congestionEvents != nil {
+			h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, nil, largestAcked)
+			h.appendRetainedAck(ack, encLevel)
+			if len(h.congestionEvents.event.Acked) > 0 {
+				h.finishCongestionFeedback()
+			}
+		}
+		return false, nil
+	}
 	h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, ackedPackets, largestAcked)
+	h.appendRetainedAck(ack, encLevel)
 	// update the RTT, if:
 	// * the largest acked is newly acknowledged, AND
 	// * at least one new ack-eliciting packet was acknowledged
@@ -442,6 +456,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 				h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
 				if h.congestionEvents != nil {
 					h.congestionEvents.event.RTTUpdated = rcvTime.After(p.SendTime)
+					h.captureDeliveryRTT(p, rcvTime)
 				}
 				if h.logger.Debug() {
 					h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())
@@ -1094,12 +1109,18 @@ func (h *sentPacketHandler) isAmplificationLimited() bool {
 }
 
 func (h *sentPacketHandler) QueueProbePacket(encLevel protocol.EncryptionLevel) bool {
+	return h.QueueProbePacketAt(encLevel, monotime.Now())
+}
+
+func (h *sentPacketHandler) QueueProbePacketAt(encLevel protocol.EncryptionLevel, now monotime.Time) bool {
 	pnSpace := h.getPacketNumberSpace(encLevel)
 	pn, p := pnSpace.history.FirstOutstanding()
 	if p == nil {
 		return false
 	}
-	h.discardCongestionPacket(encLevel, pn)
+	if d := h.congestionEvents; d != nil {
+		d.retire(congestionKey(encLevel, pn), now, h.rttStats.PTO(encLevel == protocol.Encryption1RTT), deliveryRetiredPTO)
+	}
 	// TODO: don't declare the packet lost here.
 	// Keep track of acknowledged frames instead.
 	// Call DeclareLost before queueFramesForRetransmission, which clears the packet's frames.
