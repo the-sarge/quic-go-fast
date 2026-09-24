@@ -44,21 +44,23 @@ func TestBBRPersistentCongestionAcrossSpaces(t *testing.T) {
 }
 
 func TestBBRRecoveryEpisodeAllSpurious(t *testing.T) {
-	t.Run("post-boundary MTU receipt", func(t *testing.T) {
-		h, r, now := measuredRecoveryHandler(t)
-		lost := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
-		carrier := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1200)
-		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(110*time.Millisecond), carrier)
-		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(120*time.Millisecond), lost)
-		require.False(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
-		pn := h.PopPacketNumber(protocol.Encryption1RTT)
-		h.SentPacket(now.Add(130*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1400, true, false)
-		acknowledgeRecoveryPacket(t, h, protocol.Encryption1RTT, now.Add(140*time.Millisecond), pn)
-		e := r.feedback[len(r.feedback)-1]
-		require.True(t, e.RecoveryEpisode.Exited)
-		require.True(t, e.RecoveryEpisode.UndoEligible)
-		require.Zero(t, e.PersistentCongestion.EndOrdinal)
-	})
+	for _, pathProbe := range []bool{false, true} {
+		t.Run(map[bool]string{false: "post-boundary MTU receipt", true: "post-boundary alternate-path receipt"}[pathProbe], func(t *testing.T) {
+			h, r, now := measuredRecoveryHandler(t)
+			lost := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
+			carrier := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1200)
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(110*time.Millisecond), carrier)
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(120*time.Millisecond), lost)
+			require.False(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
+			pn := h.PopPacketNumber(protocol.Encryption1RTT)
+			h.SentPacket(now.Add(130*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1400, !pathProbe, pathProbe)
+			acknowledgeRecoveryPacket(t, h, protocol.Encryption1RTT, now.Add(140*time.Millisecond), pn)
+			e := r.feedback[len(r.feedback)-1]
+			require.Equal(t, !pathProbe, e.RecoveryEpisode.Exited)
+			require.Equal(t, !pathProbe, e.RecoveryEpisode.UndoEligible)
+			require.Zero(t, e.PersistentCongestion.EndOrdinal)
+		})
+	}
 	t.Run("unresolved boundary member becomes lost", func(t *testing.T) {
 		h, r, now := measuredRecoveryHandler(t)
 		a := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)

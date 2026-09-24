@@ -23,12 +23,13 @@ const (
 )
 
 type recoveryOutcome struct {
-	key      congestionPacketKey
-	level    protocol.EncryptionLevel
-	ordinal  uint64
-	sent     monotime.Time
-	state    recoveryOutcomeState
-	endpoint bool
+	key             congestionPacketKey
+	level           protocol.EncryptionLevel
+	ordinal         uint64
+	sent            monotime.Time
+	state           recoveryOutcomeState
+	endpoint        bool
+	receiptEligible bool
 }
 
 // recoveryEvidence is connection-owned. The ring includes every registration,
@@ -51,7 +52,13 @@ type recoveryEvidence struct {
 	boundaryPackets map[protocol.EncryptionLevel]protocol.PacketNumber
 }
 
-func (r *recoveryEvidence) sent(p congestion.PacketInfo) {
+// currentPathRecoveryReceipt is the single admission rule for episode-exit
+// evidence, independent of persistent-congestion endpoint eligibility.
+func currentPathRecoveryReceipt(p congestion.PacketInfo, generation uint64) bool {
+	return p.PathGeneration == generation && !p.PathProbe
+}
+
+func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
 	if r.outcomes == nil {
 		r.outcomes = make([]recoveryOutcome, maxRecoveryOutcomes)
 		r.keys = make(map[congestionPacketKey]int)
@@ -68,7 +75,9 @@ func (r *recoveryEvidence) sent(p congestion.PacketInfo) {
 	}
 	o := recoveryOutcome{
 		key: congestionKey(p.EncryptionLevel, p.PacketNumber), level: p.EncryptionLevel, ordinal: p.Ordinal, sent: p.SendTime,
-		endpoint: r.measured && p.RegistrationValid && p.AckEliciting && !p.PathProbe && !p.MTUProbe,
+		// Path/Retry reset clears the ledger; disposal prevents readmission.
+		receiptEligible: currentPathRecoveryReceipt(p, generation),
+		endpoint:        r.measured && p.RegistrationValid && p.AckEliciting && !p.PathProbe && !p.MTUProbe,
 	}
 	if !p.RegistrationValid || p.PathProbe || p.MTUProbe {
 		o.state = outcomeExcluded
@@ -154,7 +163,9 @@ func (r *recoveryEvidence) ack(ack *wire.AckFrame, level protocol.EncryptionLeve
 	for i := 0; i < r.count; i++ {
 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
 		if o.key.space == space && ack.AcksPacket(o.key.number) && o.state != outcomeDisposed && o.state != outcomeAcked {
-			r.ackOrdinal = max(r.ackOrdinal, o.ordinal)
+			if o.receiptEligible {
+				r.ackOrdinal = max(r.ackOrdinal, o.ordinal)
+			}
 			o.state = outcomeAcked
 		}
 	}
@@ -164,10 +175,10 @@ func (r *recoveryEvidence) feedback(e *congestion.FeedbackEvent, pto time.Durati
 	for _, p := range e.Acked {
 		// Retained current-path receipt metadata remains a valid ordinal witness
 		// even after the independent persistent-congestion ring evicted it.
-		if p.PathGeneration == e.PathGeneration {
+		if currentPathRecoveryReceipt(p, e.PathGeneration) {
 			r.ackOrdinal = max(r.ackOrdinal, p.Ordinal)
+			delete(r.members, p.Ordinal)
 		}
-		delete(r.members, p.Ordinal)
 	}
 	if r.episode.Active && r.ackOrdinal > r.episode.Boundary {
 		r.episode.Active = false

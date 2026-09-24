@@ -100,7 +100,7 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		MTUProbe:          p.IsPathMTUProbePacket,
 		ECN:               ecn,
 	}
-	d.recovery.sent(info)
+	d.recovery.sent(info, d.pathGeneration)
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
 	if len(d.packets) < maxDeliveryLive {
