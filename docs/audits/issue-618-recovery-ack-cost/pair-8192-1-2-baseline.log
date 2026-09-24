@@ -1,0 +1,4 @@
+=== RUN   TestIssue618Comparison
+    issue618_compare_test.go:124: baseline N=8192 ranges=1 sample=2 mean=26690ns ops=74935 wall=4.505314875s
+--- PASS: TestIssue618Comparison (4.51s)
+PASS

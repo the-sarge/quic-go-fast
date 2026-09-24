@@ -1,0 +1,30 @@
+package utils
+
+// Issue618Snapshot is disposable single-worker fixture reset plumbing.
+func (r *RTTStats) Issue618Snapshot() func() {
+	measured := r.hasMeasurement
+	minimum, latest, smoothed := r.minRTT.Load(), r.latestRTT.Load(), r.smoothedRTT.Load()
+	deviation, delay := r.meanDeviation.Load(), r.maxAckDelay.Load()
+	return func() {
+		r.hasMeasurement = measured
+		r.minRTT.Store(minimum)
+		r.latestRTT.Store(latest)
+		r.smoothedRTT.Store(smoothed)
+		r.meanDeviation.Store(deviation)
+		r.maxAckDelay.Store(delay)
+	}
+}
+
+func (s *ConnectionStats) Issue618Snapshot() func() {
+	bs, ps := s.BytesSent.Load(), s.PacketsSent.Load()
+	br, pr := s.BytesReceived.Load(), s.PacketsReceived.Load()
+	bl, pl := s.BytesLost.Load(), s.PacketsLost.Load()
+	return func() {
+		s.BytesSent.Store(bs)
+		s.PacketsSent.Store(ps)
+		s.BytesReceived.Store(br)
+		s.PacketsReceived.Store(pr)
+		s.BytesLost.Store(bl)
+		s.PacketsLost.Store(pl)
+	}
+}

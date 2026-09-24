@@ -1,0 +1,560 @@
+{
+  "commands": [
+    {
+      "n": 1024,
+      "ranges": 1,
+      "sample": 1,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:37:33.668166+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 1,
+      "sample": 1,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:37:52.627287+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 1,
+      "sample": 2,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:38:19.151369+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 1,
+      "sample": 2,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:38:45.835012+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 1,
+      "sample": 3,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:39:04.125259+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 1,
+      "sample": 3,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:39:24.486168+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 32,
+      "sample": 1,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:39:54.041734+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 32,
+      "sample": 1,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:40:05.021289+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 32,
+      "sample": 2,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:40:30.615201+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 32,
+      "sample": 2,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:40:55.671066+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 32,
+      "sample": 3,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:41:06.849502+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 1024,
+      "ranges": 32,
+      "sample": 3,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:41:17.901870+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 1,
+      "sample": 1,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:41:44.407716+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 1,
+      "sample": 1,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:41:49.061901+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 1,
+      "sample": 2,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:41:56.524482+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 1,
+      "sample": 2,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:03.923423+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 1,
+      "sample": 3,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:08.461440+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 1,
+      "sample": 3,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:13.260454+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 32,
+      "sample": 1,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:20.741093+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 32,
+      "sample": 1,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:24.309475+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 32,
+      "sample": 2,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:31.712439+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 32,
+      "sample": 2,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:39.065518+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 32,
+      "sample": 3,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:42.582118+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 8192,
+      "ranges": 32,
+      "sample": 3,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:46.052022+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 1,
+      "sample": 1,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:53.359235+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 1,
+      "sample": 1,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:42:56.412502+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 1,
+      "sample": 2,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:00.612564+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 1,
+      "sample": 2,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:04.825983+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 1,
+      "sample": 3,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:07.899147+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 1,
+      "sample": 3,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:11.038284+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 32,
+      "sample": 1,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:15.274655+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 32,
+      "sample": 1,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:17.947175+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 32,
+      "sample": 2,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:22.153521+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 32,
+      "sample": 2,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:26.323850+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 32,
+      "sample": 3,
+      "implementation": "baseline",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:28.952377+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 32,
+      "sample": 3,
+      "implementation": "candidate",
+      "profile": false,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:31.587934+00:00",
+      "returncode": 0
+    },
+    {
+      "n": 32768,
+      "ranges": 1,
+      "sample": 3,
+      "implementation": "candidate",
+      "profile": true,
+      "command": [
+        "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+        "-test.run=^TestIssue618Comparison$",
+        "-test.v",
+        "-test.timeout=65s"
+      ],
+      "utc": "2026-09-24T22:43:35.758181+00:00",
+      "returncode": 0
+    }
+  ],
+  "elapsed_seconds": 372.3850410829764
+}

@@ -1,0 +1,4 @@
+=== RUN   TestIssue618Comparison
+    issue618_compare_test.go:78: profile N=32768 ranges=1 calls=151785 execution=10.227661125s
+--- PASS: TestIssue618Comparison (10.23s)
+PASS

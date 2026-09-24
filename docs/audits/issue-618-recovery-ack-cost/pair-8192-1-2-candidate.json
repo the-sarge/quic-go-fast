@@ -1,0 +1,1 @@
+{"ack_ns":2000004141,"allocs":1,"bytes":32,"implementation":"candidate","mean_ns":12648.167543604468,"n":8192,"ops":158126,"ranges":1,"sample":2,"tail_count":3333,"timer_p99_ns":0,"utc":"2026-09-24T22:42:03.876869Z","wall_ns":7343086792}

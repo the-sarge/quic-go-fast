@@ -1,0 +1,4 @@
+internal/ackhandler/issue618_measure_test.go:122:37: assignment copies lock value to rttState: github.com/quic-go/quic-go/internal/utils.RTTStats contains sync/atomic.Int64 contains sync/atomic.noCopy
+internal/ackhandler/issue618_measure_test.go:122:50: assignment copies lock value to statsState: github.com/quic-go/quic-go/internal/utils.ConnectionStats contains sync/atomic.Uint64 contains sync/atomic.noCopy
+internal/ackhandler/issue618_measure_test.go:133:17: assignment copies lock value to *h.rttStats: github.com/quic-go/quic-go/internal/utils.RTTStats contains sync/atomic.Int64 contains sync/atomic.noCopy
+internal/ackhandler/issue618_measure_test.go:134:18: assignment copies lock value to *h.connStats: github.com/quic-go/quic-go/internal/utils.ConnectionStats contains sync/atomic.Uint64 contains sync/atomic.noCopy

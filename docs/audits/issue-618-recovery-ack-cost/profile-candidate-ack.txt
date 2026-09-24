@@ -1,0 +1,20 @@
+File: .git-issue618-candidate.test
+Type: cpu
+Time: 2026-09-24 18:43:35 EDT
+Duration: 10.19s, Total samples = 9.13s (89.59%)
+Active filters:
+   tagfocus=phase=ack
+Showing nodes accounting for 5.84s, 63.96% of 9.13s total
+Dropped 7 nodes (cum <= 0.05s)
+      flat  flat%   sum%        cum   cum%
+     3.28s 35.93% 35.93%      3.39s 37.13%  github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).confirmPTO (inline)
+     2.35s 25.74% 61.66%      2.41s 26.40%  github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).feedback
+     0.17s  1.86% 63.53%      0.17s  1.86%  runtime.asyncPreempt
+     0.02s  0.22% 63.75%      0.06s  0.66%  runtime.mapaccess2
+     0.01s  0.11% 63.86%      0.08s  0.88%  github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).ack
+     0.01s  0.11% 63.96%      2.42s 26.51%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback
+         0     0% 63.96%      5.91s 64.73%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck
+         0     0% 63.96%      0.08s  0.88%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).appendRetainedAck
+         0     0% 63.96%      3.39s 37.13%  github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).confirmPTOOutcomes
+         0     0% 63.96%      5.91s 64.73%  github.com/quic-go/quic-go/internal/ackhandler.TestIssue618Comparison
+         0     0% 63.96%      5.91s 64.73%  testing.tRunner

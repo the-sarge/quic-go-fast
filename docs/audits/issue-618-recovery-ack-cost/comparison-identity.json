@@ -1,0 +1,10 @@
+[
+  {
+    "binary": "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-baseline.test",
+    "sha256": "2b4b182a158cdf1657415a7a201c77b19507755a81dd5616cf7f8fb9eca2a222"
+  },
+  {
+    "binary": "/Volumes/worktrees/quic-go-fast/recovery-ack-cost/.git-issue618-candidate.test",
+    "sha256": "b9a33378a55e348bfdd264ceeaeb869dba52de3c9286d6fb959a04d3ac2c6a32"
+  }
+]

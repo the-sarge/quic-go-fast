@@ -1,0 +1,12 @@
+package congestion
+
+// Issue618Snapshot is disposable evidence plumbing, never a shipped API.
+// ACK processing and fixture reset are single-threaded in the frozen trace.
+func (c *cubicSender) Issue618Snapshot() func() {
+	state, cubic, pacer := *c, *c.cubic, *c.pacer
+	return func() {
+		*c = state
+		*c.cubic = cubic
+		*c.pacer = pacer
+	}
+}

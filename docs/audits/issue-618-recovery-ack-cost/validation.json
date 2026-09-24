@@ -1,0 +1,47 @@
+{
+  "source_sha": "f47e09e3a5b4f9f8efc5de0ea73a01307d3a01f4",
+  "utc": "2026-09-24T22:48:19.067571+00:00",
+  "candidate_full_packages": {
+    "command": "GOMAXPROCS=1 go test ./internal/ackhandler ./internal/congestion -count=1",
+    "exit_code": 0,
+    "log": "candidate-tests.log"
+  },
+  "corrected_candidate": {
+    "command": "./.git-issue618-candidate.test -test.v -test.count=1",
+    "exit_code": 0,
+    "log": "corrected-candidate-tests.log.gz",
+    "eight_t5_passes": [
+      "TestBBRPersistentCongestionAcrossSpaces",
+      "TestBBRPersistentCongestionMeasuredAtSend",
+      "TestBBRPersistentCongestionAckOnlyBreak",
+      "TestBBRPersistentCongestionGapAndEviction",
+      "TestBBRPersistentCongestionDeduplication",
+      "TestBBRRecoveryEpisodeAllSpurious",
+      "TestBBRRecoveryEpisodeSupersededOrMissing",
+      "TestBBRPTODoesNotFabricateLoss"
+    ]
+  },
+  "corrected_scratch_vet": {
+    "command": "go vet ./internal/ackhandler ./internal/congestion ./internal/utils",
+    "exit_code": 0,
+    "log": "comparison-vet.log"
+  },
+  "tidy": {
+    "command": "go mod tidy -diff",
+    "exit_code": 0,
+    "log": "tidy.log"
+  },
+  "restored_source": {
+    "tests_exit_code": 0,
+    "vet_exit_code": 0,
+    "logs": [
+      "restored-source-tests.log",
+      "restored-source-vet.log"
+    ]
+  },
+  "initial_scratch_vet": {
+    "exit_code": 1,
+    "log": "candidate-vet.log",
+    "disposition": "fixed only in comparison helper; original capture retained as diagnostic"
+  }
+}
