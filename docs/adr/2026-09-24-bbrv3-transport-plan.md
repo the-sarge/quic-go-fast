@@ -1,7 +1,7 @@
 # Transport feedback and send ownership implementation plan
 
 **Date:** 2026-09-24
-**Status:** T1/T2/T3/T4 implemented; T5 ready
+**Status:** T1/T2/T3/T4 implemented; T5 in progress under scoped receipt re-audit
 **Track:** T in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
@@ -33,7 +33,7 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | [T2](#t2) | Complete ([#588](https://github.com/the-sarge/quic-go-fast/issues/588)) | Deliver bounded registration-time sampling through real recovery | T1, T3 | None; see slice budget |
 | [T3](#t3) | Complete ([#589](https://github.com/the-sarge/quic-go-fast/issues/589)) | Bound paced local sends across the complete worker lifetime | None | None; see slice budget |
 | [T4](#t4) | Complete ([#590](https://github.com/the-sarge/quic-go-fast/issues/590)) | Validate bounded actual ECN marking through path changes | T1, T3 | None; see slice budget |
-| [T5](#t5) | Ready | Emit bounded persistent-congestion and recovery evidence | T2 | None; see slice budget |
+| [T5](#t5) | In progress; scoped receipt re-audit | Emit bounded persistent-congestion and recovery evidence | T2 | None; see slice budget |
 
 ## Operating discipline
 
@@ -233,11 +233,13 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **What it delivers:** Add the ordered send-outcome ledger, cross-space ACK-confirmed persistent-congestion detection, response deduplication and exact loss-episode membership/undo eligibility to the rich event seam. Inputs cover ACK-only receipts, excluded/disposed gaps, real losses, late ACKs and missing tombstones. Emit value events only; this slice does not change Reno or select BBR actions.
 
-**Existing-work disposition:** New slice. The unmerged design is reworked documentation only; no implementation is assumed.
+**Existing-work disposition:** Retain and rework [product PR #614](https://github.com/the-sarge/quic-go-fast/pull/614) under the current-path receipt authority below. Implementation is paused for the [scoped receipt re-audit](../audits/2026-09-24-bbrv3-handoff/t5-receipt-authority.md); resume its triggering verification after this contract is published and the child pointer is synchronized.
 
 **Blocked by:** T2.
 
 **Single owner after merge:** Recovery owns loss-episode membership and the 32,768-entry outcome ledger; sampler supplies retained delivery facts without determining transport loss.
+
+**Current-path receipt authority:** Recovery owns one eligibility predicate for episode-exit receipts: a validated receipt must belong to the current path generation and must not be an alternate-path probe. `PacketInfo.PathProbe` comes from emission's path-probe registration, so matching `PathGeneration` alone does not establish current-path delivery. Ordinary, ACK-only and MTU-probe receipts may cross the episode boundary; alternate-path probes may not. Apply the same predicate to the ledger's registration-time receipt classification and to live/retained ACK metadata. The ledger may cache that classification only because path reset/Retry clears it and destructive disposal prevents later receipt admission. Persistent-congestion endpoint eligibility is a separate stricter predicate: MTU probes and alternate-path probes remain gaps, and acknowledging either cannot manufacture loss proof. The packet-number boundary witnesses remain transport-owned and independent of optional sampling/history retention.
 
 **Authority completeness:** This delivery includes its construction/test activation, accepted input validation, reset/restart and terminal consumers. No newly authoritative runtime fact is left for a successor to make safe. Any successor adds a new behavior through the established owner, not a repair for missing authority closure.
 
@@ -257,8 +259,9 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 | ACKed/unresolved/disposed/evicted gap | Break candidate proof | outcome ledger reducer | gap table | Required before slice completion |
 | Repeated report/PTO without ACK | No repeated reset evidence or RTO inference | event deduplication | timer/repeated fixture | Required before slice completion |
 | All-spurious versus mixed/superseded/evicted episode | Undo eligible only for exact complete latest episode | episode owner | membership fixture | Required before slice completion |
+| Current-path ordinary/ACK-only/MTU receipt versus alternate-path probe, old-generation or disposed evidence | Only an eligible current-path receipt may end the episode; proof exclusion stays separate | recovery receipt predicate shared by ledger and retained-ACK admission | differential MTU/path-probe table in `TestBBRRecoveryEpisodeAllSpurious`, existing receipt/space/reset/gap fixtures | Required before slice completion |
 
-**Evidence budget:** At most 8 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
+**Evidence budget:** At most 8 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. One fresh review and at most one replacement; that fresh-review budget is exhausted by the retained product PR. The receipt re-audit resumes the triggering source review’s exact-head verification after the central repair; it does not authorize a third fresh product review. The same eight-function budget covers the differential receipt case, with no new mutation, repetition or platform gate. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 
 **TDD and preservation evidence:** First write characterization/failing cases for: `TestBBRPersistentCongestionAcrossSpaces`; `TestBBRPersistentCongestionMeasuredAtSend`; `TestBBRPersistentCongestionAckOnlyBreak`; `TestBBRPersistentCongestionGapAndEviction`; `TestBBRPersistentCongestionDeduplication`; `TestBBRRecoveryEpisodeAllSpurious`; `TestBBRRecoveryEpisodeSupersededOrMissing`; `TestBBRPTODoesNotFabricateLoss`. Use existing real-packer and recovery fixtures rather than mocks of production decision logic. Preserve default Reno, protocol parsing, payload/buffer ownership and existing platform capability boundaries on every changed surface.
 
