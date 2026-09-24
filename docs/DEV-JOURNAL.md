@@ -3559,3 +3559,26 @@ The [exact-head certification receipt](https://github.com/the-sarge/quic-go-fast
 ### Next
 
 The product PR owns T1's committed completion and the resulting T3/Q1 frontier. T2 and T4 still await T3; this merge makes no additional slice ready. See the [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/600) and [current program index](adr/2026-09-24-bbrv3-program.md) for subsequent state.
+
+---
+
+## BBRv3 T3 bounded local sends landed - 2026-09-24 03:37 EDT
+
+**Main:** `b9d388b4f629`
+**Actor:** Codex
+
+### Summary
+
+Merged [T3 / PR #604](https://github.com/the-sarge/quic-go-fast/pull/604), adding private BBR pacing and bounded local byte credit across reservations, queued and worker-owned buffers, batch/fallback cleanup, shutdown and migration debt. Reno remains the default and retains its pacing behavior; public BBR selection stays unavailable.
+
+### Decisions
+
+Published the same-child [control-admission scoped revision #605](https://github.com/the-sarge/quic-go-fast/pull/605) before resuming the product fix. One synchronized predicate now governs reservation and wakeup rearming, and one emission path preserves eligible control while ordinary credit or MTU isolation refuses admission. The [normative T3 contract](adr/2026-09-24-bbrv3-transport-plan.md#t3) and its linked audit own the boundary and review history.
+
+### Validation
+
+Certified product head `95c7329a8e6fa81e213050f334675ae1a4a65835` against base `8789d982009612a275abca68ec7f1c6b3a17c669`: full Go suite, affected-package tests, vet, tidy diff, lint, focused race tests, and document/frontier checks passed. [Exact-head verification](https://github.com/the-sarge/quic-go-fast/pull/604#issuecomment-5809820610) of replacement review `20260924T064126-61b11a739e383ce30014c4a4` resolved the accepted MTU/control findings with no new observations. No third fresh product review was needed after the bounded scoped repair. [Unit](https://github.com/the-sarge/quic-go-fast/actions/runs/35970001848), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/35970001768), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/35970001815), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/35970001769), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/35970001763) hosted checks all passed on that head.
+
+### Next
+
+T3 [#589](https://github.com/the-sarge/quic-go-fast/issues/589) is closed; T2 and T4 now have all blockers closed. The committed frontier is T2, T4 and Q1. [Program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live view. No deferred review follow-ups or untraced effects remain from this slice.
