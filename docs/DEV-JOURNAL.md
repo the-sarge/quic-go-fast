@@ -3666,3 +3666,18 @@ B1 and Q1 remain ready; T5 completion creates no newly ready slice because B5 st
 **Decision:** Retain the accepted conservative fallback and clarify the already planned B6 reason/occupancy diagnostics. The [revision-pinned investigation](audits/issue-612-ecn-ledger-lifetime/README.md) records evidence, authority obligations and limits. Synthetic reachability does not establish production incidence, and no runtime retirement or expanded campaign is authorized.
 
 **Validation:** Focused cases, affected ackhandler package tests, vet, module tidiness, diff and relative-link checks passed. RAS initial review `20260924T211235-5efc3924594b15e88be19c9c` led to registration-time assertions and a fixture-qualified explanation; scoped verification resolved those findings, and replacement `20260924T212331-83c3acf68943679d0d2494bd` was clean. One terminology nit was independently rejected. [Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/620#issuecomment-5822513286) covered candidate `16fd0d80d2f60bb5bba3e1262733863860c6b4a9`; all 33 hosted checks passed before squash merge. No deferred findings require a new task.
+
+---
+
+## PTO-retired persistent-congestion evidence landed - 2026-09-24 18:07 EDT
+
+**Main:** `672f8cd48db2`
+**Actor:** Codex
+
+**Summary:** Merged [PR #622](https://github.com/the-sarge/quic-go-fast/pull/622) as `672f8cd48db2dbe612a33e001997e26446b078e4`, closing [#617](https://github.com/the-sarge/quic-go-fast/issues/617). Recovery can now confirm PTO-retired originals for persistent-congestion spans from later validated same-space ACKs, including duplicate or late-only ACKs and cases where delivery tombstones have expired. Ordinary loss totals, episode membership, frame callbacks, flight accounting and DATAGRAM unreliability are unchanged.
+
+**Decision:** The [accepted standalone contract](adr/2026-09-24-pto-retired-outcomes-plan.md) keeps classification in recovery, shares the existing time threshold after legitimate RTT updates, and requires surviving current-event receipt evidence. Existing history limits, disposal fences and end-ordinal deduplication remain authoritative. Missing evidence and absence of a later qualifying ACK remain explicit detection limits; frozen T5 evidence and completed-program status were preserved.
+
+**Validation:** The small-flight regression failed before implementation. Six focused test families, affected ackhandler/congestion race tests, vet, module tidiness, go-fix diff, affected-package lint and documentation checks passed. RAS review `20260924T215718-232032a92897ad7b3a3cbe29` completed with all five reviewers and no required fixes. [Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/622#issuecomment-5823011628) records head `e61b9c4737142fe3e415ab59d148c28ac2d0923c`, base `654931fd973f608b28eeac4b9f44c7232aba4bac` and all 33 passing hosted checks. No benchmark, fuzzing or expanded platform campaign was added.
+
+**Next:** The optional bounded confirmation-scan optimization remains with [ACK-processing-cost investigation #618](https://github.com/the-sarge/quic-go-fast/issues/618), the live follow-up view. Revalidated at the product merge, `recoveryEvidence.confirmPTO` skips missing witnesses but can scan the retained ring without any pending PTO candidate; no latency claim or additional program blocker follows.
