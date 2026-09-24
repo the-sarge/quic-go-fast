@@ -195,7 +195,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **Blocked by:** T1, T3.
 
-**Single owner after merge:** The connection-owned BBR ECN ledger/validator is the sole owner of sent marking authority, accepted counters and validation epoch. Worker metadata never grants ECN policy authority.
+**Single owner after merge:** The connection-owned BBR ECN ledger/validator is the sole owner of sent marking authority, accepted counters and validation epoch. Worker metadata never grants ECN policy authority. The existing `ReceivedAck` dispatch guard alone admits supplemental no-new-ACK ECN events for 1-RTT; Initial/Handshake retain their prior event-suppression behavior, and independently retained delivery ACKs keep their existing path.
 
 **Authority completeness:** This delivery includes its construction/test activation, accepted input validation, reset/restart and terminal consumers. No newly authoritative runtime fact is left for a successor to make safe. Any successor adds a new behavior through the established owner, not a repair for missing authority closure.
 
@@ -212,7 +212,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
 | Ordinary ECT versus Not-ECT/path/coalesced holes/skips | Validate actual sent marks, never infer from epoch membership | ECN marking ledger | hole-class table | Covered by `TestBBRECNActualMarkingHoles`, `TestBBRECNCoalescedAndPathProbeMarking` |
-| Advancing late-only/reordered/duplicate feedback | Consume eligible deltas once; defer nonadvancing counts | BBR ECN validator | late-only plus reorder fixture | Covered by `TestBBRECNAdvancingLateOnlyFeedback`, `TestBBRECNReorderedAndInvalidCounters`, `TestLegacyECNDispatchPreserved` |
+| Advancing late-only/reordered/duplicate feedback | Consume eligible deltas once; defer nonadvancing counts; suppress empty Initial/Handshake events | BBR ECN validator and existing `ReceivedAck` dispatch guard | late-only/reorder fixture plus Initial/Handshake duplicate cases in `TestLegacyECNDispatchPreserved` | Covered by `TestBBRECNAdvancingLateOnlyFeedback`, `TestBBRECNReorderedAndInvalidCounters`, `TestLegacyECNDispatchPreserved` |
 | Invalid counters/budget overflow | Not-ECT fallback without fabricated clean evidence | BBR ECN validator | negative and split-budget fixture | Covered by `TestBBRECNRangeBudgetFallback`, `TestBBRECNReorderedAndInvalidCounters` |
 | Testing versus established all-CE | Validation test semantics versus usable congestion | BBR ECN validator | state fixture | Covered by `TestBBRECNTestingVersusCapableCE` |
 | Counter fence present/old loss/new unavailable path | Revalidate only with full accounting; otherwise continue Not-ECT | ECN path-transition owner | migration table | Covered by `TestBBRECNMigrationCounterFence`, `TestBBRECNMissingOldMarkedPacket`, `TestBBRECNRepeatedMigration`, worker-fence cases in `TestBBRECNCoalescedAndPathProbeMarking` |
