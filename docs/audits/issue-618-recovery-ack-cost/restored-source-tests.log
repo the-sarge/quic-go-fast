@@ -1,0 +1,3 @@
+ok  	github.com/quic-go/quic-go/internal/ackhandler	0.579s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.228s
+ok  	github.com/quic-go/quic-go/internal/utils	0.207s

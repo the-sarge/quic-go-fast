@@ -1,0 +1,28 @@
+{
+  "utc": "2026-09-24T22:30:39.765731+00:00",
+  "commands": {
+    "git rev-parse HEAD": "f47e09e3a5b4f9f8efc5de0ea73a01307d3a01f4\n",
+    "go version": "go version go1.27.1 darwin/arm64\n",
+    "go env GOOS GOARCH GOTOOLCHAIN GOFLAGS": "darwin\narm64\nauto\n\n",
+    "uname -a": "Darwin mbp128.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:48 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6041 arm64\n",
+    "sw_vers": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428\n",
+    "sysctl -n machdep.cpu.brand_string hw.ncpu hw.memsize": "Apple M4 Max\n16\n137438953472\n",
+    "uptime": "18:30  up 4 days, 22:57, 4 users, load averages: 9.45 8.30 7.74\n",
+    "ps -Ao pid,pcpu,comm -r": "  PID  %CPU COMM\n82734  99.7 /bin/zsh\n82733  99.0 /bin/zsh\n  672  87.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer\n10839  72.9 /Applications/Setapp/Path Finder.app/Contents/MacOS/Path Finder\n 9302  48.5 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent\n  829  33.8 /usr/sbin/coreaudiod\n 1205  24.7 /System/Library/PrivateFrameworks/CoreSpeech.framework/corespeechd\n40065  23.7 /System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/MacOS/Safari\n48781  10.1 /Applications/Ghostty.app/Contents/MacOS/ghostty\n75686   9.7 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU\n95958   7.6 /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python\n"
+  },
+  "settings": {
+    "GOMAXPROCS": "1",
+    "GOGC": "default",
+    "worker_count": 1,
+    "cpu_affinity": "not pinned",
+    "power_and_core_type": "not controlled"
+  },
+  "environment": {
+    "GOGC": null,
+    "GOMEMLIMIT": null,
+    "GODEBUG": null,
+    "GOFLAGS": null,
+    "GOTOOLCHAIN": null,
+    "QUIC_GO_LOG_LEVEL": null
+  }
+}

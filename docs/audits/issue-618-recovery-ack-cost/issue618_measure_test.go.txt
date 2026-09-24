@@ -1,0 +1,282 @@
+package ackhandler
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
+	"runtime"
+	"runtime/pprof"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/congestion"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/internal/wire"
+)
+
+type issue618Sink struct {
+	sends, feedback, acked, lost, checksum uint64
+	rtt                                    bool
+}
+
+func (s *issue618Sink) Sent(e congestion.SendEvent) { s.sends++; s.checksum ^= e.Packet.Ordinal }
+func (s *issue618Sink) Feedback(e congestion.FeedbackEvent) {
+	s.feedback++
+	s.acked = uint64(len(e.Acked))
+	s.lost = uint64(len(e.Lost))
+	s.rtt = e.RTTUpdated
+	for _, p := range e.Acked {
+		s.checksum ^= p.Ordinal
+	}
+	s.checksum ^= e.PersistentCongestion.EndOrdinal ^ e.RecoveryEpisode.Boundary
+}
+
+func issue618Ack(t *testing.T, ranges []wire.AckRange) *wire.AckFrame {
+	t.Helper()
+	encoded, err := (&wire.AckFrame{AckRanges: ranges}).Append(nil, protocol.Version1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parser := wire.NewFrameParser(false, false, false)
+	ack, n, err := parser.ParseAckFrame(wire.FrameType(encoded[0]), encoded[1:], protocol.Encryption1RTT, protocol.Version1)
+	if err != nil || n != len(encoded)-1 {
+		t.Fatalf("ACK decode: %d %v", n, err)
+	}
+	return ack
+}
+
+type issue618Fixture struct {
+	h     *sentPacketHandler
+	sink  *issue618Sink
+	ack   *wire.AckFrame
+	now   monotime.Time
+	n     int
+	reset func()
+}
+
+func issue618Build(t *testing.T, n, ranges int) *issue618Fixture {
+	t.Helper()
+	sink := &issue618Sink{}
+	h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger, sink)
+	h.congestionEvents.pending = func() protocol.ByteCount { return 0 }
+	// A deterministic legal packet-number sequence; no skipped packet is ACKed.
+	h.appDataPackets.pns = newSequentialPacketNumberGenerator(0)
+	now := monotime.Time(time.Second)
+	h.DropPackets(protocol.EncryptionInitial, now)
+	h.DropPackets(protocol.EncryptionHandshake, now)
+	c := congestion.NewCubicSender(congestion.DefaultClock{}, h.rttStats, h.connStats, 1200, true, nil)
+	h.congestion = c
+	for first := 0; first < n-1; {
+		last := min(first+31, n-2)
+		for pn := first; pn <= last; pn++ {
+			actual := sendCongestionTestPacket(h, now, protocol.Encryption1RTT, 40)
+			if int(actual) != pn {
+				t.Fatal("noncanonical packet number")
+			}
+		}
+		ack := issue618Ack(t, []wire.AckRange{{Smallest: protocol.PacketNumber(first), Largest: protocol.PacketNumber(last)}})
+		ok, err := h.ReceivedAck(ack, protocol.Encryption1RTT, now.Add(10*time.Millisecond))
+		if err != nil || !ok {
+			t.Fatalf("prefix ACK: %v %v", ok, err)
+		}
+		now = now.Add(20 * time.Millisecond)
+		first = last + 1
+	}
+	if pn := sendCongestionTestPacket(h, now, protocol.Encryption1RTT, 40); int(pn) != n-1 {
+		t.Fatal("last packet")
+	}
+	var ar []wire.AckRange
+	if ranges == 1 {
+		ar = []wire.AckRange{{Smallest: protocol.PacketNumber(n - 32), Largest: protocol.PacketNumber(n - 1)}}
+	} else {
+		for j := 31; j >= 0; j-- {
+			pn := protocol.PacketNumber(j * (n - 1) / 31)
+			ar = append(ar, wire.AckRange{Smallest: pn, Largest: pn})
+		}
+	}
+	f := &issue618Fixture{h: h, sink: sink, ack: issue618Ack(t, ar), now: now.Add(10 * time.Millisecond), n: n}
+	d := h.congestionEvents
+	if d.recovery.count != n || len(d.packets) != 1 || len(d.sampler.retained) != 0 || len(d.recovery.members) != 0 || h.bytesInFlight != 40 || !h.rttStats.HasMeasurement() || h.bbrECN != nil || h.ecnTracker != nil {
+		t.Fatal("invalid pre-ACK fixture")
+	}
+	for i, o := range d.recovery.outcomes[:n] {
+		want := outcomeAcked
+		if i == n-1 {
+			want = outcomeUnresolved
+		}
+		if o.state != want || !o.receiptEligible || int(o.key.number) != i {
+			t.Fatal("invalid retained history")
+		}
+	}
+	// Capture a valid state reached solely by real registration and ACK processing.
+	// This finite trace has one live packet, no losses, no retained sampler entries,
+	// no active recovery episode and no crypto spaces. ACK mutates the saved scalar
+	// structs, ring states, live packet map, history and controller; restore each.
+	hState, dState, spaceState := *h, *d, *h.appDataPackets
+	rttState, statsState, sinkState := *h.rttStats, *h.connStats, *sink
+	outcomes := slices.Clone(d.recovery.outcomes[:n])
+	live := maps.Clone(d.packets)
+	packetState := *h.appDataPackets.history.packets[0]
+	packetState.Frames = slices.Clone(packetState.Frames)
+	historyStorage := make([]*packet, 1)
+	restoreController := c.Issue618Snapshot()
+	f.reset = func() {
+		*h = hState
+		*d = dState
+		*h.appDataPackets = spaceState
+		*h.rttStats = rttState
+		*h.connStats = statsState
+		*sink = sinkState
+		restoreController()
+		copy(d.recovery.outcomes[:n], outcomes)
+		clear(d.packets)
+		maps.Copy(d.packets, live)
+		p := getPacket()
+		*p = packetState
+		historyStorage[0] = p
+		h.appDataPackets.history.packets = historyStorage
+	}
+	return f
+}
+
+func (f *issue618Fixture) check(t *testing.T, ok bool, err error) {
+	t.Helper()
+	if err != nil || !ok || f.sink.acked != 1 || f.sink.lost != 0 || !f.sink.rtt || f.h.bytesInFlight != 0 || f.h.appDataPackets.history.NumOutstanding() != 0 || len(f.h.congestionEvents.packets) != 0 || f.h.congestionEvents.recovery.count != f.n || f.h.congestionEvents.recovery.outcomes[f.n-1].state != outcomeAcked {
+		t.Fatalf("measured ACK validity: ok=%v err=%v sink=%+v flight=%d", ok, err, f.sink, f.h.bytesInFlight)
+	}
+}
+
+func TestIssue618Measurement(t *testing.T) {
+	out := os.Getenv("ISSUE618_OUT")
+	if out == "" {
+		t.Skip("frozen investigation requires explicit output directory")
+	}
+	if runtime.GOMAXPROCS(0) != 1 {
+		t.Fatal("GOMAXPROCS must be 1")
+	}
+	started := time.Now()
+	deadline := started.Add(27 * time.Minute)
+	log, err := os.Create(filepath.Join(out, "measurements.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer log.Close()
+	enc := json.NewEncoder(log)
+	emit := func(v any) {
+		if err := enc.Encode(v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	emit(map[string]any{"kind": "start", "utc": started.UTC(), "gomaxprocs": runtime.GOMAXPROCS(0), "target_ns": int64(2 * time.Second), "tail_limit_per_cell": 10000})
+	var overhead [10000]int64
+	for i := range overhead {
+		s := time.Now()
+		overhead[i] = time.Since(s).Nanoseconds()
+	}
+	slices.Sort(overhead[:])
+	emit(map[string]any{"kind": "timer", "count": len(overhead), "median_ns": overhead[5000], "p99_ns": overhead[9899], "min_ns": overhead[0]})
+	var highest float64
+	var highestN, highestRanges int
+	for _, n := range []int{1024, 8192, 32768} {
+		for _, ranges := range []int{1, 32} {
+			if time.Now().After(deadline) {
+				emit(map[string]any{"kind": "budget_stop", "n": n, "ranges": ranges})
+				return
+			}
+			f := issue618Build(t, n, ranges)
+			// Sixteen warm calls also demonstrate fresh ACKs after each snapshot reset.
+			for i := 0; i < 16; i++ {
+				if i > 0 {
+					f.reset()
+				}
+				ok, err := f.h.ReceivedAck(f.ack, protocol.Encryption1RTT, f.now)
+				f.check(t, ok, err)
+			}
+			emit(map[string]any{"kind": "trace", "n": n, "ranges": ranges, "ack_ranges": f.ack.AckRanges, "warm_calls": 16, "occupancy": f.h.congestionEvents.recovery.count, "pto_ns": int64(f.h.rttStats.PTO(true)), "newly_acked": 1, "ecn": false})
+			tail, err := os.Create(filepath.Join(out, fmt.Sprintf("tail-%d-%d.csv", n, ranges)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			fmt.Fprintln(tail, "sample,operation,elapsed_ns")
+			var means []float64
+			for sample := 1; sample <= 3; sample++ {
+				wall := time.Now()
+				var duration time.Duration
+				var ops, allocs, bytes uint64
+				var before, after runtime.MemStats
+				var durations []int64
+				for duration < 2*time.Second && time.Now().Before(deadline) {
+					f.reset()
+					runtime.ReadMemStats(&before)
+					s := time.Now()
+					ok, err := f.h.ReceivedAck(f.ack, protocol.Encryption1RTT, f.now)
+					elapsed := time.Since(s)
+					runtime.ReadMemStats(&after)
+					f.check(t, ok, err)
+					duration += elapsed
+					ops++
+					allocs += after.Mallocs - before.Mallocs
+					bytes += after.TotalAlloc - before.TotalAlloc
+					if len(durations) < 3333 {
+						durations = append(durations, elapsed.Nanoseconds())
+					}
+				}
+				for i, v := range durations {
+					fmt.Fprintf(tail, "%d,%d,%d\n", sample, i+1, v)
+				}
+				mean := float64(duration.Nanoseconds()) / float64(ops)
+				means = append(means, mean)
+				emit(map[string]any{"kind": "sample", "n": n, "ranges": ranges, "sample": sample, "ops": ops, "ack_ns": duration.Nanoseconds(), "mean_ns": mean, "allocs": allocs, "bytes": bytes, "tail_count": len(durations), "wall_ns": time.Since(wall).Nanoseconds(), "target_met": duration >= 2*time.Second})
+				t.Logf("N=%d ranges=%d sample=%d mean=%.0fns ops=%d wall=%s", n, ranges, sample, mean, ops, time.Since(wall))
+				if time.Now().After(deadline) {
+					break
+				}
+			}
+			tail.Close()
+			var mean float64
+			for _, v := range means {
+				mean += v
+			}
+			mean /= float64(len(means))
+			if mean > highest {
+				highest, highestN, highestRanges = mean, n, ranges
+			}
+		}
+	}
+	if time.Until(deadline) > 12*time.Second && highestN != 0 {
+		f := issue618Build(t, highestN, highestRanges)
+		ok, err := f.h.ReceivedAck(f.ack, protocol.Encryption1RTT, f.now)
+		f.check(t, ok, err)
+		profile, err := os.Create(filepath.Join(out, "cpu.pprof"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := pprof.StartCPUProfile(profile); err != nil {
+			t.Fatal(err)
+		}
+		ackContext := pprof.WithLabels(context.Background(), pprof.Labels("phase", "ack"))
+		resetContext := pprof.WithLabels(context.Background(), pprof.Labels("phase", "reset"))
+		end := time.Now().Add(10 * time.Second)
+		var count int
+		for time.Now().Before(end) {
+			pprof.SetGoroutineLabels(resetContext)
+			f.reset()
+			pprof.SetGoroutineLabels(ackContext)
+			ok, err := f.h.ReceivedAck(f.ack, protocol.Encryption1RTT, f.now)
+			pprof.SetGoroutineLabels(resetContext)
+			f.check(t, ok, err)
+			count++
+		}
+		pprof.SetGoroutineLabels(context.Background())
+		pprof.StopCPUProfile()
+		profile.Close()
+		emit(map[string]any{"kind": "profile", "n": highestN, "ranges": highestRanges, "calls": count, "target_seconds": 10})
+	}
+	emit(map[string]any{"kind": "complete", "utc": time.Now().UTC(), "execution_ns": time.Since(started).Nanoseconds()})
+}

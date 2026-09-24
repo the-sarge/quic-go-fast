@@ -1,0 +1,22 @@
+=== RUN   TestIssue618Measurement
+    issue618_measure_test.go:236: N=1024 ranges=1 sample=1 mean=3494ns ops=572346 wall=18.392627125s
+    issue618_measure_test.go:236: N=1024 ranges=1 sample=2 mean=3476ns ops=575451 wall=18.576926083s
+    issue618_measure_test.go:236: N=1024 ranges=1 sample=3 mean=3569ns ops=560362 wall=18.340677959s
+    issue618_measure_test.go:236: N=1024 ranges=32 sample=1 mean=7051ns ops=283630 wall=12.135798917s
+    issue618_measure_test.go:236: N=1024 ranges=32 sample=2 mean=6653ns ops=300605 wall=10.886616625s
+    issue618_measure_test.go:236: N=1024 ranges=32 sample=3 mean=6743ns ops=296595 wall=11.02903025s
+    issue618_measure_test.go:236: N=8192 ranges=1 sample=1 mean=25536ns ops=78322 wall=4.750187042s
+    issue618_measure_test.go:236: N=8192 ranges=1 sample=2 mean=24973ns ops=80085 wall=4.624128459s
+    issue618_measure_test.go:236: N=8192 ranges=1 sample=3 mean=25336ns ops=78941 wall=4.670506375s
+    issue618_measure_test.go:236: N=8192 ranges=32 sample=1 mean=46075ns ops=43408 wall=3.454392833s
+    issue618_measure_test.go:236: N=8192 ranges=32 sample=2 mean=46319ns ops=43180 wall=3.456629s
+    issue618_measure_test.go:236: N=8192 ranges=32 sample=3 mean=46065ns ops=43418 wall=3.473234375s
+    issue618_measure_test.go:236: N=32768 ranges=1 sample=1 mean=100517ns ops=19898 wall=3.003588334s
+    issue618_measure_test.go:236: N=32768 ranges=1 sample=2 mean=100322ns ops=19936 wall=3.047799083s
+    issue618_measure_test.go:236: N=32768 ranges=1 sample=3 mean=101479ns ops=19709 wall=3.049880375s
+    issue618_measure_test.go:236: N=32768 ranges=32 sample=1 mean=180911ns ops=11056 wall=2.547548916s
+    issue618_measure_test.go:236: N=32768 ranges=32 sample=2 mean=180524ns ops=11079 wall=2.6004095s
+    issue618_measure_test.go:236: N=32768 ranges=32 sample=3 mean=183610ns ops=10893 wall=2.578930625s
+--- PASS: TestIssue618Measurement (140.98s)
+PASS
+ok  	github.com/quic-go/quic-go/internal/ackhandler	141.079s

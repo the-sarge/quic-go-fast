@@ -1,0 +1,710 @@
+[
+  {
+    "n": 1024,
+    "ranges": 1,
+    "implementations": {
+      "baseline": {
+        "samples": [
+          {
+            "ack_ns": 2000002713,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 3773.746670616516,
+            "n": 1024,
+            "ops": 529978,
+            "ranges": 1,
+            "sample": 1,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:37:52.587704Z",
+            "wall_ns": 18763046125
+          },
+          {
+            "ack_ns": 2000000050,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 3578.163275164327,
+            "n": 1024,
+            "ops": 558946,
+            "ranges": 1,
+            "sample": 2,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:39:04.100135Z",
+            "wall_ns": 18259775583
+          },
+          {
+            "ack_ns": 2000009549,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 3876.7312895303558,
+            "n": 1024,
+            "ops": 515901,
+            "ranges": 1,
+            "sample": 3,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:39:24.451064Z",
+            "wall_ns": 20313461792
+          }
+        ],
+        "mean_ns": 3738.7330780614707,
+        "allocs_per_ack": 1.2462418020656457e-06,
+        "bytes_per_ack": 3.9879737666100664e-05
+      },
+      "candidate": {
+        "samples": [
+          {
+            "ack_ns": 2000001961,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 2367.535860438633,
+            "n": 1024,
+            "ops": 844761,
+            "ranges": 1,
+            "sample": 1,
+            "tail_count": 3333,
+            "timer_p99_ns": 42,
+            "utc": "2026-09-24T22:38:19.134449Z",
+            "wall_ns": 26353610375
+          },
+          {
+            "ack_ns": 2000000876,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 2379.296413807051,
+            "n": 1024,
+            "ops": 840585,
+            "ranges": 1,
+            "sample": 2,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:38:45.82804Z",
+            "wall_ns": 26671528958
+          },
+          {
+            "ack_ns": 2000000590,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 3024.2828520188596,
+            "n": 1024,
+            "ops": 661314,
+            "ranges": 1,
+            "sample": 3,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:39:54.018522Z",
+            "wall_ns": 29521212291
+          }
+        ],
+        "mean_ns": 2556.826905900301,
+        "allocs_per_ack": 4.261375742544723e-07,
+        "bytes_per_ack": 1.3636402376143114e-05
+      }
+    },
+    "candidate_p99_ns": 14750,
+    "tail_count": 9999,
+    "mean_reduction_percent": 31.612478010170943,
+    "pair_reduction_percent": [
+      37.262989090578,
+      33.505090996782926,
+      21.988845082290077
+    ]
+  },
+  {
+    "n": 1024,
+    "ranges": 32,
+    "implementations": {
+      "baseline": {
+        "samples": [
+          {
+            "ack_ns": 2000004819,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 6848.885925230892,
+            "n": 1024,
+            "ops": 292019,
+            "ranges": 32,
+            "sample": 1,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:40:04.989958Z",
+            "wall_ns": 10937041792
+          },
+          {
+            "ack_ns": 2000000685,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 6829.833676532358,
+            "n": 1024,
+            "ops": 292833,
+            "ranges": 32,
+            "sample": 2,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:41:06.818444Z",
+            "wall_ns": 11117745000
+          },
+          {
+            "ack_ns": 2000005991,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 6845.25656287007,
+            "n": 1024,
+            "ops": 292174,
+            "ranges": 32,
+            "sample": 3,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:41:17.853126Z",
+            "wall_ns": 10998069417
+          }
+        ],
+        "mean_ns": 6841.3154171028,
+        "allocs_per_ack": 2.28043410343593e-06,
+        "bytes_per_ack": 7.297389130994976e-05
+      },
+      "candidate": {
+        "samples": [
+          {
+            "ack_ns": 2000001069,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 2564.057913063099,
+            "n": 1024,
+            "ops": 780014,
+            "ranges": 32,
+            "sample": 1,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:40:30.592315Z",
+            "wall_ns": 25558112208
+          },
+          {
+            "ack_ns": 2000000506,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 2824.9113415924303,
+            "n": 1024,
+            "ops": 707987,
+            "ranges": 32,
+            "sample": 2,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:40:55.630392Z",
+            "wall_ns": 25004934541
+          },
+          {
+            "ack_ns": 2000000375,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 2369.2279694417034,
+            "n": 1024,
+            "ops": 844157,
+            "ranges": 32,
+            "sample": 3,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:41:44.380782Z",
+            "wall_ns": 26462761250
+          }
+        ],
+        "mean_ns": 2572.7253256426025,
+        "allocs_per_ack": 0.0,
+        "bytes_per_ack": 0.0
+      }
+    },
+    "candidate_p99_ns": 4250,
+    "tail_count": 9999,
+    "mean_reduction_percent": 62.39428868882477,
+    "pair_reduction_percent": [
+      62.562408820137286,
+      58.63865102163521,
+      65.38876304077729
+    ]
+  },
+  {
+    "n": 8192,
+    "ranges": 1,
+    "implementations": {
+      "baseline": {
+        "samples": [
+          {
+            "ack_ns": 2000017929,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 24582.626740741653,
+            "n": 8192,
+            "ops": 81359,
+            "ranges": 1,
+            "sample": 1,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:41:49.046101Z",
+            "wall_ns": 4630414333
+          },
+          {
+            "ack_ns": 2000025613,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 26690.13962767732,
+            "n": 8192,
+            "ops": 74935,
+            "ranges": 1,
+            "sample": 2,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:08.436091Z",
+            "wall_ns": 4505066083
+          },
+          {
+            "ack_ns": 2000016649,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 25326.284019247814,
+            "n": 8192,
+            "ops": 78970,
+            "ranges": 1,
+            "sample": 3,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:13.245197Z",
+            "wall_ns": 4778563750
+          }
+        ],
+        "mean_ns": 25503.52026234358,
+        "allocs_per_ack": 8.501088139281828e-06,
+        "bytes_per_ack": 0.0002720348204570185
+      },
+      "candidate": {
+        "samples": [
+          {
+            "ack_ns": 2000011188,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 12638.940281341236,
+            "n": 8192,
+            "ops": 158242,
+            "ranges": 1,
+            "sample": 1,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:41:56.519912Z",
+            "wall_ns": 7452731166
+          },
+          {
+            "ack_ns": 2000004141,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 12648.167543604468,
+            "n": 8192,
+            "ops": 158126,
+            "ranges": 1,
+            "sample": 2,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:03.876869Z",
+            "wall_ns": 7343086792
+          },
+          {
+            "ack_ns": 2000000733,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 12853.062131679573,
+            "n": 8192,
+            "ops": 155605,
+            "ranges": 1,
+            "sample": 3,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:20.716217Z",
+            "wall_ns": 7450555667
+          }
+        ],
+        "mean_ns": 12712.62564172103,
+        "allocs_per_ack": 6.356295805056645e-06,
+        "bytes_per_ack": 0.00020340146576181264
+      }
+    },
+    "candidate_p99_ns": 17541,
+    "tail_count": 9999,
+    "mean_reduction_percent": 50.15344740274362,
+    "pair_reduction_percent": [
+      48.585883784362736,
+      52.61108514213808,
+      49.25010664055047
+    ]
+  },
+  {
+    "n": 8192,
+    "ranges": 32,
+    "implementations": {
+      "baseline": {
+        "samples": [
+          {
+            "ack_ns": 2000049287,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 45990.83165470934,
+            "n": 8192,
+            "ops": 43488,
+            "ranges": 32,
+            "sample": 1,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:24.262466Z",
+            "wall_ns": 3516087459
+          },
+          {
+            "ack_ns": 2000009656,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 46496.714000092994,
+            "n": 8192,
+            "ops": 43014,
+            "ranges": 32,
+            "sample": 2,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:42.551437Z",
+            "wall_ns": 3480220375
+          },
+          {
+            "ack_ns": 2000035696,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 48205.24695107255,
+            "n": 8192,
+            "ops": 41490,
+            "ranges": 32,
+            "sample": 3,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:46.024487Z",
+            "wall_ns": 3437233084
+          }
+        ],
+        "mean_ns": 46878.66928401775,
+        "allocs_per_ack": 1.562597662353897e-05,
+        "bytes_per_ack": 0.0005000312519532471
+      },
+      "candidate": {
+        "samples": [
+          {
+            "ack_ns": 2000009752,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 12843.463043115295,
+            "n": 8192,
+            "ops": 155722,
+            "ranges": 32,
+            "sample": 1,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:31.674622Z",
+            "wall_ns": 7355987667
+          },
+          {
+            "ack_ns": 2000002046,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 12729.299290978755,
+            "n": 8192,
+            "ops": 157118,
+            "ranges": 32,
+            "sample": 2,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:39.04461Z",
+            "wall_ns": 7326677333
+          },
+          {
+            "ack_ns": 2000007648,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 12512.090687286513,
+            "n": 8192,
+            "ops": 159846,
+            "ranges": 32,
+            "sample": 3,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:53.354283Z",
+            "wall_ns": 7296975042
+          }
+        ],
+        "mean_ns": 12693.457064520633,
+        "allocs_per_ack": 4.231138641719873e-06,
+        "bytes_per_ack": 0.00013539643653503593
+      }
+    },
+    "candidate_p99_ns": 20333,
+    "tail_count": 9999,
+    "mean_reduction_percent": 72.92274448402871,
+    "pair_reduction_percent": [
+      72.07386215682804,
+      72.62322818994629,
+      74.04413112957174
+    ]
+  },
+  {
+    "n": 32768,
+    "ranges": 1,
+    "implementations": {
+      "baseline": {
+        "samples": [
+          {
+            "ack_ns": 2000099183,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 103728.823929053,
+            "n": 32768,
+            "ops": 19282,
+            "ranges": 1,
+            "sample": 1,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:42:56.394644Z",
+            "wall_ns": 3030301375
+          },
+          {
+            "ack_ns": 2000079195,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 103256.54078471864,
+            "n": 32768,
+            "ops": 19370,
+            "ranges": 1,
+            "sample": 2,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:07.864837Z",
+            "wall_ns": 3033972791
+          },
+          {
+            "ack_ns": 2000053399,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "baseline",
+            "mean_ns": 98943.96947660038,
+            "n": 32768,
+            "ops": 20214,
+            "ranges": 1,
+            "sample": 3,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:10.980826Z",
+            "wall_ns": 3076538541
+          }
+        ],
+        "mean_ns": 101930.34649882784,
+        "allocs_per_ack": 3.397546971086875e-05,
+        "bytes_per_ack": 0.0010872150307478
+      },
+      "candidate": {
+        "samples": [
+          {
+            "ack_ns": 2000007360,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 46960.65556833924,
+            "n": 32768,
+            "ops": 42589,
+            "ranges": 1,
+            "sample": 1,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:00.569678Z",
+            "wall_ns": 4151539708
+          },
+          {
+            "ack_ns": 2000016198,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 48301.403096094866,
+            "n": 32768,
+            "ops": 41407,
+            "ranges": 1,
+            "sample": 2,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:04.779756Z",
+            "wall_ns": 4161966000
+          },
+          {
+            "ack_ns": 2000007128,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 47884.86431872052,
+            "n": 32768,
+            "ops": 41767,
+            "ranges": 1,
+            "sample": 3,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:15.218698Z",
+            "wall_ns": 4172099917
+          }
+        ],
+        "mean_ns": 47709.029571495594,
+        "allocs_per_ack": 0.0,
+        "bytes_per_ack": 0.0
+      }
+    },
+    "candidate_p99_ns": 61959,
+    "tail_count": 9999,
+    "mean_reduction_percent": 53.19447916127291,
+    "pair_reduction_percent": [
+      54.72747709888359,
+      53.22194339552853,
+      51.60405978047506
+    ]
+  },
+  {
+    "n": 32768,
+    "ranges": 32,
+    "implementations": {
+      "baseline": {
+        "samples": [
+          {
+            "ack_ns": 2000000763,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 174901.68456493222,
+            "n": 32768,
+            "ops": 11435,
+            "ranges": 32,
+            "sample": 1,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:17.91726Z",
+            "wall_ns": 2637396625
+          },
+          {
+            "ack_ns": 2000018633,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 179438.2408935941,
+            "n": 32768,
+            "ops": 11146,
+            "ranges": 32,
+            "sample": 2,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:28.94683Z",
+            "wall_ns": 2617680500
+          },
+          {
+            "ack_ns": 2000001555,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "baseline",
+            "mean_ns": 184484.9695600037,
+            "n": 32768,
+            "ops": 10841,
+            "ranges": 32,
+            "sample": 3,
+            "tail_count": 0,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:31.567265Z",
+            "wall_ns": 2606351042
+          }
+        ],
+        "mean_ns": 179523.09709173598,
+        "allocs_per_ack": 0.0,
+        "bytes_per_ack": 0.0
+      },
+      "candidate": {
+        "samples": [
+          {
+            "ack_ns": 2000035452,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 47564.3999143856,
+            "n": 32768,
+            "ops": 42049,
+            "ranges": 32,
+            "sample": 1,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:22.125254Z",
+            "wall_ns": 4172898875
+          },
+          {
+            "ack_ns": 2000029091,
+            "allocs": 1,
+            "bytes": 32,
+            "implementation": "candidate",
+            "mean_ns": 48070.68910734029,
+            "n": 32768,
+            "ops": 41606,
+            "ranges": 32,
+            "sample": 2,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:26.313601Z",
+            "wall_ns": 4150641625
+          },
+          {
+            "ack_ns": 2000027862,
+            "allocs": 0,
+            "bytes": 0,
+            "implementation": "candidate",
+            "mean_ns": 46965.54800986263,
+            "n": 32768,
+            "ops": 42585,
+            "ranges": 32,
+            "sample": 3,
+            "tail_count": 3333,
+            "timer_p99_ns": 0,
+            "utc": "2026-09-24T22:43:35.726397Z",
+            "wall_ns": 4132769667
+          }
+        ],
+        "mean_ns": 47529.249089036755,
+        "allocs_per_ack": 1.5842839036755386e-05,
+        "bytes_per_ack": 0.0005069708491761723
+      }
+    },
+    "candidate_p99_ns": 58667,
+    "tail_count": 9999,
+    "mean_reduction_percent": 73.52471639638136,
+    "pair_reduction_percent": [
+      72.80506472381785,
+      73.21045454527948,
+      74.54234449458113
+    ]
+  }
+]
