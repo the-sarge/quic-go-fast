@@ -3628,3 +3628,28 @@ The bounded initial/replacement reviews and exact-head verifications completed. 
 ### Next
 
 The committed program now has T1/T2/T3/T4 complete and T5, B1 and Q1 ready; B4 remains blocked by B3. [Program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier and task view. Revalidate the two nonblocking review follow-ups against the merged code when reconciling tracking.
+
+---
+
+## BBRv3 T5 recovery evidence landed - 2026-09-24 14:59 EDT
+
+**Main:** `e1ce634d9d3f`
+**Actor:** Codex
+
+### Completed
+
+Merged [T5 product PR #614](https://github.com/the-sarge/quic-go-fast/pull/614), closing [#591](https://github.com/the-sarge/quic-go-fast/issues/591). Recovery now emits bounded persistent-congestion and exact loss-episode evidence through the private rich-event seam. Complete retained coverage and measured endpoints gate persistent-congestion reports; gaps, disposal and eviction fail conservatively. Exact episode membership, loss ordering and current-path receipt authority gate one-shot undo evidence. The product commit owns the T5 completion transition and B1/Q1 frontier in the transport plan and program index.
+
+### Decisions
+
+The same-child [receipt-authority re-audit #615](https://github.com/the-sarge/quic-go-fast/pull/615) published the current-path predicate contract before implementation resumed. MTU receipts may end recovery; alternate-path probe receipts may not. Both ledger and live/retained ACK admission use the same predicate. [The audit](audits/2026-09-24-bbrv3-handoff/t5-receipt-authority.md) records the precise-root stop and finite resume boundary. B5 retains controller policy; B6 retains public activation.
+
+### Validation
+
+[Final certification](https://github.com/the-sarge/quic-go-fast/pull/614#issuecomment-5820273120) pins product head `b85b67ebe12fdb6da5653bd88e3b8aae140d1459` and base `518ff4faf328397ad1de325d9644f5dceb02eeef`. The eight focused T5 tests and affected-package tests, vet, tidy-diff, scoped lint and diff/link checks passed. The differential alternate-path regression was observed red before repair. A pre-existing random packet-number skip in the Reno-order fixture was reproduced and replaced with its deterministic generator while retaining assertions.
+
+The bounded two-fresh-review cycle ended with exact-head RAS verification of `20260924T180524-62a453f2eff97f25380948ee`: clear, both source clusters resolved, no new concern. All hosted PR workflows passed on the certified head: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/36044210156), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/36044209914), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/36044210249), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/36044209959), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/36044210237). The exact head was squash-merged. No extra local race, repetition or native campaign was admitted because no concurrent seam changed.
+
+### Next
+
+B1 and Q1 remain ready; T5 completion creates no newly ready slice because B5 still requires B4. [Program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier. Revalidate the deferred PTO-retirement classification and bounded ACK-processing-cost investigations against the merged code before creating follow-ups. No new untraced effect was accepted.
