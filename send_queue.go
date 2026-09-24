@@ -19,6 +19,7 @@ type sender interface {
 
 // sendMetadata is captured by the connection loop, never read from it by the worker.
 type sendMetadata struct {
+	credit         *sendReservation
 	handshake      bool
 	pathGeneration uint64
 }
@@ -59,6 +60,12 @@ type queueEntry struct {
 	buf      *packetBuffer
 	gsoSize  uint16
 	ecn      protocol.ECN
+}
+
+// release retires storage before returning its local byte credit.
+func (e queueEntry) release() {
+	e.buf.Release()
+	e.metadata.credit.complete()
 }
 
 // batchSender is an optional sendConn capability: submit several packets that
@@ -125,6 +132,7 @@ func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, meta
 		}
 	case <-h.runStopped:
 		p.Release()
+		metadata.credit.complete()
 	default:
 		panic("sendQueue.Send would have blocked")
 	}
@@ -164,10 +172,10 @@ func (h *sendQueue) Run() error {
 				continue
 			}
 			if err := h.writeEntry(e); err != nil {
-				e.buf.Release()
+				e.release()
 				return err
 			}
-			e.buf.Release()
+			e.release()
 			select {
 			case h.available <- struct{}{}:
 			default:
@@ -205,7 +213,7 @@ func (h *sendQueue) runBatched(e queueEntry, bs batchSender) error {
 		next := <-h.queue
 		if next.gsoSize != group[0].gsoSize || next.ecn != group[0].ecn {
 			if err := h.sendBatchEntries(group, bs); err != nil {
-				next.buf.Release()
+				next.release()
 				return err
 			}
 			group = append(group[:0], next)
@@ -225,7 +233,7 @@ func (h *sendQueue) runBatched(e queueEntry, bs batchSender) error {
 func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
 	defer func() {
 		for _, e := range group {
-			e.buf.Release()
+			e.release()
 		}
 		select {
 		case h.available <- struct{}{}:
@@ -277,6 +285,6 @@ func (h *sendQueue) Close() {
 	// The producer has stopped and the worker can no longer own a queued entry.
 	// A fatal write may have left entries, including a Send racing worker exit.
 	for len(h.queue) > 0 {
-		(<-h.queue).buf.Release()
+		(<-h.queue).release()
 	}
 }

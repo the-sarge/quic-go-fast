@@ -923,6 +923,7 @@ func (c *Conn) idleTimeoutStartTime() monotime.Time {
 
 func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 	c.pathGeneration++
+	c.emission.resetLocalPath(c.pathGeneration, now)
 	initialPacketSize := protocol.ByteCount(c.config.InitialPacketSize)
 	c.sentPacketHandler.MigratedPath(now, initialPacketSize)
 	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
@@ -1307,6 +1308,7 @@ func (c *Conn) handleShortHeaderPacket(
 		maxPacketSize,
 	)
 	c.pathGeneration++
+	c.emission.resetLocalPath(c.pathGeneration, p.rcvTime)
 	c.emission.rebindPath(p.remoteAddr, p.info)
 	return true, nil
 }

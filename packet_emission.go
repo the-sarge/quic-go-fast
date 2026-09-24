@@ -17,6 +17,12 @@ import (
 // packetEmission owns packet construction, registration, output handoff and
 // temporary storage. The closed handler retains an immutable close payload.
 type packetEmission struct {
+	bbr             *bbrSendPolicy
+	reservation     *sendReservation // connection-owned until handoff
+	paceReservation bool
+	pacingBytes     protocol.ByteCount
+	reservationTime monotime.Time
+
 	packer   *packetPacker
 	recovery *ackhandler.SentPacketHandler
 	queue    sender
@@ -104,6 +110,9 @@ func (e *packetEmission) finish(result emissionResult) emissionResult {
 }
 
 func (e *packetEmission) send(now monotime.Time, confirmed bool) (result emissionResult) {
+	if e.bbr != nil {
+		return e.sendBounded(now, confirmed)
+	}
 	defer func() { result = e.finish(result) }()
 	progress := false
 	for {
@@ -190,6 +199,9 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 		return 0, err
 	}
 	size := buf.Len() - start
+	if e.bbr != nil && e.paceReservation && (p.IsAckEliciting() || len(p.StreamFrames) != 0) {
+		e.pacingBytes += size
+	}
 	e.policy.logShortHeaderPacket(p, ecn, size)
 	e.registerPacket(p, ecn, now)
 	return size, nil
@@ -208,7 +220,7 @@ func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 			result.err = err // Storage is reclaimed; protocol registration is not refunded.
 			return result
 		}
-		e.queue.Send(buf, 0, ecn, sendMetadata{})
+		e.handoff(buf, 0, ecn, sendMetadata{})
 		result.progress = true
 		if e.queue.WouldBlock() {
 			result.stop, result.available = emissionQueueFull, e.queue.Available()
@@ -262,7 +274,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 		if !done && size == maxSize && nextECN == ecn && buf.Len()+maxSize <= buf.Cap() {
 			continue
 		}
-		e.queue.Send(buf, uint16(maxSize), ecn, sendMetadata{})
+		e.handoff(buf, uint16(maxSize), ecn, sendMetadata{})
 		result.progress = true
 		if done {
 			return result
@@ -394,7 +406,7 @@ func (e *packetEmission) maybeSendAckOnlyPacket(now monotime.Time, confirmed boo
 	}
 	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
 	e.registerPacket(p, ecn, now)
-	e.queue.Send(buf, 0, ecn, sendMetadata{})
+	e.handoff(buf, 0, ecn, sendMetadata{})
 	return true, nil
 }
 
@@ -440,6 +452,15 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 
 func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN, now monotime.Time) {
 	e.policy.logCoalescedPacket(packet, ecn)
+	if e.bbr != nil && e.paceReservation {
+		paced := packet.shortHdrPacket != nil && (packet.shortHdrPacket.IsAckEliciting() || len(packet.shortHdrPacket.StreamFrames) != 0)
+		for _, p := range packet.longHdrPackets {
+			paced = paced || p.IsAckEliciting() || len(p.streamFrames) != 0
+		}
+		if paced {
+			e.pacingBytes = packet.buffer.Len()
+		}
+	}
 	var hasHandshakePacket bool
 	for _, p := range packet.longHdrPackets {
 		if p.EncryptionLevel() == protocol.EncryptionInitial || p.EncryptionLevel() == protocol.EncryptionHandshake {
@@ -484,7 +505,7 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 		)
 	}
 	e.policy.noteEmissionRegistration()
-	e.queue.Send(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
+	e.handoff(packet.buffer, 0, ecn, e.policy.coalescedSendMetadata(hasHandshakePacket))
 }
 
 // Direct operations borrow the destination and preserve best-effort write errors.
@@ -525,7 +546,7 @@ func (e *packetEmission) mtuProbe(finder *mtuFinder, now monotime.Time) emission
 	ecn := (*e.recovery).ECNMode(true)
 	e.policy.logShortHeaderPacket(p, ecn, buf.Len())
 	e.registerPacket(p, ecn, now)
-	e.queue.Send(buf, 0, ecn, sendMetadata{})
+	e.handoff(buf, 0, ecn, sendMetadata{})
 	return emissionResult{progress: true}
 }
 

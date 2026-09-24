@@ -1,7 +1,7 @@
 # Transport feedback and send ownership implementation plan
 
 **Date:** 2026-09-24
-**Status:** T1 implemented; T3 ready; T2/T4 blocked by T3; T5 blocked by T2
+**Status:** T1/T3 implemented; T2/T4 ready; T5 blocked by T2
 **Track:** T in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
@@ -30,9 +30,9 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | [T1](#t1) | Complete ([#587](https://github.com/the-sarge/quic-go-fast/issues/587)) | Capture logical congestion feedback without changing Reno | None | None; see slice budget |
-| [T2](#t2) | new | Deliver bounded registration-time sampling through real recovery | T1, T3 | None; see slice budget |
-| [T3](#t3) | new | Bound paced local sends across the complete worker lifetime | None | None; see slice budget |
-| [T4](#t4) | new | Validate bounded actual ECN marking through path changes | T1, T3 | None; see slice budget |
+| [T2](#t2) | Ready | Deliver bounded registration-time sampling through real recovery | T1, T3 | None; see slice budget |
+| [T3](#t3) | Complete ([#589](https://github.com/the-sarge/quic-go-fast/issues/589)) | Bound paced local sends across the complete worker lifetime | None | None; see slice budget |
+| [T4](#t4) | Ready | Validate bounded actual ECN marking through path changes | T1, T3 | None; see slice budget |
 | [T5](#t5) | new | Emit bounded persistent-congestion and recovery evidence | T2 | None; see slice budget |
 
 ## Operating discipline
@@ -164,11 +164,11 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
-| Reserved/queued/dequeued/in-service | Charge one reservation until actual local completion | credit ledger | stall plus concurrent drain/refill | Required before slice completion |
-| Accepted prefix/rejected suffix/unknown progress | Return exact credit; never resend accepted or uncertain bytes | queue completion boundary | failure table | Required before slice completion |
-| Stopped enqueue/close/fatal cleanup | Return credit once and release owned buffer | queue completion boundary | shutdown race fixture | Required before slice completion |
-| Rate decrease/path change | Retain committed excess as debt | admission owner | debt fixture | Required before slice completion |
-| GSO/coalescing/MTU probe | Charge physical payload and bounded exception | emission admission | real-packer fixture | Required before slice completion |
+| Reserved/queued/dequeued/in-service | Charge one reservation until actual local completion | credit ledger | stall plus concurrent drain/refill | Covered by `TestBBRPendingCreditWorkerOwned`, `TestBBRPendingCreditConcurrentDrainRefill` |
+| Accepted prefix/rejected suffix/unknown progress | Return exact credit; never resend accepted or uncertain bytes | queue completion boundary | failure table | Covered by `TestBBRPendingCreditPartialAndUnknownProgress` |
+| Stopped enqueue/close/fatal cleanup | Return credit once and release owned buffer | queue completion boundary | shutdown race fixture | Covered by `TestBBRPendingCreditStoppedAndClose` |
+| Rate decrease/path change | Retain committed excess as debt | admission owner | debt fixture | Covered by `TestBBRPendingCreditRateDecrease`, `TestBBRPendingCreditMigrationDebt` |
+| GSO/coalescing/MTU probe | Charge physical payload and bounded exception | emission admission | real-packer fixture | Covered by `TestBBRPendingCreditGSOFallback`, `TestBBRPendingCreditMTUException` |
 
 **Evidence budget:** At most 10 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 
