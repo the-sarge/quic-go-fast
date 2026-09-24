@@ -36,6 +36,26 @@ func installEmissionBBRECN(c *Conn) *deliveryTestSink {
 }
 
 func TestBBRECNCoalescedAndPathProbeMarking(t *testing.T) {
+	t.Run("unavailable metadata uses basic writer", func(t *testing.T) {
+		tc := newEmissionTestConnection(t, false)
+		c := tc.conn
+		installEmissionBBRECN(c)
+		socket := NewMockPacketConn(gomock.NewController(t))
+		addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}
+		socket.EXPECT().LocalAddr().Return(addr).AnyTimes()
+		raw := &basicConn{PacketConn: socket}
+		c.conn = newSendConn(raw, addr, packetInfo{}, nil)
+		c.emission.queue = newSendQueue(c.conn, &c.handshakeSendFeedback)
+		socket.EXPECT().WriteTo(gomock.Any(), addr).DoAndReturn(func(b []byte, _ net.Addr) (int, error) { return len(b), nil }).Times(2)
+		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("fallback")}))
+		require.True(t, c.triggerSending(monotime.Now()).progress)
+		q := c.emission.queue.(*sendQueue)
+		close(q.closeCalled)
+		require.NoError(t, q.Run())
+		_, err := raw.WritePacket([]byte("coalesced metadata"), addr, nil, 0, c.sentPacketHandler.ECNMode(false))
+		require.NoError(t, err)
+	})
+
 	t.Run("coalesced short header is Not-ECT", func(t *testing.T) {
 		tc := newHandshakeEmissionConnection(t, false)
 		c := tc.conn
@@ -127,7 +147,7 @@ func TestBBRECNCoalescedAndPathProbeMarking(t *testing.T) {
 				require.NoError(t, <-done)
 				require.Equal(t, protocol.ECT0, c.sentPacketHandler.ECNMode(true))
 				c.conn.(*ecnTestSendConn).capable = false
-				require.Equal(t, protocol.ECNNon, c.sentPacketHandler.ECNMode(true))
+				require.Equal(t, protocol.ECNUnsupported, c.sentPacketHandler.ECNMode(true))
 			})
 		})
 	}

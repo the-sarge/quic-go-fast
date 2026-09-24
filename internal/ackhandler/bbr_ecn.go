@@ -42,6 +42,7 @@ type bbrECNTracker struct {
 	compacted        congestion.ECNCounts
 	compactedOrdinal uint64
 	evidenceLost     bool
+	counterFailed    bool
 	path             func() (uint64, bool, bool)
 	ranges           []ecnMarkRange
 	state            ecnState
@@ -51,13 +52,21 @@ type bbrECNTracker struct {
 	testingSent      uint64
 }
 
-func (e *bbrECNTracker) mode() protocol.ECN {
+func (e *bbrECNTracker) mode(shortHeader bool) protocol.ECN {
 	if e.closed {
 		return protocol.ECNNon
 	}
 	generation, drained, capable := e.path()
+	// Unsupported endpoints must omit ECN ancillary data entirely, including
+	// explicit Not-ECT. The basic and unqualified OOB writers enforce this.
+	if !capable {
+		return protocol.ECNUnsupported
+	}
+	if !shortHeader {
+		return protocol.ECNNon
+	}
 	if e.draining {
-		if e.evidenceLost || generation != e.generation || !drained || !capable || e.accepted.ECT0+e.accepted.ECT1+e.accepted.CE != e.fence {
+		if e.evidenceLost || e.counterFailed || generation != e.generation || !drained || !capable || e.accepted.ECT0+e.accepted.ECT1+e.accepted.CE != e.fence {
 			return protocol.ECNNon
 		}
 		e.draining = false
@@ -65,9 +74,6 @@ func (e *bbrECNTracker) mode() protocol.ECN {
 		e.state = ecnStateInitial
 		e.testingSent, e.testingLost = 0, 0
 		clear(e.testing[:])
-	}
-	if !capable {
-		return protocol.ECNNon
 	}
 	if e.state == ecnStateInitial {
 		e.state = ecnStateTesting
@@ -85,26 +91,17 @@ func (e *bbrECNTracker) sentPacket(pn protocol.PacketNumber, ordinal, generation
 	if mark == protocol.ECT1 {
 		e.sent.ECT1++
 	}
-	if e.evidenceLost || e.closed {
+	if e.evidenceLost || e.counterFailed || e.closed {
 		return
 	}
 	if mark == protocol.ECNUnsupported {
 		mark = protocol.ECNNon
 	}
 	r := ecnMarkRange{first: pn, last: pn, ordinal: ordinal, generation: generation, mark: mark}
-	if n := len(e.ranges); n > 0 {
-		last := &e.ranges[n-1]
-		if last.last+1 == pn && last.mark == mark && last.generation == generation && !last.acked && last.ordinal+uint64(pn-last.first) == ordinal {
-			last.last = pn
-		} else if len(e.ranges) == maxECNMarkRanges {
-			e.failEvidence()
-			return
-		} else {
-			e.ranges = append(e.ranges, r)
-		}
-	} else {
-		e.ranges = append(e.ranges, r)
+	if !e.appendRange(&e.ranges, r) {
+		return
 	}
+
 	if e.state == ecnStateTesting && (mark == protocol.ECT0 || mark == protocol.ECT1) {
 		e.testing[e.testingSent].pn = pn
 		e.testingSent++
@@ -144,13 +141,18 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
 		}
 	}
 	if counts.ECT0 < e.accepted.ECT0 || counts.ECT1 < e.accepted.ECT1 || counts.CE < e.accepted.CE || counts.ECT0 > e.sent.ECT0 || counts.ECT1 > e.sent.ECT1 || counts.CE > e.sent.ECT0+e.sent.ECT1-counts.ECT0-counts.ECT1 {
-		e.state = ecnStateFailed
+		e.failCounters()
+		result.Failed = true
+		return result
+	}
+	if anchor == 0 {
+		e.failEvidence()
 		result.Failed = true
 		return result
 	}
 	delta := congestion.ECNCounts{ECT0: counts.ECT0 - e.accepted.ECT0, ECT1: counts.ECT1 - e.accepted.ECT1, CE: counts.CE - e.accepted.CE}
-	if delta.ECT0+delta.CE < newly.ECT0 || delta.ECT1+delta.CE < newly.ECT1 || delta.ECT0+delta.ECT1+delta.CE < newly.ECT0+newly.ECT1 || anchor == 0 {
-		e.state = ecnStateFailed
+	if delta.ECT0+delta.CE < newly.ECT0 || delta.ECT1+delta.CE < newly.ECT1 || delta.ECT0+delta.ECT1+delta.CE < newly.ECT0+newly.ECT1 {
+		e.failCounters()
 		result.Failed = true
 		return result
 	}
@@ -169,36 +171,30 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
 				part.first = cursor
 				part.last = first - 1
 				part.ordinal += uint64(cursor - r.first)
-				if len(next) == maxECNMarkRanges {
-					e.failEvidence()
+				if !e.appendRange(&next, part) {
 					result.Failed = true
 					return result
 				}
-				next = append(next, part)
 			}
 			part := r
 			part.first = first
 			part.last = last
 			part.ordinal += uint64(first - r.first)
 			part.acked = true
-			if len(next) == maxECNMarkRanges {
-				e.failEvidence()
+			if !e.appendRange(&next, part) {
 				result.Failed = true
 				return result
 			}
-			next = append(next, part)
 			cursor = last + 1
 		}
 		if cursor <= r.last {
 			part := r
 			part.first = cursor
 			part.ordinal += uint64(cursor - r.first)
-			if len(next) == maxECNMarkRanges {
-				e.failEvidence()
+			if !e.appendRange(&next, part) {
 				result.Failed = true
 				return result
 			}
-			next = append(next, part)
 		}
 	}
 	e.ranges = next
@@ -267,4 +263,37 @@ func (e *bbrECNTracker) resetPath(generation uint64) {
 	// Keep sent history, accepted counters and watermark across every reset.
 	// Failed evidence cannot be repaired by a new address or a sampler reset.
 	e.state = ecnStateInitial
+	if e.counterFailed || e.evidenceLost {
+		e.state = ecnStateFailed
+	}
+}
+
+// appendRange is the common representation boundary for registration and ACK
+// splitting. Capacity is charged only after merging equivalent adjacent facts.
+func (e *bbrECNTracker) appendRange(ranges *[]ecnMarkRange, r ecnMarkRange) bool {
+	if n := len(*ranges); n > 0 {
+		last := &(*ranges)[n-1]
+		if last.last+1 == r.first && last.mark == r.mark && last.generation == r.generation && last.acked == r.acked && last.ordinal+uint64(r.first-last.first) == r.ordinal {
+			last.last = r.last
+			return true
+		}
+	}
+	if len(*ranges) == maxECNMarkRanges {
+		e.failEvidence()
+		return false
+	}
+	if len(*ranges) == cap(*ranges) {
+		grown := make([]ecnMarkRange, len(*ranges), min(maxECNMarkRanges, max(8, 2*cap(*ranges))))
+		copy(grown, *ranges)
+		*ranges = grown
+	}
+	*ranges = append(*ranges, r)
+	return true
+}
+
+// Counter consistency is connection-wide; a new address cannot repair invalid
+// cumulative evidence. Path-local all-CE/loss testing uses state alone instead.
+func (e *bbrECNTracker) failCounters() {
+	e.counterFailed = true
+	e.state = ecnStateFailed
 }

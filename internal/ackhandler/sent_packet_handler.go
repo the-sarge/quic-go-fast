@@ -1011,10 +1011,7 @@ func (h *sentPacketHandler) GetLossDetectionTimeout() monotime.Time {
 
 func (h *sentPacketHandler) ECNMode(isShortHeaderPacket bool) protocol.ECN {
 	if h.bbrECN != nil {
-		if !isShortHeaderPacket {
-			return protocol.ECNNon
-		}
-		return h.bbrECN.mode()
+		return h.bbrECN.mode(isShortHeaderPacket)
 	}
 	if !h.enableECN {
 		return protocol.ECNUnsupported

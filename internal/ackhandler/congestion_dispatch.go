@@ -64,7 +64,9 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		return
 	}
 	d.ordinal++
-	if h.bbrECN != nil && p.EncryptionLevel == protocol.Encryption1RTT {
+	// 0-RTT shares the application space. Retain its actual unmarked
+	// ordinal even after recovery disposal; it never adds testing marks.
+	if h.bbrECN != nil && congestionKey(p.EncryptionLevel, pn).space == protocol.Encryption1RTT {
 		h.bbrECN.sentPacket(pn, d.ordinal, d.pathGeneration, ecn)
 	}
 	d.expire(p.SendTime)

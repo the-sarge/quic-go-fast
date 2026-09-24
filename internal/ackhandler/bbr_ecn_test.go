@@ -7,6 +7,7 @@ import (
 	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/stretchr/testify/require"
@@ -32,16 +33,45 @@ func ackBBRECN(t *testing.T, h *sentPacketHandler, ranges []wire.AckRange, ect0,
 }
 
 func TestBBRECNActualMarkingHoles(t *testing.T) {
+	for _, lifecycle := range []string{"ACK", "0-RTT rejection", "Retry"} {
+		t.Run("known unmarked 0-RTT/"+lifecycle, func(t *testing.T) {
+			h, r := newBBRECNTestHandler()
+			now := monotime.Now()
+			sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1000)
+			early := sendCongestionTestPacket(h, now, protocol.Encryption0RTT, 1000)
+			switch lifecycle {
+			case "0-RTT rejection":
+				h.DropPackets(protocol.Encryption0RTT, now.Add(time.Millisecond))
+			case "Retry":
+				h.ResetForRetry(now.Add(time.Millisecond))
+			}
+			// Recovery and delivery disposal don't erase actual unmarked facts.
+			if lifecycle == "Retry" {
+				sendBBRECNPacket(h, protocol.ECNNon, false)
+			}
+			ackBBRECN(t, h, ackRanges(early), 0, 0)
+			require.False(t, r.feedback[len(r.feedback)-1].ECN.Eligible)
+			require.False(t, r.feedback[len(r.feedback)-1].ECN.Failed)
+			require.Equal(t, protocol.ECT0, h.ECNMode(true))
+			fresh := sendBBRECNPacket(h, h.ECNMode(true), false)
+			ackBBRECN(t, h, ackRanges(fresh), 1, 0)
+			require.True(t, r.feedback[len(r.feedback)-1].ECN.Eligible)
+		})
+	}
+
 	for _, pathProbe := range []bool{false, true} {
 		t.Run(map[bool]string{false: "coalesced hole", true: "path probe hole"}[pathProbe], func(t *testing.T) {
 			h, r := newBBRECNTestHandler()
 			first := sendBBRECNPacket(h, h.ECNMode(true), false)
 			hole := sendBBRECNPacket(h, protocol.ECNNon, pathProbe)
+			skipped := h.PopPacketNumber(protocol.Encryption1RTT)
+			h.appDataPackets.history.SkippedPacket(skipped)
 			last := sendBBRECNPacket(h, h.ECNMode(true), false)
 			ackBBRECN(t, h, ackRanges(first, hole, last), 2, 0)
 			require.Equal(t, protocol.ECT0, h.ECNMode(true))
 			require.True(t, r.feedback[len(r.feedback)-1].ECN.Eligible)
 			require.Equal(t, congestion.ECNCounts{ECT0: 2}, r.feedback[len(r.feedback)-1].ECN.Delta)
+			require.Equal(t, uint64(3), r.feedback[len(r.feedback)-1].ECN.Ordinal)
 		})
 	}
 }
@@ -84,10 +114,12 @@ func TestBBRECNReorderedAndInvalidCounters(t *testing.T) {
 				h.appDataPackets.history.SkippedPacket(gap)
 				sendBBRECNPacket(h, protocol.ECNNon, false)
 				_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(gap), ECT0: 2}, protocol.Encryption1RTT, monotime.Now())
-				if err != nil {
-					return
-				}
-				require.False(t, r.feedback[len(r.feedback)-1].ECN.Eligible)
+				var transportErr *qerr.TransportError
+				require.ErrorAs(t, err, &transportErr)
+				require.Equal(t, qerr.ProtocolViolation, transportErr.ErrorCode)
+				require.Equal(t, protocol.ECT0, h.ECNMode(true))
+				require.Len(t, r.feedback, 1, "rejected ACK cannot reach the validator")
+				return
 			case "reordered":
 				ackBBRECN(t, h, ackRanges(first), 0, 0)
 				require.Equal(t, protocol.ECT0, h.ECNMode(true))
@@ -102,11 +134,24 @@ func TestBBRECNReorderedAndInvalidCounters(t *testing.T) {
 }
 
 func TestBBRECNRangeBudgetFallback(t *testing.T) {
+	t.Run("compress ACKed suffix behind unresolved loss", func(t *testing.T) {
+		h, _ := newBBRECNTestHandler()
+		first := sendBBRECNPacket(h, h.ECNMode(true), false)
+		ackBBRECN(t, h, ackRanges(first), 1, 0)
+		sendBBRECNPacket(h, h.ECNMode(true), false) // unresolved marked packet 1
+		for pn := protocol.PacketNumber(2); pn <= 4200; pn++ {
+			h.SentPacket(monotime.Now(), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
+			ackBBRECN(t, h, ackRanges(pn), uint64(pn), 0)
+		}
+		require.Equal(t, protocol.ECT0, h.ECNMode(true))
+		require.Len(t, h.bbrECN.ranges, 2, "one unresolved hole and one affine ACKed suffix")
+	})
+
 	t.Run("insertion", func(t *testing.T) {
 		h, r := newBBRECNTestHandler()
 		first := sendBBRECNPacket(h, h.ECNMode(true), false)
 		ackBBRECN(t, h, ackRanges(first), 1, 0)
-		for i := 0; i < 4100; i++ {
+		for i := range 4100 {
 			mark := protocol.ECNNon
 			if i%2 == 0 {
 				mark = h.ECNMode(true)
@@ -139,7 +184,7 @@ func TestBBRECNRangeBudgetFallback(t *testing.T) {
 	})
 	t.Run("accounted prefix compacts", func(t *testing.T) {
 		h, _ := newBBRECNTestHandler()
-		for i := 0; i < 4200; i++ {
+		for i := range 4200 {
 			pn := sendBBRECNPacket(h, h.ECNMode(true), false)
 			ackBBRECN(t, h, ackRanges(pn), uint64(i+1), 0)
 		}
@@ -162,7 +207,7 @@ func TestBBRECNTestingVersusCapableCE(t *testing.T) {
 				return
 			}
 			var pns []protocol.PacketNumber
-			for i := 0; i < 10; i++ {
+			for range 10 {
 				pns = append(pns, sendBBRECNPacket(h, h.ECNMode(true), false))
 			}
 			if name == "testing all CE" {
@@ -192,6 +237,10 @@ func TestBBRECNMigrationCounterFence(t *testing.T) {
 	for _, capable := range []bool{true, false} {
 		t.Run(map[bool]string{true: "qualified path", false: "unqualified path"}[capable], func(t *testing.T) {
 			h, r := newBBRECNTestHandler()
+			wantUnmarked := protocol.ECNNon
+			if !capable {
+				wantUnmarked = protocol.ECNUnsupported
+			}
 			drained := false
 			h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, capable }
 			// Initial validation doesn't require an old-generation drain.
@@ -201,13 +250,13 @@ func TestBBRECNMigrationCounterFence(t *testing.T) {
 			old := sendBBRECNPacket(h, h.ECNMode(true), false)
 			h.MigratedPath(monotime.Now(), 1200)
 			h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, capable }
-			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			require.Equal(t, wantUnmarked, h.ECNMode(true))
 			ackBBRECN(t, h, ackRanges(old), 1, 1)
 			require.False(t, r.feedback[len(r.feedback)-1].ECN.Eligible)
-			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			require.Equal(t, wantUnmarked, h.ECNMode(true))
 			drained = true
 			if !capable {
-				require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+				require.Equal(t, wantUnmarked, h.ECNMode(true))
 				return
 			}
 			require.Equal(t, protocol.ECT0, h.ECNMode(true))
@@ -238,10 +287,33 @@ func TestBBRECNMissingOldMarkedPacket(t *testing.T) {
 }
 
 func TestBBRECNRepeatedMigration(t *testing.T) {
+	for _, duringDrain := range []bool{false, true} {
+		t.Run(map[bool]string{false: "invalid counters before reset", true: "invalid counters during drain"}[duringDrain], func(t *testing.T) {
+			h, r := newBBRECNTestHandler()
+			first := sendBBRECNPacket(h, h.ECNMode(true), false)
+			ackBBRECN(t, h, ackRanges(first), 1, 0)
+			drained := !duringDrain
+			h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
+			if duringDrain {
+				h.MigratedPath(monotime.Now(), 1200)
+			}
+			next := sendBBRECNPacket(h, protocol.ECNNon, false)
+			ackBBRECN(t, h, ackRanges(next), 0, 0)
+			require.True(t, r.feedback[len(r.feedback)-1].ECN.Failed)
+			if !duringDrain {
+				h.MigratedPath(monotime.Now(), 1200)
+			}
+			drained = true
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "a previously met fence cannot erase an invalid report")
+			h.MigratedPath(monotime.Now(), 1200)
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+		})
+	}
+
 	t.Run("fresh tests forget old loss flags", func(t *testing.T) {
 		h, _ := newBBRECNTestHandler()
 		var old []protocol.PacketNumber
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			old = append(old, sendBBRECNPacket(h, h.ECNMode(true), false))
 		}
 		anchor := sendBBRECNPacket(h, protocol.ECNNon, false)
@@ -251,7 +323,7 @@ func TestBBRECNRepeatedMigration(t *testing.T) {
 		next := sendBBRECNPacket(h, h.ECNMode(true), false)
 		ackBBRECN(t, h, ackRanges(append(old, next)...), 9, 1)
 		require.Equal(t, protocol.ECT0, h.ECNMode(true))
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			sendBBRECNPacket(h, h.ECNMode(true), false)
 		}
 		last := sendBBRECNPacket(h, protocol.ECNNon, false)
@@ -270,7 +342,7 @@ func TestBBRECNRepeatedMigration(t *testing.T) {
 		require.False(t, r.feedback[len(r.feedback)-1].ECN.Eligible)
 		require.Equal(t, protocol.ECT0, h.ECNMode(true))
 		// The fresh epoch gets ten tests, independent of the old count offsets.
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			require.Equal(t, protocol.ECT0, h.ECNMode(true))
 			sendBBRECNPacket(h, h.ECNMode(true), false)
 		}
