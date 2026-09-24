@@ -1,7 +1,7 @@
 # BBRv3 implementation program
 
 **Program:** `QGF-BBR3-20260924`
-**Status:** T1 complete; current frontier T3 and Q1
+**Status:** T1 complete; T3 in progress (#604); undispatched frontier Q1
 **OmniFocus parent:** `omnifocus:///task/aaS2XrzGGmp`
 **Tracking issue:** [#600](https://github.com/the-sarge/quic-go-fast/issues/600)
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
@@ -18,11 +18,11 @@ Keep Reno as default, pinned algorithm authority, receiver-defined goodput, exis
 
 | Track | Plan | Parent issue | Slice count | State |
 | --- | --- | --- | --- | --- |
-| T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1 complete; T3 ready |
+| T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1 complete; T3 in progress (#604) |
 | B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | Blocked by transport predecessors |
 | Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 ready |
 
-Current frontier: **T3 and Q1**. T1 is complete. T2 and T4 remain blocked by T3. T3 owns emission/queue behavior; Q1 inspects readiness without changing controller code. Use dedicated worktrees and reconcile shared interface touches before merge. No whole-track sequential ordering is implied.
+Current frontier: **T3 (in progress in [#604](https://github.com/the-sarge/quic-go-fast/pull/604)) and Q1**. T1 is complete. T2 and T4 remain blocked by T3. T3 owns emission/queue behavior; Q1 inspects readiness without changing controller code. Use dedicated worktrees and reconcile shared interface touches before merge. No whole-track sequential ordering is implied.
 
 | Slice | Exact blockers |
 | --- | --- |
