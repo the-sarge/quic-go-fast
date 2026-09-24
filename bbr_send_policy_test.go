@@ -317,6 +317,93 @@ func TestBBRPendingCreditRateDecrease(t *testing.T) {
 }
 
 func TestBBRPendingCreditMTUException(t *testing.T) {
+	t.Run("pending worker preserves control", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			c := tc.conn
+			now := monotime.Now()
+			c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("worker owned")}))
+			require.True(t, c.triggerSending(now).progress)
+			q := c.emission.queue.(*sendQueue)
+			release := make(chan struct{})
+			var writes []int
+			tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(b []byte, _ uint16, _ protocol.ECN) error {
+				if len(writes) == 0 {
+					<-release
+				}
+				writes = append(writes, len(b))
+				return nil
+			}).AnyTimes()
+			done := make(chan error, 1)
+			go func() { done <- q.Run() }()
+			released := false
+			defer func() {
+				if !released {
+					close(release)
+				}
+				q.Close()
+				require.NoError(t, <-done)
+			}()
+			synctest.Wait()
+			c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
+			c.mtuDiscoverer.Start(now.Add(-time.Hour))
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("ordinary must drain")}))
+			require.NoError(t, c.receivedPacketHandler.ReceivedPacket(4, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+			require.NoError(t, c.receivedPacketHandler.ReceivedPacket(5, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+			before := c.emission.bbr.budget(now)
+			result := c.triggerSending(now)
+			require.NoError(t, result.err)
+			require.True(t, result.progress, "waiting probe isolation must preserve the due ACK")
+			require.Len(t, q.queue, 1)
+			require.Equal(t, before, c.emission.bbr.budget(now), "ACK remains pacing exempt")
+			require.True(t, c.mtuDiscoverer.ShouldSendProbe(now))
+			require.NotNil(t, c.datagramQueue.Peek())
+			result = c.triggerSending(now)
+			require.Equal(t, blockModeCongestionLimited, result.blocked, "ACK/PTO deadlines remain eligible")
+			require.NotNil(t, result.available)
+			select {
+			case <-result.available:
+				t.Fatal("unused ACK reservation must not rearm an inadmissible isolated request")
+			default:
+			}
+			close(release)
+			released = true
+			synctest.Wait()
+			require.Zero(t, c.emission.bbr.credit.pending)
+			select {
+			case <-result.available:
+			default:
+				t.Fatal("actual completion must wake the waiting probe")
+			}
+			require.True(t, c.triggerSending(now).progress)
+			require.False(t, c.mtuDiscoverer.ShouldSendProbe(now))
+			synctest.Wait()
+			require.Equal(t, 1300, writes[len(writes)-1])
+			require.NotNil(t, c.datagramQueue.Peek(), "ordinary traffic waits while the due probe drains")
+		})
+	})
+	for _, isolated := range []bool{false, true} {
+		t.Run(fmt.Sprintf("hard block isolated=%t", isolated), func(t *testing.T) {
+			c := newEmissionTestConnection(t, false).conn
+			now := monotime.Now()
+			c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+			c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
+			c.mtuDiscoverer.Start(now.Add(-time.Hour))
+			// Nonisolated debt leaves less than one control packet of capacity.
+			held := c.emission.bbr.credit.reserve(3601, 4800, false, isolated)
+			require.NotNil(t, held)
+			defer held.complete()
+			require.NoError(t, c.receivedPacketHandler.ReceivedPacket(4, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+			require.NoError(t, c.receivedPacketHandler.ReceivedPacket(5, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+			result := c.triggerSending(now)
+			require.False(t, result.progress)
+			require.Equal(t, blockModeHardBlocked, result.blocked)
+			require.NotNil(t, result.available)
+			require.Empty(t, c.emission.queue.(*sendQueue).queue)
+			require.True(t, c.mtuDiscoverer.ShouldSendProbe(now))
+		})
+	}
 	t.Run("paced probe", func(t *testing.T) {
 		c := newEmissionTestConnection(t, false).conn
 		now := monotime.Now()
@@ -342,7 +429,7 @@ func TestBBRPendingCreditMTUException(t *testing.T) {
 	p := c.emission.bbr
 	c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
 	c.mtuDiscoverer.Start(now.Add(-time.Hour))
-	held := p.credit.reserve(1200, 2*p.quantum, true, false)
+	held := p.credit.reserve(1200, 2*p.quantum, false, false)
 	result := c.triggerSending(now)
 	require.Equal(t, emissionQueueFull, result.stop)
 	require.True(t, c.mtuDiscoverer.ShouldSendProbe(now), "refusal must not consume probe state")
@@ -378,6 +465,29 @@ func TestBBRPendingCreditMTUException(t *testing.T) {
 }
 
 func TestBBRPendingCreditMigrationDebt(t *testing.T) {
+	t.Run("current generation GSO pressure preserves control", func(t *testing.T) {
+		c := newEmissionTestConnection(t, true).conn
+		now := monotime.Now()
+		c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+		held := c.emission.bbr.credit.reserve(3000, 4800, true, false)
+		require.NotNil(t, held)
+		defer held.complete()
+		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("ordinary stays pending")}))
+		require.NoError(t, c.receivedPacketHandler.ReceivedPacket(4, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+		require.NoError(t, c.receivedPacketHandler.ReceivedPacket(5, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+		result := c.triggerSending(now)
+		require.True(t, result.progress, "Q cannot fit but one control packet can")
+		ack := <-c.emission.queue.(*sendQueue).queue
+		ack.release()
+		require.NotNil(t, c.datagramQueue.Peek())
+		result = c.triggerSending(now)
+		require.Equal(t, blockModeCongestionLimited, result.blocked)
+		select {
+		case <-result.available:
+			t.Fatal("unused ACK reservation must not rearm an oversized ordinary request")
+		default:
+		}
+	})
 	t.Run("connection preserves delayed ACK timer", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			tc := newEmissionTestConnection(t, false)

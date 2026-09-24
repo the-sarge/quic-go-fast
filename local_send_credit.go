@@ -36,13 +36,18 @@ func (c *localSendCredit) resetGeneration(generation uint64) {
 	}
 }
 
+// canReserve is called with mu held by both admission and wakeup rearming.
+func (c *localSendCredit) canReserve(n, limit protocol.ByteCount, ordinary, isolated bool) bool {
+	return !c.isolated && (!isolated || c.pending == 0) && (isolated || n <= limit-c.pending) && (!ordinary || c.pending == c.current)
+}
+
 func (c *localSendCredit) reserve(n, limit protocol.ByteCount, ordinary, isolated bool) *sendReservation {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if n <= 0 {
 		panic("invalid local send reservation")
 	}
-	if c.isolated || (isolated && c.pending != 0) || (!isolated && n > limit-c.pending) || (ordinary && c.pending != c.current) {
+	if !c.canReserve(n, limit, ordinary, isolated) {
 		// Test capacity and consume stale wakeups under the completion lock.
 		select {
 		case <-c.available:
@@ -87,17 +92,17 @@ func (r *sendReservation) resize(n protocol.ByteCount) {
 
 func (r *sendReservation) complete() { r.resize(0) }
 
-// waitForOrdinary rearms an ordinary-only wait and reports whether ACK/PTO
+// waitForReservation rearms the refused request and reports whether ACK/PTO
 // deadlines remain useful. Reservation and wakeup state share the same lock.
-func (c *localSendCredit) waitForOrdinary(n, limit, controlSize protocol.ByteCount) bool {
+func (c *localSendCredit) waitForReservation(n, limit, controlSize protocol.ByteCount, ordinary, isolated bool) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	select {
 	case <-c.available:
 	default:
 	}
-	if !c.isolated && c.pending == c.current && n <= limit-c.pending {
+	if c.canReserve(n, limit, ordinary, isolated) {
 		c.available <- struct{}{}
 	}
-	return !c.isolated && controlSize <= limit-c.pending
+	return c.canReserve(controlSize, limit, false, false)
 }

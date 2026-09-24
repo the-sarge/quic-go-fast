@@ -109,7 +109,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 			return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
 		}
 		if !e.reserveLocal(intent.mtu.probeSize(), false, true, now) {
-			return e.localBlocked()
+			return e.waitForReservation(now, confirmed, size, intent.mtu.probeSize(), false, true)
 		}
 		result := e.mtuProbe(intent.mtu, now)
 		result.retry = result.progress
@@ -136,7 +136,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		limit -= limit % size
 	}
 	if !e.reserveLocal(limit, true, false, now) {
-		return e.waitForOrdinary(now, confirmed, size, limit)
+		return e.waitForReservation(now, confirmed, size, limit, true, false)
 	}
 	if !confirmed {
 		result := e.coalesced(now)
@@ -180,11 +180,11 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 	return emissionResult{progress: true, retry: true}
 }
 
-// An ordinary-only refusal (notably migration debt) must not suppress control
+// A refused ordinary or isolated-probe request must not suppress control
 // traffic or its timers. If no ACK is due, rearm under the completion lock after
 // releasing the unused ACK reservation; otherwise that release would spin the
 // connection on its own stale wakeup. A concurrent completion cannot be lost.
-func (e *packetEmission) waitForOrdinary(now monotime.Time, confirmed bool, size, limit protocol.ByteCount) emissionResult {
+func (e *packetEmission) waitForReservation(now monotime.Time, confirmed bool, size, requested protocol.ByteCount, ordinary, isolated bool) emissionResult {
 	if !e.reserveLocal(size, false, false, now) {
 		return e.localBlocked()
 	}
@@ -195,7 +195,7 @@ func (e *packetEmission) waitForOrdinary(now monotime.Time, confirmed bool, size
 	e.reservation.complete()
 	e.reservation = nil
 	result := e.localBlocked()
-	if e.bbr.credit.waitForOrdinary(limit, 2*e.bbr.quantum, size) {
+	if e.bbr.credit.waitForReservation(requested, 2*e.bbr.quantum, size, ordinary, isolated) {
 		result.blocked = blockModeCongestionLimited
 	}
 	return result
