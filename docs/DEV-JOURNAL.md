@@ -3463,3 +3463,28 @@ RAS review `20260923T231013-02763e5a134940f5e7f67794` completed with five review
 ### Next
 
 Pin the clean release source after this journal merges. Complete the exact-main workflow, fresh vulnerability and candidate-consumer gates, then create the new annotated tag and draft prerelease. Publish only after tagged module/consumer provenance and every tag workflow pass. README continues to identify fast.4 until successful fast.6 publication.
+
+---
+
+## fast.6 published and adoption reconciled - 2026-09-23 19:56 EDT
+
+**Main:** `bf4e7b2357be`
+**Actor:** Codex
+
+### Summary
+
+Published [v0.62.1-fast.6](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.6) as a source-only GitHub prerelease at 2026-09-23 23:48:39 UTC. Source `99765f7b3d978a23a8d841830385ca88ab8e8282` includes the merged Darwin qualification-worker repair, reviewed preparation and preparation journal. Annotated tag object `db8c1452875d46e47bb61313492fed05fadc7b42` peels to that source. Fast.5's existing tag, cached module and blocked draft remain unchanged.
+
+### Publication evidence
+
+All five exact-main workflows and all five tag-triggered workflows passed, with 17 jobs in each set and individual jobs and relevant steps inspected. The published release notes retain all ten workflow URLs. Fresh `govulncheck -show verbose ./...` used v1.7.0 and Go 1.27.1 on darwin/arm64 (database updated 2026-09-16 18:00:43 UTC): zero reachable and zero imported-package vulnerabilities; the existing module-only unused OpenPGP advisory GO-2026-5932 remains.
+
+Separate candidate and real-tag consumers used fresh public-proxy/checksum caches and application-owned module replacements. Both built QUIC/HTTP3, verified two managed registrations/releases, retained lease ownership after `Transport.Close`, ordinary UDP delivery after each release, and `go mod verify`. The tagged download resolves to the selected SHA; module sum `h1:ofHmKbuDX+jN3X2EcIMnuu63sJE1Xl80tFEFdL4TTRc=`, go.mod sum `h1:A0IgFhkxhEhQ/w/ofhmS62ViKO7YefJ8iRBpSR6gw/s=`, ZIP SHA-256 `ab0f2c2d5f5821644f9de4b909b23836e742918c30fd090396b5735cee9ed1d4`, 750 entries. The nested `docs/audits` module is excluded; sampled runtime, HTTP/3, release-record and journal bytes match the source. No binary or container assets were attached.
+
+### Documentation and validation
+
+[Publication reconciliation PR #577](https://github.com/the-sarge/quic-go-fast/pull/577) updates README adoption, dates the changelog and replaces pending gates in the [release record](releases/v0.62.1-fast.6.md) with final provenance. Local link, changelog-anchor, receipt-equality and whitespace checks passed at `9702a0276a30b45b708dbe0509366dee49419c37`, as did all 33 hosted checks before matched-head squash merge. This documentation-only reconciliation used the shared cheap docs-only policy without another RAS cycle; the preparation review and repaired-code review are recorded in prior entries.
+
+### Next
+
+Consumers can explicitly select fast.6 through the application-owned replacement; fast.4 remains the documented rollback target. Existing platform limits and open incidents remain as recorded in the release notes. Publication is complete; no tag movement, CI waiver, same-head rerun or new performance claim was used.
