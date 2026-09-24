@@ -88,10 +88,25 @@ type SendEvent struct {
 	PostInFlight  protocol.ByteCount
 }
 
+// ECNCounts contains packet counters, never byte estimates.
+type ECNCounts struct {
+	ECT0, ECT1, CE uint64
+}
+
+// ECNResult separates accepted counters from usable current-path feedback.
+// Ineligible or failed evidence must never be interpreted as a clean round.
+type ECNResult struct {
+	Reported, Accepted, Delta  ECNCounts
+	Watermark                  protocol.PacketNumber
+	Ordinal, PathGeneration    uint64
+	Eligible, Failed, Deferred bool
+}
+
 // FeedbackEvent is one logical recovery event. Acked and Lost are borrowed only
 // for the synchronous call; consumers must copy any values they retain.
 // Lost contains actual congestion losses, excluding ACK-only and probe packets.
 type FeedbackEvent struct {
+	ECN              ECNResult
 	RawRTT           time.Duration // fresh recovery-eligible raw observation, zero if absent
 	Delivery         DeliverySample
 	PathGeneration   uint64

@@ -64,6 +64,9 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		return
 	}
 	d.ordinal++
+	if h.bbrECN != nil && p.EncryptionLevel == protocol.Encryption1RTT {
+		h.bbrECN.sentPacket(pn, d.ordinal, d.pathGeneration, ecn)
+	}
 	d.expire(p.SendTime)
 	registrationValid := !p.SendTime.IsZero() && !p.SendTime.Before(d.registrationTime)
 	if registrationValid && p.IsAckEliciting() && !p.isPathProbePacket && d.pendingBytes() == 0 &&
@@ -159,6 +162,9 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 		return
 	}
 	d.event.PostInFlight = h.bytesInFlight
+	if h.bbrECN != nil {
+		d.event.ECN.Failed = h.bbrECN.state == ecnStateFailed || h.bbrECN.evidenceLost
+	}
 	slices.SortFunc(d.event.Lost, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
 	d.sampler.feedback(&d.event)
 	// A timer scan may run early or against a stale loss deadline. Preserve
@@ -210,6 +216,9 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 		d.sampleGeneration++
 		if pathChanged {
 			d.pathGeneration++
+			if h.bbrECN != nil {
+				h.bbrECN.resetPath(d.pathGeneration)
+			}
 		}
 		// Release retained scratch and map capacity at restart. Connection teardown
 		// needs no independent cleanup: this state owns no resources or goroutines.
@@ -246,5 +255,14 @@ func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now mon
 			d.event.RawRTT = now.Sub(p.SendTime)
 			return
 		}
+	}
+}
+
+func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.EncryptionLevel) {
+	if h.bbrECN != nil && h.congestionEvents != nil && level == protocol.Encryption1RTT {
+		e := h.bbrECN.feedback(ack)
+		h.congestionEvents.event.ECN = e
+		h.congestionEvents.event.ECNChecked = e.Eligible
+		h.congestionEvents.event.Congested = e.Eligible && e.Delta.CE > 0
 	}
 }
