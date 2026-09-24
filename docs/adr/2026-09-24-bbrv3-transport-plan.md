@@ -191,11 +191,11 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **What it delivers:** Implement BBR-only ECN result dispatch and the actual-codepoint/ordinal ledger, eligible advancing late-only feedback, bounded failure to Not-ECT and the migration counter fence/revalidation path. Keep cumulative counts continuous and distinguish validation from congestion policy. Cover ordinary marked packets, path-probe and coalescing holes, skipped numbers, ledger splits and loss/disposal before late ACK. Legacy Reno keeps its original validator and early-return order.
 
-**Existing-work disposition:** New slice. The unmerged design is reworked documentation only; no implementation is assumed.
+**Existing-work disposition:** Retain product PR [#609](https://github.com/the-sarge/quic-go-fast/pull/609) and complete the application-space feedback guard under the [scoped audit receipt](https://github.com/the-sarge/quic-go-fast/pull/609#issuecomment-5818547717). No public BBR activation is included.
 
 **Blocked by:** T1, T3.
 
-**Single owner after merge:** The connection-owned BBR ECN ledger/validator is the sole owner of sent marking authority, accepted counters and validation epoch. Worker metadata never grants ECN policy authority.
+**Single owner after merge:** The connection-owned BBR ECN ledger/validator is the sole owner of sent marking authority, accepted counters and validation epoch. Worker metadata never grants ECN policy authority. The existing `ReceivedAck` dispatch guard alone admits supplemental no-new-ACK ECN events for 1-RTT; Initial/Handshake retain their prior event-suppression behavior, and independently retained delivery ACKs keep their existing path.
 
 **Authority completeness:** This delivery includes its construction/test activation, accepted input validation, reset/restart and terminal consumers. No newly authoritative runtime fact is left for a successor to make safe. Any successor adds a new behavior through the established owner, not a repair for missing authority closure.
 
@@ -212,7 +212,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
 | Ordinary ECT versus Not-ECT/path/coalesced holes/skips | Validate actual sent marks, never infer from epoch membership | ECN marking ledger | hole-class table | Required before slice completion |
-| Advancing late-only/reordered/duplicate feedback | Consume eligible deltas once; defer nonadvancing counts | BBR ECN validator | late-only plus reorder fixture | Required before slice completion |
+| Advancing late-only/reordered/duplicate feedback | Consume eligible deltas once; defer nonadvancing counts; suppress empty Initial/Handshake events | BBR ECN validator and existing `ReceivedAck` dispatch guard | late-only/reorder fixture plus Initial/Handshake duplicate cases in `TestLegacyECNDispatchPreserved` | Required before slice completion |
 | Invalid counters/budget overflow | Not-ECT fallback without fabricated clean evidence | BBR ECN validator | negative and split-budget fixture | Required before slice completion |
 | Testing versus established all-CE | Validation test semantics versus usable congestion | BBR ECN validator | state fixture | Required before slice completion |
 | Counter fence present/old loss/new unavailable path | Revalidate only with full accounting; otherwise continue Not-ECT | ECN path-transition owner | migration table | Required before slice completion |
