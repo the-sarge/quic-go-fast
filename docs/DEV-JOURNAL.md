@@ -3488,3 +3488,28 @@ Separate candidate and real-tag consumers used fresh public-proxy/checksum cache
 ### Next
 
 Consumers can explicitly select fast.6 through the application-owned replacement; fast.4 remains the documented rollback target. Existing platform limits and open incidents remain as recorded in the release notes. Publication is complete; no tag movement, CI waiver, same-head rerun or new performance claim was used.
+
+---
+
+## ProbeRTT planning evidence accepted and merged - 2026-09-23 22:26 EDT
+
+**Main:** `fdb3940fdca4`
+**Actor:** Codex
+
+### Summary
+
+Merged [docs: preserve accepted ProbeRTT comparison evidence](https://github.com/the-sarge/quic-go-fast/pull/579) as `fdb3940fdca4e5f3642595abe0ed729e625dc18f`. The [comparison report](audits/2026-09-23-probertt-prototype/README.md) preserves nine synthetic schedules across three pinned designs, recorded traces, assumptions, reproduction instructions and the owner's disposition. The disposable model was retired before merge; its immutable source remains available through the retained PR history. No production controller was added.
+
+### Decisions
+
+The owner accepted the bounded model evidence as sufficient for this planning step. Carry the pre-expiration cap and completed-feedback-round safeguards into final design discussion; the final baseline and native performance remain open. The canonical answer is [Compare ProbeRTT filters on changing-RTT paths](https://github.com/the-sarge/quic-go-fast/issues/560#issuecomment-5806133377), now closed and indexed in the planning map.
+
+### Validation
+
+RAS review `20260924T020842-727415bd90031dc9afcad566` completed with five reviewers, adjudication and synthesis. One accepted documentation correction explains fetching the retired prototype after squash merge; two optional presentation suggestions were rejected. The shared docs-only policy skipped another RAS cycle. [Review dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/579#issuecomment-5806297553) record the decisions and exact-head checks.
+
+Final head `a40b9189e5d393cf459a80f2bb9db5198145eef5` passed local clean-tree, whitespace, relative-link, frozen-output and report/trace consistency checks, followed by all 33 hosted checks before matched-head squash merge. The earlier prototype run completed all 27 cases, reproduced the CSV byte-for-byte, exercised the viewer and passed `go vet`. These are model and documentation checks, not native performance results. No deferred review findings or matching OmniFocus task remained.
+
+### Next
+
+[Test delivery sampling across queued and batched sends](https://github.com/the-sarge/quic-go-fast/issues/566) remains the next investigation before final design closure. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) is the live view of remaining work.
