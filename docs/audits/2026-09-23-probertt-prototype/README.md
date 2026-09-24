@@ -8,6 +8,15 @@ The saved pre-expiration cap is worth carrying into final design discussion: in 
 
 [Replay the frozen disposable terminal viewer](https://github.com/the-sarge/quic-go-fast/blob/dd171b6625f30855739a6ef9029d9eb87e96fcd5/internal/congestion/prototype-probertt/README.md) with `go run ./internal/congestion/prototype-probertt -scenario expired-queue` from the root of the frozen prototype revision `dd171b6625f30855739a6ef9029d9eb87e96fcd5`. The disposable code has been retired from this branch; its immutable source remains available to reproduce the evidence. [Transition traces](events.txt), [campaign summary](summary.txt) and [full recorded snapshots](trace.csv) are checked-in outputs from the same code. The [source correspondence](https://github.com/the-sarge/quic-go-fast/blob/dd171b6625f30855739a6ef9029d9eb87e96fcd5/internal/congestion/prototype-probertt/SOURCES.md) pins all three algorithm variants and explicitly lists translation choices.
 
+For a fresh clone after the squash merge, fetch the retained PR head to obtain the prototype's history, then replay in a separate worktree:
+
+```sh
+git fetch origin refs/pull/579/head
+git worktree add -b codex/probertt-replay /Volumes/worktrees/quic-go-fast/probertt-replay dd171b6625f30855739a6ef9029d9eb87e96fcd5
+cd /Volumes/worktrees/quic-go-fast/probertt-replay
+go run ./internal/congestion/prototype-probertt -scenario expired-queue
+```
+
 Nine schedules times three variants were executed. No network was used by the model, and no production controller was added.
 
 ## What the runs show
