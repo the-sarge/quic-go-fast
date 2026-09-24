@@ -3513,3 +3513,28 @@ Final head `a40b9189e5d393cf459a80f2bb9db5198145eef5` passed local clean-tree, w
 ### Next
 
 [Test delivery sampling across queued and batched sends](https://github.com/the-sarge/quic-go-fast/issues/566) remains the next investigation before final design closure. [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552) is the live view of remaining work.
+
+---
+
+## BBRv3 implementation handoff - 2026-09-24 00:37 EDT
+
+**Main:** `4161e1b4ca9e`
+**Actor:** Codex
+
+### Summary
+
+Merged [the audited BBRv3 handoff](https://github.com/the-sarge/quic-go-fast/pull/583) as `4161e1b4ca9edf6b743841245ab6e27464401a11`. The [program index](adr/2026-09-24-bbrv3-program.md) links 13 implementation slices across transport feedback/send ownership, complete opt-in BBRv3, and qualification readiness/evidence. The design-only draft #582 was incorporated, reworked and closed as superseded.
+
+### Decisions
+
+The [accepted design](designs/bbrv3.md) and [ADR 0009](adr/0009-opt-in-bbrv3.md) retain Reno as default and gate public BBR selection on completion of its safety predecessors. The audit replaced interval-based ECN marking inference with bounded actual-marking evidence, made local queue accounting block both delivery sampling and migration revalidation, and settled slice owners, finite evidence and context budgets. The explicit Config positional-literal compatibility exception remains documented. Native qualification and adoption are not claimed.
+
+### Validation
+
+Independent design and graph audits passed. Initial RAS review `20260924T041558-ef51b0f7beb7cbd54d6c8e41` completed with five reviewers, adjudication and synthesis. Three accepted metadata/evidence corrections fixed a source anchor, bounded terminal/timer inputs and the existing structural-consumer fixture pointer; two proposed changes were rejected against the accepted scope. [Dispositions and exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/583#issuecomment-5807699961) record the bounded docs-only no-rerun decision.
+
+Candidate `4b41134f712c26f926832593299fe4187f0f35c7` passed clean-tree, diff, relative-link, source-range, slice-identity, acyclic-graph and measured-context checks, followed by all 33 applicable hosted checks. Guarded squash merge and a fresh fetch established the exact accepted tree on remote main; the [merge receipt](https://github.com/the-sarge/quic-go-fast/pull/583#issuecomment-5807762089) records it. These checks certify documentation, not runtime BBR behavior. No deferred review finding remains.
+
+### Next
+
+The [live implementation tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) owns the three parent issues, 13 child mappings and current frontier: T1 #587, T3 #589 and Q1 #598. They can run in separate worktrees in parallel. Every child points to the verified default-branch plan commit; native dependencies gate blocked work. OmniFocus mirrors the program under the existing BBRv3 parent. Dispatch remains the operator's decision; this handoff launched no implementation or qualification campaign.
