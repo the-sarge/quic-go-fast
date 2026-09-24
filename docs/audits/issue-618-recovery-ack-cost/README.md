@@ -45,7 +45,7 @@ Allocation deltas cover only the ACK call; fixture construction, reset, assertio
 | 32,768 | 1 | 0.00003398 | 0.00108722 | 0.00000000 | 0.00000000 |
 | 32,768 | 32 | 0.00000000 | 0.00000000 | 0.00001584 | 0.00050697 |
 
-Both implementations’ one timer-overhead check reported p99 42 ns (the initial median and minimum were zero at this host’s timer resolution). No overhead subtraction was applied. ACK means are many timer ticks, but this does not remove scheduling, GC or instrumentation effects. Raw operation totals, sample durations, allocation counts, bytes, run variation and individual tail values are retained in the JSON/CSV files.
+The baseline timer-overhead check is the `kind: timer` row in `measurements.jsonl` from the initial capture; the candidate check is `pair-1024-1-1-candidate.json`. Both reported p99 42 ns (the initial median and minimum were zero at this host’s timer resolution). The initial timer loop does not use the defective snapshot copy. In the other 35 pair records, `timer_p99_ns=0` is a placeholder indicating that no timer check ran in that invocation, not an observed zero overhead. No overhead subtraction was applied. ACK means are many timer ticks, but this does not remove scheduling, GC or instrumentation effects. Raw operation totals, sample durations, allocation counts, bytes, run variation and individual tail values are retained in the JSON/CSV files.
 
 ## Trace validity and attribution
 
