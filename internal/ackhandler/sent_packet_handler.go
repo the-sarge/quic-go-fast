@@ -441,7 +441,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 			if h.largestAckedTime.IsZero() || !p.SendTime.Before(h.largestAckedTime) {
 				h.rttStats.UpdateRTT(rcvTime.Sub(p.SendTime), ackDelay)
 				if h.congestionEvents != nil {
-					h.congestionEvents.event.RTTUpdated = true
+					h.congestionEvents.event.RTTUpdated = rcvTime.After(p.SendTime)
 				}
 				if h.logger.Debug() {
 					h.logger.Debugf("\tupdated RTT: %s (σ: %s)", h.rttStats.SmoothedRTT(), h.rttStats.MeanDeviation())

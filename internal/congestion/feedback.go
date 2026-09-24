@@ -44,8 +44,8 @@ type FeedbackEvent struct {
 	PostInFlight     protocol.ByteCount
 	Acked            []PacketInfo
 	Lost             []PacketInfo
-	RTTEligible      bool
-	RTTUpdated       bool
+	RTTEligible      bool // ACK meets recovery's new-largest / ack-eliciting criteria
+	RTTUpdated       bool // send-time order and positive interval also permit an update
 	ECNChecked       bool
 	Congested        bool // the existing ECN validator's congestion signal, not packet loss
 }

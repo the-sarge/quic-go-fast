@@ -41,6 +41,18 @@ func sendCongestionTestPacket(h *sentPacketHandler, now monotime.Time, level pro
 }
 
 func TestCongestionEventPriorAndPostFlight(t *testing.T) {
+	t.Run("nonpositive RTT interval", func(t *testing.T) {
+		r := &congestionRecorder{}
+		h := newCongestionTestHandler(r)
+		now := monotime.Now()
+		pn := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1000)
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.EncryptionInitial, now)
+		require.NoError(t, err)
+		require.False(t, h.rttStats.HasMeasurement())
+		require.True(t, r.feedback[0].RTTEligible)
+		require.False(t, r.feedback[0].RTTUpdated)
+	})
+
 	r := &congestionRecorder{}
 	h := newCongestionTestHandler(r)
 	now := monotime.Now()
