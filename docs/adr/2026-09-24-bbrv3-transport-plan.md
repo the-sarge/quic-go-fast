@@ -1,7 +1,7 @@
 # Transport feedback and send ownership implementation plan
 
 **Date:** 2026-09-24
-**Status:** T1 implemented; T3 in progress; T2/T4 blocked by T3; T5 blocked by T2
+**Status:** T1/T3 implemented; T2/T4 ready; T5 blocked by T2
 **Track:** T in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
@@ -30,9 +30,9 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | [T1](#t1) | Complete ([#587](https://github.com/the-sarge/quic-go-fast/issues/587)) | Capture logical congestion feedback without changing Reno | None | None; see slice budget |
-| [T2](#t2) | new | Deliver bounded registration-time sampling through real recovery | T1, T3 | None; see slice budget |
-| [T3](#t3) | In progress ([#604](https://github.com/the-sarge/quic-go-fast/pull/604)) | Bound paced local sends across the complete worker lifetime | None | None; see slice budget |
-| [T4](#t4) | new | Validate bounded actual ECN marking through path changes | T1, T3 | None; see slice budget |
+| [T2](#t2) | Ready | Deliver bounded registration-time sampling through real recovery | T1, T3 | None; see slice budget |
+| [T3](#t3) | Complete ([#589](https://github.com/the-sarge/quic-go-fast/issues/589)) | Bound paced local sends across the complete worker lifetime | None | None; see slice budget |
+| [T4](#t4) | Ready | Validate bounded actual ECN marking through path changes | T1, T3 | None; see slice budget |
 | [T5](#t5) | new | Emit bounded persistent-congestion and recovery evidence | T2 | None; see slice budget |
 
 ## Operating discipline
@@ -144,7 +144,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **What it delivers:** Add private policy-specific pacing/quantum and pending-byte credit through real ordinary/GSO/coalesced emission, asynchronous queue/worker groups, accepted-prefix fallback, stopped-send disposal, MTU probes, close and migration debt. The BBR policy uses the selected Q/2Q contract; legacy Reno retains its exact rate/burst behavior. Test activation is private; no public BBR selector exists.
 
-**Existing-work disposition:** Retain and rework [product PR #604](https://github.com/the-sarge/quic-go-fast/pull/604) on `codex/bbr-t3-local-send` under this current contract. Resume through the scoped control-admission re-audit, not a new implementation baseline. The [linked audit receipt](../audits/2026-09-24-bbrv3-handoff/t3-control-admission.md) owns trigger history and review receipts.
+**Existing-work disposition:** Implemented in [product PR #604](https://github.com/the-sarge/quic-go-fast/pull/604), retaining its implementation through the scoped control-admission re-audit. The [linked audit receipt](../audits/2026-09-24-bbrv3-handoff/t3-control-admission.md) owns trigger history and review receipts.
 
 **Blocked by:** None.
 
@@ -166,14 +166,14 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
-| Reserved/queued/dequeued/in-service | Charge one reservation until actual local completion | credit ledger | stall plus concurrent drain/refill | Required before slice completion |
-| Accepted prefix/rejected suffix/unknown progress | Return exact credit; never resend accepted or uncertain bytes | queue completion boundary | failure table | Required before slice completion |
-| Stopped enqueue/close/fatal cleanup | Return credit once and release owned buffer | queue completion boundary | shutdown race fixture | Required before slice completion |
-| Rate decrease/path change | Retain committed excess as debt | admission owner | debt fixture | Required before slice completion |
-| GSO/coalescing/MTU probe | Charge physical payload and bounded exception | emission admission | real-packer fixture | Required before slice completion |
-| Ordinary refusal with old-generation debt or current-generation byte pressure, while control credit remains | Try bounded ACK admission; preserve ACK/PTO deadlines and completion wakeup; keep ordinary data blocked | shared ledger admissibility/rearm predicate and emission control-opportunity disposition | `TestBBRPendingCreditMigrationDebt`, including delayed ACK through the connection loop and current-generation GSO refusal when one control packet still fits | Required before slice completion |
-| Due probe cannot acquire isolation because total tracked bytes (ordinary or control) remain pending | Try bounded ACK admission; preserve ACK/PTO deadlines and unconsumed probe intent; rearm only when isolation becomes admissible | same shared ledger predicate and emission control-opportunity disposition | `TestBBRPendingCreditMTUException`: due ACK, no-ACK wait without self-wakeup, and admission after pending bytes complete | Required before slice completion |
-| Control credit exhausted, queue full, or isolated reservation already held | Hard-block until actual capacity changes; never bypass an active isolated probe | shared credit predicate plus existing queue capacity guard | existing queue subcases plus emission-level hard-block observations for active isolation and less than one control packet of credit in the named MTU/migration tests; no new test function | Required before slice completion |
+| Reserved/queued/dequeued/in-service | Charge one reservation until actual local completion | credit ledger | stall plus concurrent drain/refill | Covered by `TestBBRPendingCreditWorkerOwned`, `TestBBRPendingCreditConcurrentDrainRefill` |
+| Accepted prefix/rejected suffix/unknown progress | Return exact credit; never resend accepted or uncertain bytes | queue completion boundary | failure table | Covered by `TestBBRPendingCreditPartialAndUnknownProgress` |
+| Stopped enqueue/close/fatal cleanup | Return credit once and release owned buffer | queue completion boundary | shutdown race fixture | Covered by `TestBBRPendingCreditStoppedAndClose` |
+| Rate decrease/path change | Retain committed excess as debt | admission owner | debt fixture | Covered by `TestBBRPendingCreditRateDecrease`, `TestBBRPendingCreditMigrationDebt` |
+| GSO/coalescing/MTU probe | Charge physical payload and bounded exception | emission admission | real-packer fixture | Covered by `TestBBRPendingCreditWorkerOwned`, `TestBBRPendingCreditGSOFallback`, `TestBBRPendingCreditMTUException` |
+| Ordinary refusal with old-generation debt or current-generation byte pressure, while control credit remains | Try bounded ACK admission; preserve ACK/PTO deadlines and completion wakeup; keep ordinary data blocked | shared ledger admissibility/rearm predicate and emission control-opportunity disposition | `TestBBRPendingCreditMigrationDebt`, including delayed ACK through the connection loop and current-generation GSO refusal when one control packet still fits | Covered by `TestBBRPendingCreditMigrationDebt` |
+| Due probe cannot acquire isolation because total tracked bytes (ordinary or control) remain pending | Try bounded ACK admission; preserve ACK/PTO deadlines and unconsumed probe intent; rearm only when isolation becomes admissible | same shared ledger predicate and emission control-opportunity disposition | `TestBBRPendingCreditMTUException`: due ACK, no-ACK wait without self-wakeup, and admission after pending bytes complete | Covered by `TestBBRPendingCreditMTUException` |
+| Control credit exhausted, queue full, or isolated reservation already held | Hard-block until actual capacity changes; never bypass an active isolated probe | shared credit predicate plus existing queue capacity guard | existing queue subcases plus emission-level hard-block observations for active isolation and less than one control packet of credit in the named MTU/migration tests; no new test function | Covered by `TestEmissionResultQueueWakeup`, `TestBBRPendingCreditMTUException` |
 
 **Evidence budget:** At most 10 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. The initial and replacement product reviews are consumed. After this scoped re-audit is published, verify the replacement review’s accepted finding against the corrected exact head; no further fresh product review is authorized. Final certification reruns after candidate changes are required checks, not a statistical repetition campaign. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 

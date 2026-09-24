@@ -1019,6 +1019,21 @@ func (h *sentPacketHandler) PopPacketNumber(encLevel protocol.EncryptionLevel) p
 }
 
 func (h *sentPacketHandler) SendMode(now monotime.Time) SendMode {
+	return h.sendMode(now, true)
+}
+
+// SendAllowance supplies the private emission pacer without applying Reno's
+// rate/burst adjustment twice. All recovery, probe and amplification gates stay
+// authoritative, and the caller must fit whole datagrams within the allowance.
+func (h *sentPacketHandler) SendAllowance(now monotime.Time) (SendMode, protocol.ByteCount) {
+	allowance := max(0, h.congestion.GetCongestionWindow()-h.bytesInFlight)
+	if !h.peerAddressValidated {
+		allowance = min(allowance, max(0, amplificationFactor*h.bytesReceived-h.bytesSent))
+	}
+	return h.sendMode(now, false), allowance
+}
+
+func (h *sentPacketHandler) sendMode(now monotime.Time, paced bool) SendMode {
 	numTrackedPackets := h.appDataPackets.history.Len()
 	if h.initialPackets != nil {
 		numTrackedPackets += h.initialPackets.history.Len()
@@ -1057,7 +1072,7 @@ func (h *sentPacketHandler) SendMode(now monotime.Time) SendMode {
 		}
 		return SendAck
 	}
-	if !h.congestion.HasPacingBudget(now) {
+	if paced && !h.congestion.HasPacingBudget(now) {
 		return SendPacingLimited
 	}
 	return SendAny

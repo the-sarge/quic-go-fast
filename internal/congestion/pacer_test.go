@@ -167,3 +167,11 @@ func BenchmarkPacer(b *testing.B) {
 		}
 	}
 }
+
+// Keep the legacy rate gain, ten-packet burst and deadline rounding explicitly
+// covered while the opt-in emission pacer follows its separate Q policy.
+func TestLegacyRenoPacingPreserved(t *testing.T) {
+	t.Run("rate and burst", TestPacerPacing)
+	t.Run("high rate", TestPacerFastPacing)
+	t.Run("rounding", TestPacerDeadlineRounding)
+}

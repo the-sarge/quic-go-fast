@@ -149,13 +149,18 @@ func (f *mtuFinder) ShouldSendProbe(now monotime.Time) bool {
 	return !now.Before(f.lastProbeTime.Add(mtuProbeDelay * f.rttStats.SmoothedRTT()))
 }
 
-func (f *mtuFinder) GetPing(now monotime.Time) (ackhandler.Frame, protocol.ByteCount) {
+func (f *mtuFinder) probeSize() protocol.ByteCount {
 	var size protocol.ByteCount
 	if f.lastProbeWasLost {
 		size = (f.min + f.lost[0]) / 2
 	} else {
 		size = (f.min + f.max()) / 2
 	}
+	return size
+}
+
+func (f *mtuFinder) GetPing(now monotime.Time) (ackhandler.Frame, protocol.ByteCount) {
+	size := f.probeSize()
 	f.lastProbeTime = now
 	f.inFlight = size
 	return ackhandler.Frame{
