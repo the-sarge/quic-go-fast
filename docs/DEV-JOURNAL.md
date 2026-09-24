@@ -3538,3 +3538,24 @@ Candidate `4b41134f712c26f926832593299fe4187f0f35c7` passed clean-tree, diff, re
 ### Next
 
 The [live implementation tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) owns the three parent issues, 13 child mappings and current frontier: T1 #587, T3 #589 and Q1 #598. They can run in separate worktrees in parallel. Every child points to the verified default-branch plan commit; native dependencies gate blocked work. OmniFocus mirrors the program under the existing BBRv3 parent. Dispatch remains the operator's decision; this handoff launched no implementation or qualification campaign.
+
+---
+
+## BBRv3 T1 feedback capture landed - 2026-09-24 01:43 EDT
+
+**Main:** `33de58dde7b1`
+**Actor:** Codex
+
+### Summary
+
+Merged [BBRv3 T1, PR #602](https://github.com/the-sarge/quic-go-fast/pull/602) as `33de58dde7b1610818af06d55fc109efb52e4cc7`, closing [#587](https://github.com/the-sarge/quic-go-fast/issues/587). Recovery now has a privately activated value-only send/feedback capture seam with packet-space, ordinal and generation identity. Ordinary constructors retain Reno, its callback ordering, and no capture-state allocation. Sampling, BBR policy and public selection remain outside T1.
+
+### Validation
+
+The six contract-named test functions cover ordering, flight snapshots, timer feedback, identities, borrowed lifetimes and late-only ACK preservation. Review fixes prevent rejected RTT intervals from claiming updates and suppress no-work timer notifications while retaining MTU-only flight changes. Initial RAS review `20260924T050930-185523d29fe8197e86434472` was verified clear at candidate `89298175b34e432c3458f79967b4dbbdd3c1de61`; replacement review `20260924T053706-dc0c3eb80bc2b7872da2275f` was clean. There are no deferred findings or identified untraced effects.
+
+The [exact-head certification receipt](https://github.com/the-sarge/quic-go-fast/pull/602#issuecomment-5808398878) records clean-tree checks, affected recovery/congestion/root package tests, the focused race gate, vet, lint, module tidiness and all 33 successful hosted checks. Hosted receipts include [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/35960547118), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/35960547093), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/35960547106), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/35960547103) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/35960547073).
+
+### Next
+
+The product PR owns T1's committed completion and the resulting T3/Q1 frontier. T2 and T4 still await T3; this merge makes no additional slice ready. See the [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/600) and [current program index](adr/2026-09-24-bbrv3-program.md) for subsequent state.
