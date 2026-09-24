@@ -1,9 +1,13 @@
 package ackhandler
 
 import (
+	"cmp"
+	"slices"
+
 	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/wire"
 )
 
 // congestionEventSink is private constructor plumbing, unavailable to ordinary
@@ -12,6 +16,21 @@ import (
 type congestionEventSink interface {
 	Sent(congestion.SendEvent)
 	Feedback(congestion.FeedbackEvent)
+}
+
+// EnableDeliverySampling is internal constructor plumbing for the private rich
+// path. Public QUIC constructors never call it. Installation after registration
+// is forbidden: a partial history cannot become authoritative evidence.
+func EnableDeliverySampling(handler SentPacketHandler, sink interface {
+	Sent(congestion.SendEvent)
+	Feedback(congestion.FeedbackEvent)
+}, pending func() protocol.ByteCount,
+) {
+	h, ok := handler.(*sentPacketHandler)
+	if !ok || h.bytesSent != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
+		panic("invalid delivery sampler installation")
+	}
+	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending, packets: make(map[congestionPacketKey]congestion.PacketInfo)}
 }
 
 type congestionPacketKey struct {
@@ -27,12 +46,15 @@ func congestionKey(level protocol.EncryptionLevel, pn protocol.PacketNumber) con
 }
 
 type congestionDispatch struct {
+	pending          func() protocol.ByteCount
+	sampler          deliverySampler
 	ordinal          uint64
 	pathGeneration   uint64
 	sampleGeneration uint64
 	sink             congestionEventSink
 	packets          map[congestionPacketKey]congestion.PacketInfo
 	event            congestion.FeedbackEvent
+	scratch          []congestion.PacketInfo
 }
 
 func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *packet, ecn protocol.ECN, prior protocol.ByteCount) {
@@ -41,6 +63,14 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		return
 	}
 	d.ordinal++
+	d.expire(p.SendTime)
+	if p.IsAckEliciting() && !p.isPathProbePacket && prior == 0 && d.sampler.outstanding == 0 && d.pendingBytes() == 0 {
+		if !d.sampler.sendOrigin.IsZero() {
+			d.sampleGeneration++
+		}
+		d.sampler.sendOrigin, d.sampler.deliveredTime = p.SendTime, p.SendTime
+		d.sampler.evidenceLost = false
+	}
 	info := congestion.PacketInfo{
 		Space:            congestionKey(p.EncryptionLevel, pn).space,
 		Ordinal:          d.ordinal,
@@ -57,7 +87,13 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		ECN:              ecn,
 	}
 
-	d.packets[congestionKey(p.EncryptionLevel, pn)] = info
+	if len(d.packets) < maxDeliveryLive {
+		d.sampler.sent(&info, prior, h.bytesInFlight)
+		d.packets[congestionKey(p.EncryptionLevel, pn)] = info
+	} else {
+		d.sampler.missing++ // Optional evidence never evicts mandatory recovery.
+		d.sampler.evidenceLost = true
+	}
 	d.sink.Sent(congestion.SendEvent{Packet: info, PriorInFlight: prior, PostInFlight: h.bytesInFlight})
 }
 
@@ -66,6 +102,13 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 	if d == nil {
 		return
 	}
+	// ACK values grow from the front and losses from the back of one bounded
+	// buffer. Registration cannot interleave this connection-owned event.
+	needed := len(d.packets) + len(d.sampler.retained)
+	if cap(d.scratch) < needed {
+		d.scratch = make([]congestion.PacketInfo, min(maxDeliveryLive+maxDeliveryRetained, max(needed, 2*cap(d.scratch))))
+	}
+	d.scratch = d.scratch[:cap(d.scratch)]
 	d.event = congestion.FeedbackEvent{
 		PathGeneration:   d.pathGeneration,
 		SampleGeneration: d.sampleGeneration,
@@ -74,8 +117,8 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 		HasAck:           largest != protocol.InvalidPacketNumber,
 		LargestAcked:     largest,
 		PriorInFlight:    prior,
-		Acked:            d.event.Acked[:0],
-		Lost:             d.event.Lost[:0],
+		Acked:            d.scratch[:0],
+		Lost:             d.scratch[len(d.scratch):],
 	}
 
 	for _, p := range acked {
@@ -94,9 +137,11 @@ func (h *sentPacketHandler) captureCongestionLoss(level protocol.EncryptionLevel
 	}
 	key := congestionKey(level, pn)
 	if info, ok := d.packets[key]; ok && p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket {
-		d.event.Lost = append(d.event.Lost, info)
+		start := len(d.scratch) - len(d.event.Lost) - 1
+		d.scratch[start] = info
+		d.event.Lost = d.scratch[start:]
 	}
-	delete(d.packets, key)
+	d.retire(key, d.event.Time, h.rttStats.PTO(level == protocol.Encryption1RTT), deliveryRetiredLoss)
 }
 
 func (h *sentPacketHandler) finishCongestionFeedback() {
@@ -105,6 +150,8 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 		return
 	}
 	d.event.PostInFlight = h.bytesInFlight
+	slices.SortFunc(d.event.Lost, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
+	d.sampler.feedback(&d.event)
 	// A timer scan may run early or against a stale loss deadline. Preserve
 	// MTU retirement flight changes even though they are not congestion loss.
 	if d.event.HasAck || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
@@ -116,11 +163,15 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	d.event.Lost = d.event.Lost[:0]
 }
 
-// Disposal is not congestion loss or delivery. These records have exactly the
-// live recovery lifetime; retained late-delivery evidence belongs to T2.
+// Disposal is not congestion loss or delivery.
 func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLevel, pn protocol.PacketNumber) {
 	if h.congestionEvents != nil {
-		delete(h.congestionEvents.packets, congestionKey(level, pn))
+		d := h.congestionEvents
+		key := congestionKey(level, pn)
+		if p, ok := d.packets[key]; ok {
+			d.sampler.dispose(p)
+			delete(d.packets, key)
+		}
 	}
 }
 
@@ -128,8 +179,18 @@ func (h *sentPacketHandler) discardCongestionSpace(level protocol.EncryptionLeve
 	if d := h.congestionEvents; d != nil {
 		for key, p := range d.packets {
 			if p.EncryptionLevel == level {
+				d.sampler.dispose(p)
 				delete(d.packets, key)
 			}
+		}
+		for key, r := range d.sampler.retained {
+			if r.packet.EncryptionLevel == level {
+				d.removeRetained(key, true)
+			}
+		}
+		if level == protocol.Encryption0RTT {
+			d.sampleGeneration++
+			d.sampler.sendOrigin, d.sampler.deliveredTime = 0, 0
 		}
 	}
 }
@@ -144,5 +205,36 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 		// needs no independent cleanup: this state owns no resources or goroutines.
 		d.packets = make(map[congestionPacketKey]congestion.PacketInfo)
 		d.event = congestion.FeedbackEvent{}
+		d.scratch = nil
+		d.sampler = deliverySampler{delivered: d.sampler.delivered, lost: d.sampler.lost}
+	}
+}
+
+// Retained ACK discovery runs only after recovery has validated the decoded ACK.
+// It visits bounded stored keys, never the packet numbers in an absent range.
+func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol.EncryptionLevel) {
+	d := h.congestionEvents
+	if d == nil {
+		return
+	}
+	for key, r := range d.sampler.retained {
+		if key.space == congestionKey(level, 0).space && ack.AcksPacket(key.number) {
+			d.event.Acked = append(d.event.Acked, r.packet)
+			d.removeRetained(key, false)
+		}
+	}
+	slices.SortFunc(d.event.Acked, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
+}
+
+func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now monotime.Time) {
+	d := h.congestionEvents
+	if d == nil || p.IsPathMTUProbePacket || p.isPathProbePacket || !now.After(p.SendTime) {
+		return
+	}
+	for _, info := range d.event.Acked {
+		if info.PacketNumber == p.PacketNumber && info.EncryptionLevel == p.EncryptionLevel && info.PathGeneration == d.pathGeneration && info.SampleGeneration == d.sampleGeneration {
+			d.event.RawRTT = now.Sub(p.SendTime)
+			return
+		}
 	}
 }

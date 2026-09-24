@@ -70,13 +70,14 @@ const (
 )
 
 type emissionResult struct {
-	progress  bool
-	stop      emissionStop
-	blocked   blockMode
-	retry     bool
-	available <-chan struct{}
-	deadline  monotime.Time
-	err       error
+	supplyExhausted bool // set only by an otherwise-permitted ordinary pack
+	progress        bool
+	stop            emissionStop
+	blocked         blockMode
+	retry           bool
+	available       <-chan struct{}
+	deadline        monotime.Time
+	err             error
 }
 
 type emissionIntent struct {
@@ -367,7 +368,7 @@ func (e *packetEmission) coalesced(now monotime.Time) emissionResult {
 	}
 	packet, err := e.packer.PackCoalescedPacket(false, e.policy.maxPacketSize(), now, e.version)
 	if err != nil || packet == nil {
-		return emissionResult{err: err}
+		return emissionResult{err: err, supplyExhausted: err == nil}
 	}
 	e.policy.noteFirstEmission()
 	e.sendCoalesced(packet, (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket()), now)
@@ -427,7 +428,15 @@ func (e *packetEmission) sendProbePacket(sendMode ackhandler.SendMode, now monot
 	// or until there are no more packets to queue.
 	var packet *coalescedPacket
 	for packet == nil {
-		if wasQueued := (*e.recovery).QueueProbePacket(encLevel); !wasQueued {
+		var wasQueued bool
+		if h, ok := (*e.recovery).(interface {
+			QueueProbePacketAt(protocol.EncryptionLevel, monotime.Time) bool
+		}); ok {
+			wasQueued = h.QueueProbePacketAt(encLevel, now)
+		} else {
+			wasQueued = (*e.recovery).QueueProbePacket(encLevel)
+		}
+		if !wasQueued {
 			break
 		}
 		var err error

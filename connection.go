@@ -577,6 +577,12 @@ func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
 
 	defer func() {
+		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
+			h.CloseDelivery()
+		}
+		c.framer.mutex.Lock()
+		c.framer.deliveryStreams = nil
+		c.framer.mutex.Unlock()
 		c.closePacketAdmission()
 		releaseUndecryptablePackets(c.undecryptablePackets)
 		c.undecryptablePackets = nil
@@ -686,6 +692,9 @@ runLoop:
 		// Check for loss detection timeout.
 		// This could cause packets to be declared lost, and retransmissions to be enqueued.
 		now := monotime.Now()
+		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
+			h.ExpireDelivery(now)
+		}
 		if timeout := c.sentPacketHandler.GetLossDetectionTimeout(); !timeout.IsZero() && !timeout.After(now) {
 			if err := c.sentPacketHandler.OnLossDetectionTimeout(now); err != nil {
 				c.setCloseError(&closeError{err: err})
@@ -887,6 +896,12 @@ func (c *Conn) maybeResetTimer() {
 			} else {
 				deadline = c.nextIdleTimeoutTime()
 			}
+		}
+	}
+	// Delivery evidence expires even while local capacity blocks all sending.
+	if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
+		if t := h.DeliveryExpiry(); !t.IsZero() && t.Before(deadline) {
+			deadline = t
 		}
 	}
 	// If the connection is hard-blocked, we can't even send acknowledgments,
