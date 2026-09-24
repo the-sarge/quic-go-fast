@@ -69,6 +69,13 @@ func TestBBRStartupLimitedSamples(t *testing.T) {
 }
 
 func TestBBRDrainFlightAndRoundExit(t *testing.T) {
+	t.Run("aggregate before four-packet floor", func(t *testing.T) {
+		b := NewBBRSender(1200)
+		for i := uint64(1); i <= 4; i++ {
+			feedbackRound(b, i, i*1200, 12000, SendUnknown, 20000)
+		}
+		require.EqualValues(t, 4800, b.GetCongestionWindow(), "2*1200 BDP + 1200 aggregation remains below four M")
+	})
 	t.Run("Cruise loss retains seventy percent", func(t *testing.T) {
 		b := NewBBRSender(1200)
 		for i := uint64(1); i <= 4; i++ {
@@ -81,7 +88,12 @@ func TestBBRDrainFlightAndRoundExit(t *testing.T) {
 		b.Feedback(FeedbackEvent{Time: monotime.Time(7100 * time.Millisecond), Lost: []PacketInfo{lost}, Delivery: DeliverySample{Delivered: 7200}, RecoveryEpisode: RecoveryEpisode{Entered: true, Active: true}})
 		feedbackRound(b, 8, 8400, 20000, SendUnknown, 20000)
 		require.EqualValues(t, 70000, b.PacingRate())
-		require.EqualValues(t, 12600, b.GetCongestionWindow())
+		require.EqualValues(t, 13440, b.GetCongestionWindow())
+		feedbackRoundRTT(b, 9, 9600, 20000, SendUnknown, 20000, 10*time.Millisecond)
+		require.EqualValues(t, 4800, b.GetCongestionWindow(), "smaller BDP caps the window, not the retained loss bound")
+		b.Feedback(FeedbackEvent{Time: monotime.Time(10100 * time.Millisecond), Lost: []PacketInfo{lost}, Delivery: DeliverySample{Delivered: 9600}})
+		feedbackRound(b, 11, 10800, 1000000, SendUnknown, 20000)
+		require.EqualValues(t, 6000, b.GetCongestionWindow(), "a second loss round retains 0.7 of the established bound, allowing ACK growth")
 	})
 	for _, tc := range []struct {
 		name   string
@@ -130,6 +142,10 @@ func TestBBRStartupLossRanges(t *testing.T) {
 		{"five ranges", 5, 2, 1200, true},
 		{"contiguous burst", 6, 1, 1200, true},
 		{"exact two percent", 6, 2, 200, true},
+		{"originless", 6, 2, 1200, false},
+		{"backdated", 6, 2, 1200, false},
+		{"invalid sample exit", 6, 2, 1200, false},
+		{"before recovery boundary", 6, 2, 1200, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := NewBBRSender(1200)
@@ -138,8 +154,27 @@ func TestBBRStartupLossRanges(t *testing.T) {
 			for i := 0; i < tc.count; i++ {
 				lost = append(lost, PacketInfo{Space: protocol.Encryption1RTT, PacketNumber: protocol.PacketNumber(i) * tc.step, Ordinal: uint64(i + 2), Length: tc.length, AckEliciting: true, RegistrationValid: true, Delivery: DeliverySnapshot{Valid: true, PostInFlight: 60000}})
 			}
-			b.Feedback(FeedbackEvent{Time: monotime.Time(2100 * time.Millisecond), Lost: lost, PriorInFlight: 60000, PostInFlight: 50000, Delivery: DeliverySample{Delivered: 1200, Lost: uint64(tc.length) * uint64(tc.count)}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: true, Active: true}})
+			if tc.name == "originless" {
+				for i := range lost {
+					lost[i].Delivery.Valid = false
+				}
+			}
+			if tc.name == "backdated" {
+				b.Feedback(FeedbackEvent{Time: monotime.Time(3 * time.Second), Lost: lost[:1], Delivery: DeliverySample{Delivered: 1200}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: true, Active: true, Boundary: 7}})
+				lost = lost[1:]
+			}
+			before := b.GetCongestionWindow()
+			boundary := uint64(7)
+			if tc.name == "before recovery boundary" {
+				boundary = 20
+			}
+			b.Feedback(FeedbackEvent{HasAck: tc.name == "backdated", Time: monotime.Time(2100 * time.Millisecond), Lost: lost, PriorInFlight: 60000, PostInFlight: 50000, Delivery: DeliverySample{Delivered: 1200, Lost: uint64(tc.length) * uint64(tc.count)}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: tc.name != "backdated", Active: true, Boundary: boundary}})
+			require.Equal(t, before, b.GetCongestionWindow(), "loss facts do not perform an extra immediate window cut")
 			require.True(t, b.InSlowStart(), "loss alone cannot complete a recovery round")
+			if tc.name == "invalid sample exit" {
+				b.Feedback(FeedbackEvent{Time: monotime.Time(2200 * time.Millisecond), HasAck: true, Delivery: DeliverySample{Delivered: 1200}, RecoveryEpisode: RecoveryEpisode{ID: 1, Exited: true}})
+				require.False(t, b.InRecovery())
+			}
 			feedbackRound(b, 20, 2400, 100000, SendApplicationLimited, 20000)
 			require.Equal(t, tc.wantStartup, b.InSlowStart())
 			if !tc.wantStartup {
@@ -152,8 +187,12 @@ func TestBBRStartupLossRanges(t *testing.T) {
 // Each ACK covers a fresh packet sent after the preceding ACK. These are value
 // inputs at the reducer seam; transport integration separately uses recovery.
 func feedbackRound(b *BBRSender, ordinal, delivered, rate uint64, limited SendLimitation, flight protocol.ByteCount) {
+	feedbackRoundRTT(b, ordinal, delivered, rate, limited, flight, 100*time.Millisecond)
+}
+
+func feedbackRoundRTT(b *BBRSender, ordinal, delivered, rate uint64, limited SendLimitation, flight protocol.ByteCount, rtt time.Duration) {
 	now := monotime.Time(ordinal+1) * monotime.Time(time.Second)
-	p := PacketInfo{Ordinal: ordinal, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: now.Add(-100 * time.Millisecond), Delivery: DeliverySnapshot{Delivered: delivered - 1200, Valid: true}}
+	p := PacketInfo{Ordinal: ordinal, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: now.Add(-rtt), Delivery: DeliverySnapshot{Delivered: delivered - 1200, Valid: true}}
 	b.Sent(SendEvent{Packet: p})
-	b.Feedback(FeedbackEvent{Time: now, HasAck: true, RawRTT: 100 * time.Millisecond, PostInFlight: flight, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: delivered, Ordinal: ordinal, BytesPerSecond: rate, Interval: 100 * time.Millisecond, Limited: limited, Valid: true}})
+	b.Feedback(FeedbackEvent{Time: now, HasAck: true, RawRTT: rtt, PostInFlight: flight, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: delivered, Ordinal: ordinal, BytesPerSecond: rate, Interval: 100 * time.Millisecond, Limited: limited, Valid: true}})
 }

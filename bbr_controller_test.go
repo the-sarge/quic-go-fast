@@ -21,7 +21,7 @@ func TestBBRTransportFeedbackToAllowance(t *testing.T) {
 			(<-q.queue).release()
 		}
 	}()
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 1100)}))
 		pn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 		r := c.triggerSending(now)

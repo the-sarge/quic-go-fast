@@ -237,7 +237,7 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 		d.scratch = nil
 		d.sampler = deliverySampler{delivered: d.sampler.delivered, lost: d.sampler.lost}
 		if b, ok := h.congestion.(*congestion.BBRSender); ok {
-			b.Reset(d.pathGeneration, d.sampleGeneration)
+			b.Reset(d.pathGeneration, d.sampleGeneration, d.sampler.delivered)
 		}
 	}
 }

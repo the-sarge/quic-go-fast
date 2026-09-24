@@ -38,6 +38,11 @@ func TestBBRPrivateResetAndClose(t *testing.T) {
 				require.False(t, b.CanSend(0))
 				return
 			}
+			probe := h.PopPacketNumber(protocol.Encryption1RTT)
+			h.SentPacket(now.Add(300*time.Millisecond), probe, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, true)
+			_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(probe)}, protocol.Encryption1RTT, now.Add(400*time.Millisecond))
+			require.NoError(t, err)
+			require.Equal(t, before, b.GetCongestionWindow(), "a path-probe receipt cannot import pre-reset delivered bytes")
 			require.Same(t, b, h.congestion)
 			if action == "path" {
 				require.EqualValues(t, 12800, before)

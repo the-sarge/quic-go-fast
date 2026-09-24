@@ -1227,7 +1227,7 @@ func (h *sentPacketHandler) MigratedPath(now monotime.Time, initialMaxDatagramSi
 	}
 	if b, ok := h.congestion.(*congestion.BBRSender); ok {
 		b.SetMaxDatagramSize(initialMaxDatagramSize)
-		b.Reset(h.congestionEvents.pathGeneration, h.congestionEvents.sampleGeneration)
+		b.Reset(h.congestionEvents.pathGeneration, h.congestionEvents.sampleGeneration, h.congestionEvents.sampler.delivered)
 	} else {
 		h.congestion = congestion.NewCubicSender(
 			congestion.DefaultClock{},
