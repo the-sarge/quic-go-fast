@@ -3681,3 +3681,16 @@ B1 and Q1 remain ready; T5 completion creates no newly ready slice because B5 st
 **Validation:** The small-flight regression failed before implementation. Six focused test families, affected ackhandler/congestion race tests, vet, module tidiness, go-fix diff, affected-package lint and documentation checks passed. RAS review `20260924T215718-232032a92897ad7b3a3cbe29` completed with all five reviewers and no required fixes. [Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/622#issuecomment-5823011628) records head `e61b9c4737142fe3e415ab59d148c28ac2d0923c`, base `654931fd973f608b28eeac4b9f44c7232aba4bac` and all 33 passing hosted checks. No benchmark, fuzzing or expanded platform campaign was added.
 
 **Next:** The optional bounded confirmation-scan optimization remains with [ACK-processing-cost investigation #618](https://github.com/the-sarge/quic-go-fast/issues/618), the live follow-up view. Revalidated at the product merge, `recoveryEvidence.confirmPTO` skips missing witnesses but can scan the retained ring without any pending PTO candidate; no latency claim or additional program blocker follows.
+
+---
+
+## Recovery ACK cost investigation completed - 2026-09-24 19:07 EDT
+
+**Main:** `dc6c8fbd8deb`
+**Actor:** Codex
+
+**Summary:** Merged [PR #624](https://github.com/the-sarge/quic-go-fast/pull/624) as `dc6c8fbd8deb8afb631c07344a627927025040ee`, completing [#618](https://github.com/the-sarge/quic-go-fast/issues/618). The frozen investigation measures real recovery ACK processing in six local cases, including PTO confirmation, and retains raw samples, individual tails, profiles, scratch sources and reproduction instructions. No production optimization or maintained timing gate shipped.
+
+**Decision:** Recommend separately scoping bounded narrow-ACK lookups through the existing packet-space key map. One disposable candidate reduced paired mean ACK time by 31.6–73.5% across the six cases, without added index storage or registration work. The [revision-pinned report](https://github.com/the-sarge/quic-go-fast/blob/dc6c8fbd8deb8afb631c07344a627927025040ee/docs/audits/issue-618-recovery-ack-cost/README.md) owns the recommendation and its limits, including an unrepeated tail excursion, unmeasured dense-ACK behavior and the initial fixture's atomic-copy warning. Local thresholds are diagnostic, not native qualification or activation gates.
+
+**Validation:** All 18 corrected comparison pairs completed within the finite budget; recorded measurement execution totaled 513.360 seconds. Existing T5 and affected-package tests, corrected scratch/restored-source vet, module tidiness, raw-evidence hashes and documentation checks passed. RAS review `20260924T224948-64bf313bbc1dcd1c53b0ada6` led to two documentation corrections; the shared docs-only polish policy skipped another review/verify. The [disposition and local certification receipt](https://github.com/the-sarge/quic-go-fast/pull/624#issuecomment-5823627757) records head `95e9a4c32ad75fb28567abcb61c7bc57e03a114d`; all 33 hosted checks passed before squash merge. No deferred RAS findings remain.
