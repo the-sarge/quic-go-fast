@@ -105,7 +105,11 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 		return
 	}
 	d.event.PostInFlight = h.bytesInFlight
-	d.sink.Feedback(d.event)
+	// A timer scan may run early or against a stale loss deadline. Preserve
+	// MTU retirement flight changes even though they are not congestion loss.
+	if d.event.HasAck || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
+		d.sink.Feedback(d.event)
+	}
 	clear(d.event.Acked)
 	clear(d.event.Lost)
 	d.event.Acked = d.event.Acked[:0]

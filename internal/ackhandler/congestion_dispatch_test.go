@@ -81,6 +81,26 @@ func TestCongestionEventPriorAndPostFlight(t *testing.T) {
 }
 
 func TestCongestionEventTimerOnlyLoss(t *testing.T) {
+	t.Run("MTU-only retirement retains flight facts", func(t *testing.T) {
+		r := &congestionRecorder{}
+		h := newCongestionTestHandler(r)
+		now := monotime.Now()
+		probe := h.PopPacketNumber(protocol.EncryptionInitial)
+		h.SentPacket(now, probe, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.EncryptionInitial, protocol.ECNNon, 1400, true, false)
+		sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1000)
+		pn := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1000)
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.EncryptionInitial, now.Add(1100*time.Millisecond))
+		require.NoError(t, err)
+		require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout()))
+		require.Len(t, r.feedback, 2)
+		e := r.feedback[1]
+		require.False(t, e.HasAck)
+		require.Empty(t, e.Acked)
+		require.Empty(t, e.Lost)
+		require.Equal(t, protocol.ByteCount(2400), e.PriorInFlight)
+		require.Equal(t, protocol.ByteCount(1000), e.PostInFlight)
+	})
+
 	r := &congestionRecorder{}
 	h := newCongestionTestHandler(r)
 	now := monotime.Now()
@@ -90,6 +110,8 @@ func TestCongestionEventTimerOnlyLoss(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, r.feedback[0].Lost)
 	timeout := h.GetLossDetectionTimeout()
+	require.NoError(t, h.OnLossDetectionTimeout(timeout.Add(-time.Microsecond)))
+	require.Len(t, r.feedback, 1, "an early alarm has no recovery facts to dispatch")
 	require.NoError(t, h.OnLossDetectionTimeout(timeout))
 	require.Len(t, r.feedback, 2)
 	e := r.feedback[1]
