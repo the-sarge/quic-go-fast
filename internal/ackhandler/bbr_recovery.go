@@ -1,6 +1,7 @@
 package ackhandler
 
 import (
+	"maps"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/congestion"
@@ -17,6 +18,7 @@ const (
 	outcomeUnresolved recoveryOutcomeState = iota
 	outcomeLost
 	outcomeAcked
+	outcomeExcluded // cannot prove congestion, but a valid receipt can exit recovery
 	outcomeDisposed
 )
 
@@ -43,12 +45,17 @@ type recoveryEvidence struct {
 	members         map[uint64]struct{}
 	ackOrdinal      uint64
 	unconfirmedLoss bool
+	// Packet numbers are monotonic within each of the three spaces. These
+	// boundary witnesses survive optional sampler and outcome-ring eviction.
+	latestPackets   map[protocol.EncryptionLevel]protocol.PacketNumber
+	boundaryPackets map[protocol.EncryptionLevel]protocol.PacketNumber
 }
 
 func (r *recoveryEvidence) sent(p congestion.PacketInfo) {
 	if r.outcomes == nil {
 		r.outcomes = make([]recoveryOutcome, maxRecoveryOutcomes)
 		r.keys = make(map[congestionPacketKey]int)
+		r.latestPackets = make(map[protocol.EncryptionLevel]protocol.PacketNumber, 3)
 	}
 	index := (r.head + r.count) % maxRecoveryOutcomes
 	if r.count == maxRecoveryOutcomes {
@@ -64,10 +71,11 @@ func (r *recoveryEvidence) sent(p congestion.PacketInfo) {
 		endpoint: r.measured && p.RegistrationValid && p.AckEliciting && !p.PathProbe && !p.MTUProbe,
 	}
 	if !p.RegistrationValid || p.PathProbe || p.MTUProbe {
-		o.state = outcomeDisposed
+		o.state = outcomeExcluded
 	}
 	r.outcomes[index] = o
 	r.keys[o.key] = index
+	r.latestPackets[o.key.space] = o.key.number
 }
 
 func (r *recoveryEvidence) lost(key congestionPacketKey, congestionLoss, retained bool, boundary uint64) {
@@ -83,15 +91,21 @@ func (r *recoveryEvidence) lost(key congestionPacketKey, congestionLoss, retaine
 	if !r.episode.Active {
 		r.episode = congestion.RecoveryEpisode{ID: r.episode.ID + 1, Boundary: boundary, Active: true, Entered: true, UndoPossible: true}
 		r.members = make(map[uint64]struct{})
+		r.boundaryPackets = maps.Clone(r.latestPackets)
+	}
+	// Loss ordering is a transport fact, independent of retained delivery
+	// evidence. A per-space packet-number witness proves which side of the
+	// frozen ordinal boundary this transmission occupies without guessing its
+	// missing ordinal from the newest registration.
+	if pn, ok := r.boundaryPackets[key.space]; !ok || key.number > pn {
+		r.episode.Boundary = boundary
+		r.boundaryPackets = maps.Clone(r.latestPackets)
 	}
 	if !known || !retained {
 		r.invalidateUndo()
 		return
 	}
 	ordinal := r.outcomes[i].ordinal
-	if ordinal > r.episode.Boundary {
-		r.episode.Boundary = boundary
-	}
 	if r.episode.UndoPossible {
 		if len(r.members) == maxDeliveryRetained {
 			r.invalidateUndo()
@@ -148,6 +162,11 @@ func (r *recoveryEvidence) ack(ack *wire.AckFrame, level protocol.EncryptionLeve
 
 func (r *recoveryEvidence) feedback(e *congestion.FeedbackEvent, pto time.Duration) {
 	for _, p := range e.Acked {
+		// Retained current-path receipt metadata remains a valid ordinal witness
+		// even after the independent persistent-congestion ring evicted it.
+		if p.PathGeneration == e.PathGeneration {
+			r.ackOrdinal = max(r.ackOrdinal, p.Ordinal)
+		}
 		delete(r.members, p.Ordinal)
 	}
 	if r.episode.Active && r.ackOrdinal > r.episode.Boundary {

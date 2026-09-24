@@ -44,6 +44,21 @@ func TestBBRPersistentCongestionAcrossSpaces(t *testing.T) {
 }
 
 func TestBBRRecoveryEpisodeAllSpurious(t *testing.T) {
+	t.Run("post-boundary MTU receipt", func(t *testing.T) {
+		h, r, now := measuredRecoveryHandler(t)
+		lost := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
+		carrier := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1200)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(110*time.Millisecond), carrier)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(120*time.Millisecond), lost)
+		require.False(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.UndoEligible)
+		pn := h.PopPacketNumber(protocol.Encryption1RTT)
+		h.SentPacket(now.Add(130*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1400, true, false)
+		acknowledgeRecoveryPacket(t, h, protocol.Encryption1RTT, now.Add(140*time.Millisecond), pn)
+		e := r.feedback[len(r.feedback)-1]
+		require.True(t, e.RecoveryEpisode.Exited)
+		require.True(t, e.RecoveryEpisode.UndoEligible)
+		require.Zero(t, e.PersistentCongestion.EndOrdinal)
+	})
 	t.Run("unresolved boundary member becomes lost", func(t *testing.T) {
 		h, r, now := measuredRecoveryHandler(t)
 		a := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
@@ -92,6 +107,41 @@ func TestBBRRecoveryEpisodeAllSpurious(t *testing.T) {
 }
 
 func TestBBRRecoveryEpisodeSupersededOrMissing(t *testing.T) {
+	for _, evicted := range []bool{false, true} {
+		t.Run(map[bool]string{false: "later loss without sampler record", true: "later loss after outcome eviction"}[evicted], func(t *testing.T) {
+			h, r, now := measuredRecoveryHandler(t)
+			sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
+			carrier := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1200)
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(110*time.Millisecond), carrier)
+			count := 25000
+			if evicted {
+				sendCongestionTestPacket(h, now.Add(120*time.Millisecond), protocol.EncryptionInitial, 1200)
+				count = 32768
+			}
+			for range count {
+				pn := h.PopPacketNumber(protocol.EncryptionHandshake)
+				h.SentPacket(now.Add(130*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionHandshake, protocol.ECNNon, 40, false, false)
+			}
+			if !evicted {
+				sendCongestionTestPacket(h, now.Add(140*time.Millisecond), protocol.EncryptionInitial, 1200)
+			}
+			carrier = sendCongestionTestPacket(h, now.Add(200*time.Millisecond), protocol.EncryptionInitial, 1200)
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(210*time.Millisecond), carrier)
+			e := r.feedback[len(r.feedback)-1].RecoveryEpisode
+			require.True(t, e.Active)
+			require.False(t, e.Exited)
+			require.False(t, e.UndoPossible)
+			require.Equal(t, map[bool]uint64{false: 25005, true: 32773}[evicted], e.Boundary)
+			if evicted {
+				require.Positive(t, h.DeliveryStats().OutcomeEvicted)
+			} else {
+				require.Positive(t, h.DeliveryStats().Missing)
+			}
+			carrier = sendCongestionTestPacket(h, now.Add(220*time.Millisecond), protocol.EncryptionInitial, 1200)
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(230*time.Millisecond), carrier)
+			require.True(t, r.feedback[len(r.feedback)-1].RecoveryEpisode.Exited)
+		})
+	}
 	for _, boundary := range []bool{false, true} {
 		t.Run(map[bool]string{false: "unrelated key discard", true: "boundary key discard"}[boundary], func(t *testing.T) {
 			h, r, now := measuredRecoveryHandler(t)
