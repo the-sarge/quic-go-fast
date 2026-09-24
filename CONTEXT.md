@@ -69,3 +69,11 @@ Language for QUIC transport behavior and the fork's transmission work.
 **Path ECN validation**: Evidence from sent markings and peer feedback that a network path preserves usable ECN signaling. It is distinct from platform ECN qualification and does not establish which congestion response is appropriate.
 
 **Validated CE feedback**: An accepted increase in the peer’s cumulative Congestion Experienced count for an identified feedback interval. It reports congestion on received packets, not packet loss, and does not identify which individual acknowledged packets were marked.
+
+**Outstanding delivery evidence**: Information about a transmission that may still receive its first transport acknowledgment. It can remain after the transmission no longer counts toward congestion-controlled flight.
+
+**Pending local send bytes**: Outgoing datagram bytes reserved or handed to local sending work whose submission or disposal is not yet complete. They are distinct from bytes acknowledged by the peer and from bytes still queued inside the operating system or network device.
+
+**CE response boundary**: The transmission boundary recorded when validated congestion-experienced feedback triggers a sending reduction. It suppresses repeated reductions for feedback anchored before that boundary without identifying which individual packet was marked.
+
+**ECN counter fence**: A feedback boundary at which all previously marked transmissions are accounted for before validating marking on a new path. It separates cumulative-counter continuity from the new path's ECN capability.
