@@ -48,6 +48,7 @@ func congestionKey(level protocol.EncryptionLevel, pn protocol.PacketNumber) con
 type congestionDispatch struct {
 	pending          func() protocol.ByteCount
 	sampler          deliverySampler
+	recovery         recoveryEvidence
 	ordinal          uint64
 	registrationTime monotime.Time
 	pathGeneration   uint64
@@ -99,6 +100,7 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		MTUProbe:          p.IsPathMTUProbePacket,
 		ECN:               ecn,
 	}
+	d.recovery.sent(info, d.pathGeneration)
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
 	if len(d.packets) < maxDeliveryLive {
@@ -150,6 +152,8 @@ func (h *sentPacketHandler) captureCongestionLoss(level protocol.EncryptionLevel
 		return
 	}
 	key := congestionKey(level, pn)
+	_, retained := d.packets[key]
+	d.recovery.lost(key, p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket, retained, d.ordinal)
 	if info, ok := d.packets[key]; ok && p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket {
 		start := len(d.scratch) - len(d.event.Lost) - 1
 		d.scratch[start] = info
@@ -169,6 +173,7 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	}
 	slices.SortFunc(d.event.Lost, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
 	d.sampler.feedback(&d.event)
+	d.recovery.feedback(&d.event, h.rttStats.PTO(true))
 	// A timer scan may run early or against a stale loss deadline. Preserve
 	// MTU retirement flight changes even though they are not congestion loss.
 	if d.event.HasAck || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
@@ -185,6 +190,7 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 	if h.congestionEvents != nil {
 		d := h.congestionEvents
 		key := congestionKey(level, pn)
+		d.recovery.discard(key)
 		if p, ok := d.packets[key]; ok {
 			d.sampler.dispose(p)
 			delete(d.packets, key)
@@ -194,6 +200,7 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 
 func (h *sentPacketHandler) discardCongestionSpace(level protocol.EncryptionLevel) {
 	if d := h.congestionEvents; d != nil {
+		d.recovery.discardSpace(level)
 		for key, p := range d.packets {
 			if p.EncryptionLevel == level {
 				d.sampler.dispose(p)
@@ -222,6 +229,7 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 				h.bbrECN.resetPath(d.pathGeneration)
 			}
 		}
+		d.recovery.reset()
 		// Release retained scratch and map capacity at restart. Connection teardown
 		// needs no independent cleanup: this state owns no resources or goroutines.
 		d.packets = make(map[congestionPacketKey]congestion.PacketInfo)
@@ -238,6 +246,7 @@ func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol
 	if d == nil {
 		return
 	}
+	d.recovery.ack(ack, level)
 	for key, r := range d.sampler.retained {
 		if key.space == congestionKey(level, 0).space && ack.AcksPacket(key.number) {
 			d.event.Acked = append(d.event.Acked, r.packet)

@@ -1,7 +1,7 @@
 # BBRv3 implementation program
 
 **Program:** `QGF-BBR3-20260924`
-**Status:** T1/T2/T3/T4 complete; T5 in progress under scoped receipt re-audit; B1 and Q1 ready
+**Status:** T1/T2/T3/T4/T5 complete; current frontier B1 and Q1
 **OmniFocus parent:** `omnifocus:///task/aaS2XrzGGmp`
 **Tracking issue:** [#600](https://github.com/the-sarge/quic-go-fast/issues/600)
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
@@ -18,11 +18,11 @@ Keep Reno as default, pinned algorithm authority, receiver-defined goodput, exis
 
 | Track | Plan | Parent issue | Slice count | State |
 | --- | --- | --- | --- | --- |
-| T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1/T2/T3/T4 complete; T5 in progress under scoped receipt re-audit |
+| T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1/T2/T3/T4/T5 complete |
 | B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | B1 ready; B2–B6 blocked |
 | Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 ready |
 
-Current frontier: **T5 (in progress), B1 and Q1**. T5 dispatch is frozen while [PR #614](https://github.com/the-sarge/quic-go-fast/pull/614) completes the [scoped receipt-authority re-audit](../audits/2026-09-24-bbrv3-handoff/t5-receipt-authority.md). T1, T2, T3 and T4 are complete. B4 remains blocked by B3; T4 completion adds no new frontier slice. T5 owns recovery evidence; B1 consumes delivery feedback; Q1 inspects readiness without changing controller code. Use dedicated worktrees and reconcile shared interface touches before merge. No whole-track sequential ordering is implied.
+Current frontier: **B1 and Q1**. T1, T2, T3, T4 and T5 are complete. B5 remains blocked by B4; T5 completion adds no new frontier slice. B1 consumes delivery feedback; Q1 inspects readiness without changing controller code. Use dedicated worktrees and reconcile shared interface touches before merge. No whole-track sequential ordering is implied.
 
 | Slice | Exact blockers |
 | --- | --- |

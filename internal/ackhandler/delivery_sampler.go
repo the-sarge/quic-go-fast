@@ -84,6 +84,7 @@ func (d *congestionDispatch) removeRetained(key congestionPacketKey, dispose boo
 		return
 	}
 	if dispose {
+		d.recovery.missing(r.packet.Ordinal)
 		d.sampler.dispose(r.packet)
 	}
 	heap.Remove(&d.sampler.order, r.index)
@@ -187,8 +188,9 @@ func (h *sentPacketHandler) DeliveryStats() congestion.DeliveryStats {
 	}
 	s := &d.sampler
 	return congestion.DeliveryStats{
+		OutcomeEntries: d.recovery.count, OutcomeEvicted: d.recovery.evicted,
 		Live: len(d.packets), Retained: len(s.retained), Outstanding: s.outstanding,
-		RecordBytes: uintptr(len(d.packets)+cap(d.scratch))*unsafe.Sizeof(congestion.PacketInfo{}) + uintptr(len(s.retained))*unsafe.Sizeof(retainedDelivery{}) + uintptr(cap(s.order))*unsafe.Sizeof((*retainedDelivery)(nil)),
+		RecordBytes: uintptr(cap(d.recovery.outcomes))*unsafe.Sizeof(recoveryOutcome{}) + uintptr(len(d.packets)+cap(d.scratch))*unsafe.Sizeof(congestion.PacketInfo{}) + uintptr(len(s.retained))*unsafe.Sizeof(retainedDelivery{}) + uintptr(cap(s.order))*unsafe.Sizeof((*retainedDelivery)(nil)),
 		Evicted:     s.evicted, Expired: s.expired, Missing: s.missing, Stop: s.stop, Idle: h.DeliveryIdle(),
 	}
 }

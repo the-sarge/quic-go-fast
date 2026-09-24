@@ -265,6 +265,9 @@ func TestCongestionDispatchPreservesRenoOrder(t *testing.T) {
 				sink = r
 			}
 			h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger, sink)
+			// This callback-order fixture uses fixed packet numbers; production
+			// application packet numbers can legitimately skip 3.
+			h.appDataPackets.pns = newSequentialPacketNumberGenerator(0)
 			h.congestion = &congestionLegacyTap{SendAlgorithmWithDebugInfos: h.congestion, order: &order}
 			now := monotime.Now()
 			for i := range 4 {
