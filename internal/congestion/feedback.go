@@ -73,6 +73,8 @@ type DeliverySample struct {
 // DeliveryStats reports bounded evidence occupancy. RecordBytes counts stored
 // value records and allocated heap slots; Go map/runtime overhead is excluded.
 type DeliveryStats struct {
+	OutcomeEntries            int
+	OutcomeEvicted            uint64
 	Live, Retained            int
 	RecordBytes               uintptr
 	Outstanding               protocol.ByteCount
@@ -102,25 +104,42 @@ type ECNResult struct {
 	Eligible, Failed, Deferred bool
 }
 
+// PersistentCongestion identifies an ACK-confirmed lost span. A zero ending
+// ordinal means no new report. Ordinals remain connection-wide across resets.
+type PersistentCongestion struct {
+	StartOrdinal, EndOrdinal uint64
+}
+
+// RecoveryEpisode reports transport membership, never a congestion-window
+// action. UndoEligible is a one-shot signal for this exact latest episode;
+// consumers must still compose restoration with their independent safety caps.
+type RecoveryEpisode struct {
+	ID, Boundary                                        uint64
+	Pending                                             int
+	Active, Entered, Exited, UndoPossible, UndoEligible bool
+}
+
 // FeedbackEvent is one logical recovery event. Acked and Lost are borrowed only
 // for the synchronous call; consumers must copy any values they retain.
 // Lost contains actual congestion losses, excluding ACK-only and probe packets.
 type FeedbackEvent struct {
-	ECN              ECNResult
-	RawRTT           time.Duration // fresh recovery-eligible raw observation, zero if absent
-	Delivery         DeliverySample
-	PathGeneration   uint64
-	SampleGeneration uint64
-	Time             monotime.Time
-	Space            protocol.EncryptionLevel // 0-RTT and 1-RTT share Encryption1RTT
-	HasAck           bool
-	LargestAcked     protocol.PacketNumber
-	PriorInFlight    protocol.ByteCount
-	PostInFlight     protocol.ByteCount
-	Acked            []PacketInfo
-	Lost             []PacketInfo
-	RTTEligible      bool // ACK meets recovery's new-largest / ack-eliciting criteria
-	RTTUpdated       bool // send-time order and positive interval also permit an update
-	ECNChecked       bool
-	Congested        bool // the existing ECN validator's congestion signal, not packet loss
+	PersistentCongestion PersistentCongestion
+	RecoveryEpisode      RecoveryEpisode
+	ECN                  ECNResult
+	RawRTT               time.Duration // fresh recovery-eligible raw observation, zero if absent
+	Delivery             DeliverySample
+	PathGeneration       uint64
+	SampleGeneration     uint64
+	Time                 monotime.Time
+	Space                protocol.EncryptionLevel // 0-RTT and 1-RTT share Encryption1RTT
+	HasAck               bool
+	LargestAcked         protocol.PacketNumber
+	PriorInFlight        protocol.ByteCount
+	PostInFlight         protocol.ByteCount
+	Acked                []PacketInfo
+	Lost                 []PacketInfo
+	RTTEligible          bool // ACK meets recovery's new-largest / ack-eliciting criteria
+	RTTUpdated           bool // send-time order and positive interval also permit an update
+	ECNChecked           bool
+	Congested            bool // the existing ECN validator's congestion signal, not packet loss
 }

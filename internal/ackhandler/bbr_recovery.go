@@ -1,0 +1,208 @@
+package ackhandler
+
+import (
+	"time"
+
+	"github.com/quic-go/quic-go/internal/congestion"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/wire"
+)
+
+const maxRecoveryOutcomes = 32768
+
+type recoveryOutcomeState uint8
+
+const (
+	outcomeUnresolved recoveryOutcomeState = iota
+	outcomeLost
+	outcomeAcked
+	outcomeDisposed
+)
+
+type recoveryOutcome struct {
+	key      congestionPacketKey
+	level    protocol.EncryptionLevel
+	ordinal  uint64
+	sent     monotime.Time
+	state    recoveryOutcomeState
+	endpoint bool
+}
+
+// recoveryEvidence is connection-owned. The ring includes every registration,
+// even ACK-only packets and excluded probes. Dropping its oldest entry never
+// creates a summary that could bridge unknown history.
+type recoveryEvidence struct {
+	outcomes        []recoveryOutcome
+	keys            map[congestionPacketKey]int
+	head, count     int
+	evicted         uint64
+	measured        bool
+	reported        uint64
+	episode         congestion.RecoveryEpisode
+	members         map[uint64]struct{}
+	ackOrdinal      uint64
+	unconfirmedLoss bool
+}
+
+func (r *recoveryEvidence) sent(p congestion.PacketInfo) {
+	if r.outcomes == nil {
+		r.outcomes = make([]recoveryOutcome, maxRecoveryOutcomes)
+		r.keys = make(map[congestionPacketKey]int)
+	}
+	index := (r.head + r.count) % maxRecoveryOutcomes
+	if r.count == maxRecoveryOutcomes {
+		r.evicted++
+		r.missing(r.outcomes[index].ordinal)
+		delete(r.keys, r.outcomes[index].key)
+		r.head = (r.head + 1) % maxRecoveryOutcomes
+	} else {
+		r.count++
+	}
+	o := recoveryOutcome{
+		key: congestionKey(p.EncryptionLevel, p.PacketNumber), level: p.EncryptionLevel, ordinal: p.Ordinal, sent: p.SendTime,
+		endpoint: r.measured && p.RegistrationValid && p.AckEliciting && !p.PathProbe && !p.MTUProbe,
+	}
+	if !p.RegistrationValid || p.PathProbe || p.MTUProbe {
+		o.state = outcomeDisposed
+	}
+	r.outcomes[index] = o
+	r.keys[o.key] = index
+}
+
+func (r *recoveryEvidence) lost(key congestionPacketKey, congestionLoss, retained bool, boundary uint64) {
+	i, known := r.keys[key]
+	if known && r.outcomes[i].state == outcomeUnresolved {
+		r.outcomes[i].state = outcomeLost
+	}
+	if !congestionLoss {
+		return
+	}
+	r.unconfirmedLoss = true
+	if !r.episode.Active {
+		r.episode = congestion.RecoveryEpisode{ID: r.episode.ID + 1, Boundary: boundary, Active: true, Entered: true, UndoPossible: true}
+		r.members = make(map[uint64]struct{})
+	}
+	if !known || !retained {
+		r.invalidateUndo()
+		return
+	}
+	ordinal := r.outcomes[i].ordinal
+	if ordinal > r.episode.Boundary {
+		r.episode.Boundary = boundary
+	}
+	if r.episode.UndoPossible {
+		if len(r.members) == maxDeliveryRetained {
+			r.invalidateUndo()
+		} else {
+			r.members[ordinal] = struct{}{}
+		}
+	}
+}
+
+func (r *recoveryEvidence) invalidateUndo() {
+	r.episode.UndoPossible = false
+	r.members = nil
+}
+
+func (r *recoveryEvidence) missing(ordinal uint64) {
+	if _, ok := r.members[ordinal]; ok {
+		r.invalidateUndo()
+	}
+}
+
+func (r *recoveryEvidence) discard(key congestionPacketKey) {
+	if i, ok := r.keys[key]; ok {
+		r.outcomes[i].state = outcomeDisposed
+	}
+}
+
+func (r *recoveryEvidence) discardSpace(level protocol.EncryptionLevel) {
+	for i := 0; i < r.count; i++ {
+		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
+		if o.level == level {
+			o.state = outcomeDisposed
+		}
+	}
+	r.invalidateUndo()
+}
+
+func (r *recoveryEvidence) reset() {
+	// Connection-wide episode identities, like transmission ordinals, never
+	// repeat; every path/Retry reset abandons the old evidence and RTT eligibility.
+	*r = recoveryEvidence{episode: congestion.RecoveryEpisode{ID: r.episode.ID}}
+}
+
+func (r *recoveryEvidence) ack(ack *wire.AckFrame, level protocol.EncryptionLevel) {
+	r.ackOrdinal = 0
+	space := congestionKey(level, 0).space
+	for i := 0; i < r.count; i++ {
+		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
+		if o.key.space == space && ack.AcksPacket(o.key.number) && o.state != outcomeDisposed && o.state != outcomeAcked {
+			r.ackOrdinal = max(r.ackOrdinal, o.ordinal)
+			o.state = outcomeAcked
+		}
+	}
+}
+
+func (r *recoveryEvidence) feedback(e *congestion.FeedbackEvent, pto time.Duration) {
+	for _, p := range e.Acked {
+		delete(r.members, p.Ordinal)
+	}
+	if r.episode.Active && r.ackOrdinal > r.episode.Boundary {
+		r.episode.Active = false
+		r.episode.Exited = true
+	}
+	if r.episode.UndoPossible && len(r.members) == 0 {
+		r.episode.UndoEligible = true
+		r.episode.UndoPossible = false
+	}
+	defer func() {
+		r.episode.Pending = len(r.members)
+		e.RecoveryEpisode = r.episode
+		r.ackOrdinal = 0
+		r.episode.Entered, r.episode.Exited, r.episode.UndoEligible = false, false, false
+	}()
+
+	if e.RTTUpdated {
+		r.measured = true
+	}
+	if !e.HasAck {
+		return
+	}
+	r.unconfirmedLoss = false
+	// RFC 9002 section 7.6 includes max_ack_delay in every space, with no
+	// exponential PTO backoff. Avoid overflow for unusual restored estimates.
+	if pto <= 0 || pto > time.Duration(1<<63-1)/3 {
+		return
+	}
+	var first *recoveryOutcome
+	for i := 0; i < r.count; i++ {
+		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
+		if o.state != outcomeLost {
+			first = nil
+			continue
+		}
+		if !o.endpoint {
+			continue
+		}
+		if first == nil {
+			first = o
+			continue
+		}
+		if o.ordinal > r.reported && o.sent.Sub(first.sent) > 3*pto {
+			e.PersistentCongestion = congestion.PersistentCongestion{StartOrdinal: first.ordinal, EndOrdinal: o.ordinal}
+		}
+	}
+	if e.PersistentCongestion.EndOrdinal != 0 {
+		r.reported = e.PersistentCongestion.EndOrdinal
+		r.invalidateUndo()
+		r.episode.UndoEligible = false
+	}
+}
+
+// ACK-only or duplicate receipts can confirm losses accumulated by a timer.
+// Empty events without new recovery evidence retain the existing suppression.
+func (r *recoveryEvidence) needsAckFeedback() bool {
+	return r.unconfirmedLoss || (r.episode.Active && r.ackOrdinal > r.episode.Boundary)
+}
