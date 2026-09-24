@@ -82,8 +82,8 @@
           ]
         }
       ],
-      "measured_current_input_tokens": 17355,
-      "additional_input_reserve_tokens": 17645,
+      "measured_current_input_tokens": 17356,
+      "additional_input_reserve_tokens": 17644,
       "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
     },
     {
@@ -139,6 +139,30 @@
           [
             1,
             159
+          ]
+        ],
+        "connection.go": [
+          [
+            615,
+            710
+          ],
+          [
+            754,
+            765
+          ],
+          [
+            870,
+            914
+          ],
+          [
+            2246,
+            2257
+          ]
+        ],
+        "server.go": [
+          [
+            954,
+            961
           ]
         ]
       },
@@ -212,10 +236,85 @@
             "func TestRTTMeasurementAfterRestore(t *testing.T) {",
             "func TestRTTStatsResetForPathMigration(t *testing.T) {"
           ]
+        },
+        {
+          "path": "connection_test.go",
+          "declarations": [
+            "func TestConnectionHandleStreamRelatedFrames(t *testing.T) {",
+            "func TestConnectionHandleConnectionFlowControlFrames(t *testing.T) {",
+            "func TestConnectionServerInvalidFrames(t *testing.T) {",
+            "func TestConnectionClose(t *testing.T) {",
+            "func TestConnectionStatelessReset(t *testing.T) {",
+            "func TestConnectionServerInvalidPackets(t *testing.T) {",
+            "func TestConnectionClientDrop0RTT(t *testing.T) {",
+            "func TestConnectionUnpacking(t *testing.T) {",
+            "func TestConnectionUnpackCoalescedPacket(t *testing.T) {",
+            "func TestConnectionUnpackFailuresFatal(t *testing.T) {",
+            "func TestConnectionUnpackFailureDropped(t *testing.T) {",
+            "func TestConnectionMaxUnprocessedPackets(t *testing.T) {",
+            "func TestConnectionRemoteClose(t *testing.T) {",
+            "func TestConnectionIdleTimeoutDuringHandshake(t *testing.T) {",
+            "func TestConnectionHandshakeIdleTimeout(t *testing.T) {",
+            "func TestConnectionTransportParameters(t *testing.T) {",
+            "func TestConnectionHandleMaxStreamsFrame(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureServer(t *testing.T) {",
+            "func TestConnectionTransportParameterValidationFailureClient(t *testing.T) {",
+            "func TestConnectionHandshakeServer(t *testing.T) {",
+            "func TestConnectionFinishesCryptoStreamWhenReadKeysBecomeAvailable(t *testing.T) {",
+            "func TestConnectionHandshakeClient(t *testing.T) {",
+            "func TestConnection0RTTTransportParameters(t *testing.T) {",
+            "func TestConnectionReceivePrioritization(t *testing.T) {",
+            "func TestConnectionPacketBuffering(t *testing.T) {",
+            "func TestConnectionPacketPacing(t *testing.T) {",
+            "func TestConnectionIdleTimeout(t *testing.T) {",
+            "func TestConnectionKeepAlive(t *testing.T) {",
+            "func TestConnectionACKTimer(t *testing.T) {",
+            "func TestConnectionGSOBatch(t *testing.T) {",
+            "func TestConnectionGSOBatchPacketSize(t *testing.T) {",
+            "func TestConnectionGSOBatchECN(t *testing.T) {",
+            "func TestConnectionSendQueue(t *testing.T) {",
+            "func TestConnectionVersionNegotiation(t *testing.T) {",
+            "func TestConnectionVersionNegotiationNoMatch(t *testing.T) {",
+            "func TestConnectionVersionNegotiationInvalidPackets(t *testing.T) {",
+            "func TestConnectionRetryDrops(t *testing.T) {",
+            "func TestConnectionRetryAfterReceivedPacket(t *testing.T) {",
+            "func TestConnectionConnectionIDChanges(t *testing.T) {",
+            "func TestConnectionEarlyClose(t *testing.T) {",
+            "func TestConnectionPathValidation(t *testing.T) {",
+            "func TestConnectionMigrationServer(t *testing.T) {",
+            "func TestConnectionAddPathConcurrentPathSwitch(t *testing.T) {",
+            "func TestConnectionMigration(t *testing.T) {",
+            "func TestConnectionDatagrams(t *testing.T) {",
+            "func TestConnectionSkippedStreamFrameMetadata(t *testing.T) {"
+          ]
+        },
+        {
+          "path": "server_test.go",
+          "declarations": [
+            "func TestListen(t *testing.T) {",
+            "func TestListenAddr(t *testing.T) {",
+            "func TestListenAddrFixtureStopsTransport(t *testing.T) {",
+            "func TestServerPacketDropping(t *testing.T) {",
+            "func TestServerVersionNegotiation(t *testing.T) {",
+            "func TestServerRetry(t *testing.T) {",
+            "func TestServerTokenValidation(t *testing.T) {",
+            "func TestServerCreateConnection(t *testing.T) {",
+            "func TestServerClose(t *testing.T) {",
+            "func TestServerGetConfigForClientAccept(t *testing.T) {",
+            "func TestServerGetConfigForClientReject(t *testing.T) {",
+            "func TestServerReceiveQueue(t *testing.T) {",
+            "func TestServerAccept(t *testing.T) {",
+            "func TestServerAcceptHandshakeFailure(t *testing.T) {",
+            "func TestServerAcceptQueue(t *testing.T) {",
+            "func TestServer0RTTReordering(t *testing.T) {",
+            "func TestServer0RTTQueueing(t *testing.T) {",
+            "func TestListenAddrSetupFailureClosesSocket(t *testing.T) {",
+            "func TestServerFixtureStopsTransport(t *testing.T) {"
+          ]
         }
       ],
-      "measured_current_input_tokens": 23182,
-      "additional_input_reserve_tokens": 11818,
+      "measured_current_input_tokens": 25540,
+      "additional_input_reserve_tokens": 9460,
       "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
     },
     {
@@ -257,6 +356,14 @@
           [
             924,
             940
+          ],
+          [
+            754,
+            765
+          ],
+          [
+            2246,
+            2257
           ]
         ]
       },
@@ -373,8 +480,8 @@
           ]
         }
       ],
-      "measured_current_input_tokens": 19884,
-      "additional_input_reserve_tokens": 15116,
+      "measured_current_input_tokens": 20098,
+      "additional_input_reserve_tokens": 14902,
       "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
     },
     {
@@ -550,8 +657,8 @@
           ]
         }
       ],
-      "measured_current_input_tokens": 19735,
-      "additional_input_reserve_tokens": 15265,
+      "measured_current_input_tokens": 19736,
+      "additional_input_reserve_tokens": 15264,
       "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
     },
     {
@@ -657,8 +764,8 @@
           ]
         }
       ],
-      "measured_current_input_tokens": 20059,
-      "additional_input_reserve_tokens": 14941,
+      "measured_current_input_tokens": 20060,
+      "additional_input_reserve_tokens": 14940,
       "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
     },
     {
@@ -1109,6 +1216,14 @@
           [
             924,
             940
+          ],
+          [
+            754,
+            765
+          ],
+          [
+            2246,
+            2257
           ]
         ],
         "client.go": [
@@ -1124,7 +1239,7 @@
           ],
           [
             867,
-            956
+            961
           ]
         ],
         "packet_emission.go": [
@@ -1147,6 +1262,18 @@
           [
             184,
             325
+          ]
+        ],
+        "testdata/externalpacketio/README.md": [
+          [
+            1,
+            5
+          ]
+        ],
+        "testdata/externalpacketio/main.go": [
+          [
+            1,
+            21
           ]
         ]
       },
@@ -1322,8 +1449,8 @@
           ]
         }
       ],
-      "measured_current_input_tokens": 24856,
-      "additional_input_reserve_tokens": 10144,
+      "measured_current_input_tokens": 25750,
+      "additional_input_reserve_tokens": 9250,
       "reserve_use": "At dispatch select relevant existing test bodies, predecessor-owned declarations, pinned algorithm-source excerpts and any governing diff; include at most 3000 tokens of relevant history. All together must fit the remaining reserve; stop and re-slice otherwise."
     },
     {

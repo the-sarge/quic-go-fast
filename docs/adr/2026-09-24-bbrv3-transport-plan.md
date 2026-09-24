@@ -15,7 +15,7 @@ Typed feedback, bounded delivery evidence and local send limits through existing
 
 ## Current shape (verified 2026-09-24)
 
-Recovery registers post-send flight before its congestion callback (`internal/ackhandler/sent_packet_handler.go:252`), returns early for no newly tracked ACK (`:398`), detects loss (`:787`), extracts PTO frames (`:1041`) and reconstructs Reno on path migration (`:1120`). Packet emission registers before handoff (`packet_emission.go:283`); path probes explicitly use Not-ECT (`:492`), and coalesced emission preserves its supplied mark (`:441`). The queue owns dequeued/in-service batches until write/cleanup (`send_queue.go:147,201,225,273`). The existing pacer adds a 5/4 gain and 1ms minimum (`internal/congestion/pacer.go:21,92`). Source anchors use the inspected code tree named in the audit; verify semantic seams at dispatch rather than treating moving line numbers as authority.
+Recovery registers post-send flight before its congestion callback (`internal/ackhandler/sent_packet_handler.go:252`), returns early for no newly tracked ACK (`:398`), detects loss (`:787`), extracts PTO frames (`:1041`) and reconstructs Reno on path migration (`:1120`). Packet emission registers before handoff (`packet_emission.go:283`); path probes explicitly use Not-ECT (`:499,511`), and coalesced emission preserves its supplied mark (`:441`). The queue owns dequeued/in-service batches until write/cleanup (`send_queue.go:147,201,225,273`). The existing pacer adds a 5/4 gain and 1ms minimum (`internal/congestion/pacer.go:21,92`). Source anchors use the inspected code tree named in the audit; verify semantic seams at dispatch rather than treating moving line numbers as authority.
 
 ## Decision and existing-work disposition
 
