@@ -158,7 +158,15 @@ func (h *sentPacketHandler) ExpireDelivery(now monotime.Time) {
 		d.expire(now)
 	}
 }
-func (h *sentPacketHandler) CloseDelivery() { h.congestionEvents = nil }
+
+func (h *sentPacketHandler) CloseDelivery() {
+	h.congestionEvents = nil
+	if h.bbrECN != nil {
+		h.bbrECN.closed = true
+		h.bbrECN.ranges = nil
+		h.bbrECN.path = nil
+	}
+}
 
 func (d *congestionDispatch) pendingBytes() protocol.ByteCount {
 	if d.pending == nil {
