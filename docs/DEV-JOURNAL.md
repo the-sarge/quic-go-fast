@@ -3582,3 +3582,26 @@ Certified product head `95c7329a8e6fa81e213050f334675ae1a4a65835` against base `
 ### Next
 
 T3 [#589](https://github.com/the-sarge/quic-go-fast/issues/589) is closed; T2 and T4 now have all blockers closed. The committed frontier is T2, T4 and Q1. [Program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live view. No deferred review follow-ups or untraced effects remain from this slice.
+
+---
+
+## BBRv3 T2 delivery sampling landed - 2026-09-24 11:23 EDT
+
+**Main:** `b52339af2693`
+**Actor:** Codex
+
+### Summary
+
+Merged [T2 / PR #607](https://github.com/the-sarge/quic-go-fast/pull/607) as `b52339af26931a8d90b21c2ee4e0ec1676cf906f`, closing [#588](https://github.com/the-sarge/quic-go-fast/issues/588). The private BBR path now captures registration-time delivery snapshots, bounded loss/PTO tombstones, live and late-only ACK samples, raw RTT, supply limitation and genuine idle observations, expiry wakeups and lifecycle disposal. Ordinary Reno retains no sampler. Public BBR activation remains a successor obligation.
+
+### Decisions
+
+The [accepted T2 contract](adr/2026-09-24-bbrv3-transport-plan.md#t2) remains the authority. The operator waived the dispatch-context token ceiling; behavioral scope, ten-function evidence ceiling and bounded review budget were retained. Four independently accepted review roots were closed at the existing owners: restart origins after generation fences, registration-order RTT validity, pending stream-open supply limits, and fail-closed unavailable pending-byte authority. No deferred finding or newly untraced effect remains.
+
+### Validation
+
+Certified head `2baa5a029a1569e68cf73e185e3eacae46947998` against base `bad679c91df5c58ec267ca76949a2915426f4444`: ordinary unit suite, focused race checks, affected-package vet and lint, module tidiness, applicable go-fix checks, gcassert and diff checks passed. All 33 hosted checks passed, including the [PR integration run](https://github.com/the-sarge/quic-go-fast/actions/runs/36017353953). Initial review `20260924T143004-988cf2150629e463c53d2fd1` was independently dispositioned, exact-head verification resolved all accepted fixes, and replacement review `20260924T150700-003b8c25b85cac6436d9d2a1` returned no findings. The [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/607#issuecomment-5816979235) records commands, head/base identity and hosted runs.
+
+### Next
+
+The merged [program index](adr/2026-09-24-bbrv3-program.md) records T1/T2/T3 complete and frontier T4, T5, B1 and Q1. T5 and B1 each had only T2 as an open blocker before merge. [Tracking issue #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier view; this journal is a snapshot.
