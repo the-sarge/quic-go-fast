@@ -241,12 +241,12 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 
 // Retained ACK discovery runs only after recovery has validated the decoded ACK.
 // It visits bounded stored keys, never the packet numbers in an absent range.
-func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol.EncryptionLevel) {
+func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol.EncryptionLevel) protocol.PacketNumber {
 	d := h.congestionEvents
 	if d == nil {
-		return
+		return protocol.InvalidPacketNumber
 	}
-	d.recovery.ack(ack, level)
+	witness := d.recovery.ack(ack, level)
 	for key, r := range d.sampler.retained {
 		if key.space == congestionKey(level, 0).space && ack.AcksPacket(key.number) {
 			d.event.Acked = append(d.event.Acked, r.packet)
@@ -254,6 +254,18 @@ func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol
 		}
 	}
 	slices.SortFunc(d.event.Acked, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
+	for _, p := range d.event.Acked {
+		if currentPathRecoveryReceipt(p, d.pathGeneration) {
+			witness = max(witness, p.PacketNumber)
+		}
+	}
+	return witness
+}
+
+func (h *sentPacketHandler) confirmPTOOutcomes(level protocol.EncryptionLevel, witness protocol.PacketNumber, now monotime.Time) {
+	if d := h.congestionEvents; d != nil {
+		d.recovery.confirmPTO(congestionKey(level, 0).space, witness, now.Add(-h.lossDelay()))
+	}
 }
 
 func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now monotime.Time) {

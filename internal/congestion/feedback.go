@@ -106,6 +106,9 @@ type ECNResult struct {
 
 // PersistentCongestion identifies an ACK-confirmed lost span. A zero ending
 // ordinal means no new report. Ordinals remain connection-wide across resets.
+// Recovery can confirm PTO-retired originals for this span without adding them
+// to Lost, delivery loss volume or recovery-episode membership. Missing outcome
+// evidence remains a gap; a late receipt breaks future spans, not past reports.
 type PersistentCongestion struct {
 	StartOrdinal, EndOrdinal uint64
 }
@@ -122,6 +125,8 @@ type RecoveryEpisode struct {
 // FeedbackEvent is one logical recovery event. Acked and Lost are borrowed only
 // for the synchronous call; consumers must copy any values they retain.
 // Lost contains actual congestion losses, excluding ACK-only and probe packets.
+// It also excludes PTO-retired originals confirmed only for PersistentCongestion;
+// the span and ordinary loss volume intentionally describe different evidence.
 type FeedbackEvent struct {
 	PersistentCongestion PersistentCongestion
 	RecoveryEpisode      RecoveryEpisode

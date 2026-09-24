@@ -431,7 +431,8 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	if len(ackedPackets) == 0 {
 		if h.congestionEvents != nil {
 			h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, nil, largestAcked)
-			h.appendRetainedAck(ack, encLevel)
+			witness := h.appendRetainedAck(ack, encLevel)
+			h.confirmPTOOutcomes(encLevel, witness, rcvTime)
 			h.captureBBRECN(ack, encLevel)
 			if len(h.congestionEvents.event.Acked) > 0 || h.congestionEvents.recovery.needsAckFeedback() || (h.bbrECN != nil && encLevel == protocol.Encryption1RTT) {
 				h.finishCongestionFeedback()
@@ -440,7 +441,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 		return false, nil
 	}
 	h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, ackedPackets, largestAcked)
-	h.appendRetainedAck(ack, encLevel)
+	witness := h.appendRetainedAck(ack, encLevel)
 	h.captureBBRECN(ack, encLevel)
 	// update the RTT, if:
 	// * the largest acked is newly acknowledged, AND
@@ -484,6 +485,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 
 	pnSpace.largestAcked = max(pnSpace.largestAcked, largestAcked)
 
+	h.confirmPTOOutcomes(encLevel, witness, rcvTime)
 	h.detectLostPackets(rcvTime, encLevel)
 	if encLevel == protocol.Encryption1RTT {
 		h.detectLostPathProbes(rcvTime)
@@ -839,15 +841,18 @@ func (h *sentPacketHandler) detectLostPathProbes(now monotime.Time) {
 	}
 }
 
-func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protocol.EncryptionLevel) {
-	pnSpace := h.getPacketNumberSpace(encLevel)
-	pnSpace.lossTime = 0
-
+func (h *sentPacketHandler) lossDelay() time.Duration {
 	maxRTT := float64(max(h.rttStats.LatestRTT(), h.rttStats.SmoothedRTT()))
 	lossDelay := time.Duration(timeThreshold * maxRTT)
 
 	// Minimum time of granularity before packets are deemed lost.
-	lossDelay = max(lossDelay, protocol.TimerGranularity)
+	return max(lossDelay, protocol.TimerGranularity)
+}
+
+func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protocol.EncryptionLevel) {
+	pnSpace := h.getPacketNumberSpace(encLevel)
+	pnSpace.lossTime = 0
+	lossDelay := h.lossDelay()
 
 	// Packets sent before this time are deemed lost.
 	lostSendTime := now.Add(-lossDelay)
@@ -1128,6 +1133,7 @@ func (h *sentPacketHandler) QueueProbePacketAt(encLevel protocol.EncryptionLevel
 		return false
 	}
 	if d := h.congestionEvents; d != nil {
+		d.recovery.retirePTO(congestionKey(encLevel, pn))
 		d.retire(congestionKey(encLevel, pn), now, h.rttStats.PTO(encLevel == protocol.Encryption1RTT), deliveryRetiredPTO)
 	}
 	// TODO: don't declare the packet lost here.

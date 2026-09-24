@@ -30,6 +30,7 @@ type recoveryOutcome struct {
 	state           recoveryOutcomeState
 	endpoint        bool
 	receiptEligible bool
+	ptoRetired      bool
 }
 
 // recoveryEvidence is connection-owned. The ring includes every registration,
@@ -141,6 +142,29 @@ func (r *recoveryEvidence) discard(key congestionPacketKey) {
 	}
 }
 
+// PTO extraction transfers frame/flight ownership without declaring a loss.
+// This fact survives optional delivery retention and expiry.
+func (r *recoveryEvidence) retirePTO(key congestionPacketKey) {
+	if i, ok := r.keys[key]; ok && r.outcomes[i].state == outcomeUnresolved {
+		r.outcomes[i].ptoRetired = true
+	}
+}
+
+// confirmPTO changes only persistent-span evidence. Ordinary loss callbacks,
+// delivery loss totals and episode membership belong to lost, not this path.
+func (r *recoveryEvidence) confirmPTO(space protocol.EncryptionLevel, witness protocol.PacketNumber, cutoff monotime.Time) {
+	if witness == protocol.InvalidPacketNumber {
+		return
+	}
+	for i := 0; i < r.count; i++ {
+		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
+		if o.key.space == space && o.key.number < witness && o.ptoRetired && o.state == outcomeUnresolved && !o.sent.After(cutoff) {
+			o.state = outcomeLost
+			r.unconfirmedLoss = true
+		}
+	}
+}
+
 func (r *recoveryEvidence) discardSpace(level protocol.EncryptionLevel) {
 	for i := 0; i < r.count; i++ {
 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
@@ -157,18 +181,25 @@ func (r *recoveryEvidence) reset() {
 	*r = recoveryEvidence{episode: congestion.RecoveryEpisode{ID: r.episode.ID}}
 }
 
-func (r *recoveryEvidence) ack(ack *wire.AckFrame, level protocol.EncryptionLevel) {
+func (r *recoveryEvidence) ack(ack *wire.AckFrame, level protocol.EncryptionLevel) protocol.PacketNumber {
 	r.ackOrdinal = 0
 	space := congestionKey(level, 0).space
+	witness := protocol.InvalidPacketNumber
 	for i := 0; i < r.count; i++ {
 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
-		if o.key.space == space && ack.AcksPacket(o.key.number) && o.state != outcomeDisposed && o.state != outcomeAcked {
+		if o.key.space == space && ack.AcksPacket(o.key.number) && o.state != outcomeDisposed {
 			if o.receiptEligible {
-				r.ackOrdinal = max(r.ackOrdinal, o.ordinal)
+				// Duplicate receipts may confirm PTO outcomes after an earlier
+				// ACK arrived before the time threshold. They add no RTT progress.
+				witness = max(witness, o.key.number)
+				if o.state != outcomeAcked {
+					r.ackOrdinal = max(r.ackOrdinal, o.ordinal)
+				}
 			}
 			o.state = outcomeAcked
 		}
 	}
+	return witness
 }
 
 func (r *recoveryEvidence) feedback(e *congestion.FeedbackEvent, pto time.Duration) {
