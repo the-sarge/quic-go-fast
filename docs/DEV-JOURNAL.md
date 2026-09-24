@@ -3605,3 +3605,26 @@ Certified head `2baa5a029a1569e68cf73e185e3eacae46947998` against base `bad679c9
 ### Next
 
 The merged [program index](adr/2026-09-24-bbrv3-program.md) records T1/T2/T3 complete and frontier T4, T5, B1 and Q1. T5 and B1 each had only T2 as an open blocker before merge. [Tracking issue #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier view; this journal is a snapshot.
+
+---
+
+## BBRv3 T4 actual ECN validation landed - 2026-09-24 13:17 EDT
+
+**Main:** `f2cb19f01853`
+**Actor:** Codex
+
+### Summary
+
+Merged [T4 product PR #609](https://github.com/the-sarge/quic-go-fast/pull/609), closing [#590](https://github.com/the-sarge/quic-go-fast/issues/590). The private BBR transport path now owns a 4,096-range actual-marking ledger, advancing late-only ECN feedback, bounded Not-ECT fallback and migration counter fences. Ordinary callers retain Reno; public BBR activation and CE controller response remain later slices.
+
+### Decisions
+
+The [scoped re-audit in #610](https://github.com/the-sarge/quic-go-fast/pull/610) retained the T4 owner, representation and ten-test budget while clarifying that supplemental no-new-ACK ECN events belong only to 1-RTT. Initial/Handshake duplicate suppression is preserved. The [replacement-review disposition](https://github.com/the-sarge/quic-go-fast/pull/609#issuecomment-5818547717) keeps ledger-lifetime policy and ACK-path cost as nonblocking follow-up questions rather than broadening T4.
+
+### Validation
+
+The bounded initial/replacement reviews and exact-head verifications completed. Both duplicate-ACK regressions failed before the final guard and passed after it. At reviewed head `4965445905d506db0be72e951b511b0b61cb0a8c`, the focused race run, affected-package tests, vet, module tidiness, go-fix, lint, documentation checks and all 33 applicable hosted checks passed; see the [merge certification receipt](https://github.com/the-sarge/quic-go-fast/pull/609#issuecomment-5818756945). Product merge: `f2cb19f01853f6a461b76edd9c495f4b7000f92f`.
+
+### Next
+
+The committed program now has T1/T2/T3/T4 complete and T5, B1 and Q1 ready; B4 remains blocked by B3. [Program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier and task view. Revalidate the two nonblocking review follow-ups against the merged code when reconciling tracking.
