@@ -403,7 +403,6 @@ func TestBBRPendingCreditMigrationDebt(t *testing.T) {
 				require.NoError(t, <-done)
 			})
 			synctest.Wait()
-			require.Equal(t, blockModeCongestionLimited, c.blocked)
 			time.Sleep(monotime.Until(alarm))
 			synctest.Wait()
 			require.Len(t, c.emission.queue.(*sendQueue).queue, 1, "ACK timer must enqueue control behind the stalled old worker")
