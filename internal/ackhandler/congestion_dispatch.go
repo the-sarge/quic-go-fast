@@ -11,8 +11,8 @@ import (
 )
 
 // congestionEventSink is private constructor plumbing, unavailable to ordinary
-// connections until a complete controller is wired. It observes value records;
-// recovery and the legacy Reno controller remain the only mutable authorities.
+// connections until a complete controller is wired. Recovery owns transport
+// facts; a selected rich controller owns its model from these value records.
 type congestionEventSink interface {
 	Sent(congestion.SendEvent)
 	Feedback(congestion.FeedbackEvent)
@@ -236,6 +236,9 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 		d.event = congestion.FeedbackEvent{}
 		d.scratch = nil
 		d.sampler = deliverySampler{delivered: d.sampler.delivered, lost: d.sampler.lost}
+		if b, ok := h.congestion.(*congestion.BBRSender); ok {
+			b.Reset(d.pathGeneration, d.sampleGeneration)
+		}
 	}
 }
 
@@ -288,4 +291,17 @@ func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.Enc
 		h.congestionEvents.event.ECNChecked = e.Eligible
 		h.congestionEvents.event.Congested = e.Eligible && e.Delta.CE > 0
 	}
+}
+
+// EnableBBR installs the private B1 controller before the first registration.
+// Public constructors never call it; its caller must install bounded emission.
+func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func() protocol.ByteCount) *congestion.BBRSender {
+	h, ok := handler.(*sentPacketHandler)
+	if !ok || h.bytesSent != 0 || h.congestionEvents != nil {
+		panic("invalid BBR installation")
+	}
+	b := congestion.NewBBRSender(size)
+	EnableDeliverySampling(h, b, pending)
+	h.congestion = b
+	return b
 }

@@ -71,6 +71,13 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		e.policy.applyHandshakeMTUFallback()
 	}
 	size := e.policy.maxPacketSize()
+	if b := e.bbr.controller; b != nil {
+		if b.GetCongestionWindow() == 0 {
+			return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
+		}
+		b.SetMaxDatagramSize(size)
+		e.bbr.update(b.PacingRate(), size, now)
+	}
 	// An MTU change changes future quantization, never historical pending bytes.
 	e.bbr.budget(now)
 	e.bbr.quantum = max(2*size, protocol.ByteCount(min(uint64(65536), e.bbr.rate/1000)))

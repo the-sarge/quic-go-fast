@@ -3,6 +3,7 @@ package quic
 import (
 	"time"
 
+	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 )
@@ -11,11 +12,12 @@ import (
 // until the complete controller is available. rate includes BBR's 1% margin;
 // Reno's pacer and its burst/rate adjustments are deliberately independent.
 type bbrSendPolicy struct {
-	credit  *localSendCredit
-	rate    uint64 // UDP payload bytes per second
-	quantum protocol.ByteCount
-	tokens  int64 // byte-nanoseconds, retaining fractional byte credit
-	updated monotime.Time
+	controller *congestion.BBRSender
+	credit     *localSendCredit
+	rate       uint64 // UDP payload bytes per second
+	quantum    protocol.ByteCount
+	tokens     int64 // byte-nanoseconds, retaining fractional byte credit
+	updated    monotime.Time
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
