@@ -18,7 +18,9 @@ func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN
 			panic("BBR handoff without reservation")
 		}
 		e.reservation.resize(buf.Len())
-		if e.paceReservation {
+		if e.reservation.isolated {
+			e.bbr.sentProbe(buf.Len(), e.reservationTime)
+		} else if e.paceReservation {
 			e.bbr.sent(e.pacingBytes, e.reservationTime)
 		}
 		metadata.credit = e.reservation
@@ -43,7 +45,7 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 		return
 	}
 	e.bbr.credit.resetGeneration(generation)
-	e.bbr.tokens = uint64(e.bbr.quantum) * 1e9
+	e.bbr.tokens = int64(e.bbr.quantum) * 1e9
 	e.bbr.updated = now
 }
 
@@ -71,7 +73,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 	// An MTU change changes future quantization, never historical pending bytes.
 	e.bbr.budget(now)
 	e.bbr.quantum = max(2*size, protocol.ByteCount(min(uint64(65536), e.bbr.rate/1000)))
-	e.bbr.tokens = min(e.bbr.tokens, uint64(e.bbr.quantum)*1e9)
+	e.bbr.tokens = min(e.bbr.tokens, int64(e.bbr.quantum)*1e9)
 	mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
 	switch mode {
 	case ackhandler.SendNone:
@@ -99,6 +101,13 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		return emissionResult{err: err, retry: err == nil}
 	}
 	if intent.mtu != nil {
+		if deadline := e.bbr.deadline(min(intent.mtu.probeSize(), e.bbr.quantum), now); deadline != 0 {
+			if !e.reserveLocal(size, false, false, now) {
+				return e.localBlocked()
+			}
+			progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
+			return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
+		}
 		if !e.reserveLocal(intent.mtu.probeSize(), false, true, now) {
 			return e.localBlocked()
 		}
@@ -127,7 +136,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		limit -= limit % size
 	}
 	if !e.reserveLocal(limit, true, false, now) {
-		return e.localBlocked()
+		return e.waitForOrdinary(now, confirmed, size, limit)
 	}
 	if !confirmed {
 		result := e.coalesced(now)
@@ -169,4 +178,25 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 	}
 	e.handoff(buf, gsoSize, ecn, sendMetadata{})
 	return emissionResult{progress: true, retry: true}
+}
+
+// An ordinary-only refusal (notably migration debt) must not suppress control
+// traffic or its timers. If no ACK is due, rearm under the completion lock after
+// releasing the unused ACK reservation; otherwise that release would spin the
+// connection on its own stale wakeup. A concurrent completion cannot be lost.
+func (e *packetEmission) waitForOrdinary(now monotime.Time, confirmed bool, size, limit protocol.ByteCount) emissionResult {
+	if !e.reserveLocal(size, false, false, now) {
+		return e.localBlocked()
+	}
+	progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
+	if err != nil || progress {
+		return emissionResult{progress: progress, retry: progress, err: err}
+	}
+	e.reservation.complete()
+	e.reservation = nil
+	result := e.localBlocked()
+	if e.bbr.credit.waitForOrdinary(limit, 2*e.bbr.quantum, size) {
+		result.blocked = blockModeCongestionLimited
+	}
+	return result
 }

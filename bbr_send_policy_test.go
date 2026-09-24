@@ -317,6 +317,25 @@ func TestBBRPendingCreditRateDecrease(t *testing.T) {
 }
 
 func TestBBRPendingCreditMTUException(t *testing.T) {
+	t.Run("paced probe", func(t *testing.T) {
+		c := newEmissionTestConnection(t, false).conn
+		now := monotime.Now()
+		c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1200, 1400, nil)
+		c.mtuDiscoverer.Start(now.Add(-time.Hour))
+		c.emission.bbr.sent(2400, now)
+		result := c.triggerSending(now)
+		require.Equal(t, emissionPaced, result.stop)
+		require.True(t, c.mtuDiscoverer.ShouldSendProbe(now))
+		require.Empty(t, c.emission.queue.(*sendQueue).queue)
+		require.Equal(t, now.Add(1313132*time.Nanosecond), result.deadline)
+		require.True(t, c.triggerSending(result.deadline).progress)
+		entry := <-c.emission.queue.(*sendQueue).queue
+		defer entry.release()
+		require.Len(t, entry.buf.Data, 1300)
+		require.Zero(t, c.emission.bbr.budget(result.deadline))
+	})
+
 	c := newEmissionTestConnection(t, false).conn
 	now := monotime.Now()
 	c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
@@ -351,9 +370,47 @@ func TestBBRPendingCreditMTUException(t *testing.T) {
 	require.Nil(t, p.credit.reserve(1, 2*p.quantum, true, false))
 	exception.complete()
 	require.Zero(t, p.credit.pending)
+	now = now.Add(time.Second)
+	p.sentProbe(7000, now)
+	require.Zero(t, p.budget(now))
+	require.Equal(t, now.Add(5858586*time.Nanosecond), p.deadline(1200, now), "oversized probe debt must drain before ordinary sends")
+	require.EqualValues(t, 1200, p.budget(now.Add(5858586*time.Nanosecond)))
 }
 
 func TestBBRPendingCreditMigrationDebt(t *testing.T) {
+	t.Run("connection preserves delayed ACK timer", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			c := tc.conn
+			now := monotime.Now()
+			c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("old queue")}))
+			require.True(t, c.triggerSending(now).progress)
+			c.emission.resetLocalPath(1, now)
+			require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("must wait")}))
+			require.NoError(t, c.receivedPacketHandler.ReceivedPacket(0, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+			alarm := c.receivedPacketHandler.GetAlarmTimeout()
+			require.NotZero(t, alarm)
+			release := make(chan struct{})
+			tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func([]byte, uint16, protocol.ECN) error { <-release; return nil }).AnyTimes()
+			done := make(chan error, 1)
+			go func() { done <- c.run() }()
+			t.Cleanup(func() {
+				tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+				c.destroyImpl(nil)
+				close(release)
+				synctest.Wait()
+				require.NoError(t, <-done)
+			})
+			synctest.Wait()
+			require.Equal(t, blockModeCongestionLimited, c.blocked)
+			time.Sleep(monotime.Until(alarm))
+			synctest.Wait()
+			require.Len(t, c.emission.queue.(*sendQueue).queue, 1, "ACK timer must enqueue control behind the stalled old worker")
+			require.NotNil(t, c.datagramQueue.Peek())
+		})
+	})
+
 	c := newEmissionTestConnection(t, false).conn
 	now := monotime.Now()
 	c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
@@ -372,6 +429,15 @@ func TestBBRPendingCreditMigrationDebt(t *testing.T) {
 	require.Equal(t, emissionQueueFull, result.stop)
 	require.NotNil(t, result.available)
 	require.NotNil(t, c.datagramQueue.Peek())
+	require.Equal(t, blockModeCongestionLimited, result.blocked, "ordinary debt must preserve control deadlines")
+	require.NoError(t, c.receivedPacketHandler.ReceivedPacket(4, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+	require.NoError(t, c.receivedPacketHandler.ReceivedPacket(5, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+	ackResult := c.triggerSending(now)
+	require.True(t, ackResult.progress, "old debt must not suppress an exempt ACK")
+	ack := <-q.queue
+	ack.release()
+	require.NotNil(t, c.datagramQueue.Peek(), "ordinary payload remains blocked")
+	require.EqualValues(t, 2400, c.emission.bbr.budget(now), "ACK is pacing exempt")
 	// A control reservation is still permitted inside the total bound.
 	control := c.emission.bbr.credit.reserve(1200, 4800, false, false)
 	require.NotNil(t, control)

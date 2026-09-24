@@ -743,9 +743,9 @@ runLoop:
 		}
 		sendQueueAvailable = result.available
 		if result.available != nil {
-			// Cancel the pacing timer, as we can't send any more packets until the send queue is available again.
+			// Preserve emission's distinction between a full queue and an
+			// ordinary-only credit wait: ACK/PTO timers remain eligible in the latter.
 			c.pacingDeadline = 0
-			c.blocked = blockModeHardBlocked
 		} else {
 			sendQueueAvailable = nil
 		}

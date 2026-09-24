@@ -86,3 +86,18 @@ func (r *sendReservation) resize(n protocol.ByteCount) {
 }
 
 func (r *sendReservation) complete() { r.resize(0) }
+
+// waitForOrdinary rearms an ordinary-only wait and reports whether ACK/PTO
+// deadlines remain useful. Reservation and wakeup state share the same lock.
+func (c *localSendCredit) waitForOrdinary(n, limit, controlSize protocol.ByteCount) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	select {
+	case <-c.available:
+	default:
+	}
+	if !c.isolated && c.pending == c.current && n <= limit-c.pending {
+		c.available <- struct{}{}
+	}
+	return !c.isolated && controlSize <= limit-c.pending
+}
