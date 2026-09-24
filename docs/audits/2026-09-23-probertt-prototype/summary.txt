@@ -1,0 +1,27 @@
+ordinary-queue     draft06  entries=2 exits=2 probe= 805ms final min=101ms (base=100ms) queue=  1460B
+ordinary-queue     proposal entries=1 exits=1 probe= 552ms final min=101ms (base=100ms) queue=  1460B
+ordinary-queue     quiche   entries=1 exits=1 probe= 400ms final min=200ms (base=100ms) queue=146000B
+expired-queue      draft06  entries=1 exits=1 probe= 400ms final min=250ms (base=100ms) queue=219000B
+expired-queue      proposal entries=1 exits=1 probe= 552ms final min=101ms (base=100ms) queue=  1460B
+expired-queue      quiche   entries=1 exits=1 probe= 400ms final min=200ms (base=100ms) queue=146000B
+expired-no-backlog draft06  entries=1 exits=1 probe= 552ms final min=101ms (base=100ms) queue=  1460B
+expired-no-backlog proposal entries=1 exits=1 probe= 552ms final min=101ms (base=100ms) queue=  1460B
+expired-no-backlog quiche   entries=1 exits=1 probe= 400ms final min=200ms (base=100ms) queue=146000B
+rising-base        draft06  entries=4 exits=4 probe=2555ms final min=401ms (base=400ms) queue=  1460B
+rising-base        proposal entries=1 exits=1 probe= 752ms final min=401ms (base=400ms) queue=  1460B
+rising-base        quiche   entries=2 exits=2 probe=1002ms final min=401ms (base=400ms) queue=  1460B
+long-rtt           draft06  entries=2 exits=2 probe=1603ms final min=401ms (base=400ms) queue=  1460B
+long-rtt           proposal entries=1 exits=1 probe=1001ms final min=401ms (base=400ms) queue=  1460B
+long-rtt           quiche   entries=1 exits=1 probe= 600ms final min=401ms (base=400ms) queue=  1460B
+delayed-feedback   draft06  entries=2 exits=2 probe=1980ms final min=551ms (base=400ms) queue=  1460B
+delayed-feedback   proposal entries=1 exits=1 probe=1153ms final min=551ms (base=400ms) queue=  1460B
+delayed-feedback   quiche   entries=1 exits=1 probe= 601ms final min=551ms (base=400ms) queue=  1460B
+idle-restart       draft06  entries=0 exits=0 probe=   0ms final min=101ms (base=100ms) queue=  1460B
+idle-restart       proposal entries=0 exits=0 probe=   0ms final min=101ms (base=100ms) queue=  1460B
+idle-restart       quiche   entries=0 exits=0 probe=   0ms final min=101ms (base=100ms) queue=  1460B
+late-down-exit     draft06  entries=1 exits=1 probe= 400ms final min=250ms (base=100ms) queue=219000B
+late-down-exit     proposal entries=1 exits=1 probe= 552ms final min=101ms (base=100ms) queue=  1460B
+late-down-exit     quiche   entries=1 exits=1 probe= 400ms final min=200ms (base=100ms) queue=146000B
+falling-base       draft06  entries=1 exits=1 probe= 802ms final min=250ms (base=100ms) queue=219000B
+falling-base       proposal entries=1 exits=1 probe= 802ms final min=200ms (base=100ms) queue=146000B
+falling-base       quiche   entries=1 exits=1 probe= 601ms final min=401ms (base=100ms) queue=439460B
