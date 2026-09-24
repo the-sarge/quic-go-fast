@@ -1,18 +1,27 @@
-# Queued-send delivery sampling — owner reaction pending
+# Queued-send delivery sampling — evidence accepted
 
-Evidence for [Test delivery sampling across queued and batched sends](https://github.com/the-sarge/quic-go-fast/issues/566), within [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552). Inspected repository baseline: `c2157d0804ab6bfeef35fc570b7723a79fd456e9`. **This is a disposable, deterministic, open-loop timing experiment. The owner has not accepted its answer or selected a final contract.**
+Evidence for [Test delivery sampling across queued and batched sends](https://github.com/the-sarge/quic-go-fast/issues/566), within [Design opt-in BBRv3 for GridCast bulk transfers](https://github.com/the-sarge/quic-go-fast/issues/552). Inspected repository baseline: `c2157d0804ab6bfeef35fc570b7723a79fd456e9`. **The owner accepted this bounded, deterministic timing experiment as sufficient planning evidence after reviewing a plain-language executive summary. Final implementation contracts remain with the design investigation; real-world validation is still required before shipping.**
 
 Registration-based samples recover the configured delivery rate in the ordinary cases, but cannot identify where delay occurred. A per-opportunity quantum does not bound a stalled worker's eventual burst. Subtracting queued bytes bounds that backlog in this model but does not bound residence time, and can materially reduce delivery when worker delay is persistent. Even perfect socket-acceptance feedback leaves post-acceptance queueing invisible. These observations support an explicit approximation and backlog contract; they do not establish that production BBR needs a successful-send timestamp for every packet.
 
 ## Inspect and reproduce
 
-- [Run the disposable terminal viewer](../../../internal/congestion/prototype-delivery-sampling/README.md).
+- [Replay the frozen disposable terminal viewer](https://github.com/the-sarge/quic-go-fast/blob/331f8165b09bcd71a478c42b5e26fc01e6e3f221/internal/congestion/prototype-delivery-sampling/README.md). Its model, shell and attribution notices are preserved at that revision; the disposable package has been removed from the investigation branch.
 - [Summary of all 108 runs](summary.csv): 18 scenarios, three quanta and two queue policies; each run compares three independent samplers.
 - [Selected per-packet timing traces](packets.csv): six scenarios, quantum four, both queue policies; every QUIC packet retains its own identity, including GSO members.
 - [Selected per-ACK sampler snapshots](samples.csv): delivery count, live record count, timing origins, application-limited marker, interval components, RTT and rate for each boundary. Other traces are accessible in the viewer or by adjusting the explicit exporter selection.
 - [Timing and sampling figure](timing.png): representative trace details, not a performance benchmark.
 
-Run `go run ./internal/congestion/prototype-delivery-sampling -export /tmp/delivery-sampling-replay` from this branch to regenerate the three CSV files. The model needs only the repository's Go toolchain. Recreate the figure with `python3 docs/audits/2026-09-24-delivery-sampling-prototype/plot.py` (matplotlib required). The figure is derived evidence; CSV values are authoritative.
+Run `go run ./internal/congestion/prototype-delivery-sampling -export /tmp/delivery-sampling-replay` from frozen revision `331f8165b09bcd71a478c42b5e26fc01e6e3f221` to regenerate the three CSV files. The model needs only the repository's Go toolchain. Fetch the retained investigation branch and use a dedicated replay worktree:
+
+```sh
+git fetch origin codex/bbr-delivery-sampling
+git worktree add -b codex/delivery-sampling-replay /Volumes/worktrees/quic-go-fast/delivery-sampling-replay 331f8165b09bcd71a478c42b5e26fc01e6e3f221
+cd /Volumes/worktrees/quic-go-fast/delivery-sampling-replay
+go run ./internal/congestion/prototype-delivery-sampling -export /tmp/delivery-sampling-replay
+```
+
+Recreate the figure with `python3 docs/audits/2026-09-24-delivery-sampling-prototype/plot.py` (matplotlib required). The figure is derived evidence; CSV values are authoritative.
 
 ## Main observations
 
@@ -66,17 +75,21 @@ At equal timestamps, ACKs are processed before registration, acceptance, departu
 
 No native scheduler, socket, offload, allocation, CPU, fairness, competing flow, loss, ECN, migration or production idle-classification claim follows. The unchanged managed endpoint and ECN qualification boundary remains [ADR 0007](https://github.com/the-sarge/quic-go-fast/blob/c2157d0804ab6bfeef35fc570b7723a79fd456e9/docs/adr/0007-managed-ecn-qualification.md).
 
-## Recommendation for owner discussion
+## Findings to carry into final design
 
 Carry three obligations into [Settle the implementation-ready BBRv3 design](https://github.com/the-sarge/quic-go-fast/issues/558): state the registration-clock approximation explicitly; define byte-based pending-work/quantum accounting across producer, worker and offloads; keep queue limitation distinct from application idleness and dispose snapshots explicitly on non-ACK termination. Do not describe a successful write callback as a wire-departure timestamp.
 
 The bounded result does not force a new per-packet success-feedback API. Such feedback could provide queue-residence diagnostics or restore credit, but has sequencing, overflow, partial-progress, shutdown and path-generation semantics of its own, and cannot eliminate all host delay. The model also demonstrates a cost to overly tight credit. Final design must select an approximation and what evidence is acceptable; there are no invented production tolerances here.
 
-If the owner requires native evidence before selecting that contract, the precise follow-up is: under the accepted native workload/host matrix, how large are registration-to-socket-acceptance residence and pending bytes (including worker-owned groups), and how do candidate byte-credit limits change delivery and wakeup/drain behavior? Record paired registration/acceptance/ACK traces with sequence/generation identities and explicit dropped-observation accounting. Acceptance traces alone must not be presented as actual wire departures. This experiment would require a separately charted ticket and use the accepted evidence budget; it has not been launched or declared a prerequisite by this prototype.
+The owner accepted proceeding to final design without a separate native timing experiment at this planning step. If implementation qualification or subsequent design work exposes a need for focused timing evidence, the precise follow-up question is: under the accepted native workload/host matrix, how large are registration-to-socket-acceptance residence and pending bytes (including worker-owned groups), and how do candidate byte-credit limits change delivery and wakeup/drain behavior? Record paired registration/acceptance/ACK traces with sequence/generation identities and explicit dropped-observation accounting. Acceptance traces alone must not be presented as actual wire departures. This experiment would require a separately charted ticket and use the accepted evidence budget; it has not been launched or declared a prerequisite by this prototype.
 
 ## Owner disposition and verification
 
-Owner reaction is pending. Keep the investigation open and claimed; this report is not its resolution. No consequential architectural choice was settled, so no ADR was added. Existing glossary terms suffice; no implementation details were added to CONTEXT.md.
+The owner requested an executive summary, then replied “ok yes” to the recommendation to accept these findings as sufficient to finish the design, with real-world validation still required before shipping. This resolves the prototype investigation and does not select a final quantum, timing-feedback API or complete controller design.
+
+Carry the timing approximation, byte accounting across pending work, distinction between local queueing and genuine application idleness, and explicit sample cleanup into the final design discussion. No new native experiment is a prerequisite for that discussion. The existing acceptance campaign still governs implementation qualification; native performance, fairness and deployment suitability remain unestablished by this model.
+
+The disposable model and terminal shell were removed after preserving their frozen source revision and evidence. No consequential architectural choice was settled here, so no ADR was added. Existing glossary terms suffice; no implementation details were added to CONTEXT.md.
 
 All 108 runs completed; the three CSV exports reproduced byte-for-byte; delivery totals, zero residual registration state, queue capacity, unique packet identities and timing order were checked. The terminal viewer passed advance, next-ACK, jump, reset and quit checks. `go vet` and Markdown whitespace checks passed, and the rendered figure was inspected. The sampler subset and queue/failure semantics were manually compared with the pinned sources. No prototype unit tests or production performance campaign were introduced. Production transport code is unchanged.
 
