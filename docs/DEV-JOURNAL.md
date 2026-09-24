@@ -3653,3 +3653,16 @@ The bounded two-fresh-review cycle ended with exact-head RAS verification of `20
 ### Next
 
 B1 and Q1 remain ready; T5 completion creates no newly ready slice because B5 still requires B4. [Program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier. Revalidate the deferred PTO-retirement classification and bounded ACK-processing-cost investigations against the merged code before creating follow-ups. No new untraced effect was accepted.
+
+---
+
+## ECN ledger lifetime decision - 2026-09-24 17:29 EDT
+
+**Main:** `ed79e14faa06`
+**Actor:** Codex
+
+**Summary:** Merged [PR #620](https://github.com/the-sarge/quic-go-fast/pull/620), completing the bounded ECN ledger investigation in [#612](https://github.com/the-sarge/quic-go-fast/issues/612). One deterministic recovery-level case demonstrates distinct ACKed markings filling the 4,096-record ledger behind an unresolved send; the equivalent suffix still recompresses to two records. Runtime behavior is unchanged.
+
+**Decision:** Retain the accepted conservative fallback and clarify the already planned B6 reason/occupancy diagnostics. The [revision-pinned investigation](audits/issue-612-ecn-ledger-lifetime/README.md) records evidence, authority obligations and limits. Synthetic reachability does not establish production incidence, and no runtime retirement or expanded campaign is authorized.
+
+**Validation:** Focused cases, affected ackhandler package tests, vet, module tidiness, diff and relative-link checks passed. RAS initial review `20260924T211235-5efc3924594b15e88be19c9c` led to registration-time assertions and a fixture-qualified explanation; scoped verification resolved those findings, and replacement `20260924T212331-83c3acf68943679d0d2494bd` was clean. One terminology nit was independently rejected. [Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/620#issuecomment-5822513286) covered candidate `16fd0d80d2f60bb5bba3e1262733863860c6b4a9`; all 33 hosted checks passed before squash merge. No deferred findings require a new task.
