@@ -161,3 +161,20 @@ and both socket checks; a focused race run passed. That localhost correctness
 check is not coexistence calibration or a performance comparison. Optional cloud
 competitor hosts, phase orchestration and per-participant resource evidence are
 still prerequisites.
+
+## Windows preparation and warm-up regression
+
+[Windows native observations](evidence/windows-preparation-summary.json) cover
+all four short Reno/BBRv3 stream/DATAGRAM smoke cells, with integrity, controller
+selection, four observed guest cores, resource accounting and actual ECT(0)
+send/receive records. The initial shell collection faults were recovered from
+the original result files; no comparative conclusions follow from these smokes.
+
+The first native gateway race diagnostic did not complete. Its captured Go stack
+identified `model.Queue.finish`: a negative warm-up timestamp overflowed the
+subtraction from the no-future-rate-change sentinel, causing an infinite loop.
+`TestWarmupServiceBeforeMeasurementEpoch` reproduced the hang and now checks
+serialization before measurement for constant and changing-rate schedules.
+The sentinel is handled before subtraction in `d0cfa1cb`; normal and race model
+checks pass. Native revalidation is still required. Lifecycle callers must also
+bound the adapter process externally and restore kernel forwarding on failure.

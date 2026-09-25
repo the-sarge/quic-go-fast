@@ -1,0 +1,158 @@
+{
+  "status": "fixture smoke only; full modeled campaign not ready",
+  "recorded_at": "2026-09-25T20:29:42.182114+00:00",
+  "platform": "windows/amd64",
+  "os": "Windows Server 2025 Datacenter 10.0.26100",
+  "endpoint_cores_observed": 4,
+  "endpoint_logical_processors_observed": 4,
+  "fixture_sha256": "b9cf7b23eed1269806ce7e74749ef3c9dc29cbdfdd8569fa37985e06c8679f73",
+  "raw_sha256": "6eacac6a298e11140133afbe7d3fcd9dd9a8a3d0734144b060f05a56f691151e",
+  "cells": [
+    {
+      "controller": "reno",
+      "workload": "stream",
+      "status": "short native correctness smoke passed",
+      "source": "09f9d290",
+      "roles": [
+        {
+          "role": "send",
+          "sent_ecn": {
+            "": 7,
+            "ECT(0)": 956259
+          },
+          "received_ecn": {
+            "": 4,
+            "ECT(0)": 35503
+          },
+          "resource_error": null,
+          "corrupt": 0
+        },
+        {
+          "role": "receive",
+          "sent_ecn": {
+            "": 4,
+            "ECT(0)": 35503
+          },
+          "received_ecn": {
+            "": 5,
+            "ECT(0)": 956137
+          },
+          "resource_error": null,
+          "corrupt": 0
+        }
+      ]
+    },
+    {
+      "controller": "reno",
+      "workload": "datagram",
+      "status": "short native correctness smoke passed",
+      "source": "09f9d290",
+      "roles": [
+        {
+          "role": "send",
+          "sent_ecn": {
+            "": 7,
+            "ECT(0)": 987065
+          },
+          "received_ecn": {
+            "": 4,
+            "ECT(0)": 39049
+          },
+          "resource_error": null,
+          "corrupt": 0
+        },
+        {
+          "role": "receive",
+          "sent_ecn": {
+            "": 4,
+            "ECT(0)": 39049
+          },
+          "received_ecn": {
+            "": 5,
+            "ECT(0)": 986953
+          },
+          "resource_error": null,
+          "corrupt": 0
+        }
+      ]
+    },
+    {
+      "controller": "bbrv3",
+      "workload": "stream",
+      "status": "short native correctness smoke passed",
+      "source": "09f9d290",
+      "roles": [
+        {
+          "role": "send",
+          "sent_ecn": {
+            "": 8,
+            "ECT(0)": 219009
+          },
+          "received_ecn": {
+            "": 4,
+            "ECT(0)": 14945
+          },
+          "resource_error": null,
+          "corrupt": 0
+        },
+        {
+          "role": "receive",
+          "sent_ecn": {
+            "": 4,
+            "ECT(0)": 14945
+          },
+          "received_ecn": {
+            "": 6,
+            "ECT(0)": 219009
+          },
+          "resource_error": null,
+          "corrupt": 0
+        }
+      ]
+    },
+    {
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "status": "short native correctness smoke passed",
+      "source": "09f9d290",
+      "roles": [
+        {
+          "role": "send",
+          "sent_ecn": {
+            "": 6,
+            "ECT(0)": 242525
+          },
+          "received_ecn": {
+            "": 4,
+            "ECT(0)": 14442
+          },
+          "resource_error": null,
+          "corrupt": 0
+        },
+        {
+          "role": "receive",
+          "sent_ecn": {
+            "": 4,
+            "ECT(0)": 14442
+          },
+          "received_ecn": {
+            "": 6,
+            "ECT(0)": 242525
+          },
+          "resource_error": null,
+          "corrupt": 0
+        }
+      ]
+    }
+  ],
+  "collection_limitations": [
+    "Initial SSH invocation timed out after the native process had completed; saved JSON was recovered read-only.",
+    "One PowerShell text conversion failed UTF-8 decoding; original JSON was recovered as base64 bytes. Neither failure was erased or treated as a transport failure."
+  ],
+  "not_established": [
+    "comparative performance",
+    "CE-mark response under the selected gateway",
+    "S3/L3 calibrated timing",
+    "final-source full campaign readiness"
+  ]
+}
