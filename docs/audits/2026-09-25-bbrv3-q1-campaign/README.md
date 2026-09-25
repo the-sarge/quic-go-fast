@@ -292,3 +292,18 @@ the fixture’s 15-second bounded final receipt exchange plus five seconds of
 shutdown margin. This does not enlarge the measurement denominator. Charge
 the tail as command/teardown overhead. The earlier three-second tail could cut
 off receipt exchange on L4’s one-second-RTT path; retain that invalid observation.
+
+Windows has a plain IPv4 rate probe with an 8 MiB requested socket buffer. It
+records that per-socket drop and ECN metadata are unavailable in this probe;
+require unchanged host UDP Receive Errors around a run. It rejects `-ect` and
+unexpected ancillary data. The native QUIC fixture and gateway observations
+still own Windows ECN evidence. This is a rate/RTT check, not a new Windows
+metadata parser. Unix ancillary handling remains delegated to `x/sys/unix`.
+
+For native path capacity checks, two independent 600 Mb/s probe streams may
+share the same modeled FIFO with two Go processors per process (`-processors 2`).
+They retain separate sequence counters; aggregate full-IP byte rates and require
+zero host receive-buffer-error growth and exact gateway/receiver packet balance
+after the drain. This tests path capacity without requiring one plain UDP
+receive loop to absorb the entire gigabit rate. It does not add campaign
+workloads or change the focal fixture’s four-processor resource contract.

@@ -1,4 +1,4 @@
-//go:build linux || darwin
+//go:build linux || darwin || windows
 
 // Frozen native UDP calibration source/sink. IP-byte rates include the 28-byte
 // IPv4/UDP header. Its counts calibrate the path, never QUIC application goodput.
@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"net"
 	"os"
 	"runtime"
@@ -17,6 +16,7 @@ import (
 )
 
 type result struct {
+	GOMAXPROCS                                          int
 	Role                                                string
 	Sent, Received, Unique, Duplicate, Invalid, Outside uint64
 	ECN                                                 [4]uint64
@@ -26,6 +26,7 @@ type result struct {
 	MaxOneWayNS                                         int64
 	PacketSamples                                       [][3]int64 // sequence, sender Unix ns, receiver Unix ns; clock offset remains separate
 
+	ECNObservation        string
 	SocketDropObservation string
 	SocketDrops           uint32
 	ReceiveBuffer         int
@@ -40,6 +41,7 @@ func main() {
 }
 func run() error {
 	role := flag.String("role", "", "send, receive, echo or ping")
+	processors := flag.Int("processors", 4, "Go processors per probe process, 1..4")
 	local := flag.String("local", "", "explicit IPv4 bind")
 	peer := flag.String("peer", "", "peer IPv4 address")
 	startNS := flag.Int64("start", 0, "start Unix nanoseconds")
@@ -48,7 +50,7 @@ func run() error {
 	ect := flag.Bool("ect", false, "send ECT(0)")
 	output := flag.String("output", "", "JSON receipt")
 	flag.Parse()
-	if *seconds < 1 || *seconds > 300 || *output == "" || *rate < 0 || (*role != "send" && *role != "receive" && *role != "echo" && *role != "ping") {
+	if *processors < 1 || *processors > 4 || *seconds < 1 || *seconds > 300 || *output == "" || *rate < 0 || (*role != "send" && *role != "receive" && *role != "echo" && *role != "ping") {
 		return fmt.Errorf("invalid bounded probe config")
 	}
 	start := time.Unix(0, *startNS)
@@ -56,7 +58,7 @@ func run() error {
 	if time.Until(start) < 0 || time.Until(start) > 2*time.Minute {
 		return fmt.Errorf("start must be within next two minutes")
 	}
-	runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(*processors)
 	addr, e := net.ResolveUDPAddr("udp4", *local)
 	if e != nil {
 		return e
@@ -73,29 +75,10 @@ func run() error {
 			return e
 		}
 	}
-	r := result{Role: *role, SocketDropObservation: socketDropObservation, IPBytesPerSecond: make([]uint64, *seconds)}
-	raw, e := conn.SyscallConn()
+	r := result{Role: *role, GOMAXPROCS: runtime.GOMAXPROCS(0), SocketDropObservation: socketDropObservation, ECNObservation: ecnObservation, IPBytesPerSecond: make([]uint64, *seconds)}
+	r.ReceiveBuffer, e = configureSocket(conn, *ect)
 	if e != nil {
 		return e
-	}
-	var socketErr error
-	e = raw.Control(func(fd uintptr) {
-		for _, option := range socketOptions {
-			if err := unix.SetsockoptInt(int(fd), option[0], option[1], option[2]); err != nil {
-				socketErr = err
-				return
-			}
-		}
-		if *ect {
-			socketErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_TOS, 2)
-		}
-		r.ReceiveBuffer, _ = unix.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF)
-	})
-	if e != nil {
-		return e
-	}
-	if socketErr != nil {
-		return socketErr
 	}
 	conn.SetDeadline(end.Add(2 * time.Second))
 	if *role == "send" || *role == "ping" {
@@ -155,7 +138,7 @@ func run() error {
 				break
 			}
 			r.Received++
-			if flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || n != 1432 || string(b[:4]) != "Q1P1" {
+			if messageTruncated(flags) || n != 1432 || string(b[:4]) != "Q1P1" {
 				r.Invalid++
 				continue
 			}
@@ -175,18 +158,9 @@ func run() error {
 				r.Invalid++
 				continue
 			}
-			msgs, err := unix.ParseSocketControlMessage(oob[:on])
-			if err != nil {
+			if err := readMetadata(oob[:on], &r); err != nil {
 				e = err
 				break
-			}
-			for _, m := range msgs {
-				if m.Header.Level == unix.IPPROTO_IP && m.Header.Type == receivedTOS && len(m.Data) > 0 {
-					r.ECN[m.Data[0]&3]++
-				}
-				if m.Header.Level == unix.SOL_SOCKET && m.Header.Type == receivedOverflow && len(m.Data) >= 4 {
-					r.SocketDrops = binary.NativeEndian.Uint32(m.Data[:4])
-				}
 			}
 			if seen[seq/64]&(uint64(1)<<(seq%64)) != 0 {
 				r.Duplicate++
