@@ -162,6 +162,14 @@ check is not coexistence calibration or a performance comparison. Optional cloud
 competitor hosts, phase orchestration and per-participant resource evidence are
 still prerequisites.
 
+TCP useful-delivery accounting is authoritative in the receiver's local JSON;
+the sender record owns demand and control observations. The caller must require
+both peers to succeed and join their records by the frozen run identity. It must
+not interpret the sender's empty receiver counter as zero delivered traffic.
+A bounded bulk drain can reach its deadline with queued data still outstanding;
+the receiver exports locally without requiring a terminal network receipt on
+that expired socket. A native regression retains valid accounting in this case.
+
 ## Windows preparation and warm-up regression
 
 [Windows native observations](evidence/windows-preparation-summary.json) cover

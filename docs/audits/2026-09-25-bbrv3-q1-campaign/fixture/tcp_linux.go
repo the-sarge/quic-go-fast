@@ -74,9 +74,9 @@ func receiveTCP(ctx context.Context, bulk, control *net.TCPConn, cfg Run) (Resul
 		}
 	}
 	r.Receiver = counter.Snapshot()
-	if e := writeJSON(bulk, r); e != nil {
-		return r, e
-	}
+	// Export the authoritative receiver record locally. A congested bulk tail
+	// may drain until this socket's deadline; it must not also carry a terminal
+	// receipt after that deadline. The caller requires both peers' local records.
 	return r, nil
 }
 
@@ -133,14 +133,6 @@ func sendTCP(ctx context.Context, bulk, control *net.TCPConn, cfg Run) (Result, 
 	r.Control = <-controlDone
 	joined = true
 	control.Close()
-	var received Result
-	if e := readJSON(bulk, &received); e != nil {
-		return r, e
-	}
-	if !reflect.DeepEqual(received.Run, cfg) || received.Controller != "cubic" {
-		return r, fmt.Errorf("TCP receipt identity mismatch")
-	}
-	r.Receiver = received.Receiver
 	if r.Control.Error != "" {
 		r.Errors = append(r.Errors, r.Control.Error)
 	}
@@ -270,6 +262,7 @@ func executeTCP(cfg Run, role, local, peer, output string) error {
 	after.TotalAllocBytes = mem.TotalAlloc - initial.TotalAlloc
 	after.HeapBytesAtExit = mem.HeapAlloc
 	receipt := map[string]any{"result": result, "source": sourceRevision, "platform": runtime.GOOS + "/" + runtime.GOARCH, "go_version": runtime.Version(), "gomaxprocs": 4, "resources": after, "connection_setup_ns": setupNS, "tcp_controller_verified": "cubic", "tcp_maxseg_bound": 1380, "control_topology": "separate TCP CUBIC connection; common modeled path", "elapsed_ns": time.Since(started).Nanoseconds()}
+	receipt["receiver_accounting"] = "receiver-local JSON; require both peers to succeed and join by run identity"
 	if e != nil {
 		receipt["error"] = e.Error()
 	}
