@@ -34,6 +34,22 @@ func TestBBRUndoAllSpuriousOnly(t *testing.T) {
 }
 
 func TestBBRPersistentRestartTwoPackets(t *testing.T) {
+	t.Run("PTO-only proof on a CE release boundary", func(t *testing.T) {
+		x := ceTrace(t)
+		x.b.Feedback(ceEvent(x, x.ordinal, 1))
+		x.b.Feedback(ceAck(x))
+		x.b.Feedback(ceAck(x))
+		rate, flight := x.b.ce.rate, x.b.ce.flight
+		e := ceAck(x)
+		e.SmoothedRTT = 100 * time.Millisecond
+		e.PersistentCongestion = PersistentCongestion{StartOrdinal: 1, EndOrdinal: 2}
+		x.b.Feedback(e)
+		require.Equal(t, rate, x.b.ce.rate, "persistent congestion cannot count as a clean CE recovery round")
+		require.Equal(t, flight, x.b.ce.flight)
+		require.True(t, x.b.ce.active)
+		require.EqualValues(t, 2400, x.b.GetCongestionWindow())
+	})
+
 	for _, ce := range []bool{false, true} {
 		t.Run(map[bool]string{false: "loss", true: "simultaneous CE"}[ce], func(t *testing.T) {
 			x := newBBRProbeTrace()
