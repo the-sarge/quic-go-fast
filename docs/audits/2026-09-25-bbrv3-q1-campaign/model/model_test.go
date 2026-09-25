@@ -51,6 +51,16 @@ func TestChangingRateRetainsFixedQueueAndPartialService(t *testing.T) {
 	}
 }
 func TestPostServiceDelayCanReorderWithoutPausingService(t *testing.T) {
+	t.Run("accepted completion phase", func(t *testing.T) {
+		q, e := Scenario("L1", true, 2, 17, 1460)
+		if e != nil {
+			t.Fatal(e)
+		}
+		q.Admit(2*time.Second-40*time.Microsecond, Packet{Bytes: make([]byte, 100)})
+		if len(q.Advance(2020*time.Millisecond)) != 0 || len(q.Advance(2220*time.Millisecond)) != 1 {
+			t.Fatal("completion delay phase was not applied after service")
+		}
+	})
 	q := New(Direction{Rate: 8000, Capacity: 1000, Delay: 10 * time.Millisecond}, Schedule{Kind: "L1", Phase: 3 * time.Second})
 	p := make([]byte, 100)
 	p[0] = 1

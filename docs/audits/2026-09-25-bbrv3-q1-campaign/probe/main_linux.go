@@ -105,6 +105,7 @@ func run() error {
 			p[i] = byte(i)
 		}
 		var seq uint32
+		pacingAt := start
 		for time.Now().Before(end) && seq < 1<<26 {
 			binary.BigEndian.PutUint32(p[4:8], seq)
 			binary.BigEndian.PutUint64(p[8:16], uint64(time.Now().UnixNano()))
@@ -122,9 +123,16 @@ func run() error {
 				}
 				time.Sleep(50 * time.Millisecond)
 			} else if *rate > 0 {
-				due := start.Add(time.Duration(float64(r.Sent) * 1460 * 8 / float64(*rate) * float64(time.Second)))
-				if delay := time.Until(due); delay >= 100*time.Microsecond {
-					time.Sleep(delay)
+				pacingAt = pacingAt.Add(time.Duration(float64(1460*8) / float64(*rate) * float64(time.Second)))
+				// Do not turn scheduler delays into an unbounded catch-up burst.
+				// The achieved offered rate is measured from Sent, not assumed.
+				if time.Since(pacingAt) > 100*time.Microsecond {
+					pacingAt = time.Now()
+				}
+				if delay := time.Until(pacingAt); delay > 200*time.Microsecond {
+					time.Sleep(delay - 200*time.Microsecond)
+				}
+				for time.Now().Before(pacingAt) {
 				}
 			}
 		}

@@ -9,8 +9,8 @@ import (
 // Scenario fixes the accepted IP-byte domain and first-phase L3 queue basis.
 // S1 deliberately uses native routing with this emulator stopped.
 func Scenario(id string, forward bool, phase int, seed uint64, mtu int) (*Queue, error) {
-	if mtu != 1460 || phase < 0 || phase > 12 || phase%3 != 0 {
-		return nil, fmt.Errorf("expected MTU 1460 and event phase 0,3,6,9,12")
+	if mtu != 1460 || phase < 0 || phase > 12 || (phase%3 != 0 && !(id == "L1" && phase == 2)) {
+		return nil, fmt.Errorf("expected MTU 1460 and core phase 0,3,6,9,12 or L1 completion phase 2")
 	}
 	rates := map[string][3]float64{
 		"S2": {20, 100, 150}, "S3": {1000, 1000, 200}, "S4": {20, 100, 250}, "S5": {100, 100, 100}, "S6": {100, 100, 100}, "S7": {100, 100, 100}, "S8": {100, 100, 100},
