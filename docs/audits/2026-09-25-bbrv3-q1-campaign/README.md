@@ -176,8 +176,21 @@ subtraction from the no-future-rate-change sentinel, causing an infinite loop.
 `TestWarmupServiceBeforeMeasurementEpoch` reproduced the hang and now checks
 serialization before measurement for constant and changing-rate schedules.
 The sentinel is handled before subtraction in `d0cfa1cb`; normal and race model
-checks pass. Native revalidation is still required. Lifecycle callers must also
-bound the adapter process externally and restore kernel forwarding on failure.
+checks pass. Native S2 forwarding under the race detector subsequently passed,
+including warm-up and shutdown. Lifecycle callers must also bound the adapter
+process externally and restore kernel forwarding on failure.
+
+[Modeled Windows path observations](evidence/windows-modeled-path-summary.json)
+retain both valid short diagnostics and failed calibration attempts. S3 met the
+timing gate at about 72 Mbps observed load; this does not prove 1 Gbps capacity.
+A BBRv3 completion observation verified all 16 MiB through EOF in 2.1545688
+receiver-local seconds. The full L3 schedule survived interruption and retained
+integrity, but failed the 5 ms departure gate at 5.135 ms during warm-up.
+A separate SCHED_RR priority-10 hypothesis test failed at 21.199/20.090 ms in the
+two directions at the same measured instant. Real-time scheduling did not fix
+the limitation and is not a qualified configuration. All failures remain in the
+receipts; these observations are not controller comparisons. Windows VMs and
+disks were explicitly destroyed and independently verified absent.
 
 `competitor-schedule-candidate.json` pins L4's 0/1/3 demanding TCP streams
 and L6–L8's existing-connection bulk absence at measured t=240–270. The
