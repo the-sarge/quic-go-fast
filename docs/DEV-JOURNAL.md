@@ -3765,3 +3765,24 @@ All 17 jobs in the five applicable PR workflows passed on that head, as recorded
 ### Next
 
 The merged plan records T1–T5 and B1–B3 complete, with B4 and Q1 independently ready. Reconcile the task mirrors after this journal merge; the [program tracker](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier view. B4 adds persistent classic-ECN response; public activation remains gated until B6. No untraced runtime effect was accepted.
+
+---
+
+## BBRv3 persistent classic ECN response landed - 2026-09-25 01:35 EDT
+
+**Main:** `20f596e2b5f7`
+**Actor:** Codex
+
+### Completed
+
+Merged [B4 / #595](https://github.com/the-sarge/quic-go-fast/issues/595) through [PR #635](https://github.com/the-sarge/quic-go-fast/pull/635), product commit `20f596e2b5f7ee88cdaeaf00fbde146bf18e3fa6`. The private BBR reducer consumes validated CE events as independent half-retention rate/flight caps, suppresses duplicate response epochs, preserves normal phase transitions, prevents aggressive probing while capped, and recovers only through complete clean rounds. Caps survive ProbeRTT, idle, sampling fences and packet-size changes without fabricating packet loss. T4 retains ECN validation authority, and public construction remains Reno.
+
+### Validation
+
+The [exact-head certification receipt](https://github.com/the-sarge/quic-go-fast/pull/635#issuecomment-5827354268) records clean head `a1dcb43033378946e33e0ff5e9df72d4643a1568` against base `08332b9b5761643bbf1931cf02c7f8d88f9b3565`. Ten focused test functions, the ordinary local unit suite, affected-package vet/lint, module tidiness and diff/link checks passed. All 33 hosted checks succeeded, including the [integration matrix](https://github.com/the-sarge/quic-go-fast/actions/runs/36097347004) and [unit matrix](https://github.com/the-sarge/quic-go-fast/actions/runs/36097346996), before guarded squash merge.
+
+Initial review `20260925T043533-12672e8d77d12b452f76a106` produced four accepted roots; each received a failing regression and a central fix, then exact-head verification. Replacement review `20260925T051321-605ce7f43d719f4e34a7d174` completed with no immediate fixes. [Final dispositions](https://github.com/the-sarge/quic-go-fast/pull/635#issuecomment-5827347942) retain one noncritical idle-pacing follow-up. A single temporary fixture at the merged head confirmed nominal pacing falling from 60,000 to 1 bytes/s when genuine idle follows unmeasured-bandwidth Cruise; [#636](https://github.com/the-sarge/quic-go-fast/issues/636) records the current source location and bounded fix. No additional race, mutation, native platform or repetition campaign was added, and no untraced effect remains accepted.
+
+### Next
+
+The merged product records B4 complete and the independent B5/Q1 frontier. Reconcile issue and OmniFocus mirrors after this journal lands; [program #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live tracking view. The nonblocking idle-pacing follow-up is separate from the audited slices. Public BBR activation and native qualification remain later program work.
