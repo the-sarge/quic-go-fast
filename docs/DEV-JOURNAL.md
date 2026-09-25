@@ -3807,3 +3807,28 @@ Initial RAS review `20260925T115114-763f33dfb748bf097f939bb3` found a PTO-only p
 ### Next
 
 The product PR records B5 complete and B6 ready in the normative plan and program index. B6 and Q1 are the next independent frontier slices; [program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) remains the live view. Native performance qualification and public activation are not claimed by B5.
+
+---
+
+## Opt-in per-connection BBRv3 selection landed - 2026-09-25 09:00 EDT
+
+**Main:** `13fea227c3ea`
+**Actor:** Codex
+
+### Summary
+
+Merged [BBRv3 B6, PR #640](https://github.com/the-sarge/quic-go-fast/pull/640), closing [#597](https://github.com/the-sarge/quic-go-fast/issues/597). Config now exposes structural `SetCongestionControlV1` and selection getters, with exact `reno`/`bbrv3` validation, independent effective copies, and complete per-client replacement semantics. Both connection constructors install the complete BBR sender with its existing emission, queue-credit, recovery and ECN owners. The immutable Conn getter preserves identity through migration and close; ordinary callers still select Reno. Optional qlog snapshots are rate bounded and disabled tracing formats no diagnostic snapshots.
+
+### Decisions
+
+The [accepted B6 contract](adr/2026-09-24-bbrv3-controller-plan.md#b6) and [ADR 0009](adr/0009-opt-in-bbrv3.md) govern activation. Keyed Config literals remain compatible; adding the private scalar selection intentionally excludes positional literals from that compatibility promise. Native qualification and consumer rollout remain separate work.
+
+### Validation
+
+Eight focused tests cover validation/copying, per-client replacement, independent/default construction, real bidirectional STREAM/DATAGRAM traffic, validated migration with concurrent getter reads, worker debt and ECN counter fences, and bounded tracing. Affected-package tests and vet, focused race testing, module tidiness, local lint and exact-head clean/diff checks passed. Three isolated consumer executions passed against real upstream v0.62.0, fork Reno and fork BBR; upstream ordinary connections compile and run while explicit unsupported selection returns a visible error.
+
+RAS review `20260925T125206-83906520444fe07fe08c6a2d` completed without findings or follow-ups. No fix verification or replacement review was required. The [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/640#issuecomment-5832775966) records candidate `c18dc8f0b75c618cd3f7a9e754e826d92f8e512b`, base `7cb421acf7c3ff866e8d746cd7e2a578a67e31ef`, commands, module-resolution evidence and successful hosted unit, integration, lint, cross-compilation and interoperability runs. The candidate was squash-merged with a matching-head guard as `13fea227c3ea001bfec7c04e88d9b1fe3841ac3e`. No new follow-up or untraced effect was accepted.
+
+### Next
+
+All T and B slices are complete. The product PR already records Q1 as the frontier; Q2 remains blocked by Q1. Reconcile GitHub and OmniFocus mirrors after this journal lands; [program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live view. Public opt-in availability does not claim native performance qualification.
