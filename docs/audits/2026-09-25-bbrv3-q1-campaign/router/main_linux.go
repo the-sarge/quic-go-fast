@@ -249,10 +249,6 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 				continue
 			}
 
-			if lag := int64(time.Since(epoch) - p.ScheduledAt); lag > emitted.MaxEgressLagNS {
-				emitted.MaxEgressLagNS = lag
-				emitted.MaxEgressAtNS = time.Now().UnixNano()
-			}
 			frame := p.Frame
 			if len(frame) != 14+len(p.Bytes) {
 				emitted.SendErrors++
@@ -275,6 +271,12 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 			binary.BigEndian.PutUint16(ip[10:12], ^uint16(sum))
 			if e := unix.Sendto(tx, frame, 0, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_IP), Ifindex: nic.Index, Halen: 6, Addr: [8]uint8{peer[0], peer[1], peer[2], peer[3], peer[4], peer[5]}}); e != nil {
 				emitted.SendErrors++
+			}
+			// Include time spent in Sendto. This bounds kernel submission lateness,
+			// not physical wire departure, which still needs the receiver probe.
+			if lag := int64(time.Since(epoch) - p.ScheduledAt); lag > emitted.MaxEgressLagNS {
+				emitted.MaxEgressLagNS = lag
+				emitted.MaxEgressAtNS = time.Now().UnixNano()
 			}
 		}
 		emitDone <- emitted
