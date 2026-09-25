@@ -170,6 +170,7 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	if d == nil {
 		return
 	}
+	d.event.SmoothedRTT = h.rttStats.SmoothedRTT()
 	d.event.PostInFlight = h.bytesInFlight
 	d.event.PendingLocal = d.pendingBytes()
 	if h.bbrECN != nil {

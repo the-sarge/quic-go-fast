@@ -110,10 +110,11 @@ func (b *BBRSender) BeforeSend(now monotime.Time, idle bool) {
 	}
 	b.lastEvent = now
 	b.idleRestart = true
+	b.ce.roundDirty = true
 	b.aggregationStart, b.aggregationDelivered = now, 0
 	if b.phase == bbrProbeRTT {
 		b.finishProbeRTT(now, b.delivered)
 	} else if b.phase >= bbrDown {
-		b.rate = max(1, min(b.bandwidth, b.bandwidthShort))
+		b.rate = b.capRate(max(1, min(b.bandwidth, b.bandwidthShort)))
 	}
 }

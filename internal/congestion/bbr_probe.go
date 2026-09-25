@@ -51,6 +51,9 @@ func (b *BBRSender) startProbeDown(now monotime.Time, delivered uint64) {
 }
 
 func (b *BBRSender) startProbeRefill(delivered uint64) {
+	if b.ce.active {
+		return
+	}
 	b.phase = bbrRefill
 	b.ackPhase = bbrAcksRefilling
 	b.previousProbePrecautionary = false
@@ -97,7 +100,7 @@ func (b *BBRSender) updateProbePhase(e FeedbackEvent, roundStart, sampleValid bo
 	case bbrDown, bbrCruise:
 		target := min(b.bdp(1), b.window)
 		rounds := min(uint64(63), max(uint64(1), (uint64(target)+uint64(b.size)-1)/uint64(b.size)))
-		if b.roundsSinceProbe >= rounds || e.Time.Sub(b.cycleStamp) > b.probeWait {
+		if !b.ce.active && (b.roundsSinceProbe >= rounds || e.Time.Sub(b.cycleStamp) > b.probeWait) {
 			b.startProbeRefill(e.Delivery.Delivered)
 		} else if b.phase == bbrDown && e.PostInFlight <= b.maxBandwidthInflight() && e.PostInFlight <= b.headroom() {
 			b.phase = bbrCruise
