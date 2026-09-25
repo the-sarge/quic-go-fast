@@ -183,8 +183,18 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	// MTU retirement flight changes even though they are not congestion loss.
 	if d.event.HasAck || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
 		d.sink.Feedback(d.event)
-		if b, ok := h.congestion.(*congestion.BBRSender); ok && b.InProbeRTT() {
-			d.sampler.markLimited(congestion.SendProbeRTTLimited)
+		if b, ok := h.congestion.(*congestion.BBRSender); ok {
+			if d.event.PersistentCongestion.EndOrdinal != 0 {
+				// T5 emits each proven ending ordinal once. Keep recovery and retained
+				// packet ownership intact while fencing all pre-restart measurements.
+				d.sampleGeneration++
+				d.sampler.minimumRTT = 0
+				d.sampler.sendOrigin, d.sampler.deliveredTime = 0, 0
+				d.sampler.originlessRegistrations = false
+			}
+			if b.InProbeRTT() {
+				d.sampler.markLimited(congestion.SendProbeRTTLimited)
+			}
 		}
 	}
 	clear(d.event.Acked)

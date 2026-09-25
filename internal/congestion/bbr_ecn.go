@@ -87,7 +87,9 @@ func (b *BBRSender) recoverCE(e FeedbackEvent, phase bbrPhase) {
 	if !c.active {
 		return
 	}
-	dirty := bbrLimited(e.Delivery.Limited) || phase == bbrProbeRTT || b.phase == bbrProbeRTT || (valid && e.ECN.Delta.CE > 0)
+	// PTO-retired proof may contain no ordinary Lost packets. It still
+	// forbids relaxing independent CE caps before the persistent restart.
+	dirty := e.PersistentCongestion.EndOrdinal != 0 || bbrLimited(e.Delivery.Limited) || phase == bbrProbeRTT || b.phase == bbrProbeRTT || (valid && e.ECN.Delta.CE > 0)
 	for _, p := range e.Lost {
 		if p.AckEliciting && !p.MTUProbe && !p.PathProbe && p.Length > 0 && p.PathGeneration == b.pathGeneration && p.SampleGeneration >= b.modelSampleFloor {
 			dirty = true
