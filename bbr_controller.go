@@ -7,8 +7,8 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
-// enableBBR is private constructor plumbing for B1 tests. Public construction
-// cannot select the partial policy; B6 owns activation of the complete sender.
+// enableBBR installs the selected controller and bounded emission together,
+// before any packet registration.
 func (e *packetEmission) enableBBR(now monotime.Time) *congestion.BBRSender {
 	if e.bbr != nil {
 		panic("BBR already installed")

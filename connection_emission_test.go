@@ -23,8 +23,13 @@ import (
 // output without establishing TLS. Native protection/GSO are measured separately.
 func newEmissionTestConnection(t *testing.T, gso bool) *testConnection {
 	t.Helper()
+	return newConfiguredEmissionTestConnection(t, gso, &Config{InitialPacketSize: 1200, EnableDatagrams: true, DisablePathMTUDiscovery: true})
+}
+
+func newConfiguredEmissionTestConnection(t *testing.T, gso bool, config *Config) *testConnection {
+	t.Helper()
 	ctrl := gomock.NewController(t)
-	tc := newServerTestConnection(t, ctrl, &Config{InitialPacketSize: 1200, EnableDatagrams: true, DisablePathMTUDiscovery: true}, gso, connectionOptHandshakeConfirmed())
+	tc := newServerTestConnection(t, ctrl, config, gso, connectionOptHandshakeConfirmed())
 	c := tc.conn
 	sealing := NewMockSealingManager(ctrl)
 	sealing.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()

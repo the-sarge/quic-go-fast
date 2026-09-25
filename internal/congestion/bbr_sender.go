@@ -26,7 +26,6 @@ const (
 
 // BBRSender owns the private BBR model on the connection goroutine. Recovery
 // owns the input facts; emission owns pacing debt and applies the 1% margin.
-// No public connection selects this incomplete controller.
 type BBRSender struct {
 	persistentEnd                      uint64
 	persistentWaiting, persistentModel bool
