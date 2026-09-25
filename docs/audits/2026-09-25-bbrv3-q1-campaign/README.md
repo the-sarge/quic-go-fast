@@ -142,3 +142,22 @@ to fixture start plus warm-up, so L3 and competitor changes remain relative to
 the measured interval. Completion has no warm-up and L1 uses phase 2 seconds.
 Keep all run IDs, seeds and pair orders from the inventory; do not regenerate a
 new ordering between controller runs or delete failed rows.
+
+## TCP competitor mode
+
+Linux `q1fixture -tcp-cubic` accepts a `controller: "cubic"`, `workload: "stream"`
+run config with no completion target. It uses the same useful-byte counter,
+deterministic payload and one-pending control observer as the QUIC fixture.
+The bulk connection binds `-local`; a separate control TCP connection uses the
+next port on each endpoint. Both traverse the common modeled bottleneck. This
+control connection has independent CUBIC state; its latency is not QUIC stream
+multiplexing latency. Records state that distinction explicitly.
+
+The fixture selects kernel CUBIC before SYN exchange and verifies the controller
+and negotiated MSS on both connected sockets. MSS is bounded at 1,380 bytes,
+keeping full IP packets within the modeled MTU even with a maximum TCP header.
+Native smoke on an existing Linux host demonstrated integrity, control replies
+and both socket checks; a focused race run passed. That localhost correctness
+check is not coexistence calibration or a performance comparison. Optional cloud
+competitor hosts, phase orchestration and per-participant resource evidence are
+still prerequisites.

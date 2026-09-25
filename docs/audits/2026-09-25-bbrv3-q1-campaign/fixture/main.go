@@ -43,6 +43,7 @@ func execute() error {
 	cert := flag.String("cert", "campaign.pem", "campaign mTLS certificate")
 	key := flag.String("key", "campaign-key.pem", "campaign mTLS private key")
 	output := flag.String("output", "", "result JSON path")
+	tcp := flag.Bool("tcp-cubic", false, "Linux-only competitor: TCP CUBIC bulk plus a separate control connection")
 	managed := flag.Bool("managed", true, "direct managed packet-I/O lease")
 	flag.Parse()
 	if *role == "cert" {
@@ -65,6 +66,9 @@ func execute() error {
 	var cfg Run
 	if e = json.Unmarshal(b, &cfg); e != nil {
 		return e
+	}
+	if *tcp {
+		return executeTCP(cfg, *role, *local, *peer, *output)
 	}
 	if e = cfg.validate(); e != nil {
 		return e
