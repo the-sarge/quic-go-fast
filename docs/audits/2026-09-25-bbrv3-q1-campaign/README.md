@@ -226,3 +226,36 @@ and `GOMEMLIMIT=4GiB` passed at 3.810 ms admission / 3.281 ms submission latenes
 and about 240 MiB peak RSS. This is a bounded runtime-setting candidate, not
 long-duration qualification. A prior GC-suppressed hypothesis run also passed,
 but used about 2.3 GiB in ten seconds and is not the selected configuration.
+
+## Isolated Linux competitor and sustained-rate receipt
+
+[The native receipt](evidence/linux-competitor-summary.json) indexes the retained
+records from the five-VM launch. Its first attempt exceeded the project's global
+32-vCPU quota despite passing regional checks. GCP approved the required 36;
+[infra PR640](https://github.com/the-sarge/infra/pull/640) adds that missing
+preflight. Both the failed and successful launches retained their reservations.
+
+With hardware receive coalescing disabled and the bounded GC setting above,
+the full 60+300-second L7 CUBIC coexistence check passed every endpoint and
+gateway gate. Maximum gateway delays stayed below 3.2 ms. All 300 measured
+control probes completed; the sender observed its bulk pause at 240.124 seconds
+and resumption at 270.000 seconds. Queued bytes drained, then delivery was zero
+through most of the 30-second absence. This proves the recorded orchestration
+example, not a paired controller comparison. The later TCP local-export revision
+also passed a native cloud smoke with both peers' records collected successfully.
+
+A 210-second S3 offered-load check delivered essentially 1,000 Mbps after the
+first second, with 4.958 ms maximum admission delay and 4.064 ms maximum socket
+submission lateness. Peak gateway RSS was about 245 MiB. The passing admission
+margin is only 0.042 ms; future violations still invalidate a run. The receiver
+recorded 9,891 reordered UDP packets, with no invalid payloads or socket drops.
+This native substrate observation must accompany claims about the modeled FIFO.
+
+The archive includes invalid timing attempts, the hardware-coalescing packet
+capture, the port-reuse setup failure and the idle gateway readiness-check
+failure. The intended L4 0/1/3-flow run never launched after a staging timeout;
+it is unmeasured. All 20 managed resources were explicitly destroyed, and
+independent instance/disk inventories were empty before the immutable expiry.
+Final-source calibration for the remaining directions/scenarios, Windows with
+the selected gateway settings, Mac prerequisites, and the complete costed
+command manifest remain open. Q1 is not complete.
