@@ -15,14 +15,16 @@ are reservations, not settled billing or measured workload time.
 | Accepted core warm-up and measurement (460 cases) | 36 |
 | Accepted completion allocation, including its setup allowance | 2 |
 | Remaining Linux, Windows and Mac validation allocations | 2.5 |
-| Core case launch/export and topology teardown | 5 |
-| Forecast before contingency | 52.218 |
-| Contingency under the approved 56-hour ceiling | 3.782 |
+| Core case launch/export and topology teardown | 6 |
+| Forecast before contingency | 53.218 |
+| Contingency under the approved 56-hour ceiling | 2.782 |
 
-The five-hour command allowance is a planning bound, not an observed campaign
+The six-hour command allowance is a planning bound, not an observed campaign
 runtime. The current commands use a 25-second future start. Across 460 core
-cases that alone adds 3.194 hours; bounded collection/drain and topology turnover
-must also fit. Reducing that allowance requires validating a faster command
+cases that alone adds 3.194 hours; the gateway now stays alive for 20 seconds after measurement to cover the
+fixture’s bounded final receipt. Across 460 core cases that tail adds up to
+2.556 hours, making a six-hour command allowance necessary. Topology turnover
+and any excess still consume the remaining contingency. Reducing that allowance requires validating a faster command
 sequence, not assuming zero setup cost. Completion setup is already inside its
 two-hour allocation and is not charged again in this core allowance.
 
@@ -35,9 +37,9 @@ Any launch still needs fresh quota/price evidence and a frozen expiry/reservatio
 The $100 cloud ceiling need not increase. Using $1.90/hour even for all Linux
 core hours with the optional competitor pair retained gives about $60.17 for
 Linux and Windows core VM time. Existing reservations, $3.35 for the proposed
-remaining cloud validation, $3.80 for completions, and $9.50 for five hours of
-cloud command overhead total about $88.67 before contingency and new export/
-storage reserves. The remaining $11.33 must cover those items; they are not free.
+remaining cloud validation, $3.80 for completions, and $11.40 for six hours of
+cloud command overhead total about $90.57 before contingency and new export/
+storage reserves. The remaining $9.43 must cover those items; they are not free.
 Local Mac time has no GCP VM charge. Current prices must still be refreshed
 before subsequent paid launches, and both numerical ceilings remain enforced.
 

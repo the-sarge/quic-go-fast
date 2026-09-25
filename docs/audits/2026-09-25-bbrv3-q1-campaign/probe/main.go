@@ -1,3 +1,5 @@
+//go:build linux || darwin
+
 // Frozen native UDP calibration source/sink. IP-byte rates include the 28-byte
 // IPv4/UDP header. Its counts calibrate the path, never QUIC application goodput.
 package main

@@ -123,7 +123,7 @@ The four-hour validation allowance covers targeted controller/transport correctn
 
 Preparation allowance: one working day, capped at eight hours of engineering/preparation effort, outside the 48 experiment-hours, to establish host availability, emulator feasibility, fixture/instrumentation needs and a runnable manifest. This is not a promise to build missing infrastructure in eight hours and does not include implementing BBRv3. At that limit, report what is ready and any prerequisite work requiring a revised estimate. No test fleet or service purchase is authorized by this allowance.
 
-**Current budget amendment, 2026-09-25:** The operator approved 16 cumulative preparation hours and then 56 total experiment-hours, retaining the $100 cloud ceiling and every prior reservation. The original allocation above is historical; the [approved current forecast](2026-09-25-bbrv3-q1-campaign/budget-proposal.md) accounts for 52.218 hours before contingency, with 3.782 hours remaining under the new ceiling. The accepted case inventory is unchanged.
+**Current budget amendment, 2026-09-25:** The operator approved 16 cumulative preparation hours and then 56 total experiment-hours, retaining the $100 cloud ceiling and every prior reservation. The original allocation above is historical; the [approved current forecast](2026-09-25-bbrv3-q1-campaign/budget-proposal.md) accounts for 53.218 hours before contingency, with 2.782 hours remaining under the new ceiling. The accepted case inventory is unchanged.
 
 ## Infrastructure observations and prerequisites
 
