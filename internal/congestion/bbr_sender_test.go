@@ -253,7 +253,7 @@ func TestBBRStartupLossRanges(t *testing.T) {
 			if tc.name == "six ranges" {
 				p := PacketInfo{Ordinal: 21, Length: 1200, AckEliciting: true, RegistrationValid: true, Delivery: DeliverySnapshot{Delivered: 2400, Lost: 7200, PostInFlight: 18000, Valid: true}}
 				b.Sent(SendEvent{Packet: p})
-				b.Feedback(FeedbackEvent{Time: monotime.Time(22 * time.Second), HasAck: true, Acked: []PacketInfo{p}, PostInFlight: 20000, Delivery: DeliverySample{Delivered: 3600, Lost: 7200, Ordinal: 21, BytesPerSecond: 100000, Interval: 100 * time.Millisecond, Valid: true}})
+				b.Feedback(FeedbackEvent{Time: monotime.Time(4 * time.Second), HasAck: true, Acked: []PacketInfo{p}, PostInFlight: 20000, Delivery: DeliverySample{Delivered: 3600, Lost: 7200, Ordinal: 21, BytesPerSecond: 100000, Interval: 100 * time.Millisecond, Valid: true}})
 				require.Equal(t, bbrDrain, b.phase)
 				require.EqualValues(t, 18000, b.inflightLong, "safe Drain feedback raises the finite Startup-loss cap")
 			}
@@ -281,7 +281,9 @@ func feedbackRound(b *BBRSender, ordinal, delivered, rate uint64, limited SendLi
 }
 
 func feedbackRoundRTT(b *BBRSender, ordinal, delivered, rate uint64, limited SendLimitation, flight protocol.ByteCount, rtt time.Duration) {
-	now := monotime.Time(ordinal+1) * monotime.Time(time.Second)
+	// Keep round/loss tests below the independent five-second ProbeRTT
+	// schedule, while retaining ordinal 1 at 2s for explicit ordering cases.
+	now := monotime.Time(1900*time.Millisecond) + monotime.Time(ordinal)*monotime.Time(100*time.Millisecond)
 	p := PacketInfo{PathGeneration: b.pathGeneration, SampleGeneration: b.sampleGeneration, Ordinal: ordinal, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: now.Add(-rtt), Delivery: DeliverySnapshot{Delivered: delivered - 1200, Valid: true}}
 	b.Sent(SendEvent{Packet: p})
 	b.Feedback(FeedbackEvent{PathGeneration: b.pathGeneration, SampleGeneration: b.sampleGeneration, Time: now, HasAck: true, RawRTT: rtt, PostInFlight: flight, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: delivered, Ordinal: ordinal, BytesPerSecond: rate, Interval: 100 * time.Millisecond, Limited: limited, Valid: true}})

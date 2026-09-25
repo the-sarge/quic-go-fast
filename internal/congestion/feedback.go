@@ -128,6 +128,8 @@ type RecoveryEpisode struct {
 // It also excludes PTO-retired originals confirmed only for PersistentCongestion;
 // the span and ordinary loss volume intentionally describe different evidence.
 type FeedbackEvent struct {
+	PendingLocal protocol.ByteCount // unresolved local work; negative means unavailable
+
 	PersistentCongestion PersistentCongestion
 	RecoveryEpisode      RecoveryEpisode
 	ECN                  ECNResult
