@@ -20,9 +20,13 @@ type result struct {
 	ECN                                                 [4]uint64
 	IPBytesPerSecond                                    []uint64
 	RTTNS                                               []int64
-	SocketDrops                                         uint32
-	ReceiveBuffer                                       int
-	Error                                               string `json:",omitempty"`
+	Reordered                                           uint64
+	MaxOneWayNS                                         int64
+	PacketSamples                                       [][3]int64 // sequence, sender Unix ns, receiver Unix ns; clock offset remains separate
+
+	SocketDrops   uint32
+	ReceiveBuffer int
+	Error         string `json:",omitempty"`
 }
 
 func main() {
@@ -126,6 +130,8 @@ func run() error {
 		}
 	} else {
 		seen := make([]uint64, (1<<26)/64)
+		var highest uint32
+		var nextSample time.Time
 		b := make([]byte, 1500)
 		oob := make([]byte, 256)
 		for {
@@ -179,6 +185,17 @@ func run() error {
 			if now.Before(start) || !now.Before(end) {
 				r.Outside++
 				continue
+			}
+
+			if seq < highest {
+				r.Reordered++
+			}
+			highest = max(highest, seq)
+			sentNS := int64(binary.BigEndian.Uint64(b[8:16]))
+			r.MaxOneWayNS = max(r.MaxOneWayNS, now.UnixNano()-sentNS)
+			if !now.Before(nextSample) && len(r.PacketSamples) < 4000 {
+				r.PacketSamples = append(r.PacketSamples, [3]int64{int64(seq), sentNS, now.UnixNano()})
+				nextSample = now.Add(100 * time.Millisecond)
 			}
 			r.Unique++
 			r.IPBytesPerSecond[int(now.Sub(start)/time.Second)] += 1460
