@@ -1,7 +1,7 @@
 # Complete opt-in BBRv3 sender implementation plan
 
 **Date:** 2026-09-24
-**Status:** B1/B2/B3 complete; B4 ready; B5–B6 blocked by their declared predecessors
+**Status:** B1/B2/B3/B4 complete; B5 ready; B6 blocked by B5
 **Track:** B in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
@@ -32,8 +32,8 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | [B1](#b1) | Complete | Drive private BBR Startup and Drain through transport feedback | T2 | None; see slice budget |
 | [B2](#b2) | Complete | Complete draft ProbeBW cycling and congestion bounds | B1 | B1 private terminal Cruise |
 | [B3](#b3) | Complete | Integrate guarded ProbeRTT and genuine idle restart | B2 | None; see slice budget |
-| [B4](#b4) | Ready | Apply persistent classic-ECN response in every BBR phase | B3, T4 | None; see slice budget |
-| [B5](#b5) | new | Compose loss undo and persistent-congestion restart | B4, T5 | None; see slice budget |
+| [B4](#b4) | Complete | Apply persistent classic-ECN response in every BBR phase | B3, T4 | None; see slice budget |
+| [B5](#b5) | Ready | Compose loss undo and persistent-congestion restart | B4, T5 | None; see slice budget |
 | [B6](#b6) | new | Expose complete per-connection BBR selection and verify migration | B5 | Private-only activation gate |
 
 ## Operating discipline
@@ -200,10 +200,10 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
-| Validated new epoch / same epoch / unknown anchor | Cut, suppress or exclude by explicit authority | BBR CE reducer | epoch table | Required before slice completion |
-| Startup/Refill/Up/Down/Cruise/ProbeRTT | Declared transition, persistent cap | BBR final allowance owner | phase table | Required before slice completion |
-| Loss/ProbeRTT/idle/failed validation | Stricter cap; no accidental release or invented loss | BBR final allowance owner | composition table; optional one cap-bypass mutation | Required before slice completion |
-| Clean versus dirty/limited/ambiguous round | Gradual release only with whole-round evidence | BBR CE reducer | round-latch fixture | Required before slice completion |
+| Validated new epoch / same epoch / unknown anchor | Cut, suppress or exclude by explicit authority | BBR CE reducer | `TestBBRCESparseAndSustained`, `TestBBRCEBoundarySuppression`, `TestBBRCEUnknownAnchor` | Covered |
+| Startup/Refill/Up/Down/Cruise/ProbeRTT | Declared transition, persistent cap | BBR final allowance owner | `TestBBRCEPhaseEffects` | Covered |
+| Loss/ProbeRTT/idle/failed validation | Stricter cap; no accidental release or invented loss | BBR final allowance owner | `TestBBRCESimultaneousLoss`, `TestBBRCECapsSurviveProbeAndIdle`, `TestBBRCEFailureRecovery`, `TestBBRCEFloorComposition`, `TestBBRCEIsNotLoss`; optional mutation not needed | Covered |
+| Clean versus dirty/limited/ambiguous round | Gradual release only with whole-round evidence | BBR CE reducer | `TestBBRCECleanRoundRecovery` | Covered |
 
 **Evidence budget:** At most 10 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 

@@ -128,6 +128,8 @@ type RecoveryEpisode struct {
 // It also excludes PTO-retired originals confirmed only for PersistentCongestion;
 // the span and ordinary loss volume intentionally describe different evidence.
 type FeedbackEvent struct {
+	SmoothedRTT time.Duration // recovery estimate used only before a measured BBR minimum
+
 	PendingLocal protocol.ByteCount // unresolved local work; negative means unavailable
 
 	PersistentCongestion PersistentCongestion

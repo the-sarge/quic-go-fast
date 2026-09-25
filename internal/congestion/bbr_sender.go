@@ -28,6 +28,8 @@ const (
 // owns the input facts; emission owns pacing debt and applies the 1% margin.
 // No public connection selects this incomplete controller.
 type BBRSender struct {
+	ce bbrCE
+
 	sentOrdinal, probeRTTOrdinal, probeRTTDelivered uint64
 
 	idleRestart bool
@@ -111,6 +113,9 @@ func (b *BBRSender) Sent(e SendEvent) {
 	b.sentOrdinal = max(b.sentOrdinal, p.Ordinal)
 	b.advanceSampling(p.SampleGeneration, p.Delivery.Delivered)
 	b.delivered = max(b.delivered, p.Delivery.Delivered)
+	if b.ce.active && bbrLimited(p.Delivery.Limited) {
+		b.ce.roundDirty = true
+	}
 	if p.AckEliciting && !p.PathProbe && !p.MTUProbe {
 		b.windowUsedInRound = b.windowUsedInRound || b.windowLimited(e.PostInFlight)
 	}
@@ -121,6 +126,7 @@ func (b *BBRSender) Sent(e SendEvent) {
 func (b *BBRSender) advanceSampling(generation, delivered uint64) {
 	if generation > b.sampleGeneration {
 		b.sampleGeneration = generation
+		b.ce.roundStarted, b.ce.cleanRound = false, false
 		b.windowUsedInRound, b.windowUsedLastRound = false, false
 		b.nextRound = delivered
 	}
@@ -130,6 +136,8 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	if b.closed || e.PathGeneration != b.pathGeneration || e.SampleGeneration < b.modelSampleFloor {
 		return
 	}
+	preRate, preWindow, prePhase := b.effectiveRate(), b.window, b.phase
+	defer b.finishCE(e, preRate, preWindow, prePhase, b.probeRTTHoldUntil != 0)
 	if b.InProbeRTT() {
 		e.Delivery.Limited = SendProbeRTTLimited
 	}
@@ -294,11 +302,21 @@ func (b *BBRSender) boundWindow() {
 		b.probeRTTCap = min(b.probeRTTCap, b.probeRTTTarget())
 		cap = min(cap, b.probeRTTCap)
 	}
+	if b.ce.active {
+		cap = min(cap, b.ce.flight)
+	}
 	b.window = min(b.size*protocol.MaxCongestionWindowPackets, max(4*b.size, min(b.window, cap)))
 }
 
 func (b *BBRSender) phaseRate() uint64 {
+	return b.capRate(b.modelPhaseRate())
+}
+
+func (b *BBRSender) modelPhaseRate() uint64 {
 	modelRate := min(b.bandwidth, b.bandwidthShort)
+	if b.bandwidth == 0 {
+		modelRate = uint64(b.initialWindow) * 10
+	}
 	rate := bbrScale(modelRate, 2772588722, 1000000000) // floor(4*ln(2) at 1e-9 precision)
 	if b.phase == bbrDrain {
 		rate = modelRate / 2
@@ -471,7 +489,7 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
 	}
 	fresh := NewBBRSender(size)
 	b.size, b.initialWindow = size, fresh.initialWindow
-	if b.InProbeRTT() {
+	if b.InProbeRTT() || b.ce.active {
 		b.boundWindow()
 	} else {
 		// Emission refreshes this value on every opportunity. Preserve ACK-owned

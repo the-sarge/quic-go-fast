@@ -90,3 +90,38 @@ func TestPublicConstructionStillReno(t *testing.T) {
 		require.False(t, isBBR)
 	}
 }
+
+func TestBBRCEIsNotLoss(t *testing.T) {
+	stats := &utils.ConnectionStats{}
+	h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), stats, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)
+	b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
+	EnableBBRECN(h, func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
+	now := monotime.Now()
+	send := func(at monotime.Time) protocol.PacketNumber {
+		pn := h.PopPacketNumber(protocol.Encryption1RTT)
+		h.SentPacket(at, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
+		return pn
+	}
+	first := send(now)
+	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(first), ECT0: 1}, protocol.Encryption1RTT, now.Add(100*time.Millisecond))
+	require.NoError(t, err)
+	require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	second := send(now.Add(110 * time.Millisecond))
+	beforePackets, beforeBytes := stats.PacketsLost.Load(), stats.BytesLost.Load()
+	_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(second), ECT0: 1, ECNCE: 1}, protocol.Encryption1RTT, now.Add(210*time.Millisecond))
+	require.NoError(t, err)
+	require.False(t, b.InSlowStart())
+	require.EqualValues(t, 4800, b.GetCongestionWindow())
+	require.False(t, b.InRecovery())
+	require.Zero(t, h.congestionEvents.sampler.lost)
+	require.Equal(t, beforePackets, stats.PacketsLost.Load())
+	require.Equal(t, beforeBytes, stats.BytesLost.Load())
+	require.Zero(t, h.bytesInFlight)
+	// Sustained all-CE is valid after capability; registration/sample epochs
+	// between these isolated sends do not erase the independent CE boundary.
+	third := send(now.Add(220 * time.Millisecond))
+	_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(third), ECT0: 1, ECNCE: 2}, protocol.Encryption1RTT, now.Add(320*time.Millisecond))
+	require.NoError(t, err)
+	require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	require.Zero(t, h.congestionEvents.sampler.lost)
+}
