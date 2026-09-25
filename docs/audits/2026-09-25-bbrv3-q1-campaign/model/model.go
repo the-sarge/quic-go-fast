@@ -10,6 +10,7 @@ import (
 )
 
 type Packet struct {
+	Frame       []byte        // Optional native Ethernet backing; Bytes alone owns IP-byte charging.
 	ScheduledAt time.Duration // Scheduled propagation departure, set only on delivery.
 	Bytes       []byte
 	ECN         uint8

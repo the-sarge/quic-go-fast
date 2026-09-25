@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"syscall"
 	"time"
@@ -48,6 +49,7 @@ type observation struct {
 	ReadPackets, NonCanonical, SocketDrops, SendErrors uint64
 	MaxIngressLagNS, MaxEgressLagNS                    int64
 	MaxIngressAtNS, MaxEgressAtNS                      int64
+	MaxKernelToReadNS, MaxReadToAdmissionNS            int64
 	MissingTimestamps                                  uint64
 	Samples                                            []sample
 	Stats                                              model.Stats
@@ -62,7 +64,19 @@ func main() {
 func run() error {
 	input := flag.String("config", "", "frozen adapter JSON")
 	output := flag.String("output", "", "observed counters JSON")
+	profile := flag.String("profile", "", "optional diagnostic CPU profile; not a qualification run")
 	flag.Parse()
+	if *profile != "" {
+		f, e := os.Create(*profile)
+		if e != nil {
+			return e
+		}
+		defer f.Close()
+		if e = pprof.StartCPUProfile(f); e != nil {
+			return e
+		}
+		defer pprof.StopCPUProfile()
+	}
 	b, e := os.ReadFile(*input)
 	if e != nil {
 		return e
@@ -114,7 +128,8 @@ func run() error {
 	data, e := json.MarshalIndent(struct {
 		Config       config
 		Observations []observation
-	}{c, observations}, "", "  ")
+		Profiled     bool
+	}{c, observations, *profile != ""}, "", "  ")
 	if e != nil {
 		return e
 	}
@@ -178,6 +193,7 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 	type arrival struct {
 		frame    []byte
 		kernelNS int64
+		readNS   int64
 	}
 	incoming := make(chan arrival, 256)
 	readDone := make(chan struct{})
@@ -198,7 +214,7 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 					continue
 				}
 				select {
-				case incoming <- arrival{nil, -1}:
+				case incoming <- arrival{nil, -1, 0}:
 				case <-localCtx.Done():
 				}
 				return
@@ -207,7 +223,7 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 			frame := append([]byte(nil), data...)
 			stamp := capture.Timestamp.UnixNano()
 			select {
-			case incoming <- arrival{frame, stamp}:
+			case incoming <- arrival{frame, stamp, time.Now().UnixNano()}:
 			case <-localCtx.Done():
 				return
 			}
@@ -223,11 +239,14 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 				o.MaxEgressLagNS = lag
 				o.MaxEgressAtNS = time.Now().UnixNano()
 			}
-			frame := make([]byte, 14+len(p.Bytes))
+			frame := p.Frame
+			if len(frame) != 14+len(p.Bytes) {
+				o.SendErrors++
+				continue
+			}
 			copy(frame, peer)
 			copy(frame[6:], nic.HardwareAddr)
 			binary.BigEndian.PutUint16(frame[12:14], unix.ETH_P_IP)
-			copy(frame[14:], p.Bytes)
 			ip := frame[14:]
 			ip[1] = ip[1]&0xfc | p.ECN
 			ip[8]--
@@ -276,6 +295,8 @@ loop:
 				o.NonCanonical++
 				continue
 			}
+			o.MaxReadToAdmissionNS = max(o.MaxReadToAdmissionNS, time.Now().UnixNano()-a.readNS)
+			o.MaxKernelToReadNS = max(o.MaxKernelToReadNS, a.readNS-a.kernelNS)
 			if a.kernelNS == 0 {
 				o.MissingTimestamps++
 			} else {
@@ -286,7 +307,7 @@ loop:
 			}
 			at := time.Since(epoch)
 			send(q.Advance(at))
-			q.Admit(at, model.Packet{Bytes: a.frame[14 : 14+h.TotalLen], ECN: uint8(h.TOS & 3), Competitor: (fromComp != nil && h.Src.Equal(fromComp)) || (toComp != nil && h.Dst.Equal(toComp))})
+			q.Admit(at, model.Packet{Frame: a.frame[:14+h.TotalLen], Bytes: a.frame[14 : 14+h.TotalLen], ECN: uint8(h.TOS & 3), Competitor: (fromComp != nil && h.Src.Equal(fromComp)) || (toComp != nil && h.Dst.Equal(toComp))})
 		}
 	}
 	cancel()
