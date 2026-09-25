@@ -44,6 +44,7 @@ type observation struct {
 	Error                                              string
 	ReadPackets, NonCanonical, SocketDrops, SendErrors uint64
 	MaxIngressLagNS, MaxEgressLagNS                    int64
+	MaxIngressAtNS, MaxEgressAtNS                      int64
 	MissingTimestamps                                  uint64
 	Samples                                            []sample
 	Stats                                              model.Stats
@@ -227,7 +228,10 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 	defer samples.Stop()
 	send := func(packets []model.Packet) {
 		for _, p := range packets {
-			o.MaxEgressLagNS = max(o.MaxEgressLagNS, int64(time.Since(epoch)-p.ScheduledAt))
+			if lag := int64(time.Since(epoch) - p.ScheduledAt); lag > o.MaxEgressLagNS {
+				o.MaxEgressLagNS = lag
+				o.MaxEgressAtNS = time.Now().UnixNano()
+			}
 			frame := make([]byte, 14+len(p.Bytes))
 			copy(frame, peer)
 			copy(frame[6:], nic.HardwareAddr)
@@ -284,7 +288,10 @@ loop:
 			if a.kernelNS == 0 {
 				o.MissingTimestamps++
 			} else {
-				o.MaxIngressLagNS = max(o.MaxIngressLagNS, time.Now().UnixNano()-a.kernelNS)
+				if lag := time.Now().UnixNano() - a.kernelNS; lag > o.MaxIngressLagNS {
+					o.MaxIngressLagNS = lag
+					o.MaxIngressAtNS = time.Now().UnixNano()
+				}
 			}
 			at := time.Since(epoch)
 			send(q.Advance(at))
