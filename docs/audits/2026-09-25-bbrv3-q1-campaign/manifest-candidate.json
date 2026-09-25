@@ -1,0 +1,32 @@
+{
+  "status": "preparation candidate; execution blocked by prerequisite gaps",
+  "accepted_inventory": "docs/audits/2026-09-23-bbrv3-acceptance-manifest.json",
+  "accepted_inventory_sha256": "1dc334ce2c136f157d2fb875da4906dc14ce1c415090470b60c8d4799fe98e21",
+  "case_inventory": "case-inventory.jsonl",
+  "case_inventory_sha256": "bab8af515337f2fa32bdf3765e658a1d102ad601125112100b7043c23ef28fd1",
+  "core_runs": 460,
+  "core_seconds": 129600,
+  "completion_runs": 60,
+  "completion_maximum_measurement_seconds": 3600,
+  "completion_setup_cleanup_allowance_seconds": 3600,
+  "total_experiment_ceiling_hours": 48,
+  "preparation_ceiling_hours": 16,
+  "cloud_ceiling_usd": 100,
+  "source_revision": "f627e4bd",
+  "controller_order": "Python Random(635598), frozen above; consumers use recorded order, not a regenerated shuffle",
+  "clock_contract": "start_unix_ns is deliberately absent until a calibrated native launch; fixture start is warm-up start, router StartUnixNS is measurement start; completion starts both clocks together",
+  "packet_domain": {
+    "full_ip_mtu": 1460,
+    "quic_initial_udp_payload": 1400,
+    "datagram_record_bytes": 1200,
+    "stream_record_bytes": 16384,
+    "record_metadata_bytes": 16
+  },
+  "remaining": [
+    "native adapter rate/RTT/timing/mark gates at the final source",
+    "Windows native fixture and resource evidence",
+    "Mac CPU-isolation decision and local gateway placement",
+    "competitor resource isolation, TCP CUBIC/QUIC commands and native observations",
+    "full launch-through-teardown cost and command certification"
+  ]
+}

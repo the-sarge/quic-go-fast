@@ -126,3 +126,19 @@ gate despite observing the four selected rates. These paths remain invalid.
 A separately labeled CPU-profile diagnostic attributed about 27% of sampled CPU
 to model advancement and 21% to scheduling. The next candidate reduces heap
 packet copying; passing semantic tests is not native calibration.
+
+## Frozen case ordering candidate
+
+`case-inventory.jsonl` enumerates all 460 core and 60 completion cases, with
+matched seeds, controller order within each pair, L1/L2 phases and fixed payload
+sizes. Recounting the entries gives 129,600 core seconds (36 hours) and at most
+3,600 completion measurement seconds. The second completion hour remains
+reserved for setup/cleanup and clock checks. `manifest-candidate.json` records
+the inventory digest and missing prerequisites; it is not an execution permit.
+
+At launch, add the calibrated absolute `start_unix_ns` to the fixture config.
+For a core run that is the beginning of warm-up; set the router's `StartUnixNS`
+to fixture start plus warm-up, so L3 and competitor changes remain relative to
+the measured interval. Completion has no warm-up and L1 uses phase 2 seconds.
+Keep all run IDs, seeds and pair orders from the inventory; do not regenerate a
+new ordering between controller runs or delete failed rows.
