@@ -36,6 +36,22 @@ func TestBBRProbeRTTExpiredQueuedSample(t *testing.T) {
 }
 
 func TestBBRProbeRTTLongRoundGate(t *testing.T) {
+	for _, originless := range []bool{false, true} {
+		t.Run(map[bool]string{false: "rejected rate", true: "originless rate"}[originless], func(t *testing.T) {
+			x := newBBRProbeTrace()
+			x.cruise()
+			probeRTTAck(x, 6*time.Second, 200*time.Millisecond, 100000, 0)
+			e := probeRTTEvent(x, 201*time.Millisecond, 100*time.Millisecond, 1, 0)
+			e.Delivery.Valid = false
+			if originless {
+				e.Acked[0].Delivery.Valid = false
+			}
+			x.b.Feedback(e)
+			require.False(t, x.b.InProbeRTT(), "a fresh ordinary receipt completes the probe round independently of rate validity")
+			require.EqualValues(t, 100000, x.b.PacingRate(), "rejected rate cannot lower the bandwidth estimate")
+		})
+	}
+
 	for _, startup := range []bool{false, true} {
 		t.Run(map[bool]string{false: "return to Cruise", true: "return to Startup"}[startup], func(t *testing.T) {
 			x := newBBRProbeTrace()
@@ -65,6 +81,17 @@ func TestBBRProbeRTTLongRoundGate(t *testing.T) {
 }
 
 func TestBBRProbeRTTSizeAndReset(t *testing.T) {
+	t.Run("non-probe size refresh preserves ACK-owned caps", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.up(t)
+		before := x.b.GetCongestionWindow()
+		x.lose(20000, SendUnknown)
+		x.b.SetMaxDatagramSize(1200)
+		require.Equal(t, before, x.b.GetCongestionWindow(), "same-size sends do not apply pending non-probe loss caps")
+		x.ack(100000, 20000, SendUnknown)
+		require.Less(t, x.b.GetCongestionWindow(), before, "the ACK still applies the learned loss cap")
+	})
+
 	for _, action := range []string{"size", "reset", "close", "sampling fence"} {
 		t.Run(action, func(t *testing.T) {
 			x := newBBRProbeTrace()
@@ -167,6 +194,24 @@ func TestBBRProbeRTTAlreadyInflatedCap(t *testing.T) {
 }
 
 func TestBBRProbeRTTRestoreBounds(t *testing.T) {
+	for _, startup := range []bool{false, true} {
+		t.Run(map[bool]string{false: "in-probe loss to Cruise", true: "in-probe loss to Startup"}[startup], func(t *testing.T) {
+			x := newBBRProbeTrace()
+			if startup {
+				probeRTTAck(x, 100*time.Millisecond, 100*time.Millisecond, 100000, 0)
+			} else {
+				x.cruise()
+			}
+			saved := x.b.GetCongestionWindow()
+			probeRTTAck(x, 6*time.Second, 200*time.Millisecond, 100000, 0)
+			x.lose(3000, SendUnknown)
+			probeRTTAck(x, 201*time.Millisecond, 200*time.Millisecond, 100000, 0)
+			require.False(t, x.b.InProbeRTT())
+			require.Equal(t, startup, x.b.InSlowStart())
+			require.GreaterOrEqual(t, x.b.GetCongestionWindow(), saved, "a discarded probe-era short-term bound cannot suppress restoration")
+		})
+	}
+
 	for _, pending := range []protocol.ByteCount{-1, 9000} {
 		t.Run(map[protocol.ByteCount]string{-1: "unknown local debt", 9000: "pending local debt"}[pending], func(t *testing.T) {
 			x := newBBRProbeTrace()

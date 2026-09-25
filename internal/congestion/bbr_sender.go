@@ -28,6 +28,8 @@ const (
 // owns the input facts; emission owns pacing debt and applies the 1% margin.
 // No public connection selects this incomplete controller.
 type BBRSender struct {
+	sentOrdinal, probeRTTOrdinal, probeRTTDelivered uint64
+
 	idleRestart bool
 
 	probeRTTHoldUntil monotime.Time
@@ -106,6 +108,7 @@ func (b *BBRSender) Sent(e SendEvent) {
 	if b.closed || p.PathGeneration != b.pathGeneration || p.SampleGeneration < b.sampleGeneration || !p.RegistrationValid {
 		return
 	}
+	b.sentOrdinal = max(b.sentOrdinal, p.Ordinal)
 	b.advanceSampling(p.SampleGeneration, p.Delivery.Delivered)
 	b.delivered = max(b.delivered, p.Delivery.Delivered)
 	if p.AckEliciting && !p.PathProbe && !p.MTUProbe {
@@ -169,7 +172,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 			b.updateProbePhase(e, false, false)
 		}
 		if clockValid {
-			b.checkProbeRTT(e, expired, oldProbeCap, false)
+			b.checkProbeRTT(e, expired, oldProbeCap)
 		}
 		b.applyACK(e, clockValid)
 		return
@@ -240,7 +243,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
 	}
 	if clockValid {
-		b.checkProbeRTT(e, expired, oldProbeCap, roundStart)
+		b.checkProbeRTT(e, expired, oldProbeCap)
 	}
 	b.applyACK(e, clockValid)
 }
@@ -466,7 +469,13 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
 	}
 	fresh := NewBBRSender(size)
 	b.size, b.initialWindow = size, fresh.initialWindow
-	b.boundWindow()
+	if b.InProbeRTT() {
+		b.boundWindow()
+	} else {
+		// Emission refreshes this value on every opportunity. Preserve ACK-owned
+		// cap timing outside ProbeRTT, including a refresh of an unchanged size.
+		b.window = min(size*protocol.MaxCongestionWindowPackets, max(4*size, b.window))
+	}
 }
 
 // Legacy callbacks are deliberately inert. A logical rich feedback event is the
