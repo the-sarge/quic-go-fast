@@ -81,6 +81,17 @@ func TestBBRProbeRTTLongRoundGate(t *testing.T) {
 }
 
 func TestBBRProbeRTTSizeAndReset(t *testing.T) {
+	t.Run("temporary size floor preserves cap with inflated target", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.cruise()
+		probeRTTAck(x, 11*time.Second, time.Second, 200000, 9000)
+		require.EqualValues(t, 5000, x.b.GetCongestionWindow())
+		x.b.SetMaxDatagramSize(1400)
+		require.EqualValues(t, 5600, x.b.GetCongestionWindow(), "current four-packet floor")
+		x.b.SetMaxDatagramSize(1200)
+		require.EqualValues(t, 5000, x.b.GetCongestionWindow(), "temporary floor cannot enlarge the saved byte cap")
+	})
+
 	t.Run("non-probe size refresh preserves ACK-owned caps", func(t *testing.T) {
 		x := newBBRProbeTrace()
 		x.up(t)

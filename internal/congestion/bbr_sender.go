@@ -289,7 +289,9 @@ func (b *BBRSender) boundWindow() {
 		cap = min(cap, b.headroom())
 	}
 	if b.phase == bbrProbeRTT {
-		b.probeRTTCap = max(4*b.size, min(b.probeRTTCap, b.probeRTTTarget()))
+		// The current packet-size floor belongs to output, not historical cap
+		// evidence. A temporary floor increase must not enlarge that evidence.
+		b.probeRTTCap = min(b.probeRTTCap, b.probeRTTTarget())
 		cap = min(cap, b.probeRTTCap)
 	}
 	b.window = min(b.size*protocol.MaxCongestionWindowPackets, max(4*b.size, min(b.window, cap)))
