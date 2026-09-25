@@ -92,7 +92,7 @@ func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundSt
 // Filter aging, packet rounds and model-bound growth remain sample-owned.
 func (b *BBRSender) updateProbePhase(e FeedbackEvent, roundStart, sampleValid bool) {
 	switch b.phase {
-	case bbrStartup, bbrDrain:
+	case bbrStartup, bbrDrain, bbrProbeRTT:
 		return
 	case bbrDown, bbrCruise:
 		target := min(b.bdp(1), b.window)

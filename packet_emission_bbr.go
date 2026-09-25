@@ -9,6 +9,7 @@ import (
 // boundedRecovery is internal module plumbing, not a controller plugin API.
 // The real recovery owner supplies every gate; emission owns byte quantization.
 type boundedRecovery interface {
+	PrepareBBRSend(monotime.Time)
 	SendAllowance(monotime.Time) (ackhandler.SendMode, protocol.ByteCount)
 }
 
@@ -75,6 +76,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		if b.GetCongestionWindow() == 0 {
 			return emissionResult{stop: emissionHardBlocked, blocked: blockModeHardBlocked}
 		}
+		(*e.recovery).(boundedRecovery).PrepareBBRSend(now)
 		b.SetMaxDatagramSize(size)
 		e.bbr.update(b.PacingRate(), size, now)
 	}

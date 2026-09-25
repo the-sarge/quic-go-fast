@@ -21,12 +21,25 @@ const (
 	bbrCruise
 	bbrRefill
 	bbrUp
+	bbrProbeRTT
 )
 
 // BBRSender owns the private BBR model on the connection goroutine. Recovery
 // owns the input facts; emission owns pacing debt and applies the 1% margin.
 // No public connection selects this incomplete controller.
 type BBRSender struct {
+	sentOrdinal, probeRTTOrdinal, probeRTTDelivered uint64
+
+	idleRestart bool
+
+	probeRTTHoldUntil monotime.Time
+	probeRTTRoundDone bool
+
+	minimumStamp, probeRTTStamp      monotime.Time
+	probeRTTMinimum                  time.Duration
+	probeRTTCap, probeRTTSavedWindow protocol.ByteCount
+	probeRTTReturnStartup            bool
+
 	windowUsedInRound, windowUsedLastRound           bool
 	previousProbeTooHigh, previousProbePrecautionary bool
 	probeUpRounds                                    uint8
@@ -95,6 +108,7 @@ func (b *BBRSender) Sent(e SendEvent) {
 	if b.closed || p.PathGeneration != b.pathGeneration || p.SampleGeneration < b.sampleGeneration || !p.RegistrationValid {
 		return
 	}
+	b.sentOrdinal = max(b.sentOrdinal, p.Ordinal)
 	b.advanceSampling(p.SampleGeneration, p.Delivery.Delivered)
 	b.delivered = max(b.delivered, p.Delivery.Delivered)
 	if p.AckEliciting && !p.PathProbe && !p.MTUProbe {
@@ -116,6 +130,9 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	if b.closed || e.PathGeneration != b.pathGeneration || e.SampleGeneration < b.modelSampleFloor {
 		return
 	}
+	if b.InProbeRTT() {
+		e.Delivery.Limited = SendProbeRTTLimited
+	}
 	b.advanceSampling(e.SampleGeneration, e.Delivery.Delivered)
 	clockValid := e.Time > 0 && e.Time >= b.lastEvent
 	// Recovery facts arrive in logical processing order even when a queued ACK
@@ -130,8 +147,10 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		e.RawRTT = 0
 		e.Delivery.Valid = false
 	}
-	if e.RawRTT > 0 && (b.minimumRTT == 0 || e.RawRTT < b.minimumRTT) {
-		b.minimumRTT = e.RawRTT
+	oldProbeCap := b.probeRTTTarget()
+	expired := false
+	if clockValid && e.HasAck {
+		expired = b.updateRTT(e.Time, e.RawRTT)
 	}
 	s := e.Delivery
 	if !e.HasAck || s.Delivered < b.delivered {
@@ -152,6 +171,9 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
 			b.updateProbePhase(e, false, false)
 		}
+		if clockValid {
+			b.checkProbeRTT(e, expired, oldProbeCap)
+		}
 		b.applyACK(e, clockValid)
 		return
 	}
@@ -162,6 +184,10 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
 		b.round++
 		b.roundsSinceProbe++
+		if b.InProbeRTT() {
+			b.probeSample = false
+			b.ackPhase = bbrAcksInit
+		}
 		b.nextRound = s.Delivered
 	}
 	b.updateMaxBandwidth(s)
@@ -209,12 +235,15 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		}
 	}
 	b.checkDrainDone(e)
-	if b.phase != bbrStartup {
+	if b.phase != bbrStartup && b.phase != bbrProbeRTT {
 		b.updateProbeCycle(e, *anchor, roundStart)
 	}
 	if lossRoundStart {
 		// Seed the next loss round after a phase entry has reset its signals.
 		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
+	}
+	if clockValid {
+		b.checkProbeRTT(e, expired, oldProbeCap)
 	}
 	b.applyACK(e, clockValid)
 }
@@ -245,16 +274,27 @@ func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
 	} else if b.window < target || b.delivered-b.deliveryBase < uint64(b.initialWindow) {
 		b.window = grown
 	}
+	b.boundWindow()
+
+	b.rate = b.phaseRate()
+}
+
+// Apply the same current caps after ACK growth, restoration and size changes.
+func (b *BBRSender) boundWindow() {
 	cap := b.inflightShort
 	if b.phase >= bbrDown {
 		cap = min(cap, b.inflightLong)
 	}
-	if b.phase == bbrCruise {
+	if b.phase == bbrCruise || b.phase == bbrProbeRTT {
 		cap = min(cap, b.headroom())
 	}
-	b.window = min(maxWindow, max(4*b.size, min(b.window, cap)))
-
-	b.rate = b.phaseRate()
+	if b.phase == bbrProbeRTT {
+		// The current packet-size floor belongs to output, not historical cap
+		// evidence. A temporary floor increase must not enlarge that evidence.
+		b.probeRTTCap = min(b.probeRTTCap, b.probeRTTTarget())
+		cap = min(cap, b.probeRTTCap)
+	}
+	b.window = min(b.size*protocol.MaxCongestionWindowPackets, max(4*b.size, min(b.window, cap)))
 }
 
 func (b *BBRSender) phaseRate() uint64 {
@@ -267,7 +307,7 @@ func (b *BBRSender) phaseRate() uint64 {
 	case bbrStartup, bbrDrain:
 	case bbrDown:
 		rate = bbrScale(modelRate, 9, 10)
-	case bbrCruise, bbrRefill:
+	case bbrCruise, bbrRefill, bbrProbeRTT:
 		rate = modelRate
 	case bbrUp:
 		rate = bbrScale(modelRate, 5, 4)
@@ -431,7 +471,13 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
 	}
 	fresh := NewBBRSender(size)
 	b.size, b.initialWindow = size, fresh.initialWindow
-	b.window = min(size*protocol.MaxCongestionWindowPackets, max(4*size, b.window))
+	if b.InProbeRTT() {
+		b.boundWindow()
+	} else {
+		// Emission refreshes this value on every opportunity. Preserve ACK-owned
+		// cap timing outside ProbeRTT, including a refresh of an unchanged size.
+		b.window = min(size*protocol.MaxCongestionWindowPackets, max(4*size, b.window))
+	}
 }
 
 // Legacy callbacks are deliberately inert. A logical rich feedback event is the

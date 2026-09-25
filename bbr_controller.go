@@ -27,6 +27,9 @@ func (e *packetEmission) enableBBR(now monotime.Time) *congestion.BBRSender {
 		}
 		return pending
 	})
+	if f, ok := e.packer.framer.(*framer); ok {
+		f.enableDeliveryObservations()
+	}
 	e.bbr.controller = b
 	e.bbr.update(b.PacingRate(), size, now)
 	return b

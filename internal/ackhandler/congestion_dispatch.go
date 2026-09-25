@@ -104,6 +104,9 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
 	if len(d.packets) < maxDeliveryLive {
+		if b, ok := h.congestion.(*congestion.BBRSender); ok && b.InProbeRTT() {
+			d.sampler.markLimited(congestion.SendProbeRTTLimited)
+		}
 		d.sampler.sent(&info, prior, h.bytesInFlight)
 		d.packets[congestionKey(p.EncryptionLevel, pn)] = info
 	} else {
@@ -168,6 +171,7 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 		return
 	}
 	d.event.PostInFlight = h.bytesInFlight
+	d.event.PendingLocal = d.pendingBytes()
 	if h.bbrECN != nil {
 		d.event.ECN.Failed = h.bbrECN.state == ecnStateFailed || h.bbrECN.evidenceLost
 	}
@@ -178,6 +182,9 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	// MTU retirement flight changes even though they are not congestion loss.
 	if d.event.HasAck || len(d.event.Lost) > 0 || d.event.PriorInFlight != d.event.PostInFlight {
 		d.sink.Feedback(d.event)
+		if b, ok := h.congestion.(*congestion.BBRSender); ok && b.InProbeRTT() {
+			d.sampler.markLimited(congestion.SendProbeRTTLimited)
+		}
 	}
 	clear(d.event.Acked)
 	clear(d.event.Lost)
@@ -304,4 +311,12 @@ func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func(
 	EnableDeliverySampling(h, b, pending)
 	h.congestion = b
 	return b
+}
+
+// PrepareBBRSend keeps idle authority with the sampler and recovery. Emission
+// calls it before taking the current controller outputs for admission.
+func (h *sentPacketHandler) PrepareBBRSend(now monotime.Time) {
+	if b, ok := h.congestion.(*congestion.BBRSender); ok {
+		b.BeforeSend(now, h.DeliveryIdle())
+	}
 }

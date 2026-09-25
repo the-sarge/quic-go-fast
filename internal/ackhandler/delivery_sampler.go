@@ -207,9 +207,15 @@ func (h *sentPacketHandler) ObserveDeliveryLimitation(reason congestion.SendLimi
 	s.stop = reason
 	s.applicationExhausted = reason == congestion.SendApplicationLimited
 	if reason == congestion.SendApplicationLimited || reason == congestion.SendFlowControlLimited || reason == congestion.SendProbeRTTLimited {
-		s.limitedUntil = addDelivery(s.delivered, uint64(max(s.outstanding, 1)))
-		s.limited = reason
+		s.markLimited(reason)
 	}
+}
+
+// Intentional probe limitation does not replace the observed supply reason;
+// in particular it cannot manufacture or erase genuine application idle.
+func (s *deliverySampler) markLimited(reason congestion.SendLimitation) {
+	s.limitedUntil = addDelivery(s.delivered, uint64(max(s.outstanding, 1)))
+	s.limited = reason
 }
 
 func addDelivery(a, b uint64) uint64 {

@@ -1,7 +1,7 @@
 # BBRv3 implementation program
 
 **Program:** `QGF-BBR3-20260924`
-**Status:** T1/T2/T3/T4/T5 and B1/B2 complete; current frontier B3 and Q1
+**Status:** T1/T2/T3/T4/T5 and B1/B2/B3 complete; current frontier B4 and Q1
 **OmniFocus parent:** `omnifocus:///task/aaS2XrzGGmp`
 **Tracking issue:** [#600](https://github.com/the-sarge/quic-go-fast/issues/600)
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
@@ -19,10 +19,10 @@ Keep Reno as default, pinned algorithm authority, receiver-defined goodput, exis
 | Track | Plan | Parent issue | Slice count | State |
 | --- | --- | --- | --- | --- |
 | T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1/T2/T3/T4/T5 complete |
-| B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | B1/B2 complete; B3 ready; B4–B6 blocked |
+| B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | B1/B2/B3 complete; B4 ready; B5–B6 blocked |
 | Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 ready |
 
-Current frontier: **B3 and Q1**. T1, T2, T3, T4, T5, B1 and B2 are complete. B3 adds guarded ProbeRTT and genuine idle restart to the private controller; Q1 inspects readiness without changing controller code. B5 remains blocked by B4. Use dedicated worktrees and reconcile shared interface touches before merge. No whole-track sequential ordering is implied.
+Current frontier: **B4 and Q1**. T1, T2, T3, T4, T5, B1, B2 and B3 are complete. B4 adds persistent classic-ECN response to the private controller; Q1 inspects readiness without changing controller code. B5 remains blocked by B4. Use dedicated worktrees and reconcile shared interface touches before merge. No whole-track sequential ordering is implied.
 
 | Slice | Exact blockers |
 | --- | --- |
