@@ -312,11 +312,17 @@ func (b *BBRSender) phaseRate() uint64 {
 	return b.capRate(b.modelPhaseRate())
 }
 
-func (b *BBRSender) modelPhaseRate() uint64 {
-	modelRate := min(b.bandwidth, b.bandwidthShort)
-	if b.bandwidth == 0 {
-		modelRate = uint64(b.initialWindow) * 10
+// Both phase output and CE release use the same unmeasured-rate fallback.
+func (b *BBRSender) modelBandwidth() uint64 {
+	rate := b.bandwidth
+	if rate == 0 {
+		rate = uint64(b.initialWindow) * 10
 	}
+	return min(rate, b.bandwidthShort)
+}
+
+func (b *BBRSender) modelPhaseRate() uint64 {
+	modelRate := b.modelBandwidth()
 	rate := bbrScale(modelRate, 2772588722, 1000000000) // floor(4*ln(2) at 1e-9 precision)
 	if b.phase == bbrDrain {
 		rate = modelRate / 2

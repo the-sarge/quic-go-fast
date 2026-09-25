@@ -209,6 +209,9 @@ func (h *sentPacketHandler) ObserveDeliveryLimitation(reason congestion.SendLimi
 	if reason == congestion.SendApplicationLimited || reason == congestion.SendFlowControlLimited || reason == congestion.SendProbeRTTLimited {
 		s.markLimited(reason)
 	}
+	if b, ok := h.congestion.(*congestion.BBRSender); ok {
+		b.ObserveLimitation(reason)
+	}
 }
 
 // Intentional probe limitation does not replace the observed supply reason;

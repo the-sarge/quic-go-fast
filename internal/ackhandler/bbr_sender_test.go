@@ -1,6 +1,7 @@
 package ackhandler
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -92,6 +93,56 @@ func TestPublicConstructionStillReno(t *testing.T) {
 }
 
 func TestBBRCEIsNotLoss(t *testing.T) {
+	for _, limitation := range []congestion.SendLimitation{congestion.SendUnknown, congestion.SendApplicationLimited, congestion.SendFlowControlLimited} {
+		t.Run(fmt.Sprintf("limitation after registration %d", limitation), func(t *testing.T) {
+			h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)
+			b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
+			EnableBBRECN(h, func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
+			now := monotime.Now()
+			var pending []protocol.PacketNumber
+			var receipts, ce uint64
+			send := func() {
+				pn := h.PopPacketNumber(protocol.Encryption1RTT)
+				h.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
+				pending = append(pending, pn)
+			}
+			send()
+			send() // Keep live delivery evidence between rounds.
+			round := func(n int, mark bool, observe congestion.SendLimitation) {
+				for range n {
+					send()
+				}
+				if observe != congestion.SendUnknown {
+					h.ObserveDeliveryLimitation(observe)
+				}
+				receipts += uint64(n)
+				if mark {
+					ce++
+				}
+				now = now.Add(100 * time.Millisecond)
+				_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pending[:n]...), ECT0: receipts - ce, ECNCE: ce}, protocol.Encryption1RTT, now)
+				require.NoError(t, err)
+				pending = pending[n:]
+			}
+			for range 5 {
+				round(8, false, congestion.SendUnknown)
+			}
+			round(2, true, congestion.SendUnknown)
+			for range 5 {
+				round(2, false, congestion.SendUnknown)
+			}
+			beforeRate, beforeWindow := b.PacingRate(), b.GetCongestionWindow()
+			round(2, false, limitation) // Observation follows the final registration.
+			if limitation == congestion.SendUnknown {
+				require.Greater(t, b.PacingRate(), beforeRate, "control proves this is a release boundary")
+				return
+			}
+			require.Equal(t, beforeRate, b.PacingRate(), "an observed limited round cannot raise the rate cap")
+			round(2, false, congestion.SendUnknown)
+			require.Equal(t, beforeWindow, b.GetCongestionWindow(), "a later ACK cannot expose an improperly raised flight cap")
+		})
+	}
+
 	stats := &utils.ConnectionStats{}
 	h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), stats, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)
 	b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })

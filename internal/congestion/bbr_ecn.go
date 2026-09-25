@@ -42,17 +42,19 @@ func (b *BBRSender) finishCE(e FeedbackEvent, rate uint64, window protocol.ByteC
 	if e.ECN.Eligible && e.ECN.PathGeneration == b.pathGeneration && e.ECN.Ordinal > 0 && e.ECN.Ordinal <= b.sentOrdinal && e.ECN.Delta.CE > 0 && e.ECN.Ordinal > c.boundary {
 		c.active = true
 		b.probeRTTReturnStartup = false
+		// A pre-CE precautionary probe is not permission to skip the new wait.
+		b.previousProbePrecautionary = false
 		c.boundary = b.sentOrdinal
 		c.roundStarted, c.cleanRound, c.roundDirty = false, false, true
 		c.flight = max(4*b.size, min(window, max(e.PriorInFlight, 4*b.size))/2)
 		interval := b.ceInterval(e)
 		c.rate = min(rate, max(bbrScale(uint64(b.size), uint64(time.Second), uint64(interval)), rate/2))
-		if b.phase != bbrProbeRTT && (phase == bbrStartup || b.phase == bbrStartup) {
+		if b.phase == bbrStartup {
 			b.phase = bbrDrain
 			b.drainRound = b.round
 			b.plateau = 3
 		}
-		if b.phase != bbrProbeRTT && (phase == bbrRefill || phase == bbrUp || b.phase == bbrRefill || b.phase == bbrUp) {
+		if b.phase == bbrRefill || b.phase == bbrUp {
 			b.startProbeDown(e.Time, e.Delivery.Delivered)
 		}
 	}
@@ -134,8 +136,8 @@ func (b *BBRSender) recoverCE(e FeedbackEvent, phase bbrPhase) {
 		c.flight = bbrBytes(uint64(c.flight) + uint64(max(b.size, c.flight/16)))
 		step := max(bbrScale(uint64(b.size), uint64(time.Second), uint64(b.ceInterval(e))), c.rate/16)
 		c.rate += min(step, math.MaxUint64-c.rate)
-		rate := min(b.bandwidth, b.bandwidthShort)
-		effective := rate/100*99 + rate%100*99/100
+		rate := max(1, b.modelBandwidth())
+		effective := max(1, rate/100*99+rate%100*99/100)
 		// Cruise's normal window target, including current loss bounds and ACK
 		// aggregation, is independent of the capped current window.
 		quantum := max(2*b.size, protocol.ByteCount(min(uint64(65536), effective/1000)))
@@ -160,4 +162,12 @@ func (b *BBRSender) ceInterval(e FeedbackEvent) time.Duration {
 		interval = e.SmoothedRTT
 	}
 	return max(interval, time.Millisecond)
+}
+
+// ObserveLimitation receives connection-owned supply observations immediately:
+// a final registration snapshot cannot include exhaustion observed after it.
+func (b *BBRSender) ObserveLimitation(reason SendLimitation) {
+	if !b.closed && b.ce.active && bbrLimited(reason) {
+		b.ce.roundDirty = true
+	}
 }

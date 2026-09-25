@@ -40,6 +40,21 @@ func TestBBRCESparseAndSustained(t *testing.T) {
 }
 
 func TestBBRCEPhaseEffects(t *testing.T) {
+	t.Run("completed Drain exit", func(t *testing.T) {
+		for _, ce := range []bool{false, true} {
+			x := newBBRProbeTrace()
+			for range 3 {
+				x.ack(100000, 20000, SendUnknown)
+			}
+			e := probeRTTEvent(x, 100*time.Millisecond, 100*time.Millisecond, 100000, 7800)
+			if ce {
+				e.ECN = ECNResult{Eligible: true, Ordinal: x.ordinal, Delta: ECNCounts{CE: 1}}
+			}
+			x.b.Feedback(e)
+			require.Equal(t, bbrCruise, x.b.phase, "CE must preserve the completed normal exit")
+		}
+	})
+
 	for _, phase := range []bbrPhase{bbrStartup, bbrDrain, bbrDown, bbrCruise, bbrRefill, bbrUp, bbrProbeRTT} {
 		t.Run(fmt.Sprint(phase), func(t *testing.T) {
 			x := ceTrace(t)
@@ -157,6 +172,51 @@ func ceAck(x *bbrProbeTrace) FeedbackEvent {
 }
 
 func TestBBRCECleanRoundRecovery(t *testing.T) {
+	t.Run("precautionary shortcut cannot survive CE", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.up(t)
+		x.lose(20000, SendUnknown)
+		for range 12 {
+			x.ack(100000, 0, SendUnknown)
+			if x.b.phase == bbrUp {
+				break
+			}
+		}
+		require.Equal(t, bbrUp, x.b.phase)
+		x.ackFlight(100000, 19183, 18000, SendUnknown)
+		require.True(t, x.b.previousProbePrecautionary, "real prior-loss probe produced shortcut")
+		x.b.Feedback(ceEvent(x, x.ordinal, 1))
+		for range 20 {
+			x.b.Feedback(ceAck(x))
+			if !x.b.ce.active {
+				break
+			}
+		}
+		require.False(t, x.b.ce.active)
+		require.Equal(t, bbrCruise, x.b.phase)
+		for range 2 {
+			x.b.Feedback(ceAck(x))
+			require.Equal(t, bbrCruise, x.b.phase, "fresh wait must precede probing")
+		}
+	})
+
+	t.Run("unmeasured bandwidth uses actual Cruise fallback", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		for range 3 {
+			e := ceAck(x)
+			e.Delivery.Valid = false
+			e.ECN.Delta = ECNCounts{CE: 1}
+			x.b.Feedback(e)
+		}
+		require.EqualValues(t, 14850, ceRate(x.b))
+		for range 3 {
+			e := ceAck(x)
+			e.Delivery.Valid = false
+			x.b.Feedback(e)
+		}
+		require.EqualValues(t, 26850, ceRate(x.b), "one bounded step, not fallback-rate restoration")
+	})
+
 	for _, dirty := range []string{"none", "missing", "limited", "probe limited", "ambiguous", "loss", "same epoch CE"} {
 		t.Run(dirty, func(t *testing.T) {
 			x := ceTrace(t)
