@@ -1,0 +1,9 @@
+# Structural congestion-control consumer
+
+Copy `main.go` unchanged into two isolated main modules requiring `github.com/quic-go/quic-go v0.62.0`. The upstream module has no replacement; the fork module replaces that dependency with the absolute candidate worktree. Run `go mod tidy` in both, then exactly three executions: upstream `go run . upstream`, fork `go run . reno`, and fork `go run . bbrv3`. Record `go version` and `go list -m -json github.com/quic-go/quic-go` alongside the results.
+
+The fixture uses structural methods and ordinary strings. It requires a visible error for unsupported explicit selection and checks the established connection identity on the fork. It is finite compatibility evidence, not a general-purpose runner or qualification campaign. Config literals remain keyed; the new private selection field intentionally excludes positional literals from the compatibility promise.
+
+On the fork, call `config.SetCongestionControlV1("bbrv3")` before Dial/Listen or before returning a per-client configuration. `config.CongestionControlV1()` and `conn.CongestionControlV1()` report selection; the connection getter is safe during migration and after close. Empty or unknown names fail without changing selection. Clone retains selection; a fresh callback replacement defaults to Reno. Native performance qualification remains pending.
+
+When qlog is enabled, `transport:congestion_control` carries a bounded diagnostic snapshot at most once per second of send opportunities. It includes the fixed policy identity, current phase, window/pacing/quantum, CE and recovery state, ECN validation or fallback, queue debt, and delivery evidence occupancy/validity. These sampled debug messages do not promise a complete phase-transition history or a stable public controller schema. Disabled tracing formats no diagnostic snapshots.

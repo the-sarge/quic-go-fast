@@ -8,8 +8,7 @@ import (
 
 // EnableBBRECN installs the private validation policy before any registration.
 // path reports connection-owned generation and endpoint capability, plus the
-// synchronized completion of all old-generation local sends. Ordinary public
-// constructors do not install this policy before complete BBR activation.
+// synchronized completion of all old-generation local sends.
 func EnableBBRECN(handler SentPacketHandler, path func() (generation uint64, drained, capable bool)) {
 	h, ok := handler.(*sentPacketHandler)
 	if !ok || h.bytesSent != 0 || h.congestionEvents == nil || h.bbrECN != nil || path == nil {

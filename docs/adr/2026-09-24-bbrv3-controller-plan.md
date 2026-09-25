@@ -1,7 +1,7 @@
 # Complete opt-in BBRv3 sender implementation plan
 
 **Date:** 2026-09-24
-**Status:** B1/B2/B3/B4/B5 complete; B6 ready
+**Status:** B1/B2/B3/B4/B5/B6 complete
 **Track:** B in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
@@ -34,7 +34,7 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | [B3](#b3) | Complete | Integrate guarded ProbeRTT and genuine idle restart | B2 | None; see slice budget |
 | [B4](#b4) | Complete | Apply persistent classic-ECN response in every BBR phase | B3, T4 | None; see slice budget |
 | [B5](#b5) | Complete | Compose loss undo and persistent-congestion restart | B4, T5 | None; see slice budget |
-| [B6](#b6) | Ready | Expose complete per-connection BBR selection and verify migration | B5 | Private-only activation gate |
+| [B6](#b6) | Complete | Expose complete per-connection BBR selection and verify migration | B5 | Private-only activation gate |
 
 ## Operating discipline
 
@@ -284,10 +284,10 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
-| Unset/nil/known/unknown Config selection | Default or validated immutable choice, no mutation on failure | Config setter/preparation | setter/copy table | Required before slice completion |
-| Clone/populate/callback complete replacement | No silent selection loss or shared live model | Config preparation | copy/callback fixture | Required before slice completion |
-| Client/server and path replacement/rebind | Fresh selected model; queue debt and ECN fence remain effective | connection factory/reset | real connection and migration tests | Required before slice completion |
-| Explicit unsupported upstream capability | Visible adapter error; default upstream still builds | structural consumer fixture | upstream/fork matrix | Required before slice completion |
+| Unset/nil/known/unknown Config selection | Default or validated immutable choice, no mutation on failure | Config setter/preparation | `TestCongestionControlV1ValidationAndCopy` | Covered |
+| Clone/populate/callback complete replacement | No silent selection loss or shared live model | Config preparation | `TestCongestionControlV1PerClientReplacement`, `TestCongestionControlV1IndependentConnections` | Covered |
+| Client/server and path replacement/rebind | Fresh selected model; queue debt and ECN fence remain effective | connection factory/reset | `TestCongestionControlV1RealStreamAndDatagram`, `TestCongestionControlV1MigrationKeepsIdentity`, `TestCongestionControlV1QueuedMigrationAndECNFence` | Covered |
+| Explicit unsupported upstream capability | Visible adapter error; default upstream still builds | structural consumer fixture | `testdata/congestioncontrol`: upstream, fork Reno, fork BBR executions | Covered |
 
 **Evidence budget:** The three isolated consumer executions described above plus at most 8 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 

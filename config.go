@@ -144,6 +144,7 @@ func populateConfig(config *Config) *Config {
 	}
 
 	return &Config{
+		congestionControl:                config.congestionControl,
 		GetConfigForClient:               config.GetConfigForClient,
 		Versions:                         versions,
 		HandshakeIdleTimeout:             handshakeIdleTimeout,

@@ -10,8 +10,7 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 )
 
-// congestionEventSink is private constructor plumbing, unavailable to ordinary
-// connections until a complete controller is wired. Recovery owns transport
+// congestionEventSink is internal constructor plumbing. Recovery owns transport
 // facts; a selected rich controller owns its model from these value records.
 type congestionEventSink interface {
 	Sent(congestion.SendEvent)
@@ -19,7 +18,7 @@ type congestionEventSink interface {
 }
 
 // EnableDeliverySampling is internal constructor plumbing for the private rich
-// path. Public QUIC constructors never call it. Installation after registration
+// path. Installation after registration
 // is forbidden: a partial history cannot become authoritative evidence.
 func EnableDeliverySampling(handler SentPacketHandler, sink interface {
 	Sent(congestion.SendEvent)
@@ -311,8 +310,8 @@ func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.Enc
 	}
 }
 
-// EnableBBR installs the private B1 controller before the first registration.
-// Public constructors never call it; its caller must install bounded emission.
+// EnableBBR installs the built-in controller before the first registration.
+// Its caller must install bounded emission and BBR ECN validation.
 func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func() protocol.ByteCount) *congestion.BBRSender {
 	h, ok := handler.(*sentPacketHandler)
 	if !ok || h.bytesSent != 0 || h.congestionEvents != nil {

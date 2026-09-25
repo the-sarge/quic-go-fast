@@ -1,7 +1,7 @@
 # BBRv3 implementation program
 
 **Program:** `QGF-BBR3-20260924`
-**Status:** T1/T2/T3/T4/T5 and B1/B2/B3/B4/B5 complete; current frontier B6 and Q1
+**Status:** T1/T2/T3/T4/T5 and B1/B2/B3/B4/B5/B6 complete; current frontier Q1
 **OmniFocus parent:** `omnifocus:///task/aaS2XrzGGmp`
 **Tracking issue:** [#600](https://github.com/the-sarge/quic-go-fast/issues/600)
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
@@ -19,10 +19,10 @@ Keep Reno as default, pinned algorithm authority, receiver-defined goodput, exis
 | Track | Plan | Parent issue | Slice count | State |
 | --- | --- | --- | --- | --- |
 | T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1/T2/T3/T4/T5 complete |
-| B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | B1/B2/B3/B4/B5 complete; B6 ready |
+| B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | B1/B2/B3/B4/B5/B6 complete |
 | Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 ready |
 
-Current frontier: **B6 and Q1**. T1, T2, T3, T4, T5, B1, B2, B3, B4 and B5 are complete. B6 exposes complete per-connection BBR selection and verifies migration; Q1 inspects readiness without changing controller code. Use dedicated worktrees and reconcile shared interface touches before merge. No whole-track sequential ordering is implied.
+Current frontier: **Q1**. All T and B slices are complete. B6 exposes opt-in per-connection BBR selection with migration coverage; native qualification remains pending. Q1 inspects readiness without changing controller code. Q2 remains blocked by Q1; no whole-track sequential ordering is implied.
 
 | Slice | Exact blockers |
 | --- | --- |

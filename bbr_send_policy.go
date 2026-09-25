@@ -8,8 +8,7 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
-// bbrSendPolicy is connection-owned. It is selected only by private test plumbing
-// until the complete controller is available. rate includes BBR's 1% margin;
+// bbrSendPolicy is connection-owned. rate includes BBR's 1% margin;
 // Reno's pacer and its burst/rate adjustments are deliberately independent.
 type bbrSendPolicy struct {
 	controller *congestion.BBRSender
@@ -18,6 +17,7 @@ type bbrSendPolicy struct {
 	quantum    protocol.ByteCount
 	tokens     int64 // byte-nanoseconds, retaining fractional byte credit
 	updated    monotime.Time
+	lastTrace  monotime.Time
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {

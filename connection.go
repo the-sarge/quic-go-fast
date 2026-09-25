@@ -2552,6 +2552,7 @@ func (c *Conn) applyHandshakeMTUFallback() {
 
 func (c *Conn) triggerSending(now monotime.Time) emissionResult {
 	result := c.emission.send(now, c.handshakeConfirmed)
+	c.traceBBR(now)
 	c.pacingDeadline = result.deadline
 	c.blocked = result.blocked
 	if result.retry {
@@ -2594,6 +2595,10 @@ func (c *Conn) initPacketEmission(packer *packetPacker) {
 		version:  c.version,
 		policy:   c,
 		conn:     &c.conn,
+	}
+	if c.config.CongestionControlV1() == "bbrv3" {
+		c.emission.enableBBR(monotime.Now())
+		c.emission.enableBBRECN()
 	}
 }
 

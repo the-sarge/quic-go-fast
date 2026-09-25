@@ -2,8 +2,8 @@ package quic
 
 import "github.com/quic-go/quic-go/internal/ackhandler"
 
-// enableBBRECN is constructor plumbing for the private complete transport path.
-// No public constructor activates it before the full controller is available.
+// enableBBRECN binds the selected BBR controller to queue-drain and endpoint
+// capability authority before packet registration.
 func (e *packetEmission) enableBBRECN() {
 	if e.bbr == nil {
 		panic("BBR ECN requires local send ownership")
