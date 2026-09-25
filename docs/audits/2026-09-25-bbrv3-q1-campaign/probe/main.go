@@ -1,4 +1,4 @@
-// Frozen Linux UDP calibration source/sink. IP-byte rates include the 28-byte
+// Frozen native UDP calibration source/sink. IP-byte rates include the 28-byte
 // IPv4/UDP header. Its counts calibrate the path, never QUIC application goodput.
 package main
 
@@ -24,9 +24,10 @@ type result struct {
 	MaxOneWayNS                                         int64
 	PacketSamples                                       [][3]int64 // sequence, sender Unix ns, receiver Unix ns; clock offset remains separate
 
-	SocketDrops   uint32
-	ReceiveBuffer int
-	Error         string `json:",omitempty"`
+	SocketDropObservation string
+	SocketDrops           uint32
+	ReceiveBuffer         int
+	Error                 string `json:",omitempty"`
 }
 
 func main() {
@@ -70,14 +71,14 @@ func run() error {
 			return e
 		}
 	}
-	r := result{Role: *role, IPBytesPerSecond: make([]uint64, *seconds)}
+	r := result{Role: *role, SocketDropObservation: socketDropObservation, IPBytesPerSecond: make([]uint64, *seconds)}
 	raw, e := conn.SyscallConn()
 	if e != nil {
 		return e
 	}
 	var socketErr error
 	e = raw.Control(func(fd uintptr) {
-		for _, option := range [][3]int{{unix.SOL_SOCKET, unix.SO_RCVBUF, 4 << 20}, {unix.SOL_SOCKET, unix.SO_RXQ_OVFL, 1}, {unix.IPPROTO_IP, unix.IP_RECVTOS, 1}} {
+		for _, option := range socketOptions {
 			if err := unix.SetsockoptInt(int(fd), option[0], option[1], option[2]); err != nil {
 				socketErr = err
 				return
@@ -178,10 +179,10 @@ func run() error {
 				break
 			}
 			for _, m := range msgs {
-				if m.Header.Level == unix.IPPROTO_IP && m.Header.Type == unix.IP_TOS && len(m.Data) > 0 {
+				if m.Header.Level == unix.IPPROTO_IP && m.Header.Type == receivedTOS && len(m.Data) > 0 {
 					r.ECN[m.Data[0]&3]++
 				}
-				if m.Header.Level == unix.SOL_SOCKET && m.Header.Type == unix.SO_RXQ_OVFL && len(m.Data) >= 4 {
+				if m.Header.Level == unix.SOL_SOCKET && m.Header.Type == receivedOverflow && len(m.Data) >= 4 {
 					r.SocketDrops = binary.NativeEndian.Uint32(m.Data[:4])
 				}
 			}

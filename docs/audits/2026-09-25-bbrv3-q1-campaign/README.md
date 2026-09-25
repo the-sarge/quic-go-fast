@@ -274,3 +274,17 @@ native IP path, rate, timing, clock and gateway calibration remain necessary.
 The S3 1,000 Mb/s capacity is a local emulated-path setting; the home internet
 uplink carries none of the test payload. The existing mini–MacBook Pro link is
 also still present, so route evidence must prove test traffic uses the gateway.
+
+## Native Mac probe and teardown bound
+
+The UDP probe also builds natively for Darwin. Darwin returns traffic class as
+`IP_RECVTOS`; it has no Linux `SO_RXQ_OVFL` ancillary counter. A zero `SocketDrops`
+field on Mac therefore proves nothing: collect host-wide UDP full-buffer-drop
+counters before and after each probe and require zero growth for admission.
+The receipt labels the counter capability. See [Apple IP socket documentation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man4/ip.4).
+
+The gateway remains alive for 20 seconds after the measured window, covering
+the fixture’s 15-second bounded final receipt exchange plus five seconds of
+shutdown margin. This does not enlarge the measurement denominator. Charge
+the tail as command/teardown overhead. The earlier three-second tail could cut
+off receipt exchange on L4’s one-second-RTT path; retain that invalid observation.

@@ -96,7 +96,10 @@ func run() error {
 	measured := time.Now().Add(time.Until(time.Unix(0, c.StartUnixNS)))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx, cancel := context.WithDeadline(ctx, measured.Add(time.Duration(c.MeasureSeconds)*time.Second+3*time.Second))
+	// Keep the path alive through the fixture's bounded 15-second receipt/export
+	// deadline, plus five seconds of shutdown margin. Measurement still ends at
+	// MeasureSeconds; this tail is charged as command/teardown overhead.
+	ctx, cancel := context.WithDeadline(ctx, measured.Add(time.Duration(c.MeasureSeconds)*time.Second+20*time.Second))
 	defer cancel()
 	results := make(chan observation, 2)
 	var wg sync.WaitGroup
