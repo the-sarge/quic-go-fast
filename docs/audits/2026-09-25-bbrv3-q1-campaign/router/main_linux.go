@@ -154,6 +154,9 @@ func socket(name string) (int, *net.Interface, error) {
 	if e = unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: nic.Index}); e != nil {
 		return fail(e)
 	}
+	if e = unix.SetsockoptTimeval(fd, unix.SOL_SOCKET, unix.SO_SNDTIMEO, &unix.Timeval{Usec: 100000}); e != nil {
+		return fail(e)
+	}
 	return fd, nic, nil
 }
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
@@ -233,15 +236,26 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 	defer ticker.Stop()
 	samples := time.NewTicker(time.Second)
 	defer samples.Stop()
-	send := func(packets []model.Packet) {
-		for _, p := range packets {
-			if lag := int64(time.Since(epoch) - p.ScheduledAt); lag > o.MaxEgressLagNS {
-				o.MaxEgressLagNS = lag
-				o.MaxEgressAtNS = time.Now().UnixNano()
+	// A bounded emitter owns packets after they leave the model. Socket writes
+	// cannot stall admission until this explicit queue fills; all delay remains
+	// visible in the actual-send timestamps. Join before reading its counters.
+	outgoing := make(chan model.Packet, 256)
+	emitDone := make(chan observation, 1)
+	go func() {
+		var emitted observation
+		for p := range outgoing {
+			if ctx.Err() != nil {
+				emitted.SendErrors++
+				continue
+			}
+
+			if lag := int64(time.Since(epoch) - p.ScheduledAt); lag > emitted.MaxEgressLagNS {
+				emitted.MaxEgressLagNS = lag
+				emitted.MaxEgressAtNS = time.Now().UnixNano()
 			}
 			frame := p.Frame
 			if len(frame) != 14+len(p.Bytes) {
-				o.SendErrors++
+				emitted.SendErrors++
 				continue
 			}
 			copy(frame, peer)
@@ -260,10 +274,21 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 			}
 			binary.BigEndian.PutUint16(ip[10:12], ^uint16(sum))
 			if e := unix.Sendto(tx, frame, 0, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_IP), Ifindex: nic.Index, Halen: 6, Addr: [8]uint8{peer[0], peer[1], peer[2], peer[3], peer[4], peer[5]}}); e != nil {
+				emitted.SendErrors++
+			}
+		}
+		emitDone <- emitted
+	}()
+	send := func(packets []model.Packet) {
+		for _, p := range packets {
+			select {
+			case outgoing <- p:
+			case <-ctx.Done():
 				o.SendErrors++
 			}
 		}
 	}
+
 loop:
 	for {
 		select {
@@ -312,6 +337,11 @@ loop:
 	}
 	cancel()
 	<-readDone
+	close(outgoing)
+	emitted := <-emitDone
+	o.SendErrors += emitted.SendErrors
+	o.MaxEgressLagNS = emitted.MaxEgressLagNS
+	o.MaxEgressAtNS = emitted.MaxEgressAtNS
 	_, stats, err := rx.SocketStats()
 	if err != nil {
 		o.Error = err.Error()

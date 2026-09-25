@@ -60,11 +60,15 @@ func (r Run) validate() error {
 }
 
 type Control struct {
-	Offered    int     `json:"offered"`
-	Replies    int     `json:"replies"`
-	Skipped    int     `json:"skipped"`
-	Unresolved int     `json:"unresolved"`
-	LatencyNS  []int64 `json:"latency_ns"`
+	Opportunities         [][2]int64 `json:"opportunity_times_ns"` // Scheduled and observed, for cadence checks.
+	ExpectedOpportunities int        `json:"expected_opportunities"`
+	MissedOpportunities   int        `json:"missed_opportunities"`
+	Error                 string     `json:"error,omitempty"`
+	Offered               int        `json:"offered"`
+	Replies               int        `json:"replies"`
+	Skipped               int        `json:"skipped"`
+	Unresolved            int        `json:"unresolved"`
+	LatencyNS             []int64    `json:"latency_ns"`
 	// Each bound is receiver-clock minus sender-clock, with no symmetry claim.
 	ClockBoundsNS [][2]int64 `json:"clock_offset_bounds_ns"`
 }
@@ -208,14 +212,16 @@ func writeAll(w io.Writer, p []byte) error {
 	return nil
 }
 func waitUntil(ctx context.Context, t time.Time) error {
-	timer := time.NewTimer(time.Until(t))
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
+	for time.Now().Before(t) {
+		timer := time.NewTimer(time.Until(t))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
 	}
+	return ctx.Err()
 }
 
 func receiveSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) {
@@ -431,6 +437,9 @@ func sendSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) 
 		cancel()
 	}
 	result.Control = <-controlDone
+	if result.Control.Error != "" {
+		result.Errors = append(result.Errors, result.Control.Error)
+	}
 	ctrl.Close()
 	if err != nil && !time.Now().After(cfg.end()) {
 		return result, err
@@ -460,7 +469,7 @@ func sendSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) 
 		}
 	}
 	result.Receiver = receiver.Receiver
-	result.Errors = receiver.Errors
+	result.Errors = append(result.Errors, receiver.Errors...)
 	result.CompletionNS = receiver.CompletionNS
 	result.CompletionVerified = receiver.CompletionVerified
 	result.Censored = receiver.Censored
@@ -473,8 +482,7 @@ type controlStream interface {
 	SetWriteDeadline(time.Time) error
 }
 
-func observeControl(ctx context.Context, s controlStream, cfg Run) Control {
-	var c Control
+func observeControl(ctx context.Context, s controlStream, cfg Run) (c Control) {
 	type response struct {
 		latency  int64
 		bounds   [2]int64
@@ -487,10 +495,21 @@ func observeControl(ctx context.Context, s controlStream, cfg Run) Control {
 	pending, pendingMeasured := false, false
 	seq := uint64(0)
 	var wg sync.WaitGroup
-	defer func() { s.SetReadDeadline(time.Now()); s.SetWriteDeadline(time.Now()); wg.Wait() }()
-	offer := func() {
+	defer func() {
+		s.SetReadDeadline(time.Now())
+		s.SetWriteDeadline(time.Now())
+		wg.Wait()
+		if cfg.CompletionBytes == 0 {
+			c.ExpectedOpportunities = max(0, int((cfg.WarmupMS+cfg.MeasureMS-1)/1000-(cfg.WarmupMS+999)/1000+1))
+			c.MissedOpportunities = max(0, c.ExpectedOpportunities-len(c.Opportunities))
+		}
+	}()
+	offer := func(due time.Time) {
 		now := time.Now()
 		measured := !now.Before(cfg.measuredStart()) && now.Before(cfg.end())
+		if measured {
+			c.Opportunities = append(c.Opportunities, [2]int64{due.UnixNano(), now.UnixNano()})
+		}
 		if pending {
 			if measured {
 				c.Skipped++
@@ -522,7 +541,7 @@ func observeControl(ctx context.Context, s controlStream, cfg Run) Control {
 			replies <- response{received - sent, [2]int64{int64(binary.BigEndian.Uint64(p[24:32])) - received, int64(binary.BigEndian.Uint64(p[16:24])) - sent}, e, measured}
 		}()
 	}
-	offer()
+	offer(cfg.start())
 	for {
 		select {
 		case <-ctx.Done():
@@ -530,11 +549,12 @@ func observeControl(ctx context.Context, s controlStream, cfg Run) Control {
 				c.Unresolved++
 			}
 			return c
-		case <-ticker.C:
-			offer()
+		case due := <-ticker.C:
+			offer(due)
 		case r := <-replies:
 			pending = false
 			if r.err != nil {
+				c.Error = r.err.Error()
 				if r.measured {
 					c.Unresolved++
 				}

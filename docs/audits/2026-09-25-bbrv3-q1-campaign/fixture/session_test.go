@@ -105,6 +105,19 @@ func TestControlPendingCadenceAndWarmupAccounting(t *testing.T) {
 				synctest.Wait()
 				time.Sleep(2100 * time.Millisecond)
 				c := <-done
+				expected := 3
+				if warmup > 0 {
+					expected = 2
+				}
+				if c.ExpectedOpportunities != expected || len(c.Opportunities) != expected || c.MissedOpportunities != 0 {
+					t.Fatalf("cadence receipt: %+v", c)
+				}
+				for i, opportunity := range c.Opportunities {
+					wantDue := cfg.start().Add(time.Duration(i+warmup/1000) * time.Second).UnixNano()
+					if opportunity[0] != wantDue || opportunity[1] != wantDue {
+						t.Fatalf("opportunity %d = %v, want scheduled and observed %d", i, opportunity, wantDue)
+					}
+				}
 				want := 1
 				if warmup > 0 {
 					want = 0
