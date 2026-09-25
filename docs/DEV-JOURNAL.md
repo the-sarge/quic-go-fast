@@ -3786,3 +3786,24 @@ Initial review `20260925T043533-12672e8d77d12b452f76a106` produced four accepted
 ### Next
 
 The merged product records B4 complete and the independent B5/Q1 frontier. Reconcile issue and OmniFocus mirrors after this journal lands; [program #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live tracking view. The nonblocking idle-pacing follow-up is separate from the audited slices. Public BBR activation and native qualification remain later program work.
+
+---
+
+## BBR loss undo and persistent restart landed - 2026-09-25 08:30 EDT
+
+**Main:** `a50c89a38623`
+**Actor:** Codex
+
+### Summary
+
+Merged [BBRv3 B5, PR #638](https://github.com/the-sarge/quic-go-fast/pull/638), closing [#596](https://github.com/the-sarge/quic-go-fast/issues/596). The private reducer now composes all-spurious loss undo and ordinary saved-window restoration with independent CE and ProbeRTT caps. Persistent-congestion proof restarts a two-packet Startup model with an RTT-derived pacing seed and fresh sampling generation; old ACKs cannot restore the abandoned model. Reno remains the default and public BBR selection remains gated until B6.
+
+### Validation
+
+Eight focused test families cover retained/incomplete/superseded undo evidence, independent caps, persistent restart and deduplication, old ACKs, PTO, Retry, key disposal, path reset and close. `go test ./...`, affected-package `go vet`, `go mod tidy -diff`, focused golangci-lint, clean-tree checks and the exact-head hosted [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/36134216136), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/36134216142), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/36134216116), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/36134216215) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/36134216113) runs passed for `bcae946b76ef42b2552f235d68c7a65cd14d3ac1` before guarded squash merge.
+
+Initial RAS review `20260925T115114-763f33dfb748bf097f939bb3` found a PTO-only persistent-proof path that could relax CE caps; it was reproduced, fixed in the central CE recovery predicate, and verified at the final head. Ordinary recovery restoration during ProbeRTT was independently rejected as an unsupported contract violation. The initial run completed with four reviewers after its fifth reviewer was interrupted without a result. Replacement review `20260925T122118-d1bce2ff1a6a0e66e1e52ece` completed with four reviewers and no findings. [Dispositions](https://github.com/the-sarge/quic-go-fast/pull/638#issuecomment-5832235251) and the [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/638#issuecomment-5832371233) retain the review history. The user waived only the dispatch-context ceiling; evidence and review-round budgets remained bounded. No surviving deferred findings or newly untraced effects remain.
+
+### Next
+
+The product PR records B5 complete and B6 ready in the normative plan and program index. B6 and Q1 are the next independent frontier slices; [program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) remains the live view. Native performance qualification and public activation are not claimed by B5.
