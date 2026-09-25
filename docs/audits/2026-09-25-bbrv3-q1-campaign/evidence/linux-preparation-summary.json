@@ -1,0 +1,80 @@
+{
+  "status": "incomplete; no comparative qualification",
+  "recorded_at": "2026-09-25T20:07:08.694044+00:00",
+  "fixture_source": "0c67a68e or earlier; per-record source_revision owns exact identity",
+  "emitter_router_source": "09f9d290",
+  "raw_record_count": 102,
+  "raw_sha256": "5b83966200e9f3297b2fefd8ee71a0671ba4526c65ce3645af32871e5883769c",
+  "adapter_failure_limit_ms": 5,
+  "latest_unprofiled_S3": [
+    {
+      "Direction": "ens5->ens4",
+      "Error": "",
+      "ReadPackets": 0,
+      "NonCanonical": 0,
+      "SocketDrops": 0,
+      "SendErrors": 0,
+      "MaxIngressLagNS": 0,
+      "MaxEgressLagNS": 0,
+      "MaxIngressAtNS": 0,
+      "MaxEgressAtNS": 0,
+      "MaxKernelToReadNS": 0,
+      "MaxReadToAdmissionNS": 0,
+      "MissingTimestamps": 0,
+      "Stats": {
+        "Received": 0,
+        "Admitted": 0,
+        "Delivered": 0,
+        "Marked": 0,
+        "EarlyDrop": 0,
+        "Overflow": 0,
+        "RandomDrop": 0,
+        "EventDrop": 0,
+        "InterruptionDrop": 0,
+        "MaxQueueBytes": 0,
+        "MaxPropagationBytes": 0,
+        "DeliveredBytes": 0,
+        "PropagationOverflow": 0
+      }
+    },
+    {
+      "Direction": "ens4->ens5",
+      "Error": "",
+      "ReadPackets": 1023145,
+      "NonCanonical": 0,
+      "SocketDrops": 0,
+      "SendErrors": 0,
+      "MaxIngressLagNS": 9061939,
+      "MaxEgressLagNS": 5100929,
+      "MaxIngressAtNS": 1790366693070516070,
+      "MaxEgressAtNS": 1790366693066824746,
+      "MaxKernelToReadNS": 6596936,
+      "MaxReadToAdmissionNS": 8904274,
+      "MissingTimestamps": 0,
+      "Stats": {
+        "Received": 1022949,
+        "Admitted": 871640,
+        "Delivered": 871640,
+        "Marked": 0,
+        "EarlyDrop": 0,
+        "Overflow": 151309,
+        "RandomDrop": 0,
+        "EventDrop": 0,
+        "InterruptionDrop": 0,
+        "MaxQueueBytes": 25001040,
+        "MaxPropagationBytes": 12500520,
+        "DeliveredBytes": 1272594400,
+        "PropagationOverflow": 0
+      }
+    }
+  ],
+  "profiled_runs": "diagnostic only; never calibration",
+  "remaining": [
+    "latest adapter gigabit calibration",
+    "L3 maximum lateness gate",
+    "Windows native smoke",
+    "Mac CPU isolation decision and local gateway",
+    "competitor topology and commands",
+    "frozen costed campaign manifest"
+  ]
+}

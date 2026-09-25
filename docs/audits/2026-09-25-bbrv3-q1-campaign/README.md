@@ -8,8 +8,8 @@ They ship no controller behavior and are not a maintained emulator framework.
 The operator extended preparation to **16 cumulative hours** on 2026-09-25;
 [authorization](https://github.com/the-sarge/quic-go-fast/issues/598#issuecomment-5837538642).
 The $100 cloud and 48 experiment-hour ceilings remain unchanged. Historical
-acceptance records retain their original eight-hour allowance. Infra PR638
-updates the lifecycle guard for the approved extension.
+acceptance records retain their original eight-hour allowance. [Infra PR638](https://github.com/the-sarge/infra/pull/638), merged as
+`4fcfa6ad7f4cff923fa88d97ce82903b0e734aa9`, enforces the approved extension.
 
 ## Execution boundary
 
@@ -54,8 +54,9 @@ One fresh review and at most one replacement apply to this product PR.
   ([upstream interface](https://pkg.go.dev/github.com/gopacket/gopacket/afpacket)).
   TPACKET v3 uses an 8 MiB receive ring per direction, 1 ms block retirement
   and bounded 100 ms polling. Ring views are copied before their next read;
-  canonical IP parsing remains owned by `x/net/ipv4`. Separate directions and bounded input
-  channel. Records kernel socket drops, noncanonical packets, missing kernel
+  canonical IP parsing remains owned by `x/net/ipv4`. Each direction has one
+  model owner and bounded input/output channels. A separate emission worker
+  owns each departing frame; it is joined before counters are published. Records kernel socket drops, noncanonical packets, missing kernel
   timestamps, ingress processing delay and scheduled-departure lateness. Any
   socket/send/storage failure, or maximum ingress/egress lateness over 5 ms,
   invalidates its receipt. Native rate/RTT tests must independently establish
@@ -108,3 +109,20 @@ waiting on the server and dial setup on the sender; neither is included in the
 fixed useful-delivery window. Qlog callbacks retain bounded metrics/events but
 still incur instrumentation cost. Native CPU saturation must be reported as a
 fixture/host limitation where applicable, not interpreted as controller capacity.
+
+## Linux preparation receipt
+
+[The retained preparation receipt](evidence/linux-preparation-summary.json) indexes
+102 frozen native configuration/result records, including failures. Four short
+Reno/BBRv3 stream/DATAGRAM native smoke cells passed integrity and controller
+selection checks; these are correctness observations, not comparisons. Earlier
+adapter revisions demonstrated directional rate, marking/drop and queue behavior,
+but they do not certify the latest adapter revision.
+
+The unprofiled S3 offered-load probe at `09f9d290` had no socket or send errors,
+but maximum admission lateness was 9.062 ms and departure lateness 5.101 ms;
+both exceed the 5 ms gate. The earlier L3 phase probe also failed its lateness
+gate despite observing the four selected rates. These paths remain invalid.
+A separately labeled CPU-profile diagnostic attributed about 27% of sampled CPU
+to model advancement and 21% to scheduling. The next candidate reduces heap
+packet copying; passing semantic tests is not native calibration.

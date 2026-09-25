@@ -46,16 +46,16 @@ type queued struct {
 	Packet
 	Finish, Due time.Duration
 }
-type pending []queued
+type pending []*queued
 
 func (p pending) Len() int           { return len(p) }
 func (p pending) Less(i, j int) bool { return p[i].Due < p[j].Due }
 func (p pending) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p *pending) Push(x any)        { *p = append(*p, x.(queued)) }
+func (p *pending) Push(x any)        { *p = append(*p, x.(*queued)) }
 func (p *pending) Pop() any {
 	a := *p
 	x := a[len(a)-1]
-	a[len(a)-1] = queued{}
+	a[len(a)-1] = nil
 	*p = a[:len(a)-1]
 	return x
 }
@@ -188,7 +188,7 @@ func (q *Queue) advance(at time.Duration) []Packet {
 			break
 		}
 		if delivery <= service {
-			x := heap.Pop(&q.pending).(queued)
+			x := heap.Pop(&q.pending).(*queued)
 			q.propBytes -= len(x.Bytes)
 			q.Stats.Delivered++
 			q.Stats.DeliveredBytes += uint64(len(x.Bytes))
@@ -204,7 +204,7 @@ func (q *Queue) advance(at time.Duration) []Packet {
 				continue
 			}
 			q.propBytes += len(x.Bytes)
-			heap.Push(&q.pending, x)
+			heap.Push(&q.pending, &x)
 			q.Stats.MaxPropagationBytes = max(q.Stats.MaxPropagationBytes, q.propBytes)
 		}
 	}
