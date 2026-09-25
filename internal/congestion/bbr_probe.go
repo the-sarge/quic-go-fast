@@ -62,7 +62,6 @@ func (b *BBRSender) startProbeRefill(delivered uint64) {
 
 func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundStart bool) {
 	if roundStart {
-		b.roundsSinceProbe++
 		if b.ackPhase == bbrAcksStarting {
 			b.ackPhase = bbrAcksFeedback
 		}

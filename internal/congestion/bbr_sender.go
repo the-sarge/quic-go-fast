@@ -148,6 +148,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		}
 	}
 	if anchor == nil || !anchor.Delivery.Valid || anchor.Delivery.Delivered > s.Delivered || anchor.PathGeneration != b.pathGeneration || anchor.SampleGeneration != b.sampleGeneration || anchor.MTUProbe || anchor.PathProbe || !s.Valid || s.Interval <= 0 {
+		b.checkDrainDone(e)
 		if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
 			b.updateProbePhase(e, false, false)
 		}
@@ -160,6 +161,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		// A later complete round replaces it, including a round with no usage.
 		b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
 		b.round++
+		b.roundsSinceProbe++
 		b.nextRound = s.Delivered
 	}
 	b.updateMaxBandwidth(s)
@@ -169,7 +171,8 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	if b.recoveryStarted && anchor.Ordinal > b.recoveryBoundary && anchor.Delivery.Delivered >= b.recoveryDelivered {
 		b.recoveryEligible = true
 	}
-	if anchor.Delivery.Delivered >= b.lossRoundDelivered {
+	lossRoundStart := anchor.Delivery.Delivered >= b.lossRoundDelivered
+	if lossRoundStart {
 		if b.lossPending && b.phase == bbrStartup && b.recoveryEligible && !b.lossOverflow && b.discontiguousLosses() >= 6 && uint64(b.lossBytes) > uint64(b.lossFlight)/50 {
 			b.inflightLong = max(b.inflight(1), bbrBytes(b.latestVolume))
 			b.phase = bbrDrain
@@ -190,7 +193,6 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		if !b.recoveryStarted {
 			b.recoveryEligible = false
 		}
-		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
 		b.lossRoundDelivered = s.Delivered
 	}
 
@@ -206,16 +208,24 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 			b.drainRound = b.round
 		}
 	}
+	b.checkDrainDone(e)
 	if b.phase != bbrStartup {
 		b.updateProbeCycle(e, *anchor, roundStart)
+	}
+	if lossRoundStart {
+		// Seed the next loss round after a phase entry has reset its signals.
+		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
 	}
 	b.applyACK(e, clockValid)
 }
 
-func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
+func (b *BBRSender) checkDrainDone(e FeedbackEvent) {
 	if b.phase == bbrDrain && (e.PostInFlight <= b.inflight(1) || b.round > b.drainRound+3) {
 		b.startProbeDown(e.Time, e.Delivery.Delivered)
 	}
+}
+
+func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
 	s := e.Delivery
 	acked := bbrBytes(s.Delivered - b.delivered)
 	b.delivered = s.Delivered

@@ -69,6 +69,37 @@ func TestBBRStartupLimitedSamples(t *testing.T) {
 }
 
 func TestBBRDrainFlightAndRoundExit(t *testing.T) {
+	for _, sampled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("same ACK Cruise sampled=%v", sampled), func(t *testing.T) {
+			x := newBBRProbeTrace()
+			for range 4 {
+				x.ack(100000, 20000, SendUnknown)
+			}
+			x.b.inflightLong = 12000
+			round := x.b.round
+			if sampled {
+				x.ack(100000, 9000, SendUnknown)
+			} else {
+				x.now = x.now.Add(100 * time.Millisecond)
+				x.delivered += 1200
+				x.b.Feedback(FeedbackEvent{Time: x.now, HasAck: true, PostInFlight: 9000, Delivery: DeliverySample{Delivered: x.delivered}})
+			}
+			require.Equal(t, bbrCruise, x.b.phase)
+			require.EqualValues(t, 100000, x.b.PacingRate())
+			require.EqualValues(t, 10200, x.b.GetCongestionWindow(), "same-ACK Cruise headroom")
+			require.Equal(t, x.delivered, x.b.nextRound)
+			require.Zero(t, x.b.roundsSinceProbe, "entry resets the wait after counting this ACK round")
+			if sampled {
+				require.Equal(t, round+1, x.b.round, "only the existing packet-round boundary advances")
+				require.EqualValues(t, 1, x.b.cycle, "StartRound preserves the boundary consumed by AdaptLongTermModel")
+				require.Equal(t, bbrAcksInit, x.b.ackPhase)
+			} else {
+				require.Equal(t, round, x.b.round)
+				require.Zero(t, x.b.cycle, "ACK facts alone cannot advance filter cycles")
+				require.Equal(t, bbrAcksStopping, x.b.ackPhase)
+			}
+		})
+	}
 	for _, zero := range []bool{false, true} {
 		t.Run(fmt.Sprintf("invalid Drain clock zero=%v", zero), func(t *testing.T) {
 			x := newBBRProbeTrace()
@@ -149,7 +180,11 @@ func TestBBRDrainFlightAndRoundExit(t *testing.T) {
 				require.EqualValues(t, 50000, b.PacingRate(), "draft's strict round boundary")
 				feedbackRound(b, 8, 9600, 100000, SendUnknown, tc.flight)
 			}
-			require.EqualValues(t, 90000, b.PacingRate(), "Drain exits into Probe Down")
+			if tc.name == "flight" {
+				require.EqualValues(t, 100000, b.PacingRate(), "drained entry reaches Cruise on the same ACK")
+			} else {
+				require.EqualValues(t, 90000, b.PacingRate(), "high flight retains Probe Down")
+			}
 		})
 	}
 }

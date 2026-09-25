@@ -40,7 +40,7 @@ func TestBBRTransportFeedbackToAllowance(t *testing.T) {
 		seenDown = seenDown || b.PacingRate() == bandwidth*9/10
 		seenUp = seenUp || b.PacingRate() == bandwidth*5/4
 		now = now.Add(100 * time.Millisecond)
-		if seenDown && seenUp {
+		if seenDown && b.PacingRate() == bandwidth*5/4 {
 			break
 		}
 	}

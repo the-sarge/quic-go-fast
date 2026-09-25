@@ -49,7 +49,7 @@ func TestBBRProbeBWTransitions(t *testing.T) {
 	}
 	require.EqualValues(t, 50000, x.b.PacingRate(), "Drain")
 	x.ack(100000, 9000, SendUnknown)
-	require.EqualValues(t, 90000, x.b.PacingRate(), "Probe Down")
+	require.EqualValues(t, 100000, x.b.PacingRate(), "Drain exit reaches Cruise on the same ACK")
 	x.ack(100000, 9000, SendUnknown)
 	require.EqualValues(t, 100000, x.b.PacingRate(), "Cruise")
 	for range 10 {
@@ -57,13 +57,38 @@ func TestBBRProbeBWTransitions(t *testing.T) {
 	}
 	require.EqualValues(t, 125000, x.b.PacingRate(), "Refill lasts one packet-timed round then Up")
 	require.False(t, x.b.InSlowStart())
+	for _, from := range []string{"Drain", "Up"} {
+		t.Run("boundary seed from "+from, func(t *testing.T) {
+			x := newBBRProbeTrace()
+			if from == "Up" {
+				x.up(t)
+				for range 3 {
+					x.ack(100000, 9000, SendUnknown)
+				}
+			} else {
+				for range 4 {
+					x.ack(100000, 20000, SendUnknown)
+				}
+				x.ack(100000, 9000, SendUnknown)
+			}
+			require.EqualValues(t, 100000, x.b.latestRate, "reseed after the Down reset")
+			require.EqualValues(t, 1200, x.b.latestVolume)
+			x.lose(60000, SendUnknown)
+			x.ack(20000, 8000, SendUnknown)
+			require.EqualValues(t, 100000, x.b.bandwidthShort, "the boundary sample protects the first loss round")
+			x.lose(60000, SendUnknown)
+			x.ack(20000, 8000, SendUnknown)
+			require.EqualValues(t, 70000, x.b.bandwidthShort, "a later low-rate loss round may reduce the bound")
+		})
+	}
 	t.Run("Cruise uses maximum bandwidth", func(t *testing.T) {
 		x := newBBRProbeTrace()
 		x.up(t)
 		for range 3 {
 			x.ack(100000, 9000, SendUnknown)
 		}
-		x.lose(60000, SendUnknown) // exactly two percent: no long-term reduction
+		x.ack(20000, 20000, SendUnknown) // retain Down and seed the next loss round
+		x.lose(60000, SendUnknown)       // exactly two percent: no long-term reduction
 		x.ack(20000, 8000, SendUnknown)
 		require.EqualValues(t, 70000, x.b.bandwidthShort)
 		require.Equal(t, bbrCruise, x.b.phase, "8000 bytes is below max-BDP 10000, above bounded-BDP 7000")
@@ -289,7 +314,7 @@ func TestBBRProbeBWCoexistenceUnits(t *testing.T) {
 				x.ack(tc.rate, 1000000, SendUnknown)
 			}
 			x.ack(tc.rate, 0, SendUnknown)
-			require.Equal(t, bbrDown, x.b.phase)
+			require.Equal(t, bbrCruise, x.b.phase)
 			x.b.SetMaxDatagramSize(tc.size)
 			for range tc.rounds - 1 {
 				x.ack(tc.rate, 0, SendUnknown)
