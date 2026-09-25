@@ -10,13 +10,17 @@ import (
 )
 
 func TestNativeFixtureRoundTrip(t *testing.T) {
-	for _, workload := range []string{"stream", "datagram", "completion"} {
+	for _, workload := range []string{"stream", "datagram", "completion", "delayed-start"} {
 		t.Run(workload, func(t *testing.T) {
 			cert, key, err := createCertificate(t.TempDir())
 			if err != nil {
 				t.Fatal(err)
 			}
 			cfg := Run{ID: "characterization", Controller: "reno", Workload: workload, WarmupMS: 100, MeasureMS: 1100, PayloadBytes: 1200, StartUnixNS: time.Now().Add(500 * time.Millisecond).UnixNano()}
+			if workload == "delayed-start" {
+				cfg.Workload = "stream"
+				cfg.StartUnixNS = time.Now().Add(11 * time.Second).UnixNano()
+			}
 			if workload == "completion" {
 				cfg.Workload = "stream"
 				cfg.WarmupMS = 0
@@ -41,7 +45,7 @@ func TestNativeFixtureRoundTrip(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer closeClient()
-			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Until(cfg.start())+6*time.Second)
 			defer cancel()
 			ln, err := server.Listen(tlsServer, quicConfig(cfg, newTrace()))
 			if err != nil {

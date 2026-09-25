@@ -115,7 +115,7 @@ func newTransport(address string, managed bool) (*quic.Transport, func(), error)
 func quicConfig(r Run, tr *trace) *quic.Config {
 	c := &quic.Config{EnableDatagrams: true, InitialPacketSize: 1400, DisablePathMTUDiscovery: true,
 		InitialStreamReceiveWindow: 64 << 20, MaxStreamReceiveWindow: 64 << 20, InitialConnectionReceiveWindow: 128 << 20, MaxConnectionReceiveWindow: 128 << 20,
-		MaxIdleTimeout: 10 * time.Second, HandshakeIdleTimeout: 5 * time.Second, MaxIncomingStreams: 4, MaxIncomingUniStreams: 4}
+		MaxIdleTimeout: 3 * time.Minute, HandshakeIdleTimeout: 5 * time.Second, MaxIncomingStreams: 4, MaxIncomingUniStreams: 4}
 	_ = c.SetCongestionControlV1(r.Controller)
 	c.Tracer = tr.factory
 	return c
