@@ -357,7 +357,12 @@ func receiveSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, erro
 	if _, e = io.ReadFull(report, ack[:]); e != nil {
 		return result, e
 	}
+	if ack[0] != 1 {
+		return result, fmt.Errorf("invalid report acknowledgment")
+	}
 	report.Close()
+	// The receiver owns successful shutdown after consuming the sender acknowledgment.
+	conn.CloseWithError(0, "receipt accepted")
 	return result, nil
 }
 func sendSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) {
@@ -443,6 +448,17 @@ func sendSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) 
 		return result, e
 	}
 	report.Close()
+	// A successful Write is only local admission. Wait for receiver-owned close
+	// to prove the final acknowledgment reached its consumer before teardown.
+	select {
+	case <-ctx.Done():
+		return result, ctx.Err()
+	case <-conn.Context().Done():
+		var app *quic.ApplicationError
+		if !errors.As(context.Cause(conn.Context()), &app) || !app.Remote || app.ErrorCode != 0 || app.ErrorMessage != "receipt accepted" {
+			return result, context.Cause(conn.Context())
+		}
+	}
 	result.Receiver = receiver.Receiver
 	result.Errors = receiver.Errors
 	result.CompletionNS = receiver.CompletionNS
