@@ -129,3 +129,27 @@ func TestControlPendingCadenceAndWarmupAccounting(t *testing.T) {
 		})
 	}
 }
+
+func TestCompetitorPauseRetainsFullMeasurementWindow(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		cfg := Run{StartUnixNS: time.Now().UnixNano(), WarmupMS: 60000, MeasureMS: 300000, BulkPauseStartMS: 240000, BulkPauseEndMS: 270000}
+		originalEnd := cfg.end()
+		time.Sleep(300 * time.Second)
+		var result Result
+		done := make(chan error, 1)
+		go func() { done <- waitBulkDemand(context.Background(), cfg, &result) }()
+		synctest.Wait()
+		select {
+		case <-done:
+			t.Fatal("bulk resumed inside absence interval")
+		default:
+		}
+		time.Sleep(30 * time.Second)
+		if e := <-done; e != nil {
+			t.Fatal(e)
+		}
+		if cfg.end() != originalEnd || len(result.BulkPauseObservedNS) != 2 || result.BulkPauseObservedNS[1]-result.BulkPauseObservedNS[0] != int64(30*time.Second) {
+			t.Fatalf("pause changed timing: %+v", result)
+		}
+	})
+}

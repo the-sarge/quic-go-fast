@@ -114,6 +114,9 @@ func sendTCP(ctx context.Context, bulk, control *net.TCPConn, cfg Run) (Result, 
 	bulk.SetWriteDeadline(cfg.end())
 	p := make([]byte, cfg.PayloadBytes)
 	for time.Now().Before(cfg.end()) {
+		if e := waitBulkDemand(runCtx, cfg, &r); e != nil {
+			return r, e
+		}
 		encodePayload(p, r.SentMessages)
 		before := time.Now()
 		e := writeAll(bulk, p)

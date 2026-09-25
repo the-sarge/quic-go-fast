@@ -1,0 +1,127 @@
+{
+  "status": "frozen schedule candidate; optional native competitor topology not yet calibrated",
+  "hosts": {
+    "sender": "bbr-competitor-a",
+    "receiver": "bbr-competitor-b",
+    "sender_ipv4": "10.63.1.11",
+    "receiver_ipv4": "10.63.2.11"
+  },
+  "resource_contract": "Two additional Linux N2 endpoint VMs, four guest cores each with GOMAXPROCS=4 per process; no focal endpoint cores are used. L4 processes share the reserved background pair. Capture saturation.",
+  "byte_contract": "Same deterministic record counter as focal fixture; 16384 total bytes with 16 bytes metadata per reliable record.",
+  "tcp_contract": "Kernel cubic selected before SYN and verified after connect; TCP_MAXSEG <= 1380. Control is a separate 32-byte request/reply TCP connection on the next port.",
+  "departure_contract": "L6-L8 stop offering bulk records during measured t=240..270 while retaining the same connection and controller state. Already admitted data may drain; the low-rate control probe continues. Record actual pause/resume timestamps and per-second receiver delivery, retaining the full 300-second denominator.",
+  "launch_contract": "Prelaunch each process at most 120 seconds before its declared start. Establish listeners before dialing; exact launch-through-teardown time belongs in the global ledger. A failed setup invalidates its focal run.",
+  "scenarios": {
+    "L4": {
+      "controller": "cubic",
+      "tcp_cubic": true,
+      "flows": [
+        {
+          "id": "cubic-1",
+          "port": 4460,
+          "start_measured_seconds": 100,
+          "warmup_ms": 0,
+          "measure_ms": 200000
+        },
+        {
+          "id": "cubic-2",
+          "port": 4462,
+          "start_measured_seconds": 200,
+          "warmup_ms": 0,
+          "measure_ms": 100000
+        },
+        {
+          "id": "cubic-3",
+          "port": 4464,
+          "start_measured_seconds": 200,
+          "warmup_ms": 0,
+          "measure_ms": 100000
+        }
+      ]
+    },
+    "L6": {
+      "controller": "reno",
+      "tcp_cubic": false,
+      "port": 4460,
+      "start_measured_seconds": -60,
+      "warmup_ms": 60000,
+      "measure_ms": 300000,
+      "bulk_pause_start_ms": 240000,
+      "bulk_pause_end_ms": 270000,
+      "router_competitor_rtt_ms": [
+        [
+          0,
+          100,
+          100
+        ],
+        [
+          100,
+          200,
+          25
+        ],
+        [
+          200,
+          300,
+          100
+        ]
+      ],
+      "warmup_competitor_rtt_ms": 100
+    },
+    "L7": {
+      "controller": "cubic",
+      "tcp_cubic": true,
+      "port": 4460,
+      "start_measured_seconds": -60,
+      "warmup_ms": 60000,
+      "measure_ms": 300000,
+      "bulk_pause_start_ms": 240000,
+      "bulk_pause_end_ms": 270000,
+      "router_competitor_rtt_ms": [
+        [
+          0,
+          100,
+          100
+        ],
+        [
+          100,
+          200,
+          25
+        ],
+        [
+          200,
+          300,
+          100
+        ]
+      ],
+      "warmup_competitor_rtt_ms": 100
+    },
+    "L8": {
+      "controller": "bbrv3",
+      "tcp_cubic": false,
+      "port": 4460,
+      "start_measured_seconds": -60,
+      "warmup_ms": 60000,
+      "measure_ms": 300000,
+      "bulk_pause_start_ms": 240000,
+      "bulk_pause_end_ms": 270000,
+      "router_competitor_rtt_ms": [
+        [
+          0,
+          100,
+          100
+        ],
+        [
+          100,
+          200,
+          25
+        ],
+        [
+          200,
+          300,
+          100
+        ]
+      ],
+      "warmup_competitor_rtt_ms": 100
+    }
+  }
+}

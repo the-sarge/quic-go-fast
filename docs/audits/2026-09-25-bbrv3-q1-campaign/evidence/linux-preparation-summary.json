@@ -76,5 +76,8 @@
     "Mac CPU isolation decision and local gateway",
     "competitor topology and commands",
     "frozen costed campaign manifest"
-  ]
+  ],
+  "host_and_cleanup_archive": "linux-host-and-cleanup-records.tar.gz",
+  "host_and_cleanup_sha256": "8a5b7132b61620cbf860d57f81c3b113804a40ff3673b5855c87b8c98b525eee",
+  "cleanup": "Lifecycle destroy succeeded; independent instance and disk inventories empty after teardown."
 }

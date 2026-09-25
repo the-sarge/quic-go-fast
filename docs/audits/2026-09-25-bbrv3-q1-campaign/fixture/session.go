@@ -26,14 +26,16 @@ import (
 )
 
 type Run struct {
-	ID              string `json:"id"`
-	Controller      string `json:"controller"`
-	Workload        string `json:"workload"`
-	StartUnixNS     int64  `json:"start_unix_ns"`
-	WarmupMS        int64  `json:"warmup_ms"`
-	MeasureMS       int64  `json:"measure_ms"`
-	PayloadBytes    int    `json:"payload_bytes"`
-	CompletionBytes int64  `json:"completion_bytes,omitempty"`
+	ID               string `json:"id"`
+	Controller       string `json:"controller"`
+	Workload         string `json:"workload"`
+	StartUnixNS      int64  `json:"start_unix_ns"`
+	WarmupMS         int64  `json:"warmup_ms"`
+	MeasureMS        int64  `json:"measure_ms"`
+	PayloadBytes     int    `json:"payload_bytes"`
+	CompletionBytes  int64  `json:"completion_bytes,omitempty"`
+	BulkPauseStartMS int64  `json:"bulk_pause_start_ms,omitempty"`
+	BulkPauseEndMS   int64  `json:"bulk_pause_end_ms,omitempty"`
 }
 
 func (r Run) start() time.Time { return time.Unix(0, r.StartUnixNS) }
@@ -56,6 +58,9 @@ func (r Run) validate() error {
 	if r.CompletionBytes < 0 || r.CompletionBytes > 16<<20 || (r.CompletionBytes > 0 && (r.Workload != "stream" || r.WarmupMS != 0)) {
 		return fmt.Errorf("invalid completion case")
 	}
+	if (r.BulkPauseStartMS != 0 || r.BulkPauseEndMS != 0) && (r.BulkPauseStartMS != 240000 || r.BulkPauseEndMS != 270000 || r.MeasureMS != 300000 || r.WarmupMS != 60000 || r.Workload != "stream" || r.CompletionBytes != 0) {
+		return fmt.Errorf("only the accepted L6–L8 competitor bulk pause is supported")
+	}
 	return nil
 }
 
@@ -73,16 +78,17 @@ type Control struct {
 	ClockBoundsNS [][2]int64 `json:"clock_offset_bounds_ns"`
 }
 type Result struct {
-	Run                Run      `json:"run"`
-	Controller         string   `json:"controller"`
-	Receiver           Delivery `json:"receiver"`
-	Control            Control  `json:"control"`
-	SentMessages       uint64   `json:"sent_messages"`
-	SendCallNS         int64    `json:"send_call_ns"`
-	CompletionNS       int64    `json:"completion_ns,omitempty"`
-	CompletionVerified bool     `json:"completion_verified"`
-	Censored           bool     `json:"censored"`
-	Errors             []string `json:"errors,omitempty"`
+	BulkPauseObservedNS []int64  `json:"bulk_pause_observed_ns,omitempty"`
+	Run                 Run      `json:"run"`
+	Controller          string   `json:"controller"`
+	Receiver            Delivery `json:"receiver"`
+	Control             Control  `json:"control"`
+	SentMessages        uint64   `json:"sent_messages"`
+	SendCallNS          int64    `json:"send_call_ns"`
+	CompletionNS        int64    `json:"completion_ns,omitempty"`
+	CompletionVerified  bool     `json:"completion_verified"`
+	Censored            bool     `json:"censored"`
+	Errors              []string `json:"errors,omitempty"`
 }
 
 func newTransport(address string, managed bool) (*quic.Transport, func(), error) {
@@ -409,6 +415,9 @@ func sendSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) 
 	p := make([]byte, cfg.PayloadBytes)
 	var useful int64
 	for seq := uint64(0); seq < maxSequence && time.Now().Before(cfg.end()); seq++ {
+		if err = waitBulkDemand(bulkCtx, cfg, &result); err != nil {
+			break
+		}
 		if cfg.CompletionBytes > 0 && useful >= cfg.CompletionBytes {
 			break
 		}
@@ -429,6 +438,12 @@ func sendSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) 
 		}
 		result.SentMessages++
 		useful += int64(len(payload) - headerBytes)
+	}
+	// Preserve the failure before waiting for the control observer: that wait
+	// can run through the window and must not turn an early failure into a
+	// seemingly normal duration stop.
+	if err != nil && !(os.IsTimeout(err) && !time.Now().Before(cfg.end())) {
+		result.Errors = append(result.Errors, err.Error())
 	}
 	if stream != nil {
 		stream.Close()
@@ -567,4 +582,26 @@ func observeControl(ctx context.Context, s controlStream, cfg Run) (c Control) {
 			}
 		}
 	}
+}
+
+// The competitor removes bulk demand while preserving its connection/controller
+// state. The low-rate control probe remains observable during the absence.
+// The fixed receiver window still includes all 30 seconds of absent bulk demand.
+func waitBulkDemand(ctx context.Context, cfg Run, r *Result) error {
+	if cfg.BulkPauseEndMS == 0 || len(r.BulkPauseObservedNS) > 0 {
+		return nil
+	}
+	start := cfg.measuredStart().Add(time.Duration(cfg.BulkPauseStartMS) * time.Millisecond)
+	end := cfg.measuredStart().Add(time.Duration(cfg.BulkPauseEndMS) * time.Millisecond)
+	now := time.Now()
+	if now.Before(start) {
+		return nil
+	}
+	if !now.Before(end) {
+		return fmt.Errorf("competitor bulk pause was missed")
+	}
+	r.BulkPauseObservedNS = append(r.BulkPauseObservedNS, now.UnixNano())
+	e := waitUntil(ctx, end)
+	r.BulkPauseObservedNS = append(r.BulkPauseObservedNS, time.Now().UnixNano())
+	return e
 }

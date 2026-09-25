@@ -178,3 +178,12 @@ serialization before measurement for constant and changing-rate schedules.
 The sentinel is handled before subtraction in `d0cfa1cb`; normal and race model
 checks pass. Native revalidation is still required. Lifecycle callers must also
 bound the adapter process externally and restore kernel forwarding on failure.
+
+`competitor-schedule-candidate.json` pins L4's 0/1/3 demanding TCP streams
+and L6–L8's existing-connection bulk absence at measured t=240–270. The
+32-byte control probe continues; already admitted data may drain. Actual
+pause/resume and per-second receiver counts make that boundary visible. The
+measurement denominator remains 300 seconds. Only the accepted 240/270-second
+pause on a 60+300-second reliable stream is admitted by the fixture. These
+commands still require an independently provisioned and calibrated competitor
+pair; schedule generation alone is not native coexistence evidence.
