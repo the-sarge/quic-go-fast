@@ -120,3 +120,26 @@ func TestOutageArrivalWindowBoundaries(t *testing.T) {
 		}
 	}
 }
+
+func TestWarmupServiceBeforeMeasurementEpoch(t *testing.T) {
+	for _, id := range []string{"S2", "S3", "L3"} {
+		t.Run(id, func(t *testing.T) {
+			q, e := Scenario(id, true, 0, 17, 1460)
+			if e != nil {
+				t.Fatal(e)
+			}
+			at := -30 * time.Second
+			if !q.Admit(at, Packet{Bytes: make([]byte, 1000)}) {
+				t.Fatal("warm-up admission rejected")
+			}
+			rate, delay := q.parameters(at)
+			due := at + time.Duration(8000*int64(time.Second)/rate) + delay
+			if got := q.Advance(due - time.Nanosecond); len(got) != 0 {
+				t.Fatal("warm-up packet departed early")
+			}
+			if got := q.Advance(due); len(got) != 1 || got[0].ScheduledAt != due {
+				t.Fatalf("warm-up delivery: %+v, want %v", got, due)
+			}
+		})
+	}
+}

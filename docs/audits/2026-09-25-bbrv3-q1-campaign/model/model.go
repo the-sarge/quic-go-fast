@@ -110,7 +110,9 @@ func (q *Queue) finish(at time.Duration, bytes int) time.Duration {
 			}
 		}
 		duration := time.Duration(math.Ceil(remaining * float64(time.Second) / float64(rate)))
-		if duration <= next-at {
+		// A warm-up packet has a negative measurement-relative timestamp.
+		// Subtracting it from the no-future-change sentinel would overflow.
+		if next == time.Duration(math.MaxInt64) || duration <= next-at {
 			return at + duration
 		}
 		remaining -= float64(next-at) / float64(time.Second) * float64(rate)
