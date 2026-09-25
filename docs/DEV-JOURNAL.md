@@ -3744,3 +3744,24 @@ The [local certification receipt](https://github.com/the-sarge/quic-go-fast/pull
 ### Next
 
 The product committed B2 complete and the B3/Q1 frontier; [program #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live tracking view. Reconcile the completed B2 task and newly ready B3 mirrors after this journal lands. No deferred review finding or untraced effect remains.
+
+---
+
+## BBRv3 guarded ProbeRTT and idle restart landed - 2026-09-25 00:17 EDT
+
+**Main:** `ad85863447b6`
+**Actor:** Codex
+
+### Completed
+
+Merged [B3 / #594](https://github.com/the-sarge/quic-go-fast/issues/594) through [PR #633](https://github.com/the-sarge/quic-go-fast/pull/633). The private BBR reducer now owns separate five-second scheduling and ten-second minimum-RTT filters, a pre-update ProbeRTT cap, the common strict 200ms-plus-packet-round exit, bounded window restoration, and genuine idle restart through recovery and emission. Packet-size floors apply to the effective window without enlarging the saved byte cap. Public construction remains Reno.
+
+### Validation
+
+The [review and local certification receipt](https://github.com/the-sarge/quic-go-fast/pull/633#issuecomment-5826580287) covers the ordinary unit suite, affected-package vet and lint, module checks, and the accepted focused race gate at `e79d4f0862f9ef0944bcedfd59f9c8cfbe8f88e7`. The initial review's three roots and the replacement review's distinct saved-cap root were fixed and verified. The operator's budget waiver covered the additional fix/verification cycle. Eight focused test functions carry the B3 evidence; no guard mutation or new platform campaign was added by the implementation.
+
+All 17 jobs in the five applicable PR workflows passed on that head, as recorded in the [hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/633#issuecomment-5826603245). Final-head push workflows also passed. An earlier-head macOS push failure reproduced the existing diagnostic-fixture symptom tracked by [#581](https://github.com/the-sarge/quic-go-fast/issues/581); no failed run was retried and no B3 review follow-up remains.
+
+### Next
+
+The merged plan records T1–T5 and B1–B3 complete, with B4 and Q1 independently ready. Reconcile the task mirrors after this journal merge; the [program tracker](https://github.com/the-sarge/quic-go-fast/issues/600) is the live frontier view. B4 adds persistent classic-ECN response; public activation remains gated until B6. No untraced runtime effect was accepted.
