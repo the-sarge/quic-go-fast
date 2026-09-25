@@ -57,6 +57,17 @@ func TestBBRProbeBWTransitions(t *testing.T) {
 	}
 	require.EqualValues(t, 125000, x.b.PacingRate(), "Refill lasts one packet-timed round then Up")
 	require.False(t, x.b.InSlowStart())
+	t.Run("Cruise uses maximum bandwidth", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.up(t)
+		for range 3 {
+			x.ack(100000, 9000, SendUnknown)
+		}
+		x.lose(60000, SendUnknown) // exactly two percent: no long-term reduction
+		x.ack(20000, 8000, SendUnknown)
+		require.EqualValues(t, 70000, x.b.bandwidthShort)
+		require.Equal(t, bbrCruise, x.b.phase, "8000 bytes is below max-BDP 10000, above bounded-BDP 7000")
+	})
 }
 
 func (x *bbrProbeTrace) cruise() {
@@ -199,7 +210,8 @@ func TestBBRProbeBWCapsAcrossPhases(t *testing.T) {
 		// Stay below the risky level while fully using cwnd at ACK entry. The
 		// delivered packet's snapshot does not itself raise the capacity estimate.
 		for range 6 {
-			x.ackFlight(100000, x.b.GetCongestionWindow()-1200, 18000, SendUnknown)
+			flight := x.b.GetCongestionWindow() / 1200 * 1200
+			x.ackFlight(100000, flight-1200, 18000, SendUnknown)
 		}
 		require.Greater(t, x.b.GetCongestionWindow(), protocol.ByteCount(19183), "packet-scaled exponential slope grows a fully used cap")
 		require.Equal(t, bbrUp, x.b.phase, "a cap-limited sender must not declare a bandwidth plateau")
@@ -278,6 +290,29 @@ func TestBBRProbeBWAggregationBudget(t *testing.T) {
 }
 
 func TestBBRProbeBWDelayedFeedback(t *testing.T) {
+	t.Run("ACK facts without a rate sample", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.up(t)
+		for range 3 {
+			x.ack(100000, 9000, SendUnknown)
+		}
+		round, bandwidth := x.b.round, x.b.bandwidth
+		x.delivered += 1200
+		e := FeedbackEvent{HasAck: true, PostInFlight: 0, Delivery: DeliverySample{Delivered: x.delivered}}
+		x.b.Feedback(e)
+		require.Equal(t, bbrDown, x.b.phase, "invalid time cannot drive phase checks")
+		x.delivered += 1200
+		e.Time, e.Delivery.Delivered = x.now.Add(time.Millisecond), x.delivered
+		x.b.Feedback(e)
+		require.Equal(t, bbrCruise, x.b.phase, "authoritative flight can drain Down without a rate sample")
+		e.Time = x.b.cycleStamp.Add(x.b.probeWait + time.Nanosecond)
+		e.Delivery.Delivered += 1200
+		x.b.Feedback(e)
+		require.Equal(t, bbrRefill, x.b.phase, "authoritative time can expire the wait")
+		require.Equal(t, round, x.b.round, "invalid samples do not advance packet rounds")
+		require.Equal(t, bandwidth, x.b.bandwidth)
+	})
+
 	t.Run("probe losses arrive during Down", func(t *testing.T) {
 		x := newBBRProbeTrace()
 		x.up(t)

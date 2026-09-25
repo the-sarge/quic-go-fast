@@ -86,6 +86,12 @@ func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundSt
 			b.raiseProbeInflight(e, roundStart)
 		}
 	}
+	b.updateProbePhase(e, roundStart, true)
+}
+
+// ACK time and flight can drive phase decisions without a rate sample.
+// Filter aging, packet rounds and model-bound growth remain sample-owned.
+func (b *BBRSender) updateProbePhase(e FeedbackEvent, roundStart, sampleValid bool) {
 	switch b.phase {
 	case bbrStartup, bbrDrain:
 		return
@@ -94,7 +100,7 @@ func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundSt
 		rounds := min(uint64(63), max(uint64(1), (uint64(target)+uint64(b.size)-1)/uint64(b.size)))
 		if b.roundsSinceProbe >= rounds || e.Time.Sub(b.cycleStamp) > b.probeWait {
 			b.startProbeRefill(e.Delivery.Delivered)
-		} else if b.phase == bbrDown && e.PostInFlight <= b.inflight(1) && e.PostInFlight <= b.headroom() {
+		} else if b.phase == bbrDown && e.PostInFlight <= b.maxBandwidthInflight() && e.PostInFlight <= b.headroom() {
 			b.phase = bbrCruise
 		}
 	case bbrRefill:
@@ -109,8 +115,11 @@ func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundSt
 	case bbrUp:
 		if b.previousProbeTooHigh && e.PostInFlight >= b.inflightLong {
 			b.previousProbePrecautionary = true
-		} else if e.PriorInFlight >= b.window && b.window >= b.inflightLong {
-			b.fullBandwidth, b.plateau = e.Delivery.BytesPerSecond, 0
+		} else if b.windowLimited(e.PriorInFlight) && b.window >= b.inflightLong {
+			if sampleValid {
+				b.fullBandwidth = e.Delivery.BytesPerSecond
+			}
+			b.plateau = 0
 			return
 		} else if b.plateau < 3 {
 			return
@@ -133,6 +142,9 @@ func (b *BBRSender) probingBandwidth() bool {
 
 // The sampler reports the final cumulative count for the event. Subtract
 // later losses to recover the per-packet prefix, in recovery's ordinal order.
+// deliverySampler.feedback counts exactly the same-path, same-sample-generation
+// entries of FeedbackEvent.Lost; older sampling generations retain recovery
+// authority but cannot contribute to this sample-local prefix.
 func (b *BBRSender) probeLoss(e FeedbackEvent, p PacketInfo, remaining uint64) {
 	if !b.probeSample || p.SampleGeneration != e.SampleGeneration || e.SampleGeneration != b.sampleGeneration || e.Delivery.Lost < remaining {
 		return
@@ -170,7 +182,7 @@ func (b *BBRSender) raiseProbeSlope() {
 }
 
 func (b *BBRSender) raiseProbeInflight(e FeedbackEvent, roundStart bool) {
-	if e.PriorInFlight < b.window || b.window < b.inflightLong {
+	if !b.windowLimited(e.PriorInFlight) || b.window < b.inflightLong {
 		return
 	}
 	b.probeUpAcked = bbrBytes(uint64(b.probeUpAcked) + uint64(bbrBytes(e.Delivery.Delivered-b.delivered)))
@@ -180,4 +192,18 @@ func (b *BBRSender) raiseProbeInflight(e FeedbackEvent, roundStart bool) {
 	if roundStart {
 		b.raiseProbeSlope()
 	}
+}
+
+// Ordinary emission stops when its remaining byte allowance cannot fit M.
+// Bounds need not be packet-aligned, so exact byte occupancy is not required.
+func (b *BBRSender) windowLimited(flight protocol.ByteCount) bool {
+	return flight > b.window-b.size
+}
+
+func (b *BBRSender) maxBandwidthInflight() protocol.ByteCount {
+	target := b.initialWindow
+	if b.minimumRTT > 0 {
+		target = bbrBytes(bbrScale(b.bandwidth, uint64(b.minimumRTT), uint64(time.Second)))
+	}
+	return b.quantize(target)
 }

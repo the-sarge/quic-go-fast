@@ -99,6 +99,10 @@ func TestBBRDrainFlightAndRoundExit(t *testing.T) {
 		x.ack(20000, 9000, SendUnknown)
 		require.EqualValues(t, 70000, x.b.PacingRate())
 		require.EqualValues(t, 13440, x.b.GetCongestionWindow())
+		x.lose(20000, SendUnknown)
+		x.ack(20000, 9000, SendUnknown)
+		require.EqualValues(t, 49000, x.b.PacingRate(), "a distinct loss round compounds the seventy-percent bandwidth bound")
+		require.EqualValues(t, 9408, x.b.GetCongestionWindow(), "the established inflight bound also compounds")
 		x.b.Feedback(FeedbackEvent{Time: x.now.Add(time.Millisecond), HasAck: true, RawRTT: 10 * time.Millisecond, Delivery: DeliverySample{Delivered: x.delivered}})
 		require.EqualValues(t, 4800, x.b.GetCongestionWindow(), "smaller BDP caps the window, not the retained loss bound")
 	})
@@ -186,6 +190,13 @@ func TestBBRStartupLossRanges(t *testing.T) {
 			require.Equal(t, tc.wantStartup, b.InSlowStart())
 			if !tc.wantStartup {
 				require.EqualValues(t, 50000, b.PacingRate())
+			}
+			if tc.name == "six ranges" {
+				p := PacketInfo{Ordinal: 21, Length: 1200, AckEliciting: true, RegistrationValid: true, Delivery: DeliverySnapshot{Delivered: 2400, Lost: 7200, PostInFlight: 18000, Valid: true}}
+				b.Sent(SendEvent{Packet: p})
+				b.Feedback(FeedbackEvent{Time: monotime.Time(22 * time.Second), HasAck: true, Acked: []PacketInfo{p}, PostInFlight: 20000, Delivery: DeliverySample{Delivered: 3600, Lost: 7200, Ordinal: 21, BytesPerSecond: 100000, Interval: 100 * time.Millisecond, Valid: true}})
+				require.Equal(t, bbrDrain, b.phase)
+				require.EqualValues(t, 18000, b.inflightLong, "safe Drain feedback raises the finite Startup-loss cap")
 			}
 		})
 	}

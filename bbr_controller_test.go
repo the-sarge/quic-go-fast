@@ -21,7 +21,8 @@ func TestBBRTransportFeedbackToAllowance(t *testing.T) {
 			(<-q.queue).release()
 		}
 	}()
-	for range 4 {
+	seenDown, seenUp := false, false
+	for range 40 {
 		require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 1100)}))
 		pn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 		r := c.triggerSending(now)
@@ -33,15 +34,26 @@ func TestBBRTransportFeedbackToAllowance(t *testing.T) {
 		entry.release()
 		_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, now.Add(100*time.Millisecond))
 		require.NoError(t, err)
-		now = now.Add(200 * time.Millisecond)
+		// With one fixed-size packet acknowledged every 100ms, the real
+		// sampler's capacity sample is ten times the packet byte length.
+		bandwidth := uint64(length) * 10
+		seenDown = seenDown || b.PacingRate() == bandwidth*9/10
+		seenUp = seenUp || b.PacingRate() == bandwidth*5/4
+		now = now.Add(100 * time.Millisecond)
+		if seenDown && seenUp {
+			break
+		}
 	}
 	require.False(t, b.InSlowStart(), "real DATAGRAM registration and ACK samples leave Startup")
+	require.True(t, seenDown, "real recovery reaches Probe Down")
+	require.True(t, seenUp, "real recovery completes refill and enters Probe Up")
 	require.Positive(t, b.PacingRate())
 	require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 1100)}))
 	require.True(t, c.triggerSending(now).progress)
 	require.Equal(t, max(uint64(1), b.PacingRate()*99/100), c.emission.bbr.rate, "one margin, no Reno gain")
 	entry := <-q.queue
 	entry.release()
+	probeRate, probeWindow := b.PacingRate(), b.GetCongestionWindow()
 	// Leave that packet outstanding, then ACK a newer registration after the
 	// loss delay. Recovery, rather than a hand-built event, supplies real loss.
 	now = now.Add(100 * time.Millisecond)
@@ -53,4 +65,13 @@ func TestBBRTransportFeedbackToAllowance(t *testing.T) {
 	_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: newest, Largest: newest}}}, protocol.Encryption1RTT, now.Add(100*time.Millisecond))
 	require.NoError(t, err)
 	require.True(t, b.InRecovery(), "real recovery loss reaches the BBR owner")
+	require.Less(t, b.PacingRate(), probeRate, "probe loss reduces the rate published to emission")
+	require.LessOrEqual(t, b.GetCongestionWindow(), probeWindow, "real sampler loss accounting applies the probe bound")
+	// Refresh the real emission allowance after the ACK-side model reduction.
+	now = now.Add(200 * time.Millisecond)
+	require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, 1100)}))
+	require.True(t, c.triggerSending(now).progress)
+	require.Equal(t, max(uint64(1), b.PacingRate()*99/100), c.emission.bbr.rate)
+	entry = <-q.queue
+	entry.release()
 }

@@ -140,6 +140,9 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		}
 	}
 	if anchor == nil || !anchor.Delivery.Valid || anchor.Delivery.Delivered > s.Delivered || anchor.PathGeneration != b.pathGeneration || anchor.SampleGeneration != b.sampleGeneration || anchor.MTUProbe || anchor.PathProbe || !s.Valid || s.Interval <= 0 {
+		if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
+			b.updateProbePhase(e, false, false)
+		}
 		b.applyACK(e, clockValid)
 		return
 	}
@@ -192,7 +195,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 			b.drainRound = b.round
 		}
 	}
-	if b.phase >= bbrDown {
+	if b.phase != bbrStartup {
 		b.updateProbeCycle(e, *anchor, roundStart)
 	}
 	b.applyACK(e, clockValid)
