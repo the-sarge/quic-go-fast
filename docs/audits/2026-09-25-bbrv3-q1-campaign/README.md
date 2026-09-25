@@ -281,7 +281,11 @@ The UDP probe also builds natively for Darwin. Darwin returns traffic class as
 `IP_RECVTOS`; it has no Linux `SO_RXQ_OVFL` ancillary counter. A zero `SocketDrops`
 field on Mac therefore proves nothing: collect host-wide UDP full-buffer-drop
 counters before and after each probe and require zero growth for admission.
-The receipt labels the counter capability. See [Apple IP socket documentation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man4/ip.4).
+The receipt labels the counter capability. Darwin probes request a 6 MiB
+per-socket receive buffer and record the actual value. The earlier 4 MiB
+reverse S3 observation lost 3,977 packets to the Mac mini socket buffer and
+remains invalid; enlarging the probe buffer does not change host-wide settings
+or the QUIC fixture. See [Apple IP socket documentation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man4/ip.4).
 
 The gateway remains alive for 20 seconds after the measured window, covering
 the fixture’s 15-second bounded final receipt exchange plus five seconds of
