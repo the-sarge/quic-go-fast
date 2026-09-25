@@ -1,7 +1,7 @@
 # Complete opt-in BBRv3 sender implementation plan
 
 **Date:** 2026-09-24
-**Status:** B1 ready; B2–B6 blocked by their declared predecessors
+**Status:** B1 complete; B2 ready; B3–B6 blocked by their declared predecessors
 **Track:** B in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
@@ -29,8 +29,8 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| [B1](#b1) | Ready | Drive private BBR Startup and Drain through transport feedback | T2 | None; see slice budget |
-| [B2](#b2) | new | Complete draft ProbeBW cycling and congestion bounds | B1 | B1 private terminal Cruise |
+| [B1](#b1) | Complete | Drive private BBR Startup and Drain through transport feedback | T2 | None; see slice budget |
+| [B2](#b2) | Ready | Complete draft ProbeBW cycling and congestion bounds | B1 | B1 private terminal Cruise |
 | [B3](#b3) | new | Integrate guarded ProbeRTT and genuine idle restart | B2 | None; see slice budget |
 | [B4](#b4) | new | Apply persistent classic-ECN response in every BBR phase | B3, T4 | None; see slice budget |
 | [B5](#b5) | new | Compose loss undo and persistent-congestion restart | B4, T5 | None; see slice budget |
@@ -82,13 +82,13 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
-| ACK/sample/real loss input | One model update and declared initial/phase allowance | BBR reducer | real recovery trace | Required before slice completion |
-| Registration advances sampling with pending recovery | Preserve current-model losses/episode state; admit live earlier-sample losses | BBR reducer fact admission | `TestBBRStartupLossRanges` | Required before slice completion |
-| 0-RTT sampling fence before a new registration | Admit same-path recovery while excluding stale delivery/rate/RTT | BBR reducer fact admission | `TestBBRPrivateResetAndClose` | Required before slice completion |
-| Clock/sample validity and model disposal | Optional evidence cannot suppress recovery; old-model facts cannot mutate fresh/disposed state | BBR reducer fact admission and lifecycle reset | Existing loss/lifecycle tables with negative cases | Required before slice completion |
-| Low BDP dominated by offload allowance | Shared 2Q/four-M floor for window and Drain target | BBR reducer quantization | `TestBBRDrainFlightAndRoundExit`, Q=4950 and post-event flight=8000 | Required before slice completion |
-| Limited versus capacity sample | No false plateau from supply limitation | BBR reducer | limited trace | Required before slice completion |
-| Reset/close | Fresh/disposed model, no stale sample update | BBR lifecycle entry | generation fixture | Required before slice completion |
+| ACK/sample/real loss input | One model update and declared initial/phase allowance | BBR reducer | `TestBBRTransportFeedbackToAllowance`, Startup/Drain and arithmetic tables | Covered |
+| Registration advances sampling with pending recovery | Preserve current-model losses/episode state; admit live earlier-sample losses | BBR reducer fact admission | `TestBBRStartupLossRanges` | Covered |
+| 0-RTT sampling fence before a new registration | Admit same-path recovery while excluding stale delivery/rate/RTT | BBR reducer fact admission | `TestBBRPrivateResetAndClose` | Covered |
+| Clock/sample validity and model disposal | Optional evidence cannot suppress recovery; old-model facts cannot mutate fresh/disposed state | BBR reducer fact admission and lifecycle reset | Existing loss/lifecycle tables with negative cases | Covered |
+| Low BDP dominated by offload allowance | Shared 2Q/four-M floor for window and Drain target | BBR reducer quantization | `TestBBRDrainFlightAndRoundExit`, Q=4950 and post-event flight=8000 | Covered |
+| Limited versus capacity sample | No false plateau from supply limitation | BBR reducer | `TestBBRStartupLimitedSamples` | Covered |
+| Reset/close | Fresh/disposed model, no stale sample update | BBR lifecycle entry | `TestBBRPrivateResetAndClose`; default Reno constructor table | Covered |
 
 **Evidence budget:** At most 8 new focused table-driven test functions; one representative positive and one materially distinct negative per listed behavior. One focused race run for changed concurrent/connection seams; no statistical repetition, new platform cross-product or native benchmark in this implementation slice. The operator-approved scoped continuation permits verification of the triggering replacement review followed by one terminal fresh review. Any new required root or unresolved approach stop returns for decision; no automatic budget renewal. This is the B1-only approved exception to the common review budget. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 

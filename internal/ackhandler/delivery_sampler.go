@@ -161,6 +161,9 @@ func (h *sentPacketHandler) ExpireDelivery(now monotime.Time) {
 }
 
 func (h *sentPacketHandler) CloseDelivery() {
+	if b, ok := h.congestion.(*congestion.BBRSender); ok {
+		b.Close()
+	}
 	h.congestionEvents = nil
 	if h.bbrECN != nil {
 		h.bbrECN.closed = true

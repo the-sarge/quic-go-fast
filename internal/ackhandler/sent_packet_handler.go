@@ -1225,13 +1225,18 @@ func (h *sentPacketHandler) MigratedPath(now monotime.Time, initialMaxDatagramSi
 	for pn := range h.appDataPackets.history.PathProbes() {
 		h.appDataPackets.history.RemovePathProbe(pn)
 	}
-	h.congestion = congestion.NewCubicSender(
-		congestion.DefaultClock{},
-		h.rttStats,
-		h.connStats,
-		initialMaxDatagramSize,
-		true, // use Reno
-		h.qlogger,
-	)
+	if b, ok := h.congestion.(*congestion.BBRSender); ok {
+		b.SetMaxDatagramSize(initialMaxDatagramSize)
+		b.Reset(h.congestionEvents.pathGeneration, h.congestionEvents.sampleGeneration, h.congestionEvents.sampler.delivered)
+	} else {
+		h.congestion = congestion.NewCubicSender(
+			congestion.DefaultClock{},
+			h.rttStats,
+			h.connStats,
+			initialMaxDatagramSize,
+			true, // use Reno
+			h.qlogger,
+		)
+	}
 	h.setLossDetectionTimer(now)
 }
