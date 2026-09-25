@@ -3694,3 +3694,30 @@ B1 and Q1 remain ready; T5 completion creates no newly ready slice because B5 st
 **Decision:** Recommend separately scoping bounded narrow-ACK lookups through the existing packet-space key map. One disposable candidate reduced paired mean ACK time by 31.6–73.5% across the six cases, without added index storage or registration work. The [revision-pinned report](https://github.com/the-sarge/quic-go-fast/blob/dc6c8fbd8deb8afb631c07344a627927025040ee/docs/audits/issue-618-recovery-ack-cost/README.md) owns the recommendation and its limits, including an unrepeated tail excursion, unmeasured dense-ACK behavior and the initial fixture's atomic-copy warning. Local thresholds are diagnostic, not native qualification or activation gates.
 
 **Validation:** All 18 corrected comparison pairs completed within the finite budget; recorded measurement execution totaled 513.360 seconds. Existing T5 and affected-package tests, corrected scratch/restored-source vet, module tidiness, raw-evidence hashes and documentation checks passed. RAS review `20260924T224948-64bf313bbc1dcd1c53b0ada6` led to two documentation corrections; the shared docs-only polish policy skipped another review/verify. The [disposition and local certification receipt](https://github.com/the-sarge/quic-go-fast/pull/624#issuecomment-5823627757) records head `95e9a4c32ad75fb28567abcb61c7bc57e03a114d`; all 33 hosted checks passed before squash merge. No deferred RAS findings remain.
+
+---
+
+## Private BBR Startup and Drain landed - 2026-09-24 20:48 EDT
+
+**Main:** `6c91b4b50ff5`
+**Actor:** Codex
+
+### Summary
+
+Merged the private BBR Startup/Drain slice in [PR #627](https://github.com/the-sarge/quic-go-fast/pull/627), completing [B1 #592](https://github.com/the-sarge/quic-go-fast/issues/592). The connection-owned reducer consumes real recovery feedback and drives bounded emission through Startup, Drain and a private non-probing Cruise terminal. Ordinary client/server construction still selects Reno; public BBR activation remains reserved for B6.
+
+### Completed
+
+Implemented checked model arithmetic, initial/window/rate control, qualifying plateau and loss exits, lower-bound retention, ACK aggregation and reset/close behavior. The product also committed the B1-complete/B2-and-Q1-frontier transition. Review fixes distinguish current-model recovery authority from optional sampling/time eligibility and apply the accepted shared two-quantum offload floor. Eight focused test functions cover reducer semantics, actual recovery and real packet emission.
+
+### Decisions
+
+The operator approved one bounded continuation after the original review budget exposed required authority and quantization gaps. [Contract PR #628](https://github.com/the-sarge/quic-go-fast/pull/628) published the revised B1 closure matrix before implementation resumed; the [scoped re-audit](https://github.com/the-sarge/quic-go-fast/pull/627#issuecomment-5824503500) owns the causal history. The same private outcome, reducer owner, test-function ceiling and product PR boundary were retained. No additional review campaign or adjacent B2–B6 behavior was absorbed.
+
+### Validation
+
+The [exact-head receipt](https://github.com/the-sarge/quic-go-fast/pull/627#issuecomment-5824748506) records source head `91e4145badf7e738179d63bfbc2ef7e85c651052`, base `ea5e1486fb69b85b1bc340befe003d57c07a33c4`, and Go 1.27.1 on Darwin/arm64. Affected-package tests, focused race, vet, tidy, go-fix checks, lint and clean-tree/diff checks passed. All 17 jobs across hosted unit, integration, lint, cross-compilation and interop workflows passed on that head. Both finding verifications cleared their blocking projections; terminal review `20260925T003623-488f9469a1314be174043b7f` produced no required fix or follow-up. Its unsupported post-close migration observation was independently rejected after checking production lifecycle ordering.
+
+### Next
+
+The committed frontier is B2 and Q1; [program #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live tracking view. Reconcile the completed B1 task and newly ready B2 mirrors after this journal lands. Revalidate the deferred private packet-size allocation optimization on the merged product before filing a nonblocking follow-up. No untraced product effect remains accepted.
