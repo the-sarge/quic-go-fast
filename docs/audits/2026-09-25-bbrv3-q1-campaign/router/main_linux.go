@@ -141,6 +141,9 @@ func socket(name string) (int, *net.Interface, error) {
 	if e = unix.SetsockoptTimeval(fd, unix.SOL_SOCKET, unix.SO_RCVTIMEO, &unix.Timeval{Usec: 100000}); e != nil {
 		return fail(e)
 	}
+	if e = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_RCVBUF, 4<<20); e != nil {
+		return fail(e)
+	}
 	if e = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_TIMESTAMPNS, 1); e != nil {
 		return fail(e)
 	}
