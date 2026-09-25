@@ -44,7 +44,7 @@ func (b *BBRSender) startProbeDown(now monotime.Time, delivered uint64) {
 	b.lossBytes, b.lossFlight = 0, 0
 	b.latestRate, b.latestVolume = 0, 0
 	b.ackPhase = bbrAcksStopping
-	b.cycleStamp = now
+	b.cycleStamp = max(now, b.lastEvent)
 	b.probeWait = 2*time.Second + time.Duration(b.random(1000000000))
 	b.roundsSinceProbe = uint64(b.random(2))
 	b.nextRound = delivered
@@ -115,7 +115,7 @@ func (b *BBRSender) updateProbePhase(e FeedbackEvent, roundStart, sampleValid bo
 	case bbrUp:
 		if b.previousProbeTooHigh && e.PostInFlight >= b.inflightLong {
 			b.previousProbePrecautionary = true
-		} else if b.windowLimited(e.PriorInFlight) && b.window >= b.inflightLong {
+		} else if b.roundWindowLimited() && b.window >= b.inflightLong {
 			if sampleValid {
 				b.fullBandwidth = e.Delivery.BytesPerSecond
 			}
@@ -172,7 +172,7 @@ func (b *BBRSender) probeLoss(e FeedbackEvent, p PacketInfo, remaining uint64) {
 		b.inflightLong = max(bbrBytes(previousFlight+prefix), bbrBytes(bbrScale(uint64(min(b.bdp(1), b.window)), 7, 10)))
 	}
 	if b.phase == bbrUp {
-		b.startProbeDown(max(e.Time, b.lastEvent), e.Delivery.Delivered)
+		b.startProbeDown(e.Time, e.Delivery.Delivered)
 	}
 }
 
@@ -182,7 +182,7 @@ func (b *BBRSender) raiseProbeSlope() {
 }
 
 func (b *BBRSender) raiseProbeInflight(e FeedbackEvent, roundStart bool) {
-	if !b.windowLimited(e.PriorInFlight) || b.window < b.inflightLong {
+	if !b.roundWindowLimited() || b.window < b.inflightLong {
 		return
 	}
 	b.probeUpAcked = bbrBytes(uint64(b.probeUpAcked) + uint64(bbrBytes(e.Delivery.Delivered-b.delivered)))
@@ -206,4 +206,8 @@ func (b *BBRSender) maxBandwidthInflight() protocol.ByteCount {
 		target = bbrBytes(bbrScale(b.bandwidth, uint64(b.minimumRTT), uint64(time.Second)))
 	}
 	return b.quantize(target)
+}
+
+func (b *BBRSender) roundWindowLimited() bool {
+	return b.windowUsedInRound || b.windowUsedLastRound
 }

@@ -69,6 +69,30 @@ func TestBBRStartupLimitedSamples(t *testing.T) {
 }
 
 func TestBBRDrainFlightAndRoundExit(t *testing.T) {
+	for _, zero := range []bool{false, true} {
+		t.Run(fmt.Sprintf("invalid Drain clock zero=%v", zero), func(t *testing.T) {
+			x := newBBRProbeTrace()
+			x.now = monotime.Time(10 * time.Second)
+			for range 4 {
+				x.ack(100000, 20000, SendUnknown)
+			}
+			require.Equal(t, bbrDrain, x.b.phase)
+			last := x.b.lastEvent
+			now := last.Add(-50 * time.Millisecond)
+			if zero {
+				now = 0
+			}
+			e := FeedbackEvent{Time: now, HasAck: true, PostInFlight: 9000, Delivery: DeliverySample{Delivered: x.delivered + 1200}}
+			x.b.Feedback(e)
+			require.Equal(t, bbrDown, x.b.phase)
+			require.Equal(t, last, x.b.cycleStamp, "phase entry cannot use rejected clock evidence")
+			e.Time = last.Add(2*time.Second - time.Nanosecond)
+			e.Delivery.Delivered += 1200
+			x.b.Feedback(e)
+			require.Equal(t, bbrCruise, x.b.phase, "the next admitted ACK cannot expire the wait early")
+		})
+	}
+
 	t.Run("two-quantum offload floor", func(t *testing.T) {
 		b := NewBBRSender(1200)
 		b.phase, b.bandwidth, b.minimumRTT, b.window = bbrDrain, 10000000, 100*time.Microsecond, 40000

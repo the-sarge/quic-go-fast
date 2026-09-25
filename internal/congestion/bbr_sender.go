@@ -27,6 +27,7 @@ const (
 // owns the input facts; emission owns pacing debt and applies the 1% margin.
 // No public connection selects this incomplete controller.
 type BBRSender struct {
+	windowUsedInRound, windowUsedLastRound           bool
 	previousProbeTooHigh, previousProbePrecautionary bool
 	probeUpRounds                                    uint8
 	probeUpAcked, probeUpPerIncrement                protocol.ByteCount
@@ -96,6 +97,9 @@ func (b *BBRSender) Sent(e SendEvent) {
 	}
 	b.advanceSampling(p.SampleGeneration, p.Delivery.Delivered)
 	b.delivered = max(b.delivered, p.Delivery.Delivered)
+	if p.AckEliciting && !p.PathProbe && !p.MTUProbe {
+		b.windowUsedInRound = b.windowUsedInRound || b.windowLimited(e.PostInFlight)
+	}
 }
 
 // Sampling fences retire optional measurements, not current-model recovery.
@@ -103,6 +107,7 @@ func (b *BBRSender) Sent(e SendEvent) {
 func (b *BBRSender) advanceSampling(generation, delivered uint64) {
 	if generation > b.sampleGeneration {
 		b.sampleGeneration = generation
+		b.windowUsedInRound, b.windowUsedLastRound = false, false
 		b.nextRound = delivered
 	}
 }
@@ -132,6 +137,9 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	if !e.HasAck || s.Delivered < b.delivered {
 		return
 	}
+	if clockValid {
+		b.windowUsedInRound = b.windowUsedInRound || b.windowLimited(e.PriorInFlight)
+	}
 	var anchor *PacketInfo
 	for i := range e.Acked {
 		if e.Acked[i].Ordinal == s.Ordinal {
@@ -148,6 +156,9 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	}
 	roundStart := anchor.Delivery.Delivered >= b.nextRound
 	if roundStart {
+		// Consumers on the boundary ACK still see the just-completed round.
+		// A later complete round replaces it, including a round with no usage.
+		b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
 		b.round++
 		b.nextRound = s.Delivered
 	}

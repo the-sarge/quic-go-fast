@@ -184,6 +184,61 @@ func TestBBRProbeBWLossBoundAttribution(t *testing.T) {
 }
 
 func TestBBRProbeBWCapsAcrossPhases(t *testing.T) {
+	t.Run("utilization lifetime", func(t *testing.T) {
+		b := NewBBRSender(1200)
+		event := SendEvent{Packet: PacketInfo{AckEliciting: true, RegistrationValid: true}, PostInFlight: 12000}
+		b.Sent(event)
+		require.True(t, b.roundWindowLimited())
+		b.Reset(1, 1, 0)
+		b.Sent(event)
+		require.False(t, b.roundWindowLimited(), "old path registration cannot restore utilization after reset")
+		event.Packet.PathGeneration, event.Packet.SampleGeneration = 1, 1
+		b.Sent(event)
+		require.True(t, b.roundWindowLimited())
+		event.Packet.SampleGeneration = 2
+		event.PostInFlight = 1200
+		b.Sent(event)
+		require.False(t, b.roundWindowLimited(), "a new sample-round boundary retires old utilization")
+		event.Packet.SampleGeneration = 1
+		event.PostInFlight = 12000
+		b.Sent(event)
+		require.False(t, b.roundWindowLimited(), "stale registration cannot revive retired round history")
+		b.Close()
+		b.Sent(event)
+		require.False(t, b.roundWindowLimited())
+	})
+
+	t.Run("remember utilization over a packet round", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.up(t)
+		x.lose(20000, SendUnknown)
+		for range 12 {
+			x.ackFlight(100000, 0, 1200, SendUnknown)
+			if x.b.phase == bbrUp {
+				break
+			}
+		}
+		require.Equal(t, bbrUp, x.b.phase)
+		x.ackFlight(100000, 0, 1200, SendUnknown)
+		cap := x.b.GetCongestionWindow()
+		require.EqualValues(t, 19183, cap)
+		boundary := x.delivered
+		// Earlier in this round, ordinary packets used all whole-packet credit.
+		// Subsequent ACKs can arrive after flight has fallen below that level.
+		x.b.Sent(SendEvent{Packet: PacketInfo{RegistrationValid: true, AckEliciting: true, Delivery: DeliverySnapshot{Delivered: boundary}}, PostInFlight: 18000})
+		for range 10 {
+			x.ackFrom(100000, 0, 1200, SendUnknown, boundary)
+		}
+		require.Greater(t, x.b.GetCongestionWindow(), cap, "low-flight ACKs consume the round's remembered full-window observation")
+		require.Equal(t, bbrUp, x.b.phase)
+		require.Zero(t, x.b.plateau, "remembered utilization suppresses a cap-limited plateau")
+		// A completed round with no full-window use replaces that observation.
+		for range 3 {
+			x.ackFlight(100000, 0, 1200, SendUnknown)
+		}
+		require.Equal(t, bbrDown, x.b.phase, "old utilization cannot suppress plateaus indefinitely")
+	})
+
 	t.Run("Up window gain and quantization", func(t *testing.T) {
 		x := newBBRProbeTrace()
 		x.up(t)
