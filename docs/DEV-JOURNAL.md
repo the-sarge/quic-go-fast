@@ -3721,3 +3721,26 @@ The [exact-head receipt](https://github.com/the-sarge/quic-go-fast/pull/627#issu
 ### Next
 
 The committed frontier is B2 and Q1; [program #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live tracking view. Reconcile the completed B1 task and newly ready B2 mirrors after this journal lands. Revalidate the deferred private packet-size allocation optimization on the merged product before filing a nonblocking follow-up. No untraced product effect remains accepted.
+
+---
+
+## Private BBR ProbeBW landed - 2026-09-24 22:42 EDT
+
+**Main:** `c0fcd4fd9a38`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #631](https://github.com/the-sarge/quic-go-fast/pull/631) as `c0fcd4fd9a38b2eaeaac3eb62d91798d2eed8dd9`, completing [B2 #593](https://github.com/the-sarge/quic-go-fast/issues/593). The private BBR reducer now implements draft-06 Down/Cruise/Refill/Up cycling, ACK-phase bandwidth aging, probe-loss bounds, cap growth and randomized coexistence scheduling. Ordinary construction still selects Reno; ProbeRTT, ECN, undo and public activation remain successor work.
+
+### Decisions
+
+The operator waived dispatch-context and review-round ceilings while retaining the accepted B2 contract, single reducer, typed events, one product PR and ten-function evidence shape. [Independent dispositions and continuation history](https://github.com/the-sarge/quic-go-fast/pull/631#issuecomment-5825693890) record the required fixes and rejected draft deviations. Final corrections align Drain entry and loss-round reseeding with the draft's ACK order; earlier fixes preserve monotonic cycle time and round-scoped window utilization. No maintained verification framework, additional platform campaign or adjacent behavior was added.
+
+### Validation
+
+The [local certification receipt](https://github.com/the-sarge/quic-go-fast/pull/631#issuecomment-5825754168) records clean head `1a44cbb18212f8bc1fbae4e65fa94bdd41580a5a`, base `6b8ff249ae66f96f1da3274ba3d9ff727ed39b1a`, and Go 1.27.1 on Darwin/arm64. Red/green regressions, the real send/recovery trace, `go test ./...`, affected-package vet, module tidiness, lint and diff checks passed. Terminal review `20260925T021335-a673c0bfbe3d529d0ee2a1ef` verification resolved both accepted findings without new observations. [All 33 hosted checks](https://github.com/the-sarge/quic-go-fast/pull/631#issuecomment-5825789044) passed, including platform/race integration and interoperability, before the exact-head squash merge.
+
+### Next
+
+The product committed B2 complete and the B3/Q1 frontier; [program #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live tracking view. Reconcile the completed B2 task and newly ready B3 mirrors after this journal lands. No deferred review finding or untraced effect remains.
