@@ -200,3 +200,21 @@ measurement denominator remains 300 seconds. Only the accepted 240/270-second
 pause on a 60+300-second reliable stream is admitted by the fixture. These
 commands still require an independently provisioned and calibrated competitor
 pair; schedule generation alone is not native coexistence evidence.
+
+Gateway hardware receive coalescing (`rx-gro-hw`) must be disabled explicitly
+as well as software GRO/LRO/GSO/TSO. A native CUBIC diagnostic exposed 2,788-byte
+coalesced TCP packets with software GRO already off; the adapter rejected them
+under its 1,460-byte canonical contract. Capture and retain the actual feature
+state of both gateway interfaces. The canonical contract is unchanged.
+
+Each frozen case receives a disjoint eight-port block derived from its inventory
+index, as specified in the competitor schedule. Reusing a fixed TCP client port
+immediately after a run can fail in `TIME_WAIT`; that setup failure is retained
+and invalidates the case. A retry needs its own recorded unused block.
+
+The gateway candidate at `d17e45fe` includes socket-submission time in its
+departure-lateness counter. A short S3 offered-load diagnostic with `GOGC=400`
+and `GOMEMLIMIT=4GiB` passed at 3.810 ms admission / 3.281 ms submission lateness
+and about 240 MiB peak RSS. This is a bounded runtime-setting candidate, not
+long-duration qualification. A prior GC-suppressed hypothesis run also passed,
+but used about 2.3 GiB in ten seconds and is not the selected configuration.

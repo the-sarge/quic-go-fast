@@ -12,7 +12,7 @@
   "total_experiment_ceiling_hours": 48,
   "preparation_ceiling_hours": 16,
   "cloud_ceiling_usd": 100,
-  "source_revision": "f627e4bd",
+  "source_revision": "d17e45fe",
   "controller_order": "Python Random(635598), frozen above; consumers use recorded order, not a regenerated shuffle",
   "clock_contract": "start_unix_ns is deliberately absent until a calibrated native launch; fixture start is warm-up start, router StartUnixNS is measurement start; completion starts both clocks together",
   "packet_domain": {
@@ -23,10 +23,19 @@
     "record_metadata_bytes": 16
   },
   "remaining": [
-    "native adapter rate/RTT/timing/mark gates at the final source",
-    "Windows native fixture and resource evidence",
+    "native adapter long-duration rate/RTT/timing/mark gates at the selected source and runtime settings",
     "Mac CPU-isolation decision and local gateway placement",
-    "competitor resource isolation, TCP CUBIC/QUIC commands and native observations",
+    "competitor phase orchestration and final native observations",
     "full launch-through-teardown cost and command certification"
-  ]
+  ],
+  "gateway_candidate": {
+    "source": "d17e45fe",
+    "gc_percent": 400,
+    "go_memory_limit": "4GiB",
+    "software_offloads": "GRO/LRO/GSO/TSO disabled on both gateway interfaces",
+    "hardware_receive_coalescing": "rx-gro-hw disabled separately on both gateway interfaces; record ethtool state",
+    "timing": "Maximum ingress delay and kernel-submission lateness <=5 ms; receiver probes still required for actual path observations",
+    "status": "short S3 diagnostic passed; long-duration and competitor qualification still pending"
+  },
+  "port_assignment": "competitor-schedule-candidate.json port_contract, based on frozen zero-based case index"
 }
