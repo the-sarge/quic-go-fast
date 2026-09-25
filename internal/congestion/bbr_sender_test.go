@@ -69,6 +69,61 @@ func TestBBRStartupLimitedSamples(t *testing.T) {
 }
 
 func TestBBRDrainFlightAndRoundExit(t *testing.T) {
+	for _, sampled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("same ACK Cruise sampled=%v", sampled), func(t *testing.T) {
+			x := newBBRProbeTrace()
+			for range 4 {
+				x.ack(100000, 20000, SendUnknown)
+			}
+			x.b.inflightLong = 12000
+			round := x.b.round
+			if sampled {
+				x.ack(100000, 9000, SendUnknown)
+			} else {
+				x.now = x.now.Add(100 * time.Millisecond)
+				x.delivered += 1200
+				x.b.Feedback(FeedbackEvent{Time: x.now, HasAck: true, PostInFlight: 9000, Delivery: DeliverySample{Delivered: x.delivered}})
+			}
+			require.Equal(t, bbrCruise, x.b.phase)
+			require.EqualValues(t, 100000, x.b.PacingRate())
+			require.EqualValues(t, 10200, x.b.GetCongestionWindow(), "same-ACK Cruise headroom")
+			require.Equal(t, x.delivered, x.b.nextRound)
+			require.Zero(t, x.b.roundsSinceProbe, "entry resets the wait after counting this ACK round")
+			if sampled {
+				require.Equal(t, round+1, x.b.round, "only the existing packet-round boundary advances")
+				require.EqualValues(t, 1, x.b.cycle, "StartRound preserves the boundary consumed by AdaptLongTermModel")
+				require.Equal(t, bbrAcksInit, x.b.ackPhase)
+			} else {
+				require.Equal(t, round, x.b.round)
+				require.Zero(t, x.b.cycle, "ACK facts alone cannot advance filter cycles")
+				require.Equal(t, bbrAcksStopping, x.b.ackPhase)
+			}
+		})
+	}
+	for _, zero := range []bool{false, true} {
+		t.Run(fmt.Sprintf("invalid Drain clock zero=%v", zero), func(t *testing.T) {
+			x := newBBRProbeTrace()
+			x.now = monotime.Time(10 * time.Second)
+			for range 4 {
+				x.ack(100000, 20000, SendUnknown)
+			}
+			require.Equal(t, bbrDrain, x.b.phase)
+			last := x.b.lastEvent
+			now := last.Add(-50 * time.Millisecond)
+			if zero {
+				now = 0
+			}
+			e := FeedbackEvent{Time: now, HasAck: true, PostInFlight: 9000, Delivery: DeliverySample{Delivered: x.delivered + 1200}}
+			x.b.Feedback(e)
+			require.Equal(t, bbrDown, x.b.phase)
+			require.Equal(t, last, x.b.cycleStamp, "phase entry cannot use rejected clock evidence")
+			e.Time = last.Add(2*time.Second - time.Nanosecond)
+			e.Delivery.Delivered += 1200
+			x.b.Feedback(e)
+			require.Equal(t, bbrCruise, x.b.phase, "the next admitted ACK cannot expire the wait early")
+		})
+	}
+
 	t.Run("two-quantum offload floor", func(t *testing.T) {
 		b := NewBBRSender(1200)
 		b.phase, b.bandwidth, b.minimumRTT, b.window = bbrDrain, 10000000, 100*time.Microsecond, 40000
@@ -76,7 +131,7 @@ func TestBBRDrainFlightAndRoundExit(t *testing.T) {
 		b.Feedback(FeedbackEvent{Time: monotime.Time(time.Second), HasAck: true, PostInFlight: 20000, Delivery: DeliverySample{Delivered: 1200}})
 		require.EqualValues(t, 9900, b.GetCongestionWindow(), "ACK target includes two offload quanta")
 		b.Feedback(FeedbackEvent{Time: monotime.Time(2 * time.Second), HasAck: true, PostInFlight: 8000, Delivery: DeliverySample{Delivered: 1200}})
-		require.Equal(t, bbrCruise, b.phase, "8000 bytes fits the Drain target of 9900")
+		require.Equal(t, bbrDown, b.phase, "8000 bytes fits the Drain target of 9900")
 	})
 	t.Run("aggregate before four-packet floor", func(t *testing.T) {
 		b := NewBBRSender(1200)
@@ -85,25 +140,28 @@ func TestBBRDrainFlightAndRoundExit(t *testing.T) {
 		}
 		require.EqualValues(t, 4800, b.GetCongestionWindow(), "2*1200 BDP + 1200 aggregation remains below four M")
 	})
+
 	t.Run("Cruise loss retains seventy percent", func(t *testing.T) {
-		b := NewBBRSender(1200)
-		for i := uint64(1); i <= 4; i++ {
-			feedbackRound(b, i, i*1200, 100000, SendUnknown, 0)
+		x := newBBRProbeTrace()
+		for range 3 {
+			x.ack(100000, 20000, SendUnknown)
 		}
-		for i := uint64(5); i <= 6; i++ {
-			feedbackRound(b, i, i*1200, 20000, SendUnknown, 20000)
+		x.ack(100000, 0, SendUnknown)
+		for range 2 {
+			x.ack(20000, 9000, SendUnknown)
 		}
-		lost := PacketInfo{Space: protocol.Encryption1RTT, Ordinal: 7, Length: 1200, AckEliciting: true, RegistrationValid: true, Delivery: DeliverySnapshot{Valid: true, PostInFlight: 20000}}
-		b.Feedback(FeedbackEvent{Time: monotime.Time(7100 * time.Millisecond), Lost: []PacketInfo{lost}, Delivery: DeliverySample{Delivered: 7200}, RecoveryEpisode: RecoveryEpisode{Entered: true, Active: true}})
-		feedbackRound(b, 8, 8400, 20000, SendUnknown, 20000)
-		require.EqualValues(t, 70000, b.PacingRate())
-		require.EqualValues(t, 13440, b.GetCongestionWindow())
-		feedbackRoundRTT(b, 9, 9600, 20000, SendUnknown, 20000, 10*time.Millisecond)
-		require.EqualValues(t, 4800, b.GetCongestionWindow(), "smaller BDP caps the window, not the retained loss bound")
-		b.Feedback(FeedbackEvent{Time: monotime.Time(10100 * time.Millisecond), Lost: []PacketInfo{lost}, Delivery: DeliverySample{Delivered: 9600}})
-		feedbackRound(b, 11, 10800, 1000000, SendUnknown, 20000)
-		require.EqualValues(t, 6000, b.GetCongestionWindow(), "a second loss round retains 0.7 of the established bound, allowing ACK growth")
+		x.lose(20000, SendUnknown)
+		x.ack(20000, 9000, SendUnknown)
+		require.EqualValues(t, 70000, x.b.PacingRate())
+		require.EqualValues(t, 13440, x.b.GetCongestionWindow())
+		x.lose(20000, SendUnknown)
+		x.ack(20000, 9000, SendUnknown)
+		require.EqualValues(t, 49000, x.b.PacingRate(), "a distinct loss round compounds the seventy-percent bandwidth bound")
+		require.EqualValues(t, 9408, x.b.GetCongestionWindow(), "the established inflight bound also compounds")
+		x.b.Feedback(FeedbackEvent{Time: x.now.Add(time.Millisecond), HasAck: true, RawRTT: 10 * time.Millisecond, Delivery: DeliverySample{Delivered: x.delivered}})
+		require.EqualValues(t, 4800, x.b.GetCongestionWindow(), "smaller BDP caps the window, not the retained loss bound")
 	})
+
 	for _, tc := range []struct {
 		name   string
 		flight protocol.ByteCount
@@ -122,18 +180,10 @@ func TestBBRDrainFlightAndRoundExit(t *testing.T) {
 				require.EqualValues(t, 50000, b.PacingRate(), "draft's strict round boundary")
 				feedbackRound(b, 8, 9600, 100000, SendUnknown, tc.flight)
 			}
-			require.EqualValues(t, 100000, b.PacingRate(), "terminal Cruise gain is one")
-
 			if tc.name == "flight" {
-				feedbackRound(b, 6, 7200, 100000, SendUnknown, 20000)
+				require.EqualValues(t, 100000, b.PacingRate(), "drained entry reaches Cruise on the same ACK")
 			} else {
-				feedbackRound(b, 9, 10800, 100000, SendUnknown, 20000)
-			}
-			require.EqualValues(t, 100000, b.PacingRate(), "B1 does not start another probe")
-			if tc.name == "flight" {
-				require.EqualValues(t, 19200, b.GetCongestionWindow())
-			} else {
-				require.EqualValues(t, 21200, b.GetCongestionWindow(), "two BDP plus one ACK of aggregation")
+				require.EqualValues(t, 90000, b.PacingRate(), "high flight retains Probe Down")
 			}
 		})
 	}
@@ -199,6 +249,13 @@ func TestBBRStartupLossRanges(t *testing.T) {
 			require.Equal(t, tc.wantStartup, b.InSlowStart())
 			if !tc.wantStartup {
 				require.EqualValues(t, 50000, b.PacingRate())
+			}
+			if tc.name == "six ranges" {
+				p := PacketInfo{Ordinal: 21, Length: 1200, AckEliciting: true, RegistrationValid: true, Delivery: DeliverySnapshot{Delivered: 2400, Lost: 7200, PostInFlight: 18000, Valid: true}}
+				b.Sent(SendEvent{Packet: p})
+				b.Feedback(FeedbackEvent{Time: monotime.Time(22 * time.Second), HasAck: true, Acked: []PacketInfo{p}, PostInFlight: 20000, Delivery: DeliverySample{Delivered: 3600, Lost: 7200, Ordinal: 21, BytesPerSecond: 100000, Interval: 100 * time.Millisecond, Valid: true}})
+				require.Equal(t, bbrDrain, b.phase)
+				require.EqualValues(t, 18000, b.inflightLong, "safe Drain feedback raises the finite Startup-loss cap")
 			}
 		})
 	}

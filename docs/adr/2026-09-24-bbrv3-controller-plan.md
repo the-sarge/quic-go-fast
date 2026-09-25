@@ -1,7 +1,7 @@
 # Complete opt-in BBRv3 sender implementation plan
 
 **Date:** 2026-09-24
-**Status:** B1 complete; B2 ready; B3–B6 blocked by their declared predecessors
+**Status:** B1/B2 complete; B3 ready; B4–B6 blocked by their declared predecessors
 **Track:** B in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
@@ -30,8 +30,8 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | [B1](#b1) | Complete | Drive private BBR Startup and Drain through transport feedback | T2 | None; see slice budget |
-| [B2](#b2) | Ready | Complete draft ProbeBW cycling and congestion bounds | B1 | B1 private terminal Cruise |
-| [B3](#b3) | new | Integrate guarded ProbeRTT and genuine idle restart | B2 | None; see slice budget |
+| [B2](#b2) | Complete | Complete draft ProbeBW cycling and congestion bounds | B1 | B1 private terminal Cruise |
+| [B3](#b3) | Ready | Integrate guarded ProbeRTT and genuine idle restart | B2 | None; see slice budget |
 | [B4](#b4) | new | Apply persistent classic-ECN response in every BBR phase | B3, T4 | None; see slice budget |
 | [B5](#b5) | new | Compose loss undo and persistent-congestion restart | B4, T5 | None; see slice budget |
 | [B6](#b6) | new | Expose complete per-connection BBR selection and verify migration | B5 | Private-only activation gate |

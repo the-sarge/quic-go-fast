@@ -9,6 +9,7 @@ import (
 
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
 )
 
 type bbrPhase uint8
@@ -16,13 +17,30 @@ type bbrPhase uint8
 const (
 	bbrStartup bbrPhase = iota
 	bbrDrain
-	bbrCruise // B1's private terminal; B2 replaces this with ProbeBW cycling.
+	bbrDown
+	bbrCruise
+	bbrRefill
+	bbrUp
 )
 
-// BBRSender owns the private B1 model on the connection goroutine. Recovery
+// BBRSender owns the private BBR model on the connection goroutine. Recovery
 // owns the input facts; emission owns pacing debt and applies the 1% margin.
 // No public connection selects this incomplete controller.
 type BBRSender struct {
+	windowUsedInRound, windowUsedLastRound           bool
+	previousProbeTooHigh, previousProbePrecautionary bool
+	probeUpRounds                                    uint8
+	probeUpAcked, probeUpPerIncrement                protocol.ByteCount
+	ackPhase                                         bbrAckPhase
+	cycle                                            uint64
+	bandwidthFilter                                  [2]bbrBandwidth
+	probeSample                                      bool
+
+	random           func(int32) int32
+	cycleStamp       monotime.Time
+	probeWait        time.Duration
+	roundsSinceProbe uint64
+
 	size, initialWindow, window                           protocol.ByteCount
 	phase                                                 bbrPhase
 	rate, bandwidth, fullBandwidth                        uint64
@@ -52,7 +70,7 @@ func NewBBRSender(size protocol.ByteCount) *BBRSender {
 		panic("invalid BBR packet size")
 	}
 	w := min(10*size, max(14720, 2*size))
-	return &BBRSender{size: size, initialWindow: w, window: w, rate: bbrScale(uint64(w)*10, 2772588722, 1000000000), inflightLong: protocol.MaxByteCount, inflightShort: protocol.MaxByteCount, bandwidthShort: math.MaxUint64}
+	return &BBRSender{random: (&utils.Rand{}).Int31n, size: size, initialWindow: w, window: w, rate: bbrScale(uint64(w)*10, 2772588722, 1000000000), inflightLong: protocol.MaxByteCount, inflightShort: protocol.MaxByteCount, bandwidthShort: math.MaxUint64}
 }
 
 // bbrScale floors a full-width product, saturating before any signed conversion.
@@ -79,6 +97,9 @@ func (b *BBRSender) Sent(e SendEvent) {
 	}
 	b.advanceSampling(p.SampleGeneration, p.Delivery.Delivered)
 	b.delivered = max(b.delivered, p.Delivery.Delivered)
+	if p.AckEliciting && !p.PathProbe && !p.MTUProbe {
+		b.windowUsedInRound = b.windowUsedInRound || b.windowLimited(e.PostInFlight)
+	}
 }
 
 // Sampling fences retire optional measurements, not current-model recovery.
@@ -86,6 +107,7 @@ func (b *BBRSender) Sent(e SendEvent) {
 func (b *BBRSender) advanceSampling(generation, delivered uint64) {
 	if generation > b.sampleGeneration {
 		b.sampleGeneration = generation
+		b.windowUsedInRound, b.windowUsedLastRound = false, false
 		b.nextRound = delivered
 	}
 }
@@ -115,6 +137,9 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	if !e.HasAck || s.Delivered < b.delivered {
 		return
 	}
+	if clockValid {
+		b.windowUsedInRound = b.windowUsedInRound || b.windowLimited(e.PriorInFlight)
+	}
 	var anchor *PacketInfo
 	for i := range e.Acked {
 		if e.Acked[i].Ordinal == s.Ordinal {
@@ -123,27 +148,36 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		}
 	}
 	if anchor == nil || !anchor.Delivery.Valid || anchor.Delivery.Delivered > s.Delivered || anchor.PathGeneration != b.pathGeneration || anchor.SampleGeneration != b.sampleGeneration || anchor.MTUProbe || anchor.PathProbe || !s.Valid || s.Interval <= 0 {
+		b.checkDrainDone(e)
+		if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
+			b.updateProbePhase(e, false, false)
+		}
 		b.applyACK(e, clockValid)
 		return
 	}
 	roundStart := anchor.Delivery.Delivered >= b.nextRound
 	if roundStart {
+		// Consumers on the boundary ACK still see the just-completed round.
+		// A later complete round replaces it, including a round with no usage.
+		b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
 		b.round++
+		b.roundsSinceProbe++
 		b.nextRound = s.Delivered
 	}
-	b.bandwidth = max(b.bandwidth, s.BytesPerSecond)
+	b.updateMaxBandwidth(s)
 	volume := s.Delivered - anchor.Delivery.Delivered
 	b.latestRate = max(b.latestRate, s.BytesPerSecond)
 	b.latestVolume = max(b.latestVolume, volume)
 	if b.recoveryStarted && anchor.Ordinal > b.recoveryBoundary && anchor.Delivery.Delivered >= b.recoveryDelivered {
 		b.recoveryEligible = true
 	}
-	if anchor.Delivery.Delivered >= b.lossRoundDelivered {
+	lossRoundStart := anchor.Delivery.Delivered >= b.lossRoundDelivered
+	if lossRoundStart {
 		if b.lossPending && b.phase == bbrStartup && b.recoveryEligible && !b.lossOverflow && b.discontiguousLosses() >= 6 && uint64(b.lossBytes) > uint64(b.lossFlight)/50 {
 			b.inflightLong = max(b.inflight(1), bbrBytes(b.latestVolume))
 			b.phase = bbrDrain
 			b.drainRound = b.round
-		} else if b.lossPending && b.phase != bbrStartup {
+		} else if b.lossPending && !b.probingBandwidth() {
 			if b.bandwidthShort == math.MaxUint64 {
 				b.bandwidthShort = b.bandwidth
 			}
@@ -159,29 +193,39 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		if !b.recoveryStarted {
 			b.recoveryEligible = false
 		}
-		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
 		b.lossRoundDelivered = s.Delivered
 	}
 
-	if b.phase == bbrStartup && roundStart && !bbrLimited(s.Limited) {
+	if (b.phase == bbrStartup || b.phase == bbrUp) && roundStart && !bbrLimited(s.Limited) {
 		if b.fullBandwidth == 0 || bbrScale(s.BytesPerSecond, 4, 5) >= b.fullBandwidth {
 			b.fullBandwidth = s.BytesPerSecond
 			b.plateau = 0
 		} else {
-			b.plateau++
+			b.plateau = min(b.plateau+1, 3)
 		}
-		if b.plateau >= 3 {
+		if b.plateau >= 3 && b.phase == bbrStartup {
 			b.phase = bbrDrain
 			b.drainRound = b.round
 		}
 	}
+	b.checkDrainDone(e)
+	if b.phase != bbrStartup {
+		b.updateProbeCycle(e, *anchor, roundStart)
+	}
+	if lossRoundStart {
+		// Seed the next loss round after a phase entry has reset its signals.
+		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
+	}
 	b.applyACK(e, clockValid)
 }
 
-func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
+func (b *BBRSender) checkDrainDone(e FeedbackEvent) {
 	if b.phase == bbrDrain && (e.PostInFlight <= b.inflight(1) || b.round > b.drainRound+3) {
-		b.phase = bbrCruise
+		b.startProbeDown(e.Time, e.Delivery.Delivered)
 	}
+}
+
+func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
 	s := e.Delivery
 	acked := bbrBytes(s.Delivered - b.delivered)
 	b.delivered = s.Delivered
@@ -189,7 +233,11 @@ func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
 	if clockValid {
 		extra = b.updateAggregation(e.Time, uint64(acked))
 	}
-	target := b.quantize(bbrBytes(uint64(b.bdp(2)) + uint64(extra)))
+	modelTarget := b.bdp(2)
+	if b.phase == bbrUp {
+		modelTarget = b.bdpRatio(9, 4)
+	}
+	target := b.quantize(bbrBytes(uint64(modelTarget) + uint64(extra)))
 	maxWindow := b.size * protocol.MaxCongestionWindowPackets
 	grown := b.window + min(acked, maxWindow-b.window)
 	if b.phase != bbrStartup {
@@ -198,8 +246,11 @@ func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
 		b.window = grown
 	}
 	cap := b.inflightShort
+	if b.phase >= bbrDown {
+		cap = min(cap, b.inflightLong)
+	}
 	if b.phase == bbrCruise {
-		cap = min(cap, bbrBytes(bbrScale(uint64(b.inflightLong), 85, 100)))
+		cap = min(cap, b.headroom())
 	}
 	b.window = min(maxWindow, max(4*b.size, min(b.window, cap)))
 
@@ -212,8 +263,14 @@ func (b *BBRSender) phaseRate() uint64 {
 	if b.phase == bbrDrain {
 		rate = modelRate / 2
 	}
-	if b.phase == bbrCruise {
+	switch b.phase {
+	case bbrStartup, bbrDrain:
+	case bbrDown:
+		rate = bbrScale(modelRate, 9, 10)
+	case bbrCruise, bbrRefill:
 		rate = modelRate
+	case bbrUp:
+		rate = bbrScale(modelRate, 5, 4)
 	}
 	if b.phase == bbrStartup {
 		return max(b.rate, rate)
@@ -226,11 +283,13 @@ func bbrLimited(reason SendLimitation) bool {
 	return reason == SendApplicationLimited || reason == SendFlowControlLimited || reason == SendProbeRTTLimited
 }
 
-func (b *BBRSender) bdp(gain uint64) protocol.ByteCount {
+func (b *BBRSender) bdp(gain uint64) protocol.ByteCount { return b.bdpRatio(gain, 1) }
+
+func (b *BBRSender) bdpRatio(numerator, denominator uint64) protocol.ByteCount {
 	if b.minimumRTT == 0 {
 		return b.initialWindow
 	}
-	return bbrBytes(bbrScale(bbrScale(min(b.bandwidth, b.bandwidthShort), uint64(b.minimumRTT), uint64(time.Second)), gain, 1))
+	return bbrBytes(bbrScale(bbrScale(min(b.bandwidth, b.bandwidthShort), uint64(b.minimumRTT), uint64(time.Second)), numerator, denominator))
 }
 
 func (b *BBRSender) inflight(gain uint64) protocol.ByteCount {
@@ -238,7 +297,11 @@ func (b *BBRSender) inflight(gain uint64) protocol.ByteCount {
 }
 
 func (b *BBRSender) quantize(target protocol.ByteCount) protocol.ByteCount {
-	return max(2*b.quantum(), 4*b.size, target)
+	target = max(2*b.quantum(), 4*b.size, target)
+	if b.phase == bbrUp {
+		target = bbrBytes(uint64(target) + uint64(2*b.size))
+	}
+	return target
 }
 
 func (b *BBRSender) quantum() protocol.ByteCount {
@@ -263,7 +326,17 @@ func (b *BBRSender) noteLoss(e FeedbackEvent) {
 		b.recoveryBoundary = e.RecoveryEpisode.Boundary
 		b.recoveryEligible = false
 	}
+	var remaining uint64
 	for _, p := range e.Lost {
+		if p.SampleGeneration == e.SampleGeneration && p.PathGeneration == e.PathGeneration {
+			remaining += uint64(max(0, p.Length))
+		}
+	}
+	for _, p := range e.Lost {
+		if p.SampleGeneration == e.SampleGeneration && p.PathGeneration == e.PathGeneration {
+			remaining -= uint64(max(0, p.Length))
+		}
+
 		if !p.AckEliciting || p.PathProbe || p.MTUProbe || p.Delivery.PostInFlight <= 0 || p.Length <= 0 || p.PathGeneration != e.PathGeneration || p.SampleGeneration < b.modelSampleFloor {
 			continue
 		}
@@ -273,6 +346,7 @@ func (b *BBRSender) noteLoss(e FeedbackEvent) {
 		}
 		b.lossBytes = bbrBytes(min(uint64(protocol.MaxByteCount), uint64(b.lossBytes)+uint64(p.Length)))
 		b.lossFlight = max(b.lossFlight, p.Delivery.PostInFlight)
+		b.probeLoss(e, p, remaining)
 		if len(b.lossRanges) < 25000 {
 			b.lossRanges = append(b.lossRanges, bbrLossRange{p.Space, p.PacketNumber, p.PacketNumber})
 		} else {
@@ -344,8 +418,9 @@ func (b *BBRSender) Reset(path, sample, delivered uint64) {
 	if b.closed {
 		return
 	}
-	size := b.size
+	size, random := b.size, b.random
 	*b = *NewBBRSender(size)
+	b.random = random
 	b.pathGeneration, b.sampleGeneration, b.modelSampleFloor = path, sample, sample
 	b.delivered, b.deliveryBase, b.nextRound = delivered, delivered, delivered
 }
