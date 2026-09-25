@@ -13,6 +13,30 @@ import (
 )
 
 func TestBBRPrivateResetAndClose(t *testing.T) {
+	t.Run("0RTT fence before another registration", func(t *testing.T) {
+		h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)
+		b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
+		now := monotime.Now()
+		sendCongestionTestPacket(h, now, protocol.Encryption0RTT, 1200)
+		var last protocol.PacketNumber
+		for range 4 {
+			last = sendCongestionTestPacket(h, now.Add(time.Millisecond), protocol.Encryption1RTT, 1200)
+		}
+		h.DropPackets(protocol.Encryption0RTT, now.Add(2*time.Millisecond))
+		before, rate := b.GetCongestionWindow(), b.PacingRate()
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(last)}, protocol.Encryption1RTT, now.Add(100*time.Millisecond))
+		require.NoError(t, err)
+		require.True(t, h.congestionEvents.recovery.episode.Active, "real current-path loss entered recovery")
+		require.True(t, b.InRecovery(), "feedback after disposal reaches BBR before the next registration")
+		require.Equal(t, before, b.GetCongestionWindow(), "old sampling generation adds no delivery growth")
+		require.Equal(t, rate, b.PacingRate(), "old sampling generation supplies no measured rate")
+		pn := sendCongestionTestPacket(h, now.Add(200*time.Millisecond), protocol.Encryption1RTT, 1200)
+		require.True(t, b.InRecovery(), "new registration preserves pending recovery")
+		_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.Encryption1RTT, now.Add(300*time.Millisecond))
+		require.NoError(t, err)
+		require.False(t, b.InRecovery(), "fresh receipt crosses the recovery boundary")
+		require.Equal(t, before+1200, b.GetCongestionWindow())
+	})
 	for _, action := range []string{"retry", "path", "close"} {
 		t.Run(action, func(t *testing.T) {
 			h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)

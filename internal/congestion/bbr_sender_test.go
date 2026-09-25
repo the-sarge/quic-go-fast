@@ -69,6 +69,15 @@ func TestBBRStartupLimitedSamples(t *testing.T) {
 }
 
 func TestBBRDrainFlightAndRoundExit(t *testing.T) {
+	t.Run("two-quantum offload floor", func(t *testing.T) {
+		b := NewBBRSender(1200)
+		b.phase, b.bandwidth, b.minimumRTT, b.window = bbrDrain, 10000000, 100*time.Microsecond, 40000
+		require.EqualValues(t, 4950, b.quantum())
+		b.Feedback(FeedbackEvent{Time: monotime.Time(time.Second), HasAck: true, PostInFlight: 20000, Delivery: DeliverySample{Delivered: 1200}})
+		require.EqualValues(t, 9900, b.GetCongestionWindow(), "ACK target includes two offload quanta")
+		b.Feedback(FeedbackEvent{Time: monotime.Time(2 * time.Second), HasAck: true, PostInFlight: 8000, Delivery: DeliverySample{Delivered: 1200}})
+		require.Equal(t, bbrCruise, b.phase, "8000 bytes fits the Drain target of 9900")
+	})
 	t.Run("aggregate before four-packet floor", func(t *testing.T) {
 		b := NewBBRSender(1200)
 		for i := uint64(1); i <= 4; i++ {
@@ -146,6 +155,8 @@ func TestBBRStartupLossRanges(t *testing.T) {
 		{"backdated", 6, 2, 1200, false},
 		{"invalid sample exit", 6, 2, 1200, false},
 		{"before recovery boundary", 6, 2, 1200, true},
+		{"registration fence", 6, 2, 1200, false},
+		{"completed recovery across fence", 6, 2, 1200, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := NewBBRSender(1200)
@@ -159,6 +170,12 @@ func TestBBRStartupLossRanges(t *testing.T) {
 					lost[i].Delivery.Valid = false
 				}
 			}
+			if tc.name == "registration fence" {
+				b.Feedback(FeedbackEvent{Time: monotime.Time(2050 * time.Millisecond), Lost: lost[:3], Delivery: DeliverySample{Delivered: 1200}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: true, Active: true, Boundary: 7}})
+				b.Sent(SendEvent{Packet: PacketInfo{Ordinal: 8, SampleGeneration: 1, RegistrationValid: true, Delivery: DeliverySnapshot{Delivered: 1200}}})
+				require.True(t, b.InRecovery(), "sampling fences cannot erase the active recovery episode")
+				lost = lost[3:]
+			}
 			if tc.name == "backdated" {
 				b.Feedback(FeedbackEvent{Time: monotime.Time(3 * time.Second), Lost: lost[:1], Delivery: DeliverySample{Delivered: 1200}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: true, Active: true, Boundary: 7}})
 				lost = lost[1:]
@@ -168,12 +185,15 @@ func TestBBRStartupLossRanges(t *testing.T) {
 			if tc.name == "before recovery boundary" {
 				boundary = 20
 			}
-			b.Feedback(FeedbackEvent{HasAck: tc.name == "backdated", Time: monotime.Time(2100 * time.Millisecond), Lost: lost, PriorInFlight: 60000, PostInFlight: 50000, Delivery: DeliverySample{Delivered: 1200, Lost: uint64(tc.length) * uint64(tc.count)}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: tc.name != "backdated", Active: true, Boundary: boundary}})
+			b.Feedback(FeedbackEvent{SampleGeneration: b.sampleGeneration, HasAck: tc.name == "backdated", Time: monotime.Time(2100 * time.Millisecond), Lost: lost, PriorInFlight: 60000, PostInFlight: 50000, Delivery: DeliverySample{Delivered: 1200, Lost: uint64(tc.length) * uint64(tc.count)}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: tc.name != "backdated" && tc.name != "registration fence", Active: true, Boundary: boundary}})
 			require.Equal(t, before, b.GetCongestionWindow(), "loss facts do not perform an extra immediate window cut")
 			require.True(t, b.InSlowStart(), "loss alone cannot complete a recovery round")
-			if tc.name == "invalid sample exit" {
+			if tc.name == "invalid sample exit" || tc.name == "completed recovery across fence" {
 				b.Feedback(FeedbackEvent{Time: monotime.Time(2200 * time.Millisecond), HasAck: true, Delivery: DeliverySample{Delivered: 1200}, RecoveryEpisode: RecoveryEpisode{ID: 1, Exited: true}})
 				require.False(t, b.InRecovery())
+			}
+			if tc.name == "completed recovery across fence" {
+				b.Sent(SendEvent{Packet: PacketInfo{Ordinal: 8, SampleGeneration: 1, RegistrationValid: true, Delivery: DeliverySnapshot{Delivered: 1200}}})
 			}
 			feedbackRound(b, 20, 2400, 100000, SendApplicationLimited, 20000)
 			require.Equal(t, tc.wantStartup, b.InSlowStart())
@@ -182,6 +202,19 @@ func TestBBRStartupLossRanges(t *testing.T) {
 			}
 		})
 	}
+	t.Run("model floor differs from sampling high-water mark", func(t *testing.T) {
+		b := NewBBRSender(1200)
+		b.Reset(0, 3, 1200)
+		b.Sent(SendEvent{Packet: PacketInfo{SampleGeneration: 4, RegistrationValid: true, Delivery: DeliverySnapshot{Delivered: 1200}}})
+		old := FeedbackEvent{SampleGeneration: 2, Time: monotime.Time(time.Second), HasAck: true, RawRTT: time.Nanosecond, Delivery: DeliverySample{Delivered: 99999, Valid: true}, RecoveryEpisode: RecoveryEpisode{Entered: true, Active: true}}
+		b.Feedback(old)
+		require.False(t, b.InRecovery(), "pre-reset event is excluded")
+		old.SampleGeneration = 3
+		b.Feedback(old)
+		require.True(t, b.InRecovery(), "current-model recovery survives an old sample fence")
+		require.EqualValues(t, 12000, b.GetCongestionWindow(), "stale sample cannot grow the window")
+		require.Zero(t, b.minimumRTT, "stale sample cannot supply RTT")
+	})
 }
 
 // Each ACK covers a fresh packet sent after the preceding ACK. These are value
@@ -192,7 +225,7 @@ func feedbackRound(b *BBRSender, ordinal, delivered, rate uint64, limited SendLi
 
 func feedbackRoundRTT(b *BBRSender, ordinal, delivered, rate uint64, limited SendLimitation, flight protocol.ByteCount, rtt time.Duration) {
 	now := monotime.Time(ordinal+1) * monotime.Time(time.Second)
-	p := PacketInfo{Ordinal: ordinal, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: now.Add(-rtt), Delivery: DeliverySnapshot{Delivered: delivered - 1200, Valid: true}}
+	p := PacketInfo{PathGeneration: b.pathGeneration, SampleGeneration: b.sampleGeneration, Ordinal: ordinal, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: now.Add(-rtt), Delivery: DeliverySnapshot{Delivered: delivered - 1200, Valid: true}}
 	b.Sent(SendEvent{Packet: p})
-	b.Feedback(FeedbackEvent{Time: now, HasAck: true, RawRTT: rtt, PostInFlight: flight, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: delivered, Ordinal: ordinal, BytesPerSecond: rate, Interval: 100 * time.Millisecond, Limited: limited, Valid: true}})
+	b.Feedback(FeedbackEvent{PathGeneration: b.pathGeneration, SampleGeneration: b.sampleGeneration, Time: now, HasAck: true, RawRTT: rtt, PostInFlight: flight, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: delivered, Ordinal: ordinal, BytesPerSecond: rate, Interval: 100 * time.Millisecond, Limited: limited, Valid: true}})
 }

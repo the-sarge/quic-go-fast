@@ -83,10 +83,10 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 | Semantic class | Disposition | Central enforcement owner | Terminating evidence | Status |
 | --- | --- | --- | --- | --- |
 | ACK/sample/real loss input | One model update and declared initial/phase allowance | BBR reducer | `TestBBRTransportFeedbackToAllowance`, Startup/Drain and arithmetic tables | Covered |
-| Registration advances sampling with pending recovery | Preserve current-model losses/episode state; admit live earlier-sample losses | BBR reducer fact admission | `TestBBRStartupLossRanges` | Required before slice completion |
-| 0-RTT sampling fence before a new registration | Admit same-path recovery while excluding stale delivery/rate/RTT | BBR reducer fact admission | `TestBBRPrivateResetAndClose` | Required before slice completion |
-| Clock/sample validity and model disposal | Optional evidence cannot suppress recovery; old-model facts cannot mutate fresh/disposed state | BBR reducer fact admission and lifecycle reset | Existing loss/lifecycle tables with negative cases | Required before slice completion |
-| Low BDP dominated by offload allowance | Shared 2Q/four-M floor for window and Drain target | BBR reducer quantization | `TestBBRDrainFlightAndRoundExit`, Q=4950 and post-event flight=8000 | Required before slice completion |
+| Registration advances sampling with pending recovery | Preserve current-model losses/episode state; admit live earlier-sample losses | BBR reducer fact admission | `TestBBRStartupLossRanges` | Covered |
+| 0-RTT sampling fence before a new registration | Admit same-path recovery while excluding stale delivery/rate/RTT | BBR reducer fact admission | `TestBBRPrivateResetAndClose` | Covered |
+| Clock/sample validity and model disposal | Optional evidence cannot suppress recovery; old-model facts cannot mutate fresh/disposed state | BBR reducer fact admission and lifecycle reset | Existing loss/lifecycle tables with negative cases | Covered |
+| Low BDP dominated by offload allowance | Shared 2Q/four-M floor for window and Drain target | BBR reducer quantization | `TestBBRDrainFlightAndRoundExit`, Q=4950 and post-event flight=8000 | Covered |
 | Limited versus capacity sample | No false plateau from supply limitation | BBR reducer | `TestBBRStartupLimitedSamples` | Covered |
 | Reset/close | Fresh/disposed model, no stale sample update | BBR lifecycle entry | `TestBBRPrivateResetAndClose`; default Reno constructor table | Covered |
 

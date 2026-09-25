@@ -41,7 +41,7 @@ type BBRSender struct {
 	aggregationStart                                      monotime.Time
 	aggregationDelivered                                  uint64
 	aggregation                                           [10]bbrAggregation
-	pathGeneration, sampleGeneration                      uint64
+	pathGeneration, sampleGeneration, modelSampleFloor    uint64
 	closed                                                bool
 	recoveryBoundary                                      uint64
 	recoveryEligible                                      bool
@@ -77,25 +77,31 @@ func (b *BBRSender) Sent(e SendEvent) {
 	if b.closed || p.PathGeneration != b.pathGeneration || p.SampleGeneration < b.sampleGeneration || !p.RegistrationValid {
 		return
 	}
-	if p.SampleGeneration > b.sampleGeneration {
-		b.sampleGeneration = p.SampleGeneration
-		b.nextRound = p.Delivery.Delivered
-		b.lossRanges = nil
-		b.lossBytes, b.lossFlight = 0, 0
-		b.lossPending, b.lossOverflow, b.recoveryStarted = false, false, false
-		b.recoveryEligible = false
-	}
+	b.advanceSampling(p.SampleGeneration, p.Delivery.Delivered)
 	b.delivered = max(b.delivered, p.Delivery.Delivered)
 }
 
+// Sampling fences retire optional measurements, not current-model recovery.
+// Both registration and feedback can be the first event after such a fence.
+func (b *BBRSender) advanceSampling(generation, delivered uint64) {
+	if generation > b.sampleGeneration {
+		b.sampleGeneration = generation
+		b.nextRound = delivered
+	}
+}
+
 func (b *BBRSender) Feedback(e FeedbackEvent) {
-	if b.closed || e.PathGeneration != b.pathGeneration || e.SampleGeneration != b.sampleGeneration {
+	if b.closed || e.PathGeneration != b.pathGeneration || e.SampleGeneration < b.modelSampleFloor {
 		return
 	}
+	b.advanceSampling(e.SampleGeneration, e.Delivery.Delivered)
 	clockValid := e.Time > 0 && e.Time >= b.lastEvent
 	// Recovery facts arrive in logical processing order even when a queued ACK
 	// carries an earlier receive timestamp than a timer event.
 	b.noteLoss(e)
+	if e.SampleGeneration != b.sampleGeneration {
+		return // Current-model recovery remains authoritative; stale samples do not.
+	}
 	if clockValid {
 		b.lastEvent = e.Time
 	} else {
@@ -183,7 +189,7 @@ func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
 	if clockValid {
 		extra = b.updateAggregation(e.Time, uint64(acked))
 	}
-	target := max(4*b.size, b.quantum(), bbrBytes(uint64(b.bdp(2))+uint64(extra)))
+	target := b.quantize(bbrBytes(uint64(b.bdp(2)) + uint64(extra)))
 	maxWindow := b.size * protocol.MaxCongestionWindowPackets
 	grown := b.window + min(acked, maxWindow-b.window)
 	if b.phase != bbrStartup {
@@ -228,7 +234,11 @@ func (b *BBRSender) bdp(gain uint64) protocol.ByteCount {
 }
 
 func (b *BBRSender) inflight(gain uint64) protocol.ByteCount {
-	return max(b.quantum(), 4*b.size, b.bdp(gain))
+	return b.quantize(b.bdp(gain))
+}
+
+func (b *BBRSender) quantize(target protocol.ByteCount) protocol.ByteCount {
+	return max(2*b.quantum(), 4*b.size, target)
 }
 
 func (b *BBRSender) quantum() protocol.ByteCount {
@@ -254,7 +264,7 @@ func (b *BBRSender) noteLoss(e FeedbackEvent) {
 		b.recoveryEligible = false
 	}
 	for _, p := range e.Lost {
-		if !p.AckEliciting || p.PathProbe || p.MTUProbe || p.Delivery.PostInFlight <= 0 || p.Length <= 0 || p.PathGeneration != e.PathGeneration || p.SampleGeneration != e.SampleGeneration {
+		if !p.AckEliciting || p.PathProbe || p.MTUProbe || p.Delivery.PostInFlight <= 0 || p.Length <= 0 || p.PathGeneration != e.PathGeneration || p.SampleGeneration < b.modelSampleFloor {
 			continue
 		}
 		if !b.lossPending {
@@ -336,7 +346,7 @@ func (b *BBRSender) Reset(path, sample, delivered uint64) {
 	}
 	size := b.size
 	*b = *NewBBRSender(size)
-	b.pathGeneration, b.sampleGeneration = path, sample
+	b.pathGeneration, b.sampleGeneration, b.modelSampleFloor = path, sample, sample
 	b.delivered, b.deliveryBase, b.nextRound = delivered, delivered, delivered
 }
 func (b *BBRSender) Close() { *b = BBRSender{closed: true} }
