@@ -9,10 +9,10 @@
   "completion_runs": 60,
   "completion_maximum_measurement_seconds": 3600,
   "completion_setup_cleanup_allowance_seconds": 3600,
-  "total_experiment_ceiling_hours": 48,
+  "total_experiment_ceiling_hours": 56,
   "preparation_ceiling_hours": 16,
   "cloud_ceiling_usd": 100,
-  "source_revision": "d17e45fe",
+  "source_revision": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
   "controller_order": "Python Random(635598), frozen above; consumers use recorded order, not a regenerated shuffle",
   "clock_contract": "start_unix_ns is deliberately absent until a calibrated native launch; fixture start is warm-up start, router StartUnixNS is measurement start; completion starts both clocks together",
   "packet_domain": {
@@ -24,7 +24,7 @@
   },
   "remaining": [
     "native adapter long-duration rate/RTT/timing/mark gates at the selected source and runtime settings",
-    "Mac CPU-isolation decision and local gateway placement",
+    "Mac native path and idle-host/contention qualification under approved scheduling exception",
     "competitor phase orchestration and final native observations",
     "full launch-through-teardown cost and command certification"
   ],
@@ -35,7 +35,19 @@
     "software_offloads": "GRO/LRO/GSO/TSO disabled on both gateway interfaces",
     "hardware_receive_coalescing": "rx-gro-hw disabled separately on both gateway interfaces; record ethtool state",
     "timing": "Maximum ingress delay and kernel-submission lateness <=5 ms; receiver probes still required for actual path observations",
-    "status": "short S3 diagnostic passed; long-duration and competitor qualification still pending"
+    "status": "Linux forward S3 210-second and full L7 coexistence checks passed; reverse capacity, remaining scenarios/platforms and final command certification pending"
   },
-  "port_assignment": "competitor-schedule-candidate.json port_contract, based on frozen zero-based case index"
+  "port_assignment": "competitor-schedule-candidate.json port_contract, based on frozen zero-based case index",
+  "component_revisions": {
+    "fixture": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+    "router": "d17e45fe",
+    "probe": "d9154327"
+  },
+  "mac_resource_contract": {
+    "approved": "2026-09-25",
+    "endpoint_scheduling": "otherwise-idle native Mac hosts; GOMAXPROCS=4; identical Reno/BBRv3 settings; record CPU contention",
+    "limitation": "No claim of four isolated physical cores",
+    "gateway": "separate resources on minimax; native path calibration pending",
+    "physical_link": "M4 mini and minimax detect Thunderbolt/USB4 networking, reported 80 Gb/s; not a measured rate"
+  }
 }

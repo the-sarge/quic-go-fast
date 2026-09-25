@@ -7,7 +7,8 @@ They ship no controller behavior and are not a maintained emulator framework.
 
 The operator extended preparation to **16 cumulative hours** on 2026-09-25;
 [authorization](https://github.com/the-sarge/quic-go-fast/issues/598#issuecomment-5837538642).
-The $100 cloud and 48 experiment-hour ceilings remain unchanged. Historical
+The operator also approved **56 experiment-hours** on 2026-09-25; see the
+[approved forecast](budget-proposal.md). The cloud ceiling remains **$100**. Historical
 acceptance records retain their original eight-hour allowance. [Infra PR638](https://github.com/the-sarge/infra/pull/638), merged as
 `4fcfa6ad7f4cff923fa88d97ce82903b0e734aa9`, enforces the approved extension.
 
@@ -97,8 +98,8 @@ short-lived campaign trust material; no cloud credentials reach guests.
 
 ## Remaining evidence
 
-Native Linux and Windows fixture/model calibration, Mac CPU scheduling decision
-and local model placement, actual per-scenario commands, competitor orchestration,
+Remaining Linux and Windows fixture/model calibration, Mac native path
+qualification, actual per-scenario commands, competitor orchestration,
 clock-error bounds and the costed frozen manifest remain incomplete. Queue sizes
 currently use MTU 1460 with the first L3 phase as the fixed basis: forward 32120
 bytes, reverse 188340 bytes. Those are selected parameters pending calibration.
@@ -259,3 +260,17 @@ independent instance/disk inventories were empty before the immutable expiry.
 Final-source calibration for the remaining directions/scenarios, Windows with
 the selected gateway settings, Mac prerequisites, and the complete costed
 command manifest remain open. Q1 is not complete.
+
+## Approved Mac scheduling exception
+
+On 2026-09-25 the operator accepted otherwise-idle native Mac endpoint hosts
+with `GOMAXPROCS=4`, identical Reno/BBRv3 settings, separate gateway resources
+and recorded CPU contention. These results must not be described as using four
+isolated physical cores. Linux and Windows resource requirements are unchanged.
+
+The operator connected M4 mini to minimax. Both hosts detect their peer and
+report an 80 Gb/s Thunderbolt/USB4 link. This is connection evidence only;
+native IP path, rate, timing, clock and gateway calibration remain necessary.
+The S3 1,000 Mb/s capacity is a local emulated-path setting; the home internet
+uplink carries none of the test payload. The existing mini–MacBook Pro link is
+also still present, so route evidence must prove test traffic uses the gateway.

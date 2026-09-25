@@ -41,6 +41,8 @@ Linux/amd64 runs the full selected modeled matrix. macOS/arm64 and Windows/amd64
 
 Each endpoint receives four CPU cores, with identical allocations for Reno and BBRv3. Reserve emulator and background-traffic resources outside those allocations. Report CPU time, allocations, peak memory and saturation; record actual core type, affinity or scheduling controls and Go processor setting. Set GOMAXPROCS=4 for each focal endpoint process. Four Go processors alone do not prove four isolated physical cores. Host inventory and isolation must be demonstrated during preparation; current CI platform names are not evidence that suitable performance hosts are available.
 
+**Operator amendment, 2026-09-25:** Mac endpoints may instead use otherwise-idle native hosts with `GOMAXPROCS=4`, identical Reno/BBRv3 settings, separate gateway resources and recorded CPU contention. Report this scheduling limitation explicitly; do not claim four isolated physical cores on macOS. Linux and Windows retain the resource contract above.
+
 ## Accepted repetition and timing plan
 
 Use five paired Reno/BBRv3 runs per selected scenario and workload. Within a pair, match workload demand, emulator schedule and seed; randomize controller order. Different pairs may use different declared seeds. Report all observations, paired differences, median and spread. Any uncertainty estimates must describe their assumptions; no significance gate has been adopted. Additional repetitions need a concrete question and must fit the remaining budget.
@@ -120,6 +122,8 @@ Completion coverage uses reliable streams on Linux S1, S6, L1 and L5, plus S3 on
 The four-hour validation allowance covers targeted controller/transport correctness, native integration smoke checks on the priority platforms, applicable supported-platform build/test checks, and rate/RTT/queue/loss/ECN calibration. Pin the actual command list and its expected cost during preparation rather than claiming these checks have run. If required validation cannot fit or a supported target cannot be exercised, stop and report the coverage gap; compile-only evidence is labeled as such and cannot certify native behavior. Correctness and protocol compliance do not become advisory when the time budget is exhausted.
 
 Preparation allowance: one working day, capped at eight hours of engineering/preparation effort, outside the 48 experiment-hours, to establish host availability, emulator feasibility, fixture/instrumentation needs and a runnable manifest. This is not a promise to build missing infrastructure in eight hours and does not include implementing BBRv3. At that limit, report what is ready and any prerequisite work requiring a revised estimate. No test fleet or service purchase is authorized by this allowance.
+
+**Current budget amendment, 2026-09-25:** The operator approved 16 cumulative preparation hours and then 56 total experiment-hours, retaining the $100 cloud ceiling and every prior reservation. The original allocation above is historical; the [approved current forecast](2026-09-25-bbrv3-q1-campaign/budget-proposal.md) accounts for 52.218 hours before contingency, with 3.782 hours remaining under the new ceiling. The accepted case inventory is unchanged.
 
 ## Infrastructure observations and prerequisites
 
