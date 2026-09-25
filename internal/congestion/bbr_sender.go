@@ -28,7 +28,11 @@ const (
 // owns the input facts; emission owns pacing debt and applies the 1% margin.
 // No public connection selects this incomplete controller.
 type BBRSender struct {
-	ce bbrCE
+	persistentEnd                      uint64
+	persistentWaiting, persistentModel bool
+	pacingSeed                         uint64
+	ce                                 bbrCE
+	undo                               bbrUndo
 
 	sentOrdinal, probeRTTOrdinal, probeRTTDelivered uint64
 
@@ -137,7 +141,14 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		return
 	}
 	preRate, preWindow, prePhase := b.effectiveRate(), b.window, b.phase
-	defer b.finishCE(e, preRate, preWindow, prePhase, b.probeRTTHoldUntil != 0)
+	probeHolding := b.probeRTTHoldUntil != 0
+	defer func() {
+		b.finishRecovery(e)
+		b.finishCE(e, preRate, preWindow, prePhase, probeHolding)
+		b.restartPersistent(e)
+	}()
+	b.beginRecovery(e)
+	b.acknowledgeRestart(e)
 	if b.InProbeRTT() {
 		e.Delivery.Limited = SendProbeRTTLimited
 	}
@@ -289,6 +300,10 @@ func (b *BBRSender) applyACK(e FeedbackEvent, clockValid bool) {
 
 // Apply the same current caps after ACK growth, restoration and size changes.
 func (b *BBRSender) boundWindow() {
+	if b.persistentWaiting {
+		b.window = 2 * b.size
+		return
+	}
 	cap := b.inflightShort
 	if b.phase >= bbrDown {
 		cap = min(cap, b.inflightLong)
@@ -316,7 +331,10 @@ func (b *BBRSender) phaseRate() uint64 {
 func (b *BBRSender) modelBandwidth() uint64 {
 	rate := b.bandwidth
 	if rate == 0 {
-		rate = uint64(b.initialWindow) * 10
+		rate = b.pacingSeed
+		if rate == 0 {
+			rate = uint64(b.initialWindow) * 10
+		}
 	}
 	return min(rate, b.bandwidthShort)
 }
@@ -495,7 +513,10 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
 	}
 	fresh := NewBBRSender(size)
 	b.size, b.initialWindow = size, fresh.initialWindow
-	if b.InProbeRTT() || b.ce.active {
+	if b.persistentModel {
+		b.initialWindow = 2 * size
+	}
+	if b.InProbeRTT() || b.ce.active || b.persistentWaiting {
 		b.boundWindow()
 	} else {
 		// Emission refreshes this value on every opportunity. Preserve ACK-owned
