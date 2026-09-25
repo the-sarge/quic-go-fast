@@ -6,8 +6,11 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"github.com/gopacket/gopacket/afpacket"
+	"golang.org/x/net/bpf"
 	"net"
 	"os"
 	"os/signal"
@@ -128,24 +131,12 @@ func socket(name string) (int, *net.Interface, error) {
 	if e != nil {
 		return -1, nil, e
 	}
-	fd, e := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(htons(unix.ETH_P_IP)))
+	fd, e := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, 0)
 	if e != nil {
 		return -1, nil, e
 	}
 	fail := func(err error) (int, *net.Interface, error) { unix.Close(fd); return -1, nil, err }
-	if e = unix.Bind(fd, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_IP), Ifindex: nic.Index}); e != nil {
-		return fail(e)
-	}
-	if e = unix.SetsockoptInt(fd, unix.SOL_PACKET, unix.PACKET_IGNORE_OUTGOING, 1); e != nil {
-		return fail(e)
-	}
-	if e = unix.SetsockoptTimeval(fd, unix.SOL_SOCKET, unix.SO_RCVTIMEO, &unix.Timeval{Usec: 100000}); e != nil {
-		return fail(e)
-	}
-	if e = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_RCVBUF, 4<<20); e != nil {
-		return fail(e)
-	}
-	if e = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_TIMESTAMPNS, 1); e != nil {
+	if e = unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: nic.Index}); e != nil {
 		return fail(e)
 	}
 	return fd, nic, nil
@@ -153,12 +144,20 @@ func socket(name string) (int, *net.Interface, error) {
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
 func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue) observation {
 	o := observation{Direction: fmt.Sprintf("%s->%s", from.Interface, to.Interface)}
-	rx, _, e := socket(from.Interface)
+	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), afpacket.TPacketVersion3, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
 	if e != nil {
 		o.Error = e.Error()
 		return o
 	}
-	defer unix.Close(rx)
+	defer rx.Close()
+	filter, e := bpf.Assemble([]bpf.Instruction{bpf.LoadExtension{Num: bpf.ExtType}, bpf.JumpIf{Cond: bpf.JumpEqual, Val: unix.PACKET_OUTGOING, SkipTrue: 1}, bpf.RetConstant{Val: 65535}, bpf.RetConstant{Val: 0}})
+	if e == nil {
+		e = rx.SetBPF(filter)
+	}
+	if e != nil {
+		o.Error = e.Error()
+		return o
+	}
 	tx, nic, e := socket(to.Interface)
 	if e != nil {
 		o.Error = e.Error()
@@ -186,15 +185,16 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 	defer cancel()
 	go func() {
 		defer close(readDone)
-		buf := make([]byte, 65536)
-		oob := make([]byte, 128)
 		for {
-			n, oobn, flags, _, err := unix.Recvmsg(rx, buf, oob, 0)
+			if localCtx.Err() != nil {
+				return
+			}
+			data, capture, err := rx.ZeroCopyReadPacketData()
 			if err != nil {
 				if localCtx.Err() != nil {
 					return
 				}
-				if err == unix.EAGAIN || err == unix.EINTR {
+				if errors.Is(err, afpacket.ErrTimeout) || errors.Is(err, unix.EINTR) {
 					continue
 				}
 				select {
@@ -203,18 +203,9 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 				}
 				return
 			}
-			var stamp int64
-			if flags&unix.MSG_CTRUNC == 0 {
-				msgs, err := unix.ParseSocketControlMessage(oob[:oobn])
-				if err == nil {
-					for _, m := range msgs {
-						if m.Header.Level == unix.SOL_SOCKET && m.Header.Type == unix.SO_TIMESTAMPNS && len(m.Data) == 16 {
-							stamp = int64(binary.NativeEndian.Uint64(m.Data[:8]))*int64(time.Second) + int64(binary.NativeEndian.Uint64(m.Data[8:]))
-						}
-					}
-				}
-			}
-			frame := append([]byte(nil), buf[:n]...)
+			// The ring owns this view until the next read. Copy before publishing it.
+			frame := append([]byte(nil), data...)
+			stamp := capture.Timestamp.UnixNano()
 			select {
 			case incoming <- arrival{frame, stamp}:
 			case <-localCtx.Done():
@@ -249,7 +240,7 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 				sum = (sum & 0xffff) + (sum >> 16)
 			}
 			binary.BigEndian.PutUint16(ip[10:12], ^uint16(sum))
-			if e := unix.Sendto(tx, frame, 0, &unix.SockaddrLinklayer{Ifindex: nic.Index, Halen: 6, Addr: [8]uint8{peer[0], peer[1], peer[2], peer[3], peer[4], peer[5]}}); e != nil {
+			if e := unix.Sendto(tx, frame, 0, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_IP), Ifindex: nic.Index, Halen: 6, Addr: [8]uint8{peer[0], peer[1], peer[2], peer[3], peer[4], peer[5]}}); e != nil {
 				o.SendErrors++
 			}
 		}
@@ -300,11 +291,11 @@ loop:
 	}
 	cancel()
 	<-readDone
-	stats, err := unix.GetsockoptTpacketStats(rx, unix.SOL_PACKET, unix.PACKET_STATISTICS)
+	_, stats, err := rx.SocketStats()
 	if err != nil {
 		o.Error = err.Error()
 	} else {
-		o.SocketDrops = uint64(stats.Drops)
+		o.SocketDrops = uint64(stats.Drops())
 	}
 	o.Stats = q.Stats
 	return o

@@ -50,7 +50,11 @@ One fresh review and at most one replacement apply to this product PR.
   Not-ECT early drop, L1 post-service delay, L2 arrival windows and L3 partial
   service/rate transitions and interruption flushing. Pending propagation has
   an explicit rate/delay-derived storage bound; overflow invalidates calibration.
-- `router`: Linux AF_PACKET adapter; separate directions and bounded input
+- `router`: Linux AF_PACKET adapter using pinned `gopacket/afpacket` v1.7.1
+  ([upstream interface](https://pkg.go.dev/github.com/gopacket/gopacket/afpacket)).
+  TPACKET v3 uses an 8 MiB receive ring per direction, 1 ms block retirement
+  and bounded 100 ms polling. Ring views are copied before their next read;
+  canonical IP parsing remains owned by `x/net/ipv4`. Separate directions and bounded input
   channel. Records kernel socket drops, noncanonical packets, missing kernel
   timestamps, ingress processing delay and scheduled-departure lateness. Any
   socket/send/storage failure, or maximum ingress/egress lateness over 5 ms,
