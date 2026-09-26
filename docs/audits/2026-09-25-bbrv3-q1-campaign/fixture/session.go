@@ -445,7 +445,10 @@ func sendSession(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) 
 	if err != nil && !(os.IsTimeout(err) && !time.Now().Before(cfg.end())) {
 		result.Errors = append(result.Errors, err.Error())
 	}
-	if stream != nil {
+	// An incomplete completion transfer must remain open until the receiver's
+	// admission-relative deadline. FIN would falsely claim an early end of
+	// payload and turn an ordinary timeout into an integrity failure.
+	if stream != nil && (cfg.CompletionBytes == 0 || useful == cfg.CompletionBytes) {
 		stream.Close()
 	}
 	if cfg.CompletionBytes > 0 {

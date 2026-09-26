@@ -4,10 +4,91 @@ import (
 	"context"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 )
+
+// Delay only the real UDP boundary. QUIC framing, flow control, session
+// termination and receiver accounting all remain the real implementations.
+type completionLimitedConn struct {
+	net.PacketConn
+	start   time.Time
+	mu      sync.Mutex
+	delayed bool
+}
+
+func (c *completionLimitedConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !time.Now().Before(c.start) {
+		if !c.delayed {
+			c.delayed = true
+			// Separate sender start from receiver admission, so a premature
+			// FIN is observable before the receiver's censoring deadline.
+			time.Sleep(3 * time.Second)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return c.PacketConn.WriteTo(p, addr)
+}
+
+func TestIncompleteCompletionIsCensored(t *testing.T) {
+	cert, key, err := createCertificate(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverTLS, err := loadTLS(cert, key, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientTLS, err := loadTLS(cert, key, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := Run{ID: "censored-completion", Controller: "reno", Workload: "stream", StartUnixNS: time.Now().Add(time.Second).UnixNano(), MeasureMS: 60000, PayloadBytes: 16384, CompletionBytes: 16 << 20}
+	server, closeServer, err := newTransport("127.0.0.1:0", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeServer()
+	client, closeClient, err := newTransport("127.0.0.1:0", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeClient()
+	client.Conn = &completionLimitedConn{PacketConn: client.Conn, start: cfg.start()}
+	ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
+	defer cancel()
+	listener, err := server.Listen(serverTLS, quicConfig(cfg, newTrace()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	done := make(chan error, 1)
+	go func() {
+		conn, e := listener.Accept(ctx)
+		if e == nil {
+			_, e = receiveSession(ctx, conn, cfg)
+		}
+		done <- e
+	}()
+	conn, err := client.Dial(ctx, listener.Addr(), clientTLS, quicConfig(cfg, newTrace()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := sendSession(ctx, conn, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if !result.Censored || result.CompletionVerified || len(result.Errors) != 0 || result.Receiver.Corrupt != 0 || result.Receiver.UsefulBytes == 0 || result.Receiver.UsefulBytes >= uint64(cfg.CompletionBytes) {
+		t.Fatalf("incomplete transfer must be censored without an integrity error: %+v", result)
+	}
+}
 
 func TestNativeFixtureRoundTrip(t *testing.T) {
 	for _, workload := range []string{"stream", "datagram", "completion", "delayed-start"} {

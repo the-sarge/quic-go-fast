@@ -5,6 +5,20 @@ import (
 	"time"
 )
 
+func TestS7CapacityMultipliesPacketRoundedBase(t *testing.T) {
+	// The accepted 100 Mb/s, 100 ms, MTU1460 base is 857 packets;
+	// the deep queue contains four such packet-rounded base queues.
+	for _, forward := range []bool{true, false} {
+		q, err := Scenario("S7", forward, 0, 17, 1460)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if q.Direction.Capacity != 5004880 {
+			t.Fatalf("forward=%v: capacity=%d, want 5004880", forward, q.Direction.Capacity)
+		}
+	}
+}
+
 func TestDirectionalRateFiniteQueueAndCE(t *testing.T) {
 	// Synthetic calibration: 1000 b/s, 200 byte FIFO, 50ms propagation.
 	q := New(Direction{Rate: 1000, Capacity: 200, Delay: 50 * time.Millisecond, Mark: true}, Schedule{})

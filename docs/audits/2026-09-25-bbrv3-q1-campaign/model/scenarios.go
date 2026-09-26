@@ -29,7 +29,7 @@ func Scenario(id string, forward bool, phase int, seed uint64, mtu int) (*Queue,
 	if id == "S7" {
 		multiplier = 4
 	}
-	capacity := max(2, int(math.Ceil(float64(rate)*values[2]/1000/8/float64(mtu)*float64(multiplier)))) * mtu
+	capacity := max(2, int(math.Ceil(float64(rate)*values[2]/1000/8/float64(mtu)))) * mtu * multiplier
 	d := Direction{Rate: rate, Capacity: capacity, Delay: time.Duration(values[2] * float64(time.Millisecond) / 2), Mark: id == "S8", Seed: seed}
 	if id == "S6" && forward {
 		d.Loss = .001
