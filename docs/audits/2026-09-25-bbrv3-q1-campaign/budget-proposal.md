@@ -20,6 +20,18 @@ separate evidence.
 | Forecast before contingency | 69.984667 |
 | Contingency under 72 hours | 2.015333 |
 
+The retained baseline reconciles as follows; every failed or unused reservation stays charged. The initial checkpoint predates all five review allocations.
+
+| Retained allocation | Experiment-hours | Reserved USD | Source |
+| --- | ---: | ---: | --- |
+| Initial native-readiness checkpoint | 21.718 | 23.645 | [Preserved checkpoint](evidence/initial-native-readiness-before-review.json) |
+| Review regressions, race/static checks and pinned native builds | 0.250 | 0.000 | Controller ledger `q1_review_local_checks`, recorded 2026-09-26T05:55:01.571915Z; [public validation receipt](evidence/review-local-validation.json) |
+| Linux correction lease, 30 minutes | 0.500 | 0.900 | [Linux correction](evidence/linux-review-correction-summary.json) |
+| Windows correction attempt 1, 45 minutes | 0.750 | 1.825 | [Staging failure](evidence/windows-review-staging-failure-summary.json) |
+| Windows correction attempt 2, 45 minutes | 0.750 | 1.825 | [Retry failure](evidence/windows-review-retry-failure-summary.json) |
+| Windows correction attempt 3, 45 minutes | 0.750 | 1.825 | [Successful correction](evidence/windows-review-correction-summary.json) |
+| **Retained total** | **24.718** | **30.020** | No refund or new allocation |
+
 Each core case has a 25-second future start and 20-second gateway tail.
 A completion reserves at most 105 seconds (25+60+20). The seven leases each
 include 15 minutes for setup, export and teardown; native observed setup times
