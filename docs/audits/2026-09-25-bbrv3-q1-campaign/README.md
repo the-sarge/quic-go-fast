@@ -1,20 +1,15 @@
 # Q1 campaign preparation
 
-Status: native preparation complete; the [readiness receipt](readiness-receipt.json)
-freezes example-level evidence for the declared hosts and command settings.
+Current review correction: the initial native-readiness checkpoint is preserved in `evidence/initial-native-readiness-before-review.json`. Review found S7 queue rounding and completion censoring defects. Corrected sources, focused regressions and affected native rechecks now pass; see `review-dispositions.md` and the [readiness receipt](readiness-receipt.json).
+
+Status: native prerequisites passed at example level. [PR #642](https://github.com/the-sarge/quic-go-fast/pull/642) owns final review/certification and merge; Q2 remains a separate dispatch.
 The product PR owns review and certification before Q1 closes. Q2 requires
 separate dispatch and fresh lease/resource/clock preflight. These campaign-only
 verification aids ship no controller behavior and retire after Q2.
 
-The operator extended preparation to **16 cumulative hours** on 2026-09-25;
-[authorization](https://github.com/the-sarge/quic-go-fast/issues/598#issuecomment-5837538642).
-The operator also approved **72 experiment-hours** on 2026-09-25; see the
-[approved forecast](budget-proposal.md). The cloud ceiling remains **$100**. Historical
-acceptance records retain their original eight-hour allowance. [Infra PR638](https://github.com/the-sarge/infra/pull/638), merged as
-`4fcfa6ad7f4cff923fa88d97ce82903b0e734aa9`, enforces the preparation extension.
-[Infra PR641](https://github.com/the-sarge/infra/pull/641), merged as
-`46ac9a592cb5cd060eabcd6257b6aeb59837b02d`, enforces 72 experiment-hours
-and admits the costed four-core gateway.
+The current ceilings are **72 cumulative preparation hours**, **72 experiment-hours**, and **$100 cloud cost**. The operator's later instruction to stop worrying about time and make it 72 supersedes the earlier separate 16-hour preparation stop; [infra PR #643](https://github.com/the-sarge/infra/pull/643) aligns the guard. All prior usage remains charged. The operator also pre-authorized increasing the cloud cap to **$150 if needed** on 2026-09-26; that conditional allowance has not been activated because the current forecast fits under $100. See the [current forecast](budget-proposal.md).
+
+Historical eight- and 16-hour preparation approvals remain in their receipts. [Infra PR #641](https://github.com/the-sarge/infra/pull/641), merged as `46ac9a592cb5cd060eabcd6257b6aeb59837b02d`, enforces 72 experiment-hours and admits the costed four-core gateway.
 
 ## Execution boundary
 
@@ -564,3 +559,29 @@ readiness; no further preparation experiment is implied. All cloud resources
 are removed and owned gateway namespaces are absent. Mac addresses and routes
 remain under their frozen eight-hour watchdogs; their expiry is not yet a
 completed cleanup observation.
+
+
+## Review correction native evidence
+
+The current fixture and router source is `e4f322cbbfd4225a4b714e08ec19c958cccadcb0`.
+[Linux](evidence/linux-review-correction-summary.json) saturated the corrected
+S7 queue at exactly 5,004,880 bytes and verified a 16 MiB completion.
+[Mac](evidence/mac-review-correction-summary.json) and
+[Windows](evidence/windows-review-correction-summary.json) also verified the
+representative 16 MiB completion. All three retained the existing gateway timing
+and error gates. The real-QUIC constrained local regression separately verifies
+that an incomplete deadline-limited transfer is censored. Native successful
+completion observations are not presented as a native censoring cross-product.
+
+Historical receipts above retain their original binaries, failures and status
+at the time. Router packet I/O and ordinary model behavior are unchanged; only
+S7 packet rounding and incomplete completion FIN eligibility changed. The
+source graph records the exact build delta and bounded reuse of earlier capacity,
+L3 and competitor observations. Cloud VM/disk inventories are independently
+empty after the correction leases, including both failed Windows staging attempts. Mac test addresses/routes still use the
+original fixed eight-hour watchdogs; their future expiry is not a completed
+cleanup claim. No Q2 comparisons have run.
+
+The current lease forecast is 69.984667 experiment-hours and $96.083333,
+including 24.718 hours/$30.02 of retained reservations. The conditional $150
+authorization remains unused; the active cost cap is $100.

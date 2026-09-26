@@ -1,5 +1,5 @@
 {
-  "status": "frozen schedule candidate; optional native competitor topology not yet calibrated",
+  "status": "Frozen schedule; selected V2 L4 and L6-L8 example-level native preparation gates passed; Q2 not run; fresh lease preflight required",
   "hosts": {
     "sender": "bbr-competitor-a",
     "receiver": "bbr-competitor-b",
@@ -124,5 +124,6 @@
       "port_offset": 0
     }
   },
-  "port_contract": "For zero-based line index i in case-inventory.jsonl, base_port = 20000 + 8*i. Use this base on the focal pair and first competitor flow; L4 additional bulk ports are base+2 and base+4, with TCP control at bulk+1. Each case has a disjoint block, avoiding client TIME_WAIT reuse across adjacent cases. Record a separate unused block for any explicitly scheduled retry; do not silently rerun a failed case."
+  "port_contract": "For zero-based line index i in case-inventory.jsonl, base_port = 20000 + 8*i. Use this base on the focal pair and first competitor flow; L4 additional bulk ports are base+2 and base+4, with TCP control at bulk+1. Each case has a disjoint block, avoiding client TIME_WAIT reuse across adjacent cases. Record a separate unused block for any explicitly scheduled retry; do not silently rerun a failed case.",
+  "native_preparation_evidence": "evidence/linux-v2-final-summary.json"
 }

@@ -2,10 +2,12 @@
   "status": "frozen bounded lease partition; fresh native preflight required",
   "inventory_sha256": "bab8af515337f2fa32bdf3765e658a1d102ad601125112100b7043c23ef28fd1",
   "retained_reservations": {
-    "experiment_hours": 21.718,
-    "usd": 23.645
+    "experiment_hours": 24.718,
+    "usd": 30.02
   },
   "remaining_preparation_measurements": {
+    "linux_hours": 0,
+    "linux_usd": 0,
     "windows_hours": 0,
     "windows_usd": 0,
     "mac_hours": 0,
@@ -631,8 +633,8 @@
       "reserved_usd": 12.08
     }
   ],
-  "forecast_hours": 66.984667,
-  "forecast_usd": 89.708333,
-  "remaining_hours": 5.015333,
-  "remaining_usd": 10.291667
+  "forecast_hours": 69.984667,
+  "forecast_usd": 96.083333,
+  "remaining_hours": 2.015333,
+  "remaining_usd": 3.916667
 }

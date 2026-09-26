@@ -1,0 +1,69 @@
+{
+  "source_revision": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "red_green": [
+    {
+      "test": "TestS7CapacityMultipliesPacketRoundedBase",
+      "red": "capacity5000500, expected5004880; exit1 against87b8cd5a",
+      "green": "go test ./model -count=1 passed after central formula correction"
+    },
+    {
+      "test": "TestIncompleteCompletionIsCensored",
+      "red": "Real QUIC transfer stopped with6,874,560 useful bytes; Censored=false and premature completion EOF; exit1 before FIN correction",
+      "green": "Same regression passed after FIN eligibility correction; existing TestNativeFixtureRoundTrip/completion also passed"
+    }
+  ],
+  "race_vet_tidy": [
+    {
+      "name": "race",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "./fixture",
+        "./model",
+        "-count=1"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 85.20800185203552,
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0"
+    },
+    {
+      "name": "vet",
+      "command": [
+        "go",
+        "vet",
+        "./fixture",
+        "./model"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.8329610824584961,
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0"
+    },
+    {
+      "name": "tidy",
+      "command": [
+        "go",
+        "mod",
+        "tidy",
+        "-diff"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.04297995567321777,
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0"
+    }
+  ],
+  "finite_expansion": {
+    "cases": 520,
+    "native_path": 70,
+    "modeled_router": 450,
+    "identity_role_count_forwarding_finite_endpoints": "pass"
+  },
+  "metadata_checks": "Seven cloud inventory references resolve with matching archive member hashes; both portable and batch historical probe source snapshots match git source bytes. Mac personal inventory references explicitly external/redacted.",
+  "probe_binary_identity_checks": {
+    "windows_portable": "fixture.zip bytes match0acff83cbd7ebd78e4e49a8a0ebfe939d71772a21fcac34df738bc0d4f9a3a60; source46723c74",
+    "windows_batch": "fixture.zip bytes match710f988afa1e45a7cda765950e34771e46b3ecc73d040cce770a2d4d83110317; source0ade3ee4",
+    "mac_portable": "Both native q1probe-dual files matchbb2ad4e24e176a3b5b5aef163eb024ee6485340b0872d7673d416998439fec94; selected driver paths confirmed; source46723c74",
+    "linux_portable": "Retained probe-transition.json source46723c74 matches5d202e3138cf4bacbe6b2fc736c065e5d66828493982ee6559e9a93c2073199a; native bbr-a-final-probe-hash.txt agrees",
+    "linux_legacy": "Retained endpoint bundle bytes match2454034c8d8e73fad52b027a3037eabfa5c3bd37af7a5e2474e9489c684e9ded; original modified source limitation remains explicit"
+  }
+}

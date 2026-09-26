@@ -47,8 +47,8 @@ for group, pairs in groups.items():
 
 result = {'status': 'frozen bounded lease partition; fresh native preflight required',
           'inventory_sha256': hashlib.sha256(inventory.read_bytes()).hexdigest(),
-          'retained_reservations': {'experiment_hours': 21.718, 'usd': 23.645},
-          'remaining_preparation_measurements': {'windows_hours': 0, 'windows_usd': 0, 'mac_hours': 0, 'mac_usd': 0},
+          'retained_reservations': {'experiment_hours': 24.718, 'usd': 30.02},
+          'remaining_preparation_measurements': {'linux_hours': 0, 'linux_usd': 0, 'windows_hours': 0, 'windows_usd': 0, 'mac_hours': 0, 'mac_usd': 0},
           'setup_cleanup_seconds_per_lease': 900,
           'case_overhead_seconds': {'future_start': 25, 'gateway_tail': 20},
           'order_contract': 'Execute leases and case indices in this recorded order. Original controller order, seed and pairing remain unchanged; full pairs are partitioned by platform/topology. Linux completions reuse a competitor lease with idle extra endpoints.',
@@ -70,8 +70,8 @@ assert len(indices) == len(rows) == 520 and sorted(indices) == list(range(520))
 assert all(lease['lifetime_minutes'] <= 480 for lease in result['leases'])
 retained = result['retained_reservations']
 remaining = result['remaining_preparation_measurements']
-result['forecast_hours'] = round(retained['experiment_hours'] + remaining['windows_hours'] + remaining['mac_hours'] + sum(lease['lifetime_minutes'] for lease in result['leases']) / 60, 6)
-result['forecast_usd'] = round(retained['usd'] + remaining['windows_usd'] + remaining['mac_usd'] + sum(lease['reserved_usd'] for lease in result['leases']), 6)
+result['forecast_hours'] = round(retained['experiment_hours'] + remaining['linux_hours'] + remaining['windows_hours'] + remaining['mac_hours'] + sum(lease['lifetime_minutes'] for lease in result['leases']) / 60, 6)
+result['forecast_usd'] = round(retained['usd'] + remaining['linux_usd'] + remaining['windows_usd'] + remaining['mac_usd'] + sum(lease['reserved_usd'] for lease in result['leases']), 6)
 result['remaining_hours'] = round(72 - result['forecast_hours'], 6)
 result['remaining_usd'] = round(100 - result['forecast_usd'], 6)
 assert result['remaining_hours'] >= 0 and result['remaining_usd'] >= 0

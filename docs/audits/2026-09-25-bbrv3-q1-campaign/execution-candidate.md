@@ -83,6 +83,8 @@ their declared starts, with flows two and three sharing the same start epoch.
 L6–L8 retain their single competitor connection through the 240–270-second bulk
 pause. All participant configurations end at the same measurement boundary.
 
+During the first Q2 cloud case, timestamp mandatory orchestration and classify clock/path/resource/export work as per-lease or per-case, and overlapped or serialized. Retain that receipt. Recompute the remaining partition before continuing if mandatory non-overlapped work exceeds its available envelope; never assume the 45-second case overhead covers unmeasured extra work. Clock observations in the clock contract are lease-boundary work.
+
 Check remaining immutable lease time before every case: include the full
 future-start, warm-up, measurement, 20-second gateway tail, export and cleanup.
 Do not overlap cases on a topology. For Mac, require no active gateway VM workload before launch; record gateway

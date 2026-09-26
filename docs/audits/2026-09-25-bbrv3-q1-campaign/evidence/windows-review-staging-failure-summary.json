@@ -1,0 +1,17 @@
+{
+  "status": "Unmeasured Windows correction attempt: bbr-a SCP timed out after180 seconds; bbr-b staging and hash check passed",
+  "cleanup": "Fallback destroy passed; independent VM/disk inventories both empty",
+  "recorded_at": "2026-09-26T07:20:03.145607+00:00",
+  "reservation": {
+    "hours": 0.75,
+    "usd": 1.825
+  },
+  "archive_sha256": "a881400bcbbc06db641eddeec7e8520ff2f75a7fc034751979817b0af70a74da",
+  "record_count": 32,
+  "next": "One retry of the same unmeasured completion case using noninteractive SSH stream and archive hash verification; no added case or measurement repetition",
+  "archive": "windows-review-staging-failure-public-records.tar.gz",
+  "omitted_private_records": {
+    "fallback-destroy.txt": "22a09e9f1b19a3f551fd32ea6075a8a69a12ae0776575dd6dbd8a9c1699d4eb0"
+  },
+  "omission_reason": "Full lifecycle output contains account-identifying metadata; exact original logs and initial export remain private on the Controller. Independent empty inventories and native transfer failure records are public."
+}

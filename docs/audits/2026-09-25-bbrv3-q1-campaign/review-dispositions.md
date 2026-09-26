@@ -1,7 +1,7 @@
 # Q1 bounded review dispositions
 
 Initial review `20260926T050859-bf7ff4c50d7a9b0823175f14`, head `87b8cd5ae9d827b024924e998d78e46872f2090f`.
-These are the implementing agent's dispositions after source/contract inspection. The guarantee remains example-level native readiness for the frozen inventory; no controller product behavior changes. Campaign aids retire after Q2. One replacement review remains after verification.
+These are the implementing agent's dispositions after source/contract inspection. The guarantee remains example-level native readiness for the frozen inventory; no controller product behavior changes. Campaign aids retire after Q2. The review budget is one initial review and at most one replacement after verification.
 
 | Cluster | Disposition | Evidence and bounded action |
 | --- | --- | --- |
@@ -29,4 +29,18 @@ These are the implementing agent's dispositions after source/contract inspection
 
 Contract closure is not triggered: these are campaign-only evidence aids and metadata, with proportionate finite tests rather than shipped safety authority. This is the first Q1 review; no prior accepted review fix exists at these owners. Duplicate reviewer examples identify the same semantic classes, not a repeated-root approach failure.
 
-Native correction budget: at most one 30-minute Linux reservation and one 45-minute Windows reservation, plus representative Mac checks within the already charged eight-hour window. Reserve before launch and retain failures/unused time. Existing 72-hour experiment and $100 ceilings apply; preparation uses the operator's later 72-hour extension. No Q2 comparisons or new platform cross-product.
+Native correction scope: one 30-minute Linux reservation and representative Mac checks within the already charged eight-hour window. The first 45-minute Windows reservation ended before measurement because endpoint SCP timed out; its full reservation is retained. The replacement 45-minute lease also ended before measurement: bulk stdin transfers stalled, and an alternate download command contained a parameter typo. A third 45-minute Windows lease runs the same unmeasured completion case using a private-network public-binary download with archive/executable hashes and encrypted SSH for the small TLS files. This consumes existing overall contingency without adding a case, repetition or platform. Reserve before launch and retain failures/unused time. Existing 72-hour experiment and $100 ceilings apply; preparation uses the operator's later 72-hour extension. No Q2 comparisons or new platform cross-product.
+
+## Implemented correction evidence
+
+Source commit `e4f322cbbfd4225a4b714e08ec19c958cccadcb0` contains the two central behavior fixes and their regressions. [Local validation](evidence/review-local-validation.json) records red/green results, affected-package race tests, vet, tidy, inventory/probe-source checks, and all 520 command expansions. [Mac correction receipt](evidence/mac-review-correction-summary.json) records the rebuilt native fixture's verified 16 MiB completion and unchanged gateway gates. The outer wrapper's redundant cleanup failure is retained with independent absence verification and exact lease release; it does not rewrite the successful native role outcomes.
+
+The infrastructure guard's first full certification encountered a local Go bootstrap mismatch in a deliberately offline guest test. Invoking the installed Go1.27.1 binary directly made that focused test pass; the complete unchanged-head `task check` subsequently passed with that environment at `3ddfc5a6590a65ef85c03989875534e8751dacab`. Hosted run [36224328143](https://github.com/the-sarge/infra/actions/runs/36224328143) passed on the same head. Infra PR #643 merged as `8f46b44689014acf5351bdf695ac7e76139d6d4c`, and that source was staged on the retained Controller before the correction leases. No source fix or RAS timeout change was made for it.
+
+
+[Windows staging failure](evidence/windows-review-staging-failure-summary.json) preserves the timeout and successful cleanup. Ordinary SSH worked and the other endpoint received the same bundle; the exact SCP stall cause is not claimed. The bounded workaround changes transfer transport only, with end-to-end archive and executable hashes.
+
+[Second Windows staging failure](evidence/windows-review-retry-failure-summary.json) preserves the failed stdin experiments, the incorrect download parameter and cleanup/resumption outcomes. The corrected download command changes staging only; all reservations are retained and no native completion measurement was repeated.
+
+
+[Linux correction evidence](evidence/linux-review-correction-summary.json) confirms the corrected 5,004,880-byte saturated S7 queue, fresh four-core gateway facts and verified 16 MiB completion. [Windows correction evidence](evidence/windows-review-correction-summary.json) verifies completion with the rebuilt fixture. Both include before/after clock observations, unchanged gateway gates, successful explicit teardown and independent empty VM/disk inventories. These complete the accepted native correction checks; source identities and old failed observations are preserved. Verification and replacement-review judgments are recorded with the live PR rather than changing the frozen measurement receipts.

@@ -1,13 +1,13 @@
 {
-  "status": "Native prerequisites passed; final certification and bounded review remain",
+  "status": "Frozen native prerequisites passed at example level; Q2 requires separate dispatch",
   "native_prerequisites_pass": true,
-  "recorded_at": "2026-09-26T05:05:25.961685+00:00",
-  "preparation_hours_observed": 15.976378245833335,
-  "experiment_hours_reserved": 21.718,
-  "cloud_usd_reserved": 23.645,
+  "recorded_at": "2026-09-26T07:56:33.522898+00:00",
+  "preparation_hours_observed": 18.828478582777777,
+  "experiment_hours_reserved": 24.718,
+  "cloud_usd_reserved": 30.02,
   "forecasts": {
-    "experiment_hours": 66.984667,
-    "cloud_usd": 89.708333
+    "experiment_hours": 69.984667,
+    "cloud_usd": 96.083333
   },
   "mac_reverse": {
     "delivered": 17996263,
@@ -69,6 +69,14 @@
     "clock-after": 0,
     "gateway-down": 0
   },
-  "evidence_scope": "Example-level native evidence. Earlier native Mac full L3 and Reno/BBRv3 stream/DATAGRAM checks are retained with their original V3 gateway identities. Shared model and selected V2 binary have final Linux/Windows L3 and impairment evidence. Final Mac V2 adds both-direction capacity and generated BBR completion plus S1-to-modeled forwarding transition. No Q2 comparison.",
-  "cleanup": "Cloud inventories independently empty. Owned gateway namespaces removed after finite checks. Mac aliases/routes remain active under frozen eight-hour root watchdogs, expiring 11:50:37/54 UTC; no cleanup-complete claim for them."
+  "evidence_scope": "Example-level native evidence. Earlier native Mac full L3 and Reno/BBRv3 stream/DATAGRAM checks are retained with their original V3 gateway identities. Shared model and selected V2 binary have final Linux/Windows L3 and impairment evidence. Final Mac V2 adds both-direction capacity and generated BBR completion plus S1-to-modeled forwarding transition. No Q2 comparison. Review corrections pin fixture/router e4f322cb: real-QUIC partial-transfer censoring regression, both S7 model directions, saturated native Linux S7, and representative verified native completion on Linux/Mac/Windows. Historical capacity and impairment evidence is explicitly reused only for unchanged paths; no full comparative campaign was run.",
+  "cleanup": "Cloud inventories independently empty. Owned gateway namespaces removed after finite checks. Mac aliases/routes remain active under frozen eight-hour root watchdogs, expiring 11:50:37/54 UTC; no cleanup-complete claim for them.",
+  "initial_native_checkpoint": "evidence/initial-native-readiness-before-review.json",
+  "review_and_merge_gate": "https://github.com/the-sarge/quic-go-fast/pull/642",
+  "review_correction_receipts": {
+    "mac": "evidence/mac-review-correction-summary.json",
+    "linux": "evidence/linux-review-correction-summary.json",
+    "windows": "evidence/windows-review-correction-summary.json"
+  },
+  "preparation_accounting": "Observed through this native evidence freeze, retaining all prior usage; subsequent review/certification time continues in the Controller ledger under the 72-hour ceiling."
 }
