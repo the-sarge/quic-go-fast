@@ -38,7 +38,7 @@
     "linux-q1fixture-linux": {
       "sha256": "a74c9f0775ca1e559a961294d38f66da5c022c259e6b7dea6d9e7a7833aa2c44",
       "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
-      "go_version": "go1.27.1",
+      "go_version": "go1.27.0",
       "build_metadata": [
         "\tpath\tq1campaign/fixture",
         "\tmod\tq1campaign\t(devel)\t",
@@ -61,7 +61,7 @@
     "windows-q1fixture.exe": {
       "sha256": "e4178906af4079cb797e1fb4ea3910ba2c52b995cfbbe4173324d2ed56b547ab",
       "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
-      "go_version": "go1.27.1",
+      "go_version": "go1.27.0",
       "build_metadata": [
         "\tpath\tq1campaign/fixture",
         "\tmod\tq1campaign\t(devel)\t",
@@ -120,7 +120,7 @@
     "mac-fixture": {
       "sha256": "a6b26ef9b65b25c322f4c7af03eb6c6551a76cc5fdeaafe6e16247dc742163ea",
       "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
-      "go_version": "go1.27.1",
+      "go_version": "go1.27.0",
       "build_metadata": [
         "\tpath\tq1campaign/fixture",
         "\tmod\tq1campaign\t(devel)\t",
@@ -390,7 +390,7 @@
   "review_build_provenance": {
     "source_revision": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
     "git_archive_sha256": "f6fbcd9c8c817a2916ad9d4a03af680b6dd58fd4e84048fa32982bb382c46b5f",
-    "build": "Clean git archive; Go1.27.1. Fixture CGO_ENABLED=0 for all three platforms; router built natively on Linux. -trimpath and embedded main.sourceRevision identify the revision.",
+    "build": "Clean git archive. Fixtures built with Go1.27.0 and CGO_ENABLED=0 for all three platforms; router built natively on Linux with Go1.27.1. -trimpath and embedded main.sourceRevision identify the revision.",
     "delta": "Router main and model/model.go unchanged; model/scenarios.go only changes S7 round/multiply order. Fixture session.go only changes completion FIN eligibility; payload integrity and existing early-error paths unchanged.",
     "reuse": "Historical native receipts retain original identities. Unchanged model/packet-I/O capacity and platform evidence is reused explicitly at example level; no claim that historical observations were produced by these new binaries."
   }
