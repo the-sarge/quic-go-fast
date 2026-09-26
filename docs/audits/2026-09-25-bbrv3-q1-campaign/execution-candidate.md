@@ -1,8 +1,8 @@
 # Campaign execution candidate
 
 This is a campaign-only command recipe. **Q1 is not ready and Q2 remains
-blocked.** In particular, the four-core cloud gateway's sustained forward S3
-check exceeded the unchanged 5 ms gate. Do not execute the comparative cases
+blocked.** The original four-core/V3 gateway failed timing. The V2 candidate passed
+both S3 directions but still needs final-source scenario and Windows validation. Do not execute the comparative cases
 from this document until the native prerequisites and reviewed manifest pass.
 
 `lease-plan-candidate.json` owns the proposed seven-lease order. Within each
@@ -33,7 +33,8 @@ cleanup deadline.
 
 Stage the pinned native fixture as `/tmp/q1-campaign/q1fixture` on Unix
 endpoints or `C:/bbr/q1/q1fixture.exe` on Windows. Stage the pinned Linux router
-as `/tmp/q1-campaign/q1router` on the gateway. Generate one campaign-only mTLS
+as `/tmp/q1-campaign/q1router` on the gateway. The cloud command candidate
+selects `-packet-version 2`; Mac retains its recorded V3 component and command. Generate one campaign-only mTLS
 certificate/key pair using the fixture's `-role cert`, and copy it privately to
 both endpoint working directories as `campaign.pem` and `campaign-key.pem`.
 Do not commit keys. Record the certificate hash and expiry before a lease;

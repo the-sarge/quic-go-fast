@@ -55,6 +55,8 @@ type observation struct {
 	Stats                                              model.Stats
 }
 
+var sourceRevision = "unrecorded"
+
 func main() {
 	if e := run(); e != nil {
 		fmt.Fprintln(os.Stderr, e)
@@ -65,7 +67,16 @@ func run() error {
 	input := flag.String("config", "", "frozen adapter JSON")
 	output := flag.String("output", "", "observed counters JSON")
 	profile := flag.String("profile", "", "optional diagnostic CPU profile; not a qualification run")
+	version := flag.Int("packet-version", 3, "packet ring ABI: 2 for packet polling, 3 for block polling")
 	flag.Parse()
+	packetVersion := afpacket.TPacketVersion3
+	switch *version {
+	case 2:
+		packetVersion = afpacket.TPacketVersion2
+	case 3:
+	default:
+		return fmt.Errorf("packet-version must be 2 or 3")
+	}
 	if *profile != "" {
 		f, e := os.Create(*profile)
 		if e != nil {
@@ -111,7 +122,7 @@ func run() error {
 		wg.Add(1)
 		go func(index int, from, to side, q *model.Queue) {
 			defer wg.Done()
-			r := forward(ctx, measured, index, from, to, q)
+			r := forward(ctx, measured, index, from, to, q, packetVersion)
 			if r.Error != "" {
 				cancel()
 			}
@@ -129,10 +140,13 @@ func run() error {
 		}
 	}
 	data, e := json.MarshalIndent(struct {
-		Config       config
-		Observations []observation
-		Profiled     bool
-	}{c, observations, *profile != ""}, "", "  ")
+		Config        config
+		Observations  []observation
+		Profiled      bool
+		PacketVersion int
+		Source        string
+		GoVersion     string
+	}{c, observations, *profile != "", *version, sourceRevision, runtime.Version()}, "", "  ")
 	if e != nil {
 		return e
 	}
@@ -163,9 +177,9 @@ func socket(name string) (int, *net.Interface, error) {
 	return fd, nic, nil
 }
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
-func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue) observation {
+func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion) observation {
 	o := observation{Direction: fmt.Sprintf("%s->%s", from.Interface, to.Interface)}
-	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), afpacket.TPacketVersion3, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
+	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), version, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
 	if e != nil {
 		o.Error = e.Error()
 		return o
@@ -347,11 +361,12 @@ loop:
 	o.SendErrors += emitted.SendErrors
 	o.MaxEgressLagNS = emitted.MaxEgressLagNS
 	o.MaxEgressAtNS = emitted.MaxEgressAtNS
-	_, stats, err := rx.SocketStats()
+	stats, statsV3, err := rx.SocketStats()
 	if err != nil {
 		o.Error = err.Error()
 	} else {
-		o.SocketDrops = uint64(stats.Drops())
+		// The library fills only the counter set for the selected ring ABI.
+		o.SocketDrops = uint64(stats.Drops()) + uint64(statsV3.Drops())
 	}
 	o.Stats = q.Stats
 	return o

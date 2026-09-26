@@ -336,3 +336,33 @@ Private keys, cloud billing identity and personal host inventories remain
 outside committed evidence. These are preparation receipts, not performance
 comparisons or a Q1 readiness declaration. The current finite allocation and
 conditional competitor lease partition are in [the budget forecast](budget-proposal.md).
+
+## Packet-ring diagnosis and candidate
+
+The four-core cloud profile still exceeded the 5 ms timing gate with the V3
+packet ring. L6's maximum kernel-to-reader delay was 5.768 ms. Reducing Go
+processors from four to one made a short S3 diagnostic substantially worse
+(29.172 ms ingress); that configuration is rejected.
+
+A separate V2 ring diagnostic retained four Go processors and the unchanged
+packet model, GOGC400 and memory limit. Both 210-second S3 directions passed:
+forward maxima 3.959 ms ingress/3.243 ms egress, reverse 3.577/3.925 ms, roughly
+1,000 Mb/s, no ring/socket drops or invalid payloads. Native UDP reordering
+remains recorded. This supports a packet-ring change as a candidate; it does
+not qualify the remaining scenarios or Windows path.
+
+The router now accepts `-packet-version 2` or `3`, with default 3 preserving
+previous Mac commands. The cloud command candidate explicitly selects 2.
+The receipt records ring version, source and Go version. `gopacket` owns both
+ring representations and socket statistics; V2 populates its first counter
+set, V3 its second. Sum the returned drop counters so neither ABI silently
+loses that gate. No handwritten kernel header parser is introduced.
+
+[Linux's packet-mmap documentation](https://docs.kernel.org/networking/packet_mmap.html)
+describes V3 block-level polling/timeout versus V2 packet-level polling. The
+native observations support testing that distinction; they do not prove that
+all observed delays came from block retirement. Final-source validation of
+L3, L4 and L6–L8, a short S8 marking check, and the selected Windows path remain
+required before adoption of this candidate. The additional 45-minute Linux
+validation envelope requires a budget decision against the full campaign
+forecast; no new paid lease is authorized by this document.
