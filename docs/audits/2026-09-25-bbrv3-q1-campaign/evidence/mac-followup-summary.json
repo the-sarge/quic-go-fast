@@ -1,0 +1,119 @@
+{
+  "delivered": 17996379,
+  "received": 17995020,
+  "host_counters": {
+    "m4mini-eth": {
+      "before": 24283,
+      "after": 24462,
+      "no_growth": false
+    },
+    "mbp128": {
+      "before": 742,
+      "after": 742,
+      "no_growth": true
+    }
+  },
+  "steady_ip_mbps_excluding_first_second": 999.9221733971291,
+  "pass": false,
+  "status": "invalid capacity diagnostic; no idle-host readiness or Q2 comparison",
+  "reservation": {
+    "hours": 0.5,
+    "usd": 0
+  },
+  "gateway_source": "9815770f522be7ea1132349442bece9fd336f129",
+  "gateway_sha256": "c42b3626e609aa8012c3809cc4cd42b83e4df1aaf08f09277c63bde9b25ffdd3",
+  "probe_source": "46723c74a52f7a33dce23447f024bfb024b94370",
+  "probe_sha256": "bb2ad4e24e176a3b5b5aef163eb024ee6485340b0872d7673d416998439fec94",
+  "cpu": {
+    "m4mini-eth": {
+      "sample_count": 244,
+      "idle_percent_min": 41.0,
+      "idle_percent_mean": 59.74590163934426,
+      "qualification": "recorded contention; otherwise-idle not established"
+    },
+    "mbp128": {
+      "sample_count": 244,
+      "idle_percent_min": 16.0,
+      "idle_percent_mean": 66.52459016393442,
+      "qualification": "recorded contention; otherwise-idle not established"
+    }
+  },
+  "gateway": [
+    {
+      "Direction": "q1b->q1a",
+      "Error": "",
+      "NonCanonical": 0,
+      "SocketDrops": 0,
+      "SendErrors": 0,
+      "MissingTimestamps": 0,
+      "MaxIngressLagNS": 1401026,
+      "MaxEgressLagNS": 1356757,
+      "Stats": {
+        "Received": 21535390,
+        "Admitted": 17996379,
+        "Delivered": 17996379,
+        "Marked": 0,
+        "EarlyDrop": 0,
+        "Overflow": 3539011,
+        "RandomDrop": 0,
+        "EventDrop": 0,
+        "InterruptionDrop": 0,
+        "MaxQueueBytes": 25001040,
+        "MaxPropagationBytes": 12500520,
+        "DeliveredBytes": 26274713340,
+        "PropagationOverflow": 0
+      }
+    },
+    {
+      "Direction": "q1a->q1b",
+      "Error": "",
+      "NonCanonical": 0,
+      "SocketDrops": 0,
+      "SendErrors": 0,
+      "MissingTimestamps": 0,
+      "MaxIngressLagNS": 0,
+      "MaxEgressLagNS": 0,
+      "Stats": {
+        "Received": 0,
+        "Admitted": 0,
+        "Delivered": 0,
+        "Marked": 0,
+        "EarlyDrop": 0,
+        "Overflow": 0,
+        "RandomDrop": 0,
+        "EventDrop": 0,
+        "InterruptionDrop": 0,
+        "MaxQueueBytes": 0,
+        "MaxPropagationBytes": 0,
+        "DeliveredBytes": 0,
+        "PropagationOverflow": 0
+      }
+    }
+  ],
+  "missing_packets": 1359,
+  "cleanup": {
+    "gateway_namespaces": "removed; empty inventory in followup-gateway-down.txt",
+    "mac_aliases": "Both aliases, host routes and root state directories independently verified absent after watchdog expiry",
+    "receipts": {
+      "mini": {
+        "utc": "2026-09-26T02:53:04.662446+00:00",
+        "alias_present": false,
+        "test_host_route_present": false,
+        "root_state_present": false
+      },
+      "mbp": {
+        "utc": "2026-09-26T02:53:18.711285+00:00",
+        "alias_present": false,
+        "test_host_route_present": false,
+        "root_state_present": false
+      }
+    }
+  },
+  "binary_hash_receipts": {
+    "mini": "bb2ad4e24e176a3b5b5aef163eb024ee6485340b0872d7673d416998439fec94  /tmp/q1-mac-20260925/q1probe-dual",
+    "mbp": "bb2ad4e24e176a3b5b5aef163eb024ee6485340b0872d7673d416998439fec94  /tmp/q1-mac-20260925/q1probe-dual",
+    "gateway": "c42b3626e609aa8012c3809cc4cd42b83e4df1aaf08f09277c63bde9b25ffdd3  /tmp/q1router-tail"
+  },
+  "archive_sha256": "53460a830dad496ae58c7b4201e65aa5c5e8fb2bf0df833538d583c85ff2c7f4",
+  "record_count": 38
+}

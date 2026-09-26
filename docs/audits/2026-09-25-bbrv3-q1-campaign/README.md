@@ -10,7 +10,10 @@ The operator extended preparation to **16 cumulative hours** on 2026-09-25;
 The operator also approved **72 experiment-hours** on 2026-09-25; see the
 [approved forecast](budget-proposal.md). The cloud ceiling remains **$100**. Historical
 acceptance records retain their original eight-hour allowance. [Infra PR638](https://github.com/the-sarge/infra/pull/638), merged as
-`4fcfa6ad7f4cff923fa88d97ce82903b0e734aa9`, enforces the approved extension.
+`4fcfa6ad7f4cff923fa88d97ce82903b0e734aa9`, enforces the preparation extension.
+[Infra PR641](https://github.com/the-sarge/infra/pull/641), merged as
+`46ac9a592cb5cd060eabcd6257b6aeb59837b02d`, enforces 72 experiment-hours
+and admits the costed four-core gateway.
 
 ## Execution boundary
 
@@ -363,6 +366,96 @@ describes V3 block-level polling/timeout versus V2 packet-level polling. The
 native observations support testing that distinction; they do not prove that
 all observed delays came from block retirement. Final-source validation of
 L3, L4 and L6–L8, a short S8 marking check, and the selected Windows path remain
-required before adoption of this candidate. The additional 45-minute Linux
-validation envelope requires a budget decision against the full campaign
-forecast; no new paid lease is authorized by this document.
+required before adoption of this candidate. The operator approved a 72-hour experiment ceiling, and the final-source
+45-minute Linux validation was reserved before launch. L6 passed all five
+roles on that selected build; the remaining scheduled cases are still running.
+The [source graph](source-graph-candidate.json) records binary hashes, compiler
+versions and component revisions, including the legacy Linux calibration
+probe's incomplete source provenance. It is not a Q2 participant.
+
+## Final selected cloud gateway: Linux receipt
+
+[The final Linux receipt](evidence/linux-v2-final-summary.json) retains all eight
+scheduled checks. L6, L8 and L7 passed every process and the unchanged 5 ms
+gateway gate. L4 passed all nine native commands expanded directly from the
+frozen inventory. The 300-second L3 rate probe observed the configured
+5/20/1/20 Mb/s steady phases and passed timing.
+
+The final pinned probe passed S8 ECT, S8 Not-ECT and short S3. S8's 85,775
+marked packets exactly matched the receiver's CE count; Not-ECT produced
+42,524 early drops and no marks. S3 observed 1,000.004 Mb/s. All three had
+exact delivered/received packet balance, no socket drops and no invalid or
+duplicate payloads. The probe transition is explicit: L3 retained the running
+legacy binary, verified through its process executable hash; only subsequent
+short checks used the pinned46723c74 probe. No older result is relabeled.
+
+The selected router is da6655e0, Go1.27.1, TPACKET_V2, GOGC400 and a4GiB
+Go memory limit on the four-core cloud gateway. All20 resources were destroyed
+before immutable expiry; independent VM/disk inventories were empty. Windows
+setup with this build failed when the gateway file transfer timed out, before
+any measurements; cleanup left zero VMs/disks and the reservation remains
+charged. A bounded retry uses the existing SSH transport and a compressed,
+hash-verified bundle. Mac idle-window validation, final manifest certification
+and review remain open; Q2 remains blocked.
+
+
+## Second Mac window: reverse capacity remains invalid
+
+[The second Mac receipt](evidence/mac-followup-summary.json) retains the
+two-flow, 210-second reverse S3 diagnostic. It reached 999.922 Mb/s but did
+not pass: the gateway delivered 17,996,379 packets and the two receivers
+counted 17,995,020. The Mac mini's host-wide UDP full-buffer-drop counter
+increased by 179. No invalid or duplicate payloads were observed. The gateway
+passed its timing gate (maximum ingress 1.401 ms, submission lateness 1.357 ms)
+and reported no packet-socket drops or send errors. The remaining 1,180 missing
+packets are not explained by the recorded host-wide counter; do not attribute
+all loss to a socket buffer or to background activity.
+
+Both hosts had background activity before measurement. During the diagnostic,
+mean CPU idle was 59.75% on M4 mini and 66.52% on MacBook Pro, including the
+probe workload. These records establish neither otherwise-idle scheduling nor
+reverse-path calibration. A quiet-host check with observations of interface
+and socket losses remains necessary before declaring Mac readiness. No Q2
+comparison was run, and no rate or scheduling requirement was relaxed.
+
+The gateway namespaces were removed, and both Mac watchdogs removed their
+aliases, host routes and root state. Independent cleanup observations are
+retained in the archive. [The failed Windows setup receipt](evidence/windows-staging-failure-summary.json)
+retains the earlier staging timeout and independent empty resource inventories.
+
+
+## Latest Windows and Mac follow-up
+
+[Windows retry evidence](evidence/windows-final-retry-summary.json) confirms that
+compressed, hash-verified gateway staging works. Native generated L3 commands
+and finite BBR completion passed. The paced UDP probes offered only about
+68 Mb/s. Unpaced probes reached 1,000.054 and 999.470 Mb/s with exact packet
+balance, but both failed the unchanged 5 ms gateway timing gate (maximum
+ingress about 5.734 and 5.735 ms). These are not successful S3 qualifications.
+A two-second unpaced sender diagnostic ran while gateway forwarding was off;
+it received no packets and supports only a sender-rate observation. Original
+parser and clock-observer failures are preserved separately from successful
+re-evaluations and reruns. All cloud VMs and disks were removed and independently
+verified absent.
+
+The calibration probe now permits an explicit bounded pacing batch of at most
+256 packets, preserving the default of one. This is a candidate correction to
+the Windows offered-load limitation, not a demonstrated OS diagnosis. It needs
+native rate, loss and timing validation on its recorded binary/source identity.
+
+[The latest Mac receipt](evidence/mac-counter-summary.json) reached 998.908 Mb/s,
+passed gateway timing and showed no growth in either host's UDP full-buffer-drop
+counter. Its apparent 928-packet difference includes small other packets: the
+gateway's IP-byte total exceeds received probe bytes by only 101,627 bytes,
+rather than 928 times 1,460. Aggregate counters cannot establish probe loss.
+A filtered egress capture is prepared to count only the two probe destination
+ports, requiring zero capture drops and exact receiver balance. The original
+failed aggregate evaluation remains preserved. Interface records are redacted
+for hardware and non-campaign addresses; original hashes remain in the archive.
+
+The operator clarified that remaining macOS media analysis/indexing is acceptable
+after pausing available user/sync workloads. Record CPU contention; neither
+physical-core isolation nor efficiency-core placement is verified. This updates
+the earlier otherwise-idle prerequisite and does not change packet-loss or
+5 ms timing gates. Both root watchdogs cleaned up their temporary network settings,
+and the gateway namespaces were independently verified absent. Q2 remains blocked.

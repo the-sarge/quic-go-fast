@@ -1,0 +1,163 @@
+{
+  "status": "native preparation inventory; remaining Windows pacing and Mac filtered-counter checks pending",
+  "cloud_linux": {
+    "bbr-a": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-a-facts-3.txt"
+    },
+    "bbr-b": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-b-facts-3.txt"
+    },
+    "bbr-gateway": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-gateway-facts-0.txt"
+    },
+    "bbr-competitor-a": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-competitor-a-facts-3.txt"
+    },
+    "bbr-competitor-b": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-competitor-b-facts-3.txt"
+    }
+  },
+  "mac": {
+    "m4mini-eth": {
+      "os": "macOS",
+      "version": "26.6.2",
+      "build": "25G83",
+      "architecture": "arm64",
+      "physical_cpus": 12,
+      "performance_cores": 8,
+      "efficiency_cores": 4,
+      "gomaxprocs": 4,
+      "scheduling": "operator pauses available user/sync work; remaining macOS background analysis accepted and recorded; no physical-core isolation or verified efficiency-core placement",
+      "native_fact_record": "mini-inventory.txt",
+      "kernel": "25.6.0",
+      "cpu_model": "Apple M4 Pro",
+      "memory_bytes": 25769803776
+    },
+    "mbp128": {
+      "os": "macOS",
+      "version": "27.0",
+      "build": "26A428",
+      "architecture": "arm64",
+      "physical_cpus": 16,
+      "performance_cores": 12,
+      "efficiency_cores": 4,
+      "gomaxprocs": 4,
+      "scheduling": "operator pauses available user/sync work; remaining macOS background analysis accepted and recorded; no physical-core isolation or verified efficiency-core placement",
+      "native_fact_record": "mbp-inventory.txt",
+      "kernel": "27.0.0",
+      "cpu_model": "Apple M4 Max",
+      "memory_bytes": 137438953472
+    }
+  },
+  "mac_gateway": {
+    "host": "minimax",
+    "kernel": "7.0.0-30-generic",
+    "architecture": "amd64",
+    "cpu_model": "AMD RYZEN AI MAX+395",
+    "logical_cpus": 32,
+    "physical_cores": 16,
+    "smt_threads_per_core": 2,
+    "gateway_affinity": "0-3",
+    "native_roles": "separate Linux gateway; no focal endpoint on this host"
+  },
+  "cloud_windows": {
+    "bbr-a": {
+      "os": {
+        "Caption": "Microsoft Windows Server 2025 Datacenter",
+        "Version": "10.0.26100",
+        "OSArchitecture": "64-bit"
+      },
+      "cpu": {
+        "Name": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+        "NumberOfCores": 4,
+        "NumberOfLogicalProcessors": 4
+      },
+      "driver_information": "Driver Date 2024-04-19 Version 16.1.8.76 NDIS 6.30",
+      "shape": "n2-standard-8, SMT disabled; eight provisioned vCPUs, four exposed cores",
+      "zone": "us-east1-b",
+      "pinned_image": "projects/windows-cloud/global/images/windows-server-2025-dc-v20260910",
+      "native_fact_record": "bbr-a-facts-10.txt",
+      "native_fact_sha256": "e6d98014bcba57a056e07210ed3e340b62d3edfa533b8ebba83c2eef8d455910",
+      "native_validation": "native L3 and completion passed; S3 capacity/timing qualification pending"
+    },
+    "bbr-b": {
+      "os": {
+        "Caption": "Microsoft Windows Server 2025 Datacenter",
+        "Version": "10.0.26100",
+        "OSArchitecture": "64-bit"
+      },
+      "cpu": {
+        "Name": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+        "NumberOfCores": 4,
+        "NumberOfLogicalProcessors": 4
+      },
+      "driver_information": "Driver Date 2024-04-19 Version 16.1.8.76 NDIS 6.30",
+      "shape": "n2-standard-8, SMT disabled; eight provisioned vCPUs, four exposed cores",
+      "zone": "us-east1-b",
+      "pinned_image": "projects/windows-cloud/global/images/windows-server-2025-dc-v20260910",
+      "native_fact_record": "bbr-b-facts-12.txt",
+      "native_fact_sha256": "1bb8e95b7c18e6e9077e298f6bc44663dc74d48fe614bedee7373f5c725aff9e",
+      "native_validation": "native L3 and completion passed; S3 capacity/timing qualification pending"
+    }
+  }
+}

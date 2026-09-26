@@ -22,7 +22,8 @@ The absolute expiry starts before provisioning. Reserve the complete lease,
 including any failed launch and unused time. Cleanup remains available after
 budget exhaustion.
 
-Record native OS, kernel, CPU topology, Go version, clock status, route,
+Follow the [clock and event alignment contract](clock-contract.md), retaining
+raw offsets and their uncertainty. Record native OS, kernel, CPU topology, Go version, clock status, route,
 interface offload state and process/binary hashes. Cloud endpoints expose four
 cores with SMT disabled; the gateway candidate exposes four too. macOS uses
 the approved scheduling exception and requires an otherwise-idle host window.

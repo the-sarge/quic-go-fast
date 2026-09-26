@@ -14,7 +14,7 @@
   "cloud_ceiling_usd": 100,
   "source_revision": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
   "controller_order": "Python Random(635598), frozen above; consumers use recorded order, not a regenerated shuffle",
-  "clock_contract": "start_unix_ns is deliberately absent until a calibrated native launch; fixture start is warm-up start, router StartUnixNS is measurement start; completion starts both clocks together",
+  "clock_contract": "clock-contract.md; raw cross-host timestamps require recorded offset/error intervals; durations and RTT remain local",
   "packet_domain": {
     "full_ip_mtu": 1460,
     "quic_initial_udp_payload": 1400,
@@ -23,10 +23,9 @@
     "record_metadata_bytes": 16
   },
   "remaining": [
-    "native adapter long-duration rate/RTT/timing/mark gates at the selected source and runtime settings",
-    "Mac native path and idle-host/contention qualification under approved scheduling exception",
-    "competitor phase orchestration and final native observations",
-    "full launch-through-teardown cost and command certification"
+    "Windows S3 capacity with controlled offered load and unchanged 5 ms gateway timing gate; bounded batch-pacing retry underway",
+    "Mac reverse capacity with probe-only packet counting; preceding aggregate totals include small background packets",
+    "Final clock/source/host manifest, local certification and bounded review"
   ],
   "gateway_candidate": {
     "source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
@@ -35,7 +34,7 @@
     "software_offloads": "GRO/LRO/GSO/TSO disabled on both gateway interfaces",
     "hardware_receive_coalescing": "rx-gro-hw disabled separately on both gateway interfaces; record ethtool state",
     "timing": "Maximum ingress delay and kernel-submission lateness <=5 ms; receiver probes still required for actual path observations",
-    "status": "V3 four-core cloud profile failed forward S3 and L6-L8 timing. V2 diagnostic passed both210-second S3 directions; selected committed V2 build is now under final native validation. Mac retains measured V3 build; reverse receiver drops and idle-host readiness remain open.",
+    "status": "Selected V2 build passed all eight Linux checks and Windows generated L3/completion. Windows paced probes underloaded S3; unpaced probes reached gigabit but failed 5 ms timing. Mac latest V3 timing passed; probe-specific delivery balance remains unproved.",
     "cloud_profile": "gateway_cores=4; n2-standard-8 SMT disabled; four exposed guest CPUs; native facts required",
     "teardown_tail_seconds": 20,
     "cloud_packet_version": 2,
@@ -48,14 +47,36 @@
   "component_revisions": {
     "fixture": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
     "router": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
-    "probe": "46723c74",
-    "mac_router": "9815770f"
+    "probe": "46723c74a52f7a33dce23447f024bfb024b94370",
+    "mac_router": "9815770f522be7ea1132349442bece9fd336f129",
+    "model": "d0cfa1cbeee9bcb76de9ceb0b3a1ca7f3821aec2",
+    "windows_batch_probe": "0ade3ee415dda82663812a8197273fa2bf0b6924"
   },
   "mac_resource_contract": {
     "approved": "2026-09-25",
-    "endpoint_scheduling": "otherwise-idle native Mac hosts; GOMAXPROCS=4; identical Reno/BBRv3 settings; record CPU contention",
+    "endpoint_scheduling": "Operator pauses available user/sync workloads; remaining macOS media analysis/indexing may run with recorded CPU contention. GOMAXPROCS=4, identical Reno/BBRv3 settings and separate gateway resources. No physical-core isolation or verified efficiency-core placement claim.",
     "limitation": "No claim of four isolated physical cores",
     "gateway": "minimax CPUs0-3; isolated test namespaces with offload-disabled veth packet interfaces; native Mac receipts retained",
-    "physical_link": "M4 mini and minimax detect Thunderbolt/USB4 networking, reported 80 Gb/s; not a measured rate"
+    "physical_link": "M4 mini and minimax detect Thunderbolt/USB4 networking, reported 80 Gb/s; not a measured rate",
+    "clarified": "2026-09-26"
+  },
+  "source_graph": "source-graph-candidate.json",
+  "native_inventory": "native-inventory-candidate.json",
+  "l3_fixed_queue_basis": {
+    "forward_bps": 5000000,
+    "reverse_bps": 30000000,
+    "base_round_trip_ms": 50,
+    "full_ip_packet_bytes": 1460,
+    "forward_capacity_bytes": 32120,
+    "reverse_capacity_bytes": 188340,
+    "changes_resize_or_flush_queue": false,
+    "interruption_policy": "modeled210-second interruption explicitly drops queued/in-flight packets; capacity remains fixed"
+  },
+  "native_receipts": {
+    "linux": "evidence/linux-v2-final-summary.json",
+    "windows_staging_failure": "evidence/windows-staging-failure-summary.json",
+    "mac_followup": "evidence/mac-followup-summary.json",
+    "windows_final_retry": "evidence/windows-final-retry-summary.json",
+    "mac_counter": "evidence/mac-counter-summary.json"
   }
 }
