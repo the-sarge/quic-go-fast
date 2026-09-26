@@ -1,0 +1,1092 @@
+{
+  "status": "preparation evidence; Q1 incomplete; no Q2 comparisons",
+  "cases": {
+    "mac-L3-forward": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1075365,
+          "MaxEgressLagNS": 1113974,
+          "Stats": {
+            "Received": 761912,
+            "Admitted": 300390,
+            "Delivered": 300364,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 460243,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 1305,
+            "MaxQueueBytes": 32120,
+            "MaxPropagationBytes": 43800,
+            "DeliveredBytes": 438531440,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-L3-forward-receive.json": {
+          "Received": 300364,
+          "Unique": 300265,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 99,
+          "Reordered": 6,
+          "SocketDrops": 0
+        }
+      },
+      "host_udp_full_buffer_counters": {
+        "m4mini-eth": {
+          "before": 18588,
+          "after": 18588,
+          "no_growth": true
+        },
+        "mbp128": {
+          "before": 742,
+          "after": 742,
+          "no_growth": true
+        }
+      }
+    },
+    "mac-L3-reverse": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1206551,
+          "MaxEgressLagNS": 1109204,
+          "Stats": {
+            "Received": 4603175,
+            "Admitted": 2208334,
+            "Delivered": 2208171,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 2387135,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 7869,
+            "MaxQueueBytes": 188340,
+            "MaxPropagationBytes": 319740,
+            "DeliveredBytes": 3223929660,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-L3-reverse-receive.json": {
+          "Received": 2208171,
+          "Unique": 2208168,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 3,
+          "Reordered": 48,
+          "SocketDrops": 0
+        }
+      },
+      "host_udp_full_buffer_counters": {
+        "m4mini-eth": {
+          "before": 18588,
+          "after": 18588,
+          "no_growth": true
+        },
+        "mbp128": {
+          "before": 742,
+          "after": 742,
+          "no_growth": true
+        }
+      }
+    },
+    "mac-S3-forward": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1822156,
+          "MaxEgressLagNS": 1609142,
+          "Stats": {
+            "Received": 21572990,
+            "Admitted": 17996178,
+            "Delivered": 17996178,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 3576812,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26274419880,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-S3-forward-receive.json": {
+          "Received": 17996178,
+          "Unique": 17968109,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 28069,
+          "Reordered": 3,
+          "SocketDrops": 0
+        }
+      },
+      "host_udp_full_buffer_counters": {
+        "m4mini-eth": {
+          "before": 14611,
+          "after": 14611,
+          "no_growth": true
+        },
+        "mbp128": {
+          "before": 742,
+          "after": 742,
+          "no_growth": true
+        }
+      }
+    },
+    "mac-S3-ping": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 965820,
+          "MaxEgressLagNS": 1065892,
+          "Stats": {
+            "Received": 39,
+            "Admitted": 39,
+            "Delivered": 39,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1460,
+            "MaxPropagationBytes": 1460,
+            "DeliveredBytes": 56940,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 987942,
+          "MaxEgressLagNS": 1035084,
+          "Stats": {
+            "Received": 40,
+            "Admitted": 40,
+            "Delivered": 40,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1460,
+            "MaxPropagationBytes": 1460,
+            "DeliveredBytes": 58400,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-S3-ping-receive.json": {
+          "Received": 40,
+          "Unique": 39,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 1,
+          "Reordered": 0,
+          "SocketDrops": 0
+        }
+      },
+      "host_udp_full_buffer_counters": {
+        "m4mini-eth": {
+          "before": 14611,
+          "after": 14611,
+          "no_growth": true
+        },
+        "mbp128": {
+          "before": 742,
+          "after": 742,
+          "no_growth": true
+        }
+      }
+    },
+    "mac-S3-reverse": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1603767,
+          "MaxEgressLagNS": 1322727,
+          "Stats": {
+            "Received": 21569015,
+            "Admitted": 17995911,
+            "Delivered": 17995911,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 3573104,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26274030060,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-S3-reverse-receive.json": {
+          "Received": 17991934,
+          "Unique": 17968513,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 23421,
+          "Reordered": 0,
+          "SocketDrops": 0
+        }
+      },
+      "host_udp_full_buffer_counters": {
+        "m4mini-eth": {
+          "before": 14611,
+          "after": 18588,
+          "no_growth": false
+        },
+        "mbp128": {
+          "before": 742,
+          "after": 742,
+          "no_growth": true
+        }
+      }
+    },
+    "mac-S3-short": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1506274,
+          "MaxEgressLagNS": 1231367,
+          "Stats": {
+            "Received": 1025408,
+            "Admitted": 871769,
+            "Delivered": 871769,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 153639,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 1272782740,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-S3-short-receive.json": {
+          "Received": 871769,
+          "Unique": 843741,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 28028,
+          "Reordered": 0,
+          "SocketDrops": 0
+        }
+      },
+      "host_udp_full_buffer_counters": {
+        "m4mini-eth": {
+          "before": 14611,
+          "after": 14611,
+          "no_growth": true
+        },
+        "mbp128": {
+          "before": 742,
+          "after": 742,
+          "no_growth": true
+        }
+      }
+    },
+    "mac-modeled-L3-reno-stream": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1080555,
+          "MaxEgressLagNS": 1141690,
+          "Stats": {
+            "Received": 329509,
+            "Admitted": 328886,
+            "Delivered": 328861,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 621,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 27,
+            "MaxQueueBytes": 32120,
+            "MaxPropagationBytes": 44132,
+            "DeliveredBytes": 467182137,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1052152,
+          "MaxEgressLagNS": 1158427,
+          "Stats": {
+            "Received": 154879,
+            "Admitted": 154877,
+            "Delivered": 154875,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 4,
+            "MaxQueueBytes": 3179,
+            "MaxPropagationBytes": 6271,
+            "DeliveredBytes": 10232016,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-modeled-L3-reno-stream-receive.json": {
+          "source": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+          "gomaxprocs": 4,
+          "elapsed_ns": 369937426458
+        }
+      },
+      "whole_host_cpu": {
+        "mac-modeled-L3-reno-stream-mbp128-cpu.txt": {
+          "samples": 391,
+          "idle_min_percent": 43.0,
+          "idle_median_percent": 87.0,
+          "idle_max_percent": 90.0
+        },
+        "mac-modeled-L3-reno-stream-m4mini-eth-cpu.txt": {
+          "samples": 391,
+          "idle_min_percent": 33.0,
+          "idle_median_percent": 67.0,
+          "idle_max_percent": 76.0
+        }
+      }
+    },
+    "mac-modeled-S3-bbrv3-datagram": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1107025,
+          "MaxEgressLagNS": 1173917,
+          "Stats": {
+            "Received": 84904,
+            "Admitted": 84904,
+            "Delivered": 84904,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 3303,
+            "MaxPropagationBytes": 258123,
+            "DeliveredBytes": 5629101,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1101334,
+          "MaxEgressLagNS": 1122403,
+          "Stats": {
+            "Received": 264131,
+            "Admitted": 264131,
+            "Delivered": 264131,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 5172887,
+            "MaxPropagationBytes": 12501265,
+            "DeliveredBytes": 331267587,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-modeled-S3-bbrv3-datagram-receive.json": {
+          "source": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+          "gomaxprocs": 4,
+          "elapsed_ns": 22543177750
+        }
+      },
+      "whole_host_cpu": {
+        "mac-modeled-S3-bbrv3-datagram-mbp128-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 62.0,
+          "idle_median_percent": 85.5,
+          "idle_max_percent": 89.0
+        },
+        "mac-modeled-S3-bbrv3-datagram-m4mini-eth-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 63.0,
+          "idle_median_percent": 68.0,
+          "idle_max_percent": 75.0
+        }
+      }
+    },
+    "mac-modeled-S3-bbrv3-stream": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1159593,
+          "MaxEgressLagNS": 1124612,
+          "Stats": {
+            "Received": 256824,
+            "Admitted": 256824,
+            "Delivered": 256824,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 5157392,
+            "MaxPropagationBytes": 12501425,
+            "DeliveredBytes": 365000467,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1237029,
+          "MaxEgressLagNS": 1175345,
+          "Stats": {
+            "Received": 85191,
+            "Admitted": 85191,
+            "Delivered": 85191,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 7568,
+            "MaxPropagationBytes": 504052,
+            "DeliveredBytes": 6042427,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-modeled-S3-bbrv3-stream-receive.json": {
+          "source": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+          "gomaxprocs": 4,
+          "elapsed_ns": 21208369417
+        }
+      },
+      "whole_host_cpu": {
+        "mac-modeled-S3-bbrv3-stream-m4mini-eth-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 42.0,
+          "idle_median_percent": 61.0,
+          "idle_max_percent": 74.0
+        },
+        "mac-modeled-S3-bbrv3-stream-mbp128-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 62.0,
+          "idle_median_percent": 80.0,
+          "idle_max_percent": 83.0
+        }
+      }
+    },
+    "mac-modeled-S3-reno-datagram": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1219846,
+          "MaxEgressLagNS": 1142093,
+          "Stats": {
+            "Received": 535450,
+            "Admitted": 535450,
+            "Delivered": 535450,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 201894,
+            "MaxPropagationBytes": 8625417,
+            "DeliveredBytes": 671194054,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1390206,
+          "MaxEgressLagNS": 1174331,
+          "Stats": {
+            "Received": 176400,
+            "Admitted": 176400,
+            "Delivered": 176400,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 3039,
+            "MaxPropagationBytes": 164477,
+            "DeliveredBytes": 11736199,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-modeled-S3-reno-datagram-receive.json": {
+          "source": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+          "gomaxprocs": 4,
+          "elapsed_ns": 22572079959
+        }
+      },
+      "whole_host_cpu": {
+        "mac-modeled-S3-reno-datagram-m4mini-eth-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 38.0,
+          "idle_median_percent": 67.5,
+          "idle_max_percent": 74.0
+        },
+        "mac-modeled-S3-reno-datagram-mbp128-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 51.0,
+          "idle_median_percent": 81.0,
+          "idle_max_percent": 89.0
+        }
+      }
+    },
+    "mac-modeled-S3-reno-stream": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1182105,
+          "MaxEgressLagNS": 1132278,
+          "Stats": {
+            "Received": 464522,
+            "Admitted": 464522,
+            "Delivered": 464522,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 214744,
+            "MaxPropagationBytes": 9030157,
+            "DeliveredBytes": 660687905,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1087539,
+          "MaxEgressLagNS": 1152848,
+          "Stats": {
+            "Received": 128419,
+            "Admitted": 128419,
+            "Delivered": 128419,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 2856,
+            "MaxPropagationBytes": 130581,
+            "DeliveredBytes": 8535330,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-modeled-S3-reno-stream-receive.json": {
+          "source": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+          "gomaxprocs": 4,
+          "elapsed_ns": 21171497042
+        }
+      },
+      "whole_host_cpu": {
+        "mac-modeled-S3-reno-stream-m4mini-eth-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 55.0,
+          "idle_median_percent": 66.5,
+          "idle_max_percent": 74.0
+        },
+        "mac-modeled-S3-reno-stream-mbp128-cpu.txt": {
+          "samples": 42,
+          "idle_min_percent": 62.0,
+          "idle_median_percent": 72.5,
+          "idle_max_percent": 89.0
+        }
+      }
+    },
+    "mac-modeled-completion-S3-bbrv3-stream": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1070407,
+          "MaxEgressLagNS": 1068813,
+          "Stats": {
+            "Received": 4334,
+            "Admitted": 4334,
+            "Delivered": 4334,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 2856,
+            "MaxPropagationBytes": 82514,
+            "DeliveredBytes": 288576,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1133755,
+          "MaxEgressLagNS": 1146639,
+          "Stats": {
+            "Received": 12415,
+            "Admitted": 12415,
+            "Delivered": 12415,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 64002,
+            "MaxPropagationBytes": 4992977,
+            "DeliveredBytes": 17511563,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac-modeled-completion-S3-bbrv3-stream-receive.json": {
+          "source": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+          "gomaxprocs": 4,
+          "elapsed_ns": 12304310417
+        }
+      },
+      "whole_host_cpu": {
+        "mac-modeled-completion-S3-bbrv3-stream-m4mini-eth-cpu.txt": {
+          "samples": 91,
+          "idle_min_percent": 44.0,
+          "idle_median_percent": 68.0,
+          "idle_max_percent": 82.0
+        },
+        "mac-modeled-completion-S3-bbrv3-stream-mbp128-cpu.txt": {
+          "samples": 91,
+          "idle_min_percent": 62.0,
+          "idle_median_percent": 88.0,
+          "idle_max_percent": 91.0
+        }
+      }
+    },
+    "mac6-S3-reverse": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "q1b->q1a",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 2509604,
+          "MaxEgressLagNS": 1337583,
+          "Stats": {
+            "Received": 21571337,
+            "Admitted": 17995761,
+            "Delivered": 17995761,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 3575576,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26273811060,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "q1a->q1b",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": [
+        0,
+        0,
+        0
+      ],
+      "receiver_records": {
+        "mac6-S3-reverse-receive.json": {
+          "Received": 17989951,
+          "Unique": 17966866,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 23085,
+          "Reordered": 5,
+          "SocketDrops": 0
+        }
+      },
+      "host_udp_full_buffer_counters": {
+        "m4mini-eth": {
+          "before": 18588,
+          "after": 24283,
+          "no_growth": false
+        },
+        "mbp128": {
+          "before": 742,
+          "after": 742,
+          "no_growth": true
+        }
+      }
+    }
+  },
+  "cleanup": "Mac root watchdogs removed aliases/routes; no q1router processes; minimax owned namespaces removed and verified absent 2026-09-26T00:38Z.",
+  "limitations": [
+    "S3 reverse4MiB lost3977 packets; reverse6MiB lost5695. Both invalid despite passing gateway timing.",
+    "Two-stream reverse probe has not run.",
+    "Whole-host contention is recorded; these preparation checks do not establish otherwise-idle comparative readiness.",
+    "No physical-core isolation claim for Macs."
+  ],
+  "archive_sha256": "d9edd2f9e2100c8f0420923d1028d5beefd4a6780b17e0af42181b8b51063480"
+}

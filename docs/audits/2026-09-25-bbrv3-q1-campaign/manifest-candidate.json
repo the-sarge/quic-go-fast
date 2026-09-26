@@ -12,7 +12,7 @@
   "total_experiment_ceiling_hours": 56,
   "preparation_ceiling_hours": 16,
   "cloud_ceiling_usd": 100,
-  "source_revision": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
+  "source_revision": "46723c74",
   "controller_order": "Python Random(635598), frozen above; consumers use recorded order, not a regenerated shuffle",
   "clock_contract": "start_unix_ns is deliberately absent until a calibrated native launch; fixture start is warm-up start, router StartUnixNS is measurement start; completion starts both clocks together",
   "packet_domain": {
@@ -29,25 +29,27 @@
     "full launch-through-teardown cost and command certification"
   ],
   "gateway_candidate": {
-    "source": "d17e45fe",
+    "source": "9815770f",
     "gc_percent": 400,
     "go_memory_limit": "4GiB",
     "software_offloads": "GRO/LRO/GSO/TSO disabled on both gateway interfaces",
     "hardware_receive_coalescing": "rx-gro-hw disabled separately on both gateway interfaces; record ethtool state",
     "timing": "Maximum ingress delay and kernel-submission lateness <=5 ms; receiver probes still required for actual path observations",
-    "status": "Linux forward S3 210-second and full L7 coexistence checks passed; reverse capacity, remaining scenarios/platforms and final command certification pending"
+    "status": "Two-core cloud gateway failed later reverse S3, L6 and L8 timing gates; bounded four-core candidate under native validation. Mac timing passed recorded checks, but reverse receiver drops and idle-host readiness remain open.",
+    "cloud_profile": "gateway_cores=4; n2-standard-8 SMT disabled; four exposed guest CPUs; native facts required",
+    "teardown_tail_seconds": 20
   },
   "port_assignment": "competitor-schedule-candidate.json port_contract, based on frozen zero-based case index",
   "component_revisions": {
     "fixture": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
-    "router": "d17e45fe",
-    "probe": "d9154327"
+    "router": "9815770f",
+    "probe": "46723c74"
   },
   "mac_resource_contract": {
     "approved": "2026-09-25",
     "endpoint_scheduling": "otherwise-idle native Mac hosts; GOMAXPROCS=4; identical Reno/BBRv3 settings; record CPU contention",
     "limitation": "No claim of four isolated physical cores",
-    "gateway": "separate resources on minimax; native path calibration pending",
+    "gateway": "minimax CPUs0-3; isolated test namespaces with offload-disabled veth packet interfaces; native Mac receipts retained",
     "physical_link": "M4 mini and minimax detect Thunderbolt/USB4 networking, reported 80 Gb/s; not a measured rate"
   }
 }

@@ -307,3 +307,32 @@ zero host receive-buffer-error growth and exact gateway/receiver packet balance
 after the drain. This tests path capacity without requiring one plain UDP
 receive loop to absorb the entire gigabit rate. It does not add campaign
 workloads or change the focal fixture’s four-processor resource contract.
+
+## Later Linux and native Mac preparation receipts
+
+[Linux final receipts](evidence/linux-final-summary.json) retain the remaining
+two-core gateway checks and failures. Both full L3 directional schedules and
+the recorded impairment checks passed. Reverse S3, L6 and L8 exceeded the
+unchanged 5 ms ingress gate (5.609, 11.474 and 6.024 ms respectively). They are
+invalid. L4 also failed: the old three-second router tail cut off focal receipt
+exchange, and an eight-worker driver could not run all nine roles. The bounded
+retry uses the 20-second tail, 12 driver workers, 45-second CUBIC launch lead,
+and checks every role's result. All cloud resources from this lease were
+explicitly destroyed; independent VM and disk inventories were empty.
+
+[Mac receipts](evidence/mac-native-summary.json) retain native S3 correctness
+for Reno/BBRv3 stream and DATAGRAM, a full L3 Reno fixture, completion, and
+bidirectional rate diagnostics. Gateway timing passed the recorded Mac cases.
+Forward S3 sustained the modeled gigabit rate. Reverse S3 is **invalid**:
+the 4 MiB socket lost 3,977 packets, and the 6 MiB socket lost 5,695. The
+prepared two-stream diagnostic has not yet run. Recorded whole-host CPU load
+also prevents claiming otherwise-idle comparative readiness from these checks.
+The temporary addresses/routes expired automatically; owned gateway namespaces
+were removed. No home-internet payload path or Mac physical-core-isolation
+claim is made.
+
+The raw archives include failed observations and per-case configurations.
+Private keys, cloud billing identity and personal host inventories remain
+outside committed evidence. These are preparation receipts, not performance
+comparisons or a Q1 readiness declaration. The current finite allocation and
+conditional competitor lease partition are in [the budget forecast](budget-proposal.md).
