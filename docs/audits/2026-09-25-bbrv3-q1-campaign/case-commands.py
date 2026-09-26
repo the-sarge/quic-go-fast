@@ -61,7 +61,7 @@ if row['scenario'] == 'S1':
     text = router_prefix+'sysctl -w net.ipv4.ip_forward=1 >/dev/null && printf %s '+shlex.quote(json.dumps(native))
     command('minimax' if mac else 'bbr-gateway', 'native-path', text, start - 25000000000, native)
 else:
-    router_command = 'cd '+workdir+' && '+router_prefix+'sysctl -w net.ipv4.ip_forward=0 >/dev/null && printf %s '+shlex.quote(json.dumps(router))+' > '+name+'-router-config.json && '+router_prefix+router_env+'timeout --signal=TERM --kill-after=5 '+str(router_bound)+' ./q1router '+('' if mac else '-packet-version 2 ')+'-config '+name+'-router-config.json -output '+name+'-router.json; rc=$?; sudo cat '+workdir+'/'+name+'-router.json; exit $rc'
+    router_command = 'cd '+workdir+' && '+router_prefix+'sysctl -w net.ipv4.ip_forward=0 >/dev/null && printf %s '+shlex.quote(json.dumps(router))+' > '+name+'-router-config.json && '+router_prefix+router_env+'timeout --signal=TERM --kill-after=5 '+str(router_bound)+' ./q1router -packet-version 2 -config '+name+'-router-config.json -output '+name+'-router.json; rc=$?; sudo cat '+workdir+'/'+name+'-router.json; exit $rc'
     command('minimax' if mac else 'bbr-gateway', 'router', router_command, start - 25000000000, router)
 
 def endpoints(label, config, pair_hosts, pair_ips, base_port, cubic=False):
