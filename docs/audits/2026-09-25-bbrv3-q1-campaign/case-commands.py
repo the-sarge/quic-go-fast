@@ -53,8 +53,16 @@ workdir = '/tmp/q1-campaign'
 router_bound = (cfg['warmup_ms'] + cfg['measure_ms']) // 1000 + 50
 router_prefix = 'sudo ip netns exec q1-mac-20260925 ' if mac else 'sudo '
 router_env = 'env GOGC=400 GOMEMLIMIT=4GiB ' + ('taskset -c 0-3 ' if mac else '')
-router_command = 'cd '+workdir+' && printf %s '+shlex.quote(json.dumps(router))+' > '+name+'-router-config.json && '+router_prefix+router_env+'timeout --signal=TERM --kill-after=5 '+str(router_bound)+' ./q1router '+('' if mac else '-packet-version 2 ')+'-config '+name+'-router-config.json -output '+name+'-router.json; rc=$?; sudo cat '+workdir+'/'+name+'-router.json; exit $rc'
-command('minimax' if mac else 'bbr-gateway', 'router', router_command, start - 25000000000, router)
+if row['scenario'] == 'S1':
+    # Lifecycle-owned forwarding applies only to the exclusive cloud gateway
+    # or Mac test namespace. The next modeled case explicitly disables it.
+    native = dict(mode='native-routing', scenario='S1', kernel_forwarding=1)
+    result['router_config'] = None
+    text = router_prefix+'sysctl -w net.ipv4.ip_forward=1 >/dev/null && printf %s '+shlex.quote(json.dumps(native))
+    command('minimax' if mac else 'bbr-gateway', 'native-path', text, start - 25000000000, native)
+else:
+    router_command = 'cd '+workdir+' && '+router_prefix+'sysctl -w net.ipv4.ip_forward=0 >/dev/null && printf %s '+shlex.quote(json.dumps(router))+' > '+name+'-router-config.json && '+router_prefix+router_env+'timeout --signal=TERM --kill-after=5 '+str(router_bound)+' ./q1router '+('' if mac else '-packet-version 2 ')+'-config '+name+'-router-config.json -output '+name+'-router.json; rc=$?; sudo cat '+workdir+'/'+name+'-router.json; exit $rc'
+    command('minimax' if mac else 'bbr-gateway', 'router', router_command, start - 25000000000, router)
 
 def endpoints(label, config, pair_hosts, pair_ips, base_port, cubic=False):
     launch = config['start_unix_ns'] - (45000000000 if label.startswith('competitor-') else 25000000000)
