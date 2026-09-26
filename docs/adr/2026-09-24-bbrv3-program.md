@@ -1,7 +1,7 @@
 # BBRv3 implementation program
 
 **Program:** `QGF-BBR3-20260924`
-**Status:** T1/T2/T3/T4/T5 and B1/B2/B3/B4/B5/B6 complete; current frontier Q1
+**Status:** T1/T2/T3/T4/T5 and B1/B2/B3/B4/B5/B6 and Q1 complete; current frontier Q2
 **OmniFocus parent:** `omnifocus:///task/aaS2XrzGGmp`
 **Tracking issue:** [#600](https://github.com/the-sarge/quic-go-fast/issues/600)
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
@@ -20,9 +20,13 @@ Keep Reno as default, pinned algorithm authority, receiver-defined goodput, exis
 | --- | --- | --- | --- | --- |
 | T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1/T2/T3/T4/T5 complete |
 | B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | B1/B2/B3/B4/B5/B6 complete |
-| Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 ready |
+| Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 complete; Q2 ready |
 
-Current frontier: **Q1**. All T and B slices are complete. B6 exposes opt-in per-connection BBR selection with migration coverage; native qualification remains pending. Q1 inspects readiness without changing controller code. Q2 remains blocked by Q1; no whole-track sequential ordering is implied.
+Current frontier: **Q2**. All T and B slices and Q1 are complete. Q1
+[PR #642](https://github.com/the-sarge/quic-go-fast/pull/642) freezes native
+prerequisites and a bounded 520-case manifest. B6 supplies opt-in BBR selection.
+Q2 is ready for separate dispatch; fresh host/resource/clock preflight remains
+required and no comparative qualification result is asserted by preparation.
 
 | Slice | Exact blockers |
 | --- | --- |

@@ -1,0 +1,1041 @@
+{
+  "status": "preparation evidence; Q1 incomplete; no Q2 comparisons",
+  "cases": {
+    "gc400-submit-L1-delay": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1213275,
+          "MaxEgressLagNS": 1112654,
+          "Stats": {
+            "Received": 15411,
+            "Admitted": 15411,
+            "Delivered": 15411,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 24820,
+            "MaxPropagationBytes": 89060,
+            "DeliveredBytes": 22500060,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-L1-delay-receive.json": {
+          "Received": 15411,
+          "Unique": 15392,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 19,
+          "Reordered": 84,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-L2-drop": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1153324,
+          "MaxEgressLagNS": 1115266,
+          "Stats": {
+            "Received": 15411,
+            "Admitted": 15325,
+            "Delivered": 15325,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 86,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 2920,
+            "MaxPropagationBytes": 27740,
+            "DeliveredBytes": 22374500,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-L2-drop-receive.json": {
+          "Received": 15325,
+          "Unique": 15306,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 19,
+          "Reordered": 0,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-L3-phases": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1346909,
+          "MaxEgressLagNS": 1843968,
+          "Stats": {
+            "Received": 770548,
+            "Admitted": 300506,
+            "Delivered": 300480,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 468757,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 1311,
+            "MaxQueueBytes": 32120,
+            "MaxPropagationBytes": 45260,
+            "DeliveredBytes": 438700800,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-L3-phases-receive.json": {
+          "Received": 300480,
+          "Unique": 300431,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 49,
+          "Reordered": 6,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-L3-reverse": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 2102224,
+          "MaxEgressLagNS": 4228322,
+          "Stats": {
+            "Received": 4623282,
+            "Admitted": 2208680,
+            "Delivered": 2208517,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 2406891,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 7874,
+            "MaxQueueBytes": 188340,
+            "MaxPropagationBytes": 319740,
+            "DeliveredBytes": 3224434820,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-L3-reverse-receive.json": {
+          "Received": 2208517,
+          "Unique": 2208184,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 333,
+          "Reordered": 100,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-L5-rate": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1145914,
+          "MaxEgressLagNS": 1137515,
+          "Stats": {
+            "Received": 494,
+            "Admitted": 350,
+            "Delivered": 350,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 144,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 32120,
+            "MaxPropagationBytes": 16060,
+            "DeliveredBytes": 511000,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-L5-rate-receive.json": {
+          "Received": 350,
+          "Unique": 317,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 33,
+          "Reordered": 0,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-S2-reverse": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1468526,
+          "MaxEgressLagNS": 1381399,
+          "Stats": {
+            "Received": 128418,
+            "Admitted": 86737,
+            "Delivered": 86737,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 41681,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1876100,
+            "MaxPropagationBytes": 938780,
+            "DeliveredBytes": 126636020,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-S2-reverse-receive.json": {
+          "Received": 86737,
+          "Unique": 84810,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 1927,
+          "Reordered": 32,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-S3-reverse": {
+      "gateway_gate_pass": false,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 5609376,
+          "MaxEgressLagNS": 3958079,
+          "Stats": {
+            "Received": 21575343,
+            "Admitted": 17994978,
+            "Delivered": 17994978,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 3580365,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26272667880,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-S3-reverse-receive.json": {
+          "Received": 17994978,
+          "Unique": 17969219,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 25759,
+          "Reordered": 12830,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-S6-loss": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1340394,
+          "MaxEgressLagNS": 1299592,
+          "Stats": {
+            "Received": 77053,
+            "Admitted": 76982,
+            "Delivered": 76982,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 71,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 210240,
+            "MaxPropagationBytes": 626340,
+            "DeliveredBytes": 112393720,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-S6-loss-receive.json": {
+          "Received": 76982,
+          "Unique": 76586,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 396,
+          "Reordered": 3,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-S7-depth": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1637917,
+          "MaxEgressLagNS": 1232755,
+          "Stats": {
+            "Received": 128418,
+            "Admitted": 88872,
+            "Delivered": 88872,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 39546,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 5000500,
+            "MaxPropagationBytes": 626340,
+            "DeliveredBytes": 129753120,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-S7-depth-receive.json": {
+          "Received": 88872,
+          "Unique": 85019,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 3853,
+          "Reordered": 0,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-S8-ect": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1578456,
+          "MaxEgressLagNS": 1384917,
+          "Stats": {
+            "Received": 128425,
+            "Admitted": 86317,
+            "Delivered": 86317,
+            "Marked": 86073,
+            "EarlyDrop": 0,
+            "Overflow": 42108,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1251220,
+            "MaxPropagationBytes": 626340,
+            "DeliveredBytes": 126022820,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-S8-ect-receive.json": {
+          "Received": 86317,
+          "Unique": 85025,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 1292,
+          "Reordered": 6,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-S8-noect": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1277195,
+          "MaxEgressLagNS": 1814124,
+          "Stats": {
+            "Received": 128425,
+            "Admitted": 85664,
+            "Delivered": 85664,
+            "Marked": 0,
+            "EarlyDrop": 42761,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 312440,
+            "MaxPropagationBytes": 626340,
+            "DeliveredBytes": 125069440,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-S8-noect-receive.json": {
+          "Received": 85664,
+          "Unique": 85017,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 647,
+          "Reordered": 45,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "gc400-submit-S8-reverse": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1378893,
+          "MaxEgressLagNS": 1294469,
+          "Stats": {
+            "Received": 128414,
+            "Admitted": 86312,
+            "Delivered": 86312,
+            "Marked": 86072,
+            "EarlyDrop": 0,
+            "Overflow": 42102,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1251220,
+            "MaxPropagationBytes": 626340,
+            "DeliveredBytes": 126015520,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "receiver_records": {
+        "gc400-submit-S8-reverse-receive.json": {
+          "Received": 86312,
+          "Unique": 85027,
+          "Duplicate": 0,
+          "Invalid": 0,
+          "Outside": 1285,
+          "Reordered": 73,
+          "SocketDrops": 0
+        }
+      }
+    },
+    "receipt-coexist-L4": {
+      "gateway_gate_pass": true,
+      "gateway_observations": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1122927,
+          "MaxEgressLagNS": 1736488,
+          "Stats": {
+            "Received": 74321,
+            "Admitted": 74321,
+            "Delivered": 74144,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 2856,
+            "MaxPropagationBytes": 17431,
+            "DeliveredBytes": 4873158,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 1191910,
+          "MaxEgressLagNS": 2548777,
+          "Stats": {
+            "Received": 128972,
+            "Admitted": 127357,
+            "Delivered": 126919,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 1615,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 500772,
+            "MaxPropagationBytes": 251427,
+            "DeliveredBytes": 179938108,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": {
+        "router": 0,
+        "focal-receive": 1,
+        "focal-send": 1,
+        "competitor-1-receive": 0,
+        "competitor-1-send": 0,
+        "competitor-2-receive": 0,
+        "competitor-2-send": 0,
+        "competitor-3-receive": "missing JSON",
+        "competitor-3-send": "missing JSON"
+      },
+      "receiver_records": {
+        "receipt-coexist-L4-competitor-1-receive.json": {
+          "source": "ddcb06c9",
+          "gomaxprocs": 4,
+          "elapsed_ns": 216423100496
+        },
+        "receipt-coexist-L4-focal-receive.json": {
+          "source": "ddcb06c9",
+          "gomaxprocs": 4,
+          "elapsed_ns": 386969644830,
+          "error": "deadline exceeded"
+        },
+        "receipt-coexist-L4-competitor-2-receive.json": {
+          "source": "ddcb06c9",
+          "gomaxprocs": 4,
+          "elapsed_ns": 116548693862
+        }
+      }
+    },
+    "receipt-coexist-L6": {
+      "gateway_gate_pass": false,
+      "gateway_observations": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 2026234,
+          "MaxEgressLagNS": 1460941,
+          "Stats": {
+            "Received": 3040874,
+            "Admitted": 3040464,
+            "Delivered": 3040464,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 410,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1250713,
+            "MaxPropagationBytes": 626427,
+            "DeliveredBytes": 4330459140,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 11474324,
+          "MaxEgressLagNS": 1440880,
+          "Stats": {
+            "Received": 950468,
+            "Admitted": 950468,
+            "Delivered": 950468,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 4538,
+            "MaxPropagationBytes": 18612,
+            "DeliveredBytes": 62817714,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": {
+        "router": 1,
+        "competitor-receive": 0,
+        "competitor-send": 0,
+        "focal-receive": 0,
+        "focal-send": 0
+      },
+      "receiver_records": {
+        "receipt-coexist-L6-focal-receive.json": {
+          "source": "ddcb06c9",
+          "gomaxprocs": 4,
+          "elapsed_ns": 378669485743
+        },
+        "receipt-coexist-L6-competitor-receive.json": {
+          "source": "ddcb06c9",
+          "gomaxprocs": 4,
+          "elapsed_ns": 380384295537
+        }
+      }
+    },
+    "receipt-coexist-L8": {
+      "gateway_gate_pass": false,
+      "gateway_observations": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 6024415,
+          "MaxEgressLagNS": 1947768,
+          "Stats": {
+            "Received": 2926623,
+            "Admitted": 2920708,
+            "Delivered": 2920708,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 5915,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1251219,
+            "MaxPropagationBytes": 626427,
+            "DeliveredBytes": 4159518964,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 3800749,
+          "MaxEgressLagNS": 1502659,
+          "Stats": {
+            "Received": 778054,
+            "Admitted": 778054,
+            "Delivered": 778054,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 3340,
+            "MaxPropagationBytes": 18475,
+            "DeliveredBytes": 52403683,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "process_outcomes": {
+        "router": 1,
+        "competitor-receive": 0,
+        "competitor-send": 0,
+        "focal-receive": 0,
+        "focal-send": 0
+      },
+      "receiver_records": {
+        "receipt-coexist-L8-focal-receive.json": {
+          "source": "ddcb06c9",
+          "gomaxprocs": 4,
+          "elapsed_ns": 378735091044
+        },
+        "receipt-coexist-L8-competitor-receive.json": {
+          "source": "ddcb06c9",
+          "gomaxprocs": 4,
+          "elapsed_ns": 380444853662
+        }
+      }
+    }
+  },
+  "cleanup": {
+    "instances": [],
+    "disks": [],
+    "status": "all20 resources destroyed before immutable expiry"
+  },
+  "invalid_cases": {
+    "receipt-coexist-L4": "two focal roles failed final receipt; third CUBIC pair failed startup. Eight workers could not run nine roles; next driver has12 and45s launch lead. Gateway tail increased3s to20s.",
+    "receipt-coexist-L6": "11.474324ms maximum ingress lag",
+    "receipt-coexist-L8": "6.024415ms maximum ingress lag",
+    "gc400-submit-S3-reverse": "5.609376ms maximum ingress lag"
+  },
+  "archive_sha256": "4911b7fa2ed93011865cb3a585ce035eb1d18611a449b8cc1968e6dba7db23f9"
+}

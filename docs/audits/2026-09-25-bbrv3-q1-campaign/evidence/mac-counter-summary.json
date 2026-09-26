@@ -1,0 +1,49 @@
+{
+  "delivered": 17978109,
+  "received": 17977181,
+  "host_counters": {
+    "m4mini-eth": {
+      "before": 24462,
+      "after": 24462,
+      "no_growth": true
+    },
+    "mbp128": {
+      "before": 742,
+      "after": 742,
+      "no_growth": true
+    }
+  },
+  "steady_ip_mbps_excluding_first_second": 998.9081370334928,
+  "pass": false,
+  "status": "unqualified: aggregate counter mixes probe and other traffic; filtered observation required",
+  "gateway_gate_pass": true,
+  "delivered_ip_bytes": 26246785887,
+  "excess_bytes_over_received_probe": 101627,
+  "limitations": [
+    "The 928-packet aggregate difference represents 101627 excess IP bytes, inconsistent with 928 missing 1460-byte probes alone. Small other packets are present; precise probe loss cannot be established from these totals.",
+    "Zero growth in host UDP full-buffer drops does not prove zero loss elsewhere.",
+    "User accepts remaining macOS media analysis/indexing activity with recorded contention; efficiency-core placement has not been verified."
+  ],
+  "cleanup": {
+    "m4mini-eth": {
+      "host": "m4mini-eth",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "owned_state_aliases_routes_absent": true
+    },
+    "mbp128": {
+      "host": "mbp128",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "owned_state_aliases_routes_absent": true
+    },
+    "minimax": {
+      "exit_code": 0,
+      "owned_namespaces_absent": true
+    }
+  },
+  "record_count": 44,
+  "archive_sha256": "ad35ca3b25d32f4b1f67728c9213536dd3e592a54fe87dd8024d6e848b6fbcbc"
+}

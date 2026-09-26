@@ -1,0 +1,473 @@
+{
+  "status": "preparation evidence; Q1 not complete and Q2 remains blocked",
+  "archive_sha256": "34b647e46cf7e2191fa353b5fc644f0a75078ed4bb743ab300670017fac62498",
+  "product_source": "bfa11d3f698ac98da415c7bcbd9840923180d0bb",
+  "component_sources": {
+    "initial_fixture_and_probe": "d9154327",
+    "corrected_gateway": "d17e45fe",
+    "local_TCP_receiver_export": "ddcb06c9"
+  },
+  "cloud": {
+    "project": "bbr-q635-20260925",
+    "zone": "us-east1-b",
+    "topology": "four separate n2-standard-8 endpoint VMs (one thread per core) and n2-standard-4 gateway",
+    "expiry_utc": "2026-09-25T21:56:39.556225+00:00",
+    "cleanup": {
+      "status": "all 20 resources destroyed; zero instances and disks independently verified",
+      "verified_at": "2026-09-25T21:56:19.768302+00:00",
+      "instances": [],
+      "disks": [],
+      "inventory_file_times": {
+        "destroy-instances.json": "2026-09-25T21:56:18.881916+00:00",
+        "destroy-disks.json": "2026-09-25T21:56:19.768302+00:00"
+      }
+    }
+  },
+  "qualification_limits": [
+    "These are calibration/correctness observations, not paired controller comparisons.",
+    "Passing S3 and L7 does not certify the remaining platform/scenario commands.",
+    "S3 admission lateness was only 0.041576 ms below the 5 ms gate; retain every later gate failure.",
+    "The native substrate reordered UDP packets; this observation is not an ideal FIFO wire guarantee."
+  ],
+  "failed_observations": [
+    {
+      "case": "five-host first launch",
+      "cause": "global CPUS_ALL_REGIONS limit 32 < 36 provisioned vCPUs; regional quota had passed",
+      "cleanup": "zero instances/disks verified; full reservation retained",
+      "resolution": "GCP approved 36; infra PR640 adds global preflight"
+    },
+    {
+      "case": "final-S3-rate",
+      "classification": "invalid timing",
+      "gateway": {
+        "config": {
+          "A": {
+            "Interface": "ens4",
+            "PeerMAC": "42:01:0a:3f:01:01",
+            "Focal": "10.63.1.10",
+            "Competitor": ""
+          },
+          "B": {
+            "Interface": "ens5",
+            "PeerMAC": "42:01:0a:3f:02:01",
+            "Focal": "10.63.2.10",
+            "Competitor": ""
+          },
+          "Scenario": "S3",
+          "StartUnixNS": 1790371044103327000,
+          "MeasureSeconds": 10,
+          "Phase": 0,
+          "Seed": 17
+        },
+        "directions": [
+          {
+            "Direction": "ens5->ens4",
+            "Error": "",
+            "ReadPackets": 0,
+            "NonCanonical": 0,
+            "SocketDrops": 0,
+            "SendErrors": 0,
+            "MaxIngressLagNS": 0,
+            "MaxEgressLagNS": 0,
+            "MaxIngressAtNS": 0,
+            "MaxEgressAtNS": 0,
+            "MaxKernelToReadNS": 0,
+            "MaxReadToAdmissionNS": 0,
+            "MissingTimestamps": 0,
+            "Stats": {
+              "Received": 0,
+              "Admitted": 0,
+              "Delivered": 0,
+              "Marked": 0,
+              "EarlyDrop": 0,
+              "Overflow": 0,
+              "RandomDrop": 0,
+              "EventDrop": 0,
+              "InterruptionDrop": 0,
+              "MaxQueueBytes": 0,
+              "MaxPropagationBytes": 0,
+              "DeliveredBytes": 0,
+              "PropagationOverflow": 0
+            }
+          },
+          {
+            "Direction": "ens4->ens5",
+            "Error": "",
+            "ReadPackets": 1024430,
+            "NonCanonical": 0,
+            "SocketDrops": 0,
+            "SendErrors": 0,
+            "MaxIngressLagNS": 5734166,
+            "MaxEgressLagNS": 4226702,
+            "MaxIngressAtNS": 1790371051852471482,
+            "MaxEgressAtNS": 1790371051851241079,
+            "MaxKernelToReadNS": 3415297,
+            "MaxReadToAdmissionNS": 5604428,
+            "MissingTimestamps": 0,
+            "Stats": {
+              "Received": 1024421,
+              "Admitted": 871473,
+              "Delivered": 871473,
+              "Marked": 0,
+              "EarlyDrop": 0,
+              "Overflow": 152948,
+              "RandomDrop": 0,
+              "EventDrop": 0,
+              "InterruptionDrop": 0,
+              "MaxQueueBytes": 25001040,
+              "MaxPropagationBytes": 12500520,
+              "DeliveredBytes": 1272350580,
+              "PropagationOverflow": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case": "coexist-L7",
+      "classification": "invalid canonical packet path and terminal TCP timeouts",
+      "noncanonical_forward_packets": 898,
+      "cause": "hardware receive coalescing remained on while software GRO was off; packet capture retained twelve 2788-byte TCP examples"
+    },
+    {
+      "case": "tcp-header-L7",
+      "classification": "finite reproduced hardware coalescing diagnostic"
+    },
+    {
+      "case": "hwgro-fixed-L7",
+      "classification": "invalid setup; TCP control source port still in TIME_WAIT; not a passing competitor run"
+    },
+    {
+      "case": "gc400-coexist-L7",
+      "classification": "invalid setup; readiness check expected old binary name, so peers never launched; idle gateway stopped explicitly"
+    },
+    {
+      "case": "receipt-coexist-L4",
+      "classification": "unmeasured; new receiver binary upload timed out before launching the case; dedicated legacy SCP subsequently delivered identical bytes"
+    }
+  ],
+  "gc_hypothesis": {
+    "suppressed_run": {
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790371131175756000,
+        "MeasureSeconds": 10,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "directions": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "ReadPackets": 1025053,
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MaxIngressLagNS": 3663346,
+          "MaxEgressLagNS": 2874976,
+          "MaxIngressAtNS": 1790371137771040141,
+          "MaxEgressAtNS": 1790371132466665892,
+          "MaxKernelToReadNS": 2259263,
+          "MaxReadToAdmissionNS": 3116356,
+          "MissingTimestamps": 0,
+          "Stats": {
+            "Received": 1025040,
+            "Admitted": 871675,
+            "Delivered": 871675,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 153365,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 1272645500,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "ReadPackets": 0,
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxIngressAtNS": 0,
+          "MaxEgressAtNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "MissingTimestamps": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ]
+    },
+    "interpretation": "Passed this ten-second diagnostic at about 2.3 GiB RSS; not the selected runtime setting.",
+    "bounded_candidate": {
+      "GOGC": "400",
+      "GOMEMLIMIT": "4GiB",
+      "gateway_hardware_rx_gro": "off on both interfaces"
+    }
+  },
+  "S3_210_seconds": {
+    "gateway": {
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790372905713213000,
+        "MeasureSeconds": 210,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "directions": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "ReadPackets": 21571787,
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MaxIngressLagNS": 4958424,
+          "MaxEgressLagNS": 4063642,
+          "MaxIngressAtNS": 1790373010798174607,
+          "MaxEgressAtNS": 1790373010797755633,
+          "MaxKernelToReadNS": 3027807,
+          "MaxReadToAdmissionNS": 4625908,
+          "MissingTimestamps": 0,
+          "Stats": {
+            "Received": 21571289,
+            "Admitted": 17994726,
+            "Delivered": 17994726,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 3576563,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26272299960,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "ReadPackets": 0,
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxIngressAtNS": 0,
+          "MaxEgressAtNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "MissingTimestamps": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ]
+    },
+    "offered_full_IP_Mbps": 1199.7745500952383,
+    "mean_received_full_IP_Mbps": 999.4192228571428,
+    "steady_mean_excluding_first_second_Mbps": 999.9996861244019,
+    "receiver_reordered_packets": 9891,
+    "receiver_invalid_packets": 0,
+    "receiver_socket_drops": 0,
+    "peak_router_RSS_KiB": 251088,
+    "instrumentation": "GC trace enabled; /usr/bin/time; ordinary gate counters"
+  },
+  "L7_full_schedule": {
+    "gateway": {
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": "10.63.1.11"
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": "10.63.2.11"
+        },
+        "Scenario": "L7",
+        "StartUnixNS": 1790372410188286000,
+        "MeasureSeconds": 300,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "directions": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "ReadPackets": 3002744,
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MaxIngressLagNS": 3157646,
+          "MaxEgressLagNS": 2823655,
+          "MaxIngressAtNS": 1790372484632330269,
+          "MaxEgressAtNS": 1790372484632352098,
+          "MaxKernelToReadNS": 3074119,
+          "MaxReadToAdmissionNS": 2174177,
+          "MissingTimestamps": 0,
+          "Stats": {
+            "Received": 3002614,
+            "Admitted": 3000805,
+            "Delivered": 3000805,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 1809,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 1251220,
+            "MaxPropagationBytes": 626427,
+            "DeliveredBytes": 4261974162,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "ReadPackets": 997094,
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MaxIngressLagNS": 2819913,
+          "MaxEgressLagNS": 2008396,
+          "MaxIngressAtNS": 1790372493020454235,
+          "MaxEgressAtNS": 1790372493020476856,
+          "MaxKernelToReadNS": 2805608,
+          "MaxReadToAdmissionNS": 490275,
+          "MissingTimestamps": 0,
+          "Stats": {
+            "Received": 997093,
+            "Admitted": 997093,
+            "Delivered": 997093,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 3365,
+            "MaxPropagationBytes": 18729,
+            "DeliveredBytes": 55504495,
+            "PropagationOverflow": 0
+          }
+        }
+      ]
+    },
+    "fixture_source": "d9154327",
+    "outcomes": {
+      "router": 0,
+      "competitor-receive": 0,
+      "competitor-send": 0,
+      "focal-receive": 0,
+      "focal-send": 0
+    },
+    "competitor_actual_pause_resume_measured_seconds": [
+      240.124323887,
+      270.000250368
+    ],
+    "competitor_useful_bytes": 2745699264,
+    "competitor_corrupt_records": 0,
+    "control": {
+      "expected_opportunities": 300,
+      "missed_opportunities": 0,
+      "offered": 300,
+      "replies": 300,
+      "skipped": 0,
+      "unresolved": 0
+    },
+    "pause_note": "No new bulk record after pause is observed; already offered/queued bytes drain. Per-second counters retained; most of the 30-second pause is zero delivery."
+  },
+  "latest_TCP_native_smoke": {
+    "source": "ddcb06c9",
+    "outcomes": {
+      "competitor-receive": 0,
+      "competitor-send": 0
+    },
+    "kernel_controller": "cubic",
+    "MSS_bound": 1380,
+    "receiver_useful_bytes": 4040408064,
+    "receiver_corrupt_records": 0,
+    "sender_control": {
+      "offered": 5,
+      "replies": 5,
+      "skipped": 0,
+      "unresolved": 0
+    },
+    "accounting": "receiver-local JSON; require both peers to succeed and join by run identity"
+  },
+  "local_regression": {
+    "source": "ddcb06c9",
+    "case": "TCP duration boundary with undrained bulk",
+    "red": "receiver attempted terminal write on its expired bulk socket",
+    "green": "authoritative receiver record exported locally; native focused race test passed in 5.570s and native CLI smoke passed",
+    "scope": "correctness only; existing minimax allocation is not performance qualification"
+  },
+  "remaining": [
+    "Complete final-source directional rate/RTT/queue/loss/CE and dynamic L3 calibration.",
+    "Native L4 0/1/3-flow orchestration and remaining QUIC competitor phase observations.",
+    "Windows calibration with the selected gateway runtime and hardware-offload settings.",
+    "Mac CPU-isolation decision, faster local gateway connection, then native calibration.",
+    "Complete launch-through-teardown command/cost manifest, bounded Q1 review, exact-head local and hosted certification."
+  ]
+}

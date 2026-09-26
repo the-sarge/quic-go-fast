@@ -1,0 +1,13 @@
+{
+  "status": "Unmeasured retry: bulk Windows stdin transfers timed out; later private-network download command had a TimeoutSec60 parameter typo before measurement",
+  "diagnosis": "Tiny stdin probe returned88; does not establish why bulk input stalled. Linux gateway bulk transfer and hash check passed. The HTTP fallback server started and stopped successfully; endpoint download rejected the malformed parameter. Corrected final driver uses TimeoutSec 60 and no Windows bulk stdin.",
+  "cleanup": "Explicit fallback destroy passed; paused task-owned wrappers resumed and exited with their original failures; independent VM/disk inventories empty",
+  "reservation": {
+    "hours": 0.75,
+    "usd": 1.825
+  },
+  "recorded_at": "2026-09-26T07:42:30.148041+00:00",
+  "archive_sha256": "430ac2aedf9136829737968d47acd639600de90691e7b95149c28134bd87f576",
+  "record_count": 49,
+  "omitted": "Full lifecycle destroy output retained privately because it includes account-identifying metadata."
+}

@@ -1,0 +1,162 @@
+{
+  "status": "native review correction checks passed; cloud resources destroyed",
+  "recorded_at": "2026-09-26T07:05:49.887835+00:00",
+  "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "fixture_sha256": "a74c9f0775ca1e559a961294d38f66da5c022c259e6b7dea6d9e7a7833aa2c44",
+  "router_sha256": "5f541e4738398f8ec0bf7a9500d3e77fc1bc0ac0a8ae44687a4f731189c6f9dc",
+  "validation_outcomes": {
+    "clock-before": 0,
+    "S7-depth": 0,
+    "linux": 0,
+    "clock-after": 0
+  },
+  "completion": {
+    "focal-send": {
+      "useful_bytes": 16777216,
+      "completion_verified": true,
+      "censored": false,
+      "errors": null
+    },
+    "focal-receive": {
+      "useful_bytes": 16777216,
+      "completion_verified": true,
+      "censored": false,
+      "errors": null
+    }
+  },
+  "gateway_gate_pass": true,
+  "gateway_observations": {
+    "review-linux-completion-router.json": [
+      {
+        "Direction": "ens5->ens4",
+        "Error": "",
+        "ReadPackets": 5640,
+        "NonCanonical": 0,
+        "SocketDrops": 0,
+        "SendErrors": 0,
+        "MaxIngressLagNS": 158592,
+        "MaxEgressLagNS": 1109388,
+        "MaxIngressAtNS": 1790406013455297374,
+        "MaxEgressAtNS": 1790405994226266383,
+        "MaxKernelToReadNS": 79605,
+        "MaxReadToAdmissionNS": 113893,
+        "MissingTimestamps": 0,
+        "Stats": {
+          "Received": 5640,
+          "Admitted": 5640,
+          "Delivered": 5640,
+          "Marked": 0,
+          "EarlyDrop": 0,
+          "Overflow": 0,
+          "RandomDrop": 0,
+          "EventDrop": 0,
+          "InterruptionDrop": 0,
+          "MaxQueueBytes": 1428,
+          "MaxPropagationBytes": 2321,
+          "DeliveredBytes": 356627,
+          "PropagationOverflow": 0
+        }
+      },
+      {
+        "Direction": "ens4->ens5",
+        "Error": "",
+        "ReadPackets": 12460,
+        "NonCanonical": 0,
+        "SocketDrops": 0,
+        "SendErrors": 0,
+        "MaxIngressLagNS": 256091,
+        "MaxEgressLagNS": 1182380,
+        "MaxIngressAtNS": 1790406017237819833,
+        "MaxEgressAtNS": 1790406017974952144,
+        "MaxKernelToReadNS": 189943,
+        "MaxReadToAdmissionNS": 154376,
+        "MissingTimestamps": 0,
+        "Stats": {
+          "Received": 12411,
+          "Admitted": 12389,
+          "Delivered": 12389,
+          "Marked": 0,
+          "EarlyDrop": 0,
+          "Overflow": 22,
+          "RandomDrop": 0,
+          "EventDrop": 0,
+          "InterruptionDrop": 0,
+          "MaxQueueBytes": 99767,
+          "MaxPropagationBytes": 158157,
+          "DeliveredBytes": 17613694,
+          "PropagationOverflow": 0
+        }
+      }
+    ],
+    "gc400-submit-S7-depth-router.json": [
+      {
+        "Direction": "ens4->ens5",
+        "Error": "",
+        "ReadPackets": 128465,
+        "NonCanonical": 0,
+        "SocketDrops": 0,
+        "SendErrors": 0,
+        "MaxIngressLagNS": 721388,
+        "MaxEgressLagNS": 1176977,
+        "MaxIngressAtNS": 1790405953646551212,
+        "MaxEgressAtNS": 1790405961883340253,
+        "MaxKernelToReadNS": 707415,
+        "MaxReadToAdmissionNS": 696948,
+        "MissingTimestamps": 0,
+        "Stats": {
+          "Received": 128425,
+          "Admitted": 88888,
+          "Delivered": 88888,
+          "Marked": 0,
+          "EarlyDrop": 0,
+          "Overflow": 39537,
+          "RandomDrop": 0,
+          "EventDrop": 0,
+          "InterruptionDrop": 0,
+          "MaxQueueBytes": 5004880,
+          "MaxPropagationBytes": 626340,
+          "DeliveredBytes": 129776480,
+          "PropagationOverflow": 0
+        }
+      },
+      {
+        "Direction": "ens5->ens4",
+        "Error": "",
+        "ReadPackets": 0,
+        "NonCanonical": 0,
+        "SocketDrops": 0,
+        "SendErrors": 0,
+        "MaxIngressLagNS": 0,
+        "MaxEgressLagNS": 0,
+        "MaxIngressAtNS": 0,
+        "MaxEgressAtNS": 0,
+        "MaxKernelToReadNS": 0,
+        "MaxReadToAdmissionNS": 0,
+        "MissingTimestamps": 0,
+        "Stats": {
+          "Received": 0,
+          "Admitted": 0,
+          "Delivered": 0,
+          "Marked": 0,
+          "EarlyDrop": 0,
+          "Overflow": 0,
+          "RandomDrop": 0,
+          "EventDrop": 0,
+          "InterruptionDrop": 0,
+          "MaxQueueBytes": 0,
+          "MaxPropagationBytes": 0,
+          "DeliveredBytes": 0,
+          "PropagationOverflow": 0
+        }
+      }
+    ]
+  },
+  "cleanup": {
+    "instances": [],
+    "disks": []
+  },
+  "archive_sha256": "8a8220011dc9702c6e8aa0b7bd327a4fc12adb2fabd473573569f7feb5526978",
+  "record_count": 54,
+  "scope": "Example-level affected-scenario recheck after queue rounding and completion FIN corrections. Historical capacity/impairment observations retain their original component identities. No Q2 comparison.",
+  "raw_samples": "Per-second samples remain unchanged in the corresponding router JSON records inside the frozen archive; this summary retains aggregate gates and accounting."
+}

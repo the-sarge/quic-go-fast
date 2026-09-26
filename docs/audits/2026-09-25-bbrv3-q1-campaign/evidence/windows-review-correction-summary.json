@@ -1,0 +1,100 @@
+{
+  "status": "native review correction checks passed; cloud resources destroyed",
+  "recorded_at": "2026-09-26T07:56:33.491977+00:00",
+  "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "fixture_sha256": "e4178906af4079cb797e1fb4ea3910ba2c52b995cfbbe4173324d2ed56b547ab",
+  "router_sha256": "5f541e4738398f8ec0bf7a9500d3e77fc1bc0ac0a8ae44687a4f731189c6f9dc",
+  "validation_outcomes": {
+    "clock-before": 0,
+    "windows": 0,
+    "clock-after": 0
+  },
+  "completion": {
+    "focal-send": {
+      "useful_bytes": 16777216,
+      "completion_verified": true,
+      "censored": false,
+      "errors": null
+    },
+    "focal-receive": {
+      "useful_bytes": 16777216,
+      "completion_verified": true,
+      "censored": false,
+      "errors": null
+    }
+  },
+  "gateway_gate_pass": true,
+  "gateway_observations": {
+    "review-windows-completion-router.json": [
+      {
+        "Direction": "ens5->ens4",
+        "Error": "",
+        "ReadPackets": 1992,
+        "NonCanonical": 0,
+        "SocketDrops": 0,
+        "SendErrors": 0,
+        "MaxIngressLagNS": 445525,
+        "MaxEgressLagNS": 1183079,
+        "MaxIngressAtNS": 1790409143878103022,
+        "MaxEgressAtNS": 1790409144145589065,
+        "MaxKernelToReadNS": 301515,
+        "MaxReadToAdmissionNS": 170195,
+        "MissingTimestamps": 0,
+        "Stats": {
+          "Received": 1992,
+          "Admitted": 1992,
+          "Delivered": 1992,
+          "Marked": 0,
+          "EarlyDrop": 0,
+          "Overflow": 0,
+          "RandomDrop": 0,
+          "EventDrop": 0,
+          "InterruptionDrop": 0,
+          "MaxQueueBytes": 2856,
+          "MaxPropagationBytes": 19187,
+          "DeliveredBytes": 134592,
+          "PropagationOverflow": 0
+        }
+      },
+      {
+        "Direction": "ens4->ens5",
+        "Error": "",
+        "ReadPackets": 12366,
+        "NonCanonical": 0,
+        "SocketDrops": 0,
+        "SendErrors": 0,
+        "MaxIngressLagNS": 480572,
+        "MaxEgressLagNS": 1129232,
+        "MaxIngressAtNS": 1790409143878049421,
+        "MaxEgressAtNS": 1790409144068888875,
+        "MaxKernelToReadNS": 361947,
+        "MaxReadToAdmissionNS": 387491,
+        "MissingTimestamps": 0,
+        "Stats": {
+          "Received": 12330,
+          "Admitted": 12330,
+          "Delivered": 12330,
+          "Marked": 0,
+          "EarlyDrop": 0,
+          "Overflow": 0,
+          "RandomDrop": 0,
+          "EventDrop": 0,
+          "InterruptionDrop": 0,
+          "MaxQueueBytes": 31280,
+          "MaxPropagationBytes": 4982581,
+          "DeliveredBytes": 17507067,
+          "PropagationOverflow": 0
+        }
+      }
+    ]
+  },
+  "cleanup": {
+    "instances": [],
+    "disks": []
+  },
+  "archive_sha256": "0460364d59b4be1a66034a00650d2071144ffbe49b4996ab64d6b9951a55605c",
+  "record_count": 57,
+  "scope": "Example-level affected-scenario recheck after queue rounding and completion FIN corrections. Historical capacity/impairment observations retain their original component identities. No Q2 comparison.",
+  "staging": "Public executable ZIP transferred through the private test network with archive and executable hash verification. Ephemeral TLS files staged through encrypted SSH with output omitted. Temporary HTTP server stopped and listener absence checked before measurement. Two earlier unmeasured lease failures are preserved separately.",
+  "raw_samples": "Per-second samples remain unchanged in the corresponding router JSON records inside the frozen archive; this summary retains aggregate gates and accounting."
+}

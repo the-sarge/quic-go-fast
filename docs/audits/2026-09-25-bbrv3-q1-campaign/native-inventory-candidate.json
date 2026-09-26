@@ -1,0 +1,186 @@
+{
+  "status": "Frozen native preparation manifest; example-level evidence; fresh Q2 lease preflight required",
+  "cloud_linux": {
+    "bbr-a": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-a-facts-0.txt",
+      "native_fact_archive": "evidence/linux-competitor-records.tar.gz",
+      "native_fact_sha256": "7fcda4b49d24033f36114e22f7df5eb7c334e7e68a866a05f3ec8a50ed258dbc"
+    },
+    "bbr-b": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-b-facts-0.txt",
+      "native_fact_archive": "evidence/linux-competitor-records.tar.gz",
+      "native_fact_sha256": "2bbda24d99fff58dba73b81f3cf2d1efd8d4b4eb162b6dea0e7be1dd40295aab"
+    },
+    "bbr-gateway": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-gateway-facts-0.txt",
+      "native_fact_archive": "evidence/linux-review-correction-records.tar.gz",
+      "native_fact_sha256": "eada4e741b2936786ae9a6a9cbb46163f148f71312107ded051991268dd77e53"
+    },
+    "bbr-competitor-a": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-competitor-a-facts-0.txt",
+      "native_fact_archive": "evidence/linux-competitor-records.tar.gz",
+      "native_fact_sha256": "e68ba7ba00a5caf4e90f27e06ff50ca5f6ddc1eba91b7fb45597bf378b120056"
+    },
+    "bbr-competitor-b": {
+      "os": "Ubuntu 24.04.5 LTS",
+      "kernel": "7.0.0-1011-gcp",
+      "architecture": "amd64",
+      "visible_cpus": 4,
+      "cores_per_socket": 4,
+      "threads_per_core": 1,
+      "sockets": 1,
+      "cpu_model": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+      "shape": "n2-standard-8, SMT disabled, eight provisioned vCPUs",
+      "pinned_image": "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260918",
+      "zone": "us-east1-b",
+      "payload_ip_mtu": 1460,
+      "native_fact_record": "bbr-competitor-b-facts-0.txt",
+      "native_fact_archive": "evidence/linux-competitor-records.tar.gz",
+      "native_fact_sha256": "6f1ddda8bbca4fecd17844ca4030f7b8f5f0edbee6f632265fe9ebfd5d53d4b8"
+    }
+  },
+  "mac": {
+    "m4mini-eth": {
+      "os": "macOS",
+      "version": "26.6.2",
+      "build": "25G83",
+      "architecture": "arm64",
+      "physical_cpus": 12,
+      "performance_cores": 8,
+      "efficiency_cores": 4,
+      "gomaxprocs": 4,
+      "scheduling": "operator pauses available user/sync work; remaining macOS background analysis accepted and recorded; no physical-core isolation or verified efficiency-core placement",
+      "kernel": "25.6.0",
+      "cpu_model": "Apple M4 Pro",
+      "memory_bytes": 25769803776,
+      "external_native_observation": {
+        "local_record_name": "mini-inventory.txt",
+        "availability": "external/redacted; personal host inventory intentionally not committed; public fields above are the retained summary"
+      }
+    },
+    "mbp128": {
+      "os": "macOS",
+      "version": "27.0",
+      "build": "26A428",
+      "architecture": "arm64",
+      "physical_cpus": 16,
+      "performance_cores": 12,
+      "efficiency_cores": 4,
+      "gomaxprocs": 4,
+      "scheduling": "operator pauses available user/sync work; remaining macOS background analysis accepted and recorded; no physical-core isolation or verified efficiency-core placement",
+      "kernel": "27.0.0",
+      "cpu_model": "Apple M4 Max",
+      "memory_bytes": 137438953472,
+      "external_native_observation": {
+        "local_record_name": "mbp-inventory.txt",
+        "availability": "external/redacted; personal host inventory intentionally not committed; public fields above are the retained summary"
+      }
+    }
+  },
+  "mac_gateway": {
+    "host": "minimax",
+    "kernel": "7.0.0-30-generic",
+    "architecture": "amd64",
+    "cpu_model": "AMD RYZEN AI MAX+395",
+    "logical_cpus": 32,
+    "physical_cores": 16,
+    "smt_threads_per_core": 2,
+    "gateway_affinity": "0-3",
+    "native_roles": "separate Linux gateway; no focal endpoint on this host",
+    "packet_version": 2,
+    "gateway_binary_sha256": "5f541e4738398f8ec0bf7a9500d3e77fc1bc0ac0a8ae44687a4f731189c6f9dc",
+    "process_nice": 0,
+    "affinity_limitation": "CPUs0-3 affinity is not a host-wide exclusive reservation; retain observed contention and enforce native gates",
+    "review_recheck_admission": "Exclusive provider host-maintenance lease held for this finite functional check and released after independent owned-scope absence; no CPU exclusivity claim"
+  },
+  "cloud_windows": {
+    "bbr-a": {
+      "os": {
+        "Caption": "Microsoft Windows Server 2025 Datacenter",
+        "Version": "10.0.26100",
+        "OSArchitecture": "64-bit"
+      },
+      "cpu": {
+        "Name": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+        "NumberOfCores": 4,
+        "NumberOfLogicalProcessors": 4
+      },
+      "driver_information": "Driver Date 2024-04-19 Version 16.1.8.76 NDIS 6.30",
+      "shape": "n2-standard-8, SMT disabled; eight provisioned vCPUs, four exposed cores",
+      "zone": "us-east1-b",
+      "pinned_image": "projects/windows-cloud/global/images/windows-server-2025-dc-v20260910",
+      "native_fact_record": "bbr-a-facts-10.txt",
+      "native_fact_sha256": "e6d98014bcba57a056e07210ed3e340b62d3edfa533b8ebba83c2eef8d455910",
+      "native_validation": "native L3, completion and controlled S3 capacity/timing checks passed; inventory remains example-level",
+      "native_fact_archive": "evidence/windows-final-retry-records.tar.gz"
+    },
+    "bbr-b": {
+      "os": {
+        "Caption": "Microsoft Windows Server 2025 Datacenter",
+        "Version": "10.0.26100",
+        "OSArchitecture": "64-bit"
+      },
+      "cpu": {
+        "Name": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+        "NumberOfCores": 4,
+        "NumberOfLogicalProcessors": 4
+      },
+      "driver_information": "Driver Date 2024-04-19 Version 16.1.8.76 NDIS 6.30",
+      "shape": "n2-standard-8, SMT disabled; eight provisioned vCPUs, four exposed cores",
+      "zone": "us-east1-b",
+      "pinned_image": "projects/windows-cloud/global/images/windows-server-2025-dc-v20260910",
+      "native_fact_record": "bbr-b-facts-12.txt",
+      "native_fact_sha256": "1bb8e95b7c18e6e9077e298f6bc44663dc74d48fe614bedee7373f5c725aff9e",
+      "native_validation": "native L3, completion and controlled S3 capacity/timing checks passed; inventory remains example-level",
+      "native_fact_archive": "evidence/windows-final-retry-records.tar.gz"
+    }
+  }
+}

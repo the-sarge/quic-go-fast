@@ -1,0 +1,15 @@
+{
+  "status": "failed setup before any measurements; cleanup complete",
+  "reservation": {
+    "hours": 0.75,
+    "usd": 1.825,
+    "retained": true
+  },
+  "failure": "Raw gateway SCP exceeded120-second bound; exact cause not established",
+  "cleanup": {
+    "instances": [],
+    "disks": []
+  },
+  "archive_sha256": "7dfb74abfa2488c76e3f1913600f5921855bb18d1a6f929b2233fcb8fa887a1b",
+  "record_count": 8
+}

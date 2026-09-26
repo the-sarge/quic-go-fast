@@ -1,0 +1,43 @@
+{
+  "status": "native functional completion recheck passed; cleanup recovered after redundant outer down attempt",
+  "recorded_at": "2026-09-26T06:06:30.934773+00:00",
+  "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "fixture_sha256": "a6b26ef9b65b25c322f4c7af03eb6c6551a76cc5fdeaafe6e16247dc742163ea",
+  "router_sha256": "5f541e4738398f8ec0bf7a9500d3e77fc1bc0ac0a8ae44687a4f731189c6f9dc",
+  "useful_bytes": 16777216,
+  "completion_verified": true,
+  "censored": false,
+  "errors": [],
+  "gateway_gate_pass": true,
+  "gateway_timing_ns": [
+    {
+      "Direction": "q1b->q1a",
+      "MaxIngressLagNS": 129062,
+      "MaxEgressLagNS": 1160505
+    },
+    {
+      "Direction": "q1a->q1b",
+      "MaxIngressLagNS": 301174,
+      "MaxEgressLagNS": 1155806
+    }
+  ],
+  "process_outcomes": {
+    "gateway-idle": 0,
+    "gateway-up": 0,
+    "clock-before": 0,
+    "router-ready": 0,
+    "m4mini-eth-cpu": 0,
+    "mbp128-cpu": 0,
+    "router": 0,
+    "focal-receive": 0,
+    "focal-send": 0,
+    "clock-after": 0,
+    "gateway-down": 0
+  },
+  "gateway_admission": "Existing CI consumer completed naturally; exclusive host-maintenance consumer held during the check. Independent preflight found no qemu VM; no unrelated consumer was stopped.",
+  "scope": "One native functional recheck after the completion FIN correction; not a Q2 comparative or performance result. Existing local infra certification may run concurrently on the Mac controller endpoint; retain CPU observations. Historical capacity receipts keep their original binaries.",
+  "cleanup": "First driver down succeeded. Outer duplicate down failed because namespaces were already absent. Independent namespace/process absence then verified; exact host lease released. See cleanup-recovery.json. Mac aliases/routes retain original fixed watchdog expiry.",
+  "archive_sha256": "fd84ba943399eb558b90a6255e5d41447b80357a89da721037ed375092b576f3",
+  "record_count": 32,
+  "omitted_private_observations": "Unrelated pre-admission VM command line, provider admission attempts and host lease token remain local; no personal inventory or mTLS key is published."
+}
