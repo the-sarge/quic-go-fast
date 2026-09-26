@@ -68,11 +68,7 @@ func run() error {
 	output := flag.String("output", "", "observed counters JSON")
 	profile := flag.String("profile", "", "optional diagnostic CPU profile; not a qualification run")
 	version := flag.Int("packet-version", 3, "packet ring ABI: 2 for packet polling, 3 for block polling")
-	emissionRate := flag.Int64("emission-rate", 0, "optional IP-bit submission spacing rate, 1050000000..10000000000; zero disables")
 	flag.Parse()
-	if *emissionRate != 0 && (*emissionRate < 1050000000 || *emissionRate > 10000000000) {
-		return fmt.Errorf("emission-rate must be zero or between 1050000000 and 10000000000")
-	}
 	packetVersion := afpacket.TPacketVersion3
 	switch *version {
 	case 2:
@@ -126,7 +122,7 @@ func run() error {
 		wg.Add(1)
 		go func(index int, from, to side, q *model.Queue) {
 			defer wg.Done()
-			r := forward(ctx, measured, index, from, to, q, packetVersion, *emissionRate)
+			r := forward(ctx, measured, index, from, to, q, packetVersion)
 			if r.Error != "" {
 				cancel()
 			}
@@ -148,10 +144,9 @@ func run() error {
 		Observations  []observation
 		Profiled      bool
 		PacketVersion int
-		EmissionRate  int64
 		Source        string
 		GoVersion     string
-	}{c, observations, *profile != "", *version, *emissionRate, sourceRevision, runtime.Version()}, "", "  ")
+	}{c, observations, *profile != "", *version, sourceRevision, runtime.Version()}, "", "  ")
 	if e != nil {
 		return e
 	}
@@ -182,7 +177,7 @@ func socket(name string) (int, *net.Interface, error) {
 	return fd, nic, nil
 }
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
-func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion, emissionRate int64) observation {
+func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion) observation {
 	o := observation{Direction: fmt.Sprintf("%s->%s", from.Interface, to.Interface)}
 	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), version, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
 	if e != nil {
@@ -265,7 +260,6 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 	emitDone := make(chan observation, 1)
 	go func() {
 		var emitted observation
-		var nextSubmission time.Time
 		for p := range outgoing {
 			if ctx.Err() != nil {
 				emitted.SendErrors++
@@ -292,15 +286,6 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 				sum = (sum & 0xffff) + (sum >> 16)
 			}
 			binary.BigEndian.PutUint16(ip[10:12], ^uint16(sum))
-			if emissionRate != 0 {
-				// Bound catch-up bursts after scheduler delays. This ceiling is
-				// above every modeled rate; all added lateness remains in the
-				// unchanged 5 ms gate. At MTU 1460 this wait is at most 11.2 us.
-				for time.Now().Before(nextSubmission) {
-				}
-				spacing := time.Duration((int64(len(ip))*8*int64(time.Second) + emissionRate - 1) / emissionRate)
-				nextSubmission = time.Now().Add(spacing)
-			}
 			if e := unix.Sendto(tx, frame, 0, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_IP), Ifindex: nic.Index, Halen: 6, Addr: [8]uint8{peer[0], peer[1], peer[2], peer[3], peer[4], peer[5]}}); e != nil {
 				emitted.SendErrors++
 			}
