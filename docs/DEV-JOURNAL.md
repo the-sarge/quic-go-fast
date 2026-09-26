@@ -3832,3 +3832,30 @@ RAS review `20260925T125206-83906520444fe07fe08c6a2d` completed without findings
 ### Next
 
 All T and B slices are complete. The product PR already records Q1 as the frontier; Q2 remains blocked by Q1. Reconcile GitHub and OmniFocus mirrors after this journal lands; [program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live view. Public opt-in availability does not claim native performance qualification.
+
+---
+
+## Q1 native campaign preparation merged - 2026-09-26 04:45 EDT
+
+**Main:** `9dd54a8eec92`
+**Actor:** Codex
+
+### Completed
+
+[Q1 product PR #642](https://github.com/the-sarge/quic-go-fast/pull/642) merged as `9dd54a8eec9217d59d7cd29753dcf324214f71d1`, closing [#598](https://github.com/the-sarge/quic-go-fast/issues/598). It freezes the campaign-only fixture/model, 520 paired cases, native Linux/Windows/Mac prerequisites, component identities, raw evidence and a seven-lease plan. Q2 is ready for separate dispatch; no comparative qualification campaign, default-controller change or adoption decision occurred.
+
+The bounded review corrected S7 packet rounding and incomplete-completion FIN handling, plus evidence identities and budget itemization. Failed staging attempts and cleanup recoveries remain in the records. Cloud VM/disk inventories were empty after teardown. Temporary Mac aliases/routes remain under fixed watchdogs expiring at approximately 11:50 UTC; expiry is not yet claimed as observed cleanup.
+
+### Validation
+
+Initial review `20260926T050859-bf7ff4c50d7a9b0823175f14` and its verification resolved accepted behavior fixes. The sole replacement review `20260926T081657-74533f8247ccd115234d6378` completed all reviewers/adjudicators and identified one low documentation gap, corrected without another measurement. [Final certification receipt](https://github.com/the-sarge/quic-go-fast/pull/642#issuecomment-5844669207) records affected fixture/model race tests, vet, tidy, clean-tree/diff/link checks at `bde8af98756bf506fa1e3b46158ac38d182fa5ff`. All 33 applicable hosted checks passed on that head, including [interoperability](https://github.com/the-sarge/quic-go-fast/actions/runs/36230299110), before the guarded squash merge. Native correction receipts include saturated Linux S7 capacity and verified completion on all three platforms; readiness remains example-level for the declared configuration.
+
+Deferred findings were revalidated against the merged commit: `docs/audits/2026-09-25-bbrv3-q1-campaign/router/main_linux.go:343` retains a marginal diagnostic limitation on records already invalidated for missing timestamps; no separate ticket is warranted. `execution-candidate.md:86` retains the required first-Q2 orchestration timing/reforecast instruction. Existing nonblocking #613 remains deferred without an added measurement allocation or optimization.
+
+### Decisions
+
+The [current budget record](audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.md) retains 24.718 experiment-hours/$30.02 and forecasts 69.984667 hours/$96.083333 including Q2. Active limits are 72 preparation hours, 72 experiment-hours and $100; the operator's conditional $150 authorization remains unused. Reservations are not settled billing. The accepted Mac scheduling limitation and fresh resource/clock preflight remain explicit.
+
+### Next
+
+[Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) is the sole audited frontier, ready but not dispatched. The [program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live status view. Twelve of thirteen audited slices are complete.
