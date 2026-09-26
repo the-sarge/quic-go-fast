@@ -9,10 +9,10 @@
   "completion_runs": 60,
   "completion_maximum_measurement_seconds": 3600,
   "completion_setup_cleanup_allowance_seconds": 3600,
-  "total_experiment_ceiling_hours": 56,
+  "total_experiment_ceiling_hours": 72,
   "preparation_ceiling_hours": 16,
   "cloud_ceiling_usd": 100,
-  "source_revision": "46723c74",
+  "source_revision": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
   "controller_order": "Python Random(635598), frozen above; consumers use recorded order, not a regenerated shuffle",
   "clock_contract": "start_unix_ns is deliberately absent until a calibrated native launch; fixture start is warm-up start, router StartUnixNS is measurement start; completion starts both clocks together",
   "packet_domain": {
@@ -29,21 +29,27 @@
     "full launch-through-teardown cost and command certification"
   ],
   "gateway_candidate": {
-    "source": "9815770f",
+    "source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
     "gc_percent": 400,
     "go_memory_limit": "4GiB",
     "software_offloads": "GRO/LRO/GSO/TSO disabled on both gateway interfaces",
     "hardware_receive_coalescing": "rx-gro-hw disabled separately on both gateway interfaces; record ethtool state",
     "timing": "Maximum ingress delay and kernel-submission lateness <=5 ms; receiver probes still required for actual path observations",
-    "status": "Two-core cloud gateway failed later reverse S3, L6 and L8 timing gates; bounded four-core candidate under native validation. Mac timing passed recorded checks, but reverse receiver drops and idle-host readiness remain open.",
+    "status": "V3 four-core cloud profile failed forward S3 and L6-L8 timing. V2 diagnostic passed both210-second S3 directions; selected committed V2 build is now under final native validation. Mac retains measured V3 build; reverse receiver drops and idle-host readiness remain open.",
     "cloud_profile": "gateway_cores=4; n2-standard-8 SMT disabled; four exposed guest CPUs; native facts required",
-    "teardown_tail_seconds": 20
+    "teardown_tail_seconds": 20,
+    "cloud_packet_version": 2,
+    "cloud_binary_sha256": "e96851832cf523ecedfc050f3b23ec9b912669bdb2c1dd63bcd64e4e51714e70",
+    "cloud_go_version": "go1.27.1",
+    "mac_source": "9815770f",
+    "mac_packet_version": 3
   },
   "port_assignment": "competitor-schedule-candidate.json port_contract, based on frozen zero-based case index",
   "component_revisions": {
     "fixture": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
-    "router": "9815770f",
-    "probe": "46723c74"
+    "router": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+    "probe": "46723c74",
+    "mac_router": "9815770f"
   },
   "mac_resource_contract": {
     "approved": "2026-09-25",

@@ -7,7 +7,7 @@ They ship no controller behavior and are not a maintained emulator framework.
 
 The operator extended preparation to **16 cumulative hours** on 2026-09-25;
 [authorization](https://github.com/the-sarge/quic-go-fast/issues/598#issuecomment-5837538642).
-The operator also approved **56 experiment-hours** on 2026-09-25; see the
+The operator also approved **72 experiment-hours** on 2026-09-25; see the
 [approved forecast](budget-proposal.md). The cloud ceiling remains **$100**. Historical
 acceptance records retain their original eight-hour allowance. [Infra PR638](https://github.com/the-sarge/infra/pull/638), merged as
 `4fcfa6ad7f4cff923fa88d97ce82903b0e734aa9`, enforces the approved extension.

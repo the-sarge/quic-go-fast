@@ -2,12 +2,12 @@
   "status": "candidate; native gates and executable case commands remain required",
   "inventory_sha256": "bab8af515337f2fa32bdf3765e658a1d102ad601125112100b7043c23ef28fd1",
   "retained_reservations": {
-    "experiment_hours": 9.718,
-    "usd": 16.345
+    "experiment_hours": 10.468,
+    "usd": 18.17
   },
   "remaining_preparation_measurements": {
-    "windows_hours": 0.5,
-    "windows_usd": 1.3,
+    "windows_hours": 0.75,
+    "windows_usd": 1.825,
     "mac_hours": 0.25,
     "mac_usd": 0
   },
@@ -631,8 +631,8 @@
       "reserved_usd": 12.08
     }
   ],
-  "forecast_hours": 55.734667,
-  "forecast_usd": 83.708333,
-  "remaining_hours": 0.265333,
-  "remaining_usd": 16.291667
+  "forecast_hours": 56.734667,
+  "forecast_usd": 86.058333,
+  "remaining_hours": 15.265333,
+  "remaining_usd": 13.941667
 }
