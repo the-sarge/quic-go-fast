@@ -1,14 +1,14 @@
 {
-  "status": "candidate; native gates and executable case commands remain required",
+  "status": "frozen bounded lease partition; fresh native preflight required",
   "inventory_sha256": "bab8af515337f2fa32bdf3765e658a1d102ad601125112100b7043c23ef28fd1",
   "retained_reservations": {
-    "experiment_hours": 13.718,
+    "experiment_hours": 21.718,
     "usd": 23.645
   },
   "remaining_preparation_measurements": {
     "windows_hours": 0,
     "windows_usd": 0,
-    "mac_hours": 0.5,
+    "mac_hours": 0,
     "mac_usd": 0
   },
   "setup_cleanup_seconds_per_lease": 900,
@@ -631,8 +631,8 @@
       "reserved_usd": 12.08
     }
   ],
-  "forecast_hours": 59.484667,
+  "forecast_hours": 66.984667,
   "forecast_usd": 89.708333,
-  "remaining_hours": 12.515333,
+  "remaining_hours": 5.015333,
   "remaining_usd": 10.291667
 }

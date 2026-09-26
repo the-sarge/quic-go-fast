@@ -1,5 +1,5 @@
 {
-  "status": "preparation candidate; execution blocked by prerequisite gaps",
+  "status": "Frozen native preparation manifest; example-level evidence; fresh Q2 lease preflight required",
   "accepted_inventory": "docs/audits/2026-09-23-bbrv3-acceptance-manifest.json",
   "accepted_inventory_sha256": "1dc334ce2c136f157d2fb875da4906dc14ce1c415090470b60c8d4799fe98e21",
   "case_inventory": "case-inventory.jsonl",
@@ -22,11 +22,7 @@
     "stream_record_bytes": 16384,
     "record_metadata_bytes": 16
   },
-  "remaining": [
-    "Windows S3 capacity with controlled offered load and unchanged 5 ms gateway timing gate; bounded batch-pacing retry underway",
-    "Mac reverse capacity with probe-only packet counting; preceding aggregate totals include small background packets",
-    "Final clock/source/host manifest, local certification and bounded review"
-  ],
+  "remaining": [],
   "gateway_candidate": {
     "source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
     "gc_percent": 400,
@@ -34,21 +30,21 @@
     "software_offloads": "GRO/LRO/GSO/TSO disabled on both gateway interfaces",
     "hardware_receive_coalescing": "rx-gro-hw disabled separately on both gateway interfaces; record ethtool state",
     "timing": "Maximum ingress delay and kernel-submission lateness <=5 ms; receiver probes still required for actual path observations",
-    "status": "Selected V2 build passed all eight Linux checks and Windows generated L3/completion. Windows paced probes underloaded S3; unpaced probes reached gigabit but failed 5 ms timing. Mac latest V3 timing passed; probe-specific delivery balance remains unproved.",
+    "status": "Selected V2 build has final native Linux/Windows checks, Mac reverse capacity and quiet forward capacity, and generated Mac BBR completion/forwarding transition.",
     "cloud_profile": "gateway_cores=4; n2-standard-8 SMT disabled; four exposed guest CPUs; native facts required",
     "teardown_tail_seconds": 20,
     "cloud_packet_version": 2,
     "cloud_binary_sha256": "e96851832cf523ecedfc050f3b23ec9b912669bdb2c1dd63bcd64e4e51714e70",
     "cloud_go_version": "go1.27.1",
-    "mac_source": "9815770f",
-    "mac_packet_version": 3
+    "mac_source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+    "mac_packet_version": 2
   },
   "port_assignment": "competitor-schedule-candidate.json port_contract, based on frozen zero-based case index",
   "component_revisions": {
     "fixture": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
     "router": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
     "probe": "46723c74a52f7a33dce23447f024bfb024b94370",
-    "mac_router": "9815770f522be7ea1132349442bece9fd336f129",
+    "mac_router": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
     "model": "d0cfa1cbeee9bcb76de9ceb0b3a1ca7f3821aec2",
     "windows_batch_probe": "0ade3ee415dda82663812a8197273fa2bf0b6924"
   },
@@ -58,7 +54,8 @@
     "limitation": "No claim of four isolated physical cores",
     "gateway": "minimax CPUs0-3; isolated test namespaces with offload-disabled veth packet interfaces; native Mac receipts retained",
     "physical_link": "M4 mini and minimax detect Thunderbolt/USB4 networking, reported 80 Gb/s; not a measured rate",
-    "clarified": "2026-09-26"
+    "clarified": "2026-09-26",
+    "gateway_availability": "No active gateway VM workload before launch; record gateway contention throughout and pause dispatch if availability is lost. Affinity0-3 is not exclusive host-wide reservation."
   },
   "source_graph": "source-graph-candidate.json",
   "native_inventory": "native-inventory-candidate.json",
@@ -77,6 +74,9 @@
     "windows_staging_failure": "evidence/windows-staging-failure-summary.json",
     "mac_followup": "evidence/mac-followup-summary.json",
     "windows_final_retry": "evidence/windows-final-retry-summary.json",
-    "mac_counter": "evidence/mac-counter-summary.json"
-  }
+    "mac_counter": "evidence/mac-counter-summary.json",
+    "windows_batch": "evidence/windows-batch-summary.json",
+    "mac_eight_hour": "evidence/mac-eight-hour-summary.json"
+  },
+  "readiness_receipt": "readiness-receipt.json"
 }

@@ -1,12 +1,12 @@
 {
-  "status": "candidate; native qualification still required",
+  "status": "Frozen native preparation manifest; example-level evidence; fresh Q2 lease preflight required",
   "product_revision": "bfa11d3f698ac98da415c7bcbd9840923180d0bb",
   "component_revisions": {
     "fixture": "ddcb06c9e924625159ddcbff7253ee9e02d24b5f",
     "probe": "0ade3ee415dda82663812a8197273fa2bf0b6924",
     "router": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
     "model": "d0cfa1cbeee9bcb76de9ceb0b3a1ca7f3821aec2",
-    "mac_router": "9815770f522be7ea1132349442bece9fd336f129"
+    "mac_router": "da6655e05f88f0126e1b46b47cb6e6cb60016338"
   },
   "source_files": {
     "fixture/accounting.go": "1b6611cca2fcf806378d253badb80701e4d36d89738ba2f8d684913eda07f2f1",
@@ -167,11 +167,29 @@
       "source": "46723c74a52f7a33dce23447f024bfb024b94370"
     },
     "mac-router": {
-      "sha256": "c42b3626e609aa8012c3809cc4cd42b83e4df1aaf08f09277c63bde9b25ffdd3",
+      "sha256": "e96851832cf523ecedfc050f3b23ec9b912669bdb2c1dd63bcd64e4e51714e70",
       "go_version": "go1.27.1",
-      "source": "9815770f522be7ea1132349442bece9fd336f129",
-      "packet_version": 3,
-      "evidence": "linux-fourcore-records.tar.gz diagnostic-builds.txt; native minimax digest rechecked"
+      "build_metadata": [
+        "\tpath\tq1campaign/router",
+        "\tmod\tq1campaign\t(devel)\t",
+        "\tdep\tgithub.com/gopacket/gopacket\tv1.7.1\th1:1C7/wrJ5HyiEAYDtStJHQk4rV0ChpanZDV9+3Ov3gaM=",
+        "\tdep\tgolang.org/x/net\tv0.59.0\th1:5zfYln+w5XCxwrnMMJPufRgNoXEaGxl0wo5GqPXyues=",
+        "\tdep\tgolang.org/x/sys\tv0.48.0\th1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=",
+        "\tbuild\t-buildmode=exe",
+        "\tbuild\t-compiler=gc",
+        "\tbuild\t-ldflags=-X=main.sourceRevision=da6655e05f88f0126e1b46b47cb6e6cb60016338",
+        "\tbuild\tCGO_ENABLED=1",
+        "\tbuild\tCGO_CFLAGS=",
+        "\tbuild\tCGO_CPPFLAGS=",
+        "\tbuild\tCGO_CXXFLAGS=",
+        "\tbuild\tCGO_LDFLAGS=",
+        "\tbuild\tGOARCH=amd64",
+        "\tbuild\tGOOS=linux",
+        "\tbuild\tGOAMD64=v1"
+      ],
+      "source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+      "packet_version": 2,
+      "native_validation": "Native prerequisites passed; final certification and bounded review remain"
     },
     "linux-q1probe-legacy": {
       "sha256": "2454034c8d8e73fad52b027a3037eabfa5c3bd37af7a5e2474e9489c684e9ded",
@@ -218,7 +236,14 @@
       "sha256": "710f988afa1e45a7cda765950e34771e46b3ecc73d040cce770a2d4d83110317",
       "source": "0ade3ee415dda82663812a8197273fa2bf0b6924",
       "go_version": "go1.27.1",
-      "native_validation": "pending; earlier binary/results retain their own identities"
+      "native_validation": "Passed native 210-second forward/reverse S3 capacity, packet balance, zero UDP error growth and <=5 ms gateway timing with explicit 128-packet batches at requested 1.05 Gb/s; earlier failures retained."
+    }
+  },
+  "diagnostic_components": {
+    "spaced_mac_router": {
+      "source": "5331ae1f8a40f8b01698b9533b5bad394222207e",
+      "sha256": "1334d958eab2b9d48ddad667ba80be566ed5ee6c32c76048085e7bfd62b3d98e",
+      "selection": "not selected; sustained settings failed native gates; experiment-only option reverted, source commit retained"
     }
   }
 }

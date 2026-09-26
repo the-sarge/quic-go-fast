@@ -1,0 +1,673 @@
+{
+  "status": "native Q1 preparation; no Q2 comparisons",
+  "infra_source": "a2a7f26ffed6ff1d03e95a514939e0f29307b356",
+  "gateway_source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+  "gateway_sha256": "e96851832cf523ecedfc050f3b23ec9b912669bdb2c1dd63bcd64e4e51714e70",
+  "runtime": "TPACKET_V2, GOGC400 GOMEMLIMIT4GiB, four Go processors",
+  "reservation": {
+    "usd": 1.825,
+    "experiment_hours": 0.75
+  },
+  "cases": {
+    "win-batch-S3-forward": {
+      "identity": {
+        "Source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+        "GoVersion": "go1.27.1",
+        "PacketVersion": 2
+      },
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790394572081201000,
+        "MeasureSeconds": 210,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "gateway_gate_pass": false,
+      "gateway": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 5171106,
+          "MaxEgressLagNS": 4107312,
+          "MaxKernelToReadNS": 3358991,
+          "MaxReadToAdmissionNS": 5148182,
+          "Stats": {
+            "Received": 21573888,
+            "Admitted": 17997673,
+            "Delivered": 17997673,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 3576215,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26276602580,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "original_process_outcomes": {
+        "router": 1,
+        "receive-0": 0,
+        "send-0": 0
+      }
+    },
+    "win-batch-S3-reverse": {
+      "identity": {
+        "Source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+        "GoVersion": "go1.27.1",
+        "PacketVersion": 2
+      },
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790394835245105000,
+        "MeasureSeconds": 210,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "gateway_gate_pass": true,
+      "gateway": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 3473507,
+          "MaxEgressLagNS": 3341351,
+          "MaxKernelToReadNS": 3088705,
+          "MaxReadToAdmissionNS": 3463283,
+          "Stats": {
+            "Received": 21551104,
+            "Admitted": 17997955,
+            "Delivered": 17997955,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 3553149,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26277014300,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "original_process_outcomes": {
+        "router": 0,
+        "receive-0": 0,
+        "send-0": 0
+      },
+      "summary": {
+        "delivered": 17997955,
+        "received": 17997955,
+        "udp_receive_errors": {
+          "bbr-a": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          },
+          "bbr-b": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          }
+        },
+        "steady_ip_mbps": 1000.0720015311005,
+        "offered_ip_mbps": 1198.6518796190476,
+        "gateway_gate_pass": true,
+        "capacity_rate_pass": true,
+        "pass": true
+      }
+    },
+    "win-batch-probe-short": {
+      "identity": {
+        "Source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+        "GoVersion": "go1.27.1",
+        "PacketVersion": 2
+      },
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790394508966632000,
+        "MeasureSeconds": 10,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "gateway_gate_pass": true,
+      "gateway": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 3811489,
+          "MaxEgressLagNS": 3193584,
+          "MaxKernelToReadNS": 1277214,
+          "MaxReadToAdmissionNS": 3583870,
+          "Stats": {
+            "Received": 1027328,
+            "Admitted": 873098,
+            "Delivered": 873098,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 154230,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 1274723080,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "original_process_outcomes": {
+        "router": 0,
+        "receive-0": 0,
+        "send-0": 0
+      },
+      "summary": {
+        "delivered": 873098,
+        "received": 873098,
+        "udp_receive_errors": {
+          "bbr-a": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          },
+          "bbr-b": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          }
+        },
+        "steady_ip_mbps": 1000.1220622222222,
+        "offered_ip_mbps": 1199.919104,
+        "gateway_gate_pass": true,
+        "capacity_rate_pass": true,
+        "pass": true
+      }
+    },
+    "win-controlled-S3-forward": {
+      "identity": {
+        "Source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+        "GoVersion": "go1.27.1",
+        "PacketVersion": 2
+      },
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790395162885868000,
+        "MeasureSeconds": 210,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "gateway_gate_pass": true,
+      "gateway": [
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 3574594,
+          "MaxEgressLagNS": 3246809,
+          "MaxKernelToReadNS": 2608854,
+          "MaxReadToAdmissionNS": 3500720,
+          "Stats": {
+            "Received": 18712960,
+            "Admitted": 17992356,
+            "Delivered": 17992356,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 720604,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26268839760,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "original_process_outcomes": {
+        "router": 0,
+        "receive-0": 0,
+        "send-0": 0
+      },
+      "summary": {
+        "delivered": 17992356,
+        "received": 17992356,
+        "udp_receive_errors": {
+          "bbr-a": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          },
+          "bbr-b": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          }
+        },
+        "steady_ip_mbps": 999.7254576076556,
+        "offered_ip_mbps": 1040.7970133333333,
+        "gateway_gate_pass": true,
+        "capacity_rate_pass": true,
+        "pass": true
+      }
+    },
+    "win-controlled-S3-reverse": {
+      "identity": {
+        "Source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+        "GoVersion": "go1.27.1",
+        "PacketVersion": 2
+      },
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790395425936615000,
+        "MeasureSeconds": 210,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "gateway_gate_pass": true,
+      "gateway": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 3201729,
+          "MaxEgressLagNS": 3080686,
+          "MaxKernelToReadNS": 3110962,
+          "MaxReadToAdmissionNS": 3137347,
+          "Stats": {
+            "Received": 18832768,
+            "Admitted": 17997669,
+            "Delivered": 17997669,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 835099,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 26276596740,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "original_process_outcomes": {
+        "router": 0,
+        "receive-0": 0,
+        "send-0": 0
+      },
+      "summary": {
+        "delivered": 17997669,
+        "received": 17997669,
+        "udp_receive_errors": {
+          "bbr-a": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          },
+          "bbr-b": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          }
+        },
+        "steady_ip_mbps": 1000.0580302392344,
+        "offered_ip_mbps": 1047.4606201904762,
+        "gateway_gate_pass": true,
+        "capacity_rate_pass": true,
+        "pass": true
+      }
+    },
+    "win-controlled-probe-short": {
+      "identity": {
+        "Source": "da6655e05f88f0126e1b46b47cb6e6cb60016338",
+        "GoVersion": "go1.27.1",
+        "PacketVersion": 2
+      },
+      "config": {
+        "A": {
+          "Interface": "ens4",
+          "PeerMAC": "42:01:0a:3f:01:01",
+          "Focal": "10.63.1.10",
+          "Competitor": ""
+        },
+        "B": {
+          "Interface": "ens5",
+          "PeerMAC": "42:01:0a:3f:02:01",
+          "Focal": "10.63.2.10",
+          "Competitor": ""
+        },
+        "Scenario": "S3",
+        "StartUnixNS": 1790395100031257000,
+        "MeasureSeconds": 10,
+        "Phase": 0,
+        "Seed": 17
+      },
+      "gateway_gate_pass": true,
+      "gateway": [
+        {
+          "Direction": "ens4->ens5",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 3507817,
+          "MaxEgressLagNS": 3095870,
+          "MaxKernelToReadNS": 1058623,
+          "MaxReadToAdmissionNS": 3496562,
+          "Stats": {
+            "Received": 887168,
+            "Admitted": 873111,
+            "Delivered": 873111,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 14057,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 25001040,
+            "MaxPropagationBytes": 12500520,
+            "DeliveredBytes": 1274742060,
+            "PropagationOverflow": 0
+          }
+        },
+        {
+          "Direction": "ens5->ens4",
+          "Error": "",
+          "NonCanonical": 0,
+          "SocketDrops": 0,
+          "SendErrors": 0,
+          "MissingTimestamps": 0,
+          "MaxIngressLagNS": 0,
+          "MaxEgressLagNS": 0,
+          "MaxKernelToReadNS": 0,
+          "MaxReadToAdmissionNS": 0,
+          "Stats": {
+            "Received": 0,
+            "Admitted": 0,
+            "Delivered": 0,
+            "Marked": 0,
+            "EarlyDrop": 0,
+            "Overflow": 0,
+            "RandomDrop": 0,
+            "EventDrop": 0,
+            "InterruptionDrop": 0,
+            "MaxQueueBytes": 0,
+            "MaxPropagationBytes": 0,
+            "DeliveredBytes": 0,
+            "PropagationOverflow": 0
+          }
+        }
+      ],
+      "original_process_outcomes": {
+        "router": 0,
+        "receive-0": 0,
+        "send-0": 0
+      },
+      "summary": {
+        "delivered": 873111,
+        "received": 873111,
+        "udp_receive_errors": {
+          "bbr-a": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          },
+          "bbr-b": {
+            "before": 0,
+            "after": 0,
+            "no_growth": true
+          }
+        },
+        "steady_ip_mbps": 1000.0597688888889,
+        "offered_ip_mbps": 1036.212224,
+        "gateway_gate_pass": true,
+        "capacity_rate_pass": true,
+        "pass": true
+      }
+    }
+  },
+  "limitations": [
+    "Example-level native preparation only; all failed/missing roles invalidate their case. See raw outcomes and gateway gates.",
+    "Example-level bounded Windows calibration with explicit bounded packet batches (256 initially, 128 for the lower-pressure follow-up); unchanged gateway timing and packet-balance gates. Every role and native counter remains authoritative."
+  ],
+  "validation-outcomes": {
+    "probe-short": 0,
+    "S3-forward": 1,
+    "S3-reverse": 0
+  },
+  "controlled-outcomes": {
+    "probe-short": 0,
+    "S3-forward": 0,
+    "S3-reverse": 0
+  },
+  "probe_build": {
+    "source": "0ade3ee415dda82663812a8197273fa2bf0b6924",
+    "sha256": "710f988afa1e45a7cda765950e34771e46b3ecc73d040cce770a2d4d83110317",
+    "go_version": "go1.27.1",
+    "change": "Explicit bounded 256-packet pacing batches; default remains one packet. Native validation pending."
+  },
+  "cleanup": {
+    "instances": [],
+    "disks": [],
+    "verified_empty": true
+  },
+  "archive_sha256": "35632cd063e7f5b206056969ad3d83f39d638151df101ccbfcc6143e38537e8e",
+  "record_count": 148
+}

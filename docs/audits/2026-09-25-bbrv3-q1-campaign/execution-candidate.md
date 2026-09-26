@@ -1,9 +1,10 @@
 # Campaign execution candidate
 
-This is a campaign-only command recipe. **Q1 is not ready and Q2 remains
-blocked.** The original four-core/V3 gateway failed timing. The V2 candidate passed
-both S3 directions but still needs final-source scenario and Windows validation. Do not execute the comparative cases
-from this document until the native prerequisites and reviewed manifest pass.
+This is the frozen campaign-only command recipe backed by
+[the native readiness receipt](readiness-receipt.json). Q2 requires separate
+dispatch and fresh native resource, clock and lifecycle preflight. The selected
+V2 gateway has finite native evidence on Linux, Windows and the declared Mac
+path; historical failures remain in the evidence archives.
 
 `lease-plan-candidate.json` owns the proposed seven-lease order. Within each
 lease, use its recorded `case_indices`; retain the original controller order,
@@ -26,7 +27,8 @@ Follow the [clock and event alignment contract](clock-contract.md), retaining
 raw offsets and their uncertainty. Record native OS, kernel, CPU topology, Go version, clock status, route,
 interface offload state and process/binary hashes. Cloud endpoints expose four
 cores with SMT disabled; the gateway candidate exposes four too. macOS uses
-the approved scheduling exception and requires an otherwise-idle host window.
+the approved scheduling exception: pause available user/sync work and record
+remaining OS background activity; efficiency-core placement is not verified.
 The Mac test payload follows Thunderbolt to minimax and Ethernet to mbp128;
 the home internet is not the payload path. Only test-owned namespaces, aliases
 and routes may be changed. Preserve independent management access and a frozen
@@ -34,8 +36,7 @@ cleanup deadline.
 
 Stage the pinned native fixture as `/tmp/q1-campaign/q1fixture` on Unix
 endpoints or `C:/bbr/q1/q1fixture.exe` on Windows. Stage the pinned Linux router
-as `/tmp/q1-campaign/q1router` on the gateway. The cloud command candidate
-selects `-packet-version 2`; Mac retains its recorded V3 component and command. Generate one campaign-only mTLS
+as `/tmp/q1-campaign/q1router` on the gateway. All modeled commands select `-packet-version 2` with the same pinned gateway binary. Generate one campaign-only mTLS
 certificate/key pair using the fixture's `-role cert`, and copy it privately to
 both endpoint working directories as `campaign.pem` and `campaign-key.pem`.
 Do not commit keys. Record the certificate hash and expiry before a lease;
@@ -67,7 +68,13 @@ COMMAND`. Pass the command as one properly quoted argument; do not re-evaluate
 JSON with a shell. Windows commands already contain a UTF-16LE encoded
 PowerShell script and return result JSON encoded as Base64.
 
-Launch the router first. Start each receiver and observe its supplied readiness
+For S1, run the finite `native-path` command to completion before launching
+endpoints; it enables kernel forwarding only in the owned gateway scope and
+produces a setup receipt, with no userspace router. Join all roles before the
+next case. Each modeled case explicitly disables forwarding before starting
+its router, preventing the native path from bypassing the model.
+
+For modeled cases, launch the router first. Start each receiver and observe its supplied readiness
 command before starting its sender. Keep at least nine independent workers for
 L4's router, focal pair and three TCP pairs; the validated preparation driver
 uses 12. A worker blocked awaiting one measured role must not prevent another
@@ -78,7 +85,9 @@ pause. All participant configurations end at the same measurement boundary.
 
 Check remaining immutable lease time before every case: include the full
 future-start, warm-up, measurement, 20-second gateway tail, export and cleanup.
-Do not overlap cases on a topology. Keep endpoint/system CPU observations with
+Do not overlap cases on a topology. For Mac, require no active gateway VM workload before launch; record gateway
+and endpoint contention throughout, and pause dispatch if that availability
+condition is lost. Do not stop unrelated jobs. Keep endpoint/system CPU observations with
 the record. The gateway remains alive through the fixture's bounded final
 receipt; its tail does not enlarge the measurement denominator.
 
@@ -89,20 +98,24 @@ status. Validate gateway timestamps, errors, canonical packet domain, loss/CE,
 queue limits and both timing maxima. Any nonzero exit, missing receipt or failed
 hard gate invalidates the case; the first driver's success does not establish
 that its children succeeded. Rate probes additionally require independent
-host socket-error counters and gateway/receiver packet balance after draining.
+host socket-error counters and probe-specific gateway/receiver packet balance
+after draining. Where other traffic shares the focal IP pair, use a filtered
+egress observation with zero capture drops and fully drained capture counts;
+aggregate all-port gateway counts alone do not identify probe losses.
 
 Finally destroy the cloud lease through the frozen controller request, and
 independently verify both VM and disk inventories are empty. For Mac, remove
 only the owned namespaces and verify temporary aliases/routes expire. Retain
 cleanup failures and stop subsequent leases until ownership is resolved.
 
-## Evidence and current gaps
+## Evidence boundary
 
 The finite expansion check covers all 520 indices: every row retains its
-identity; each case has the expected three, five or nine participant commands;
+identity; each case has the expected three, five or nine commands (S1 has two
+participants plus one completed native-path setup);
 and all endpoint schedules share the declared measured end. This checks
 command construction, not native execution. The preparation archives retain
 real Linux, Windows and Mac command examples and all invalid observations.
-Final native validation of the command recipe, reliable cloud timing,
-Mac reverse capacity and idle-host readiness, and the reviewed source/tool/host
-manifest remain outstanding. This file makes none of those claims by itself.
+Native evidence is indexed in the readiness receipt; source and host identities
+remain pinned in the manifest. Command generation alone does not establish
+native execution or replace fresh resource/clock observations.

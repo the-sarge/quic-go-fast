@@ -29,8 +29,8 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| [Q1](#q1) | new | Establish the bounded native campaign prerequisites | None | None; see slice budget |
-| [Q2](#q2) | new | Run the accepted qualification campaign and publish evidence | Q1, B6 | None; see slice budget |
+| [Q1](#q1) | complete | Establish the bounded native campaign prerequisites | None | None; see slice budget |
+| [Q2](#q2) | ready | Run the accepted qualification campaign and publish evidence | Q1, B6 | None; see slice budget |
 
 ## Operating discipline
 
@@ -58,6 +58,8 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 ### Q1 — Establish the bounded native campaign prerequisites
 
+**Completion:** [PR #642](https://github.com/the-sarge/quic-go-fast/pull/642); [native readiness receipt](../audits/2026-09-25-bbrv3-q1-campaign/readiness-receipt.json). Q2 is the dispatchable successor after this PR merges; no comparative campaign was run by Q1.
+
 **What it delivers:** Within the operator-extended 16 preparation hours, inventory usable native platform pairs/resources and existing fixture/emulator capabilities; pin a runnable campaign manifest with source/host/tool versions, calibrated command choices, ownership and expected runtime. Select the L3 fixed queue basis and final packet-rounded capacities. Publish one readiness receipt and finite missing-prerequisite list if not ready; do not pretend unavailable hosts, calibration or missing tooling exist. This slice completes only when the core campaign is runnable inside its accepted budget.
 
 **Existing-work disposition:** New slice. The unmerged design is reworked documentation only; no implementation is assumed.
@@ -78,7 +80,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **Contract closure:** Not triggered for this slice: this is finite readiness/measurement evidence, not shipped safety authority; do not recursively impose closure on campaign aids.
 
-**Evidence budget:** The existing accepted campaign budget applies verbatim: Q1 has at most 16 cumulative preparation hours; the shared Q1/Q2 ledger permits at most 72 experiment-hours including failed runs, launch and teardown. The linked finite lease candidate accounts for the accepted 520 cases, retained reservations, remaining native checks, setup/teardown and rounded lease time; its current forecast is 59.485 hours, leaving approximately 12.515 hours of contingency. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
+**Evidence budget:** The existing accepted campaign budget applies verbatim: Q1 has at most 16 cumulative preparation hours; the shared Q1/Q2 ledger permits at most 72 experiment-hours including failed runs, launch and teardown. The linked finite lease candidate accounts for the accepted 520 cases, retained reservations, remaining native checks, setup/teardown and rounded lease time; its current forecast is 66.985 hours, leaving approximately 5.015 hours of contingency. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 
 **TDD and preservation evidence:** First write characterization/failing cases for: `Receiver counter integrity/duplicate fixture check`; `Directional rate/RTT/finite-queue/CE calibration`; `Native pair and CPU-isolation inventory`; `Experiment ledger arithmetic and command-cost check`. Use existing real-packer and recovery fixtures rather than mocks of production decision logic. Preserve default Reno, protocol parsing, payload/buffer ownership and existing platform capability boundaries on every changed surface.
 
@@ -112,7 +114,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **Contract closure:** Not triggered for this slice: this is finite readiness/measurement evidence, not shipped safety authority; do not recursively impose closure on campaign aids.
 
-**Evidence budget:** The existing accepted campaign budget applies verbatim: Q1 has at most 16 cumulative preparation hours; the shared Q1/Q2 ledger permits at most 72 experiment-hours including failed runs, launch and teardown. The linked finite lease candidate accounts for the accepted 520 cases, retained reservations, remaining native checks, setup/teardown and rounded lease time; its current forecast is 59.485 hours, leaving approximately 12.515 hours of contingency. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
+**Evidence budget:** The existing accepted campaign budget applies verbatim: Q1 has at most 16 cumulative preparation hours; the shared Q1/Q2 ledger permits at most 72 experiment-hours including failed runs, launch and teardown. The linked finite lease candidate accounts for the accepted 520 cases, retained reservations, remaining native checks, setup/teardown and rounded lease time; its current forecast is 66.985 hours, leaving approximately 5.015 hours of contingency. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 
 **TDD and preservation evidence:** First write characterization/failing cases for: `Pinned required correctness/calibration commands before comparative runs`; `460 core runs with original pair/seed/timing contract`; `60 completion observations including timeouts`; `Per-run integrity/controller/ECN/resource record and global ledger`. Use existing real-packer and recovery fixtures rather than mocks of production decision logic. Preserve default Reno, protocol parsing, payload/buffer ownership and existing platform capability boundaries on every changed surface.
 

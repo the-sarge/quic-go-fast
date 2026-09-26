@@ -1,5 +1,5 @@
 {
-  "status": "native preparation inventory; remaining Windows pacing and Mac filtered-counter checks pending",
+  "status": "Frozen native preparation manifest; example-level evidence; fresh Q2 lease preflight required",
   "cloud_linux": {
     "bbr-a": {
       "os": "Ubuntu 24.04.5 LTS",
@@ -118,7 +118,11 @@
     "physical_cores": 16,
     "smt_threads_per_core": 2,
     "gateway_affinity": "0-3",
-    "native_roles": "separate Linux gateway; no focal endpoint on this host"
+    "native_roles": "separate Linux gateway; no focal endpoint on this host",
+    "packet_version": 2,
+    "gateway_binary_sha256": "e96851832cf523ecedfc050f3b23ec9b912669bdb2c1dd63bcd64e4e51714e70",
+    "process_nice": 0,
+    "affinity_limitation": "CPUs0-3 affinity is not a host-wide exclusive reservation; retain observed contention and enforce native gates"
   },
   "cloud_windows": {
     "bbr-a": {
@@ -138,7 +142,7 @@
       "pinned_image": "projects/windows-cloud/global/images/windows-server-2025-dc-v20260910",
       "native_fact_record": "bbr-a-facts-10.txt",
       "native_fact_sha256": "e6d98014bcba57a056e07210ed3e340b62d3edfa533b8ebba83c2eef8d455910",
-      "native_validation": "native L3 and completion passed; S3 capacity/timing qualification pending"
+      "native_validation": "native L3, completion and controlled S3 capacity/timing checks passed; inventory remains example-level"
     },
     "bbr-b": {
       "os": {
@@ -157,7 +161,7 @@
       "pinned_image": "projects/windows-cloud/global/images/windows-server-2025-dc-v20260910",
       "native_fact_record": "bbr-b-facts-12.txt",
       "native_fact_sha256": "1bb8e95b7c18e6e9077e298f6bc44663dc74d48fe614bedee7373f5c725aff9e",
-      "native_validation": "native L3 and completion passed; S3 capacity/timing qualification pending"
+      "native_validation": "native L3, completion and controlled S3 capacity/timing checks passed; inventory remains example-level"
     }
   }
 }

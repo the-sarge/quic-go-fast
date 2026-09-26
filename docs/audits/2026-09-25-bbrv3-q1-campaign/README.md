@@ -1,9 +1,10 @@
 # Q1 campaign preparation
 
-Status: implementation candidate, **not calibrated or campaign-ready**. Q1 #598
-remains open and Q2 #599 remains blocked. These sources are campaign-only
-verification aids, frozen with the eventual manifest and archived after Q2.
-They ship no controller behavior and are not a maintained emulator framework.
+Status: native preparation complete; the [readiness receipt](readiness-receipt.json)
+freezes example-level evidence for the declared hosts and command settings.
+The product PR owns review and certification before Q1 closes. Q2 requires
+separate dispatch and fresh lease/resource/clock preflight. These campaign-only
+verification aids ship no controller behavior and retire after Q2.
 
 The operator extended preparation to **16 cumulative hours** on 2026-09-25;
 [authorization](https://github.com/the-sarge/quic-go-fast/issues/598#issuecomment-5837538642).
@@ -99,13 +100,19 @@ for the fixture and record binary hashes. Campaign mTLS keys are created in a
 private staging directory and never committed. Both peers receive the same
 short-lived campaign trust material; no cloud credentials reach guests.
 
-## Remaining evidence
+## Readiness boundary
 
-Remaining Linux and Windows fixture/model calibration, Mac native path
-qualification, actual per-scenario commands, competitor orchestration,
-clock-error bounds and the costed frozen manifest remain incomplete. Queue sizes
-currently use MTU 1460 with the first L3 phase as the fixed basis: forward 32120
-bytes, reverse 188340 bytes. Those are selected parameters pending calibration.
+Linux, Windows and Mac prerequisites have their finite native evidence. The
+current manifest selects the same V2 gateway binary on all platforms; historical
+receipts retain their original binary identities. L3 uses its first phase as the
+fixed queue basis: forward 32,120 bytes and reverse 188,340 bytes.
+
+Readiness is example-level evidence, not a promise that later shared-host runs
+will pass. Recheck resources and clock bounds before every lease; retain and
+reject every case that fails a hard gate. Mac gateway CPU affinity is not an
+exclusive host-wide reservation. Require no active gateway VM workload before
+starting a Mac lease and record contention throughout it; pause dispatch if
+that availability condition is lost. Do not terminate unrelated jobs.
 
 Resource samples observe cumulative process CPU, heap once per second, full-run
 allocations and process peak RSS. Connection setup elapsed includes listener
@@ -459,3 +466,101 @@ physical-core isolation nor efficiency-core placement is verified. This updates
 the earlier otherwise-idle prerequisite and does not change packet-loss or
 5 ms timing gates. Both root watchdogs cleaned up their temporary network settings,
 and the gateway namespaces were independently verified absent. Q2 remains blocked.
+
+## Windows capacity passes; longer Mac setup window
+
+[The Windows pacing receipt](evidence/windows-batch-summary.json) retains both
+initial and lower-pressure checks. The explicit 256-packet batch achieved the
+requested offered rate, but sustained forward timing still failed at 5.171 ms.
+The bounded follow-up used 128-packet batches with requested 1.05 Gb/s. Both
+210-second directions passed: 999.725 and 1,000.058 Mb/s, exact gateway/receiver
+balance (17,992,356 and 17,997,669 packets), no UDP error growth and no invalid
+or duplicate payloads. Maximum ingress/submission delays were 3.575/3.247 ms
+forward and 3.202/3.081 ms reverse. The gateway source, model and 5 ms gate did
+not change. All 18 cloud resources were removed; independent VM/disk inventories
+were empty. The temporary validation coordinator hold had an independent finite
+resumption watchdog; the original cleanup resumed and both processes exited.
+
+[The longer Mac window](evidence/mac-eight-hour-summary.json) follows the
+operator's request to avoid repeated administrator setup. Each root watchdog
+now removes its temporary alias and host route after eight hours (11:50:37
+and 11:50:54 UTC on 2026-09-26). The full eight hours, including unused time,
+remain reserved. This is network availability, not eight hours of extra cases
+or a requirement to leave the hosts idle. Shared/default routes are unchanged;
+only the agent-owned gateway namespaces are recreated for finite checks.
+
+Filtered capture proved that mixed background traffic was not the whole loss
+explanation. The first filtered reverse run captured 17,996,278 probe packets
+without capture loss and received 17,993,206: 3,072 packets missing, including
+135 additional host-wide UDP full-buffer drops. Its gateway ingress delay also
+failed at 5.044 ms. Lowering total offered traffic from 1.2 to 1.05 Gb/s passed
+gateway timing but still lost 6,010 probe packets, with 400 full-buffer drops.
+The mini's network-memory denial counter increased from 8,590 to 19,816;
+MBP's remained unchanged. These counts suggest receiver-side allocation
+pressure, but do not map one-to-one to packet losses or prove general RAM
+exhaustion. They do not justify changing global kernel settings. Original
+invalid outcomes, precise filtered counts and CPU observations remain retained.
+
+## Mac burst diagnosis
+
+The same two-flow, 210-second reverse probe passed through kernel forwarding
+in the owned test namespace: 18,860,806 packets sent, filtered-captured and
+received, 1,049.004 Mb/s, no capture loss, no UDP full-buffer growth and no
+network-memory denial growth. This is a physical-path baseline, not modeled
+S3 qualification. It makes emulator output bursts a stronger explanation than
+a general inability of the Mac or local route to sustain gigabit traffic.
+
+The diagnostic router at `5331ae1f` optionally spaces socket submissions above
+the modeled rate. Neither the model nor the 5 ms gate changes. At 1.05 and
+1.2 Gb/s submission ceilings, receiver/capture counts matched without host
+error growth, but gateway timing failed (maximum ingress 94.998 and 285.329 ms;
+egress 6.871 and 28.214 ms). A separately labeled CPU profile attributed
+87.72% of sampled CPU to the emission worker, including its clock-based wait.
+The profile is not qualification evidence. At a 2 Gb/s submission ceiling,
+gateway timing passed but 1,236 captured probe packets were missing at the
+receiver, with 933 additional UDP full-buffer drops. None of these pacing
+settings qualifies the Mac path. The experiment-only spacing option was reverted; its exact source commit
+and failed observations remain retained.
+
+The exact cloud-qualified V2 binary without added spacing eliminated measured
+receiver loss in both directions. Reverse passed all gates at 1,000.045 Mb/s:
+17,996,252 filtered-captured and received packets, no UDP or capture drops,
+maximum ingress/submission 4.333/4.114 ms. Forward also balanced exactly at
+17,995,331 packets and 999.999 Mb/s without UDP or capture drops, but failed
+its ingress gate at 6.532 ms (submission 4.628 ms). These results support the
+receive-batching hypothesis for the previous losses; they do not qualify the
+forward path. Concurrent VM activity was observed on minimax, without proving
+that it caused the maximum delay. The next bounded check changes only the
+owned gateway process's scheduling priority to nice -20; unrelated work and
+global scheduler settings are untouched. All raw records remain retained.
+
+## Selected Mac V2 path and command receipt
+
+The priority trial still failed admission timing at 5.514 ms, despite exact
+17,996,463-packet balance and no host UDP error growth. It was not selected.
+After the observed VM workload ended, the final unprioritized forward check
+passed at 1,000.000 Mb/s, with exactly 17,996,392 filtered-captured and received
+packets, no UDP or capture drops, and maximum ingress/submission 1.168/1.148 ms.
+The per-second gateway observations contain no QEMU process. Together with the
+earlier unprioritized V2 reverse pass, this qualifies the declared capacity
+example. It supports a contention explanation for the timing failures without
+proving which scheduler or runtime event caused each maximum.
+
+The generated native Mac BBR completion case verified all 16,777,216 useful
+bytes without corruption or duplicates. Every role and before/after clock
+check passed. Its native S1 setup command enabled kernel forwarding, and the
+following modeled command reset it to zero before starting the selected V2
+gateway. All 520 command expansions passed identity, participant-count,
+forwarding-mode and finite endpoint-deadline checks. The 70 S1 cases contain
+one completed native-path setup plus two endpoint commands; the other 450
+use the modeled router. Earlier full Mac L3 and stream/DATAGRAM correctness
+evidence remains attributed to its original V3 source, while final Linux and
+Windows L3/impairment evidence covers the shared model and selected V2 binary.
+These are Q1 checks, not Q2 controller comparisons.
+
+Native preparation reached this receipt at 15.976 observed hours, before its
+16-hour stop. Required PR review and certification remain distinct from native
+readiness; no further preparation experiment is implied. All cloud resources
+are removed and owned gateway namespaces are absent. Mac addresses and routes
+remain under their frozen eight-hour watchdogs; their expiry is not yet a
+completed cleanup observation.

@@ -45,10 +45,10 @@ for group, pairs in groups.items():
     if current:
         leases.append((group, current, duration))
 
-result = {'status': 'candidate; native gates and executable case commands remain required',
+result = {'status': 'frozen bounded lease partition; fresh native preflight required',
           'inventory_sha256': hashlib.sha256(inventory.read_bytes()).hexdigest(),
-          'retained_reservations': {'experiment_hours': 13.718, 'usd': 23.645},
-          'remaining_preparation_measurements': {'windows_hours': 0, 'windows_usd': 0, 'mac_hours': 0.5, 'mac_usd': 0},
+          'retained_reservations': {'experiment_hours': 21.718, 'usd': 23.645},
+          'remaining_preparation_measurements': {'windows_hours': 0, 'windows_usd': 0, 'mac_hours': 0, 'mac_usd': 0},
           'setup_cleanup_seconds_per_lease': 900,
           'case_overhead_seconds': {'future_start': 25, 'gateway_tail': 20},
           'order_contract': 'Execute leases and case indices in this recorded order. Original controller order, seed and pairing remain unchanged; full pairs are partitioned by platform/topology. Linux completions reuse a competitor lease with idle extra endpoints.',
