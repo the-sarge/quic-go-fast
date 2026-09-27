@@ -1,0 +1,18 @@
+{
+  "recorded_at": "2026-09-27T14:17:53.672892+00:00",
+  "kind": "offline-repair-verification",
+  "comparative_launches": 0,
+  "tests": 16,
+  "result": "passed",
+  "command": "python3 -m unittest discover -s docs/audits/2026-09-27-bbrv3-q2-campaign -p test_runner.py",
+  "mac_command_expansions": 70,
+  "raw_case_receipts_replayed": 21,
+  "historical_completion_receipts_replayed": 1,
+  "original_evidence_hash_changes": 0,
+  "candidate_sha256": {
+    "run-mac-v2.py": "77a950cd9e28625335947438046c0ec71f277f32d07754f088c2d32acf00a52e",
+    "test_runner.py": "897cfb5a8952e6c4f92fab940f181c86fdc4b1a9aadaca31e88e560f19c1788d",
+    "receipt-sample.json": "f18812dba04bda43943d9039a238183ae24168db4b6f63c726bb6c11af289dc2",
+    "completion-sample.json": "1f1720526dd28980bce15e2bfc5ac9dd49a231cc405ca4e69191631ba4415858"
+  }
+}

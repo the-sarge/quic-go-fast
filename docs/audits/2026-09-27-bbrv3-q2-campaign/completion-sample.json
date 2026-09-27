@@ -1,0 +1,563 @@
+{
+  "provenance": "Reduced pinned Q1 mac-review-correction completion receipt; only diagnostic arrays truncated; offline regression only.",
+  "case": {
+    "case": {
+      "id": "completion-darwin-arm64-S3-p1-bbrv3",
+      "group": "completion",
+      "platform": "darwin/arm64",
+      "scenario": "S3",
+      "pair": 1,
+      "order_in_pair": 2,
+      "seed": 200020,
+      "event_phase_seconds": 0,
+      "fixture": {
+        "id": "completion-darwin-arm64-S3-p1-bbrv3",
+        "controller": "bbrv3",
+        "workload": "stream",
+        "warmup_ms": 0,
+        "measure_ms": 60000,
+        "payload_bytes": 16384,
+        "completion_bytes": 16777216
+      }
+    },
+    "focal_config": {
+      "id": "completion-darwin-arm64-S3-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "warmup_ms": 0,
+      "measure_ms": 60000,
+      "payload_bytes": 16384,
+      "completion_bytes": 16777216,
+      "start_unix_ns": 1790402536983875000
+    },
+    "router_config": {
+      "A": {
+        "Interface": "q1a",
+        "PeerMAC": "02:63:65:01:00:01",
+        "Focal": "10.64.1.10"
+      },
+      "B": {
+        "Interface": "q1b",
+        "PeerMAC": "02:63:65:02:00:01",
+        "Focal": "10.64.2.10"
+      },
+      "Scenario": "S3",
+      "StartUnixNS": 1790402536983875000,
+      "MeasureSeconds": 60,
+      "Phase": 0,
+      "Seed": 200020
+    },
+    "start_unix_ns": 1790402536983875000,
+    "measurement_start_unix_ns": 1790402536983875000,
+    "measurement_end_unix_ns": 1790402596983875000,
+    "gateway_end_unix_ns": 1790402616983875000,
+    "native_window_contract": "Before execution, require qualified profile, clock/path/resource preflight, sufficient frozen lease time, no overlap with prior case, and ledger reservation. Endpoint start must be within120s; receivers ready before senders. Collect every role even on failure; any missing/nonzero result invalidates the case.",
+    "commands": [
+      {
+        "label": "router",
+        "config": {
+          "A": {
+            "Interface": "q1a",
+            "PeerMAC": "02:63:65:01:00:01",
+            "Focal": "10.64.1.10"
+          },
+          "B": {
+            "Interface": "q1b",
+            "PeerMAC": "02:63:65:02:00:01",
+            "Focal": "10.64.2.10"
+          },
+          "Scenario": "S3",
+          "StartUnixNS": 1790402536983875000,
+          "MeasureSeconds": 60,
+          "Phase": 0,
+          "Seed": 200020
+        }
+      },
+      {
+        "label": "focal-receive",
+        "config": {
+          "id": "completion-darwin-arm64-S3-p1-bbrv3",
+          "controller": "bbrv3",
+          "workload": "stream",
+          "warmup_ms": 0,
+          "measure_ms": 60000,
+          "payload_bytes": 16384,
+          "completion_bytes": 16777216,
+          "start_unix_ns": 1790402536983875000
+        }
+      },
+      {
+        "label": "focal-send",
+        "config": {
+          "id": "completion-darwin-arm64-S3-p1-bbrv3",
+          "controller": "bbrv3",
+          "workload": "stream",
+          "warmup_ms": 0,
+          "measure_ms": 60000,
+          "payload_bytes": 16384,
+          "completion_bytes": 16777216,
+          "start_unix_ns": 1790402536983875000
+        }
+      }
+    ]
+  },
+  "roles": {
+    "router": [
+      0,
+      {
+        "Config": {
+          "A": {
+            "Interface": "q1a",
+            "PeerMAC": "02:63:65:01:00:01",
+            "Focal": "10.64.1.10",
+            "Competitor": ""
+          },
+          "B": {
+            "Interface": "q1b",
+            "PeerMAC": "02:63:65:02:00:01",
+            "Focal": "10.64.2.10",
+            "Competitor": ""
+          },
+          "Scenario": "S3",
+          "StartUnixNS": 1790402536983875000,
+          "MeasureSeconds": 60,
+          "Phase": 0,
+          "Seed": 200020
+        },
+        "Observations": [
+          {
+            "Direction": "q1b->q1a",
+            "Error": "",
+            "ReadPackets": 4873,
+            "NonCanonical": 0,
+            "SocketDrops": 0,
+            "SendErrors": 0,
+            "MaxIngressLagNS": 129062,
+            "MaxEgressLagNS": 1160505,
+            "MaxIngressAtNS": 1790402512828651561,
+            "MaxEgressAtNS": 1790402513569926691,
+            "MaxKernelToReadNS": 101891,
+            "MaxReadToAdmissionNS": 109456,
+            "MissingTimestamps": 0,
+            "Samples": [
+              {
+                "UnixNS": 1790402513274060468,
+                "Stats": {
+                  "Received": 66,
+                  "Admitted": 66,
+                  "Delivered": 50,
+                  "Marked": 0,
+                  "EarlyDrop": 0,
+                  "Overflow": 0,
+                  "RandomDrop": 0,
+                  "EventDrop": 0,
+                  "InterruptionDrop": 0,
+                  "MaxQueueBytes": 1428,
+                  "MaxPropagationBytes": 4790,
+                  "DeliveredBytes": 7970,
+                  "PropagationOverflow": 0
+                }
+              }
+            ],
+            "Stats": {
+              "Received": 4873,
+              "Admitted": 4873,
+              "Delivered": 4873,
+              "Marked": 0,
+              "EarlyDrop": 0,
+              "Overflow": 0,
+              "RandomDrop": 0,
+              "EventDrop": 0,
+              "InterruptionDrop": 0,
+              "MaxQueueBytes": 1428,
+              "MaxPropagationBytes": 54637,
+              "DeliveredBytes": 341840,
+              "PropagationOverflow": 0
+            }
+          },
+          {
+            "Direction": "q1a->q1b",
+            "Error": "",
+            "ReadPackets": 12909,
+            "NonCanonical": 0,
+            "SocketDrops": 0,
+            "SendErrors": 0,
+            "MaxIngressLagNS": 301174,
+            "MaxEgressLagNS": 1155806,
+            "MaxIngressAtNS": 1790402538967915032,
+            "MaxEgressAtNS": 1790402514064524648,
+            "MaxKernelToReadNS": 185357,
+            "MaxReadToAdmissionNS": 219391,
+            "MissingTimestamps": 0,
+            "Samples": [
+              {
+                "UnixNS": 1790402513280990313,
+                "Stats": {
+                  "Received": 71,
+                  "Admitted": 71,
+                  "Delivered": 56,
+                  "Marked": 0,
+                  "EarlyDrop": 0,
+                  "Overflow": 0,
+                  "RandomDrop": 0,
+                  "EventDrop": 0,
+                  "InterruptionDrop": 0,
+                  "MaxQueueBytes": 2856,
+                  "MaxPropagationBytes": 8093,
+                  "DeliveredBytes": 9952,
+                  "PropagationOverflow": 0
+                }
+              }
+            ],
+            "Stats": {
+              "Received": 12909,
+              "Admitted": 12909,
+              "Delivered": 12909,
+              "Marked": 0,
+              "EarlyDrop": 0,
+              "Overflow": 0,
+              "RandomDrop": 0,
+              "EventDrop": 0,
+              "InterruptionDrop": 0,
+              "MaxQueueBytes": 12852,
+              "MaxPropagationBytes": 5048498,
+              "DeliveredBytes": 17568994,
+              "PropagationOverflow": 0
+            }
+          }
+        ],
+        "Profiled": false,
+        "PacketVersion": 2,
+        "Source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "GoVersion": "go1.27.1"
+      }
+    ],
+    "focal-receive": [
+      0,
+      {
+        "connection_setup_ns": 398235709,
+        "resource_samples": [
+          {
+            "unix_ns": 1790402513911318000,
+            "cpu_seconds": 0.008599999999999997,
+            "heap_bytes": 2334312
+          }
+        ],
+        "result": {
+          "run": {
+            "id": "completion-darwin-arm64-S3-p1-bbrv3",
+            "controller": "bbrv3",
+            "workload": "stream",
+            "start_unix_ns": 1790402536983875000,
+            "warmup_ms": 0,
+            "measure_ms": 60000,
+            "payload_bytes": 16384,
+            "completion_bytes": 16777216
+          },
+          "controller": "bbrv3",
+          "receiver": {
+            "useful_bytes": 16777216,
+            "unique_messages": 1026,
+            "duplicates": 0,
+            "corrupt": 0,
+            "outside_window": 0,
+            "per_second_bytes": [
+              392832,
+              10753776,
+              5630608,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "control": {
+            "opportunity_times_ns": null,
+            "expected_opportunities": 0,
+            "missed_opportunities": 0,
+            "offered": 0,
+            "replies": 0,
+            "skipped": 0,
+            "unresolved": 0,
+            "latency_ns": null,
+            "clock_offset_bounds_ns": null
+          },
+          "sent_messages": 0,
+          "send_call_ns": 0,
+          "completion_ns": 2119763458,
+          "completion_verified": true,
+          "censored": false
+        },
+        "trace": {
+          "sent_ecn": {
+            "": 7,
+            "ECT(0)": 4321
+          },
+          "received_ecn": {
+            "": 8,
+            "ECT(0)": 12346
+          },
+          "events": [
+            {
+              "unix_ns": 1790402513103383000,
+              "kind": "recovery:metrics_updated",
+              "event": {
+                "CongestionWindow": 12000,
+                "MinRTT": 0,
+                "SmoothedRTT": 0,
+                "LatestRTT": 0,
+                "MaxReportedFlightBytes": 1223,
+                "MaxReportedFlightPackets": 1,
+                "FlowControlBlockedFrames": 0,
+                "LostPackets": 0
+              }
+            }
+          ],
+          "flow_control_blocked_frames": 0,
+          "lost_packets": 0
+        },
+        "resources": {
+          "cpu_seconds": 0.535039,
+          "peak_rss_bytes": 21659648,
+          "total_alloc_bytes": 23974432,
+          "heap_bytes_at_exit": 3605208
+        },
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "go_version": "go1.27.0",
+        "platform": "darwin/arm64",
+        "gomaxprocs": 4,
+        "managed_direct": true,
+        "elapsed_ns": 26556255167
+      }
+    ],
+    "focal-send": [
+      0,
+      {
+        "connection_setup_ns": 207414375,
+        "resource_samples": [
+          {
+            "unix_ns": 1790402513944378000,
+            "cpu_seconds": 0.005951000000000001,
+            "heap_bytes": 2171392
+          }
+        ],
+        "result": {
+          "run": {
+            "id": "completion-darwin-arm64-S3-p1-bbrv3",
+            "controller": "bbrv3",
+            "workload": "stream",
+            "start_unix_ns": 1790402536983875000,
+            "warmup_ms": 0,
+            "measure_ms": 60000,
+            "payload_bytes": 16384,
+            "completion_bytes": 16777216
+          },
+          "controller": "bbrv3",
+          "receiver": {
+            "useful_bytes": 16777216,
+            "unique_messages": 1026,
+            "duplicates": 0,
+            "corrupt": 0,
+            "outside_window": 0,
+            "per_second_bytes": [
+              392832,
+              10753776,
+              5630608,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "control": {
+            "opportunity_times_ns": [
+              [
+                1790402536983875000,
+                1790402536985923000
+              ],
+              [
+                1790402537985917334,
+                1790402537985921000
+              ],
+              [
+                1790402538985911959,
+                1790402538985953000
+              ]
+            ],
+            "expected_opportunities": 0,
+            "missed_opportunities": 0,
+            "offered": 3,
+            "replies": 2,
+            "skipped": 0,
+            "unresolved": 1,
+            "latency_ns": [
+              210011000,
+              204596000
+            ],
+            "clock_offset_bounds_ns": [
+              [
+                -45102000,
+                164909000
+              ],
+              [
+                -43942000,
+                160654000
+              ]
+            ]
+          },
+          "sent_messages": 1026,
+          "send_call_ns": 2113798452,
+          "completion_ns": 2119763458,
+          "completion_verified": true,
+          "censored": false
+        },
+        "trace": {
+          "sent_ecn": {
+            "": 10,
+            "ECT(0)": 12346
+          },
+          "received_ecn": {
+            "": 4,
+            "ECT(0)": 4321
+          },
+          "events": [
+            {
+              "unix_ns": 1790402512943442000,
+              "kind": "recovery:metrics_updated",
+              "event": {
+                "CongestionWindow": 14000,
+                "MinRTT": 0,
+                "SmoothedRTT": 0,
+                "LatestRTT": 0,
+                "MaxReportedFlightBytes": 1400,
+                "MaxReportedFlightPackets": 1,
+                "FlowControlBlockedFrames": 0,
+                "LostPackets": 0
+              }
+            }
+          ],
+          "flow_control_blocked_frames": 0,
+          "lost_packets": 0
+        },
+        "resources": {
+          "cpu_seconds": 0.646978,
+          "peak_rss_bytes": 38944768,
+          "total_alloc_bytes": 52375728,
+          "heap_bytes_at_exit": 23749328
+        },
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "go_version": "go1.27.0",
+        "platform": "darwin/arm64",
+        "gomaxprocs": 4,
+        "managed_direct": true,
+        "elapsed_ns": 26567538167
+      }
+    ]
+  }
+}

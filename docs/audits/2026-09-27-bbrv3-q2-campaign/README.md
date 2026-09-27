@@ -1,0 +1,29 @@
+# Q2 campaign execution
+
+Status: Decision stop at 2026-09-27 07:55:21 UTC after 20 passing S1 cases and one failed S3 receipt validation. The remaining 49 Mac cases and all cloud leases were not launched. Owned gateway cleanup and exact minimax admission release are verified; automatic continuation is paused. See [the stop record](decision-stop.md). Q2 is incomplete.
+
+Offline retry repairs and verification are recorded in [retry preparation](retry-preparation.md). The new candidate is separate from the frozen failed runner; no retry has launched.
+
+This executes [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) against the [accepted Q2 contract](../../adr/2026-09-24-bbrv3-qualification-plan.md#q2). Q1 and B6 are complete. The dispatch base is `e2329971e2cc65793e338dd96d61eaa9f2438ecd`; Q1's product revision is `bfa11d3f698ac98da415c7bcbd9840923180d0bb`, with its corrected campaign components pinned at `e4f322cbbfd4225a4b714e08ec19c958cccadcb0`. Verify source equivalence and native binary hashes before reuse. Historical receipts remain unchanged.
+
+## Operator instructions and schedule
+
+The operator approved $150 cumulative cloud cost and 96 cumulative experiment-hours in [the budget amendment](https://github.com/the-sarge/quic-go-fast/issues/599#issuecomment-5846546900); the separate preparation ceiling remains 72 hours. Preserve every legitimate prior charge, failed start and unused experiment reservation. Reconcile the infrastructure guard before a launch relies on increased limits.
+
+On 2026-09-27 the operator arranged a shared quiet window on both Macs and minimax and accepted Mac-first execution. Move the whole Q2-06 lease ahead of Q2-01 through Q2-05, followed by Q2-07. Preserve all 520 cases, their seeds, settings, controller pairs and within-pair order. This changes platform scheduling only.
+
+The operator requested 48 hours of temporary Mac network availability. This is the endpoint alias/route cleanup deadline, not a 48-hour experiment allocation or authorization for extra tests. The assistant briefly created an erroneous 48-hour experiment entry, then voided it after the operator corrected this interpretation. The correction is retained in the local controller records. Historical Q1 reservations are unchanged. Reserve the actual bounded Mac execution window separately and release minimax's exclusive admission lease after verified gateway cleanup.
+
+## Execution preflight
+
+Outcome: 460 core observations and 60 completion observations, immutable raw receipts, paired comparisons, advisory flags, limitations and a human adoption decision packet. This is one evidence PR; no controller changes, default switch, consumer changes, rollout or automatic adoption. Correctness/calibration failure stops the campaign and preserves incomplete observations.
+
+The campaign agent owns the ledger and lifecycle; native receivers own useful-delivery observations. The supported domain is the frozen scenario inventory over the named native IPv4 endpoint pairs and pinned gateway configuration. Evidence is example-level for these environments, not qualification of real access services or every WAN. Verification aids and receipts are campaign-only artifacts, archived after Q2; no new maintained aid or runtime representation is introduced. Contract closure is not triggered. No transitional product seam is permitted.
+
+The real seams are Q1's native fixture, case-command expansion, Linux packet gateway, cloud lifecycle controller, and existing host-admission owner. Preserve Q1's source and evidence bytes. Put Q2 orchestration and observations in this campaign's own records. Preserve the Mac scheduling exception, GOMAXPROCS=4, identical controller settings, clock uncertainty, receiver accounting, native ECN distinctions and source identities. Do not overlap cases on one topology.
+
+Finite gates: validate the 520-case inventory and original pair ordering; verify existing fixture/model correctness tests and unchanged production source; compare staged binary hashes; refresh native host/resource/clock/path facts before comparisons; validate every role's exit status, raw receipt, integrity, actual controller, resource record and gateway hard gates; retain completion timeouts. Existing Q1 native calibration is reusable only on unchanged paths, with fresh dispatch observations and no relabeling of historical evidence. No new stress, mutation, sensitivity, platform or repetition campaign is authorized. A failure is diagnosed before any separately charged retry.
+
+The initial context ceiling is 35,000 estimated tokens, including at most 3,000 of relevant history. Inputs are the Q2/common contract, accepted evidence plan/inventory, named design sections, source/provenance manifests, current readiness and execution recipes, and only required fixture/gateway/lifecycle declarations. Review budget is one fully briefed initial review and at most one replacement, through the required RAS wrappers; the repository execution overlay governs exact-head validation and hosted CI. Merge and journal occur only after the evidence contract is complete.
+
+Worktree: `/Volumes/worktrees/quic-go-fast/bbr-q2-campaign`, branch `codex/bbr-q2-campaign`. The initiating checkout and other worktrees remain untouched. Stop on failed correctness/calibration, lost host availability, missing native cells, insufficient ledger allowance, source mismatch, or context/evidence overrun. Gateway teardown and exact admission release remain mandatory on success and failure.
