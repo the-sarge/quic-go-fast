@@ -11,8 +11,11 @@
   "original_evidence_hash_changes": 0,
   "candidate_sha256": {
     "run-mac-v2.py": "77a950cd9e28625335947438046c0ec71f277f32d07754f088c2d32acf00a52e",
-    "test_runner.py": "897cfb5a8952e6c4f92fab940f181c86fdc4b1a9aadaca31e88e560f19c1788d",
+    "test_runner.py": "f8f15cb35876af8948460dd7093fbbd7bdebd6d0da1ed23cc2635a075f3c68ed",
     "receipt-sample.json": "f18812dba04bda43943d9039a238183ae24168db4b6f63c726bb6c11af289dc2",
     "completion-sample.json": "1f1720526dd28980bce15e2bfc5ac9dd49a231cc405ca4e69191631ba4415858"
-  }
+  },
+  "serialized_command_envelope_minutes": 322.5,
+  "cleanup_reserve_minutes": 6,
+  "remaining_orchestration_margin_minutes": 9.5
 }

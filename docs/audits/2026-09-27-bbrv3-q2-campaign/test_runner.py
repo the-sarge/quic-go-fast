@@ -195,17 +195,21 @@ class Dispatch(unittest.TestCase):
         inventory = [json.loads(line) for line in (runner.SOURCE / 'case-inventory.jsonl').read_text().splitlines()]
         indices = list(range(340, 400)) + list(range(500, 510))
         self.assertEqual(70, len(indices))
+        seconds = 0
         for index in indices:
             with self.subTest(index=index):
                 d = json.loads(subprocess.check_output(['python3', str(runner.SOURCE / 'case-commands.py'), str(index), '--start-unix-ns', '1790553600000000000'], text=True))
                 self.assertEqual(inventory[index], d['case'])
                 self.assertEqual('darwin/arm64', d['case']['platform'])
+                seconds += (d['gateway_end_unix_ns'] - d['start_unix_ns']) / 1e9 + 25
                 self.assertEqual(['native-path' if d['case']['scenario'] == 'S1' else 'router', 'focal-receive', 'focal-send'], [c['label'] for c in d['commands']])
                 for c in d['commands'][1:]:
                     self.assertEqual(d['focal_config'], c['config'])
                 if index % 2:
                     self.assertNotEqual(inventory[index-1]['fixture']['controller'], d['focal_config']['controller'])
                     self.assertEqual(inventory[index-1]['seed'], d['case']['seed'])
+        self.assertEqual(322.5 * 60, seconds)
+        self.assertLessEqual(seconds + runner.CLEANUP_SECONDS, 338 * 60)
 
     def test_fresh_attempt_required_before_any_external_command(self):
         proc = subprocess.run(['python3', str(HERE / 'run-mac-v2.py')], capture_output=True, text=True)
