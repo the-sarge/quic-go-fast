@@ -3859,3 +3859,14 @@ The [current budget record](audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.
 ### Next
 
 [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) is the sole audited frontier, ready but not dispatched. The [program tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live status view. Twelve of thirteen audited slices are complete.
+
+---
+
+## Exact CI toolchain baseline merged - 2026-09-28 18:00 EDT
+
+**Main:** `15f838117cdc`
+**Actor:** Codex
+
+Merged [the-sarge/quic-go-fast#657](https://github.com/the-sarge/quic-go-fast/pull/657) for the agreed exact CI toolchain baseline. The implementation and review handoff are recorded in the linked PR.
+
+Validation: the current PR checks passed at reviewed head `cc2be48cd31449cd96824158189fbcb73e9fbfaa` before squash merge `15f838117cdcab61a05f906ac348eafcaeeed34d`. This rollout did not publish a release.
