@@ -2,6 +2,10 @@ on: [push, pull_request]
 
 permissions: read-all
 
+# Keep every command on the toolchain installed by setup-go.
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   crosscompile:
     permissions:
@@ -10,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: [ "1.26.x", "1.27.x" ]
+        go: [ "1.26.8", "1.27.1" ]
     runs-on: ${{ fromJSON(vars['CROSS_COMPILE_RUNNER_UBUNTU'] || '"ubuntu-latest"') }}
     name: "Cross Compilation (Go ${{matrix.go}})"
     timeout-minutes: 30
@@ -19,7 +23,13 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
-          check-latest: true
+          check-latest: false
+      - name: Verify selected Go toolchain
+        shell: bash
+        run: |
+          go version
+          test "$(go env GOTOOLCHAIN)" = local
+          test "$(go env GOVERSION)" = "go${{ matrix.go }}"
       - name: Get Date
         id: get-date
         run: echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT

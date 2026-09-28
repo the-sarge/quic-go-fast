@@ -2,23 +2,27 @@ on: [push, pull_request]
 
 permissions: read-all
 
+# Keep every command on the toolchain installed by setup-go.
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   integration:
     strategy:
       fail-fast: false
       matrix:
         os: [ "ubuntu" ]
-        go: [ "1.26.x", "1.27.x" ]
+        go: [ "1.26.8", "1.27.1" ]
         race: [ false ]
         include:
           - os: "ubuntu"
-            go: "1.27.x"
+            go: "1.27.1"
             race: true
           - os: "windows"
-            go: "1.27.x"
+            go: "1.27.1"
             race: false
           - os: "macos"
-            go: "1.27.x"
+            go: "1.27.1"
             race: false
     runs-on: ${{ fromJSON(vars[format('INTEGRATION_RUNNER_{0}', matrix.os)] || format('"{0}-latest"', matrix.os)) }}
     timeout-minutes: 30
@@ -38,7 +42,16 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
-          check-latest: true
+          check-latest: false
+      - name: Verify selected Go toolchain
+        shell: bash
+        run: |
+          go version
+          test "$(go env GOTOOLCHAIN)" = local
+          test "$(go env GOVERSION)" = "go${{ matrix.go }}"
+          for module in integrationtests/fips integrationtests/gomodvendor; do
+            (cd "$module" && go version && test "$(go env GOVERSION)" = "go${{ matrix.go }}")
+          done
       - name: Install go-junit-report
         run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
       - name: Set qlogger
@@ -47,7 +60,6 @@ jobs:
       - name: Enable race detector
         if: ${{ matrix.race }}
         run: echo "RACEFLAG= -race" >> $GITHUB_ENV
-      - run: go version
       - name: Run tools tests
         run: go test ${{ env.RACEFLAG }} -v -timeout 30s -shuffle=on ./integrationtests/tools/... 2>&1 | go-junit-report -set-exit-code -iocopy -out report_tools.xml
       - name: Run version negotiation tests

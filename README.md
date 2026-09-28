@@ -47,7 +47,13 @@ These results were recorded at individual adoption commits, not remeasured as an
 
 The [assembled support decision](https://github.com/GridSwarm/wiremux/blob/main/docs/research/e02-support.md) records native external packet-I/O and managed-reuse correctness on its specific Linux, Windows and Darwin hosts. Its final performance comparisons were unavailable; it retains ordinary upstream defaults and makes no assembled-Wire speedup or resource-preservation claim.
 
-Unit CI exercises Linux, macOS, and Windows on Go 1.26.x and 1.27.x. Integration CI covers Linux on both versions and macOS/Windows on Go 1.27.x, with additional Linux race coverage. Other cross-compiled targets are build-only. Intermittent macOS dial/HTTP timeouts remain unresolved; see the [known limitations](CHANGELOG.md#known-limitations). The [path-MTU convergence fixture](https://github.com/the-sarge/quic-go-fast/blob/9e8cec69d76a80812737750709289d4925a927c1/docs/audits/issue-178-convergence/README.md) now keeps traffic active until its existing tolerance is reached; the historical hosted probe-loss source remains unknown. Evaluate the prerelease against your application's workloads.
+Unit CI exercises Linux, macOS, and Windows on Go 1.26.8 and 1.27.1. Integration CI covers Linux on both versions and macOS/Windows on Go 1.27.1, with additional Linux race coverage. Other cross-compiled targets are build-only. Intermittent macOS dial/HTTP timeouts remain unresolved; see the [known limitations](CHANGELOG.md#known-limitations). The [path-MTU convergence fixture](https://github.com/the-sarge/quic-go-fast/blob/9e8cec69d76a80812737750709289d4925a927c1/docs/audits/issue-178-convergence/README.md) now keeps traffic active until its existing tolerance is reached; the historical hosted probe-loss source remains unknown. Evaluate the prerelease against your application's workloads.
+
+## Maintainer Go toolchain
+
+Use Go 1.27.1 for repository maintenance; [`.go-version`](.go-version) records that choice for version managers that support it. The Go command itself does not read this file. With a recent Go installation, select the exact maintainer toolchain with `GOTOOLCHAIN=go1.27.1 go test ./...`, or select the compatibility toolchain explicitly with `GOTOOLCHAIN=go1.26.8 go test ./...`. These commands may download the named toolchain but do not permit automatic upgrades beyond it; see [Go toolchain selection](https://go.dev/doc/toolchain#select).
+
+CI installs the exact version for each lane, sets `GOTOOLCHAIN=local` to prevent automatic toolchain switching, and verifies the effective version before running Go tools. Integration CI also verifies the FIPS and vendor fixture modules. The root and nested integration modules retain their `go 1.26.0` language minimum; the maintainer pin does not raise the consumer requirement. When reproducing a compatibility lane with a version manager, select Go 1.26.8 explicitly and use `GOTOOLCHAIN=local`.
 
 ## Use the fork
 
