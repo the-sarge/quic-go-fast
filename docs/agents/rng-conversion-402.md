@@ -14,7 +14,7 @@ The approved blast radius is RNG tests and focused policy/evidence documentation
 
 ## Terminating evidence and review
 
-Use the following finite local gates, with caching disabled for tests. The repository minimum is Go 1.26.0; current CI uses 1.26.x and 1.27.x. Run the focused corpus on the minimum and current CI toolchain, affected-package tests and vet, one focused race check, module tidiness, formatting and diff checks. Existing hosted CI remains authoritative for its established platform matrix; no new matrix is introduced.
+Use the following finite local gates, with caching disabled for tests. The repository minimum is Go 1.26.0; current CI uses 1.26.8 and 1.27.1. Run the focused corpus on the minimum and current CI toolchain, affected-package tests and vet, one focused race check, module tidiness, formatting and diff checks. Existing hosted CI remains authoritative for its established platform matrix; no new matrix is introduced.
 
 ```sh
 GOTOOLCHAIN=go1.26.0 go test -count=1 ./internal/utils -run '^TestRandomNumber'
