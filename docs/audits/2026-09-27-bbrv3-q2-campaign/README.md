@@ -1,6 +1,6 @@
 # Q2 campaign execution
 
-Status: The fresh Mac attempt completed all 70 original cases successfully with independently verified cleanup. The first cloud attempt then stopped during native preflight, before any comparison, because the new aid incorrectly required a GCE virtual gateway to answer a ping. Subsequent launches are stopped pending the operator's decision. See [the cloud stop record](cloud-decision-stop.md), [Mac completion](mac-completion.md) and [cloud continuation](cloud-execution.md). Q2 is incomplete.
+Status: The fresh Mac attempt completed all 70 original cases successfully with independently verified cleanup. After the first cloud preflight failure and verified cleanup, the operator authorized the corrections and a fresh Q2-01 retry. See [the corrected cloud candidate](cloud-retry.md), [the frozen cloud stop record](cloud-decision-stop.md), [Mac completion](mac-completion.md) and [cloud continuation](cloud-execution.md). Q2 is incomplete.
 
 The original September 27 attempt remains failed/incomplete: 20 passing S1 cases followed by an S3 receipt-validation failure. Its immutable history is in [the stop record](decision-stop.md). [Retry preparation](retry-preparation.md) records the separate v2 candidate, offline verification and September 29 operator-authorized dispatch.
 

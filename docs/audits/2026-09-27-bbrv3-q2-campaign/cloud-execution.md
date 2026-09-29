@@ -1,6 +1,6 @@
 # Q2 cloud continuation
 
-Current disposition: the first cloud attempt stopped during preflight before any comparison. Cleanup is verified and continuation is paused; see [the decision stop](cloud-decision-stop.md). The preparation and initial forecast below are retained as dispatch history.
+Current disposition: the operator authorized a corrected candidate and fresh Q2-01 retry after the first preflight failure and verified cleanup. See [cloud retry](cloud-retry.md) for the current candidate, tests and cumulative forecast, and [the decision stop](cloud-decision-stop.md) for frozen failed-attempt history. The preparation and initial forecast below are retained as dispatch history.
 
 The Mac retry is complete and independently verified. Continue with the frozen Linux lease order Q2-01 through Q2-05, then Windows Q2-07; preserve every original case, seed, pairing and within-pair order. `run-linux.py` is a finite campaign-only aid for non-competitor Linux leases Q2-01 through Q2-03. Competitor and Windows execution remain unsupported by this aid and require their pinned native mechanics before dispatch. No new maintained runner or product behavior is introduced.
 
