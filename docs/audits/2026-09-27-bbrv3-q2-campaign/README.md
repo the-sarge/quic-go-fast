@@ -1,6 +1,6 @@
 # Q2 campaign execution
 
-Status: The fresh Mac attempt completed all 70 original cases successfully with independently verified cleanup. The first cloud attempt failed in preflight and the first corrected retry passed preflight plus cases 0–24 before a simultaneous router scheduling delay exceeded the unchanged five-millisecond calibration gate in case 25. Both failed cloud attempts are cleaned up and immutable. The operator selected a fresh-host retry with the identical pinned router and unchanged gate. See [the calibration stop and retry decision](cloud-calibration-retry.md), [the corrected cloud candidate](cloud-retry.md), [the frozen initial cloud stop record](cloud-decision-stop.md), [Mac completion](mac-completion.md) and [cloud continuation](cloud-execution.md). Q2 is incomplete.
+Status: Mac Q2-06 is complete. Cloud Q2-01 retry2 passed native preflight and cases 0–12, then a Codex app update stopped the attached runner during case 13 before final clock observation or cleanup. Independent recovery destroyed the exact owned launch and verified empty VM/disk inventories. The operator prohibited rerunning cases 0–11, raised the experiment ceiling to 192 hours and accepted disclosure of the missing closing-clock observation. The separate continuation starts at case 12, preserving the interrupted pair. See [the continuation and supervision correction](cloud-continuation.md), [the calibration stop](cloud-calibration-retry.md), [the corrected preflight candidate](cloud-retry.md) and [Mac completion](mac-completion.md). Q2 remains incomplete.
 
 The original September 27 attempt remains failed/incomplete: 20 passing S1 cases followed by an S3 receipt-validation failure. Its immutable history is in [the stop record](decision-stop.md). [Retry preparation](retry-preparation.md) records the separate v2 candidate, offline verification and September 29 operator-authorized dispatch.
 
@@ -8,7 +8,7 @@ This executes [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) ag
 
 ## Operator instructions and schedule
 
-The operator approved $150 cumulative cloud cost and 96 cumulative experiment-hours in [the budget amendment](https://github.com/the-sarge/quic-go-fast/issues/599#issuecomment-5846546900); the separate preparation ceiling remains 72 hours. Preserve every legitimate prior charge, failed start and unused experiment reservation. Reconcile the infrastructure guard before a launch relies on increased limits.
+The operator initially approved $150 cumulative cloud cost and 96 cumulative experiment-hours in [the budget amendment](https://github.com/the-sarge/quic-go-fast/issues/599#issuecomment-5846546900). On September 29, after the app-update interruption, the operator instructed “raise it to 192 hours. fine to disclose”. Current cumulative ceilings are $150 cloud, 192 experiment-hours and 72 preparation-hours. Preserve every legitimate prior charge, failed start and unused experiment reservation. Reconcile the infrastructure guard before a launch relies on increased limits.
 
 On 2026-09-27 the operator arranged a shared quiet window on both Macs and minimax and accepted Mac-first execution. Move the whole Q2-06 lease ahead of Q2-01 through Q2-05, followed by Q2-07. Preserve all 520 cases, their seeds, settings, controller pairs and within-pair order. This changes platform scheduling only.
 
