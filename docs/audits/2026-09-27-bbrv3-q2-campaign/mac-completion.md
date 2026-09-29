@@ -1,0 +1,11 @@
+# Q2 Mac completion
+
+Attempt `q2-mac-20260929-retry1` ran from 2026-09-29T04:28:14.760229Z through 2026-09-29T09:45:05.358011Z, within its full 338-minute reservation. All 70 original cases passed: indices 340–399 and 500–509, preserving seeds, controller pairings and within-pair order. This covers 20 S1, 20 S3, 20 L3 and 10 completion observations. Passing completion validation preserves each observation's verified or censored disposition; it does not imply every target completed.
+
+The driver exited successfully. At 09:52 UTC, independent validation replayed all 70 raw role receipts through the unchanged validator, checked before/after clock observation consistency, found no owned endpoint or monitor processes, verified the owned gateway namespaces absent, and verified the exact minimax admission record absent. Both Macs and minimax are released from quiet-host duties. Temporary Mac aliases/routes remain covered by their generation-scoped October 1 cleanup deadlines.
+
+Private evidence is retained in the controller's `q2-mac-20260929-retry1` directory. `lease-result.json` records completion with no cleanup errors; `independent-completion-verification.json` records the independent checks; `completed-evidence-sha256.json` freezes 1,580 files. The unchanged v2 runner SHA-256 is `77a950cd9e28625335947438046c0ec71f277f32d07754f088c2d32acf00a52e`; component source is `e4f322cbbfd4225a4b714e08ec19c958cccadcb0`. The September 27 failed attempt remains unchanged and is not relabeled by this success.
+
+Retain the accepted macOS background-contention and clock-uncertainty limitations. No isolated-core or continuous clock-source claim follows from these observations. Paired comparisons and adoption analysis await the complete campaign.
+
+Cumulative experiment reservations remain 36.984667 hours, including both Mac reservations and both preflights; early completion releases no experiment charge. Cloud reservation remains $30.02. The remaining original cloud leases are Q2-01 through Q2-05, followed by Q2-07. Before their dispatch, reconcile active preparation, refresh prices and quotas, validate native/resource/clock/path facts, and carry all historical charges under the approved $150 / 96 experiment-hour / 72 preparation-hour ceilings. No cloud resource has launched at this milestone.
