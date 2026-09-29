@@ -2,7 +2,7 @@
 
 Status: Decision stop at 2026-09-27 07:55:21 UTC after 20 passing S1 cases and one failed S3 receipt validation. The remaining 49 Mac cases and all cloud leases were not launched. Owned gateway cleanup and exact minimax admission release are verified; automatic continuation is paused. See [the stop record](decision-stop.md). Q2 is incomplete.
 
-Offline retry repairs and verification are recorded in [retry preparation](retry-preparation.md). The new candidate is separate from the frozen failed runner; no retry has launched.
+Offline retry repairs and verification are recorded in [retry preparation](retry-preparation.md). The new candidate is separate from the frozen failed runner. Fresh attempt `q2-mac-20260929-retry1` launched at 2026-09-29T04:28:14Z after the operator renewed the Mac networks and confirmed the quiet window; its 338-minute reservation expires at 10:06:14Z. Q2 remains incomplete.
 
 This executes [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) against the [accepted Q2 contract](../../adr/2026-09-24-bbrv3-qualification-plan.md#q2). Q1 and B6 are complete. The dispatch base is `e2329971e2cc65793e338dd96d61eaa9f2438ecd`; Q1's product revision is `bfa11d3f698ac98da415c7bcbd9840923180d0bb`, with its corrected campaign components pinned at `e4f322cbbfd4225a4b714e08ec19c958cccadcb0`. Verify source equivalence and native binary hashes before reuse. Historical receipts remain unchanged.
 

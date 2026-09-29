@@ -27,3 +27,9 @@ Before subsequent cloud leases, carry the complete ledger forward under $150 / 9
 ## Preparation complete
 
 The infrastructure change is journaled in merged [infra PR #646](https://github.com/the-sarge/infra/pull/646), commit `702f267be55b4df57ca83ee0225dea3b4679754e`, after the local docs-only gate and successful same-head [hosted check](https://github.com/the-sarge/infra/actions/runs/36330600466). Offline retry preparation is complete; the continuation heartbeat is paused. No retry reservation, comparative experiment or cloud resource was started. Q2 remains incomplete, and the operator must give the next launch signal before fresh live preflight and dispatch.
+
+## September 29 dispatch
+
+The operator renewed both Mac networks and confirmed that available sync/VM work was paused. Fresh binary and certificate identities, consistent clock observations, an exact exclusive minimax admission, empty gateway VM/container inventories and positive/negative owned path probes passed. Attempt `q2-mac-20260929-retry1` launched at 04:28:14 UTC under the unchanged v2 runner, with expiry at 10:06:14 UTC. Both network watchdogs now expire October 1 around 04:18 UTC; the certificate expires at 04:17:49 UTC. The heartbeat is active for this attempt.
+
+The fresh preflight reserves another 0.5 experiment-hour; with the full 338-minute retry, cumulative reservations are 36.984667 hours and the full campaign forecast is 76.618 hours. All earlier reservations remain charged. Preparation accounting separately retains the Q1 baseline and the offline repair estimate, plus unspent reconciliation and dispatch holds under the unchanged 72-hour ceiling; holds are not actual work or AFK charges. Reconcile earlier Q2 active preparation before final accounting and cloud requests. No cloud resource has launched.
