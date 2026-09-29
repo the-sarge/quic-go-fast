@@ -1,16 +1,14 @@
-"""Finite continuation boundary and actual macOS parent-death verification."""
+"""Finite continuation boundary and actual detached parent-death verification."""
 import importlib.util
 import json
 import os
 from pathlib import Path
-import plistlib
 import signal
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
-import uuid
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
@@ -61,31 +59,32 @@ class ContinuationTests(unittest.TestCase):
                     else:
                         with self.assertRaises(ValueError):cloud.preflight('Q2-01')
 
-    @unittest.skipUnless(sys.platform=='darwin', 'actual launchd seam is macOS only')
-    def test_finite_launchd_job_survives_killed_launching_process_group(self):
+    def test_detached_job_survives_killed_launching_process_group(self):
         with tempfile.TemporaryDirectory() as temp:
-            base=Path(temp);label='com.the-sarge.bbr-q2.offline.'+uuid.uuid4().hex
-            domain='gui/'+str(os.getuid());worker=base/'worker.py'
+            base=Path(temp);worker=base/'worker.py'
             worker.write_text('import os,time,pathlib\np=pathlib.Path(__file__).parent\n(p/"worker-start").write_text(str(os.getpid()))\ntime.sleep(2)\n(p/"worker-done").write_text("completed")\n')
-            job=launcher.job_definition(label,[sys.executable,str(worker)],base)
-            self.assertIs(job['KeepAlive'],False)
-            plist=base/'job.plist';plist.write_bytes(plistlib.dumps(job))
             parent=base/'parent.py'
-            parent.write_text('import pathlib,subprocess,time\np=pathlib.Path(__file__).parent\nsubprocess.run(["/bin/launchctl","bootstrap",'+repr(domain)+',str(p/"job.plist")],check=True,timeout=10)\n(p/"parent-bootstrapped").write_text("yes")\ntime.sleep(30)\n')
+            parent.write_text('import importlib.util,pathlib,time,os,json\np=pathlib.Path(__file__).parent\ns=importlib.util.spec_from_file_location("launch",'+repr(str(HERE / 'launch-linux-v3.py'))+')\nm=importlib.util.module_from_spec(s);s.loader.exec_module(m)\nx=m.detached_process(['+repr(sys.executable)+',str(p/"worker.py")],p)\n(p/"parent-submitted").write_text(json.dumps({"pid":x.pid,"session":os.getsid(x.pid),"parent_session":os.getsid(0)}))\ntime.sleep(30)\n')
             process=subprocess.Popen([sys.executable,str(parent)],start_new_session=True)
+            child=None
             try:
-                deadline=time.monotonic()+12
-                while not (base/'parent-bootstrapped').exists() or not (base/'worker-start').exists():
-                    if process.poll() is not None or time.monotonic()>deadline:self.fail('bootstrap/start did not complete')
+                deadline=time.monotonic()+5
+                while not (base/'parent-submitted').exists() or not (base/'worker-start').exists():
+                    if process.poll() is not None or time.monotonic()>deadline:self.fail('detached/start did not complete')
                     time.sleep(.05)
+                receipt=json.loads((base/'parent-submitted').read_text());child=receipt['pid']
+                self.assertEqual(receipt['session'],child)
+                self.assertNotEqual(receipt['session'],receipt['parent_session'])
                 os.killpg(process.pid,signal.SIGKILL);process.wait(timeout=2)
                 deadline=time.monotonic()+5
                 while not (base/'worker-done').exists():
-                    if time.monotonic()>deadline:self.fail('launchd worker died with launching process group')
+                    if time.monotonic()>deadline:self.fail('detached worker died with launching process group')
                     time.sleep(.05)
                 self.assertEqual((base/'worker-done').read_text(),'completed')
             finally:
                 if process.poll() is None:os.killpg(process.pid,signal.SIGKILL);process.wait(timeout=2)
-                subprocess.run(['/bin/launchctl','bootout',domain+'/'+label],capture_output=True,timeout=10)
+                if child:
+                    try:os.killpg(child,signal.SIGKILL)
+                    except ProcessLookupError:pass
 
 if __name__=='__main__':unittest.main()

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Launch one prepared finite Q2 Linux lease as an app-independent launchd job."""
+"""Launch one prepared finite Q2 Linux lease outside the app execution session."""
 import argparse
 import importlib.util
 import os
 from pathlib import Path
-import plistlib
 import subprocess
 import sys
 
@@ -14,36 +13,29 @@ cloud = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cloud)
 
 
-def job_definition(label, arguments, directory):
-    return dict(Label=label, ProgramArguments=arguments, WorkingDirectory=str(directory),
-                RunAtLoad=True, KeepAlive=False, ProcessType='Background',
-                EnvironmentVariables=dict(PATH='/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
-                                          PYTHONUNBUFFERED='1', PYTHONDONTWRITEBYTECODE='1'),
-                StandardOutPath=str(directory / 'run.log'),
-                StandardErrorPath=str(directory / 'driver.stderr'))
+def detached_process(arguments, directory):
+    # Redirect every inherited terminal descriptor and create a separate session.
+    # The launcher exits after writing the identity; the finite child is orphaned.
+    with (directory / 'run.log').open('xb') as out, (directory / 'driver.stderr').open('xb') as err:
+        return subprocess.Popen(arguments, cwd=directory, stdin=subprocess.DEVNULL,
+                                stdout=out, stderr=err, start_new_session=True,
+                                close_fds=True, env=dict(os.environ, PYTHONUNBUFFERED='1',
+                                                        PYTHONDONTWRITEBYTECODE='1'))
 
 
 def main(attempt, lease):
     os.umask(0o077)
     cloud.configure(attempt)
     cloud.preflight(lease)
-    label = 'com.the-sarge.bbr-q2.' + attempt
-    domain = 'gui/' + str(os.getuid())
-    path = cloud.ROOT / 'launchd.plist'
-    job = job_definition(label, ['/usr/bin/caffeinate', '-i', sys.executable,
+    cloud.save(cloud.ROOT / 'detached-intent.json', dict(attempt=attempt, lease=lease,
+               automatic_retry=False, separate_session=True))
+    process = detached_process(['/usr/bin/caffeinate', '-i', sys.executable,
                                 str(HERE / 'run-linux-v3.py'), '--attempt', attempt,
                                 '--lease', lease, '--execute'], cloud.ROOT)
-    with path.open('xb') as out:
-        plistlib.dump(job, out)
-    cloud.save(cloud.ROOT / 'launchd-intent.json', dict(label=label, domain=domain,
-               keep_alive=False, automatic_retry=False, plist=str(path)))
-    # A failed/ambiguous bootstrap never authorizes another dispatch.
-    subprocess.run(['/bin/launchctl', 'bootstrap', domain, str(path)], check=True, timeout=15)
-    result = subprocess.run(['/bin/launchctl', 'print', domain + '/' + label],
-                            capture_output=True, text=True, timeout=10)
-    with (cloud.ROOT / 'launchd-at-dispatch.txt').open('x') as out:
-        out.write(result.stdout + result.stderr)
-    print('Submitted finite launchd job: ' + domain + '/' + label)
+    cloud.save(cloud.ROOT / 'detached-pid.json', dict(pid=process.pid,
+               session_id=os.getsid(process.pid), launcher_pid=os.getpid(),
+               launcher_session_id=os.getsid(0), automatic_retry=False))
+    print('Started finite detached process: ' + str(process.pid))
 
 
 if __name__ == '__main__':
