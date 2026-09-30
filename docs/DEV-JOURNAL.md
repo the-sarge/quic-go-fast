@@ -4165,3 +4165,39 @@ Dial admission is a separate configuration rather than a change to Q3's, and it 
 ### Next
 
 No deferred findings to file. Q6 was the last open blocker of G30-W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)). The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## Refused setup attempts remembered by Initial DCID - 2026-09-30 17:02 EDT
+
+**Main:** `8326792d5da4`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #700](https://github.com/the-sarge/quic-go-fast/pull/700) as `8326792d5da4811c6a3a28e50a2f025ef0df3b95`, closing [#689](https://github.com/the-sarge/quic-go-fast/issues/689), the follow-up split from [#684](https://github.com/the-sarge/quic-go-fast/issues/684). Before this change, a refused ClientHello that spanned several Initial datagrams could have its trailing datagram admitted once capacity freed. That datagram then held a reservation for a connection that could never complete.
+
+- With setup admission configured, the server remembers the destination connection ID of every Initial refused before construction: by `acquire`, by `GetConfigForClient` or by `ConnContext`. `refuseNewConn` records it, and it is the one owner shared by all three refusals.
+- A later Initial with a remembered DCID that passes Retry and token handling is refused again. That refusal calls no `acquire`, `GetConfigForClient` or `ConnContext`, and constructs nothing.
+- The memory is owned by the packet goroutine. It holds at most 1024 refusals, ordered by recording, and each lasts 5 s from the refused Initial's `rcvTime`. Live repeat refusals extend neither the TTL nor the order. An expired attempt refused again is renewed as the newest entry. Forgotten attempts fall back to ordinary admission, and unconfigured servers remember nothing.
+- The `ConfigureSetupAdmissionV1` doc comment states the new guarantee and its bounds. The `stickyRefusal` test-budget option from [#688](https://github.com/the-sarge/quic-go-fast/pull/688) is deleted, and `TestSetupAdmissionTwoListenerTotal` now requires a refused attempt to reach admission once.
+
+### Validation
+
+- **Focused tests, red first:** 7 server-level tests (8 cases) in `setup_reservation_test.go` send Initials one at a time and read each `CONNECTION_REFUSED` before the next. Time comes from `rcvTime`. The TTL test caught remembered hits renewing their own entry before the implementation was final.
+- **#688 row-1 delay injection**, not committed: the fixed product passed 5 of 5 runs, and no second `acquire` came from the refused address. The old behavior, with the DCID check disabled, failed 3 of 3 runs with the #688 signature.
+- **Guard mutation:** disabling the DCID check failed every positive test, including `TwoListenerTotal`. The different-DCID and unconfigured negative controls passed.
+- **Exact-head certification** at `82a81bef` (base `4287c8d5`, clean tree): `go test -race -shuffle=on .`; `-count=200` of the 7 new tests plus `TwoListenerTotal` (1600 of 1600 passed); `go vet ./...`; `golangci-lint run ./...`; `go mod tidy -diff`; `git diff --check`.
+- **Hosted checks:** all 33 PR checks passed on `82a81bef`; no rerun was needed.
+- **Review:**
+  - Initial RAS run `20260930T203447-64892fe577cac3600900c999` found two roots, both dispositioned fix-now and fixed in `74dfec60`. One was a doc comment that overclaimed which callbacks are skipped. The other was a renewed expired refusal keeping its old eviction slot, which broke "evict the oldest" and now has the `RefusalMemoryRenewal` regression.
+  - Verification resolved 5 of 5 clusters.
+  - Replacement run `20260930T204851-1c9bae7dc8dc6b138eed3002` found no behavioral roots. Its wording note was clarified docs-only in `82a81bef`.
+
+### Decisions
+
+The key is the Initial DCID, not the remote address, and the owner is the server's refusal path, not the caller's `acquire` callback. Inspecting CRYPTO offsets before admission was rejected. Both choices are recorded in the [#689 agent brief](https://github.com/the-sarge/quic-go-fast/issues/689#issuecomment-5918883415).
+
+### Next
+
+No deferred findings to file.
