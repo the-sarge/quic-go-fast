@@ -3946,3 +3946,53 @@ Q3's named "closing-state lifetime" is read as part of teardown. The transport's
 ### Next
 
 Q3's closure leaves W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)) blocked by Q4 and Q5 (W1 is closed). [Q4 #663](https://github.com/the-sarge/quic-go-fast/issues/663) remains ready, and [Q5 #664](https://github.com/the-sarge/quic-go-fast/issues/664) follows Q4. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## Receive phase merged - 2026-09-30 10:23 EDT
+
+**Main:** `f67744913801`
+**Actor:** Claude
+
+### Summary
+
+Merged [G30-Q4 PR #683](https://github.com/the-sarge/quic-go-fast/pull/683) as `f6774491380157a31219b4c6d34fcf9ef83599bf`, closing [#663](https://github.com/the-sarge/quic-go-fast/issues/663).
+
+`ConfigureReceivePhasesV1(closed bool)` is a new additive capability on `*Transport`, installed before initialization. With `true`, every client and server connection the transport creates gets a private `receivePhase` before publication and before its loop starts.
+
+While the phase is closed, `handleDatagramFrame` discards DATAGRAM payloads after the size check and before the queue copies them. Packets are otherwise processed and acknowledged as usual, so there is no packet dropping and no ACK change.
+
+`Conn.OpenReceivePhaseV1(ctx)` publishes one request with its own identity and a single outcome, settled exactly once. The connection loop commits it between packets and clears any queued payloads, then returns phase `1`.
+- A context that is already done is rejected before publication. A request cancelled before the commit leaves the phase closed and can be retried.
+- The loop's exit settles any pending request with the loop's actual close error. Cancelling the application's `ConnContext` parent does not end the connection, so it does not block opening.
+- A concurrent open reports "in progress", and a repeated open is rejected.
+
+Unconfigured and `false`-configured transports keep ordinary behavior. The slice covers DATAGRAM delivery only; stream provenance is Q5.
+
+### Validation
+
+Exact-head certification at `798f3a1a750453456358822fb48d2fdf64430a4c` (base `5d7cefd6`) passed:
+- focused `TestReceivePhase` race tests and `go test -race .`
+- all non-integration unit packages and the self integration suite
+- `go build ./...`, `go vet ./...`, `go mod tidy -diff`, lint and `git diff --check`
+
+Four test functions (six cases) discharge the finite Q4 matrix within its six-case budget. Synchronization is deterministic: the qlog `PacketReceived` event is recorded after a packet's frames are handled, and a recorder hold keeps the loop inside a packet while request publication is observed under the owner's mutex. Four optional guard mutations each failed their test and were restored: the admission gate, loop-only commit, owner stop signal and request-identity withdrawal.
+
+All 33 hosted PR checks passed on that head after one operator-authorized rerun. The first attempt of Unit tests (ubuntu, Go 1.26.8) failed in Q3's `TestSetupAdmissionTwoListenerTotal`, a test outside Q4's code path. That failure is filed as [#684](https://github.com/the-sarge/quic-go-fast/issues/684), together with the other hosted G30 flakes.
+
+The bounded RAS cycle ran initial review `20260930T074658-f2bb26b245df07922132a1aa`. Its five fix-now clusters were all fixed:
+- termination keyed to the application-derived context;
+- cancellation not checked at the commit;
+- race evidence that depended on a timing window;
+- a pending open misreported as open;
+- test workers not joined.
+
+Verification at `3f21acb8` resolved them all but raised a new fix-now finding: a stale withdrawal could erase a newer request. It was fixed by giving each request its own identity and outcome. Verification at `798f3a1a` reported no new concerns. Replacement review `20260930T081751-9795b617dc639719e2873dc5` produced no fix-first findings; its one follow-up, about which error an opened-then-closed connection reports on a repeated open, was rejected.
+
+### Decisions
+
+Phase membership is fixed at loop admission, and each open request carries its own outcome. The fork's termination signal, not the application context, decides whether a connection has closed. See the [dispositions](https://github.com/the-sarge/quic-go-fast/pull/683#issuecomment-5913141576).
+
+### Next
+
+Q4's closure leaves [Q5 #664](https://github.com/the-sarge/quic-go-fast/issues/664) with no open blockers, and W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)) blocked by Q5 alone. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
