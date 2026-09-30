@@ -193,6 +193,9 @@ type Conn struct {
 	authority *connAuthority
 	// setup is bound before publication on servers with setup admission.
 	setup *setupReservation
+	// receivePhase is installed before publication on transports that start
+	// connections in a closed receive phase.
+	receivePhase *receivePhase
 
 	ctx                   context.Context
 	ctxCancel             context.CancelCauseFunc
@@ -580,6 +583,7 @@ func (c *Conn) preSetup() {
 // run the connection main loop
 func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
+	defer func() { c.receivePhase.stop(err) }()
 	defer c.authority.release()
 	// Setup capacity returns only after the connection's workers have ended.
 	defer c.setup.teardown()
@@ -628,6 +632,11 @@ runLoop:
 		select {
 		case <-c.closeChan:
 			break runLoop
+		default:
+		}
+		select {
+		case <-c.receivePhase.requests():
+			c.openReceivePhase()
 		default:
 		}
 
@@ -684,6 +693,8 @@ runLoop:
 			case <-c.sendingScheduled:
 			case <-c.handshakeSendFeedback.wakeup:
 			case <-sendQueueAvailable:
+			case <-c.receivePhase.requests():
+				c.openReceivePhase()
 			case <-c.notifyReceivedPacket:
 				wasProcessed, err := c.handlePackets()
 				if err != nil {
@@ -2233,6 +2244,13 @@ func (c *Conn) handleDatagramFrame(f *wire.DatagramFrame) error {
 			ErrorCode:    qerr.ProtocolViolation,
 			ErrorMessage: "DATAGRAM frame too large",
 		}
+	}
+	if !c.receivePhase.admitsApplication() {
+		// The packet is still acknowledged; only the payload is withheld.
+		if c.logger.Debug() {
+			c.logger.Debugf("Discarding DATAGRAM frame received before the receive phase opened (%d bytes payload)", len(f.Data))
+		}
+		return nil
 	}
 	c.datagramQueue.HandleDatagramFrame(f)
 	return nil

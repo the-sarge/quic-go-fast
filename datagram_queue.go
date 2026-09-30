@@ -109,6 +109,14 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 	}
 }
 
+// invalidateReceived discards every queued received payload.
+func (h *datagramQueue) invalidateReceived() {
+	h.rcvMx.Lock()
+	clear(h.rcvQueue)
+	h.rcvQueue = h.rcvQueue[:0]
+	h.rcvMx.Unlock()
+}
+
 // Receive gets a received DATAGRAM frame.
 func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 	for {
