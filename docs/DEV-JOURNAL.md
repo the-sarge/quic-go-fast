@@ -4133,3 +4133,35 @@ An extra `sconn` method that only `sconn` implements was chosen over changing th
 ### Next
 
 No deferred findings to file. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## Dialed setup reserved through the same owner - 2026-09-30 15:57 EDT
+
+**Main:** `d189a10a427b`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #697](https://github.com/the-sarge/quic-go-fast/pull/697) as `12f59ea232180bedfd77bb3de0aac364f3b8a807`, closing [#696](https://github.com/the-sarge/quic-go-fast/issues/696), the G30-Q6 slice of [#659](https://github.com/the-sarge/quic-go-fast/issues/659). Dials now reserve setup capacity through Q3's `setupReservation`, so one lifecycle owns accepted and dialed connections.
+
+- `Transport.ConfigureDialSetupAdmissionV1` is a pre-initialization opt-in, separate from Q3's server configuration. Its acquire callback also receives the `Dial` context, so callers correlate each reservation with their own dials. `Dial` acquires before connection-ID generation, client construction or any packet. `DialEarly` on a configured transport fails before acquisition.
+- Handshake completion runs `complete` and `claim` under one lock before `Dial` returns. A refused completion closes the connection with `CONNECTION_REFUSED` and fails the dial. `TransferSetupReservationV1` now covers dialed connections.
+- A connection closed for version negotiation detaches its reservation in `Conn.run` instead of tearing it down. The recreated connection rebinds it without re-arming the deadline. Cancellation racing recreation, early exits (transport closed, group fenced, connection-ID generation) and candidate-bind failure each release once.
+- `ReplaceWithClosed` now resolves the reservation on every transport the connection used, so closed IDs on a probed path's unconfigured transport also hold capacity until retired. The authority lookup keeps its pre-Q6 condition.
+
+### Validation
+
+- **Focused tests, red first:** 8 test functions (11 cases) in `dial_setup_reservation_test.go` drive the real client constructor and observe closed-entry deletion at settlement. Guard checks, each restored: deleting the closed-transport teardown left the reservation unsettled. Before the `ReplaceWithClosed` gate change, the release saw 4 retained closed entries. Before the cancellation-branch teardown, the racing-cancellation case never settled.
+- **Exact-head certification** at `72e9a0bb` (base `f42b14b0`, clean tree): `git diff --check`, `go build ./...`, `go vet ./...`, `go mod tidy -diff`, `golangci-lint run ./`, `go test -race -run '^TestDialSetupAdmission' .`, `go test -race -shuffle on .`, all 21 non-integration packages and `go test ./integrationtests/self/`.
+- **Hosted checks:** all 33 PR checks passed on `72e9a0bb`; no rerun was needed.
+- **Post-merge correction:** the first journal PR run failed `TestAreConnsRunning` on ubuntu, immediately after `TestDialSetupAdmissionContract`. The Q6 tests closed their ordinary server transports only through socket cleanup, which ends the transport asynchronously, so accepted connections could outlive a test. A temporary end-of-test probe found 3 such leaks in 5 race runs on `12f59ea2` and none after the fix. [PR #699](https://github.com/the-sarge/quic-go-fast/pull/699) (`d189a10a`) routes those servers through `listenOrdinary`, whose cleanup waits for `Transport.Close`. It changes tests only; its review had no fix-first findings, and all 33 hosted checks passed. The same run also failed macOS `TestReceivePhaseStreamDefault/configured_false` with an idle timeout. That is a Q5 test with unrelated predecessors, and it is not addressed here.
+- **Review:** initial RAS run `20260930T190403-dc9a156cc34177fb39a4ccd2` found one root. Closed entries that a dialed connection left on a probed, unconfigured transport took no reservation hold. It was dispositioned fix-now and fixed in `72e9a0bb` with the `probed_path` regression. Verification resolved 3/3, and replacement run `20260930T192545-d8d7c1b4eeea745017b64de9` reported no findings. Dispositions are in the [PR discussion](https://github.com/the-sarge/quic-go-fast/pull/697#issuecomment-5918257907).
+
+### Decisions
+
+Dial admission is a separate configuration rather than a change to Q3's, and it reuses the one reservation type rather than adding a dial-only one, per the [Q6 slice decision audit](https://github.com/GridCastIO/gridcast/blob/ab49e7a8415ebd05bec32ebc5c8d7f2ff5047e6f/docs/adr/2026-09-28-g30-quic-plan.md#slice-q6--reserve-dialed-setup-through-the-same-owner).
+
+### Next
+
+No deferred findings to file. Q6 was the last open blocker of G30-W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)). The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
