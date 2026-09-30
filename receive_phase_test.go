@@ -295,14 +295,29 @@ func (r *holdingRecorder) RecordEvent(ev qlogwriter.Event) {
 	}
 }
 
-// requirePhaseState observes the phase owner's state under its mutex.
-func requirePhaseState(t *testing.T, conn *Conn, want receivePhaseState, msg string) {
+type phaseObservation uint8
+
+const (
+	phaseClosed phaseObservation = iota
+	phaseOpening
+	phaseOpened
+)
+
+// requirePhaseState observes the phase owner under its mutex.
+func requirePhaseState(t *testing.T, conn *Conn, want phaseObservation, msg string) {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		p := conn.receivePhase
 		p.mu.Lock()
 		defer p.mu.Unlock()
-		return p.state == want
+		switch {
+		case p.opened:
+			return want == phaseOpened
+		case p.pending != nil:
+			return want == phaseOpening
+		default:
+			return want == phaseClosed
+		}
 	}, 5*time.Second, time.Millisecond, msg)
 }
 
@@ -328,6 +343,29 @@ func openAsync(t *testing.T, ctx context.Context, conn *Conn) <-chan openResult 
 func TestReceivePhaseOpenRace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
+
+	// At the owner, the loop may reject a canceled request before its caller
+	// withdraws; that late withdrawal cannot erase a newer request.
+	owner := newReceivePhase()
+	staleCtx, staleCancel := context.WithCancel(ctx)
+	stale, err := owner.request(staleCtx)
+	require.NoError(t, err)
+	staleCancel()
+	owner.apply(func() {})
+	<-stale.done
+	require.False(t, stale.opened)
+	require.ErrorIs(t, stale.err, context.Canceled)
+	live, err := owner.request(ctx)
+	require.NoError(t, err)
+	owner.withdraw(stale, context.Canceled)
+	owner.apply(func() {})
+	select {
+	case <-live.done:
+	case <-ctx.Done():
+		t.Fatal("a stale withdrawal erased a newer request")
+	}
+	require.True(t, live.opened, "a stale withdrawal cannot erase a newer request")
+
 	first, second := []byte("first payload whose packet holds the loop"), []byte("second held payload")
 	late := []byte("late payload")
 	rec := newHoldingRecorder(len(first), len(second))
@@ -339,14 +377,14 @@ func TestReceivePhaseOpenRace(t *testing.T) {
 	hold := rec.awaitHold(t, ctx, len(first))
 	canceled, cancelNow := context.WithCancel(ctx)
 	cancelNow()
-	_, err := openReceivePhase(t, canceled, server)
+	_, err = openReceivePhase(t, canceled, server)
 	require.ErrorIs(t, err, context.Canceled, "a canceled request is never published")
-	requirePhaseState(t, server, receivePhaseClosed, "a canceled request is never published")
+	requirePhaseState(t, server, phaseClosed, "a canceled request is never published")
 
 	cancelable, cancelPending := context.WithCancel(ctx)
 	defer cancelPending()
 	pending := openAsync(t, cancelable, server)
-	requirePhaseState(t, server, receivePhaseOpening, "the request is published while the loop is held")
+	requirePhaseState(t, server, phaseOpening, "the request is published while the loop is held")
 	_, err = openReceivePhase(t, ctx, server)
 	require.ErrorIs(t, err, errReceivePhaseOpening, "a concurrent request is rejected")
 	// Cancel before the commit and release the loop without waiting for the
@@ -355,12 +393,12 @@ func TestReceivePhaseOpenRace(t *testing.T) {
 	hold.release()
 	res := <-pending
 	require.ErrorIs(t, res.err, context.Canceled)
-	requirePhaseState(t, server, receivePhaseClosed, "a request canceled before the commit leaves the phase closed")
+	requirePhaseState(t, server, phaseClosed, "a request canceled before the commit leaves the phase closed")
 
 	require.NoError(t, client.SendDatagram(second))
 	hold = rec.awaitHold(t, ctx, len(second))
 	pending = openAsync(t, ctx, server)
-	requirePhaseState(t, server, receivePhaseOpening, "the retry is published while the loop is held")
+	requirePhaseState(t, server, phaseOpening, "the retry is published while the loop is held")
 	select {
 	case <-pending:
 		t.Fatal("only the loop commits the transition")
@@ -370,7 +408,7 @@ func TestReceivePhaseOpenRace(t *testing.T) {
 	res = <-pending
 	require.NoError(t, res.err)
 	require.EqualValues(t, 1, res.phase)
-	requirePhaseState(t, server, receivePhaseOpened, "the loop committed the retry")
+	requirePhaseState(t, server, phaseOpened, "the loop committed the retry")
 
 	require.NoError(t, client.SendDatagram(late))
 	got := <-waiting

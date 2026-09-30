@@ -16,39 +16,39 @@ var (
 // The closed phase is numbered zero; opening moves to the next phase.
 const openReceivePhaseNumber uint64 = 1
 
-type receivePhaseState uint8
-
-const (
-	receivePhaseClosed  receivePhaseState = iota
-	receivePhaseOpening                   // requested, not yet applied by the loop
-	receivePhaseOpened
-)
-
 // receivePhase is the single owner of a connection's receive epoch. The
 // connection loop applies the transition between packets, so every frame is
 // admitted wholly before or wholly after it; admitting is read only on that
-// loop. The mutex orders a request, its withdrawal, its application and the
-// loop's termination. Unconfigured connections carry a nil phase and always
-// admit.
+// loop. The mutex orders publication, withdrawal, the loop's commit and the
+// loop's termination. Each request carries its own outcome, settled exactly
+// once, so a stale caller can neither withdraw nor claim a later request.
+// Unconfigured connections carry a nil phase and always admit.
 type receivePhase struct {
 	mu        sync.Mutex
-	state     receivePhaseState
-	pending   context.Context // the opening request's context
-	admitting bool            // loop-confined
-	requested chan struct{}   // wakes the loop; capacity one
-	opened    chan struct{}   // closed when the loop applies the transition
-	// stopped closes when the connection loop ends. It is fork-owned: an
-	// application-cancelled context does not end a connection.
-	stopped chan struct{}
-	stopErr error
+	opened    bool
+	pending   *phaseRequest
+	stopErr   error         // set when the connection loop ends
+	admitting bool          // loop-confined
+	requested chan struct{} // wakes the loop; capacity one
+}
+
+// phaseRequest is one published open request.
+type phaseRequest struct {
+	ctx    context.Context
+	done   chan struct{} // closed when settled
+	opened bool
+	err    error
+}
+
+// settle records the request's outcome; the caller holds the phase mutex.
+func (r *phaseRequest) settle(opened bool, err error) {
+	r.opened = opened
+	r.err = err
+	close(r.done)
 }
 
 func newReceivePhase() *receivePhase {
-	return &receivePhase{
-		requested: make(chan struct{}, 1),
-		opened:    make(chan struct{}),
-		stopped:   make(chan struct{}),
-	}
+	return &receivePhase{requested: make(chan struct{}, 1)}
 }
 
 // admitsApplication reports on the connection loop whether application
@@ -71,19 +71,19 @@ func (p *receivePhase) requests() <-chan struct{} {
 func (p *receivePhase) apply(invalidate func()) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.state != receivePhaseOpening {
+	req := p.pending
+	if req == nil {
 		return // withdrawn before the loop observed it
 	}
-	if p.pending.Err() != nil {
-		p.state = receivePhaseClosed
-		p.pending = nil
+	p.pending = nil
+	if err := req.ctx.Err(); err != nil {
+		req.settle(false, err)
 		return
 	}
-	p.state = receivePhaseOpened
-	p.pending = nil
+	p.opened = true
 	p.admitting = true
 	invalidate()
-	close(p.opened)
+	req.settle(true, nil)
 }
 
 // stop runs when the connection loop ends; no transition can follow it.
@@ -97,47 +97,44 @@ func (p *receivePhase) stop(err error) {
 		err = errReceivePhaseStopped
 	}
 	p.stopErr = err
-	if p.state == receivePhaseOpening {
-		p.state = receivePhaseClosed
+	if p.pending != nil {
+		p.pending.settle(false, err)
 		p.pending = nil
 	}
-	close(p.stopped)
 }
 
-func (p *receivePhase) request(ctx context.Context) error {
+func (p *receivePhase) request(ctx context.Context) (*phaseRequest, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	switch {
-	case p.state == receivePhaseOpened:
-		return errReceivePhaseOpen
+	case p.opened:
+		return nil, errReceivePhaseOpen
 	case p.stopErr != nil:
-		return p.stopErr
-	case p.state == receivePhaseOpening:
-		return errReceivePhaseOpening
+		return nil, p.stopErr
+	case p.pending != nil:
+		return nil, errReceivePhaseOpening
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return nil, err
 	}
-	p.state = receivePhaseOpening
-	p.pending = ctx
+	req := &phaseRequest{ctx: ctx, done: make(chan struct{})}
+	p.pending = req
 	select {
 	case p.requested <- struct{}{}:
 	default:
 	}
-	return nil
+	return req, nil
 }
 
-// withdraw ends a request the loop has not applied. It reports whether the
-// phase opened anyway.
-func (p *receivePhase) withdraw() (opened bool) {
+// withdraw settles req as canceled if the loop has not settled it yet. It
+// never affects another request.
+func (p *receivePhase) withdraw(req *phaseRequest, err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.state == receivePhaseOpened {
-		return true
+	if p.pending == req {
+		p.pending = nil
+		req.settle(false, err)
 	}
-	p.state = receivePhaseClosed
-	p.pending = nil
-	return false
 }
 
 // ConfigureReceivePhasesV1 selects whether connections created by this
@@ -180,22 +177,20 @@ func (c *Conn) OpenReceivePhaseV1(ctx context.Context) (uint64, error) {
 	if p == nil {
 		return 0, errNoReceivePhase
 	}
-	if err := p.request(ctx); err != nil {
+	req, err := p.request(ctx)
+	if err != nil {
 		return 0, err
 	}
-	var err error
 	select {
-	case <-p.opened:
-		return openReceivePhaseNumber, nil
+	case <-req.done:
 	case <-ctx.Done():
-		err = ctx.Err()
-	case <-p.stopped:
-		err = p.stopErr
+		p.withdraw(req, ctx.Err())
+		<-req.done
 	}
-	if p.withdraw() {
-		return openReceivePhaseNumber, nil
+	if !req.opened {
+		return 0, req.err
 	}
-	return 0, err
+	return openReceivePhaseNumber, nil
 }
 
 // installReceivePhase runs after construction and before the connection
