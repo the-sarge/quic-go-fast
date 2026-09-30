@@ -14,10 +14,13 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/handshake"
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/testdata"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/require"
 )
@@ -36,10 +39,6 @@ type setupTransferV1 interface {
 type setupBudget struct {
 	ttl       time.Duration
 	onRelease func() // observes state at settlement, before the budget changes
-	// stickyRefusal keeps refusing an address once refused. Admission refuses
-	// each Initial independently, so a refused ClientHello's later datagrams
-	// otherwise acquire whatever capacity has been freed by then.
-	stickyRefusal bool
 
 	mu             sync.Mutex
 	limit          int // total reservations
@@ -49,7 +48,6 @@ type setupBudget struct {
 	claimed        int
 	acquired       int
 	rejected       int
-	refused        map[netip.AddrPort]bool
 	admitted       []netip.AddrPort
 	settlements    []bool // transferred flag per release
 	deadlines      []time.Time
@@ -64,14 +62,8 @@ func newSetupBudget(limit, completedLimit int, ttl time.Duration) *setupBudget {
 func (b *setupBudget) acquire(remote netip.AddrPort) (time.Time, func() bool, func(), func(bool), bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.held >= b.limit || (b.stickyRefusal && b.refused[remote]) {
+	if b.held >= b.limit {
 		b.rejected++
-		if b.stickyRefusal {
-			if b.refused == nil {
-				b.refused = make(map[netip.AddrPort]bool)
-			}
-			b.refused[remote] = true
-		}
 		return time.Time{}, nil, nil, nil, false
 	}
 	b.held++
@@ -551,9 +543,6 @@ func TestSetupAdmissionTwoListenerTotal(t *testing.T) {
 	defer cancel()
 	constructed := countServerConstructors(t)
 	budget := newSetupBudget(1, 1, time.Minute)
-	// The refused dial can leave Initials in flight to the second listener; the
-	// budget keeps refusing them, so only a fresh dial can use the transfer.
-	budget.stickyRefusal = true
 	lnA, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
 	lnB, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), nil)
@@ -575,7 +564,9 @@ func TestSetupAdmissionTwoListenerTotal(t *testing.T) {
 	state := budget.state(t)
 	require.Equal(t, 2, state.acquired)
 	require.Equal(t, []netip.AddrPort{endpoint(t, first.LocalAddr()), endpoint(t, fresh.LocalAddr())}, state.admitted)
-	require.Positive(t, state.rejected)
+	// The refused ClientHello's trailing Initials, whenever they arrive, are
+	// refused without taking the transferred capacity.
+	require.Equal(t, 1, state.rejected, "a refused attempt reaches admission once")
 }
 
 // Stage changes, transfer, the deadline and teardown race for one reservation.
@@ -671,4 +662,180 @@ func TestSetupAdmissionStageRace(t *testing.T) {
 		<-errs
 	}
 	require.Len(t, budget.state(t).settlements, 1)
+}
+
+// refusalServer drives Initials into a server one at a time: each Initial's
+// CONNECTION_REFUSED is read before the next is sent, so the server goroutine
+// has finished with it without any sleep.
+type refusalServer struct {
+	*testServer
+	recorder    *events.Recorder
+	conn        *net.UDPConn // the client's socket; every Initial comes from it
+	srcID       protocol.ConnectionID
+	rcvTime     monotime.Time
+	constructed atomic.Int32
+}
+
+func newRefusalServer(t *testing.T, opts *serverOpts) *refusalServer {
+	t.Helper()
+	s := &refusalServer{
+		recorder: &events.Recorder{},
+		conn:     newUDPConnLocalhost(t),
+		srcID:    randConnID(6),
+		rcvTime:  monotime.Now(),
+	}
+	opts.eventRecorder = s.recorder
+	// A constructed connection is inert, so a regression fails the assertions
+	// rather than the fixture.
+	opts.newConn = func(context.Context, context.CancelCauseFunc, sendConn, connRunner,
+		protocol.ConnectionID, *protocol.ConnectionID, protocol.ConnectionID, protocol.ConnectionID, protocol.ConnectionID,
+		ConnectionIDGenerator, *statelessResetter, *Config, *tls.Config, *handshake.TokenGenerator,
+		bool, time.Duration, qlogwriter.Trace, utils.Logger, protocol.Version,
+	) *wrappedConn {
+		s.constructed.Add(1)
+		return &wrappedConn{Conn: &Conn{closeChan: make(chan struct{}, 1)}, testHooks: &connTestHooks{
+			run:                     func() error { return nil },
+			context:                 context.Background,
+			handshakeComplete:       func() <-chan struct{} { return nil },
+			handlePacket:            func(p receivedPacket) { p.buffer.Release() },
+			closeWithTransportError: func(TransportErrorCode) {},
+		}}
+	}
+	s.testServer = newTestServer(t, opts)
+	return s
+}
+
+// requireRefusedAt sends an Initial for destID received at the given offset
+// from the server's base time and requires CONNECTION_REFUSED in response.
+func (s *refusalServer) requireRefusedAt(t *testing.T, destID protocol.ConnectionID, offset time.Duration) {
+	t.Helper()
+	p := getValidInitialPacket(t, s.conn.LocalAddr(), s.srcID, destID)
+	p.rcvTime = s.rcvTime.Add(offset)
+	s.handlePacket(p)
+	checkConnectionClose(t, s.conn, s.recorder, destID, s.srcID, qerr.ConnectionRefused)
+	s.recorder.Clear()
+}
+
+func (s *refusalServer) requireRefused(t *testing.T, destID protocol.ConnectionID) {
+	t.Helper()
+	s.requireRefusedAt(t, destID, 0)
+}
+
+// A refused attempt's later Initials are refused without reaching admission,
+// even once capacity has been freed.
+func TestSetupAdmissionRefusedAttemptStaysRefused(t *testing.T) {
+	budget := newSetupBudget(0, 1, time.Minute)
+	server := newRefusalServer(t, &serverOpts{setupAdmission: budget.acquire})
+	destID := randConnID(8)
+
+	server.requireRefused(t, destID)
+	budget.mu.Lock()
+	budget.limit = 1 // capacity frees before the trailing datagram arrives
+	budget.mu.Unlock()
+	server.requireRefused(t, destID)
+
+	state := budget.state(t)
+	require.Equal(t, 1, state.rejected, "the refused attempt reaches admission once")
+	require.Zero(t, state.acquired)
+	require.Zero(t, server.constructed.Load())
+}
+
+// An attempt is its Initial destination connection ID, not its address: one
+// client socket dials many attempts.
+func TestSetupAdmissionRefusalKeyedByAttempt(t *testing.T) {
+	budget := newSetupBudget(0, 1, time.Minute)
+	server := newRefusalServer(t, &serverOpts{setupAdmission: budget.acquire})
+
+	server.requireRefused(t, randConnID(8))
+	server.requireRefused(t, randConnID(8))
+	require.Equal(t, 2, budget.state(t).rejected, "a new attempt from the same address reaches admission")
+}
+
+// Refusals by the application's callbacks, after admission, are remembered
+// like admission refusals: the attempt's later Initials reach no callback.
+func TestSetupAdmissionCallbackRefusalRemembered(t *testing.T) {
+	refused := errors.New("application refused")
+	for _, tc := range []struct {
+		name string
+		opts func(calls *atomic.Int32) *serverOpts
+	}{
+		{"GetConfigForClient", func(calls *atomic.Int32) *serverOpts {
+			return &serverOpts{config: &Config{GetConfigForClient: func(*ClientInfo) (*Config, error) {
+				calls.Add(1)
+				return nil, refused
+			}}}
+		}},
+		{"ConnContext", func(calls *atomic.Int32) *serverOpts {
+			return &serverOpts{connContext: func(context.Context, *ClientInfo) (context.Context, error) {
+				calls.Add(1)
+				return nil, refused
+			}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			budget := newSetupBudget(1, 1, time.Minute)
+			var calls atomic.Int32
+			opts := tc.opts(&calls)
+			opts.setupAdmission = budget.acquire
+			server := newRefusalServer(t, opts)
+			destID := randConnID(8)
+
+			server.requireRefused(t, destID)
+			server.requireRefused(t, destID)
+			require.EqualValues(t, 1, calls.Load())
+			state := budget.state(t)
+			require.Equal(t, 1, state.acquired)
+			require.Equal(t, []bool{false}, state.settlements)
+			require.Zero(t, server.constructed.Load())
+		})
+	}
+}
+
+// The memory is bounded: when full, the oldest refusal is forgotten and its
+// attempt reaches admission again.
+func TestSetupAdmissionRefusalMemoryCapacity(t *testing.T) {
+	budget := newSetupBudget(0, 1, time.Minute)
+	server := newRefusalServer(t, &serverOpts{setupAdmission: budget.acquire, refusedInitialsCapacity: 2})
+	a, b, c := randConnID(8), randConnID(8), randConnID(8)
+
+	server.requireRefused(t, a)
+	server.requireRefused(t, b)
+	server.requireRefused(t, c) // evicts a
+	require.Equal(t, 3, budget.state(t).rejected)
+	server.requireRefused(t, b)
+	require.Equal(t, 3, budget.state(t).rejected, "b is still remembered")
+	server.requireRefused(t, a) // evicts b
+	require.Equal(t, 4, budget.state(t).rejected, "the evicted a reaches admission again")
+	server.requireRefused(t, b)
+	require.Equal(t, 5, budget.state(t).rejected, "the evicted b reaches admission again")
+}
+
+// A refusal is remembered for refusedInitialTTL from the refused Initial's
+// receive time.
+func TestSetupAdmissionRefusalMemoryTTL(t *testing.T) {
+	budget := newSetupBudget(0, 1, time.Minute)
+	server := newRefusalServer(t, &serverOpts{setupAdmission: budget.acquire})
+	destID := randConnID(8)
+
+	server.requireRefusedAt(t, destID, 0)
+	server.requireRefusedAt(t, destID, refusedInitialTTL-time.Nanosecond)
+	require.Equal(t, 1, budget.state(t).rejected, "remembered within the TTL")
+	server.requireRefusedAt(t, destID, refusedInitialTTL)
+	require.Equal(t, 2, budget.state(t).rejected, "an expired refusal reaches admission again")
+}
+
+// Without setup admission nothing is remembered: the ordinary server consults
+// its callbacks for every Initial, as upstream does.
+func TestSetupAdmissionUnconfiguredRemembersNothing(t *testing.T) {
+	var calls atomic.Int32
+	server := newRefusalServer(t, &serverOpts{config: &Config{GetConfigForClient: func(*ClientInfo) (*Config, error) {
+		calls.Add(1)
+		return nil, errors.New("application refused")
+	}}})
+	destID := randConnID(8)
+
+	server.requireRefused(t, destID)
+	server.requireRefused(t, destID)
+	require.EqualValues(t, 2, calls.Load())
+	require.Nil(t, server.refusedInitials)
 }

@@ -79,6 +79,9 @@ type baseServer struct {
 
 	// setupAdmission reserves caller capacity before a connection is constructed.
 	setupAdmission setupAdmission
+	// refusedInitials remembers attempts refused before construction; nil
+	// unless setup admission is configured.
+	refusedInitials *refusedInitials
 
 	// set as a member, so they can be set in the tests
 	newConn func(
@@ -307,6 +310,9 @@ func newServer(
 	}
 	if acceptEarly {
 		s.zeroRTTQueues = map[protocol.ConnectionID]*zeroRTTQueue{}
+	}
+	if setupAdmission != nil {
+		s.refusedInitials = newRefusedInitials(maxRefusedInitials)
 	}
 	go s.run()
 	go s.runSendQueue()
@@ -903,6 +909,12 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		return nil
 	}
 
+	// A refused attempt's later Initials are refused again without admission.
+	if s.refusedInitials.refused(hdr.DestConnectionID, p.rcvTime) {
+		s.logger.Debugf("Rejecting Initial of a refused connection attempt")
+		s.refuseNewConn(p, hdr)
+		return nil
+	}
 	// Admission precedes every per-connection allocation and callback.
 	setup, admitted := s.setupAdmission.acquire(p.remoteAddr)
 	if !admitted {
@@ -1032,7 +1044,9 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	return nil
 }
 
+// refuseNewConn refuses an attempt before its connection is constructed.
 func (s *baseServer) refuseNewConn(p receivedPacket, hdr *wire.Header) {
+	s.refusedInitials.record(hdr.DestConnectionID, p.rcvTime)
 	s.retireZeroRTTQueue(hdr.DestConnectionID)
 	select {
 	case s.connectionRefusedQueue <- rejectedPacket{receivedPacket: p, hdr: hdr}:

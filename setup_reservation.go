@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
 )
 
@@ -69,6 +71,15 @@ type setupReservation struct {
 // must include a non-nil release, which is the only way the library can return
 // that capacity. A deadline not in the future or a nil complete or claim
 // refuses the connection and calls release with false.
+//
+// A client attempt is identified by the destination connection ID of its
+// Initials. Once an attempt is refused before construction, by acquire or by
+// an error from GetConfigForClient or ConnContext, its later Initials, such as
+// the rest of a ClientHello spanning several datagrams, are refused with
+// CONNECTION_REFUSED without calling acquire or any other callback, so acquire
+// sees that attempt once. A refusal is remembered for 5 seconds from the
+// refused Initial's receipt, among the 1024 most recently refused attempts;
+// an attempt forgotten earlier reaches acquire again.
 //
 // A reservation is held, without release and reacquisition, through the
 // handshake, the completed-unclaimed accept queue and acceptance:
@@ -206,6 +217,66 @@ func (a setupAdmission) acquire(remote net.Addr) (_ *setupReservation, ok bool) 
 	}
 	ep, _ := packetEndpoint(remote)
 	return newSetupReservation(a(ep))
+}
+
+// A refused attempt is remembered for its client's trailing datagrams and early
+// retransmissions, among the most recent refusals. ConfigureSetupAdmissionV1
+// documents these values.
+const (
+	maxRefusedInitials = 1024
+	refusedInitialTTL  = protocol.DefaultHandshakeIdleTimeout
+)
+
+// refusedInitials remembers the Initial destination connection IDs of attempts
+// refused before construction. A ClientHello spanning several Initials reaches
+// admission once per datagram; without this, a trailing datagram could acquire
+// capacity freed after the refusal and hold it for a connection that cannot
+// complete. Only the server's packet goroutine uses it. Entries expire after
+// refusedInitialTTL from their receive time, and the oldest is evicted when
+// full; either falls back to ordinary admission.
+type refusedInitials struct {
+	capacity int
+	at       map[protocol.ConnectionID]monotime.Time // receive time of the refusal
+	order    []protocol.ConnectionID                 // distinct IDs in recording order
+	next     int                                     // the oldest entry once order is full
+}
+
+func newRefusedInitials(capacity int) *refusedInitials {
+	return &refusedInitials{capacity: capacity}
+}
+
+// refused reports whether id belongs to an attempt refused within the TTL.
+func (r *refusedInitials) refused(id protocol.ConnectionID, now monotime.Time) bool {
+	if r == nil {
+		return false
+	}
+	at, ok := r.at[id]
+	return ok && now.Before(at.Add(refusedInitialTTL))
+}
+
+// record remembers a refusal. Refusing a remembered attempt again does not
+// extend its TTL; an expired entry is renewed in its eviction position.
+func (r *refusedInitials) record(id protocol.ConnectionID, now monotime.Time) {
+	if r == nil {
+		return
+	}
+	if _, ok := r.at[id]; ok {
+		if !r.refused(id, now) {
+			r.at[id] = now
+		}
+		return
+	}
+	if r.at == nil {
+		r.at = make(map[protocol.ConnectionID]monotime.Time)
+	}
+	if len(r.order) < r.capacity {
+		r.order = append(r.order, id)
+	} else {
+		delete(r.at, r.order[r.next])
+		r.order[r.next] = id
+		r.next = (r.next + 1) % r.capacity
+	}
+	r.at[id] = now
 }
 
 // acquire admits one dial before its connection IDs and connection exist. A

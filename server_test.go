@@ -35,6 +35,9 @@ type serverOpts struct {
 	useRetry                  bool
 	disableVersionNegotiation bool
 	acceptEarly               bool
+	setupAdmission            setupAdmission
+	connContext               func(context.Context, *ClientInfo) (context.Context, error)
+	refusedInitialsCapacity   int // replaces the default capacity when set
 	newConn                   func(
 		context.Context,
 		context.CancelCauseFunc,
@@ -66,12 +69,16 @@ func newTestServer(t *testing.T, serverOpts *serverOpts) *testServer {
 	config := populateConfig(serverOpts.config)
 	tr := &Transport{Conn: newUDPConnLocalhost(t)}
 	tr.init(true)
+	connContext := serverOpts.connContext
+	if connContext == nil {
+		connContext = func(ctx context.Context, _ *ClientInfo) (context.Context, error) { return ctx, nil }
+	}
 	s := newServer(
 		c,
 		(*packetHandlerMap)(tr),
 		&protocol.DefaultConnectionIDGenerator{},
 		&statelessResetter{},
-		func(ctx context.Context, _ *ClientInfo) (context.Context, error) { return ctx, nil },
+		connContext,
 		&tls.Config{},
 		config,
 		serverOpts.eventRecorder,
@@ -81,9 +88,13 @@ func newTestServer(t *testing.T, serverOpts *serverOpts) *testServer {
 		verifySourceAddress,
 		serverOpts.disableVersionNegotiation,
 		serverOpts.acceptEarly,
-		nil,
+		serverOpts.setupAdmission,
 	)
 	s.newConn = serverOpts.newConn
+	if serverOpts.refusedInitialsCapacity > 0 && s.refusedInitials != nil {
+		// No packet has reached the server goroutine yet.
+		s.refusedInitials = newRefusedInitials(serverOpts.refusedInitialsCapacity)
+	}
 	t.Cleanup(func() {
 		s.Close()
 		// The fixture owns this transport. Closing its UDP socket alone doesn't
