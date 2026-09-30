@@ -30,6 +30,8 @@ type packetEmission struct {
 
 	policy emissionPolicy
 	conn   *sendConn
+	// authority gates queued work and the close submission; nil is ungrouped.
+	authority *connAuthority
 
 	// The connection goroutine is the only writer of *conn. It may read the
 	// slot directly; application inspection must take a snapshot via activeConn.
@@ -576,6 +578,7 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 	e.queue.Close()
 	queue := newSendQueue(conn, feedback)
 	e.queue = queue
+	e.bindAuthority(e.authority)
 	return queue
 }
 
@@ -604,6 +607,10 @@ func (e *packetEmission) close(cause error) ([]byte, error) {
 	ecn := (*e.recovery).ECNMode(packet.IsOnlyShortHeaderPacket())
 	e.policy.logCoalescedPacket(packet, ecn)
 	defer packet.buffer.Release()
+	// Close-only authority survives fencing; revocation stops this submission.
+	if !e.authority.permitsClose() {
+		return nil, errCandidateRevoked
+	}
 	retained := bytes.Clone(packet.buffer.Data)
 	return retained, (*e.conn).Write(packet.buffer.Data, 0, ecn)
 }
