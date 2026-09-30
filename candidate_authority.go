@@ -179,13 +179,13 @@ type candidateGroup struct {
 // when no winner has been selected, and is a no-op afterwards. A transition
 // happens once; a later selectWinner fails without effect.
 //
-// Cancellation has three outcomes. A ctx that is already done when
-// selectWinner or closeGroup is called fails the transition without effect
-// and reports the context cause, whatever the group's state. A ctx cancelled
-// while waiting for another transition to finish fails without effect in the
-// same way. A ctx cancelled after the transition has committed only bounds
-// the wait for loser close submission: the losers are still revoked, and each
-// unsubmitted close is reported as described above.
+// Cancellation has three outcomes. After argument validation, a ctx that is
+// already done when selectWinner or closeGroup is called fails the transition
+// without effect and reports the context cause, whatever the group's state.
+// A ctx cancelled while waiting for another transition to finish fails
+// without effect in the same way. A ctx cancelled after the transition has
+// committed only bounds the wait for loser close submission: the losers are
+// still revoked, and each unsubmitted close is reported as described above.
 func (t *Transport) CandidateGroupV1() (join func(*Transport) error, selectWinner func(context.Context, *Conn) error, closeGroup func(context.Context) error) {
 	g := &candidateGroup{op: make(chan struct{}, 1), candidates: make(map[*connAuthority]struct{})}
 	return g.join, g.selectWinner, g.closeGroup
