@@ -641,3 +641,52 @@ func TestCandidateGroupContract(t *testing.T) {
 	require.ErrorIs(t, err, errCandidateFenced)
 	require.NoError(t, group.closeGroup(ctx))
 }
+
+// A transition requested with an already-done context fails without effect.
+// The slot and the context may both be ready when acquire selects, so the
+// check must not be left to select's random choice.
+func TestCandidatePreCancelledTransition(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	tr := newCandidateTransport(t, newUDPConnLocalhost(t))
+	group := newCandidateGroup(t, tr)
+	require.NoError(t, group.join(tr))
+	ln, err := tr.Listen(testdata.GetTLSConfig(), nil)
+	require.NoError(t, err)
+	peer, candidate := dialCandidatePair(t, ctx, ln)
+	g := tr.candidates
+	require.NotNil(t, g)
+
+	cancelled, cancelNow := context.WithCancel(ctx)
+	cancelNow()
+	// Before the fix each call committed about half the time, so this many
+	// attempts cannot pass by chance.
+	const attempts = 256
+	requireUntouched := func(err error) {
+		t.Helper()
+		require.ErrorIs(t, err, context.Canceled)
+		g.mu.Lock()
+		state := g.state
+		g.mu.Unlock()
+		require.Equal(t, candidateGroupSetup, state)
+		require.False(t, g.isFenced())
+		require.Equal(t, authorityLive, candidate.authority.state.Load())
+		require.Empty(t, g.op, "the transition slot must be released")
+	}
+	for range attempts {
+		requireUntouched(group.closeGroup(cancelled))
+		requireUntouched(group.selectWinner(cancelled, candidate))
+	}
+	exchangeAdmissionStream(t, ctx, peer, candidate)
+
+	// The released slot admits a live transition, after which a done context
+	// still reports its cause instead of the transitioned-group result.
+	require.NoError(t, group.selectWinner(ctx, candidate))
+	require.True(t, g.isFenced())
+	for range attempts {
+		require.ErrorIs(t, group.closeGroup(cancelled), context.Canceled)
+		require.ErrorIs(t, group.selectWinner(cancelled, candidate), context.Canceled)
+	}
+	require.NoError(t, group.closeGroup(ctx), "a live context keeps the no-op result")
+	exchangeAdmissionStream(t, ctx, peer, candidate)
+}
