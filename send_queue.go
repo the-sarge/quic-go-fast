@@ -92,8 +92,11 @@ type sendQueue struct {
 	runStopped  chan struct{} // runStopped when the run loop returns
 	available   chan struct{}
 	conn        sendConn
-	feedback    *handshakeSendFeedback
-	// authority is checked again when queued work runs; nil is ungrouped.
+	// authorized is conn when it authorizes each of several submissions.
+	authorized authorizedWriter
+	feedback   *handshakeSendFeedback
+	// authority is checked again before each socket submission of queued
+	// work; nil is ungrouped.
 	authority *connAuthority
 
 	// Scratch reused across batched sends; the run loop is the only user.
@@ -108,8 +111,16 @@ const sendQueueCapacity = 8
 // maxSendBatch caps how many queued packets one batched send coalesces.
 const maxSendBatch = sendQueueCapacity
 
+// authorizedWriter is a sendConn that can make several socket submissions for
+// one write, and authorizes each of them.
+type authorizedWriter interface {
+	writeAuthorized(b []byte, gsoSize uint16, ecn protocol.ECN, permit submissionPermit) error
+}
+
 func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
+	authorized, _ := conn.(authorizedWriter)
 	return &sendQueue{
+		authorized:  authorized,
 		conn:        conn,
 		feedback:    feedback,
 		runStopped:  make(chan struct{}),
@@ -200,12 +211,21 @@ func (h *sendQueue) Run() error {
 // 2. Path MTU discovery, and
 // 3. Eventual detection of loss PingFrame.
 // The caller keeps ownership of the entry's buffer. A fenced candidate's
-// entry is discarded here, immediately before its submission.
+// entry is discarded here, before any of its submissions.
 func (h *sendQueue) writeEntry(e queueEntry) error {
 	if !h.authority.permitsWork() {
 		return nil
 	}
-	if err := h.conn.Write(e.buf.Data, e.gsoSize, e.ecn); err != nil {
+	var err error
+	if h.authorized != nil {
+		err = h.authorized.writeAuthorized(e.buf.Data, e.gsoSize, e.ecn, submissionPermit{authority: h.authority})
+	} else {
+		err = h.conn.Write(e.buf.Data, e.gsoSize, e.ecn)
+	}
+	if err != nil {
+		if errors.Is(err, errSubmissionDenied) {
+			return nil // fenced during the write; the caller releases the entry
+		}
 		if !isSendMsgSizeErr(err) {
 			return err
 		}

@@ -395,10 +395,18 @@ func (s *baseServer) runSendQueue() {
 	}
 }
 
+// candidates returns the transport's candidate group; nil when ungrouped.
+func (s *baseServer) candidates() *candidateGroup {
+	if s.tr == nil {
+		return nil
+	}
+	return s.tr.candidates
+}
+
 // fencedResponse discards a response queued before its candidate group was
 // fenced: it concerns no winner connection.
 func (s *baseServer) fencedResponse(p receivedPacket) bool {
-	if s.tr == nil || !s.tr.candidates.isFenced() {
+	if !s.candidates().isFenced() {
 		return false
 	}
 	p.buffer.Release()
@@ -1125,8 +1133,7 @@ func (s *baseServer) sendRetryPacket(p rejectedPacket) error {
 			},
 		})
 	}
-	_, err = s.conn.WritePacket(buf.Data, p.remoteAddr, p.info.OOB(), 0, protocol.ECNUnsupported)
-	return err
+	return writeUnfencedResponse(s.candidates(), s.conn, buf.Data, p.remoteAddr, p.info)
 }
 
 func (s *baseServer) maybeSendInvalidToken(p rejectedPacket) {
@@ -1238,8 +1245,7 @@ func (s *baseServer) sendError(remoteAddr net.Addr, hdr *wire.Header, sealer han
 			Frames: []qlog.Frame{{Frame: ccf}},
 		})
 	}
-	_, err = s.conn.WritePacket(b.Data, remoteAddr, info.OOB(), 0, protocol.ECNUnsupported)
-	return err
+	return writeUnfencedResponse(s.candidates(), s.conn, b.Data, remoteAddr, info)
 }
 
 func (s *baseServer) enqueueVersionNegotiationPacket(p receivedPacket) (bufferInUse bool) {
@@ -1291,7 +1297,7 @@ func (s *baseServer) maybeSendVersionNegotiationPacket(p receivedPacket) {
 			SupportedVersions: s.config.Versions,
 		})
 	}
-	if _, err := s.conn.WritePacket(data, p.remoteAddr, p.info.OOB(), 0, protocol.ECNUnsupported); err != nil {
+	if err := writeUnfencedResponse(s.candidates(), s.conn, data, p.remoteAddr, p.info); err != nil {
 		s.logger.Debugf("Error sending Version Negotiation: %s", err)
 	}
 }

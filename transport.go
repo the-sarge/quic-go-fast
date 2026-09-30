@@ -791,7 +791,7 @@ func (t *Transport) sendStatelessReset(p receivedPacket) {
 	rand.Read(data)
 	data[0] = (data[0] & 0x7f) | 0x40
 	data = append(data, token[:]...)
-	if _, err := t.conn.WritePacket(data, p.remoteAddr, p.info.OOB(), 0, protocol.ECNUnsupported); err != nil {
+	if err := writeUnfencedResponse(t.candidates, t.conn, data, p.remoteAddr, p.info); err != nil {
 		t.logger.Debugf("Error sending Stateless Reset to %s: %s", p.remoteAddr, err)
 	}
 }

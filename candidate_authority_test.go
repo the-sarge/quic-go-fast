@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -878,5 +879,191 @@ func TestCandidateFencedServerQueue(t *testing.T) {
 			require.Zero(t, entry.counter.Load(), "a fenced loser's entry received server-queued input")
 		}
 		exchangeAdmissionStream(t, ctx, winnerPeer, winner)
+	})
+}
+
+// candidateSubmissionConn is a socket that fails chosen submissions and runs a
+// group transition after each one.
+type candidateSubmissionConn struct {
+	rawConn
+	fail        func(n int, gsoSize uint16) error
+	after       func(n int)
+	submissions []string
+}
+
+func (*candidateSubmissionConn) LocalAddr() net.Addr { return &net.UDPAddr{} }
+
+func (*candidateSubmissionConn) capabilities() connCapabilities {
+	return connCapabilities{GSO: true}
+}
+
+func (c *candidateSubmissionConn) WritePacket(p []byte, _ net.Addr, _ []byte, gsoSize uint16, _ protocol.ECN) (int, error) {
+	n := len(c.submissions)
+	c.submissions = append(c.submissions, string(p))
+	err := c.fail(n, gsoSize)
+	c.after(n)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// Queued work that makes several socket submissions is authorized before each
+// one: a transition during a GSO fallback or a first-send permission retry
+// stops the remainder, and the entry ends as a fenced discard.
+func TestCandidateWorkSubmissionAuthority(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("GSO fallback and the permission retry only exist on Linux")
+	}
+	gsoFails := func(_ int, gsoSize uint16) error {
+		if gsoSize != 0 {
+			return errGSO
+		}
+		return nil
+	}
+	for _, tc := range []struct {
+		name       string
+		gsoSize    uint16
+		fail       func(int, uint16) error
+		fenceAfter int // submission index; -1 keeps the group unfenced
+		want       []string
+	}{
+		{"unfenced GSO fallback", 4, gsoFails, -1, []string{"foobar", "foob", "ar"}},
+		{"GSO fallback fenced after its first segment", 4, gsoFails, 1, []string{"foobar", "foob"}},
+		{"permission retry fenced", 0, func(n int, _ uint16) error {
+			if n == 0 {
+				return errNotPermitted
+			}
+			return nil
+		}, 0, []string{"foobar"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				authority := &connAuthority{}
+				raw := &candidateSubmissionConn{fail: tc.fail, after: func(n int) {
+					if n == tc.fenceAfter {
+						authority.state.Store(authorityClosing)
+					}
+				}}
+				q := newSendQueue(newSendConn(raw, &net.UDPAddr{}, packetInfo{}, utils.DefaultLogger), nil).(*sendQueue)
+				q.authority = authority
+				buf := getPacketWithContents([]byte("foobar"))
+				q.Send(buf, tc.gsoSize, protocol.ECNCE, sendMetadata{})
+				startAndFinishQueue(t, q, nil) // a fenced entry is not a write error
+				require.Equal(t, tc.want, raw.submissions)
+				require.Zero(t, buf.refCount, "the fenced entry still releases its storage")
+			})
+		})
+	}
+}
+
+// A loser's close is authorized with close-only authority before each
+// submission, including the first-send permission retry: fencing keeps that
+// authority, revocation during the first attempt stops the retry.
+func TestCandidateCloseSubmissionAuthority(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the permission retry only exists on Linux")
+	}
+	for _, row := range []struct {
+		name       string
+		transition uint32
+		submitted  int
+		wantErr    error
+	}{
+		{"fenced loser retries", authorityClosing, 2, nil},
+		{"revoked during the first attempt", authorityRevoked, 1, errSubmissionDenied},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			c := tc.conn
+			sealing := c.emission.packer.cryptoSetup.(*MockSealingManager)
+			sealing.EXPECT().GetInitialSealer().Return(nil, handshake.ErrKeysDropped)
+			sealing.EXPECT().GetHandshakeSealer().Return(nil, handshake.ErrKeysDropped)
+			authority := &connAuthority{}
+			authority.state.Store(authorityClosing) // a fenced loser
+			c.emission.bindAuthority(authority)
+			raw := &candidateSubmissionConn{
+				fail: func(n int, _ uint16) error {
+					if n == 0 {
+						return errNotPermitted
+					}
+					return nil
+				},
+				after: func(n int) {
+					if n == 0 {
+						authority.state.Store(row.transition)
+					}
+				},
+			}
+			*c.emission.conn = newSendConn(raw, &net.UDPAddr{}, packetInfo{}, utils.DefaultLogger)
+			_, err := c.emission.close(&qerr.ApplicationError{})
+			if row.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, row.wantErr)
+			}
+			require.Len(t, raw.submissions, row.submitted)
+		})
+	}
+}
+
+// fencingConnIDGenerator runs a group transition while a response that uses
+// it is being prepared.
+type fencingConnIDGenerator struct {
+	protocol.DefaultConnectionIDGenerator
+	transition func()
+}
+
+func (g *fencingConnIDGenerator) GenerateConnectionID() (ConnectionID, error) {
+	g.transition()
+	return g.DefaultConnectionIDGenerator.GenerateConnectionID()
+}
+
+// A stateless response dequeued before its group was fenced is checked again
+// immediately before its write: preparation may run, but nothing reaches the
+// socket and the received packet's storage is still released.
+func TestCandidateFencedResponseSubmission(t *testing.T) {
+	newGroup := func() *candidateGroup {
+		return &candidateGroup{op: make(chan struct{}, 1), candidates: make(map[*connAuthority]struct{})}
+	}
+
+	t.Run("Retry fenced during preparation", func(t *testing.T) {
+		g := newGroup()
+		var transitions int
+		s := newServerAdmissionLifetimeFixture()
+		c := newQueueLifetimeConn()
+		s.conn = c
+		s.tr = (*packetHandlerMap)(&Transport{candidates: g})
+		s.connIDGenerator = &fencingConnIDGenerator{transition: func() {
+			transitions++
+			require.NoError(t, g.closeGroup(t.Context()))
+		}}
+		s.tokenGenerator = handshake.NewTokenGenerator(TokenGeneratorKey{})
+		p := serverAdmissionLifetimePacket()
+		s.sendRetry(rejectedPacket{receivedPacket: p, hdr: &wire.Header{
+			Type: protocol.PacketTypeInitial, Version: protocol.Version1,
+			SrcConnectionID:  protocol.ParseConnectionID([]byte{1}),
+			DestConnectionID: protocol.ParseConnectionID([]byte{2}),
+		}})
+		require.Equal(t, 1, transitions, "the Retry was prepared")
+		require.Zero(t, c.writes, "a Retry fenced during preparation must not be written")
+		require.Zero(t, p.buffer.refCount)
+	})
+
+	t.Run("stateless reset fenced after dequeue", func(t *testing.T) {
+		g := newGroup()
+		c := newQueueLifetimeConn()
+		tr := &Transport{
+			conn:              c,
+			connIDLen:         4,
+			statelessResetter: newStatelessResetter(&StatelessResetKey{}),
+			logger:            utils.DefaultLogger,
+			candidates:        g,
+		}
+		require.NoError(t, g.closeGroup(t.Context()))
+		p := serverAdmissionLifetimePacket()
+		tr.sendStatelessReset(p)
+		require.Zero(t, c.writes, "a fenced stateless reset must not be written")
+		require.Zero(t, p.buffer.refCount)
 	})
 }

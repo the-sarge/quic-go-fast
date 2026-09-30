@@ -612,5 +612,10 @@ func (e *packetEmission) close(cause error) ([]byte, error) {
 		return nil, errCandidateRevoked
 	}
 	retained := bytes.Clone(packet.buffer.Data)
+	if w, ok := (*e.conn).(authorizedWriter); ok {
+		// Each further submission, such as the permission retry, is authorized
+		// with close-only authority, never with work authority.
+		return retained, w.writeAuthorized(packet.buffer.Data, 0, ecn, submissionPermit{authority: e.authority, close: true})
+	}
 	return retained, (*e.conn).Write(packet.buffer.Data, 0, ecn)
 }
