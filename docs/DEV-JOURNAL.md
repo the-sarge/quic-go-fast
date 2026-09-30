@@ -3870,3 +3870,24 @@ The [current budget record](audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.
 Merged [the-sarge/quic-go-fast#657](https://github.com/the-sarge/quic-go-fast/pull/657) for the agreed exact CI toolchain baseline. The implementation and review handoff are recorded in the linked PR.
 
 Validation: the current PR checks passed at reviewed head `cc2be48cd31449cd96824158189fbcb73e9fbfaa` before squash merge `15f838117cdcab61a05f906ac348eafcaeeed34d`. This rollout did not publish a release.
+
+---
+
+## Network admission before QUIC effects merged - 2026-09-29 23:41 EDT
+
+**Main:** `6017fdeee42c`
+**Actor:** Codex
+
+### Summary
+
+Merged [G30-Q1 PR #665](https://github.com/the-sarge/quic-go-fast/pull/665) as `6017fdeee42c09805bd7896089e0ebb5991aed58`, closing [#660](https://github.com/the-sarge/quic-go-fast/issues/660). The additive structural `ConfigureNetworkAdmissionV1` capability binds network admission to the exact transport socket before initialization. Extracted datagrams are checked before QUIC effects; ordinary, batch and probe submissions are checked against actual numeric destination and binding facts. Restricted profiles signal optional migration suppression, reject alternate local paths and retain admitted rebinding and preferred-address CID handling. Ordinary profiles and borrowed socket ownership remain intact.
+
+### Validation
+
+[Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/665#issuecomment-5903577106) at `ca6f46c91bc99a7dc8b33a5fb03b25f0be57c932` passed the full suite, focused admission/fixed-peer/probe race tests, changed-package vet, dependency checks and lint. All 33 hosted PR checks passed, including integration race and interop. Nine focused scenarios plus inherited preservation tests discharge the finite matrix; one optional receive-guard bypass discriminated forbidden delivery and was restored. Adapter fixtures qualify the fork boundary; OS route/provenance qualification remains W1's responsibility.
+
+The bounded RAS cycle fixed one probe-policy error propagation root and strengthened post-handshake IP-change evidence. [Verification and independent disposition](https://github.com/the-sarge/quic-go-fast/pull/665#issuecomment-5903467655) retained existing pre-I/O recovery registration. Replacement review `20260930T032742-510eee5a2fb0dac6fd47e7b3` reported no findings or follow-ups. Each review had four successful reviewers and one Claude reviewer failure caused by an unsupported `commands_changed` system-event subtype; quorum and synthesis completed. No accepted findings or untraced effects remain within Q1's domain.
+
+### Next
+
+Q1's closure removes [Q2 #661](https://github.com/the-sarge/quic-go-fast/issues/661)'s sole blocker; Q3 and Q4 remain independent. W2 remains blocked by Q2–Q5. Issue and OmniFocus pointer reconciliation follows this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier, including concurrent W5/G1 completion; the normative program index remains a launch snapshot.
