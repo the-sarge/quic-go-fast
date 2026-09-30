@@ -27,7 +27,10 @@ const (
 // depends on decrypting input. A nil token is the ordinary, ungrouped profile.
 type connAuthority struct {
 	group *candidateGroup
-	conn  *Conn
+	// conn is guarded by group.mu and severed when the connection finishes, so
+	// retained tokens (closed CID entries, the group's winner) hold no
+	// connection graph.
+	conn *Conn
 	state atomic.Uint32
 	// done closes once, after outcome is written, when the connection's
 	// terminal close handling or cleanup finishes. Publication and
@@ -74,6 +77,7 @@ func (a *connAuthority) finish(outcome error) {
 	if g := a.group; g != nil {
 		g.mu.Lock()
 		delete(g.candidates, a)
+		a.conn = nil
 		g.mu.Unlock()
 	}
 	close(a.done)
@@ -270,14 +274,21 @@ func (g *candidateGroup) closeGroup(ctx context.Context) error {
 
 // fenceLocked stops new candidates and restricts every candidate except keep
 // to its close. The caller holds mu, so no connection can be minted between.
+// candidateLoser pairs a token with its connection, captured under mu before
+// the connection can finish and sever it.
+type candidateLoser struct {
+	authority *connAuthority
+	conn      *Conn
+}
+
 // Losers become close-only and the winner is published before transport
 // paths observe the fence.
-func (g *candidateGroup) fenceLocked(keep *connAuthority) []*connAuthority {
-	losers := make([]*connAuthority, 0, len(g.candidates))
+func (g *candidateGroup) fenceLocked(keep *connAuthority) []candidateLoser {
+	losers := make([]candidateLoser, 0, len(g.candidates))
 	for a := range g.candidates {
 		if a != keep {
 			a.state.Store(authorityClosing)
-			losers = append(losers, a)
+			losers = append(losers, candidateLoser{authority: a, conn: a.conn})
 		}
 	}
 	g.winner.Store(keep)
@@ -294,16 +305,16 @@ func (g *candidateGroup) retains(a *connAuthority) bool {
 
 // closeCandidates requests each standard close, awaits submission under ctx,
 // then revokes every loser whether or not its close was submitted.
-func closeCandidates(ctx context.Context, losers []*connAuthority) error {
-	for _, a := range losers {
-		a.conn.closeLocal(&qerr.ApplicationError{})
+func closeCandidates(ctx context.Context, losers []candidateLoser) error {
+	for _, l := range losers {
+		l.conn.closeLocal(&qerr.ApplicationError{})
 	}
 	errs := make([]error, 0, len(losers))
-	for _, a := range losers {
-		errs = append(errs, a.awaitClose(ctx))
+	for _, l := range losers {
+		errs = append(errs, l.authority.awaitClose(ctx))
 	}
-	for _, a := range losers {
-		a.state.Store(authorityRevoked)
+	for _, l := range losers {
+		l.authority.state.Store(authorityRevoked)
 	}
 	return errors.Join(errs...)
 }

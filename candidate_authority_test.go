@@ -102,6 +102,15 @@ func TestCandidateGroupMultibindingWinner(t *testing.T) {
 	require.Error(t, group.selectWinner(ctx, winner), "selection is one group transition")
 	require.NoError(t, group.closeGroup(ctx), "closing a selected group leaves the winner to its owner")
 	exchangeAdmissionStream(t, ctx, winnerPeer, winner)
+
+	// Terminal cleanup severs the tokens that outlive their connections.
+	require.NoError(t, winner.CloseWithError(0, ""))
+	for _, conn := range []*Conn{winner, loser} {
+		trA.candidates.mu.Lock()
+		retained := conn.authority.conn
+		trA.candidates.mu.Unlock()
+		require.Nil(t, retained)
+	}
 }
 
 type candidateProbeConn struct {
