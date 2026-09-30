@@ -125,6 +125,12 @@ func (s *Stream) Read(p []byte) (int, error) {
 	return s.receiveStr.Read(p)
 }
 
+// ReadReceivePhaseV1 reads data and reports its receive phase.
+// See [ReceiveStream.ReadReceivePhaseV1] for details.
+func (s *Stream) ReadReceivePhaseV1(p []byte) (int, uint64, error) {
+	return s.receiveStr.ReadReceivePhaseV1(p)
+}
+
 // Peek fills b with stream data, without consuming the stream data.
 // It blocks until len(b) bytes are available, or an error occurs.
 // It respects the stream deadline set by [Stream.SetReadDeadline].

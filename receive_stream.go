@@ -50,6 +50,11 @@ type ReceiveStream struct {
 	deadline monotime.Time
 
 	flowController *streamFlowController
+
+	// receivePhase is the connection's receive epoch, installed at creation;
+	// nil unless the connection has one. It is read only on the connection
+	// loop, when frames are admitted.
+	receivePhase *receivePhase
 }
 
 var (
@@ -71,6 +76,12 @@ func newReceiveStream(
 		readOnce:       make(chan struct{}, 1),
 		finalOffset:    protocol.MaxByteCount,
 	}
+}
+
+// gateReceivePhase installs the connection's receive epoch before the stream
+// receives a frame.
+func (s *ReceiveStream) gateReceivePhase(p *receivePhase) {
+	s.receivePhase = p
 }
 
 // StreamID returns the stream ID.
@@ -111,6 +122,30 @@ func (s *ReceiveStream) SetReceiveFinalSizeCallback(callback func(int64)) {
 // Read can be made to time out using [ReceiveStream.SetReadDeadline].
 // If the stream was canceled, the error is a [StreamError].
 func (s *ReceiveStream) Read(p []byte) (int, error) {
+	return s.read(p, nil)
+}
+
+// ReadReceivePhaseV1 reads data like [ReceiveStream.Read] and returns the
+// receive phase of the bytes read: 0 for the closed phase and 1 once
+// [Conn.OpenReceivePhaseV1] opened it. A byte's phase is fixed when the
+// connection first admits it, even if it is retransmitted, reordered or
+// buffered for reading later. One call never returns bytes of two phases; it
+// stops at a phase boundary, and the next call continues there. No byte is
+// skipped. The phase is meaningful only when bytes are returned.
+//
+// It fails without reading for a stream of a connection without a
+// configured receive phase.
+func (s *ReceiveStream) ReadReceivePhaseV1(p []byte) (int, uint64, error) {
+	if s.receivePhase == nil {
+		return 0, 0, errNoReceivePhase
+	}
+	var phase uint64
+	n, err := s.read(p, &phase)
+	return n, phase, err
+}
+
+// read reports the phase of the bytes read in phase if it is not nil.
+func (s *ReceiveStream) read(p []byte, phase *uint64) (int, error) {
 	// Concurrent use of Read is not permitted (and doesn't make any sense),
 	// but sometimes people do it anyway.
 	// Make sure that we only execute one call at any given time to avoid hard to debug failures.
@@ -118,7 +153,7 @@ func (s *ReceiveStream) Read(p []byte) (int, error) {
 	defer func() { <-s.readOnce }()
 
 	s.mutex.Lock()
-	queuedStreamWindowUpdate, queuedConnWindowUpdate, n, err := s.readImpl(p)
+	queuedStreamWindowUpdate, queuedConnWindowUpdate, n, err := s.readImpl(p, phase)
 	completed := s.isNewlyCompleted()
 	s.mutex.Unlock()
 
@@ -155,7 +190,9 @@ func (s *ReceiveStream) isNewlyCompleted() bool {
 	return false
 }
 
-func (s *ReceiveStream) readImpl(p []byte) (hasStreamWindowUpdate bool, hasConnWindowUpdate bool, _ int, _ error) {
+// readImpl stops at a receive-phase boundary if phase is not nil, and sets it
+// to the phase of the bytes read.
+func (s *ReceiveStream) readImpl(p []byte, phase *uint64) (hasStreamWindowUpdate bool, hasConnWindowUpdate bool, _ int, _ error) {
 	defer s.retireReadStorage()
 	if s.currentFrameIsLast && s.currentFrame == nil {
 		s.errorRead = true
@@ -223,7 +260,19 @@ func (s *ReceiveStream) readImpl(p []byte) (hasStreamWindowUpdate bool, hasConnW
 		if s.readPosInFrame > len(s.currentFrame) {
 			return hasStreamWindowUpdate, hasConnWindowUpdate, bytesRead, fmt.Errorf("BUG: readPosInFrame (%d) > frame.DataLen (%d) in stream.Read", s.readPosInFrame, len(s.currentFrame))
 		}
-		m := copy(p[bytesRead:], s.currentFrame[s.readPosInFrame:])
+		available := s.currentFrame[s.readPosInFrame:]
+		if phase != nil && len(available) > 0 {
+			bytePhase, next := s.frameQueue.phaseAt(s.readPos)
+			if bytesRead == 0 {
+				*phase = bytePhase
+			} else if bytePhase != *phase {
+				return hasStreamWindowUpdate, hasConnWindowUpdate, bytesRead, nil
+			}
+			if limit := next - s.readPos; limit < protocol.ByteCount(len(available)) {
+				available = available[:limit]
+			}
+		}
+		m := copy(p[bytesRead:], available)
 
 		// when a RESET_STREAM was received, the flow controller was already
 		// informed about the final offset for this stream
@@ -495,6 +544,9 @@ func (s *ReceiveStream) handleStreamFrameImpl(frame *wire.StreamFrame, now monot
 	if s.readStorageIsTerminal() {
 		frame.PutBack()
 		return nil
+	}
+	if s.receivePhase != nil && s.receivePhase.admitsApplication() {
+		s.frameQueue.openPhase()
 	}
 	if err := s.frameQueue.Push(frame.Data, frame.Offset, frame.PutBack); err != nil {
 		return err
