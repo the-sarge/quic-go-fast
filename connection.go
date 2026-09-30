@@ -346,6 +346,7 @@ var newConnection = func(
 		MaxUDPPayloadSize:               protocol.MaxPacketBufferSize,
 		StatelessResetToken:             &statelessResetToken,
 		OriginalDestinationConnectionID: origDestConnID,
+		DisableActiveMigration:          networkDisablesActiveMigration(conn),
 		// For interoperability with quic-go versions before May 2023, this value must be set to a value
 		// different from protocol.DefaultActiveConnectionIDLimit.
 		// If set to the default value, it will be omitted from the transport parameters, which will make
@@ -2521,7 +2522,12 @@ func (c *Conn) applyTransportParameters() {
 	}
 	// We don't support connection migration yet, so we don't have any use for the preferred_address.
 	if params.PreferredAddress != nil {
-		// Retire the connection ID.
+		if sc, ok := c.conn.(*sconn); ok {
+			if pc, ok := sc.rawConn.(*packetPolicyConn); ok && pc.network != nil {
+				c.logger.Debugf("Declining preferred address: network restricted profile retains its authorized path")
+			}
+		}
+		// Preserve ordinary connection-ID rotation without adopting the address.
 		c.connIDManager.AddFromPreferredAddress(params.PreferredAddress.ConnectionID, params.PreferredAddress.StatelessResetToken)
 	}
 	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
