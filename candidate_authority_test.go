@@ -15,7 +15,9 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/testdata"
+	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlogwriter"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -259,6 +261,49 @@ func registeredConnIDs(tr *Transport, conn *Conn) []protocol.ConnectionID {
 		}
 	}
 	return ids
+}
+
+// retainingRunner keeps closed connection-ID entries for a fixed period
+// instead of the connection's 3*PTO, which is about 10ms on loopback.
+type retainingRunner struct {
+	connRunner
+	retention time.Duration
+}
+
+func (r retainingRunner) ReplaceWithClosed(ids []protocol.ConnectionID, connClose []byte, _ time.Duration) {
+	r.connRunner.ReplaceWithClosed(ids, connClose, r.retention)
+}
+
+// retainClosedEntries applies retention to server connections of listeners
+// created afterwards, so a test inspects closed entries without racing their
+// retirement.
+func retainClosedEntries(t *testing.T, retention time.Duration) {
+	t.Helper()
+	orig := newConnection
+	newConnection = func(
+		ctx context.Context,
+		ctxCancel context.CancelCauseFunc,
+		conn sendConn,
+		runner connRunner,
+		origDestConnID protocol.ConnectionID,
+		retrySrcConnID *protocol.ConnectionID,
+		clientDestConnID protocol.ConnectionID,
+		destConnID protocol.ConnectionID,
+		srcConnID protocol.ConnectionID,
+		connIDGenerator ConnectionIDGenerator,
+		statelessResetter *statelessResetter,
+		conf *Config,
+		tlsConf *tls.Config,
+		tokenGenerator *handshake.TokenGenerator,
+		clientAddressValidated bool,
+		rtt time.Duration,
+		qlogTrace qlogwriter.Trace,
+		logger utils.Logger,
+		v protocol.Version,
+	) *wrappedConn {
+		return orig(ctx, ctxCancel, conn, retainingRunner{connRunner: runner, retention: retention}, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v)
+	}
+	t.Cleanup(func() { newConnection = orig })
 }
 
 // candidateWriteConn injects a socket failure for one destination.
@@ -562,6 +607,7 @@ func TestCandidateGroupContract(t *testing.T) {
 	require.Error(t, group.selectWinner(ctx, nil))
 	require.Error(t, group.selectWinner(ctx, outsider), "an ungrouped connection cannot win")
 
+	retainClosedEntries(t, time.Minute)
 	ln, err = tr.Listen(testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
 	peer, candidate := dialCandidatePair(t, ctx, ln)
@@ -572,16 +618,19 @@ func TestCandidateGroupContract(t *testing.T) {
 	// Without a winner, closeGroup closes every candidate and admits no more.
 	require.NoError(t, group.closeGroup(ctx))
 	requireRemoteCandidateClose(t, peer)
-	var retained []*connAuthority
+	var retained []packetHandler
 	tr.mutex.Lock()
 	for _, id := range earlierIDs {
 		if h, ok := tr.handlers[id]; ok {
-			retained = append(retained, handlerAuthority(h))
+			retained = append(retained, h)
 		}
 	}
 	tr.mutex.Unlock()
 	require.NotEmpty(t, retained)
-	for _, a := range retained {
+	for _, h := range retained {
+		require.IsType(t, &closedLocalConn{}, h)
+		a := handlerAuthority(h)
+		require.Same(t, earlier.authority, a, "a retained entry carries its connection's token")
 		require.False(t, a.permitsClose(), "retained entries of an earlier close lose authority too")
 	}
 	requireCandidateTerminated(t, candidate)
