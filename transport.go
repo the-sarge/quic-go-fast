@@ -160,6 +160,8 @@ type Transport struct {
 	policyConn packetPolicyConn
 	// candidates is joined before initialization and immutable thereafter.
 	candidates *candidateGroup
+	// setupAdmission is configured before initialization and immutable thereafter.
+	setupAdmission setupAdmission
 
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
@@ -244,6 +246,7 @@ func (t *Transport) createServer(tlsConf *tls.Config, conf *Config, allow0RTT bo
 		t.VerifySourceAddress,
 		t.DisableVersionNegotiationPackets,
 		allow0RTT,
+		t.setupAdmission,
 	)
 	t.server = s
 	return s, nil
@@ -952,18 +955,22 @@ func (h *packetHandlerMap) Remove(id protocol.ConnectionID) {
 // * local close: retransmit the CONNECTION_CLOSE packet, in case it was lost
 func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connClosePacket []byte, expiry time.Duration) {
 	// Closed entries keep the connection's token, so a later group transition
-	// also governs their input and close retransmissions.
+	// also governs their input and close retransmissions. They also keep an
+	// untransferred setup reservation until they are retired.
 	var authority *connAuthority
-	if h.candidates != nil {
+	var setup *setupReservation
+	if h.candidates != nil || h.setupAdmission != nil {
 		h.mutex.Lock()
 		for _, id := range ids {
 			if handler, ok := h.handlers[id]; ok {
 				authority = handlerAuthority(handler)
+				setup = handlerSetup(handler)
 				break
 			}
 		}
 		h.mutex.Unlock()
 	}
+	retired := setup.holdClosing()
 	var handler packetHandler
 	if connClosePacket != nil {
 		handler = newClosedLocalConn(
@@ -1000,5 +1007,6 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 		}
 		h.mutex.Unlock()
 		h.logger.Debugf("Removing connection IDs %s for a closed connection after it has been retired.", ids)
+		retired()
 	})
 }

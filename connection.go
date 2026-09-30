@@ -191,6 +191,8 @@ type Conn struct {
 	closeErr  atomic.Pointer[closeError]
 	// authority is bound before publication on candidate-group transports.
 	authority *connAuthority
+	// setup is bound before publication on servers with setup admission.
+	setup *setupReservation
 
 	ctx                   context.Context
 	ctxCancel             context.CancelCauseFunc
@@ -579,6 +581,8 @@ func (c *Conn) preSetup() {
 func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
 	defer c.authority.release()
+	// Setup capacity returns only after the connection's workers have ended.
+	defer c.setup.teardown()
 
 	defer func() {
 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
@@ -2280,6 +2284,7 @@ func (c *Conn) abortUnstarted(err error) {
 	if c.qlogger != nil {
 		c.qlogger.Close()
 	}
+	c.setup.teardown()
 }
 
 func (c *Conn) closeWithTransportError(code TransportErrorCode) {
