@@ -3891,3 +3891,28 @@ The bounded RAS cycle fixed one probe-policy error propagation root and strength
 ### Next
 
 Q1's closure removes [Q2 #661](https://github.com/the-sarge/quic-go-fast/issues/661)'s sole blocker; Q3 and Q4 remain independent. W2 remains blocked by Q2–Q5. Issue and OmniFocus pointer reconciliation follows this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier, including concurrent W5/G1 completion; the normative program index remains a launch snapshot.
+
+---
+
+## Candidate winner selection merged - 2026-09-30 02:09 EDT
+
+**Main:** `b0658ed8447d`
+**Actor:** Claude
+
+### Summary
+
+Merged [G30-Q2 PR #676](https://github.com/the-sarge/quic-go-fast/pull/676) as `b0658ed8447d8995c59d6f06d223aaf23b032fb5`, closing [#661](https://github.com/the-sarge/quic-go-fast/issues/661). The additive structural `CandidateGroupV1` capability on `*Transport` returns `join`, `selectWinner` and `closeGroup` closures. `join` requires an uninitialized transport with Q1 network admission. Every connection on a joined transport carries an opaque authority token on its CID entries and queued work. The token is checked before dispatch, before queued input is unpacked, when queued, batched and probe sends and close retransmissions start, and when queued stateless and server responses run; ownership never depends on decryption. Selection is one serialized transition across bindings: losers become close-only, the group is fenced, loser non-close work is discarded, standard closes are submitted under the caller's context, and losers are revoked. Each unsubmitted close reports I/O failure, cancellation or `NoUsablePathV1`. Delivery is never awaited, and ungrouped transports carry no token and keep ordinary behavior.
+
+### Validation
+
+[Exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/676#issuecomment-5904640069) at `d6f35ff6a2ca241f8d91bc5b11391d3f64a633f8` passed focused candidate race tests, `go test -race .`, all non-integration unit packages, the self integration suite, `go vet .`, `go mod tidy -diff`, lint and `git diff --check`. All 33 hosted PR checks passed on that head. Ten planned scenarios plus a structural contract test discharge the finite matrix. One pre-unpack guard mutation and one outcome-report mutation each failed their assertions and were restored.
+
+The bounded RAS cycle ran initial review `20260930T041822-172636bc8cceb20569ff8559`, which fixed outcome precedence, owned termination signalling and retained-token authority. Verification then found a second counterexample at `awaitClose` outcome precedence. The resulting approach stop was resolved by a [scoped re-audit](https://github.com/the-sarge/quic-go-fast/pull/676#issuecomment-5904279692) that made close-outcome publication and termination one event; the plan was unchanged. A later verification concern about the retained winner connection graph was fixed centrally. Replacement review `20260930T050046-8184886ba56d83523f59a9f3` had no Fix First items; its only fix-now items were two test-synchronization defects, repaired without product change.
+
+### Decisions
+
+Authority is enforced per queued work item, the granularity stated in the contract. Per-syscall or transition-coordinated submission authority, pre-mint callbacks for Initials queued before the fence, and deterministic rejection of pre-cancelled transitions were deferred as strengthenings. See the [dispositions](https://github.com/the-sarge/quic-go-fast/pull/676#issuecomment-5904640069).
+
+### Next
+
+Q2's closure leaves W2 blocked by Q3–Q5; Q3 and Q4 remain independent and Q5 follows Q4. Deferred findings are revalidated against the merge before any follow-up is filed, and issue/OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
