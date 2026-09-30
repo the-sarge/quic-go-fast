@@ -8,6 +8,8 @@ import (
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
+var errNetworkAdmissionDenied = errors.New("quic: network policy denied packet submission")
+
 // packetPolicyConn owns admission; the underlying connection still owns
 // reads, storage, capabilities and Close.
 // Transport embeds this adapter so installing it needs no separate allocation.
@@ -46,7 +48,7 @@ func (c *packetPolicyConn) checkSend(addr net.Addr, oob []byte) error {
 	if p := c.network; p != nil {
 		remote, ok := packetEndpoint(addr)
 		if !ok || !p.send(remote, p.local, append([]byte(nil), oob...)) {
-			return errors.New("quic: network policy denied packet submission")
+			return errNetworkAdmissionDenied
 		}
 	}
 	return nil

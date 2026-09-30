@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -10,7 +11,7 @@ import (
 
 type sender interface {
 	Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata)
-	SendProbe(*packetBuffer, net.Addr, packetInfo)
+	SendProbe(*packetBuffer, net.Addr, packetInfo) error
 	Run() error
 	WouldBlock() bool
 	Available() <-chan struct{}
@@ -138,10 +139,14 @@ func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, meta
 	}
 }
 
-// SendProbe borrows storage for one synchronous best-effort write.
+// SendProbe borrows storage for one synchronous write. Network-policy failure
+// reaches the connection's normal error path; ordinary I/O remains best effort.
 // The emission caller releases it after this method returns.
-func (h *sendQueue) SendProbe(p *packetBuffer, addr net.Addr, info packetInfo) {
-	h.conn.WriteTo(p.Data, addr, info)
+func (h *sendQueue) SendProbe(p *packetBuffer, addr net.Addr, info packetInfo) error {
+	if err := h.conn.WriteTo(p.Data, addr, info); errors.Is(err, errNetworkAdmissionDenied) {
+		return err
+	}
+	return nil
 }
 
 func (h *sendQueue) WouldBlock() bool {

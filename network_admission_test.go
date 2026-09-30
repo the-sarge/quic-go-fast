@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/testdata"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -104,11 +106,11 @@ func TestNetworkAdmissionSubmissionFactsAndRouteLoss(t *testing.T) {
 	defer tr.Close()
 	info := packetInfo{addr: netip.MustParseAddr("127.0.0.1")}
 	sc := newSendConn(tr.conn, peer.LocalAddr(), info, utils.DefaultLogger)
-	n, err := sc.sendBatch([][]byte{[]byte("one"), []byte("two")}, protocol.ECNUnsupported)
+	n, err := sc.sendBatch([][]byte{[]byte("one"), []byte("two")}, protocol.ECT0)
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
 	require.EqualValues(t, 1, batchCalls.Load())
-	require.Equal(t, info.OOB(), observed)
+	require.Equal(t, appendExternalECN(info.OOB(), peer.LocalAddr().(*net.UDPAddr), protocol.ECT0), observed)
 	require.Equal(t, info.OOB(), sc.remoteAddrInfo.Load().oob)
 	sc.ChangeRemoteAddr(foreign.LocalAddr(), packetInfo{})
 	n, err = sc.sendBatch([][]byte{[]byte("denied")}, protocol.ECNUnsupported)
@@ -130,6 +132,32 @@ func TestNetworkAdmissionSubmissionFactsAndRouteLoss(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, want, string(b[:n]))
 	}
+}
+
+func TestNetworkAdmissionServerResponseRouteLoss(t *testing.T) {
+	peer := newUDPConnLocalhost(t)
+	tr := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, configureNetworkAdmission(t, tr,
+		func(netip.AddrPort, netip.AddrPort, []byte) bool { return true },
+		func(netip.AddrPort, netip.AddrPort, []byte) bool { return false }, false))
+	require.NoError(t, tr.init(false))
+	defer tr.Close()
+	// Exercise the real packer and synchronous probe consumer for a mandatory
+	// response whose admitted return route became unusable before submission.
+	tc := newEmissionTestConnection(t, false)
+	conn := tc.conn
+	conn.conn = newSendConn(tr.conn, peer.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+	conn.emission.queue = newSendQueue(conn.conn, nil)
+	err := conn.emission.serverProbe(protocol.ParseConnectionID([]byte{8, 7, 6, 5}),
+		[]ackhandler.Frame{{Frame: &wire.PathResponseFrame{Data: [8]byte{1, 2, 3, 4}}}},
+		peer.LocalAddr(), packetInfo{}, 0, monotime.Now())
+	require.ErrorContains(t, err, "network policy denied")
+	require.NoError(t, peer.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
+	_, _, err = peer.ReadFrom(make([]byte, 64))
+	require.Error(t, err)
+	var timeout net.Error
+	require.ErrorAs(t, err, &timeout)
+	require.True(t, timeout.Timeout())
 }
 
 // This system-boundary fixture changes the reported peer IP while forwarding
@@ -203,10 +231,11 @@ func TestNetworkAdmissionEligibleIPChangeBeforeAndAfterHandshake(t *testing.T) {
 	require.True(t, handshakeSeen.Load())
 	exchangeAdmissionStream(t, ctx, client, server)
 	newIP := net.IPv4(127, 0, 0, 4)
+	priorEvents := len(recorder.Events(qlog.PacketSent{}))
 	socket.ip.Store(&newIP)
 	exchangeAdmissionStream(t, ctx, client, server)
 	require.Eventually(t, func() bool {
-		for _, event := range recorder.Events(qlog.PacketSent{}) {
+		for _, event := range recorder.Events(qlog.PacketSent{})[priorEvents:] {
 			for _, frame := range event.(qlog.PacketSent).Frames {
 				if _, ok := frame.Frame.(*qlog.PathChallengeFrame); ok {
 					return true

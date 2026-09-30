@@ -527,8 +527,7 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 	defer buf.Release()
 	e.policy.logPathProbe(p, addr, buf.Len(), checksum)
 	e.registerPacket(p, protocol.ECNNon, now)
-	e.queue.SendProbe(buf, addr, info)
-	return nil
+	return e.queue.SendProbe(buf, addr, info)
 }
 
 func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {
