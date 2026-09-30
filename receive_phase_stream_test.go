@@ -163,18 +163,21 @@ func TestReceivePhaseStreamReadAhead(t *testing.T) {
 }
 
 // A FIN or a reliable reset ends the stream as usual; every reliable byte is
-// read, with its phase, before the terminal result.
+// read, with its phase, before the terminal result, which releases provenance.
 func TestReceivePhaseStreamTerminal(t *testing.T) {
 	t.Run("FIN", func(t *testing.T) {
 		s := newPhasedStream(t)
 		s.frame(t, 0, 10, true)
 		s.open(t)
+		s.frame(t, 0, 10, true) // retransmitted after opening
+		require.NotNil(t, s.str.frameQueue.openGaps)
 		segs, err := s.readSegments(t, 10)
 		require.ErrorIs(t, err, io.EOF)
 		require.Equal(t, []phaseSegment{{closedReceivePhaseNumber, streamBytes(0, 10)}}, segs)
 		n, _, err := s.str.ReadReceivePhaseV1(make([]byte, 1))
 		require.Zero(t, n)
 		require.ErrorIs(t, err, io.EOF)
+		require.Nil(t, s.str.frameQueue.openGaps, "terminal cleanup releases provenance")
 	})
 
 	t.Run("reliable reset", func(t *testing.T) {
@@ -191,6 +194,7 @@ func TestReceivePhaseStreamTerminal(t *testing.T) {
 			{closedReceivePhaseNumber, streamBytes(0, 10)},
 			{openReceivePhaseNumber, streamBytes(10, 20)},
 		}, segs)
+		require.Nil(t, s.str.frameQueue.openGaps, "terminal cleanup releases provenance")
 	})
 }
 

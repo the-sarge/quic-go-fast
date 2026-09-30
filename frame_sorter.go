@@ -230,10 +230,12 @@ func (s *frameSorter) deleteConsecutive(pos protocol.ByteCount) {
 	}
 }
 
-// discard releases all queued entries, including data beyond gaps.
+// discard releases all queued entries, including data beyond gaps, and the
+// receive-phase provenance recorded for them.
 // The owner must seal admission first; a discarded sorter cannot accept Push.
 // Empty Pop and repeated discard remain safe for resuming readers and cleanup.
 func (s *frameSorter) discard() {
+	s.openGaps = nil
 	for offset, entry := range s.queue {
 		delete(s.queue, offset)
 		if entry.DoneCb != nil {
@@ -269,7 +271,8 @@ func (s *frameSorter) phaseAt(pos protocol.ByteCount) (uint64, protocol.ByteCoun
 		s.openGaps = s.openGaps[1:]
 	}
 	if len(s.openGaps) == 0 {
-		// The last gap always extends to MaxByteCount; only discard empties it.
+		// The last gap always extends to MaxByteCount; only discard empties
+		// it, after which nothing is read.
 		return closedReceivePhaseNumber, protocol.MaxByteCount
 	}
 	if gap := s.openGaps[0]; pos >= gap.Start {
