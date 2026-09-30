@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"net"
@@ -74,12 +75,13 @@ type setupReservation struct {
 //
 // A client attempt is identified by the destination connection ID of its
 // Initials. Once an attempt is refused before construction, by acquire or by
-// an error from GetConfigForClient or ConnContext, its later Initials, such as
-// the rest of a ClientHello spanning several datagrams, are refused with
-// CONNECTION_REFUSED without calling acquire or any other callback, so acquire
-// sees that attempt once. A refusal is remembered for 5 seconds from the
-// refused Initial's receipt, among the 1024 most recently refused attempts;
-// an attempt forgotten earlier reaches acquire again.
+// an error from GetConfigForClient or ConnContext, its later Initials that pass
+// Retry and token handling, such as the rest of a ClientHello spanning several
+// datagrams, are refused with CONNECTION_REFUSED without calling acquire,
+// GetConfigForClient or ConnContext, so acquire sees that attempt once. A
+// refusal is remembered for 5 seconds from the refused Initial's receipt, among
+// the 1024 most recently refused attempts; an attempt forgotten earlier reaches
+// acquire again.
 //
 // A reservation is held, without release and reacquisition, through the
 // handshake, the completed-unclaimed accept queue and acceptance:
@@ -236,9 +238,13 @@ const (
 // full; either falls back to ordinary admission.
 type refusedInitials struct {
 	capacity int
-	at       map[protocol.ConnectionID]monotime.Time // receive time of the refusal
-	order    []protocol.ConnectionID                 // distinct IDs in recording order
-	next     int                                     // the oldest entry once order is full
+	byID     map[protocol.ConnectionID]*list.Element // of *refusal
+	order    list.List                               // oldest refusal first
+}
+
+type refusal struct {
+	id protocol.ConnectionID
+	at monotime.Time // receive time of the refused Initial
 }
 
 func newRefusedInitials(capacity int) *refusedInitials {
@@ -250,33 +256,39 @@ func (r *refusedInitials) refused(id protocol.ConnectionID, now monotime.Time) b
 	if r == nil {
 		return false
 	}
-	at, ok := r.at[id]
-	return ok && now.Before(at.Add(refusedInitialTTL))
+	e, ok := r.byID[id]
+	return ok && now.Before(e.Value.(*refusal).at.Add(refusedInitialTTL))
 }
 
-// record remembers a refusal. Refusing a remembered attempt again does not
-// extend its TTL; an expired entry is renewed in its eviction position.
+// record remembers a refusal as the newest entry. Refusing a remembered
+// attempt again changes neither its TTL nor its eviction order; an expired
+// entry refused again is renewed as the newest. A full memory reuses its
+// oldest entry.
 func (r *refusedInitials) record(id protocol.ConnectionID, now monotime.Time) {
 	if r == nil {
 		return
 	}
-	if _, ok := r.at[id]; ok {
+	if e, ok := r.byID[id]; ok {
 		if !r.refused(id, now) {
-			r.at[id] = now
+			e.Value.(*refusal).at = now
+			r.order.MoveToBack(e)
 		}
 		return
 	}
-	if r.at == nil {
-		r.at = make(map[protocol.ConnectionID]monotime.Time)
+	if r.byID == nil {
+		r.byID = make(map[protocol.ConnectionID]*list.Element)
 	}
-	if len(r.order) < r.capacity {
-		r.order = append(r.order, id)
+	var e *list.Element
+	if r.order.Len() < r.capacity {
+		e = r.order.PushBack(&refusal{id: id, at: now})
 	} else {
-		delete(r.at, r.order[r.next])
-		r.order[r.next] = id
-		r.next = (r.next + 1) % r.capacity
+		e = r.order.Front()
+		oldest := e.Value.(*refusal)
+		delete(r.byID, oldest.id)
+		*oldest = refusal{id: id, at: now}
+		r.order.MoveToBack(e)
 	}
-	r.at[id] = now
+	r.byID[id] = e
 }
 
 // acquire admits one dial before its connection IDs and connection exist. A

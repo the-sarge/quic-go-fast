@@ -810,6 +810,25 @@ func TestSetupAdmissionRefusalMemoryCapacity(t *testing.T) {
 	require.Equal(t, 5, budget.state(t).rejected, "the evicted b reaches admission again")
 }
 
+// An expired refusal refused again is the newest entry: a full memory evicts
+// older refusals before it.
+func TestSetupAdmissionRefusalMemoryRenewal(t *testing.T) {
+	budget := newSetupBudget(0, 1, time.Minute)
+	server := newRefusalServer(t, &serverOpts{setupAdmission: budget.acquire, refusedInitialsCapacity: 2})
+	a, b, c := randConnID(8), randConnID(8), randConnID(8)
+
+	server.requireRefusedAt(t, a, 0)
+	server.requireRefusedAt(t, b, 4*time.Second)
+	server.requireRefusedAt(t, a, refusedInitialTTL)                      // a expired and is refused afresh
+	server.requireRefusedAt(t, c, refusedInitialTTL+100*time.Millisecond) // evicts b
+	require.Equal(t, 4, budget.state(t).rejected)
+	server.requireRefusedAt(t, a, refusedInitialTTL+200*time.Millisecond)
+	require.Equal(t, 4, budget.state(t).rejected, "the renewed a is newer than b")
+	server.requireRefusedAt(t, b, refusedInitialTTL+300*time.Millisecond)
+	require.Equal(t, 5, budget.state(t).rejected, "the evicted b reaches admission again")
+	require.Zero(t, server.constructed.Load())
+}
+
 // A refusal is remembered for refusedInitialTTL from the refused Initial's
 // receive time.
 func TestSetupAdmissionRefusalMemoryTTL(t *testing.T) {
