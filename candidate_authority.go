@@ -4,15 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"sync/atomic"
 
+	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
 )
 
 var (
 	errCandidateFenced  = errors.New("quic: candidate group no longer admits connections")
 	errCandidateRevoked = errors.New("quic: candidate authority revoked")
+	errSubmissionDenied = errors.New("quic: candidate authority denied socket submission")
 )
 
 // Connection authority states. Only candidateGroup transitions them.
@@ -61,6 +64,21 @@ func (a *connAuthority) permitsClose() bool {
 		return a.group.retains(a)
 	}
 	return false
+}
+
+// submissionPermit authorizes each socket submission of one write with the
+// permission of the write's kind: ordinary work, or close-only for a
+// CONNECTION_CLOSE. The zero value is the ungrouped profile and admits all.
+type submissionPermit struct {
+	authority *connAuthority
+	close     bool
+}
+
+func (p submissionPermit) allows() bool {
+	if p.close {
+		return p.authority.permitsClose()
+	}
+	return p.authority.permitsWork()
 }
 
 // finish publishes the connection's terminal outcome once and removes it from
@@ -171,9 +189,13 @@ type candidateGroup struct {
 // was submitted. Otherwise the joined error has one entry per unsubmitted
 // close: an I/O failure wraps the socket error, cancellation wraps the context
 // cause, and an entry whose NoUsablePathV1 method reports true was denied by
-// network admission. Authority is checked when each queued work item or
-// response starts; revocation stops those that have not started, while one
-// already running, including its segment fallback, may complete.
+// network admission. Authority is checked immediately before each socket
+// submission: every queued packet, each segment of a segmentation fallback,
+// a first-send retry, and each queued response after its preparation. A
+// loser's close submissions use its close-only authority. Authority is
+// checked, not held: a transition does not wait for a submission already
+// issued, so one that passed its check just before the transition may still
+// complete.
 //
 // closeGroup applies the same close-and-revoke transition to every candidate
 // when no winner has been selected, and is a no-op afterwards. A transition
@@ -357,6 +379,17 @@ func (e *packetEmission) bindAuthority(a *connAuthority) {
 }
 
 func (g *candidateGroup) isFenced() bool { return g != nil && g.fenced.Load() }
+
+// writeUnfencedResponse submits a stateless response for an unknown connection
+// ID unless g was fenced while the response was prepared. Responses are also
+// checked when dequeued; this check immediately precedes the write.
+func writeUnfencedResponse(g *candidateGroup, c rawConn, b []byte, addr net.Addr, info packetInfo) error {
+	if g.isFenced() {
+		return nil
+	}
+	_, err := c.WritePacket(b, addr, info.OOB(), 0, protocol.ECNUnsupported)
+	return err
+}
 
 // handlerAuthority returns the token carried by a connection-ID entry.
 func handlerAuthority(h packetHandler) *connAuthority {

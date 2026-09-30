@@ -82,8 +82,16 @@ func newSendConn(c rawConn, remote net.Addr, info packetInfo, logger utils.Logge
 }
 
 func (c *sconn) Write(p []byte, gsoSize uint16, ecn protocol.ECN) error {
+	return c.writeAuthorized(p, gsoSize, ecn, submissionPermit{})
+}
+
+// writeAuthorized is Write with each socket submission authorized by permit
+// immediately before it is issued: the first attempt, every segment of a GSO
+// fallback and the first-send permission retry. A denied submission ends the
+// write with errSubmissionDenied.
+func (c *sconn) writeAuthorized(p []byte, gsoSize uint16, ecn protocol.ECN, permit submissionPermit) error {
 	ai := c.remoteAddrInfo.Load()
-	err := c.writePacket(p, ai.addr, ai.oob, gsoSize, ecn)
+	err := c.writePacket(p, ai.addr, ai.oob, gsoSize, ecn, permit)
 	if err != nil && isGSOError(err) {
 		// disable GSO for future calls
 		c.gotGSOError.Store(true)
@@ -93,7 +101,7 @@ func (c *sconn) Write(p []byte, gsoSize uint16, ecn protocol.ECN) error {
 		// send out the packets one by one
 		for len(p) > 0 {
 			l := min(len(p), int(gsoSize))
-			if err := c.writePacket(p[:l], ai.addr, ai.oob, 0, ecn); err != nil {
+			if err := c.writePacket(p[:l], ai.addr, ai.oob, 0, ecn, permit); err != nil {
 				return err
 			}
 			p = p[l:]
@@ -103,9 +111,16 @@ func (c *sconn) Write(p []byte, gsoSize uint16, ecn protocol.ECN) error {
 	return err
 }
 
-func (c *sconn) writePacket(p []byte, addr net.Addr, oob []byte, gsoSize uint16, ecn protocol.ECN) error {
+func (c *sconn) writePacket(p []byte, addr net.Addr, oob []byte, gsoSize uint16, ecn protocol.ECN, permit submissionPermit) error {
+	if !permit.allows() {
+		return errSubmissionDenied
+	}
 	_, err := c.WritePacket(p, addr, oob, gsoSize, ecn)
 	if err != nil && !c.wroteFirstPacket && isPermissionError(err) {
+		if !permit.allows() {
+			c.wroteFirstPacket = true
+			return errSubmissionDenied
+		}
 		_, err = c.WritePacket(p, addr, oob, gsoSize, ecn)
 	}
 	c.wroteFirstPacket = true
