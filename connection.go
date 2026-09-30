@@ -2305,7 +2305,7 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 	// A group transition awaits this outcome: nil means no close was owed or
 	// the close reached the socket; it never waits for delivery.
 	var closeOutcome error
-	defer func() { c.authority.reportClose(closeOutcome) }()
+	defer func() { c.authority.finish(closeOutcome) }()
 
 	e := closeErr.err
 	if e == nil {

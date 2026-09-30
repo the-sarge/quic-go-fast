@@ -479,9 +479,13 @@ func TestCandidateCancelRacesSelection(t *testing.T) {
 		errIO := errors.New("injected")
 		for range 32 {
 			for _, published := range []error{nil, candidateCloseFailure(errIO)} {
-				a := &connAuthority{closed: make(chan error, 1), done: make(chan struct{})}
-				a.closed <- published
-				require.Equal(t, published, a.awaitClose(cancelled))
+				for _, ctx := range []context.Context{cancelled, t.Context()} {
+					// The run path publishes before it terminates, so both are ready.
+					a := &connAuthority{done: make(chan struct{})}
+					a.state.Store(authorityClosing)
+					a.finish(published)
+					require.Equal(t, published, a.awaitClose(ctx))
+				}
 			}
 		}
 	})

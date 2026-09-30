@@ -29,13 +29,14 @@ type connAuthority struct {
 	group *candidateGroup
 	conn  *Conn
 	state atomic.Uint32
-	// closed receives the outcome of a close requested by a group transition.
-	closed chan error
-	// done closes after the connection's terminal close handling or cleanup.
-	// It is fork-owned: an application-cancelled context does not end a
-	// connection, so it cannot prove that no close is owed.
-	done       chan struct{}
-	terminated atomic.Bool
+	// done closes once, after outcome is written, when the connection's
+	// terminal close handling or cleanup finishes. Publication and
+	// termination are one event, so no reader can observe one without the
+	// other. It is fork-owned: an application-cancelled context does not end
+	// a connection, so it cannot prove that no close is owed.
+	done     chan struct{}
+	finished atomic.Bool
+	outcome  error
 }
 
 // permitsWork admits ordinary input and output. After a transition only the
@@ -59,45 +60,41 @@ func (a *connAuthority) permitsClose() bool {
 	return false
 }
 
-// reportClose publishes the terminal close outcome awaited by a group
-// transition. nil means no close was owed or it was submitted to the socket.
-func (a *connAuthority) reportClose(err error) {
-	if a == nil || a.state.Load() != authorityClosing {
+// finish publishes the connection's terminal outcome once and removes it from
+// the group. Only a close owed to a group transition records an outcome; nil
+// means none was owed or it reached the socket. Retained closed-CID entries
+// keep the token and expire under the ordinary closing timers.
+func (a *connAuthority) finish(outcome error) {
+	if a == nil || !a.finished.CompareAndSwap(false, true) {
 		return
 	}
-	select {
-	case a.closed <- err:
-	default:
+	if a.state.Load() == authorityClosing {
+		a.outcome = outcome
 	}
-}
-
-// release removes a terminated connection from the group. Retained closed-CID
-// entries keep the token and expire under the ordinary closing timers.
-// It runs after any close outcome was published.
-func (a *connAuthority) release() {
-	if a == nil || !a.terminated.CompareAndSwap(false, true) {
-		return
+	if g := a.group; g != nil {
+		g.mu.Lock()
+		delete(g.candidates, a)
+		g.mu.Unlock()
 	}
-	a.group.mu.Lock()
-	delete(a.group.candidates, a)
-	a.group.mu.Unlock()
 	close(a.done)
 }
 
-// awaitClose waits for socket submission, never for delivery. A published
-// outcome is authoritative over termination and cancellation.
+// release finishes a connection whose close handling published nothing,
+// such as an unstarted constructor.
+func (a *connAuthority) release() { a.finish(nil) }
+
+// awaitClose waits for socket submission, never for delivery. The terminal
+// publication is checked before cancellation, so a published outcome is
+// never replaced by the caller's cause.
 func (a *connAuthority) awaitClose(ctx context.Context) error {
 	select {
-	case err := <-a.closed:
-		return err
 	case <-a.done:
+		return a.outcome
 	case <-ctx.Done():
 	}
 	select {
-	case err := <-a.closed:
-		return err
 	case <-a.done:
-		return nil // terminated before the transition could owe a close
+		return a.outcome
 	default:
 		return &candidateCloseError{err: context.Cause(ctx)}
 	}
@@ -213,7 +210,7 @@ func (g *candidateGroup) mint(conn *Conn) (*connAuthority, error) {
 	if g.fenced.Load() {
 		return nil, errCandidateFenced
 	}
-	a := &connAuthority{group: g, conn: conn, closed: make(chan error, 1), done: make(chan struct{})}
+	a := &connAuthority{group: g, conn: conn, done: make(chan struct{})}
 	g.candidates[a] = struct{}{}
 	return a, nil
 }
@@ -245,7 +242,7 @@ func (g *candidateGroup) selectWinner(ctx context.Context, winner *Conn) error {
 		g.mu.Unlock()
 		return errors.New("quic: winner is not a live candidate of this group")
 	}
-	if wa.terminated.Load() {
+	if wa.finished.Load() {
 		g.mu.Unlock()
 		return errors.New("quic: winner has terminated")
 	}
