@@ -701,14 +701,7 @@ func (t *Transport) handlePacket(p receivedPacket) {
 	}
 
 	// If there's a connection associated with the connection ID, pass the packet there.
-	if handler, ok := (*packetHandlerMap)(t).Get(connID); ok {
-		// The entry's token, not decryption, decides whether a fenced or
-		// revoked candidate may receive input.
-		if t.candidates != nil && !handlerAuthority(handler).permitsWork() {
-			p.buffer.Release()
-			return
-		}
-		handler.handlePacket(p)
+	if (*packetHandlerMap)(t).deliverPermitted(connID, p) {
 		return
 	}
 	// RFC 9000 section 10.3.1 requires that the stateless reset detection logic is run for both
@@ -951,6 +944,25 @@ func (h *packetHandlerMap) Remove(id protocol.ConnectionID) {
 	delete(h.handlers, id)
 	h.mutex.Unlock()
 	h.logger.Debugf("Removing connection ID %s.", id)
+}
+
+// deliverPermitted passes p to the entry registered for connID, if there is
+// one, and reports whether an entry was found. On a group transport the
+// entry's token, not decryption, decides whether a fenced or revoked
+// candidate may receive input; a denied packet is released here. Transport
+// dispatch and the server's re-lookups of queued Initial and 0-RTT packets
+// share this one gate.
+func (h *packetHandlerMap) deliverPermitted(connID protocol.ConnectionID, p receivedPacket) bool {
+	handler, ok := h.Get(connID)
+	if !ok {
+		return false
+	}
+	if h.candidates != nil && !handlerAuthority(handler).permitsWork() {
+		p.buffer.Release()
+		return true
+	}
+	handler.handlePacket(p)
+	return true
 }
 
 // ReplaceWithClosed is called when a connection is closed.

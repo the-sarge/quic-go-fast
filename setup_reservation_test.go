@@ -490,22 +490,26 @@ func TestSetupAdmissionFailureRelease(t *testing.T) {
 	})
 
 	t.Run("registration", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-		defer cancel()
 		constructed := countServerConstructors(t)
 		budget := newSetupBudget(1, 1, time.Minute)
 		tr := newCandidateTransport(t, newUDPConnLocalhost(t))
 		require.NoError(t, configureSetupAdmission(t, tr, budget.acquire))
 		group := newCandidateGroup(t, tr)
 		require.NoError(t, group.join(tr))
+		// The group closes after admission and before mint, so the Initial
+		// passes the server's fence check, reaches construction, and is then
+		// rejected before registration.
+		fenced := make(chan error, 1)
+		tr.ConnContext = func(ctx context.Context, _ *ClientInfo) (context.Context, error) {
+			fenced <- group.closeGroup(ctx)
+			return ctx, nil
+		}
 		ln, err := tr.Listen(testdata.GetTLSConfig(), nil)
 		require.NoError(t, err)
-		// An Initial queued before the group closed reaches construction, and
-		// the fenced group then rejects it before registration.
-		require.NoError(t, group.closeGroup(ctx))
 		raw := newUDPConnLocalhost(t)
 		ln.baseServer.handlePacket(getValidInitialPacket(t, raw.LocalAddr(), randConnID(5), randConnID(8)))
 		budget.requireSettlement(t, false)
+		require.NoError(t, <-fenced)
 		require.EqualValues(t, 1, constructed.Load())
 		state := budget.state(t)
 		require.Equal(t, []bool{false}, state.settlements)
