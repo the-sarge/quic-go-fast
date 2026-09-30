@@ -4034,3 +4034,38 @@ Provenance belongs to byte positions, fixed when a byte first leaves the gap lis
 ### Next
 
 Q5's closure completes the G30-Q track (Q1–Q5) and leaves W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)) with no open blockers. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## Flaky G30 unit tests made deterministic - 2026-09-30 12:22 EDT
+
+**Main:** `9537eaa35d15`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #688](https://github.com/the-sarge/quic-go-fast/pull/688) as `9537eaa35d1551c2813fc6d9147cdf0981768106`, closing [#684](https://github.com/the-sarge/quic-go-fast/issues/684). Three G30 Q2/Q3 unit tests that flaked on hosted runners are now deterministic. The PR changed tests only, in `setup_reservation_test.go` and `candidate_authority_test.go`; product code is unchanged.
+
+- `TestSetupAdmissionTwoListenerTotal`: the refused dial's trailing Initial could reach listener B after the transfer and take the freed slot. The `setupBudget` test double gained an opt-in `stickyRefusal` field, which keeps refusing an address once refused. The test also asserts exactly which two client addresses were admitted.
+- `TestSetupAdmissionAcceptedStage`: `Accept` returns connections in handshake-completion order, not dial order. `clientOf` now pairs each accepted connection with its client by address, and the match must be unique.
+- `TestCandidateGroupContract`: closed connection-ID entries are retained for only `3*PTO`, about 10 ms on loopback. A test-scoped `newConnection` override gives server connections a `connRunner` wrapper that retains closed entries for one minute. The test now requires every retained entry to be a `*closedLocalConn` carrying the earlier connection's token.
+
+### Validation
+
+- **Delay injection:** each of the triage brief's injections reproduced the hosted signature against the old tests, 3 of 3 runs each. Each passed against the fixed tests. The uncommitted patch is recorded in the PR body.
+- **Stress:** `go test -race -shuffle=on -count=200` passed 200 of 200 runs for each test at `d167fadb`.
+- **Non-vacuity:** one temporary product mutation per test failed it, then was reverted:
+  - bypassing the `server.go` admission refusal;
+  - a transfer that leaves the setup deadline armed;
+  - `withAuthority` dropping the token.
+- **Exact-head certification** at `d167fadb` (base `3a19cd0a`, clean tree): `go test -race .`, `go vet .`, `go mod tidy -diff` and `git diff --check`.
+- **Hosted checks:** all 33 PR checks passed on that head, including unit jobs on ubuntu, macOS and Windows for Go 1.26.8 and 1.27.1. No rerun was needed.
+- **Review:** RAS run `20260930T161028-48703c1c8bf960df70c07f86` found no Fix First items. Its only cluster, a PR-body stress placeholder already updated at that head, was rejected, so no replacement review was needed.
+
+### Decisions
+
+Product setup-admission behavior stays unchanged. A refused client's trailing Initial can still admit an orphan server connection that holds a slot. That is split out as [#689](https://github.com/the-sarge/quic-go-fast/issues/689) (`needs-triage`) per the #684 brief.
+
+### Next
+
+[#689](https://github.com/the-sarge/quic-go-fast/issues/689) awaits triage. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
