@@ -583,6 +583,7 @@ func (c *Conn) preSetup() {
 // run the connection main loop
 func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
+	defer func() { c.receivePhase.stop(err) }()
 	defer c.authority.release()
 	// Setup capacity returns only after the connection's workers have ended.
 	defer c.setup.teardown()

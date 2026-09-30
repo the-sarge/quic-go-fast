@@ -46,27 +46,51 @@ func phaseConfig(rec qlogwriter.Recorder) *Config {
 	return conf
 }
 
-// dialPhasePair connects a client and server whose transports optionally
-// start new connections in the closed receive phase.
-func dialPhasePair(t *testing.T, ctx context.Context, clientClosed, serverClosed bool, clientRec, serverRec qlogwriter.Recorder) (client, server *Conn) {
+type phasePair struct {
+	clientClosed, serverClosed bool
+	clientRec, serverRec       qlogwriter.Recorder
+	serverConnContext          func(context.Context, *ClientInfo) (context.Context, error)
+}
+
+// dial connects a client and server whose transports optionally start new
+// connections in the closed receive phase.
+func (o phasePair) dial(t *testing.T, ctx context.Context) (client, server *Conn) {
 	t.Helper()
-	serverTransport := &Transport{Conn: newUDPConnLocalhost(t)}
+	serverTransport := &Transport{Conn: newUDPConnLocalhost(t), ConnContext: o.serverConnContext}
 	t.Cleanup(func() { serverTransport.Close() })
 	clientTransport := &Transport{Conn: newUDPConnLocalhost(t)}
 	t.Cleanup(func() { clientTransport.Close() })
-	if serverClosed {
+	if o.serverClosed {
 		require.NoError(t, configureReceivePhases(t, serverTransport, true))
 	}
-	if clientClosed {
+	if o.clientClosed {
 		require.NoError(t, configureReceivePhases(t, clientTransport, true))
 	}
-	ln, err := serverTransport.Listen(testdata.GetTLSConfig(), phaseConfig(serverRec))
+	ln, err := serverTransport.Listen(testdata.GetTLSConfig(), phaseConfig(o.serverRec))
 	require.NoError(t, err)
-	client, err = clientTransport.Dial(ctx, ln.Addr(), candidateClientTLS(), phaseConfig(clientRec))
+	client, err = clientTransport.Dial(ctx, ln.Addr(), candidateClientTLS(), phaseConfig(o.clientRec))
 	require.NoError(t, err)
 	server, err = ln.Accept(ctx)
 	require.NoError(t, err)
 	return client, server
+}
+
+// goWorker runs fn on a goroutine that the test joins at cleanup, after
+// canceling its context, so no worker outlives its fixtures.
+func goWorker[T any](t *testing.T, ctx context.Context, fn func(context.Context) T) <-chan T {
+	t.Helper()
+	ctx, cancel := context.WithCancel(ctx)
+	result := make(chan T, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		result <- fn(ctx)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	return result
 }
 
 // Configuration precedes initialization and happens once. Opening is a
@@ -85,20 +109,41 @@ func TestReceivePhaseContract(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	client, server := dialPhasePair(t, ctx, true, true, nil, nil)
+	// Canceling the application's connection context does not end the
+	// connection, so it does not prevent opening.
+	parentCancels := make(chan context.CancelFunc, 1)
+	client, server := phasePair{
+		clientClosed: true,
+		serverClosed: true,
+		serverConnContext: func(ctx context.Context, _ *ClientInfo) (context.Context, error) {
+			ctx, cancel := context.WithCancel(ctx)
+			parentCancels <- cancel
+			return ctx, nil
+		},
+	}.dial(t, ctx)
+	(<-parentCancels)()
+	<-server.Context().Done()
 	phase, err := openReceivePhase(t, ctx, server)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, phase)
+	payload := []byte("after the application context ended")
+	require.NoError(t, client.SendDatagram(payload))
+	got, err := server.ReceiveDatagram(ctx)
+	require.NoError(t, err)
+	require.Equal(t, payload, got)
 	_, err = openReceivePhase(t, ctx, server)
 	require.ErrorIs(t, err, errReceivePhaseOpen, "the phase opens once")
 
-	require.NoError(t, client.CloseWithError(0, ""))
+	// A closed connection reports its close error.
+	require.NoError(t, client.CloseWithError(7, "done"))
 	_, err = openReceivePhase(t, ctx, client)
-	require.Error(t, err, "a closed connection cannot open its phase")
-	require.NotErrorIs(t, err, errReceivePhaseOpen)
+	var appErr *ApplicationError
+	require.ErrorAs(t, err, &appErr, "a closed connection cannot open its phase")
+	require.EqualValues(t, 7, appErr.ErrorCode)
+	require.False(t, appErr.Remote)
 
 	// Unconfigured connections have no phase to open.
-	plainClient, plainServer := dialPhasePair(t, ctx, false, false, nil, nil)
+	plainClient, plainServer := phasePair{}.dial(t, ctx)
 	_, err = openReceivePhase(t, ctx, plainServer)
 	require.ErrorIs(t, err, errNoReceivePhase)
 	_, err = openReceivePhase(t, ctx, plainClient)
@@ -145,13 +190,12 @@ type receivedDatagram struct {
 	err  error
 }
 
-func receiveDatagramAsync(ctx context.Context, conn *Conn) <-chan receivedDatagram {
-	ch := make(chan receivedDatagram, 1)
-	go func() {
+func receiveDatagramAsync(t *testing.T, ctx context.Context, conn *Conn) <-chan receivedDatagram {
+	t.Helper()
+	return goWorker(t, ctx, func(ctx context.Context) receivedDatagram {
 		data, err := conn.ReceiveDatagram(ctx)
-		ch <- receivedDatagram{data: data, err: err}
-	}()
-	return ch
+		return receivedDatagram{data: data, err: err}
+	})
 }
 
 // Both perspectives start closed. A DATAGRAM processed before opening is
@@ -161,7 +205,7 @@ func TestReceivePhaseDatagramBoundary(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	clientRec, serverRec := &events.Recorder{}, &events.Recorder{}
-	client, server := dialPhasePair(t, ctx, true, true, clientRec, serverRec)
+	client, server := phasePair{clientClosed: true, serverClosed: true, clientRec: clientRec, serverRec: serverRec}.dial(t, ctx)
 
 	for _, tc := range []struct {
 		name                   string
@@ -173,7 +217,7 @@ func TestReceivePhaseDatagramBoundary(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			early, late := []byte("early payload before open"), []byte("late payload")
-			waiting := receiveDatagramAsync(ctx, tc.receiver)
+			waiting := receiveDatagramAsync(t, ctx, tc.receiver)
 			require.NoError(t, tc.sender.SendDatagram(early))
 			pn := processedDatagram(t, tc.receiverRec, len(early))
 			requireAcked(t, tc.senderRec, pn)
@@ -190,26 +234,48 @@ func TestReceivePhaseDatagramBoundary(t *testing.T) {
 }
 
 // holdingRecorder holds the connection loop once it has processed the packet
-// carrying a DATAGRAM of the given length, until released.
+// carrying a DATAGRAM of one of the given lengths, until that hold is
+// released. The caller defers unblockAll so the loop is released before
+// fixture cleanup.
 type holdingRecorder struct {
 	*events.Recorder
-	length  int64
-	once    sync.Once
-	reached chan struct{}
-	release chan struct{}
-	unblock func()
+	holds map[int64]*loopHold
 }
 
-// The caller defers unblock so the loop is released before transport cleanup.
-func newHoldingRecorder(length int) *holdingRecorder {
-	r := &holdingRecorder{
-		Recorder: &events.Recorder{},
-		length:   int64(length),
-		reached:  make(chan struct{}),
-		release:  make(chan struct{}),
+type loopHold struct {
+	once    sync.Once
+	reached chan struct{}
+	release func()
+	stop    chan struct{}
+}
+
+func newHoldingRecorder(lengths ...int) *holdingRecorder {
+	r := &holdingRecorder{Recorder: &events.Recorder{}, holds: make(map[int64]*loopHold)}
+	for _, l := range lengths {
+		h := &loopHold{reached: make(chan struct{}), stop: make(chan struct{})}
+		h.release = sync.OnceFunc(func() { close(h.stop) })
+		r.holds[int64(l)] = h
 	}
-	r.unblock = sync.OnceFunc(func() { close(r.release) })
 	return r
+}
+
+func (r *holdingRecorder) unblockAll() {
+	for _, h := range r.holds {
+		h.release()
+	}
+}
+
+// awaitHold waits until the loop is held by the packet carrying a DATAGRAM of
+// the given length.
+func (r *holdingRecorder) awaitHold(t *testing.T, ctx context.Context, length int) *loopHold {
+	t.Helper()
+	h := r.holds[int64(length)]
+	select {
+	case <-h.reached:
+	case <-ctx.Done():
+		t.Fatal("the DATAGRAM was not processed")
+	}
+	return h
 }
 
 func (r *holdingRecorder) RecordEvent(ev qlogwriter.Event) {
@@ -219,62 +285,97 @@ func (r *holdingRecorder) RecordEvent(ev qlogwriter.Event) {
 		return
 	}
 	for _, f := range pr.Frames {
-		if d, ok := f.Frame.(*qlog.DatagramFrame); ok && d.Length == r.length {
-			r.once.Do(func() { close(r.reached) })
-			<-r.release
-			return
+		if d, ok := f.Frame.(*qlog.DatagramFrame); ok {
+			if h, ok := r.holds[d.Length]; ok {
+				h.once.Do(func() { close(h.reached) })
+				<-h.stop
+				return
+			}
 		}
 	}
 }
 
-// An open request cannot split a packet's admission: while the loop is
-// inside the packet carrying a DATAGRAM, a canceled request is withdrawn and
-// a pending one waits, so that payload stays in the closed phase.
+// requirePhaseState observes the phase owner's state under its mutex.
+func requirePhaseState(t *testing.T, conn *Conn, want receivePhaseState, msg string) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		p := conn.receivePhase
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		return p.state == want
+	}, 5*time.Second, time.Millisecond, msg)
+}
+
+type openResult struct {
+	phase uint64
+	err   error
+}
+
+func openAsync(t *testing.T, ctx context.Context, conn *Conn) <-chan openResult {
+	t.Helper()
+	api, ok := any(conn).(receivePhaseOpenV1)
+	require.True(t, ok)
+	return goWorker(t, ctx, func(ctx context.Context) openResult {
+		phase, err := api.OpenReceivePhaseV1(ctx)
+		return openResult{phase, err}
+	})
+}
+
+// Only the connection loop commits the transition, between packets. While
+// the loop is held inside a packet, a request is published but not applied;
+// a request canceled before the commit leaves the phase closed however the
+// cancellation is observed, and a live one commits once the loop resumes.
 func TestReceivePhaseOpenRace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	held, late := []byte("payload whose packet holds the loop"), []byte("late payload")
-	rec := newHoldingRecorder(len(held))
-	defer rec.unblock()
-	client, server := dialPhasePair(t, ctx, false, true, nil, rec)
-	waiting := receiveDatagramAsync(ctx, server)
-	require.NoError(t, client.SendDatagram(held))
-	select {
-	case <-rec.reached:
-	case <-ctx.Done():
-		t.Fatal("the DATAGRAM was not processed")
-	}
+	first, second := []byte("first payload whose packet holds the loop"), []byte("second held payload")
+	late := []byte("late payload")
+	rec := newHoldingRecorder(len(first), len(second))
+	defer rec.unblockAll()
+	client, server := phasePair{serverClosed: true, serverRec: rec}.dial(t, ctx)
+	waiting := receiveDatagramAsync(t, ctx, server)
 
-	canceled, cancelOpen := context.WithCancel(ctx)
-	cancelOpen()
+	require.NoError(t, client.SendDatagram(first))
+	hold := rec.awaitHold(t, ctx, len(first))
+	canceled, cancelNow := context.WithCancel(ctx)
+	cancelNow()
 	_, err := openReceivePhase(t, canceled, server)
-	require.ErrorIs(t, err, context.Canceled, "a request the loop has not applied is withdrawn")
+	require.ErrorIs(t, err, context.Canceled, "a canceled request is never published")
+	requirePhaseState(t, server, receivePhaseClosed, "a canceled request is never published")
 
-	type openResult struct {
-		phase uint64
-		err   error
-	}
-	api, ok := any(server).(receivePhaseOpenV1)
-	require.True(t, ok)
-	pending := make(chan openResult, 1)
-	go func() {
-		phase, err := api.OpenReceivePhaseV1(ctx)
-		pending <- openResult{phase, err}
-	}()
+	cancelable, cancelPending := context.WithCancel(ctx)
+	defer cancelPending()
+	pending := openAsync(t, cancelable, server)
+	requirePhaseState(t, server, receivePhaseOpening, "the request is published while the loop is held")
+	_, err = openReceivePhase(t, ctx, server)
+	require.ErrorIs(t, err, errReceivePhaseOpening, "a concurrent request is rejected")
+	// Cancel before the commit and release the loop without waiting for the
+	// caller to withdraw: the loop owner rejects it if it runs first.
+	cancelPending()
+	hold.release()
+	res := <-pending
+	require.ErrorIs(t, res.err, context.Canceled)
+	requirePhaseState(t, server, receivePhaseClosed, "a request canceled before the commit leaves the phase closed")
+
+	require.NoError(t, client.SendDatagram(second))
+	hold = rec.awaitHold(t, ctx, len(second))
+	pending = openAsync(t, ctx, server)
+	requirePhaseState(t, server, receivePhaseOpening, "the retry is published while the loop is held")
 	select {
 	case <-pending:
-		t.Fatal("the transition cannot run while the loop is inside a packet")
-	case <-time.After(50 * time.Millisecond):
+		t.Fatal("only the loop commits the transition")
+	default:
 	}
-	rec.unblock()
-	res := <-pending
+	hold.release()
+	res = <-pending
 	require.NoError(t, res.err)
 	require.EqualValues(t, 1, res.phase)
+	requirePhaseState(t, server, receivePhaseOpened, "the loop committed the retry")
 
 	require.NoError(t, client.SendDatagram(late))
 	got := <-waiting
 	require.NoError(t, got.err)
-	require.Equal(t, late, got.data, "the held payload was admitted before the transition")
+	require.Equal(t, late, got.data, "payloads admitted while the phase was closed are never delivered")
 }
 
 // Ordinary transports, and transports configured with false, deliver
