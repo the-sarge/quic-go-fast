@@ -3916,3 +3916,33 @@ Authority is enforced per queued work item, the granularity stated in the contra
 ### Next
 
 Q2's closure leaves W2 blocked by Q3–Q5; Q3 and Q4 remain independent and Q5 follows Q4. Deferred findings are revalidated against the merge before any follow-up is filed, and issue/OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## Setup reservation merged - 2026-09-30 03:17 EDT
+
+**Main:** `ce63fe83435a`
+**Actor:** Claude
+
+### Summary
+
+Merged [G30-Q3 PR #681](https://github.com/the-sarge/quic-go-fast/pull/681) as `ce63fe83435a7430a40262453525f13c40fa93f6`, closing [#662](https://github.com/the-sarge/quic-go-fast/issues/662). `ConfigureSetupAdmissionV1` is a new additive capability on `*Transport`, typed only with standard types and installed before initialization. It takes a caller `acquire` callback, which the server calls for each Initial that would create a connection. The call comes after Retry and token handling and before any application callback, allocation or worker; a refusal sends CONNECTION_REFUSED and constructs nothing. One private `setupReservation` owns each admitted connection's capacity from before construction until a single settlement. It moves through handshake completion (a refusal here tears the connection down) and Accept without releasing and reacquiring. It carries one absolute deadline, which traffic and stage changes never extend. A reached deadline closes an untransferred connection with CONNECTION_REFUSED and is authoritative even before its timer runs. `Conn.TransferSetupReservationV1` hands an accepted connection to its established lifetime. Otherwise `release(false)` follows teardown once `run` has ended and any closing state on the transport is retired, or follows an aborted construction or registration. Unconfigured transports keep ordinary behavior.
+
+### Validation
+
+Exact-head certification at `c8ed0ea6b514ac1a9483a3e8211bd3ed254847d8` (base `1ababc88`) passed:
+- focused `TestSetupAdmission` race tests and `go test -race .`
+- all non-integration unit packages and the self integration suite
+- `go build ./...`, `go vet ./...`, `go mod tidy -diff`, lint and `git diff --check`
+
+All 33 hosted PR checks passed on that head. Nine test functions discharge the finite Q3 matrix within the 10-case budget, with allocation observed at the real constructor. Four optional guard-bypass mutations each failed their assertions and were restored: deadline timer, `abortUnstarted` settlement, closing hold and reached-deadline check.
+
+The bounded RAS cycle ran initial review `20260930T063847-ad174257a1d7570765abd090`. It produced four fix-now findings, all fixed: transfer after a reached deadline whose timer had not run, release before closing-state retirement, a nil-release documentation overpromise, and an incomplete-stage deadline assertion that could not tell the deadline from the handshake timeout. Two findings were rejected. Verification at `c8ed0ea6` resolved all accepted findings. Replacement review `20260930T070612-3c09921b6270b94676a8a584` found no new root.
+
+### Decisions
+
+Q3's named "closing-state lifetime" is read as part of teardown. The transport's closed-connection state therefore takes a hold on the reservation, following the Q2 authority-token pattern, instead of settling capacity at run exit. Validation-aware admission and longer test deadline margins were rejected rather than deferred, so no follow-up is filed. See the [dispositions](https://github.com/the-sarge/quic-go-fast/pull/681#issuecomment-5905965472).
+
+### Next
+
+Q3's closure leaves W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)) blocked by Q4 and Q5 (W1 is closed). [Q4 #663](https://github.com/the-sarge/quic-go-fast/issues/663) remains ready, and [Q5 #664](https://github.com/the-sarge/quic-go-fast/issues/664) follows Q4. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
