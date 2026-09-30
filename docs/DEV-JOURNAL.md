@@ -3996,3 +3996,41 @@ Phase membership is fixed at loop admission, and each open request carries its o
 ### Next
 
 Q4's closure leaves [Q5 #664](https://github.com/the-sarge/quic-go-fast/issues/664) with no open blockers, and W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)) blocked by Q5 alone. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## Stream receive phase merged - 2026-09-30 11:37 EDT
+
+**Main:** `e69fbd69e3c5`
+**Actor:** Claude
+
+### Summary
+
+Merged [G30-Q5 PR #686](https://github.com/the-sarge/quic-go-fast/pull/686) as `e69fbd69e3c5f1f8ee8187e1c705ee3253f97a22`, closing [#664](https://github.com/the-sarge/quic-go-fast/issues/664).
+
+On connections whose transport has receive phases configured, each received stream byte now keeps the phase in which the connection loop first admitted it. Provenance is positional and owned by the existing receive sorter. When the first stream data arrives after the phase opened, the sorter keeps a copy of its gaps as they stood: exactly the ranges not received while closed. Replacing queued frames, overlap, retransmission, reordering and the stream's own read-ahead cannot re-tag a byte. The copy is bounded by the existing sorter gap limit, and terminal cleanup releases it.
+
+`ReadReceivePhaseV1(p) (int, uint64, error)` on `*Stream` and `*ReceiveStream` reads like `Read`, but one call returns bytes of a single phase and reports it. It stops at a boundary without skipping bytes. On connections without a phase, it fails with `errNoReceivePhase` without consuming anything. `Read`, `Peek`, flow control, final offset and buffer release are unchanged. Q4's `receivePhase` remains the only transition owner; streams receive it at creation and read it on the connection loop when frames are admitted.
+
+### Validation
+
+Exact-head certification at `5270749929f0ee98d66b5cdbd543b8edae5f0cd6` (base `7d7dca6d`, clean tree) passed:
+- focused `TestReceivePhase` race tests and `go test -race .`
+- all non-integration unit packages
+- `go build ./...`, `go vet ./...`, `go mod tidy -diff`, lint and `git diff --check`
+
+The first self integration run failed once in `TestHTTPServerIdleTimeoutAfterRetry`, the #151 idle-timeout flake. A bounded sequential comparison failed 1/200 at both head and base with the same signature, and the full self suite then passed at that head ([receipt](https://github.com/the-sarge/quic-go-fast/issues/151#issuecomment-5914483280)).
+
+Eight test functions (ten cases) discharge the finite Q5 matrix within its ten-case budget. The optional provenance-guard bypass, skipping the sorter's `openPhase` at admission, failed all six dependent tests and was restored.
+
+All 33 hosted PR checks passed on that head after one operator-authorized rerun. The first attempt of Unit tests (ubuntu, Go 1.26.8) failed in Q3's `TestSetupAdmissionTwoListenerTotal` with the #684 signature. The `push` run of the same job on the same head had passed ([receipt](https://github.com/the-sarge/quic-go-fast/issues/684#issuecomment-5914482879)).
+
+The bounded RAS cycle ran initial review `20260930T150833-e7f81f535a365fe6ff429280` at `28484d38`. It found one root, C-001, with two duplicates: terminal read-storage cleanup kept the provenance copy. It was fixed at the sorter's `discard`, with discriminating FIN and reliable-reset assertions. Verification at `52707499` resolved all three clusters. Replacement review `20260930T152225-a84743c346ce0545f5cc3e96` had no findings.
+
+### Decisions
+
+Provenance belongs to byte positions, fixed when a byte first leaves the gap list. Terminating on earlier-phase application bytes is the consumer's decision, based on the reported phase, because only the W3 handoff knows its setup-record bounds. See the [dispositions](https://github.com/the-sarge/quic-go-fast/pull/686#issuecomment-5914290036).
+
+### Next
+
+Q5's closure completes the G30-Q track (Q1–Q5) and leaves W2 ([GridSwarm/wiremux#1746](https://github.com/GridSwarm/wiremux/issues/1746)) with no open blockers. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
