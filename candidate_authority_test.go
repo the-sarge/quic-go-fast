@@ -79,6 +79,17 @@ func requireRemoteCandidateClose(t *testing.T, conn *Conn) {
 	require.True(t, appErr.Remote)
 }
 
+// requireCandidateTerminated waits for the connection's teardown, which
+// finishes after its close outcome is published.
+func requireCandidateTerminated(t *testing.T, conn *Conn) {
+	t.Helper()
+	select {
+	case <-conn.Context().Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("candidate connection did not terminate")
+	}
+}
+
 func TestCandidateGroupMultibindingWinner(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -97,7 +108,7 @@ func TestCandidateGroupMultibindingWinner(t *testing.T) {
 	// A nil result means the loser close reached its socket before revocation.
 	require.NoError(t, group.selectWinner(ctx, winner))
 	requireRemoteCandidateClose(t, loserPeer)
-	require.Error(t, context.Cause(loser.Context()))
+	requireCandidateTerminated(t, loser)
 	exchangeAdmissionStream(t, ctx, winnerPeer, winner)
 	require.Error(t, group.selectWinner(ctx, winner), "selection is one group transition")
 	require.NoError(t, group.closeGroup(ctx), "closing a selected group leaves the winner to its owner")
@@ -407,8 +418,11 @@ func newBlockedCloseServer(t *testing.T, ctx context.Context) *blockedCloseServe
 	t.Helper()
 	f := &blockedCloseServer{blocked: make(chan struct{}), release: make(chan struct{})}
 	var loser atomic.Pointer[Conn]
+	var held atomic.Bool
 	socket := &candidateWriteConn{PacketConn: newUDPConnLocalhost(t), fail: func(addr net.Addr) error {
-		if l := loser.Load(); l != nil && l.RemoteAddr().String() == addr.String() && !l.authority.permitsWork() {
+		// Hold only the loser's close; permitted close-only retransmissions
+		// that follow it pass through.
+		if l := loser.Load(); l != nil && l.RemoteAddr().String() == addr.String() && !l.authority.permitsWork() && held.CompareAndSwap(false, true) {
 			close(f.blocked)
 			<-f.release
 		}
@@ -570,7 +584,7 @@ func TestCandidateGroupContract(t *testing.T) {
 	for _, a := range retained {
 		require.False(t, a.permitsClose(), "retained entries of an earlier close lose authority too")
 	}
-	require.Error(t, candidate.Context().Err())
+	requireCandidateTerminated(t, candidate)
 	require.Error(t, group.selectWinner(ctx, candidate))
 	late := newCandidateTransport(t, newUDPConnLocalhost(t))
 	require.Error(t, group.join(late), "a transitioned group accepts no transport")
