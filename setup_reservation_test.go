@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -35,6 +36,10 @@ type setupTransferV1 interface {
 type setupBudget struct {
 	ttl       time.Duration
 	onRelease func() // observes state at settlement, before the budget changes
+	// stickyRefusal keeps refusing an address once refused. Admission refuses
+	// each Initial independently, so a refused ClientHello's later datagrams
+	// otherwise acquire whatever capacity has been freed by then.
+	stickyRefusal bool
 
 	mu             sync.Mutex
 	limit          int // total reservations
@@ -44,6 +49,8 @@ type setupBudget struct {
 	claimed        int
 	acquired       int
 	rejected       int
+	refused        map[netip.AddrPort]bool
+	admitted       []netip.AddrPort
 	settlements    []bool // transferred flag per release
 	deadlines      []time.Time
 	violations     []string
@@ -54,15 +61,22 @@ func newSetupBudget(limit, completedLimit int, ttl time.Duration) *setupBudget {
 	return &setupBudget{limit: limit, completedLimit: completedLimit, ttl: ttl, settled: make(chan bool, 16)}
 }
 
-func (b *setupBudget) acquire(netip.AddrPort) (time.Time, func() bool, func(), func(bool), bool) {
+func (b *setupBudget) acquire(remote netip.AddrPort) (time.Time, func() bool, func(), func(bool), bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.held >= b.limit {
+	if b.held >= b.limit || (b.stickyRefusal && b.refused[remote]) {
 		b.rejected++
+		if b.stickyRefusal {
+			if b.refused == nil {
+				b.refused = make(map[netip.AddrPort]bool)
+			}
+			b.refused[remote] = true
+		}
 		return time.Time{}, nil, nil, nil, false
 	}
 	b.held++
 	b.acquired++
+	b.admitted = append(b.admitted, remote)
 	const (
 		handshaking = iota
 		completed
@@ -122,6 +136,7 @@ func (b *setupBudget) acquire(netip.AddrPort) (time.Time, func() bool, func(), f
 
 type setupBudgetState struct {
 	held, completed, claimed, acquired, rejected int
+	admitted                                     []netip.AddrPort
 	settlements                                  []bool
 	deadlines                                    []time.Time
 }
@@ -134,6 +149,7 @@ func (b *setupBudget) state(t *testing.T) setupBudgetState {
 	return setupBudgetState{
 		held: b.held, completed: b.completed, claimed: b.claimed,
 		acquired: b.acquired, rejected: b.rejected,
+		admitted:    append([]netip.AddrPort(nil), b.admitted...),
 		settlements: append([]bool(nil), b.settlements...),
 		deadlines:   append([]time.Time(nil), b.deadlines...),
 	}
@@ -210,6 +226,29 @@ func dialSetup(t *testing.T, ctx context.Context, ln *Listener) (*Conn, error) {
 	clientTransport := &Transport{Conn: newUDPConnLocalhost(t)}
 	t.Cleanup(func() { clientTransport.Close() })
 	return clientTransport.Dial(ctx, ln.Addr(), candidateClientTLS(), nil)
+}
+
+// endpoint normalizes a connection address the way admission reports it.
+func endpoint(t *testing.T, addr net.Addr) netip.AddrPort {
+	t.Helper()
+	ep, ok := packetEndpoint(addr)
+	require.True(t, ok, "not a UDP endpoint: %v", addr)
+	return ep
+}
+
+// clientOf pairs an accepted connection with the client that dialed it.
+func clientOf(t *testing.T, server *Conn, clients ...*Conn) *Conn {
+	t.Helper()
+	remote := endpoint(t, server.RemoteAddr())
+	var match *Conn
+	for _, c := range clients {
+		if endpoint(t, c.LocalAddr()) == remote {
+			require.Nil(t, match, "clients share %s", remote)
+			match = c
+		}
+	}
+	require.NotNil(t, match, "no client dialed from %s", remote)
+	return match
 }
 
 func requireRefused(t *testing.T, err error) {
@@ -304,14 +343,16 @@ func TestSetupAdmissionAcceptedStage(t *testing.T) {
 	budget := newSetupBudget(2, 2, 500*time.Millisecond)
 	ln, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
-	peer, err := dialSetup(t, ctx, ln)
+	clientA, err := dialSetup(t, ctx, ln)
 	require.NoError(t, err)
-	_, err = dialSetup(t, ctx, ln)
+	clientB, err := dialSetup(t, ctx, ln)
 	require.NoError(t, err)
 	budget.waitState(t, func(s setupBudgetState) bool { return s.completed == 2 }, "both handshakes reach the accept queue")
 
+	// Accept follows handshake completion, not dial order.
 	transferred, err := ln.Accept(ctx)
 	require.NoError(t, err)
+	peer := clientOf(t, transferred, clientA, clientB)
 	state := budget.state(t)
 	require.Equal(t, [3]int{2, 1, 1}, [3]int{state.held, state.completed, state.claimed}, "acceptance moves the stage without a capacity gap")
 	require.NoError(t, transferSetup(t, transferred))
@@ -320,6 +361,7 @@ func TestSetupAdmissionAcceptedStage(t *testing.T) {
 
 	canceled, err := ln.Accept(ctx)
 	require.NoError(t, err)
+	require.NotSame(t, peer, clientOf(t, canceled, clientA, clientB))
 	require.NoError(t, canceled.CloseWithError(0, ""))
 	budget.requireSettlement(t, false)
 	require.ErrorIs(t, transferSetup(t, canceled), errSetupReservationEnded)
@@ -505,12 +547,15 @@ func TestSetupAdmissionTwoListenerTotal(t *testing.T) {
 	defer cancel()
 	constructed := countServerConstructors(t)
 	budget := newSetupBudget(1, 1, time.Minute)
+	// The refused dial can leave Initials in flight to the second listener; the
+	// budget keeps refusing them, so only a fresh dial can use the transfer.
+	budget.stickyRefusal = true
 	lnA, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
 	lnB, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
 
-	_, err = dialSetup(t, ctx, lnA)
+	first, err := dialSetup(t, ctx, lnA)
 	require.NoError(t, err)
 	_, err = dialSetup(t, ctx, lnB)
 	requireRefused(t, err)
@@ -520,11 +565,12 @@ func TestSetupAdmissionTwoListenerTotal(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, transferSetup(t, conn))
 	budget.requireSettlement(t, true)
-	_, err = dialSetup(t, ctx, lnB)
+	fresh, err := dialSetup(t, ctx, lnB)
 	require.NoError(t, err, "transferred capacity is available to every listener")
 	require.EqualValues(t, 2, constructed.Load())
 	state := budget.state(t)
 	require.Equal(t, 2, state.acquired)
+	require.Equal(t, []netip.AddrPort{endpoint(t, first.LocalAddr()), endpoint(t, fresh.LocalAddr())}, state.admitted)
 	require.Positive(t, state.rejected)
 }
 
