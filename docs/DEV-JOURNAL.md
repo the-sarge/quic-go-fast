@@ -4101,3 +4101,35 @@ Dispatch and the server's re-lookups share one delivery gate rather than three p
 ### Next
 
 [#692](https://github.com/the-sarge/quic-go-fast/issues/692) awaits triage. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## Candidate authority checked per socket submission - 2026-09-30 14:39 EDT
+
+**Main:** `acf8ee581527`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #694](https://github.com/the-sarge/quic-go-fast/pull/694) as `acf8ee581527c223ea7b308dc59357d6ecb92062`, closing [#678](https://github.com/the-sarge/quic-go-fast/issues/678), the G30-Q2 strengthening deferred from [PR #676](https://github.com/the-sarge/quic-go-fast/pull/676). Candidate authority was checked once when a queued work item or response started, so a group transition during a GSO fallback, a first-send permission retry or response preparation did not stop the remaining socket writes. Authority is now checked immediately before each socket submission.
+
+- `sconn.writeAuthorized` checks a `submissionPermit` before its first attempt, each GSO-fallback segment and the permission retry. Queued work passes work authority, and a denied submission ends the entry as a fenced discard. `packetEmission.close` passes close-only authority, so a fenced loser still retries its close until revocation. The zero permit is the ungrouped profile; `sconn.Write` is unchanged.
+- The `sendConn` interface is unchanged. `sendQueue` detects `writeAuthorized` once at construction, and mocks and fakes keep single-submission `Write` behind the existing caller checks.
+- Retry, Version Negotiation, INVALID_TOKEN, CONNECTION_REFUSED and stateless resets write through `writeUnfencedResponse`, which re-checks the group fence after preparation. The dequeue-time checks stay.
+- The `CandidateGroupV1` doc comment now states submission granularity, close-only authority for closes, and the remaining check-to-syscall window: authority is checked, not held.
+
+### Validation
+
+- **Focused tests, red before the change:** `TestCandidateWorkSubmissionAuthority` (GSO fallback fenced after its first segment, permission retry fenced, unfenced control), `TestCandidateCloseSubmissionAuthority` (a fenced loser retries its close; revocation during the first attempt stops the retry) and `TestCandidateFencedResponseSubmission` (Retry fenced inside connection-ID generation; stateless reset fenced after dequeue). The GSO and permission-retry cases exist only on Linux and were run on the Linux measurement host.
+- **Guard mutations**, each reverted: removing the `sconn` permit check, giving close the work permit, and removing the response fence check each failed its named test.
+- **Exact-head certification** at `ea75d831` (base `c993d42f`, clean tree): root package tests on macOS and Linux, `-race` on the candidate, send, emission, server and transport tests on Linux, full `go test ./...` on macOS, `go vet ./...`, `go mod tidy -diff`, `golangci-lint` for darwin, linux, windows, freebsd and openbsd, a Windows test-binary build, and `git diff --check`.
+- **Hosted checks:** all 33 PR checks passed on `ea75d831`; no rerun was needed.
+- **Review:** RAS run `20260930T182508-41d43140f46520e344b1d4a9` (five reviewers) reported no findings, so no fix, verification or replacement round ran.
+
+### Decisions
+
+An extra `sconn` method that only `sconn` implements was chosen over changing the `sendConn.Write` signature. The signature change would have touched about 60 generated-mock sites and the existing GSO and permission-retry tests the issue required to pass unchanged. A barrier between transitions and in-flight syscalls stays out of scope, per the [#678 triage](https://github.com/the-sarge/quic-go-fast/issues/678#issuecomment-5905370320).
+
+### Next
+
+No deferred findings to file. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
