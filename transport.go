@@ -510,7 +510,7 @@ func (t *Transport) Close() error {
 	if t.listening != nil {
 		<-t.listening // wait until listening returns
 	}
-	if t.packetIO.external != nil || t.policyConn.policy != nil {
+	if t.packetIO.external != nil || t.policyConn.policy != nil || t.policyConn.network != nil {
 		return initErr
 	}
 	return nil

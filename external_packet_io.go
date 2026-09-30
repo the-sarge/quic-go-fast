@@ -166,6 +166,9 @@ func (t *Transport) beginPacketIO() error {
 func (t *Transport) beginPacketIOLocked() error {
 	c := &t.packetIO
 	c.started = true
+	if p := t.policyConn.network; p != nil && !samePacketConn(p.conn, t.Conn) {
+		return errors.New("quic: Transport.Conn changed after network admission configuration")
+	}
 	if p := t.policyConn.policy; p != nil && !samePacketConn(p.conn, t.Conn) {
 		return errors.New("quic: Transport.Conn changed after fixed peer configuration")
 	}

@@ -190,9 +190,11 @@ func (c *MockSenderSendCall) DoAndReturn(f func(*packetBuffer, uint16, protocol.
 }
 
 // SendProbe mocks base method.
-func (m *MockSender) SendProbe(arg0 *packetBuffer, arg1 net.Addr, arg2 packetInfo) {
+func (m *MockSender) SendProbe(arg0 *packetBuffer, arg1 net.Addr, arg2 packetInfo) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SendProbe", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "SendProbe", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // SendProbe indicates an expected call of SendProbe.
@@ -208,19 +210,19 @@ type MockSenderSendProbeCall struct {
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockSenderSendProbeCall) Return() *MockSenderSendProbeCall {
-	c.Call = c.Call.Return()
+func (c *MockSenderSendProbeCall) Return(arg0 error) *MockSenderSendProbeCall {
+	c.Call = c.Call.Return(arg0)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockSenderSendProbeCall) Do(f func(*packetBuffer, net.Addr, packetInfo)) *MockSenderSendProbeCall {
+func (c *MockSenderSendProbeCall) Do(f func(*packetBuffer, net.Addr, packetInfo) error) *MockSenderSendProbeCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockSenderSendProbeCall) DoAndReturn(f func(*packetBuffer, net.Addr, packetInfo)) *MockSenderSendProbeCall {
+func (c *MockSenderSendProbeCall) DoAndReturn(f func(*packetBuffer, net.Addr, packetInfo) error) *MockSenderSendProbeCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

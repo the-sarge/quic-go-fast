@@ -152,10 +152,10 @@ func (c *sconn) sendBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 	if !ok || addr == nil || c.external.sendBatch == nil {
 		return 0, nil
 	}
-	if err := c.checkPacketSend(addr); err != nil {
+	oob := appendExternalECN(ai.oob, addr, ecn)
+	if err := c.checkPacketSend(addr, oob); err != nil {
 		return 0, err
 	}
-	oob := appendExternalECN(ai.oob, addr, ecn)
 	n, err := c.external.sendBatch(bufs, oob, addr)
 	calls := c.external.batchCalls.Add(1)
 	if n >= 0 && n <= len(bufs) {

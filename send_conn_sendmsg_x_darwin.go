@@ -100,7 +100,7 @@ func (c *sconn) sendNativeBatch(bufs [][]byte, ecn protocol.ECN) (int, error) {
 	if !ok {
 		return 0, nil
 	}
-	if err := c.checkPacketSend(udpAddr); err != nil {
+	if err := c.checkPacketSend(udpAddr, ai.oob); err != nil {
 		return 0, err
 	}
 	if bs.raw == nil {
