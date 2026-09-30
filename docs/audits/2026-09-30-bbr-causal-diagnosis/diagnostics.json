@@ -1,0 +1,1046 @@
+[
+  {
+    "id": "diagnostics-diag-profile-baseline-datagram-p1-bbrv3",
+    "role": "send",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        23,
+        157,
+        180,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "exhausted": 397,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 967277,
+      "opportunities": 690796,
+      "policy_rate_max": 290522871,
+      "policy_rate_min": 384280,
+      "progress": 682593,
+      "queue_residence_histogram": [
+        0,
+        31,
+        2569,
+        72,
+        2,
+        2,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 836922387,
+        "diagnostics": "ecn=capable path=0 sample_generation=18170 limitation=application sample_valid=true sample_interval=309.25\u00b5s sample_evidence_lost=false live=1 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 682587,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 1,
+        "ecn_sent": {
+          "ECT0": 682588,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 198413,
+        "idle_calls": 8,
+        "idle_one_rate": 0,
+        "limited_samples": 4881,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 40,
+        "ring_count": 32768,
+        "ring_evictions": 649826,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 198413,
+        "captured_samples": 256,
+        "verified_valid_samples": 256,
+        "verified_limited_samples": 0,
+        "captured_span_ns": [
+          3601956148541,
+          3605438472708
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 11073,
+      "single_writes": 682593,
+      "stops": [
+        435838,
+        247148,
+        0,
+        664,
+        0,
+        7146,
+        0,
+        0,
+        0
+      ],
+      "waits": 955316,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-baseline-datagram-p1-bbrv3",
+    "role": "receive",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 292001,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 646184,
+      "opportunities": 490448,
+      "policy_rate_max": 11493637,
+      "policy_rate_min": 329382,
+      "progress": 198444,
+      "queue_residence_histogram": [
+        12,
+        596,
+        194,
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 391337,
+        "diagnostics": "ecn=capable path=0 sample_generation=3024 limitation=application sample_valid=true sample_interval=810.166\u00b5s sample_evidence_lost=false live=0 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 198442,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 0,
+        "ecn_sent": {
+          "ECT0": 198442,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 5005,
+        "idle_calls": 54377,
+        "idle_one_rate": 0,
+        "limited_samples": 5001,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 0,
+        "ring_count": 32768,
+        "ring_evictions": 165678,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 5005,
+        "captured_samples": 39,
+        "verified_valid_samples": 39,
+        "verified_limited_samples": 39,
+        "captured_span_ns": [
+          3602195502500,
+          3626925559166
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 229,
+      "single_writes": 198444,
+      "stops": [
+        490420,
+        25,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "waits": 531675,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-baseline-datagram-p1-reno",
+    "role": "send",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 5,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 4730423,
+      "opportunities": 2098970,
+      "policy_rate_max": 0,
+      "policy_rate_min": 18446744073709551615,
+      "progress": 2098856,
+      "queue_residence_histogram": [
+        2,
+        65,
+        11172,
+        319,
+        1,
+        0,
+        0,
+        0
+      ],
+      "recovery": null,
+      "sample_every": 256,
+      "sampled_pending_max": 0,
+      "single_writes": 2912891,
+      "stops": [
+        522,
+        1854874,
+        0,
+        0,
+        243475,
+        99,
+        0,
+        0,
+        0
+      ],
+      "waits": 4486632,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-baseline-datagram-p1-reno",
+    "role": "receive",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 2,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 2217710,
+      "opportunities": 1447836,
+      "policy_rate_max": 0,
+      "policy_rate_min": 18446744073709551615,
+      "progress": 959765,
+      "queue_residence_histogram": [
+        757,
+        2659,
+        278,
+        4,
+        0,
+        1,
+        0,
+        0
+      ],
+      "recovery": null,
+      "sample_every": 256,
+      "sampled_pending_max": 0,
+      "single_writes": 959842,
+      "stops": [
+        1287272,
+        74,
+        0,
+        0,
+        160490,
+        0,
+        0,
+        0,
+        0
+      ],
+      "waits": 1982523,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-baseline-stream-p1-bbrv3",
+    "role": "send",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        10,
+        41,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 33954,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 832266,
+      "opportunities": 796331,
+      "policy_rate_max": 323639231,
+      "policy_rate_min": 384280,
+      "progress": 757687,
+      "queue_residence_histogram": [
+        0,
+        59,
+        2842,
+        70,
+        3,
+        0,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 1056589087,
+        "diagnostics": "ecn=capable path=0 sample_generation=19199 limitation=application sample_valid=true sample_interval=159.5\u00b5s sample_evidence_lost=false live=2 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 757680,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 1,
+        "ecn_sent": {
+          "ECT0": 757682,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 195971,
+        "idle_calls": 467,
+        "idle_one_rate": 0,
+        "limited_samples": 136813,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 26,
+        "ring_count": 32768,
+        "ring_evictions": 724920,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 195971,
+        "captured_samples": 256,
+        "verified_valid_samples": 256,
+        "verified_limited_samples": 161,
+        "captured_span_ns": [
+          3601982605958,
+          3605506131625
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 12600,
+      "single_writes": 757687,
+      "stops": [
+        595262,
+        196378,
+        0,
+        68,
+        0,
+        4623,
+        0,
+        0,
+        0
+      ],
+      "waits": 818302,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-baseline-stream-p1-bbrv3",
+    "role": "receive",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 281839,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 630881,
+      "opportunities": 477864,
+      "policy_rate_max": 10527009,
+      "policy_rate_min": 329382,
+      "progress": 196021,
+      "queue_residence_histogram": [
+        10,
+        573,
+        189,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 386721,
+        "diagnostics": "ecn=capable path=0 sample_generation=6134 limitation=application sample_valid=true sample_interval=536.375\u00b5s sample_evidence_lost=false live=0 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 196019,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 0,
+        "ecn_sent": {
+          "ECT0": 196019,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 9881,
+        "idle_calls": 110228,
+        "idle_one_rate": 0,
+        "limited_samples": 9877,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 0,
+        "ring_count": 32768,
+        "ring_evictions": 163255,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 9881,
+        "captured_samples": 77,
+        "verified_valid_samples": 77,
+        "verified_limited_samples": 77,
+        "captured_span_ns": [
+          3602080763375,
+          3626922682917
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 191,
+      "single_writes": 196021,
+      "stops": [
+        477853,
+        7,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "waits": 515837,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-baseline-stream-p1-reno",
+    "role": "send",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 5,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 2624926,
+      "opportunities": 1848006,
+      "policy_rate_max": 0,
+      "policy_rate_min": 18446744073709551615,
+      "progress": 1828955,
+      "queue_residence_histogram": [
+        1,
+        45,
+        10220,
+        313,
+        0,
+        0,
+        0,
+        0
+      ],
+      "recovery": null,
+      "sample_every": 256,
+      "sampled_pending_max": 0,
+      "single_writes": 2753384,
+      "stops": [
+        72331,
+        1496857,
+        0,
+        0,
+        278818,
+        0,
+        0,
+        0,
+        0
+      ],
+      "waits": 2343487,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-baseline-stream-p1-reno",
+    "role": "receive",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 2,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 2155080,
+      "opportunities": 1409110,
+      "policy_rate_max": 0,
+      "policy_rate_min": 18446744073709551615,
+      "progress": 937375,
+      "queue_residence_histogram": [
+        772,
+        2625,
+        231,
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      "recovery": null,
+      "sample_every": 256,
+      "sampled_pending_max": 0,
+      "single_writes": 937450,
+      "stops": [
+        1272213,
+        40,
+        0,
+        0,
+        136857,
+        0,
+        0,
+        0,
+        0
+      ],
+      "waits": 1948234,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-recovery-datagram-p1-bbrv3",
+    "role": "send",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        2,
+        8,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 369,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 4789881,
+      "opportunities": 2852166,
+      "policy_rate_max": 383286314,
+      "policy_rate_min": 384280,
+      "progress": 2814489,
+      "queue_residence_histogram": [
+        3,
+        154,
+        10583,
+        244,
+        2,
+        0,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 3450898286,
+        "diagnostics": "ecn=capable path=0 sample_generation=6781 limitation=application sample_valid=true sample_interval=163.917\u00b5s sample_evidence_lost=false live=1 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 2814483,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 1,
+        "ecn_sent": {
+          "ECT0": 2814484,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 960872,
+        "idle_calls": 8,
+        "idle_one_rate": 0,
+        "limited_samples": 15308,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 40,
+        "ring_count": 32768,
+        "ring_evictions": 2781722,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 960872,
+        "captured_samples": 256,
+        "verified_valid_samples": 256,
+        "verified_limited_samples": 0,
+        "captured_span_ns": [
+          3601966504458,
+          3602769683666
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 11072,
+      "single_writes": 2814489,
+      "stops": [
+        1403311,
+        1411546,
+        0,
+        33,
+        0,
+        37276,
+        0,
+        0,
+        0
+      ],
+      "waits": 4518729,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-recovery-datagram-p1-bbrv3",
+    "role": "receive",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 1409378,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 3125201,
+      "opportunities": 2370323,
+      "policy_rate_max": 14399277,
+      "policy_rate_min": 329382,
+      "progress": 960942,
+      "queue_residence_histogram": [
+        48,
+        2794,
+        868,
+        7,
+        0,
+        0,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 1871060,
+        "diagnostics": "ecn=capable path=0 sample_generation=15887 limitation=application sample_valid=true sample_interval=471\u00b5s sample_evidence_lost=false live=0 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 960940,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 0,
+        "ecn_sent": {
+          "ECT0": 960940,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 24232,
+        "idle_calls": 262406,
+        "idle_one_rate": 0,
+        "limited_samples": 24228,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 0,
+        "ring_count": 32768,
+        "ring_evictions": 928176,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 24232,
+        "captured_samples": 189,
+        "verified_valid_samples": 189,
+        "verified_limited_samples": 189,
+        "captured_span_ns": [
+          3602105576209,
+          3626948163209
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 305,
+      "single_writes": 960942,
+      "stops": [
+        2370147,
+        173,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "waits": 2600492,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-recovery-stream-p1-bbrv3",
+    "role": "send",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        2,
+        10,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 115769,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 3476027,
+      "opportunities": 2816901,
+      "policy_rate_max": 456241888,
+      "policy_rate_min": 384280,
+      "progress": 2683886,
+      "queue_residence_histogram": [
+        4,
+        176,
+        10002,
+        312,
+        0,
+        2,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 3750296066,
+        "diagnostics": "ecn=capable path=0 sample_generation=5462 limitation=application sample_valid=true sample_interval=137.75\u00b5s sample_evidence_lost=false live=1 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 2683880,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 1,
+        "ecn_sent": {
+          "ECT0": 2683881,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 927460,
+        "idle_calls": 26,
+        "idle_one_rate": 0,
+        "limited_samples": 503393,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 40,
+        "ring_count": 32768,
+        "ring_evictions": 2651119,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 927460,
+        "captured_samples": 256,
+        "verified_valid_samples": 256,
+        "verified_limited_samples": 139,
+        "captured_span_ns": [
+          3601800875459,
+          3602677403375
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 12600,
+      "single_writes": 2683886,
+      "stops": [
+        1728830,
+        1070824,
+        0,
+        16,
+        0,
+        17231,
+        0,
+        0,
+        0
+      ],
+      "waits": 3166459,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  },
+  {
+    "id": "diagnostics-diag-profile-recovery-stream-p1-bbrv3",
+    "role": "receive",
+    "diagnostics": {
+      "batch_accepted": 0,
+      "batch_calls": 0,
+      "batch_entries": 0,
+      "deadline_lateness_histogram": [
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "exhausted": 1367055,
+      "histogram_upper_ns": [
+        1000,
+        10000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        20000000
+      ],
+      "loops": 3008899,
+      "opportunities": 2294721,
+      "policy_rate_max": 13947210,
+      "policy_rate_min": 329382,
+      "progress": 927663,
+      "queue_residence_histogram": [
+        55,
+        2888,
+        691,
+        6,
+        0,
+        0,
+        0,
+        0
+      ],
+      "recovery": {
+        "delivered": 1793690,
+        "diagnostics": "ecn=capable path=0 sample_generation=32329 limitation=application sample_valid=true sample_interval=171.416\u00b5s sample_evidence_lost=false live=0 retained=0 evicted=0 expired=0 missing=0",
+        "ecn_accepted": {
+          "ECT0": 927661,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "ecn_failed": false,
+        "ecn_ranges": 0,
+        "ecn_sent": {
+          "ECT0": 927661,
+          "ECT1": 0,
+          "CE": 0
+        },
+        "evidence_lost": false,
+        "expired": 0,
+        "feedback_events": 46726,
+        "idle_calls": 551280,
+        "idle_one_rate": 0,
+        "limited_samples": 46722,
+        "lost_bytes": 0,
+        "missing": 0,
+        "outstanding": 0,
+        "ring_count": 32768,
+        "ring_evictions": 894897,
+        "sample_cap": 256,
+        "sample_every": 128,
+        "valid_samples": 46726,
+        "captured_samples": 256,
+        "verified_valid_samples": 256,
+        "verified_limited_samples": 256,
+        "captured_span_ns": [
+          3601927805333,
+          3619429868875
+        ]
+      },
+      "sample_every": 256,
+      "sampled_pending_max": 305,
+      "single_writes": 927663,
+      "stops": [
+        2294616,
+        102,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "waits": 2522132,
+      "entries_per_submission": 1.0,
+      "batch_entry_fraction": 0.0,
+      "batch_accepted_fraction": null
+    }
+  }
+]

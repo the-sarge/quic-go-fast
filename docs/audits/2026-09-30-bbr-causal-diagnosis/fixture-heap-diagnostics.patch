@@ -1,0 +1,119 @@
+--- a/fixture/main.go
++++ b/fixture/main.go
+@@ -10,6 +10,7 @@
+ 	"net"
+ 	"os"
+ 	"runtime"
++	"runtime/pprof"
+ 	"time"
+ )
+ 
+@@ -45,6 +46,10 @@
+ 	output := flag.String("output", "", "result JSON path")
+ 	tcp := flag.Bool("tcp-cubic", false, "Linux-only competitor: TCP CUBIC bulk plus a separate control connection")
+ 	managed := flag.Bool("managed", true, "direct managed packet-I/O lease")
++	traceEnabled := flag.Bool("trace", true, "local diagnostic: enable original campaign tracing")
++	cpuProfile := flag.String("cpu-profile", "", "local diagnostic: CPU profile")
++	allocProfile := flag.String("alloc-profile", "", "local diagnostic: sampled allocation profile")
++	heapProfile := flag.String("heap-profile", "", "local diagnostic: live heap after measured interval begins")
+ 	flag.Parse()
+ 	if *role == "cert" {
+ 		c, k, e := createCertificate(".")
+@@ -77,6 +82,32 @@
+ 		return fmt.Errorf("start must be in the next two minutes")
+ 	}
+ 	runtime.GOMAXPROCS(4)
++	if *cpuProfile != "" {
++		f, err := os.Create(*cpuProfile)
++		if err != nil {
++			return err
++		}
++		if err = pprof.StartCPUProfile(f); err != nil {
++			f.Close()
++			return err
++		}
++		defer func() { pprof.StopCPUProfile(); f.Close() }()
++	}
++	if *allocProfile != "" {
++		defer func() {
++			// Finalize sampled allocation accounting outside the timed workload.
++			runtime.GC()
++			f, err := os.Create(*allocProfile)
++			if err != nil {
++				fmt.Fprintln(os.Stderr, err)
++				return
++			}
++			defer f.Close()
++			if err = pprof.Lookup("allocs").WriteTo(f, 0); err != nil {
++				fmt.Fprintln(os.Stderr, err)
++			}
++		}()
++	}
+ 	tr, closeTransport, e := newTransport(*local, *managed)
+ 	if e != nil {
+ 		return e
+@@ -88,8 +119,37 @@
+ 	}
+ 	traces := newTrace()
+ 	qcfg := quicConfig(cfg, traces)
++	if !*traceEnabled {
++		qcfg.Tracer = nil
++	}
+ 	ctx, cancel := context.WithDeadline(context.Background(), cfg.end().Add(15*time.Second))
+ 	defer cancel()
++	heapDone := make(chan struct{})
++	if *heapProfile != "" {
++		go func() {
++			defer close(heapDone)
++			target := time.Unix(0, cfg.StartUnixNS).Add(time.Duration(cfg.WarmupMS)*time.Millisecond + 10*time.Second)
++			timer := time.NewTimer(time.Until(target))
++			defer timer.Stop()
++			select {
++			case <-ctx.Done():
++				return
++			case <-timer.C:
++			}
++			runtime.GC()
++			f, err := os.Create(*heapProfile)
++			if err != nil {
++				fmt.Fprintln(os.Stderr, "[BBR-HEAP]", err)
++				return
++			}
++			defer f.Close()
++			if err = pprof.Lookup("heap").WriteTo(f, 0); err != nil {
++				fmt.Fprintln(os.Stderr, "[BBR-HEAP]", err)
++			}
++		}()
++	} else {
++		close(heapDone)
++	}
+ 	started := time.Now()
+ 	before := usage()
+ 	var initial runtime.MemStats
+@@ -153,6 +213,7 @@
+ 		result, e = sendSession(ctx, conn, cfg)
+ 		conn.CloseWithError(0, "campaign complete")
+ 	}
++	<-heapDone
+ 	closeTransport()
+ 	close(stopSamples)
+ 	samplesStopped = true
+@@ -169,6 +230,9 @@
+ 		Result            Result           `json:"result"`
+ 		Trace             *trace           `json:"trace"`
+ 		Resources         resources        `json:"resources"`
++		TraceEnabled      bool             `json:"trace_enabled"`
++		CPUProfile        bool             `json:"cpu_profile"`
++		AllocProfile      bool             `json:"alloc_profile"`
+ 		Source            string           `json:"source"`
+ 		GoVersion         string           `json:"go_version"`
+ 		Platform          string           `json:"platform"`
+@@ -176,7 +240,7 @@
+ 		Managed           bool             `json:"managed_direct"`
+ 		ElapsedNS         int64            `json:"elapsed_ns"`
+ 		Error             string           `json:"error,omitempty"`
+-	}{ConnectionSetupNS: connectionSetupNS, ResourceSamples: resourceSamples, Result: result, Trace: traces, Resources: after, Source: sourceRevision, GoVersion: runtime.Version(), Platform: runtime.GOOS + "/" + runtime.GOARCH, GOMAXPROCS: runtime.GOMAXPROCS(0), Managed: *managed, ElapsedNS: time.Since(started).Nanoseconds()}
++	}{ConnectionSetupNS: connectionSetupNS, ResourceSamples: resourceSamples, Result: result, Trace: traces, Resources: after, TraceEnabled: *traceEnabled, CPUProfile: *cpuProfile != "", AllocProfile: *allocProfile != "", Source: sourceRevision, GoVersion: runtime.Version(), Platform: runtime.GOOS + "/" + runtime.GOARCH, GOMAXPROCS: runtime.GOMAXPROCS(0), Managed: *managed, ElapsedNS: time.Since(started).Nanoseconds()}
+ 	if e != nil {
+ 		record.Error = e.Error()
+ 	}

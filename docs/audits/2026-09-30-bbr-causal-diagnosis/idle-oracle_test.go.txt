@@ -1,0 +1,11 @@
+package congestion
+import("testing";"time";"github.com/stretchr/testify/require")
+func TestCausalFrozenIdleFallback(t *testing.T) {
+ x:=newBBRProbeTrace()
+ for range 3 { e:=ceAck(x);e.Delivery.Valid=false;e.ECN.Delta=ECNCounts{CE:1};x.b.Feedback(e) }
+ for range 5 {e:=ceAck(x);e.Delivery.Valid=false;e.PostInFlight=0;x.b.Feedback(e)}
+ require.Equal(t,bbrCruise,x.b.phase);require.Zero(t,x.b.bandwidth)
+ before:=x.b.PacingRate();x.b.BeforeSend(x.now.Add(time.Second),true);after:=x.b.PacingRate()
+ t.Logf("nominal pacing before=%d after=%d ce_active=%t",before,after,x.b.ce.active)
+ require.Greater(t,before,uint64(1));require.Equal(t,uint64(1),after)
+}

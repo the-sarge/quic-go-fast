@@ -1,0 +1,63 @@
+diff --git i/internal/ackhandler/bbr_recovery.go w/internal/ackhandler/bbr_recovery.go
+index bd9de22f..edec76dd 100644
+--- i/internal/ackhandler/bbr_recovery.go
++++ w/internal/ackhandler/bbr_recovery.go
+@@ -37,16 +37,17 @@ type recoveryOutcome struct {
+ // even ACK-only packets and excluded probes. Dropping its oldest entry never
+ // creates a summary that could bridge unknown history.
+ type recoveryEvidence struct {
+-	outcomes        []recoveryOutcome
+-	keys            map[congestionPacketKey]int
+-	head, count     int
+-	evicted         uint64
+-	measured        bool
+-	reported        uint64
+-	episode         congestion.RecoveryEpisode
+-	members         map[uint64]struct{}
+-	ackOrdinal      uint64
+-	unconfirmedLoss bool
++	outcomes                              []recoveryOutcome
++	keys                                  map[congestionPacketKey]int
++	head, count                           int
++	evicted                               uint64
++	measured                              bool
++	reported                              uint64
++	episode                               congestion.RecoveryEpisode
++	members                               map[uint64]struct{}
++	ackOrdinal                            uint64
++	unconfirmedLoss                       bool
++	diagnosticLostEver, diagnosticPTOEver bool
+ 	// Packet numbers are monotonic within each of the three spaces. These
+ 	// boundary witnesses survive optional sampler and outcome-ring eviction.
+ 	latestPackets   map[protocol.EncryptionLevel]protocol.PacketNumber
+@@ -92,6 +93,7 @@ func (r *recoveryEvidence) lost(key congestionPacketKey, congestionLoss, retaine
+ 	i, known := r.keys[key]
+ 	if known && r.outcomes[i].state == outcomeUnresolved {
+ 		r.outcomes[i].state = outcomeLost
++		r.diagnosticLostEver = true
+ 		r.unconfirmedLoss = true // ACK-only losses can complete a classified span too.
+ 	}
+ 	if !congestionLoss {
+@@ -147,19 +149,21 @@ func (r *recoveryEvidence) discard(key congestionPacketKey) {
+ func (r *recoveryEvidence) retirePTO(key congestionPacketKey) {
+ 	if i, ok := r.keys[key]; ok && r.outcomes[i].state == outcomeUnresolved {
+ 		r.outcomes[i].ptoRetired = true
++		r.diagnosticPTOEver = true
+ 	}
+ }
+ 
+ // confirmPTO changes only persistent-span evidence. Ordinary loss callbacks,
+ // delivery loss totals and episode membership belong to lost, not this path.
+ func (r *recoveryEvidence) confirmPTO(space protocol.EncryptionLevel, witness protocol.PacketNumber, cutoff monotime.Time) {
+-	if witness == protocol.InvalidPacketNumber {
++	if witness == protocol.InvalidPacketNumber || !r.diagnosticPTOEver {
+ 		return
+ 	}
+ 	for i := 0; i < r.count; i++ {
+ 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
+ 		if o.key.space == space && o.key.number < witness && o.ptoRetired && o.state == outcomeUnresolved && !o.sent.After(cutoff) {
+ 			o.state = outcomeLost
++			r.diagnosticLostEver = true
+ 			r.unconfirmedLoss = true
+ 		}
+ 	}

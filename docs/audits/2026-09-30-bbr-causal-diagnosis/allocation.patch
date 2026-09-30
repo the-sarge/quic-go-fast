@@ -1,0 +1,17 @@
+diff --git i/internal/congestion/bbr_sender.go w/internal/congestion/bbr_sender.go
+index 29b30694..1095ce8e 100644
+--- i/internal/congestion/bbr_sender.go
++++ w/internal/congestion/bbr_sender.go
+@@ -510,8 +510,10 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
+ 	if b.closed {
+ 		return
+ 	}
+-	fresh := NewBBRSender(size)
+-	b.size, b.initialWindow = size, fresh.initialWindow
++	if size <= 0 || size > protocol.MaxPacketBufferSize {
++		panic("invalid BBR packet size")
++	}
++	b.size, b.initialWindow = size, min(10*size, max(14720, 2*size))
+ 	if b.persistentModel {
+ 		b.initialWindow = 2 * size
+ 	}

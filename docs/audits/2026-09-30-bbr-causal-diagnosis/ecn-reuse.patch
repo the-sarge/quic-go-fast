@@ -1,0 +1,56 @@
+diff --git i/internal/ackhandler/bbr_ecn.go w/internal/ackhandler/bbr_ecn.go
+index c63cc89d..21500dd2 100644
+--- i/internal/ackhandler/bbr_ecn.go
++++ w/internal/ackhandler/bbr_ecn.go
+@@ -36,19 +36,20 @@ type bbrECNTracker struct {
+ 		pn   protocol.PacketNumber
+ 		lost bool
+ 	}
+-	testingLost      uint64
+-	offsets          congestion.ECNCounts
+-	compacted        congestion.ECNCounts
+-	compactedOrdinal uint64
+-	evidenceLost     bool
+-	counterFailed    bool
+-	path             func() (uint64, bool, bool)
+-	ranges           []ecnMarkRange
+-	state            ecnState
+-	generation       uint64
+-	watermark        protocol.PacketNumber
+-	sent, accepted   congestion.ECNCounts
+-	testingSent      uint64
++	testingLost       uint64
++	offsets           congestion.ECNCounts
++	compacted         congestion.ECNCounts
++	compactedOrdinal  uint64
++	evidenceLost      bool
++	counterFailed     bool
++	path              func() (uint64, bool, bool)
++	ranges            []ecnMarkRange
++	diagnosticScratch []ecnMarkRange
++	state             ecnState
++	generation        uint64
++	watermark         protocol.PacketNumber
++	sent, accepted    congestion.ECNCounts
++	testingSent       uint64
+ }
+ 
+ func (e *bbrECNTracker) mode(shortHeader bool) protocol.ECN {
+@@ -156,7 +157,7 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
+ 		return result
+ 	}
+ 	// Split only at ACK boundaries, retaining actual marks and affine ordinals.
+-	var next []ecnMarkRange
++	next := e.diagnosticScratch[:0]
+ 	for _, r := range e.ranges {
+ 		cursor := r.first
+ 		for i := len(ack.AckRanges) - 1; i >= 0; i-- {
+@@ -196,7 +197,7 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
+ 			}
+ 		}
+ 	}
+-	e.ranges = next
++	e.ranges, e.diagnosticScratch = next, e.ranges[:0]
+ 	e.compact()
+ 	e.accepted, e.watermark = counts, ack.LargestAcked()
+ 	if (e.state == ecnStateTesting || e.state == ecnStateUnknown) && newly.ECT0+newly.ECT1 > 0 && delta.ECT0+delta.ECT1 > 0 {

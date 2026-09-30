@@ -1,0 +1,18 @@
+diff --git i/connection.go w/connection.go
+index 59a77c65..4ba15796 100644
+--- i/connection.go
++++ w/connection.go
+@@ -746,6 +746,13 @@ runLoop:
+ 
+ 		c.blocked = blockModeNone // sending might set it back to true if we're congestion limited
+ 		result := c.triggerSending(now)
++		// Experimental maximum of eight opportunities before loop service.
++		for i := 1; c.emission.bbr != nil && i < 8 && result.err == nil && result.retry && result.available == nil; i++ {
++			if c.receivedPackets.Len() > 0 || c.closeErr.Load() != nil {
++				break
++			}
++			result = c.triggerSending(monotime.Now())
++		}
+ 		if result.err != nil {
+ 			c.setCloseError(&closeError{err: result.err})
+ 			break runLoop

@@ -1,0 +1,283 @@
+diff --git i/connection.go w/connection.go
+index 59a77c65..efb85b51 100644
+--- i/connection.go
++++ w/connection.go
+@@ -612,6 +612,7 @@ func (c *Conn) run() (err error) {
+ 
+ runLoop:
+ 	for {
++		causal.Loops++
+ 		if c.framer.QueuedTooManyControlFrames() {
+ 			c.setCloseError(&closeError{err: &qerr.TransportError{ErrorCode: InternalError}})
+ 			break runLoop
+@@ -663,6 +664,7 @@ runLoop:
+ 		// * the pacer allows us to send more packets immediately
+ 		shouldProceedImmediately := sendQueueAvailable == nil && (processed || c.pacingDeadline.Equal(deadlineSendImmediately))
+ 		if !shouldProceedImmediately {
++			causal.Waits++
+ 			// 3rd: wait for something to happen:
+ 			// * closing of the connection
+ 			// * timer firing
+@@ -692,6 +694,9 @@ runLoop:
+ 		// Check for loss detection timeout.
+ 		// This could cause packets to be declared lost, and retransmissions to be enqueued.
+ 		now := monotime.Now()
++		if c.pacingDeadline > 0 && c.pacingDeadline != deadlineSendImmediately && now > c.pacingDeadline {
++			causal.DeadlineLateness[causalBucket(int64(now-c.pacingDeadline))]++
++		}
+ 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
+ 			h.ExpireDelivery(now)
+ 		}
+@@ -763,6 +768,7 @@ runLoop:
+ 	closeErr := c.closeErr.Load()
+ 	c.cryptoStreamHandler.Close()
+ 	c.emission.drain() // close the send queue before sending the CONNECTION_CLOSE
++	c.causalDump()
+ 	c.handleCloseError(closeErr)
+ 	if c.qlogger != nil {
+ 		if _, ok := errors.AsType[*errCloseForRecreating](closeErr.err); !ok {
+@@ -2552,6 +2558,7 @@ func (c *Conn) applyHandshakeMTUFallback() {
+ 
+ func (c *Conn) triggerSending(now monotime.Time) emissionResult {
+ 	result := c.emission.send(now, c.handshakeConfirmed)
++	c.causalOpportunity(now, result)
+ 	c.traceBBR(now)
+ 	c.pacingDeadline = result.deadline
+ 	c.blocked = result.blocked
+diff --git i/internal/ackhandler/congestion_dispatch.go w/internal/ackhandler/congestion_dispatch.go
+index d9535256..16e82bbd 100644
+--- i/internal/ackhandler/congestion_dispatch.go
++++ w/internal/ackhandler/congestion_dispatch.go
+@@ -45,17 +45,21 @@ func congestionKey(level protocol.EncryptionLevel, pn protocol.PacketNumber) con
+ }
+ 
+ type congestionDispatch struct {
+-	pending          func() protocol.ByteCount
+-	sampler          deliverySampler
+-	recovery         recoveryEvidence
+-	ordinal          uint64
+-	registrationTime monotime.Time
+-	pathGeneration   uint64
+-	sampleGeneration uint64
+-	sink             congestionEventSink
+-	packets          map[congestionPacketKey]congestion.PacketInfo
+-	event            congestion.FeedbackEvent
+-	scratch          []congestion.PacketInfo
++	pending                            func() protocol.ByteCount
++	sampler                            deliverySampler
++	recovery                           recoveryEvidence
++	ordinal                            uint64
++	registrationTime                   monotime.Time
++	pathGeneration                     uint64
++	sampleGeneration                   uint64
++	sink                               congestionEventSink
++	packets                            map[congestionPacketKey]congestion.PacketInfo
++	event                              congestion.FeedbackEvent
++	scratch                            []congestion.PacketInfo
++	causalFeedback                     uint64
++	causalValid, causalLimited         uint64
++	causalSamples                      []causalSample
++	causalIdleCalls, causalIdleOneRate uint64
+ }
+ 
+ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *packet, ecn protocol.ECN, prior protocol.ByteCount) {
+@@ -176,7 +180,18 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
+ 		d.event.ECN.Failed = h.bbrECN.state == ecnStateFailed || h.bbrECN.evidenceLost
+ 	}
+ 	slices.SortFunc(d.event.Lost, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
++	d.causalFeedback++
++	beforeDelivered, beforeLost, beforeTime := d.sampler.delivered, d.sampler.lost, d.sampler.deliveredTime
+ 	d.sampler.feedback(&d.event)
++	if d.event.Delivery.Valid {
++		d.causalValid++
++	}
++	if d.event.Delivery.Limited != 0 {
++		d.causalLimited++
++	}
++	if d.causalFeedback%128 == 0 && len(d.causalSamples) < 256 && len(d.event.Acked) <= 512 && len(d.event.Lost) <= 512 {
++		d.causalSamples = append(d.causalSamples, causalSample{beforeDelivered, beforeLost, beforeTime, d.sampler.minimumRTT, d.event.Time, d.event.PathGeneration, d.event.SampleGeneration, append([]congestion.PacketInfo(nil), d.event.Acked...), append([]congestion.PacketInfo(nil), d.event.Lost...), d.event.Delivery})
++	}
+ 	d.recovery.feedback(&d.event, h.rttStats.PTO(true))
+ 	// A timer scan may run early or against a stale loss deadline. Preserve
+ 	// MTU retirement flight changes even though they are not congestion loss.
+@@ -327,6 +342,13 @@ func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func(
+ // calls it before taking the current controller outputs for admission.
+ func (h *sentPacketHandler) PrepareBBRSend(now monotime.Time) {
+ 	if b, ok := h.congestion.(*congestion.BBRSender); ok {
+-		b.BeforeSend(now, h.DeliveryIdle())
++		idle := h.DeliveryIdle()
++		b.BeforeSend(now, idle)
++		if idle && h.congestionEvents != nil {
++			h.congestionEvents.causalIdleCalls++
++			if b.PacingRate() == 1 {
++				h.congestionEvents.causalIdleOneRate++
++			}
++		}
+ 	}
+ }
+diff --git i/send_queue.go w/send_queue.go
+index f3b2ad9b..33ccf8d2 100644
+--- i/send_queue.go
++++ w/send_queue.go
+@@ -5,6 +5,7 @@ import (
+ 	"net"
+ 	"sync"
+ 
++	"github.com/quic-go/quic-go/internal/monotime"
+ 	"github.com/quic-go/quic-go/internal/protocol"
+ )
+ 
+@@ -19,6 +20,7 @@ type sender interface {
+ 
+ // sendMetadata is captured by the connection loop, never read from it by the worker.
+ type sendMetadata struct {
++	causalAt       monotime.Time
+ 	credit         *sendReservation
+ 	handshake      bool
+ 	pathGeneration uint64
+@@ -121,6 +123,9 @@ func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
+ // Callers need to make sure that there's actually space in the send queue by calling WouldBlock.
+ // Otherwise Send will panic.
+ func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, metadata sendMetadata) {
++	if causal.Opportunities%256 == 0 {
++		metadata.causalAt = monotime.Now()
++	}
+ 	select {
+ 	case h.queue <- queueEntry{buf: p, gsoSize: gsoSize, ecn: ecn, metadata: metadata}:
+ 		// clear available channel if we've reached capacity
+@@ -191,6 +196,8 @@ func (h *sendQueue) Run() error {
+ // 3. Eventual detection of loss PingFrame.
+ // The caller keeps ownership of the entry's buffer.
+ func (h *sendQueue) writeEntry(e queueEntry) error {
++	causal.SingleWrites.Add(1)
++	causalQueue(e)
+ 	if err := h.conn.Write(e.buf.Data, e.gsoSize, e.ecn); err != nil {
+ 		if !isSendMsgSizeErr(err) {
+ 			return err
+@@ -247,7 +254,15 @@ func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
+ 			for _, e := range remaining {
+ 				bufs = append(bufs, e.buf.Data)
+ 			}
++			causal.BatchCalls.Add(1)
++			causal.BatchEntries.Add(uint64(len(remaining)))
++			for _, entry := range remaining {
++				causalQueue(entry)
++			}
+ 			accepted, err := bs.sendBatch(bufs, remaining[0].ecn)
++			if accepted > 0 {
++				causal.BatchAccepted.Add(uint64(accepted))
++			}
+ 			clear(bufs)
+ 			h.bufsScratch = bufs[:0]
+ 			if accepted < 0 || accepted > len(remaining) {
+diff --git 1/causal_diagnostics.go 2/causal_diagnostics.go
+new file mode 100644
+index 00000000..f47a9e3b
+--- /dev/null
++++ 2/causal_diagnostics.go
+@@ -0,0 +1,67 @@
++package quic
++
++import (
++	"encoding/json"
++	"fmt"
++	"github.com/quic-go/quic-go/internal/monotime"
++	"os"
++	"sync/atomic"
++	"time"
++)
++
++var causal = struct {
++	Loops, Waits, Opportunities, Progress, Exhausted      uint64
++	Stops                                                 [9]uint64
++	PolicyRateMin, PolicyRateMax                          uint64
++	PendingMax                                            int64
++	SingleWrites, BatchCalls, BatchEntries, BatchAccepted atomic.Uint64
++	QueueResidence                                        [8]atomic.Uint64
++	DeadlineLateness                                      [8]uint64
++}{PolicyRateMin: ^uint64(0)}
++
++func causalBucket(ns int64) int {
++	for i, v := range []int64{1000, 10000, 100000, 500000, 1000000, 5000000, 20000000} {
++		if ns <= v {
++			return i
++		}
++	}
++	return 7
++}
++func (c *Conn) causalOpportunity(now monotime.Time, result emissionResult) {
++	causal.Opportunities++
++	if result.progress {
++		causal.Progress++
++	}
++	if result.supplyExhausted {
++		causal.Exhausted++
++	}
++	causal.Stops[result.stop]++
++	if p := c.emission.bbr; p != nil {
++		causal.PolicyRateMin = min(causal.PolicyRateMin, p.rate)
++		causal.PolicyRateMax = max(causal.PolicyRateMax, p.rate)
++		if causal.Opportunities%256 == 0 {
++			p.credit.mu.Lock()
++			causal.PendingMax = max(causal.PendingMax, int64(p.credit.pending))
++			p.credit.mu.Unlock()
++		}
++	}
++}
++func causalQueue(e queueEntry) {
++	if e.metadata.causalAt != 0 {
++		causal.QueueResidence[causalBucket(int64(monotime.Now()-e.metadata.causalAt))].Add(1)
++	}
++}
++func (c *Conn) causalDump() {
++	residence := make([]uint64, 8)
++	for i := range residence {
++		residence[i] = causal.QueueResidence[i].Load()
++	}
++	d := map[string]any{"loops": causal.Loops, "waits": causal.Waits, "opportunities": causal.Opportunities, "progress": causal.Progress, "exhausted": causal.Exhausted, "stops": causal.Stops, "policy_rate_min": causal.PolicyRateMin, "policy_rate_max": causal.PolicyRateMax, "sampled_pending_max": causal.PendingMax, "single_writes": causal.SingleWrites.Load(), "batch_calls": causal.BatchCalls.Load(), "batch_entries": causal.BatchEntries.Load(), "batch_accepted": causal.BatchAccepted.Load(), "queue_residence_histogram": residence, "deadline_lateness_histogram": causal.DeadlineLateness, "histogram_upper_ns": []int64{1000, 10000, 100000, 500000, 1000000, 5000000, 20000000}, "sample_every": 256}
++	if h, ok := c.sentPacketHandler.(interface{ CausalDiagnostics() any }); ok {
++		d["recovery"] = h.CausalDiagnostics()
++	}
++	b, _ := json.Marshal(d)
++	fmt.Fprintln(os.Stderr, "[BBR-CAUSAL]", string(b))
++}
++
++var _ = time.Second
+diff --git 1/internal/ackhandler/causal_diagnostics.go 2/internal/ackhandler/causal_diagnostics.go
+new file mode 100644
+index 00000000..ffe4cd54
+--- /dev/null
++++ 2/internal/ackhandler/causal_diagnostics.go
+@@ -0,0 +1,32 @@
++package ackhandler
++
++import (
++	"github.com/quic-go/quic-go/internal/congestion"
++	"github.com/quic-go/quic-go/internal/monotime"
++	"time"
++)
++
++type causalSample struct {
++	BeforeDelivered, BeforeLost uint64
++	BeforeTime                  monotime.Time
++	MinimumRTT                  time.Duration
++	Time                        monotime.Time
++	Path, Generation            uint64
++	Acked, Lost                 []congestion.PacketInfo
++	Sample                      congestion.DeliverySample
++}
++
++func (h *sentPacketHandler) CausalDiagnostics() any {
++	d := h.congestionEvents
++	if d == nil {
++		return nil
++	}
++	out := map[string]any{"idle_calls": d.causalIdleCalls, "idle_one_rate": d.causalIdleOneRate, "feedback_events": d.causalFeedback, "valid_samples": d.causalValid, "limited_samples": d.causalLimited, "ring_count": d.recovery.count, "ring_evictions": d.recovery.evicted, "outstanding": d.sampler.outstanding, "delivered": d.sampler.delivered, "lost_bytes": d.sampler.lost, "evidence_lost": d.sampler.evidenceLost, "missing": d.sampler.missing, "expired": d.sampler.expired, "samples": d.causalSamples, "sample_every": 128, "sample_cap": 256, "diagnostics": h.BBRDiagnostics()}
++	if e := h.bbrECN; e != nil {
++		out["ecn_ranges"] = len(e.ranges)
++		out["ecn_sent"] = e.sent
++		out["ecn_accepted"] = e.accepted
++		out["ecn_failed"] = e.counterFailed || e.evidenceLost
++	}
++	return out
++}

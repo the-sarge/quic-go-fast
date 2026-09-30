@@ -1,0 +1,47 @@
+{
+  "observations": 74,
+  "unprofiled_observations": 68,
+  "profiled_diagnostic_observations": 6,
+  "successful_endpoint_exits": 148,
+  "receiver_corruption": 0,
+  "receiver_duplicates": 0,
+  "main_comparison_observations": 30,
+  "main_blocks": 3,
+  "isolated_recovery_and_ecn_observations": 24,
+  "captured_delivery_samples_verified": 1585,
+  "profiles": 36,
+  "archive_members_verified": 843,
+  "summary_regenerates_exactly": true,
+  "diagnostics_regenerate_exactly": true,
+  "python_sources_parse": true,
+  "intervention_patches_apply_to_frozen_source": [
+    "allocation",
+    "recovery",
+    "both",
+    "continuation",
+    "combined",
+    "recovery-ack",
+    "recovery-pto",
+    "recovery-feedback",
+    "ecn-reuse"
+  ],
+  "fixture_heap_patch_reconstructs_exactly": true,
+  "local_markdown_links_resolve": true,
+  "transport_restored_to_component": true,
+  "checks": {
+    "allocation": "BBR congestion tests passed",
+    "recovery": "BBR/recovery/congestion ackhandler tests passed",
+    "continuation": "BBR/bounded/local-send/send-queue root tests passed",
+    "combined": "root/ackhandler/congestion affected tests passed; finite frozen-reducer equivalence passed",
+    "granular_recovery": "finite frozen-reducer equivalence passed for all three isolated scans",
+    "ecn_reuse": "ECN ackhandler tests passed",
+    "idle_oracle": "pinned defect reproduced after completing Drain; initial fixture expectation failure retained in environment inventory"
+  },
+  "limits": [
+    "Finite differential cases are not a universal equivalence proof.",
+    "No production review, merge, native two-host correction, difficult-path benefit, platform qualification, or algorithm decision.",
+    "Bulk-sender sample captures cover warmup; full-run validity counters are separate.",
+    "Profiles and forced-GC heap observations are excluded from causal performance tables."
+  ],
+  "staged_whitespace_check": "Non-patch evidence files pass; literal patch context spaces/tabs are preserved and all source patches independently pass git apply --check."
+}

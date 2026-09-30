@@ -1,0 +1,83 @@
+{
+  "component": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "base": "2383659ce0781b358fe098f32637d41767b7e9d0",
+  "source_blobs": {
+    "connection.go": "59a77c65d7889d599d7ad70438fd04e34ff5ab4c",
+    "packet_emission_bbr.go": "600f184340689c1b5bd639efc94554cc02deec69",
+    "bbr_send_policy.go": "98897414cbb2232c090fc0f4e7a00fae10faeb8c",
+    "local_send_credit.go": "ca0a2f9d15df0f5057060ab17d3e691a8dbbeb79",
+    "send_queue.go": "f3b2ad9b1bfd90e27b0f50ccf00859e148641a69",
+    "internal/ackhandler/bbr_recovery.go": "bd9de22fd746aba0a4e0f8b0670be2936c7ff19e",
+    "internal/ackhandler/congestion_dispatch.go": "d95352569646b2e2534417789ec158f55bcab49a",
+    "internal/ackhandler/delivery_sampler.go": "6d97c90a3b6d97847534d1407dbbd3e5bc44c0ad",
+    "internal/ackhandler/bbr_ecn.go": "c63cc89d10897cce4c361bd330b296ad31a05ce3",
+    "internal/congestion/bbr_sender.go": "29b30694514de6cdc4f4de0bd6795e74f6cc2570"
+  },
+  "owned_worktree": "/Volumes/worktrees/quic-go-fast/bbr-causal-diagnosis",
+  "feature_branch": "codex/bbr-causal-diagnosis",
+  "toolchain": "go1.27.0",
+  "performance_workload": {
+    "warmup_seconds": 5,
+    "measured_seconds": 20,
+    "packet_size": 1400,
+    "pmtu": false,
+    "receiver": "127.0.0.1:24721",
+    "sender": "127.0.0.1:24722",
+    "gomaxprocs_per_role": 4,
+    "managed_direct": true
+  },
+  "environment_commands": {
+    "sw_vers": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428",
+    "sysctl -n hw.model hw.ncpu hw.memsize": "Mac16,5\n16\n137438953472"
+  },
+  "notes": [
+    "Initiating checkout and frozen campaign worktree/receipts remained read-only.",
+    "Builds and tests finished before the factorial series.",
+    "Sanity phase overlaps preparation and is excluded from causal statistics.",
+    "No paid resources, cloud launches, production merge, maintained benchmark service, or campaign ledger changes."
+  ],
+  "premeasurement_corrections": [
+    {
+      "attempt": "idle reducer oracle",
+      "error": "expected Cruise, actual Drain",
+      "correction": "Drive registered feedback through completed Drain with zero post-flight before invoking genuine idle.",
+      "performance_observations_affected": 0
+    },
+    {
+      "attempt": "recovery-ack build selector",
+      "error": "granular selection block was nested under continuation; built full recovery intervention",
+      "retained_receipt": "recovery-ack-build-invalid-selection.json",
+      "retained_patch": "attempt-invalid-recovery-ack.patch",
+      "performance_observations_affected": 0
+    },
+    {
+      "attempt": "diagnostic build invocation",
+      "error": "stat root/fixture: directory not found",
+      "correction": "Build from the copied fixture module.",
+      "performance_observations_affected": 0
+    },
+    {
+      "attempt": "diagnostic deadline counter",
+      "error": "positive immediate-send sentinel would be counted as a late pacing deadline",
+      "correction": "Exclude deadlineSendImmediately before diagnostics collection.",
+      "retained_patch": "attempt-deadline-sentinel.patch",
+      "performance_observations_affected": 0
+    }
+  ],
+  "initial_sanity_build": {
+    "source_revision": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+fixture-diagnostics",
+    "command": [
+      "go",
+      "build",
+      "-trimpath",
+      "-ldflags",
+      "-X main.sourceRevision=e4f322cbbfd4225a4b714e08ec19c958cccadcb0+fixture-diagnostics",
+      "-o",
+      "../baseline",
+      "./fixture"
+    ],
+    "binary_sha256": "4c70758614d7f3e987ea98c49b7eedbc8fda7d1e9e545fb376d5917c7f55fd39",
+    "fixture_patch": "inherited docs/audits/2026-09-29-bbr-local-reproduction/fixture-diagnostics.patch",
+    "excluded_from_causal_statistics": true
+  }
+}

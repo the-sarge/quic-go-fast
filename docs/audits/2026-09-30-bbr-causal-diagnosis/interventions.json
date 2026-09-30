@@ -1,0 +1,46 @@
+{
+  "allocation.patch": {
+    "bytes": 618,
+    "sha256": "425570c83be77602235f6015eb63ce0322906fdf50e931d7d74e0fff7aded10a"
+  },
+  "recovery.patch": {
+    "bytes": 4395,
+    "sha256": "4c1cde7a9df37b3577a262f1ca2fbcb88a0b1aa21e01782a533ab50ad20c02e6"
+  },
+  "both.patch": {
+    "bytes": 5013,
+    "sha256": "cc17d38b66b7859f2ca5591b697e7452681f4fa87180c69390bc920ec95b608c"
+  },
+  "continuation.patch": {
+    "bytes": 691,
+    "sha256": "929e2b81fd3311ad7bbec1a22aff55c094ea7839274711938df57196ddc7847b"
+  },
+  "combined.patch": {
+    "bytes": 5704,
+    "sha256": "6ec321f8cf564e041f604c81e69793eb26bd77aac0d156b88963d98278cea397"
+  },
+  "recovery-ack.patch": {
+    "bytes": 3723,
+    "sha256": "9e932956061d62d4a9df44895a985623cdf9f14fc49da77841da65c6acb05d9f"
+  },
+  "recovery-pto.patch": {
+    "bytes": 2904,
+    "sha256": "9455aa9fa3721889b76f83cc4d6738fb4f3c4058d1fca95247a3a73622bff95e"
+  },
+  "recovery-feedback.patch": {
+    "bytes": 2876,
+    "sha256": "404150d731793bb76f3d0b0cb3de7633e47affc23d6dcc51231377494d2e0037"
+  },
+  "ecn-reuse.patch": {
+    "bytes": 1971,
+    "sha256": "34122ee2054f361f62f1a2e5acc56dab2cf05cc670b6e522938297f3432e2195"
+  },
+  "recovery-equivalence_test.go.txt": {
+    "bytes": 5519,
+    "sha256": "7b7a6dcaf67c82a2c47a4276c06f5de994ebc61d46eaceba569f723017068002"
+  },
+  "idle-oracle_test.go.txt": {
+    "bytes": 653,
+    "sha256": "8f968d05856356e53464a72aeb8b3c00eabf1ac68e29afa1eadd1347a4a6f0c7"
+  }
+}

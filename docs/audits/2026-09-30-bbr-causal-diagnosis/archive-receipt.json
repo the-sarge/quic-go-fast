@@ -1,0 +1,12 @@
+{
+  "members": 843,
+  "uncompressed_bytes": 13796636,
+  "archive_bytes": 1323830,
+  "archive_sha256": "1b587420c551487c0dfa17ce92e25251fde1f0cd910244dd7258f4f9b1fd0bb6",
+  "all_member_hashes_verified": true,
+  "omitted": [
+    "temporary mTLS certificate/key",
+    "binaries",
+    "copied fixture module; retained as pinned source plus patches"
+  ]
+}

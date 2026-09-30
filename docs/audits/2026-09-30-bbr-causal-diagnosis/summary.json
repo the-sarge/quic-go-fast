@@ -1,0 +1,3564 @@
+{
+  "observations": [
+    {
+      "id": "ablation-combined-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+combined",
+      "trace_enabled": false,
+      "goodput_mbps": 1097.7801728,
+      "useful_bytes": 2744450432,
+      "control_p95_ms": 0.85,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "c21abdba697de1407a80fcf43bf360b45c80500201cf34862c28ec69a4b897fa",
+      "send": {
+        "total_cpu_seconds": 64.864969,
+        "cpu_seconds_per_gib": 25.377842250554977,
+        "peak_rss_mib": 29.140625,
+        "allocated_gib": 4.822042748332024,
+        "allocated_gib_per_gib": 1.8865813408868302
+      },
+      "receive": {
+        "total_cpu_seconds": 59.305488000000004,
+        "cpu_seconds_per_gib": 23.20274475204299,
+        "peak_rss_mib": 30.125,
+        "allocated_gib": 4.566293492913246,
+        "allocated_gib_per_gib": 1.7865217191869471
+      },
+      "combined_cpu_seconds_per_gib": 48.580587002597966
+    },
+    {
+      "id": "ablation-combined-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+combined",
+      "trace_enabled": false,
+      "goodput_mbps": 1257.2391744000001,
+      "useful_bytes": 3143097936,
+      "control_p95_ms": 0.29,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "c21abdba697de1407a80fcf43bf360b45c80500201cf34862c28ec69a4b897fa",
+      "send": {
+        "total_cpu_seconds": 59.612976,
+        "cpu_seconds_per_gib": 20.36492240702112,
+        "peak_rss_mib": 28.796875,
+        "allocated_gib": 1.2460469752550125,
+        "allocated_gib_per_gib": 0.42567326225370283
+      },
+      "receive": {
+        "total_cpu_seconds": 58.872552,
+        "cpu_seconds_per_gib": 20.111979535853333,
+        "peak_rss_mib": 28.96875,
+        "allocated_gib": 1.1330505684018135,
+        "allocated_gib_per_gib": 0.38707154812626876
+      },
+      "combined_cpu_seconds_per_gib": 40.47690194287445
+    },
+    {
+      "id": "ablation-ecn-reuse-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+ecn-reuse",
+      "trace_enabled": false,
+      "goodput_mbps": 256.7428224,
+      "useful_bytes": 641857056,
+      "control_p95_ms": 1.721,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "b0534c4ed266df99331f3d4fd280e47163bf444e5b16a9bd6034c6940ea35f5c",
+      "send": {
+        "total_cpu_seconds": 32.449102,
+        "cpu_seconds_per_gib": 54.283048917112865,
+        "peak_rss_mib": 28.21875,
+        "allocated_gib": 1.6593079790472984,
+        "allocated_gib_per_gib": 2.775802430377894
+      },
+      "receive": {
+        "total_cpu_seconds": 13.940889,
+        "cpu_seconds_per_gib": 23.321260463079707,
+        "peak_rss_mib": 25.875,
+        "allocated_gib": 1.4705713242292404,
+        "allocated_gib_per_gib": 2.460071009953967
+      },
+      "combined_cpu_seconds_per_gib": 77.60430938019257
+    },
+    {
+      "id": "ablation-ecn-reuse-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+ecn-reuse",
+      "trace_enabled": false,
+      "goodput_mbps": 255.23393280000002,
+      "useful_bytes": 638084832,
+      "control_p95_ms": 1.339,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "b0534c4ed266df99331f3d4fd280e47163bf444e5b16a9bd6034c6940ea35f5c",
+      "send": {
+        "total_cpu_seconds": 33.184802000000005,
+        "cpu_seconds_per_gib": 55.84196339047102,
+        "peak_rss_mib": 27.953125,
+        "allocated_gib": 1.6580543592572212,
+        "allocated_gib_per_gib": 2.790102855790811
+      },
+      "receive": {
+        "total_cpu_seconds": 14.732325,
+        "cpu_seconds_per_gib": 24.790925475659638,
+        "peak_rss_mib": 25.984375,
+        "allocated_gib": 1.508404903113842,
+        "allocated_gib_per_gib": 2.5382791609752604
+      },
+      "combined_cpu_seconds_per_gib": 80.63288886613066
+    },
+    {
+      "id": "ablation-ecn-reuse-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+ecn-reuse",
+      "trace_enabled": false,
+      "goodput_mbps": 248.9800448,
+      "useful_bytes": 622450112,
+      "control_p95_ms": 1.495,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "b0534c4ed266df99331f3d4fd280e47163bf444e5b16a9bd6034c6940ea35f5c",
+      "send": {
+        "total_cpu_seconds": 31.641954000000002,
+        "cpu_seconds_per_gib": 54.58315252561815,
+        "peak_rss_mib": 28.140625,
+        "allocated_gib": 1.6279565915465355,
+        "allocated_gib_per_gib": 2.8082653473761443
+      },
+      "receive": {
+        "total_cpu_seconds": 13.717916,
+        "cpu_seconds_per_gib": 23.6637440709767,
+        "peak_rss_mib": 26.359375,
+        "allocated_gib": 1.4384194314479828,
+        "allocated_gib_per_gib": 2.481309062725335
+      },
+      "combined_cpu_seconds_per_gib": 78.24689659659485
+    },
+    {
+      "id": "ablation-ecn-reuse-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+ecn-reuse",
+      "trace_enabled": false,
+      "goodput_mbps": 348.4027008,
+      "useful_bytes": 871006752,
+      "control_p95_ms": 1.838,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "b0534c4ed266df99331f3d4fd280e47163bf444e5b16a9bd6034c6940ea35f5c",
+      "send": {
+        "total_cpu_seconds": 30.374377000000003,
+        "cpu_seconds_per_gib": 37.44430096317284,
+        "peak_rss_mib": 28.265625,
+        "allocated_gib": 0.9835058450698853,
+        "allocated_gib_per_gib": 1.2124261466115478
+      },
+      "receive": {
+        "total_cpu_seconds": 14.639366,
+        "cpu_seconds_per_gib": 18.046817105550502,
+        "peak_rss_mib": 26.015625,
+        "allocated_gib": 0.6586926504969597,
+        "allocated_gib_per_gib": 0.8120096042607945
+      },
+      "combined_cpu_seconds_per_gib": 55.491118068723345
+    },
+    {
+      "id": "ablation-ecn-reuse-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+ecn-reuse",
+      "trace_enabled": false,
+      "goodput_mbps": 317.179104,
+      "useful_bytes": 792947760,
+      "control_p95_ms": 1.496,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "b0534c4ed266df99331f3d4fd280e47163bf444e5b16a9bd6034c6940ea35f5c",
+      "send": {
+        "total_cpu_seconds": 32.339605999999996,
+        "cpu_seconds_per_gib": 43.79151980186102,
+        "peak_rss_mib": 28.421875,
+        "allocated_gib": 0.9125257879495621,
+        "allocated_gib_per_gib": 1.2356641300052351
+      },
+      "receive": {
+        "total_cpu_seconds": 14.903594,
+        "cpu_seconds_per_gib": 20.181168310148774,
+        "peak_rss_mib": 25.625,
+        "allocated_gib": 0.6444694772362709,
+        "allocated_gib_per_gib": 0.8726852724825152
+      },
+      "combined_cpu_seconds_per_gib": 63.97268811200979
+    },
+    {
+      "id": "ablation-ecn-reuse-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+ecn-reuse",
+      "trace_enabled": false,
+      "goodput_mbps": 316.9761408,
+      "useful_bytes": 792440352,
+      "control_p95_ms": 3.592,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "b0534c4ed266df99331f3d4fd280e47163bf444e5b16a9bd6034c6940ea35f5c",
+      "send": {
+        "total_cpu_seconds": 30.475343000000002,
+        "cpu_seconds_per_gib": 41.293518556013204,
+        "peak_rss_mib": 28.625,
+        "allocated_gib": 0.8822472617030144,
+        "allocated_gib_per_gib": 1.1954285033682888
+      },
+      "receive": {
+        "total_cpu_seconds": 14.307184,
+        "cpu_seconds_per_gib": 19.385966155927928,
+        "peak_rss_mib": 26.1875,
+        "allocated_gib": 0.5596791878342628,
+        "allocated_gib_per_gib": 0.7583548092714996
+      },
+      "combined_cpu_seconds_per_gib": 60.67948471194113
+    },
+    {
+      "id": "ablation-recovery-ack-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-ack",
+      "trace_enabled": false,
+      "goodput_mbps": 466.2014208,
+      "useful_bytes": 1165503552,
+      "control_p95_ms": 0.642,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "79a6c316910fa43f9408e1c939630362910fcb9a32838d7f3434e5b2a348802f",
+      "send": {
+        "total_cpu_seconds": 39.363535,
+        "cpu_seconds_per_gib": 36.26438872490698,
+        "peak_rss_mib": 28.125,
+        "allocated_gib": 3.1062053740024567,
+        "allocated_gib_per_gib": 2.861649471832755
+      },
+      "receive": {
+        "total_cpu_seconds": 23.846417,
+        "cpu_seconds_per_gib": 21.968955170927362,
+        "peak_rss_mib": 28.953125,
+        "allocated_gib": 2.6836276948451996,
+        "allocated_gib_per_gib": 2.472341925561116
+      },
+      "combined_cpu_seconds_per_gib": 58.23334389583434
+    },
+    {
+      "id": "ablation-recovery-ack-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-ack",
+      "trace_enabled": false,
+      "goodput_mbps": 419.7412608,
+      "useful_bytes": 1049353152,
+      "control_p95_ms": 1.029,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "79a6c316910fa43f9408e1c939630362910fcb9a32838d7f3434e5b2a348802f",
+      "send": {
+        "total_cpu_seconds": 38.609339,
+        "cpu_seconds_per_gib": 39.50668276192907,
+        "peak_rss_mib": 28.40625,
+        "allocated_gib": 2.80988422781229,
+        "allocated_gib_per_gib": 2.8751905021199193
+      },
+      "receive": {
+        "total_cpu_seconds": 23.819337,
+        "cpu_seconds_per_gib": 24.372937088057355,
+        "peak_rss_mib": 28.0,
+        "allocated_gib": 2.3857661336660385,
+        "allocated_gib_per_gib": 2.441215214456229
+      },
+      "combined_cpu_seconds_per_gib": 63.879619849986426
+    },
+    {
+      "id": "ablation-recovery-ack-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-ack",
+      "trace_enabled": false,
+      "goodput_mbps": 427.91228160000003,
+      "useful_bytes": 1069780704,
+      "control_p95_ms": 0.706,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "79a6c316910fa43f9408e1c939630362910fcb9a32838d7f3434e5b2a348802f",
+      "send": {
+        "total_cpu_seconds": 39.014965000000004,
+        "cpu_seconds_per_gib": 39.159427278654825,
+        "peak_rss_mib": 28.0625,
+        "allocated_gib": 2.8734229803085327,
+        "allocated_gib_per_gib": 2.8840625190412856
+      },
+      "receive": {
+        "total_cpu_seconds": 24.088966,
+        "cpu_seconds_per_gib": 24.178161182381903,
+        "peak_rss_mib": 28.65625,
+        "allocated_gib": 2.559808634221554,
+        "allocated_gib_per_gib": 2.5692869405129968
+      },
+      "combined_cpu_seconds_per_gib": 63.33758846103673
+    },
+    {
+      "id": "ablation-recovery-ack-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-ack",
+      "trace_enabled": false,
+      "goodput_mbps": 516.8294208,
+      "useful_bytes": 1292073552,
+      "control_p95_ms": 9.632,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "79a6c316910fa43f9408e1c939630362910fcb9a32838d7f3434e5b2a348802f",
+      "send": {
+        "total_cpu_seconds": 33.318392,
+        "cpu_seconds_per_gib": 27.68832389104348,
+        "peak_rss_mib": 29.0625,
+        "allocated_gib": 1.586367592215538,
+        "allocated_gib_per_gib": 1.3183067089047575
+      },
+      "receive": {
+        "total_cpu_seconds": 21.634094,
+        "cpu_seconds_per_gib": 17.97841269654551,
+        "peak_rss_mib": 26.09375,
+        "allocated_gib": 0.9846173375844955,
+        "allocated_gib_per_gib": 0.8182388799488406
+      },
+      "combined_cpu_seconds_per_gib": 45.66673658758899
+    },
+    {
+      "id": "ablation-recovery-ack-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-ack",
+      "trace_enabled": false,
+      "goodput_mbps": 555.235296,
+      "useful_bytes": 1388088240,
+      "control_p95_ms": 0.466,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "79a6c316910fa43f9408e1c939630362910fcb9a32838d7f3434e5b2a348802f",
+      "send": {
+        "total_cpu_seconds": 38.508834,
+        "cpu_seconds_per_gib": 29.78812475154549,
+        "peak_rss_mib": 28.140625,
+        "allocated_gib": 1.6999760493636131,
+        "allocated_gib_per_gib": 1.3149995305773932
+      },
+      "receive": {
+        "total_cpu_seconds": 25.487555999999998,
+        "cpu_seconds_per_gib": 19.715644928122252,
+        "peak_rss_mib": 28.4375,
+        "allocated_gib": 1.2389396578073502,
+        "allocated_gib_per_gib": 0.9583694246988217
+      },
+      "combined_cpu_seconds_per_gib": 49.50376967966774
+    },
+    {
+      "id": "ablation-recovery-ack-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-ack",
+      "trace_enabled": false,
+      "goodput_mbps": 510.65541120000006,
+      "useful_bytes": 1276638528,
+      "control_p95_ms": 0.58,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "79a6c316910fa43f9408e1c939630362910fcb9a32838d7f3434e5b2a348802f",
+      "send": {
+        "total_cpu_seconds": 38.298896,
+        "cpu_seconds_per_gib": 32.21203617648167,
+        "peak_rss_mib": 28.609375,
+        "allocated_gib": 1.565807856619358,
+        "allocated_gib_per_gib": 1.3169533482856002
+      },
+      "receive": {
+        "total_cpu_seconds": 25.767734,
+        "cpu_seconds_per_gib": 21.67245708058939,
+        "peak_rss_mib": 27.625,
+        "allocated_gib": 1.1057040244340897,
+        "allocated_gib_per_gib": 0.9299740137562259
+      },
+      "combined_cpu_seconds_per_gib": 53.88449325707106
+    },
+    {
+      "id": "ablation-recovery-feedback-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-feedback",
+      "trace_enabled": false,
+      "goodput_mbps": 313.5478272,
+      "useful_bytes": 783869568,
+      "control_p95_ms": 1.404,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0f2c8f3b3db97c01bb61a4db37023a0908c1d892ea200f914a1e668a925882c1",
+      "send": {
+        "total_cpu_seconds": 34.326797,
+        "cpu_seconds_per_gib": 47.020727844938776,
+        "peak_rss_mib": 28.3125,
+        "allocated_gib": 2.0854658260941505,
+        "allocated_gib_per_gib": 2.856663878039465
+      },
+      "receive": {
+        "total_cpu_seconds": 17.117689,
+        "cpu_seconds_per_gib": 23.447751207410995,
+        "peak_rss_mib": 26.21875,
+        "allocated_gib": 1.7854962721467018,
+        "allocated_gib_per_gib": 2.445766620193629
+      },
+      "combined_cpu_seconds_per_gib": 70.46847905234978
+    },
+    {
+      "id": "ablation-recovery-feedback-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-feedback",
+      "trace_enabled": false,
+      "goodput_mbps": 306.3727872,
+      "useful_bytes": 765931968,
+      "control_p95_ms": 1.193,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0f2c8f3b3db97c01bb61a4db37023a0908c1d892ea200f914a1e668a925882c1",
+      "send": {
+        "total_cpu_seconds": 34.900093,
+        "cpu_seconds_per_gib": 48.92561099576618,
+        "peak_rss_mib": 28.15625,
+        "allocated_gib": 2.0566988810896873,
+        "allocated_gib_per_gib": 2.8832372851161634
+      },
+      "receive": {
+        "total_cpu_seconds": 17.282577999999997,
+        "cpu_seconds_per_gib": 24.228035387527093,
+        "peak_rss_mib": 26.171875,
+        "allocated_gib": 1.8039572015404701,
+        "allocated_gib_per_gib": 2.5289247308189124
+      },
+      "combined_cpu_seconds_per_gib": 73.15364638329328
+    },
+    {
+      "id": "ablation-recovery-feedback-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-feedback",
+      "trace_enabled": false,
+      "goodput_mbps": 290.0818944,
+      "useful_bytes": 725204736,
+      "control_p95_ms": 0.985,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0f2c8f3b3db97c01bb61a4db37023a0908c1d892ea200f914a1e668a925882c1",
+      "send": {
+        "total_cpu_seconds": 34.940299,
+        "cpu_seconds_per_gib": 51.73278457376949,
+        "peak_rss_mib": 27.78125,
+        "allocated_gib": 1.9389628469944,
+        "allocated_gib_per_gib": 2.87083826214836
+      },
+      "receive": {
+        "total_cpu_seconds": 17.182299999999998,
+        "cpu_seconds_per_gib": 25.440200851798075,
+        "peak_rss_mib": 26.25,
+        "allocated_gib": 1.6435066759586334,
+        "allocated_gib_per_gib": 2.433384351202031
+      },
+      "combined_cpu_seconds_per_gib": 77.17298542556756
+    },
+    {
+      "id": "ablation-recovery-feedback-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-feedback",
+      "trace_enabled": false,
+      "goodput_mbps": 390.4946496,
+      "useful_bytes": 976236624,
+      "control_p95_ms": 4.76,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0f2c8f3b3db97c01bb61a4db37023a0908c1d892ea200f914a1e668a925882c1",
+      "send": {
+        "total_cpu_seconds": 30.766908,
+        "cpu_seconds_per_gib": 33.83986535907732,
+        "peak_rss_mib": 28.4375,
+        "allocated_gib": 1.1874969080090523,
+        "allocated_gib_per_gib": 1.3061025008215632
+      },
+      "receive": {
+        "total_cpu_seconds": 15.798029999999999,
+        "cpu_seconds_per_gib": 17.375915972403345,
+        "peak_rss_mib": 25.890625,
+        "allocated_gib": 0.6777381226420403,
+        "allocated_gib_per_gib": 0.7454296941025232
+      },
+      "combined_cpu_seconds_per_gib": 51.21578133148067
+    },
+    {
+      "id": "ablation-recovery-feedback-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-feedback",
+      "trace_enabled": false,
+      "goodput_mbps": 378.83408640000005,
+      "useful_bytes": 947085216,
+      "control_p95_ms": 0.932,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0f2c8f3b3db97c01bb61a4db37023a0908c1d892ea200f914a1e668a925882c1",
+      "send": {
+        "total_cpu_seconds": 33.981163,
+        "cpu_seconds_per_gib": 38.52556805327781,
+        "peak_rss_mib": 27.78125,
+        "allocated_gib": 1.1433437764644623,
+        "allocated_gib_per_gib": 1.2962466431320578
+      },
+      "receive": {
+        "total_cpu_seconds": 17.595827999999997,
+        "cpu_seconds_per_gib": 19.948971995683934,
+        "peak_rss_mib": 25.6875,
+        "allocated_gib": 0.7955489456653595,
+        "allocated_gib_per_gib": 0.9019401438951402
+      },
+      "combined_cpu_seconds_per_gib": 58.47454004896174
+    },
+    {
+      "id": "ablation-recovery-feedback-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-feedback",
+      "trace_enabled": false,
+      "goodput_mbps": 372.3589056,
+      "useful_bytes": 930897264,
+      "control_p95_ms": 3.846,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0f2c8f3b3db97c01bb61a4db37023a0908c1d892ea200f914a1e668a925882c1",
+      "send": {
+        "total_cpu_seconds": 31.975317,
+        "cpu_seconds_per_gib": 36.88187357112933,
+        "peak_rss_mib": 28.796875,
+        "allocated_gib": 1.1367994025349617,
+        "allocated_gib_per_gib": 1.3112392862291193
+      },
+      "receive": {
+        "total_cpu_seconds": 16.882614999999998,
+        "cpu_seconds_per_gib": 19.473222798074264,
+        "peak_rss_mib": 26.296875,
+        "allocated_gib": 0.7550216987729073,
+        "allocated_gib_per_gib": 0.870878460332439
+      },
+      "combined_cpu_seconds_per_gib": 56.355096369203594
+    },
+    {
+      "id": "ablation-recovery-pto-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-pto",
+      "trace_enabled": false,
+      "goodput_mbps": 329.88702720000003,
+      "useful_bytes": 824717568,
+      "control_p95_ms": 1.527,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "518fc653143cb3725781c2ec3b0ee28bfb1cc164b3ec2969dc6f121f44b8da1f",
+      "send": {
+        "total_cpu_seconds": 34.867711,
+        "cpu_seconds_per_gib": 45.39604958172161,
+        "peak_rss_mib": 28.171875,
+        "allocated_gib": 2.2009889110922813,
+        "allocated_gib_per_gib": 2.865579611370665
+      },
+      "receive": {
+        "total_cpu_seconds": 18.260998999999998,
+        "cpu_seconds_per_gib": 23.774925059341253,
+        "peak_rss_mib": 26.28125,
+        "allocated_gib": 1.9217069000005722,
+        "allocated_gib_per_gib": 2.501968130743154
+      },
+      "combined_cpu_seconds_per_gib": 69.17097464106287
+    },
+    {
+      "id": "ablation-recovery-pto-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-pto",
+      "trace_enabled": false,
+      "goodput_mbps": 317.50096640000004,
+      "useful_bytes": 793752416,
+      "control_p95_ms": 0.908,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "518fc653143cb3725781c2ec3b0ee28bfb1cc164b3ec2969dc6f121f44b8da1f",
+      "send": {
+        "total_cpu_seconds": 35.966162999999995,
+        "cpu_seconds_per_gib": 48.65292083961519,
+        "peak_rss_mib": 28.140625,
+        "allocated_gib": 2.1290019378066063,
+        "allocated_gib_per_gib": 2.879989248435875
+      },
+      "receive": {
+        "total_cpu_seconds": 18.832701,
+        "cpu_seconds_per_gib": 25.475775966125216,
+        "peak_rss_mib": 25.828125,
+        "allocated_gib": 1.8171177729964256,
+        "allocated_gib_per_gib": 2.458090599373999
+      },
+      "combined_cpu_seconds_per_gib": 74.1286968057404
+    },
+    {
+      "id": "ablation-recovery-pto-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-pto",
+      "trace_enabled": false,
+      "goodput_mbps": 315.8026368,
+      "useful_bytes": 789506592,
+      "control_p95_ms": 0.852,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "518fc653143cb3725781c2ec3b0ee28bfb1cc164b3ec2969dc6f121f44b8da1f",
+      "send": {
+        "total_cpu_seconds": 35.908176000000005,
+        "cpu_seconds_per_gib": 48.83570420492832,
+        "peak_rss_mib": 27.84375,
+        "allocated_gib": 2.1157056093215942,
+        "allocated_gib_per_gib": 2.8773940876734314
+      },
+      "receive": {
+        "total_cpu_seconds": 17.966186,
+        "cpu_seconds_per_gib": 24.434305579507136,
+        "peak_rss_mib": 25.484375,
+        "allocated_gib": 1.835035502910614,
+        "allocated_gib_per_gib": 2.4956781716143035
+      },
+      "combined_cpu_seconds_per_gib": 73.27000978443546
+    },
+    {
+      "id": "ablation-recovery-pto-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-pto",
+      "trace_enabled": false,
+      "goodput_mbps": 416.467392,
+      "useful_bytes": 1041168480,
+      "control_p95_ms": 1.206,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "518fc653143cb3725781c2ec3b0ee28bfb1cc164b3ec2969dc6f121f44b8da1f",
+      "send": {
+        "total_cpu_seconds": 32.375545,
+        "cpu_seconds_per_gib": 33.38842599354725,
+        "peak_rss_mib": 28.640625,
+        "allocated_gib": 1.2587814405560493,
+        "allocated_gib_per_gib": 1.298162887143875
+      },
+      "receive": {
+        "total_cpu_seconds": 17.842913000000003,
+        "cpu_seconds_per_gib": 18.40113518428191,
+        "peak_rss_mib": 25.953125,
+        "allocated_gib": 0.8182335793972015,
+        "allocated_gib_per_gib": 0.8438323219312209
+      },
+      "combined_cpu_seconds_per_gib": 51.78956117782916
+    },
+    {
+      "id": "ablation-recovery-pto-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-pto",
+      "trace_enabled": false,
+      "goodput_mbps": 373.5701376,
+      "useful_bytes": 933925344,
+      "control_p95_ms": 1.413,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "518fc653143cb3725781c2ec3b0ee28bfb1cc164b3ec2969dc6f121f44b8da1f",
+      "send": {
+        "total_cpu_seconds": 33.688777,
+        "cpu_seconds_per_gib": 38.73227030051478,
+        "peak_rss_mib": 28.125,
+        "allocated_gib": 1.155262753367424,
+        "allocated_gib_per_gib": 1.3282153053981154
+      },
+      "receive": {
+        "total_cpu_seconds": 18.04486,
+        "cpu_seconds_per_gib": 20.746327331946397,
+        "peak_rss_mib": 25.875,
+        "allocated_gib": 0.8345245271921158,
+        "allocated_gib_per_gib": 0.9594598687751212
+      },
+      "combined_cpu_seconds_per_gib": 59.478597632461174
+    },
+    {
+      "id": "ablation-recovery-pto-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery-pto",
+      "trace_enabled": false,
+      "goodput_mbps": 374.04808320000006,
+      "useful_bytes": 935120208,
+      "control_p95_ms": 1.316,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "518fc653143cb3725781c2ec3b0ee28bfb1cc164b3ec2969dc6f121f44b8da1f",
+      "send": {
+        "total_cpu_seconds": 34.060320000000004,
+        "cpu_seconds_per_gib": 39.109399850359864,
+        "peak_rss_mib": 27.9375,
+        "allocated_gib": 1.1486164778470993,
+        "allocated_gib_per_gib": 1.3188866430742345
+      },
+      "receive": {
+        "total_cpu_seconds": 18.203269,
+        "cpu_seconds_per_gib": 20.901709846080724,
+        "peak_rss_mib": 26.15625,
+        "allocated_gib": 0.854474775493145,
+        "allocated_gib_per_gib": 0.9811415646361479
+      },
+      "combined_cpu_seconds_per_gib": 60.011109696440585
+    },
+    {
+      "id": "baseline-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+fixture-diagnostics",
+      "trace_enabled": false,
+      "goodput_mbps": 248.7314048,
+      "useful_bytes": 621828512,
+      "control_p95_ms": 2.783,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "4c70758614d7f3e987ea98c49b7eedbc8fda7d1e9e545fb376d5917c7f55fd39",
+      "send": {
+        "total_cpu_seconds": 30.524382000000003,
+        "cpu_seconds_per_gib": 52.70794917353801,
+        "peak_rss_mib": 27.96875,
+        "allocated_gib": 1.6665071099996567,
+        "allocated_gib_per_gib": 2.877639653808605
+      },
+      "receive": {
+        "total_cpu_seconds": 13.323259,
+        "cpu_seconds_per_gib": 23.005925499093898,
+        "peak_rss_mib": 26.109375,
+        "allocated_gib": 1.4122049286961555,
+        "allocated_gib_per_gib": 2.438523590889959
+      },
+      "combined_cpu_seconds_per_gib": 75.7138746726319
+    },
+    {
+      "id": "baseline-datagram-p1-reno",
+      "controller": "reno",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+fixture-diagnostics",
+      "trace_enabled": false,
+      "goodput_mbps": 941.7502848,
+      "useful_bytes": 2354375712,
+      "control_p95_ms": 5.852,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "4c70758614d7f3e987ea98c49b7eedbc8fda7d1e9e545fb376d5917c7f55fd39",
+      "send": {
+        "total_cpu_seconds": 51.278749,
+        "cpu_seconds_per_gib": 23.386300327115407,
+        "peak_rss_mib": 21.171875,
+        "allocated_gib": 3.539573021233082,
+        "allocated_gib_per_gib": 1.6142655450567271
+      },
+      "receive": {
+        "total_cpu_seconds": 46.91861,
+        "cpu_seconds_per_gib": 21.397805636615676,
+        "peak_rss_mib": 21.765625,
+        "allocated_gib": 3.867405243217945,
+        "allocated_gib_per_gib": 1.7637774374050288
+      },
+      "combined_cpu_seconds_per_gib": 44.78410596373108
+    },
+    {
+      "id": "baseline-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+fixture-diagnostics",
+      "trace_enabled": false,
+      "goodput_mbps": 316.3148736,
+      "useful_bytes": 790787184,
+      "control_p95_ms": 2.045,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "4c70758614d7f3e987ea98c49b7eedbc8fda7d1e9e545fb376d5917c7f55fd39",
+      "send": {
+        "total_cpu_seconds": 31.879587,
+        "cpu_seconds_per_gib": 43.286546097776274,
+        "peak_rss_mib": 28.0625,
+        "allocated_gib": 0.961145669221878,
+        "allocated_gib_per_gib": 1.3050569418434075
+      },
+      "receive": {
+        "total_cpu_seconds": 14.844177,
+        "cpu_seconds_per_gib": 20.155629744954044,
+        "peak_rss_mib": 25.890625,
+        "allocated_gib": 0.6459821239113808,
+        "allocated_gib_per_gib": 0.877123501789073
+      },
+      "combined_cpu_seconds_per_gib": 63.44217584273032
+    },
+    {
+      "id": "baseline-stream-p1-reno",
+      "controller": "reno",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+fixture-diagnostics",
+      "trace_enabled": false,
+      "goodput_mbps": 1228.6082688,
+      "useful_bytes": 3071520672,
+      "control_p95_ms": 0.556,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "4c70758614d7f3e987ea98c49b7eedbc8fda7d1e9e545fb376d5917c7f55fd39",
+      "send": {
+        "total_cpu_seconds": 61.797852,
+        "cpu_seconds_per_gib": 21.603285607241403,
+        "peak_rss_mib": 20.765625,
+        "allocated_gib": 0.43922852724790573,
+        "allocated_gib_per_gib": 0.1535454552851533
+      },
+      "receive": {
+        "total_cpu_seconds": 59.980919,
+        "cpu_seconds_per_gib": 20.968122389461247,
+        "peak_rss_mib": 20.90625,
+        "allocated_gib": 0.9144808724522591,
+        "allocated_gib_per_gib": 0.3196841124825091
+      },
+      "combined_cpu_seconds_per_gib": 42.571407996702646
+    },
+    {
+      "id": "diagnostics-diag-profile-baseline-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diag-profile-baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 254.422656,
+      "useful_bytes": 636056640,
+      "control_p95_ms": 1.68,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "91a570100ec235a50ee90586421e16fd1d56233d1e75c95525ead2ffef93b741",
+      "send": {
+        "total_cpu_seconds": 32.448196,
+        "cpu_seconds_per_gib": 54.776544992203064,
+        "peak_rss_mib": 32.96875,
+        "allocated_gib": 1.7132308036088943,
+        "allocated_gib_per_gib": 2.892144271931506
+      },
+      "receive": {
+        "total_cpu_seconds": 14.756825000000001,
+        "cpu_seconds_per_gib": 24.911335242013667,
+        "peak_rss_mib": 31.0625,
+        "allocated_gib": 1.4875982776284218,
+        "allocated_gib_per_gib": 2.511248822117477
+      },
+      "combined_cpu_seconds_per_gib": 79.68788023421673
+    },
+    {
+      "id": "diagnostics-diag-profile-baseline-datagram-p1-reno",
+      "controller": "reno",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diag-profile-baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1105.626304,
+      "useful_bytes": 2764065760,
+      "control_p95_ms": 0.359,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "91a570100ec235a50ee90586421e16fd1d56233d1e75c95525ead2ffef93b741",
+      "send": {
+        "total_cpu_seconds": 63.810257,
+        "cpu_seconds_per_gib": 24.788028827899076,
+        "peak_rss_mib": 22.03125,
+        "allocated_gib": 4.01454634219408,
+        "allocated_gib_per_gib": 1.5595093193441245
+      },
+      "receive": {
+        "total_cpu_seconds": 59.690932,
+        "cpu_seconds_per_gib": 23.18781670445495,
+        "peak_rss_mib": 23.515625,
+        "allocated_gib": 4.3539267256855965,
+        "allocated_gib_per_gib": 1.6913465995107149
+      },
+      "combined_cpu_seconds_per_gib": 47.97584553235403
+    },
+    {
+      "id": "diagnostics-diag-profile-baseline-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diag-profile-baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 328.1325696,
+      "useful_bytes": 820331424,
+      "control_p95_ms": 1.213,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "91a570100ec235a50ee90586421e16fd1d56233d1e75c95525ead2ffef93b741",
+      "send": {
+        "total_cpu_seconds": 32.457390000000004,
+        "cpu_seconds_per_gib": 42.483874347935945,
+        "peak_rss_mib": 33.875,
+        "allocated_gib": 0.9996045231819153,
+        "allocated_gib_per_gib": 1.3083945739472245
+      },
+      "receive": {
+        "total_cpu_seconds": 16.101233,
+        "cpu_seconds_per_gib": 21.07510060478799,
+        "peak_rss_mib": 32.109375,
+        "allocated_gib": 0.6843489408493042,
+        "allocated_gib_per_gib": 0.8957526903175174
+      },
+      "combined_cpu_seconds_per_gib": 63.558974952723936
+    },
+    {
+      "id": "diagnostics-diag-profile-baseline-stream-p1-reno",
+      "controller": "reno",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diag-profile-baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1204.0235327999999,
+      "useful_bytes": 3010058832,
+      "control_p95_ms": 0.271,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "91a570100ec235a50ee90586421e16fd1d56233d1e75c95525ead2ffef93b741",
+      "send": {
+        "total_cpu_seconds": 60.538618,
+        "cpu_seconds_per_gib": 21.59520784866813,
+        "peak_rss_mib": 21.859375,
+        "allocated_gib": 0.43164151161909103,
+        "allocated_gib_per_gib": 0.15397424763689802
+      },
+      "receive": {
+        "total_cpu_seconds": 59.2517,
+        "cpu_seconds_per_gib": 21.136141179947806,
+        "peak_rss_mib": 22.21875,
+        "allocated_gib": 0.899701751768589,
+        "allocated_gib_per_gib": 0.3209397071346013
+      },
+      "combined_cpu_seconds_per_gib": 42.73134902861594
+    },
+    {
+      "id": "diagnostics-diag-profile-recovery-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diag-profile-recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1055.8135296,
+      "useful_bytes": 2639533824,
+      "control_p95_ms": 0.293,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "882834d063894b788a198f0d33f5ef8627c933621372e7725bf7d99b3bbdee51",
+      "send": {
+        "total_cpu_seconds": 65.850683,
+        "cpu_seconds_per_gib": 26.787545525336597,
+        "peak_rss_mib": 32.921875,
+        "allocated_gib": 7.095107726752758,
+        "allocated_gib_per_gib": 2.886234623224135
+      },
+      "receive": {
+        "total_cpu_seconds": 60.169436999999995,
+        "cpu_seconds_per_gib": 24.47645885269515,
+        "peak_rss_mib": 51.265625,
+        "allocated_gib": 6.43347093462944,
+        "allocated_gib_per_gib": 2.6170859237301443
+      },
+      "combined_cpu_seconds_per_gib": 51.26400437803174
+    },
+    {
+      "id": "diagnostics-diag-profile-recovery-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diag-profile-recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1177.055616,
+      "useful_bytes": 2942639040,
+      "control_p95_ms": 0.387,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "882834d063894b788a198f0d33f5ef8627c933621372e7725bf7d99b3bbdee51",
+      "send": {
+        "total_cpu_seconds": 59.218858,
+        "cpu_seconds_per_gib": 21.608414671245914,
+        "peak_rss_mib": 33.015625,
+        "allocated_gib": 3.6095701530575752,
+        "allocated_gib_per_gib": 1.3170988311226919
+      },
+      "receive": {
+        "total_cpu_seconds": 58.379526,
+        "cpu_seconds_per_gib": 21.30215017180477,
+        "peak_rss_mib": 45.4375,
+        "allocated_gib": 3.063549980521202,
+        "allocated_gib_per_gib": 1.11786111014146
+      },
+      "combined_cpu_seconds_per_gib": 42.91056484305068
+    },
+    {
+      "id": "factorial-allocation-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 258.9730048,
+      "useful_bytes": 647432512,
+      "control_p95_ms": 1.742,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 32.386998999999996,
+        "cpu_seconds_per_gib": 53.71258739033818,
+        "peak_rss_mib": 28.28125,
+        "allocated_gib": 1.1549224108457565,
+        "allocated_gib_per_gib": 1.9153942272210143
+      },
+      "receive": {
+        "total_cpu_seconds": 14.52622,
+        "cpu_seconds_per_gib": 24.091175017521024,
+        "peak_rss_mib": 26.3125,
+        "allocated_gib": 1.0965976789593697,
+        "allocated_gib_per_gib": 1.8186649112857651
+      },
+      "combined_cpu_seconds_per_gib": 77.80376240785921
+    },
+    {
+      "id": "factorial-allocation-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 244.666496,
+      "useful_bytes": 611666240,
+      "control_p95_ms": 1.61,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 32.182438000000005,
+        "cpu_seconds_per_gib": 56.49425686610874,
+        "peak_rss_mib": 27.953125,
+        "allocated_gib": 1.0905815735459328,
+        "allocated_gib_per_gib": 1.9144477354185838
+      },
+      "receive": {
+        "total_cpu_seconds": 13.413088,
+        "cpu_seconds_per_gib": 23.545836982260965,
+        "peak_rss_mib": 25.5,
+        "allocated_gib": 1.0339544713497162,
+        "allocated_gib_per_gib": 1.8150423995936085
+      },
+      "combined_cpu_seconds_per_gib": 80.04009384836971
+    },
+    {
+      "id": "factorial-allocation-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 264.938944,
+      "useful_bytes": 662347360,
+      "control_p95_ms": 1.792,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 32.475199,
+        "cpu_seconds_per_gib": 52.64606083584749,
+        "peak_rss_mib": 27.890625,
+        "allocated_gib": 1.1592767611145973,
+        "allocated_gib_per_gib": 1.879321967856866
+      },
+      "receive": {
+        "total_cpu_seconds": 14.691056999999999,
+        "cpu_seconds_per_gib": 23.815905810612676,
+        "peak_rss_mib": 25.359375,
+        "allocated_gib": 1.0984772443771362,
+        "allocated_gib_per_gib": 1.7807589057198023
+      },
+      "combined_cpu_seconds_per_gib": 76.46196664646017
+    },
+    {
+      "id": "factorial-allocation-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 347.51228160000005,
+      "useful_bytes": 868780704,
+      "control_p95_ms": 1.632,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 31.946891,
+        "cpu_seconds_per_gib": 39.48374181831412,
+        "peak_rss_mib": 27.96875,
+        "allocated_gib": 0.3290187045931816,
+        "allocated_gib_per_gib": 0.4066401824688777
+      },
+      "receive": {
+        "total_cpu_seconds": 16.076674999999998,
+        "cpu_seconds_per_gib": 19.869454119868664,
+        "peak_rss_mib": 25.71875,
+        "allocated_gib": 0.288532093167305,
+        "allocated_gib_per_gib": 0.35660204534192785
+      },
+      "combined_cpu_seconds_per_gib": 59.353195938182786
+    },
+    {
+      "id": "factorial-allocation-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 350.3013888,
+      "useful_bytes": 875753472,
+      "control_p95_ms": 1.498,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 32.179063,
+        "cpu_seconds_per_gib": 39.45403233323511,
+        "peak_rss_mib": 28.140625,
+        "allocated_gib": 0.3326818719506264,
+        "allocated_gib_per_gib": 0.40789383247800587
+      },
+      "receive": {
+        "total_cpu_seconds": 16.144651,
+        "cpu_seconds_per_gib": 19.79459695774226,
+        "peak_rss_mib": 25.3125,
+        "allocated_gib": 0.2896096110343933,
+        "allocated_gib_per_gib": 0.35508389283325614
+      },
+      "combined_cpu_seconds_per_gib": 59.24862929097738
+    },
+    {
+      "id": "factorial-allocation-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 352.97264640000003,
+      "useful_bytes": 882431616,
+      "control_p95_ms": 1.722,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 32.209364,
+        "cpu_seconds_per_gib": 39.19231884280077,
+        "peak_rss_mib": 28.140625,
+        "allocated_gib": 0.3317239210009575,
+        "allocated_gib_per_gib": 0.4036413038038746
+      },
+      "receive": {
+        "total_cpu_seconds": 15.417194,
+        "cpu_seconds_per_gib": 18.75962477586689,
+        "peak_rss_mib": 25.140625,
+        "allocated_gib": 0.28579017519950867,
+        "allocated_gib_per_gib": 0.3477491722146093
+      },
+      "combined_cpu_seconds_per_gib": 57.95194361866766
+    },
+    {
+      "id": "factorial-baseline-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 262.388608,
+      "useful_bytes": 655971520,
+      "control_p95_ms": 1.402,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 32.608176,
+        "cpu_seconds_per_gib": 53.37543065216158,
+        "peak_rss_mib": 28.734375,
+        "allocated_gib": 1.7469086572527885,
+        "allocated_gib_per_gib": 2.8594669597850833
+      },
+      "receive": {
+        "total_cpu_seconds": 14.020574,
+        "cpu_seconds_per_gib": 22.94989377021578,
+        "peak_rss_mib": 25.875,
+        "allocated_gib": 1.5268125385046005,
+        "allocated_gib_per_gib": 2.499197648093015
+      },
+      "combined_cpu_seconds_per_gib": 76.32532442237736
+    },
+    {
+      "id": "factorial-baseline-datagram-p1-reno",
+      "controller": "reno",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1270.2667136000002,
+      "useful_bytes": 3175666784,
+      "control_p95_ms": 0.663,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 63.526374999999994,
+        "cpu_seconds_per_gib": 21.47924527481155,
+        "peak_rss_mib": 21.390625,
+        "allocated_gib": 4.570994094014168,
+        "allocated_gib_per_gib": 1.5455234663562234
+      },
+      "receive": {
+        "total_cpu_seconds": 60.939204000000004,
+        "cpu_seconds_per_gib": 20.604482934336758,
+        "peak_rss_mib": 22.046875,
+        "allocated_gib": 4.966969147324562,
+        "allocated_gib_per_gib": 1.6794087272854128
+      },
+      "combined_cpu_seconds_per_gib": 42.083728209148305
+    },
+    {
+      "id": "factorial-baseline-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 264.9015296,
+      "useful_bytes": 662253824,
+      "control_p95_ms": 1.502,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 32.898493,
+        "cpu_seconds_per_gib": 53.33980205250009,
+        "peak_rss_mib": 28.109375,
+        "allocated_gib": 1.783803477883339,
+        "allocated_gib_per_gib": 2.892160574372161
+      },
+      "receive": {
+        "total_cpu_seconds": 13.973476,
+        "cpu_seconds_per_gib": 22.6558232872661,
+        "peak_rss_mib": 25.40625,
+        "allocated_gib": 1.551486074924469,
+        "allocated_gib_per_gib": 2.515493950549087
+      },
+      "combined_cpu_seconds_per_gib": 75.99562533976619
+    },
+    {
+      "id": "factorial-baseline-datagram-p2-reno",
+      "controller": "reno",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1307.0180736000002,
+      "useful_bytes": 3267545184,
+      "control_p95_ms": 0.293,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 66.97747,
+        "cpu_seconds_per_gib": 22.00933935262922,
+        "peak_rss_mib": 21.359375,
+        "allocated_gib": 4.741231091320515,
+        "allocated_gib_per_gib": 1.5580069542505828
+      },
+      "receive": {
+        "total_cpu_seconds": 64.92359599999999,
+        "cpu_seconds_per_gib": 21.334419713927694,
+        "peak_rss_mib": 21.875,
+        "allocated_gib": 5.137833371758461,
+        "allocated_gib_per_gib": 1.6883336772245228
+      },
+      "combined_cpu_seconds_per_gib": 43.34375906655691
+    },
+    {
+      "id": "factorial-baseline-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 262.0319872,
+      "useful_bytes": 655079968,
+      "control_p95_ms": 1.604,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 31.98112,
+        "cpu_seconds_per_gib": 52.420265921431564,
+        "peak_rss_mib": 28.40625,
+        "allocated_gib": 1.7459823340177536,
+        "allocated_gib_per_gib": 2.861840305884609
+      },
+      "receive": {
+        "total_cpu_seconds": 14.161852999999999,
+        "cpu_seconds_per_gib": 23.212698623444812,
+        "peak_rss_mib": 26.75,
+        "allocated_gib": 1.513293094933033,
+        "allocated_gib_per_gib": 2.480439285849144
+      },
+      "combined_cpu_seconds_per_gib": 75.63296454487637
+    },
+    {
+      "id": "factorial-baseline-datagram-p3-reno",
+      "controller": "reno",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1259.5875072000001,
+      "useful_bytes": 3148968768,
+      "control_p95_ms": 0.416,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 61.390825,
+        "cpu_seconds_per_gib": 20.93316932267675,
+        "peak_rss_mib": 21.515625,
+        "allocated_gib": 4.499662972986698,
+        "allocated_gib_per_gib": 1.5343043021251077
+      },
+      "receive": {
+        "total_cpu_seconds": 59.013771000000006,
+        "cpu_seconds_per_gib": 20.122636578229255,
+        "peak_rss_mib": 22.078125,
+        "allocated_gib": 4.904978342354298,
+        "allocated_gib_per_gib": 1.6725095674242012
+      },
+      "combined_cpu_seconds_per_gib": 41.05580590090601
+    },
+    {
+      "id": "factorial-baseline-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 343.4923008,
+      "useful_bytes": 858730752,
+      "control_p95_ms": 1.996,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 31.841248999999998,
+        "cpu_seconds_per_gib": 39.81373754237949,
+        "peak_rss_mib": 28.40625,
+        "allocated_gib": 1.047601155936718,
+        "allocated_gib_per_gib": 1.3099020541423443
+      },
+      "receive": {
+        "total_cpu_seconds": 15.872726,
+        "cpu_seconds_per_gib": 19.84697732950435,
+        "peak_rss_mib": 25.875,
+        "allocated_gib": 0.7266184240579605,
+        "allocated_gib_per_gib": 0.9085508934935639
+      },
+      "combined_cpu_seconds_per_gib": 59.66071487188384
+    },
+    {
+      "id": "factorial-baseline-stream-p1-reno",
+      "controller": "reno",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1364.6263488000002,
+      "useful_bytes": 3411565872,
+      "control_p95_ms": 0.191,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 62.438172,
+        "cpu_seconds_per_gib": 19.65152636821363,
+        "peak_rss_mib": 20.921875,
+        "allocated_gib": 0.4819532781839371,
+        "allocated_gib_per_gib": 0.15168793786081114
+      },
+      "receive": {
+        "total_cpu_seconds": 62.884668999999995,
+        "cpu_seconds_per_gib": 19.79205494693032,
+        "peak_rss_mib": 20.953125,
+        "allocated_gib": 1.0051744654774666,
+        "allocated_gib_per_gib": 0.31636436302115756
+      },
+      "combined_cpu_seconds_per_gib": 39.44358131514395
+    },
+    {
+      "id": "factorial-baseline-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 354.2100672,
+      "useful_bytes": 885525168,
+      "control_p95_ms": 0.917,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 32.429941,
+        "cpu_seconds_per_gib": 39.32286202570403,
+        "peak_rss_mib": 28.53125,
+        "allocated_gib": 1.0731958448886871,
+        "allocated_gib_per_gib": 1.3013015390659117
+      },
+      "receive": {
+        "total_cpu_seconds": 16.020383,
+        "cpu_seconds_per_gib": 19.425484317345333,
+        "peak_rss_mib": 25.1875,
+        "allocated_gib": 0.733146034181118,
+        "allocated_gib_per_gib": 0.8889748009962829
+      },
+      "combined_cpu_seconds_per_gib": 58.74834634304936
+    },
+    {
+      "id": "factorial-baseline-stream-p2-reno",
+      "controller": "reno",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1420.7685888,
+      "useful_bytes": 3551921472,
+      "control_p95_ms": 0.217,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 63.265111,
+        "cpu_seconds_per_gib": 19.12497115046086,
+        "peak_rss_mib": 20.953125,
+        "allocated_gib": 0.49611224979162216,
+        "allocated_gib_per_gib": 0.1499741692487508
+      },
+      "receive": {
+        "total_cpu_seconds": 63.512355,
+        "cpu_seconds_per_gib": 19.199712730652262,
+        "peak_rss_mib": 20.9375,
+        "allocated_gib": 1.0274032726883888,
+        "allocated_gib_per_gib": 0.31058284162426436
+      },
+      "combined_cpu_seconds_per_gib": 38.32468388111312
+    },
+    {
+      "id": "factorial-baseline-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 344.1142848,
+      "useful_bytes": 860285712,
+      "control_p95_ms": 1.423,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 32.027411,
+        "cpu_seconds_per_gib": 39.97412746189799,
+        "peak_rss_mib": 28.328125,
+        "allocated_gib": 1.0534159392118454,
+        "allocated_gib_per_gib": 1.314791976924057
+      },
+      "receive": {
+        "total_cpu_seconds": 16.147787,
+        "cpu_seconds_per_gib": 20.15441384773747,
+        "peak_rss_mib": 25.46875,
+        "allocated_gib": 0.7485943287611008,
+        "allocated_gib_per_gib": 0.9343373123462965
+      },
+      "combined_cpu_seconds_per_gib": 60.128541309635466
+    },
+    {
+      "id": "factorial-baseline-stream-p3-reno",
+      "controller": "reno",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+baseline",
+      "trace_enabled": false,
+      "goodput_mbps": 1408.2568896000002,
+      "useful_bytes": 3520642224,
+      "control_p95_ms": 0.203,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "0c01bbcbac07a545455d37857e9d45a459e40382222b8e19ff96af18b112a281",
+      "send": {
+        "total_cpu_seconds": 62.02535,
+        "cpu_seconds_per_gib": 18.916779441329112,
+        "peak_rss_mib": 21.046875,
+        "allocated_gib": 0.49588850885629654,
+        "allocated_gib_per_gib": 0.15123838155728486
+      },
+      "receive": {
+        "total_cpu_seconds": 62.545253,
+        "cpu_seconds_per_gib": 19.075341873977784,
+        "peak_rss_mib": 21.34375,
+        "allocated_gib": 1.0313061699271202,
+        "allocated_gib_per_gib": 0.3145325476275944
+      },
+      "combined_cpu_seconds_per_gib": 37.992121315306896
+    },
+    {
+      "id": "factorial-both-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1280.5684608,
+      "useful_bytes": 3201421152,
+      "control_p95_ms": 0.287,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 70.232368,
+        "cpu_seconds_per_gib": 23.55561088020175,
+        "peak_rss_mib": 28.34375,
+        "allocated_gib": 5.616617605090141,
+        "allocated_gib_per_gib": 1.883787526121774
+      },
+      "receive": {
+        "total_cpu_seconds": 66.153772,
+        "cpu_seconds_per_gib": 22.187668675639504,
+        "peak_rss_mib": 30.171875,
+        "allocated_gib": 5.2810554429888725,
+        "allocated_gib_per_gib": 1.7712415314234795
+      },
+      "combined_cpu_seconds_per_gib": 45.743279555841255
+    },
+    {
+      "id": "factorial-both-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1223.7213056,
+      "useful_bytes": 3059303264,
+      "control_p95_ms": 2.626,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 68.493309,
+        "cpu_seconds_per_gib": 24.03950317802021,
+        "peak_rss_mib": 28.875,
+        "allocated_gib": 5.398721285164356,
+        "allocated_gib_per_gib": 1.8948212516926861
+      },
+      "receive": {
+        "total_cpu_seconds": 64.042062,
+        "cpu_seconds_per_gib": 22.47722259959681,
+        "peak_rss_mib": 29.9375,
+        "allocated_gib": 5.079055532813072,
+        "allocated_gib_per_gib": 1.782626265324705
+      },
+      "combined_cpu_seconds_per_gib": 46.516725777617026
+    },
+    {
+      "id": "factorial-both-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1264.4153856,
+      "useful_bytes": 3161038464,
+      "control_p95_ms": 0.204,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 68.71939300000001,
+        "cpu_seconds_per_gib": 23.34260946974445,
+        "peak_rss_mib": 29.03125,
+        "allocated_gib": 5.487514138221741,
+        "allocated_gib_per_gib": 1.8639992860270365
+      },
+      "receive": {
+        "total_cpu_seconds": 64.340265,
+        "cpu_seconds_per_gib": 21.855106884818774,
+        "peak_rss_mib": 29.78125,
+        "allocated_gib": 5.170213557779789,
+        "allocated_gib_per_gib": 1.7562185969022108
+      },
+      "combined_cpu_seconds_per_gib": 45.19771635456323
+    },
+    {
+      "id": "factorial-both-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1385.4726336,
+      "useful_bytes": 3463681584,
+      "control_p95_ms": 0.257,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 63.79575,
+        "cpu_seconds_per_gib": 19.776692316313103,
+        "peak_rss_mib": 28.484375,
+        "allocated_gib": 1.4002877473831177,
+        "allocated_gib_per_gib": 0.4340894171523822
+      },
+      "receive": {
+        "total_cpu_seconds": 64.677438,
+        "cpu_seconds_per_gib": 20.05001573197928,
+        "peak_rss_mib": 28.671875,
+        "allocated_gib": 1.2573431581258774,
+        "allocated_gib_per_gib": 0.389776572487617
+      },
+      "combined_cpu_seconds_per_gib": 39.82670804829238
+    },
+    {
+      "id": "factorial-both-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1402.115616,
+      "useful_bytes": 3505289040,
+      "control_p95_ms": 0.331,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 63.691311999999996,
+        "cpu_seconds_per_gib": 19.509953313246054,
+        "peak_rss_mib": 28.65625,
+        "allocated_gib": 1.4242341369390488,
+        "allocated_gib_per_gib": 0.43627208556815616
+      },
+      "receive": {
+        "total_cpu_seconds": 64.496961,
+        "cpu_seconds_per_gib": 19.75674010226468,
+        "peak_rss_mib": 28.890625,
+        "allocated_gib": 1.2799883857369423,
+        "allocated_gib_per_gib": 0.39208665770968776
+      },
+      "combined_cpu_seconds_per_gib": 39.26669341551073
+    },
+    {
+      "id": "factorial-both-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1364.7572928000002,
+      "useful_bytes": 3411893232,
+      "control_p95_ms": 0.233,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 64.150104,
+        "cpu_seconds_per_gib": 20.188395414229568,
+        "peak_rss_mib": 28.375,
+        "allocated_gib": 1.397517092525959,
+        "allocated_gib_per_gib": 0.4398064212344614
+      },
+      "receive": {
+        "total_cpu_seconds": 65.133568,
+        "cpu_seconds_per_gib": 20.497897018586432,
+        "peak_rss_mib": 29.09375,
+        "allocated_gib": 1.263747677206993,
+        "allocated_gib_per_gib": 0.3977084403677495
+      },
+      "combined_cpu_seconds_per_gib": 40.686292432816
+    },
+    {
+      "id": "factorial-recovery-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1241.360064,
+      "useful_bytes": 3103400160,
+      "control_p95_ms": 0.282,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 68.854451,
+        "cpu_seconds_per_gib": 23.82287168769709,
+        "peak_rss_mib": 28.703125,
+        "allocated_gib": 8.275175757706165,
+        "allocated_gib_per_gib": 2.8631184680998407
+      },
+      "receive": {
+        "total_cpu_seconds": 64.18999199999999,
+        "cpu_seconds_per_gib": 22.209020925173053,
+        "peak_rss_mib": 29.53125,
+        "allocated_gib": 7.516656689345837,
+        "allocated_gib_per_gib": 2.6006793348879635
+      },
+      "combined_cpu_seconds_per_gib": 46.031892612870145
+    },
+    {
+      "id": "factorial-recovery-datagram-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1257.2924416,
+      "useful_bytes": 3143231104,
+      "control_p95_ms": 0.195,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 70.561443,
+        "cpu_seconds_per_gib": 24.104104981169094,
+        "peak_rss_mib": 28.5,
+        "allocated_gib": 8.391441337764263,
+        "allocated_gib_per_gib": 2.8665539471576826
+      },
+      "receive": {
+        "total_cpu_seconds": 66.616826,
+        "cpu_seconds_per_gib": 22.756606145601005,
+        "peak_rss_mib": 30.171875,
+        "allocated_gib": 7.707518182694912,
+        "allocated_gib_per_gib": 2.632922734019878
+      },
+      "combined_cpu_seconds_per_gib": 46.8607111267701
+    },
+    {
+      "id": "factorial-recovery-datagram-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1306.4933248000002,
+      "useful_bytes": 3266233312,
+      "control_p95_ms": 0.201,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 71.276153,
+        "cpu_seconds_per_gib": 23.43132875681205,
+        "peak_rss_mib": 28.703125,
+        "allocated_gib": 8.68552815169096,
+        "allocated_gib_per_gib": 2.8552812824903304
+      },
+      "receive": {
+        "total_cpu_seconds": 67.180483,
+        "cpu_seconds_per_gib": 22.084917843621877,
+        "peak_rss_mib": 29.828125,
+        "allocated_gib": 7.992071367800236,
+        "allocated_gib_per_gib": 2.627314238842715
+      },
+      "combined_cpu_seconds_per_gib": 45.51624660043393
+    },
+    {
+      "id": "factorial-recovery-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1310.061984,
+      "useful_bytes": 3275154960,
+      "control_p95_ms": 0.354,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 59.823761,
+        "cpu_seconds_per_gib": 19.612896195507055,
+        "peak_rss_mib": 28.984375,
+        "allocated_gib": 4.08956541121006,
+        "allocated_gib_per_gib": 1.3407418817215293
+      },
+      "receive": {
+        "total_cpu_seconds": 59.955431999999995,
+        "cpu_seconds_per_gib": 19.656063820072795,
+        "peak_rss_mib": 29.25,
+        "allocated_gib": 3.337059833109379,
+        "allocated_gib_per_gib": 1.0940370015347305
+      },
+      "combined_cpu_seconds_per_gib": 39.26896001557985
+    },
+    {
+      "id": "factorial-recovery-stream-p2-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1426.2878784000002,
+      "useful_bytes": 3565719696,
+      "control_p95_ms": 0.286,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 63.621615,
+        "cpu_seconds_per_gib": 19.158317187006883,
+        "peak_rss_mib": 29.125,
+        "allocated_gib": 4.367180049419403,
+        "allocated_gib_per_gib": 1.315084827688598
+      },
+      "receive": {
+        "total_cpu_seconds": 64.920447,
+        "cpu_seconds_per_gib": 19.549433247619845,
+        "peak_rss_mib": 29.203125,
+        "allocated_gib": 3.703139916062355,
+        "allocated_gib_per_gib": 1.1151230458357375
+      },
+      "combined_cpu_seconds_per_gib": 38.70775043462673
+    },
+    {
+      "id": "factorial-recovery-stream-p3-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1363.9061568000002,
+      "useful_bytes": 3409765392,
+      "control_p95_ms": 0.203,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 64.91396999999999,
+        "cpu_seconds_per_gib": 20.44153674455538,
+        "peak_rss_mib": 28.59375,
+        "allocated_gib": 4.24268352240324,
+        "allocated_gib_per_gib": 1.3360293804049497
+      },
+      "receive": {
+        "total_cpu_seconds": 65.96728399999999,
+        "cpu_seconds_per_gib": 20.773227393495116,
+        "peak_rss_mib": 29.140625,
+        "allocated_gib": 3.643467977643013,
+        "allocated_gib_per_gib": 1.147335227572748
+      },
+      "combined_cpu_seconds_per_gib": 41.2147641380505
+    },
+    {
+      "id": "screen-allocation-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 271.88192,
+      "useful_bytes": 679704800,
+      "control_p95_ms": 2.029,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 32.061344,
+        "cpu_seconds_per_gib": 50.6478782942999,
+        "peak_rss_mib": 27.875,
+        "allocated_gib": 1.189909741282463,
+        "allocated_gib_per_gib": 1.879721690945834
+      },
+      "receive": {
+        "total_cpu_seconds": 13.953101,
+        "cpu_seconds_per_gib": 22.0419630966211,
+        "peak_rss_mib": 26.375,
+        "allocated_gib": 1.1390833035111427,
+        "allocated_gib_per_gib": 1.7994302585475341
+      },
+      "combined_cpu_seconds_per_gib": 72.689841390921
+    },
+    {
+      "id": "screen-allocation-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+allocation",
+      "trace_enabled": false,
+      "goodput_mbps": 310.2587136,
+      "useful_bytes": 775646784,
+      "control_p95_ms": 1.789,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a9c75a50f2b3eb60462c1d7b9dc08667b9eb1a660129f3af4ce41ad42726d65a",
+      "send": {
+        "total_cpu_seconds": 31.557892,
+        "cpu_seconds_per_gib": 43.68615872153865,
+        "peak_rss_mib": 28.921875,
+        "allocated_gib": 0.29556287825107574,
+        "allocated_gib_per_gib": 0.4091530198364105
+      },
+      "receive": {
+        "total_cpu_seconds": 14.953571,
+        "cpu_seconds_per_gib": 20.700497871017415,
+        "peak_rss_mib": 25.84375,
+        "allocated_gib": 0.25712621212005615,
+        "allocated_gib_per_gib": 0.35594445009650166
+      },
+      "combined_cpu_seconds_per_gib": 64.38665659255606
+    },
+    {
+      "id": "screen-both-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1095.3955968,
+      "useful_bytes": 2738488992,
+      "control_p95_ms": 0.457,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 64.259567,
+        "cpu_seconds_per_gib": 25.195713724464813,
+        "peak_rss_mib": 29.34375,
+        "allocated_gib": 4.854824334383011,
+        "allocated_gib_per_gib": 1.9035416798199056
+      },
+      "receive": {
+        "total_cpu_seconds": 58.561156,
+        "cpu_seconds_per_gib": 22.961407784613996,
+        "peak_rss_mib": 30.1875,
+        "allocated_gib": 4.5720342844724655,
+        "allocated_gib_per_gib": 1.7926617365785635
+      },
+      "combined_cpu_seconds_per_gib": 48.157121509078806
+    },
+    {
+      "id": "screen-both-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+both",
+      "trace_enabled": false,
+      "goodput_mbps": 1166.5277184000001,
+      "useful_bytes": 2916319296,
+      "control_p95_ms": 0.37,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "a7979f61614be1d86972c14d228a29f810c8649f6fb260f8885d7fc680ec3acb",
+      "send": {
+        "total_cpu_seconds": 56.833824,
+        "cpu_seconds_per_gib": 20.92529920518517,
+        "peak_rss_mib": 28.515625,
+        "allocated_gib": 1.1526136547327042,
+        "allocated_gib_per_gib": 0.42437379531709546
+      },
+      "receive": {
+        "total_cpu_seconds": 54.956458,
+        "cpu_seconds_per_gib": 20.234083261882787,
+        "peak_rss_mib": 29.078125,
+        "allocated_gib": 1.0425078198313713,
+        "allocated_gib_per_gib": 0.3838345991590627
+      },
+      "combined_cpu_seconds_per_gib": 41.15938246706796
+    },
+    {
+      "id": "screen-continuation-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+continuation",
+      "trace_enabled": false,
+      "goodput_mbps": 252.83230720000003,
+      "useful_bytes": 632080768,
+      "control_p95_ms": 2.216,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "bd24125ee505a5cb47e0c96f4f2364c593b9d3410970634f52948fb162ac931b",
+      "send": {
+        "total_cpu_seconds": 32.175298000000005,
+        "cpu_seconds_per_gib": 54.65751358260525,
+        "peak_rss_mib": 28.5,
+        "allocated_gib": 1.707699440419674,
+        "allocated_gib_per_gib": 2.900939887479696
+      },
+      "receive": {
+        "total_cpu_seconds": 14.261229,
+        "cpu_seconds_per_gib": 24.226141363854463,
+        "peak_rss_mib": 26.328125,
+        "allocated_gib": 1.6310416981577873,
+        "allocated_gib_per_gib": 2.77071820036771
+      },
+      "combined_cpu_seconds_per_gib": 78.88365494645971
+    },
+    {
+      "id": "screen-continuation-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+continuation",
+      "trace_enabled": false,
+      "goodput_mbps": 329.39617920000006,
+      "useful_bytes": 823490448,
+      "control_p95_ms": 1.139,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "bd24125ee505a5cb47e0c96f4f2364c593b9d3410970634f52948fb162ac931b",
+      "send": {
+        "total_cpu_seconds": 32.3521,
+        "cpu_seconds_per_gib": 42.183613603044975,
+        "peak_rss_mib": 28.1875,
+        "allocated_gib": 1.0293392986059189,
+        "allocated_gib_per_gib": 1.3421462977309484
+      },
+      "receive": {
+        "total_cpu_seconds": 15.920169,
+        "cpu_seconds_per_gib": 20.75816585603948,
+        "peak_rss_mib": 25.640625,
+        "allocated_gib": 0.8335224762558937,
+        "allocated_gib_per_gib": 1.0868224958451491
+      },
+      "combined_cpu_seconds_per_gib": 62.94177945908446
+    },
+    {
+      "id": "screen-recovery-datagram-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "datagram",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1041.7926016000001,
+      "useful_bytes": 2604481504,
+      "control_p95_ms": 0.348,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 62.025383000000005,
+        "cpu_seconds_per_gib": 25.571019711383826,
+        "peak_rss_mib": 29.0625,
+        "allocated_gib": 7.014314480125904,
+        "allocated_gib_per_gib": 2.8917705164858796
+      },
+      "receive": {
+        "total_cpu_seconds": 55.964411,
+        "cpu_seconds_per_gib": 23.072280856645186,
+        "peak_rss_mib": 30.5,
+        "allocated_gib": 6.251188099384308,
+        "allocated_gib_per_gib": 2.577158678873843
+      },
+      "combined_cpu_seconds_per_gib": 48.64330056802901
+    },
+    {
+      "id": "screen-recovery-stream-p1-bbrv3",
+      "controller": "bbrv3",
+      "workload": "stream",
+      "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0+recovery",
+      "trace_enabled": false,
+      "goodput_mbps": 1230.9259776000001,
+      "useful_bytes": 3077314944,
+      "control_p95_ms": 0.226,
+      "control_replies": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "binary_sha256": "8617b38d1c199b2777c79407c8be3d91f6e438d158dc7920183b54fd9c680c3f",
+      "send": {
+        "total_cpu_seconds": 60.947065,
+        "cpu_seconds_per_gib": 21.265750802705803,
+        "peak_rss_mib": 28.640625,
+        "allocated_gib": 3.778670020401478,
+        "allocated_gib_per_gib": 1.3184597981791752
+      },
+      "receive": {
+        "total_cpu_seconds": 60.006048,
+        "cpu_seconds_per_gib": 20.937409593443146,
+        "peak_rss_mib": 29.25,
+        "allocated_gib": 3.2189004719257355,
+        "allocated_gib_per_gib": 1.123144080763935
+      },
+      "combined_cpu_seconds_per_gib": 42.203160396148945
+    }
+  ],
+  "factorial": [
+    {
+      "workload": "stream",
+      "variant": "baseline",
+      "controller": "reno",
+      "goodput_mbps": {
+        "median": 1408.2568896000002,
+        "minimum": 1364.6263488000002,
+        "maximum": 1420.7685888,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 0.203,
+        "minimum": 0.191,
+        "maximum": 0.217,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 62.438172,
+          "minimum": 62.02535,
+          "maximum": 63.265111,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 19.12497115046086,
+          "minimum": 18.916779441329112,
+          "maximum": 19.65152636821363,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 20.953125,
+          "minimum": 20.921875,
+          "maximum": 21.046875,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 0.49588850885629654,
+          "minimum": 0.4819532781839371,
+          "maximum": 0.49611224979162216,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 0.15123838155728486,
+          "minimum": 0.1499741692487508,
+          "maximum": 0.15168793786081114,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 62.884668999999995,
+          "minimum": 62.545253,
+          "maximum": 63.512355,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 19.199712730652262,
+          "minimum": 19.075341873977784,
+          "maximum": 19.79205494693032,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 20.953125,
+          "minimum": 20.9375,
+          "maximum": 21.34375,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.0274032726883888,
+          "minimum": 1.0051744654774666,
+          "maximum": 1.0313061699271202,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 0.3145325476275944,
+          "minimum": 0.31058284162426436,
+          "maximum": 0.31636436302115756,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "stream",
+      "variant": "baseline",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 344.1142848,
+        "minimum": 343.4923008,
+        "maximum": 354.2100672,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 1.423,
+        "minimum": 0.917,
+        "maximum": 1.996,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.027411,
+          "minimum": 31.841248999999998,
+          "maximum": 32.429941,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 39.81373754237949,
+          "minimum": 39.32286202570403,
+          "maximum": 39.97412746189799,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.40625,
+          "minimum": 28.328125,
+          "maximum": 28.53125,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.0534159392118454,
+          "minimum": 1.047601155936718,
+          "maximum": 1.0731958448886871,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.3099020541423443,
+          "minimum": 1.3013015390659117,
+          "maximum": 1.314791976924057,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 16.020383,
+          "minimum": 15.872726,
+          "maximum": 16.147787,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 19.84697732950435,
+          "minimum": 19.425484317345333,
+          "maximum": 20.15441384773747,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 25.46875,
+          "minimum": 25.1875,
+          "maximum": 25.875,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 0.733146034181118,
+          "minimum": 0.7266184240579605,
+          "maximum": 0.7485943287611008,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 0.9085508934935639,
+          "minimum": 0.8889748009962829,
+          "maximum": 0.9343373123462965,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "stream",
+      "variant": "allocation",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 350.3013888,
+        "minimum": 347.51228160000005,
+        "maximum": 352.97264640000003,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 1.632,
+        "minimum": 1.498,
+        "maximum": 1.722,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.179063,
+          "minimum": 31.946891,
+          "maximum": 32.209364,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 39.45403233323511,
+          "minimum": 39.19231884280077,
+          "maximum": 39.48374181831412,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.140625,
+          "minimum": 27.96875,
+          "maximum": 28.140625,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 0.3317239210009575,
+          "minimum": 0.3290187045931816,
+          "maximum": 0.3326818719506264,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 0.4066401824688777,
+          "minimum": 0.4036413038038746,
+          "maximum": 0.40789383247800587,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 16.076674999999998,
+          "minimum": 15.417194,
+          "maximum": 16.144651,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 19.79459695774226,
+          "minimum": 18.75962477586689,
+          "maximum": 19.869454119868664,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 25.3125,
+          "minimum": 25.140625,
+          "maximum": 25.71875,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 0.288532093167305,
+          "minimum": 0.28579017519950867,
+          "maximum": 0.2896096110343933,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 0.35508389283325614,
+          "minimum": 0.3477491722146093,
+          "maximum": 0.35660204534192785,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "stream",
+      "variant": "recovery",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 1363.9061568000002,
+        "minimum": 1310.061984,
+        "maximum": 1426.2878784000002,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 0.286,
+        "minimum": 0.203,
+        "maximum": 0.354,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 63.621615,
+          "minimum": 59.823761,
+          "maximum": 64.91396999999999,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 19.612896195507055,
+          "minimum": 19.158317187006883,
+          "maximum": 20.44153674455538,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.984375,
+          "minimum": 28.59375,
+          "maximum": 29.125,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 4.24268352240324,
+          "minimum": 4.08956541121006,
+          "maximum": 4.367180049419403,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.3360293804049497,
+          "minimum": 1.315084827688598,
+          "maximum": 1.3407418817215293,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 64.920447,
+          "minimum": 59.955431999999995,
+          "maximum": 65.96728399999999,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 19.656063820072795,
+          "minimum": 19.549433247619845,
+          "maximum": 20.773227393495116,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 29.203125,
+          "minimum": 29.140625,
+          "maximum": 29.25,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 3.643467977643013,
+          "minimum": 3.337059833109379,
+          "maximum": 3.703139916062355,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.1151230458357375,
+          "minimum": 1.0940370015347305,
+          "maximum": 1.147335227572748,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "stream",
+      "variant": "both",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 1385.4726336,
+        "minimum": 1364.7572928000002,
+        "maximum": 1402.115616,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 0.257,
+        "minimum": 0.233,
+        "maximum": 0.331,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 63.79575,
+          "minimum": 63.691311999999996,
+          "maximum": 64.150104,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 19.776692316313103,
+          "minimum": 19.509953313246054,
+          "maximum": 20.188395414229568,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.484375,
+          "minimum": 28.375,
+          "maximum": 28.65625,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.4002877473831177,
+          "minimum": 1.397517092525959,
+          "maximum": 1.4242341369390488,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 0.43627208556815616,
+          "minimum": 0.4340894171523822,
+          "maximum": 0.4398064212344614,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 64.677438,
+          "minimum": 64.496961,
+          "maximum": 65.133568,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 20.05001573197928,
+          "minimum": 19.75674010226468,
+          "maximum": 20.497897018586432,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.890625,
+          "minimum": 28.671875,
+          "maximum": 29.09375,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.263747677206993,
+          "minimum": 1.2573431581258774,
+          "maximum": 1.2799883857369423,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 0.39208665770968776,
+          "minimum": 0.389776572487617,
+          "maximum": 0.3977084403677495,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "baseline",
+      "controller": "reno",
+      "goodput_mbps": {
+        "median": 1270.2667136000002,
+        "minimum": 1259.5875072000001,
+        "maximum": 1307.0180736000002,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 0.416,
+        "minimum": 0.293,
+        "maximum": 0.663,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 63.526374999999994,
+          "minimum": 61.390825,
+          "maximum": 66.97747,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 21.47924527481155,
+          "minimum": 20.93316932267675,
+          "maximum": 22.00933935262922,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 21.390625,
+          "minimum": 21.359375,
+          "maximum": 21.515625,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 4.570994094014168,
+          "minimum": 4.499662972986698,
+          "maximum": 4.741231091320515,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.5455234663562234,
+          "minimum": 1.5343043021251077,
+          "maximum": 1.5580069542505828,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 60.939204000000004,
+          "minimum": 59.013771000000006,
+          "maximum": 64.92359599999999,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 20.604482934336758,
+          "minimum": 20.122636578229255,
+          "maximum": 21.334419713927694,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 22.046875,
+          "minimum": 21.875,
+          "maximum": 22.078125,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 4.966969147324562,
+          "minimum": 4.904978342354298,
+          "maximum": 5.137833371758461,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.6794087272854128,
+          "minimum": 1.6725095674242012,
+          "maximum": 1.6883336772245228,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "baseline",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 262.388608,
+        "minimum": 262.0319872,
+        "maximum": 264.9015296,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 1.502,
+        "minimum": 1.402,
+        "maximum": 1.604,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.608176,
+          "minimum": 31.98112,
+          "maximum": 32.898493,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 53.33980205250009,
+          "minimum": 52.420265921431564,
+          "maximum": 53.37543065216158,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.40625,
+          "minimum": 28.109375,
+          "maximum": 28.734375,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.7469086572527885,
+          "minimum": 1.7459823340177536,
+          "maximum": 1.783803477883339,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 2.861840305884609,
+          "minimum": 2.8594669597850833,
+          "maximum": 2.892160574372161,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 14.020574,
+          "minimum": 13.973476,
+          "maximum": 14.161852999999999,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 22.94989377021578,
+          "minimum": 22.6558232872661,
+          "maximum": 23.212698623444812,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 25.875,
+          "minimum": 25.40625,
+          "maximum": 26.75,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.5268125385046005,
+          "minimum": 1.513293094933033,
+          "maximum": 1.551486074924469,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 2.499197648093015,
+          "minimum": 2.480439285849144,
+          "maximum": 2.515493950549087,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "allocation",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 258.9730048,
+        "minimum": 244.666496,
+        "maximum": 264.938944,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 1.742,
+        "minimum": 1.61,
+        "maximum": 1.792,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.386998999999996,
+          "minimum": 32.182438000000005,
+          "maximum": 32.475199,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 53.71258739033818,
+          "minimum": 52.64606083584749,
+          "maximum": 56.49425686610874,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 27.953125,
+          "minimum": 27.890625,
+          "maximum": 28.28125,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.1549224108457565,
+          "minimum": 1.0905815735459328,
+          "maximum": 1.1592767611145973,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.9144477354185838,
+          "minimum": 1.879321967856866,
+          "maximum": 1.9153942272210143,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 14.52622,
+          "minimum": 13.413088,
+          "maximum": 14.691056999999999,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 23.815905810612676,
+          "minimum": 23.545836982260965,
+          "maximum": 24.091175017521024,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 25.5,
+          "minimum": 25.359375,
+          "maximum": 26.3125,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 1.0965976789593697,
+          "minimum": 1.0339544713497162,
+          "maximum": 1.0984772443771362,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.8150423995936085,
+          "minimum": 1.7807589057198023,
+          "maximum": 1.8186649112857651,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "recovery",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 1257.2924416,
+        "minimum": 1241.360064,
+        "maximum": 1306.4933248000002,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 0.201,
+        "minimum": 0.195,
+        "maximum": 0.282,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 70.561443,
+          "minimum": 68.854451,
+          "maximum": 71.276153,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 23.82287168769709,
+          "minimum": 23.43132875681205,
+          "maximum": 24.104104981169094,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.703125,
+          "minimum": 28.5,
+          "maximum": 28.703125,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 8.391441337764263,
+          "minimum": 8.275175757706165,
+          "maximum": 8.68552815169096,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 2.8631184680998407,
+          "minimum": 2.8552812824903304,
+          "maximum": 2.8665539471576826,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 66.616826,
+          "minimum": 64.18999199999999,
+          "maximum": 67.180483,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 22.209020925173053,
+          "minimum": 22.084917843621877,
+          "maximum": 22.756606145601005,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 29.828125,
+          "minimum": 29.53125,
+          "maximum": 30.171875,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 7.707518182694912,
+          "minimum": 7.516656689345837,
+          "maximum": 7.992071367800236,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 2.627314238842715,
+          "minimum": 2.6006793348879635,
+          "maximum": 2.632922734019878,
+          "n": 3
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "both",
+      "controller": "bbrv3",
+      "goodput_mbps": {
+        "median": 1264.4153856,
+        "minimum": 1223.7213056,
+        "maximum": 1280.5684608,
+        "n": 3
+      },
+      "control_p95_ms": {
+        "median": 0.287,
+        "minimum": 0.204,
+        "maximum": 2.626,
+        "n": 3
+      },
+      "send": {
+        "total_cpu_seconds": {
+          "median": 68.71939300000001,
+          "minimum": 68.493309,
+          "maximum": 70.232368,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 23.55561088020175,
+          "minimum": 23.34260946974445,
+          "maximum": 24.03950317802021,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 28.875,
+          "minimum": 28.34375,
+          "maximum": 29.03125,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 5.487514138221741,
+          "minimum": 5.398721285164356,
+          "maximum": 5.616617605090141,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.883787526121774,
+          "minimum": 1.8639992860270365,
+          "maximum": 1.8948212516926861,
+          "n": 3
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 64.340265,
+          "minimum": 64.042062,
+          "maximum": 66.153772,
+          "n": 3
+        },
+        "cpu_seconds_per_gib": {
+          "median": 22.187668675639504,
+          "minimum": 21.855106884818774,
+          "maximum": 22.47722259959681,
+          "n": 3
+        },
+        "peak_rss_mib": {
+          "median": 29.9375,
+          "minimum": 29.78125,
+          "maximum": 30.171875,
+          "n": 3
+        },
+        "allocated_gib": {
+          "median": 5.170213557779789,
+          "minimum": 5.079055532813072,
+          "maximum": 5.2810554429888725,
+          "n": 3
+        },
+        "allocated_gib_per_gib": {
+          "median": 1.7712415314234795,
+          "minimum": 1.7562185969022108,
+          "maximum": 1.782626265324705,
+          "n": 3
+        }
+      }
+    }
+  ],
+  "paired_factorial": [
+    {
+      "workload": "stream",
+      "pair": 1,
+      "ratios": {
+        "baseline": {
+          "goodput": 0.25171161402683884,
+          "sender_cpu": 2.0259870300343827,
+          "receiver_cpu": 1.0027749712054306,
+          "combined_cpu": 1.5125582637948176,
+          "sender_rss": 1.357729648991785,
+          "receiver_rss": 1.2348993288590604,
+          "control_p95": 10.450261780104713
+        },
+        "allocation": {
+          "goodput": 0.2546574612937739,
+          "sender_cpu": 2.0091946589033984,
+          "receiver_cpu": 1.0039106183337647,
+          "combined_cpu": 1.5047618385350507,
+          "sender_rss": 1.3368185212845407,
+          "receiver_rss": 1.2274422073079791,
+          "control_p95": 8.544502617801047
+        },
+        "recovery": {
+          "goodput": 0.9600151610380512,
+          "sender_cpu": 0.9980342405987832,
+          "receiver_cpu": 0.9931290041775769,
+          "combined_cpu": 0.9955728842629952,
+          "sender_rss": 1.385362210604929,
+          "receiver_rss": 1.395973154362416,
+          "control_p95": 1.8534031413612564
+        },
+        "both": {
+          "goodput": 1.0152761851757672,
+          "sender_cpu": 1.0063692736001377,
+          "receiver_cpu": 1.0130335523896152,
+          "combined_cpu": 1.0097132846555525,
+          "sender_rss": 1.361463778939507,
+          "receiver_rss": 1.3683818046234153,
+          "control_p95": 1.3455497382198953
+        }
+      },
+      "conditional_effects": {
+        "goodput_mbps": {
+          "allocation_with_original_recovery": 4.019980800000042,
+          "allocation_with_recovery_intervention": 75.41064960000017,
+          "recovery_with_original_allocation": 966.5696831999999,
+          "recovery_with_allocation_intervention": 1037.960352,
+          "interaction": 71.39066880000013
+        },
+        "combined_cpu_seconds_per_gib": {
+          "allocation_with_original_recovery": -0.3075189337010542,
+          "allocation_with_recovery_intervention": 0.5577480327125315,
+          "recovery_with_original_allocation": -20.39175485630399,
+          "recovery_with_allocation_intervention": -19.526487889890404,
+          "interaction": 0.8652669664135857
+        }
+      }
+    },
+    {
+      "workload": "stream",
+      "pair": 2,
+      "ratios": {
+        "baseline": {
+          "goodput": 0.2493087685019631,
+          "sender_cpu": 2.056100462392408,
+          "receiver_cpu": 1.0117591127461312,
+          "combined_cpu": 1.5329114396688157,
+          "sender_rss": 1.3616703952274423,
+          "receiver_rss": 1.2029850746268658,
+          "control_p95": 4.225806451612903
+        },
+        "allocation": {
+          "goodput": 0.2465576671397762,
+          "sender_cpu": 2.062959050909961,
+          "receiver_cpu": 1.030984017075436,
+          "combined_cpu": 1.545965244612907,
+          "sender_rss": 1.343027591349739,
+          "receiver_rss": 1.208955223880597,
+          "control_p95": 6.903225806451613
+        },
+        "recovery": {
+          "goodput": 1.0038847210189674,
+          "sender_cpu": 1.0017435862404018,
+          "receiver_cpu": 1.0182148827888062,
+          "combined_cpu": 1.0099952958438463,
+          "sender_rss": 1.390007457121551,
+          "receiver_rss": 1.394776119402985,
+          "control_p95": 1.3179723502304146
+        },
+        "both": {
+          "goodput": 0.9868712097472857,
+          "sender_cpu": 1.0201298166546995,
+          "receiver_cpu": 1.0290122763515688,
+          "combined_cpu": 1.0245797078801697,
+          "sender_rss": 1.3676360924683073,
+          "receiver_rss": 1.3798507462686567,
+          "control_p95": 1.5253456221198158
+        }
+      },
+      "conditional_effects": {
+        "goodput_mbps": {
+          "allocation_with_original_recovery": -3.908678400000042,
+          "allocation_with_recovery_intervention": -24.172262400000136,
+          "recovery_with_original_allocation": 1072.0778112000003,
+          "recovery_with_allocation_intervention": 1051.8142272,
+          "interaction": -20.263584000000094
+        },
+        "combined_cpu_seconds_per_gib": {
+          "allocation_with_original_recovery": 0.5002829479280138,
+          "allocation_with_recovery_intervention": 0.5589429808839981,
+          "recovery_with_original_allocation": -20.04059590842263,
+          "recovery_with_allocation_intervention": -19.981935875466647,
+          "interaction": 0.05866003295598432
+        }
+      }
+    },
+    {
+      "workload": "stream",
+      "pair": 3,
+      "ratios": {
+        "baseline": {
+          "goodput": 0.24435476747267457,
+          "sender_cpu": 2.1131571357523513,
+          "receiver_cpu": 1.0565689454421645,
+          "combined_cpu": 1.5826581730094098,
+          "sender_rss": 1.345953971789161,
+          "receiver_rss": 1.1932650073206441,
+          "control_p95": 7.009852216748768
+        },
+        "allocation": {
+          "goodput": 0.2506450698070137,
+          "sender_cpu": 2.071828292144378,
+          "receiver_cpu": 0.9834489415604346,
+          "combined_cpu": 1.5253674080925568,
+          "sender_rss": 1.3370452858203414,
+          "receiver_rss": 1.177891654465593,
+          "control_p95": 8.482758620689655
+        },
+        "recovery": {
+          "goodput": 0.9685066459624441,
+          "sender_cpu": 1.0806034297727762,
+          "receiver_cpu": 1.0890094411274251,
+          "combined_cpu": 1.0848239769503265,
+          "sender_rss": 1.358574610244989,
+          "receiver_rss": 1.3653001464128844,
+          "control_p95": 1.0
+        },
+        "both": {
+          "goodput": 0.969111035691538,
+          "sender_cpu": 1.0672215890048518,
+          "receiver_cpu": 1.0745756041494212,
+          "combined_cpu": 1.0709139427922292,
+          "sender_rss": 1.348181143281366,
+          "receiver_rss": 1.363103953147877,
+          "control_p95": 1.1477832512315271
+        }
+      },
+      "conditional_effects": {
+        "goodput_mbps": {
+          "allocation_with_original_recovery": 8.858361600000023,
+          "allocation_with_recovery_intervention": 0.8511359999999968,
+          "recovery_with_original_allocation": 1019.7918720000002,
+          "recovery_with_allocation_intervention": 1011.7846464000002,
+          "interaction": -8.007225600000027
+        },
+        "combined_cpu_seconds_per_gib": {
+          "allocation_with_original_recovery": -2.176597690967803,
+          "allocation_with_recovery_intervention": -0.5284717052344945,
+          "recovery_with_original_allocation": -18.913777171584968,
+          "recovery_with_allocation_intervention": -17.26565118585166,
+          "interaction": 1.6481259857333086
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "pair": 1,
+      "ratios": {
+        "baseline": {
+          "goodput": 0.20656182295478512,
+          "sender_cpu": 2.484977007770115,
+          "receiver_cpu": 1.1138301234422372,
+          "combined_cpu": 1.8136540575268116,
+          "sender_rss": 1.3433162892622352,
+          "receiver_rss": 1.17363571934798,
+          "control_p95": 2.1146304675716436
+        },
+        "allocation": {
+          "goodput": 0.203872936311192,
+          "sender_cpu": 2.500673869268874,
+          "receiver_cpu": 1.1692200718792995,
+          "combined_cpu": 1.848784927542279,
+          "sender_rss": 1.3221329437545655,
+          "receiver_rss": 1.1934798015591779,
+          "control_p95": 2.627450980392157
+        },
+        "recovery": {
+          "goodput": 0.977243637662458,
+          "sender_cpu": 1.1091112086528423,
+          "receiver_cpu": 1.0778732470962609,
+          "combined_cpu": 1.0938168877077667,
+          "sender_rss": 1.341855368882396,
+          "receiver_rss": 1.339475549255847,
+          "control_p95": 0.42533936651583704
+        },
+        "both": {
+          "goodput": 1.0081099088008092,
+          "sender_cpu": 1.0966684619885192,
+          "receiver_cpu": 1.076836955644464,
+          "combined_cpu": 1.0869588200100917,
+          "sender_rss": 1.325054784514244,
+          "receiver_rss": 1.368532955350815,
+          "control_p95": 0.4328808446455505
+        }
+      },
+      "conditional_effects": {
+        "goodput_mbps": {
+          "allocation_with_original_recovery": -3.415603199999964,
+          "allocation_with_recovery_intervention": 39.208396799999946,
+          "recovery_with_original_allocation": 978.971456,
+          "recovery_with_allocation_intervention": 1021.5954559999999,
+          "interaction": 42.62399999999991
+        },
+        "combined_cpu_seconds_per_gib": {
+          "allocation_with_original_recovery": 1.4784379854818468,
+          "allocation_with_recovery_intervention": -0.28861305702888984,
+          "recovery_with_original_allocation": -30.29343180950722,
+          "recovery_with_allocation_intervention": -32.060482852017955,
+          "interaction": -1.7670510425107437
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "pair": 2,
+      "ratios": {
+        "baseline": {
+          "goodput": 0.20267625593758273,
+          "sender_cpu": 2.4235076390935903,
+          "receiver_cpu": 1.061937638382344,
+          "combined_cpu": 1.7533233613418346,
+          "sender_rss": 1.316020482809071,
+          "receiver_rss": 1.1614285714285715,
+          "control_p95": 5.126279863481229
+        },
+        "allocation": {
+          "goodput": 0.18719442442452233,
+          "sender_cpu": 2.566831105694228,
+          "receiver_cpu": 1.1036549059213265,
+          "combined_cpu": 1.8466347998442727,
+          "sender_rss": 1.3087051938551573,
+          "receiver_rss": 1.1657142857142857,
+          "control_p95": 5.494880546075086
+        },
+        "recovery": {
+          "goodput": 0.9619549010037499,
+          "sender_cpu": 1.0951762156500002,
+          "receiver_cpu": 1.0666615943036346,
+          "combined_cpu": 1.0811409101553167,
+          "sender_rss": 1.3343087051938551,
+          "receiver_rss": 1.3792857142857142,
+          "control_p95": 0.6655290102389079
+        },
+        "both": {
+          "goodput": 0.9362696127295541,
+          "sender_cpu": 1.0922410160915834,
+          "receiver_cpu": 1.0535661574578972,
+          "combined_cpu": 1.0732046961175619,
+          "sender_rss": 1.351865398683248,
+          "receiver_rss": 1.3685714285714285,
+          "control_p95": 8.96245733788396
+        }
+      },
+      "conditional_effects": {
+        "goodput_mbps": {
+          "allocation_with_original_recovery": -20.23503360000001,
+          "allocation_with_recovery_intervention": -33.571136000000024,
+          "recovery_with_original_allocation": 992.3909120000001,
+          "recovery_with_allocation_intervention": 979.0548096,
+          "interaction": -13.336102400000016
+        },
+        "combined_cpu_seconds_per_gib": {
+          "allocation_with_original_recovery": 4.044468508603515,
+          "allocation_with_recovery_intervention": -0.34398534915307266,
+          "recovery_with_original_allocation": -29.134914212996094,
+          "recovery_with_allocation_intervention": -33.52336807075268,
+          "interaction": -4.388453857756588
+        }
+      }
+    },
+    {
+      "workload": "datagram",
+      "pair": 3,
+      "ratios": {
+        "baseline": {
+          "goodput": 0.2080299984734558,
+          "sender_cpu": 2.504172450592327,
+          "receiver_cpu": 1.1535614894798978,
+          "combined_cpu": 1.8421989992700964,
+          "sender_rss": 1.3202614379084967,
+          "receiver_rss": 1.2116065109695684,
+          "control_p95": 3.8557692307692313
+        },
+        "allocation": {
+          "goodput": 0.21033786258244652,
+          "sender_cpu": 2.514958916365158,
+          "receiver_cpu": 1.1835380377728026,
+          "combined_cpu": 1.862391078889352,
+          "sender_rss": 1.2962962962962963,
+          "receiver_rss": 1.148619957537155,
+          "control_p95": 4.307692307692308
+        },
+        "recovery": {
+          "goodput": 1.0372390305015564,
+          "sender_cpu": 1.1193397614870033,
+          "receiver_cpu": 1.0975161111598875,
+          "combined_cpu": 1.1086433599743195,
+          "sender_rss": 1.3340595497458243,
+          "receiver_rss": 1.3510261854210899,
+          "control_p95": 0.483173076923077
+        },
+        "both": {
+          "goodput": 1.0038329043217744,
+          "sender_cpu": 1.1151015457777609,
+          "receiver_cpu": 1.0860955918899755,
+          "combined_cpu": 1.1008848897925498,
+          "sender_rss": 1.3493100944081335,
+          "receiver_rss": 1.348903043170559,
+          "control_p95": 0.49038461538461536
+        }
+      },
+      "conditional_effects": {
+        "goodput_mbps": {
+          "allocation_with_original_recovery": 2.906956799999989,
+          "allocation_with_recovery_intervention": -42.07793920000017,
+          "recovery_with_original_allocation": 1044.4613376000002,
+          "recovery_with_allocation_intervention": 999.4764416,
+          "interaction": -44.98489600000016
+        },
+        "combined_cpu_seconds_per_gib": {
+          "allocation_with_original_recovery": 0.8290021015837965,
+          "allocation_with_recovery_intervention": -0.3185302458707042,
+          "recovery_with_original_allocation": -30.116717944442442,
+          "recovery_with_allocation_intervention": -31.264250291896943,
+          "interaction": -1.1475323474545007
+        }
+      }
+    }
+  ],
+  "ablations": [
+    {
+      "workload": "stream",
+      "variant": "recovery-ack",
+      "goodput_mbps": {
+        "median": 516.8294208,
+        "minimum": 510.65541120000006,
+        "maximum": 555.235296,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 29.78812475154549,
+        "minimum": 27.68832389104348,
+        "maximum": 32.21203617648167,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 1.3169533482856002,
+        "minimum": 1.3149995305773932,
+        "maximum": 1.3183067089047575,
+        "n": 3
+      }
+    },
+    {
+      "workload": "stream",
+      "variant": "recovery-pto",
+      "goodput_mbps": {
+        "median": 374.04808320000006,
+        "minimum": 373.5701376,
+        "maximum": 416.467392,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 38.73227030051478,
+        "minimum": 33.38842599354725,
+        "maximum": 39.109399850359864,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 1.3188866430742345,
+        "minimum": 1.298162887143875,
+        "maximum": 1.3282153053981154,
+        "n": 3
+      }
+    },
+    {
+      "workload": "stream",
+      "variant": "recovery-feedback",
+      "goodput_mbps": {
+        "median": 378.83408640000005,
+        "minimum": 372.3589056,
+        "maximum": 390.4946496,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 36.88187357112933,
+        "minimum": 33.83986535907732,
+        "maximum": 38.52556805327781,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 1.3061025008215632,
+        "minimum": 1.2962466431320578,
+        "maximum": 1.3112392862291193,
+        "n": 3
+      }
+    },
+    {
+      "workload": "stream",
+      "variant": "ecn-reuse",
+      "goodput_mbps": {
+        "median": 317.179104,
+        "minimum": 316.9761408,
+        "maximum": 348.4027008,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 41.293518556013204,
+        "minimum": 37.44430096317284,
+        "maximum": 43.79151980186102,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 1.2124261466115478,
+        "minimum": 1.1954285033682888,
+        "maximum": 1.2356641300052351,
+        "n": 3
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "recovery-ack",
+      "goodput_mbps": {
+        "median": 427.91228160000003,
+        "minimum": 419.7412608,
+        "maximum": 466.2014208,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 39.159427278654825,
+        "minimum": 36.26438872490698,
+        "maximum": 39.50668276192907,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 2.8751905021199193,
+        "minimum": 2.861649471832755,
+        "maximum": 2.8840625190412856,
+        "n": 3
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "recovery-pto",
+      "goodput_mbps": {
+        "median": 317.50096640000004,
+        "minimum": 315.8026368,
+        "maximum": 329.88702720000003,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 48.65292083961519,
+        "minimum": 45.39604958172161,
+        "maximum": 48.83570420492832,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 2.8773940876734314,
+        "minimum": 2.865579611370665,
+        "maximum": 2.879989248435875,
+        "n": 3
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "recovery-feedback",
+      "goodput_mbps": {
+        "median": 306.3727872,
+        "minimum": 290.0818944,
+        "maximum": 313.5478272,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 48.92561099576618,
+        "minimum": 47.020727844938776,
+        "maximum": 51.73278457376949,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 2.87083826214836,
+        "minimum": 2.856663878039465,
+        "maximum": 2.8832372851161634,
+        "n": 3
+      }
+    },
+    {
+      "workload": "datagram",
+      "variant": "ecn-reuse",
+      "goodput_mbps": {
+        "median": 255.23393280000002,
+        "minimum": 248.9800448,
+        "maximum": 256.7428224,
+        "n": 3
+      },
+      "sender_cpu_seconds_per_gib": {
+        "median": 54.58315252561815,
+        "minimum": 54.283048917112865,
+        "maximum": 55.84196339047102,
+        "n": 3
+      },
+      "sender_allocated_gib_per_gib": {
+        "median": 2.790102855790811,
+        "minimum": 2.775802430377894,
+        "maximum": 2.8082653473761443,
+        "n": 3
+      }
+    }
+  ]
+}
