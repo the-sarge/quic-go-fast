@@ -1007,20 +1007,22 @@ func (h *packetHandlerMap) deliverPermitted(connID protocol.ConnectionID, p rece
 func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connClosePacket []byte, expiry time.Duration) {
 	// Closed entries keep the connection's token, so a later group transition
 	// also governs their input and close retransmissions. They also keep an
-	// untransferred setup reservation until they are retired.
+	// untransferred setup reservation until they are retired, on every
+	// transport the connection used, whatever that transport's configuration:
+	// a dialed connection can probe paths on unconfigured transports.
 	var authority *connAuthority
 	var setup *setupReservation
-	if h.candidates != nil || h.setupAdmission != nil || h.dialSetupAdmission != nil {
-		h.mutex.Lock()
-		for _, id := range ids {
-			if handler, ok := h.handlers[id]; ok {
+	h.mutex.Lock()
+	for _, id := range ids {
+		if handler, ok := h.handlers[id]; ok {
+			if h.candidates != nil || h.setupAdmission != nil {
 				authority = handlerAuthority(handler)
-				setup = handlerSetup(handler)
-				break
 			}
+			setup = handlerSetup(handler)
+			break
 		}
-		h.mutex.Unlock()
 	}
+	h.mutex.Unlock()
 	retired := setup.holdClosing()
 	var handler packetHandler
 	if connClosePacket != nil {

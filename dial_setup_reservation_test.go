@@ -498,23 +498,28 @@ func (c slowReadConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	return n, addr, err
 }
 
-// A dialed connection's reservation is held while the transport retains its
+// A dialed connection's reservation is held while any transport retains its
 // closed connection IDs, whether it or the peer closed it, and is released
-// only when they are deleted, even when the transport closes first.
+// only when they are deleted, even when the transport closes first. A path
+// probed on an unconfigured transport leaves closing state there too.
 func TestDialSetupAdmissionClosedRetention(t *testing.T) {
-	for _, local := range []bool{true, false} {
-		name := "remote_close"
-		if local {
-			name = "local_close"
-		}
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		remote    bool
+		probePath bool
+	}{
+		{name: "local_close"},
+		{name: "remote_close", remote: true},
+		{name: "probed_path", probePath: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 			budget := newSetupBudget(1, 1, time.Minute)
 			dials := &correlatedDials{budget: budget}
 			tr := &Transport{Conn: slowReadConn{PacketConn: newUDPConnLocalhost(t), delay: 50 * time.Millisecond}}
 			require.NoError(t, configureDialSetupAdmission(t, tr, dials.acquire))
-			retained := requireReleasedAfterRetirement(t, budget, tr)
+			transports := []*Transport{tr}
 			ln, err := (&Transport{Conn: newUDPConnLocalhost(t)}).Listen(testdata.GetTLSConfig(), nil)
 			require.NoError(t, err)
 			defer ln.Close()
@@ -523,16 +528,41 @@ func TestDialSetupAdmissionClosedRetention(t *testing.T) {
 			require.NoError(t, err)
 			server, err := ln.Accept(ctx)
 			require.NoError(t, err)
-			if local {
-				require.NoError(t, client.CloseWithError(0, ""))
-			} else {
+			if tc.probePath {
+				alternate := &Transport{Conn: newUDPConnLocalhost(t)}
+				defer alternate.Close()
+				path, err := client.AddPath(alternate)
+				require.NoError(t, err)
+				require.NoError(t, path.Probe(ctx))
+				transports = append(transports, alternate)
+			}
+			retained := make(chan int, 1)
+			budget.onRelease = func() {
+				var n int
+				for _, tr := range transports {
+					tr.mutex.Lock()
+					n += len(tr.handlers)
+					tr.mutex.Unlock()
+				}
+				retained <- n
+			}
+			if tc.remote {
 				require.NoError(t, server.CloseWithError(0, ""))
 				<-client.Context().Done()
+			} else {
+				require.NoError(t, client.CloseWithError(0, ""))
 			}
-			tr.mutex.Lock()
-			closedEntries := len(tr.handlers)
-			tr.mutex.Unlock()
-			require.Positive(t, closedEntries, "the closed connection's IDs are retained")
+			for _, tr := range transports {
+				tr.mutex.Lock()
+				closedEntries := len(tr.handlers)
+				tr.mutex.Unlock()
+				require.Positive(t, closedEntries, "the closed connection's IDs are retained")
+			}
+			setup := client.setup
+			setup.mu.Lock()
+			holds := setup.closing
+			setup.mu.Unlock()
+			require.Equal(t, len(transports), holds, "every transport retaining closing state holds the reservation")
 			require.Equal(t, 1, budget.state(t).held, "retained closed state keeps its reservation")
 
 			require.NoError(t, tr.Close())
