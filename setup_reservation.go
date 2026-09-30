@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -11,26 +12,33 @@ import (
 )
 
 var (
-	errNoSetupReservation    = errors.New("quic: connection has no setup reservation")
-	errSetupReservationEnded = errors.New("quic: setup reservation already ended")
+	errNoSetupReservation      = errors.New("quic: connection has no setup reservation")
+	errSetupReservationEnded   = errors.New("quic: setup reservation already ended")
+	errDialSetupRefused        = errors.New("quic: dial refused by setup admission")
+	errDialEarlySetupAdmission = errors.New("quic: DialEarly is not supported with dial setup admission")
 )
 
 // setupAdmission is the caller's acquire callback, immutable after configuration.
 type setupAdmission func(remote netip.AddrPort) (deadline time.Time, complete func() bool, claim func(), release func(transferred bool), ok bool)
+
+// dialSetupAdmission is the caller's dial acquire callback, immutable after
+// configuration.
+type dialSetupAdmission func(ctx context.Context, remote netip.AddrPort) (deadline time.Time, complete func() bool, claim func(), release func(transferred bool), ok bool)
 
 type setupStage uint8
 
 const (
 	setupHandshaking setupStage = iota // acquired, handshake in progress
 	setupCompleted                     // queued for Accept, unclaimed
-	setupClaimed                       // returned by Accept, not transferred
+	setupClaimed                       // returned by Accept or Dial, not transferred
 )
 
-// setupReservation is the single owner of one server connection's setup
-// capacity, from before its construction until one terminal settlement. The
-// caller's callbacks run under mu, so stage changes and the release are
-// serialized and nothing follows the release. Server paths only request
-// settlement; teardown is idempotent, so no path owns a competing release.
+// setupReservation is the single owner of one accepted or dialed connection's
+// setup capacity, from before its construction until one terminal settlement,
+// including across a dial's recreation for version negotiation. The caller's
+// callbacks run under mu, so stage changes and the release are serialized and
+// nothing follows the release. Server and dial paths only request settlement;
+// teardown is idempotent, so no path owns a competing release.
 // An untransferred reservation settles once the connection's work has ended
 // and every closing state it left on a transport has been retired.
 type setupReservation struct {
@@ -45,7 +53,7 @@ type setupReservation struct {
 	closing  int  // closing states still retained by transports
 	settled  bool
 	timer    *time.Timer
-	conn     *Conn // severed on settlement
+	conn     *Conn // severed on settlement and while detached for recreation
 }
 
 // ConfigureSetupAdmissionV1 bounds server connection setup with a caller
@@ -96,7 +104,58 @@ func (t *Transport) ConfigureSetupAdmissionV1(acquire func(remote netip.AddrPort
 	return nil
 }
 
-// TransferSetupReservationV1 ends an accepted server connection's setup
+// ConfigureDialSetupAdmissionV1 bounds the setup of connections dialed on the
+// transport with a caller budget, through the same reservation lifecycle as
+// ConfigureSetupAdmissionV1, which remains a separate configuration for
+// accepted connections. Call it once, before any operation that initializes
+// the transport; acquire must be non-nil. Transports without it keep ordinary
+// dial behavior.
+//
+// Dial calls acquire with its context before generating connection IDs,
+// constructing the connection or sending any packet, so a caller running
+// concurrent dials correlates each reservation with its own dial through
+// values it put in that context. The remote endpoint is unmapped; it is the
+// zero value for a non-UDP address. Returning ok false fails the dial and
+// allocates nothing. Otherwise the reservation carries the returned absolute
+// deadline and must include a non-nil release. A deadline not in the future
+// or a nil complete or claim fails the dial and calls release with false.
+// DialEarly fails before calling acquire, because a 0-RTT return precedes
+// handshake completion.
+//
+// A reservation is held, without release and reacquisition, through the
+// handshake, including a connection recreated for version negotiation, and
+// the return from Dial:
+//   - complete is called when the handshake completes, before Dial returns.
+//     False closes the connection with CONNECTION_REFUSED and fails the dial;
+//     the reservation stays in its stage until that teardown ends.
+//   - claim reports that Dial is returning the connection. It immediately
+//     follows a successful complete.
+//   - release is called exactly once: with true when the application calls
+//     TransferSetupReservationV1 on the dialed connection, otherwise with
+//     false after the connection's teardown has finished, including its
+//     closing state, or when the dial fails before its connection runs.
+//
+// The deadline behaves as for accepted connections: reaching it before
+// transfer closes the connection with CONNECTION_REFUSED under ordinary
+// bounded close handling, and neither recreation, stage changes nor traffic
+// extend it. The callback requirements of ConfigureSetupAdmissionV1 apply.
+func (t *Transport) ConfigureDialSetupAdmissionV1(acquire func(ctx context.Context, remote netip.AddrPort) (deadline time.Time, complete func() bool, claim func(), release func(transferred bool), ok bool)) error {
+	t.packetIO.mutex.Lock()
+	defer t.packetIO.mutex.Unlock()
+	if t.packetIO.started {
+		return errors.New("quic: dial setup admission configuration after initialization")
+	}
+	if t.dialSetupAdmission != nil {
+		return errors.New("quic: dial setup admission already configured")
+	}
+	if acquire == nil {
+		return errors.New("quic: dial setup admission requires an acquire callback")
+	}
+	t.dialSetupAdmission = acquire
+	return nil
+}
+
+// TransferSetupReservationV1 ends an accepted or dialed connection's setup
 // reservation, releasing it to the caller's established lifetime and stopping
 // its deadline. It fails for a connection without a reservation, or whose
 // reservation has already been transferred, expired or released.
@@ -104,7 +163,8 @@ func (c *Conn) TransferSetupReservationV1() error {
 	return c.setup.transfer()
 }
 
-// completeSetup and claimSetup are the server's stage changes. Server test
+// completeSetup and claimSetup are the server's stage changes; completeDial is
+// the dial's. Server test
 // doubles carry no connection, which has no reservation.
 func (c *Conn) completeSetup() bool {
 	if c == nil {
@@ -117,6 +177,12 @@ func (c *Conn) claimSetup() {
 	if c != nil {
 		c.setup.claimAccepted()
 	}
+}
+
+// refuseDialCompletion closes a dialed connection whose completion was
+// refused under ordinary bounded close handling.
+func (c *Conn) refuseDialCompletion() {
+	c.closeLocal(&qerr.TransportError{ErrorCode: qerr.ConnectionRefused, ErrorMessage: "setup completion refused"})
 }
 
 // handlerSetup returns the reservation of a connection-ID entry's connection.
@@ -139,7 +205,22 @@ func (a setupAdmission) acquire(remote net.Addr) (_ *setupReservation, ok bool) 
 		return nil, true
 	}
 	ep, _ := packetEndpoint(remote)
-	deadline, complete, claim, release, ok := a(ep)
+	return newSetupReservation(a(ep))
+}
+
+// acquire admits one dial before its connection IDs and connection exist. A
+// nil reservation with ok true is the ordinary, unconfigured profile.
+func (a dialSetupAdmission) acquire(ctx context.Context, remote net.Addr) (_ *setupReservation, ok bool) {
+	if a == nil {
+		return nil, true
+	}
+	ep, _ := packetEndpoint(remote)
+	return newSetupReservation(a(ctx, ep))
+}
+
+// newSetupReservation validates an acquire callback's results. A reservation
+// that cannot be held is released before it is refused.
+func newSetupReservation(deadline time.Time, complete func() bool, claim func(), release func(transferred bool), ok bool) (*setupReservation, bool) {
 	if !ok || release == nil {
 		return nil, false
 	}
@@ -151,20 +232,41 @@ func (a setupAdmission) acquire(remote net.Addr) (_ *setupReservation, ok bool) 
 	return r, true
 }
 
-// bind attaches the reservation to its newly constructed connection and arms
-// the absolute deadline.
-func (r *setupReservation) bind(c *Conn) {
+// bind attaches the reservation to its newly constructed connection. The first
+// bind arms the absolute deadline and always succeeds. A connection recreated
+// for version negotiation rebinds the detached reservation without re-arming
+// it; false means the reservation ended meanwhile and the caller releases it.
+func (r *setupReservation) bind(c *Conn) bool {
+	if r == nil {
+		return true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.timer != nil && !r.activeLocked() {
+		return false
+	}
+	c.setup = r
+	r.conn = c
+	if r.timer == nil {
+		r.timer = time.AfterFunc(time.Until(r.deadline), r.expire)
+	}
+	return true
+}
+
+// detach hands the reservation of a connection closed for recreation to the
+// dial, which rebinds it to the recreated connection or releases it.
+func (r *setupReservation) detach() {
 	if r == nil {
 		return
 	}
-	c.setup = r
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.conn = c
-	r.timer = time.AfterFunc(time.Until(r.deadline), r.expire)
+	r.conn = nil
 }
 
-// expire requests the ordinary close; the release follows that teardown.
+// expire requests the ordinary close; the release follows that teardown. A
+// detached reservation has no connection to close; its dial observes the
+// expiry when rebinding.
 func (r *setupReservation) expire() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -176,7 +278,13 @@ func (r *setupReservation) expireLocked() {
 		return
 	}
 	r.expired = true
-	r.conn.closeLocal(&qerr.TransportError{ErrorCode: qerr.ConnectionRefused, ErrorMessage: "setup deadline exceeded"})
+	if r.conn != nil {
+		r.conn.closeLocal(errSetupDeadlineExceeded())
+	}
+}
+
+func errSetupDeadlineExceeded() error {
+	return &qerr.TransportError{ErrorCode: qerr.ConnectionRefused, ErrorMessage: "setup deadline exceeded"}
 }
 
 // activeLocked reports whether the reservation still admits a stage change or
@@ -220,6 +328,23 @@ func (r *setupReservation) claimAccepted() {
 	}
 	r.claim()
 	r.stage = setupClaimed
+}
+
+// completeDial moves a dialed reservation through completion and its claim
+// under one lock, since Dial returns the connection it completes. False
+// refuses the connection.
+func (r *setupReservation) completeDial() bool {
+	if r == nil {
+		return true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.activeLocked() || !r.complete() {
+		return false
+	}
+	r.claim()
+	r.stage = setupClaimed
+	return true
 }
 
 func (r *setupReservation) transfer() error {

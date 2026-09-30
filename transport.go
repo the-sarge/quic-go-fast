@@ -162,6 +162,8 @@ type Transport struct {
 	candidates *candidateGroup
 	// setupAdmission is configured before initialization and immutable thereafter.
 	setupAdmission setupAdmission
+	// dialSetupAdmission is configured before initialization and immutable thereafter.
+	dialSetupAdmission dialSetupAdmission
 	// receivePhases is configured before initialization and immutable thereafter.
 	receivePhases           bool
 	receivePhasesConfigured bool
@@ -273,8 +275,16 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr, host string, tlsCon
 	if err != nil {
 		return nil, err
 	}
+	// Initialization ends configuration, so the admission is now immutable.
+	if t.dialSetupAdmission != nil && use0RTT {
+		return nil, errDialEarlySetupAdmission
+	}
 	tlsConf = tlsConf.Clone()
 	setTLSConfigServerName(tlsConf, addr, host)
+	setup, admitted := t.dialSetupAdmission.acquire(ctx, addr)
+	if !admitted {
+		return nil, errDialSetupRefused
+	}
 	return t.doDial(ctx,
 		newSendConn(t.conn, addr, packetInfo{}, utils.DefaultLogger),
 		tlsConf,
@@ -283,9 +293,12 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr, host string, tlsCon
 		false,
 		use0RTT,
 		conf.Versions[0],
+		setup,
 	)
 }
 
+// doDial owns setup until it binds it to the connection it constructs; every
+// earlier exit releases it.
 func (t *Transport) doDial(
 	ctx context.Context,
 	sendConn sendConn,
@@ -295,23 +308,28 @@ func (t *Transport) doDial(
 	hasNegotiatedVersion bool,
 	use0RTT bool,
 	version protocol.Version,
+	setup *setupReservation,
 ) (*Conn, error) {
 	srcConnID, err := t.connIDGenerator.GenerateConnectionID()
 	if err != nil {
+		setup.teardown()
 		return nil, err
 	}
 	destConnID, err := generateConnectionIDForInitial()
 	if err != nil {
+		setup.teardown()
 		return nil, err
 	}
 
 	t.mutex.Lock()
 	if t.closeErr != nil {
 		t.mutex.Unlock()
+		setup.teardown()
 		return nil, t.closeErr
 	}
 	if t.candidates.isFenced() {
 		t.mutex.Unlock()
+		setup.teardown()
 		return nil, errCandidateFenced
 	}
 
@@ -340,6 +358,14 @@ func (t *Transport) doDial(
 		logger,
 		version,
 	)
+	if !setup.bind(conn.Conn) {
+		// The deadline passed while no connection held the reservation.
+		t.mutex.Unlock()
+		err := errSetupDeadlineExceeded()
+		conn.abortUnstarted(err)
+		setup.teardown()
+		return nil, err
+	}
 	conn.installReceivePhase(t.receivePhases)
 	if err := conn.bindCandidate(t.candidates); err != nil {
 		t.mutex.Unlock()
@@ -380,6 +406,9 @@ func (t *Transport) doDial(
 		select {
 		case <-errChan:
 		case <-recreateChan:
+			// The connection detached its reservation for a recreation that
+			// will not happen.
+			setup.teardown()
 		}
 		return nil, context.Cause(ctx)
 	case params := <-recreateChan:
@@ -391,6 +420,7 @@ func (t *Transport) doDial(
 			true,
 			use0RTT,
 			params.nextVersion,
+			setup,
 		)
 	case err := <-errChan:
 		return nil, err
@@ -399,6 +429,11 @@ func (t *Transport) doDial(
 		return conn.Conn, nil
 	case <-conn.HandshakeComplete():
 		// handshake successfully completed
+		// A refused stage change keeps the reservation until this teardown ends.
+		if !setup.completeDial() {
+			conn.refuseDialCompletion()
+			return nil, <-errChan
+		}
 		return conn.Conn, nil
 	}
 }
@@ -975,7 +1010,7 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	// untransferred setup reservation until they are retired.
 	var authority *connAuthority
 	var setup *setupReservation
-	if h.candidates != nil || h.setupAdmission != nil {
+	if h.candidates != nil || h.setupAdmission != nil || h.dialSetupAdmission != nil {
 		h.mutex.Lock()
 		for _, id := range ids {
 			if handler, ok := h.handlers[id]; ok {
