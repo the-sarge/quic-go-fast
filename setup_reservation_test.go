@@ -33,7 +33,8 @@ type setupTransferV1 interface {
 // setupBudget is a caller budget shared across transports. It records every
 // stage change and settlement so tests observe the fork's lifecycle calls.
 type setupBudget struct {
-	ttl time.Duration
+	ttl       time.Duration
+	onRelease func() // observes state at settlement, before the budget changes
 
 	mu             sync.Mutex
 	limit          int // total reservations
@@ -95,6 +96,9 @@ func (b *setupBudget) acquire(netip.AddrPort) (time.Time, func() bool, func(), f
 		stage = claimed
 	}
 	release := func(transferred bool) {
+		if b.onRelease != nil {
+			b.onRelease()
+		}
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		switch stage {
@@ -368,7 +372,9 @@ func TestSetupAdmissionAbsoluteDeadline(t *testing.T) {
 	defer cancel()
 	const ttl = 700 * time.Millisecond
 	budget := newSetupBudget(2, 1, ttl)
-	ln, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), nil)
+	// Only the setup deadline, not the handshake timeout, can end the
+	// incomplete candidate within the settlement wait.
+	ln, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), &Config{HandshakeIdleTimeout: time.Minute})
 	require.NoError(t, err)
 	raw := newUDPConnLocalhost(t)
 	_, err = raw.WriteTo(getValidInitialPacket(t, raw.LocalAddr(), randConnID(5), randConnID(8)).data, ln.Addr())
@@ -468,7 +474,16 @@ func TestSetupAdmissionFailureRelease(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 		budget := newSetupBudget(1, 1, time.Minute)
-		ln, err := newSetupTransport(t, budget).Listen(testdata.GetTLSConfig(), nil)
+		tr := newSetupTransport(t, budget)
+		// The failed handshake's local close leaves closed entries on the
+		// transport; its capacity stays reserved until they are retired.
+		retained := make(chan int, 1)
+		budget.onRelease = func() {
+			tr.mutex.Lock()
+			retained <- len(tr.handlers)
+			tr.mutex.Unlock()
+		}
+		ln, err := tr.Listen(testdata.GetTLSConfig(), nil)
 		require.NoError(t, err)
 		clientTransport := &Transport{Conn: newUDPConnLocalhost(t)}
 		defer clientTransport.Close()
@@ -477,6 +492,7 @@ func TestSetupAdmissionFailureRelease(t *testing.T) {
 		_, err = clientTransport.Dial(ctx, ln.Addr(), tlsConf, nil)
 		require.Error(t, err)
 		budget.requireSettlement(t, false)
+		require.Zero(t, <-retained, "released while closed connection state was retained")
 		state := budget.state(t)
 		require.Equal(t, []bool{false}, state.settlements)
 		require.Zero(t, state.held)
@@ -567,6 +583,33 @@ func TestSetupAdmissionStageRace(t *testing.T) {
 		require.Equal(t, wantTransfer, transferErr == nil, "order %v", names)
 		require.Zero(t, state.held, "order %v", names)
 	})
+
+	// A reached deadline is authoritative before its delayed timer callback
+	// runs: stage changes and transfer are refused, the ordinary close is
+	// requested, and capacity is kept until teardown.
+	for _, claimed := range []bool{false, true} {
+		budget, r := newReservation(t)
+		if claimed {
+			require.True(t, r.completeHandshake())
+			r.claimAccepted()
+		}
+		r.timer.Stop()
+		r.deadline = time.Now().Add(-time.Millisecond)
+		conn := r.conn
+		if claimed {
+			require.ErrorIs(t, r.transfer(), errSetupReservationEnded)
+		} else {
+			require.False(t, r.completeHandshake())
+		}
+		closeErr := conn.closeErr.Load()
+		require.NotNil(t, closeErr, "an overdue reservation requests the ordinary close")
+		var transportErr *TransportError
+		require.ErrorAs(t, closeErr.err, &transportErr)
+		require.Equal(t, ConnectionRefused, transportErr.ErrorCode)
+		require.Empty(t, budget.state(t).settlements, "capacity is kept until teardown")
+		r.teardown()
+		require.Equal(t, []bool{false}, budget.state(t).settlements)
+	}
 
 	// The same operations concurrently, for the race detector.
 	budget, r := newReservation(t)
