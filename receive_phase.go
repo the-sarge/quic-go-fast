@@ -14,7 +14,10 @@ var (
 )
 
 // The closed phase is numbered zero; opening moves to the next phase.
-const openReceivePhaseNumber uint64 = 1
+const (
+	closedReceivePhaseNumber uint64 = 0
+	openReceivePhaseNumber   uint64 = 1
+)
 
 // receivePhase is the single owner of a connection's receive epoch. The
 // connection loop applies the transition between packets, so every frame is
@@ -144,8 +147,9 @@ func (p *receivePhase) withdraw(req *phaseRequest, err error) {
 //
 // A connection in the closed phase discards received DATAGRAM payloads before
 // they reach the receive queue; the packets carrying them are processed and
-// acknowledged as usual. OpenReceivePhaseV1 opens the phase. Receive phases
-// govern DATAGRAM delivery only; stream data is unaffected.
+// acknowledged as usual. Stream data is reliable and is never discarded;
+// instead each received byte keeps the phase in which it was first admitted,
+// which ReadReceivePhaseV1 reports. OpenReceivePhaseV1 opens the phase.
 func (t *Transport) ConfigureReceivePhasesV1(closed bool) error {
 	t.packetIO.mutex.Lock()
 	defer t.packetIO.mutex.Unlock()
@@ -165,7 +169,9 @@ func (t *Transport) ConfigureReceivePhasesV1(closed bool) error {
 // between packets: DATAGRAM payloads it processed earlier are never
 // delivered, including any still queued, and those it processes later are
 // delivered as usual. A payload's phase is fixed when the loop admits it, not
-// when the application receives it.
+// when the application receives it. Likewise, stream bytes admitted earlier
+// keep the closed phase, and ReadReceivePhaseV1 reports those admitted later
+// in the opened phase.
 //
 // It fails for a connection without a configured phase, a phase already open
 // or being opened by another call, or a connection whose loop has ended, in
@@ -194,10 +200,11 @@ func (c *Conn) OpenReceivePhaseV1(ctx context.Context) (uint64, error) {
 }
 
 // installReceivePhase runs after construction and before the connection
-// loop starts or receives a packet.
+// loop starts, receives a packet or creates a stream.
 func (c *Conn) installReceivePhase(closed bool) {
 	if closed {
 		c.receivePhase = newReceivePhase()
+		c.streamsMap.receivePhase = c.receivePhase
 	}
 }
 

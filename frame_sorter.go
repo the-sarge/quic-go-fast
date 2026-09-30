@@ -29,6 +29,14 @@ type frameSorter struct {
 	queue   map[protocol.ByteCount]frameSorterEntry
 	readPos protocol.ByteCount
 	gaps    *list.List[byteInterval]
+
+	// Receive-phase provenance, recorded only on streams of connections with
+	// a receive phase. A byte's phase is fixed when it first leaves the gap
+	// list, so replacing queued data never changes it. openGaps holds the
+	// gaps as they stood when the phase opened: exactly the ranges not
+	// received while it was closed. It is bounded by the gap limit.
+	phaseOpened bool
+	openGaps    []byteInterval
 }
 
 var errDuplicateStreamData = errors.New("duplicate stream data")
@@ -235,6 +243,39 @@ func (s *frameSorter) discard() {
 	for gap := s.gaps.Front(); gap != nil; gap = s.gaps.Front() {
 		s.gaps.Remove(gap)
 	}
+}
+
+// openPhase records the receive-phase transition before the first data
+// admitted in the open phase is pushed. Later calls have no effect.
+func (s *frameSorter) openPhase() {
+	if s.phaseOpened {
+		return
+	}
+	s.phaseOpened = true
+	s.openGaps = make([]byteInterval, 0, s.gaps.Len())
+	for gap := s.gaps.Front(); gap != nil; gap = gap.Next() {
+		s.openGaps = append(s.openGaps, gap.Value)
+	}
+}
+
+// phaseAt returns the receive phase of the received byte at pos, and the
+// offset at which the phase can next change. Positions are queried in
+// nondecreasing order, so ranges behind pos are released.
+func (s *frameSorter) phaseAt(pos protocol.ByteCount) (uint64, protocol.ByteCount) {
+	if !s.phaseOpened {
+		return closedReceivePhaseNumber, protocol.MaxByteCount
+	}
+	for len(s.openGaps) > 0 && s.openGaps[0].End <= pos {
+		s.openGaps = s.openGaps[1:]
+	}
+	if len(s.openGaps) == 0 {
+		// The last gap always extends to MaxByteCount; only discard empties it.
+		return closedReceivePhaseNumber, protocol.MaxByteCount
+	}
+	if gap := s.openGaps[0]; pos >= gap.Start {
+		return openReceivePhaseNumber, gap.End
+	}
+	return closedReceivePhaseNumber, s.openGaps[0].Start
 }
 
 func (s *frameSorter) Pop() (protocol.ByteCount, []byte, func()) {

@@ -36,6 +36,9 @@ type streamsMap struct {
 	incomingUniStreams    *incomingStreamsMap[*ReceiveStream]
 	reset                 bool
 	supportsResetStreamAt bool
+
+	// receivePhase is installed before any stream exists; see Conn.installReceivePhase.
+	receivePhase *receivePhase
 }
 
 func newStreamsMap(
@@ -63,17 +66,13 @@ func newStreamsMap(
 func (m *streamsMap) initMaps() {
 	m.outgoingBidiStreams = newOutgoingStreamsMap(
 		protocol.StreamTypeBidi,
-		func(id protocol.StreamID) *Stream {
-			return newStream(m.ctx, id, m.sender, m.newFlowController(id), m.supportsResetStreamAt)
-		},
+		m.newBidiStream,
 		m.queueControlFrame,
 		m.perspective,
 	)
 	m.incomingBidiStreams = newIncomingStreamsMap(
 		protocol.StreamTypeBidi,
-		func(id protocol.StreamID) *Stream {
-			return newStream(m.ctx, id, m.sender, m.newFlowController(id), m.supportsResetStreamAt)
-		},
+		m.newBidiStream,
 		m.maxIncomingBidiStreams,
 		m.queueControlFrame,
 		m.perspective,
@@ -89,12 +88,20 @@ func (m *streamsMap) initMaps() {
 	m.incomingUniStreams = newIncomingStreamsMap(
 		protocol.StreamTypeUni,
 		func(id protocol.StreamID) *ReceiveStream {
-			return newReceiveStream(id, m.sender, m.newFlowController(id))
+			str := newReceiveStream(id, m.sender, m.newFlowController(id))
+			str.gateReceivePhase(m.receivePhase)
+			return str
 		},
 		m.maxIncomingUniStreams,
 		m.queueControlFrame,
 		m.perspective,
 	)
+}
+
+func (m *streamsMap) newBidiStream(id protocol.StreamID) *Stream {
+	str := newStream(m.ctx, id, m.sender, m.newFlowController(id), m.supportsResetStreamAt)
+	str.receiveStr.gateReceivePhase(m.receivePhase)
+	return str
 }
 
 func (m *streamsMap) OpenStream() (*Stream, error) {
