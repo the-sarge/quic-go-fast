@@ -93,6 +93,8 @@ type sendQueue struct {
 	available   chan struct{}
 	conn        sendConn
 	feedback    *handshakeSendFeedback
+	// authority is checked again when queued work runs; nil is ungrouped.
+	authority *connAuthority
 
 	// Scratch reused across batched sends; the run loop is the only user.
 	batchScratch []queueEntry
@@ -143,6 +145,9 @@ func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, meta
 // reaches the connection's normal error path; ordinary I/O remains best effort.
 // The emission caller releases it after this method returns.
 func (h *sendQueue) SendProbe(p *packetBuffer, addr net.Addr, info packetInfo) error {
+	if !h.authority.permitsWork() {
+		return nil
+	}
 	if err := h.conn.WriteTo(p.Data, addr, info); errors.Is(err, errNetworkAdmissionDenied) {
 		return err
 	}
@@ -194,8 +199,12 @@ func (h *sendQueue) Run() error {
 // 1. Checking for "datagram too large" message from the kernel, as such,
 // 2. Path MTU discovery, and
 // 3. Eventual detection of loss PingFrame.
-// The caller keeps ownership of the entry's buffer.
+// The caller keeps ownership of the entry's buffer. A fenced candidate's
+// entry is discarded here, immediately before its submission.
 func (h *sendQueue) writeEntry(e queueEntry) error {
+	if !h.authority.permitsWork() {
+		return nil
+	}
 	if err := h.conn.Write(e.buf.Data, e.gsoSize, e.ecn); err != nil {
 		if !isSendMsgSizeErr(err) {
 			return err
@@ -247,6 +256,9 @@ func (h *sendQueue) sendBatchEntries(group []queueEntry, bs batchSender) error {
 	}()
 	i := 0
 	for i < len(group) {
+		if !h.authority.permitsWork() {
+			return nil // the deferred release retires the revoked remainder
+		}
 		if remaining := group[i:]; len(remaining) >= 2 && remaining[0].gsoSize == 0 && bs.batchSendAvailable() {
 			bufs := h.bufsScratch[:0]
 			for _, e := range remaining {

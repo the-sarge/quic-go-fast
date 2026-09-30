@@ -12,8 +12,9 @@ import (
 // When receiving packets for such a connection, we need to retransmit the packet containing the CONNECTION_CLOSE frame,
 // with an exponential backoff.
 type closedLocalConn struct {
-	counter atomic.Uint32
-	logger  utils.Logger
+	counter   atomic.Uint32
+	logger    utils.Logger
+	authority *connAuthority
 
 	sendPacket func(net.Addr, packetInfo)
 }
@@ -46,7 +47,9 @@ func (c *closedLocalConn) closeWithTransportError(TransportErrorCode) {}
 // A closedRemoteConn is a connection that was closed remotely.
 // For such a connection, we might receive reordered packets that were sent before the CONNECTION_CLOSE.
 // We can just ignore those packets.
-type closedRemoteConn struct{}
+type closedRemoteConn struct {
+	authority *connAuthority
+}
 
 var _ packetHandler = &closedRemoteConn{}
 

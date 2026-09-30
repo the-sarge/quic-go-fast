@@ -371,15 +371,33 @@ func (s *baseServer) runSendQueue() {
 		case <-s.running:
 			return
 		case p := <-s.versionNegotiationQueue:
-			s.maybeSendVersionNegotiationPacket(p)
+			if !s.fencedResponse(p) {
+				s.maybeSendVersionNegotiationPacket(p)
+			}
 		case p := <-s.invalidTokenQueue:
-			s.maybeSendInvalidToken(p)
+			if !s.fencedResponse(p.receivedPacket) {
+				s.maybeSendInvalidToken(p)
+			}
 		case p := <-s.connectionRefusedQueue:
-			s.sendConnectionRefused(p)
+			if !s.fencedResponse(p.receivedPacket) {
+				s.sendConnectionRefused(p)
+			}
 		case p := <-s.retryQueue:
-			s.sendRetry(p)
+			if !s.fencedResponse(p.receivedPacket) {
+				s.sendRetry(p)
+			}
 		}
 	}
+}
+
+// fencedResponse discards a response queued before its candidate group was
+// fenced: it concerns no winner connection.
+func (s *baseServer) fencedResponse(p receivedPacket) bool {
+	if s.tr == nil || !s.tr.candidates.isFenced() {
+		return false
+	}
+	p.buffer.Release()
+	return true
 }
 
 // Accept returns connections that already completed the handshake.
@@ -949,6 +967,13 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		s.logger,
 		hdr.Version,
 	)
+	if err := conn.bindCandidate(s.tr.candidates); err != nil {
+		// A selected or closed group sends no response for a new candidate.
+		conn.abortUnstarted(err)
+		p.buffer.Release()
+		s.retireZeroRTTQueue(hdr.DestConnectionID)
+		return nil
+	}
 	conn.handlePacket(p)
 	// Adding the connection will fail if the client's chosen Destination Connection ID is already in use.
 	// This is very unlikely: Even if an attacker chooses a connection ID that's already in use,

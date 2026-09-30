@@ -189,6 +189,8 @@ type Conn struct {
 	// closeChan is used to notify the run loop that it should terminate
 	closeChan chan struct{}
 	closeErr  atomic.Pointer[closeError]
+	// authority is bound before publication on candidate-group transports.
+	authority *connAuthority
 
 	ctx                   context.Context
 	ctxCancel             context.CancelCauseFunc
@@ -576,6 +578,7 @@ func (c *Conn) preSetup() {
 // run the connection main loop
 func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
+	defer c.authority.release()
 
 	defer func() {
 		if h, ok := c.sentPacketHandler.(deliveryLifecycle); ok {
@@ -1080,6 +1083,10 @@ func (c *Conn) handleOnePacket(rp receivedPacket, datagramPayloadChecksum qlog.D
 		rp.buffer.Decrement()
 		rp.buffer.MaybeRelease()
 	}()
+	// Input queued while this candidate was live is rechecked before unpacking.
+	if !c.authority.permitsWork() {
+		return false, nil
+	}
 	c.sentPacketHandler.ReceivedBytes(rp.Size(), rp.rcvTime)
 
 	if wire.IsVersionNegotiationPacket(rp.data) {
@@ -2261,11 +2268,12 @@ func (c *Conn) CloseWithError(code ApplicationErrorCode, desc string) error {
 	return nil
 }
 
-// abortUnstarted releases an unpublished server connection. The constructor
+// abortUnstarted releases an unpublished connection. The constructor
 // owner may call this only when the connection has never been registered or run.
 // Ordinary teardown would wait for unstarted workers and remove routing entries
 // that may belong to the connection that won registration.
 func (c *Conn) abortUnstarted(err error) {
+	c.authority.release()
 	c.closePacketAdmission()
 	c.cryptoStreamHandler.Close()
 	c.ctxCancel(err)
@@ -2293,6 +2301,11 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 			c.logger.Errorf("Closing connection with error: %s", closeErr.err)
 		}
 	}
+
+	// A group transition awaits this outcome: nil means no close was owed or
+	// the close reached the socket; it never waits for delivery.
+	var closeOutcome error
+	defer func() { c.authority.reportClose(closeOutcome) }()
 
 	e := closeErr.err
 	if e == nil {
@@ -2387,6 +2400,7 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 	connClosePacket, err := c.emission.close(e)
 	if err != nil {
 		c.logger.Debugf("Error sending CONNECTION_CLOSE: %s", err)
+		closeOutcome = candidateCloseFailure(err)
 	}
 	c.connIDGenerator.ReplaceWithClosed(connClosePacket, 3*c.rttStats.PTO(false))
 }

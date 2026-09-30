@@ -43,9 +43,10 @@ func (e *errTransportClosed) Is(target error) bool {
 var errListenerAlreadySet = errors.New("listener already set")
 
 type closePacket struct {
-	payload []byte
-	addr    net.Addr
-	info    packetInfo
+	payload   []byte
+	addr      net.Addr
+	info      packetInfo
+	authority *connAuthority
 }
 
 // The Transport is the central point to manage incoming and outgoing QUIC connections.
@@ -157,6 +158,8 @@ type Transport struct {
 
 	conn       rawConn
 	policyConn packetPolicyConn
+	// candidates is joined before initialization and immutable thereafter.
+	candidates *candidateGroup
 
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
@@ -301,6 +304,10 @@ func (t *Transport) doDial(
 		t.mutex.Unlock()
 		return nil, t.closeErr
 	}
+	if t.candidates.isFenced() {
+		t.mutex.Unlock()
+		return nil, errCandidateFenced
+	}
 
 	var qlogTrace qlogwriter.Trace
 	if config.Tracer != nil {
@@ -327,6 +334,11 @@ func (t *Transport) doDial(
 		logger,
 		version,
 	)
+	if err := conn.bindCandidate(t.candidates); err != nil {
+		t.mutex.Unlock()
+		conn.abortUnstarted(err)
+		return nil, err
+	}
 	t.handlers[srcConnID] = conn
 	t.mutex.Unlock()
 
@@ -475,8 +487,14 @@ func (t *Transport) runSendQueue() {
 				}
 			}
 		case p := <-t.closeQueue:
-			t.conn.WritePacket(p.payload, p.addr, p.info.OOB(), 0, protocol.ECNUnsupported)
+			if p.authority.permitsClose() {
+				t.conn.WritePacket(p.payload, p.addr, p.info.OOB(), 0, protocol.ECNUnsupported)
+			}
 		case p := <-t.statelessResetQueue:
+			if t.candidates.isFenced() {
+				p.buffer.Release() // queued before the fence, unrelated to the winner
+				continue
+			}
 			t.sendStatelessReset(p)
 		}
 	}
@@ -677,6 +695,12 @@ func (t *Transport) handlePacket(p receivedPacket) {
 
 	// If there's a connection associated with the connection ID, pass the packet there.
 	if handler, ok := (*packetHandlerMap)(t).Get(connID); ok {
+		// The entry's token, not decryption, decides whether a fenced or
+		// revoked candidate may receive input.
+		if t.candidates != nil && !handlerAuthority(handler).permitsWork() {
+			p.buffer.Release()
+			return
+		}
 		handler.handlePacket(p)
 		return
 	}
@@ -688,6 +712,12 @@ func (t *Transport) handlePacket(p receivedPacket) {
 	// exceedingly rare. In the unlikely event that a stateless reset is misrouted to an existing connection,
 	// it is to be expected that the next stateless reset will be correctly detected.
 	if isStatelessReset := t.maybeHandleStatelessReset(p.data); isStatelessReset {
+		p.buffer.Release()
+		return
+	}
+	if t.candidates.isFenced() {
+		// A selected or closed group creates no connection and sends no
+		// response for an unknown connection ID.
 		p.buffer.Release()
 		return
 	}
@@ -780,6 +810,9 @@ func (t *Transport) maybeHandleStatelessReset(data []byte) bool {
 	conn, ok := t.resetTokens[token]
 	t.mutex.Unlock()
 
+	if ok && !handlerAuthority(conn).permitsWork() {
+		return true // a fenced candidate's lifetime belongs to its group transition
+	}
 	if ok {
 		t.logger.Debugf("Received a stateless reset with token %#x. Closing connection.", token)
 		go conn.destroy(&StatelessResetError{})
@@ -918,12 +951,25 @@ func (h *packetHandlerMap) Remove(id protocol.ConnectionID) {
 // * remote close: absorb delayed packets
 // * local close: retransmit the CONNECTION_CLOSE packet, in case it was lost
 func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connClosePacket []byte, expiry time.Duration) {
+	// Closed entries keep the connection's token, so a later group transition
+	// also governs their input and close retransmissions.
+	var authority *connAuthority
+	if h.candidates != nil {
+		h.mutex.Lock()
+		for _, id := range ids {
+			if handler, ok := h.handlers[id]; ok {
+				authority = handlerAuthority(handler)
+				break
+			}
+		}
+		h.mutex.Unlock()
+	}
 	var handler packetHandler
 	if connClosePacket != nil {
 		handler = newClosedLocalConn(
 			func(addr net.Addr, info packetInfo) {
 				select {
-				case h.closeQueue <- closePacket{payload: connClosePacket, addr: addr, info: info}:
+				case h.closeQueue <- closePacket{payload: connClosePacket, addr: addr, info: info, authority: authority}:
 				default:
 					// We're backlogged.
 					// Just drop the packet, sending CONNECTION_CLOSE copies is best effort anyway.
@@ -934,6 +980,7 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	} else {
 		handler = newClosedRemoteConn()
 	}
+	handler = withAuthority(handler, authority)
 
 	h.mutex.Lock()
 	for _, id := range ids {
