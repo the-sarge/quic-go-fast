@@ -684,8 +684,7 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 	}
 
 	// check again if we might have a connection now
-	if handler, ok := s.tr.Get(connID); ok {
-		handler.handlePacket(p)
+	if s.tr.deliverPermitted(connID, p) {
 		return true
 	}
 
@@ -833,8 +832,15 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	// The server queues packets for a while, and we might already have established a connection by now.
 	// This results in a second check in the connection map.
 	// That's ok since it's not the hot path (it's only taken by some Initial and 0-RTT packets).
-	if handler, ok := s.tr.Get(hdr.DestConnectionID); ok {
-		handler.handlePacket(p)
+	if s.tr.deliverPermitted(hdr.DestConnectionID, p) {
+		return nil
+	}
+	if s.tr.candidates.isFenced() {
+		// A selected or closed group admits no new candidate. An Initial
+		// queued before the fence reaches no callback, allocation or
+		// response; mint rejects one that passes here before a later fence.
+		p.buffer.Release()
+		s.retireZeroRTTQueue(hdr.DestConnectionID)
 		return nil
 	}
 

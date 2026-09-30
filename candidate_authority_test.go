@@ -17,7 +17,9 @@ import (
 	"github.com/quic-go/quic-go/internal/testdata"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -57,8 +59,14 @@ func candidateClientTLS() *tls.Config {
 	return &tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost", NextProtos: testdata.GetTLSConfig().NextProtos}
 }
 
+// candidateListener is satisfied by Listener and EarlyListener.
+type candidateListener interface {
+	Addr() net.Addr
+	Accept(context.Context) (*Conn, error)
+}
+
 // dialCandidatePair establishes one connection from an ordinary client transport.
-func dialCandidatePair(t *testing.T, ctx context.Context, ln *Listener) (client, server *Conn) {
+func dialCandidatePair(t *testing.T, ctx context.Context, ln candidateListener) (client, server *Conn) {
 	t.Helper()
 	clientTransport := &Transport{Conn: newUDPConnLocalhost(t)}
 	t.Cleanup(func() { clientTransport.Close() })
@@ -689,4 +697,186 @@ func TestCandidatePreCancelledTransition(t *testing.T) {
 	}
 	require.NoError(t, group.closeGroup(ctx), "a live context keeps the no-op result")
 	exchangeAdmissionStream(t, ctx, peer, candidate)
+}
+
+// countingConnIDGenerator counts server connection-ID generation.
+type countingConnIDGenerator struct {
+	protocol.DefaultConnectionIDGenerator
+	calls *atomic.Int32
+}
+
+func (g *countingConnIDGenerator) GenerateConnectionID() (ConnectionID, error) {
+	g.calls.Add(1)
+	return g.DefaultConnectionIDGenerator.GenerateConnectionID()
+}
+
+// get0RTTPacket builds a 0-RTT long header packet for connID.
+func get0RTTPacket(t *testing.T, raddr net.Addr, connID protocol.ConnectionID) receivedPacket {
+	t.Helper()
+	return getLongHeaderPacket(t,
+		raddr,
+		&wire.ExtendedHeader{
+			Header: wire.Header{
+				Type:             protocol.PacketType0RTT,
+				SrcConnectionID:  protocol.ParseConnectionID([]byte{5, 4, 3, 2, 1}),
+				DestConnectionID: connID,
+				Length:           123,
+				Version:          protocol.Version1,
+			},
+			PacketNumberLen: protocol.PacketNumberLen4,
+		},
+		make([]byte, 123),
+	)
+}
+
+// slabBackedPacket moves p onto a coalesced slab with one view, so the
+// caller observes the view's release through slab.released().
+func slabBackedPacket(t *testing.T, p receivedPacket) (receivedPacket, *coalescedSlab) {
+	t.Helper()
+	slab := getCoalescedSlab()
+	slab.buf.Data = append(slab.buf.Data[:0], p.data...)
+	views := slab.split(len(p.data))
+	require.Len(t, views, 1)
+	p.buffer.Release()
+	p.buffer = views[0]
+	p.data = views[0].Data
+	return p, slab
+}
+
+// retainedEntries returns the closed connection-ID entries left for ids.
+func retainedEntries(t *testing.T, tr *Transport, ids []protocol.ConnectionID) []*closedLocalConn {
+	t.Helper()
+	tr.mutex.Lock()
+	defer tr.mutex.Unlock()
+	var entries []*closedLocalConn
+	for _, id := range ids {
+		if h, ok := tr.handlers[id]; ok {
+			entry, ok := h.(*closedLocalConn)
+			require.True(t, ok, "expected a closed-local entry, got %T", h)
+			entries = append(entries, entry)
+		}
+	}
+	require.NotEmpty(t, entries)
+	return entries
+}
+
+// The server processes its receive queue after transport dispatch, so an
+// Initial or 0-RTT packet queued before the fence must obey the same
+// admission as dispatch: no callback or allocation for an unknown
+// connection ID, and the entry's token for a known one. Packets are handed
+// to the server's processing step directly, the way its receive loop does.
+func TestCandidateFencedServerQueue(t *testing.T) {
+	t.Run("queued Initial reaches no callback", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		constructed := countServerConstructors(t)
+		var connIDs, verify, connContext, config, tracer atomic.Int32
+		tr := newCandidateTransport(t, newUDPConnLocalhost(t))
+		tr.ConnectionIDGenerator = &countingConnIDGenerator{
+			DefaultConnectionIDGenerator: protocol.DefaultConnectionIDGenerator{ConnLen: 8},
+			calls:                        &connIDs,
+		}
+		tr.VerifySourceAddress = func(net.Addr) bool { verify.Add(1); return true }
+		tr.ConnContext = func(ctx context.Context, _ *ClientInfo) (context.Context, error) {
+			connContext.Add(1)
+			return ctx, nil
+		}
+		group := newCandidateGroup(t, tr)
+		require.NoError(t, group.join(tr))
+		ln, err := tr.ListenEarly(testdata.GetTLSConfig(), &Config{
+			GetConfigForClient: func(*ClientInfo) (*Config, error) { config.Add(1); return nil, nil },
+			Tracer: func(context.Context, bool, ConnectionID) qlogwriter.Trace {
+				tracer.Add(1)
+				return nil
+			},
+		})
+		require.NoError(t, err)
+		s := ln.baseServer
+		raw := newUDPConnLocalhost(t)
+		connID := randConnID(8)
+		zeroRTT := get0RTTPacket(t, raw.LocalAddr(), connID)
+		require.True(t, s.handlePacketImpl(zeroRTT), "0-RTT is queued for the Initial")
+		require.Contains(t, s.zeroRTTQueues, connID)
+
+		require.NoError(t, group.closeGroup(ctx))
+		// A slab-backed view records its release on the slab, so the test
+		// never reads a pooled buffer that another goroutine may reuse.
+		initial, slab := slabBackedPacket(t, getValidInitialPacket(t, raw.LocalAddr(), randConnID(5), connID))
+		require.True(t, s.handlePacketImpl(initial), "the Initial path owns its buffer")
+		require.True(t, slab.released(), "the Initial's buffer is released")
+		require.NotContains(t, s.zeroRTTQueues, connID, "the 0-RTT queue is retired with the Initial")
+		_, registered := s.tr.Get(connID)
+		require.False(t, registered)
+		require.Zero(t, constructed.Load(), "no connection is constructed")
+		for name, n := range map[string]*atomic.Int32{
+			"VerifySourceAddress": &verify, "GetConfigForClient": &config, "ConnContext": &connContext,
+			"GenerateConnectionID": &connIDs, "Tracer": &tracer,
+		} {
+			require.Zero(t, n.Load(), "%s ran for an Initial queued before the fence", name)
+		}
+	})
+
+	t.Run("registered winner still receives", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		tr := newCandidateTransport(t, newUDPConnLocalhost(t))
+		group := newCandidateGroup(t, tr)
+		require.NoError(t, group.join(tr))
+		var winnerEvents events.Recorder
+		ln, err := tr.Listen(testdata.GetTLSConfig(), &Config{
+			Tracer: func(context.Context, bool, ConnectionID) qlogwriter.Trace {
+				return &events.Trace{Recorder: &winnerEvents}
+			},
+		})
+		require.NoError(t, err)
+		winnerPeer, winner := dialCandidatePair(t, ctx, ln)
+		require.NoError(t, group.selectWinner(ctx, winner))
+		// The round trip confirms the handshake, so Initial keys are dropped.
+		exchangeAdmissionStream(t, ctx, winnerPeer, winner)
+		winnerIDs := registeredConnIDs(tr, winner)
+		require.NotEmpty(t, winnerIDs)
+		winnerEvents.Clear()
+		initial := getValidInitialPacket(t, winnerPeer.LocalAddr(), randConnID(5), winnerIDs[0])
+		require.True(t, ln.baseServer.handlePacketImpl(initial))
+		require.Eventually(t, func() bool {
+			return len(winnerEvents.Events(qlog.PacketDropped{})) > 0
+		}, 5*time.Second, 10*time.Millisecond, "the winner never saw the Initial")
+	})
+
+	t.Run("fenced loser entry receives nothing", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		retainClosedEntries(t, time.Minute)
+		tr := newCandidateTransport(t, newUDPConnLocalhost(t))
+		group := newCandidateGroup(t, tr)
+		require.NoError(t, group.join(tr))
+		ln, err := tr.ListenEarly(testdata.GetTLSConfig(), nil)
+		require.NoError(t, err)
+		winnerPeer, winner := dialCandidatePair(t, ctx, ln)
+		loserPeer, loser := dialCandidatePair(t, ctx, ln)
+		// The early listener accepts before the handshake completes; the
+		// loser's close must be a standard 1-RTT application close.
+		for _, conn := range []*Conn{winner, loser} {
+			select {
+			case <-conn.HandshakeComplete():
+			case <-ctx.Done():
+				t.Fatal("handshake did not complete")
+			}
+		}
+		loserIDs := registeredConnIDs(tr, loser)
+		require.NotEmpty(t, loserIDs)
+		require.NoError(t, group.selectWinner(ctx, winner))
+		requireRemoteCandidateClose(t, loserPeer)
+		requireCandidateTerminated(t, loser)
+		entries := retainedEntries(t, tr, loserIDs)
+		s := ln.baseServer
+		for _, id := range loserIDs {
+			require.True(t, s.handlePacketImpl(getValidInitialPacket(t, loserPeer.LocalAddr(), randConnID(5), id)))
+			require.True(t, s.handlePacketImpl(get0RTTPacket(t, loserPeer.LocalAddr(), id)))
+		}
+		for _, entry := range entries {
+			require.Zero(t, entry.counter.Load(), "a fenced loser's entry received server-queued input")
+		}
+		exchangeAdmissionStream(t, ctx, winnerPeer, winner)
+	})
 }
