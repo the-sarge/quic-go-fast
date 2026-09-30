@@ -1,0 +1,562 @@
+[
+  {
+    "id": "core-darwin-arm64-S1-stream-p1-bbrv3",
+    "case_directory": "case-340",
+    "goodput_mbps": 303.74352213333333,
+    "control_p95_ms": 5.371,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 234.38544499999998,
+      "peak_rss_bytes": 31784960,
+      "total_alloc_bytes": 21703309816,
+      "heap_bytes_at_exit": 6573744
+    },
+    "receive": {
+      "cpu_seconds": 181.25794,
+      "peak_rss_bytes": 32604160,
+      "total_alloc_bytes": 7998675512,
+      "heap_bytes_at_exit": 8020720
+    },
+    "send_cpu_per_measured_gib": 36.82484828951287,
+    "receive_cpu_per_measured_gib": 28.477861079512117,
+    "sha256": {
+      "focal-send.stdout": "85782fb4a245b4d73a8935d7eda30e2d6a0d75ed7f894437855231fdb5c1f1af",
+      "focal-receive.stdout": "fb4059332a46f6a4fedbf641cc6793b8fb7ee5080ada202d86b9b46d7482ef9b",
+      "commands.json": "92c1a74be1e1e3a766d5f9ef32463cb748ef6c974df6ef3170777a56e290c92a",
+      "verdict.json": "915597b4373710e930cb52c510852df71a7c6315eff07307b1c0dac197f83120"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p1-reno",
+    "case_directory": "case-341",
+    "goodput_mbps": 1622.9686762666668,
+    "control_p95_ms": 0.522,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 476.123346,
+      "peak_rss_bytes": 24084480,
+      "total_alloc_bytes": 18360127824,
+      "heap_bytes_at_exit": 3115208
+    },
+    "receive": {
+      "cpu_seconds": 250.887366,
+      "peak_rss_bytes": 21544960,
+      "total_alloc_bytes": 19508236800,
+      "heap_bytes_at_exit": 2121832
+    },
+    "send_cpu_per_measured_gib": 13.999956648962005,
+    "receive_cpu_per_measured_gib": 7.377105695993877,
+    "sha256": {
+      "focal-send.stdout": "c58e68654467baf9f10963a2def93fae28ca71ceba84673f08152ab38ca611f0",
+      "focal-receive.stdout": "8ca98d1d30fc5685410adbf770fafe0621f0d225831771d124c5aa3590b0a06f",
+      "commands.json": "04793fc2df69444b2e9a3322a867a8093f3eb632232b4371a33f5d0378e13f62",
+      "verdict.json": "6dc449f0c235b34f3c9023becb90f158070c1cead4a4d71ccf937df7f42f7de8"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p2-bbrv3",
+    "case_directory": "case-342",
+    "goodput_mbps": 281.5303274666666,
+    "control_p95_ms": 5.591,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 232.53397900000002,
+      "peak_rss_bytes": 30523392,
+      "total_alloc_bytes": 11993030472,
+      "heap_bytes_at_exit": 8344024
+    },
+    "receive": {
+      "cpu_seconds": 192.480505,
+      "peak_rss_bytes": 31260672,
+      "total_alloc_bytes": 7524061024,
+      "heap_bytes_at_exit": 6332144
+    },
+    "send_cpu_per_measured_gib": 39.41654820008297,
+    "receive_cpu_per_measured_gib": 32.627133185162634,
+    "sha256": {
+      "focal-send.stdout": "3c9afcaceae50c27c71a4cc0ea0d970634f7d594b1a04acf20a0a637fe590beb",
+      "focal-receive.stdout": "05a92774657bcbde2a2ec203614fb569bb3afb283414fc4f39eb68fd51d22cb4",
+      "commands.json": "adb6b26b9f51a0a46b2d38c59a262e9254e3f4b9bec9d1328c1b532295f0fdca",
+      "verdict.json": "f4cbca718a0aa5da60259da435d9067f64358bd99ac8a6fb49dcb83e9edc9b80"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p2-reno",
+    "case_directory": "case-343",
+    "goodput_mbps": 1636.8589247999998,
+    "control_p95_ms": 0.512,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 476.80696700000004,
+      "peak_rss_bytes": 23969792,
+      "total_alloc_bytes": 18460794432,
+      "heap_bytes_at_exit": 1661488
+    },
+    "receive": {
+      "cpu_seconds": 252.08185799999998,
+      "peak_rss_bytes": 21676032,
+      "total_alloc_bytes": 19634071992,
+      "heap_bytes_at_exit": 2800608
+    },
+    "send_cpu_per_measured_gib": 13.901084834175247,
+    "receive_cpu_per_measured_gib": 7.3493290487395875,
+    "sha256": {
+      "focal-send.stdout": "7ef8042fce87518fb6442d52d250d59f8347d81429cddaa3918e6db117f7177c",
+      "focal-receive.stdout": "d40ffc712e45f5f1c26c37ddfc274930f7bb4af0472bc3a47248a7b180d73e5d",
+      "commands.json": "ae2186180655e6441ab2a9f3c69497ddbb88b4423e21d58229cc204f3229d15e",
+      "verdict.json": "d27251fd63376e790d698da3acc4a5676282adb184a57920730ab92674f3c6e4"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p3-bbrv3",
+    "case_directory": "case-344",
+    "goodput_mbps": 307.096416,
+    "control_p95_ms": 5.103,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 232.740668,
+      "peak_rss_bytes": 30932992,
+      "total_alloc_bytes": 14354298176,
+      "heap_bytes_at_exit": 6699400
+    },
+    "receive": {
+      "cpu_seconds": 208.95674300000002,
+      "peak_rss_bytes": 32112640,
+      "total_alloc_bytes": 7711664448,
+      "heap_bytes_at_exit": 8264896
+    },
+    "send_cpu_per_measured_gib": 36.16719937772803,
+    "receive_cpu_per_measured_gib": 32.471249010085664,
+    "sha256": {
+      "focal-send.stdout": "fefdd7608f831e2b8da28997ca1faaa05ee99368e51b10cda91ea242942ba983",
+      "focal-receive.stdout": "aa8823ee1787d230194caf0d311c65b1ced9114c1399ebe6e47c2a69e4a993f1",
+      "commands.json": "b34e4ffa05345bac52f8bd3e73342210353151cf627a1385e9a19e46acfa7260",
+      "verdict.json": "73fdfc9075c224fb20ae932bb2e323d314972a6c5fa7c5087affe484085375bd"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p3-reno",
+    "case_directory": "case-345",
+    "goodput_mbps": 1626.4830677333334,
+    "control_p95_ms": 0.504,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 476.70223300000004,
+      "peak_rss_bytes": 24313856,
+      "total_alloc_bytes": 18381141592,
+      "heap_bytes_at_exit": 3034208
+    },
+    "receive": {
+      "cpu_seconds": 252.85160100000002,
+      "peak_rss_bytes": 21954560,
+      "total_alloc_bytes": 19537596024,
+      "heap_bytes_at_exit": 2447616
+    },
+    "send_cpu_per_measured_gib": 13.986691362093696,
+    "receive_cpu_per_measured_gib": 7.418797435333729,
+    "sha256": {
+      "focal-send.stdout": "a4f76327cb2eb058a5187f144be1d46fa006a5a6485aaaecd27db5608ef847f9",
+      "focal-receive.stdout": "cead468c97e2e5a4e20a4ffe136c65e32b2332fd42a425c71a161b6b0a0f62a4",
+      "commands.json": "c33f236dc7170346ba22ab0209fe57980cadcf2594ac94bef6ff20d164b4173d",
+      "verdict.json": "674b5ff30e2bc3f0b63db932ab972fde5513e09f377354b18a767c7f7b86b077"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p4-bbrv3",
+    "case_directory": "case-346",
+    "goodput_mbps": 335.53745280000004,
+    "control_p95_ms": 5.135,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 226.572995,
+      "peak_rss_bytes": 30392320,
+      "total_alloc_bytes": 12376650656,
+      "heap_bytes_at_exit": 10671904
+    },
+    "receive": {
+      "cpu_seconds": 265.908518,
+      "peak_rss_bytes": 31047680,
+      "total_alloc_bytes": 7608639120,
+      "heap_bytes_at_exit": 8348488
+    },
+    "send_cpu_per_measured_gib": 32.224374343682854,
+    "receive_cpu_per_measured_gib": 37.818874333218446,
+    "sha256": {
+      "focal-send.stdout": "1b084a4a81f608999bad92331bada4ba32925f6cc64166ee76d2971ed5206f44",
+      "focal-receive.stdout": "bc4443e39d9b4b1935e6aaafa811eb338b7cbecc43a3f8e6db485355ef791eb7",
+      "commands.json": "f127eca7f30c81405de67e1bfaf8d5cf5fe5407e18f80f18f0f94e5ebe6851b8",
+      "verdict.json": "490ac415a66a2978de0aa3849550315dbfed23c064b246c5dc61a278e3e898ad"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p4-reno",
+    "case_directory": "case-347",
+    "goodput_mbps": 1637.2073813333332,
+    "control_p95_ms": 0.54,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 475.33223200000003,
+      "peak_rss_bytes": 24592384,
+      "total_alloc_bytes": 18512331520,
+      "heap_bytes_at_exit": 2089472
+    },
+    "receive": {
+      "cpu_seconds": 255.06753600000002,
+      "peak_rss_bytes": 21610496,
+      "total_alloc_bytes": 19681402280,
+      "heap_bytes_at_exit": 1709240
+    },
+    "send_cpu_per_measured_gib": 13.855140123571395,
+    "receive_cpu_per_measured_gib": 7.434792371189529,
+    "sha256": {
+      "focal-send.stdout": "2956ac3a5a1d42f25ec1eeb477b63a0a61d2e0e6a6264ad8e68b7103216a4b6e",
+      "focal-receive.stdout": "b4efafaf5a3940111778be4813bd60ce3ceebd492bd766431f1af158709bd6a5",
+      "commands.json": "371bf46343bd0b7973512f09b2ca8d348f03a2f1efa94a4c4f399443dbb60b91",
+      "verdict.json": "b36fa39fdf49f41ae7bfe31f8d4cee5a7bf9d65322f3000963cd5c6bedb961e3"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p5-bbrv3",
+    "case_directory": "case-348",
+    "goodput_mbps": 307.11751253333335,
+    "control_p95_ms": 4.629,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 225.465511,
+      "peak_rss_bytes": 30851072,
+      "total_alloc_bytes": 15727308824,
+      "heap_bytes_at_exit": 6165664
+    },
+    "receive": {
+      "cpu_seconds": 252.211374,
+      "peak_rss_bytes": 31211520,
+      "total_alloc_bytes": 7633373240,
+      "heap_bytes_at_exit": 10232880
+    },
+    "send_cpu_per_measured_gib": 35.03425513406608,
+    "receive_cpu_per_measured_gib": 39.19019625325028,
+    "sha256": {
+      "focal-send.stdout": "5aabd072344d445cc51730de300d32d6328c823c0d288a2276d55998ec306b31",
+      "focal-receive.stdout": "77eff50427f1c918967f57df42aa7d0a649e80246c7ac296bf92f16614f12a0d",
+      "commands.json": "78fcdb2ac89a38af9620020018f209af83b0114e902e7438d3e7e228a3d115ab",
+      "verdict.json": "15e278234058c5228f51536c16535c2a3bd63a9a6587eb088f626027b45a39c5"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-stream-p5-reno",
+    "case_directory": "case-349",
+    "goodput_mbps": 1643.1536938666666,
+    "control_p95_ms": 0.537,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 474.131553,
+      "peak_rss_bytes": 24723456,
+      "total_alloc_bytes": 18583086544,
+      "heap_bytes_at_exit": 813216
+    },
+    "receive": {
+      "cpu_seconds": 256.99710999999996,
+      "peak_rss_bytes": 23920640,
+      "total_alloc_bytes": 19753702456,
+      "heap_bytes_at_exit": 1943392
+    },
+    "send_cpu_per_measured_gib": 13.77012943489098,
+    "receive_cpu_per_measured_gib": 7.463927356661105,
+    "sha256": {
+      "focal-send.stdout": "4ac48b5bb7d35f5e60acbe96883b01389bbd1ca7cc69838f29fec2e9e683a3c0",
+      "focal-receive.stdout": "47ec1f32fee22d408e5252dde64511a46b9a3ef56e406b6b8b7d99e869acf195",
+      "commands.json": "4c0f9b84023109b465e0d1471bbc5475cfe1ed2f63be5aa6f3ca93950b84dcbb",
+      "verdict.json": "ef94966b8e8ca5ffaada7d4715321020556e856501fb29fc3c552c50f29554d2"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p1-bbrv3",
+    "case_directory": "case-350",
+    "goodput_mbps": 217.7582279111111,
+    "control_p95_ms": 4.537,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 239.452481,
+      "peak_rss_bytes": 30162944,
+      "total_alloc_bytes": 16103242136,
+      "heap_bytes_at_exit": 6975640
+    },
+    "receive": {
+      "cpu_seconds": 221.570065,
+      "peak_rss_bytes": 31457280,
+      "total_alloc_bytes": 14102535232,
+      "heap_bytes_at_exit": 11301536
+    },
+    "send_cpu_per_measured_gib": 52.47616867500668,
+    "receive_cpu_per_measured_gib": 48.55722544913701,
+    "sha256": {
+      "focal-send.stdout": "d93870951f841946372b5431200c23855ec84e49cb2357c3a4d6537058d41b62",
+      "focal-receive.stdout": "9ef012c86f070ffc2132e7eb4682bd3a28252fdfb4a6416d5c1d51abd983c175",
+      "commands.json": "228aadb29a4c6e4c111915e6d6fe9514ef4e9854edf7cf7165d4d7705bb26314",
+      "verdict.json": "b56a7c8c8f06243c62dc65c1aa9f294c30ce78ba8997c248649cbf2fa6be4a51"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p1-reno",
+    "case_directory": "case-351",
+    "goodput_mbps": 1467.8248490666665,
+    "control_p95_ms": 0.507,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 513.368418,
+      "peak_rss_bytes": 25247744,
+      "total_alloc_bytes": 61525984616,
+      "heap_bytes_at_exit": 866640
+    },
+    "receive": {
+      "cpu_seconds": 264.11913,
+      "peak_rss_bytes": 35454976,
+      "total_alloc_bytes": 62119249440,
+      "heap_bytes_at_exit": 7981976
+    },
+    "send_cpu_per_measured_gib": 16.690612094876073,
+    "receive_cpu_per_measured_gib": 8.587029881659268,
+    "sha256": {
+      "focal-send.stdout": "87124fdcb0434d3f007e3e2ed5b64862ae82e9d913d193e231fa53cf043b5148",
+      "focal-receive.stdout": "b0505439fafb829ef84eb5ee20c264813218a0afb24c676396dca0c19e5e3454",
+      "commands.json": "4e3033b9e5d71538c79223123f5ce87aa26aaccac20f338e973cc1adab66c9c3",
+      "verdict.json": "6033076e6e8b7417f7c5fc35845737ae68b9e70cfb2ec293f8e6f79f1149edf4"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p2-bbrv3",
+    "case_directory": "case-352",
+    "goodput_mbps": 221.9885809777778,
+    "control_p95_ms": 4.561,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 240.51389200000003,
+      "peak_rss_bytes": 30294016,
+      "total_alloc_bytes": 17702897848,
+      "heap_bytes_at_exit": 11297360
+    },
+    "receive": {
+      "cpu_seconds": 225.147375,
+      "peak_rss_bytes": 32014336,
+      "total_alloc_bytes": 14177865584,
+      "heap_bytes_at_exit": 8426656
+    },
+    "send_cpu_per_measured_gib": 51.70432620271104,
+    "receive_cpu_per_measured_gib": 48.4009186491569,
+    "sha256": {
+      "focal-send.stdout": "94b7d874a527d410a6ccdde1f15549a8efa3db9622bbdd2cd2cec9eb7ec1df83",
+      "focal-receive.stdout": "e0a5820aee58d9475435f0d69af4cf91629d5c55b08fa454eae7dbb692c84ab9",
+      "commands.json": "98a731d41a6131cb99550b34f8ce4fd73b8596186a12a724d3c78ecf6157bd6d",
+      "verdict.json": "11cd9e2a19b1707811f0c05d375d036f8fb34f73723b50be402eed5387da5a29"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p2-reno",
+    "case_directory": "case-353",
+    "goodput_mbps": 1449.8842496,
+    "control_p95_ms": 0.527,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 515.379081,
+      "peak_rss_bytes": 24412160,
+      "total_alloc_bytes": 60923655624,
+      "heap_bytes_at_exit": 1333288
+    },
+    "receive": {
+      "cpu_seconds": 261.403301,
+      "peak_rss_bytes": 35045376,
+      "total_alloc_bytes": 61531267448,
+      "heap_bytes_at_exit": 9876552
+    },
+    "send_cpu_per_measured_gib": 16.96331811428866,
+    "receive_cpu_per_measured_gib": 8.603894714516267,
+    "sha256": {
+      "focal-send.stdout": "c1ace9389db91a90ac0d3fbd3b0f0eb10316f97a03499695b566c6c876b7e23f",
+      "focal-receive.stdout": "3a06191e3745385c829701817022abbb2af9a4087f3f0ad67fee81f4ac7b6a2d",
+      "commands.json": "2bfd7502b2575c818295dbe6de52b9a66f61292224ce201947de78cd193eda29",
+      "verdict.json": "0b4d64ef4735c38c98056cb3ee5e28782c7e1901c76dec36165ff22c8df8b324"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p3-bbrv3",
+    "case_directory": "case-354",
+    "goodput_mbps": 218.47068017777778,
+    "control_p95_ms": 4.483,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 241.781268,
+      "peak_rss_bytes": 30720000,
+      "total_alloc_bytes": 15993681704,
+      "heap_bytes_at_exit": 7832496
+    },
+    "receive": {
+      "cpu_seconds": 201.26894600000003,
+      "peak_rss_bytes": 30883840,
+      "total_alloc_bytes": 14029361768,
+      "heap_bytes_at_exit": 7890512
+    },
+    "send_cpu_per_measured_gib": 52.81373012313453,
+    "receive_cpu_per_measured_gib": 43.96438104630893,
+    "sha256": {
+      "focal-send.stdout": "5ce56d97b884f87dff135fd3d6f6e1b25abec492a308133ad62cca2c47b9c41e",
+      "focal-receive.stdout": "65af836caf1d1afa9e43e3b59f0fa9e42dd725573fb54897bbcfeb085268c03e",
+      "commands.json": "7cc3e021f8853146e6ac7eecf0a598c50c60cd53ce15362a92557455df494d2a",
+      "verdict.json": "ea54efbecafed3076c33d7fc3b1a5881c4b6fb63c7684b4de7be0606ce06127f"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p3-reno",
+    "case_directory": "case-355",
+    "goodput_mbps": 1446.7079196444445,
+    "control_p95_ms": 0.529,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 515.05879,
+      "peak_rss_bytes": 24412160,
+      "total_alloc_bytes": 60777582832,
+      "heap_bytes_at_exit": 2886864
+    },
+    "receive": {
+      "cpu_seconds": 260.399005,
+      "peak_rss_bytes": 34914304,
+      "total_alloc_bytes": 61398104464,
+      "heap_bytes_at_exit": 7274856
+    },
+    "send_cpu_per_measured_gib": 16.989996763832774,
+    "receive_cpu_per_measured_gib": 8.589656827825953,
+    "sha256": {
+      "focal-send.stdout": "9200f29a0c79516e832d57ae12b887b967feeb4915be2186de4554d3b00f50c2",
+      "focal-receive.stdout": "72a45052fcbe7ed9cf8af420a71776b27379f2a0499f8901d347a51808f79343",
+      "commands.json": "0c9779ef92a65a21a2b2f66115474eb3528108f2d54178255488dcdb19b318ce",
+      "verdict.json": "dc48ab02fd0708a8844693549160c96d9f64cbfde456be50cbc62b0ec5fe744e"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p4-reno",
+    "case_directory": "case-356",
+    "goodput_mbps": 1450.7383608888888,
+    "control_p95_ms": 0.528,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 515.945522,
+      "peak_rss_bytes": 24444928,
+      "total_alloc_bytes": 60983146912,
+      "heap_bytes_at_exit": 3426992
+    },
+    "receive": {
+      "cpu_seconds": 260.406576,
+      "peak_rss_bytes": 35831808,
+      "total_alloc_bytes": 61580918952,
+      "heap_bytes_at_exit": 9220464
+    },
+    "send_cpu_per_measured_gib": 16.97196409504262,
+    "receive_cpu_per_measured_gib": 8.566042090748075,
+    "sha256": {
+      "focal-send.stdout": "56af0840a48db1837ed2f595fc93d0bf6e6c04d80ee0f0766dcf46be004ac8c5",
+      "focal-receive.stdout": "c3e79735311635bafd6db4798fc2866e9fa10c3ce6a25074ea5be073d4102a1a",
+      "commands.json": "09aadafb596f3d9ee939e6ee7a5c40fbf0ec3a6b93068cb02a3a35a71ec0ad4e",
+      "verdict.json": "a804c1a37debcf3782815bc0249a235dbb8e047a7b0351e4b6959df307dda4c7"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p4-bbrv3",
+    "case_directory": "case-357",
+    "goodput_mbps": 227.85164373333333,
+    "control_p95_ms": 4.327,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 241.553133,
+      "peak_rss_bytes": 30212096,
+      "total_alloc_bytes": 16656599704,
+      "heap_bytes_at_exit": 8357128
+    },
+    "receive": {
+      "cpu_seconds": 221.491894,
+      "peak_rss_bytes": 32325632,
+      "total_alloc_bytes": 14402531528,
+      "heap_bytes_at_exit": 10743680
+    },
+    "send_cpu_per_measured_gib": 50.59153547274994,
+    "receive_cpu_per_measured_gib": 46.38985581788157,
+    "sha256": {
+      "focal-send.stdout": "86b60510aa2c1d1d1517b5c35c0f4d9202372bac82ae95a9fb4d1268807523bf",
+      "focal-receive.stdout": "72f8ad4638a8f64a50308a9c159a97ce014c5fef4751958f7d9898d730a021f9",
+      "commands.json": "e8387b5d3ea848da7bc9ed6967e4334d2616a3d24067f57d077a4b18ff067184",
+      "verdict.json": "2923fdce47e91a43305fe803dab3ad81d233edcff59244b719cdd02f81c086b7"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p5-bbrv3",
+    "case_directory": "case-358",
+    "goodput_mbps": 211.5857991111111,
+    "control_p95_ms": 4.748,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 239.993702,
+      "peak_rss_bytes": 30572544,
+      "total_alloc_bytes": 15639956664,
+      "heap_bytes_at_exit": 7801456
+    },
+    "receive": {
+      "cpu_seconds": 194.78032199999998,
+      "peak_rss_bytes": 31342592,
+      "total_alloc_bytes": 13529055880,
+      "heap_bytes_at_exit": 11778848
+    },
+    "send_cpu_per_measured_gib": 54.129084364425246,
+    "receive_cpu_per_measured_gib": 43.93148817741856,
+    "sha256": {
+      "focal-send.stdout": "dc434211f58203e6ee3cd6ba8ee2af7ae9f8a82fd1b306900bc8018b3ec75bd7",
+      "focal-receive.stdout": "f74bad8e73a2014c1ff14fda65c00b07a5354500c4138aebd590af4ed19249ed",
+      "commands.json": "d0abfc82a1856d1212d98fc15b8b9c30b6bad78eceb2561bc666bd53795007c7",
+      "verdict.json": "206f14ecdb8c27081b3c3f0017c5c5242ac912f597c0dd7257797d0866be9e2c"
+    }
+  },
+  {
+    "id": "core-darwin-arm64-S1-datagram-p5-reno",
+    "case_directory": "case-359",
+    "goodput_mbps": 1454.5732579555554,
+    "control_p95_ms": 0.533,
+    "go_version": "go1.27.0",
+    "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "send": {
+      "cpu_seconds": 509.072249,
+      "peak_rss_bytes": 24903680,
+      "total_alloc_bytes": 61206366968,
+      "heap_bytes_at_exit": 2731184
+    },
+    "receive": {
+      "cpu_seconds": 262.164567,
+      "peak_rss_bytes": 35389440,
+      "total_alloc_bytes": 61793024464,
+      "heap_bytes_at_exit": 9181720
+    },
+    "send_cpu_per_measured_gib": 16.701719130013164,
+    "receive_cpu_per_measured_gib": 8.60113465716635,
+    "sha256": {
+      "focal-send.stdout": "cc8a26ce3a9f710a622a7ed231e18493d83df8b93b59abc59d6f348b09a57d25",
+      "focal-receive.stdout": "0d86f34965770e57c086dc15dac2ec29dbeb7472f5e4ec9ef91c3a7c3918ad38",
+      "commands.json": "42037cab53767c517c8e5dd5a12ba69f8632b7e1416a759e1aac23220d912207",
+      "verdict.json": "9d6d5bac794249f9b7f2c883460d2902ba751d13e62c1b0fda227b6eb24281f6"
+    }
+  }
+]

@@ -1,0 +1,1679 @@
+{
+  "regression_reproduced": true,
+  "groups": [
+    {
+      "phase": "frozen",
+      "workload": "stream",
+      "controller": "reno",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 1271.269824,
+        "minimum": 1116.886848,
+        "maximum": 1285.3070208
+      },
+      "control_p95_ms": {
+        "median": 0.875,
+        "minimum": 0.261,
+        "maximum": 0.924
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 57.588689,
+          "minimum": 54.474638999999996,
+          "maximum": 61.865424000000004
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.67287959477499,
+          "minimum": 19.45625792455803,
+          "maximum": 20.948119622445954
+        },
+        "peak_rss_bytes": {
+          "median": 21495808,
+          "minimum": 21118976,
+          "maximum": 21577728
+        },
+        "total_alloc_bytes": {
+          "median": 1901979856,
+          "minimum": 1741645728,
+          "maximum": 1971094984
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 658658854.0005307,
+          "minimum": 642581230.5893914,
+          "maximum": 669746577.8537049
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 56.664671,
+          "minimum": 52.777308000000005,
+          "maximum": 60.731379
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.293928409698545,
+          "minimum": 19.14407973736342,
+          "maximum": 20.29541418961352
+        },
+        "peak_rss_bytes": {
+          "median": 21282816,
+          "minimum": 21250048,
+          "maximum": 21446656
+        },
+        "total_alloc_bytes": {
+          "median": 2047482512,
+          "minimum": 1867433184,
+          "maximum": 2097526736
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 700907144.1933281,
+          "minimum": 691739099.1396589,
+          "maximum": 718117906.6713436
+        }
+      }
+    },
+    {
+      "phase": "frozen",
+      "workload": "stream",
+      "controller": "bbrv3",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 322.14188160000003,
+        "minimum": 316.9434048,
+        "maximum": 346.0980864
+      },
+      "control_p95_ms": {
+        "median": 1.377,
+        "minimum": 1.321,
+        "maximum": 1.495
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.216496,
+          "minimum": 31.738989,
+          "maximum": 32.791852
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 42.31611210751174,
+          "minimum": 40.69364652669521,
+          "maximum": 43.65725697905887
+        },
+        "peak_rss_bytes": {
+          "median": 29081600,
+          "minimum": 28852224,
+          "maximum": 29196288
+        },
+        "total_alloc_bytes": {
+          "median": 1413880288,
+          "minimum": 1410732704,
+          "maximum": 1524102848
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1891363213.2409441,
+          "minimum": 1885060572.4589713,
+          "maximum": 1911713806.0976772
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 15.040271,
+          "minimum": 15.039625,
+          "maximum": 16.362406
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.305226008286354,
+          "minimum": 20.051629796870223,
+          "maximum": 20.381390207106534
+        },
+        "peak_rss_bytes": {
+          "median": 26427392,
+          "minimum": 26017792,
+          "maximum": 26574848
+        },
+        "total_alloc_bytes": {
+          "median": 971677352,
+          "minimum": 928950176,
+          "maximum": 981180712
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1238525896.0173168,
+          "minimum": 1217614091.2364185,
+          "maximum": 1316740587.089156
+        }
+      }
+    },
+    {
+      "phase": "frozen",
+      "workload": "datagram",
+      "controller": "reno",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 1126.301312,
+        "minimum": 1093.1805696,
+        "maximum": 1132.9572864000002
+      },
+      "control_p95_ms": {
+        "median": 0.382,
+        "minimum": 0.336,
+        "maximum": 0.398
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 63.924558,
+          "minimum": 62.768032999999996,
+          "maximum": 63.973116000000005
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.3765929326428,
+          "minimum": 24.25179169077758,
+          "maximum": 24.660761128227133
+        },
+        "peak_rss_bytes": {
+          "median": 21725184,
+          "minimum": 21725184,
+          "maximum": 21823488
+        },
+        "total_alloc_bytes": {
+          "median": 5800776432,
+          "minimum": 5622092136,
+          "maximum": 5804527112
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 2208848430.9645367,
+          "minimum": 2199036571.4503574,
+          "maximum": 2213462228.017482
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 59.211011,
+          "minimum": 58.3994,
+          "maximum": 59.553841999999996
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 22.579158267738595,
+          "minimum": 22.576473695129696,
+          "maximum": 22.944380835253952
+        },
+        "peak_rss_bytes": {
+          "median": 21676032,
+          "minimum": 21659648,
+          "maximum": 21889024
+        },
+        "total_alloc_bytes": {
+          "median": 5786707184,
+          "minimum": 5610382824,
+          "maximum": 5792553120
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 2204247991.3393555,
+          "minimum": 2193703011.1507173,
+          "maximum": 2208896140.462168
+        }
+      }
+    },
+    {
+      "phase": "frozen",
+      "workload": "datagram",
+      "controller": "bbrv3",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 259.89557759999997,
+        "minimum": 257.0643968,
+        "maximum": 270.35976960000005
+      },
+      "control_p95_ms": {
+        "median": 1.798,
+        "minimum": 1.288,
+        "maximum": 1.987
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 33.031258,
+          "minimum": 32.550321,
+          "maximum": 33.314333999999995
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 54.58660519190703,
+          "minimum": 51.70982516227962,
+          "maximum": 55.66075146895676
+        },
+        "peak_rss_bytes": {
+          "median": 28852224,
+          "minimum": 28573696,
+          "maximum": 28868608
+        },
+        "total_alloc_bytes": {
+          "median": 2211851904,
+          "minimum": 2206649624,
+          "maximum": 2262721376
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 3655249419.401945,
+          "minimum": 3594585956.430745,
+          "maximum": 3686814699.6584387
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 14.68692,
+          "minimum": 14.497885,
+          "maximum": 14.815543
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.27122525957453,
+          "minimum": 23.03151168840505,
+          "maximum": 24.753436667851208
+        },
+        "peak_rss_bytes": {
+          "median": 26542080,
+          "minimum": 26263552,
+          "maximum": 26591232
+        },
+        "total_alloc_bytes": {
+          "median": 1856255368,
+          "minimum": 1852380632,
+          "maximum": 1859872216
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 3073576863.5329976,
+          "minimum": 2948869245.7387137,
+          "maximum": 3094910976.8684278
+        }
+      }
+    },
+    {
+      "phase": "trace-on",
+      "workload": "stream",
+      "controller": "reno",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 1252.5382848,
+        "minimum": 1252.5382848,
+        "maximum": 1252.5382848
+      },
+      "control_p95_ms": {
+        "median": 0.386,
+        "minimum": 0.386,
+        "maximum": 0.386
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 60.478812,
+          "minimum": 60.478812,
+          "maximum": 60.478812
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.738249903667324,
+          "minimum": 20.738249903667324,
+          "maximum": 20.738249903667324
+        },
+        "peak_rss_bytes": {
+          "median": 22544384,
+          "minimum": 22544384,
+          "maximum": 22544384
+        },
+        "total_alloc_bytes": {
+          "median": 1937747392,
+          "minimum": 1937747392,
+          "maximum": 1937747392
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 664455671.93806,
+          "minimum": 664455671.93806,
+          "maximum": 664455671.93806
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 59.163894,
+          "minimum": 59.163894,
+          "maximum": 59.163894
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.287363102404917,
+          "minimum": 20.287363102404917,
+          "maximum": 20.287363102404917
+        },
+        "peak_rss_bytes": {
+          "median": 22233088,
+          "minimum": 22233088,
+          "maximum": 22233088
+        },
+        "total_alloc_bytes": {
+          "median": 2071184784,
+          "minimum": 2071184784,
+          "maximum": 2071184784
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 710211497.6607878,
+          "minimum": 710211497.6607878,
+          "maximum": 710211497.6607878
+        }
+      }
+    },
+    {
+      "phase": "trace-on",
+      "workload": "stream",
+      "controller": "bbrv3",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 316.426176,
+        "minimum": 316.426176,
+        "maximum": 316.426176
+      },
+      "control_p95_ms": {
+        "median": 1.403,
+        "minimum": 1.403,
+        "maximum": 1.403
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 31.322687000000002,
+          "minimum": 31.322687000000002,
+          "maximum": 31.322687000000002
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 42.51541954855352,
+          "minimum": 42.51541954855352,
+          "maximum": 42.51541954855352
+        },
+        "peak_rss_bytes": {
+          "median": 30048256,
+          "minimum": 30048256,
+          "maximum": 30048256
+        },
+        "total_alloc_bytes": {
+          "median": 1408504352,
+          "minimum": 1408504352,
+          "maximum": 1408504352
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1911814061.840975,
+          "minimum": 1911814061.840975,
+          "maximum": 1911814061.840975
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 14.864454,
+          "minimum": 14.864454,
+          "maximum": 14.864454
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.176062742323943,
+          "minimum": 20.176062742323943,
+          "maximum": 20.176062742323943
+        },
+        "peak_rss_bytes": {
+          "median": 27181056,
+          "minimum": 27181056,
+          "maximum": 27181056
+        },
+        "total_alloc_bytes": {
+          "median": 928351320,
+          "minimum": 928351320,
+          "maximum": 928351320
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1260084930.0781078,
+          "minimum": 1260084930.0781078,
+          "maximum": 1260084930.0781078
+        }
+      }
+    },
+    {
+      "phase": "trace-on",
+      "workload": "datagram",
+      "controller": "reno",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 1105.697344,
+        "minimum": 1105.697344,
+        "maximum": 1105.697344
+      },
+      "control_p95_ms": {
+        "median": 0.287,
+        "minimum": 0.287,
+        "maximum": 0.287
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 64.13418,
+          "minimum": 64.13418,
+          "maximum": 64.13418
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.91226076923427,
+          "minimum": 24.91226076923427,
+          "maximum": 24.91226076923427
+        },
+        "peak_rss_bytes": {
+          "median": 22396928,
+          "minimum": 22396928,
+          "maximum": 22396928
+        },
+        "total_alloc_bytes": {
+          "median": 5706582240,
+          "minimum": 5706582240,
+          "maximum": 5706582240
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 2216663015.9450235,
+          "minimum": 2216663015.9450235,
+          "maximum": 2216663015.9450235
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 59.327726,
+          "minimum": 59.327726,
+          "maximum": 59.327726
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 23.0452432845899,
+          "minimum": 23.0452432845899,
+          "maximum": 23.0452432845899
+        },
+        "peak_rss_bytes": {
+          "median": 23134208,
+          "minimum": 23134208,
+          "maximum": 23134208
+        },
+        "total_alloc_bytes": {
+          "median": 5687390568,
+          "minimum": 5687390568,
+          "maximum": 5687390568
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 2209208208.8911,
+          "minimum": 2209208208.8911,
+          "maximum": 2209208208.8911
+        }
+      }
+    },
+    {
+      "phase": "trace-on",
+      "workload": "datagram",
+      "controller": "bbrv3",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 246.5542656,
+        "minimum": 246.5542656,
+        "maximum": 246.5542656
+      },
+      "control_p95_ms": {
+        "median": 1.798,
+        "minimum": 1.798,
+        "maximum": 1.798
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.800748,
+          "minimum": 32.800748,
+          "maximum": 32.800748
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 57.138796443656986,
+          "minimum": 57.138796443656986,
+          "maximum": 57.138796443656986
+        },
+        "peak_rss_bytes": {
+          "median": 29753344,
+          "minimum": 29753344,
+          "maximum": 29753344
+        },
+        "total_alloc_bytes": {
+          "median": 2115326320,
+          "minimum": 2115326320,
+          "maximum": 2115326320
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 3684891576.56984,
+          "minimum": 3684891576.56984,
+          "maximum": 3684891576.56984
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 14.210047,
+          "minimum": 14.210047,
+          "maximum": 14.210047
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.753855704382065,
+          "minimum": 24.753855704382065,
+          "maximum": 24.753855704382065
+        },
+        "peak_rss_bytes": {
+          "median": 27279360,
+          "minimum": 27279360,
+          "maximum": 27279360
+        },
+        "total_alloc_bytes": {
+          "median": 1784069992,
+          "minimum": 1784069992,
+          "maximum": 1784069992
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 3107844129.473046,
+          "minimum": 3107844129.473046,
+          "maximum": 3107844129.473046
+        }
+      }
+    },
+    {
+      "phase": "trace-off",
+      "workload": "stream",
+      "controller": "reno",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 1236.1833792,
+        "minimum": 1223.802624,
+        "maximum": 1241.4342336
+      },
+      "control_p95_ms": {
+        "median": 0.237,
+        "minimum": 0.214,
+        "maximum": 1.032
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 61.395506000000005,
+          "minimum": 60.316168000000005,
+          "maximum": 61.449155999999995
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 21.25945203085482,
+          "minimum": 20.95611163674524,
+          "maximum": 21.546913302857227
+        },
+        "peak_rss_bytes": {
+          "median": 22200320,
+          "minimum": 21692416,
+          "maximum": 22331392
+        },
+        "total_alloc_bytes": {
+          "median": 474423568,
+          "minimum": 472004872,
+          "maximum": 477797264
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 165302644.9131649,
+          "minimum": 164832640.7955989,
+          "maximum": 165651343.52846968
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 59.322811,
+          "minimum": 59.137387,
+          "maximum": 59.893323
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.721183335487858,
+          "minimum": 20.546558658656938,
+          "maximum": 20.81949557511237
+        },
+        "peak_rss_bytes": {
+          "median": 22118400,
+          "minimum": 21954560,
+          "maximum": 22167552
+        },
+        "total_alloc_bytes": {
+          "median": 980639920,
+          "minimum": 979336624,
+          "maximum": 992758768
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 343462933.917376,
+          "minimum": 340258479.65834296,
+          "maximum": 344158143.0660551
+        }
+      }
+    },
+    {
+      "phase": "trace-off",
+      "workload": "stream",
+      "controller": "bbrv3",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 327.3861888,
+        "minimum": 321.5722752,
+        "maximum": 331.6615104
+      },
+      "control_p95_ms": {
+        "median": 1.528,
+        "minimum": 1.34,
+        "maximum": 1.585
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.432993,
+          "minimum": 32.151733,
+          "maximum": 32.609212
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 42.548723498991095,
+          "minimum": 42.228445175750714,
+          "maximum": 42.94233439709294
+        },
+        "peak_rss_bytes": {
+          "median": 29573120,
+          "minimum": 29327360,
+          "maximum": 30015488
+        },
+        "total_alloc_bytes": {
+          "median": 1061852672,
+          "minimum": 1054018640,
+          "maximum": 1082252096
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1401500388.9783444,
+          "minimum": 1393040591.0300314,
+          "maximum": 1407763024.7691195
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 15.343123,
+          "minimum": 15.107899,
+          "maximum": 15.796023
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 20.178335360507816,
+          "minimum": 20.12858628674852,
+          "maximum": 20.455615157164708
+        },
+        "peak_rss_bytes": {
+          "median": 26902528,
+          "minimum": 26640384,
+          "maximum": 27000832
+        },
+        "total_alloc_bytes": {
+          "median": 746301616,
+          "minimum": 721294424,
+          "maximum": 766483600
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 979070328.3546549,
+          "minimum": 963371596.6155398,
+          "maximum": 992584876.9578376
+        }
+      }
+    },
+    {
+      "phase": "trace-off",
+      "workload": "datagram",
+      "controller": "reno",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 1114.0459647999999,
+        "minimum": 1097.0759295999999,
+        "maximum": 1116.4594304000002
+      },
+      "control_p95_ms": {
+        "median": 0.296,
+        "minimum": 0.216,
+        "maximum": 0.515
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 62.66978,
+          "minimum": 61.247499,
+          "maximum": 65.80123
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.53473349339219,
+          "minimum": 23.612670704661458,
+          "maximum": 25.31342592406787
+        },
+        "peak_rss_bytes": {
+          "median": 22167552,
+          "minimum": 22134784,
+          "maximum": 22298624
+        },
+        "total_alloc_bytes": {
+          "median": 4319113800,
+          "minimum": 4260430920,
+          "maximum": 4341999096
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1667925708.1995132,
+          "minimum": 1665142472.10909,
+          "maximum": 1670346777.392545
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 58.555486,
+          "minimum": 57.081302,
+          "maximum": 61.467046999999994
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 22.924019257544185,
+          "minimum": 22.00648205275016,
+          "maximum": 23.64608596230949
+        },
+        "peak_rss_bytes": {
+          "median": 22609920,
+          "minimum": 22528000,
+          "maximum": 22740992
+        },
+        "total_alloc_bytes": {
+          "median": 4684107048,
+          "minimum": 4614856040,
+          "maximum": 4697291504
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1806680397.6616995,
+          "minimum": 1801954109.0638006,
+          "maximum": 1810940843.278449
+        }
+      }
+    },
+    {
+      "phase": "trace-off",
+      "workload": "datagram",
+      "controller": "bbrv3",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 248.33784319999998,
+        "minimum": 240.02805759999998,
+        "maximum": 267.6754048
+      },
+      "control_p95_ms": {
+        "median": 1.296,
+        "minimum": 1.28,
+        "maximum": 1.433
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.580109,
+          "minimum": 32.457867,
+          "maximum": 32.64385
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 56.45706927261,
+          "minimum": 52.27618979773941,
+          "maximum": 58.07882572429634
+        },
+        "peak_rss_bytes": {
+          "median": 29327360,
+          "minimum": 29261824,
+          "maximum": 29638656
+        },
+        "total_alloc_bytes": {
+          "median": 1795122240,
+          "minimum": 1743654504,
+          "maximum": 1906707776
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 3104638106.6106734,
+          "minimum": 3059394846.9295053,
+          "maximum": 3120026527.350068
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 14.202712,
+          "minimum": 13.778881,
+          "maximum": 14.630578
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.56338621954608,
+          "minimum": 23.475393295296545,
+          "maximum": 24.655385650413137
+        },
+        "peak_rss_bytes": {
+          "median": 27361280,
+          "minimum": 26705920,
+          "maximum": 27705344
+        },
+        "total_alloc_bytes": {
+          "median": 1582223608,
+          "minimum": 1539037584,
+          "maximum": 1634856160
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 2736432983.2913375,
+          "minimum": 2623197206.3740926,
+          "maximum": 2753893089.2864304
+        }
+      }
+    },
+    {
+      "phase": "profile",
+      "workload": "stream",
+      "controller": "reno",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 1174.1879424,
+        "minimum": 1174.1879424,
+        "maximum": 1174.1879424
+      },
+      "control_p95_ms": {
+        "median": 0.211,
+        "minimum": 0.211,
+        "maximum": 0.211
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 62.47345,
+          "minimum": 62.47345,
+          "maximum": 62.47345
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 22.851659000164094,
+          "minimum": 22.851659000164094,
+          "maximum": 22.851659000164094
+        },
+        "peak_rss_bytes": {
+          "median": 22773760,
+          "minimum": 22773760,
+          "maximum": 22773760
+        },
+        "total_alloc_bytes": {
+          "median": 455227232,
+          "minimum": 455227232,
+          "maximum": 455227232
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 166513894.67449915,
+          "minimum": 166513894.67449915,
+          "maximum": 166513894.67449915
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 60.647323,
+          "minimum": 60.647323,
+          "maximum": 60.647323
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 22.18369474502863,
+          "minimum": 22.18369474502863,
+          "maximum": 22.18369474502863
+        },
+        "peak_rss_bytes": {
+          "median": 21594112,
+          "minimum": 21594112,
+          "maximum": 21594112
+        },
+        "total_alloc_bytes": {
+          "median": 954648192,
+          "minimum": 954648192,
+          "maximum": 954648192
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 349193056.38966924,
+          "minimum": 349193056.38966924,
+          "maximum": 349193056.38966924
+        }
+      }
+    },
+    {
+      "phase": "profile",
+      "workload": "stream",
+      "controller": "bbrv3",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 306.23218560000004,
+        "minimum": 306.23218560000004,
+        "maximum": 306.23218560000004
+      },
+      "control_p95_ms": {
+        "median": 1.347,
+        "minimum": 1.347,
+        "maximum": 1.347
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.458638,
+          "minimum": 32.458638,
+          "maximum": 32.458638
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 45.52388522113034,
+          "minimum": 45.52388522113034,
+          "maximum": 45.52388522113034
+        },
+        "peak_rss_bytes": {
+          "median": 31391744,
+          "minimum": 31391744,
+          "maximum": 31391744
+        },
+        "total_alloc_bytes": {
+          "median": 1004065120,
+          "minimum": 1004065120,
+          "maximum": 1004065120
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1408221296.2053573,
+          "minimum": 1408221296.2053573,
+          "maximum": 1408221296.2053573
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 15.363236,
+          "minimum": 15.363236,
+          "maximum": 15.363236
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 21.547243981375242,
+          "minimum": 21.547243981375242,
+          "maximum": 21.547243981375242
+        },
+        "peak_rss_bytes": {
+          "median": 28835840,
+          "minimum": 28835840,
+          "maximum": 28835840
+        },
+        "total_alloc_bytes": {
+          "median": 717933096,
+          "minimum": 717933096,
+          "maximum": 717933096
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1006915442.9324715,
+          "minimum": 1006915442.9324715,
+          "maximum": 1006915442.9324715
+        }
+      }
+    },
+    {
+      "phase": "profile",
+      "workload": "datagram",
+      "controller": "reno",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 1075.40352,
+        "minimum": 1075.40352,
+        "maximum": 1075.40352
+      },
+      "control_p95_ms": {
+        "median": 0.284,
+        "minimum": 0.284,
+        "maximum": 0.284
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 66.084064,
+          "minimum": 66.084064,
+          "maximum": 66.084064
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 26.392780792345828,
+          "minimum": 26.392780792345828,
+          "maximum": 26.392780792345828
+        },
+        "peak_rss_bytes": {
+          "median": 22233088,
+          "minimum": 22233088,
+          "maximum": 22233088
+        },
+        "total_alloc_bytes": {
+          "median": 4203072024,
+          "minimum": 4203072024,
+          "maximum": 4203072024
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1678631002.231844,
+          "minimum": 1678631002.231844,
+          "maximum": 1678631002.231844
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 61.455605,
+          "minimum": 61.455605,
+          "maximum": 61.455605
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.544257920124167,
+          "minimum": 24.544257920124167,
+          "maximum": 24.544257920124167
+        },
+        "peak_rss_bytes": {
+          "median": 23904256,
+          "minimum": 23904256,
+          "maximum": 23904256
+        },
+        "total_alloc_bytes": {
+          "median": 4543642232,
+          "minimum": 4543642232,
+          "maximum": 4543642232
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1814648588.0169375,
+          "minimum": 1814648588.0169375,
+          "maximum": 1814648588.0169375
+        }
+      }
+    },
+    {
+      "phase": "profile",
+      "workload": "datagram",
+      "controller": "bbrv3",
+      "runs": 1,
+      "goodput_mbps": {
+        "median": 254.0300416,
+        "minimum": 254.0300416,
+        "maximum": 254.0300416
+      },
+      "control_p95_ms": {
+        "median": 1.173,
+        "minimum": 1.173,
+        "maximum": 1.173
+      },
+      "control_reply_count": 20,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 33.209539,
+          "minimum": 33.209539,
+          "maximum": 33.209539
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 56.14843150906942,
+          "minimum": 56.14843150906942,
+          "maximum": 56.14843150906942
+        },
+        "peak_rss_bytes": {
+          "median": 31113216,
+          "minimum": 31113216,
+          "maximum": 31113216
+        },
+        "total_alloc_bytes": {
+          "median": 1836937760,
+          "minimum": 1836937760,
+          "maximum": 1836937760
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 3105769520.130448,
+          "minimum": 3105769520.130448,
+          "maximum": 3105769520.130448
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 15.128852,
+          "minimum": 15.128852,
+          "maximum": 15.128852
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 25.57883475385936,
+          "minimum": 25.57883475385936,
+          "maximum": 25.57883475385936
+        },
+        "peak_rss_bytes": {
+          "median": 28737536,
+          "minimum": 28737536,
+          "maximum": 28737536
+        },
+        "total_alloc_bytes": {
+          "median": 1619924696,
+          "minimum": 1619924696,
+          "maximum": 1619924696
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 2738858580.4580455,
+          "minimum": 2738858580.4580455,
+          "maximum": 2738858580.4580455
+        }
+      }
+    },
+    {
+      "phase": "contention",
+      "workload": "stream",
+      "controller": "reno",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 1335.4716672,
+        "minimum": 1323.647424,
+        "maximum": 1353.338976
+      },
+      "control_p95_ms": {
+        "median": 0.321,
+        "minimum": 0.274,
+        "maximum": 0.372
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 60.485012,
+          "minimum": 59.402981000000004,
+          "maximum": 60.953469999999996
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 19.344241529308995,
+          "minimum": 19.2750619276625,
+          "maximum": 19.452389355652482
+        },
+        "peak_rss_bytes": {
+          "median": 21659648,
+          "minimum": 21561344,
+          "maximum": 21823488
+        },
+        "total_alloc_bytes": {
+          "median": 482249680,
+          "minimum": 477372104,
+          "maximum": 488189328
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 154932151.89985168,
+          "minimum": 154897560.90083328,
+          "maximum": 155094762.02135524
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 59.860202,
+          "minimum": 58.674541,
+          "maximum": 60.279072
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 19.130214045740253,
+          "minimum": 19.038697929185947,
+          "maximum": 19.251446229555306
+        },
+        "peak_rss_bytes": {
+          "median": 21954560,
+          "minimum": 21938176,
+          "maximum": 22102016
+        },
+        "total_alloc_bytes": {
+          "median": 1011043560,
+          "minimum": 1001733976,
+          "maximum": 1022217936
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 325042348.0000705,
+          "minimum": 324411894.0164641,
+          "maximum": 325158453.8768876
+        }
+      }
+    },
+    {
+      "phase": "contention",
+      "workload": "stream",
+      "controller": "bbrv3",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 336.460608,
+        "minimum": 328.636704,
+        "maximum": 349.08360960000005
+      },
+      "control_p95_ms": {
+        "median": 1.384,
+        "minimum": 1.384,
+        "maximum": 1.629
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.530542000000004,
+          "minimum": 32.064409,
+          "maximum": 32.809575
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 40.93067204484397,
+          "minimum": 40.36742136994885,
+          "maximum": 42.514306013473906
+        },
+        "peak_rss_bytes": {
+          "median": 29556736,
+          "minimum": 29474816,
+          "maximum": 29704192
+        },
+        "total_alloc_bytes": {
+          "median": 1097759744,
+          "minimum": 1065608688,
+          "maximum": 1127561720
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1392648602.4194875,
+          "minimum": 1387301087.3156471,
+          "maximum": 1401305854.9027326
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 15.444212,
+          "minimum": 15.299157999999998,
+          "maximum": 16.092346000000003
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 19.79929675446911,
+          "minimum": 19.71475527158613,
+          "maximum": 19.994535749219526
+        },
+        "peak_rss_bytes": {
+          "median": 26902528,
+          "minimum": 26624000,
+          "maximum": 27869184
+        },
+        "total_alloc_bytes": {
+          "median": 709277448,
+          "minimum": 701150152,
+          "maximum": 744593272
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 916113980.7526593,
+          "minimum": 895028095.6590998,
+          "maximum": 926957763.9600295
+        }
+      }
+    },
+    {
+      "phase": "contention",
+      "workload": "datagram",
+      "controller": "reno",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 1197.3266304,
+        "minimum": 1182.008512,
+        "maximum": 1206.9468672
+      },
+      "control_p95_ms": {
+        "median": 0.332,
+        "minimum": 0.197,
+        "maximum": 0.355
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 63.749543,
+          "minimum": 63.168183,
+          "maximum": 64.51888500000001
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 22.952904093193464,
+          "minimum": 22.867795250530307,
+          "maximum": 22.95929577183835
+        },
+        "peak_rss_bytes": {
+          "median": 22560768,
+          "minimum": 22495232,
+          "maximum": 22609920
+        },
+        "total_alloc_bytes": {
+          "median": 4628791424,
+          "minimum": 4584672656,
+          "maximum": 4669159504
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1661538541.1298726,
+          "minimum": 1660408052.516433,
+          "maximum": 1665894866.2787175
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 60.627481,
+          "minimum": 59.706179999999996,
+          "maximum": 60.887009
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 21.694944483537633,
+          "minimum": 21.666878593664215,
+          "maximum": 21.747870758280044
+        },
+        "peak_rss_bytes": {
+          "median": 23101440,
+          "minimum": 23003136,
+          "maximum": 23199744
+        },
+        "total_alloc_bytes": {
+          "median": 5022386824,
+          "minimum": 4978235056,
+          "maximum": 5066203848
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 1802828312.7747412,
+          "minimum": 1801595872.776581,
+          "maximum": 1808900404.7138984
+        }
+      }
+    },
+    {
+      "phase": "contention",
+      "workload": "datagram",
+      "controller": "bbrv3",
+      "runs": 3,
+      "goodput_mbps": {
+        "median": 258.6883712,
+        "minimum": 255.46126080000002,
+        "maximum": 260.0367104
+      },
+      "control_p95_ms": {
+        "median": 1.43,
+        "minimum": 1.228,
+        "maximum": 1.611
+      },
+      "control_reply_count": 60,
+      "control_skipped": 0,
+      "control_unresolved": 0,
+      "control_missed": 0,
+      "send": {
+        "total_cpu_seconds": {
+          "median": 32.782897,
+          "minimum": 32.700094,
+          "maximum": 32.999291
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 54.504179589939596,
+          "minimum": 54.428991079107504,
+          "maximum": 54.97735111237885
+        },
+        "peak_rss_bytes": {
+          "median": 29556736,
+          "minimum": 29360128,
+          "maximum": 29573120
+        },
+        "total_alloc_bytes": {
+          "median": 1867915360,
+          "minimum": 1844581984,
+          "maximum": 1877357344
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 3101221402.909006,
+          "minimum": 3100788493.66394,
+          "maximum": 3101274071.8420305
+        }
+      },
+      "receive": {
+        "total_cpu_seconds": {
+          "median": 14.486727,
+          "minimum": 14.407673,
+          "maximum": 14.494486
+        },
+        "total_cpu_seconds_per_measured_gib": {
+          "median": 24.052112741850298,
+          "minimum": 23.940213382398586,
+          "maximum": 24.223040375154294
+        },
+        "peak_rss_bytes": {
+          "median": 27197440,
+          "minimum": 27033600,
+          "maximum": 27557888
+        },
+        "total_alloc_bytes": {
+          "median": 1598179352,
+          "minimum": 1584640736,
+          "maximum": 1611064336
+        },
+        "total_alloc_bytes_per_measured_gib": {
+          "median": 2660958379.3873267,
+          "minimum": 2653435103.4572024,
+          "maximum": 2664192651.252025
+        }
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "phase": "frozen",
+      "workload": "stream",
+      "pairs": [
+        {
+          "pair": "frozen-stream-p1",
+          "goodput": 0.2465896471978565,
+          "sender_cpu_per_gib": 2.1118130533732278,
+          "control_p95": 5.727969348659004
+        },
+        {
+          "pair": "frozen-stream-p2",
+          "goodput": 0.2534016583406294,
+          "sender_cpu_per_gib": 2.174935810965972,
+          "control_p95": 1.4296536796536796
+        },
+        {
+          "pair": "frozen-stream-p3",
+          "goodput": 0.3098774840260273,
+          "sender_cpu_per_gib": 1.942591853594911,
+          "control_p95": 1.5737142857142856
+        }
+      ]
+    },
+    {
+      "phase": "frozen",
+      "workload": "datagram",
+      "pairs": [
+        {
+          "pair": "frozen-datagram-p1",
+          "goodput": 0.23515273134982734,
+          "sender_cpu_per_gib": 2.257057321935068,
+          "control_p95": 3.236180904522613
+        },
+        {
+          "pair": "frozen-datagram-p2",
+          "goodput": 0.23863191741241624,
+          "sender_cpu_per_gib": 2.1322063879488016,
+          "control_p95": 5.351190476190476
+        },
+        {
+          "pair": "frozen-datagram-p3",
+          "goodput": 0.2307513760580614,
+          "sender_cpu_per_gib": 2.2393041284620985,
+          "control_p95": 5.201570680628272
+        }
+      ]
+    },
+    {
+      "phase": "trace-on",
+      "workload": "stream",
+      "pairs": [
+        {
+          "pair": "trace-on-stream-p1",
+          "goodput": 0.25262794745673234,
+          "sender_cpu_per_gib": 2.050096789557693,
+          "control_p95": 3.634715025906736
+        }
+      ]
+    },
+    {
+      "phase": "trace-on",
+      "workload": "datagram",
+      "pairs": [
+        {
+          "pair": "trace-on-datagram-p1",
+          "goodput": 0.22298531052634962,
+          "sender_cpu_per_gib": 2.2936014106845457,
+          "control_p95": 6.2648083623693385
+        }
+      ]
+    },
+    {
+      "phase": "trace-off",
+      "workload": "stream",
+      "pairs": [
+        {
+          "pair": "trace-off-stream-p1",
+          "goodput": 0.2648362648362648,
+          "sender_cpu_per_gib": 2.030373011774978,
+          "control_p95": 1.5358527131782944
+        },
+        {
+          "pair": "trace-off-stream-p2",
+          "goodput": 0.27100898780226834,
+          "sender_cpu_per_gib": 1.9598373364295765,
+          "control_p95": 6.447257383966245
+        },
+        {
+          "pair": "trace-off-stream-p3",
+          "goodput": 0.259032872218677,
+          "sender_cpu_per_gib": 2.01991727419732,
+          "control_p95": 6.261682242990655
+        }
+      ]
+    },
+    {
+      "phase": "trace-off",
+      "workload": "datagram",
+      "pairs": [
+        {
+          "pair": "trace-off-datagram-p1",
+          "goodput": 0.22291525758058203,
+          "sender_cpu_per_gib": 2.3909650025934854,
+          "control_p95": 2.78252427184466
+        },
+        {
+          "pair": "trace-off-datagram-p2",
+          "goodput": 0.24398986212157256,
+          "sender_cpu_per_gib": 2.1307013508754307,
+          "control_p95": 4.324324324324325
+        },
+        {
+          "pair": "trace-off-datagram-p3",
+          "goodput": 0.21499039827538005,
+          "sender_cpu_per_gib": 2.2943881993102835,
+          "control_p95": 6.0
+        }
+      ]
+    },
+    {
+      "phase": "profile",
+      "workload": "stream",
+      "pairs": [
+        {
+          "pair": "profile-stream-p1",
+          "goodput": 0.2608033812492333,
+          "sender_cpu_per_gib": 1.9921479320518236,
+          "control_p95": 6.383886255924171
+        }
+      ]
+    },
+    {
+      "phase": "profile",
+      "workload": "datagram",
+      "pairs": [
+        {
+          "pair": "profile-datagram-p1",
+          "goodput": 0.23621834676531464,
+          "sender_cpu_per_gib": 2.127416279127095,
+          "control_p95": 4.130281690140846
+        }
+      ]
+    },
+    {
+      "phase": "contention",
+      "workload": "stream",
+      "pairs": [
+        {
+          "pair": "contention-stream-p1",
+          "goodput": 0.2541920166196765,
+          "sender_cpu_per_gib": 2.1235040488301906,
+          "control_p95": 5.0510948905109485
+        },
+        {
+          "pair": "contention-stream-p2",
+          "goodput": 0.26139349727418915,
+          "sender_cpu_per_gib": 2.075190899786245,
+          "control_p95": 3.7204301075268815
+        },
+        {
+          "pair": "contention-stream-p3",
+          "goodput": 0.24283399046950968,
+          "sender_cpu_per_gib": 2.197775805738328,
+          "control_p95": 5.074766355140187
+        }
+      ]
+    },
+    {
+      "phase": "contention",
+      "workload": "datagram",
+      "pairs": [
+        {
+          "pair": "contention-datagram-p1",
+          "goodput": 0.21165907774601994,
+          "sender_cpu_per_gib": 2.3945573792299646,
+          "control_p95": 8.177664974619288
+        },
+        {
+          "pair": "contention-datagram-p2",
+          "goodput": 0.2188549139652896,
+          "sender_cpu_per_gib": 2.3713335296533598,
+          "control_p95": 4.028169014084507
+        },
+        {
+          "pair": "contention-datagram-p3",
+          "goodput": 0.21718109645078848,
+          "sender_cpu_per_gib": 2.3834470701182107,
+          "control_p95": 3.6987951807228914
+        }
+      ]
+    }
+  ]
+}
