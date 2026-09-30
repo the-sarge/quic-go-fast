@@ -117,6 +117,17 @@ func requireSilent(t *testing.T, conn net.PacketConn) {
 	require.True(t, netErr.Timeout())
 }
 
+// listenOrdinary starts an unconfigured server. Closing its transport, not
+// only its socket, ends accepted connections before the test does.
+func listenOrdinary(t *testing.T, conf *Config) *Listener {
+	t.Helper()
+	tr := &Transport{Conn: newUDPConnLocalhost(t)}
+	t.Cleanup(func() { tr.Close() })
+	ln, err := tr.Listen(testdata.GetTLSConfig(), conf)
+	require.NoError(t, err)
+	return ln
+}
+
 func TestDialSetupAdmissionContract(t *testing.T) {
 	budget := newSetupBudget(1, 1, time.Minute)
 	dials := &correlatedDials{budget: budget}
@@ -138,9 +149,7 @@ func TestDialSetupAdmissionContract(t *testing.T) {
 	// DialEarly on a transport whose accepted connections are reserved.
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	ln, err := (&Transport{Conn: newUDPConnLocalhost(t)}).Listen(testdata.GetTLSConfig(), nil)
-	require.NoError(t, err)
-	defer ln.Close()
+	ln := listenOrdinary(t, nil)
 	client, err := newSetupTransport(t, budget).DialEarly(ctx, ln.Addr(), candidateClientTLS(), nil)
 	require.NoError(t, err)
 	server, err := ln.Accept(ctx)
@@ -228,13 +237,11 @@ func TestDialSetupAdmissionCompletionRefused(t *testing.T) {
 	budget := newSetupBudget(1, 0, time.Minute)
 	tr, _ := newDialSetupTransport(t, budget)
 	retained := requireReleasedAfterRetirement(t, budget, tr)
-	ln, err := (&Transport{Conn: newUDPConnLocalhost(t)}).Listen(testdata.GetTLSConfig(), nil)
-	require.NoError(t, err)
-	defer ln.Close()
+	ln := listenOrdinary(t, nil)
 
 	// The server may not complete its handshake before the close arrives, so
 	// only the client's ordinary close is observed.
-	_, err = tr.Dial(ctx, ln.Addr(), candidateClientTLS(), nil)
+	_, err := tr.Dial(ctx, ln.Addr(), candidateClientTLS(), nil)
 	requireLocalRefusal(t, err)
 	budget.requireSettlement(t, false)
 	require.Zero(t, <-retained, "released while closed connection state was retained")
@@ -252,9 +259,7 @@ func TestDialSetupAdmissionTransfer(t *testing.T) {
 	defer cancel()
 	budget := newSetupBudget(1, 1, 500*time.Millisecond)
 	tr, _ := newDialSetupTransport(t, budget)
-	ln, err := (&Transport{Conn: newUDPConnLocalhost(t)}).Listen(testdata.GetTLSConfig(), nil)
-	require.NoError(t, err)
-	defer ln.Close()
+	ln := listenOrdinary(t, nil)
 
 	client, err := tr.Dial(ctx, ln.Addr(), candidateClientTLS(), nil)
 	require.NoError(t, err)
@@ -379,13 +384,6 @@ func TestDialSetupAdmissionRecreation(t *testing.T) {
 	// The server offers only version 1, so a dial offering version 2 first is
 	// recreated after the server's Version Negotiation packet.
 	versions := &Config{Versions: []Version{Version2, Version1}}
-	listen := func(t *testing.T) *Listener {
-		t.Helper()
-		ln, err := (&Transport{Conn: newUDPConnLocalhost(t)}).Listen(testdata.GetTLSConfig(), &Config{Versions: []Version{Version1}})
-		require.NoError(t, err)
-		t.Cleanup(func() { ln.Close() })
-		return ln
-	}
 
 	t.Run("negotiated", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -394,7 +392,7 @@ func TestDialSetupAdmissionRecreation(t *testing.T) {
 		budget := newSetupBudget(1, 1, time.Minute)
 		tr, _ := newDialSetupTransport(t, budget)
 		retained := requireReleasedAfterRetirement(t, budget, tr)
-		client, err := tr.Dial(ctx, listen(t).Addr(), candidateClientTLS(), versions)
+		client, err := tr.Dial(ctx, listenOrdinary(t, &Config{Versions: []Version{Version1}}).Addr(), candidateClientTLS(), versions)
 		require.NoError(t, err)
 		require.Equal(t, Version1, client.ConnectionState().Version)
 		require.EqualValues(t, 2, constructed.Load(), "the dial was recreated")
@@ -455,7 +453,7 @@ func TestDialSetupAdmissionRecreation(t *testing.T) {
 			}}
 		}
 
-		_, err := tr.Dial(ctx, listen(t).Addr(), candidateClientTLS(), versions)
+		_, err := tr.Dial(ctx, listenOrdinary(t, &Config{Versions: []Version{Version1}}).Addr(), candidateClientTLS(), versions)
 		require.ErrorIs(t, err, context.Canceled)
 		budget.requireSettlement(t, false)
 		require.EqualValues(t, 1, constructed.Load(), "a canceled dial is not recreated")
@@ -520,9 +518,7 @@ func TestDialSetupAdmissionClosedRetention(t *testing.T) {
 			tr := &Transport{Conn: slowReadConn{PacketConn: newUDPConnLocalhost(t), delay: 50 * time.Millisecond}}
 			require.NoError(t, configureDialSetupAdmission(t, tr, dials.acquire))
 			transports := []*Transport{tr}
-			ln, err := (&Transport{Conn: newUDPConnLocalhost(t)}).Listen(testdata.GetTLSConfig(), nil)
-			require.NoError(t, err)
-			defer ln.Close()
+			ln := listenOrdinary(t, nil)
 
 			client, err := tr.Dial(ctx, ln.Addr(), candidateClientTLS(), nil)
 			require.NoError(t, err)
@@ -584,9 +580,7 @@ func TestDialSetupAdmissionAbsoluteDeadline(t *testing.T) {
 	const ttl = 700 * time.Millisecond
 	budget := newSetupBudget(1, 1, ttl)
 	tr, _ := newDialSetupTransport(t, budget)
-	ln, err := (&Transport{Conn: newUDPConnLocalhost(t)}).Listen(testdata.GetTLSConfig(), nil)
-	require.NoError(t, err)
-	defer ln.Close()
+	ln := listenOrdinary(t, nil)
 	client, err := tr.Dial(ctx, ln.Addr(), candidateClientTLS(), nil)
 	require.NoError(t, err)
 	server, err := ln.Accept(ctx)
