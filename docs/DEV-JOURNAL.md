@@ -4069,3 +4069,35 @@ Product setup-admission behavior stays unchanged. A refused client's trailing In
 ### Next
 
 [#689](https://github.com/the-sarge/quic-go-fast/issues/689) awaits triage. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
+
+---
+
+## G30-Q2 candidate fence strengthenings landed - 2026-09-30 13:29 EDT
+
+**Main:** `b569bec1dcf2`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #691](https://github.com/the-sarge/quic-go-fast/pull/691) as `b569bec1dcf214609244330221c20b4efede63f3`, closing [#679](https://github.com/the-sarge/quic-go-fast/issues/679) and [#680](https://github.com/the-sarge/quic-go-fast/issues/680), the two G30-Q2 strengthenings deferred from [PR #676](https://github.com/the-sarge/quic-go-fast/pull/676). One PR, one commit per issue plus a docs-only wording commit.
+
+- **#680:** `candidateGroup.acquire` selected between the free transition slot and `ctx.Done()`; with both ready, `selectWinner` and `closeGroup` committed the irreversible transition about half the time under an already-cancelled context. `acquire` now re-checks the context once the slot is held and releases the slot on rejection, so a done context fails without effect and reports its cause, including on an already-transitioned group. Cancellation after the commit still only bounds the close wait. The `CandidateGroupV1` doc comment states the three cancellation cases.
+- **#679:** an Initial already in the server's receive queue when the fence landed still ran `VerifySourceAddress`, `GetConfigForClient`, `ConnContext`, the connection-ID generator, `Config.Tracer` and `newConn` before mint rejected it. `handleInitialImpl` now drops it right after the handler re-lookup, releasing the packet and retiring its 0-RTT queue. Mint stays authoritative for a fence that lands between that check and registration. One `packetHandlerMap.deliverPermitted` gate now serves transport dispatch and the server's Initial and 0-RTT re-lookups, so a fenced or revoked entry's token governs server-queued input the same way it governs dispatch. Without a candidate group both paths are unchanged.
+- `TestSetupAdmissionFailureRelease/registration` now fences from inside `ConnContext`, after admission and before mint, so it still proves mint-time rejection settles the reservation with exactly one construction.
+
+### Validation
+
+- **Focused tests:** `TestCandidatePreCancelledTransition` (256 pre-cancelled calls each of `closeGroup` and `selectWinner` on a fresh and on a transitioned group) and `TestCandidateFencedServerQueue` (queued Initial reaches no callback and its buffers are released; a registered winner still receives; a fenced loser's closed entries receive nothing). Packets are handed to `baseServer.handlePacketImpl` directly, the step the receive loop runs per packet.
+- **Guard mutations**, each reverted: removing the post-slot context check, the fence drop, and the `permitsWork` gate each failed its named test.
+- **Stress:** `go test -race -shuffle=on -count=100` on the three new or rewritten tests, 100 of 100. One earlier iteration exposed a race in the test itself, which read a pooled buffer's refcount after release. The test now observes the release on a slab-backed view instead.
+- **Exact-head certification** at `d50cb3f9` (base `190fb016`, clean tree): `go test -race .`, `go vet .`, `go mod tidy -diff`, `golangci-lint run`, `git diff --check`. Receipt in the [PR discussion](https://github.com/the-sarge/quic-go-fast/pull/691#issuecomment-5916229578).
+- **Hosted checks:** all 33 PR checks passed on `d50cb3f9`; no rerun was needed.
+- **Review:** RAS run `20260930T171227-6a09a03fe27912af632eaf7e` found no Fix First items. One docs-only wording finding was fixed under the docs-only policy without a replacement review; see the [dispositions](https://github.com/the-sarge/quic-go-fast/pull/691#issuecomment-5916211864).
+
+### Decisions
+
+Dispatch and the server's re-lookups share one delivery gate rather than three parallel copies of the token check; dispatch behavior is unchanged. The server's unknown-CID 0-RTT retention after a fence was deferred, revalidated against the merged head, and filed as [#692](https://github.com/the-sarge/quic-go-fast/issues/692) (`needs-triage`).
+
+### Next
+
+[#692](https://github.com/the-sarge/quic-go-fast/issues/692) awaits triage. Issue and OmniFocus pointers are reconciled after this journal update. The [G30 tracker #1329](https://github.com/GridCastIO/gridcast/issues/1329) is the live frontier.
