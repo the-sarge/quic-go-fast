@@ -186,21 +186,31 @@ func TestCandidateLateInputSuppressed(t *testing.T) {
 	loserPeer, loser := dialCandidatePair(t, ctx, ln)
 	loserIDs := registeredConnIDs(tr, loser)
 	require.NotEmpty(t, loserIDs)
+	// A candidate that closed itself earlier retains closing entries too.
+	earlierPeer, earlier := dialCandidatePair(t, ctx, ln)
+	earlierIDs := registeredConnIDs(tr, earlier)
+	require.NotEmpty(t, earlierIDs)
+	require.NoError(t, earlier.CloseWithError(0, ""))
+	requireRemoteCandidateClose(t, earlierPeer)
 	require.NoError(t, group.selectWinner(ctx, winner))
 	requireRemoteCandidateClose(t, loserPeer)
-	require.EqualValues(t, 2, allocations.Load())
+	require.EqualValues(t, 3, allocations.Load())
 
 	late := newUDPConnLocalhost(t)
 	// Retained closing entries, then an unknown connection ID.
-	for _, cid := range append(loserIDs, protocol.ParseConnectionID([]byte{9, 9, 9, 9, 9, 9, 9, 9})) {
+	lateIDs := append(append(loserIDs, earlierIDs...), protocol.ParseConnectionID([]byte{9, 9, 9, 9, 9, 9, 9, 9}))
+	for _, cid := range lateIDs {
 		short := append([]byte{0x40}, cid.Bytes()...)
 		short = append(short, make([]byte, 64)...)
-		for range 2 { // the first two inputs would each retransmit an ordinary close
+		// Ordinary closing retransmits on the 1st, 2nd, 4th, 8th and 16th input;
+		// earlier peer packets may already have advanced that count.
+		for range 16 {
 			_, err := late.WriteTo(short, tr.Conn.LocalAddr())
 			require.NoError(t, err)
 		}
 	}
-	lateTransport := &Transport{Conn: late}
+	// A separate socket keeps the dialer's receive loop from consuming responses.
+	lateTransport := &Transport{Conn: newUDPConnLocalhost(t)}
 	dialCtx, dialCancel := context.WithTimeout(ctx, scaleDuration(50*time.Millisecond))
 	_, err = lateTransport.Dial(dialCtx, ln.Addr(), candidateClientTLS(), nil)
 	dialCancel()
@@ -209,7 +219,7 @@ func TestCandidateLateInputSuppressed(t *testing.T) {
 
 	// The winner's round trip follows the late input through the same receive loop.
 	exchangeAdmissionStream(t, ctx, winnerPeer, winner)
-	require.EqualValues(t, 2, allocations.Load(), "a selected group admits no new candidate")
+	require.EqualValues(t, 3, allocations.Load(), "a selected group admits no new candidate")
 	require.NoError(t, late.SetReadDeadline(time.Now().Add(scaleDuration(50*time.Millisecond))))
 	n, _, err := late.ReadFrom(make([]byte, 1500))
 	require.Error(t, err, "late input produced a %d-byte response", n)
@@ -374,48 +384,107 @@ func initialConnectionClose(t *testing.T, data []byte) bool {
 	return frame.(*wire.ConnectionCloseFrame).ErrorCode == uint64(qerr.ApplicationErrorErrorCode)
 }
 
-// Cancelling selection while a loser's close is still unsubmitted reports the
-// cancellation, revokes the loser and keeps the winner; a racing closeGroup
-// waits for the transition and then leaves the winner alone.
-func TestCandidateCancelRacesSelection(t *testing.T) {
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
+// blockedCloseServer holds the loser's close write until release, so tests
+// control whether it has been submitted.
+type blockedCloseServer struct {
+	group                  candidateGroupAPI
+	winnerPeer, winner     *Conn
+	loser                  *Conn
+	blocked, release       chan struct{}
+	cancelLoserConnContext context.CancelFunc
+}
+
+func newBlockedCloseServer(t *testing.T, ctx context.Context) *blockedCloseServer {
+	t.Helper()
+	f := &blockedCloseServer{blocked: make(chan struct{}), release: make(chan struct{})}
 	var loser atomic.Pointer[Conn]
-	blocked, release := make(chan struct{}), make(chan struct{})
 	socket := &candidateWriteConn{PacketConn: newUDPConnLocalhost(t), fail: func(addr net.Addr) error {
 		if l := loser.Load(); l != nil && l.RemoteAddr().String() == addr.String() && !l.authority.permitsWork() {
-			close(blocked)
-			<-release
+			close(f.blocked)
+			<-f.release
 		}
 		return nil
 	}}
 	tr := &Transport{Conn: socket, ConnectionIDLength: 8}
 	t.Cleanup(func() { tr.Close() })
+	// The application owns each accepted connection's parent context.
+	var parents []context.CancelFunc
+	tr.ConnContext = func(ctx context.Context, _ *ClientInfo) (context.Context, error) {
+		ctx, cancel := context.WithCancel(ctx)
+		parents = append(parents, cancel) // the server goroutine serializes calls
+		return ctx, nil
+	}
 	require.NoError(t, configureNetworkAdmission(t, tr, admitAllNetwork, admitAllNetwork, false))
-	group := newCandidateGroup(t, tr)
-	require.NoError(t, group.join(tr))
+	f.group = newCandidateGroup(t, tr)
+	require.NoError(t, f.group.join(tr))
 	ln, err := tr.Listen(testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
-	winnerPeer, winner := dialCandidatePair(t, ctx, ln)
-	_, loserConn := dialCandidatePair(t, ctx, ln)
-	loser.Store(loserConn)
+	f.winnerPeer, f.winner = dialCandidatePair(t, ctx, ln)
+	_, f.loser = dialCandidatePair(t, ctx, ln)
+	loser.Store(f.loser)
+	f.cancelLoserConnContext = parents[1]
+	return f
+}
 
-	selectCtx, cancelSelect := context.WithCancel(ctx)
-	selected := make(chan error, 1)
-	go func() { selected <- group.selectWinner(selectCtx, winner) }()
-	<-blocked
-	closed := make(chan error, 1)
-	go func() { closed <- group.closeGroup(ctx) }()
-	cancelSelect()
-	err = <-selected
-	require.ErrorIs(t, err, context.Canceled)
-	var outcome interface{ NoUsablePathV1() bool }
-	require.ErrorAs(t, err, &outcome)
-	require.False(t, outcome.NoUsablePathV1())
-	require.Equal(t, authorityRevoked, loserConn.authority.state.Load())
-	require.NoError(t, <-closed)
-	close(release) // the write began before revocation and may complete
-	exchangeAdmissionStream(t, ctx, winnerPeer, winner)
+func TestCandidateCancelRacesSelection(t *testing.T) {
+	// Cancelling selection while a loser's close is unsubmitted reports the
+	// cancellation, revokes the loser and keeps the winner; a racing
+	// closeGroup waits for the transition and then leaves the winner alone.
+	t.Run("caller cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		f := newBlockedCloseServer(t, ctx)
+		selectCtx, cancelSelect := context.WithCancel(ctx)
+		selected := make(chan error, 1)
+		go func() { selected <- f.group.selectWinner(selectCtx, f.winner) }()
+		<-f.blocked
+		closed := make(chan error, 1)
+		go func() { closed <- f.group.closeGroup(ctx) }()
+		cancelSelect()
+		err := <-selected
+		require.ErrorIs(t, err, context.Canceled)
+		var outcome interface{ NoUsablePathV1() bool }
+		require.ErrorAs(t, err, &outcome)
+		require.False(t, outcome.NoUsablePathV1())
+		require.Equal(t, authorityRevoked, f.loser.authority.state.Load())
+		require.NoError(t, <-closed)
+		close(f.release) // the running submission may complete
+		exchangeAdmissionStream(t, ctx, f.winnerPeer, f.winner)
+	})
+
+	// An application cancelling a loser's parent context does not terminate
+	// the connection, so selection still waits for its actual submission.
+	t.Run("application connection context", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		f := newBlockedCloseServer(t, ctx)
+		f.cancelLoserConnContext()
+		selected := make(chan error, 1)
+		go func() { selected <- f.group.selectWinner(ctx, f.winner) }()
+		select {
+		case <-f.blocked:
+		case err := <-selected:
+			t.Fatalf("selection completed (%v) before the loser close was submitted", err)
+		}
+		close(f.release)
+		require.NoError(t, <-selected)
+		exchangeAdmissionStream(t, ctx, f.winnerPeer, f.winner)
+	})
+
+	// A published outcome is the truth even when the caller's context has
+	// also ended; select must not choose cancellation at random.
+	t.Run("published outcome precedes cancellation", func(t *testing.T) {
+		cancelled, cancel := context.WithCancel(t.Context())
+		cancel()
+		errIO := errors.New("injected")
+		for range 32 {
+			for _, published := range []error{nil, candidateCloseFailure(errIO)} {
+				a := &connAuthority{closed: make(chan error, 1), done: make(chan struct{})}
+				a.closed <- published
+				require.Equal(t, published, a.awaitClose(cancelled))
+			}
+		}
+	})
 }
 
 // Ungrouped transports keep ordinary closing: the peer observes the close, a
@@ -469,9 +538,25 @@ func TestCandidateGroupContract(t *testing.T) {
 	ln, err = tr.Listen(testdata.GetTLSConfig(), nil)
 	require.NoError(t, err)
 	peer, candidate := dialCandidatePair(t, ctx, ln)
+	earlierPeer, earlier := dialCandidatePair(t, ctx, ln)
+	earlierIDs := registeredConnIDs(tr, earlier)
+	require.NoError(t, earlier.CloseWithError(0, ""))
+	requireRemoteCandidateClose(t, earlierPeer)
 	// Without a winner, closeGroup closes every candidate and admits no more.
 	require.NoError(t, group.closeGroup(ctx))
 	requireRemoteCandidateClose(t, peer)
+	var retained []*connAuthority
+	tr.mutex.Lock()
+	for _, id := range earlierIDs {
+		if h, ok := tr.handlers[id]; ok {
+			retained = append(retained, handlerAuthority(h))
+		}
+	}
+	tr.mutex.Unlock()
+	require.NotEmpty(t, retained)
+	for _, a := range retained {
+		require.False(t, a.permitsClose(), "retained entries of an earlier close lose authority too")
+	}
 	require.Error(t, candidate.Context().Err())
 	require.Error(t, group.selectWinner(ctx, candidate))
 	late := newCandidateTransport(t, newUDPConnLocalhost(t))

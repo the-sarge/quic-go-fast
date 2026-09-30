@@ -31,14 +31,32 @@ type connAuthority struct {
 	state atomic.Uint32
 	// closed receives the outcome of a close requested by a group transition.
 	closed chan error
+	// done closes after the connection's terminal close handling or cleanup.
+	// It is fork-owned: an application-cancelled context does not end a
+	// connection, so it cannot prove that no close is owed.
+	done       chan struct{}
+	terminated atomic.Bool
 }
 
+// permitsWork admits ordinary input and output. After a transition only the
+// winner's token keeps it, including tokens retained by closed CID entries.
 func (a *connAuthority) permitsWork() bool {
-	return a == nil || a.state.Load() == authorityLive
+	return a == nil || (a.state.Load() == authorityLive && a.group.retains(a))
 }
 
+// permitsClose admits a close submission or retransmission: close-only
+// authority survives fencing until revocation.
 func (a *connAuthority) permitsClose() bool {
-	return a == nil || a.state.Load() != authorityRevoked
+	if a == nil {
+		return true
+	}
+	switch a.state.Load() {
+	case authorityClosing:
+		return true
+	case authorityLive:
+		return a.group.retains(a)
+	}
+	return false
 }
 
 // reportClose publishes the terminal close outcome awaited by a group
@@ -55,29 +73,32 @@ func (a *connAuthority) reportClose(err error) {
 
 // release removes a terminated connection from the group. Retained closed-CID
 // entries keep the token and expire under the ordinary closing timers.
+// It runs after any close outcome was published.
 func (a *connAuthority) release() {
-	if a == nil {
+	if a == nil || !a.terminated.CompareAndSwap(false, true) {
 		return
 	}
 	a.group.mu.Lock()
 	delete(a.group.candidates, a)
 	a.group.mu.Unlock()
+	close(a.done)
 }
 
-// awaitClose waits for socket submission, never for delivery.
+// awaitClose waits for socket submission, never for delivery. A published
+// outcome is authoritative over termination and cancellation.
 func (a *connAuthority) awaitClose(ctx context.Context) error {
 	select {
 	case err := <-a.closed:
 		return err
-	case <-a.conn.ctx.Done():
-		// The connection terminated before the transition could owe a close.
-		select {
-		case err := <-a.closed:
-			return err
-		default:
-			return nil
-		}
+	case <-a.done:
 	case <-ctx.Done():
+	}
+	select {
+	case err := <-a.closed:
+		return err
+	case <-a.done:
+		return nil // terminated before the transition could owe a close
+	default:
 		return &candidateCloseError{err: context.Cause(ctx)}
 	}
 }
@@ -123,6 +144,8 @@ type candidateGroup struct {
 	mu         sync.Mutex
 	state      candidateGroupState
 	candidates map[*connAuthority]struct{}
+	// winner is published before fenced; nil when closed without one.
+	winner atomic.Pointer[connAuthority]
 	// fenced is read on packet paths: once set, group transports create no
 	// connections and send no responses on behalf of unknown connection IDs.
 	fenced atomic.Bool
@@ -142,12 +165,14 @@ type candidateGroup struct {
 // discards every other candidate's queued non-close work, submits one standard
 // application close (code 0) for each of them, then revokes them. Late input
 // for revoked connections is dropped without a stateless reset, and cannot
-// affect winner. The wait for each close ends when its socket write returns or
-// ctx is done; delivery is never awaited. A nil error means every owed close
+// affect winner. The wait for each close ends when its socket write returns,
+// when the connection owed none, or when ctx is done; delivery is never awaited. A nil error means every owed close
 // was submitted. Otherwise the joined error has one entry per unsubmitted
 // close: an I/O failure wraps the socket error, cancellation wraps the context
 // cause, and an entry whose NoUsablePathV1 method reports true was denied by
-// network admission. Revocation stops submissions that have not begun.
+// network admission. Authority is checked when each queued work item or
+// response starts; revocation stops those that have not started, while one
+// already running, including its segment fallback, may complete.
 //
 // closeGroup applies the same close-and-revoke transition to every candidate
 // when no winner has been selected, and is a no-op afterwards. A transition
@@ -188,7 +213,7 @@ func (g *candidateGroup) mint(conn *Conn) (*connAuthority, error) {
 	if g.fenced.Load() {
 		return nil, errCandidateFenced
 	}
-	a := &connAuthority{group: g, conn: conn, closed: make(chan error, 1)}
+	a := &connAuthority{group: g, conn: conn, closed: make(chan error, 1), done: make(chan struct{})}
 	g.candidates[a] = struct{}{}
 	return a, nil
 }
@@ -220,7 +245,7 @@ func (g *candidateGroup) selectWinner(ctx context.Context, winner *Conn) error {
 		g.mu.Unlock()
 		return errors.New("quic: winner is not a live candidate of this group")
 	}
-	if winner.ctx.Err() != nil {
+	if wa.terminated.Load() {
 		g.mu.Unlock()
 		return errors.New("quic: winner has terminated")
 	}
@@ -248,7 +273,8 @@ func (g *candidateGroup) closeGroup(ctx context.Context) error {
 
 // fenceLocked stops new candidates and restricts every candidate except keep
 // to its close. The caller holds mu, so no connection can be minted between.
-// Losers become close-only before transport paths observe the fence.
+// Losers become close-only and the winner is published before transport
+// paths observe the fence.
 func (g *candidateGroup) fenceLocked(keep *connAuthority) []*connAuthority {
 	losers := make([]*connAuthority, 0, len(g.candidates))
 	for a := range g.candidates {
@@ -257,8 +283,16 @@ func (g *candidateGroup) fenceLocked(keep *connAuthority) []*connAuthority {
 			losers = append(losers, a)
 		}
 	}
+	g.winner.Store(keep)
 	g.fenced.Store(true)
 	return losers
+}
+
+// retains reports whether a live token keeps authority: every token before a
+// transition, only the winner's afterwards. Tokens of connections released
+// earlier stay governed while their closed CID entries expire.
+func (g *candidateGroup) retains(a *connAuthority) bool {
+	return g == nil || !g.fenced.Load() || g.winner.Load() == a
 }
 
 // closeCandidates requests each standard close, awaits submission under ctx,
