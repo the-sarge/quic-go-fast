@@ -160,6 +160,8 @@ type Transport struct {
 	policyConn packetPolicyConn
 	// candidates is joined before initialization and immutable thereafter.
 	candidates *candidateGroup
+	// setupAdmission is configured before initialization and immutable thereafter.
+	setupAdmission setupAdmission
 
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
@@ -244,6 +246,7 @@ func (t *Transport) createServer(tlsConf *tls.Config, conf *Config, allow0RTT bo
 		t.VerifySourceAddress,
 		t.DisableVersionNegotiationPackets,
 		allow0RTT,
+		t.setupAdmission,
 	)
 	t.server = s
 	return s, nil

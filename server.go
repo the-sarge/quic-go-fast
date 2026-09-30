@@ -77,6 +77,9 @@ type baseServer struct {
 
 	connContext func(context.Context, *ClientInfo) (context.Context, error)
 
+	// setupAdmission reserves caller capacity before a connection is constructed.
+	setupAdmission setupAdmission
+
 	// set as a member, so they can be set in the tests
 	newConn func(
 		context.Context,
@@ -272,6 +275,7 @@ func newServer(
 	verifySourceAddress func(net.Addr) bool,
 	disableVersionNegotiation bool,
 	acceptEarly bool,
+	setupAdmission setupAdmission,
 ) *baseServer {
 	s := &baseServer{
 		conn:                      conn,
@@ -299,6 +303,7 @@ func newServer(
 		acceptEarlyConns:          acceptEarly,
 		disableVersionNegotiation: disableVersionNegotiation,
 		onClose:                   onClose,
+		setupAdmission:            setupAdmission,
 	}
 	if acceptEarly {
 		s.zeroRTTQueues = map[protocol.ConnectionID]*zeroRTTQueue{}
@@ -411,11 +416,13 @@ func (s *baseServer) accept(ctx context.Context) (*Conn, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case conn := <-s.connQueue:
+		conn.claimSetup()
 		return conn, nil
 	case <-s.stopAccepting:
 		// first drain the queue
 		select {
 		case conn := <-s.connQueue:
+			conn.claimSetup()
 			return conn, nil
 		default:
 		}
@@ -882,6 +889,14 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		return nil
 	}
 
+	// Admission precedes every per-connection allocation and callback.
+	setup, admitted := s.setupAdmission.acquire(p.remoteAddr)
+	if !admitted {
+		s.logger.Debugf("Rejecting new connection due to setup admission")
+		s.refuseNewConn(p, hdr)
+		return nil
+	}
+
 	// restore RTT from token
 	var rtt time.Duration
 	if token != nil && !token.IsRetryToken {
@@ -896,6 +911,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	if s.config.GetConfigForClient != nil {
 		conf, err := s.config.GetConfigForClient(clientInfo)
 		if err != nil {
+			setup.teardown()
 			s.logger.Debugf("Rejecting new connection due to GetConfigForClient callback")
 			s.refuseNewConn(p, hdr)
 			return nil
@@ -911,6 +927,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		ctx, err = s.connContext(ctx, clientInfo)
 		if err != nil {
 			cancel1(err)
+			setup.teardown()
 			s.logger.Debugf("Rejecting new connection due to ConnContext callback: %s", err)
 			s.refuseNewConn(p, hdr)
 			return nil
@@ -934,6 +951,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	if err != nil {
 		p.buffer.Release()
 		cancel(err)
+		setup.teardown()
 		return err
 	}
 	var qlogTrace qlogwriter.Trace
@@ -967,6 +985,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		s.logger,
 		hdr.Version,
 	)
+	setup.bind(conn.Conn)
 	if err := conn.bindCandidate(s.tr.candidates); err != nil {
 		// A selected or closed group sends no response for a new candidate.
 		conn.abortUnstarted(err)
@@ -1031,6 +1050,11 @@ func (s *baseServer) handleNewConn(conn *wrappedConn) {
 		}
 	}
 
+	// A refused stage change keeps the reservation until this teardown ends.
+	if !conn.completeSetup() {
+		conn.closeWithTransportError(ConnectionRefused)
+		return
+	}
 	select {
 	case s.connQueue <- conn.Conn:
 	default:

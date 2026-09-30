@@ -81,6 +81,7 @@ func newTestServer(t *testing.T, serverOpts *serverOpts) *testServer {
 		verifySourceAddress,
 		serverOpts.disableVersionNegotiation,
 		serverOpts.acceptEarly,
+		nil,
 	)
 	s.newConn = serverOpts.newConn
 	t.Cleanup(func() {
