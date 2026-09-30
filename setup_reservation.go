@@ -79,9 +79,10 @@ type setupReservation struct {
 // Retry and token handling, such as the rest of a ClientHello spanning several
 // datagrams, are refused with CONNECTION_REFUSED without calling acquire,
 // GetConfigForClient or ConnContext, so acquire sees that attempt once. A
-// refusal is remembered for 5 seconds from the refused Initial's receipt, among
-// the 1024 most recently refused attempts; an attempt forgotten earlier reaches
-// acquire again.
+// refusal is remembered for 5 seconds from receipt of the Initial that acquire
+// or the callback refused, among the 1024 most recent such refusals; the
+// attempt's later refused Initials extend neither. An attempt forgotten earlier
+// reaches acquire again.
 //
 // A reservation is held, without release and reacquisition, through the
 // handshake, the completed-unclaimed accept queue and acceptance:
