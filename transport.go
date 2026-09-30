@@ -162,6 +162,9 @@ type Transport struct {
 	candidates *candidateGroup
 	// setupAdmission is configured before initialization and immutable thereafter.
 	setupAdmission setupAdmission
+	// receivePhases is configured before initialization and immutable thereafter.
+	receivePhases           bool
+	receivePhasesConfigured bool
 
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
@@ -337,6 +340,7 @@ func (t *Transport) doDial(
 		logger,
 		version,
 	)
+	conn.installReceivePhase(t.receivePhases)
 	if err := conn.bindCandidate(t.candidates); err != nil {
 		t.mutex.Unlock()
 		conn.abortUnstarted(err)

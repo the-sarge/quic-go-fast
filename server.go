@@ -986,6 +986,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		hdr.Version,
 	)
 	setup.bind(conn.Conn)
+	conn.installReceivePhase(s.tr.receivePhases)
 	if err := conn.bindCandidate(s.tr.candidates); err != nil {
 		// A selected or closed group sends no response for a new candidate.
 		conn.abortUnstarted(err)
