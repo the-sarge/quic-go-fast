@@ -701,6 +701,12 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 	if s.tr.deliverPermitted(connID, p) {
 		return true
 	}
+	if s.tr.candidates.isFenced() {
+		// A selected or closed group admits no new candidate, so 0-RTT
+		// queued before the fence is not retained for a refused Initial.
+		s.retireZeroRTTQueue(connID)
+		return false
+	}
 
 	if q, ok := s.zeroRTTQueues[connID]; ok {
 		if len(q.packets) >= protocol.Max0RTTQueueLen {

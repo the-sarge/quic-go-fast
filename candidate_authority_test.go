@@ -763,8 +763,8 @@ func retainedEntries(t *testing.T, tr *Transport, ids []protocol.ConnectionID) [
 
 // The server processes its receive queue after transport dispatch, so an
 // Initial or 0-RTT packet queued before the fence must obey the same
-// admission as dispatch: no callback or allocation for an unknown
-// connection ID, and the entry's token for a known one. Packets are handed
+// admission as dispatch: no callback, allocation or retention for an
+// unknown connection ID, and the entry's token for a known one. Packets are handed
 // to the server's processing step directly, the way its receive loop does.
 func TestCandidateFencedServerQueue(t *testing.T) {
 	t.Run("queued Initial reaches no callback", func(t *testing.T) {
@@ -815,6 +815,54 @@ func TestCandidateFencedServerQueue(t *testing.T) {
 		} {
 			require.Zero(t, n.Load(), "%s ran for an Initial queued before the fence", name)
 		}
+	})
+
+	t.Run("queued 0-RTT is not retained", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		tr := newCandidateTransport(t, newUDPConnLocalhost(t))
+		group := newCandidateGroup(t, tr)
+		require.NoError(t, group.join(tr))
+		ln, err := tr.ListenEarly(testdata.GetTLSConfig(), nil)
+		require.NoError(t, err)
+		s := ln.baseServer
+		require.NoError(t, group.closeGroup(ctx))
+
+		connID := randConnID(8)
+		zeroRTT, slab := slabBackedPacket(t, get0RTTPacket(t, newUDPConnLocalhost(t).LocalAddr(), connID))
+		require.False(t, s.handlePacketImpl(zeroRTT), "the caller releases a fenced 0-RTT packet")
+		require.NotContains(t, s.zeroRTTQueues, connID, "no 0-RTT queue is created after the fence")
+		zeroRTT.buffer.Release() // as the server's receive loop does
+		require.True(t, slab.released(), "the server kept no hold on the fenced packet")
+	})
+
+	t.Run("queued 0-RTT retires an existing queue", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		tr := newCandidateTransport(t, newUDPConnLocalhost(t))
+		group := newCandidateGroup(t, tr)
+		require.NoError(t, group.join(tr))
+		ln, err := tr.ListenEarly(testdata.GetTLSConfig(), nil)
+		require.NoError(t, err)
+		s := ln.baseServer
+		raddr := newUDPConnLocalhost(t).LocalAddr()
+		connID := randConnID(8)
+		// An oversized view stays on its slab while queued, so the queue's
+		// release is observable without reading a pooled buffer.
+		oversized := get0RTTPacket(t, raddr, connID)
+		oversized.data = append(oversized.data, make([]byte, protocol.MaxLargePacketBufferSize)...)
+		queued, queuedSlab := slabBackedPacket(t, oversized)
+		require.True(t, s.handlePacketImpl(queued), "0-RTT is queued before the fence")
+		require.Contains(t, s.zeroRTTQueues, connID)
+		require.False(t, queuedSlab.released(), "the queue holds the oversized view")
+
+		require.NoError(t, group.closeGroup(ctx))
+		zeroRTT, slab := slabBackedPacket(t, get0RTTPacket(t, raddr, connID))
+		require.False(t, s.handlePacketImpl(zeroRTT), "the caller releases a fenced 0-RTT packet")
+		require.NotContains(t, s.zeroRTTQueues, connID, "the existing 0-RTT queue is retired")
+		require.True(t, queuedSlab.released(), "the retired queue released its packets")
+		zeroRTT.buffer.Release() // as the server's receive loop does
+		require.True(t, slab.released(), "the server kept no hold on the fenced packet")
 	})
 
 	t.Run("registered winner still receives", func(t *testing.T) {
