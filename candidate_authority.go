@@ -30,7 +30,7 @@ type connAuthority struct {
 	// conn is guarded by group.mu and severed when the connection finishes, so
 	// retained tokens (closed CID entries, the group's winner) hold no
 	// connection graph.
-	conn *Conn
+	conn  *Conn
 	state atomic.Uint32
 	// done closes once, after outcome is written, when the connection's
 	// terminal close handling or cleanup finishes. Publication and
