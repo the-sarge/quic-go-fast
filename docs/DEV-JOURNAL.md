@@ -4201,3 +4201,39 @@ The key is the Initial DCID, not the remote address, and the owner is the server
 ### Next
 
 No deferred findings to file.
+
+---
+
+## Fenced 0-RTT not retained by the server queue - 2026-09-30 19:21 EDT
+
+**Main:** `f795094d43fe`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #702](https://github.com/the-sarge/quic-go-fast/pull/702) as `f795094d43feed33608a1dd99a1905296e86638b`, closing [#692](https://github.com/the-sarge/quic-go-fast/issues/692). #692 was a deferred strengthening from the [PR #691 round 1 dispositions](https://github.com/the-sarge/quic-go-fast/pull/691#issuecomment-5916211864). A 0-RTT packet that was already in the server's receive queue when a candidate group was fenced fell through the `deliverPermitted` re-lookup into 0-RTT queue retention. The retained storage was bounded by `Max0RTTQueues` × `Max0RTTQueueLen`.
+
+- `handle0RTTPacket` now checks `s.tr.candidates.isFenced()` after the re-lookup and before any queue lookup, append or creation. It retires any existing queue for that connection ID and returns `false`, so the receive loop releases the packet. This mirrors the #691 Initial fence check.
+- The check precedes `retainForRetentionQueue`, so a slab-backed view is never decremented before the caller releases it. Registered and winner delivery are unchanged because `deliverPermitted` runs first. Ungrouped transports are unchanged because `isFenced` is nil-safe.
+- Like the #691 Initial drop and `fencedResponse`, the fenced drop records no qlog event.
+- Accepted residual: a fence that lands just after the check lets one packet be queued. A later fenced Initial or 0-RTT for the same ID, expiry, or shutdown releases it, within the existing bound. Eager retirement at fence time stays out of scope.
+
+### Validation
+
+- **Focused tests, red first:** two new `TestCandidateFencedServerQueue` subtests.
+  - `queued_0-RTT_is_not_retained`: after the fence, an unknown-ID 0-RTT packet creates no queue, returns `false`, and its slab is released by the caller.
+  - `queued_0-RTT_retires_an_existing_queue`: an oversized view queued before the fence stays on its slab, so its release is observable without reading a pooled buffer. After the fence, the queue is retired and both slabs are released.
+- **Guard mutation:** deleting the fence branch failed both new subtests. The Initial, winner and loser subtests still passed.
+- **Exact-head certification** at `18c0330d` (base `e64c5d54`, clean tree): `go test ./...`; `go test -race -shuffle=on -run 'TestCandidate|TestServer' .`; `-race -count=10` of `TestCandidateFencedServerQueue`; `go vet ./...`; `golangci-lint run ./...`; `go mod tidy -diff`; `git diff --check`. Receipt: [PR comment](https://github.com/the-sarge/quic-go-fast/pull/702#issuecomment-5921397520).
+- **Hosted checks:** all 33 PR checks passed on `18c0330d`; no rerun was needed.
+- **Review:** initial RAS run `20260930T231357-01944ede406d4ed3dce1414c`. Five reviewers completed with 0 findings, so no verification or replacement review ran.
+- An earlier pre-commit local full run hit `TestHTTPServerIdleTimeout` (`timeout: no recent network activity`, macOS). It passed 5 of 5 runs in isolation and the exact-head full run was clean. It matches the open [#151](https://github.com/the-sarge/quic-go-fast/issues/151), and this change cannot reach it.
+
+### Decisions
+
+- The #692 brief's criterion 3 asked for the "fenced loser entry receives nothing" 0-RTT assertion to flip to `require.False`. That premise was wrong: the loser's IDs are known retained closed entries, so `deliverPermitted` consumes those packets before the fence branch. The subtest is unchanged. The new subtests cover the unknown-ID case, and the reasoning is in the [PR #702 body](https://github.com/the-sarge/quic-go-fast/pull/702).
+- Both new subtests fence with `closeGroup`. A `selectWinner` variant needs a live dialed winner, and its traffic raced the test's direct `handlePacketImpl` calls on state owned by the receive goroutine. Both transitions set the same `fenced` flag, which is all `handle0RTTPacket` reads.
+
+### Next
+
+No deferred findings to file.
