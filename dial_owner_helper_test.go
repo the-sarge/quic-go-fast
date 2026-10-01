@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -15,6 +16,14 @@ import (
 )
 
 const dialOwnerTimeout = 250 * time.Millisecond
+
+// dialOwnerDrain is the exec.Cmd.WaitDelay: how long output copying may lag
+// a child's exit, or a context deadline, before the pipes are closed and the
+// probe reports an error. Loaded runners can schedule the copy goroutines tens
+// of milliseconds late (#581). One probe therefore ends within its context
+// budget plus this drain: 500 ms for the natural probe, and the scaled budget
+// plus 250 ms for the held-port control.
+const dialOwnerDrain = 250 * time.Millisecond
 
 var dialOwnerClaimed atomic.Bool
 
@@ -116,15 +125,19 @@ func runDialOwnerProbe(ctx context.Context, port int) dialOwnerResult {
 	// No PID filter: the conflicting socket can belong to the parent or another
 	// process. No address-family filter: a wildcard IPv6 socket can matter too.
 	cmd := exec.CommandContext(ctx, "/usr/sbin/lsof", "-nP", "-iUDP:"+strconv.Itoa(port), "-F0pcftPn")
-	return collectDialOwnerProbe(ctx, cmd, port)
+	return collectDialOwnerProbe(ctx, cmd, port, nil)
 }
 
-func collectDialOwnerProbe(ctx context.Context, cmd *exec.Cmd, port int) dialOwnerResult {
+// wrapStdout lets tests delay stdout copying; probes pass nil.
+func collectDialOwnerProbe(ctx context.Context, cmd *exec.Cmd, port int, wrapStdout func(io.Writer) io.Writer) dialOwnerResult {
 	stdout := &dialOwnerOutput{limit: 12 << 10}
 	stderr := &dialOwnerOutput{limit: 4 << 10}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
+	if wrapStdout != nil {
+		cmd.Stdout = wrapStdout(stdout)
+	}
 	// Bound pipe cleanup too if the child exits but a descendant holds a pipe.
-	cmd.WaitDelay = 10 * time.Millisecond
+	cmd.WaitDelay = dialOwnerDrain
 	result := dialOwnerResult{Started: time.Now(), ExitCode: -1}
 	err := cmd.Run()
 	result.Ended = time.Now()
