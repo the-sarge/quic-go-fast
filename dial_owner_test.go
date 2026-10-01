@@ -3,10 +3,13 @@ package quic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -82,16 +85,44 @@ func TestDialOwnerChild(t *testing.T) {
 	case "denied":
 		os.Stderr.WriteString("permission denied")
 		os.Exit(1)
+	case "delayed-copy":
+		fmt.Fprintf(os.Stdout, "p%d\x00cchild\x00\nf3\x00tIPv4\x00PUDP\x00n127.0.0.1:61982\x00\n", os.Getpid())
+	case "retained-pipe":
+		// The descendant inherits stdout and outlives this child.
+		binary, err := os.Executable()
+		if err != nil {
+			os.Exit(2)
+		}
+		holder := exec.Command(binary, "-test.run=^TestDialOwnerChild$")
+		holder.Env = append(os.Environ(), "QUIC_GO_DIAL_OWNER_CHILD=hold")
+		holder.Stdout = os.Stdout
+		if err := holder.Start(); err != nil {
+			os.Exit(2)
+		}
+		fmt.Fprint(os.Stderr, holder.Process.Pid)
+	case "hold":
+		time.Sleep(10 * time.Minute)
 	default:
 		return
 	}
 	os.Exit(0)
 }
 
+// dialOwnerSlowWriter models an output-copy goroutine that is scheduled late.
+type dialOwnerSlowWriter struct {
+	io.Writer
+	delay time.Duration
+}
+
+func (w dialOwnerSlowWriter) Write(b []byte) (int, error) {
+	time.Sleep(w.delay)
+	return w.Writer.Write(b)
+}
+
 func TestDialOwnerCommand(t *testing.T) {
 	binary, err := os.Executable()
 	require.NoError(t, err)
-	for _, mode := range []string{"timeout", "overflow", "denied"} {
+	for _, mode := range []string{"timeout", "overflow", "denied", "delayed-copy", "retained-pipe"} {
 		t.Run(mode, func(t *testing.T) {
 			// Only the timeout case exercises the probe deadline. Ordinary child
 			// startup can exceed it on a loaded or instrumented runner.
@@ -103,22 +134,53 @@ func TestDialOwnerCommand(t *testing.T) {
 			defer cancel()
 			cmd := exec.CommandContext(ctx, binary, "-test.run=^TestDialOwnerChild$")
 			cmd.Env = append(os.Environ(), "QUIC_GO_DIAL_OWNER_CHILD="+mode)
-			result := collectDialOwnerProbe(ctx, cmd, 61982)
+			var wrap func(io.Writer) io.Writer
+			if mode == "delayed-copy" {
+				// Hosted failures finished within 35-53 ms, past the former 10 ms drain.
+				wrap = func(w io.Writer) io.Writer { return dialOwnerSlowWriter{Writer: w, delay: 50 * time.Millisecond} }
+			}
+			result := collectDialOwnerProbe(ctx, cmd, 61982, wrap)
 			require.False(t, result.Ended.Before(result.Started))
-			require.Empty(t, result.Owners)
 			switch mode {
 			case "timeout":
+				require.Empty(t, result.Owners)
 				require.True(t, result.TimedOut)
 				require.NotEmpty(t, result.Error)
 			case "overflow":
+				require.Empty(t, result.Owners)
 				require.False(t, result.TimedOut, "%+v", result)
 				require.True(t, result.Truncated)
 				require.True(t, result.ParseIncomplete)
 				require.Len(t, result.Warnings, 4<<10)
 			case "denied":
+				require.Empty(t, result.Owners)
 				require.False(t, result.TimedOut, "%+v", result)
 				require.Equal(t, 1, result.ExitCode)
 				require.Equal(t, "permission denied", result.Warnings)
+			case "delayed-copy":
+				// Successful exit with complete output, merely copied late.
+				require.Empty(t, result.Error, "%+v", result)
+				require.Zero(t, result.ExitCode)
+				require.False(t, result.TimedOut)
+				require.False(t, result.ParseIncomplete)
+				require.Equal(t, []dialPortOwner{{
+					PID: cmd.Process.Pid, Command: "child", Descriptor: "3", Family: "IPv4", Local: "127.0.0.1:61982",
+				}}, result.Owners)
+			case "retained-pipe":
+				pid, err := strconv.Atoi(result.Warnings)
+				require.NoError(t, err, "%+v", result)
+				t.Cleanup(func() {
+					if holder, err := os.FindProcess(pid); err == nil {
+						holder.Kill()
+						holder.Release()
+					}
+				})
+				// The drain bound ends collection before the context deadline,
+				// and long before the descendant releases stdout.
+				require.Zero(t, result.ExitCode)
+				require.False(t, result.TimedOut, "%+v", result)
+				require.Equal(t, exec.ErrWaitDelay.Error(), result.Error)
+				require.Empty(t, result.Owners)
 			}
 		})
 	}
