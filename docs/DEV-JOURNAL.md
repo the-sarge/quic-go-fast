@@ -4237,3 +4237,48 @@ Merged [PR #702](https://github.com/the-sarge/quic-go-fast/pull/702) as `f795094
 ### Next
 
 No deferred findings to file.
+
+---
+
+## Dial-owner drain tolerates late output copying - 2026-09-30 20:29 EDT
+
+**Main:** `179aa7fea0e2`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #704](https://github.com/the-sarge/quic-go-fast/pull/704) as `179aa7fea0e2d8bf9571a6d191c4749b67ec5eae`, closing [#581](https://github.com/the-sarge/quic-go-fast/issues/581). `TestDialOwnerHeldPort` had failed on hosted macOS three times (#580, #606, #633) with a successful `lsof` exit, the expected owner parsed, and `exec: WaitDelay expired before I/O complete`. The collector's fixed 10 ms `exec.Cmd.WaitDelay` closed the output pipes when the copy goroutines were scheduled later than that after exit.
+
+- `collectDialOwnerProbe` now uses `dialOwnerDrain = 250 * time.Millisecond`. The comment next to it states the worst case for one probe: context budget plus drain, so 500 ms for the natural probe and the scaled budget plus 250 ms for the held-port control. `ErrWaitDelay` is still reported whenever the drain expires.
+- The collector takes an optional `wrapStdout` test seam. Both real probes pass `nil`.
+- `quic_linux_test.go` skips its kernel-version banner in dial-owner helper children. The banner had been written into the helper's simulated lsof stdout.
+- [socket-rebind-failure-capture.md](agents/socket-rebind-failure-capture.md) states the new bound.
+- Unchanged: the output caps, one-query admission, the natural probe's 250 ms context, `dialOwnerResult` semantics, and every held-port assertion. Only test files and one agent doc changed.
+
+### Validation
+
+- **Regressions, red first:** two new `TestDialOwnerCommand` subtests.
+  - `delayed-copy`: the child exits 0 with a complete lsof record while the parent's stdout writer sleeps 50 ms. At 10 ms it failed with the hosted signature; at 250 ms it passes.
+  - `retained-pipe`: the child leaves a descendant holding stdout. The collector returns `ErrWaitDelay` with exit 0 and before its context deadline.
+- **Guard mutation:** setting the drain back to 10 ms failed `delayed-copy` on macOS and Linux.
+- **Stress:** `TIMESCALE_FACTOR=10 go test -run 'TestDialOwner' -count=50 .` and its `-race` counterpart passed on go1.27.1 darwin/arm64. Linux go1.27.1 amd64 passed 20 plain runs and 5 race runs after the banner fix.
+- **Race-lane limit:** the race runtime's roughly 1 s exit sleep lets the delayed write finish before `Wait` observes exit. The `-race` runs therefore show race safety, and drain discrimination comes from the plain runs and the guard mutation.
+- **Exact-head certification** at `c931b255` (base `6c8830fc`, clean tree): `git diff --check`, `go vet .`, `go mod tidy -diff`, `golangci-lint` (darwin and `GOOS=linux`), and `TIMESCALE_FACTOR=10 go test -shuffle on .`.
+- **Hosted checks:** all 33 PR checks passed on `c931b255`, including the macOS unit jobs for Go 1.26.8 and 1.27.1 on both push and pull_request events. No rerun was needed.
+- **Review:**
+  - Initial RAS run `20261001T000731-5fe2a0f04299d5f8ffdb5f52` at `57a1de9e` found that the Linux banner broke `delayed-copy` on both Ubuntu unit jobs (`fix-now`, fixed in `c931b255`).
+  - Verification at `c931b255` was clear, covering 8 of 8 clusters.
+  - Replacement review `20261001T002401-e45fbe884c01dab38972bdba` reported no findings.
+- **Limitation:** the hosted trigger was inferred from a local reproduction under in-process goroutine and GC load, not observed directly.
+
+### Decisions
+
+- The drain is fixed, not timescaled, so its bound does not depend on `TIMESCALE_FACTOR` and local runs do not sit near the 10 ms regime that failed. Triage measured 0 failures in 300 runs at both 100 ms and 250 ms under load ([#581 triage](https://github.com/the-sarge/quic-go-fast/issues/581)).
+- Review dispositions:
+  - Reject: "wider drain makes `TimedOut` with a clean exit more reachable". The computation is unchanged from base and no acceptance failure was shown.
+  - Defer: "the retained-pipe holder can outlive a failed test". See Next.
+
+### Next
+
+- Deferred, not filed: revalidated at `179aa7fe`, `dial_owner_test.go:99-104` starts the holder before publishing its PID, and `:170-172` registers cleanup only after the PID parses. If that handoff fails, an already-failing test leaves one sleeping holder for at most 10 minutes. This was judged too marginal to track.
+- #241, the natural socket-rebind timeout, remains open and is unaffected.
