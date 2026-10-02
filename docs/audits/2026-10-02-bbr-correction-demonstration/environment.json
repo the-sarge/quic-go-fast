@@ -1,0 +1,344 @@
+{
+  "host": {
+    "model": "Apple M4 Max",
+    "cpus": 16,
+    "performance_cores": 12,
+    "efficiency_cores": 4,
+    "os": "27.0 26A428",
+    "kernel": "27.0.0"
+  },
+  "toolchain": "go1.27.0 (GOTOOLCHAIN pinned; host go is go version go1.27.1 darwin/arm64)",
+  "endpoint_contract": "separate managed IPv4 loopback endpoint processes, GOMAXPROCS=4 each, payload M=1400, tracing disabled; heap-capable fixture whose heap/profile code is inactive unless its flag is set",
+  "timing": {
+    "loopback": "5 s warmup, 20 s measured",
+    "S5_S6": "10 s warmup, 30 s measured"
+  },
+  "relay": {
+    "model": "frozen Q1 packet-path model at e4f322cb (docs/audits/2026-09-25-bbrv3-q1-campaign/model) plus read-only accessors in model-overlay/next.go",
+    "binaries": {
+      "frozen-relay": {
+        "sha256": "fd8a663f4cbd97ff112674c99314e2693f829aeb30468407c8063a3dac1ba6c8",
+        "source": "relay/main-v1.go.txt (rebuild verified byte-identical)"
+      },
+      "relay-v2": {
+        "sha256": "032aceb754b1005448e39123bd6b3c3a8ff3d042fec2bc49ebb1523f9a2a501b",
+        "source": "relay/main.go (adds opt-in -strip-ecn only)"
+      }
+    }
+  },
+  "host_condition": "shared desktop; fseventsd ~175% CPU and WindowServer/WebKit activity during measurements; per-observation host process samples retained; no exclusive core reservation",
+  "superseded": {
+    "note": "Pre-sampling relay and pre-phase counted binaries were moved aside, not deleted; only smoke observations used them and smoke is excluded from statistics",
+    "smoke_relay_pre_sampling": true
+  },
+  "builds": {
+    "diagnostic-counted": {
+      "variant": "diagnostic-counted",
+      "revision": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+      "counted": true,
+      "patches": [
+        "d785f3b82a82380e7b36c87dd29cd6291ae418a3:docs/audits/2026-10-02-bbr-recovery-service/diagnostic-workcount.patch"
+      ],
+      "overlays": [
+        "counting/c4_work_off.go",
+        "counting/c4_work_on.go",
+        "counting/service_work_on.go"
+      ],
+      "c4_hooks": false,
+      "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+      "builds": {
+        "fixture": {
+          "binary": "bin/diagnostic-counted-fixture",
+          "sha256": "3712412062f0e52a5a6cd941c958547a44e082bcab5b8d199e63a504505eb354",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-tags",
+            "bbrworkcount",
+            "-ldflags",
+            "-X main.sourceRevision=e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diagnostic-counted",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/diagnostic-counted-fixture",
+            "./fixture"
+          ]
+        },
+        "relay": {
+          "binary": "bin/diagnostic-counted-relay",
+          "sha256": "725cd7f49a98914aa92bde4239622d573cc2aa4df29f0a677eedefe52df2118c",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-tags",
+            "bbrworkcount",
+            "-ldflags",
+            "-X main.sourceRevision=e4f322cbbfd4225a4b714e08ec19c958cccadcb0+diagnostic-counted",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/diagnostic-counted-relay",
+            "./relay"
+          ]
+        }
+      },
+      "go": "go version go1.27.0 darwin/arm64"
+    },
+    "frozen": {
+      "variant": "frozen",
+      "revision": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+      "counted": false,
+      "patches": [],
+      "overlays": [],
+      "c4_hooks": false,
+      "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+      "builds": {
+        "fixture": {
+          "binary": "bin/frozen-fixture",
+          "sha256": "a8e550f19e0a8cb18631a63e91dfdf9af2454c6f649403b95ce5732ead67af4d",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/frozen-fixture",
+            "./fixture"
+          ]
+        },
+        "relay": {
+          "binary": "bin/frozen-relay",
+          "sha256": "fd8a663f4cbd97ff112674c99314e2693f829aeb30468407c8063a3dac1ba6c8",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/frozen-relay",
+            "./relay"
+          ]
+        }
+      },
+      "go": "go version go1.27.0 darwin/arm64"
+    },
+    "full": {
+      "variant": "full",
+      "revision": "8a0e0962524ccace0493b5c8c24f87f31c4cadcf",
+      "counted": false,
+      "patches": [],
+      "overlays": [],
+      "c4_hooks": false,
+      "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+      "builds": {
+        "fixture": {
+          "binary": "bin/full-fixture",
+          "sha256": "915e9dccc7f2a7400e8ee84d3c53d0ecc134fe71c83d82bac4e5828f5bb3c614",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=8a0e0962524ccace0493b5c8c24f87f31c4cadcf",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/full-fixture",
+            "./fixture"
+          ]
+        },
+        "relay": {
+          "binary": "bin/full-relay",
+          "sha256": "755d424aea9c3c03be4bb373babc3eb6ecc8d8abaf2840557a3eddba48f76209",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=8a0e0962524ccace0493b5c8c24f87f31c4cadcf",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/full-relay",
+            "./relay"
+          ]
+        }
+      },
+      "go": "go version go1.27.0 darwin/arm64"
+    },
+    "full-counted": {
+      "variant": "full-counted",
+      "revision": "8a0e0962524ccace0493b5c8c24f87f31c4cadcf",
+      "counted": true,
+      "patches": [],
+      "overlays": [
+        "counting/c4_work_off.go",
+        "counting/c4_work_on.go",
+        "counting/service_work_on.go"
+      ],
+      "c4_hooks": true,
+      "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+      "builds": {
+        "fixture": {
+          "binary": "bin/full-counted-fixture",
+          "sha256": "1dccbe9eb88331d732e4ea6cb9942b74193fc4c0749b717ed49fa67f749ce4ed",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-tags",
+            "bbrworkcount",
+            "-ldflags",
+            "-X main.sourceRevision=8a0e0962524ccace0493b5c8c24f87f31c4cadcf+full-counted",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/full-counted-fixture",
+            "./fixture"
+          ]
+        },
+        "relay": {
+          "binary": "bin/full-counted-relay",
+          "sha256": "7dc09e2428661cf0a1ef87f108d35712014b0659118c31004a495934f12fe6c8",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-tags",
+            "bbrworkcount",
+            "-ldflags",
+            "-X main.sourceRevision=8a0e0962524ccace0493b5c8c24f87f31c4cadcf+full-counted",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/full-counted-relay",
+            "./relay"
+          ]
+        }
+      },
+      "go": "go version go1.27.0 darwin/arm64"
+    },
+    "full-quantum": {
+      "variant": "full-quantum",
+      "revision": "8a0e0962524ccace0493b5c8c24f87f31c4cadcf",
+      "counted": false,
+      "patches": [
+        "full-quantum deadline intervention"
+      ],
+      "overlays": [],
+      "c4_hooks": false,
+      "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+      "builds": {
+        "fixture": {
+          "binary": "bin/full-quantum-fixture",
+          "sha256": "ea429eb753ba1dc50718228cb5c99c436a8e91961c82de66f9119c770d418454",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=8a0e0962524ccace0493b5c8c24f87f31c4cadcf+full-quantum",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/full-quantum-fixture",
+            "./fixture"
+          ]
+        },
+        "relay": {
+          "binary": "bin/full-quantum-relay",
+          "sha256": "0afe52f58a029cbdec08a65dc8656c7440bb84da4149f57c4c14765e2e1195ad",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=8a0e0962524ccace0493b5c8c24f87f31c4cadcf+full-quantum",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/full-quantum-relay",
+            "./relay"
+          ]
+        }
+      },
+      "go": "go version go1.27.0 darwin/arm64"
+    },
+    "service": {
+      "variant": "service",
+      "revision": "c6bb13b72e2d5de55af36543aa27c8cf06812a11",
+      "counted": false,
+      "patches": [],
+      "overlays": [],
+      "c4_hooks": false,
+      "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+      "builds": {
+        "fixture": {
+          "binary": "bin/service-fixture",
+          "sha256": "4d39d7e3bff2b1b5c76e339dcba84a0ba496b565cf914e10c785ae1dbd609f38",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=c6bb13b72e2d5de55af36543aa27c8cf06812a11",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/service-fixture",
+            "./fixture"
+          ]
+        },
+        "relay": {
+          "binary": "bin/service-relay",
+          "sha256": "9c8850264afda4ac458989712593bdaa53298ce5575aa669b5057336300b2573",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-ldflags",
+            "-X main.sourceRevision=c6bb13b72e2d5de55af36543aa27c8cf06812a11",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/service-relay",
+            "./relay"
+          ]
+        }
+      },
+      "go": "go version go1.27.0 darwin/arm64"
+    },
+    "service-counted": {
+      "variant": "service-counted",
+      "revision": "c6bb13b72e2d5de55af36543aa27c8cf06812a11",
+      "counted": true,
+      "patches": [],
+      "overlays": [
+        "counting/c4_work_off.go",
+        "counting/c4_work_on.go",
+        "counting/service_work_on.go"
+      ],
+      "c4_hooks": false,
+      "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+      "builds": {
+        "fixture": {
+          "binary": "bin/service-counted-fixture",
+          "sha256": "1778ac1f610910840b0580f35f1474afcaeb53654a2675ab8c61ad4431876687",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-tags",
+            "bbrworkcount",
+            "-ldflags",
+            "-X main.sourceRevision=c6bb13b72e2d5de55af36543aa27c8cf06812a11+service-counted",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/service-counted-fixture",
+            "./fixture"
+          ]
+        },
+        "relay": {
+          "binary": "bin/service-counted-relay",
+          "sha256": "1d38503821f666eac7c0bffa0f98c3dde8d48c5dfe405ba926b61d1528987196",
+          "command": [
+            "go",
+            "build",
+            "-trimpath",
+            "-tags",
+            "bbrworkcount",
+            "-ldflags",
+            "-X main.sourceRevision=c6bb13b72e2d5de55af36543aa27c8cf06812a11+service-counted",
+            "-o",
+            "/Volumes/worktrees/quic-go-fast/bbr-correction-demonstration/.local/bbr-correction-demonstration/bin/service-counted-relay",
+            "./relay"
+          ]
+        }
+      },
+      "go": "go version go1.27.0 darwin/arm64"
+    }
+  }
+}
