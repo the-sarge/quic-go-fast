@@ -215,6 +215,19 @@ func TestBBRCECleanRoundRecovery(t *testing.T) {
 			x.b.Feedback(e)
 		}
 		require.EqualValues(t, 26850, ceRate(x.b), "one bounded step, not fallback-rate restoration")
+		for range 2 {
+			e := ceAck(x)
+			e.Delivery.Valid = false
+			e.PostInFlight = 0
+			x.b.Feedback(e)
+		}
+		require.Equal(t, bbrCruise, x.b.phase)
+		require.Zero(t, x.b.bandwidth)
+		require.True(t, x.b.ce.active)
+		capped := x.b.PacingRate()
+		x.b.BeforeSend(x.now.Add(time.Second), true)
+		require.Equal(t, x.b.capRate(x.b.modelBandwidth()), x.b.PacingRate(), "genuine idle keeps the unmeasured fallback")
+		require.Equal(t, capped, x.b.PacingRate(), "under the unchanged CE cap")
 	})
 
 	for _, dirty := range []string{"none", "missing", "limited", "probe limited", "ambiguous", "loss", "same epoch CE"} {

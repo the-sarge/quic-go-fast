@@ -115,6 +115,7 @@ func (b *BBRSender) BeforeSend(now monotime.Time, idle bool) {
 	if b.phase == bbrProbeRTT {
 		b.finishProbeRTT(now, b.delivered)
 	} else if b.phase >= bbrDown {
-		b.rate = b.capRate(max(1, min(b.bandwidth, b.bandwidthShort)))
+		// Unmeasured bandwidth keeps the same fallback as ordinary model output.
+		b.rate = b.capRate(max(1, b.modelBandwidth()))
 	}
 }

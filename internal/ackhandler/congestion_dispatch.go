@@ -56,6 +56,7 @@ type congestionDispatch struct {
 	packets          map[congestionPacketKey]congestion.PacketInfo
 	event            congestion.FeedbackEvent
 	scratch          []congestion.PacketInfo
+	discovered       []*retainedDelivery
 }
 
 func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *packet, ecn protocol.ECN, prior protocol.ByteCount) {
@@ -260,19 +261,25 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 }
 
 // Retained ACK discovery runs only after recovery has validated the decoded ACK.
-// It visits bounded stored keys, never the packet numbers in an absent range.
+// It visits indexed records in each range, never the packet numbers in an
+// absent range or records outside it.
 func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol.EncryptionLevel) protocol.PacketNumber {
 	d := h.congestionEvents
 	if d == nil {
 		return protocol.InvalidPacketNumber
 	}
 	witness := d.recovery.ack(ack, level)
-	for key, r := range d.sampler.retained {
-		if key.space == congestionKey(level, 0).space && ack.AcksPacket(key.number) {
+	prior := beginServiceWork(serviceRetainedDiscovery)
+	space := congestionKey(level, 0).space
+	for _, rng := range ack.AckRanges {
+		d.discovered = retainedCovered(d.sampler.covered, space, rng.Smallest, rng.Largest, d.discovered[:0])
+		for _, r := range d.discovered {
 			d.event.Acked = append(d.event.Acked, r.packet)
-			d.removeRetained(key, false)
+			d.removeRetained(r.key, false)
 		}
 	}
+	clear(d.discovered)
+	endServiceWork(prior)
 	slices.SortFunc(d.event.Acked, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
 	for _, p := range d.event.Acked {
 		if currentPathRecoveryReceipt(p, d.pathGeneration) {

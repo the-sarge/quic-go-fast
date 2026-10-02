@@ -21,6 +21,8 @@ type deliverySampler struct {
 	minimumRTT                time.Duration
 	retained                  map[congestionPacketKey]*retainedDelivery
 	order                     retainedDeliveryHeap
+	expiry                    retainedExpiryHeap
+	covered                   *retainedDelivery // root of the (space, packet number) index
 	evicted, expired, missing uint64
 	limitedUntil              uint64
 	limited, stop             congestion.SendLimitation
@@ -43,9 +45,12 @@ const (
 )
 
 type retainedDelivery struct {
-	packet  congestion.PacketInfo
-	expires monotime.Time
-	index   int
+	packet             congestion.PacketInfo
+	key                congestionPacketKey
+	expires            monotime.Time
+	index, expiryIndex int
+	left, right        *retainedDelivery
+	height             int8
 }
 type retainedDeliveryHeap []*retainedDelivery
 
@@ -87,7 +92,10 @@ func (d *congestionDispatch) removeRetained(key congestionPacketKey, dispose boo
 		d.recovery.missing(r.packet.Ordinal)
 		d.sampler.dispose(r.packet)
 	}
+	countNodes(2 * bits.Len(uint(len(d.sampler.order)))) // ordinal heap removal, charged at its sift bound
 	heap.Remove(&d.sampler.order, r.index)
+	d.sampler.expiry.remove(r.expiryIndex)
+	d.sampler.covered = retainedDelete(d.sampler.covered, key)
 	delete(d.sampler.retained, key)
 	if len(d.sampler.retained) == 0 {
 		d.sampler.nextExpiry = 0
@@ -114,6 +122,7 @@ func (d *congestionDispatch) retire(key congestionPacketKey, now monotime.Time, 
 	if s.retained == nil {
 		s.retained = make(map[congestionPacketKey]*retainedDelivery)
 		s.order = make(retainedDeliveryHeap, 0, maxDeliveryRetained)
+		s.expiry = make(retainedExpiryHeap, 0, maxDeliveryRetained)
 	}
 	// Clamp before multiplication, including unusual restored PTO estimates.
 	ttl := 3 * min(max(pto, 0), 10*time.Second)
@@ -121,29 +130,42 @@ func (d *congestionDispatch) retire(key congestionPacketKey, now monotime.Time, 
 	if reason == deliveryRetiredPTO {
 		p.Retirement = congestion.DeliveryPTO
 	}
-	r := &retainedDelivery{packet: p, expires: now.Add(ttl)}
+	r := &retainedDelivery{packet: p, key: key, expires: now.Add(ttl)}
 	s.retained[key] = r
 	heap.Push(&s.order, r)
+	s.expiry.push(r)
+	s.covered = retainedInsert(s.covered, r)
 	if s.nextExpiry.IsZero() || r.expires.Before(s.nextExpiry) {
 		s.nextExpiry = r.expires
 	}
 }
 
+// expire keeps the exposed deadline's existing behavior: a deadline left stale
+// by ACK or disposal of the earliest record still fires, then advances to the
+// earliest remaining expiry.
 func (d *congestionDispatch) expire(now monotime.Time) {
 	if d.sampler.nextExpiry.IsZero() || now.Before(d.sampler.nextExpiry) {
 		return
 	}
+	prior := beginServiceWork(serviceRetainedExpiry)
 	var next monotime.Time
-	for key, r := range d.sampler.retained {
-		if !r.expires.After(now) {
-			d.removeRetained(key, true)
-			d.sampler.expired++
-			d.sampler.evidenceLost = true
-		} else if next.IsZero() || r.expires.Before(next) {
-			next = r.expires
+	for {
+		expires, ok := d.sampler.expiry.earliest()
+		if !ok {
+			break
 		}
+		countInspected()
+		if expires.After(now) {
+			countFailed()
+			next = expires
+			break
+		}
+		d.removeRetained(d.sampler.expiry[0].key, true)
+		d.sampler.expired++
+		d.sampler.evidenceLost = true
 	}
 	d.sampler.nextExpiry = next
+	endServiceWork(prior)
 }
 
 // DeliveryExpiry is independent of send permission and recovery's loss alarm.
@@ -193,7 +215,7 @@ func (h *sentPacketHandler) DeliveryStats() congestion.DeliveryStats {
 	return congestion.DeliveryStats{
 		OutcomeEntries: d.recovery.count, OutcomeEvicted: d.recovery.evicted,
 		Live: len(d.packets), Retained: len(s.retained), Outstanding: s.outstanding,
-		RecordBytes: uintptr(cap(d.recovery.outcomes))*unsafe.Sizeof(recoveryOutcome{}) + uintptr(len(d.packets)+cap(d.scratch))*unsafe.Sizeof(congestion.PacketInfo{}) + uintptr(len(s.retained))*unsafe.Sizeof(retainedDelivery{}) + uintptr(cap(s.order))*unsafe.Sizeof((*retainedDelivery)(nil)),
+		RecordBytes: d.recovery.recordBytes() + uintptr(len(d.packets)+cap(d.scratch))*unsafe.Sizeof(congestion.PacketInfo{}) + uintptr(len(s.retained))*unsafe.Sizeof(retainedDelivery{}) + uintptr(cap(s.order)+cap(s.expiry))*unsafe.Sizeof((*retainedDelivery)(nil)),
 		Evicted:     s.evicted, Expired: s.expired, Missing: s.missing, Stop: s.stop, Idle: h.DeliveryIdle(),
 	}
 }
