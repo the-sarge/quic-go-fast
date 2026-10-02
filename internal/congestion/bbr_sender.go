@@ -191,9 +191,15 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 			break
 		}
 	}
-	if anchor == nil || !anchor.Delivery.Valid || anchor.Delivery.Delivered > s.Delivered || anchor.PathGeneration != b.pathGeneration || anchor.SampleGeneration != b.sampleGeneration || anchor.MTUProbe || anchor.PathProbe || !s.Valid || s.Interval <= 0 {
+	// Delivered-at-send evidence owns packet rounds, as UpdateRound precedes the
+	// draft's positive-rate test. Missing history and invalid clocks supply none.
+	roundEvidence := clockValid && anchor != nil && anchor.Delivery.Valid && anchor.Delivery.Delivered <= s.Delivered && anchor.PathGeneration == b.pathGeneration && anchor.SampleGeneration == b.sampleGeneration && !anchor.MTUProbe && !anchor.PathProbe
+	roundStart := roundEvidence && b.startRound(anchor.Delivery.Delivered, s.Delivered)
+	if !roundEvidence || !s.Valid || s.Interval <= 0 {
 		b.checkDrainDone(e)
-		if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
+		if roundStart && b.phase != bbrStartup && b.phase != bbrProbeRTT {
+			b.updateProbeCycle(e, *anchor, true, false)
+		} else if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
 			b.updateProbePhase(e, false, false)
 		}
 		expired := updateRTT()
@@ -202,19 +208,6 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		}
 		b.applyACK(e, clockValid)
 		return
-	}
-	roundStart := anchor.Delivery.Delivered >= b.nextRound
-	if roundStart {
-		// Consumers on the boundary ACK still see the just-completed round.
-		// A later complete round replaces it, including a round with no usage.
-		b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
-		b.round++
-		b.roundsSinceProbe++
-		if b.InProbeRTT() {
-			b.probeSample = false
-			b.ackPhase = bbrAcksInit
-		}
-		b.nextRound = s.Delivered
 	}
 	b.updateMaxBandwidth(s)
 	volume := s.Delivered - anchor.Delivery.Delivered
@@ -263,7 +256,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	}
 	b.checkDrainDone(e)
 	if b.phase != bbrStartup && b.phase != bbrProbeRTT {
-		b.updateProbeCycle(e, *anchor, roundStart)
+		b.updateProbeCycle(e, *anchor, roundStart, true)
 	}
 	if lossRoundStart {
 		// Seed the next loss round after a phase entry has reset its signals.
@@ -274,6 +267,23 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		b.checkProbeRTT(e, expired, oldProbeCap)
 	}
 	b.applyACK(e, clockValid)
+}
+
+func (b *BBRSender) startRound(sentDelivered, delivered uint64) bool {
+	if sentDelivered < b.nextRound {
+		return false
+	}
+	// Consumers on the boundary ACK still see the just-completed round.
+	// A later complete round replaces it, including a round with no usage.
+	b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
+	b.round++
+	b.roundsSinceProbe++
+	if b.InProbeRTT() {
+		b.probeSample = false
+		b.ackPhase = bbrAcksInit
+	}
+	b.nextRound = delivered
+	return true
 }
 
 func (b *BBRSender) checkDrainDone(e FeedbackEvent) {

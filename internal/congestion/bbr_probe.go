@@ -63,7 +63,7 @@ func (b *BBRSender) startProbeRefill(delivered uint64) {
 	b.nextRound = delivered
 }
 
-func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundStart bool) {
+func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundStart, sampleValid bool) {
 	if roundStart {
 		if b.ackPhase == bbrAcksStarting {
 			b.ackPhase = bbrAcksFeedback
@@ -82,17 +82,18 @@ func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundSt
 	}
 	// Only current, safe delivery evidence can raise a previously learned cap.
 	sampleLost := e.Delivery.Lost >= anchor.Delivery.Lost && e.Delivery.Lost-anchor.Delivery.Lost > uint64(max(0, anchor.Delivery.PostInFlight))/50
-	if !sampleLost && b.inflightLong != protocol.MaxByteCount {
+	if sampleValid && !sampleLost && b.inflightLong != protocol.MaxByteCount {
 		b.inflightLong = max(b.inflightLong, anchor.Delivery.PostInFlight)
 		if b.phase == bbrUp {
 			b.raiseProbeInflight(e, roundStart)
 		}
 	}
-	b.updateProbePhase(e, roundStart, true)
+	b.updateProbePhase(e, roundStart, sampleValid)
 }
 
-// ACK time and flight can drive phase decisions without a rate sample.
-// Filter aging, packet rounds and model-bound growth remain sample-owned.
+// ACK time and flight can drive phase decisions without a rate sample, and
+// delivered-at-send evidence drives packet rounds. Model-bound growth remains
+// sample-owned.
 func (b *BBRSender) updateProbePhase(e FeedbackEvent, roundStart, sampleValid bool) {
 	switch b.phase {
 	case bbrStartup, bbrDrain, bbrProbeRTT:
@@ -110,7 +111,10 @@ func (b *BBRSender) updateProbePhase(e FeedbackEvent, roundStart, sampleValid bo
 			b.phase = bbrUp
 			b.ackPhase = bbrAcksStarting
 			b.probeSample = true
-			b.fullBandwidth, b.plateau = e.Delivery.BytesPerSecond, 0
+			b.fullBandwidth, b.plateau = 0, 0
+			if sampleValid {
+				b.fullBandwidth = e.Delivery.BytesPerSecond
+			}
 			b.raiseProbeSlope()
 			b.nextRound = e.Delivery.Delivered
 		}
