@@ -109,6 +109,19 @@ func TestBBRUndoRestoresLossDrivenPhase(t *testing.T) {
 		})
 	}
 
+	t.Run("control: Up undo during ProbeRTT keeps measuring, then Cruise", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.up(t)
+		x.b.Feedback(FeedbackEvent{Time: x.now, RecoveryEpisode: RecoveryEpisode{ID: 1, Boundary: x.ordinal, Entered: true, Active: true, UndoPossible: true}})
+		x.lose(20000, SendUnknown)
+		probeRTTAck(x, 6*time.Second, 100*time.Millisecond, 100000, 0)
+		require.True(t, x.b.InProbeRTT())
+		spuriousUndo(x.b, x.now.Add(time.Millisecond), true)
+		require.True(t, x.b.InProbeRTT(), "the draft restarts no probe from ProbeRTT")
+		probeRTTAck(x, 201*time.Millisecond, 100*time.Millisecond, 100000, 0)
+		require.Equal(t, bbrCruise, x.b.phase)
+	})
+
 	t.Run("control: CE cap blocks Startup restoration", func(t *testing.T) {
 		b := startupLossExit(t, 100000, 100*time.Millisecond, 100*time.Millisecond)
 		b.Feedback(FeedbackEvent{Time: monotime.Time(3910 * time.Millisecond), HasAck: true, PriorInFlight: 20000, PostInFlight: 20000, Delivery: DeliverySample{Delivered: 2400}, ECN: ECNResult{Eligible: true, Ordinal: b.sentOrdinal, Delta: ECNCounts{CE: 1}}})
@@ -144,6 +157,17 @@ func TestBBRPhaseDecisionsUsePreUpdateMinRTT(t *testing.T) {
 			require.EqualValues(t, 100000, x.b.PacingRate())
 			require.Equal(t, rtt, x.b.minimumRTT, "the same ACK still updates the minimum")
 		})
+		t.Run("Drain rejected rate "+name, func(t *testing.T) {
+			x := newBBRProbeTrace()
+			for range 4 {
+				x.ack(100000, 20000, SendUnknown)
+			}
+			e := probeRTTEvent(x, 100*time.Millisecond, rtt, 100000, 7500)
+			e.Delivery.Valid, e.Delivery.BytesPerSecond = false, 0
+			x.b.Feedback(e)
+			require.Equal(t, bbrCruise, x.b.phase, "the unsampled path decides on the old minimum too")
+			require.Equal(t, rtt, x.b.minimumRTT)
+		})
 		t.Run("ProbeBW Down "+name, func(t *testing.T) {
 			x := newBBRProbeTrace()
 			x.up(t)
@@ -164,6 +188,15 @@ func TestBBRPhaseDecisionsUsePreUpdateMinRTT(t *testing.T) {
 		})
 	}
 
+	t.Run("control: a stale-delivered ACK still updates the minimum", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.cruise()
+		e := probeRTTEvent(x, 100*time.Millisecond, 50*time.Millisecond, 100000, 9000)
+		e.Delivery.Delivered = 0
+		x.b.Feedback(e)
+		require.Equal(t, 50*time.Millisecond, x.b.minimumRTT)
+	})
+
 	t.Run("Drain expired increasing minimum", func(t *testing.T) {
 		x := newBBRProbeTrace()
 		for range 4 {
@@ -183,14 +216,27 @@ func TestBBRPhaseDecisionsUsePreUpdateMinRTT(t *testing.T) {
 		require.Equal(t, bbrDrain, x.b.phase, "15000 bytes exceeds the old 10000-byte target")
 	})
 
-	for _, rtt := range []time.Duration{50 * time.Millisecond, time.Second} {
-		t.Run("control: same-ACK ProbeRTT entry "+rtt.String(), func(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		elapsed  time.Duration
+		rtt      time.Duration
+		rejected bool
+	}{
+		{"lower RTT", 6 * time.Second, 50 * time.Millisecond, false},
+		{"expired higher minimum", 11 * time.Second, time.Second, false},
+		{"rejected rate", 6 * time.Second, 50 * time.Millisecond, true},
+	} {
+		t.Run("control: same-ACK ProbeRTT entry, "+tc.name, func(t *testing.T) {
 			x := newBBRProbeTrace()
 			x.cruise()
-			probeRTTAck(x, 6*time.Second, rtt, 100000, 9000)
+			e := probeRTTEvent(x, tc.elapsed, tc.rtt, 100000, 9000)
+			if tc.rejected {
+				e.Delivery.Valid, e.Delivery.BytesPerSecond = false, 0
+			}
+			x.b.Feedback(e)
 			require.True(t, x.b.InProbeRTT(), "the expiry result reaches the ProbeRTT check")
-			require.Equal(t, rtt, x.b.probeRTTMinimum)
-			require.EqualValues(t, max(4800, min(5000, x.b.probeRTTTarget())), x.b.probeRTTCap, "saved pre-update cap, lowered by a smaller new target")
+			require.Equal(t, tc.rtt, x.b.minimumRTT)
+			require.EqualValues(t, max(4800, min(5000, x.b.probeRTTTarget())), x.b.probeRTTCap, "saved pre-update cap, lowered only by a smaller new target")
 		})
 	}
 }
@@ -264,6 +310,41 @@ func TestBBRPacketRoundsIgnoreRateValidity(t *testing.T) {
 		})
 	}
 
+	for _, valid := range []bool{true, false} {
+		t.Run(map[bool]string{true: "control: valid Up round raises the slope and grows the bound", false: "rejected Up round raises the slope, not the bound"}[valid], func(t *testing.T) {
+			x := newBBRProbeTrace()
+			x.up(t)
+			x.b.inflightLong = x.b.window
+			bound, rounds, acked := x.b.inflightLong, x.b.probeUpRounds, x.b.probeUpAcked
+			e := probeRTTEvent(x, 100*time.Millisecond, 100*time.Millisecond, 100000, x.b.window)
+			e.Acked[0].Delivery.PostInFlight = bound
+			if !valid {
+				e.Delivery.Valid, e.Delivery.BytesPerSecond = false, 0
+			}
+			x.b.Feedback(e)
+			require.Equal(t, bbrUp, x.b.phase)
+			require.Equal(t, rounds+1, x.b.probeUpRounds, "RaiseInflightLongtermSlope follows round_start")
+			require.Equal(t, bound, x.b.inflightLong, "one ACK is below one growth increment")
+			if valid {
+				require.Equal(t, acked+1200, x.b.probeUpAcked, "acknowledged growth accumulates")
+			} else {
+				require.Equal(t, acked, x.b.probeUpAcked, "long-term bound growth stays sample-owned")
+			}
+		})
+	}
+	t.Run("rejected rate leaves the safe-flight bound raise", func(t *testing.T) {
+		x := newBBRProbeTrace()
+		x.up(t)
+		for range 3 {
+			x.ack(100000, 9000, SendUnknown)
+		}
+		x.b.inflightLong = 12000
+		e := probeRTTEvent(x, 100*time.Millisecond, 100*time.Millisecond, 100000, 20000)
+		e.Delivery.Valid, e.Delivery.BytesPerSecond = false, 0
+		x.b.Feedback(e)
+		require.EqualValues(t, 12000, x.b.inflightLong)
+	})
+
 	t.Run("rejected rate leaves rate-owned model state", func(t *testing.T) {
 		x := newBBRProbeTrace()
 		x.up(t)
@@ -304,4 +385,20 @@ func TestBBRStartupLossLearnsUnquantizedCapacity(t *testing.T) {
 			require.Equal(t, tc.headroom, b.headroom(), "later Cruise allowance")
 		})
 	}
+
+	t.Run("control: latest volume above BDP", func(t *testing.T) {
+		b := NewBBRSender(1200)
+		feedbackRound(b, 1, 1200, 20000, SendApplicationLimited, 60000)
+		var lost []PacketInfo
+		for i := range 6 {
+			lost = append(lost, PacketInfo{Space: protocol.Encryption1RTT, PacketNumber: protocol.PacketNumber(2 * i), Ordinal: uint64(i + 2), Length: 1200, AckEliciting: true, RegistrationValid: true, Delivery: DeliverySnapshot{Valid: true, PostInFlight: 60000}})
+		}
+		b.Feedback(FeedbackEvent{Time: monotime.Time(2100 * time.Millisecond), Lost: lost, PriorInFlight: 60000, PostInFlight: 50000, Delivery: DeliverySample{Delivered: 1200, Lost: 7200}, RecoveryEpisode: RecoveryEpisode{ID: 1, Entered: true, Active: true, Boundary: 7}})
+		// One ACK delivers 6000 bytes beyond its anchor's delivered-at-send.
+		p := PacketInfo{Ordinal: 20, Length: 1200, AckEliciting: true, RegistrationValid: true, SendTime: monotime.Time(3800 * time.Millisecond), Delivery: DeliverySnapshot{Delivered: 1200, Valid: true}}
+		b.Sent(SendEvent{Packet: p})
+		b.Feedback(FeedbackEvent{Time: monotime.Time(3900 * time.Millisecond), HasAck: true, RawRTT: 100 * time.Millisecond, PostInFlight: 20000, Acked: []PacketInfo{p}, Delivery: DeliverySample{Delivered: 7200, Ordinal: 20, BytesPerSecond: 20000, Interval: 100 * time.Millisecond, Limited: SendApplicationLimited, Valid: true}})
+		require.False(t, b.InSlowStart())
+		require.EqualValues(t, 6000, b.inflightLong, "inflight_latest exceeds the 2000-byte BDP")
+	})
 }
