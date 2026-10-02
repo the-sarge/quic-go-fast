@@ -178,6 +178,7 @@ func (b *BBRSender) probeLoss(e FeedbackEvent, p PacketInfo, remaining uint64) {
 		b.inflightLong = max(bbrBytes(previousFlight+prefix), bbrBytes(bbrScale(uint64(min(b.bdp(1), b.window)), 7, 10)))
 	}
 	if b.phase == bbrUp {
+		b.noteLossExit()
 		b.startProbeDown(e.Time, e.Delivery.Delivered)
 	}
 }

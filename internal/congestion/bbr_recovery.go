@@ -13,6 +13,9 @@ type bbrUndo struct {
 	valid                               bool
 	window, inflightLong, inflightShort protocol.ByteCount
 	bandwidthShort                      uint64
+	// The draft's undo_state: a loss-driven exit from Startup or Up.
+	exited bool
+	phase  bbrPhase
 }
 
 func (b *BBRSender) beginRecovery(e FeedbackEvent) {
@@ -38,6 +41,18 @@ func (b *BBRSender) finishRecovery(e FeedbackEvent) {
 		b.lossRanges = b.lossRanges[:0]
 		b.lossBytes, b.lossFlight = 0, 0
 		b.lossPending, b.lossOverflow = false, false
+		// A probe ended by spurious loss resumes. An active CE response owns
+		// the exit and forbids a new probe; ProbeRTT finishes its measurement.
+		if b.undo.exited && !b.ce.active {
+			switch {
+			case b.undo.phase == bbrStartup && b.phase == bbrProbeRTT:
+				b.probeRTTReturnStartup = true
+			case b.undo.phase == bbrStartup && b.phase != bbrStartup:
+				b.phase = bbrStartup
+			case b.undo.phase == bbrUp && b.phase != bbrUp && b.phase != bbrProbeRTT:
+				b.startProbeRefill(b.delivered)
+			}
+		}
 	}
 	if r.Exited || r.UndoEligible {
 		b.window = max(b.window, b.undo.window)
@@ -54,6 +69,12 @@ func (b *BBRSender) finishRecovery(e FeedbackEvent) {
 
 // Persistent proof is transport-owned. CE is composed from the pre-event
 // outputs first; replacing the model must preserve that independent safety state.
+func (b *BBRSender) noteLossExit() {
+	if b.undo.valid {
+		b.undo.exited, b.undo.phase = true, b.phase
+	}
+}
+
 func (b *BBRSender) restartPersistent(e FeedbackEvent) {
 	end := e.PersistentCongestion.EndOrdinal
 	if !e.HasAck || end == 0 || end <= b.persistentEnd {
