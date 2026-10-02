@@ -1,0 +1,1082 @@
+[
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 1024,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 7,
+      "Failed": 0,
+      "Nodes": 7
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 1024,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 1024,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1024,
+      "Failed": 1024,
+      "Nodes": 1024
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 1024,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "sparse ACK over 1024 numbers",
+    "Population": "acked-history",
+    "Occupancy": 1024,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1026,
+      "Failed": 1023,
+      "Nodes": 1026
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "sparse ACK over 1024 numbers",
+    "Population": "acked-history",
+    "Occupancy": 1024,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 4096,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 7,
+      "Failed": 0,
+      "Nodes": 7
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 4096,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 4096,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4096,
+      "Failed": 4096,
+      "Nodes": 4096
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 4096,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "sparse ACK over 4096 numbers",
+    "Population": "acked-history",
+    "Occupancy": 4096,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4098,
+      "Failed": 4095,
+      "Nodes": 4098
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "sparse ACK over 4096 numbers",
+    "Population": "acked-history",
+    "Occupancy": 4096,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 16384,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 7,
+      "Failed": 0,
+      "Nodes": 7
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 16384,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 16384,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16384,
+      "Failed": 16384,
+      "Nodes": 16384
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 16384,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "sparse ACK over 16384 numbers",
+    "Population": "acked-history",
+    "Occupancy": 16384,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16386,
+      "Failed": 16383,
+      "Nodes": 16386
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "sparse ACK over 16384 numbers",
+    "Population": "acked-history",
+    "Occupancy": 16384,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 32768,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 7,
+      "Failed": 0,
+      "Nodes": 7
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "fresh ACK",
+    "Population": "acked-history",
+    "Occupancy": 32768,
+    "Ranges": 2,
+    "Useful": 7,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 32768,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 32768,
+      "Failed": 32768,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "duplicate cumulative ACK",
+    "Population": "acked-history",
+    "Occupancy": 32768,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "sparse ACK over 98304 numbers",
+    "Population": "acked-history",
+    "Occupancy": 32768,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 32768,
+      "Failed": 32765,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-witness",
+    "Scenario": "sparse ACK over 98304 numbers",
+    "Population": "acked-history",
+    "Occupancy": 32768,
+    "Ranges": 2,
+    "Useful": 3,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "late ACK of lost outcomes",
+    "Population": "lost-runs",
+    "Occupancy": 16,
+    "Ranges": 1,
+    "Useful": 2,
+    "LostChange": 2,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 2,
+      "Failed": 0,
+      "Nodes": 2
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "late ACK of lost outcomes",
+    "Population": "lost-runs",
+    "Occupancy": 1024,
+    "Ranges": 1,
+    "Useful": 2,
+    "LostChange": 2,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 2,
+      "Failed": 0,
+      "Nodes": 2
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "late ACK of lost outcomes",
+    "Population": "lost-runs",
+    "Occupancy": 4096,
+    "Ranges": 1,
+    "Useful": 2,
+    "LostChange": 2,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 2,
+      "Failed": 0,
+      "Nodes": 2
+    }
+  },
+  {
+    "Mechanism": "ack-transitions",
+    "Scenario": "late ACK of lost outcomes",
+    "Population": "lost-runs",
+    "Occupancy": 10000,
+    "Ranges": 1,
+    "Useful": 2,
+    "LostChange": 2,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 2,
+      "Failed": 0,
+      "Nodes": 2
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "0 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 0,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 0,
+      "Inspected": 0,
+      "Failed": 0,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "0 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1057,
+      "Failed": 1057,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "0 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 8192,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 8225,
+      "Failed": 8225,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "0 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 32640,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 32673,
+      "Failed": 32673,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "1 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 0,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 1,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 34,
+      "Failed": 33,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "1 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 1,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1058,
+      "Failed": 1057,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "1 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 8192,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 1,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 8226,
+      "Failed": 8225,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "pto-confirmation",
+    "Scenario": "1 confirmation(s)",
+    "Population": "pto-backlog",
+    "Occupancy": 32640,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 1,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 32674,
+      "Failed": 32673,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "no qualifying run",
+    "Population": "lost-runs",
+    "Occupancy": 1,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 67,
+      "Failed": 67,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "no qualifying run",
+    "Population": "lost-runs",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 3136,
+      "Failed": 3136,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "no qualifying run",
+    "Population": "lost-runs",
+    "Occupancy": 4096,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 12352,
+      "Failed": 12352,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "no qualifying run",
+    "Population": "lost-runs",
+    "Occupancy": 10000,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 30064,
+      "Failed": 30064,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "latest run qualifies",
+    "Population": "lost-runs",
+    "Occupancy": 1,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 69,
+      "Failed": 68,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "latest run qualifies",
+    "Population": "lost-runs",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 3138,
+      "Failed": 3137,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "latest run qualifies",
+    "Population": "lost-runs",
+    "Occupancy": 4096,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 12354,
+      "Failed": 12353,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "persistent-span",
+    "Scenario": "latest run qualifies",
+    "Population": "lost-runs",
+    "Occupancy": 10000,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 30066,
+      "Failed": 30065,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "one retained receipt",
+    "Population": "retained",
+    "Occupancy": 16,
+    "Ranges": 1,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16,
+      "Failed": 15,
+      "Nodes": 10
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "duplicate-only ACK",
+    "Population": "retained",
+    "Occupancy": 16,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16,
+      "Failed": 16,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "sparse over-wide ACK",
+    "Population": "retained",
+    "Occupancy": 16,
+    "Ranges": 2,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16,
+      "Failed": 15,
+      "Nodes": 10
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "timer entry point",
+    "Population": "retained",
+    "Occupancy": 16,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16,
+      "Failed": 15,
+      "Nodes": 10
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "send entry point",
+    "Population": "retained",
+    "Occupancy": 16,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16,
+      "Failed": 15,
+      "Nodes": 10
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "retirement entry point",
+    "Population": "retained",
+    "Occupancy": 16,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 16,
+      "Failed": 15,
+      "Nodes": 10
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "stale deadline entry point",
+    "Population": "retained",
+    "Occupancy": 16,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 15,
+      "Failed": 15,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "one retained receipt",
+    "Population": "retained",
+    "Occupancy": 256,
+    "Ranges": 1,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 256,
+      "Failed": 255,
+      "Nodes": 18
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "duplicate-only ACK",
+    "Population": "retained",
+    "Occupancy": 256,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 256,
+      "Failed": 256,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "sparse over-wide ACK",
+    "Population": "retained",
+    "Occupancy": 256,
+    "Ranges": 2,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 256,
+      "Failed": 255,
+      "Nodes": 18
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "timer entry point",
+    "Population": "retained",
+    "Occupancy": 256,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 256,
+      "Failed": 255,
+      "Nodes": 18
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "send entry point",
+    "Population": "retained",
+    "Occupancy": 256,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 256,
+      "Failed": 255,
+      "Nodes": 18
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "retirement entry point",
+    "Population": "retained",
+    "Occupancy": 256,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 256,
+      "Failed": 255,
+      "Nodes": 18
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "stale deadline entry point",
+    "Population": "retained",
+    "Occupancy": 256,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 255,
+      "Failed": 255,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "one retained receipt",
+    "Population": "retained",
+    "Occupancy": 1024,
+    "Ranges": 1,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1024,
+      "Failed": 1023,
+      "Nodes": 22
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "duplicate-only ACK",
+    "Population": "retained",
+    "Occupancy": 1024,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1024,
+      "Failed": 1024,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "sparse over-wide ACK",
+    "Population": "retained",
+    "Occupancy": 1024,
+    "Ranges": 2,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1024,
+      "Failed": 1023,
+      "Nodes": 22
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "timer entry point",
+    "Population": "retained",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1024,
+      "Failed": 1023,
+      "Nodes": 22
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "send entry point",
+    "Population": "retained",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1024,
+      "Failed": 1023,
+      "Nodes": 22
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "retirement entry point",
+    "Population": "retained",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1024,
+      "Failed": 1023,
+      "Nodes": 22
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "stale deadline entry point",
+    "Population": "retained",
+    "Occupancy": 1024,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 1023,
+      "Failed": 1023,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "one retained receipt",
+    "Population": "retained",
+    "Occupancy": 4096,
+    "Ranges": 1,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4096,
+      "Failed": 4095,
+      "Nodes": 26
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "duplicate-only ACK",
+    "Population": "retained",
+    "Occupancy": 4096,
+    "Ranges": 1,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4096,
+      "Failed": 4096,
+      "Nodes": 0
+    }
+  },
+  {
+    "Mechanism": "retained-discovery",
+    "Scenario": "sparse over-wide ACK",
+    "Population": "retained",
+    "Occupancy": 4096,
+    "Ranges": 2,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4096,
+      "Failed": 4095,
+      "Nodes": 26
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "timer entry point",
+    "Population": "retained",
+    "Occupancy": 4096,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4096,
+      "Failed": 4095,
+      "Nodes": 26
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "send entry point",
+    "Population": "retained",
+    "Occupancy": 4096,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4096,
+      "Failed": 4095,
+      "Nodes": 26
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "retirement entry point",
+    "Population": "retained",
+    "Occupancy": 4096,
+    "Ranges": 0,
+    "Useful": 1,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4096,
+      "Failed": 4095,
+      "Nodes": 26
+    }
+  },
+  {
+    "Mechanism": "retained-expiry",
+    "Scenario": "stale deadline entry point",
+    "Population": "retained",
+    "Occupancy": 4096,
+    "Ranges": 0,
+    "Useful": 0,
+    "LostChange": 0,
+    "Work": {
+      "Calls": 1,
+      "Inspected": 4095,
+      "Failed": 4095,
+      "Nodes": 0
+    }
+  }
+]

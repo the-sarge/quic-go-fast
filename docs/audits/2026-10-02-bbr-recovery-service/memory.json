@@ -1,0 +1,45 @@
+[
+  {
+    "Structure": "recovery ledger",
+    "Occupancy": 32768,
+    "Frozen": {
+      "LiveHeap": 3320720,
+      "Accounted": {
+        "DeliveryStats.RecordBytes share": 1572864,
+        "key map (live heap minus ring)": 1747856,
+        "outcome ring": 1572864
+      }
+    },
+    "Candidate": {
+      "LiveHeap": 1204544,
+      "Accounted": {
+        "DeliveryStats.RecordBytes share": 1197904,
+        "outcome ring": 1048576,
+        "per-space slot lists": 65536,
+        "run duration tree": 32768,
+        "slot sets": 50880
+      }
+    },
+    "LiveChange": -0.6372642077621721
+  },
+  {
+    "Structure": "retained delivery evidence",
+    "Occupancy": 4096,
+    "Frozen": {
+      "LiveHeap": 972848,
+      "Accounted": {
+        "ordinal heap": 32768,
+        "records": 688128
+      }
+    },
+    "Candidate": {
+      "LiveHeap": 1202288,
+      "Accounted": {
+        "expiry heap": 32768,
+        "ordinal heap": 32768,
+        "records (with index links)": 884736
+      }
+    },
+    "LiveChange": 0.23584362613686816
+  }
+]

@@ -1,0 +1,275 @@
+diff --git i/internal/ackhandler/bbr_recovery.go w/internal/ackhandler/bbr_recovery.go
+index bd9de22f..8edf63b5 100644
+--- i/internal/ackhandler/bbr_recovery.go
++++ w/internal/ackhandler/bbr_recovery.go
+@@ -37,16 +37,17 @@ type recoveryOutcome struct {
+ // even ACK-only packets and excluded probes. Dropping its oldest entry never
+ // creates a summary that could bridge unknown history.
+ type recoveryEvidence struct {
+-	outcomes        []recoveryOutcome
+-	keys            map[congestionPacketKey]int
+-	head, count     int
+-	evicted         uint64
+-	measured        bool
+-	reported        uint64
+-	episode         congestion.RecoveryEpisode
+-	members         map[uint64]struct{}
+-	ackOrdinal      uint64
+-	unconfirmedLoss bool
++	outcomes                              []recoveryOutcome
++	keys                                  map[congestionPacketKey]int
++	head, count                           int
++	evicted                               uint64
++	measured                              bool
++	reported                              uint64
++	episode                               congestion.RecoveryEpisode
++	members                               map[uint64]struct{}
++	ackOrdinal                            uint64
++	unconfirmedLoss                       bool
++	diagnosticLostEver, diagnosticPTOEver bool
+ 	// Packet numbers are monotonic within each of the three spaces. These
+ 	// boundary witnesses survive optional sampler and outcome-ring eviction.
+ 	latestPackets   map[protocol.EncryptionLevel]protocol.PacketNumber
+@@ -92,6 +93,7 @@ func (r *recoveryEvidence) lost(key congestionPacketKey, congestionLoss, retaine
+ 	i, known := r.keys[key]
+ 	if known && r.outcomes[i].state == outcomeUnresolved {
+ 		r.outcomes[i].state = outcomeLost
++		r.diagnosticLostEver = true
+ 		r.unconfirmedLoss = true // ACK-only losses can complete a classified span too.
+ 	}
+ 	if !congestionLoss {
+@@ -147,19 +149,27 @@ func (r *recoveryEvidence) discard(key congestionPacketKey) {
+ func (r *recoveryEvidence) retirePTO(key congestionPacketKey) {
+ 	if i, ok := r.keys[key]; ok && r.outcomes[i].state == outcomeUnresolved {
+ 		r.outcomes[i].ptoRetired = true
++		r.diagnosticPTOEver = true
+ 	}
+ }
+ 
+ // confirmPTO changes only persistent-span evidence. Ordinary loss callbacks,
+ // delivery loss totals and episode membership belong to lost, not this path.
+ func (r *recoveryEvidence) confirmPTO(space protocol.EncryptionLevel, witness protocol.PacketNumber, cutoff monotime.Time) {
+-	if witness == protocol.InvalidPacketNumber {
++	if witness == protocol.InvalidPacketNumber || !r.diagnosticPTOEver {
+ 		return
+ 	}
++	prior := beginServiceWork(servicePTOConfirmation)
++	defer endServiceWork(prior)
+ 	for i := 0; i < r.count; i++ {
+ 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
++		countInspected()
++		if !(o.key.space == space && o.key.number < witness && o.ptoRetired && o.state == outcomeUnresolved && !o.sent.After(cutoff)) {
++			countFailed()
++		}
+ 		if o.key.space == space && o.key.number < witness && o.ptoRetired && o.state == outcomeUnresolved && !o.sent.After(cutoff) {
+ 			o.state = outcomeLost
++			r.diagnosticLostEver = true
+ 			r.unconfirmedLoss = true
+ 		}
+ 	}
+@@ -185,8 +195,49 @@ func (r *recoveryEvidence) ack(ack *wire.AckFrame, level protocol.EncryptionLeve
+ 	r.ackOrdinal = 0
+ 	space := congestionKey(level, 0).space
+ 	witness := protocol.InvalidPacketNumber
++	prior := beginServiceWork(serviceAckTransitions)
++	defer endServiceWork(prior)
++	// Bound range enumeration by the original ring scan's record count.
++	n := 0
++	for _, a := range ack.AckRanges {
++		span := a.Largest - a.Smallest + 1
++		if span <= 0 || span > protocol.PacketNumber(r.count-n) {
++			n = r.count + 1
++			break
++		}
++		n += int(span)
++	}
++	if n <= r.count {
++		for _, a := range ack.AckRanges {
++			for pn := a.Smallest; pn <= a.Largest; pn++ {
++				countNodes(1)
++				if index, ok := r.keys[congestionPacketKey{space: space, number: pn}]; ok {
++					o := &r.outcomes[index]
++					countInspected()
++					if o.state == outcomeDisposed || o.state == outcomeAcked {
++						countFailed()
++					}
++					if o.state == outcomeDisposed {
++						continue
++					}
++					if o.receiptEligible {
++						witness = max(witness, pn)
++						if o.state != outcomeAcked {
++							r.ackOrdinal = max(r.ackOrdinal, o.ordinal)
++						}
++					}
++					o.state = outcomeAcked
++				}
++			}
++		}
++		return witness
++	}
+ 	for i := 0; i < r.count; i++ {
+ 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
++		countInspected()
++		if !(o.key.space == space && ack.AcksPacket(o.key.number) && o.state != outcomeDisposed && o.state != outcomeAcked) {
++			countFailed()
++		}
+ 		if o.key.space == space && ack.AcksPacket(o.key.number) && o.state != outcomeDisposed {
+ 			if o.receiptEligible {
+ 				// Duplicate receipts may confirm PTO outcomes after an earlier
+@@ -240,9 +291,15 @@ func (r *recoveryEvidence) feedback(e *congestion.FeedbackEvent, pto time.Durati
+ 	if pto <= 0 || pto > time.Duration(1<<63-1)/3 {
+ 		return
+ 	}
++	if !r.diagnosticLostEver {
++		return
++	}
++	prior := beginServiceWork(servicePersistentSpan)
+ 	var first *recoveryOutcome
+ 	for i := 0; i < r.count; i++ {
+ 		o := &r.outcomes[(r.head+i)%maxRecoveryOutcomes]
++		countInspected()
++		countFailed() // corrected below for the reported endpoint
+ 		if o.state != outcomeLost {
+ 			first = nil
+ 			continue
+@@ -258,6 +315,10 @@ func (r *recoveryEvidence) feedback(e *congestion.FeedbackEvent, pto time.Durati
+ 			e.PersistentCongestion = congestion.PersistentCongestion{StartOrdinal: first.ordinal, EndOrdinal: o.ordinal}
+ 		}
+ 	}
++	if e.PersistentCongestion.EndOrdinal != 0 {
++		serviceCountersCorrectFailed()
++	}
++	endServiceWork(prior)
+ 	if e.PersistentCongestion.EndOrdinal != 0 {
+ 		r.reported = e.PersistentCongestion.EndOrdinal
+ 		r.invalidateUndo()
+diff --git i/internal/ackhandler/congestion_dispatch.go w/internal/ackhandler/congestion_dispatch.go
+index d9535256..bea516d5 100644
+--- i/internal/ackhandler/congestion_dispatch.go
++++ w/internal/ackhandler/congestion_dispatch.go
+@@ -267,12 +267,18 @@ func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol
+ 		return protocol.InvalidPacketNumber
+ 	}
+ 	witness := d.recovery.ack(ack, level)
++	prior := beginServiceWork(serviceRetainedDiscovery)
+ 	for key, r := range d.sampler.retained {
++		countInspected()
++		if !(key.space == congestionKey(level, 0).space && ack.AcksPacket(key.number)) {
++			countFailed()
++		}
+ 		if key.space == congestionKey(level, 0).space && ack.AcksPacket(key.number) {
+ 			d.event.Acked = append(d.event.Acked, r.packet)
+ 			d.removeRetained(key, false)
+ 		}
+ 	}
++	endServiceWork(prior)
+ 	slices.SortFunc(d.event.Acked, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
+ 	for _, p := range d.event.Acked {
+ 		if currentPathRecoveryReceipt(p, d.pathGeneration) {
+diff --git i/internal/ackhandler/delivery_sampler.go w/internal/ackhandler/delivery_sampler.go
+index 6d97c90a..88ebe8f1 100644
+--- i/internal/ackhandler/delivery_sampler.go
++++ w/internal/ackhandler/delivery_sampler.go
+@@ -87,6 +87,7 @@ func (d *congestionDispatch) removeRetained(key congestionPacketKey, dispose boo
+ 		d.recovery.missing(r.packet.Ordinal)
+ 		d.sampler.dispose(r.packet)
+ 	}
++	countNodes(2 * bits.Len(uint(len(d.sampler.order)))) // ordinal heap removal, charged at its sift bound
+ 	heap.Remove(&d.sampler.order, r.index)
+ 	delete(d.sampler.retained, key)
+ 	if len(d.sampler.retained) == 0 {
+@@ -133,8 +134,14 @@ func (d *congestionDispatch) expire(now monotime.Time) {
+ 	if d.sampler.nextExpiry.IsZero() || now.Before(d.sampler.nextExpiry) {
+ 		return
+ 	}
++	prior := beginServiceWork(serviceRetainedExpiry)
++	defer endServiceWork(prior)
+ 	var next monotime.Time
+ 	for key, r := range d.sampler.retained {
++		countInspected()
++		if r.expires.After(now) {
++			countFailed()
++		}
+ 		if !r.expires.After(now) {
+ 			d.removeRetained(key, true)
+ 			d.sampler.expired++
+diff --git i/internal/ackhandler/service_work.go w/internal/ackhandler/service_work.go
+new file mode 100644
+index 00000000..1e841a82
+--- /dev/null
++++ w/internal/ackhandler/service_work.go
+@@ -0,0 +1,17 @@
++package ackhandler
++
++// serviceMechanism names one recovery-service path whose work is bounded
++// independently of retained history. Counting is compiled in only with the
++// bbrworkcount build tag; ordinary builds inline these hooks away.
++type serviceMechanism uint8
++
++const (
++	serviceNone serviceMechanism = iota
++	serviceAckTransitions
++	serviceAckWitness
++	servicePTOConfirmation
++	servicePersistentSpan
++	serviceRetainedDiscovery
++	serviceRetainedExpiry
++	serviceMechanisms
++)
+diff --git i/internal/ackhandler/service_work_off.go w/internal/ackhandler/service_work_off.go
+new file mode 100644
+index 00000000..ecf2d344
+--- /dev/null
++++ w/internal/ackhandler/service_work_off.go
+@@ -0,0 +1,10 @@
++//go:build !bbrworkcount
++
++package ackhandler
++
++func beginServiceWork(serviceMechanism) serviceMechanism { return serviceNone }
++func endServiceWork(serviceMechanism)                    {}
++func countInspected()                                    {}
++func countFailed()                                       {}
++func countNodes(int)                                     {}
++func serviceCountersCorrectFailed()                      {}
+diff --git i/internal/ackhandler/service_work_on.go w/internal/ackhandler/service_work_on.go
+new file mode 100644
+index 00000000..ba85583c
+--- /dev/null
++++ w/internal/ackhandler/service_work_on.go
+@@ -0,0 +1,34 @@
++//go:build bbrworkcount
++
++package ackhandler
++
++// serviceWork is a disposable experiment counter. Inspected records are
++// outcome or retained records read to decide a result; failed checks are the
++// inspected records that did not qualify; nodes are index words, tree nodes
++// and search steps traversed.
++type serviceWork struct {
++	Calls, Inspected, Failed, Nodes uint64
++}
++
++var (
++	serviceCounters [serviceMechanisms]serviceWork
++	activeService   serviceMechanism
++)
++
++func beginServiceWork(m serviceMechanism) serviceMechanism {
++	prior := activeService
++	activeService = m
++	serviceCounters[m].Calls++
++	return prior
++}
++
++func endServiceWork(prior serviceMechanism) { activeService = prior }
++func countInspected()                       { serviceCounters[activeService].Inspected++ }
++func countFailed()                          { serviceCounters[activeService].Failed++ }
++func countNodes(n int)                      { serviceCounters[activeService].Nodes += uint64(n) }
++
++func resetServiceWork() {
++	serviceCounters = [serviceMechanisms]serviceWork{}
++	activeService = serviceNone
++}
++func serviceCountersCorrectFailed() { serviceCounters[activeService].Failed-- }
