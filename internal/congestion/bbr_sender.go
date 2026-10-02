@@ -223,7 +223,8 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	lossRoundStart := anchor.Delivery.Delivered >= b.lossRoundDelivered
 	if lossRoundStart {
 		if b.lossPending && b.phase == bbrStartup && b.recoveryEligible && !b.lossOverflow && b.discontiguousLosses() >= 6 && uint64(b.lossBytes) > uint64(b.lossFlight)/50 {
-			b.inflightLong = max(b.inflight(1), bbrBytes(b.latestVolume))
+			// Learned capacity is the model BDP; output quantization is not loss evidence.
+			b.inflightLong = max(b.bdp(1), bbrBytes(b.latestVolume))
 			b.phase = bbrDrain
 			b.drainRound = b.round
 		} else if b.lossPending && !b.probingBandwidth() {
