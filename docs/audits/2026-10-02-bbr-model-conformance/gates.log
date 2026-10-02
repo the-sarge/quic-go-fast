@@ -1,0 +1,23 @@
+## revision 8c033da2822a2d60a78ad675c2cb3b6da4e8afbc (internal/ changes: 0)
+## go version
+go version go1.27.1 darwin/arm64
+## changed and affected packages
+ok  	github.com/quic-go/quic-go/internal/congestion	0.120s
+ok  	github.com/quic-go/quic-go/internal/ackhandler	12.293s
+## counting build
+ok  	github.com/quic-go/quic-go/internal/ackhandler	12.448s
+## race on changed seams
+ok  	github.com/quic-go/quic-go/internal/congestion	1.302s
+ok  	github.com/quic-go/quic-go/internal/ackhandler	205.167s
+## root package, full (648 pass, 7 skip)
+ok  	github.com/quic-go/quic-go	1.364s
+## root BBR, emission, credit and pacing tests, race
+ok  	github.com/quic-go/quic-go	1.299s
+## vet
+ok
+ok
+## golangci-lint
+0 issues.
+0 issues.
+## module tidiness
+ok

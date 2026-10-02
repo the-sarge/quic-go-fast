@@ -1,0 +1,14 @@
+M1 item 2: rejected-path RTT update before the Drain decision: caught
+M2 item 2: early return skips the RTT update: caught
+M3 item 2: rejected path drops the expiry result: caught
+M4 item 4: drop the latest-volume term: caught
+M5 item 3: bound growth on a rejected rate: caught
+M6 item 1: Up undo leaves ProbeRTT: caught
+M7 item 2: post-update ProbeRTT cap save: caught
+M8 item 3: no slope raise on a rejected round: caught
+M9 item 1: no CE guard on restoration: caught
+M10 item 1: Startup undo ignores ProbeRTT: caught
+M11 item 3: rounds without a valid anchor snapshot: caught
+M12 item 3: rounds on an invalid clock: caught
+M13 item 4: quantized learned cap: caught
+M14 item 3: rejected Refill seeds the plateau baseline: caught
