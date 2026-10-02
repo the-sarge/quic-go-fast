@@ -250,7 +250,8 @@ func TestBBRPacketRoundsIgnoreRateValidity(t *testing.T) {
 		mutate  func(*FeedbackEvent)
 	}
 	variants := []variant{
-		{"rejected rate", true, func(e *FeedbackEvent) { e.Delivery.Valid, e.Delivery.BytesPerSecond = false, 0 }},
+		// The reducer must not read a rejected sample's rate, even if nonzero.
+		{"rejected rate", true, func(e *FeedbackEvent) { e.Delivery.Valid = false }},
 		{"rejected interval", true, func(e *FeedbackEvent) { e.Delivery.Interval, e.Delivery.BytesPerSecond = 0, 0 }},
 		{"control: valid rate", true, func(*FeedbackEvent) {}},
 		{"control: missing history", false, func(e *FeedbackEvent) {
@@ -302,7 +303,11 @@ func TestBBRPacketRoundsIgnoreRateValidity(t *testing.T) {
 				require.Equal(t, round+1, x.b.round)
 				require.Equal(t, bbrUp, x.b.phase, "Refill ends at the round boundary")
 				require.Equal(t, bbrAcksStarting, x.b.ackPhase)
-				require.Equal(t, e.Delivery.BytesPerSecond, x.b.fullBandwidth, "a rejected rate seeds no plateau baseline")
+				want := uint64(0)
+				if e.Delivery.Valid && e.Delivery.Interval > 0 {
+					want = e.Delivery.BytesPerSecond
+				}
+				require.Equal(t, want, x.b.fullBandwidth, "a rejected rate seeds no plateau baseline")
 			} else {
 				require.Equal(t, round, x.b.round)
 				require.Equal(t, bbrRefill, x.b.phase)
