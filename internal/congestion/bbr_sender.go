@@ -170,13 +170,15 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		e.RawRTT = 0
 		e.Delivery.Valid = false
 	}
+	// Startup, Drain and ProbeBW decide on the pre-update minimum; UpdateMinRTT
+	// then CheckProbeRTT follow them, as in the draft's per-ACK order.
 	oldProbeCap := b.probeRTTTarget()
-	expired := false
-	if clockValid && e.HasAck {
-		expired = b.updateRTT(e.Time, e.RawRTT)
+	updateRTT := func() bool {
+		return clockValid && e.HasAck && b.updateRTT(e.Time, e.RawRTT)
 	}
 	s := e.Delivery
 	if !e.HasAck || s.Delivered < b.delivered {
+		updateRTT()
 		return
 	}
 	if clockValid {
@@ -194,6 +196,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
 			b.updateProbePhase(e, false, false)
 		}
+		expired := updateRTT()
 		if clockValid {
 			b.checkProbeRTT(e, expired, oldProbeCap)
 		}
@@ -266,6 +269,7 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		// Seed the next loss round after a phase entry has reset its signals.
 		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
 	}
+	expired := updateRTT()
 	if clockValid {
 		b.checkProbeRTT(e, expired, oldProbeCap)
 	}
