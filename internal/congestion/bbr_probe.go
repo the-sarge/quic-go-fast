@@ -82,10 +82,12 @@ func (b *BBRSender) updateProbeCycle(e FeedbackEvent, anchor PacketInfo, roundSt
 	}
 	// Only current, safe delivery evidence can raise a previously learned cap.
 	sampleLost := e.Delivery.Lost >= anchor.Delivery.Lost && e.Delivery.Lost-anchor.Delivery.Lost > uint64(max(0, anchor.Delivery.PostInFlight))/50
-	if sampleValid && !sampleLost && b.inflightLong != protocol.MaxByteCount {
-		b.inflightLong = max(b.inflightLong, anchor.Delivery.PostInFlight)
+	if !sampleLost && b.inflightLong != protocol.MaxByteCount {
+		if sampleValid {
+			b.inflightLong = max(b.inflightLong, anchor.Delivery.PostInFlight)
+		}
 		if b.phase == bbrUp {
-			b.raiseProbeInflight(e, roundStart)
+			b.raiseProbeInflight(e, roundStart, sampleValid)
 		}
 	}
 	b.updateProbePhase(e, roundStart, sampleValid)
@@ -188,14 +190,17 @@ func (b *BBRSender) raiseProbeSlope() {
 	b.probeUpRounds = min(b.probeUpRounds+1, 30)
 }
 
-func (b *BBRSender) raiseProbeInflight(e FeedbackEvent, roundStart bool) {
+// Bound growth is sample-owned; the slope follows every packet round.
+func (b *BBRSender) raiseProbeInflight(e FeedbackEvent, roundStart, sampleValid bool) {
 	if !b.roundWindowLimited() || b.window < b.inflightLong {
 		return
 	}
-	b.probeUpAcked = bbrBytes(uint64(b.probeUpAcked) + uint64(bbrBytes(e.Delivery.Delivered-b.delivered)))
-	delta := b.probeUpAcked / b.probeUpPerIncrement
-	b.probeUpAcked %= b.probeUpPerIncrement
-	b.inflightLong = bbrBytes(uint64(b.inflightLong) + bbrScale(uint64(delta), uint64(b.size), 1))
+	if sampleValid {
+		b.probeUpAcked = bbrBytes(uint64(b.probeUpAcked) + uint64(bbrBytes(e.Delivery.Delivered-b.delivered)))
+		delta := b.probeUpAcked / b.probeUpPerIncrement
+		b.probeUpAcked %= b.probeUpPerIncrement
+		b.inflightLong = bbrBytes(uint64(b.inflightLong) + bbrScale(uint64(delta), uint64(b.size), 1))
+	}
 	if roundStart {
 		b.raiseProbeSlope()
 	}

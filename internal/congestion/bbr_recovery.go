@@ -67,14 +67,15 @@ func (b *BBRSender) finishRecovery(e FeedbackEvent) {
 	}
 }
 
-// Persistent proof is transport-owned. CE is composed from the pre-event
-// outputs first; replacing the model must preserve that independent safety state.
+// A loss-driven exit from Startup or Up is the draft's undo_state.
 func (b *BBRSender) noteLossExit() {
 	if b.undo.valid {
 		b.undo.exited, b.undo.phase = true, b.phase
 	}
 }
 
+// Persistent proof is transport-owned. CE is composed from the pre-event
+// outputs first; replacing the model must preserve that independent safety state.
 func (b *BBRSender) restartPersistent(e FeedbackEvent) {
 	end := e.PersistentCongestion.EndOrdinal
 	if !e.HasAck || end == 0 || end <= b.persistentEnd {
