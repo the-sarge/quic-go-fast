@@ -86,6 +86,10 @@ func newECNOracle(t testing.TB) *ecnOracle {
 func (o *ecnOracle) check(op string) {
 	o.t.Helper()
 	o.ops++
+	// Capacity is representation, but the 4,096-record cap bounds memory too.
+	if cap(o.got.ranges) > maxECNMarkRanges {
+		require.LessOrEqual(o.t, cap(o.got.ranges), maxECNMarkRanges, "ledger capacity after op %d: %s", o.ops, op)
+	}
 	want, got := snapshotFrozenECN(o.frozen), snapshotECN(o.got)
 	if want.ecnScalars != got.ecnScalars || !slices.Equal(want.Ranges, got.Ranges) {
 		require.Equal(o.t, want, got, "snapshot diverged after op %d: %s", o.ops, op)
@@ -776,6 +780,32 @@ func TestBBRECNFeedbackCapEquivalence(t *testing.T) {
 		o.ack(ackOf(6, 0, 0, r(first+7, first+8)))
 		require.Len(t, o.got.ranges, maxECNMarkRanges)
 		require.False(t, o.got.evidenceLost)
+	})
+
+	t.Run("split growth keeps capacity within the cap", func(t *testing.T) {
+		o := newECNOracle(t)
+		o.mode(true)
+		b := &ecnLedgerBuilder{o: o}
+		b.send(protocol.ECNNon) // pins the prefix
+		// Acknowledge every fourth packet of one run: acked singles between
+		// unacked triples, ending in an unacked pair. Capacity is sized by
+		// the split, not by registration doubling.
+		const k = 1500
+		first, _ := b.send(repeatECN(protocol.ECT0, 4*k+3)...)
+		var ranges []wire.AckRange
+		for i := k; i >= 0; i-- {
+			pn := first + protocol.PacketNumber(4*i)
+			ranges = append(ranges, r(pn, pn))
+		}
+		o.ack(ackOf(k+1, 0, 0, ranges...))
+		require.Len(t, o.got.ranges, 2*k+3)
+		require.Equal(t, 2*k+3, cap(o.got.ranges))
+		anchor, _ := b.send(protocol.ECT0) // merges into the unacked pair
+		require.Len(t, o.got.ranges, 2*k+3)
+		// Splitting the tail and one triple grows past that capacity in the splice.
+		o.ack(ackOf(k+3, 0, 0, r(anchor, anchor), r(first+2, first+2)))
+		require.Len(t, o.got.ranges, 2*k+6)
+		require.LessOrEqual(t, cap(o.got.ranges), maxECNMarkRanges)
 	})
 
 	t.Run("overflow before compaction despite a reclaimable acked prefix", func(t *testing.T) {
