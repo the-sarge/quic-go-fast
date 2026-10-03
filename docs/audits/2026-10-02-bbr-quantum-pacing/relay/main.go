@@ -1,0 +1,253 @@
+// Local-only impairment relay for one Wayfinder demonstration. It applies the
+// frozen Q1 packet-path model between two loopback endpoints and never changes
+// host network state. It is a finite experiment aid, not a maintained emulator.
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"net"
+	"os"
+	"os/signal"
+	"sync/atomic"
+	"syscall"
+	"time"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
+	"q1campaign/model"
+)
+
+// IPv4 plus UDP headers: the model charges full IP packet bytes.
+const ipUDPHeader = 28
+
+type arrival struct {
+	at      time.Duration
+	forward bool
+	bytes   []byte
+	ecn     uint8
+}
+
+type directionReport struct {
+	Stats         model.Stats
+	ECNIn         [4]uint64
+	ECNOut        [4]uint64
+	MaxLateNS     int64
+	LateOver1ms   uint64
+	SendErrors    uint64
+	MaxPayload    int
+	TruncatedRead uint64
+}
+
+type report struct {
+	Scenario        string
+	Seed            uint64
+	Front, Back     string
+	Sender, Target  string
+	StartUnixNS     int64
+	EndUnixNS       int64
+	Forward         directionReport
+	Reverse         directionReport
+	MaxArrivalLagNS int64
+	// Occupancy samples every 10 ms of model time: [ms, forward bytes, reverse bytes].
+	QueueSamples [][3]int64
+	// Forward delivery observability (v3), per 10 ms sample interval:
+	// [ms, packets written, largest single-wakeup batch, max lateness ns,
+	// cumulative forward overflow drops].
+	ForwardDelivery [][5]int64
+	// Forward packets written per relay wakeup: index = batch size (last bucket = 64+).
+	ForwardBatchHistogram [65]uint64
+	Error                 string `json:",omitempty"`
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func listen(addr string) (*net.UDPConn, error) {
+	a, err := net.ResolveUDPAddr("udp4", addr)
+	if err != nil {
+		return nil, err
+	}
+	c, err := net.ListenUDP("udp4", a)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := c.SyscallConn()
+	if err != nil {
+		return nil, err
+	}
+	var serr error
+	if err = raw.Control(func(fd uintptr) {
+		serr = errors.Join(unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_RECVTOS, 1),
+			unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF, 8<<20),
+			unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_SNDBUF, 8<<20))
+	}); err != nil {
+		return nil, err
+	}
+	return c, serr
+}
+
+func readECN(oob []byte) uint8 {
+	msgs, err := unix.ParseSocketControlMessage(oob)
+	if err != nil {
+		return 0
+	}
+	for _, m := range msgs {
+		if m.Header.Level == unix.IPPROTO_IP && m.Header.Type == unix.IP_RECVTOS && len(m.Data) > 0 {
+			return m.Data[0] & 3
+		}
+	}
+	return 0
+}
+
+func ecnOOB(ecn uint8) []byte {
+	b := make([]byte, unix.CmsgSpace(4))
+	h := (*unix.Cmsghdr)(unsafe.Pointer(&b[0]))
+	h.Level = unix.IPPROTO_IP
+	h.Type = unix.IP_TOS
+	h.SetLen(unix.CmsgLen(4))
+	data := b[unix.CmsgLen(0):]
+	data[0] = ecn
+	return b
+}
+
+func run() error {
+	scenario := flag.String("scenario", "S6", "frozen model scenario")
+	seed := flag.Uint64("seed", 1, "declared loss seed, shared by compared controllers")
+	front := flag.String("front", "127.0.0.1:24731", "address the sender dials")
+	back := flag.String("back", "127.0.0.1:24732", "address the receiver sees")
+	sender := flag.String("sender", "127.0.0.1:24722", "sender endpoint address")
+	target := flag.String("target", "127.0.0.1:24721", "receiver endpoint address")
+	startNS := flag.Int64("start-unix-ns", 0, "model time zero (measured start)")
+	until := flag.Duration("until", 0, "stop after this long since launch")
+	output := flag.String("output", "", "report JSON path")
+	flag.Parse()
+	fwd, err := model.Scenario(*scenario, true, 0, *seed, 1460)
+	if err != nil {
+		return err
+	}
+	rev, err := model.Scenario(*scenario, false, 0, *seed^0x9e3779b97f4a7c15, 1460)
+	if err != nil {
+		return err
+	}
+	a, err := listen(*front)
+	if err != nil {
+		return err
+	}
+	defer a.Close()
+	b, err := listen(*back)
+	if err != nil {
+		return err
+	}
+	defer b.Close()
+	senderAddr, _ := net.ResolveUDPAddr("udp4", *sender)
+	targetAddr, _ := net.ResolveUDPAddr("udp4", *target)
+	zero := time.Unix(0, *startNS)
+	rep := report{Scenario: *scenario, Seed: *seed, Front: *front, Back: *back, Sender: *sender, Target: *target, StartUnixNS: *startNS}
+	arrivals := make(chan arrival, 1<<16)
+	var truncated [2]atomic.Uint64
+	reader := func(c *net.UDPConn, forward bool, index int) {
+		for {
+			buf := make([]byte, ipUDPHeader+2048)
+			oob := make([]byte, 128)
+			n, oobn, flags, _, err := c.ReadMsgUDP(buf[ipUDPHeader:], oob)
+			if err != nil {
+				return
+			}
+			if flags&unix.MSG_TRUNC != 0 {
+				truncated[index].Add(1)
+				continue
+			}
+			arrivals <- arrival{time.Since(zero), forward, buf[:ipUDPHeader+n], readECN(oob[:oobn])}
+		}
+	}
+	go reader(a, true, 0)
+	go reader(b, false, 1)
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+	deadline := time.After(*until)
+	timer := time.NewTimer(time.Hour)
+	sampler := time.NewTicker(10 * time.Millisecond)
+	defer sampler.Stop()
+	var intervalPackets, intervalBatch, intervalLate int64
+	send := func(q *model.Queue, r *directionReport, conn *net.UDPConn, to *net.UDPAddr, out []model.Packet) {
+		now := time.Since(zero)
+		if r == &rep.Forward && len(out) > 0 {
+			rep.ForwardBatchHistogram[min(len(out), 64)]++
+			intervalPackets += int64(len(out))
+			intervalBatch = max(intervalBatch, int64(len(out)))
+			for _, p := range out {
+				intervalLate = max(intervalLate, int64(now-p.ScheduledAt))
+			}
+		}
+		for _, p := range out {
+			late := int64(now - p.ScheduledAt)
+			r.MaxLateNS = max(r.MaxLateNS, late)
+			if late > int64(time.Millisecond) {
+				r.LateOver1ms++
+			}
+			r.ECNOut[p.ECN&3]++
+			if _, _, err := conn.WriteMsgUDP(p.Bytes[ipUDPHeader:], ecnOOB(p.ECN&3), to); err != nil {
+				r.SendErrors++
+			}
+		}
+	}
+	// The model requires Advance(at) before Admit(at); arrivals use their
+	// read timestamp so scheduler delay cannot shrink queue occupancy.
+	advance := func(at time.Duration) {
+		send(fwd, &rep.Forward, b, targetAddr, fwd.Advance(at))
+		send(rev, &rep.Reverse, a, senderAddr, rev.Advance(at))
+	}
+	finish := func(e error) error {
+		rep.EndUnixNS = time.Now().UnixNano()
+		rep.Forward.Stats, rep.Reverse.Stats = fwd.Stats, rev.Stats
+		rep.Forward.TruncatedRead, rep.Reverse.TruncatedRead = truncated[0].Load(), truncated[1].Load()
+		if e != nil {
+			rep.Error = e.Error()
+		}
+		data, _ := json.MarshalIndent(rep, "", "  ")
+		if werr := os.WriteFile(*output, append(data, '\n'), 0o644); werr != nil {
+			return errors.Join(e, werr)
+		}
+		return e
+	}
+	fmt.Fprintln(os.Stderr, "relay ready")
+	for {
+		next := min(model.NextEvent(fwd), model.NextEvent(rev))
+		wait := time.Hour
+		if next != model.NoEvent {
+			wait = max(0, next-time.Since(zero))
+		}
+		timer.Reset(wait)
+		select {
+		case p := <-arrivals:
+			rep.MaxArrivalLagNS = max(rep.MaxArrivalLagNS, int64(time.Since(zero)-p.at))
+			advance(p.at)
+			q, r := fwd, &rep.Forward
+			if !p.forward {
+				q, r = rev, &rep.Reverse
+			}
+			r.ECNIn[p.ecn]++
+			r.MaxPayload = max(r.MaxPayload, len(p.bytes)-ipUDPHeader)
+			q.Admit(p.at, model.Packet{Bytes: p.bytes, ECN: p.ecn})
+		case <-timer.C:
+			advance(time.Since(zero))
+		case <-sampler.C:
+			now := time.Since(zero)
+			advance(now)
+			rep.QueueSamples = append(rep.QueueSamples, [3]int64{now.Milliseconds(), int64(model.QueueBytes(fwd)), int64(model.QueueBytes(rev))})
+			rep.ForwardDelivery = append(rep.ForwardDelivery, [5]int64{now.Milliseconds(), intervalPackets, intervalBatch, intervalLate, int64(fwd.Stats.Overflow)})
+			intervalPackets, intervalBatch, intervalLate = 0, 0, 0
+		case <-deadline:
+			return finish(nil)
+		case <-stop:
+			return finish(nil)
+		}
+	}
+}
