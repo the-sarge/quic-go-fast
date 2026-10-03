@@ -8,6 +8,12 @@
   "m2": {
     "prev": "r1",
     "new": "r2",
-    "lead": 2
+    "lead": 2,
+    "outcome": "keep"
+  },
+  "m3": {
+    "prev": "r2",
+    "new": "r3",
+    "lead": 3
   }
 }
