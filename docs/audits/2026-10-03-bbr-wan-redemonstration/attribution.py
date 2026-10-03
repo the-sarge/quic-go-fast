@@ -244,6 +244,102 @@ def heapsites():
     return cells
 
 
+# ---- profiles ---------------------------------------------------------------
+ALLOC_GC = re.compile(r'^runtime\.(mallocgc\w*|gcBgMarkWorker|gcDrain\w*|scanobject|greyobject|scanblock|findObject|wbBuf\w*|gcWriteBarrier\w*'
+                      r'|bulkBarrier\w*|memclrNoHeapPointers|sweepone|bgsweep|nextFreeFast|heapSetType\w*|gcmarknewobject|markroot\w*|newobject|makeslice)$'
+                      r'|^runtime\.\(\*(mspan|mcache|mcentral|mheap|gcWork|gcBits)\)\.|^internal/runtime/maps\.')
+SCHEDULER = re.compile(r'^runtime\.(schedule|findRunnable|park_m|notesleep|notewakeup|kevent|pthread_cond_\w+|semasleep|semawakeup|stealWork'
+                       r'|runqgrab|runqsteal|netpoll|wakep|startm|stopm|mPark|usleep|osyield)$')
+
+
+def flat_ms(binary, profile):
+    out = subprocess.run(['go', 'tool', 'pprof', '-top', '-nodecount', '2000', '-unit', 'ms', str(binary), str(profile)],
+                         capture_output=True, text=True, check=True).stdout
+    res, started = {}, False
+    for line in out.splitlines():
+        if line.strip().startswith('flat'):
+            started = True
+            continue
+        if started and line.strip():
+            parts = line.split(None, 5)
+            res[parts[5].replace(' (inline)', '')] = float(parts[0].rstrip('ms'))
+    return res
+
+
+def cpu_group(fn):
+    if ALLOC_GC.search(fn):
+        return 'alloc_gc'
+    if BOOKKEEPING.search(fn) or re.search(r'quic-go\.\(\*(bbrSendPolicy|localSendCredit|sendReservation)\)', fn):
+        return 'bbr'
+    if SCHEDULER.search(fn):
+        return 'scheduler'
+    if fn.startswith('syscall.'):
+        return 'syscall'
+    return 'other'
+
+
+def profiles():
+    rows = load('profiles')
+    cells = []
+    for workload in ['stream', 'datagram']:
+        for block in sorted({r['pair'] for r in rows if r['workload'] == workload}):
+            b = {r['variant']: r for r in rows if (r['workload'], r['pair']) == (workload, block)}
+            entry = dict(workload=workload, block=block)
+            per = {}
+            for v, r in b.items():
+                gib = r['useful_bytes'] / 2**30
+                d = OBS / r['id']
+                binary = ART / 'bin' / f'{v}-fixture'
+                cpu = flat_ms(binary, d / 'send.cpu.pprof')
+                groups = {}
+                for f, x in cpu.items():
+                    groups[cpu_group(f)] = groups.get(cpu_group(f), 0) + x / gib
+                prof_total = sum(cpu.values()) / 1e3
+                per[v] = dict(groups=groups, sampled_share=prof_total / r['send']['total_cpu_seconds'],
+                              top4_share=sum(sorted(cpu.values())[-4:]) / sum(cpu.values()),
+                              alloc={f: x / gib for f, x in sites_index(binary, d / 'send.alloc.pprof', 'alloc_space').items()},
+                              packets=r['relay']['forward']['stats']['Received'], useful_bytes=r['useful_bytes'],
+                              instructions=r['send']['counters']['instructions'])
+            diff = {g: per['cand']['groups'].get(g, 0) - per['reno']['groups'].get(g, 0) for g in set(per['cand']['groups']) | set(per['reno']['groups'])}
+            pos = sum(v for v in diff.values() if v > 0)
+            adiff = {f: per['cand']['alloc'].get(f, 0) - per['reno']['alloc'].get(f, 0) for f in set(per['cand']['alloc']) | set(per['reno']['alloc'])}
+            entry.update(cpu_ms_per_gib_excess=diff, cpu_positive_share={g: v / pos for g, v in diff.items() if v > 0},
+                         sampled_share={v: per[v]['sampled_share'] for v in per}, top4_leaf_share={v: per[v]['top4_share'] for v in per},
+                         alloc_excess_mib_per_gib=sum(adiff.values()) / 2**20,
+                         alloc_top_sites=[[f, x / 2**20] for f, x in sorted(adiff.items(), key=lambda kv: -kv[1])[:4]])
+            cells.append(entry)
+    return cells
+
+
+def sites_index(binary, profile, index):
+    out = subprocess.run(['go', 'tool', 'pprof', '-top', '-nodecount', '400', '-sample_index', index, '-unit', 'B', '-hide', '^runtime\\.',
+                          str(binary), str(profile)], capture_output=True, text=True, check=True).stdout
+    res, started = {}, False
+    for line in out.splitlines():
+        if line.strip().startswith('flat'):
+            started = True
+            continue
+        if started and line.strip():
+            parts = line.split(None, 5)
+            res[parts[5]] = float(parts[0].rstrip('B'))
+    return res
+
+
+def per_packet():
+    """Size the counters-stage sender excess per forward packet."""
+    rows = load('counters')
+    out = {}
+    for workload in ['stream', 'datagram']:
+        for name in ['reno-reno', 'cand-bbrv3']:
+            sel = [r for r in rows if r['workload'] == workload and arm(r) == name]
+            pk = [r['relay']['forward']['stats']['Received'] for r in sel]
+            out[f'{workload}/{name}'] = dict(
+                instructions_per_packet=statistics.median(r['send']['counters']['instructions'] / p for r, p in zip(sel, pk)),
+                cycles_per_packet=statistics.median(r['send']['counters']['cycles'] / p for r, p in zip(sel, pk)),
+                allocated_bytes_per_packet=statistics.median(r['send']['allocated_gib_per_gib'] * r['useful_bytes'] / p for r, p in zip(sel, pk)))
+    return out
+
+
 if __name__ == '__main__':
     stages = sys.argv[1:] or ['counters', 'timeline', 'heapsites']
     path = HERE / 'attribution.json'
@@ -276,4 +372,14 @@ if __name__ == '__main__':
                   f"excess {c['excess_mib']:.2f} groups {{{', '.join(f'{k}: {v:.2f}' for k, v in c['group_mib'].items())}}} -> {c['classification']}")
             for f, v, g in c['top_sites'][:6]:
                 print(f"     {v:7.3f} MiB {g:11} {f}")
+    if 'profiles' in stages:
+        out['profiles'] = profiles()
+        out['per_packet'] = per_packet()
+        for c in out['profiles']:
+            print(f"profiles {c['workload']:8} b{c['block']} sampled {c['sampled_share']['reno']:.2f}/{c['sampled_share']['cand']:.2f} "
+                  f"top4 {c['top4_leaf_share']['reno']:.2f}/{c['top4_leaf_share']['cand']:.2f} "
+                  f"cpu excess share {{{', '.join(f'{k}: {v:.2f}' for k, v in sorted(c['cpu_positive_share'].items()))}}} "
+                  f"alloc excess {c['alloc_excess_mib_per_gib']:.0f} MiB/GiB top {[(f.split('/')[-1], round(x)) for f, x in c['alloc_top_sites'][:2]]}")
+        for k, v in out['per_packet'].items():
+            print('per_packet', k, {kk: round(vv) for kk, vv in v.items()})
     path.write_text(json.dumps(out, indent=1) + '\n')
