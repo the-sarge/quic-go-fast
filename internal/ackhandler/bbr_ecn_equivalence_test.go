@@ -400,7 +400,9 @@ func (s *ecnSequence) chaoticAck() {
 		return
 	}
 	var largest protocol.PacketNumber
-	if s.c.IntN(4) == 0 {
+	if s.chaotic && s.c.IntN(40) == 0 {
+		largest = protocol.PacketNumber(s.c.IntN(int(s.nextPN))) // may be skipped: missing anchor
+	} else if s.c.IntN(4) == 0 {
 		largest = s.sent[s.c.IntN(len(s.sent))].pn
 	} else if s.pin && len(s.sent) == 1 {
 		return
@@ -680,7 +682,9 @@ func TestBBRECNFeedbackAdversarialEquivalence(t *testing.T) {
 	t.Run("right edge never merges with the right neighbour", func(t *testing.T) {
 		// Records beyond LargestAcked are newer than the watermark, so they are
 		// never acked, and the window's last output keeps the properties of the
-		// record it came from. Exercise both endings of the anchor record.
+		// record it came from. No in-domain ledger can make the right neighbour
+		// mergeable, so this case only pins the outcome for both endings of the
+		// anchor record; it cannot discriminate a missing right neighbour.
 		for _, tail := range []bool{false, true} {
 			o := newECNOracle(t)
 			b := &ecnLedgerBuilder{o: o}
@@ -696,6 +700,21 @@ func TestBBRECNFeedbackAdversarialEquivalence(t *testing.T) {
 			require.Equal(t, protocol.PacketNumber(7), o.got.ranges[len(o.got.ranges)-1].first)
 			require.False(t, o.got.ranges[len(o.got.ranges)-1].acked)
 		}
+	})
+
+	t.Run("missing anchor at an interior skipped number", func(t *testing.T) {
+		o := newECNOracle(t)
+		o.mode(true)
+		b := &ecnLedgerBuilder{o: o}
+		b.send(protocol.ECNNon)
+		b.send(repeatECN(protocol.ECT0, 5)...) // 1..5
+		b.pn++                                 // 6 skipped
+		b.send(protocol.ECT1, protocol.ECT0)   // 7, 8
+		before := slices.Clone(o.got.ranges)
+		res := o.ack(ackOf(3, 0, 0, r(6, 6), r(2, 4)))
+		require.True(t, res.Failed)
+		require.True(t, o.got.evidenceLost)
+		require.Equal(t, before, o.got.ranges, "a missing anchor leaves the window unspliced")
 	})
 
 	t.Run("interior right merge into an acked record", func(t *testing.T) {
@@ -761,6 +780,14 @@ func TestBBRECNFeedbackCapEquivalence(t *testing.T) {
 	t.Run("combined invalid counters and over-cap split", func(t *testing.T) {
 		o := splitTo(t, maxECNMarkRanges+1, func(f *wire.AckFrame) { f.ECT0 = 1 << 20 })
 		require.True(t, o.got.counterFailed, "counter validation precedes the budget")
+		require.False(t, o.got.evidenceLost)
+	})
+
+	t.Run("delta-coverage failure precedes an over-cap split", func(t *testing.T) {
+		// Counters pass the consistency checks but cover fewer packets than
+		// the ACK newly acknowledges; the split would also exceed the budget.
+		o := splitTo(t, maxECNMarkRanges+1, func(f *wire.AckFrame) { f.ECT0 = m })
+		require.True(t, o.got.counterFailed, "delta coverage precedes the budget")
 		require.False(t, o.got.evidenceLost)
 	})
 

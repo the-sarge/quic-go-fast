@@ -205,6 +205,43 @@ func TestBBRECNFeedbackWorkStaysFlat(t *testing.T) {
 	})
 }
 
+// TestBBRECNFeedbackWorkScalesWithWindow varies the ACK's range count over
+// one record, showing inspections grow with records plus ranges, never with
+// their product, and with no work outside the window.
+func TestBBRECNFeedbackWorkScalesWithWindow(t *testing.T) {
+	var prev ecnLedgerWork
+	for i, n := range []int{1, 4, 16, 64, 256} {
+		o := newECNOracle(t)
+		o.bulk = true
+		o.mode(true)
+		b := &ecnLedgerBuilder{o: o}
+		b.send(protocol.ECNNon)
+		b.send(alternatingECN(1000)...) // unaffected prefix
+		b.ordinal++
+		w, _ := b.send(repeatECN(protocol.ECT0, 2*n)...)
+		b.ordinal++
+		b.send(alternatingECN(1000)...) // unaffected suffix
+		o.bulk = false
+		o.check("built")
+		var ranges []wire.AckRange
+		for k := n - 1; k >= 0; k-- {
+			pn := w + protocol.PacketNumber(2*k+1)
+			ranges = append(ranges, wire.AckRange{Smallest: pn, Largest: pn})
+		}
+		o.got.work = ecnLedgerWork{}
+		require.False(t, o.ack(ackOf(uint64(n), 0, 0, ranges...)).Failed)
+		work := o.got.work
+		t.Logf("ranges=%-4d window records=1 inspections=%-4d rewrites=%-4d relocated=%d", n, work.inspections, work.rewrites, work.relocated)
+		// Three window records (two neighbours) plus one per intersecting range.
+		require.Equal(t, uint64(3+n), work.inspections)
+		require.Equal(t, uint64(2+2*n), work.rewrites)
+		if i > 0 {
+			require.Equal(t, work.relocated, prev.relocated, "the same suffix moves once whatever the range count")
+		}
+		prev = work
+	}
+}
+
 func BenchmarkBBRECNFeedback(b *testing.B) {
 	for _, retained := range []int{0, 256, 4000} {
 		for _, reorder := range []bool{false, true} {

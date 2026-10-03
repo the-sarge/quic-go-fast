@@ -132,7 +132,9 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
 	// Only records overlapping [lowest, largest] can split. The ledger never
 	// holds two adjacent mergeable records, and affine ordinals make a merged
 	// record inherit its parts' mergeability, so a split can only create merges
-	// with the window's immediate neighbours. Include one on each side.
+	// with the window's immediate neighbours. Include one on each side. (The
+	// right one starts above the watermark, so it is never acked and never
+	// merges; it is kept as the design specifies.)
 	start, end := e.searchRanges(ack.LowestAcked()), e.searchRanges(largest+1)
 	if end < len(e.ranges) && e.ranges[end].first <= largest {
 		end++
