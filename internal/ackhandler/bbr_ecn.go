@@ -49,6 +49,18 @@ type bbrECNTracker struct {
 	watermark        protocol.PacketNumber
 	sent, accepted   congestion.ECNCounts
 	testingSent      uint64
+	scratch          []ecnMarkRange // reused rewrite window
+	work             ecnLedgerWork
+}
+
+// ecnLedgerWork counts physical ledger work, so tests can show that per-ACK
+// inspection and rewriting are bounded by the ACK's window, not the ledger.
+type ecnLedgerWork struct {
+	searchSteps     uint64 // binary-search probes locating the window
+	inspections     uint64 // window records visited plus record/ACK-range intersections
+	rewrites        uint64 // records written into the rewrite window
+	relocated       uint64 // unaffected suffix records moved by a length-changing splice
+	compactionMoves uint64 // retained records moved by prefix compaction
 }
 
 func (e *bbrECNTracker) mode(shortHeader bool) protocol.ECN {
@@ -116,27 +128,65 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
 		return result
 	}
 	counts := congestion.ECNCounts{ECT0: ack.ECT0, ECT1: ack.ECT1, CE: ack.ECNCE}
+	largest := ack.LargestAcked()
+	// Only records overlapping [lowest, largest] can split. The ledger never
+	// holds two adjacent mergeable records, and affine ordinals make a merged
+	// record inherit its parts' mergeability, so a split can only create merges
+	// with the window's immediate neighbours. Include one on each side.
+	start, end := e.searchRanges(ack.LowestAcked()), e.searchRanges(largest+1)
+	if end < len(e.ranges) && e.ranges[end].first <= largest {
+		end++
+	}
+	start, end = max(start-1, 0), min(end+1, len(e.ranges))
+	// Records ascend and wire-decoded ACK ranges descend without overlap, so one
+	// cursor over both counts new marks and computes the split window.
 	var newly congestion.ECNCounts
 	var anchor uint64
-	for _, r := range e.ranges {
-		for _, a := range ack.AckRanges {
-			first, last := max(r.first, a.Smallest), min(r.last, a.Largest)
-			if first > last {
-				continue
-			}
-			if last == ack.LargestAcked() {
+	e.scratch = e.scratch[:0]
+	j := len(ack.AckRanges) - 1
+	for _, r := range e.ranges[start:end] {
+		e.work.inspections++
+		for j >= 0 && ack.AckRanges[j].Largest < r.first {
+			j--
+		}
+		// Split only at ACK boundaries, retaining actual marks and affine ordinals.
+		cursor := r.first
+		for i := j; i >= 0 && ack.AckRanges[i].Smallest <= r.last; i-- {
+			e.work.inspections++
+			a := ack.AckRanges[i]
+			first, last := max(cursor, a.Smallest), min(r.last, a.Largest)
+			if last == largest {
 				anchor = r.ordinal + uint64(last-r.first)
 			}
-			if r.acked {
-				continue
+			if !r.acked {
+				n := uint64(last - first + 1)
+				if r.mark == protocol.ECT0 {
+					newly.ECT0 += n
+				}
+				if r.mark == protocol.ECT1 {
+					newly.ECT1 += n
+				}
 			}
-			n := uint64(last - first + 1)
-			if r.mark == protocol.ECT0 {
-				newly.ECT0 += n
+			if cursor < first {
+				part := r
+				part.first = cursor
+				part.last = first - 1
+				part.ordinal += uint64(cursor - r.first)
+				e.appendScratch(part)
 			}
-			if r.mark == protocol.ECT1 {
-				newly.ECT1 += n
-			}
+			part := r
+			part.first = first
+			part.last = last
+			part.ordinal += uint64(first - r.first)
+			part.acked = true
+			e.appendScratch(part)
+			cursor = last + 1
+		}
+		if cursor <= r.last {
+			part := r
+			part.first = cursor
+			part.ordinal += uint64(cursor - r.first)
+			e.appendScratch(part)
 		}
 	}
 	if counts.ECT0 < e.accepted.ECT0 || counts.ECT1 < e.accepted.ECT1 || counts.CE < e.accepted.CE || counts.ECT0 > e.sent.ECT0 || counts.ECT1 > e.sent.ECT1 || counts.CE > e.sent.ECT0+e.sent.ECT1-counts.ECT0-counts.ECT1 {
@@ -155,48 +205,14 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
 		result.Failed = true
 		return result
 	}
-	// Split only at ACK boundaries, retaining actual marks and affine ordinals.
-	var next []ecnMarkRange
-	for _, r := range e.ranges {
-		cursor := r.first
-		for i := len(ack.AckRanges) - 1; i >= 0; i-- {
-			a := ack.AckRanges[i]
-			first, last := max(cursor, a.Smallest), min(r.last, a.Largest)
-			if first > last {
-				continue
-			}
-			if cursor < first {
-				part := r
-				part.first = cursor
-				part.last = first - 1
-				part.ordinal += uint64(cursor - r.first)
-				if !e.appendRange(&next, part) {
-					result.Failed = true
-					return result
-				}
-			}
-			part := r
-			part.first = first
-			part.last = last
-			part.ordinal += uint64(first - r.first)
-			part.acked = true
-			if !e.appendRange(&next, part) {
-				result.Failed = true
-				return result
-			}
-			cursor = last + 1
-		}
-		if cursor <= r.last {
-			part := r
-			part.first = cursor
-			part.ordinal += uint64(cursor - r.first)
-			if !e.appendRange(&next, part) {
-				result.Failed = true
-				return result
-			}
-		}
+	// Charge the budget to the merged post-split ledger before mutating it, so
+	// overflow leaves the ledger exactly as it was.
+	if len(e.ranges)-(end-start)+len(e.scratch) > maxECNMarkRanges {
+		e.failEvidence()
+		result.Failed = true
+		return result
 	}
-	e.ranges = next
+	e.splice(start, end)
 	e.compact()
 	e.accepted, e.watermark = counts, ack.LargestAcked()
 	if (e.state == ecnStateTesting || e.state == ecnStateUnknown) && newly.ECT0+newly.ECT1 > 0 && delta.ECT0+delta.ECT1 > 0 {
@@ -207,6 +223,48 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
 	result.Failed = e.state == ecnStateFailed
 	result.Eligible = !e.draining && e.state == ecnStateCapable
 	return result
+}
+
+// searchRanges returns the index of the first record ending at or after pn.
+func (e *bbrECNTracker) searchRanges(pn protocol.PacketNumber) int {
+	lo, hi := 0, len(e.ranges)
+	for lo < hi {
+		e.work.searchSteps++
+		m := int(uint(lo+hi) >> 1)
+		if e.ranges[m].last < pn {
+			lo = m + 1
+		} else {
+			hi = m
+		}
+	}
+	return lo
+}
+
+func (e *bbrECNTracker) appendScratch(r ecnMarkRange) {
+	e.work.rewrites++
+	if n := len(e.scratch); n > 0 && extendsRange(&e.scratch[n-1], &r) {
+		e.scratch[n-1].last = r.last
+		return
+	}
+	e.scratch = append(e.scratch, r)
+}
+
+// splice replaces ranges[start:end] with the rewritten window in place. A
+// length change relocates the unaffected suffix with one bulk move.
+func (e *bbrECNTracker) splice(start, end int) {
+	old, n := len(e.ranges), len(e.ranges)-(end-start)+len(e.scratch)
+	if n > cap(e.ranges) {
+		grown := make([]ecnMarkRange, old, min(maxECNMarkRanges, max(n, 2*cap(e.ranges))))
+		copy(grown, e.ranges)
+		e.ranges = grown
+	}
+	if n != old {
+		e.work.relocated += uint64(old - end)
+	}
+	e.ranges = e.ranges[:max(n, old)]
+	copy(e.ranges[start+len(e.scratch):], e.ranges[end:old])
+	copy(e.ranges[start:], e.scratch)
+	e.ranges = e.ranges[:n]
 }
 
 // All ACKed marked records were covered by accepted counter increments. Only
@@ -224,6 +282,9 @@ func (e *bbrECNTracker) compact() {
 		}
 		e.compactedOrdinal = r.ordinal + count - 1
 		n++
+	}
+	if n > 0 {
+		e.work.compactionMoves += uint64(len(e.ranges) - n)
 	}
 	copy(e.ranges, e.ranges[n:])
 	clear(e.ranges[len(e.ranges)-n:])
@@ -272,7 +333,7 @@ func (e *bbrECNTracker) resetPath(generation uint64) {
 func (e *bbrECNTracker) appendRange(ranges *[]ecnMarkRange, r ecnMarkRange) bool {
 	if n := len(*ranges); n > 0 {
 		last := &(*ranges)[n-1]
-		if last.last+1 == r.first && last.mark == r.mark && last.generation == r.generation && last.acked == r.acked && last.ordinal+uint64(r.first-last.first) == r.ordinal {
+		if extendsRange(last, &r) {
 			last.last = r.last
 			return true
 		}
@@ -288,6 +349,11 @@ func (e *bbrECNTracker) appendRange(ranges *[]ecnMarkRange, r ecnMarkRange) bool
 	}
 	*ranges = append(*ranges, r)
 	return true
+}
+
+// extendsRange reports whether r continues prev as one equivalent record.
+func extendsRange(prev, r *ecnMarkRange) bool {
+	return prev.last+1 == r.first && prev.mark == r.mark && prev.generation == r.generation && prev.acked == r.acked && prev.ordinal+uint64(r.first-prev.first) == r.ordinal
 }
 
 // Counter consistency is connection-wide; a new address cannot repair invalid
