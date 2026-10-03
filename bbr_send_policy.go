@@ -59,11 +59,13 @@ func ceilSendDelay(deficit, rate uint64) uint64 {
 	return d
 }
 
+// deadline returns zero when credit covers size. Otherwise the next opportunity
+// is when credit reaches a full quantum, so each wakeup can release Q.
 func (p *bbrSendPolicy) deadline(size protocol.ByteCount, now monotime.Time) monotime.Time {
 	if p.budget(now) >= size {
 		return 0
 	}
-	return now.Add(time.Duration(ceilSendDelay(uint64(int64(size)*1e9-p.tokens), p.rate)))
+	return now.Add(time.Duration(ceilSendDelay(uint64(int64(p.quantum)*1e9-p.tokens), p.rate)))
 }
 
 func (p *bbrSendPolicy) sent(size protocol.ByteCount, now monotime.Time) {
