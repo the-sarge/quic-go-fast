@@ -179,6 +179,29 @@ def arm_of(meta, controller, prev, new):
     raise ValueError(meta)
 
 
+def complete(x):
+    return x is not None and len(x) == len(ARMS) and all(x[k]['usable'] for k in ARMS)
+
+
+def clean(x):
+    return complete(x) and not any(x[k]['contamination'].get('contaminated') for k in ARMS)
+
+
+def choose_block(orig, rerun):
+    """Deviation 5 (operator decision after m3): a block that is unusable or contaminated is rerun
+    once; the rerun replaces it only when the rerun is usable and uncontaminated. Otherwise the
+    original is used if usable (contamination sensitivity still applies), else the rerun if usable."""
+    if clean(orig):
+        return orig, 'original'
+    if clean(rerun):
+        return rerun, 'rerun'
+    if complete(orig):
+        return orig, 'original'
+    if complete(rerun):
+        return rerun, 'rerun'
+    return None, 'unusable'
+
+
 def load_stage(stage, prev, new):
     """Observations of one measurement, with a rerun block replacing an unusable original."""
     obs, integrity, failures = {}, True, []
@@ -205,9 +228,8 @@ def load_stage(stage, prev, new):
     for wl in ['stream', 'datagram']:
         blocks = []
         for b in range(1, 7):
-            orig, rerun = obs.get((stage, wl, b), {}), obs.get((stage + 'rerun', wl, b))
-            ok = lambda x: x is not None and len(x) == len(ARMS) and all(x[k]['usable'] for k in ARMS)
-            chosen, source = (orig, 'original') if ok(orig) else ((rerun, 'rerun') if ok(rerun) else (None, 'unusable'))
+            chosen, source = choose_block(obs.get((stage, wl, b), {}), obs.get((stage + 'rerun', wl, b)))
+            orig = obs.get((stage, wl, b), {})
             report.append(dict(workload=wl, block=b, source=source,
                                contaminated=[x['id'] for x in (chosen or orig).values() if x['contamination'].get('contaminated')]))
             if chosen:

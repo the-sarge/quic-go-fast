@@ -14,6 +14,7 @@
   "m3": {
     "prev": "r2",
     "new": "r3",
-    "lead": 3
+    "lead": 3,
+    "note": "blocks 5 and 6 rerun under deviation 5"
   }
 }

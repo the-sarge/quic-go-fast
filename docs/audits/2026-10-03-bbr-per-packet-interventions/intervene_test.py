@@ -100,6 +100,24 @@ class Work(unittest.TestCase):
         self.assertEqual(r['outcome'], 'negative')
 
 
+class BlockChoice(unittest.TestCase):
+    def arms(self, usable=True, contaminated=False):
+        return {k: {'usable': usable, 'contamination': {'contaminated': contaminated}} for k in I.ARMS}
+
+    def test_clean_original_is_kept(self):
+        self.assertEqual(I.choose_block(self.arms(), self.arms())[1], 'original')
+
+    def test_clean_rerun_replaces_contaminated_original(self):
+        self.assertEqual(I.choose_block(self.arms(contaminated=True), self.arms())[1], 'rerun')
+
+    def test_contaminated_rerun_keeps_original(self):
+        self.assertEqual(I.choose_block(self.arms(contaminated=True), self.arms(contaminated=True))[1], 'original')
+
+    def test_unusable_original_falls_back_to_rerun(self):
+        self.assertEqual(I.choose_block(self.arms(usable=False), self.arms(contaminated=True))[1], 'rerun')
+        self.assertEqual(I.choose_block(self.arms(usable=False), None)[1], 'unusable')
+
+
 class Preservation(unittest.TestCase):
     def test_reno_regression_blocks_keep(self):
         s = series(0.97, 0.002)
