@@ -22,6 +22,8 @@ step() {
 step go vet ./...
 step go test ./internal/ackhandler/... ./internal/congestion/... -count=1
 step go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+# #706's work-scaling bounds build only with the counting tag.
+step go test -tags bbrworkcount ./internal/ackhandler/ -count=1
 step go test . -run "$root_subset" -count=1
 step go test -race . -run "$root_subset" -count=1
 # Full root package: tallied outcomes, with go test's own exit status.

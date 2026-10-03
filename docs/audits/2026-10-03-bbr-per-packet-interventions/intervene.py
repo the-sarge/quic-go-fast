@@ -165,8 +165,9 @@ def endpoint_metrics(row, role, packets):
     return out
 
 
-def arm_of(meta, prev, new):
-    v, c, t = meta['variant'], meta['controller'], meta.get('tag') or ''
+def arm_of(meta, controller, prev, new):
+    # #712's runner records the controller in the observation's summary, not in meta.json.
+    v, c, t = meta['variant'], controller, meta.get('tag') or ''
     if v == 'reno':
         return 'aa' if t == 'aa' else 'reno'
     if v == prev and c == 'bbrv3':
@@ -199,7 +200,7 @@ def load_stage(stage, prev, new):
             m = dict(id=d.name, usable=usable, contamination=cont, forward_packets=pk, goodput_mbps=row['goodput_mbps'])
             if usable:
                 m.update(send=endpoint_metrics(row, 'send', pk), receive=endpoint_metrics(row, 'receive', pk))
-            obs.setdefault((phase, row['workload'], meta['pair']), {})[arm_of(meta, prev, new)] = m
+            obs.setdefault((phase, row['workload'], meta['pair']), {})[arm_of(meta, row['controller'], prev, new)] = m
     per_workload, report = {}, []
     for wl in ['stream', 'datagram']:
         blocks = []

@@ -1,0 +1,4 @@
+# Addendum for r1 at 3ec522dd5e9c07c0e2016fbafd8e89bce5b4ea46 (code identical to b8b5aaae): the tagged #706 work-scaling gate
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	18.435s
+# exit 0
