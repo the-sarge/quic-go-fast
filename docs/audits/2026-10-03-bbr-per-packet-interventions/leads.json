@@ -1,0 +1,36 @@
+{
+  "unit": "Gcycles per useful GiB, candidate minus Reno, median of 3 blocks, inclusive",
+  "source": "4323dae8:docs/audits/2026-10-03-bbr-linux-diagnostic/raw.tar.gz",
+  "leads": {
+    "stream": {
+      "total": 5.007,
+      "1 synchronization crossings / connection-loop select": 0.611,
+      "1 synchronization crossings / timer re-arm (maybeResetTimer)": 0.402,
+      "1 synchronization crossings / ECN mode credit read (enableBBRECN callback)": 0.256,
+      "1 synchronization crossings / pending-bytes credit read (enableBBR callback)": 0.127,
+      "2 delivery-record map / captureCongestionSend": 0.769,
+      "2 delivery-record map / beginCongestionFeedback": 0.38,
+      "2 delivery-record map / map operations under BBR dispatch": 0.497,
+      "3 recovery-evidence lookups / recoveryEvidence methods": 0.671,
+      "3 recovery-evidence lookups / lowerBound": 0.253,
+      "4 capability queries / capabilities": 0.431,
+      "5 send-credit reservations / localSendCredit.reserve": 0.184,
+      "5 send-credit reservations / sendReservation.resize": 0.19
+    },
+    "datagram": {
+      "total": 4.565,
+      "1 synchronization crossings / connection-loop select": 0.733,
+      "1 synchronization crossings / timer re-arm (maybeResetTimer)": 0.412,
+      "1 synchronization crossings / ECN mode credit read (enableBBRECN callback)": 0.349,
+      "1 synchronization crossings / pending-bytes credit read (enableBBR callback)": 0.125,
+      "2 delivery-record map / captureCongestionSend": 0.87,
+      "2 delivery-record map / beginCongestionFeedback": 0.401,
+      "2 delivery-record map / map operations under BBR dispatch": 0.559,
+      "3 recovery-evidence lookups / recoveryEvidence methods": 0.419,
+      "3 recovery-evidence lookups / lowerBound": 0.116,
+      "4 capability queries / capabilities": 0.538,
+      "5 send-credit reservations / localSendCredit.reserve": 0.221,
+      "5 send-credit reservations / sendReservation.resize": 0.248
+    }
+  }
+}
