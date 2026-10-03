@@ -178,14 +178,25 @@ func atLeast(i, from int) int {
 
 // spaceSlots lists one packet-number space's ring slots in registration order.
 // Packet numbers are monotonic within a space, so the list is sorted by number.
+// spaceSlots lists one space's ring slots in registration order. Packet numbers
+// rise strictly through it; first, last and gaps (the numbers in [first, last]
+// with no entry) let lowerBound bracket a packet number's index directly.
 type spaceSlots struct {
-	slots   []uint16
-	head, n int
+	slots       []uint16
+	head, n     int
+	first, last protocol.PacketNumber
+	gaps        int64
 }
 
 func (q *spaceSlots) at(i int) int { return int(q.slots[(q.head+i)&(len(q.slots)-1)]) }
 
-func (q *spaceSlots) push(slot int) {
+func (q *spaceSlots) push(slot int, pn protocol.PacketNumber) {
+	if q.n == 0 {
+		q.first, q.last, q.gaps = pn, pn, 0
+	} else {
+		q.gaps += int64(pn - q.last - 1)
+		q.last = pn
+	}
 	if q.n == len(q.slots) {
 		grown := make([]uint16, max(64, 2*len(q.slots)))
 		for i := range q.n {
@@ -197,9 +208,17 @@ func (q *spaceSlots) push(slot int) {
 	q.n++
 }
 
-func (q *spaceSlots) popFront() {
+// popFront removes the front slot; outcomes supplies the new front's number.
+func (q *spaceSlots) popFront(outcomes []recoveryOutcome) {
 	q.head = (q.head + 1) & (len(q.slots) - 1)
 	q.n--
+	if q.n == 0 {
+		q.first, q.last, q.gaps = 0, 0, 0
+		return
+	}
+	next := outcomes[q.at(0)].number
+	q.gaps -= int64(next - q.first - 1)
+	q.first = next
 }
 
 // recoveryIndex holds the outcome ring and every derived index. It is

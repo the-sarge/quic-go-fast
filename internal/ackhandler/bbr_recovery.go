@@ -1,7 +1,6 @@
 package ackhandler
 
 import (
-	"maps"
 	"time"
 	"unsafe"
 
@@ -53,8 +52,24 @@ type recoveryEvidence struct {
 	unconfirmedLoss bool
 	// Packet numbers are monotonic within each of the three spaces. These
 	// boundary witnesses survive optional sampler and outcome-ring eviction.
-	latestPackets   map[protocol.EncryptionLevel]protocol.PacketNumber
-	boundaryPackets map[protocol.EncryptionLevel]protocol.PacketNumber
+	latestPackets   spacePackets
+	boundaryPackets spacePackets
+}
+
+// spacePackets holds one packet number per space, each absent until noted.
+type spacePackets struct {
+	number [3]protocol.PacketNumber
+	noted  [3]bool
+}
+
+func (w *spacePackets) note(space protocol.EncryptionLevel, pn protocol.PacketNumber) {
+	s := recoverySpace(space)
+	w.number[s], w.noted[s] = pn, true
+}
+
+func (w *spacePackets) get(space protocol.EncryptionLevel) (protocol.PacketNumber, bool) {
+	s := recoverySpace(space)
+	return w.number[s], w.noted[s]
 }
 
 // currentPathRecoveryReceipt is the single admission rule for episode-exit
@@ -86,7 +101,6 @@ func (r *recoveryEvidence) logical(p int) int { return (p - r.head) & recoverySl
 func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
 	if r.index == nil {
 		r.index = &recoveryIndex{outcomes: make([]recoveryOutcome, maxRecoveryOutcomes)}
-		r.latestPackets = make(map[protocol.EncryptionLevel]protocol.PacketNumber, 3)
 	}
 	x := r.index
 	slot := r.slot(r.count)
@@ -110,10 +124,10 @@ func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
 	}
 	x.outcomes[slot] = o
 	s := recoverySpace(key.space)
-	x.spaces[s].push(slot)
+	x.spaces[s].push(slot, key.number)
 	x.pending[s].set(slot)
 	x.eligible[s].assign(slot, o.receiptEligible)
-	r.latestPackets[key.space] = key.number
+	r.latestPackets.note(key.space, key.number)
 }
 
 // evict removes the oldest outcome while it still occupies logical position 0.
@@ -127,7 +141,7 @@ func (r *recoveryEvidence) evict(p int) {
 	x.pending[s].clear(p)
 	x.eligible[s].clear(p)
 	x.ptoPending[s].clear(p)
-	x.spaces[s].popFront()
+	x.spaces[s].popFront(x.outcomes)
 }
 
 func (r *recoveryEvidence) setState(p int, state recoveryOutcomeState) {
@@ -163,7 +177,17 @@ func (r *recoveryEvidence) find(key congestionPacketKey) int {
 }
 
 func (r *recoveryEvidence) lowerBound(q *spaceSlots, pn protocol.PacketNumber) int {
-	lo, hi := 0, q.n
+	if q.n == 0 || pn <= q.first {
+		return 0
+	}
+	if pn > q.last {
+		return q.n
+	}
+	// Entry i holds a number in [first+i, first+i+gaps], so the first entry at or
+	// above pn lies in [d-gaps, min(n, d)] for d = pn-first. Without skipped
+	// numbers the bracket is empty and the answer is d.
+	d := int64(pn - q.first)
+	lo, hi := int(max(0, d-q.gaps)), int(min(int64(q.n), d))
 	for lo < hi {
 		countNodes(1)
 		mid := int(uint(lo+hi) >> 1)
@@ -190,15 +214,15 @@ func (r *recoveryEvidence) lost(key congestionPacketKey, congestionLoss, retaine
 	if !r.episode.Active {
 		r.episode = congestion.RecoveryEpisode{ID: r.episode.ID + 1, Boundary: boundary, Active: true, Entered: true, UndoPossible: true}
 		r.members = make(map[uint64]struct{})
-		r.boundaryPackets = maps.Clone(r.latestPackets)
+		r.boundaryPackets = r.latestPackets
 	}
 	// Loss ordering is a transport fact, independent of retained delivery
 	// evidence. A per-space packet-number witness proves which side of the
 	// frozen ordinal boundary this transmission occupies without guessing its
 	// missing ordinal from the newest registration.
-	if pn, ok := r.boundaryPackets[key.space]; !ok || key.number > pn {
+	if pn, ok := r.boundaryPackets.get(key.space); !ok || key.number > pn {
 		r.episode.Boundary = boundary
-		r.boundaryPackets = maps.Clone(r.latestPackets)
+		r.boundaryPackets = r.latestPackets
 	}
 	if !known || !retained {
 		r.invalidateUndo()
