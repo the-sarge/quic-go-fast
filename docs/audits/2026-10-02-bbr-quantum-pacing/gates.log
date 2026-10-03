@@ -1,0 +1,7 @@
+## gates on fc4c1bf1 tree (source files identical at 3ac1d97e; only docs changed since), go version go1.27.1 darwin/arm64
+vet: clean
+ok  	github.com/quic-go/quic-go/internal/ackhandler	18.697s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.235s
+ok  	github.com/quic-go/quic-go	1.287s
+root PASS lines: 1603
+ok  	github.com/quic-go/quic-go	1.318s
