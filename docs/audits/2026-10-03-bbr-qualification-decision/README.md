@@ -1,6 +1,6 @@
 # BBRv3 qualification decision after the WAN-corrected re-demonstration
 
-Status: proposed decision set for [Decide whether corrected BBRv3 deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/672), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Revised after a multi-agent consideration (RAS run `20261003T070954-c7b81c3ac6a0d7ebc5741518`); the [disposition table](#consideration-dispositions) records every finding. Not yet accepted by the operator. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
+Status: accepted decision set for [Decide whether corrected BBRv3 deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/672), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Revised after a multi-agent consideration (RAS run `20261003T070954-c7b81c3ac6a0d7ebc5741518`); the [disposition table](#consideration-dispositions) records every finding. Accepted by the operator on 2026-10-03. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
 
 Branch `codex/bbr-qualification-decision`, based on `dc252f8a` (the [WAN-corrected re-demonstration](../2026-10-03-bbr-wan-redemonstration/README.md) record, which contains the adopted C1–C4 + D1 + D2 candidate `fc4c1bf1` and its predecessors' records).
 
