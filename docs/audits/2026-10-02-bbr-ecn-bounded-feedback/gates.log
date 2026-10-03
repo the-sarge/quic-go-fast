@@ -1,0 +1,23 @@
+# Gates at 777ce739
+
+$ go vet ./...   (clean, no output)
+
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	18.825s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.141s
+
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	370.599s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.294s
+
+$ go test . -count=1 -v   (full root package, tallied)
+648 --- PASS:
+7 --- SKIP:
+1 ok github.com/quic-go/quic-go
+
+$ go test ./internal/ackhandler/ -run '^$' -fuzz FuzzBBRECNFeedbackFrozenEquivalence -fuzztime 180s
+fuzz: elapsed: 3m1s, execs: 6510499 (0/sec), new interesting: 112 (total: 363)
+PASS
+ok  	github.com/quic-go/quic-go/internal/ackhandler	181.201s
+
+# Earlier fuzz run at c75d3145: 9,402,404 execs, PASS
