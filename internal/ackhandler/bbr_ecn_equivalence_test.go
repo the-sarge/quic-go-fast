@@ -64,6 +64,7 @@ type ecnOracle struct {
 	drained    bool
 	capable    bool
 	ops        int
+	drainReads int
 	stats      ecnOracleStats
 	// bulk defers registration snapshots to the next checked operation, for
 	// building large ledgers; results are still compared.
@@ -79,7 +80,16 @@ func newECNOracle(t testing.TB) *ecnOracle {
 	o := &ecnOracle{t: t, drained: true, capable: true}
 	path := func() (uint64, bool, bool) { return o.generation, o.drained, o.capable }
 	o.frozen = &frozenBBRECNTracker{path: path, watermark: protocol.InvalidPacketNumber}
-	o.got = &bbrECNTracker{path: path, watermark: protocol.InvalidPacketNumber}
+	// Outside the counter fence the bounded tracker may not use generation or
+	// drain state, so it receives wrong values there: any use diverges from the
+	// frozen tracker. Drain-state reads are counted against the fence.
+	o.got = &bbrECNTracker{path: func(drain bool) (uint64, bool, bool) {
+		if !drain {
+			return o.generation + 1<<40, !o.drained, o.capable
+		}
+		o.drainReads++
+		return o.generation, o.drained, o.capable
+	}, watermark: protocol.InvalidPacketNumber}
 	return o
 }
 
@@ -98,8 +108,12 @@ func (o *ecnOracle) check(op string) {
 
 func (o *ecnOracle) mode(shortHeader bool) protocol.ECN {
 	o.t.Helper()
+	draining, reads := o.got.draining, o.drainReads
 	want, got := o.frozen.mode(shortHeader), o.got.mode(shortHeader)
 	require.Equal(o.t, want, got, "mode(%t) diverged after op %d", shortHeader, o.ops)
+	if !draining {
+		require.Equal(o.t, reads, o.drainReads, "drain state read outside the counter fence after op %d", o.ops)
+	}
 	o.check(fmt.Sprintf("mode(%t)", shortHeader))
 	return got
 }
@@ -456,7 +470,7 @@ func TestBBRECNFeedbackFrozenEquivalence(t *testing.T) {
 	for _, rg := range regimes {
 		t.Run(rg.name, func(t *testing.T) {
 			var total ecnOracleStats
-			var ops, capable int
+			var ops, capable, drainReads int
 			for seed := range rg.seeds {
 				o := newECNOracle(t)
 				s := newECNSequence(o, rand.New(rand.NewPCG(uint64(seed), 0x709)), rg.fragment, seed%3 == 2 && !rg.fragment, rg.maxRanges)
@@ -471,6 +485,7 @@ func TestBBRECNFeedbackFrozenEquivalence(t *testing.T) {
 					s.ack()
 				}
 				ops += o.ops
+				drainReads += o.drainReads
 				st := o.stats
 				total.Accepted += st.Accepted
 				total.Deferred += st.Deferred
@@ -483,7 +498,7 @@ func TestBBRECNFeedbackFrozenEquivalence(t *testing.T) {
 				total.InsertCapFailures += st.InsertCapFailures
 				total.MaxLedger = max(total.MaxLedger, st.MaxLedger)
 			}
-			t.Logf("%s: seeds=%d ops=%d capable-at-end=%d %+v", rg.name, rg.seeds, ops, capable, total)
+			t.Logf("%s: seeds=%d ops=%d capable-at-end=%d drain-reads=%d %+v", rg.name, rg.seeds, ops, capable, drainReads, total)
 			for name, n := range map[string]int{"accepted": total.Accepted, "deferred": total.Deferred, "grew": total.Grew, "shrank": total.Shrank} {
 				require.NotZero(t, n, name)
 			}
@@ -491,6 +506,7 @@ func TestBBRECNFeedbackFrozenEquivalence(t *testing.T) {
 				require.NotZero(t, total.Compacted)
 				require.NotZero(t, total.CounterFailures)
 				require.NotZero(t, capable)
+				require.NotZero(t, drainReads, "the counter fence must read drain state")
 			}
 			if rg.fragment {
 				require.Equal(t, maxECNMarkRanges, total.MaxLedger, "the near-cap regime reaches the cap")

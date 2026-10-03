@@ -72,8 +72,9 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	}
 	d.expire(p.SendTime)
 	registrationValid := !p.SendTime.IsZero() && !p.SendTime.Before(d.registrationTime)
-	if registrationValid && p.IsAckEliciting() && !p.isPathProbePacket && d.pendingBytes() == 0 &&
-		(d.sampler.sendOrigin.IsZero() || (prior == 0 && d.sampler.outstanding == 0)) {
+	// The pending-bytes authority takes the local credit lock; ask it last.
+	if registrationValid && p.IsAckEliciting() && !p.isPathProbePacket &&
+		(d.sampler.sendOrigin.IsZero() || (prior == 0 && d.sampler.outstanding == 0)) && d.pendingBytes() == 0 {
 		// A lifecycle fence leaves no usable current-generation origin. Records
 		// sent while credit was pending have no origin either; fence those out
 		// before establishing a baseline, without disposing their recovery.

@@ -16,7 +16,7 @@ import (
 func newBBRECNTestHandler() (*sentPacketHandler, *congestionRecorder) {
 	r := &congestionRecorder{}
 	h := newCongestionTestHandler(r)
-	EnableBBRECN(h, func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
+	EnableBBRECN(h, func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
 	return h, r
 }
 
@@ -295,14 +295,14 @@ func TestBBRECNMigrationCounterFence(t *testing.T) {
 				wantUnmarked = protocol.ECNUnsupported
 			}
 			drained := false
-			h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, capable }
+			h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, capable }
 			// Initial validation doesn't require an old-generation drain.
-			h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
+			h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
 			first := sendBBRECNPacket(h, h.ECNMode(true), false)
 			ackBBRECN(t, h, ackRanges(first), 1, 0)
 			old := sendBBRECNPacket(h, h.ECNMode(true), false)
 			h.MigratedPath(monotime.Now(), 1200)
-			h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, capable }
+			h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, capable }
 			require.Equal(t, wantUnmarked, h.ECNMode(true))
 			ackBBRECN(t, h, ackRanges(old), 1, 1)
 			require.False(t, r.feedback[len(r.feedback)-1].ECN.Eligible)
@@ -346,7 +346,7 @@ func TestBBRECNRepeatedMigration(t *testing.T) {
 			first := sendBBRECNPacket(h, h.ECNMode(true), false)
 			ackBBRECN(t, h, ackRanges(first), 1, 0)
 			drained := !duringDrain
-			h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
+			h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
 			if duringDrain {
 				h.MigratedPath(monotime.Now(), 1200)
 			}
@@ -404,7 +404,7 @@ func TestBBRECNRepeatedMigration(t *testing.T) {
 	t.Run("no marked history waits only for old local debt", func(t *testing.T) {
 		h, _ := newBBRECNTestHandler()
 		drained := false
-		h.bbrECN.path = func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
+		h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
 		h.MigratedPath(monotime.Now(), 1200)
 		require.Equal(t, protocol.ECNNon, h.ECNMode(true))
 		drained = true

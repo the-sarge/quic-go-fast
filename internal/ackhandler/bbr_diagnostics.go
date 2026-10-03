@@ -22,7 +22,7 @@ func (h *sentPacketHandler) BBRDiagnostics() string {
 		state = "draining-counter-fence"
 	}
 	if !e.closed {
-		_, _, capable := e.path()
+		_, _, capable := e.path(false)
 		if !capable {
 			state = "unsupported"
 		}

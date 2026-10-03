@@ -51,7 +51,8 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 }
 
 // sendBounded performs at most one owned handoff per opportunity. Continuation
-// goes through the connection loop, which can service receive and close events.
+// goes through the connection loop, which services receive, timer and close
+// events on every pass.
 // ACK/PTO exemptions bypass only ordinary pacing, never local byte ownership.
 func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result emissionResult) {
 	defer func() {
@@ -190,7 +191,10 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		gsoSize = uint16(size)
 	}
 	e.handoff(buf, gsoSize, ecn, sendMetadata{})
-	return emissionResult{progress: true, retry: true, supplyExhausted: exhausted}
+	// Continue as Reno's receive-yield stop does: the connection makes its next
+	// full pass (close, receive, timers, capacity) without a scheduling token,
+	// timer re-arm or select between consecutive datagrams.
+	return emissionResult{progress: true, deadline: deadlineSendImmediately, supplyExhausted: exhausted}
 }
 
 // A refused ordinary or isolated-probe request must not suppress control

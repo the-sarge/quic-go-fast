@@ -8,11 +8,15 @@ func (e *packetEmission) enableBBRECN() {
 	if e.bbr == nil {
 		panic("BBR ECN requires local send ownership")
 	}
-	ackhandler.EnableBBRECN(*e.recovery, func() (uint64, bool, bool) {
+	ackhandler.EnableBBRECN(*e.recovery, func(drain bool) (uint64, bool, bool) {
+		capable := (*e.conn).capabilities().ECN
+		if !drain {
+			return 0, false, capable
+		}
 		credit := e.bbr.credit
 		credit.mu.Lock()
 		generation, drained := credit.generation, credit.pending == credit.current
 		credit.mu.Unlock()
-		return generation, drained, (*e.conn).capabilities().ECN
+		return generation, drained, capable
 	})
 }
