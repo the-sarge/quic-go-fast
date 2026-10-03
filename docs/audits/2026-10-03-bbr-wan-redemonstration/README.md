@@ -117,4 +117,27 @@ The stages use new seeds, retain every run and exclude none after outcomes are s
 
 An implementation defect identified here is fixed on a new revision, and the affected readiness comparisons are rerun on it. Contract-change causes are reported only.
 
+### Stage `profiles`: where the candidate sender's extra work is (D4 step 1 for `counters`)
+
+Registered after the `counters` stage and before this stage ran.
+
+`counters` found executed-work excess at the candidate sender: median instructions per useful GiB 1.132 (STREAM) and 1.139 (DATAGRAM), above 1 in all six blocks. Forward packets per useful GiB are 0.986–1.004× Reno and reverse packets 0.950–1.013×, so retransmission volume does not explain the excess. Instructions per forward packet are 1.09–1.17× Reno. The sender also allocates about 0.24–0.25 more bytes per useful byte than Reno in both workloads: 0.44–0.46 against 0.21 GiB/GiB for STREAM, and 1.94–1.95 against 1.69–1.70 for DATAGRAM.
+
+- **Runs.** S5, both workloads, three blocks (seeds 9501–9503). Arms: Reno and candidate, plain builds with CPU and allocation profiles, under `/usr/bin/time -l`. Profiles perturb the runs, so this stage gives attribution only.
+- **Hypotheses.**
+  - *H-alloc:* per-packet allocation in BBR-specific code, and the allocator and GC work it causes.
+  - *H-book:* the candidate's per-packet BBR bookkeeping computation, with no excess allocation.
+  - *H-sched:* runtime scheduling and wakeups from pacing.
+- **Comparison.** For each, sum the CPU samples per useful GiB, candidate minus Reno, over its function groups:
+  - allocator and GC: `runtime.mallocgc*`, `runtime.gcBgMarkWorker` and its descendants, write barriers;
+  - BBR code: `internal/congestion` BBR, plus the ackhandler sampler, recovery, retained, ECN and congestion-dispatch functions, as self time excluding allocator frames;
+  - scheduler: `runtime.schedule`, `findRunnable`, `park_m`, `notesleep` and `notewakeup`, `kevent` and `pthread_cond*`.
+
+  Also compare allocated bytes per useful GiB by allocation site.
+- **Decision.** A group accounting for at least 50% of the summed positive excess is the leading hypothesis.
+  - If H-alloc leads, the single largest excess allocation site is the defect candidate. It is classified as implementation churn when the allocation is not required by a design bound: a per-packet or per-opportunity heap object whose contents could live in existing owned storage without changing any contract.
+  - Such a defect is fixed on a new revision, with failing-first tests where behaviour is observable. The discriminating comparison is then the `counters` arms rerun on the fixed revision. The fix is confirmed when the candidate's instructions and allocation excess fall, while receiver integrity and the existing gate tests hold.
+  - Every readiness stage is then rerun on the fixed revision, so the final tables do not mix revisions.
+  - If no group reaches 50%, the CPU flag stays raised and unresolved.
+
 <!-- Results, attribution, preservation, limits and assets are added after the stages run. -->

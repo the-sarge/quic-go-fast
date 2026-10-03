@@ -64,6 +64,13 @@ elif stage in ('timeline', 'heapsites'):
                     rows.append(run_case(stage, variant, workload, block, controller, path=path,
                                          seed=base + block + (10 if stage == 'heapsites' else 0),
                                          heap_series=stage == 'heapsites'))
+elif stage == 'profiles':
+    rows = []
+    for block in range(1, 4):
+        for workload in (['stream', 'datagram'] if block % 2 else ['datagram', 'stream']):
+            for variant, controller in rotated(TWO, block):
+                rows.append(run_case('profiles', variant, workload, block, controller, path='S5',
+                                     seed=9500 + block, profile=True, counters=True))
 else:
     raise ValueError(stage)
 write(ART / f'{stage}-summary.json', [dict(id=r['id'], goodput_mbps=r['goodput_mbps']) for r in rows])
