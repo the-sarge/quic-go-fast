@@ -248,6 +248,37 @@ def counters_stage():
     return res
 
 
+def forward_packets(d, r):
+    """Forward packets the relay model received in the measured window: written plus overflowed."""
+    cfg = json.loads((d / 'config.json').read_text())
+    lo, hi = cfg['warmup_ms'], cfg['warmup_ms'] + cfg['measure_ms']
+    fd = json.loads((d / 'relay.json').read_text())['ForwardDelivery']
+    written = sum(s[1] for s in fd if lo <= s[0] < hi)
+    before = [s[4] for s in fd if s[0] < lo]
+    during = [s[4] for s in fd if s[0] < hi]
+    return written + (during[-1] - before[-1] if before and during else 0)
+
+
+def packet_io():
+    """Reporting only: per-forward-packet syscall, transmit, wake and work counts from the counters stage."""
+    out = []
+    for d, r in load('counters'):
+        pk = forward_packets(d, r)
+        row = dict(id=r['id'], workload=r['workload'], arm=arm(r), block=r['pair'], forward_packets=pk)
+        for role in ['send', 'receive']:
+            c = {k: v['value'] for k, v in r[role]['counters'].items() if v['value'] is not None}
+            sends = c.get('syscalls:sys_enter_sendmsg', 0) + c.get('syscalls:sys_enter_sendmmsg', 0)
+            recvs = c.get('syscalls:sys_enter_recvmsg', 0) + c.get('syscalls:sys_enter_recvmmsg', 0)
+            row[role] = dict(send_syscalls_per_packet=sends / pk, xmit_per_packet=c.get('net:net_dev_xmit', 0) / pk,
+                             recv_syscalls_per_packet=recvs / pk, wakeups_per_packet=c.get('sched:sched_wakeup', 0) / pk,
+                             switches_per_packet=c.get('context-switches', 0) / pk, futex_per_packet=c.get('syscalls:sys_enter_futex', 0) / pk,
+                             epoll_per_packet=c.get('syscalls:sys_enter_epoll_pwait', 0) / pk,
+                             instructions_user_per_packet=c.get('instructions:u', 0) / pk, instructions_kernel_per_packet=c.get('instructions:k', 0) / pk,
+                             cycles_user_per_packet=c.get('cycles:u', 0) / pk, cycles_kernel_per_packet=c.get('cycles:k', 0) / pk)
+        out.append(row)
+    return out
+
+
 def callgraph_stage(counters=None):
     rows = load('callgraphs')
     res = {}
@@ -281,7 +312,7 @@ if __name__ == '__main__':
                 target.write_bytes(gzip.compress(json.dumps(fold(p)).encode()))
                 print('folded', target.relative_to(OBS))
         sys.exit()
-    out = dict(counters=counters_stage())
+    out = dict(counters=counters_stage(), packet_io=packet_io())
     out['callgraphs'] = callgraph_stage(out['counters'])
     (HERE / 'localization.json').write_text(json.dumps(out, indent=2) + '\n')
     for k, v in out['callgraphs'].items():

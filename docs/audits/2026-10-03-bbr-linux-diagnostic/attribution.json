@@ -1,0 +1,2297 @@
+{
+ "timeline": [
+  {
+   "path": "S5",
+   "workload": "stream",
+   "send": {
+    "t_rss_s": [
+     33.590026237,
+     38.700299503
+    ],
+    "t_probe_s": [
+     1.624152245,
+     1.598949775
+    ],
+    "reno_t_rss_s": [
+     5.869043722,
+     5.381214156
+    ],
+    "footprint_measured_ratio": [
+     1.3328773312884468,
+     1.2928672694636991
+    ],
+    "footprint_warmup_ratio": [
+     1.2713051658890653,
+     1.2393125257156292
+    ],
+    "live_measured_ratio": [
+     1.575661814699195,
+     1.5616792939520434
+    ],
+    "classification": "steady-state excess"
+   },
+   "receive": {
+    "t_rss_s": [
+     32.535464002,
+     30.234906128
+    ],
+    "t_probe_s": [
+     1.624152245,
+     1.598949775
+    ],
+    "reno_t_rss_s": [
+     2.934638792,
+     2.94740698
+    ],
+    "footprint_measured_ratio": [
+     2.0562200346745874,
+     2.1291373475134443
+    ],
+    "footprint_warmup_ratio": [
+     1.6229323400653244,
+     1.5474269187523557
+    ],
+    "live_measured_ratio": [
+     4.434148179827997,
+     4.436723144951644
+    ],
+    "classification": "steady-state excess"
+   }
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "send": {
+    "t_rss_s": [
+     23.25932466,
+     1.930173783
+    ],
+    "t_probe_s": [
+     1.638118315,
+     1.648145216
+    ],
+    "reno_t_rss_s": [
+     39.369815171,
+     38.630202557
+    ],
+    "footprint_measured_ratio": [
+     1.1593442359930817,
+     1.1631624238043747
+    ],
+    "footprint_warmup_ratio": [
+     1.2060074129388858,
+     1.2196907254424982
+    ],
+    "live_measured_ratio": [
+     1.3767702334641367,
+     1.3891574349992037
+    ],
+    "classification": "steady-state excess"
+   },
+   "receive": {
+    "t_rss_s": [
+     37.515455716,
+     38.074715277
+    ],
+    "t_probe_s": [
+     1.638118315,
+     1.648145216
+    ],
+    "reno_t_rss_s": [
+     25.535422153,
+     36.285479341
+    ],
+    "footprint_measured_ratio": [
+     1.2258626981327179,
+     1.220172185870666
+    ],
+    "footprint_warmup_ratio": [
+     1.0993205759605844,
+     1.1129091209807673
+    ],
+    "live_measured_ratio": [
+     1.7290669621628225,
+     1.6796661879307562
+    ],
+    "classification": "steady-state excess"
+   }
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "send": {
+    "t_rss_s": [
+     36.809118447,
+     39.039713293
+    ],
+    "t_probe_s": [
+     1.612890277,
+     1.598367291
+    ],
+    "reno_t_rss_s": [
+     30.361782217,
+     34.430190279
+    ],
+    "footprint_measured_ratio": [
+     1.3528904532418857,
+     1.4740040052558832
+    ],
+    "footprint_warmup_ratio": [
+     1.4849648386382337,
+     1.5493347478549129
+    ],
+    "live_measured_ratio": [
+     1.5378220336740724,
+     1.7828920241102157
+    ],
+    "classification": "steady-state excess"
+   },
+   "receive": {
+    "t_rss_s": [
+     33.375255524,
+     33.244800679
+    ],
+    "t_probe_s": [
+     1.612890277,
+     1.598367291
+    ],
+    "reno_t_rss_s": [
+     14.396826122,
+     15.374898575
+    ],
+    "footprint_measured_ratio": [
+     1.5463396204628568,
+     1.583981362241417
+    ],
+    "footprint_warmup_ratio": [
+     1.206999594684828,
+     1.6829761755745245
+    ],
+    "live_measured_ratio": [
+     2.0101522458342482,
+     2.5867598199190027
+    ],
+    "classification": "steady-state excess"
+   },
+   "queue": {
+    "over_25ms_in_up_or_down": [
+     1.0,
+     0.9941176470588236
+    ],
+    "cruise_refill_median_ms": [
+     0.0,
+     0.0
+    ],
+    "by_phase": [
+     {
+      "cruise": {
+       "samples": 1927,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 60,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 667,
+       "median_ms": 62.35792,
+       "share_over_25ms": 0.7961019490254873
+      },
+      "down": {
+       "samples": 244,
+       "median_ms": 48.249919999999996,
+       "share_over_25ms": 0.7459016393442623
+      },
+      "probertt": {
+       "samples": 102,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      }
+     },
+     {
+      "cruise": {
+       "samples": 1888,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 71,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 649,
+       "median_ms": 54.50408,
+       "share_over_25ms": 0.7550077041602465
+      },
+      "down": {
+       "samples": 247,
+       "median_ms": 49.73368,
+       "share_over_25ms": 0.7530364372469636
+      },
+      "probertt": {
+       "samples": 134,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.029850746268656716
+      }
+     }
+    ]
+   }
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "send": {
+    "t_rss_s": [
+     36.241289058,
+     37.223330144
+    ],
+    "t_probe_s": [
+     1.607052805,
+     1.650107516
+    ],
+    "reno_t_rss_s": [
+     1.240443674,
+     0.861826509
+    ],
+    "footprint_measured_ratio": [
+     1.6569224203383437,
+     1.7166860190405542
+    ],
+    "footprint_warmup_ratio": [
+     1.2272620906181169,
+     1.5276512799385111
+    ],
+    "live_measured_ratio": [
+     3.7984983736457236,
+     3.6610301768990636
+    ],
+    "classification": "steady-state excess"
+   },
+   "receive": {
+    "t_rss_s": [
+     39.617120926,
+     36.728214851
+    ],
+    "t_probe_s": [
+     1.607052805,
+     1.650107516
+    ],
+    "reno_t_rss_s": [
+     1.606387169,
+     18.486200458
+    ],
+    "footprint_measured_ratio": [
+     1.2388671116775858,
+     1.210704009519368
+    ],
+    "footprint_warmup_ratio": [
+     1.119600595572209,
+     1.11750041151645
+    ],
+    "live_measured_ratio": [
+     1.9412113206814166,
+     1.9668477840513574
+    ],
+    "classification": "steady-state excess"
+   },
+   "queue": {
+    "over_25ms_in_up_or_down": [
+     1.0,
+     1.0
+    ],
+    "cruise_refill_median_ms": [
+     0.0,
+     0.0
+    ],
+    "by_phase": [
+     {
+      "cruise": {
+       "samples": 2164,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 90,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 447,
+       "median_ms": 28.090799999999998,
+       "share_over_25ms": 0.5480984340044742
+      },
+      "down": {
+       "samples": 245,
+       "median_ms": 28.09608,
+       "share_over_25ms": 0.563265306122449
+      },
+      "probertt": {
+       "samples": 49,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      }
+     },
+     {
+      "cruise": {
+       "samples": 2254,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "probertt": {
+       "samples": 104,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 92,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 381,
+       "median_ms": 24.78024,
+       "share_over_25ms": 0.49606299212598426
+      },
+      "down": {
+       "samples": 167,
+       "median_ms": 28.994880000000002,
+       "share_over_25ms": 0.562874251497006
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "timeline_runs": [
+  {
+   "id": "timeline-S5-datagram-p1-cand-diag-counted-bbrv3",
+   "path": "S5",
+   "workload": "datagram",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 1,
+   "t_probe_s": 1.638118315,
+   "send": {
+    "t_rss_s": 23.25932466,
+    "final_rss_mib": 22.10546875,
+    "footprint_measured_mib": 18.30298614501953,
+    "footprint_warmup_mib": 18.88892364501953,
+    "live_measured_max_mib": 5.565010070800781,
+    "live_warmup_max_mib": 6.0277252197265625
+   },
+   "receive": {
+    "t_rss_s": 37.515455716,
+    "final_rss_mib": 17.5078125,
+    "footprint_measured_mib": 13.865486145019531,
+    "footprint_warmup_mib": 12.365486145019531,
+    "live_measured_max_mib": 3.0237960815429688,
+    "live_warmup_max_mib": 2.5752639770507812
+   },
+   "queue_by_phase": {
+    "refill": {
+     "samples": 96,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "up": {
+     "samples": 344,
+     "median_ms": 20.51664,
+     "share_over_25ms": 0.4011627906976744
+    },
+    "down": {
+     "samples": 189,
+     "median_ms": 21.67032,
+     "share_over_25ms": 0.4126984126984127
+    },
+    "cruise": {
+     "samples": 2300,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "probertt": {
+     "samples": 54,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.018518518518518517
+    }
+   },
+   "over_25ms_in_up_or_down": 0.9953917050691244
+  },
+  {
+   "id": "timeline-S5-datagram-p1-reno-diag-reno",
+   "path": "S5",
+   "workload": "datagram",
+   "arm": "reno-diag-reno",
+   "block": 1,
+   "send": {
+    "t_rss_s": 39.369815171,
+    "final_rss_mib": 19.53515625,
+    "footprint_measured_mib": 15.787361145019531,
+    "footprint_warmup_mib": 15.662361145019531,
+    "live_measured_max_mib": 4.042076110839844,
+    "live_warmup_max_mib": 4.430732727050781
+   },
+   "receive": {
+    "t_rss_s": 25.535422153,
+    "final_rss_mib": 14.76171875,
+    "footprint_measured_mib": 11.310798645019531,
+    "footprint_warmup_mib": 11.248298645019531,
+    "live_measured_max_mib": 1.7488021850585938,
+    "live_warmup_max_mib": 1.31463623046875
+   }
+  },
+  {
+   "id": "timeline-S5-datagram-p2-cand-diag-counted-bbrv3",
+   "path": "S5",
+   "workload": "datagram",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 2,
+   "t_probe_s": 1.648145216,
+   "send": {
+    "t_rss_s": 1.930173783,
+    "final_rss_mib": 21.234375,
+    "footprint_measured_mib": 18.49048614501953,
+    "footprint_warmup_mib": 19.47486114501953,
+    "live_measured_max_mib": 5.591011047363281,
+    "live_warmup_max_mib": 6.047607421875
+   },
+   "receive": {
+    "t_rss_s": 38.074715277,
+    "final_rss_mib": 17.484375,
+    "footprint_measured_mib": 13.724861145019531,
+    "footprint_warmup_mib": 12.474861145019531,
+    "live_measured_max_mib": 3.015869140625,
+    "live_warmup_max_mib": 2.611083984375
+   },
+   "queue_by_phase": {
+    "cruise": {
+     "samples": 2383,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "probertt": {
+     "samples": 99,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "refill": {
+     "samples": 80,
+     "median_ms": 0.10032,
+     "share_over_25ms": 0.0
+    },
+    "up": {
+     "samples": 275,
+     "median_ms": 20.57088,
+     "share_over_25ms": 0.3890909090909091
+    },
+    "down": {
+     "samples": 160,
+     "median_ms": 20.76804,
+     "share_over_25ms": 0.4
+    }
+   },
+   "over_25ms_in_up_or_down": 1.0
+  },
+  {
+   "id": "timeline-S5-datagram-p2-reno-diag-reno",
+   "path": "S5",
+   "workload": "datagram",
+   "arm": "reno-diag-reno",
+   "block": 2,
+   "send": {
+    "t_rss_s": 38.630202557,
+    "final_rss_mib": 19.77734375,
+    "footprint_measured_mib": 15.896736145019531,
+    "footprint_warmup_mib": 15.967048645019531,
+    "live_measured_max_mib": 4.024749755859375,
+    "live_warmup_max_mib": 4.474082946777344
+   },
+   "receive": {
+    "t_rss_s": 36.285479341,
+    "final_rss_mib": 14.8828125,
+    "footprint_measured_mib": 11.248298645019531,
+    "footprint_warmup_mib": 11.209236145019531,
+    "live_measured_max_mib": 1.7955169677734375,
+    "live_warmup_max_mib": 1.363189697265625
+   }
+  },
+  {
+   "id": "timeline-S5-stream-p1-cand-diag-counted-bbrv3",
+   "path": "S5",
+   "workload": "stream",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 1,
+   "t_probe_s": 1.624152245,
+   "send": {
+    "t_rss_s": 33.590026237,
+    "final_rss_mib": 24.17578125,
+    "footprint_measured_mib": 21.17798614501953,
+    "footprint_warmup_mib": 20.53736114501953,
+    "live_measured_max_mib": 6.577262878417969,
+    "live_warmup_max_mib": 6.224342346191406
+   },
+   "receive": {
+    "t_rss_s": 32.535464002,
+    "final_rss_mib": 26.5,
+    "footprint_measured_mib": 23.064720153808594,
+    "footprint_warmup_mib": 23.681907653808594,
+    "live_measured_max_mib": 7.989227294921875,
+    "live_warmup_max_mib": 8.014930725097656
+   },
+   "queue_by_phase": {
+    "cruise": {
+     "samples": 1770,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "refill": {
+     "samples": 81,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "up": {
+     "samples": 773,
+     "median_ms": 61.451119999999996,
+     "share_over_25ms": 0.7904269081500647
+    },
+    "probertt": {
+     "samples": 119,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.10084033613445378
+    },
+    "down": {
+     "samples": 257,
+     "median_ms": 53.60336,
+     "share_over_25ms": 0.7704280155642024
+    }
+   },
+   "over_25ms_in_up_or_down": 0.9853836784409257
+  },
+  {
+   "id": "timeline-S5-stream-p1-reno-diag-reno",
+   "path": "S5",
+   "workload": "stream",
+   "arm": "reno-diag-reno",
+   "block": 1,
+   "send": {
+    "t_rss_s": 5.869043722,
+    "final_rss_mib": 19.40625,
+    "footprint_measured_mib": 15.888923645019531,
+    "footprint_warmup_mib": 16.15454864501953,
+    "live_measured_max_mib": 4.174285888671875,
+    "live_warmup_max_mib": 4.4771270751953125
+   },
+   "receive": {
+    "t_rss_s": 2.934638792,
+    "final_rss_mib": 17.65625,
+    "footprint_measured_mib": 11.217048645019531,
+    "footprint_warmup_mib": 14.592048645019531,
+    "live_measured_max_mib": 1.8017501831054688,
+    "live_warmup_max_mib": 4.0029754638671875
+   }
+  },
+  {
+   "id": "timeline-S5-stream-p2-cand-diag-counted-bbrv3",
+   "path": "S5",
+   "workload": "stream",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 2,
+   "t_probe_s": 1.598949775,
+   "send": {
+    "t_rss_s": 38.700299503,
+    "final_rss_mib": 24.22265625,
+    "footprint_measured_mib": 20.86548614501953,
+    "footprint_warmup_mib": 20.10767364501953,
+    "live_measured_max_mib": 6.619110107421875,
+    "live_warmup_max_mib": 6.126258850097656
+   },
+   "receive": {
+    "t_rss_s": 30.234906128,
+    "final_rss_mib": 27.12890625,
+    "footprint_measured_mib": 23.59986114501953,
+    "footprint_warmup_mib": 22.45923614501953,
+    "live_measured_max_mib": 8.099037170410156,
+    "live_warmup_max_mib": 7.64581298828125
+   },
+   "queue_by_phase": {
+    "up": {
+     "samples": 665,
+     "median_ms": 62.816559999999996,
+     "share_over_25ms": 0.8045112781954887
+    },
+    "down": {
+     "samples": 296,
+     "median_ms": 51.67368,
+     "share_over_25ms": 0.7668918918918919
+    },
+    "cruise": {
+     "samples": 1868,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "probertt": {
+     "samples": 104,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.009615384615384616
+    },
+    "refill": {
+     "samples": 62,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    }
+   },
+   "over_25ms_in_up_or_down": 0.9986893840104849
+  },
+  {
+   "id": "timeline-S5-stream-p2-reno-diag-reno",
+   "path": "S5",
+   "workload": "stream",
+   "arm": "reno-diag-reno",
+   "block": 2,
+   "send": {
+    "t_rss_s": 5.381214156,
+    "final_rss_mib": 19.40625,
+    "footprint_measured_mib": 16.13892364501953,
+    "footprint_warmup_mib": 16.22486114501953,
+    "live_measured_max_mib": 4.238456726074219,
+    "live_warmup_max_mib": 4.472137451171875
+   },
+   "receive": {
+    "t_rss_s": 2.94740698,
+    "final_rss_mib": 17.59765625,
+    "footprint_measured_mib": 11.084236145019531,
+    "footprint_warmup_mib": 14.513923645019531,
+    "live_measured_max_mib": 1.8254547119140625,
+    "live_warmup_max_mib": 3.9656219482421875
+   }
+  },
+  {
+   "id": "timeline-S6-datagram-p1-cand-diag-counted-bbrv3",
+   "path": "S6",
+   "workload": "datagram",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 1,
+   "t_probe_s": 1.607052805,
+   "send": {
+    "t_rss_s": 36.241289058,
+    "final_rss_mib": 22.27734375,
+    "footprint_measured_mib": 18.63111114501953,
+    "footprint_warmup_mib": 19.00611114501953,
+    "live_measured_max_mib": 5.92486572265625,
+    "live_warmup_max_mib": 6.03680419921875
+   },
+   "receive": {
+    "t_rss_s": 39.617120926,
+    "final_rss_mib": 17.32421875,
+    "footprint_measured_mib": 13.756111145019531,
+    "footprint_warmup_mib": 12.615486145019531,
+    "live_measured_max_mib": 3.0497894287109375,
+    "live_warmup_max_mib": 2.5667037963867188
+   },
+   "queue_by_phase": {
+    "cruise": {
+     "samples": 2164,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "refill": {
+     "samples": 90,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "up": {
+     "samples": 447,
+     "median_ms": 28.090799999999998,
+     "share_over_25ms": 0.5480984340044742
+    },
+    "down": {
+     "samples": 245,
+     "median_ms": 28.09608,
+     "share_over_25ms": 0.563265306122449
+    },
+    "probertt": {
+     "samples": 49,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    }
+   },
+   "over_25ms_in_up_or_down": 1.0
+  },
+  {
+   "id": "timeline-S6-datagram-p1-reno-diag-reno",
+   "path": "S6",
+   "workload": "datagram",
+   "arm": "reno-diag-reno",
+   "block": 1,
+   "send": {
+    "t_rss_s": 1.240443674,
+    "final_rss_mib": 18.65625,
+    "footprint_measured_mib": 11.244407653808594,
+    "footprint_warmup_mib": 15.486595153808594,
+    "live_measured_max_mib": 1.5597915649414062,
+    "live_warmup_max_mib": 4.4002532958984375
+   },
+   "receive": {
+    "t_rss_s": 1.606387169,
+    "final_rss_mib": 14.54296875,
+    "footprint_measured_mib": 11.103782653808594,
+    "footprint_warmup_mib": 11.267845153808594,
+    "live_measured_max_mib": 1.571075439453125,
+    "live_warmup_max_mib": 1.2027053833007812
+   }
+  },
+  {
+   "id": "timeline-S6-datagram-p2-cand-diag-counted-bbrv3",
+   "path": "S6",
+   "workload": "datagram",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 2,
+   "t_probe_s": 1.650107516,
+   "send": {
+    "t_rss_s": 37.223330144,
+    "final_rss_mib": 22.11328125,
+    "footprint_measured_mib": 19.20923614501953,
+    "footprint_warmup_mib": 19.57642364501953,
+    "live_measured_max_mib": 5.690528869628906,
+    "live_warmup_max_mib": 6.030357360839844
+   },
+   "receive": {
+    "t_rss_s": 36.728214851,
+    "final_rss_mib": 17.36328125,
+    "footprint_measured_mib": 13.646736145019531,
+    "footprint_warmup_mib": 12.482673645019531,
+    "live_measured_max_mib": 3.1041717529296875,
+    "live_warmup_max_mib": 2.5782699584960938
+   },
+   "queue_by_phase": {
+    "cruise": {
+     "samples": 2254,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "probertt": {
+     "samples": 104,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "refill": {
+     "samples": 92,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "up": {
+     "samples": 381,
+     "median_ms": 24.78024,
+     "share_over_25ms": 0.49606299212598426
+    },
+    "down": {
+     "samples": 167,
+     "median_ms": 28.994880000000002,
+     "share_over_25ms": 0.562874251497006
+    }
+   },
+   "over_25ms_in_up_or_down": 1.0
+  },
+  {
+   "id": "timeline-S6-datagram-p2-reno-diag-reno",
+   "path": "S6",
+   "workload": "datagram",
+   "arm": "reno-diag-reno",
+   "block": 2,
+   "send": {
+    "t_rss_s": 0.861826509,
+    "final_rss_mib": 15.90625,
+    "footprint_measured_mib": 11.189720153808594,
+    "footprint_warmup_mib": 12.814720153808594,
+    "live_measured_max_mib": 1.554351806640625,
+    "live_warmup_max_mib": 2.992218017578125
+   },
+   "receive": {
+    "t_rss_s": 18.486200458,
+    "final_rss_mib": 14.28515625,
+    "footprint_measured_mib": 11.271736145019531,
+    "footprint_warmup_mib": 11.170173645019531,
+    "live_measured_max_mib": 1.5782470703125,
+    "live_warmup_max_mib": 1.2105712890625
+   }
+  },
+  {
+   "id": "timeline-S6-stream-p1-cand-diag-counted-bbrv3",
+   "path": "S6",
+   "workload": "stream",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 1,
+   "t_probe_s": 1.612890277,
+   "send": {
+    "t_rss_s": 36.809118447,
+    "final_rss_mib": 24.09765625,
+    "footprint_measured_mib": 20.75611114501953,
+    "footprint_warmup_mib": 19.59204864501953,
+    "live_measured_max_mib": 6.651298522949219,
+    "live_warmup_max_mib": 6.147895812988281
+   },
+   "receive": {
+    "t_rss_s": 33.375255524,
+    "final_rss_mib": 26.61328125,
+    "footprint_measured_mib": 23.29517364501953,
+    "footprint_warmup_mib": 18.10767364501953,
+    "live_measured_max_mib": 8.102996826171875,
+    "live_warmup_max_mib": 5.568794250488281
+   },
+   "queue_by_phase": {
+    "cruise": {
+     "samples": 1927,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "refill": {
+     "samples": 60,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "up": {
+     "samples": 667,
+     "median_ms": 62.35792,
+     "share_over_25ms": 0.7961019490254873
+    },
+    "down": {
+     "samples": 244,
+     "median_ms": 48.249919999999996,
+     "share_over_25ms": 0.7459016393442623
+    },
+    "probertt": {
+     "samples": 102,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    }
+   },
+   "over_25ms_in_up_or_down": 1.0
+  },
+  {
+   "id": "timeline-S6-stream-p1-reno-diag-reno",
+   "path": "S6",
+   "workload": "stream",
+   "arm": "reno-diag-reno",
+   "block": 1,
+   "send": {
+    "t_rss_s": 30.361782217,
+    "final_rss_mib": 18.65625,
+    "footprint_measured_mib": 15.342048645019531,
+    "footprint_warmup_mib": 13.193611145019531,
+    "live_measured_max_mib": 4.325141906738281,
+    "live_warmup_max_mib": 4.325141906738281
+   },
+   "receive": {
+    "t_rss_s": 14.396826122,
+    "final_rss_mib": 17.59765625,
+    "footprint_measured_mib": 15.064720153808594,
+    "footprint_warmup_mib": 15.002220153808594,
+    "live_measured_max_mib": 4.031036376953125,
+    "live_warmup_max_mib": 4.031036376953125
+   }
+  },
+  {
+   "id": "timeline-S6-stream-p2-cand-diag-counted-bbrv3",
+   "path": "S6",
+   "workload": "stream",
+   "arm": "cand-diag-counted-bbrv3",
+   "block": 2,
+   "t_probe_s": 1.598367291,
+   "send": {
+    "t_rss_s": 39.039713293,
+    "final_rss_mib": 23.66015625,
+    "footprint_measured_mib": 20.77173614501953,
+    "footprint_warmup_mib": 19.65454864501953,
+    "live_measured_max_mib": 6.5647430419921875,
+    "live_warmup_max_mib": 6.196800231933594
+   },
+   "receive": {
+    "t_rss_s": 33.244800679,
+    "final_rss_mib": 26.3046875,
+    "footprint_measured_mib": 23.150657653808594,
+    "footprint_warmup_mib": 23.900657653808594,
+    "live_measured_max_mib": 8.030891418457031,
+    "live_warmup_max_mib": 7.991752624511719
+   },
+   "queue_by_phase": {
+    "cruise": {
+     "samples": 1888,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "refill": {
+     "samples": 71,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.0
+    },
+    "up": {
+     "samples": 649,
+     "median_ms": 54.50408,
+     "share_over_25ms": 0.7550077041602465
+    },
+    "down": {
+     "samples": 247,
+     "median_ms": 49.73368,
+     "share_over_25ms": 0.7530364372469636
+    },
+    "probertt": {
+     "samples": 134,
+     "median_ms": 0.0,
+     "share_over_25ms": 0.029850746268656716
+    }
+   },
+   "over_25ms_in_up_or_down": 0.9941176470588236
+  },
+  {
+   "id": "timeline-S6-stream-p2-reno-diag-reno",
+   "path": "S6",
+   "workload": "stream",
+   "arm": "reno-diag-reno",
+   "block": 2,
+   "send": {
+    "t_rss_s": 34.430190279,
+    "final_rss_mib": 17.15625,
+    "footprint_measured_mib": 14.092048645019531,
+    "footprint_warmup_mib": 12.685798645019531,
+    "live_measured_max_mib": 3.6820755004882812,
+    "live_warmup_max_mib": 3.6820755004882812
+   },
+   "receive": {
+    "t_rss_s": 15.374898575,
+    "final_rss_mib": 17.59765625,
+    "footprint_measured_mib": 14.615486145019531,
+    "footprint_warmup_mib": 14.201423645019531,
+    "live_measured_max_mib": 3.1046142578125,
+    "live_warmup_max_mib": 3.6739120483398438
+   }
+  }
+ ],
+ "heapsites": [
+  {
+   "path": "S5",
+   "workload": "stream",
+   "role": "send",
+   "block": 1,
+   "cand_inuse_mib": 9.216429710388184,
+   "reno_inuse_mib": 4.665104866027832,
+   "excess_mib": 4.910865783691406,
+   "group_mib": {
+    "other": 0.47206878662109375,
+    "delivery": 2.001511573791504,
+    "bookkeeping": 2.4372854232788086
+   },
+   "positive_share": {
+    "other": 0.09612740551549924,
+    "delivery": 0.40756796498865117,
+    "bookkeeping": 0.49630462949584964
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/wire.init.0.func1",
+     2.001511573791504,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.7806921005249023,
+     "bookkeeping"
+    ],
+    [
+     "compress/flate.(*fastGen).addBlock",
+     0.6724205017089844,
+     "instrument"
+    ],
+    [
+     "hash/crc32.slicingMakeTable",
+     0.5039157867431641,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5000762939453125,
+     "bookkeeping"
+    ],
+    [
+     "time.NewTicker",
+     0.5000534057617188,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).sendAny",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 39.961489397,
+   "profile_s": 40.032182076
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "role": "send",
+   "block": 2,
+   "cand_inuse_mib": 7.071223258972168,
+   "reno_inuse_mib": 6.447689056396484,
+   "excess_mib": 1.9358892440795898,
+   "group_mib": {
+    "other": 0.5000686645507812,
+    "delivery": -1.00146484375,
+    "bookkeeping": 2.4372854232788086
+   },
+   "positive_share": {
+    "other": 0.17024459755217386,
+    "bookkeeping": 0.8297554024478262
+   },
+   "classification": "bookkeeping",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.7806921005249023,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5000762939453125,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.newStreamFlowController (inline)",
+     0.5000686645507812,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "main.sendSession",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).sendAny",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleFrames",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).newFlowController",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 39.990340841,
+   "profile_s": 40.031778771
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "role": "receive",
+   "block": 1,
+   "cand_inuse_mib": 11.93065071105957,
+   "reno_inuse_mib": 3.304083824157715,
+   "excess_mib": 7.557809829711914,
+   "group_mib": {
+    "other": -0.5000534057617188,
+    "delivery": 8.057863235473633
+   },
+   "positive_share": {
+    "delivery": 1.0
+   },
+   "classification": "delivery",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/wire.init.0.func1",
+     7.010257720947266,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*frameSorter).push",
+     1.0476055145263672,
+     "delivery"
+    ],
+    [
+     "compress/flate.NewWriter (inline)",
+     0.6399345397949219,
+     "instrument"
+    ],
+    [
+     "compress/flate.newFastEnc (inline)",
+     0.5693426132202148,
+     "instrument"
+    ],
+    [
+     "compress/flate.(*compressor).init",
+     0.5319004058837891,
+     "instrument"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*frameSorter).Push",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 34.005836595,
+   "profile_s": 34.027918718
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "role": "receive",
+   "block": 2,
+   "cand_inuse_mib": 6.762103080749512,
+   "reno_inuse_mib": 4.304221153259277,
+   "excess_mib": 5.630607604980469,
+   "group_mib": {
+    "other": -0.03184700012207031,
+    "delivery": 4.005861282348633,
+    "bookkeeping": 1.6565933227539062
+   },
+   "positive_share": {
+    "delivery": 0.7074425424512684,
+    "bookkeeping": 0.2925574575487317
+   },
+   "classification": "delivery",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/wire.init.0.func1",
+     4.005861282348633,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5000762939453125,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*baseServer).run",
+     0.5000534057617188,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleFrames",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.getCoalescedPacketBuffer (inline)",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 34.036044024,
+   "profile_s": 34.026807705
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "role": "send",
+   "block": 1,
+   "cand_inuse_mib": 6.627955436706543,
+   "reno_inuse_mib": 2.6327695846557617,
+   "excess_mib": 2.9950637817382812,
+   "group_mib": {
+    "other": 0.5006103515625,
+    "delivery": -0.5006103515625,
+    "bookkeeping": 2.9950637817382812
+   },
+   "positive_share": {
+    "other": 0.14320852930584807,
+    "bookkeeping": 0.856791470694152
+   },
+   "classification": "bookkeeping",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "main.startDiagSeries.func2",
+     1.0001220703125,
+     "instrument"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.8065700531005859,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*spaceSlots).push (inline)",
+     0.5319004058837891,
+     "bookkeeping"
+    ],
+    [
+     "main.sendSession",
+     0.5006103515625,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5000762939453125,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*sendQueue).Run",
+     0.5000534057617188,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ]
+   ],
+   "peak_s": 39.331578324,
+   "profile_s": 39.032268434
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "role": "send",
+   "block": 2,
+   "cand_inuse_mib": 5.1590471267700195,
+   "reno_inuse_mib": 4.142117500305176,
+   "excess_mib": 1.5169906616210938,
+   "group_mib": {
+    "other": 0.5319004058837891,
+    "delivery": -1.509897232055664,
+    "bookkeeping": 2.4949874877929688
+   },
+   "positive_share": {
+    "other": 0.17572517535087503,
+    "bookkeeping": 0.8242748246491249
+   },
+   "classification": "bookkeeping",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.8065700531005859,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*spaceSlots).push (inline)",
+     0.5319004058837891,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.init.0.func3",
+     0.5319004058837891,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "time.NewTicker",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPacker).maybeGetAppDataPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "main.sendSession",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).sendAny",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 36.300428426,
+   "profile_s": 36.031507935
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "role": "receive",
+   "block": 1,
+   "cand_inuse_mib": 2.1480560302734375,
+   "reno_inuse_mib": 1.631556510925293,
+   "excess_mib": 0.01643848419189453,
+   "group_mib": {
+    "other": 0.01643848419189453
+   },
+   "positive_share": {
+    "other": 1.0
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go.newServer",
+     0.5483388900756836,
+     "other"
+    ],
+    [
+     "main.startDiagSeries.func2",
+     0.50006103515625,
+     "instrument"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*managedPacketRawConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.getCoalescedPacketBuffer (inline)",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*managedPacketConn).ReadFrom",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Transport).init.func1.1",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Transport).createServer",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Transport).listen",
+     0.0,
+     "other"
+    ],
+    [
+     "main.startDiagSeries",
+     0.0,
+     "instrument"
+    ]
+   ],
+   "peak_s": 39.246455236,
+   "profile_s": 39.027647519
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "role": "receive",
+   "block": 2,
+   "cand_inuse_mib": 4.321392059326172,
+   "reno_inuse_mib": 3.1000070571899414,
+   "excess_mib": 2.8211021423339844,
+   "group_mib": {
+    "other": 1.6121397018432617,
+    "delivery": -0.5000534057617188,
+    "bookkeeping": 1.7090158462524414
+   },
+   "positive_share": {
+    "other": 0.4854152955189457,
+    "bookkeeping": 0.5145847044810543
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.init.0.func3",
+     1.0638008117675781,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.5524988174438477,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.newServer",
+     0.5483388900756836,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleFrames",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 39.235709897,
+   "profile_s": 39.027313162
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "role": "send",
+   "block": 1,
+   "cand_inuse_mib": 8.686840057373047,
+   "reno_inuse_mib": 3.803635597229004,
+   "excess_mib": 6.986001968383789,
+   "group_mib": {
+    "other": 1.0001220703125,
+    "delivery": 3.0043954849243164,
+    "bookkeeping": 2.9814844131469727
+   },
+   "positive_share": {
+    "other": 0.14316086294259636,
+    "delivery": 0.43005935276302004,
+    "bookkeeping": 0.42677978429438357
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/wire.init.0.func1",
+     3.0043954849243164,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.7007160186767578,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.7806921005249023,
+     "bookkeeping"
+    ],
+    [
+     "compress/flate.newFastEnc (inline)",
+     0.5693426132202148,
+     "instrument"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5000762939453125,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.newStreamFlowController (inline)",
+     0.5000686645507812,
+     "other"
+    ],
+    [
+     "time.NewTicker",
+     0.5000534057617188,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "main.sendSession",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 29.900352734,
+   "profile_s": 30.031265004
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "role": "send",
+   "block": 2,
+   "cand_inuse_mib": 5.291072845458984,
+   "reno_inuse_mib": 1.0996484756469727,
+   "excess_mib": 3.6913633346557617,
+   "group_mib": {
+    "other": 1.0319690704345703,
+    "delivery": 1.5028772354125977,
+    "bookkeeping": 1.1565170288085938
+   },
+   "positive_share": {
+    "other": 0.27956312529468375,
+    "delivery": 0.4071333811286145,
+    "bookkeeping": 0.31330349357670173
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/wire.init.0.func1",
+     2.0029306411743164,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.init.0.func3",
+     0.5319004058837891,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.newStreamFlowController (inline)",
+     0.5000686645507812,
+     "other"
+    ],
+    [
+     "main.startDiagSeries.func2",
+     0.50006103515625,
+     "instrument"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPacker).maybeGetAppDataPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*framer).Append",
+     0.0,
+     "delivery"
+    ],
+    [
+     "main.sendSession",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 38.629542965,
+   "profile_s": 39.030845285
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "role": "receive",
+   "block": 1,
+   "cand_inuse_mib": 6.8721208572387695,
+   "reno_inuse_mib": 3.8042821884155273,
+   "excess_mib": 4.7085418701171875,
+   "group_mib": {
+    "other": 0.0,
+    "delivery": 3.00368595123291,
+    "bookkeeping": 1.7048559188842773
+   },
+   "positive_share": {
+    "delivery": 0.6379227442567381,
+    "bookkeeping": 0.3620772557432618
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/wire.init.0.func1",
+     3.00368595123291,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.5483388900756836,
+     "bookkeeping"
+    ],
+    [
+     "compress/flate.(*compressor).init",
+     0.5319004058837891,
+     "instrument"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 14.496048333,
+   "profile_s": 14.026632183
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "role": "receive",
+   "block": 2,
+   "cand_inuse_mib": 7.814462661743164,
+   "reno_inuse_mib": 4.24959659576416,
+   "excess_mib": 5.134330749511719,
+   "group_mib": {
+    "other": -1.0716438293457031,
+    "delivery": 4.005182266235352,
+    "bookkeeping": 2.2007923126220703
+   },
+   "positive_share": {
+    "delivery": 0.6453752291993344,
+    "bookkeeping": 0.35462477080066557
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/wire.init.0.func1",
+     3.505128860473633,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.7007160186767578,
+     "bookkeeping"
+    ],
+    [
+     "sync.(*poolChain).pushHead",
+     0.5088396072387695,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5000762939453125,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Transport).runSendQueue",
+     0.5000534057617188,
+     "delivery"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*ReceiveStream).releaseCurrentFrame",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*baseServer).run",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleFrames",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 35.455564209,
+   "profile_s": 35.026555358
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "role": "send",
+   "block": 1,
+   "cand_inuse_mib": 4.595330238342285,
+   "reno_inuse_mib": 2.132288932800293,
+   "excess_mib": 2.463041305541992,
+   "group_mib": {
+    "other": 0.0,
+    "delivery": -0.0001220703125,
+    "bookkeeping": 2.463163375854492
+   },
+   "positive_share": {
+    "bookkeeping": 1.0
+   },
+   "classification": "bookkeeping",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.8065700531005859,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).SendDatagram",
+     0.5006103515625,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5000762939453125,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "main.sendSession",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 33.560258826,
+   "profile_s": 34.031672344
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "role": "send",
+   "block": 2,
+   "cand_inuse_mib": 8.112205505371094,
+   "reno_inuse_mib": 1.5996713638305664,
+   "excess_mib": 6.512412071228027,
+   "group_mib": {
+    "other": 0.5319004058837891,
+    "delivery": 3.5043115615844727,
+    "bookkeeping": 2.4762001037597656
+   },
+   "positive_share": {
+    "other": 0.08167486947481965,
+    "delivery": 0.5380973321799759,
+    "bookkeeping": 0.3802277983452044
+   },
+   "classification": "unresolved",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go.(*Conn).SendDatagram",
+     3.004258155822754,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.8065700531005859,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.init.0.func3",
+     0.5319004058837891,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+     0.5131130218505859,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Transport).runSendQueue",
+     0.5000534057617188,
+     "delivery"
+    ],
+    [
+     "main.startDiagSeries.func2",
+     0.0001220703125,
+     "instrument"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "main.sendSession",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 38.899993439,
+   "profile_s": 39.030896127
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "role": "receive",
+   "block": 1,
+   "cand_inuse_mib": 4.854030609130859,
+   "reno_inuse_mib": 2.1700973510742188,
+   "excess_mib": 2.7530927658081055,
+   "group_mib": {
+    "other": 0.4998779296875,
+    "delivery": 0.0,
+    "bookkeeping": 2.2532148361206055
+   },
+   "positive_share": {
+    "other": 0.1815695918044275,
+    "bookkeeping": 0.8184304081955726
+   },
+   "classification": "bookkeeping",
+   "top_sites": [
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.7007160186767578,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.5524988174438477,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go.init.0.func1",
+     0.500732421875,
+     "other"
+    ],
+    [
+     "crypto/internal/fips140/aes.New (inline)",
+     0.500244140625,
+     "other"
+    ],
+    [
+     "main.startDiagSeries.func2",
+     0.50018310546875,
+     "instrument"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/handshake.newHeaderProtector",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleLongHeaderPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ]
+   ],
+   "peak_s": 38.35514691,
+   "profile_s": 38.026768143
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "role": "receive",
+   "block": 2,
+   "cand_inuse_mib": 4.773144721984863,
+   "reno_inuse_mib": 2.8033838272094727,
+   "excess_mib": 1.7089853286743164,
+   "group_mib": {
+    "other": -3.0517578125e-05,
+    "delivery": 0.0,
+    "bookkeeping": 1.7090158462524414
+   },
+   "positive_share": {
+    "bookkeeping": 1.0
+   },
+   "classification": "bookkeeping",
+   "top_sites": [
+    [
+     "main.startDiagSeries.func2",
+     1.50030517578125,
+     "instrument"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+     1.1565170288085938,
+     "bookkeeping"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+     0.5524988174438477,
+     "bookkeeping"
+    ],
+    [
+     "runtime/metrics.runtime_readMetrics",
+     0.5000228881835938,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetEmission).coalesced",
+     0.0,
+     "other"
+    ],
+    [
+     "main.execute",
+     0.0,
+     "other"
+    ],
+    [
+     "main.main",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*oobConn).ReadPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "compress/gzip.(*Writer).Write",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket",
+     0.0,
+     "delivery"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*Conn).handleShortHeaderPacket",
+     0.0,
+     "other"
+    ],
+    [
+     "github.com/quic-go/quic-go.(*packetPolicyConn).ReadPacket",
+     0.0,
+     "other"
+    ]
+   ],
+   "peak_s": 38.216657026,
+   "profile_s": 38.0276717
+  }
+ ]
+}
