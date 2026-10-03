@@ -1,3 +1,13 @@
 {
-  "m1": {"prev": "r0", "new": "r1", "lead": 1}
+  "m1": {
+    "prev": "r0",
+    "new": "r1",
+    "lead": 1,
+    "outcome": "keep"
+  },
+  "m2": {
+    "prev": "r1",
+    "new": "r2",
+    "lead": 2
+  }
 }
