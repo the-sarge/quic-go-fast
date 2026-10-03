@@ -1,0 +1,18 @@
+# Gates for r1 at b8b5aaaeb24bc76792b588def2cb2bd8e0c96d0e
+# go version go1.27.0 darwin/arm64; tree clean: 0 changed paths
+$ go vet ./...
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	18.361s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.124s
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	305.135s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.335s
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing -count=1
+ok  	github.com/quic-go/quic-go	0.283s
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing -count=1
+ok  	github.com/quic-go/quic-go	1.310s
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+ok  	github.com/quic-go/quic-go	1.323s
+651 top-level PASS
+7 top-level SKIP
+# status 0
