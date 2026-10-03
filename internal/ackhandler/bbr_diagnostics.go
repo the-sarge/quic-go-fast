@@ -28,5 +28,5 @@ func (h *sentPacketHandler) BBRDiagnostics() string {
 		}
 	}
 	limitation := [...]string{"unknown", "application", "flow-control", "ProbeRTT", "congestion", "pacing", "local", "receive-yield", "recovery"}[d.sampler.stop]
-	return fmt.Sprintf("ecn=%s path=%d sample_generation=%d limitation=%s sample_valid=%t sample_interval=%s sample_evidence_lost=%t live=%d retained=%d evicted=%d expired=%d missing=%d", state, d.pathGeneration, d.sampleGeneration, limitation, d.event.Delivery.Valid, d.event.Delivery.Interval, d.sampler.evidenceLost, len(d.packets), len(d.sampler.retained), d.sampler.evicted, d.sampler.expired, d.sampler.missing)
+	return fmt.Sprintf("ecn=%s path=%d sample_generation=%d limitation=%s sample_valid=%t sample_interval=%s sample_evidence_lost=%t live=%d retained=%d evicted=%d expired=%d missing=%d", state, d.pathGeneration, d.sampleGeneration, limitation, d.event.Delivery.Valid, d.event.Delivery.Interval, d.sampler.evidenceLost, d.packets.len(), len(d.sampler.retained), d.sampler.evicted, d.sampler.expired, d.sampler.missing)
 }

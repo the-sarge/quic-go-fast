@@ -29,7 +29,7 @@ func EnableDeliverySampling(handler SentPacketHandler, sink interface {
 	if !ok || h.bytesSent != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
 		panic("invalid delivery sampler installation")
 	}
-	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending, packets: make(map[congestionPacketKey]congestion.PacketInfo)}
+	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending}
 }
 
 type congestionPacketKey struct {
@@ -53,7 +53,7 @@ type congestionDispatch struct {
 	pathGeneration   uint64
 	sampleGeneration uint64
 	sink             congestionEventSink
-	packets          map[congestionPacketKey]congestion.PacketInfo
+	packets          deliveryRecords
 	event            congestion.FeedbackEvent
 	scratch          []congestion.PacketInfo
 	discovered       []*retainedDelivery
@@ -104,12 +104,12 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	d.recovery.sent(info, d.pathGeneration)
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
-	if len(d.packets) < maxDeliveryLive {
+	if d.packets.len() < maxDeliveryLive {
 		if b, ok := h.congestion.(*congestion.BBRSender); ok && b.InProbeRTT() {
 			d.sampler.markLimited(congestion.SendProbeRTTLimited)
 		}
 		d.sampler.sent(&info, prior, h.bytesInFlight)
-		d.packets[congestionKey(p.EncryptionLevel, pn)] = info
+		d.packets.set(congestionKey(p.EncryptionLevel, pn), info)
 	} else {
 		d.sampler.missing++ // Optional evidence never evicts mandatory recovery.
 		d.sampler.evidenceLost = true
@@ -124,7 +124,7 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 	}
 	// ACK values grow from the front and losses from the back of one bounded
 	// buffer. Registration cannot interleave this connection-owned event.
-	needed := len(d.packets) + len(d.sampler.retained)
+	needed := d.packets.len() + len(d.sampler.retained)
 	if cap(d.scratch) < needed {
 		d.scratch = make([]congestion.PacketInfo, min(maxDeliveryLive+maxDeliveryRetained, max(needed, 2*cap(d.scratch))))
 	}
@@ -142,11 +142,9 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 	}
 
 	for _, p := range acked {
-		key := congestionKey(p.EncryptionLevel, p.PacketNumber)
-		if info, ok := d.packets[key]; ok {
+		if info, ok := d.packets.take(congestionKey(p.EncryptionLevel, p.PacketNumber)); ok {
 			d.event.Acked = append(d.event.Acked, info)
 		}
-		delete(d.packets, key)
 	}
 }
 
@@ -156,9 +154,9 @@ func (h *sentPacketHandler) captureCongestionLoss(level protocol.EncryptionLevel
 		return
 	}
 	key := congestionKey(level, pn)
-	_, retained := d.packets[key]
+	info, retained := d.packets.get(key)
 	d.recovery.lost(key, p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket, retained, d.ordinal)
-	if info, ok := d.packets[key]; ok && p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket {
+	if retained && p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket {
 		start := len(d.scratch) - len(d.event.Lost) - 1
 		d.scratch[start] = info
 		d.event.Lost = d.scratch[start:]
@@ -210,9 +208,8 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 		d := h.congestionEvents
 		key := congestionKey(level, pn)
 		d.recovery.discard(key)
-		if p, ok := d.packets[key]; ok {
+		if p, ok := d.packets.take(key); ok {
 			d.sampler.dispose(p)
-			delete(d.packets, key)
 		}
 	}
 }
@@ -220,12 +217,13 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 func (h *sentPacketHandler) discardCongestionSpace(level protocol.EncryptionLevel) {
 	if d := h.congestionEvents; d != nil {
 		d.recovery.discardSpace(level)
-		for key, p := range d.packets {
+		// Disposal is a commutative subtraction, so visiting order is irrelevant.
+		d.packets.each(func(key congestionPacketKey, p congestion.PacketInfo) {
 			if p.EncryptionLevel == level {
 				d.sampler.dispose(p)
-				delete(d.packets, key)
+				d.packets.delete(key)
 			}
-		}
+		})
 		for key, r := range d.sampler.retained {
 			if r.packet.EncryptionLevel == level {
 				d.removeRetained(key, true)
@@ -251,7 +249,7 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 		d.recovery.reset()
 		// Release retained scratch and map capacity at restart. Connection teardown
 		// needs no independent cleanup: this state owns no resources or goroutines.
-		d.packets = make(map[congestionPacketKey]congestion.PacketInfo)
+		d.packets = deliveryRecords{}
 		d.event = congestion.FeedbackEvent{}
 		d.scratch = nil
 		d.sampler = deliverySampler{delivered: d.sampler.delivered, lost: d.sampler.lost}

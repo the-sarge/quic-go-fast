@@ -123,14 +123,14 @@ func TestRecoveryMemoryObservable(t *testing.T) {
 	})
 	var candidateRetained *congestionDispatch
 	candidateRetainedLive := liveHeap(func() any {
-		d := &congestionDispatch{packets: make(map[congestionPacketKey]congestion.PacketInfo)}
+		d := &congestionDispatch{}
 		for pn := range protocol.PacketNumber(maxDeliveryRetained) {
-			d.packets[congestionKey(protocol.Encryption1RTT, pn)] = memoryInfo(pn)
+			d.packets.set(congestionKey(protocol.Encryption1RTT, pn), memoryInfo(pn))
 		}
 		for pn := range protocol.PacketNumber(maxDeliveryRetained) {
 			d.retire(congestionKey(protocol.Encryption1RTT, pn), workBaseTime, pto, deliveryRetiredLoss)
 		}
-		d.packets = nil
+		d.packets = deliveryRecords{}
 		candidateRetained = d
 		return d
 	})
