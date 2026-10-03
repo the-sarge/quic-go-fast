@@ -27,9 +27,13 @@ REVISIONS = {
 }
 VARIANTS = {name: (rev, False) for name, rev in REVISIONS.items()}
 VARIANTS.update({name + '-diag': (rev, True) for name, rev in REVISIONS.items()})
+# Attribution only: diag overlay plus the demonstration's phase-timeline counting overlay.
+VARIANTS['cand-diag-counted'] = (REVISIONS['cand'], True)
 RELAY_V1_SOURCE = '19635ff6847efd3b778184b2eddae2cbb7baeb29de844cd25d906e4c0045ec61'
 QUANTUM_RECORD = 'a59a9779'
 QUANTUM_DIR = 'docs/audits/2026-10-02-bbr-quantum-pacing'
+DEMONSTRATION = '80466857'
+DEMONSTRATION_DIR = 'docs/audits/2026-10-02-bbr-correction-demonstration'
 ENV = {**os.environ, 'GOTOOLCHAIN': 'go1.27.0', 'GOFLAGS': '-mod=mod'}
 
 
@@ -60,10 +64,44 @@ def overlay(tree, module):
     replace(main, '\t<-heapDone\n\tcloseTransport()\n', '\t<-heapDone\n\tstopSeries()\n\tcloseTransport()\n')
 
 
-def go_build(module, pkg, binary, label):
+# Verbatim from the demonstration's build.py at 80466857.
+def c4_hooks(tree):
+    rec = tree / 'internal/congestion/bbr_recovery.go'
+    replace(rec, '\t\tif b.undo.exited && !b.ce.active {\n', '\t\tif b.undo.exited && !b.ce.active {\n\t\t\tc4Count(7)\n')
+    replace(rec, '\t\t\t\tb.probeRTTReturnStartup = true\n', '\t\t\t\tb.probeRTTReturnStartup = true\n\t\t\t\tc4Count(1)\n')
+    replace(rec, '\t\t\t\tb.phase = bbrStartup\n', '\t\t\t\tb.phase = bbrStartup\n\t\t\t\tc4Count(0)\n')
+    replace(rec, '\t\t\t\tb.startProbeRefill(b.delivered)\n', '\t\t\t\tb.startProbeRefill(b.delivered)\n\t\t\t\tc4Count(2)\n')
+    replace(rec, '\tif b.undo.valid {\n\t\tb.undo.exited, b.undo.phase = true, b.phase\n', '\tif b.undo.valid {\n\t\tc4Count(8)\n\t\tb.undo.exited, b.undo.phase = true, b.phase\n')
+    snd = tree / 'internal/congestion/bbr_sender.go'
+    replace(snd, 'func (b *BBRSender) Feedback(e FeedbackEvent) {\n', 'func (b *BBRSender) Feedback(e FeedbackEvent) {\n\tdefer func() { c4Phase(b.phase) }()\n')
+    replace(snd, '\t\treturn clockValid && e.HasAck && b.updateRTT(e.Time, e.RawRTT)\n',
+            '\t\tbefore, probeBefore := b.minimumRTT, b.probeRTTMinimum\n'
+            '\t\texpired := clockValid && e.HasAck && b.updateRTT(e.Time, e.RawRTT)\n'
+            '\t\tif (before > 0 && b.minimumRTT < before) || (probeBefore > 0 && b.probeRTTMinimum < probeBefore) {\n\t\t\tc4Count(3)\n\t\t}\n'
+            '\t\treturn expired\n')
+    replace(snd, '\troundStart := roundEvidence && b.startRound(anchor.Delivery.Delivered, s.Delivered)\n',
+            '\troundStart := roundEvidence && b.startRound(anchor.Delivery.Delivered, s.Delivered)\n'
+            '\tif roundStart && (!s.Valid || s.Interval <= 0) {\n\t\tc4Count(4)\n\t}\n')
+    replace(snd, '\t\t\tb.inflightLong = max(b.bdp(1), bbrBytes(b.latestVolume))\n',
+            '\t\t\tc4Count(5)\n'
+            '\t\t\tif max(b.bdp(1), bbrBytes(b.latestVolume)) != max(b.inflight(1), bbrBytes(b.latestVolume)) {\n\t\t\t\tc4Count(6)\n\t\t\t}\n'
+            '\t\t\tb.inflightLong = max(b.bdp(1), bbrBytes(b.latestVolume))\n')
+
+
+def counting(tree):
+    for rel in ['service_work_on.go', 'c4_work_on.go', 'c4_work_off.go']:
+        assert (HERE / 'counting' / rel).read_bytes() == git('show', f'{DEMONSTRATION}:{DEMONSTRATION_DIR}/counting/{rel}'), rel
+    shutil.copy(HERE / 'counting/service_work_on.go', tree / 'internal/ackhandler/service_work_on.go')
+    shutil.copy(HERE / 'counting/c4_work_on.go', tree / 'internal/congestion/c4_work_on.go')
+    shutil.copy(HERE / 'counting/c4_work_off.go', tree / 'internal/congestion/c4_work_off.go')
+    c4_hooks(tree)
+    subprocess.run(['gofmt', '-l', '-w', 'internal/ackhandler', 'internal/congestion'], cwd=tree, check=True)
+
+
+def go_build(module, pkg, binary, label, tags=()):
     assert not binary.exists(), f'{binary} exists; builds never overwrite'
     # -buildvcs=false: binaries must not depend on the enclosing worktree's HEAD.
-    cmd = ['go', 'build', '-trimpath', '-buildvcs=false', '-ldflags', '-X main.sourceRevision=' + label, '-o', str(binary), pkg]
+    cmd = ['go', 'build', '-trimpath', '-buildvcs=false', *tags, '-ldflags', '-X main.sourceRevision=' + label, '-o', str(binary), pkg]
     subprocess.run(cmd, cwd=module, env=ENV, check=True)
     return dict(binary=str(binary.relative_to(ART)), sha256=hashlib.sha256(binary.read_bytes()).hexdigest(), command=cmd)
 
@@ -105,13 +143,19 @@ def build(name):
     else:
         rev, diag = VARIANTS[name]
         full_rev, tree, module = export(name, rev)
+        counted = name.endswith('-counted')
         if diag:
             overlay(tree, module)
             subprocess.run(['gofmt', '-l', '.'], cwd=tree, check=True)
-        label = full_rev + ('+diag' if diag else '')
+        if counted:
+            counting(tree)
+        label = full_rev + ('+diag' if diag else '') + ('+counted' if counted else '')
         receipt = dict(variant=name, revision=full_rev, heap_fixture=':'.join(HEAP_PATCH),
-                       overlays=['overlay/diag_occupancy.go', 'overlay/diag_series.go'] if diag else [],
-                       builds={'fixture': go_build(module, './fixture', ART / 'bin' / f'{name}-fixture', label)})
+                       overlays=(['overlay/diag_occupancy.go', 'overlay/diag_series.go'] if diag else [])
+                       + (['counting/service_work_on.go', 'counting/c4_work_on.go', 'counting/c4_work_off.go'] if counted else []),
+                       c4_hooks=counted,
+                       builds={'fixture': go_build(module, './fixture', ART / 'bin' / f'{name}-fixture', label,
+                                                   ('-tags', 'bbrworkcount') if counted else ())})
     receipt['go'] = subprocess.check_output(['go', 'version'], cwd=ART, env=ENV, text=True).strip()
     (ART / 'bin' / f'{name}-build.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps({k: v['sha256'][:16] for k, v in receipt['builds'].items()}))

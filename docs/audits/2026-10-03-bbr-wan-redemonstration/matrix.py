@@ -45,6 +45,25 @@ elif stage == 's5':
     rows = readiness('S5', THREE, 9000)
 elif stage == 's6':
     rows = readiness('S6', TWO, 9100)
+# Post-registration attribution stages (README.md, "Post-registration").
+elif stage == 'counters':
+    arms = [('reno', 'reno', ''), ('reno', 'reno', 'aa'), ('cand', 'bbrv3', ''), ('cand', 'reno', '')]
+    rows = []
+    for block in range(1, 7):
+        for workload in (['stream', 'datagram'] if block % 2 else ['datagram', 'stream']):
+            for variant, controller, tag in rotated(arms, block):
+                rows.append(run_case('counters', variant, workload, block, controller, path='S5',
+                                     seed=9200 + block, counters=True, tag=tag))
+elif stage in ('timeline', 'heapsites'):
+    arms = [('reno-diag', 'reno'), ('cand-diag-counted', 'bbrv3')]
+    rows = []
+    for path, base in [('S5', 9300), ('S6', 9400)]:
+        for block in (1, 2):
+            for workload in (['stream', 'datagram'] if block % 2 else ['datagram', 'stream']):
+                for variant, controller in rotated(arms, block):
+                    rows.append(run_case(stage, variant, workload, block, controller, path=path,
+                                         seed=base + block + (10 if stage == 'heapsites' else 0),
+                                         heap_series=stage == 'heapsites'))
 else:
     raise ValueError(stage)
 write(ART / f'{stage}-summary.json', [dict(id=r['id'], goodput_mbps=r['goodput_mbps']) for r in rows])

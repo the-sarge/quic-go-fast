@@ -69,4 +69,52 @@ For every raised flag:
 
 An in-scope implementation defect is fixed on a new, identified revision. Every affected readiness comparison is then rerun on that revision, so no result mixes revisions. Contract-change causes and unresolved excess are reported, not fixed. No classification turns a raised flag into a pass, and no readiness is claimed while any flag is raised.
 
+## Post-registration: attribution stages
+
+Written and committed after the readiness stages ran and before any attribution stage ran. The readiness stages raised these flags (median per-block ratio against the same block's Reno; blocks crossing out of five):
+
+| Path, workload | Arm | Raised flags |
+| --- | --- | --- |
+| S5 STREAM | Candidate | sender CPU 1.170 (3), sender RSS 1.203 (4), receiver RSS 1.407 (5) |
+| S5 DATAGRAM | Candidate | sender CPU 1.320 (3), receiver CPU 1.138 (3), sender RSS 1.132 (4) |
+| S5 DATAGRAM | Reno on candidate | sender CPU 1.192 (3), receiver CPU 1.158 (3): a default-Reno preservation flag |
+| S6 STREAM | Candidate | sender RSS 1.393 (5), receiver RSS 1.574 (5), control p95 1.547 (5) |
+| S6 DATAGRAM | Candidate | sender RSS 1.374 (5), control p95 1.481 (5) |
+
+Loopback raised none. Frozen Reno's own S5 sender CPU per GiB spans 26.4–38.4 s (DATAGRAM) and 20.1–28.0 s (STREAM) across blocks, on a host whose non-fixture load ranged from about 300% to 1,300% CPU during runs. Every candidate change from frozen Reno sits behind `EnableBBR`, the only installer of the delivery-sampling dispatch and the BBR ECN tracker. Code inspection is not attribution, so the stages below discriminate.
+
+The stages use new seeds, retain every run and exclude none after outcomes are seen.
+
+### Stage `counters`: CPU flags (D4)
+
+- **Runs.** S5, both workloads, six blocks (seeds 9201–9206). Arms: Reno, a second frozen Reno run in the same block (A/A), candidate, and Reno on candidate. Order is rotated per block. Plain builds run under `/usr/bin/time -l`, which reports each endpoint's instructions retired, cycles, and voluntary and involuntary context switches.
+- **Hypotheses.** For each CPU flag, *H-work* says the arm executes more instructions per useful GiB than Reno. The competitor, *H-sched*, says equal work costs more CPU time through wakeups, scheduling or core placement.
+- **Decision rules,** per endpoint against the same block's Reno:
+  - *Executed-work excess:* median instructions-per-GiB ratio above 1.10, with at least five of six blocks above 1. A CPU-profile stage, designed and registered here before it runs, then locates the excess by site.
+  - *Wakeup or scheduling cost:* instructions within 1.10, and either total context switches (voluntary plus involuntary) per GiB above 1.5× in at least five of six blocks, or cycles per GiB above 1.10 in at least five of six blocks. It is reported against the pacing contract (D2/D08) or the platform, not fixed.
+    A smoke run made before this stage, and excluded from it, showed macOS reporting about 6 voluntary and 1.68 million involuntary switches for one sender run. The voluntary count alone is degenerate, so the rule uses the total. This amendment was made before any `counters` observation ran.
+  - *Noise floor:* neither of the above, with the readiness ratio inside the range of the A/A Reno CPU-seconds ratios. The flag stays raised and unresolved at this host's noise floor.
+- **Default-Reno preservation.** The flag is attributed to measurement noise when Reno on candidate has a median instructions-per-GiB ratio in [0.97, 1.03], and the readiness ratio lies inside the A/A range. Otherwise it stays a raised preservation flag.
+
+### Stage `timeline`: when each memory peak is set (D5), and S6 latency (D6)
+
+- **Runs.** S5 and S6, both workloads, two blocks (seeds 9301–9302 on S5, 9401–9402 on S6). Arms: Reno (`reno-diag`) and candidate (`cand-diag-counted`). The candidate build adds the demonstration's phase-timeline counting overlay, under the `bbrworkcount` tag with C4 hooks, to the diag overlay. The overlay is copied byte-identical from `80466857`. Both endpoints record the 10 ms series, which includes `getrusage` peak RSS.
+- **Measures.** `t_rss` is the first sample at which an endpoint's peak RSS reaches 99% of its final value. `t_probe` is the sender's first entry into a ProbeBW phase, which ends Startup and Drain. The measured-window footprint is the maximum of Go's mapped-not-released memory (`/memory/classes/total` minus heap released) within the measured window.
+- **Rules,** per flagged path, workload and endpoint:
+  - *Startup transient:* `t_rss ≤ t_probe + 1 s` in every candidate run, and the candidate's measured-window footprint is at most 1.10× the same block's Reno.
+  - *Steady-state excess:* the measured-window footprint exceeds 1.10× Reno. It is attributed in stage `heapsites`.
+  - *Mixed:* `t_rss` falls in Startup but the steady-state condition also holds. Both parts are reported.
+  - *Unresolved:* anything else.
+- **S6 control p95 (D6).** The flag is attributed to the selected ProbeBW Up policy when two conditions hold. In the candidate runs, at least 70% of forward-queue samples above 25 ms fall in Up or the following Down, and Cruise and Refill median queue delay is below 1 ms. Also, the readiness S5 matched-load control p95 is within 1.20. Otherwise it is unresolved.
+
+### Stage `heapsites`: what the steady-state excess is (D5)
+
+- **Runs.** The same paths, workloads, arms and builds as `timeline`, two blocks (seeds 9311–9312 on S5, 9411–9412 on S6). Both endpoints write a heap profile every second without forcing GC. Profile writing perturbs the run, so this stage supplies attribution only, never a flag value.
+- **Comparison.** The profile nearest each endpoint's measured-window heap peak is compared with Reno's in the same block, by in-use bytes per allocation site. The excess is grouped into two named, disjoint hypotheses:
+  - *Delivery data:* sent or received payload held for reliable delivery. These are packet and frame buffers, stream send data, sent-packet history and receive reassembly. Classified as algorithm behaviour scaled by BBR's in-flight or loss pattern, unless the payload is retained beyond what delivery requires.
+  - *BBR bookkeeping:* recovery evidence, retained delivery, sampler, ECN ledger and BBR controller state. Classified as design-bounded when its size matches a declared design bound that the occupancy uses. Classified as implementation churn or retention when allocation exceeds what the bound and occupancy require.
+- **Unresolved.** An excess outside both groups, or one that neither group explains (less than 70% of the excess), is unresolved.
+
+An implementation defect identified here is fixed on a new revision, and the affected readiness comparisons are rerun on it. Contract-change causes are reported only.
+
 <!-- Results, attribution, preservation, limits and assets are added after the stages run. -->

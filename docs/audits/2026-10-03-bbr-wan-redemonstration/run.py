@@ -25,6 +25,21 @@ PATHS = {'loopback': dict(warmup_ms=5000, measure_ms=20000), 'S6': dict(warmup_m
          'S5': dict(warmup_ms=10000, measure_ms=30000)}
 
 
+# `/usr/bin/time -l` counters appended to an endpoint's stderr on exit.
+TIME_COUNTERS = {'instructions retired': 'instructions', 'cycles elapsed': 'cycles',
+                 'voluntary context switches': 'voluntary_switches', 'involuntary context switches': 'involuntary_switches',
+                 'maximum resident set size': 'time_max_rss_bytes', 'peak memory footprint': 'peak_footprint_bytes'}
+
+
+def time_counters(path):
+    out = {}
+    for line in path.read_text().splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) == 2 and parts[1] in TIME_COUNTERS and parts[0].isdigit():
+            out[TIME_COUNTERS[parts[1]]] = int(parts[0])
+    return out
+
+
 def write(path, value):
     path.write_text(json.dumps(value, indent=2) + '\n')
 
@@ -58,6 +73,15 @@ def summarize(directory):
                          peak_rss_mib=res['peak_rss_bytes'] / 2**20, allocated_gib=res['total_alloc_bytes'] / 2**30,
                          allocated_gib_per_gib=res['total_alloc_bytes'] / delivery['useful_bytes'],
                          lost_packets=rec['trace']['lost_packets'] if rec.get('trace_enabled') else None)
+    for role in ['send', 'receive']:
+        c = time_counters(directory / f'{role}.stderr')
+        if c:
+            row[role]['counters'] = c
+            for k in ['instructions', 'cycles', 'voluntary_switches', 'involuntary_switches']:
+                row[role][k + '_per_gib'] = c[k] / gib
+        work = directory / f'{role}.work.json'
+        if work.exists():
+            row[role]['work'] = json.loads(work.read_text())
     row['combined_cpu_seconds_per_gib'] = row['send']['cpu_seconds_per_gib'] + row['receive']['cpu_seconds_per_gib']
     if (directory / 'relay.json').exists():
         relay = json.loads((directory / 'relay.json').read_text())
@@ -92,9 +116,10 @@ def wait_ready(proc, path, token, seconds=2.0):
         time.sleep(.02)
 
 
-def run_case(phase, variant, workload, pair, controller, path='loopback', seed=None, profile=False, heap=False, heap_series=False):
+def run_case(phase, variant, workload, pair, controller, path='loopback', seed=None, profile=False, heap=False, heap_series=False,
+             counters=False, tag=''):
     """Run one matched observation; refuse to replace any prior attempt."""
-    name = f'{phase}-{path}-{workload}-p{pair}-{variant}-{controller}'
+    name = f'{phase}-{path}-{workload}-p{pair}-{variant}-{controller}' + (f'-{tag}' if tag else '')
     directory = OBS / name
     if directory.exists():
         receipt = json.loads((directory / 'receipt.json').read_text())
@@ -108,7 +133,7 @@ def run_case(phase, variant, workload, pair, controller, path='loopback', seed=N
     write(directory / 'config.json', cfg)
     write(directory / 'meta.json', dict(phase=phase, variant=variant, pair=pair, path=path, seed=seed,
                                          profiled=profile or heap or heap_series, heap_series=heap_series,
-                                         diag=variant.endswith('-diag')))
+                                         diag='-diag' in variant, counters=counters, tag=tag))
     common = [str(binary), '-config', str(directory / 'config.json'),
               '-cert', str(ART / 'campaign.pem'), '-key', str(ART / 'campaign-key.pem'), '-trace=false']
     processes, commands, streams, relay = [], {}, [], None
@@ -128,7 +153,7 @@ def run_case(phase, variant, workload, pair, controller, path='loopback', seed=N
             wait_ready(relay, directory / 'relay.stderr', 'relay ready')
         for role, addr in [('receive', RECEIVER), ('send', SENDER)]:
             cmd = common + ['-role', role, '-local', addr, '-output', str(directory / f'{role}.json')]
-            if variant.endswith('-diag'):
+            if '-diag' in variant:
                 cmd += ['-series-output', str(directory / f'{role}.series.json')]
             if role == 'send':
                 cmd += ['-peer', FRONT if relay else RECEIVER]
@@ -136,10 +161,14 @@ def run_case(phase, variant, workload, pair, controller, path='loopback', seed=N
                 cmd += ['-cpu-profile', str(directory / f'{role}.cpu.pprof'), '-alloc-profile', str(directory / f'{role}.alloc.pprof')]
             if heap:
                 cmd += ['-heap-profile', str(directory / f'{role}.heap.pprof')]
-            if heap_series and role == 'receive':
-                (directory / 'receive-heap').mkdir()
-                cmd += ['-heap-series-dir', str(directory / 'receive-heap')]
+            if heap_series:
+                (directory / f'{role}-heap').mkdir()
+                cmd += ['-heap-series-dir', str(directory / f'{role}-heap')]
+            if counters:
+                cmd = ['/usr/bin/time', '-l'] + cmd
             env = None
+            if variant.endswith('-counted'):
+                env = {**os.environ, 'BBR_WORK_OUTPUT': str(directory / f'{role}.work.json')}
             commands[role] = cmd
             out = (directory / f'{role}.stdout').open('w')
             err = (directory / f'{role}.stderr').open('w')
