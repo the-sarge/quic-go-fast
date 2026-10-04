@@ -1,0 +1,8 @@
+# Native Linux tests for r4 (code tree 111178b7, rsynced) on minimax, 7.0.0-30-generic
+go version go1.27.1 linux/amd64
+$ go test . -run "BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing" -count=1 -v (tallied)
+ok  	github.com/quic-go/quic-go	0.029s
+67 top-level PASS, 0 top-level SKIP, exit 0
+$ go test ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	25.661s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.028s
