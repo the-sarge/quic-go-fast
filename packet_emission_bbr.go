@@ -55,6 +55,8 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 // events on every pass.
 // ACK/PTO exemptions bypass only ordinary pacing, never local byte ownership.
 func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result emissionResult) {
+	e.inOpportunity = true
+	defer func() { e.inOpportunity, e.capsTaken = false, false }()
 	defer func() {
 		e.reservation.complete() // unused construction allowance / packing failure
 		e.reservation = nil
@@ -142,7 +144,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
 	}
 	limit := size
-	if confirmed && (*e.conn).capabilities().GSO {
+	if confirmed && e.opportunityCapabilities().GSO {
 		limit = min(e.bbr.budget(now), allowance, protocol.MaxLargePacketBufferSize)
 		limit -= limit % size
 	}
@@ -160,7 +162,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 
 func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protocol.ByteCount) emissionResult {
 	exhausted := false
-	gso := (*e.conn).capabilities().GSO
+	gso := e.opportunityCapabilities().GSO
 	buf := getPacketBuffer()
 	if gso {
 		buf.Release()
@@ -195,6 +197,20 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 	// full pass (close, receive, timers, capacity) without a scheduling token,
 	// timer re-arm or select between consecutive datagrams.
 	return emissionResult{progress: true, deadline: deadlineSendImmediately, supplyExhausted: exhausted}
+}
+
+// opportunityCapabilities queries the connection once per BBR opportunity and
+// reuses that snapshot within it; a concurrent change (a GSO error, managed ECN
+// or receive state, lease DF) is seen by the next opportunity. Outside an
+// opportunity it queries live.
+func (e *packetEmission) opportunityCapabilities() connCapabilities {
+	if !e.inOpportunity {
+		return (*e.conn).capabilities()
+	}
+	if !e.capsTaken {
+		e.caps, e.capsTaken = (*e.conn).capabilities(), true
+	}
+	return e.caps
 }
 
 // A refused ordinary or isolated-probe request must not suppress control
