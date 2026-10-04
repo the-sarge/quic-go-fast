@@ -113,6 +113,11 @@ class BlockChoice(unittest.TestCase):
     def test_contaminated_rerun_keeps_original(self):
         self.assertEqual(I.choose_block(self.arms(contaminated=True), self.arms(contaminated=True))[1], 'original')
 
+    def test_second_rerun_replaces_when_first_is_contaminated(self):
+        dirty = self.arms(contaminated=True)
+        self.assertEqual(I.choose_block(dirty, dirty, self.arms())[1], 'rerun2')
+        self.assertEqual(I.choose_block(dirty, dirty, dirty)[1], 'original')
+
     def test_unusable_original_falls_back_to_rerun(self):
         self.assertEqual(I.choose_block(self.arms(usable=False), self.arms(contaminated=True))[1], 'rerun')
         self.assertEqual(I.choose_block(self.arms(usable=False), None)[1], 'unusable')

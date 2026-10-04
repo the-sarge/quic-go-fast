@@ -39,9 +39,11 @@ def rotated(a, block):
     return list(reversed(order)) if block % 2 == 0 else order
 
 
-def block_rows(stage, a, block, seed, suffix=''):
+def block_rows(stage, a, block, seed, suffix='', only=None):
     rows = []
     for workload in (['stream', 'datagram'] if block % 2 else ['datagram', 'stream']):
+        if only and workload != only:
+            continue
         for variant, controller, tag in rotated(a, block):
             rows.append(run.run_case(stage + suffix, variant, workload, block, controller, path='S5', seed=seed, tag=tag, perf='stat'))
     return rows
@@ -59,9 +61,12 @@ def main(argv):
         prev, new = argv[2], argv[3]
         a = arms(prev, new)
         if len(argv) > 4:
-            # One registered rerun of a block whose instruments were unusable; the original is retained.
+            # A rerun of one block (deviations 5 and 6); the original is retained.
+            # Optional: the rerun phase suffix (default 'rerun') and a single workload.
             block = int(argv[4])
-            rows = block_rows(stage, a, block, SEED_BASE[stage] + block, suffix='rerun')
+            suffix = argv[5] if len(argv) > 5 else 'rerun'
+            only = argv[6] if len(argv) > 6 else None
+            rows = block_rows(stage, a, block, SEED_BASE[stage] + block, suffix=suffix, only=only)
         else:
             rows = []
             for block in range(1, BLOCKS + 1):

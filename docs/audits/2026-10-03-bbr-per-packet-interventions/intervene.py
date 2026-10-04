@@ -187,25 +187,24 @@ def clean(x):
     return complete(x) and not any(x[k]['contamination'].get('contaminated') for k in ARMS)
 
 
-def choose_block(orig, rerun):
-    """Deviation 5 (operator decision after m3): a block that is unusable or contaminated is rerun
-    once; the rerun replaces it only when the rerun is usable and uncontaminated. Otherwise the
-    original is used if usable (contamination sensitivity still applies), else the rerun if usable."""
-    if clean(orig):
-        return orig, 'original'
-    if clean(rerun):
-        return rerun, 'rerun'
-    if complete(orig):
-        return orig, 'original'
-    if complete(rerun):
-        return rerun, 'rerun'
+def choose_block(orig, rerun, rerun2=None):
+    """Deviations 5 and 6 (operator decisions after m3): a block that is unusable or contaminated
+    is rerun; the first clean (usable and uncontaminated) of original, rerun and rerun2 is used.
+    Otherwise the first usable one is used (contamination sensitivity still applies)."""
+    tries = [(orig, 'original'), (rerun, 'rerun'), (rerun2, 'rerun2')]
+    for x, name in tries:
+        if clean(x):
+            return x, name
+    for x, name in tries:
+        if complete(x):
+            return x, name
     return None, 'unusable'
 
 
 def load_stage(stage, prev, new):
     """Observations of one measurement, with a rerun block replacing an unusable original."""
     obs, integrity, failures = {}, True, []
-    for phase in [stage, stage + 'rerun']:
+    for phase in [stage, stage + 'rerun', stage + 'rerun2']:
         for receipt in sorted(run.OBS.glob(f'{phase}-S5-*/receipt.json')):
             d = receipt.parent
             meta = json.loads((d / 'meta.json').read_text())
@@ -228,7 +227,7 @@ def load_stage(stage, prev, new):
     for wl in ['stream', 'datagram']:
         blocks = []
         for b in range(1, 7):
-            chosen, source = choose_block(obs.get((stage, wl, b), {}), obs.get((stage + 'rerun', wl, b)))
+            chosen, source = choose_block(obs.get((stage, wl, b), {}), obs.get((stage + 'rerun', wl, b)), obs.get((stage + 'rerun2', wl, b)))
             orig = obs.get((stage, wl, b), {})
             report.append(dict(workload=wl, block=b, source=source,
                                contaminated=[x['id'] for x in (chosen or orig).values() if x['contamination'].get('contaminated')]))
