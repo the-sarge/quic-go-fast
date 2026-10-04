@@ -15,6 +15,6 @@
     "prev": "r2",
     "new": "r3",
     "lead": 3,
-    "note": "blocks 5 and 6 rerun under deviation 5"
+    "note": "blocks 5 and 6 rerun under deviation 5; only STREAM block 5 rerun clean; still inconclusive (contamination-sensitive: keep)"
   }
 }
