@@ -4489,3 +4489,32 @@ Before this, the timer started at early acceptance (`quic.ListenEarly`). The ser
 ### Next
 
 - OmniFocus: complete the #151 decision task under "Maintainer decisions (#151 → #719 → #241)". That parent remains the live view for #719 and #241.
+
+---
+
+## fast.7 published and adoption reconciled - 2026-10-05 11:06 EDT
+
+**Main:** `0446131f9855`
+**Actor:** Claude
+
+### Summary
+
+Published [v0.62.1-fast.7](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.7) as a source-only GitHub prerelease at 2026-10-05 14:55:02 UTC. The operator selected source `55ea687d68c9c6f33785a1875374ec6a0d7570e8`, the journal commit for the [dial-owner drain merge #704](https://github.com/the-sarge/quic-go-fast/pull/704), after GridCast tested it through its CI. The SSH-signed annotated tag object `48a2b32eb07ffd59e7043160f064d5eeb404fa99` peels to that source. The release ships the opt-in experimental BBRv3 selection and the G30 network, setup, candidate and receive-phase admission extensions. Later `main` merges (#721–#731) are not included.
+
+### Decisions
+
+- The operator chose to tag the selected commit without a pre-tag changelog selection PR. The tagged source therefore carries no fast.7 changelog entry or release record, and both were added after publication. The [release record](releases/v0.62.1-fast.7.md#runbook-deviations) discloses this deviation.
+- The operator waived the separate candidate and tagged consumer builds because GridCast's CI already exercised the release source. The tagged module download was still verified.
+- The release notes, changelog and README state that BBRv3 is unqualified and has known severe regressions against Reno ([#599](https://github.com/the-sarge/quic-go-fast/issues/599), [#666](https://github.com/the-sarge/quic-go-fast/issues/666)). They also disclose the positional `Config` literal break that [ADR 0009](adr/0009-opt-in-bbrv3.md) requires.
+
+### Validation
+
+All five exact-main workflows and all five tag-triggered workflows passed, 17 jobs in each set, with individual job conclusions inspected. The published release notes retain all ten workflow URLs. A fresh `govulncheck -show verbose ./...` used v1.7.0 and Go 1.27.1 on darwin/arm64, with the database updated 2026-10-01 20:24:15 UTC. It found zero reachable and zero imported-package vulnerabilities; the existing module-only advisory GO-2026-5932 remains.
+
+A fresh module cache using the public proxy and checksum database resolved the tag to the selected SHA. Module sum `h1:zTfWKd4+io9QUiDHJjscJfD99r2YkITbIhLTC4J59v0=`; go.mod sum `h1:A0IgFhkxhEhQ/w/ofhmS62ViKO7YefJ8iRBpSR6gw/s=`, unchanged from fast.6; ZIP SHA-256 `c97c1c8a7979867854e96d947b32e362fa06545aa26a99f9ec336f5db54d6627`, 809 entries. The nested `docs/audits` module is excluded, and no assets were attached.
+
+[Publication reconciliation PR #732](https://github.com/the-sarge/quic-go-fast/pull/732) adds the dated changelog entry and the [release record](releases/v0.62.1-fast.7.md), and moves the README installation example to fast.7. Local relative-link, changelog-anchor and whitespace checks passed, as did all 33 hosted checks before the matched-head squash merge. This is documentation-only reconciliation under the shared cheap docs-only policy, with no RAS cycle.
+
+### Next
+
+README adoption now names fast.7. BBRv3 correction and qualification continue under the [BBR performance map #666](https://github.com/the-sarge/quic-go-fast/issues/666), the live view. A future release would pick up the post-cut `main` changes, including the single-family client sockets (#726) and the HTTP/3 idle-timer start (#730).
