@@ -12,14 +12,14 @@ Which of five selected per-packet leads in the BBR-enabled user-space path accou
 
 ## Answer
 
-**The surviving revision is `2d777bb0` (r5): interventions 1, 2, 3 and 5. Intervention 4 was not kept.** On S5, against `fc4c1bf1`, the sender runs 0.899 (STREAM) and 0.912 (DATAGRAM) of the user instructions per forward packet in every block (m6). The extra user work over frozen Reno falls from 10,991 to 6,736 instructions per packet (−39%) in STREAM and from 8,889 to 5,219 (−41%) in DATAGRAM. All the remaining excess (6,700 / 5,200 per packet) is still raised and unattributed: congestion and BBR ECN feedback, which D4 deferred, plus whatever the five leads did not reach.
+**The surviving revision is `d0fabc4d` (r6): all five interventions.** Interventions 1, 2, 3 and 5 were kept under the registered rules, giving r5 (`2d777bb0`). Intervention 4 was inconclusive on clean data and reverted. After the outcome, the operator decided to keep it on its cycles evidence ([deviation 8](#deviations)), and it was re-applied on r5 as r6 without a confirmation measurement. The cumulative figures below are r5's (m6); r6 as a whole is unmeasured here, and intervention 4's own evidence is m4, measured on r3. For r5 on S5, against `fc4c1bf1`, the sender runs 0.899 (STREAM) and 0.912 (DATAGRAM) of the user instructions per forward packet in every block (m6). The extra user work over frozen Reno falls from 10,991 to 6,736 instructions per packet (−39%) in STREAM and from 8,889 to 5,219 (−41%) in DATAGRAM. All the remaining excess (6,700 / 5,200 per packet) is still raised and unattributed: congestion and BBR ECN feedback, which D4 deferred, plus whatever the five leads did not reach.
 
 | Lead | Revision | Outcome | User instructions/packet, new ÷ predecessor (STREAM / DATAGRAM) | Conditional change per packet |
 | --- | --- | --- | --- | --- |
 | 1. Synchronization crossings | `b8b5aaae` | **keep** | 0.939 / 0.945 | −2,595 / −2,303 |
 | 2. Delivery-record map | `97c7be6c` | **keep** | 0.978 / 0.978 | −870 / −890 |
 | 3. Recovery-evidence lookups | `8e4510ba` | **keep** (after reruns of contaminated blocks, deviations 5 and 6) | 0.979 / 0.994 | −821 / −216 |
-| 4. Capability queries | `111178b7` | **inconclusive**, reverted (`fa022130`) | 0.993 / 0.998; one STREAM block above 1 | −286 / −73 |
+| 4. Capability queries | `111178b7` | **inconclusive**, reverted (`fa022130`); re-applied as r6 `d0fabc4d` by operator decision (deviation 8) | 0.993 / 0.998; one STREAM block above 1; user cycles 0.969 / 0.986 in every block | −286 / −73 |
 | 5. Send-credit reservations | `2d777bb0` | **keep** | 0.991 / 0.995 | −365 / −193 |
 | Cumulative (m6), r5 ÷ `fc4c1bf1` | `2d777bb0` | **keep** | 0.899 / 0.912 | −4,336 / −3,703 |
 
@@ -28,7 +28,7 @@ Effects are conditional net effects in registered order, not intrinsic leaf cost
 - **Every change was equivalent before it was measured.** Each kept change passed its frozen or model oracle, the existing #706/#709 gates, `-race`, #706's tagged work bounds, the full root package and native Linux tests.
 - **Reno is preserved.** Reno on each new revision stayed inside frozen Reno's A/A range in every measurement, and every observation passed receiver integrity.
 - **Goodput is unchanged.** These changes remove sender work but leave goodput where it was: about 87–88 (STREAM) and 84 (DATAGRAM) Mbit/s, against Reno's 95.9 and 94.4. The S5 goodput gap is untouched.
-- **Intervention 4 is not a demonstrated null.** On clean data its instruction effect was small, and one STREAM block lay above 1. User cycles fell in every block of both workloads (0.969 / 0.986), which fits lock and cache-line cost rather than executed work. Cycles are the registered secondary metric and can only block a keep, so the change was reverted. The next decision may weigh this cycles evidence.
+- **Intervention 4 was kept by operator decision.** On clean data its instruction effect was small, and one STREAM block lay above 1. User cycles fell in every block of both workloads (0.969 / 0.986), which fits lock and cache-line cost rather than executed work. Cycles were the registered secondary metric and could only block a keep, so under the registered rule it was reverted. The operator then kept it ([deviation 8](#deviations)).
 
 ## Results
 
@@ -64,6 +64,7 @@ All measurements: S5, both workloads, six blocks, five arms, `perf stat` on both
 | r2 `97c7be6c` | Model test against Go's map (683,434 operations); #706 twin comparing live records against the frozen dispatch, with probe-invariant checks; growth and reuse at the 25,000-record limit with zero steady allocation | All pass |
 | r3 `8e4510ba` | 407,829 `lowerBound` queries against the frozen search (skips, 100,000 evictions, resets); twin with deque-metadata recomputation and witness maps; named absent-witness case; tagged probe bound | All pass |
 | r4 `111178b7` | Counting, switchable capability test: one query per opportunity, the change at the next opportunity, live queries outside one | All pass (not kept) |
+| r6 `d0fabc4d` | r5 plus intervention 4's unchanged code and its capability test | All pass, Mac and native Linux (`gates/r6.log`, `gates/r6-native.log`) |
 | r5 `2d777bb0` | Frozen predecessor ledger in lockstep (600,000 operations: 25,606 refusals, 194,323 waits, 83,338 worker completions, 106,198 reuses), with equal state, returns and wait-point tokens; ownership tests | All pass, plus native `-race` |
 
 [mutate.py](mutate.py) against r5 ([mutation-results.tsv](mutation-results.tsv)) kills 11 of 14 mutants. The three survivors are dispositioned:
@@ -77,8 +78,9 @@ R4 survived the first sweep. The named case `TestRecoveryBoundaryWitnessAbsentSp
 
 ### Unresolved evidence for the next ticket
 
-- The remaining sender excess, 6,736 / 5,219 user instructions per packet, is unattributed. Congestion and BBR ECN feedback were deferred by D4, and the rest lies outside the five selected leads.
-- Intervention 4's cycles-only effect.
+- The surviving revision r6 is unmeasured as a whole. The next readiness stage measures it.
+- The remaining sender excess (r5: 6,736 / 5,219 user instructions per packet) is unattributed. Congestion and BBR ECN feedback were deferred by D4, and the rest lies outside the five selected leads.
+- Whether intervention 4's cycles-only effect carries into whole-run CPU on r6.
 - The DATAGRAM divergence between whole-run CPU time and measured-window cycles.
 - The S5 goodput gap, untouched by these changes.
 - Loopback, receiver CPU, memory and preservation cells are measured only by the readiness stage.
@@ -251,3 +253,4 @@ Recorded as they occurred; each says whether it preceded the data it affects.
 5. **Contaminated blocks are rerun (operator decision after m3).** Under the registered rule, m3 was **inconclusive**: STREAM a reduction (0.982, −714 user instructions per packet), but one DATAGRAM block above 1. Blocks 5 and 6 of both workloads were contaminated: a qemu VM and a self-hosted CI runner started on the host, up to 0.87 foreign cores on average. The DATAGRAM block above 1 (block 6, 1.0038) was the most contaminated; without blocks 5 and 6 the outcome would have been keep. The registered rule let a host event unrelated to the change discard it, conflating compromised evidence with an absent effect. The operator decided that a block containing an unusable **or contaminated** observation is rerun once with the same seed on a quiet host, replacing the original only if the rerun is usable and uncontaminated ([intervene.py](intervene.py) `choose_block`, with synthetic cases). This is adopted after m3's outcome was seen, so it is post-outcome for m3, where blocks 5 and 6 are rerun (two rerun blocks rather than one). It is prospective for m4–m6. The first m3 analysis is retained in [outcomes.json](outcomes.json) as `m3-first`. A provisional intervention 4 built on r2 after the first revert was gated (`gates/r4-on-r2-discarded.log`) and discarded unmeasured.
 6. **A second rerun of m3's still-contaminated blocks (operator decision).** CI jobs and a VM returned during the deviation-5 rerun, so only the STREAM block 5 rerun was clean. On a host the operator had cleared, the three still-contaminated blocks (STREAM 6, DATAGRAM 5 and 6) were rerun once more with the same seeds under the phase `m3rerun2`. `choose_block` takes the first clean of original, rerun and second rerun, and otherwise the first usable. Decided after m3's outcomes were seen; it applies only to m3.
 7. **Aborted m4 start.** m4 was launched when the operator reported a quiet host. Within minutes a VM (about 2.5 cores) and CI tests were running on the host, so m4 was stopped during its first observation. That partial observation is retained, renamed `aborted-m4-S5-stream-p1-reno-reno` so the stage loader never reads it. m4 restarts from block 1 when the host is quiet; no m4 result existed when it was stopped.
+8. **Intervention 4 kept by operator decision.** Under the registered rule, m4 was inconclusive on clean data, and r4 was reverted. After the outcome, the operator decided to keep it: its effect showed in cycles in every block of both workloads (0.969 / 0.986), consistent with its lock and cache-line hypothesis, while the instruction metric registered as primary missed the every-block test in one STREAM block. It was re-applied unchanged on r5 as r6 (`d0fabc4d`) and passed every Mac and native Linux gate. By the operator's choice no confirmation measurement was run. The registered outcome in [outcomes.json](outcomes.json) stays inconclusive; the readiness stage measures CPU on r6.

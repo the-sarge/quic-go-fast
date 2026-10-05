@@ -22,7 +22,8 @@
     "prev": "r3",
     "new": "r4",
     "lead": 4,
-    "outcome": "inconclusive; not kept, reverted (clean data; cycles fell in every block)"
+    "outcome": "inconclusive; not kept, reverted (clean data; cycles fell in every block)",
+    "operator_decision": "kept after the outcome (deviation 8); re-applied on r5 as r6 d0fabc4d, unmeasured as a whole"
   },
   "m5": {
     "prev": "r3",
