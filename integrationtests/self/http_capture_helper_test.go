@@ -232,8 +232,9 @@ func (c *httpCapture) finish(failed bool) {
 	}
 }
 
-// Hash every retained file in the slot, in the same sorted format as the CI
-// finalization step. An ordinary slot holds only capture.jsonl.
+// Hash every retained file in the slot, one "<sha256>  <name>" line per file in
+// byte order. The CI finalization step rewrites it in the same line format; its
+// order can differ on Windows. An ordinary slot holds only capture.jsonl.
 func checksumHTTPSlot(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -294,27 +295,47 @@ func (c *httpCapture) attach(name string, open func() (io.ReadCloser, error)) {
 		c.recordLocked("fixture", "attachment", data, false)
 		return
 	}
+	// A source read failure loses only the rest of this attachment; a
+	// destination failure stops the capture, as for any other write.
+	source := &httpCaptureAttachmentSource{Reader: src}
 	budget := max(0, c.limit-c.written-httpCaptureAttachmentRecordBytes)
-	n, err := io.Copy(dst, io.LimitReader(src, int64(budget)))
+	n, copyErr := io.Copy(dst, io.LimitReader(source, int64(budget)))
 	c.written += int(n)
-	if closeErr := dst.Close(); err == nil {
-		err = closeErr
+	destErr := dst.Close()
+	if copyErr != nil && source.err == nil {
+		destErr = copyErr
 	}
 	var more int64
-	if err == nil {
-		more, err = io.CopyN(io.Discard, src, 1)
-		if err == io.EOF {
-			err = nil
-		}
+	if copyErr == nil && destErr == nil {
+		more, _ = io.CopyN(io.Discard, source, 1) // a read error is kept in source.err
 	}
 	data["bytes"], data["truncated"] = n, more != 0
-	if err != nil {
-		c.err = err
-		fmt.Fprintf(os.Stderr, "HTTP capture attachment failed: path=%s name=%s error=%v\n", c.path, name, err)
+	if destErr != nil {
+		c.err = destErr
+		fmt.Fprintf(os.Stderr, "HTTP capture attachment failed: path=%s name=%s error=%v\n", c.path, name, destErr)
+	}
+	if source.err != nil {
+		data["error"] = source.err.Error()
+		c.dropped++
 	} else if more != 0 {
 		c.dropped++
 	}
 	c.recordLocked("fixture", "attachment", data, false)
+}
+
+// httpCaptureAttachmentSource remembers a source read failure, which io.Copy would
+// otherwise report indistinguishably from a destination write failure.
+type httpCaptureAttachmentSource struct {
+	io.Reader
+	err error
+}
+
+func (s *httpCaptureAttachmentSource) Read(p []byte) (int, error) {
+	n, err := s.Reader.Read(p)
+	if err != nil && err != io.EOF {
+		s.err = err
+	}
+	return n, err
 }
 
 // preserveHTTPCaptureChild retains the evidence of a failed capture check's

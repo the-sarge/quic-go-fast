@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -330,8 +332,20 @@ func TestHTTPCaptureCheckPreservation(t *testing.T) {
 	})
 
 	t.Run("passing check", func(t *testing.T) {
+		// Not the idle fixture: its natural #151 failure would add a second
+		// exposure to that intermittent failure to the suite.
+		const fixture = "TestHTTPReestablishConnectionAfterDialError"
 		outer := t.TempDir()
-		output, err := runCheck(t, "TestHTTPServerIdleTimeout", "QUIC_GO_HTTP_CAPTURE_DIR="+outer)
+		// A natural fixture failure is preserved into this temporary outer
+		// directory; carry it into the real one before the removal.
+		var output []byte
+		t.Cleanup(func() {
+			if retained := os.Getenv("QUIC_GO_HTTP_CAPTURE_DIR"); t.Failed() && retained != "" {
+				c := preserveHTTPCaptureChild(retained, t.Name(), map[string]any{"parent_test": t.Name(), "child_fixture": fixture, "private_root": outer}, outer, output)
+				t.Logf("HTTP capture check child preservation: path=%s observed=%d retained=%d dropped=%d error=%v", c.path, c.observed, c.retained, c.dropped, c.err)
+			}
+		})
+		output, err := runCheck(t, fixture, "QUIC_GO_HTTP_CAPTURE_DIR="+outer)
 		require.NoError(t, err, string(output))
 		entries, err := os.ReadDir(outer)
 		require.NoError(t, err)
@@ -393,4 +407,57 @@ func TestHTTPCaptureCheckPreservationBudget(t *testing.T) {
 	preserved, err := os.ReadFile(filepath.Join(slot, "child-slot-0-capture.jsonl"))
 	require.NoError(t, err)
 	require.Equal(t, capture[:len(preserved)], preserved, "truncation keeps the leading bytes")
+}
+
+// Fails after its data, like a file whose read fails partway through.
+type failingHTTPCaptureSource struct{ data []byte }
+
+func (s *failingHTTPCaptureSource) Read(p []byte) (int, error) {
+	if len(s.data) == 0 {
+		return 0, errors.New("source read failed")
+	}
+	n := copy(p, s.data)
+	s.data = s.data[n:]
+	return n, nil
+}
+
+func TestHTTPCaptureAttachSourceFailure(t *testing.T) {
+	for _, mode := range []string{"copy", "read-ahead"} {
+		t.Run(mode, func(t *testing.T) {
+			c := openHTTPCapture(t.TempDir(), t.Name())
+			after := []byte("tail")
+			if mode == "read-ahead" {
+				// The budget ends exactly at the data, so only the read-ahead fails.
+				c.limit = c.written + httpCaptureAttachmentRecordBytes + 4
+				after = nil
+			}
+			c.attach("failing", func() (io.ReadCloser, error) {
+				return io.NopCloser(&failingHTTPCaptureSource{data: []byte("abcd")}), nil
+			})
+			c.attach("after", func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(after)), nil })
+			c.finish(true)
+			require.NoError(t, c.err, "a source failure does not stop the capture")
+			slot := filepath.Dir(c.path)
+			prefix, err := os.ReadFile(filepath.Join(slot, "failing"))
+			require.NoError(t, err)
+			require.Equal(t, "abcd", string(prefix))
+			tail, err := os.ReadFile(filepath.Join(slot, "after"))
+			require.NoError(t, err)
+			require.Equal(t, string(after), string(tail))
+			records, err := os.ReadFile(c.path)
+			require.NoError(t, err)
+			require.Contains(t, string(records), `"bytes":4,"error":"source read failed","name":"failing","truncated":false`)
+			require.Contains(t, string(records), `"name":"after","truncated":false`)
+			require.Contains(t, string(records), `"complete_recording_window":false`)
+			sums, err := os.ReadFile(filepath.Join(slot, "SHA256SUMS"))
+			require.NoError(t, err)
+			var want strings.Builder
+			for _, file := range []string{"after", "capture.jsonl", "failing"} {
+				data, err := os.ReadFile(filepath.Join(slot, file))
+				require.NoError(t, err)
+				fmt.Fprintf(&want, "%x  %s\n", sha256.Sum256(data), file)
+			}
+			require.Equal(t, want.String(), string(sums))
+		})
+	}
 }
