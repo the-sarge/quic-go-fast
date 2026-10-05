@@ -4410,3 +4410,34 @@ Merged [PR #726](https://github.com/the-sarge/quic-go-fast/pull/726) as `a505e21
 - The OmniFocus parent "Land #717, #718, then #720" is complete.
 - Whether to offer the change upstream to quic-go, which the brief deferred until it landed, is now an open OmniFocus task in the quic-go-fast project.
 - The dual-stack `NewManagedPacketEndpointV1("udp", nil)` cell in `TestManagedPathMTUDiscovery/dual_ipv4` remains exposed to the same darwin collision by design, as #717's notes recorded.
+
+---
+
+## HTTP/0.9 and hotswap timeout issues closed - 2026-10-05 00:26 EDT
+
+**Main:** `b8808c2ba19e`
+**Actor:** Claude
+
+### Summary
+
+Closed [#169](https://github.com/the-sarge/quic-go-fast/issues/169) and [#188](https://github.com/the-sarge/quic-go-fast/issues/188) as completed after their blockers landed: [#717](https://github.com/the-sarge/quic-go-fast/issues/717) via #721, [#718](https://github.com/the-sarge/quic-go-fast/issues/718) via #723, and [#720](https://github.com/the-sarge/quic-go-fast/issues/720) via #726. Merged [PR #728](https://github.com/the-sarge/quic-go-fast/pull/728) as `b8808c2ba19e895d22becc86ed3f61f9f0b70f9a`, which records #188's closure in the two contract docs that still said to keep it open.
+
+- **#169** (macOS HTTP/0.9 initial-request timeout): the HTTP/0.9 test clients now dial from `127.0.0.1` on darwin, and `requireLoopbackClients` enforces it. The 2026-09-12 `TestHTTPHeaders` failure has an established cause: the wildcard client was assigned the server's own port. The original 2026-09-10 cause is inferred. [Closing comment](https://github.com/the-sarge/quic-go-fast/issues/169#issuecomment-5988002086).
+- **#188** (macOS QUIC v2 hotswap timeout): both hotswap clients dial through `hotswapDialLocalhost` with a loopback guard, and #723 keeps a natural capture-check failure's evidence. Neither natural failure's capture survived, so the cause is inferred, not observed. [Closing comment](https://github.com/the-sarge/quic-go-fast/issues/188#issuecomment-5988020304).
+- **PR #728:** [hotswap-failure-capture.md](agents/hotswap-failure-capture.md) and [capture-check-preservation.md](agents/capture-check-preservation.md) now record the closure, and state that the capture stays installed.
+
+### Decisions
+
+- Close both issues now instead of waiting for a no-recurrence window. Further natural evidence would only arrive if the fix failed. Each closing comment gives a reopen criterion: a timeout on a head containing the fixes with the loopback guard passing. A failing guard is a fixture regression and goes in a new issue. This follows the #301 disposition in #717.
+- Keep the hotswap capture and capture-check preservation installed: the #188 reopen criterion relies on a retained capture.
+- The earlier journal lines saying #169 and #188 stay open are left as dated history.
+
+### Validation
+
+- `git diff --check` was clean. All 33 hosted checks passed on `eda7d43a`, which was squash-merged with an exact-head guard. Docs-only: 2 files, 4 lines.
+- Triage ran no new tests, consistent with the issues' no-campaign limits.
+
+### Next
+
+- OmniFocus: the parent "Re-triage #169 and #188 after both land" and both child tasks are complete.
+- [#151](https://github.com/the-sarge/quic-go-fast/issues/151) stays open (`ready-for-human`) for its separate early-idle-expiry contract decision. The issue tracker is the live view.
