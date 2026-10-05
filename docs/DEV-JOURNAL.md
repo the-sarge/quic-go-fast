@@ -4282,3 +4282,46 @@ Merged [PR #704](https://github.com/the-sarge/quic-go-fast/pull/704) as `179aa7f
 
 - Deferred, not filed: revalidated at `179aa7fe`, `dial_owner_test.go:99-104` starts the holder before publishing its PID, and `:170-172` registers cleanup only after the PID parses. If that handoff fails, an already-failing test leaves one sleeping holder for at most 10 minutes. This was judged too marginal to track.
 - #241, the natural socket-rebind timeout, remains open and is unaffected.
+
+---
+
+## macOS test clients bound to 127.0.0.1 - 2026-10-04 21:09 EDT
+
+**Main:** `7a2b80244414`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #721](https://github.com/the-sarge/quic-go-fast/pull/721) as `7a2b80244414b86a89f0c6b001240f28b6772c61`, closing [#717](https://github.com/the-sarge/quic-go-fast/issues/717). On macOS, a client socket bound to the wildcard address is dual-stack. Port-0 assignment can give it a port that an IPv4 socket already holds, and loopback replies then go to that socket ([golang/go#67226](https://github.com/golang/go/issues/67226)). Seven tests across five fixtures bypassed upstream's `addDialCallback` correction. They now dial from `127.0.0.1` on darwin; behavior elsewhere is unchanged.
+
+- `integrationtests/self/self_test.go` adds `dialAddrEarlyLocalhost`, `resolveUDPAddrIPv4`, `dialEarlyLocalhost` and `loopbackClientError`.
+  - The darwin socket belongs to the connection and closes when it ends, as `DialAddrEarly`'s does, so fixture cleanup and capture phase order are unchanged.
+  - Resolution uses the request context and keeps the first IPv4 address; `localhost` resolved to `::1` first.
+  - `addDialCallback` and its callers are unchanged.
+- Idle-timeout (both `TestHTTPServerIdleTimeout*`) and reestablish fixtures use the helper and check the bound address in their Dial callbacks. The deliberate first-dial failure and per-attempt capture events are unchanged.
+- `TestHTTP3ServerHotswap` gets `hotswapDialLocalhost` on darwin. It emits the default dial's trace hooks in order, so both clients keep every capture milestone, including `early_dial_return`. The guard reads the GotConn local address.
+- `interop/http09` adds an unexported `RoundTripper.dialEarly` seam that only package tests set; the interop runner is unchanged. `TestServerRequestValidation`, found by the audit, also dials from `127.0.0.1` on darwin.
+- [hotswap-failure-capture.md](agents/hotswap-failure-capture.md) and [http-failure-captures.md](agents/http-failure-captures.md) describe the darwin dial.
+
+### Decisions
+
+- The wildcard-socket audit and the reasons for each exclusion are in the [PR #721 body](https://github.com/the-sarge/quic-go-fast/pull/721).
+  - `TestHTTPClientTrace`, `TestHTTPDifferentOrigins` and `TestHandshakeAddrResolutionHelpers` deliberately test the library's default sockets, so they belong to [#720](https://github.com/the-sarge/quic-go-fast/issues/720).
+  - `TestManagedPathMTUDiscovery/dual_ipv4` is dual-stack on purpose and stays exposed to the collision.
+- Each fixture calls the guard itself, outside the helper, so reverting a fixture to a wildcard dial fails with a golang/go#67226 error.
+
+### Validation
+
+- **Red first:** before the fix, the guard failed all seven affected tests with `[::]:<port>` sockets. These runs served as the guard-bypass check for each guard placement.
+- **Bounded comparison:** `-count=200` of `TestHTTPServerIdleTimeoutAfterRetry` on go1.27.1 darwin/arm64, run once at each SHA.
+  - Base `55ea687d`: 8/200. One slow `no recent network activity`: the client was on `[::]:64125`, sent 17 packets and received 4. Seven fast #151 early-idle failures.
+  - Head `79aa0cbb`: 0/200.
+  - These are sanity checks, not proof. Nothing is concluded about the fast failures, which stay with [#151](https://github.com/the-sarge/quic-go-fast/issues/151).
+- **Exact-head certification** at `79aa0cbb` (base `55ea687d`, clean tree): `git diff --check`, `go mod tidy -diff`, `go vet` and `golangci-lint` for darwin, linux and windows; `-race` focused fixtures and `TestHTTPCapture*` at both QUIC versions; `go test -race ./interop/http09/`; full `./interop/...` and `./integrationtests/self/` at v1 and v2.
+- **Hosted checks:** all 33 PR checks passed on `79aa0cbb`, on both push and pull_request events. No rerun was needed.
+- **Review:** initial RAS run `20261005T005501-4d79bfa27e76940ea9c19c12` at `79aa0cbb` found no Fix First or Follow Up. One low process note, that the comparison results were not yet in the PR body, was rejected: it needed no code change and the PR evidence section answers it. No replacement review was needed.
+
+### Next
+
+- Per the OmniFocus parent task, [#718](https://github.com/the-sarge/quic-go-fast/issues/718) is next, then [#720](https://github.com/the-sarge/quic-go-fast/issues/720).
+- [#169](https://github.com/the-sarge/quic-go-fast/issues/169) and [#188](https://github.com/the-sarge/quic-go-fast/issues/188) stay open until a period with no recurrence, which is the maintainer's call.
