@@ -57,10 +57,10 @@ CI installs the exact version for each lane, sets `GOTOOLCHAIN=local` to prevent
 
 ## Use the fork
 
-Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. The published `v0.62.1-fast.6` tag includes the external packet-I/O, managed-endpoint and fixed-peer extensions described above, plus managed ECN, Linux/Darwin managed path-MTU discovery, Darwin 27 arm64 batch admission, the Darwin qualification-worker repair and the earlier HTTP/3 fixes described in the changelog:
+Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. The published `v0.62.1-fast.7` tag includes the external packet-I/O, managed-endpoint and fixed-peer extensions described above, managed ECN, Linux/Darwin managed path-MTU discovery and Darwin 27 arm64 batch admission, plus the opt-in network, setup, candidate and receive-phase admission extensions and an experimental opt-in BBRv3 sender described in the changelog. BBRv3 is unqualified and has known performance regressions; Reno remains the default. Positional (unkeyed) `Config` literals must be converted to keyed form:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.6
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.7
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
@@ -69,7 +69,7 @@ For another version, select an exact published tag from [GitHub Releases](https:
 
 A dependency's replacement does not propagate to its consumers: each application must select the fork explicitly. The replacement applies to every selected version of `github.com/quic-go/quic-go`; verify compatibility if another dependency expects APIs newer than the upstream v0.62.0 baseline.
 
-To return to upstream, first remove or adapt fork-only factory, registration and fixed-peer calls, including any required managed-endpoint option. Then remove the replacement and tidy:
+To return to upstream, first remove or adapt fork-only factory, registration, fixed-peer, admission and congestion-control selection calls, including any required managed-endpoint option. Then remove the replacement and tidy:
 
 ```sh
 go mod edit -dropreplace=github.com/quic-go/quic-go
