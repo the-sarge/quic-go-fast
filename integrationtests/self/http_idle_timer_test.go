@@ -25,6 +25,9 @@ func TestHTTPServerIdleTimerStartsAtHandshakeCompletion(t *testing.T) {
 
 		clientPacketConn, serverPacketConn, closeFn := newSimnetLink(t, rtt)
 		defer closeFn(t)
+		// One transport owns the client socket for every dial in this test.
+		clientTransport := &quic.Transport{Conn: clientPacketConn}
+		defer clientTransport.Close()
 
 		mux := http.NewServeMux()
 		mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +37,7 @@ func TestHTTPServerIdleTimerStartsAtHandshakeCompletion(t *testing.T) {
 		defer closeServer()
 
 		var conn *quic.Conn
-		tr := newSimnetHTTPTransport(clientPacketConn, serverPacketConn, getTLSClientConfig(), func(c *quic.Conn) { conn = c })
+		tr := newSimnetHTTPTransport(clientTransport, serverPacketConn, getTLSClientConfig(), func(c *quic.Conn) { conn = c })
 		defer tr.Close()
 
 		resp, err := tr.RoundTrip(newRequest(t, http.MethodGet, "https://localhost/hello"))
@@ -59,6 +62,9 @@ func TestHTTPServerIdleTimerWaitsFor0RTTExchange(t *testing.T) {
 
 		clientPacketConn, serverPacketConn, closeFn := newSimnetLink(t, rtt)
 		defer closeFn(t)
+		// One transport owns the client socket for every dial in this test.
+		clientTransport := &quic.Transport{Conn: clientPacketConn}
+		defer clientTransport.Close()
 
 		mux := http.NewServeMux()
 		mux.HandleFunc("/ticket", func(w http.ResponseWriter, r *http.Request) {})
@@ -73,9 +79,9 @@ func TestHTTPServerIdleTimerWaitsFor0RTTExchange(t *testing.T) {
 		closeServer := startSimnetHTTPServer(t, serverPacketConn, mux, idleTimeout)
 		defer closeServer()
 
-		tlsConf := resumableSimnetTLSConfig(t, clientPacketConn, serverPacketConn, "https://localhost/ticket")
+		tlsConf := resumableSimnetTLSConfig(t, clientTransport, serverPacketConn, "https://localhost/ticket")
 		var conn *quic.Conn
-		tr := newSimnetHTTPTransport(clientPacketConn, serverPacketConn, tlsConf, func(c *quic.Conn) { conn = c })
+		tr := newSimnetHTTPTransport(clientTransport, serverPacketConn, tlsConf, func(c *quic.Conn) { conn = c })
 		defer tr.Close()
 
 		resp, err := tr.RoundTrip(newRequest(t, http3.MethodGet0RTT, "https://localhost/slow"))
@@ -103,6 +109,9 @@ func TestHTTPServerIdleTimerAfterEarly0RTTExchange(t *testing.T) {
 
 		clientPacketConn, serverPacketConn, closeFn := newSimnetLink(t, rtt)
 		defer closeFn(t)
+		// One transport owns the client socket for every dial in this test.
+		clientTransport := &quic.Transport{Conn: clientPacketConn}
+		defer clientTransport.Close()
 
 		mux := http.NewServeMux()
 		mux.HandleFunc("/ticket", func(w http.ResponseWriter, r *http.Request) {})
@@ -114,9 +123,9 @@ func TestHTTPServerIdleTimerAfterEarly0RTTExchange(t *testing.T) {
 		closeServer := startSimnetHTTPServer(t, serverPacketConn, mux, idleTimeout)
 		defer closeServer()
 
-		tlsConf := resumableSimnetTLSConfig(t, clientPacketConn, serverPacketConn, "https://localhost/ticket")
+		tlsConf := resumableSimnetTLSConfig(t, clientTransport, serverPacketConn, "https://localhost/ticket")
 		var conn *quic.Conn
-		tr := newSimnetHTTPTransport(clientPacketConn, serverPacketConn, tlsConf, func(c *quic.Conn) { conn = c })
+		tr := newSimnetHTTPTransport(clientTransport, serverPacketConn, tlsConf, func(c *quic.Conn) { conn = c })
 		defer tr.Close()
 
 		start := time.Now()
@@ -148,12 +157,12 @@ func startSimnetHTTPServer(t *testing.T, pc *simnet.SimConn, handler http.Handle
 	}
 }
 
-func newSimnetHTTPTransport(client, server *simnet.SimConn, tlsConf *tls.Config, onDial func(*quic.Conn)) *http3.Transport {
+func newSimnetHTTPTransport(client *quic.Transport, server *simnet.SimConn, tlsConf *tls.Config, onDial func(*quic.Conn)) *http3.Transport {
 	return &http3.Transport{
 		TLSClientConfig: tlsConf,
 		QUICConfig:      getQuicConfig(nil),
 		Dial: func(ctx context.Context, _ string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
-			conn, err := quic.DialEarly(ctx, client, server.LocalAddr(), tlsConf, conf)
+			conn, err := client.DialEarly(ctx, server.LocalAddr(), tlsConf, conf)
 			if err == nil && onDial != nil {
 				onDial(conn)
 			}
@@ -164,7 +173,7 @@ func newSimnetHTTPTransport(client, server *simnet.SimConn, tlsConf *tls.Config,
 
 // resumableSimnetTLSConfig returns a client TLS config holding a session ticket
 // from the server, so that a later connection can send 0-RTT requests.
-func resumableSimnetTLSConfig(t *testing.T, client, server *simnet.SimConn, ticketURL string) *tls.Config {
+func resumableSimnetTLSConfig(t *testing.T, client *quic.Transport, server *simnet.SimConn, ticketURL string) *tls.Config {
 	t.Helper()
 	tlsConf := getTLSClientConfig()
 	puts := make(chan string, 1)
