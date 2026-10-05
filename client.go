@@ -14,16 +14,17 @@ var generateConnectionIDForInitial = protocol.GenerateConnectionIDForInitial
 
 // DialAddr establishes a new QUIC connection to a server.
 // It resolves the address, and then creates a new UDP connection to dial the QUIC server.
+// The UDP connection is bound to the unspecified address of the resolved address's family,
+// so it is an IPv4 socket for an IPv4 server and an IPv6-only socket for an IPv6 server.
 // When the QUIC connection is closed, this UDP connection is closed.
 // See [Dial] for more details.
 func DialAddr(ctx context.Context, addr string, tlsConf *tls.Config, conf *Config) (*Conn, error) {
-	udpConn, err := listenUDPConn("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return nil, err
 	}
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	udpConn, err := listenUDPForAddr(udpAddr)
 	if err != nil {
-		udpConn.Close()
 		return nil, err
 	}
 	tr, err := setupTransport(udpConn, tlsConf, true)
@@ -40,15 +41,15 @@ func DialAddr(ctx context.Context, addr string, tlsConf *tls.Config, conf *Confi
 }
 
 // DialAddrEarly establishes a new 0-RTT QUIC connection to a server.
+// Like [DialAddr], it dials from a new UDP connection of the resolved address's family.
 // See [DialAddr] for more details.
 func DialAddrEarly(ctx context.Context, addr string, tlsConf *tls.Config, conf *Config) (*Conn, error) {
-	udpConn, err := listenUDPConn("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return nil, err
 	}
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	udpConn, err := listenUDPForAddr(udpAddr)
 	if err != nil {
-		udpConn.Close()
 		return nil, err
 	}
 	tr, err := setupTransport(udpConn, tlsConf, true)
@@ -62,6 +63,17 @@ func DialAddrEarly(ctx context.Context, addr string, tlsConf *tls.Config, conf *
 		return nil, err
 	}
 	return conn, nil
+}
+
+// listenUDPForAddr creates the UDP connection used by [DialAddr] and [DialAddrEarly].
+// It is bound to a single address family: on macOS, a dual-stack socket bound to port 0
+// can be assigned a port that an IPv4 socket already holds, and then never receives
+// the IPv4 replies sent to that port.
+func listenUDPForAddr(addr *net.UDPAddr) (*net.UDPConn, error) {
+	if addr.IP.To4() != nil {
+		return listenUDPConn("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	}
+	return listenUDPConn("udp6", &net.UDPAddr{IP: net.IPv6unspecified, Port: 0})
 }
 
 // DialEarly establishes a new 0-RTT QUIC connection to a server using a [net.PacketConn].
