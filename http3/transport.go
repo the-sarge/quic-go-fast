@@ -75,7 +75,9 @@ type Transport struct {
 	// Dial specifies an optional dial function for creating QUIC
 	// connections for requests.
 	// If [Transport.Dial] is nil, a [net.UDPConn] will be created at the first request
-	// and will be reused for subsequent connections to other servers.
+	// to a server of each address family, and will be reused for subsequent connections
+	// to other servers of that family. It is an IPv4 socket for IPv4 servers and an
+	// IPv6-only socket for IPv6 servers.
 	Dial func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error)
 
 	// Enable support for HTTP/3 datagrams (RFC 9297).
@@ -107,9 +109,16 @@ type Transport struct {
 
 	newClientConn func(*quic.Conn) clientConn
 
-	clients   map[string]*roundTripperWithCount
-	transport *quic.Transport
-	closed    bool
+	clients map[string]*roundTripperWithCount
+	closed  bool
+
+	// Without a custom Dial, one transport per address family is created on first use.
+	// transportMutex is separate from mutex: Close holds mutex while it waits for
+	// in-flight dials, and those dials need the transports.
+	transportMutex   sync.Mutex
+	transport4       *quic.Transport
+	transport6       *quic.Transport
+	transportsClosed bool
 }
 
 var (
@@ -157,14 +166,31 @@ func (t *Transport) init() error {
 		t.QUICConfig = t.QUICConfig.Clone()
 		t.QUICConfig.MaxIncomingStreams = -1 // don't allow any bidirectional streams
 	}
-	if t.Dial == nil {
-		udpConn, err := net.ListenUDP("udp", nil)
-		if err != nil {
-			return err
-		}
-		t.transport = &quic.Transport{Conn: udpConn}
-	}
 	return nil
+}
+
+// transportFor returns the transport used to dial addr when [Transport.Dial] is nil.
+// It is bound to addr's address family: on macOS, a dual-stack socket bound to port 0
+// can be assigned a port that an IPv4 socket already holds, and then never receives
+// the IPv4 replies sent to that port.
+func (t *Transport) transportFor(addr *net.UDPAddr) (*quic.Transport, error) {
+	t.transportMutex.Lock()
+	defer t.transportMutex.Unlock()
+	if t.transportsClosed {
+		return nil, ErrTransportClosed
+	}
+	tr, network, laddr := &t.transport6, "udp6", &net.UDPAddr{IP: net.IPv6unspecified}
+	if addr.IP.To4() != nil {
+		tr, network, laddr = &t.transport4, "udp4", &net.UDPAddr{IP: net.IPv4zero}
+	}
+	if *tr == nil {
+		udpConn, err := net.ListenUDP(network, laddr)
+		if err != nil {
+			return nil, err
+		}
+		*tr = &quic.Transport{Conn: udpConn}
+	}
+	return *tr, nil
 }
 
 // RoundTripOpt is like [Transport.RoundTrip], but takes options.
@@ -383,10 +409,14 @@ func (t *Transport) dial(ctx context.Context, hostname string) (*quic.Conn, clie
 			if err != nil {
 				return nil, err
 			}
+			tr, err := t.transportFor(udpAddr)
+			if err != nil {
+				return nil, err
+			}
 			trace := httptrace.ContextClientTrace(ctx)
 			traceConnectStart(trace, network, udpAddr.String())
 			traceTLSHandshakeStart(trace)
-			conn, err := t.transport.DialEarly(ctx, udpAddr, tlsCfg, cfg)
+			conn, err := tr.DialEarly(ctx, udpAddr, tlsCfg, cfg)
 			var state tls.ConnectionState
 			if conn != nil {
 				state = conn.ConnectionState().TLS
@@ -495,15 +525,21 @@ func (t *Transport) Close() error {
 		}
 	}
 	t.clients = nil
-	if t.transport != nil {
-		if err := t.transport.Close(); err != nil {
+	t.transportMutex.Lock()
+	defer t.transportMutex.Unlock()
+	for _, tr := range []**quic.Transport{&t.transport4, &t.transport6} {
+		if *tr == nil {
+			continue
+		}
+		if err := (*tr).Close(); err != nil {
 			return err
 		}
-		if err := t.transport.Conn.Close(); err != nil {
+		if err := (*tr).Conn.Close(); err != nil {
 			return err
 		}
-		t.transport = nil
+		*tr = nil
 	}
+	t.transportsClosed = true
 	t.closed = true
 	return nil
 }

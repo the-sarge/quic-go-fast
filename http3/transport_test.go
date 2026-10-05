@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -626,6 +628,98 @@ func TestTransportCloseIdleConnections(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
 	}
+}
+
+// Without a custom Dial, the Transport dials each address family from its own
+// single-family socket (#720), and Close releases both sockets.
+func TestTransportDefaultDialPerFamily(t *testing.T) {
+	serve := func(t *testing.T, conn *net.UDPConn) {
+		server := &Server{
+			TLSConfig: tlsConfig,
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(r.RemoteAddr))
+			}),
+		}
+		go server.Serve(conn)
+		t.Cleanup(func() { server.Close() })
+	}
+	conn4 := newUDPConnLocalhost(t)
+	conn6, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6loopback})
+	require.NoError(t, err)
+	t.Cleanup(func() { conn6.Close() })
+	serve(t, conn4)
+	serve(t, conn6)
+
+	tr := &Transport{TLSClientConfig: tlsClientConfig}
+	t.Cleanup(func() { tr.Close() })
+	// clientAddr returns the client address that the server saw.
+	clientAddr := func(t *testing.T, host string) *net.UDPAddr {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, "https://"+host+"/", nil)
+		require.NoError(t, err)
+		rsp, err := tr.RoundTrip(req)
+		require.NoError(t, err)
+		defer rsp.Body.Close()
+		require.Equal(t, http.StatusOK, rsp.StatusCode)
+		body, err := io.ReadAll(rsp.Body)
+		require.NoError(t, err)
+		addr, err := net.ResolveUDPAddr("udp", string(body))
+		require.NoError(t, err)
+		return addr
+	}
+
+	client4 := clientAddr(t, conn4.LocalAddr().String())
+	require.True(t, client4.IP.Equal(net.IPv4(127, 0, 0, 1)), "IPv4 client address %s", client4)
+	client6 := clientAddr(t, conn6.LocalAddr().String())
+	require.True(t, client6.IP.Equal(net.IPv6loopback), "IPv6 client address %s", client6)
+	// A different origin of the same family shares that family's socket.
+	port4 := conn4.LocalAddr().(*net.UDPAddr).Port
+	require.Equal(t, client4, clientAddr(t, fmt.Sprintf("localhost:%d", port4)))
+
+	require.NotNil(t, tr.transport4)
+	require.NotNil(t, tr.transport6)
+	socket4 := tr.transport4.Conn.(*net.UDPConn)
+	socket6 := tr.transport6.Conn.(*net.UDPConn)
+	require.NotNil(t, socket4.LocalAddr().(*net.UDPAddr).IP.To4(), "IPv4 socket %s", socket4.LocalAddr())
+	require.Equal(t, client4.Port, socket4.LocalAddr().(*net.UDPAddr).Port)
+	require.Nil(t, socket6.LocalAddr().(*net.UDPAddr).IP.To4(), "IPv6 socket %s", socket6.LocalAddr())
+	require.Equal(t, client6.Port, socket6.LocalAddr().(*net.UDPAddr).Port)
+
+	require.NoError(t, tr.Close())
+	require.ErrorIs(t, socket4.SetReadDeadline(time.Now()), net.ErrClosed)
+	require.ErrorIs(t, socket6.SetReadDeadline(time.Now()), net.ErrClosed)
+	require.Nil(t, tr.transport4)
+	require.Nil(t, tr.transport6)
+	// A closed Transport creates no new socket.
+	_, err = tr.transportFor(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: port4})
+	require.ErrorIs(t, err, ErrTransportClosed)
+	require.Nil(t, tr.transport4)
+}
+
+// On darwin, a dual-stack socket bound to port 0 can be given a port that an
+// IPv4 socket holds on 127.0.0.1 (#717, #720). With 500 ports held, about 9 of
+// these 300 sockets would collide if they were dual-stack.
+func TestTransportDefaultDialAvoidsHeldLoopbackPorts(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("the dual-stack port-0 collision is specific to darwin")
+	}
+	held := make(map[int]bool)
+	for range 500 {
+		held[newUDPConnLocalhost(t).LocalAddr().(*net.UDPAddr).Port] = true
+	}
+	target := newUDPConnLocalhost(t).LocalAddr().(*net.UDPAddr)
+
+	var collisions []string
+	for range 300 {
+		tr := &Transport{}
+		qtr, err := tr.transportFor(target)
+		require.NoError(t, err)
+		if local := qtr.Conn.LocalAddr(); held[local.(*net.UDPAddr).Port] {
+			collisions = append(collisions, local.String())
+		}
+		require.NoError(t, tr.Close())
+	}
+	require.Empty(t, collisions, "client sockets were given ports held on 127.0.0.1")
 }
 
 func TestTransportClose(t *testing.T) {

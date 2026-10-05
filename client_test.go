@@ -3,6 +3,7 @@ package quic
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"os"
 	"runtime"
@@ -169,7 +170,6 @@ func TestDialAddrSetupFailureClosesSocket(t *testing.T) {
 				conf      *Config
 				errorText string
 			}{
-				{"resolution", "127.0.0.1", &tls.Config{}, nil, "missing port"},
 				{"TLS configuration", "127.0.0.1:443", nil, nil, "tls.Config not set"},
 				{"QUIC configuration", "127.0.0.1:443", &tls.Config{}, &Config{Versions: []Version{0x1234}}, "invalid QUIC version"},
 			} {
@@ -184,6 +184,110 @@ func TestDialAddrSetupFailureClosesSocket(t *testing.T) {
 			}
 		})
 	}
+}
+
+// recordAddrSocketNetworks records the network of every socket the dial
+// helpers create. Like captureAddrSocket, it requires a sequential test.
+func recordAddrSocketNetworks(t *testing.T) *[]string {
+	t.Helper()
+	original := listenUDPConn
+	var networks []string
+	listenUDPConn = func(network string, addr *net.UDPAddr) (*net.UDPConn, error) {
+		networks = append(networks, network)
+		return original(network, addr)
+	}
+	t.Cleanup(func() { listenUDPConn = original })
+	return &networks
+}
+
+// DialAddr and DialAddrEarly bind a socket of the resolved target's family
+// instead of a dual-stack one (#720).
+func TestDialAddrSocketFamily(t *testing.T) {
+	server4 := newUDPConnLocalhost(t)
+	server6, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6loopback})
+	require.NoError(t, err)
+	t.Cleanup(func() { server6.Close() })
+	port4 := server4.LocalAddr().(*net.UDPAddr).Port
+
+	for _, dial := range []struct {
+		name string
+		fn   func(context.Context, string, *tls.Config, *Config) (*Conn, error)
+	}{
+		{"DialAddr", DialAddr},
+		{"DialAddrEarly", DialAddrEarly},
+	} {
+		t.Run(dial.name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name    string
+				addr    string
+				network string
+			}{
+				{"IPv4", server4.LocalAddr().String(), "udp4"},
+				{"IPv4-mapped IPv6", fmt.Sprintf("[::ffff:127.0.0.1]:%d", port4), "udp4"},
+				{"IPv6", server6.LocalAddr().String(), "udp6"},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					socket := captureAddrSocket(t, nil)
+					networks := recordAddrSocketNetworks(t)
+					ctx, cancel := context.WithCancel(context.Background())
+					cancel()
+					_, err := dial.fn(ctx, tc.addr, &tls.Config{}, nil)
+					require.ErrorIs(t, err, context.Canceled)
+					require.Equal(t, []string{tc.network}, *networks)
+					local := (*socket).LocalAddr().(*net.UDPAddr)
+					require.True(t, local.IP.IsUnspecified(), "local address %s", local)
+					require.Equal(t, tc.network == "udp4", local.IP.To4() != nil, "local address %s", local)
+				})
+			}
+
+			t.Run("resolution failure", func(t *testing.T) {
+				networks := recordAddrSocketNetworks(t)
+				conn, err := dial.fn(context.Background(), "127.0.0.1", &tls.Config{}, nil)
+				require.ErrorContains(t, err, "missing port")
+				require.Nil(t, conn)
+				require.Empty(t, *networks)
+			})
+		})
+	}
+}
+
+// On darwin, a dual-stack socket bound to port 0 can be given a port that an
+// IPv4 socket holds on 127.0.0.1, and loopback replies then go to that socket
+// (#717, #720). With 500 ports held, about 9 of these 300 dials would collide
+// if they bound dual-stack sockets. IPv4 port-0 assignment respects IPv4
+// bindings, so single-family sockets never do.
+func TestDialAddrAvoidsHeldLoopbackPorts(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("the dual-stack port-0 collision is specific to darwin")
+	}
+	held := make(map[int]bool)
+	for range 500 {
+		held[newUDPConnLocalhost(t).LocalAddr().(*net.UDPAddr).Port] = true
+	}
+	server := newUDPConnLocalhost(t)
+
+	original := listenUDPConn
+	var collisions []string
+	listenUDPConn = func(network string, addr *net.UDPAddr) (*net.UDPConn, error) {
+		conn, err := original(network, addr)
+		if err == nil && held[conn.LocalAddr().(*net.UDPAddr).Port] {
+			collisions = append(collisions, conn.LocalAddr().String())
+		}
+		return conn, err
+	}
+	t.Cleanup(func() { listenUDPConn = original })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for i := range 300 {
+		dial := DialAddr
+		if i%2 == 1 {
+			dial = DialAddrEarly
+		}
+		_, err := dial(ctx, server.LocalAddr().String(), &tls.Config{}, nil)
+		require.ErrorIs(t, err, context.Canceled)
+	}
+	require.Empty(t, collisions, "client sockets were given ports held on 127.0.0.1")
 }
 
 func TestSetupFailurePreservesCallerSocket(t *testing.T) {
