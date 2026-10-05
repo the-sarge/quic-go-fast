@@ -1,6 +1,7 @@
 package self_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -217,8 +218,8 @@ func (c *httpCapture) finish(failed bool) {
 	if err := c.file.Close(); err != nil && c.err == nil {
 		c.err = err
 	}
-	// Stream the bounded file rather than retaining a second copy in memory.
-	if err := checksumHTTPFile(c.path); err != nil && c.err == nil {
+	// Stream the bounded files rather than retaining a second copy in memory.
+	if err := checksumHTTPSlot(filepath.Dir(c.path)); err != nil && c.err == nil {
 		c.err = err
 	}
 	if !failed && c.err == nil && c.dropped == 0 && c.encodingErrors == 0 {
@@ -231,21 +232,128 @@ func (c *httpCapture) finish(failed bool) {
 	}
 }
 
-func checksumHTTPFile(path string) error {
-	f, err := os.Open(path)
+// Hash every retained file in the slot, in the same sorted format as the CI
+// finalization step. An ordinary slot holds only capture.jsonl.
+func checksumHTTPSlot(dir string) error {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
-	h := sha256.New()
-	_, readErr := io.Copy(h, f)
-	closeErr := f.Close()
-	if readErr != nil {
-		return readErr
+	var sums []byte
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() || entry.Name() == "SHA256SUMS" {
+			continue
+		}
+		f, err := os.Open(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return err
+		}
+		h := sha256.New()
+		_, readErr := io.Copy(h, f)
+		closeErr := f.Close()
+		if readErr != nil {
+			return readErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		sums = fmt.Appendf(sums, "%x  %s\n", h.Sum(nil), entry.Name())
 	}
-	if closeErr != nil {
-		return closeErr
+	return os.WriteFile(filepath.Join(dir, "SHA256SUMS"), sums, 0o600)
+}
+
+// Room kept for the attachment record itself, so truncation stays visible.
+const httpCaptureAttachmentRecordBytes = 1 << 10
+
+// attach copies another file into this capture's slot. Attached bytes share the
+// slot budget with capture.jsonl; a truncated or failed copy is counted as
+// dropped, so the terminal record reports an incomplete recording window.
+func (c *httpCapture) attach(name string, open func() (io.ReadCloser, error)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.done {
+		return
 	}
-	return os.WriteFile(filepath.Join(filepath.Dir(path), "SHA256SUMS"), fmt.Appendf(nil, "%x  capture.jsonl\n", h.Sum(nil)), 0o600)
+	data := map[string]any{"name": name}
+	if c.err != nil {
+		c.recordLocked("fixture", "attachment", data, false) // counted as dropped
+		return
+	}
+	src, err := open()
+	if err != nil {
+		data["error"] = err.Error()
+		c.dropped++
+		c.recordLocked("fixture", "attachment", data, false)
+		return
+	}
+	defer src.Close()
+	dst, err := os.OpenFile(filepath.Join(filepath.Dir(c.path), name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		c.err = err
+		fmt.Fprintf(os.Stderr, "HTTP capture attachment failed: path=%s name=%s error=%v\n", c.path, name, err)
+		c.recordLocked("fixture", "attachment", data, false)
+		return
+	}
+	budget := max(0, c.limit-c.written-httpCaptureAttachmentRecordBytes)
+	n, err := io.Copy(dst, io.LimitReader(src, int64(budget)))
+	c.written += int(n)
+	if closeErr := dst.Close(); err == nil {
+		err = closeErr
+	}
+	var more int64
+	if err == nil {
+		more, err = io.CopyN(io.Discard, src, 1)
+		if err == io.EOF {
+			err = nil
+		}
+	}
+	data["bytes"], data["truncated"] = n, more != 0
+	if err != nil {
+		c.err = err
+		fmt.Fprintf(os.Stderr, "HTTP capture attachment failed: path=%s name=%s error=%v\n", c.path, name, err)
+	} else if more != 0 {
+		c.dropped++
+	}
+	c.recordLocked("fixture", "attachment", data, false)
+}
+
+// preserveHTTPCaptureChild retains the evidence of a failed capture check's
+// child process in a new slot of the outer capture directory. The slot follows
+// the recorder's quota, budget, checksum and completeness rules.
+func preserveHTTPCaptureChild(outer, parent string, provenance map[string]any, private string, output []byte) *httpCapture {
+	c := openHTTPCapture(outer, parent)
+	var files [][2]string // preserved name, private path
+	slots, err := os.ReadDir(private)
+	if err != nil {
+		provenance["child_slots_error"] = err.Error()
+	}
+	for _, slot := range slots {
+		if !slot.IsDir() || !strings.HasPrefix(slot.Name(), "slot-") {
+			continue
+		}
+		entries, err := os.ReadDir(filepath.Join(private, slot.Name()))
+		if err != nil {
+			provenance["child_slots_error"] = err.Error()
+		}
+		for _, entry := range entries {
+			if entry.Type().IsRegular() {
+				files = append(files, [2]string{"child-" + slot.Name() + "-" + entry.Name(), filepath.Join(private, slot.Name(), entry.Name())})
+			}
+		}
+	}
+	c.record("fixture", "capture_check_child", provenance)
+	if provenance["child_slots_error"] != nil {
+		c.mu.Lock()
+		c.dropped++
+		c.mu.Unlock()
+	}
+	// The child capture precedes the command output in the shared budget.
+	for _, file := range files {
+		c.attach(file[0], func() (io.ReadCloser, error) { return os.Open(file[1]) })
+	}
+	c.attach("child-output.log", func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(output)), nil })
+	c.finish(true)
+	return c
 }
 
 func (c *httpCapture) observeConn(source string, conn *quic.Conn) {
@@ -381,11 +489,13 @@ func (h *httpCaptureLog) WithGroup(name string) slog.Handler {
 	return &clone
 }
 
+const httpCaptureFailureSeam = "controlled HTTP capture fixture failure"
+
 // Only the explicit subprocess test arms this seam; ordinary invocations have
 // no injected failure, network delay, or altered assertion.
 func maybeFailHTTPCaptureFixture(t *testing.T) {
 	t.Helper()
 	if os.Getenv("QUIC_GO_HTTP_CAPTURE_FAIL_TEST") == t.Name() {
-		t.Fatal("controlled HTTP capture fixture failure")
+		t.Fatal(httpCaptureFailureSeam)
 	}
 }
