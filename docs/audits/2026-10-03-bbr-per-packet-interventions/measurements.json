@@ -21,6 +21,12 @@
   "m4": {
     "prev": "r3",
     "new": "r4",
-    "lead": 4
+    "lead": 4,
+    "outcome": "inconclusive; not kept, reverted (clean data; cycles fell in every block)"
+  },
+  "m5": {
+    "prev": "r3",
+    "new": "r5",
+    "lead": 5
   }
 }
