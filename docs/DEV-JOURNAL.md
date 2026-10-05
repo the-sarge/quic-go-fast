@@ -4325,3 +4325,51 @@ Merged [PR #721](https://github.com/the-sarge/quic-go-fast/pull/721) as `7a2b802
 
 - Per the OmniFocus parent task, [#718](https://github.com/the-sarge/quic-go-fast/issues/718) is next, then [#720](https://github.com/the-sarge/quic-go-fast/issues/720).
 - [#169](https://github.com/the-sarge/quic-go-fast/issues/169) and [#188](https://github.com/the-sarge/quic-go-fast/issues/188) stay open until a period with no recurrence, which is the maintainer's call.
+
+---
+
+## Capture-check child evidence preserved - 2026-10-04 22:17 EDT
+
+**Main:** `7f51150c4dc6`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #723](https://github.com/the-sarge/quic-go-fast/pull/723) as `7f51150c4dc6c7c064acfdeeb68eb62c0401906c`, closing [#718](https://github.com/the-sarge/quic-go-fast/issues/718). The HTTP capture checks run fixtures as child processes whose captures go to a private `t.TempDir()`. A natural child failure, such as #188's 318-record hotswap capture on 2026-09-22, was deleted with that directory. Now, when a check's own assertions fail and `QUIC_GO_HTTP_CAPTURE_DIR` is set, the child's evidence is preserved in a new outer slot that CI's existing upload picks up.
+
+- `integrationtests/self/http_capture_helper_test.go` adds `preserveHTTPCaptureChild` and `(*httpCapture).attach`.
+  - Preservation reserves a slot through `openHTTPCapture`, so there is no second allocator.
+  - It writes a `capture_check_child` provenance record (parent test, child fixture and command, armed seam and whether it was reached, exit and context errors).
+  - It copies each child `slot-N` file and the combined output within the shared slot budget, child capture first.
+  - A truncated or unreadable copy counts as dropped. Destination failures still stop the capture.
+  - `SHA256SUMS` now hashes every slot file. Ordinary slots hold only `capture.jsonl`, so their checksum bytes are unchanged.
+- `integrationtests/self/http_capture_test.go` adds `runHTTPCaptureChild`, which both checks share.
+  - It registers the preservation cleanup after `t.TempDir()`, so the cleanup runs first.
+  - The extracted `checkHTTPCaptureFixture` keeps every assertion, argument and timeout; `git diff -w` shows only a wrapper.
+  - With the outer directory unset, the check only logs where the evidence would have been kept.
+- [capture-check-preservation.md](agents/capture-check-preservation.md) holds the contract. The storage section of [http-failure-captures.md](agents/http-failure-captures.md) describes the preserved slot layout.
+
+### Decisions
+
+- Review dispositions are in the [PR #723 comments](https://github.com/the-sarge/quic-go-fast/pull/723).
+  - Round 1: fixed source-read handling (C-003), preservation inside the regression itself (C-005), and checksum-ordering prose for the Windows finalizer (C-001); rejected three items.
+  - Round 2: corrected the PR body; deferred a timeout-path output gap in the regression, now [#724](https://github.com/the-sarge/quic-go-fast/issues/724) (`needs-triage`).
+- The passing-check regression uses `TestHTTPReestablishConnectionAfterDialError`, not the idle fixture, so the suite gains no second exposure to #151.
+- The maintainer accepted the head-vs-base attribution of a local-only #151 red for the certification gate, as on 2026-09-30.
+
+### Validation
+
+- **Red first:** the natural-failure subprocess case failed before the fix with no outer slot. `TestHTTPCaptureAttachSourceFailure` failed before the C-003 fix. Deleting the `t.Failed()` guard turned the passing-check case red.
+- **Smoke check:** Python `finalize` over a preserved slot gave byte-identical `SHA256SUMS` on macOS.
+- **Exact-head certification** at `47cfa340` (base `b8be5a48`, clean tree): `go vet`, `go mod tidy -diff`, `golangci-lint run ./...` (0 issues) and `git diff --check` passed.
+  - The focused race run and full `./integrationtests/self` were red only at `TestHTTPCaptureFixtureFailure/TestHTTPServerIdleTimeout` (`does not contain "response_headers"`).
+  - Interleaved focused race runs: head 1/6, base 2/6, same signature. Isolated: 20/20 passes at both.
+  - Receipts are on the [PR](https://github.com/the-sarge/quic-go-fast/pull/723).
+- **Hosted checks:** unit, integration (Linux including race, macOS, Windows), lint, cross-compile and interop all succeeded on `47cfa340` for both push and pull_request events. No rerun was needed.
+- **Natural #151 evidence:** during verification, the regression preserved a complete natural #151 early-idle failure. The 10 ms HTTP idle timer started with `handshake_complete=false` and fired about 9 ms before server handshake completion. This is recorded on [#151](https://github.com/the-sarge/quic-go-fast/issues/151#issuecomment-5986971648) as observation only.
+- **Review:** initial RAS run `20261005T014333-0065d4ebaa6e468ea38e9a2b`, verification at `47cfa340` (all accepted findings resolved), and replacement run `20261005T020404-30057e087485ec09370b6b50`.
+
+### Next
+
+- Per the OmniFocus parent task, [#720](https://github.com/the-sarge/quic-go-fast/issues/720) is next.
+- [#151](https://github.com/the-sarge/quic-go-fast/issues/151) and [#188](https://github.com/the-sarge/quic-go-fast/issues/188) stay open, waiting for natural evidence, which these checks now retain.
