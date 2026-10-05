@@ -1,0 +1,756 @@
+{
+ "prerequisites": {
+  "calibration": {
+   "unadapted_strips": true,
+   "unadapted_pass": false,
+   "adapted_pass": true,
+   "detail": {
+    "relay-v3": {
+     "forward": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ]
+      ],
+      "unparsed": 0
+     },
+     "reverse": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ]
+      ],
+      "unparsed": 0
+     }
+    },
+    "relay-linux": {
+     "forward": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        0,
+        200,
+        0,
+        0
+       ],
+       [
+        0,
+        0,
+        200,
+        0
+       ],
+       [
+        0,
+        0,
+        0,
+        200
+       ]
+      ],
+      "unparsed": 0
+     },
+     "reverse": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        0,
+        200,
+        0,
+        0
+       ],
+       [
+        0,
+        0,
+        200,
+        0
+       ],
+       [
+        0,
+        0,
+        0,
+        200
+       ]
+      ],
+      "unparsed": 0
+     }
+    }
+   }
+  },
+  "host": {
+   "uname": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux\n",
+   "governor": "     32 powersave\n",
+   "sysctl": "kernel.perf_event_paranoid = 4\nnet.core.rmem_max = 4194304\nnet.core.wmem_max = 4194304\nnet.core.rmem_default = 212992\nnet.core.wmem_default = 212992\nnet.ipv4.udp_mem = 2994543\t3992727\t5989086\nkernel.sched_autogroup_enabled = 1\n",
+   "kernel_accounting": "CONFIG_NO_HZ_FULL=y\nCONFIG_VIRT_CPU_ACCOUNTING=y\nCONFIG_VIRT_CPU_ACCOUNTING_GEN=y\n# CONFIG_IRQ_TIME_ACCOUNTING is not set\nCONFIG_HZ=1000\nCONFIG_HAVE_VIRT_CPU_ACCOUNTING_GEN=y\nCONFIG_HAVE_IRQ_TIME_ACCOUNTING=y\n",
+   "lo_offloads": "\ttx-checksum-ip-generic: on [fixed]\ngeneric-segmentation-offload: on\ngeneric-receive-offload: on\ntx-udp_tnl-segmentation: off [fixed]\ntx-udp_tnl-csum-segmentation: off [fixed]\ntx-udp-segmentation: on\nrx-udp_tunnel-port-offload: off [fixed]\nrx-udp-gro-forwarding: off\n",
+   "perf": "perf version 7.0.14\n",
+   "go": "go version go1.27.0 linux/amd64\n",
+   "id": "uid=1000(josh) gid=1000(josh) groups=1000(josh),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),101(lxd),982(libvirt),992(kvm)\n",
+   "uptime": " 14:14:56 up 40 days,  7:17,  3 users,  load average: 0.00, 0.00, 0.00\n"
+  },
+  "checks": {
+   "smoke-S6-datagram-p1-cand-bbrv3": {
+    "goodput_mbps": 65.92764586666667,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0006896210865123497,
+     "foreign_max_cores": 0.01999901150885814,
+     "sibling_mean_cores": 0.000344810543256175,
+     "samples": 29,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     273616,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     55655,
+     0
+    ]
+   },
+   "smoke-loopback-stream-p1-cand-bbrv3": {
+    "goodput_mbps": 4466.460556800001,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.009471301922305353,
+     "samples": 19,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r9216,rb8388608,t0,tb8388608,f3072,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r3840,rb8388608,t0,tb8388608,f256,w0,o0,bl0,d0)"
+    }
+   },
+   "perfsmoke-S5-stream-p1-cand-bbrv3": {
+    "goodput_mbps": 87.557888,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.004333095387125282,
+     "foreign_max_cores": 0.09999398266210532,
+     "sibling_mean_cores": 0.000999942932261736,
+     "samples": 30,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_min_running_pct": 100.0,
+    "send_syscalls_per_packet": 0.9980347362441903,
+    "xmit_per_packet": 0.9980347362441903,
+    "receive_min_running_pct": 100.0,
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     316587,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     58499,
+     0
+    ]
+   },
+   "perfsmoke-S5-stream-p1-cand-bbrv3-record": {
+    "goodput_mbps": 87.9158016,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_stages": {
+     "runtime": 3982,
+     "conn_loop": 4344,
+     "send_worker": 6618,
+     "read_loop": 802,
+     "app": 1310
+    },
+    "send_ecn_tracker_samples": 161,
+    "send_top_roots": {
+     "runtime.goexit (inlined)": 13122,
+     "runtime.mcall": 3660,
+     "runtime.mstart (inlined)": 244,
+     "[unknown]": 25,
+     "runtime.morestack (inlined)": 3,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 2
+    },
+    "receive_stages": {
+     "runtime": 3682,
+     "app": 1338,
+     "read_loop": 2769,
+     "conn_loop": 2299,
+     "send_worker": 1560
+    },
+    "receive_ecn_tracker_samples": 3,
+    "receive_top_roots": {
+     "runtime.goexit (inlined)": 8069,
+     "runtime.mcall": 2764,
+     "runtime.mstart (inlined)": 799,
+     "[unknown]": 8,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 4,
+     "runtime.morestack (inlined)": 2,
+     "runtime.park_m": 2
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     317948,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     59816,
+     0
+    ]
+   },
+   "ecnsmoke-S6-datagram-p1-cand-bbrv3": {
+    "goodput_mbps": 62.26356053333333,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0016665923249828268,
+     "foreign_max_cores": 0.049997769749484805,
+     "sibling_mean_cores": 0.0019999882319439314,
+     "samples": 30,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_stages": {
+     "runtime": 3171,
+     "app": 1027,
+     "send_worker": 3862,
+     "conn_loop": 2518,
+     "read_loop": 549
+    },
+    "send_ecn_tracker_samples": 98,
+    "send_top_roots": {
+     "runtime.goexit (inlined)": 8136,
+     "runtime.mcall": 2802,
+     "runtime.mstart (inlined)": 161,
+     "[unknown]": 18,
+     "runtime.morestack (inlined)": 7,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 2,
+     "runtime.park_m": 1
+    },
+    "receive_stages": {
+     "runtime": 2923,
+     "read_loop": 2148,
+     "send_worker": 1115,
+     "conn_loop": 1670,
+     "app": 614
+    },
+    "receive_ecn_tracker_samples": 3,
+    "receive_top_roots": {
+     "runtime.goexit (inlined)": 5817,
+     "runtime.mcall": 2125,
+     "runtime.mstart (inlined)": 506,
+     "[unknown]": 14,
+     "runtime.morestack (inlined)": 7,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 1
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     255552,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     51517,
+     0
+    ]
+   },
+   "ecnsmoke-loopback-stream-p1-cand-bbrv3": {
+    "goodput_mbps": 4328.4128448,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 20,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t2304,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_stages": {
+     "runtime": 28014,
+     "send_worker": 97429,
+     "conn_loop": 89798,
+     "read_loop": 11527,
+     "app": 30903
+    },
+    "send_ecn_tracker_samples": 753,
+    "send_top_roots": {
+     "runtime.goexit (inlined)": 230983,
+     "runtime.mcall": 26344,
+     "runtime.morestack (inlined)": 164,
+     "[unknown]": 78,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 54,
+     "runtime.mstart (inlined)": 47,
+     "runtime.asyncPreempt2.func1": 1
+    },
+    "receive_stages": {
+     "runtime": 27494,
+     "read_loop": 59537,
+     "app": 38978,
+     "conn_loop": 64568,
+     "send_worker": 23267
+    },
+    "receive_ecn_tracker_samples": 91,
+    "receive_top_roots": {
+     "runtime.goexit (inlined)": 188686,
+     "runtime.mcall": 24586,
+     "runtime.morestack (inlined)": 244,
+     "[unknown]": 168,
+     "runtime.mstart (inlined)": 88,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 70,
+     "runtime.newstack (inlined)": 1,
+     "runtime.park_m": 1
+    }
+   },
+   "xsmoke-S5-datagram-p1-cand-timeline-bbrv3": {
+    "goodput_mbps": 85.13054720000001,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.003448246827830676,
+     "foreign_max_cores": 0.0999991580070896,
+     "sibling_mean_cores": 0.0003448121500013775,
+     "samples": 29,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     354215,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     67248,
+     0
+    ],
+    "timeline_coverage_s": 30.0,
+    "timeline_bandwidth_median": 12325799.0
+   },
+   "xsmoke-loopback-stream-p1-cand-bbrv3": {
+    "goodput_mbps": 4484.8058112,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0014999260309054023,
+     "samples": 20,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r2304,rb8388608,t0,tb8388608,f1792,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_min_running_pct": 100.0,
+    "send_stages": {
+     "send_worker": 101589,
+     "runtime": 26293,
+     "read_loop": 11551,
+     "conn_loop": 86437,
+     "app": 30501
+    },
+    "send_ecn_tracker_samples": 668,
+    "send_top_roots": {
+     "runtime.goexit (inlined)": 231424,
+     "runtime.mcall": 24580,
+     "runtime.morestack (inlined)": 138,
+     "[unknown]": 95,
+     "runtime.mstart (inlined)": 88,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 44,
+     "runtime.newstack": 1,
+     "runtime.park_m": 1
+    },
+    "receive_min_running_pct": 100.0,
+    "receive_stages": {
+     "runtime": 28187,
+     "read_loop": 62920,
+     "app": 39496,
+     "conn_loop": 65468,
+     "send_worker": 23195
+    },
+    "receive_ecn_tracker_samples": 105,
+    "receive_top_roots": {
+     "runtime.goexit (inlined)": 193686,
+     "runtime.mcall": 24935,
+     "runtime.morestack (inlined)": 258,
+     "[unknown]": 165,
+     "runtime.mstart (inlined)": 155,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 63,
+     "runtime.park_m": 2,
+     "runtime.newstack": 1,
+     "runtime.newstack (inlined)": 1
+    },
+    "thread_samples": 30
+   }
+  }
+ }
+}
