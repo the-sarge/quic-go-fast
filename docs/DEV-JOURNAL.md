@@ -4441,3 +4441,51 @@ Closed [#169](https://github.com/the-sarge/quic-go-fast/issues/169) and [#188](h
 
 - OmniFocus: the parent "Re-triage #169 and #188 after both land" and both child tasks are complete.
 - [#151](https://github.com/the-sarge/quic-go-fast/issues/151) stays open (`ready-for-human`) for its separate early-idle-expiry contract decision. The issue tracker is the live view.
+
+---
+
+## HTTP/3 idle timer starts at handshake completion - 2026-10-05 00:49 EDT
+
+**Main:** `1fb0b68b3ea1`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #730](https://github.com/the-sarge/quic-go-fast/pull/730) as `1fb0b68b3ea16e2c9e9ff866a7fab9a0e8d36bba`, closing [#151](https://github.com/the-sarge/quic-go-fast/issues/151). The HTTP/3 server's idle timer now starts at QUIC handshake completion, and only while no request is active.
+
+Before this, the timer started at early acceptance (`quic.ListenEarly`). The server cannot read 1-RTT requests until the handshake completes, so whenever the round trip exceeded `IdleTimeout`, the first request failed with an `idle timeout` close. That was the early-expiry signature captured on macOS and Linux.
+
+### Completed
+
+- `RawServerConn` creates the timer stopped and starts it at handshake completion if no request stream is active. This happens synchronously for an already handshaken connection; otherwise a goroutine does it and exits when the connection closes.
+- `onStreamsEmpty` restarts the timer only after handshake completion. The check-and-start runs under the stream-map mutex through `rawConn.ifNoActiveStreams`.
+- The `Server.IdleTimeout` doc comment and [http-failure-captures.md](agents/http-failure-captures.md) record the new start point, including how to read pre-repair `handshake_complete=false` timer records.
+- Three simnet+synctest regressions in `integrationtests/self/http_idle_timer_test.go`, each with RTT 100ms and `IdleTimeout` 50ms:
+  - the first GET succeeds;
+  - a 0-RTT request active at handshake completion is not cut off;
+  - a 0-RTT exchange that finishes before handshake completion does not start the timer early.
+
+### Decisions
+
+- Maintainer decision (2026-10-05): the idle timer measures HTTP inactivity, so it runs only after handshake completion and while no request is in progress. Before that, QUIC's handshake timeout bounds the connection. This deliberately diverges from upstream quic-go, which still starts the timer at acceptance. Recorded in [PR #730](https://github.com/the-sarge/quic-go-fast/pull/730).
+- The slow five-second half of #151 stays with [#717](https://github.com/the-sarge/quic-go-fast/issues/717).
+
+### Validation
+
+- **Sensitivity:** all three regressions fail with base production code (`ece92db4`). The 0-RTT-active test fails with a naive start that ignores active streams. The early-0-RTT test fails without the `onStreamsEmpty` handshake guard.
+- **Review:**
+  - RAS run `20261005T043054-fd3a1fe56a8ab0f4834b5880` at `d1463530`. C-002 was accepted as fix-now: the 0-RTT tests used single-use transports over one shared client SimConn and flaked under `-race` (7/40 at `-cpu=1`, once with a synctest deadlock). The fix in `812262fe` gives each test one owned `quic.Transport`. C-003 was a duplicate and C-001 was wording only; both were rejected.
+  - Verification at `812262fe` was clear.
+  - Replacement review `20261005T044437-440ffa7487c483b60aa01b28` was clean.
+- **Exact-head certification** at `812262fe` (clean tree):
+  - `go test -count=1 ./...`
+  - `go test -race ./http3/...`
+  - `go test -race -count=10` for the focused idle-timer, idle-timeout, raw-conn and 0-RTT tests
+  - 160/160 `-race` runs of the new tests
+  - `golangci-lint` for darwin, linux, windows, freebsd and openbsd
+- **Initial head** `d1463530` also passed the Windows `go vet` and cross-compiled test build, `go mod tidy -diff` and `git diff --check`.
+- **Hosted checks:** all 33 check runs on `812262fe` succeeded. No rerun was needed.
+
+### Next
+
+- OmniFocus: complete the #151 decision task under "Maintainer decisions (#151 → #719 → #241)". That parent remains the live view for #719 and #241.
