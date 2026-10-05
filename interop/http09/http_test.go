@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
 
 	"github.com/quic-go/quic-go"
@@ -51,12 +52,12 @@ func TestHTTPRequest(t *testing.T) {
 
 	addr := startServer(t, nil)
 
-	rt := &RoundTripper{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, QuicConfig: httpTestConfig(t, "client")}
-	t.Cleanup(func() { rt.Close() })
+	rt := newTestRoundTripper(t)
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/helloworld", addr), nil)
 	rsp, err := rt.RoundTrip(req)
 	require.NoError(t, err)
+	requireLoopbackClients(t, rt)
 	data, err := io.ReadAll(rsp.Body)
 	require.NoError(t, err)
 	require.Equal(t, []byte("Hello World!"), data)
@@ -71,12 +72,12 @@ func TestHTTPHeaders(t *testing.T) {
 
 	addr := startServer(t, nil)
 
-	rt := &RoundTripper{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, QuicConfig: httpTestConfig(t, "client")}
-	t.Cleanup(func() { rt.Close() })
+	rt := newTestRoundTripper(t)
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/headers", addr), nil)
 	rsp, err := rt.RoundTrip(req)
 	require.NoError(t, err)
+	requireLoopbackClients(t, rt)
 	data, err := io.ReadAll(rsp.Body)
 	require.NoError(t, err)
 	require.Equal(t, []byte("done"), data)
@@ -109,6 +110,67 @@ func httpTestConfig(t *testing.T, side string) *quic.Config {
 	return &quic.Config{Tracer: func(context.Context, bool, quic.ConnectionID) qlogwriter.Trace {
 		return &events.Trace{Recorder: recorder}
 	}}
+}
+
+func newTestRoundTripper(t *testing.T) *RoundTripper {
+	t.Helper()
+	rt := &RoundTripper{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, QuicConfig: httpTestConfig(t, "client")}
+	if runtime.GOOS == "darwin" {
+		rt.dialEarly = func(ctx context.Context, addr string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
+			return dialLocalhost(ctx, quic.DialEarly, addr, tlsConf, conf)
+		}
+	}
+	t.Cleanup(func() { rt.Close() })
+	return rt
+}
+
+// dialLocalhost dials from a new 127.0.0.1 socket instead of a wildcard
+// dual-stack one. Like quic.DialAddr's socket, it belongs to the connection
+// and closes when the connection ends.
+func dialLocalhost(
+	ctx context.Context,
+	dial func(context.Context, net.PacketConn, net.Addr, *tls.Config, *quic.Config) (*quic.Conn, error),
+	addr string,
+	tlsConf *tls.Config,
+	conf *quic.Config,
+) (*quic.Conn, error) {
+	remote, err := net.ResolveUDPAddr("udp4", addr)
+	if err != nil {
+		return nil, err
+	}
+	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		return nil, err
+	}
+	conn, err := dial(ctx, udpConn, remote, tlsConf, conf)
+	if err != nil {
+		udpConn.Close()
+		return nil, err
+	}
+	context.AfterFunc(conn.Context(), func() { udpConn.Close() })
+	return conn, nil
+}
+
+// requireLoopbackClient enforces that a darwin client is not on a wildcard
+// dual-stack socket, which can miss loopback replies (golang/go#67226).
+func requireLoopbackClient(t *testing.T, conn *quic.Conn) {
+	t.Helper()
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	local, ok := conn.LocalAddr().(*net.UDPAddr)
+	require.True(t, ok && local.IP.Equal(net.IPv4(127, 0, 0, 1)), "client socket %v is not bound to 127.0.0.1 (golang/go#67226)", conn.LocalAddr())
+}
+
+func requireLoopbackClients(t *testing.T, rt *RoundTripper) {
+	t.Helper()
+	rt.mutex.Lock()
+	defer rt.mutex.Unlock()
+	require.NotEmpty(t, rt.clients)
+	for _, c := range rt.clients {
+		require.NotNil(t, c.conn)
+		requireLoopbackClient(t, c.conn)
+	}
 }
 
 func TestServerFixtureClosesSocket(t *testing.T) {

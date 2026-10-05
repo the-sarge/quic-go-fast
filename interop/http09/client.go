@@ -28,6 +28,9 @@ type RoundTripper struct {
 	QuicConfig      *quic.Config
 
 	clients map[string]*client
+
+	// dialEarly replaces quic.DialAddrEarly. Only package tests set it.
+	dialEarly func(context.Context, string, *tls.Config, *quic.Config) (*quic.Conn, error)
 }
 
 var _ http.RoundTripper = &RoundTripper{}
@@ -54,9 +57,10 @@ func (r *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		tlsConf.NextProtos = []string{NextProto}
 		c = &client{
-			hostname: hostname,
-			tlsConf:  tlsConf,
-			quicConf: r.QuicConfig,
+			hostname:  hostname,
+			tlsConf:   tlsConf,
+			quicConf:  r.QuicConfig,
+			dialEarly: r.dialEarly,
 		}
 		r.clients[hostname] = c
 	}
@@ -83,6 +87,8 @@ type client struct {
 	tlsConf  *tls.Config
 	quicConf *quic.Config
 
+	dialEarly func(context.Context, string, *tls.Config, *quic.Config) (*quic.Conn, error)
+
 	once    sync.Once
 	conn    *quic.Conn
 	dialErr error
@@ -90,7 +96,11 @@ type client struct {
 
 func (c *client) RoundTrip(req *http.Request) (*http.Response, error) {
 	c.once.Do(func() {
-		c.conn, c.dialErr = quic.DialAddrEarly(context.Background(), c.hostname, c.tlsConf, c.quicConf)
+		dial := c.dialEarly
+		if dial == nil {
+			dial = quic.DialAddrEarly
+		}
+		c.conn, c.dialErr = dial(context.Background(), c.hostname, c.tlsConf, c.quicConf)
 	})
 	if c.dialErr != nil {
 		return nil, c.dialErr
