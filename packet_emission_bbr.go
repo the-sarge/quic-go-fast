@@ -56,7 +56,7 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 // ACK/PTO exemptions bypass only ordinary pacing, never local byte ownership.
 func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result emissionResult) {
 	defer func() {
-		e.reservation.complete() // unused construction allowance / packing failure
+		e.reservation.completeLocal() // unused construction allowance / packing failure
 		e.reservation = nil
 		if result.err == nil {
 			if available := e.capacity(); available != nil {
@@ -209,7 +209,7 @@ func (e *packetEmission) waitForReservation(now monotime.Time, confirmed bool, s
 	if err != nil || progress {
 		return emissionResult{progress: progress, retry: progress, err: err}
 	}
-	e.reservation.complete()
+	e.reservation.completeLocal()
 	e.reservation = nil
 	result := e.localBlocked()
 	if e.bbr.credit.waitForReservation(requested, 2*e.bbr.quantum, size, ordinary, isolated) {
