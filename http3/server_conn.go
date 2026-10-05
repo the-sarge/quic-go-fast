@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"runtime"
 	"strings"
@@ -57,13 +58,47 @@ func newRawServerConn(
 	// Keep the identity captured by newRawConn's qlogger shutdown callback.
 	c.rawConn = newRawConn(conn, enableDatagrams, c.onStreamsEmpty, c.handleControlStream, qlogger, logger)
 	if idleTimeout > 0 {
-		c.logIdleTimer("start")
-		c.idleTimer = time.AfterFunc(idleTimeout, func() {
+		// Created stopped; only Reset starts it.
+		c.idleTimer = time.AfterFunc(math.MaxInt64, func() {
 			c.logIdleTimer("fire")
 			conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeNoError), "idle timeout")
 		})
+		c.idleTimer.Stop()
+		if c.handshakeComplete() {
+			c.startIdleTimerIfIdle()
+		} else {
+			go c.startIdleTimerAfterHandshake()
+		}
 	}
 	return c
+}
+
+// The idle timer measures HTTP inactivity, so it only runs after handshake
+// completion. Until then, the QUIC handshake timeout bounds the connection.
+func (c *RawServerConn) startIdleTimerAfterHandshake() {
+	conn := c.rawConn.conn
+	select {
+	case <-conn.HandshakeComplete():
+		c.startIdleTimerIfIdle()
+	case <-conn.Context().Done():
+	}
+}
+
+// startIdleTimerIfIdle starts the idle timer unless a request stream is active.
+func (c *RawServerConn) startIdleTimerIfIdle() {
+	c.rawConn.ifNoActiveStreams(func() {
+		c.idleTimer.Reset(c.idleTimeout)
+		c.logIdleTimer("start")
+	})
+}
+
+func (c *RawServerConn) handshakeComplete() bool {
+	select {
+	case <-c.rawConn.conn.HandshakeComplete():
+		return true
+	default:
+		return false
+	}
 }
 
 // logIdleTimer reports observations, not a total order of timer transitions.
@@ -73,19 +108,15 @@ func (c *RawServerConn) logIdleTimer(action string) {
 		return
 	}
 	conn := c.rawConn.conn
-	complete := false
-	select {
-	case <-conn.HandshakeComplete():
-		complete = true
-	default:
-	}
 	c.logger.DebugContext(c.serverContext, "HTTP idle timer", "action", action,
 		"local", conn.LocalAddr().String(), "remote", conn.RemoteAddr().String(),
-		"timeout", c.idleTimeout, "handshake_complete", complete)
+		"timeout", c.idleTimeout, "handshake_complete", c.handshakeComplete())
 }
 
+// onStreamsEmpty is called with the stream map locked.
+// Before handshake completion, startIdleTimerAfterHandshake starts the timer.
 func (c *RawServerConn) onStreamsEmpty() {
-	if c.idleTimeout > 0 {
+	if c.idleTimeout > 0 && c.handshakeComplete() {
 		c.idleTimer.Reset(c.idleTimeout)
 		c.logIdleTimer("reset")
 	}

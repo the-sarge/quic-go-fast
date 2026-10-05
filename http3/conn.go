@@ -167,6 +167,17 @@ func (c *rawConn) hasActiveStreams() bool {
 	return len(c.streams) > 0
 }
 
+// ifNoActiveStreams calls f if no streams are active.
+// f is serialized with stream tracking and onStreamsEmpty.
+func (c *rawConn) ifNoActiveStreams(f func()) {
+	c.streamMx.Lock()
+	defer c.streamMx.Unlock()
+
+	if len(c.streams) == 0 {
+		f()
+	}
+}
+
 func (c *rawConn) CloseWithError(code quic.ApplicationErrorCode, msg string) error {
 	return c.conn.CloseWithError(code, msg)
 }
