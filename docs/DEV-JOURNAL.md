@@ -4373,3 +4373,40 @@ Merged [PR #723](https://github.com/the-sarge/quic-go-fast/pull/723) as `7f51150
 
 - Per the OmniFocus parent task, [#720](https://github.com/the-sarge/quic-go-fast/issues/720) is next.
 - [#151](https://github.com/the-sarge/quic-go-fast/issues/151) and [#188](https://github.com/the-sarge/quic-go-fast/issues/188) stay open, waiting for natural evidence, which these checks now retain.
+
+---
+
+## Single-family client sockets landed - 2026-10-04 23:14 EDT
+
+**Main:** `a505e21120a5`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #726](https://github.com/the-sarge/quic-go-fast/pull/726) as `a505e21120a5b3dee5c3de0e33624ff3f0abcd30`, closing [#720](https://github.com/the-sarge/quic-go-fast/issues/720). On macOS, a dual-stack socket bound to port 0 can be given a port that an IPv4 socket already holds on `127.0.0.1`, and IPv4 replies to that port then never reach it ([#717](https://github.com/the-sarge/quic-go-fast/issues/717)). `DialAddr`, `DialAddrEarly` and the default `http3.Transport` dial created exactly that socket. They now bind a socket of the resolved target's family.
+
+- `client.go`: `DialAddr` and `DialAddrEarly` resolve first, so a resolution failure creates no socket. The new `listenUDPForAddr` then binds `udp4` for IPv4 targets, including IPv4-mapped IPv6, and `udp6` otherwise, through the `listenUDPConn` seam. Setup, ownership and close-on-error are unchanged.
+- `http3/transport.go`: without a custom `Dial`, `transportFor` lazily creates one `quic.Transport` per family, and `Close` releases both in the same order and with the same error reporting as before. The transports have their own mutex: `Close` holds the client mutex while it waits for in-flight dials, and those dials need a transport.
+- [single-family-client-sockets.md](agents/single-family-client-sockets.md) holds the fork's reason and the accepted contract. Servers are unchanged.
+
+### Decisions
+
+- The user approved a one-PR plan that follows the brief on every edge. An empty-host target such as `DialAddr(ctx, ":443", …)` gets an IPv6 socket.
+- Accepted effects beyond the goal:
+  - IPv4 client sockets now set DF on macOS before 15.
+  - An http3 socket creation failure fails only that dial instead of becoming the permanent init error.
+  - A `Transport` that dials both families uses two local ports.
+
+### Validation
+
+- **Red first:** `TestDialAddrSocketFamily` failed with `udp` sockets and a socket created on resolution failure. On macOS 27.0 arm64, the pre-fix `TestDialAddrAvoidsHeldLoopbackPorts` saw 5 collisions in 300 dials with 500 ports held.
+- **Guard bypass:** binding `"udp"` again in each owner turned its darwin regression red, with 12 collisions (`client.go`) and 15 (`http3`). The fixed code passed 30 repeated runs.
+- **Exact-head certification** at `8de9113c` (base `a098ba55`, clean tree): `go test` for `.` and `./http3`, `go test -race ./http3`, `go test -run 'TestHTTP|TestHandshake' ./integrationtests/self`, `go vet`, `go mod tidy -diff`, `golangci-lint run ./...` (0 issues) and `git diff --check` passed.
+- **Hosted checks:** all 33 check runs on `8de9113c` succeeded, covering unit, integration (Linux including race, macOS, Windows), lint, cross-compile and interop. No rerun was needed.
+- **Review:** RAS run `20261005T030520-6dd1aff7045523e3b2df6700` completed with five reviewers and zero findings, so no verification or replacement review was needed.
+
+### Next
+
+- The OmniFocus parent "Land #717, #718, then #720" is complete.
+- Whether to offer the change upstream to quic-go, which the brief deferred until it landed, is now an open OmniFocus task in the quic-go-fast project.
+- The dual-stack `NewManagedPacketEndpointV1("udp", nil)` cell in `TestManagedPathMTUDiscovery/dual_ipv4` remains exposed to the same darwin collision by design, as #717's notes recorded.
