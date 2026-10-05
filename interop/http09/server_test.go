@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"io"
 	"net/http"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,12 +25,20 @@ func TestServerRequestValidation(t *testing.T) {
 	addr := startServer(t, handler)
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	conn, err := quic.DialAddr(ctx, addr.String(), &tls.Config{
+	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{NextProto},
-	}, httpTestConfig(t, "client"))
+	}
+	var conn *quic.Conn
+	var err error
+	if runtime.GOOS == "darwin" {
+		conn, err = dialLocalhost(ctx, quic.Dial, addr.String(), tlsConf, httpTestConfig(t, "client"))
+	} else {
+		conn, err = quic.DialAddr(ctx, addr.String(), tlsConf, httpTestConfig(t, "client"))
+	}
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.CloseWithError(0, "") })
+	requireLoopbackClient(t, conn)
 
 	for _, tc := range []struct {
 		name     string

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -65,13 +66,15 @@ func TestHTTP3ServerHotswap(t *testing.T) {
 	newClient := func() *http.Client {
 		clientNumber++
 		capture.record("fixture", "new_client", clientNumber)
-		return &http.Client{
-			Transport: &http3.Transport{
-				TLSClientConfig:    getTLSClientConfig(),
-				DisableCompression: true,
-				QUICConfig:         capture.config(getQuicConfig(&quic.Config{MaxIdleTimeout: 10 * time.Second}), fmt.Sprintf("client%d", clientNumber)),
-			},
+		tr := &http3.Transport{
+			TLSClientConfig:    getTLSClientConfig(),
+			DisableCompression: true,
+			QUICConfig:         capture.config(getQuicConfig(&quic.Config{MaxIdleTimeout: 10 * time.Second}), fmt.Sprintf("client%d", clientNumber)),
 		}
+		if runtime.GOOS == "darwin" {
+			tr.Dial = hotswapDialLocalhost
+		}
+		return &http.Client{Transport: tr}
 	}
 
 	client := newClient()
@@ -192,9 +195,40 @@ func (l *hotswapCaptureListener) Close() error {
 	return l.EarlyListener.Close()
 }
 
-// Use the transport's existing resolver and shared UDP transport. Replacing Dial
-// solely for observation would change the fixture's socket ownership.
+// hotswapDialLocalhost replaces the transport's default dial on darwin, where its
+// wildcard dual-stack socket can miss loopback replies (golang/go#67226). This
+// deliberately moves socket ownership from the transport to each connection. It
+// emits the default dial's trace hooks in the same order, so the capture keeps
+// its DNS, connect and TLS milestones for both clients.
+func hotswapDialLocalhost(ctx context.Context, addr string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
+	remote, err := resolveUDPAddrIPv4(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+	trace := httptrace.ContextClientTrace(ctx)
+	if trace != nil && trace.ConnectStart != nil {
+		trace.ConnectStart("udp", remote.String())
+	}
+	if trace != nil && trace.TLSHandshakeStart != nil {
+		trace.TLSHandshakeStart()
+	}
+	conn, err := dialEarlyLocalhost(ctx, remote, tlsConf, conf)
+	if trace != nil && trace.TLSHandshakeDone != nil {
+		var state tls.ConnectionState
+		if conn != nil {
+			state = conn.ConnectionState().TLS
+		}
+		trace.TLSHandshakeDone(state, err)
+	}
+	if trace != nil && trace.ConnectDone != nil {
+		trace.ConnectDone("udp", remote.String(), err)
+	}
+	return conn, err
+}
+
+// Observe through trace callbacks without replacing the transport's dial.
 func hotswapCaptureGet(client *http.Client, capture *httpCapture, name, url string) (*http.Response, error) {
+	var local net.Addr // GotConn runs synchronously inside client.Do.
 	trace := &httptrace.ClientTrace{
 		GetConn:  func(addr string) { capture.record(name, "get_conn", addr) },
 		DNSStart: func(info httptrace.DNSStartInfo) { capture.record(name, "dns_start", info.Host) },
@@ -210,7 +244,8 @@ func hotswapCaptureGet(client *http.Client, capture *httpCapture, name, url stri
 			capture.record(name, "early_dial_return", fmt.Sprintf("handshake_complete=%t error_type=%T error=%v", state.HandshakeComplete, err, err))
 		},
 		GotConn: func(info httptrace.GotConnInfo) {
-			capture.record(name, "got_conn", fmt.Sprintf("local=%s remote=%s reused=%t", info.Conn.LocalAddr(), info.Conn.RemoteAddr(), info.Reused))
+			local = info.Conn.LocalAddr()
+			capture.record(name, "got_conn", fmt.Sprintf("local=%s remote=%s reused=%t", local, info.Conn.RemoteAddr(), info.Reused))
 		},
 		GotFirstResponseByte: func() { capture.record(name, "first_response_byte", nil) },
 	}
@@ -222,6 +257,12 @@ func hotswapCaptureGet(client *http.Client, capture *httpCapture, name, url stri
 	capture.record(name, "request_result", fmt.Sprintf("error_type=%T error=%v", err, err))
 	if resp != nil && resp.TLS != nil {
 		capture.record(name, "response_tls", map[string]any{"handshake_complete": resp.TLS.HandshakeComplete})
+	}
+	if err == nil {
+		if err := loopbackClientError(local); err != nil {
+			resp.Body.Close()
+			return nil, err
+		}
 	}
 	return resp, err
 }

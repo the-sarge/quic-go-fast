@@ -363,3 +363,68 @@ func addDialCallback(t *testing.T, tr *http3.Transport) {
 		return quic.DialEarly(ctx, newUDPConnLocalhost(t), a, tlsConf, conf)
 	}
 }
+
+// dialAddrEarlyLocalhost replaces quic.DialAddrEarly for clients of loopback
+// servers. On darwin it dials from a 127.0.0.1 socket instead of a wildcard
+// dual-stack one, see addDialCallback.
+func dialAddrEarlyLocalhost(ctx context.Context, addr string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
+	if runtime.GOOS != "darwin" {
+		return quic.DialAddrEarly(ctx, addr, tlsConf, conf)
+	}
+	remote, err := resolveUDPAddrIPv4(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+	return dialEarlyLocalhost(ctx, remote, tlsConf, conf)
+}
+
+// resolveUDPAddrIPv4 resolves like http3's default dial, so DNS trace hooks in
+// ctx fire, but keeps only IPv4: a 127.0.0.1 socket cannot reach IPv6.
+func resolveUDPAddrIPv4(ctx context.Context, addr string) (*net.UDPAddr, error) {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	port, err := net.LookupPort("udp", portStr)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	for _, ip := range ips {
+		if ip4 := ip.IP.To4(); ip4 != nil {
+			return &net.UDPAddr{IP: ip4, Port: port}, nil
+		}
+	}
+	return nil, fmt.Errorf("no IPv4 address for %s", addr)
+}
+
+// dialEarlyLocalhost dials from a new 127.0.0.1 socket. Like DialAddrEarly's
+// socket, it belongs to the connection and closes when the connection ends.
+func dialEarlyLocalhost(ctx context.Context, remote *net.UDPAddr, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
+	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		return nil, err
+	}
+	conn, err := quic.DialEarly(ctx, udpConn, remote, tlsConf, conf)
+	if err != nil {
+		udpConn.Close()
+		return nil, err
+	}
+	context.AfterFunc(conn.Context(), func() { udpConn.Close() })
+	return conn, nil
+}
+
+// loopbackClientError rejects a darwin client socket that is not bound to
+// 127.0.0.1. Fixtures call it themselves so that a wildcard dial fails loudly.
+func loopbackClientError(local net.Addr) error {
+	if runtime.GOOS != "darwin" {
+		return nil
+	}
+	if addr, ok := local.(*net.UDPAddr); ok && addr.IP.Equal(net.IPv4(127, 0, 0, 1)) {
+		return nil
+	}
+	return fmt.Errorf("client socket %v is not bound to 127.0.0.1 (golang/go#67226)", local)
+}

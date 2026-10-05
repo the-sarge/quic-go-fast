@@ -726,9 +726,15 @@ func testHTTPServerIdleTimeout(t *testing.T, beforeReturn func(context.Context, 
 			attempt := fmt.Sprintf("client dial=%d", dialCounter.Add(1))
 			capture.record(attempt, "dial_enter", addr)
 			cfg = capture.config(cfg, attempt)
-			conn, err := quic.DialAddrEarly(ctx, addr, tlsCfg, cfg)
+			conn, err := dialAddrEarlyLocalhost(ctx, addr, tlsCfg, cfg)
 			capture.record(attempt, "dial_return", fmt.Sprintf("conn=%p error=%v", conn, err))
 			capture.observeConn(attempt, conn)
+			if err == nil {
+				if err := loopbackClientError(conn.LocalAddr()); err != nil {
+					conn.CloseWithError(0, "fixture socket rejected")
+					return nil, err
+				}
+			}
 			if err == nil && beforeReturn != nil {
 				if err := beforeReturn(ctx, conn); err != nil {
 					conn.CloseWithError(0, "fixture preparation failed")
@@ -801,9 +807,15 @@ func TestHTTPReestablishConnectionAfterDialError(t *testing.T) {
 					return nil, assert.AnError
 				}
 				conf = capture.config(conf, attempt)
-				conn, err := quic.DialAddrEarly(ctx, addr, tlsConf, conf)
+				conn, err := dialAddrEarlyLocalhost(ctx, addr, tlsConf, conf)
 				capture.record(attempt, "dial_return", fmt.Sprintf("conn=%p error=%v", conn, err))
 				capture.observeConn(attempt, conn)
+				if err == nil {
+					if err := loopbackClientError(conn.LocalAddr()); err != nil {
+						conn.CloseWithError(0, "fixture socket rejected")
+						return nil, err
+					}
+				}
 				return conn, err
 			},
 		},
