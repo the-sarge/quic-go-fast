@@ -259,7 +259,8 @@ def prereq():
 def readiness():
     view_root = ART / 'views'
     out = {}
-    for label, pick in [('summary.json', 'rule'), ('summary-original.json', 'original')]:
+    # The original-blocks pass runs first: analyze.py always writes summary.json, which the rule pass then owns.
+    for label, pick in [('summary-original.json', 'original'), ('summary.json', 'rule')]:
         view = view_root / pick
         if view.exists():
             shutil.rmtree(view)

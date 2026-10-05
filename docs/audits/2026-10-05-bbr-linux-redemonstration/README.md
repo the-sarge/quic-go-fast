@@ -4,13 +4,195 @@
 
 Branch `codex/bbr-linux-redemonstration`, based on `fb3261f4` (the [per-packet intervention record](../2026-10-03-bbr-per-packet-interventions/README.md), which contains the surviving revision `d0fabc4d`). The [Linux diagnostic](https://github.com/the-sarge/quic-go-fast/blob/4323dae8/docs/audits/2026-10-03-bbr-linux-diagnostic/README.md) (`4323dae8`) supplies the readiness stage, fixture, host layout and aids this record reruns.
 
-**Status: registration.** Everything below was written, with the analysis code and its synthetic cases, before any readiness or attribution observation of this ticket existed. The only observations so far are the excluded prerequisite and smoke runs listed under [Prerequisites](#prerequisites).
+**Status: complete.** The registration sections (from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order)) were written, with the analysis code and its synthetic cases, and committed (`a7bbe25f`) before any readiness or attribution observation existed. They are unchanged. The [Answer](#answer), results, [Deviations](#deviations) and later sections were added afterwards.
 
 ## Question
 
 On owned Linux hardware, what are the readiness flags of the surviving revision `d0fabc4d` (r6), and what do registered discriminating stages show about the loopback bottleneck, the Linux S5 goodput gap, receiver CPU, memory and the preservation cells?
 
 r6 holds all five per-packet interventions: four kept by rule (r5, `2d777bb0`) and the capability snapshot kept by operator decision. r6 as a whole is unmeasured. On S5, r5 runs 0.899 (STREAM) and 0.912 (DATAGRAM) of `fc4c1bf1`'s sender user instructions per forward packet. The remaining excess over frozen Reno is 6,736 and 5,219 user instructions per packet, unattributed.
+
+## Answer
+
+**Not ready on Linux, but much closer, and no preservation flag remains.** On `minimax`, the surviving revision `d0fabc4d` keeps its useful S6 benefit: 11.39× (STREAM) and 10.81× (DATAGRAM) Reno's goodput, in all five pairs each. Compared with `fc4c1bf1` in #712, the flags change as follows.
+
+- **Loopback STREAM now passes every limit.** Goodput is 0.962 (was 0.770) and sender CPU 1.085 (was 1.261). Loopback DATAGRAM improves but still raises goodput (0.858, was 0.795) and sender CPU (1.111, was 1.208).
+- **No Reno-on-candidate preservation flag is raised.** #712's two cells are not raised on `d0fabc4d`: S5 DATAGRAM sender RSS is 1.002 and loopback DATAGRAM control p95 is 0.721. So the conditional preservation stages did not run. In the same cell, the A/A frozen-Reno arm itself crossed the latency limit (1.615), which confirms that a 20-reply p95 cannot judge that cell.
+- **S5 goodput is unchanged, and on Linux it is sender timing, not the model.** It is 0.917 (STREAM) and 0.899 (DATAGRAM). The timeline stage gives **sender timing** in both workloads (DATAGRAM 4/4 blocks, STREAM 3/4 plus one mixed). The model asks for about capacity: its bandwidth estimate is 1.007–1.009× the bottleneck in Cruise, and its own shortfall is 0.010–0.019 of capacity. The sender reaches its full-quantum pacing deadline late about 25,000–26,000 times in 30 s, roughly 0.11 ms each, about 2.8–3.1 s per run. The pacer discards that credit. This accounts for 0.045–0.048 (STREAM) and 0.072–0.074 (DATAGRAM) of capacity, of a 0.078–0.112 delivery deficit. On the Mac the same instrument gives **model** in both workloads, with about 250 late events per run and negligible timing loss. That is a **different** result. It cannot by itself establish a Linux-specific cause.
+- **The loopback bottleneck is inconclusive under the registered rule.** In every block, both BBR arms' busiest sender serial stage sits between 0.70 and 0.85 cores (send queue 0.66–0.81, connection loop 0.57–0.71), and the receiver is unsaturated (0.33–0.40). Frozen Reno's send queue saturates at 0.88. Descriptively, `d0fabc4d` runs 0.871 (STREAM) and 0.926 (DATAGRAM) of `fc4c1bf1`'s sender cycles per packet, with 1.255× and 1.070× its goodput. That fits a sender limit, but it does not meet the saturation test, so no verdict is drawn.
+- **Remaining CPU flags are inside the measured window.** S5 STREAM sender CPU 1.183, S5 receiver CPU 1.164 (STREAM) and 1.108 (DATAGRAM), and loopback DATAGRAM sender CPU 1.111 are all raised and unresolved. Their excess lies inside the window: window ratios are 1.117–1.194, and the share outside the window (0.21) matches the share of time outside it. S5 DATAGRAM sender CPU now passes (1.047, was 1.108).
+- **Memory.** S5 DATAGRAM sender RSS now passes (1.096). S6 STREAM receiver RSS (1.759) is delivery data in both heap-site blocks. The other raised memory cells (S5 STREAM sender 1.235 and receiver 1.457, S6 STREAM sender 1.640, S6 DATAGRAM sender 1.403) are steady-state excesses whose two heap-site blocks disagree, so they are unresolved. S6 STREAM control p95 (1.588) is again attributed to the selected ProbeBW Up policy.
+
+## Readiness results
+
+Plain builds, five blocks per path and workload, 110 counted observations, all exiting cleanly and passing receiver integrity. S5 STREAM blocks 4 and 5 held observations contaminated by a qemu VM (up to 0.66 foreign cores mean, 1.31 in one second). Under the registered rule, both blocks were rerun once with the same seeds on a quiet host. Both reruns were clean and are counted. Under #712's rule (originals counted, `summary-original.json`), **no flag changes status**; the largest movement is S5 STREAM receiver CPU, 1.148 against 1.164. No other observation was contaminated, and there were no UDP errors and no relay stalls. Ratios are the median [min–max] of per-block ratios against the same block's frozen Reno. Bold marks a raised flag; parentheses give the blocks crossing the limit. A/A per-block ranges are in [summary.json](summary.json) beside every ratio.
+
+| Path, workload | Arm | Goodput | Sender CPU/GiB | Receiver CPU/GiB | Sender RSS | Receiver RSS | Control p95 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Loopback STREAM | Candidate | 0.962 | 1.085 | 1.031 | 0.958 | 1.078 | 1.035 (1) |
+| Loopback STREAM | Reno on candidate | 0.999 | 1.003 | 1.001 | 1.018 | 0.989 | 0.932 (2) |
+| Loopback DATAGRAM | Candidate | **0.858 (5)** | **1.111 (5)** | 1.052 | 0.931 | 1.060 | 0.652 |
+| Loopback DATAGRAM | Reno on candidate | 0.995 | 1.006 | 1.009 | 0.992 | 1.031 | 0.721 (1) |
+| S5 STREAM | Candidate | **0.917 (5)** | **1.183 (5)** | **1.164 (5)** | **1.235 (5)** | **1.457 (5)** | 1.056 |
+| S5 STREAM | Reno on candidate | 1.000 | 1.018 | 1.008 | 0.997 | 1.000 | 1.003 |
+| S5 DATAGRAM | Candidate | **0.899 (5)** | 1.047 | **1.108 (4)** | 1.096 (2) | 1.058 | 0.716 |
+| S5 DATAGRAM | Reno on candidate | 1.000 | 1.009 | 0.995 | 1.002 (2) | 0.995 | 0.991 |
+| S6 STREAM | Candidate | benefit 11.39× [9.44–13.22] | 0.119 | 0.084 | **1.640 (5)** | **1.759 (5)** | **1.588 (5)** |
+| S6 DATAGRAM | Candidate | benefit 10.81× [9.73–12.57] | 0.127 | 0.096 | **1.403 (5)** | 1.076 | 1.167 (2) |
+
+The A/A frozen-Reno arm crosses one limit: loopback DATAGRAM control p95, 1.615 (three blocks; A/A range 0.48–2.21). Every other A/A median lies within 1.00 ± 0.04.
+
+Absolute medians (Mbit/s; s/GiB; MiB; ms):
+
+| Path, workload | Arm | Goodput | Sender / receiver CPU | Sender / receiver RSS | Control p95 / p50 | Forward overflow |
+| --- | --- | --- | --- | --- | --- | --- |
+| Loopback STREAM | Reno | 4677.8 | 3.97 / 2.75 | 16.74 / 15.36 | 0.127 / 0.067 | — |
+| Loopback STREAM | Candidate | 4494.9 | 4.31 / 2.83 | 15.96 / 16.45 | 0.145 / 0.080 | — |
+| Loopback DATAGRAM | Reno | 4637.3 | 4.53 / 3.02 | 18.02 / 19.50 | 0.409 / 0.089 | — |
+| Loopback DATAGRAM | Candidate | 3980.9 | 5.03 / 3.18 | 16.81 / 20.23 | 0.256 / 0.095 | — |
+| S5 STREAM | Reno | 95.9 | 10.11 / 8.49 | 18.88 / 17.63 | 186.4 / 181.2 | 0.111% |
+| S5 STREAM | Candidate | 87.9 | 11.96 / 9.80 | 22.95 / 25.61 | 199.9 / 102.2 | 0.209% |
+| S5 DATAGRAM | Reno | 94.4 | 11.38 / 8.75 | 18.63 / 14.88 | 178.0 / 172.0 | 0.402% |
+| S5 DATAGRAM | Candidate | 84.9 | 11.88 / 9.68 | 20.42 / 15.80 | 126.2 / 101.7 | 0.031% |
+| S6 STREAM | Reno | 6.1 | 107.70 / 117.18 | 14.13 / 14.13 | 128.2 / 105.0 | 0% |
+| S6 STREAM | Candidate | 70.3 | 13.07 / 10.28 | 23.17 / 26.17 | 200.3 / 102.1 | 0.326% |
+| S6 DATAGRAM | Reno | 5.9 | 119.16 / 118.59 | 14.81 / 14.55 | 122.5 / 103.3 | 0% |
+| S6 DATAGRAM | Candidate | 66.7 | 14.65 / 10.96 | 20.62 / 15.66 | 146.3 / 102.1 | 0.039% |
+
+### CPU flags beside Ticket A's counter effects
+
+The readiness columns are separate runs of the same stage (#712 on `fc4c1bf1`, this record on `d0fabc4d`). Ticket A's figures are r5 ÷ `fc4c1bf1` on S5 measured-window counters (#714 m6). r6 adds intervention 4, whose own effect (m4) was 0.993 / 0.998 in user instructions per packet and 0.969 / 0.986 in user cycles.
+
+| Cell | `fc4c1bf1` (#712) | `d0fabc4d` (this record) | Ticket A: user instructions/packet; measured-window sender cycles/GiB vs Reno |
+| --- | --- | --- | --- |
+| S5 STREAM sender | 1.237 | **1.183** | 0.899; 1.224 → 1.139 |
+| S5 DATAGRAM sender | 1.108 | 1.047 (passes) | 0.912; 1.135 → 1.093 |
+| Loopback STREAM sender | 1.261 | 1.085 (passes) | not measured; `lbneck` cycles per packet 0.871 of `fc4c1bf1` |
+| Loopback DATAGRAM sender | 1.208 | **1.111** | not measured; `lbneck` 0.926 |
+| S5 STREAM receiver | 1.155 | **1.164** | receiver cycles/GiB vs Reno 1.038 → 1.001 |
+| S5 DATAGRAM receiver | 1.131 | **1.108** | 1.022 → 1.011 |
+| Loopback STREAM receiver | 1.189 | 1.031 (passes) | not measured |
+
+- **The S5 DATAGRAM divergence is gone.** #714 saw r5's whole-run DATAGRAM sender CPU rise while its window cycles fell. On r6 the whole-run cell passes at 1.047, with intervention 4 added; this record does not separate the two changes.
+- **The receiver gap between CPU time and cycles stays open.** The S5 receiver CPU flags remain at 1.11–1.16 in CPU time, with the excess inside the window. Yet #714 measured the receiver's window cycles per GiB at 1.001–1.011 of Reno's on r5. CPU time and cycles diverge at the receiver; frequency or idle effects are possible but not tested.
+
+## Attribution results
+
+All four unconditional stages ran: `lbneck` (24 observations), `s5timeline` (8), `timeline` (16) and `heapsites` (16), plus the macOS `s5timeline` (4). Every block was clean and none was rerun. No escalation trigger fired. `presrss` and `preslat` were not triggered, because no Reno-on-candidate flag was raised. That is 64 Linux and 4 macOS attribution observations, within the caps of 120 and 10. [stages.py](stages.py) writes every result to [attribution.json](attribution.json).
+
+### Loopback bottleneck: inconclusive
+
+Medians over four blocks. Cores used per goroutine stage; per-packet figures per transmitted packet at the sender.
+
+| Workload, arm | Goodput (Mbit/s) | Sender: send queue / connection loop | Receiver: read loop / connection loop | Sender cycles/packet | Sender user instructions/packet | Process cores, sender / receiver |
+| --- | --- | --- | --- | --- | --- | --- |
+| STREAM, Reno | 4727 | **0.88** / 0.52 | 0.40 / 0.37 | 19,875 | 29,584 | 1.95 / 1.34 |
+| STREAM, `fc4c1bf1` | 3569 | 0.66 / 0.70 | 0.33 / 0.38 | 24,727 | 38,323 | 1.83 / 1.23 |
+| STREAM, `d0fabc4d` | 4487 | 0.80 / 0.67 | 0.38 / 0.39 | 21,498 | 33,636 | 2.00 / 1.32 |
+| DATAGRAM, Reno | 4311 | **0.88** / 0.51 | 0.45 / 0.37 | 20,415 | 30,200 | 2.06 / 1.43 |
+| DATAGRAM, `fc4c1bf1` | 3567 | 0.74 / 0.68 | 0.38 / 0.38 | 24,044 | 36,763 | 2.00 / 1.29 |
+| DATAGRAM, `d0fabc4d` | 3807 | 0.80 / 0.58 | 0.39 / 0.37 | 22,258 | 33,703 | 1.98 / 1.32 |
+
+- **Rule outcome.** Both BBR arms' senders are *ambiguous* (a serial stage between 0.70 and 0.85) in all 16 arm-blocks, and the receivers are *unsaturated* in all of them. The rule's verdict is **inconclusive** for both workloads. The escalation needs exactly one cell without a majority; here every cell agrees on ambiguous, so it did not fire, and the stage ends as registered.
+- **Descriptive, not a verdict.** Frozen Reno, the fastest arm, is the only one whose send-queue goroutine saturates. In the BBR arms neither serial stage saturates, though both are busy, and goodput rises as `d0fabc4d` removes per-packet cycles. That pattern would fit two coupled serial stages handing work to each other through the send credit, each waiting on the other part of the time. It is a hypothesis this stage did not test. Packets per useful GiB are equal across arms (785,500–786,000 STREAM; 905,000–905,600 DATAGRAM), so no arm sends more packets per useful byte. The hottest sender thread is 0.34–0.39 busy in every arm; Go moves goroutines between threads.
+
+### S5 goodput: sender timing on Linux
+
+Per block, fractions of the bottleneck's capacity over the measured window, from the [timeline overlay](timeline/).
+
+| Workload | Delivery deficit | Attributed idle | Model | Timing | Unexplained | Verdicts |
+| --- | --- | --- | --- | --- | --- | --- |
+| STREAM | 0.078–0.087 | 0.069–0.077 | 0.015–0.019 | 0.045–0.048 | 0.010–0.011 | timing, mixed, timing, timing → **timing** |
+| DATAGRAM | 0.098–0.112 | 0.089–0.101 | 0.010–0.019 | 0.072–0.074 | 0.007–0.008 | timing ×4 → **timing** |
+| macOS STREAM | 0.023–0.025 | 0.017–0.018 | 0.015–0.016 | 0.000 | 0.002 | model ×2 → **model** |
+| macOS DATAGRAM | 0.020–0.028 | 0.017–0.022 | 0.015–0.020 | 0.000 | 0.001–0.002 | model ×2 → **model** |
+
+- **Stage verdict: sender timing.** Both workloads agree, so the model-behaviour hypothesis is not supported for the Linux gap, and the competitor is. The macOS comparison is **different** in both workloads.
+- **What the timing is.** On Linux the sender records 25,171–26,360 late arrivals at a full-quantum deadline per 30 s window, about 84–88% of the roughly 1,000 quantum releases per second at 100 Mbit/s. Total lateness is 2.8–3.1 s per run, about 0.11–0.12 ms per event (maximum 0.26–1.16 ms). On the Mac it is 231–262 events and about 20 ms per run.
+- **Model terms.** The quantum is one millisecond of credit at this rate (`max(2·M, rate/1000)`), and the pacer discards credit beyond it. Lateness per release therefore turns directly into lost sending at 100 Mbit/s.
+- **Other time.** Local credit waits hold 0.5% (STREAM) and 1.3% (DATAGRAM) of the time.
+- **Why it is sender timing, not CPU.** The connection loop uses about 0.12 cores on S5, so this is not a CPU limit. This record does not separate timer wake latency from scheduling on the connection goroutine.
+- **The model asks for capacity.** The bandwidth estimate is 1.007–1.009× the bottleneck in Cruise in every block. The pacer's own 0.99 margin, Down and ProbeRTT make up the model's 0.010–0.019.
+- **Loss responses** are rare: the long inflight bound never decreased in any counted window, and STREAM overflow is 0.1–0.2% of capacity.
+- **Phases.** STREAM spends 22–25% of the window in Up and DATAGRAM 8–10%; ProbeRTT takes 2–4%.
+- **Instrument perturbation is negligible.** Instrumented goodput is 0.9998 (STREAM) and 0.998 (DATAGRAM) of the readiness candidate's.
+- **This is not yet a demonstrated defect.** It is a discriminating attribution between two registered explanations. Whether a longer credit horizon or another pacing change would recover the gap, and what that does to D08's bounds and queue behaviour, is untested here.
+
+### Receiver CPU (and sender CPU): inside the measured window
+
+| Cell | Flag | Window CPU-time ratio, median [range] | Outcome |
+| --- | --- | --- | --- |
+| S5 STREAM receiver | 1.164 | 1.177 [1.122–1.184] | **inside window** |
+| S5 DATAGRAM receiver | 1.108 | 1.117 [1.086–1.137] | **inside window** |
+| S5 STREAM sender (descriptive) | 1.183 | 1.194 [1.164–1.204] | inside window |
+| Loopback DATAGRAM sender (descriptive) | 1.111 | 1.110 [1.106–1.112] | inside window |
+
+The positive excess outside the window is 0.21 of the total in every cell, about the share of the run that lies outside the window. The excess rate is uniform through the run, not a Startup or shutdown cost. This is localization only.
+
+### Memory
+
+Every raised candidate memory cell is a steady-state excess: its measured-window footprint is 1.28–2.08× Reno's.
+
+| Flag | Ratio | Block 1 / block 2 (excess MiB) | Classification |
+| --- | --- | --- | --- |
+| S6 STREAM receiver RSS | 1.759 | delivery 81% / delivery 72% (5.5, 3.1) | **Delivery data** |
+| S5 STREAM sender RSS | 1.235 | bookkeeping 86% / unresolved (delivery 63%) (2.6, 2.1) | **Unresolved** |
+| S5 STREAM receiver RSS | 1.457 | unresolved (delivery 57%) / delivery 85% (6.3, 6.6) | **Unresolved** |
+| S6 STREAM sender RSS | 1.640 | unresolved / unresolved (4.2, 5.9) | **Unresolved** |
+| S6 DATAGRAM sender RSS | 1.403 | unresolved (bookkeeping 66%) / bookkeeping 100% (3.0, 2.7) | **Unresolved** |
+
+The largest single bookkeeping site in almost every block is `recoveryEvidence.sent`, at 1.16–1.70 MiB. The other bookkeeping sites are `beginCongestionFeedback` (0.78–0.81 MiB) and r2's `deliveryRecords` (0.53–0.74 MiB). The largest delivery site is the packet-buffer pool, `wire.init.0.func1`, at 1.5–6.0 MiB. On Linux, S5 STREAM receiver RSS was delivery data under `fc4c1bf1` (#712); here one block falls just short of 70%. Heap-site resolution is about 0.5 MiB per site.
+
+### D2's three cells, re-attributed on `d0fabc4d`
+
+| Cell | Mac (`fc4c1bf1`, covered) | Linux `fc4c1bf1` (#712) | Linux `d0fabc4d` |
+| --- | --- | --- | --- |
+| S6 control p95 | 1.547 / 1.481, Up policy | STREAM 1.541, Up policy | STREAM **1.588**: 98.5–99.3% of samples above 25 ms fall in Up or the following Down; Cruise and Refill median queue delay 0 ms; S5 matched-load p95 1.056 / 0.716. **Up policy**, at a slightly larger magnitude. DATAGRAM passes (1.167). |
+| S6 STREAM receiver RSS | 1.574, delivery | 1.754, unresolved | **1.759, delivery**; larger than the Mac cell |
+| S5 sender RSS | 1.203 / 1.132, bookkeeping | 1.202 unresolved / 1.144 bookkeeping | STREAM **1.235, unresolved**; DATAGRAM passes (1.096) |
+
+Under D2, a larger magnitude or changed composition gets no clearance from a cause label alone. Whether to except any cell is for the next decision.
+
+## Flag report for the next decision
+
+For [Decide whether the intervention-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/716), on candidate `d0fabc4d`, Linux (`minimax`):
+
+| Status | Flags |
+| --- | --- |
+| **Useful benefit** | S6: 11.39× (STREAM) and 10.81× (DATAGRAM) Reno goodput, 5/5 pairs each, at 0.119 / 0.127× Reno sender CPU per useful GiB. |
+| **Passed** | Every loopback STREAM limit. Loopback DATAGRAM receiver CPU, RSS and p95. S5 DATAGRAM sender CPU and both S5 DATAGRAM RSS cells. S5 control p95. S6 CPU, S6 DATAGRAM receiver RSS and p95. **Every Reno-on-candidate cell.** |
+| **Raised with attribution** | S6 STREAM control p95 1.588: selected ProbeBW Up policy. S6 STREAM receiver RSS 1.759: delivery data. |
+| **Raised, attributed by a discriminating stage but not a demonstrated defect** | S5 goodput 0.917 / 0.899: sender timing (pacing lateness after full-quantum deadlines) on Linux; model on macOS (different). |
+| **Raised and unresolved** | Loopback DATAGRAM goodput 0.858 and sender CPU 1.111 (bottleneck stage inconclusive). S5 STREAM sender CPU 1.183. S5 receiver CPU 1.164 / 1.108 (inside the window). Memory: S5 STREAM sender 1.235 and receiver 1.457, S6 STREAM sender 1.640, S6 DATAGRAM sender 1.403. |
+| **Raised (preservation)** | None. |
+
+## Deviations
+
+1. **Readiness wrapper bug (analysis only).** [stages.py](stages.py) `readiness` first ran the rule pass and then the original-blocks pass. Since `analyze.py` always writes `summary.json`, the second pass overwrote it. Found when the receiver split could not read `summary.json`, before any readiness flag was reported. Fixed by running the original pass first. No rule, observation or flag value changed.
+2. **Order.** The macOS `s5timeline` ran while the Linux readiness stage was running, not last as listed under [Order](#order). It shares no host, seed or result with the Linux stages.
+
+## Preservation
+
+- **Payload integrity.** All 190 retained Linux observations exited cleanly and passed receiver integrity: 110 readiness, 8 readiness reruns, 64 attribution, and 8 excluded prerequisite and smoke runs. So did the 5 macOS observations, including the excluded smoke run.
+- **Default Reno.** No Reno-on-candidate readiness flag is raised. Medians lie within 1.018 on CPU and 1.031 on RSS, and goodput lies at 0.995–1.000.
+- **No code change.** No transport source changed. The gates for `d0fabc4d` are #714's (Mac and native Linux, `gates/r6.log`, `gates/r6-native.log`). No recorded translation, cap, evidence contract, controller version or default changed. The timeline overlay exists only in the `cand-timeline` build.
+- **No host change.** `perf_event_paranoid`, socket-buffer limits, offloads, the governor and every other host setting were left unchanged. `perf` ran with `sudo`, attached passively.
+
+## Limits
+
+- **Platform and topology.** One Linux host, loopback endpoints and a userspace relay. This certifies no other platform, no real carrier path and no production readiness. New-revision Mac readiness is unmeasured; the Mac runs here are four timeline observations only.
+- **Repetition.** Five blocks per readiness cell; two to four per attribution stage. Heap-site resolution is about 0.5 MiB.
+- **Timing attribution.** The timeline stage separates model shortfall from sender timing at 10 ms granularity with a fluid link model. Its attributed idle share falls 0.008–0.011 short of the delivery deficit. It does not separate timer wake latency from goroutine scheduling, and it tests no pacing change.
+- **Engagement.** No queue CE-marked any packet, so the CE response stays unengaged. C4 items 1 and 3 and the low-rate pacing floor were not examined.
+
+## Assets and reconstruction
+
+- **Results:** [summary.json](summary.json) (registered readiness, with reruns), [summary-original.json](summary-original.json) (#712's rule on original blocks) and [attribution.json](attribution.json) (prerequisites, readiness blocks, CPU split, `lbneck`, `s5timeline` with macOS, memory and D2).
+- **Raw data:** [raw.tar.gz](raw.tar.gz) with [raw-manifest.json](raw-manifest.json): every observation, reruns, the macOS runs, prerequisites, stage logs, build receipts, thread samples, timelines and folded per-stage samples (`*.stages.json`) in place of the root-owned `perf.data`. Binaries, credentials and exported source trees are omitted.
+- **To reconstruct**, in a fresh owned worktree of this branch:
+  1. Run `build.py`, then `sync.sh` to a Linux host with the same CPU layout.
+  2. Under `taskset -c 1-3`, run `prereq.py` (imported after `art`), then `matrix.py` `smoke`, `perfsmoke`, `ecnsmoke` and `xsmoke`, then the stages in [Order](#order), then `stages.py fold`.
+  3. Anywhere, run `stages.py all` and `rules_test.py`. `mac_matrix.py` runs the macOS timeline on a Mac.
 
 ## What stays fixed and what changes
 
