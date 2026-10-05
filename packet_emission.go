@@ -22,9 +22,6 @@ type packetEmission struct {
 	paceReservation bool
 	pacingBytes     protocol.ByteCount
 	reservationTime monotime.Time
-	// One capability snapshot per BBR opportunity, taken on first use.
-	inOpportunity, capsTaken bool
-	caps                     connCapabilities
 
 	packer   *packetPacker
 	recovery *ackhandler.SentPacketHandler

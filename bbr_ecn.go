@@ -9,7 +9,7 @@ func (e *packetEmission) enableBBRECN() {
 		panic("BBR ECN requires local send ownership")
 	}
 	ackhandler.EnableBBRECN(*e.recovery, func(drain bool) (uint64, bool, bool) {
-		capable := e.opportunityCapabilities().ECN
+		capable := (*e.conn).capabilities().ECN
 		if !drain {
 			return 0, false, capable
 		}
