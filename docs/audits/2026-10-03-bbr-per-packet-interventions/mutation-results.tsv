@@ -1,0 +1,15 @@
+id	file	description	result
+D1	internal/ackhandler/delivery_records.go	backward shift ignores wrapped homes	killed
+D2	internal/ackhandler/delivery_records.go	deletion leaves a hole in the probe run	killed
+D3	internal/ackhandler/delivery_records.go	key drops the space	killed
+D4	internal/ackhandler/delivery_records.go	deleted record stays visible to iteration	killed
+D5	internal/ackhandler/delivery_records.go	probe skips slots	killed
+R1	internal/ackhandler/bbr_recovery.go	bracket low end one too high	killed
+R2	internal/ackhandler/bbr_recovery.go	bracket high end one too low	killed
+R3	internal/ackhandler/recovery_index.go	eviction keeps the evicted gap	killed
+R4	internal/ackhandler/bbr_recovery.go	absent witness reported present	killed
+R5	internal/ackhandler/bbr_recovery.go	above-last shortcut off by one	survived
+C1	local_send_credit.go	worker completion does not signal	killed
+C2	local_send_credit.go	reservation recycled while still live	killed
+C3	local_send_credit.go	connection-side release signals (the predecessor behaviour)	survived
+C4	local_send_credit.go	reused reservation keeps stale isolation	survived

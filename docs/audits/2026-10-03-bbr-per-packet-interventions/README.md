@@ -4,11 +4,84 @@
 
 Branch `codex/bbr-per-packet-interventions`, based on the candidate `fc4c1bf1`. The [Linux diagnostic](https://github.com/the-sarge/quic-go-fast/blob/4323dae8/docs/audits/2026-10-03-bbr-linux-diagnostic/README.md) (`4323dae8`) supplies the fixture, host layout and retained call graphs this record builds on.
 
-**Status: registration.** Everything below was written and committed before any intervention changed code and before any observation of this ticket existed. Results are appended in later commits; nothing registered here changes after an outcome is seen, and deviations are recorded as deviations.
+**Status: complete.** The registration sections were written and committed (`30e5ffaa`) before any intervention changed code and before any observation of this ticket existed. They are unchanged; the [Answer](#answer) and [Results](#results) sections were added afterwards, and every departure is listed under [Deviations](#deviations).
 
 ## Question
 
 Which of five selected per-packet leads in the BBR-enabled user-space path account for the candidate sender's extra work, as shown by contract-preserving interventions measured on Linux counters, and which revision survives? On S5, the #712 counters stage found about 11,300 (STREAM) and 8,700 (DATAGRAM) extra user instructions per forward packet at the sender, on frozen Reno's 31,600 and 33,300, appearing only when BBR is selected. Localization was inconclusive, so the leads are hypotheses, not causes.
+
+## Answer
+
+**The surviving revision is `2d777bb0` (r5): interventions 1, 2, 3 and 5. Intervention 4 was not kept.** On S5, against `fc4c1bf1`, the sender runs 0.899 (STREAM) and 0.912 (DATAGRAM) of the user instructions per forward packet in every block (m6). The extra user work over frozen Reno falls from 10,991 to 6,736 instructions per packet (−39%) in STREAM and from 8,889 to 5,219 (−41%) in DATAGRAM. All the remaining excess (6,700 / 5,200 per packet) is still raised and unattributed: congestion and BBR ECN feedback, which D4 deferred, plus whatever the five leads did not reach.
+
+| Lead | Revision | Outcome | User instructions/packet, new ÷ predecessor (STREAM / DATAGRAM) | Conditional change per packet |
+| --- | --- | --- | --- | --- |
+| 1. Synchronization crossings | `b8b5aaae` | **keep** | 0.939 / 0.945 | −2,595 / −2,303 |
+| 2. Delivery-record map | `97c7be6c` | **keep** | 0.978 / 0.978 | −870 / −890 |
+| 3. Recovery-evidence lookups | `8e4510ba` | **keep** (after reruns of contaminated blocks, deviations 5 and 6) | 0.979 / 0.994 | −821 / −216 |
+| 4. Capability queries | `111178b7` | **inconclusive**, reverted (`fa022130`) | 0.993 / 0.998; one STREAM block above 1 | −286 / −73 |
+| 5. Send-credit reservations | `2d777bb0` | **keep** | 0.991 / 0.995 | −365 / −193 |
+| Cumulative (m6), r5 ÷ `fc4c1bf1` | `2d777bb0` | **keep** | 0.899 / 0.912 | −4,336 / −3,703 |
+
+Effects are conditional net effects in registered order, not intrinsic leaf costs; the four kept effects sum to −4,651 / −3,602 against the cumulative −4,336 / −3,703. No readiness flag is set here, and a counter result implies no whole-run CPU readiness conclusion.
+
+- **Every change was equivalent before it was measured.** Each kept change passed its frozen or model oracle, the existing #706/#709 gates, `-race`, #706's tagged work bounds, the full root package and native Linux tests.
+- **Reno is preserved.** Reno on each new revision stayed inside frozen Reno's A/A range in every measurement, and every observation passed receiver integrity.
+- **Goodput is unchanged.** These changes remove sender work but leave goodput where it was: about 87–88 (STREAM) and 84 (DATAGRAM) Mbit/s, against Reno's 95.9 and 94.4. The S5 goodput gap is untouched.
+- **Intervention 4 is not a demonstrated null.** On clean data its instruction effect was small, and one STREAM block lay above 1. User cycles fell in every block of both workloads (0.969 / 0.986), which fits lock and cache-line cost rather than executed work. Cycles are the registered secondary metric and can only block a keep, so the change was reverted. The next decision may weigh this cycles evidence.
+
+## Results
+
+All measurements: S5, both workloads, six blocks, five arms, `perf stat` on both endpoints, on `minimax` with #712's core layout. Ratios are medians of per-block ratios [range]; A/A is the per-block A/A ÷ frozen Reno range for the same metric. [outcomes.json](outcomes.json) holds every ratio at both endpoints, and [measurements.json](measurements.json) holds each measurement's predecessor and new revision.
+
+| Measurement | Workload | Effect (user instr./pkt) | A/A | User cycles/pkt | Goodput, predecessor / new / Reno (Mbit/s) |
+| --- | --- | --- | --- | --- | --- |
+| m1 (r0 → r1) | STREAM | 0.9394 [0.9343–0.9496] | 0.9991–1.0013 | 0.9555 | 87.2 / 87.8 / 95.9 |
+| | DATAGRAM | 0.9451 [0.9429–0.9476] | 0.9975–1.0018 | 0.9728 | 84.4 / 84.1 / 94.4 |
+| m2 (r1 → r2) | STREAM | 0.9783 [0.9656–0.9811] | 0.9989–1.0000 | 0.9546 | 87.9 / 87.3 / 95.9 |
+| | DATAGRAM | 0.9776 [0.9755–0.9806] | 0.9993–1.0020 | 0.9631 | 83.9 / 83.7 / 94.4 |
+| m3 (r2 → r3) | STREAM | 0.9791 [0.9699–0.9928] | 0.9978–1.0012 | 0.9745 | 87.4 / 87.8 / 95.9 |
+| | DATAGRAM | 0.9944 [0.9922–0.9983] | 0.9985–1.0015 | 0.9929 | 84.4 / 84.0 / 94.4 |
+| m4 (r3 → r4) | STREAM | 0.9926 [0.9864–1.0017] | 0.9979–1.0012 | 0.9688 | 87.4 / 87.3 / 95.9 |
+| | DATAGRAM | 0.9981 [0.9960–0.9993] | 0.9983–1.0016 | 0.9862 | 83.8 / 83.9 / 94.4 |
+| m5 (r3 → r5) | STREAM | 0.9906 [0.9851–0.9997] | 0.9993–1.0019 | 0.9809 | 87.5 / 87.6 / 95.9 |
+| | DATAGRAM | 0.9950 [0.9929–0.9977] | 0.9966–1.0017 | 0.9916 | 84.0 / 84.0 / 94.4 |
+| m6 (r0 → r5) | STREAM | 0.8985 [0.8956–0.9011] | 0.9987–1.0021 | 0.8819 | 87.3 / 87.7 / 95.9 |
+| | DATAGRAM | 0.9119 [0.9117–0.9137] | 0.9988–1.0017 | 0.9135 | 84.3 / 84.0 / 94.4 |
+
+- **Contamination.** m1, m2, m4, m5 and m6 had no contaminated block. m3's blocks 5 and 6 were contaminated by a VM and CI work started on the host. Under deviations 5 and 6 they were rerun, and every counted m3 block is clean. The first m3 analysis is retained as `m3-first` in [outcomes.json](outcomes.json).
+- **Preservation.** Reno on the new revision lay inside the pooled A/A range at both endpoints in every measurement. In m6 the medians were 0.9967 at the sender and 0.9990 at the receiver.
+- **Residual against Reno (m6).** Sender user instructions per packet: Reno 31,623 / 33,138; `fc4c1bf1` +10,991 / +8,889; r5 +6,736 / +5,219.
+  - Sender measured-window cycles per GiB against Reno: 1.224 → 1.139 (STREAM) and 1.135 → 1.093 (DATAGRAM).
+  - Receiver measured-window cycles per GiB against Reno: 1.038 → 1.001 and 1.022 → 1.011. The receiver work fell too, though no lead targeted it.
+- **Whole-run CPU diverges for DATAGRAM.** Whole-run sender CPU seconds per GiB (`getrusage`) against Reno are 1.269 → 1.211 for STREAM. For DATAGRAM they rise, 1.133 → 1.161 (r5 ÷ `fc4c1bf1` 1.021), while measured-window cycles fall 3.7%. Kernel instructions per DATAGRAM packet also rise 2.2%; m1 showed the same divergence (1.042). This is descriptive and unattributed. Whether the measured-window saving reaches the whole-run CPU flags is for the next ticket's readiness stage.
+
+### Equivalence, gates and mutation sweep
+
+| Revision | Oracles | Gates ([gates/](gates/)) |
+| --- | --- | --- |
+| r1 `b8b5aaae` | #709 frozen ECN oracle, which now hands wrong generation and drain values outside the fence and counts drain reads (917,000 operations, 286,692 drain reads, all inside the fence). Continuation tests fail on `fc4c1bf1` and pass here. Loop tests (received packet, close, expired idle timer serviced between datagrams) pass on both. | Mac and native Linux pass; the tagged work gate was added later (deviation 2) |
+| r2 `97c7be6c` | Model test against Go's map (683,434 operations); #706 twin comparing live records against the frozen dispatch, with probe-invariant checks; growth and reuse at the 25,000-record limit with zero steady allocation | All pass |
+| r3 `8e4510ba` | 407,829 `lowerBound` queries against the frozen search (skips, 100,000 evictions, resets); twin with deque-metadata recomputation and witness maps; named absent-witness case; tagged probe bound | All pass |
+| r4 `111178b7` | Counting, switchable capability test: one query per opportunity, the change at the next opportunity, live queries outside one | All pass (not kept) |
+| r5 `2d777bb0` | Frozen predecessor ledger in lockstep (600,000 operations: 25,606 refusals, 194,323 waits, 83,338 worker completions, 106,198 reuses), with equal state, returns and wait-point tokens; ownership tests | All pass, plus native `-race` |
+
+[mutate.py](mutate.py) against r5 ([mutation-results.tsv](mutation-results.tsv)) kills 11 of 14 mutants. The three survivors are dispositioned:
+- **R5** (an above-last shortcut off by one) is equivalent: for `pn = last+1` the bracket collapses to `[n, n]`.
+- **C3** restores the predecessor's connection-side signals. Its survival is the registered claim that those tokens are never observed at a wait point.
+- **C4** (stale isolation on reuse) is unreachable, because recycling zeroes the reservation.
+
+R4 survived the first sweep. The named case `TestRecoveryBoundaryWitnessAbsentSpace` was added before measurement and kills it.
+
+**Other disclosures.** `DeliveryStats.RecordBytes` is unchanged by r2 and grows by 72 bytes with r3's deque metadata. The delivery-record table's live heap is 1.29× the map's at 2,000 records and 0.80× at 25,000 (`TestDeliveryRecordsMemoryReport`); the next readiness stage measures RSS.
+
+### Unresolved evidence for the next ticket
+
+- The remaining sender excess, 6,736 / 5,219 user instructions per packet, is unattributed. Congestion and BBR ECN feedback were deferred by D4, and the rest lies outside the five selected leads.
+- Intervention 4's cycles-only effect.
+- The DATAGRAM divergence between whole-run CPU time and measured-window cycles.
+- The S5 goodput gap, untouched by these changes.
+- Loopback, receiver CPU, memory and preservation cells are measured only by the readiness stage.
 
 ## Evidence base for the leads
 
@@ -156,6 +229,9 @@ This ticket closes with the surviving revision (possibly `fc4c1bf1` unchanged), 
 
 ## Assets
 
+- **Results:** [outcomes.json](outcomes.json) (every measurement's analysis, including `m3-first`), [measurements.json](measurements.json), [gates/](gates/) (Mac, native Linux and the provisional `r4-on-r2-discarded` gate logs), [mutation-results.tsv](mutation-results.tsv).
+- **Raw data:** [raw.tar.gz](raw.tar.gz) with [raw-manifest.json](raw-manifest.json), packed by [pack.py](pack.py). It holds every observation, including the excluded `smoke2` runs, the reruns and the aborted m4 start, plus stage logs, summaries and build receipts. Binaries, credentials and exported source trees are omitted.
+- **Added aids:** [gates.sh](gates.sh), [sync.sh](sync.sh), [mutate.py](mutate.py), [pack.py](pack.py).
 - **Copied from #712 (`4323dae8`), byte-identical and checked by `build.py`:** [run.py](run.py), [localize.py](localize.py), [launch/main.go](launch/main.go), [relay/](relay/), [model-overlay/next.go](model-overlay/next.go).
 - **Adapted:** [build.py](build.py): plain builds only, named revisions, byte-identity checks against #712. [matrix.py](matrix.py): D4's five arms, six blocks, per-measurement seeds, one rerun block; it redirects `run.py`'s artifact directory.
 - **New:**
