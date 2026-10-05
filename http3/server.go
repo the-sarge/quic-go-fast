@@ -190,6 +190,8 @@ type Server struct {
 	// IdleTimeout specifies how long until idle clients connection should be
 	// closed. Idle refers only to the HTTP/3 layer, activity at the QUIC layer
 	// like PING frames are not considered.
+	// The timeout starts once the QUIC handshake completes, and while no request is active.
+	// Before handshake completion, the QUIC handshake timeout applies instead.
 	// If zero or negative, there is no timeout.
 	IdleTimeout time.Duration
 
