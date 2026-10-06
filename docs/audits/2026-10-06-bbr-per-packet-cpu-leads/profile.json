@@ -1,0 +1,967 @@
+{
+  "groups": {
+    "datagram/send": {
+      "blocks": [
+        {
+          "delta": {
+            "bbr": 1543116084.923858,
+            "alloc_gc": -168664712.34993505,
+            "user_sched": 1306045067.320757,
+            "kernel_send": 416050584.2760029,
+            "kernel_wake_sched": 1051617978.3618059,
+            "kernel_recv": -47372853.52283001,
+            "kernel_other": 207919603.22204375,
+            "user_other": 1123328740.9017925
+          },
+          "total": 5432040493.133495,
+          "positive_pool": 5648078059.00626,
+          "share": {
+            "bbr": 0.2732108283211933,
+            "alloc_gc": 0.0,
+            "user_sched": 0.23123707811335498,
+            "kernel_send": 0.07366232901342092,
+            "kernel_wake_sched": 0.1861904115657408,
+            "kernel_recv": 0.0,
+            "kernel_other": 0.03681245213856442,
+            "user_other": 0.19888690084772562
+          }
+        },
+        {
+          "delta": {
+            "bbr": 1435717006.023307,
+            "alloc_gc": -303027143.77990127,
+            "user_sched": 1382935706.395422,
+            "kernel_send": 5772268.4149131775,
+            "kernel_wake_sched": 1449187621.0687695,
+            "kernel_recv": 3720722.849324465,
+            "kernel_other": 255468130.19068754,
+            "user_other": 1073486917.3186598
+          },
+          "total": 5303261228.481182,
+          "positive_pool": 5606288372.261084,
+          "share": {
+            "bbr": 0.2560904667563979,
+            "alloc_gc": 0.0,
+            "user_sched": 0.24667580662420818,
+            "kernel_send": 0.0010296060480001945,
+            "kernel_wake_sched": 0.2584932356029154,
+            "kernel_recv": 0.0006636695443163321,
+            "kernel_other": 0.04556813942263448,
+            "user_other": 0.19147907600152747
+          }
+        }
+      ],
+      "median_share": {
+        "bbr": 0.26465064753879564,
+        "alloc_gc": 0.0,
+        "user_sched": 0.23895644236878158,
+        "kernel_send": 0.03734596753071055,
+        "kernel_wake_sched": 0.2223418235843281,
+        "kernel_recv": 0.00033183477215816606,
+        "kernel_other": 0.04119029578059945,
+        "user_other": 0.19518298842462656
+      },
+      "median_delta": {
+        "bbr": 1489416545.4735825,
+        "alloc_gc": -235845928.06491816,
+        "user_sched": 1344490386.8580894,
+        "kernel_send": 210911426.34545803,
+        "kernel_wake_sched": 1250402799.7152877,
+        "kernel_recv": -21826065.336752772,
+        "kernel_other": 231693866.70636564,
+        "user_other": 1098407829.1102262
+      },
+      "blocks_with_excess": 2,
+      "outcome": "inconclusive: no group holds half the excess in every block",
+      "lead": null,
+      "group_cycles_per_gib": [
+        {
+          "block": 1,
+          "r8": {
+            "bbr": 1551082078.8481886,
+            "alloc_gc": 1231919353.9873724,
+            "user_sched": 5751494490.680683,
+            "kernel_send": 9264431433.901587,
+            "kernel_wake_sched": 6850250685.017621,
+            "kernel_recv": 400695439.4493353,
+            "kernel_other": 1168614779.6297727,
+            "user_other": 9220437438.967583
+          },
+          "reno": {
+            "bbr": 7965993.924330615,
+            "alloc_gc": 1400584066.3373075,
+            "user_sched": 4445449423.359926,
+            "kernel_send": 8848380849.625584,
+            "kernel_wake_sched": 5798632706.655815,
+            "kernel_recv": 448068292.9721653,
+            "kernel_other": 960695176.4077289,
+            "user_other": 8097108698.06579
+          }
+        },
+        {
+          "block": 2,
+          "r8": {
+            "bbr": 1438479042.5829065,
+            "alloc_gc": 1105184300.174106,
+            "user_sched": 5808855259.713171,
+            "kernel_send": 9080872692.706223,
+            "kernel_wake_sched": 7168821981.01485,
+            "kernel_recv": 475807512.77967435,
+            "kernel_other": 1140865014.9967988,
+            "user_other": 9087433451.183071
+          },
+          "reno": {
+            "bbr": 2762036.5595994294,
+            "alloc_gc": 1408211443.9540071,
+            "user_sched": 4425919553.317749,
+            "kernel_send": 9075100424.29131,
+            "kernel_wake_sched": 5719634359.94608,
+            "kernel_recv": 472086789.9303499,
+            "kernel_other": 885396884.8061112,
+            "user_other": 8013946533.864411
+          }
+        }
+      ]
+    },
+    "datagram/receive": {
+      "blocks": [
+        {
+          "delta": {
+            "bbr": 289682008.5182222,
+            "alloc_gc": -3937628.787899971,
+            "user_sched": -571479309.1830587,
+            "kernel_send": 842133.0206460953,
+            "kernel_wake_sched": -617647321.9085445,
+            "kernel_recv": -362303894.5260236,
+            "kernel_other": -244584757.40437603,
+            "user_other": 188203805.27003956
+          },
+          "total": -1321224965.0009952,
+          "positive_pool": 478727946.80890787,
+          "share": {
+            "bbr": 0.6051077871036711,
+            "alloc_gc": 0.0,
+            "user_sched": 0.0,
+            "kernel_send": 0.0017591056178348546,
+            "kernel_wake_sched": 0.0,
+            "kernel_recv": 0.0,
+            "kernel_other": 0.0,
+            "user_other": 0.39313310727849404
+          }
+        },
+        {
+          "delta": {
+            "bbr": 256779127.53578502,
+            "alloc_gc": 192494782.01048946,
+            "user_sched": -628134282.2210855,
+            "kernel_send": 207106748.78435707,
+            "kernel_wake_sched": -679134181.3233404,
+            "kernel_recv": -185969397.129982,
+            "kernel_other": -166553507.87756944,
+            "user_other": 256985895.3348589
+          },
+          "total": -746424814.886487,
+          "positive_pool": 913366553.6654904,
+          "share": {
+            "bbr": 0.2811348045374424,
+            "alloc_gc": 0.21075304458869903,
+            "user_sched": 0.0,
+            "kernel_send": 0.22675096646927084,
+            "kernel_wake_sched": 0.0,
+            "kernel_recv": 0.0,
+            "kernel_other": 0.0,
+            "user_other": 0.2813611844045878
+          }
+        }
+      ],
+      "median_share": {
+        "bbr": 0.4431212958205567,
+        "alloc_gc": 0.10537652229434952,
+        "user_sched": 0.0,
+        "kernel_send": 0.11425503604355285,
+        "kernel_wake_sched": 0.0,
+        "kernel_recv": 0.0,
+        "kernel_other": 0.0,
+        "user_other": 0.3372471458415409
+      },
+      "median_delta": {
+        "bbr": 273230568.02700365,
+        "alloc_gc": 94278576.61129475,
+        "user_sched": -599806795.7020721,
+        "kernel_send": 103974440.90250158,
+        "kernel_wake_sched": -648390751.6159425,
+        "kernel_recv": -274136645.8280028,
+        "kernel_other": -205569132.64097273,
+        "user_other": 222594850.30244923
+      },
+      "blocks_with_excess": 0,
+      "outcome": "no repeatable excess",
+      "lead": null,
+      "group_cycles_per_gib": [
+        {
+          "block": 1,
+          "r8": {
+            "bbr": 291902163.30864257,
+            "alloc_gc": 1526635715.3474607,
+            "user_sched": 3409310366.184222,
+            "kernel_send": 2337960696.4906535,
+            "kernel_wake_sched": 4495428623.716558,
+            "kernel_recv": 2108968354.192304,
+            "kernel_other": 771560351.1619946,
+            "user_other": 7541732460.353893
+          },
+          "reno": {
+            "bbr": 2220154.7904203534,
+            "alloc_gc": 1530573344.1353607,
+            "user_sched": 3980789675.367281,
+            "kernel_send": 2337118563.4700074,
+            "kernel_wake_sched": 5113075945.625103,
+            "kernel_recv": 2471272248.7183275,
+            "kernel_other": 1016145108.5663706,
+            "user_other": 7353528655.083854
+          }
+        },
+        {
+          "block": 2,
+          "r8": {
+            "bbr": 256779127.53578502,
+            "alloc_gc": 1661010310.231585,
+            "user_sched": 3412535608.433351,
+            "kernel_send": 2386742345.80057,
+            "kernel_wake_sched": 4348136982.646212,
+            "kernel_recv": 2307726921.500416,
+            "kernel_other": 812979319.3768005,
+            "user_other": 7698938313.311262
+          },
+          "reno": {
+            "bbr": 0.0,
+            "alloc_gc": 1468515528.2210956,
+            "user_sched": 4040669890.6544366,
+            "kernel_send": 2179635597.016213,
+            "kernel_wake_sched": 5027271163.969552,
+            "kernel_recv": 2493696318.630398,
+            "kernel_other": 979532827.25437,
+            "user_other": 7441952417.976403
+          }
+        }
+      ]
+    },
+    "stream/send": {
+      "blocks": [
+        {
+          "delta": {
+            "bbr": 1321365607.416816,
+            "alloc_gc": 21214295.966560423,
+            "user_sched": 696348866.4249659,
+            "kernel_send": 210126225.18466568,
+            "kernel_wake_sched": 306227237.8759928,
+            "kernel_recv": 34737270.3872785,
+            "kernel_other": 218167096.10387433,
+            "user_other": 1022639142.713171
+          },
+          "total": 3830825742.0733247,
+          "positive_pool": 3830825742.0733247,
+          "share": {
+            "bbr": 0.3449297087321087,
+            "alloc_gc": 0.005537786731870188,
+            "user_sched": 0.18177513499950718,
+            "kernel_send": 0.05485141829263705,
+            "kernel_wake_sched": 0.07993765796046261,
+            "kernel_recv": 0.009067828381167226,
+            "kernel_other": 0.05695040985753574,
+            "user_other": 0.2669500550447113
+          }
+        },
+        {
+          "delta": {
+            "bbr": 1424132374.9500732,
+            "alloc_gc": -35470993.30271143,
+            "user_sched": 382711748.4608121,
+            "kernel_send": 190032179.7485714,
+            "kernel_wake_sched": 532669198.95176315,
+            "kernel_recv": 39190228.25101572,
+            "kernel_other": 134914023.4311782,
+            "user_other": 1119738491.6358547
+          },
+          "total": 3787917252.1265574,
+          "positive_pool": 3823388245.4292684,
+          "share": {
+            "bbr": 0.37247914246024466,
+            "alloc_gc": 0.0,
+            "user_sched": 0.10009753754888248,
+            "kernel_send": 0.04970255897390187,
+            "kernel_wake_sched": 0.13931862650583582,
+            "kernel_recv": 0.010250130443296288,
+            "kernel_other": 0.03528650892110247,
+            "user_other": 0.2928654951467365
+          }
+        }
+      ],
+      "median_share": {
+        "bbr": 0.35870442559617666,
+        "alloc_gc": 0.002768893365935094,
+        "user_sched": 0.14093633627419483,
+        "kernel_send": 0.05227698863326946,
+        "kernel_wake_sched": 0.1096281422331492,
+        "kernel_recv": 0.009658979412231757,
+        "kernel_other": 0.046118459389319105,
+        "user_other": 0.2799077750957239
+      },
+      "median_delta": {
+        "bbr": 1372748991.1834445,
+        "alloc_gc": -7128348.668075502,
+        "user_sched": 539530307.442889,
+        "kernel_send": 200079202.46661854,
+        "kernel_wake_sched": 419448218.41387796,
+        "kernel_recv": 36963749.31914711,
+        "kernel_other": 176540559.76752627,
+        "user_other": 1071188817.1745129
+      },
+      "blocks_with_excess": 2,
+      "outcome": "inconclusive: no group holds half the excess in every block",
+      "lead": null,
+      "group_cycles_per_gib": [
+        {
+          "block": 1,
+          "r8": {
+            "bbr": 1322757658.123049,
+            "alloc_gc": 327656655.70787513,
+            "user_sched": 4631663247.609284,
+            "kernel_send": 7949131186.775574,
+            "kernel_wake_sched": 5774240295.70401,
+            "kernel_recv": 421885808.3841814,
+            "kernel_other": 1037901461.658833,
+            "user_other": 8534131618.006307
+          },
+          "reno": {
+            "bbr": 1392050.7062329496,
+            "alloc_gc": 306442359.7413147,
+            "user_sched": 3935314381.1843185,
+            "kernel_send": 7739004961.590908,
+            "kernel_wake_sched": 5468013057.828017,
+            "kernel_recv": 387148537.9969029,
+            "kernel_other": 819734365.5549587,
+            "user_other": 7511492475.293136
+          }
+        },
+        {
+          "block": 2,
+          "r8": {
+            "bbr": 1424132374.9500732,
+            "alloc_gc": 304177055.67804956,
+            "user_sched": 4386425471.602122,
+            "kernel_send": 7987769439.619616,
+            "kernel_wake_sched": 5831976743.365654,
+            "kernel_recv": 422919306.62563145,
+            "kernel_other": 970507419.8508488,
+            "user_other": 8743868107.767958
+          },
+          "reno": {
+            "bbr": 0.0,
+            "alloc_gc": 339648048.980761,
+            "user_sched": 4003713723.14131,
+            "kernel_send": 7797737259.871044,
+            "kernel_wake_sched": 5299307544.413891,
+            "kernel_recv": 383729078.3746157,
+            "kernel_other": 835593396.4196706,
+            "user_other": 7624129616.132103
+          }
+        }
+      ]
+    },
+    "stream/receive": {
+      "blocks": [
+        {
+          "delta": {
+            "bbr": 209909243.02602494,
+            "alloc_gc": -61541446.47302711,
+            "user_sched": -344188289.1016998,
+            "kernel_send": 145333917.1591456,
+            "kernel_wake_sched": -812578338.7402325,
+            "kernel_recv": -179520389.05403924,
+            "kernel_other": 109272009.33044517,
+            "user_other": 72082420.90229511
+          },
+          "total": -861230872.9510878,
+          "positive_pool": 536597590.4179108,
+          "share": {
+            "bbr": 0.391185586320923,
+            "alloc_gc": 0.0,
+            "user_sched": 0.0,
+            "kernel_send": 0.2708434024945159,
+            "kernel_wake_sched": 0.0,
+            "kernel_recv": 0.0,
+            "kernel_other": 0.20363865079107488,
+            "user_other": 0.13433236039348623
+          }
+        },
+        {
+          "delta": {
+            "bbr": 250220604.6709431,
+            "alloc_gc": -17666034.197929382,
+            "user_sched": -683900990.0684052,
+            "kernel_send": 114073734.5231967,
+            "kernel_wake_sched": -402415483.87638426,
+            "kernel_recv": -287938050.5421536,
+            "kernel_other": 72034256.17250812,
+            "user_other": 182907466.3838358
+          },
+          "total": -772684496.9343886,
+          "positive_pool": 619236061.7504838,
+          "share": {
+            "bbr": 0.4040795104271035,
+            "alloc_gc": 0.0,
+            "user_sched": 0.0,
+            "kernel_send": 0.1842168787791978,
+            "kernel_wake_sched": 0.0,
+            "kernel_recv": 0.0,
+            "kernel_other": 0.11632761820892426,
+            "user_other": 0.2953759925847744
+          }
+        }
+      ],
+      "median_share": {
+        "bbr": 0.39763254837401324,
+        "alloc_gc": 0.0,
+        "user_sched": 0.0,
+        "kernel_send": 0.22753014063685684,
+        "kernel_wake_sched": 0.0,
+        "kernel_recv": 0.0,
+        "kernel_other": 0.15998313449999957,
+        "user_other": 0.21485417648913033
+      },
+      "median_delta": {
+        "bbr": 230064923.84848404,
+        "alloc_gc": -39603740.335478246,
+        "user_sched": -514044639.5850525,
+        "kernel_send": 129703825.84117115,
+        "kernel_wake_sched": -607496911.3083084,
+        "kernel_recv": -233729219.79809642,
+        "kernel_other": 90653132.75147665,
+        "user_other": 127494943.64306545
+      },
+      "blocks_with_excess": 0,
+      "outcome": "no repeatable excess",
+      "lead": null,
+      "group_cycles_per_gib": [
+        {
+          "block": 1,
+          "r8": {
+            "bbr": 212368999.02470556,
+            "alloc_gc": 570898962.5046431,
+            "user_sched": 3499032732.5363064,
+            "kernel_send": 2086940662.6973681,
+            "kernel_wake_sched": 4000294093.605113,
+            "kernel_recv": 2043255868.8542807,
+            "kernel_other": 852106926.2468134,
+            "user_other": 7712799461.802372
+          },
+          "reno": {
+            "bbr": 2459755.9986806256,
+            "alloc_gc": 632440408.9776702,
+            "user_sched": 3843221021.638006,
+            "kernel_send": 1941606745.5382226,
+            "kernel_wake_sched": 4812872432.3453455,
+            "kernel_recv": 2222776257.90832,
+            "kernel_other": 742834916.9163682,
+            "user_other": 7640717040.900077
+          }
+        },
+        {
+          "block": 2,
+          "r8": {
+            "bbr": 250220604.6709431,
+            "alloc_gc": 567861670.5655853,
+            "user_sched": 3423659811.9080048,
+            "kernel_send": 2063384066.596989,
+            "kernel_wake_sched": 4231648971.6719117,
+            "kernel_recv": 1910332927.6075628,
+            "kernel_other": 827785696.7093228,
+            "user_other": 7741589886.703569
+          },
+          "reno": {
+            "bbr": 0.0,
+            "alloc_gc": 585527704.7635146,
+            "user_sched": 4107560801.97641,
+            "kernel_send": 1949310332.0737922,
+            "kernel_wake_sched": 4634064455.548296,
+            "kernel_recv": 2198270978.1497164,
+            "kernel_other": 755751440.5368147,
+            "user_other": 7558682420.319734
+          }
+        }
+      ]
+    }
+  },
+  "sites": {
+    "blocks": [
+      {
+        "workload": "datagram",
+        "block": 1,
+        "total": 35438925700.48214
+      },
+      {
+        "workload": "datagram",
+        "block": 2,
+        "total": 35306319255.1508
+      },
+      {
+        "workload": "stream",
+        "block": 1,
+        "total": 29999367931.969116
+      },
+      {
+        "workload": "stream",
+        "block": 2,
+        "total": 30071775919.459953
+      }
+    ],
+    "table": [
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).sendBounded",
+        "median": 4755741277.338602,
+        "min": 4682046659.81264,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams",
+        "median": 3676167397.763529,
+        "min": 3331316655.385198,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+        "median": 424836375.0933058,
+        "min": 410092358.94236803,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).handoff",
+        "median": 395326274.61105573,
+        "min": 347580630.6010283,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).opportunityCapabilities",
+        "median": 263619751.60658437,
+        "min": 190194009.3577782,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback",
+        "median": 219706584.35605413,
+        "min": 198866349.9235954,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*sendReservation).release",
+        "median": 192062633.56954694,
+        "min": 127044891.02451707,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).appendRetainedAck",
+        "median": 191020519.5507004,
+        "min": 165721395.918968,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+        "median": 180791654.94919634,
+        "min": 156431776.90298823,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).reserveLocal",
+        "median": 180263601.74028695,
+        "min": 142369896.83382028,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*localSendCredit).reserve",
+        "median": 175630305.1973468,
+        "min": 139914035.7822919,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*pacingKick).arm",
+        "median": 137191117.81295598,
+        "min": 121957036.54278785,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/congestion.(*BBRSender).Feedback",
+        "median": 120674036.55750895,
+        "min": 101643351.3919457,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.congestionKey (inlined)",
+        "median": 114383780.97594135,
+        "min": 85042978.45503877,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).ack",
+        "median": 111905829.5872955,
+        "min": 84351458.73550196,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).sendBounded.func2",
+        "median": 105223690.02165097,
+        "min": 96265684.7192032,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).sent",
+        "median": 96995834.4811849,
+        "min": 62208868.42808176,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureBBRECN",
+        "median": 96568897.10813057,
+        "min": 77331781.71319142,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*bbrECNTracker).feedback",
+        "median": 92936305.87806258,
+        "min": 77331781.71319142,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*deliverySampler).sent",
+        "median": 88985330.68986854,
+        "min": 43168371.61627487,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*bbrECNTracker).mode",
+        "median": 79044746.7333533,
+        "min": 47125441.883763336,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).enableBBRECN.func1",
+        "median": 76382614.84275755,
+        "min": 48044059.91760271,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*sendReservation).release.deferwrap1",
+        "median": 64596589.58723189,
+        "min": 53295963.12084427,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*localSendCredit).reserve.deferwrap1",
+        "median": 63822414.08503924,
+        "min": 36922280.93896747,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*bbrSendPolicy).budget",
+        "median": 47638882.514490515,
+        "min": 32004352.192746975,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).setState",
+        "median": 46231685.05448854,
+        "min": 26247154.35268165,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/congestion.(*BBRSender).applyACK",
+        "median": 40711529.36731981,
+        "min": 29970517.80255321,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).feedback",
+        "median": 31532326.830944184,
+        "min": 28313883.836880773,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*packetEmission).enableBBR.func1",
+        "median": 31388775.69587455,
+        "min": 16585069.040142685,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).evict",
+        "median": 29147941.887479465,
+        "min": 22736257.779152643,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go.(*bbrSendPolicy).update",
+        "median": 27364641.11075944,
+        "min": 20712617.354290597,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*recoveryEvidence).nextL",
+        "median": 24246893.614364818,
+        "min": 7956809.229383267,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*bbrECNTracker).searchRanges (inlined)",
+        "median": 23229257.41033504,
+        "min": 13120495.371131878,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/congestion.(*BBRSender).bdpRatio",
+        "median": 22861046.191012938,
+        "min": 10842566.62524561,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*bbrECNTracker).appendScratch",
+        "median": 22537751.796141524,
+        "min": 7668389.964078899,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*spaceSlots).popFront (inlined)",
+        "median": 19137439.306861747,
+        "min": 15959025.489577793,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*bbrECNTracker).sentPacket",
+        "median": 18896616.258400515,
+        "min": 4719590.342724346,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/congestion.(*BBRSender).aggregationMaximum (inlined)",
+        "median": 18709018.428002223,
+        "min": 15991229.317038218,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/congestion.(*BBRSender).updateAggregation",
+        "median": 16358237.993429732,
+        "min": 10070618.073185693,
+        "blocks_positive": 4,
+        "container": false
+      },
+      {
+        "site": "github.com/quic-go/quic-go/internal/ackhandler.(*congestionDispatch).expire",
+        "median": 16265622.88907776,
+        "min": 8093194.423993745,
+        "blocks_positive": 4,
+        "container": false
+      }
+    ],
+    "decisions": [
+      [
+        "github.com/quic-go/quic-go.(*packetEmission).sendBounded",
+        "ineligible: too broad for one change: 3.68 of its 4.76 Gcycles/GiB are boundedDatagrams; the rest is spread over ACK-only packets, the capability snapshot, local credit and connection preparation (each <= 0.19)"
+      ],
+      [
+        "github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams",
+        "ineligible: its cost is the shared packer (appendPacket, 3.08) and the send-queue hand-off (0.40); reducing packing per datagram needs send-path batching or a change to code Reno runs"
+      ],
+      [
+        "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+        "selected: each registration builds a 152-byte PacketInfo on the stack and copies it by value into recovery evidence, into the delivery-record slab (argument plus composite literal) and into the send event (self 0.157 of 0.425); one change can build it once in its slab record and pass recovery a pointer, with identical values and call order; BBR-only (congestionEvents is nil under Reno); oracle: #706 twin and #714 lead 2 model test against the frozen dispatch"
+      ],
+      [
+        "github.com/quic-go/quic-go.(*packetEmission).handoff",
+        "ineligible: 0.34 of its 0.40 is the shared send-queue hand-off (sendQueue.Send) that Reno also runs; its remainder is the credit resize, ineligible with the ledger (below)"
+      ],
+      [
+        "github.com/quic-go/quic-go.(*packetEmission).opportunityCapabilities",
+        "ineligible: its cost is the shared capability query (sconn.capabilities, 0.251), already once per opportunity (#714 lead 4); fewer queries need snapshots older than the opportunity (the capability contract) or a change to shared code"
+      ],
+      [
+        "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback",
+        "ineligible: too broad for one change: the BBR model per-ACK computation spread over about ten functions (largest leaf 0.035), recovery feedback (0.032) and the PendingLocal credit read the event requires (0.031)"
+      ],
+      [
+        "github.com/quic-go/quic-go.(*sendReservation).release",
+        "ineligible: its cost is the credit mutex itself (lock and unlock about 0.18 of 0.19); each acquisition orders a four-field ledger update (pending, current, generation, isolation) that admission reads together; fewer acquisitions change when credit returns (admission timing) or need a lock-free multi-field ledger that fixed-input equality against r8 cannot bound"
+      ],
+      [
+        "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).appendRetainedAck",
+        "selected: every ACK sorts the assembled acked list by ordinal (insertion sort over 152-byte records, 0.052) although assembly almost always yields ordinal order; tracking order during assembly and sorting only when out of order returns identical lists because ordinals are unique; BBR-only; oracle: a frozen-sort comparison over randomized feedback histories plus the #706 twin"
+      ],
+      [
+        "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+        "selected: each acked record is copied out of the slab by value (take), its 160-byte slab record zeroed, and copied again into the event list (self 0.089 plus take 0.057); one change can move it once from the slab into the event list and clear only the free marker, with identical event contents and table state; BBR-only; oracle: #714 lead 2 model test extended to the move, plus the #706 twin"
+      ]
+    ],
+    "selected": [
+      "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+      "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).appendRetainedAck",
+      "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback"
+    ]
+  },
+  "leaf_excess": [
+    {
+      "leaf": "internal/sync.(*Mutex).Unlock (inlined)",
+      "median_excess": 322604223.3499535
+    },
+    {
+      "leaf": "runtime.lock2",
+      "median_excess": 162959032.16480297
+    },
+    {
+      "leaf": "k:__raw_spin_lock_irqsave",
+      "median_excess": 160967404.77060324
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend",
+      "median_excess": 157474397.6024011
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go.(*localSendCredit).reserve",
+      "median_excess": 123070983.76439947
+    },
+    {
+      "leaf": "k:finish_task_switch",
+      "median_excess": 121256347.97511986
+    },
+    {
+      "leaf": "k:skb_set_owner_w",
+      "median_excess": 117603337.52412765
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go.(*sendReservation).release",
+      "median_excess": 110065771.98824772
+    },
+    {
+      "leaf": "k:_raw_spin_lock_irq",
+      "median_excess": 105851178.58366263
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go.(*externalPacketConn).capabilities",
+      "median_excess": 101676862.66678628
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback",
+      "median_excess": 89260357.83921954
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go/internal/ackhandler.(*deliverySampler).sent",
+      "median_excess": 88985330.68986854
+    },
+    {
+      "leaf": "k:__check_heap_object",
+      "median_excess": 85904895.332555
+    },
+    {
+      "leaf": "runtime.unlock2",
+      "median_excess": 84471946.77444285
+    },
+    {
+      "leaf": "k:_raw_spin_lock",
+      "median_excess": 83882371.79381335
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go.(*Conn).handlePackets",
+      "median_excess": 83790995.5437571
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go.(*packetEmission).sendBounded",
+      "median_excess": 82653746.74227166
+    },
+    {
+      "leaf": "k:skb_release_data",
+      "median_excess": 82051634.80202961
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go.(*connectionFlowController).GetWindowUpdate",
+      "median_excess": 73193346.78786981
+    },
+    {
+      "leaf": "k:fdget",
+      "median_excess": 70063338.02615036
+    },
+    {
+      "leaf": "k:read_tsc",
+      "median_excess": 68917765.47857237
+    },
+    {
+      "leaf": "runtime.findRunnable",
+      "median_excess": 63959978.67775443
+    },
+    {
+      "leaf": "github.com/quic-go/quic-go/internal/ackhandler.(*deliveryRecords).take",
+      "median_excess": 63843082.64145775
+    },
+    {
+      "leaf": "k:fput",
+      "median_excess": 60581995.82348266
+    },
+    {
+      "leaf": "runtime.pidleget",
+      "median_excess": 59446625.236515634
+    },
+    {
+      "leaf": "k:mutex_lock",
+      "median_excess": 53582675.75319257
+    },
+    {
+      "leaf": "slices.insertionSortCmpFunc[go.shape.2db97015259b50efae54abbaaac5546a04e387a84686b3df57d6749ff129ffc9] (inlined)",
+      "median_excess": 51985064.88150856
+    },
+    {
+      "leaf": "runtime.stealWork",
+      "median_excess": 51606071.48489894
+    },
+    {
+      "leaf": "k:arch_exit_to_user_mode_prepare",
+      "median_excess": 48989100.8614035
+    },
+    {
+      "leaf": "k:native_sched_clock",
+      "median_excess": 48846658.60631343
+    }
+  ]
+}

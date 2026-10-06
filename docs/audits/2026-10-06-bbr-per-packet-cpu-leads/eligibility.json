@@ -1,0 +1,38 @@
+{
+  "github.com/quic-go/quic-go.(*packetEmission).sendBounded": [
+    false,
+    "too broad for one change: 3.68 of its 4.76 Gcycles/GiB are boundedDatagrams; the rest is spread over ACK-only packets, the capability snapshot, local credit and connection preparation (each <= 0.19)"
+  ],
+  "github.com/quic-go/quic-go.(*packetEmission).boundedDatagrams": [
+    false,
+    "its cost is the shared packer (appendPacket, 3.08) and the send-queue hand-off (0.40); reducing packing per datagram needs send-path batching or a change to code Reno runs"
+  ],
+  "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).captureCongestionSend": [
+    true,
+    "each registration builds a 152-byte PacketInfo on the stack and copies it by value into recovery evidence, into the delivery-record slab (argument plus composite literal) and into the send event (self 0.157 of 0.425); one change can build it once in its slab record and pass recovery a pointer, with identical values and call order; BBR-only (congestionEvents is nil under Reno); oracle: #706 twin and #714 lead 2 model test against the frozen dispatch"
+  ],
+  "github.com/quic-go/quic-go.(*packetEmission).handoff": [
+    false,
+    "0.34 of its 0.40 is the shared send-queue hand-off (sendQueue.Send) that Reno also runs; its remainder is the credit resize, ineligible with the ledger (below)"
+  ],
+  "github.com/quic-go/quic-go.(*packetEmission).opportunityCapabilities": [
+    false,
+    "its cost is the shared capability query (sconn.capabilities, 0.251), already once per opportunity (#714 lead 4); fewer queries need snapshots older than the opportunity (the capability contract) or a change to shared code"
+  ],
+  "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).finishCongestionFeedback": [
+    false,
+    "too broad for one change: the BBR model per-ACK computation spread over about ten functions (largest leaf 0.035), recovery feedback (0.032) and the PendingLocal credit read the event requires (0.031)"
+  ],
+  "github.com/quic-go/quic-go.(*sendReservation).release": [
+    false,
+    "its cost is the credit mutex itself (lock and unlock about 0.18 of 0.19); each acquisition orders a four-field ledger update (pending, current, generation, isolation) that admission reads together; fewer acquisitions change when credit returns (admission timing) or need a lock-free multi-field ledger that fixed-input equality against r8 cannot bound"
+  ],
+  "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).appendRetainedAck": [
+    true,
+    "every ACK sorts the assembled acked list by ordinal (insertion sort over 152-byte records, 0.052) although assembly almost always yields ordinal order; tracking order during assembly and sorting only when out of order returns identical lists because ordinals are unique; BBR-only; oracle: a frozen-sort comparison over randomized feedback histories plus the #706 twin"
+  ],
+  "github.com/quic-go/quic-go/internal/ackhandler.(*sentPacketHandler).beginCongestionFeedback": [
+    true,
+    "each acked record is copied out of the slab by value (take), its 160-byte slab record zeroed, and copied again into the event list (self 0.089 plus take 0.057); one change can move it once from the slab into the event list and clear only the free marker, with identical event contents and table state; BBR-only; oracle: #714 lead 2 model test extended to the move, plus the #706 twin"
+  ]
+}

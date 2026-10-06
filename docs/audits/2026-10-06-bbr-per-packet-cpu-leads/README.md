@@ -79,9 +79,53 @@ On r8, which of at most three profile-selected BBR per-packet CPU leads can be r
 - **Observations** (D4; at most 300 Linux observations, reruns included): profile 8; cumulative check 60, reserved; reruns up to 52, reserved; leads 3 × 60 = 180. A lead measurement starts only if the budget left after it still holds the reserved cumulative check. If the budget runs short, leads are dropped, never the cumulative check. Smoke and probe runs are excluded from every statistic and from the cap and are listed in the record.
 - **Endings.** Every ending reports to [Re-demonstrate the timing- and CPU-tested BBRv3 revision on owned Linux hardware](https://github.com/the-sarge/quic-go-fast/issues/736) with an identified surviving revision (r8 if nothing is kept) and its unresolved evidence: leads kept; all null, negative or stopped; unusable counters; failed gates; or exhausted budget. The receiver verdict, or its absence, is reported with it.
 
+## Profile result and lead selection
+
+Run on October 6–7 (UTC) on the booked host; [profile.json](profile.json). All eight observations exited cleanly, passed receiver integrity and stopped `perf` normally. No observation was contaminated (largest foreign mean 0.004 cores), so no rerun was used.
+
+- **Groups (descriptive).** At the r8 sender the excess over frozen Reno is +3.81 (STREAM) and +5.37 (DATAGRAM) Gcycles per useful GiB, on 30.0–35.4 in total. No group holds half of it in every block, so #712's rule reads **inconclusive**, as on #712. Median shares: BBR 0.36 / 0.26, other user 0.28 / 0.20, runtime scheduling 0.14 / 0.24, kernel wake and scheduling 0.11 / 0.22. At the receiver the rule reads **no repeatable excess**: r8's receiver runs −0.82 / −1.03 Gcycles per GiB **below** Reno in the median. This is a profile, not the receiver rule.
+- **Sites.** The ranking, with each eligibility judgement made from source at r8 in rank order before any lead's measurement, is in [eligibility.json](eligibility.json) and `profile.json` `sites.decisions`:
+
+  | Rank | Site (Gcycles/GiB, median) | Judgement |
+  | --- | --- | --- |
+  | 1 | `(*packetEmission).sendBounded` (4.76) | ineligible: too broad; 3.68 is `boundedDatagrams` |
+  | 2 | `(*packetEmission).boundedDatagrams` (3.68) | ineligible: shared packing (`appendPacket` 3.08) and the send-queue hand-off |
+  | 3 | `(*sentPacketHandler).captureCongestionSend` (0.425) | **lead 1** |
+  | 4 | `(*packetEmission).handoff` (0.395) | ineligible: shared `sendQueue.Send` (0.336) |
+  | 5 | `(*packetEmission).opportunityCapabilities` (0.264) | ineligible: the shared capability query, already once per opportunity |
+  | 6 | `(*sentPacketHandler).finishCongestionFeedback` (0.220) | ineligible: too broad (model computation spread over about ten functions) |
+  | 7 | `(*sendReservation).release` (0.192) | ineligible: the credit mutex itself; fewer acquisitions change admission timing or need a lock-free multi-field ledger |
+  | 8 | `(*sentPacketHandler).appendRetainedAck` (0.191) | **lead 2** |
+  | 9 | `(*sentPacketHandler).beginCongestionFeedback` (0.181) | **lead 3** |
+
+  Leads 2 and 3 are the congestion-feedback work deferred from #714. Every judgement and its reason is recorded; a profile selects, it attributes nothing.
+
 ## Lead registrations
 
-Written after the profile and before each lead's measurement data.
+Written after the profile and before any lead's measurement data. Each is one commit on the current survivor, measured as `mK` with predecessor the survivor at that point. All three change only `internal/ackhandler` code reached through `congestionEvents`, which is nil when Reno is selected; none touches a parameter, model, bound, translation, evidence contract or default, and none batches the send path.
+
+### Lead 1. Registration-record construction (`l1`, measured as `m1`)
+
+- **Hypothesis.** Part of the BBR-only per-packet user work is copying each registration's 152-byte `PacketInfo`: built on the stack, copied by value into recovery evidence, into the delivery-record slab (argument and composite literal) and into the send event.
+- **Change.** `deliveryRecords.insert(k)` gives map-`set` semantics but returns a pointer to the record's `PacketInfo` inside the slab, valid until the table's next mutation. `captureCongestionSend` builds the record once in that slot when the live limit allows (otherwise on the stack, as now), passes `recoveryEvidence.sent` a pointer (it only reads), lets the sampler fill `Delivery` in place, and sends the controller the same value `SendEvent` as before. Call order is unchanged.
+- **Contracts.** Bounded delivery evidence: the live limit, insertion gating and slab bound are unchanged. Ownership: the pointer is used only within one registration, with no table mutation in between. The controller still receives a value record. Ordering, ECN, loss: none.
+- **Equivalence domain.** For every registration, identical recovery outcome, sampler state, live delivery record and send event to r8's.
+- **Oracles.** `TestDeliveryRecordsMapEquivalence` extended with in-place inserts against Go's map; #706's twin (`TestRecoveryEquivalenceScenarios`, `TestRecoveryEquivalenceHistories`), which drives the real handler against the frozen reducer; the delivery-sampler tests; #709's frozen ECN fuzz.
+
+### Lead 2. Feedback ordering (`l2`, measured as `m2`)
+
+- **Hypothesis.** Part of the excess is sorting every ACK's assembled acked list by ordinal, an insertion sort over 152-byte records, although assembly almost always yields ordinal order.
+- **Change.** The dispatch records, while appending acked records (in `beginCongestionFeedback` and for retained discoveries in `appendRetainedAck`), whether each ordinal exceeds the previous. `appendRetainedAck` sorts only when that order was broken.
+- **Equivalence domain.** Ordinals are unique per registration, so a list already in ordinal order is the unique sorted result: the event list is identical to r8's after every ACK.
+- **Oracles.** A randomized comparison of the tracked list against the always-sorted list over assembly sequences with in-order, out-of-order and retained appends; #706's twin; the delivery-sampler tests; #709's frozen ECN fuzz.
+
+### Lead 3. Acked-record move (`l3`, measured as `m3`)
+
+- **Hypothesis.** Part of the excess is moving each acked record out of the slab: `take` copies it out by value, zeroes the 160-byte slab record, and the caller copies it again into the event list.
+- **Change.** `deliveryRecords.takeAppend(k, dst)` appends the record directly into the event list and frees the slot by clearing only its key (the free marker that `grow` reads). `beginCongestionFeedback` uses it; other callers keep `take`.
+- **Contracts.** Bounded delivery evidence and table semantics unchanged; a freed record's stale contents are never read before `insert` or `set` overwrites them whole, and `PacketInfo` holds no pointers, so nothing is retained for the collector.
+- **Equivalence domain.** Identical event lists, live records, count and free-list order to r8's for every operation sequence.
+- **Oracles.** `TestDeliveryRecordsMapEquivalence` extended with `takeAppend`; #706's twin; the delivery-sampler tests; #709's frozen ECN fuzz.
 
 ## Disclosures made before data
 
