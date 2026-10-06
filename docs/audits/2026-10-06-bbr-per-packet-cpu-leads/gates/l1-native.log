@@ -1,0 +1,13 @@
+# Native Linux tests for l1 (code tree 71001b94094c09c37069798d0e70cc589d437811, exported) on minimax, 7.0.0-30-generic
+go version go1.27.0 linux/amd64
+$ go test . -run "BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability" -count=1 -v (tallied)
+ok  	github.com/quic-go/quic-go	0.707s
+74 top-level PASS, 0 top-level SKIP, exit 0
+$ go test -race . -run "LocalSendCredit|BBRPendingCredit|BBRCapability|PacingKick|TestDeliveryRecords" -count=1
+ok  	github.com/quic-go/quic-go	4.167s
+$ go test ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	22.827s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.028s
+$ go test . -count=1 -v (full root package, tallied)
+ok  	github.com/quic-go/quic-go	1.641s
+661 top-level PASS, 4 top-level SKIP, exit 0
