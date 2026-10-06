@@ -142,8 +142,9 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 	}
 
 	for _, p := range acked {
-		// Move each record once, from its slot into the event list.
-		d.event.Acked, _ = d.packets.takeAppend(congestionKey(p.EncryptionLevel, p.PacketNumber), d.event.Acked)
+		if info, ok := d.packets.take(congestionKey(p.EncryptionLevel, p.PacketNumber)); ok {
+			d.event.Acked = append(d.event.Acked, info)
+		}
 	}
 }
 

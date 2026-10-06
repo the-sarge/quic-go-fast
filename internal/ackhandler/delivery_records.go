@@ -134,27 +134,6 @@ func (t *deliveryRecords) take(k congestionPacketKey) (congestion.PacketInfo, bo
 	r := t.slots[i].rec
 	info := t.recs[r].info
 	t.recs[r] = deliveryRecord{}
-	t.remove(i, r)
-	return info, true
-}
-
-// takeAppend removes k and appends its record to dst, moving it once. Only the
-// free marker is cleared: a free record is overwritten whole before it is read,
-// and PacketInfo holds no pointers to retain.
-func (t *deliveryRecords) takeAppend(k congestionPacketKey, dst []congestion.PacketInfo) ([]congestion.PacketInfo, bool) {
-	i := t.find(packDelivery(k))
-	if i < 0 {
-		return dst, false
-	}
-	r := t.slots[i].rec
-	dst = append(dst, t.recs[r].info)
-	t.recs[r].key = 0
-	t.remove(i, r)
-	return dst, true
-}
-
-// remove frees record r and empties slot i.
-func (t *deliveryRecords) remove(i int, r int32) {
 	t.free = append(t.free, r)
 	t.n--
 	// Backward-shift deletion: move each later entry of the probe run whose home
@@ -169,6 +148,7 @@ func (t *deliveryRecords) remove(i int, r int32) {
 		i = j
 	}
 	t.slots[i] = deliverySlot{}
+	return info, true
 }
 
 // each visits every record once. fn may delete the record it is given.
