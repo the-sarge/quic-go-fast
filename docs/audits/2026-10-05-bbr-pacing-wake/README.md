@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-pacing-wake-discrimination`, based on `42e40111` (the accepted decision, itself based on the [Linux re-demonstration](../2026-10-05-bbr-linux-redemonstration/README.md) record `36f7ce01`). The starting revision is `d0fabc4d` (r6).
 
-**Status: Stage 0 passed; Stage 1 running.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: Stage 0 passed; Stage 1 found timer delivery; Stage 2 being registered.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
 
 ## Stage 0 result: the instrument is named
 
@@ -14,6 +14,18 @@ Run on October 5–6 after the registration commit (`d419a8ab`); [results.json](
 - **Perturbation: passes.** S5, instrumented ÷ plain, per block: STREAM 0.997, 1.011, 0.988 (median 0.997); DATAGRAM 0.993, 1.000, 0.991 (median 0.993). Loopback DATAGRAM with `cand-lb-timeline`: 1.023, 1.020, 1.024. S5 DATAGRAM block 3 was contaminated by a qemu VM (foreign CPU on the fixture cores); its same-seed rerun was contaminated by the same VM, so under the registered rule the original counts. Without that block the DATAGRAM median is 0.996; the check passes either way.
 
 **Named instrument:** for S5, `cand-wake-timeline` (the recorder and the Go execution trace, with #715's overlay as the independent lateness count); for loopback, `cand-lb-timeline` (the recorder's aggregates). Stage 1 runs as registered.
+
+## Stage 1 result: timer delivery
+
+Run on October 6 (UTC) on a quiet host; [results.json](results.json) `s1`, `s1lb`, `bare`.
+
+- **S5: timer delivery, in both workloads, in all four blocks of each.** STREAM: 25,112–25,208 late events, 2.95–3.00 s of lateness per 30 s window; delivery 0.982–0.985 of it (ended by the timer 0.920–0.926, by a packet wake that came first 0.058–0.063), scheduling 0.009, loop 0.007–0.009, unarmed 0, ambiguous 0. DATAGRAM: 25,949–26,135 events, 3.08–3.09 s; delivery 0.984–0.985 (timer 0.893–0.899, packet 0.085–0.090), scheduling 0.008–0.009, loop 0.006–0.008. Per event, delivery leads in 25,205 of 25,208 (STREAM block 1) and 26,098 of 26,103 (DATAGRAM block 1). Every observation was usable: no stamp outside a running interval, no ambiguous lateness, and the analysis's late count within two events of #715's overlay. No escalation was needed.
+- **What the runtime does.** The runtime ran the connection's pacing timer a median 107–109 µs after its deadline (p90 156–167 µs; 99.4–99.8% of fires later than 50 µs, 0.02% later than 1 ms). Once the timer fired, the goroutine ran within a few microseconds, and the loop reached the opportunity within a few more. The connection goroutine spent 0.92–0.93 of the window blocked after paced stops and 0.03 running.
+- **Contamination.** S5 DATAGRAM block 3 was contaminated by this ticket's own unpinned test build on `minimax` (foreign CPU up to 4.45 cores; see [Deviations](#deviations)). Its same-seed rerun was clean and counts; the original also read delivery. One of the 24 reruns is used.
+- **Loopback DATAGRAM: no timing exposure, in all four blocks.** The sender never reached a paced stop: paced waits 0, lateness 0, loss 0. The window divides into credit waits 0.439–0.444, inside opportunities 0.404–0.407, immediate continuations 0.095–0.097, congestion-window waits 0.041–0.049 and application waits 0.012–0.013. Instrumented goodput was 4,069 Mbit/s (median), 1.02× #715's readiness candidate. Timing exposure is ruled out for this cell; whether credit waits are the coupled send-queue/connection-loop hand-off is not tested here.
+- **Bare Go timer loop (context).** Alone, at a 1 ms cadence, the loop's timer fired 53 µs late (median; p90 54 µs) in all five runs, consistent with a millisecond `epoll_wait` timeout plus the kernel's default 50 µs timer slack. With 4,000 datagrams a second arriving at another goroutine, it fired 249 µs late (p90 250 µs) in all five runs: network wakeups elsewhere in the process made the loop's timer later, not earlier. Neither run is the loaded transport.
+
+Stage 2 runs.
 
 ## Question
 
@@ -133,6 +145,10 @@ All of these runs are excluded from every statistic and retained.
 - **Feasibility (scratch, not retained in this record).** On an idle synthetic loop on `minimax`, timers armed 0.2–1.5 ms ahead fired on the next whole millisecond after the deadline, and the waiting goroutine ran 0.5–2.6 µs after the fire. Timer fires showed as unblocks from scheduler context, and packet wakes as unblocks with the read goroutine's stack.
 - **Instrument revisions.** The first smoke recorded every arm, wake, opportunity and exit: on loopback that grew sender RSS to 1.7 GiB. The recorder then dropped events that cannot bear on a late opportunity; a later revision added the window aggregates and moved the window-end hand-off into every hook, because a recorder that never records after the window never wrote its files. `cand-lb-timeline` was added after `lbsmoke2` showed #715's overlay costing about 7% on loopback.
 - **Smoke values seen.** Development harness runs (3 s each, an earlier recorder) recovered all five synthetic cases, and the bare loop's pacing timers fired a median 53 µs late at a 1 ms cadence. S5 STREAM `cand-wake-timeline` gave 87.4, 87.0 and 88.0 Mbit/s (#715's readiness candidate: 87.9). On `smoke2` it read 24,951 late events and 2.9 s of lateness; delivery held 0.984 of it (timer 0.923, other wakes 0.061), scheduling 0.009 and loop 0.007; pacing-arm fires were a median 107 µs late (p90 165 µs). On `smoke3` the recorder's lateness matched #715's overlay (24,921 against 24,922 events; 2,940.8 against 2,940.9 ms). On loopback DATAGRAM, the traced variant gave 3,403–3,460 Mbit/s and `cand-notrace-timeline` 3,727–3,730, against 3,965–4,007 for the plain build; `cand-lb-timeline` gave 4,005–4,057, with no paced stop and no lateness, credit waits 0.44, inside opportunities 0.41 and immediate continuations 0.10 of the window. **The S5 smoke already reads as timer delivery, and the loopback smoke already shows no timing exposure.** The rules above were written after these were seen. Their thresholds repeat #715's (0.5 and 0.25) or follow from D3 (0.99); the loopback thresholds (0.5Δ, 0.25Δ, 1% exposure) were set without tuning to the smoke, which sits far from every one of them.
+
+## Deviations
+
+1. **Self-inflicted contamination (Stage 1).** While Stage 1 ran, this session compiled and ran unit tests on `minimax` without CPU pinning. The registered contamination test flagged the one observation it overlapped (S5 DATAGRAM block 3), and the registered rerun replaced it. No other observation was affected (largest foreign mean 0.003 cores).
 
 ## Order
 
