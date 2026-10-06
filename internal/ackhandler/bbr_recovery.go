@@ -98,7 +98,8 @@ func (r *recoveryEvidence) recordBytes() uintptr {
 func (r *recoveryEvidence) slot(l int) int    { return (r.head + l) & recoverySlotMask }
 func (r *recoveryEvidence) logical(p int) int { return (p - r.head) & recoverySlotMask }
 
-func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
+// sent reads the registration's record; the caller keeps ownership.
+func (r *recoveryEvidence) sent(p *congestion.PacketInfo, generation uint64) {
 	if r.index == nil {
 		r.index = &recoveryIndex{outcomes: make([]recoveryOutcome, maxRecoveryOutcomes)}
 	}
@@ -116,7 +117,7 @@ func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
 	o := recoveryOutcome{
 		number: key.number, space: key.space, level: p.EncryptionLevel, ordinal: p.Ordinal, sent: p.SendTime,
 		// Path/Retry reset clears the ledger; disposal prevents readmission.
-		receiptEligible: currentPathRecoveryReceipt(p, generation),
+		receiptEligible: currentPathRecoveryReceipt(*p, generation),
 		endpoint:        r.measured && p.RegistrationValid && p.AckEliciting && !p.PathProbe && !p.MTUProbe,
 	}
 	if !p.RegistrationValid || p.PathProbe || p.MTUProbe {

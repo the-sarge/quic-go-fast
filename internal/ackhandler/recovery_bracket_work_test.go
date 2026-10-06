@@ -21,7 +21,7 @@ func TestRecoveryLowerBoundProbes(t *testing.T) {
 			if skipEvery > 0 && i%skipEvery == 0 {
 				pn += 2
 			}
-			r.sent(congestion.PacketInfo{Space: protocol.Encryption1RTT, EncryptionLevel: protocol.Encryption1RTT, PacketNumber: pn, Ordinal: uint64(i) + 1, RegistrationValid: true}, 0)
+			r.sent(&congestion.PacketInfo{Space: protocol.Encryption1RTT, EncryptionLevel: protocol.Encryption1RTT, PacketNumber: pn, Ordinal: uint64(i) + 1, RegistrationValid: true}, 0)
 			pn++
 		}
 		q := &r.index.spaces[recoverySpace(protocol.Encryption1RTT)]

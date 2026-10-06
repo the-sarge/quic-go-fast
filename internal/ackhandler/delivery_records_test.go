@@ -97,8 +97,20 @@ func TestDeliveryRecordsMapEquivalence(t *testing.T) {
 				k := congestionPacketKey{space: deliverySpaces[s], number: next[s]}
 				next[s]++
 				ordinal++
-				got.set(k, deliveryInfo(k, ordinal))
+				// #735 lead 1: registrations build their record in place.
+				if rng.IntN(2) == 0 {
+					*got.insert(k) = deliveryInfo(k, ordinal)
+				} else {
+					got.set(k, deliveryInfo(k, ordinal))
+				}
 				want[k] = deliveryInfo(k, ordinal)
+				if keys := live(); rng.IntN(25) == 0 {
+					// Replacement through insert keeps map semantics.
+					r := keys[rng.IntN(len(keys))]
+					ordinal++
+					*got.insert(r) = deliveryInfo(r, ordinal)
+					want[r] = deliveryInfo(r, ordinal)
+				}
 			case x < del: // an ACK range or loss: delete a run of keys, present or not
 				s := deliverySpaces[2]
 				if rng.IntN(10) == 0 {

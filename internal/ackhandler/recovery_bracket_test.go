@@ -66,7 +66,7 @@ func TestRecoveryLowerBoundEquivalence(t *testing.T) {
 			}
 			ordinal++
 			level := deliverySpaces[s]
-			r.sent(congestion.PacketInfo{Space: level, EncryptionLevel: level, PacketNumber: next[s], Ordinal: ordinal, RegistrationValid: true, AckEliciting: true}, 0)
+			r.sent(&congestion.PacketInfo{Space: level, EncryptionLevel: level, PacketNumber: next[s], Ordinal: ordinal, RegistrationValid: true, AckEliciting: true}, 0)
 			next[s]++
 			if i%97 == 0 || i == sends-1 {
 				for sp := range 3 {
