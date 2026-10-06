@@ -4,7 +4,13 @@
 
 Branch `codex/bbr-pacing-wake-discrimination`, based on `42e40111` (the accepted decision, itself based on the [Linux re-demonstration](../2026-10-05-bbr-linux-redemonstration/README.md) record `36f7ce01`). The starting revision is `d0fabc4d` (r6).
 
-**Status: Stage 2 complete; the registered outcome is negative.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: complete. The registered Stage 2 outcome is negative; r8 is kept by operator decision (deviation 3).** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+
+## Answer
+
+**The Linux S5 goodput gap is the Go runtime firing the pacing timer late, and one contract-preserving wake-path change nearly closes it.** On `minimax`, the runtime ran the connection's pacing timer a median 107–109 µs after its deadline. In all eight S5 blocks, delivery (the goroutine still blocked, waiting for the runtime to wake it) held 0.982–0.985 of the lateness; goroutine scheduling held about 0.009 and loop work 0.006–0.009. Loopback DATAGRAM has **no timing exposure**: the sender never reached a paced stop, and it spent 0.44 of the window in credit waits.
+
+The Stage 2 change r8 (`95f5b6b7`) sets a timerfd, registered with the runtime's netpoller, just after each pacing deadline, so the runtime services the already-due timer on time. On S5 it cut lateness to 0.08–0.09 of `d0fabc4d`'s and the goodput deficit against frozen Reno from 0.088 / 0.113 to 0.026 / 0.030. It also cut sender CPU per useful GiB by 22% / 13% and OS thread wakeups by 32% / 19%. Reno on r8 stays inside frozen Reno's A/A range. **Under the registered keep rule the outcome is negative**: pacing-timer wakes per useful GiB rose 14–16% beyond the BBR A/A range, against the operator's no-increase requirement. **The operator kept r8 after the outcome** (deviation 3). The surviving revision for the next ticket is r8. The diagnostic 2Q arm did not apply its treatment and is uninformative.
 
 ## Stage 0 result: the instrument is named
 
@@ -177,6 +183,21 @@ All of these runs are excluded from every statistic and retained.
 
 1. **Self-inflicted contamination (Stage 1).** While Stage 1 ran, this session compiled and ran unit tests on `minimax` without CPU pinning. The registered contamination test flagged the one observation it overlapped (S5 DATAGRAM block 3), and the registered rerun replaced it. No other observation was affected (largest foreign mean 0.003 cores).
 2. **The 2Q diagnostic arm did not apply its treatment.** `build.py two_q` raised the credit cap in `bbrSendPolicy.budget` and `update`, but `sendBounded` clamps `tokens` to one quantum again at every opportunity, so the arm ran `d0fabc4d`'s pacing (its lateness, goodput and CPU equal the base's). Found after Stage 2, from those equal results. The arm never bears on keeping; it is reported as uninformative and was not rerun.
+3. **r8 kept by operator decision.** Under the registered rule, Stage 2 was negative only because pacing-timer wakes per useful GiB rose (1.158 / 1.144 against A/A maxima of 1.011 / 1.006). Every other keep condition held in every block. After the outcome, the operator decided to keep r8: the no-increase requirement guards against trading goodput for CPU, and here sender CPU per useful GiB and OS thread wakeups both fell. The registered outcome stays **negative** in [results.json](results.json). The wake increase (all run-loop `select` wakes per useful GiB up 6% / 11%) is carried as an open cost, not a cleared one. This follows the precedent of #714 deviation 8.
+
+## Report to the next ticket
+
+For [Test the remaining BBR per-packet CPU leads and the receiver CPU measure](https://github.com/the-sarge/quic-go-fast/issues/735):
+
+- **Surviving revision: r8, `95f5b6b7`** (`d0fabc4d` plus the netpoller kick), kept by operator decision after a negative registered outcome. It passed every gate (`gates/r8.log`, `gates/r8-native.log`, `gates/r8-native-full.log`) and the frozen-policy oracle.
+- **Open costs it carries:** run-loop wakes per useful GiB up 6–16% on S5; one timerfd and one `timerfd_settime` per changed pacing deadline per BBR connection on Linux. The readiness flags of r8 are unmeasured; the S5 descriptive figures above come from instrumented Stage 2 arms, not the readiness stage.
+- **Unchanged evidence:** loopback DATAGRAM has no timing exposure and is credit-wait-dominated (0.44 of the window); whether that is the coupled send-queue/connection-loop hand-off is untested. A D08 credit-horizon amendment has no supporting evidence from this ticket: the contract-preserving remedy did not fail, and the 2Q arm measured nothing.
+
+## Assets
+
+- **Results:** [results.json](results.json) (`stage0`, `s1`, `s1lb`, `bare`, `s2`), [oracle/oracle.json](oracle/oracle.json), [gates/](gates/).
+- **Raw data:** [raw.tar.gz](raw.tar.gz) with [raw-manifest.json](raw-manifest.json): every observation (excluded smoke runs included), synthetic and bare-timer run, analysis output, stage log and build receipt. The Go execution traces and binary recorder event files (`*.trace`, `*.events`) are too large for the repository. They are listed in the manifest with sizes and SHA-256 hashes and retained privately under the operator's worktree, `.local/bbr-pacing-wake/` on branch `codex/bbr-pacing-wake-discrimination`.
+- **To reconstruct:** in a fresh owned worktree of this branch, run `build.py`, then `sync.sh`; on a Linux host with the same core layout follow [Order](#order); anywhere, run `wake.py all` and `rules_test.py`.
 
 ## Order
 
