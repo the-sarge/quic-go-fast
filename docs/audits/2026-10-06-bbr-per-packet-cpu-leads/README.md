@@ -140,4 +140,7 @@ All of these runs are excluded from every statistic and retained or summarised h
 
 ## Deviations
 
-None yet.
+Recorded as they occurred; each says whether it preceded the outcome it affects.
+
+1. **Analysis-driver crash (before any outcome).** The first `measure.py outcome m1` stopped with a `TypeError`: the driver had placed the receiver figures inside #714's per-endpoint metric dictionary, and #714's descriptive loop divides every key in it. The driver now hides those figures from #714's analysis (`measure.py` `analyze_workload`); no rule function changed, and no outcome had been computed.
+2. **Contamination despite the booking (m1).** A CI `sha256sum` job and a `qemu` VM ran on the host during DATAGRAM blocks 3 and 4 of `m1` although the operator had booked it quiet. Under the registered rule both blocks were rerun once with the same seeds (`m1rerun`, 10 observations from the rerun reserve).

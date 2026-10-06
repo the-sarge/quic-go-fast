@@ -4,6 +4,16 @@
     "new": "l1",
     "lead": 1,
     "revision": "71001b94",
-    "site": "captureCongestionSend"
+    "site": "captureCongestionSend",
+    "ran": true,
+    "outcome": "inconclusive; not kept, reverted (2282f60e)",
+    "note": "DATAGRAM blocks 3 and 4 rerun clean (deviation 2); STREAM clean: instructions 0.9939 while cycles 1.0037 beyond A/A"
+  },
+  "m2": {
+    "prev": "r8",
+    "new": "l2",
+    "lead": 2,
+    "revision": "8f1ffbc5",
+    "site": "appendRetainedAck"
   }
 }

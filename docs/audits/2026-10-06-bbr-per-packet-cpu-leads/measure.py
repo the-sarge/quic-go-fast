@@ -45,6 +45,17 @@ def endpoint_metrics(row, role, packets):
 
 
 intervene.endpoint_metrics = endpoint_metrics
+_analyze_workload = intervene.analyze_workload
+
+
+def analyze_workload(blocks):
+    """#714's analysis on its own metrics: the receiver figures ('rx') are hidden from it."""
+    strip = lambda e: {k: v for k, v in e.items() if k != 'rx'}
+    return _analyze_workload([{a: (dict(x, send=strip(x['send']), receive=strip(x['receive'])) if isinstance(x, dict) and 'send' in x else x)
+                               for a, x in b.items()} for b in blocks])
+
+
+intervene.analyze_workload = analyze_workload
 
 
 def usable_rx(b, arms):
