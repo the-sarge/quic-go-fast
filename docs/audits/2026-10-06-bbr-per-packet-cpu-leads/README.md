@@ -4,7 +4,23 @@
 
 Branch `codex/bbr-per-packet-cpu-leads`, based on `04094bd7` (the [pacing-wake record](../2026-10-05-bbr-pacing-wake/README.md)). The starting revision is **r8, `95f5b6b7`**: `d0fabc4d` plus the Linux netpoller kick at the BBR pacing deadline, kept by operator decision after a negative registered outcome (that record's deviation 3). It carries an open cost: run-loop wakes per useful GiB up 6–16% on S5.
 
-**Status: registration.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) are written, with the analysis code and its synthetic cases, before any counted observation of this ticket. Excluded smoke and probe runs that preceded them are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: complete. Ending: all three leads null or inconclusive; the surviving revision is r8 (`95f5b6b7`), unchanged.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the analysis code and its synthetic cases, before any counted observation (`eedb8755`); the lead registrations were committed after the profile and before any lead's measurement (`2e8123f5`). The [Answer](#answer), [Results](#results) and [Report to the next ticket](#report-to-the-next-ticket) were added afterwards, and every departure is listed under [Deviations](#deviations).
+
+## Answer
+
+**No profile-selected lead was removable under #714's rules, and on r8 the receiver has no CPU-time excess left to explain.**
+
+- **Leads.** The profile ranked BBR-only sites; source judgements left three eligible, all bookkeeping in the congestion dispatch. Each was built as one contract-preserving revision, passed its oracles (each with a killed mutant), #714's gates and native Linux gates, and was measured against r8 in 60 S5 observations:
+
+  | Lead | Revision | Outcome | User instructions/packet, new ÷ r8 (STREAM / DATAGRAM) | User cycles/packet | Change per packet |
+  | --- | --- | --- | --- | --- | --- |
+  | 1. Registration-record construction | `71001b94` | **inconclusive**: STREAM instructions fell while cycles rose beyond their A/A range in every block | 0.9939 / 0.9962 | 1.0037 / 1.0002 | −236 / −149 |
+  | 2. Feedback ordering | `8f1ffbc5` | **inconclusive**: STREAM median below the A/A range but one block above 1 | 0.9951 / 0.9964 | 1.0057 / 1.0041 | −189 / −145 |
+  | 3. Acked-record move | `076126ea` | **null** | 1.0004 / 0.9959 | 1.0005 / 0.9937 | +14 / −165 |
+
+  Each was reverted by a separate commit (`2282f60e`, `b4dce8b8`, `43e91757`). No lead is offered for keeping by decision: in leads 1 and 2 the cost the cycles check guards against moved the wrong way (sender user cycles per packet rose in STREAM), unlike #714's lead 4 and #734's r8. The cumulative check did not run: its registered condition needs a survivor other than r8.
+- **Receiver.** On r8 the decisive arm (`m1`) reads **no in-window CPU-time excess** in both workloads: receiver task-clock per useful GiB is 0.880 (STREAM) and 0.901 (DATAGRAM) of frozen Reno's, far below the A/A range, and whole-run receiver CPU per GiB 0.910 / 0.918. Every one of the twelve BBR arms measured (r8 and each lead revision, three measurements) repeats it (0.878–0.912 in the window, 0.908–0.928 whole-run). So the hypothesis (lower clock or idle effects) and its competitor (uncounted work) cannot be discriminated on r8: the excess they would explain is absent. Descriptively, the r8 receiver switches context 0.80–0.81× as often per GiB as Reno's and runs at 1.025–1.041× Reno's average clock, and uncounted clocks per context switch are equal in both arms (about 10,300). This is with `perf` attached; the readiness flag itself is measured by the next ticket.
+
 
 ## Question
 
@@ -100,6 +116,17 @@ Run on October 6–7 (UTC) on the booked host; [profile.json](profile.json). All
 
   Leads 2 and 3 are the congestion-feedback work deferred from #714. Every judgement and its reason is recorded; a profile selects, it attributes nothing.
 
+## Results
+
+All counted measurements: S5, both workloads, six blocks, five arms, `perf stat` on both endpoints, on `minimax` with #712's core layout; ratios are medians of per-block ratios. [outcomes.json](outcomes.json) holds every ratio at both endpoints, [measurements.json](measurements.json) each measurement's arms and outcome, [receiver.json](receiver.json) the receiver rule for every arm.
+
+- **Integrity and preservation.** Every observation exited cleanly and passed receiver integrity. Reno on each lead revision lay inside frozen Reno's A/A range at both endpoints in every measurement.
+- **Contamination.** `m1` DATAGRAM blocks 3 and 4 were contaminated (a CI `sha256sum` job and a `qemu` VM) and rerun clean under the registered rule (deviation 2); every counted block of `m1`, `m2` and `m3` is clean.
+- **Residual against Reno on r8** (sender user instructions per forward packet, same blocks): about 7,180–7,260 (STREAM) and 6,540–6,580 (DATAGRAM) over Reno's 31,670 / 33,240. It is larger than #714's r5 residual (6,736 / 5,219); the comparison crosses revisions and runs and is descriptive.
+- **Sender cycles and CPU time diverge on r8, as at the receiver.** In the same blocks, r8's sender uses 1.16–1.18× Reno's cycles per useful GiB but 0.90–0.91× (STREAM) and 1.00 (DATAGRAM) of its whole-run CPU time per GiB, consistent with #734's Stage 2 figures for r8. Descriptive and unattributed.
+- **Instructions and cycles disagree at these effect sizes.** Leads 1 and 2 removed 145–236 user instructions per packet while user cycles per packet rose 0.4–0.6% in STREAM. Neither change adds work on any path, so code placement in the hot send path is a plausible confounder; this is not tested here.
+- **Inventory.** 198 Linux observations of the 300 allowed: profile 8, leads 180, reruns 10. Two excluded smoke runs.
+
 ## Lead registrations
 
 Written after the profile and before any lead's measurement data. Each is one commit on the current survivor, measured as `mK` with predecessor the survivor at that point. All three change only `internal/ackhandler` code reached through `congestionEvents`, which is nil when Reno is selected; none touches a parameter, model, bound, translation, evidence contract or default, and none batches the send path.
@@ -127,6 +154,14 @@ Written after the profile and before any lead's measurement data. Each is one co
 - **Equivalence domain.** Identical event lists, live records, count and free-list order to r8's for every operation sequence.
 - **Oracles.** `TestDeliveryRecordsMapEquivalence` extended with `takeAppend`; #706's twin; the delivery-sampler tests; #709's frozen ECN fuzz.
 
+## Report to the next ticket
+
+For [Re-demonstrate the timing- and CPU-tested BBRv3 revision on owned Linux hardware](https://github.com/the-sarge/quic-go-fast/issues/736):
+
+- **Surviving revision: r8, `95f5b6b7`,** unchanged by this ticket (kept by operator decision in #734; its readiness flags are unmeasured). Its open cost is unchanged: run-loop wakes per useful GiB up 6–16% on S5.
+- **Leads:** all three null or inconclusive and reverted; their revisions stay in history for production-slicing reference. The BBR sender's per-packet user-instruction residual (about 7,200 / 6,550 per packet over Reno) remains unattributed beyond the profile's descriptive ranking.
+- **Receiver measure: informative.** With `perf` attached, r8's S5 receiver uses 0.88–0.91× Reno's in-window CPU time and 0.91–0.93× its whole-run CPU per GiB, in every BBR arm. If the readiness stage confirms the S5 receiver CPU cells pass on r8, the clock-against-uncounted question is moot for this revision; if they are still raised there, the readiness and counted harnesses disagree and that is the finding to attribute.
+
 ## Disclosures made before data
 
 All of these runs are excluded from every statistic and retained or summarised here.
@@ -145,3 +180,9 @@ Recorded as they occurred; each says whether it preceded the outcome it affects.
 1. **Analysis-driver crash (before any outcome).** The first `measure.py outcome m1` stopped with a `TypeError`: the driver had placed the receiver figures inside #714's per-endpoint metric dictionary, and #714's descriptive loop divides every key in it. The driver now hides those figures from #714's analysis (`measure.py` `analyze_workload`); no rule function changed, and no outcome had been computed.
 2. **Contamination despite the booking (m1).** A CI `sha256sum` job and a `qemu` VM ran on the host during DATAGRAM blocks 3 and 4 of `m1` although the operator had booked it quiet. Under the registered rule both blocks were rerun once with the same seeds (`m1rerun`, 10 observations from the rerun reserve).
 3. **A latent generator issue in #714's delivery-records model test (lead 3, before its measurement).** The test's registration step checks the packet-number range and then applies a random skip, which can step past QUIC's maximum (2⁶²−1); `packDelivery` cannot represent such numbers. #714's random stream never reaches that path. Lead 3's extension first drew its choice from the same stream, which shifted later draws so that one seed did, and the oracle failed on that invalid key. The extension now draws from its own stream, so the generator's histories are exactly #714's; the generator itself is unchanged. A mutant that appends the wrong record is killed by the model test and by #706's twin.
+
+## Assets
+
+- **Results:** [profile.json](profile.json), [eligibility.json](eligibility.json), [outcomes.json](outcomes.json), [receiver.json](receiver.json), [measurements.json](measurements.json), [gates/](gates/).
+- **Raw data:** [raw.tar.gz](raw.tar.gz) with [raw-manifest.json](raw-manifest.json), packed by [pack.py](pack.py): every observation (smoke, profile with folded stacks, `m1`–`m3` and the `m1` reruns), stage logs and summaries, host-facts snapshots and build receipts. Root-owned `perf.data`, binaries, credentials and exported source trees are omitted.
+- **To reconstruct:** in a fresh owned worktree of this branch, `build.py relay reno r8 l1=71001b94 l2=8f1ffbc5 l3=076126ea`, then `sync.sh`, then follow [Order](#order) on a Linux host with the same core layout; anywhere, `lead_profile.py`, `measure.py outcome m1 m2 m3`, `measure.py receiver`, `receiver_test.py` and `lead_profile_test.py`.

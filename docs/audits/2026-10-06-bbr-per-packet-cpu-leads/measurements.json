@@ -24,6 +24,13 @@
     "new": "l3",
     "lead": 3,
     "revision": "076126ea",
-    "site": "beginCongestionFeedback"
+    "site": "beginCongestionFeedback",
+    "ran": true,
+    "outcome": "null; not kept, reverted",
+    "note": "clean data; both workloads inside the A/A range"
+  },
+  "mc": {
+    "ran": false,
+    "note": "not run: the surviving revision is r8, so the registered condition (survivor differs from r8) does not hold"
   }
 }
