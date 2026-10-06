@@ -4,7 +4,16 @@
 
 Branch `codex/bbr-pacing-wake-discrimination`, based on `42e40111` (the accepted decision, itself based on the [Linux re-demonstration](../2026-10-05-bbr-linux-redemonstration/README.md) record `36f7ce01`). The starting revision is `d0fabc4d` (r6).
 
-**Status: registered.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: Stage 0 passed; Stage 1 running.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+
+## Stage 0 result: the instrument is named
+
+Run on October 5–6 after the registration commit (`d419a8ab`); [results.json](results.json) `stage0`.
+
+- **Synthetic cases: all five recovered.** Delivery: verdict delivery, 99.8% of 4,746 late events show delivery-by-timer ≥ 300 µs. Scheduling: verdict scheduling (0.851 of lateness), 100% of 7,388 events ≥ 270 µs. Handler: verdict loop (0.813), 100% of 7,299. Reset: chain counts exact for 100% of 7,119 events, summed lateness exact, all three kinds present. Non-timer wake: verdict delivery, 99.9% of 7,642 events end with a packet wake. Every truth event in the window was found; no run was contaminated.
+- **Perturbation: passes.** S5, instrumented ÷ plain, per block: STREAM 0.997, 1.011, 0.988 (median 0.997); DATAGRAM 0.993, 1.000, 0.991 (median 0.993). Loopback DATAGRAM with `cand-lb-timeline`: 1.023, 1.020, 1.024. S5 DATAGRAM block 3 was contaminated by a qemu VM (foreign CPU on the fixture cores); its same-seed rerun was contaminated by the same VM, so under the registered rule the original counts. Without that block the DATAGRAM median is 0.996; the check passes either way.
+
+**Named instrument:** for S5, `cand-wake-timeline` (the recorder and the Go execution trace, with #715's overlay as the independent lateness count); for loopback, `cand-lb-timeline` (the recorder's aggregates). Stage 1 runs as registered.
 
 ## Question
 

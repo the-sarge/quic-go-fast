@@ -1,0 +1,452 @@
+{
+ "stage0": {
+  "synthetic": {
+   "delivery": {
+    "case": "delivery",
+    "usable": true,
+    "reason": "",
+    "truth_events": 4746,
+    "matched": 4746,
+    "coverage": 1.0,
+    "verdict": "delivery",
+    "share_shown": 0.9978929624947324,
+    "checks": {
+     "coverage": true,
+     "verdict": true,
+     "events": true
+    },
+    "recovered": true,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 9,
+     "contaminated": false
+    },
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9993749543019584,
+     "delivery_other": 0.002202244879887569,
+     "delivery_timer": 0.9971727094220709,
+     "loop": 0.00016260640720979467,
+     "loop_blocked": 5.607393340958437e-07,
+     "loop_running": 0.00016204566787569882,
+     "scheduling": 0.0004624392908317375,
+     "unarmed": 0
+    },
+    "timer_lag_pacing": {
+     "n": 4737,
+     "mean_ns": 1105207.3987755964,
+     "median_ns": 1105233,
+     "p90_ns": 1105993,
+     "p99_ns": 1147732,
+     "max_ns": 1278922,
+     "share_over_50us": 1,
+     "share_over_1ms": 0.9995777918513827
+    }
+   },
+   "scheduling": {
+    "case": "scheduling",
+    "usable": true,
+    "reason": "",
+    "truth_events": 7388,
+    "matched": 7388,
+    "coverage": 1.0,
+    "verdict": "scheduling",
+    "share_shown": 1.0,
+    "checks": {
+     "coverage": true,
+     "verdict": true,
+     "events": true
+    },
+    "recovered": true,
+    "contamination": {
+     "foreign_mean_cores": 0.0011093903291152793,
+     "foreign_max_cores": 0.009984512962037515,
+     "sibling_mean_cores": 0.0,
+     "samples": 9,
+     "contaminated": false
+    },
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.14808402847925894,
+     "delivery_other": 0,
+     "delivery_timer": 0.14808402847925894,
+     "loop": 0.0004194484967002751,
+     "loop_blocked": 0,
+     "loop_running": 0.0004194484967002751,
+     "scheduling": 0.8514965230240408,
+     "unarmed": 0
+    },
+    "timer_lag_pacing": {
+     "n": 7389,
+     "mean_ns": 52308.60603599946,
+     "median_ns": 53026,
+     "p90_ns": 54421,
+     "p99_ns": 56775,
+     "max_ns": 335116,
+     "share_over_50us": 0.9457301393964,
+     "share_over_1ms": 0
+    }
+   },
+   "handler": {
+    "case": "handler",
+    "usable": true,
+    "reason": "",
+    "truth_events": 7299,
+    "matched": 7299,
+    "coverage": 1.0,
+    "verdict": "loop",
+    "share_shown": 1.0,
+    "checks": {
+     "coverage": true,
+     "verdict": true,
+     "events": true
+    },
+    "recovered": true,
+    "contamination": {
+     "foreign_mean_cores": 0.0011100051851949697,
+     "foreign_max_cores": 0.009990046666754727,
+     "sibling_mean_cores": 0.0,
+     "samples": 9,
+     "contaminated": false
+    },
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.18502390862605078,
+     "delivery_other": 0.0020710879011435427,
+     "delivery_timer": 0.18295282072490723,
+     "loop": 0.8125496653797843,
+     "loop_blocked": 1.66061946589829e-07,
+     "loop_running": 0.8125494993178377,
+     "scheduling": 0.0024264259941648996,
+     "unarmed": 0
+    },
+    "timer_lag_pacing": {
+     "n": 7293,
+     "mean_ns": 67684.55765802825,
+     "median_ns": 55873,
+     "p90_ns": 59963,
+     "p99_ns": 806982,
+     "max_ns": 869794,
+     "share_over_50us": 0.9732620320855615,
+     "share_over_1ms": 0
+    }
+   },
+   "reset": {
+    "case": "reset",
+    "usable": true,
+    "reason": "",
+    "truth_events": 7119,
+    "matched": 7119,
+    "coverage": 1.0,
+    "verdict": "delivery",
+    "chain_exact": 1.0,
+    "lateness_truth_ns": 2167383171,
+    "lateness_found_ns": 2167383171,
+    "kinds": {
+     "rearmed": 2373,
+     "folded": 2373,
+     "superseded": 2373
+    },
+    "checks": {
+     "coverage": true,
+     "chains": true,
+     "lateness": true,
+     "kinds": true
+    },
+    "recovered": true,
+    "contamination": {
+     "foreign_mean_cores": 0.00222048717351361,
+     "foreign_max_cores": 0.01998438456162249,
+     "sibling_mean_cores": 0.0,
+     "samples": 9,
+     "contaminated": false
+    },
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9962607414745863,
+     "delivery_other": 0.0005881774930511352,
+     "delivery_timer": 0.9956725639815351,
+     "loop": 0.0009948909952111093,
+     "loop_blocked": 2.3622957253274714e-07,
+     "loop_running": 0.0009946547656385766,
+     "scheduling": 0.0027443675302026233,
+     "unarmed": 0
+    },
+    "timer_lag_pacing": {
+     "n": 4744,
+     "mean_ns": 427010.8846964587,
+     "median_ns": 342486,
+     "p90_ns": 585733,
+     "p99_ns": 623239,
+     "max_ns": 771215,
+     "share_over_50us": 1,
+     "share_over_1ms": 0
+    }
+   },
+   "nontimer": {
+    "case": "nontimer",
+    "usable": true,
+    "reason": "",
+    "truth_events": 7642,
+    "matched": 7642,
+    "coverage": 1.0,
+    "verdict": "delivery",
+    "share_shown": 0.998691442030882,
+    "checks": {
+     "coverage": true,
+     "verdict": true,
+     "events": true
+    },
+    "recovered": true,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 9,
+     "contaminated": false
+    },
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9951568539753772,
+     "delivery_other": 0.9951568539753772,
+     "delivery_timer": 0,
+     "loop": 0.0010762615106302117,
+     "loop_blocked": 1.575588517435171e-06,
+     "loop_running": 0.0010746859221127767,
+     "scheduling": 0.00376688451399251,
+     "unarmed": 0
+    },
+    "timer_lag_pacing": {
+     "n": 0,
+     "mean_ns": 0,
+     "median_ns": 0,
+     "p90_ns": 0,
+     "p99_ns": 0,
+     "max_ns": 0,
+     "share_over_50us": 0,
+     "share_over_1ms": 0
+    }
+   }
+  },
+  "perturbation": {
+   "S5/stream": {
+    "ratios": [
+     0.9974231912784935,
+     1.0106625669510019,
+     0.9875978148530931
+    ],
+    "median": 0.9974231912784935,
+    "passed": true,
+    "blocks": [
+     {
+      "block": 1,
+      "instrumented": 87.8546944,
+      "plain": 88.081664
+     },
+     {
+      "block": 2,
+      "instrumented": 88.9502592,
+      "plain": 88.0118272
+     },
+     {
+      "block": 3,
+      "instrumented": 87.5884416,
+      "plain": 88.6883712
+     }
+    ]
+   },
+   "S5/datagram": {
+    "ratios": [
+     0.9925212763193544,
+     1.0000410433977964,
+     0.9910264226131176
+    ],
+    "median": 0.9925212763193544,
+    "passed": true,
+    "blocks": [
+     {
+      "block": 1,
+      "instrumented": 84.43214506666666,
+      "plain": 85.06834773333334
+     },
+     {
+      "block": 2,
+      "instrumented": 84.622848,
+      "plain": 84.61937493333333
+     },
+     {
+      "block": 3,
+      "instrumented": 84.1738752,
+      "plain": 84.93605546666667
+     }
+    ]
+   },
+   "S5/blocks": [
+    {
+     "path": "S5",
+     "workload": "datagram",
+     "block": 1,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    },
+    {
+     "path": "S5",
+     "workload": "datagram",
+     "block": 2,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    },
+    {
+     "path": "S5",
+     "workload": "datagram",
+     "block": 3,
+     "attempts": [
+      [
+       "original",
+       true,
+       true
+      ],
+      [
+       "rerun",
+       true,
+       true
+      ]
+     ],
+     "counted": "original",
+     "status": "contaminated"
+    },
+    {
+     "path": "S5",
+     "workload": "stream",
+     "block": 1,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    },
+    {
+     "path": "S5",
+     "workload": "stream",
+     "block": 2,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    },
+    {
+     "path": "S5",
+     "workload": "stream",
+     "block": 3,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    }
+   ],
+   "loopback/datagram": {
+    "ratios": [
+     1.0227340169885866,
+     1.0200478723549822,
+     1.0237242692534085
+    ],
+    "median": 1.0227340169885866,
+    "passed": true,
+    "blocks": [
+     {
+      "block": 1,
+      "instrumented": 4078.9988736,
+      "plain": 3988.3281536
+     },
+     {
+      "block": 2,
+      "instrumented": 4060.1368064000003,
+      "plain": 3980.3394688000003
+     },
+     {
+      "block": 3,
+      "instrumented": 4069.803456,
+      "plain": 3975.4879104
+     }
+    ]
+   },
+   "loopback/blocks": [
+    {
+     "path": "loopback",
+     "workload": "datagram",
+     "block": 1,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    },
+    {
+     "path": "loopback",
+     "workload": "datagram",
+     "block": 2,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    },
+    {
+     "path": "loopback",
+     "workload": "datagram",
+     "block": 3,
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "counted": "original",
+     "status": "clean"
+    }
+   ]
+  },
+  "synthetic_passed": true,
+  "passed": true,
+  "loopback_instrument_passed": true
+ }
+}
