@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-pacing-wake-discrimination`, based on `42e40111` (the accepted decision, itself based on the [Linux re-demonstration](../2026-10-05-bbr-linux-redemonstration/README.md) record `36f7ce01`). The starting revision is `d0fabc4d` (r6).
 
-**Status: Stage 0 passed; Stage 1 found timer delivery; Stage 2 registered.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: Stage 2 complete; the registered outcome is negative.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded smoke runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
 
 ## Stage 0 result: the instrument is named
 
@@ -26,6 +26,21 @@ Run on October 6 (UTC) on a quiet host; [results.json](results.json) `s1`, `s1lb
 - **Bare Go timer loop (context).** Alone, at a 1 ms cadence, the loop's timer fired 53 µs late (median; p90 54 µs) in all five runs, consistent with a millisecond `epoll_wait` timeout plus the kernel's default 50 µs timer slack. With 4,000 datagrams a second arriving at another goroutine, it fired 249 µs late (p90 250 µs) in all five runs: network wakeups elsewhere in the process made the loop's timer later, not earlier. Neither run is the loaded transport.
 
 Stage 2 runs.
+
+## Stage 2 result: negative under the registered rule
+
+Run on October 6 (UTC); 84 observations, every block clean, no rerun; [results.json](results.json) `s2`. Medians of six per-block paired statistics against the same block's `d0fabc4d` arm, with the BBR A/A arm's range:
+
+| Metric, r8 against `d0fabc4d` | STREAM | DATAGRAM | BBR A/A range (STREAM / DATAGRAM) | Movement |
+| --- | --- | --- | --- | --- |
+| Deficit difference (against frozen Reno) | −0.064 (every block −0.049 to −0.071) | −0.083 (−0.074 to −0.096) | −0.009–0.006 / −0.010–0.005 | reduction, both |
+| Lateness, ratio | 0.090 | 0.079 | 0.995–1.004 / 0.992–1.010 | reduction, both |
+| Pacing-timer wakes per useful GiB, ratio | **1.158** (1.146–1.188) | **1.144** (1.139–1.154) | 0.985–1.011 / 0.993–1.006 | **increase, both** |
+| Sender CPU per useful GiB, ratio | 0.776 (0.772–0.784) | 0.866 (0.860–0.874) | 0.995–1.012 / 0.993–1.005 | reduction, both |
+
+- **Outcome: negative.** The registered keep rule requires the medians of wakes and sender CPU per useful GiB not to rise above the BBR A/A maximum (the operator's conservative no-increase requirement). Pacing-timer wakes per useful GiB rose 14–16% in every block of both workloads. Every other keep condition held: deficit and lateness fell far beyond the A/A range in every block, every observation passed receiver integrity, and Reno on r8 lies inside frozen Reno's A/A range at both endpoints (cycles per useful GiB, pooled: sender 0.9988 in 0.9955–1.0053, receiver 1.0033 in 0.9872–1.0040). The surviving revision is `d0fabc4d`.
+- **What r8 did, descriptively.** Goodput rose from 87.5 to 93.4 Mbit/s (STREAM) and 83.8 to 91.6 Mbit/s (DATAGRAM), against frozen Reno's 95.9 and 94.4, leaving deficits of 0.026 and 0.030 (from 0.088 and 0.113). The pacing timer's median lag after a pacing deadline fell from 115 / 110 µs to 7.8 / 7.5 µs, and lateness from 3.22 / 3.29 s to 0.29 / 0.26 s per window. Sender CPU per useful GiB fell to 12.39 / 13.46 s, against frozen Reno's 12.35 / 12.88. The sender's OS thread wakeups (`sched:sched_wakeup`) per useful GiB fell 32% / 19%. All run-loop `select` wakes per useful GiB rose 6% / 11%, packet-ended ones among them, so the counted increase is not only pacing deadlines that packet wakes used to absorb now being served by the timer. Bottleneck overflow did not change materially (median 797 against 808 packets, STREAM; 103 against 113, DATAGRAM).
+- **Diagnostic 2Q arm: uninformative.** Its lateness, goodput and CPU equal the base's. The treatment never applied: `sendBounded` re-clamps pacing credit to one quantum at every opportunity (`packet_emission_bbr.go`), and the arm raised the cap only in `budget` and `update` (see [Deviations](#deviations)). It measured nothing about a longer credit horizon.
 
 ## Question
 
@@ -161,6 +176,7 @@ All of these runs are excluded from every statistic and retained.
 ## Deviations
 
 1. **Self-inflicted contamination (Stage 1).** While Stage 1 ran, this session compiled and ran unit tests on `minimax` without CPU pinning. The registered contamination test flagged the one observation it overlapped (S5 DATAGRAM block 3), and the registered rerun replaced it. No other observation was affected (largest foreign mean 0.003 cores).
+2. **The 2Q diagnostic arm did not apply its treatment.** `build.py two_q` raised the credit cap in `bbrSendPolicy.budget` and `update`, but `sendBounded` clamps `tokens` to one quantum again at every opportunity, so the arm ran `d0fabc4d`'s pacing (its lateness, goodput and CPU equal the base's). Found after Stage 2, from those equal results. The arm never bears on keeping; it is reported as uninformative and was not rerun.
 
 ## Order
 

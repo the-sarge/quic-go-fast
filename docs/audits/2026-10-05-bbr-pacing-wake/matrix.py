@@ -69,6 +69,10 @@ def main(argv):
         attempt = argv[2] if len(argv) > 2 else ''
         rows = [run_case_x('smoke' + attempt, 'cand-wake-timeline', 'stream', 1, 'bbrv3', path='S5', seed=9799),
                 run_case_x('smoke' + attempt, 'cand-wake-timeline', 'datagram', 1, 'bbrv3', path='loopback')]
+    elif stage == 's2smoke':
+        # Stage 2 instrument check of the new and 2Q arms; excluded.
+        rows = [run_case_x('s2smoke', v, 'stream', 1, 'bbrv3', path='S5', seed=9798, perf='stat')
+                for v in ['new-wake-timeline', 'cand2q-wake-timeline']]
     elif stage == 'lbsmoke':
         # Loopback perturbation check of the trace-off recorder against the plain build; excluded.
         attempt = argv[2] if len(argv) > 2 else ''

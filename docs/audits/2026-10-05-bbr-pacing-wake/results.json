@@ -1892,5 +1892,5592 @@
     }
    }
   }
+ },
+ "s2": {
+  "blocks": [
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 1,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 2,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 3,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 4,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 5,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 6,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 1,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 2,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 3,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 4,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 5,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 6,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   }
+  ],
+  "observations": [
+   {
+    "id": "s2-S5-datagram-p1-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 84.05579093333334,
+    "cpu_per_gib": 15.43465215699358,
+    "contamination": {
+     "foreign_mean_cores": 0.0029999345504279143,
+     "foreign_max_cores": 0.08999803651283743,
+     "sibling_mean_cores": 0.0003333260611586571,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38621108573.13034,
+     "receive": 23211648541.273277
+    },
+    "wakeups_per_gib": 4496.503070773159,
+    "overflow": 126,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.2854374,
+    "late_count": 25952,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.980080714366982,
+     "delivery_other": 0.14331508979595836,
+     "delivery_timer": 0.8367656245710237,
+     "loop": 0.009333108279585544,
+     "loop_blocked": 6.236612513146651e-07,
+     "loop_running": 0.009332484618334228,
+     "scheduling": 0.010586177353432454,
+     "unarmed": 0
+    },
+    "pacing_wakes": 23041,
+    "wakes_per_gib": 78487.82367703361,
+    "select_wakes": {
+     "": 20,
+     "packet": 21034,
+     "scheduled": 35861,
+     "sendq": 21093,
+     "timer": 23041
+    },
+    "timer_lag_pacing": {
+     "n": 23041,
+     "mean_ns": 120821.80912286793,
+     "median_ns": 109431,
+     "p90_ns": 168975,
+     "p99_ns": 202460,
+     "max_ns": 23332048,
+     "share_over_50us": 0.9981771624495465,
+     "share_over_1ms": 8.68017881168352e-05
+    },
+    "aggregate": {
+     "emit_ns": 418041197,
+     "late_bytes": 40805088.05371227,
+     "late_count": 25952,
+     "late_ns": 3285437400,
+     "opportunities": 354380,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      159511449,
+      0,
+      28445777054,
+      461683951,
+      513855730,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 145894
+   },
+   {
+    "id": "s2-S5-datagram-p1-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 83.85214293333334,
+    "cpu_per_gib": 15.513291758422369,
+    "contamination": {
+     "foreign_mean_cores": 0.0013333263000371018,
+     "foreign_max_cores": 0.039999789001113055,
+     "sibling_mean_cores": 0.0013333472522085769,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38570088379.16945,
+     "receive": 23225242316.166817
+    },
+    "wakeups_per_gib": 4449.373377881249,
+    "overflow": 113,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.274530253,
+    "late_count": 25777,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9790166742429544,
+     "delivery_other": 0.14472234622533506,
+     "delivery_timer": 0.8342943280176194,
+     "loop": 0.010480636716841473,
+     "loop_blocked": 5.472540674676124e-07,
+     "loop_running": 0.010480089462774006,
+     "scheduling": 0.010502689040204143,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22819,
+    "wakes_per_gib": 77920.37690703932,
+    "select_wakes": {
+     "": 22,
+     "packet": 20904,
+     "scheduled": 36213,
+     "sendq": 20764,
+     "timer": 22822
+    },
+    "timer_lag_pacing": {
+     "n": 22819,
+     "mean_ns": 121046.95823655726,
+     "median_ns": 109860,
+     "p90_ns": 169887,
+     "p99_ns": 202814,
+     "max_ns": 15372627,
+     "share_over_50us": 0.9983785441956264,
+     "share_over_1ms": 8.764625969586748e-05
+    },
+    "aggregate": {
+     "emit_ns": 422518723,
+     "late_bytes": 40783210.74586759,
+     "late_count": 25777,
+     "late_ns": 3274530253,
+     "opportunities": 353698,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      147536481,
+      0,
+      28269348309,
+      649556460,
+      510568263,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 149572
+   },
+   {
+    "id": "s2-S5-datagram-p1-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 84.1198848,
+    "cpu_per_gib": 15.599286078090252,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38527813864.05676,
+     "receive": 23283729723.024574
+    },
+    "wakeups_per_gib": 4564.557799565603,
+    "overflow": 112,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.326126718,
+    "late_count": 25975,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9792200695102922,
+     "delivery_other": 0.15536292505137203,
+     "delivery_timer": 0.8238571444589201,
+     "loop": 0.009912150616986805,
+     "loop_blocked": 6.734560015040293e-07,
+     "loop_running": 0.009911477160985302,
+     "scheduling": 0.010867779872721013,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22764,
+    "wakes_per_gib": 77485.15566689886,
+    "select_wakes": {
+     "": 21,
+     "packet": 21009,
+     "scheduled": 37185,
+     "sendq": 21191,
+     "timer": 22764
+    },
+    "timer_lag_pacing": {
+     "n": 22764,
+     "mean_ns": 122430.72166578809,
+     "median_ns": 110562,
+     "p90_ns": 170316,
+     "p99_ns": 202326,
+     "max_ns": 24327388,
+     "share_over_50us": 0.9982428395712528,
+     "share_over_1ms": 8.785802143735723e-05
+    },
+    "aggregate": {
+     "emit_ns": 417549576,
+     "late_bytes": 41304859.261908956,
+     "late_count": 25975,
+     "late_ns": 3326126718,
+     "opportunities": 354007,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      156201743,
+      0,
+      28517055789,
+      400692876,
+      507927788,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 144668
+   },
+   {
+    "id": "s2-S5-datagram-p1-new-reno",
+    "arm": "renonew",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 94.41216,
+    "cpu_per_gib": 12.730708765520374,
+    "contamination": {
+     "foreign_mean_cores": 0.003666527395092904,
+     "foreign_max_cores": 0.09999600905928241,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31385957719.81005,
+     "receive": 23002073087.0617
+    },
+    "wakeups_per_gib": 11842.999384034147,
+    "overflow": 1875
+   },
+   {
+    "id": "s2-S5-datagram-p1-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 91.50962346666667,
+    "cpu_per_gib": 13.484735248933772,
+    "contamination": {
+     "foreign_mean_cores": 0.0013333082524717974,
+     "foreign_max_cores": 0.03999924757415392,
+     "sibling_mean_cores": 0.00033334050182082497,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 40829861108.6779,
+     "receive": 22009971102.906723
+    },
+    "wakeups_per_gib": 3498.1919605989824,
+    "overflow": 96,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.262133377,
+    "late_count": 28586,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8707246845562898,
+     "delivery_other": 0.0004968424909888526,
+     "delivery_timer": 0.870227842065301,
+     "loop": 0.049095308454367485,
+     "loop_blocked": 3.1739567449283653e-06,
+     "loop_running": 0.04909213449762256,
+     "scheduling": 0.08018000698934268,
+     "unarmed": 0
+    },
+    "pacing_wakes": 28570,
+    "wakes_per_gib": 89394.76235627275,
+    "select_wakes": {
+     "": 24,
+     "packet": 29234,
+     "scheduled": 43295,
+     "sendq": 21225,
+     "timer": 28573
+    },
+    "timer_lag_pacing": {
+     "n": 28570,
+     "mean_ns": 10003.884354217711,
+     "median_ns": 7543,
+     "p90_ns": 8516,
+     "p99_ns": 20110,
+     "max_ns": 23191744,
+     "share_over_50us": 0.00017500875043752187,
+     "share_over_1ms": 0.0001400070003500175
+    },
+    "aggregate": {
+     "emit_ns": 346475196,
+     "late_bytes": 3204515.190646266,
+     "late_count": 28586,
+     "late_ns": 262133377,
+     "opportunities": 394545,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      120334781,
+      0,
+      28425760983,
+      730392658,
+      375982396,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 159418
+   },
+   {
+    "id": "s2-S5-datagram-p1-reno-reno",
+    "arm": "reno",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 94.41342293333334,
+    "cpu_per_gib": 12.886260457470227,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.000676015330930427,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31467293167.526657,
+     "receive": 23216991050.29312
+    },
+    "wakeups_per_gib": 9741.153694846373,
+    "overflow": 1479
+   },
+   {
+    "id": "s2-S5-datagram-p1-reno-reno-aa",
+    "arm": "aa",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 94.41405440000001,
+    "cpu_per_gib": 12.726292437894761,
+    "contamination": {
+     "foreign_mean_cores": 0.0029999265857965913,
+     "foreign_max_cores": 0.08999779757389774,
+     "sibling_mean_cores": 0.0006666503523992428,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31540739701.15144,
+     "receive": 22951907262.37047
+    },
+    "wakeups_per_gib": 9923.051592138101,
+    "overflow": 1662
+   },
+   {
+    "id": "s2-S5-datagram-p2-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 83.310976,
+    "cpu_per_gib": 15.64091119111954,
+    "contamination": {
+     "foreign_mean_cores": 0.002999916578319791,
+     "foreign_max_cores": 0.08999749734959372,
+     "sibling_mean_cores": 0.0003333315816758716,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38811702419.81159,
+     "receive": 23342190908.6018
+    },
+    "wakeups_per_gib": 4694.79981952278,
+    "overflow": 105,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.281325819,
+    "late_count": 25813,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9796569095292271,
+     "delivery_other": 0.14916084655962658,
+     "delivery_timer": 0.8304960629696005,
+     "loop": 0.009717899031958337,
+     "loop_blocked": 5.851293367097356e-07,
+     "loop_running": 0.009717313902621628,
+     "scheduling": 0.010625191438814567,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22787,
+    "wakes_per_gib": 78316.5472089792,
+    "select_wakes": {
+     "": 17,
+     "packet": 20950,
+     "scheduled": 35318,
+     "sendq": 21090,
+     "timer": 22787
+    },
+    "timer_lag_pacing": {
+     "n": 22787,
+     "mean_ns": 122184.22073989555,
+     "median_ns": 109510,
+     "p90_ns": 169773,
+     "p99_ns": 202192,
+     "max_ns": 22292513,
+     "share_over_50us": 0.99820072848554,
+     "share_over_1ms": 0.00013165401325317068
+    },
+    "aggregate": {
+     "emit_ns": 417542164,
+     "late_bytes": 40617897.35178173,
+     "late_count": 25813,
+     "late_ns": 3281325819,
+     "opportunities": 350914,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      154572118,
+      0,
+      28296585527,
+      612613959,
+      517836189,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 144706
+   },
+   {
+    "id": "s2-S5-datagram-p2-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 83.8717184,
+    "cpu_per_gib": 15.569476003882095,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38610586306.87331,
+     "receive": 23244696683.261803
+    },
+    "wakeups_per_gib": 4369.814794748898,
+    "overflow": 128,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.300391788,
+    "late_count": 25939,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9794623313370091,
+     "delivery_other": 0.15166874727419483,
+     "delivery_timer": 0.8277935840628143,
+     "loop": 0.009792323177359693,
+     "loop_blocked": 4.460076544100285e-07,
+     "loop_running": 0.009791877169705284,
+     "scheduling": 0.010745345485631174,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22833,
+    "wakes_per_gib": 77949.98531914185,
+    "select_wakes": {
+     "": 22,
+     "packet": 20938,
+     "scheduled": 35996,
+     "sendq": 21200,
+     "timer": 22835
+    },
+    "timer_lag_pacing": {
+     "n": 22833,
+     "mean_ns": 123611.33937721718,
+     "median_ns": 109814,
+     "p90_ns": 169757,
+     "p99_ns": 203203,
+     "max_ns": 24536376,
+     "share_over_50us": 0.9981167608286252,
+     "share_over_1ms": 0.0001751850391976525
+    },
+    "aggregate": {
+     "emit_ns": 420971592,
+     "late_bytes": 40938358.926602505,
+     "late_count": 25939,
+     "late_ns": 3300391788,
+     "opportunities": 353202,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      157780419,
+      0,
+      28434997873,
+      464837164,
+      520330743,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 149572
+   },
+   {
+    "id": "s2-S5-datagram-p2-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 83.82120106666666,
+    "cpu_per_gib": 15.510584311990158,
+    "contamination": {
+     "foreign_mean_cores": 0.0036666094858917335,
+     "foreign_max_cores": 0.10999828457675201,
+     "sibling_mean_cores": 0.00033332813508106675,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38673589298.47351,
+     "receive": 23128522492.06396
+    },
+    "wakeups_per_gib": 4187.985726672352,
+    "overflow": 117,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.317552236,
+    "late_count": 25942,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.979206746392282,
+     "delivery_other": 0.15747287302095098,
+     "delivery_timer": 0.821733873371331,
+     "loop": 0.009985117834931357,
+     "loop_blocked": 5.787399454228217e-07,
+     "loop_running": 0.009984539094985933,
+     "scheduling": 0.010808135772786668,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22716,
+    "wakes_per_gib": 77597.2950791918,
+    "select_wakes": {
+     "": 17,
+     "packet": 20988,
+     "scheduled": 36850,
+     "sendq": 21089,
+     "timer": 22716
+    },
+    "timer_lag_pacing": {
+     "n": 22716,
+     "mean_ns": 122211.77447614017,
+     "median_ns": 109963,
+     "p90_ns": 170285,
+     "p99_ns": 202828,
+     "max_ns": 20311228,
+     "share_over_50us": 0.9978869519281564,
+     "share_over_1ms": 0.00013206550449022716
+    },
+    "aggregate": {
+     "emit_ns": 416404242,
+     "late_bytes": 41133171.20160323,
+     "late_count": 25942,
+     "late_ns": 3317552236,
+     "opportunities": 352519,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      148418513,
+      0,
+      28480945429,
+      448188869,
+      504612735,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 144668
+   },
+   {
+    "id": "s2-S5-datagram-p2-new-reno",
+    "arm": "renonew",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 94.41468586666666,
+    "cpu_per_gib": 12.860701376824633,
+    "contamination": {
+     "foreign_mean_cores": 0.003666563173715006,
+     "foreign_max_cores": 0.0899969842910534,
+     "sibling_mean_cores": 0.0003333221640409385,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31561464383.301216,
+     "receive": 23029870108.722008
+    },
+    "wakeups_per_gib": 12791.916771727536,
+    "overflow": 1528
+   },
+   {
+    "id": "s2-S5-datagram-p2-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 91.5506688,
+    "cpu_per_gib": 13.454160041527903,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 40744044633.70958,
+     "receive": 22070200231.416687
+    },
+    "wakeups_per_gib": 3115.0600229629345,
+    "overflow": 99,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.258335863,
+    "late_count": 28683,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8844324103773389,
+     "delivery_other": 0.0007291864080056124,
+     "delivery_timer": 0.8837032239693333,
+     "loop": 0.03217673652999545,
+     "loop_blocked": 5.450269210202534e-06,
+     "loop_running": 0.03217128626078525,
+     "scheduling": 0.08339085309266565,
+     "unarmed": 0
+    },
+    "pacing_wakes": 28663,
+    "wakes_per_gib": 89645.54762870139,
+    "select_wakes": {
+     "": 27,
+     "packet": 29141,
+     "scheduled": 43788,
+     "sendq": 21114,
+     "timer": 28665
+    },
+    "timer_lag_pacing": {
+     "n": 28663,
+     "mean_ns": 10432.74995638977,
+     "median_ns": 7548,
+     "p90_ns": 8489,
+     "p99_ns": 18385,
+     "max_ns": 23160928,
+     "share_over_50us": 0.00027910546697833445,
+     "share_over_1ms": 0.00013955273348916723
+    },
+    "aggregate": {
+     "emit_ns": 345319177,
+     "late_bytes": 3151832.8254454164,
+     "late_count": 28683,
+     "late_ns": 258335863,
+     "opportunities": 395818,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      126775225,
+      0,
+      28525128305,
+      631803488,
+      370207128,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 163096
+   },
+   {
+    "id": "s2-S5-datagram-p2-reno-reno",
+    "arm": "reno",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 94.41373866666667,
+    "cpu_per_gib": 12.87214550777098,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31550489248.794632,
+     "receive": 22978653705.324654
+    },
+    "wakeups_per_gib": 11063.39036180949,
+    "overflow": 1497
+   },
+   {
+    "id": "s2-S5-datagram-p2-reno-reno-aa",
+    "arm": "aa",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 94.4112128,
+    "cpu_per_gib": 12.920823760844858,
+    "contamination": {
+     "foreign_mean_cores": 0.005333120306640784,
+     "foreign_max_cores": 0.1499936470190805,
+     "sibling_mean_cores": 0.0003333192155979567,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31409370883.815956,
+     "receive": 22977264008.373707
+    },
+    "wakeups_per_gib": 9838.431612100492,
+    "overflow": 1692
+   },
+   {
+    "id": "s2-S5-datagram-p3-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 83.52157013333334,
+    "cpu_per_gib": 15.5970718172724,
+    "contamination": {
+     "foreign_mean_cores": 0.000999998042377457,
+     "foreign_max_cores": 0.019999871080831032,
+     "sibling_mean_cores": 0.00033332810541532803,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38545439845.30395,
+     "receive": 23166618790.539078
+    },
+    "wakeups_per_gib": 4326.426270402681,
+    "overflow": 107,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.281810128,
+    "late_count": 25799,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9792624316015883,
+     "delivery_other": 0.15447855519568315,
+     "delivery_timer": 0.8247838764059052,
+     "loop": 0.00997500151538322,
+     "loop_blocked": 3.516352119686066e-07,
+     "loop_running": 0.009974649880171252,
+     "scheduling": 0.010762566883028402,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22634,
+    "wakes_per_gib": 77594.55800657235,
+    "select_wakes": {
+     "": 19,
+     "packet": 20830,
+     "scheduled": 35627,
+     "sendq": 20927,
+     "timer": 22638
+    },
+    "timer_lag_pacing": {
+     "n": 22634,
+     "mean_ns": 123310.52125121499,
+     "median_ns": 109387,
+     "p90_ns": 170487,
+     "p99_ns": 203520,
+     "max_ns": 42769594,
+     "share_over_50us": 0.998011840593797,
+     "share_over_1ms": 0.00013254396041353716
+    },
+    "aggregate": {
+     "emit_ns": 419813539,
+     "late_bytes": 40715268.67371317,
+     "late_count": 25799,
+     "late_ns": 3281810128,
+     "opportunities": 351742,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      154207436,
+      0,
+      28282563676,
+      628962645,
+      513828186,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 144706
+   },
+   {
+    "id": "s2-S5-datagram-p3-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 83.82467413333335,
+    "cpu_per_gib": 15.65261079881961,
+    "contamination": {
+     "foreign_mean_cores": 0.004999867778496596,
+     "foreign_max_cores": 0.1499960333548979,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38774726530.99182,
+     "receive": 23235468795.992275
+    },
+    "wakeups_per_gib": 4502.068915193047,
+    "overflow": 133,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.315128429,
+    "late_count": 25930,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9792182735976893,
+     "delivery_other": 0.1505609902270245,
+     "delivery_timer": 0.8286572833706648,
+     "loop": 0.010015505194172977,
+     "loop_blocked": 7.336065712342875e-07,
+     "loop_running": 0.010014771587601742,
+     "scheduling": 0.010766221208137696,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22853,
+    "wakes_per_gib": 78062.04925561966,
+    "select_wakes": {
+     "": 19,
+     "packet": 20903,
+     "scheduled": 35845,
+     "sendq": 21197,
+     "timer": 22854
+    },
+    "timer_lag_pacing": {
+     "n": 22853,
+     "mean_ns": 121905.77525926575,
+     "median_ns": 110628,
+     "p90_ns": 170309,
+     "p99_ns": 203479,
+     "max_ns": 18283601,
+     "share_over_50us": 0.9983809565483744,
+     "share_over_1ms": 0.00013127379337504923
+    },
+    "aggregate": {
+     "emit_ns": 420713803,
+     "late_bytes": 41137239.60004519,
+     "late_count": 25930,
+     "late_ns": 3315128429,
+     "opportunities": 353123,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      157128306,
+      0,
+      28444033791,
+      458467061,
+      518590182,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 145932
+   },
+   {
+    "id": "s2-S5-datagram-p3-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 84.07473493333333,
+    "cpu_per_gib": 15.350051210916854,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38499832464.26576,
+     "receive": 23183309608.10179
+    },
+    "wakeups_per_gib": 4332.017543553377,
+    "overflow": 106,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.29210641,
+    "late_count": 25962,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9796741606538776,
+     "delivery_other": 0.14724980138172386,
+     "delivery_timer": 0.8324243592721536,
+     "loop": 0.009634567067350656,
+     "loop_blocked": 6.026536669572597e-07,
+     "loop_running": 0.0096339644136837,
+     "scheduling": 0.010691272278771815,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22949,
+    "wakes_per_gib": 78156.81651494218,
+    "select_wakes": {
+     "": 16,
+     "packet": 21069,
+     "scheduled": 37331,
+     "sendq": 20977,
+     "timer": 22951
+    },
+    "timer_lag_pacing": {
+     "n": 22949,
+     "mean_ns": 120384.20314610658,
+     "median_ns": 109911,
+     "p90_ns": 168834,
+     "p99_ns": 203194,
+     "max_ns": 22367815,
+     "share_over_50us": 0.9981698548956381,
+     "share_over_1ms": 4.357488343718681e-05
+    },
+    "aggregate": {
+     "emit_ns": 411960273,
+     "late_bytes": 40926207.104577586,
+     "late_count": 25962,
+     "late_ns": 3292106410,
+     "opportunities": 354240,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      149981588,
+      0,
+      28481921375,
+      456225208,
+      498972398,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 148384
+   },
+   {
+    "id": "s2-S5-datagram-p3-new-reno",
+    "arm": "renonew",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 94.41468586666666,
+    "cpu_per_gib": 12.827138516959126,
+    "contamination": {
+     "foreign_mean_cores": 0.0010098179944571075,
+     "foreign_max_cores": 0.02000076656938032,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31290607327.688488,
+     "receive": 23206115897.629715
+    },
+    "wakeups_per_gib": 9637.911688134212,
+    "overflow": 1879
+   },
+   {
+    "id": "s2-S5-datagram-p3-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 92.56227840000001,
+    "cpu_per_gib": 13.436541258756636,
+    "contamination": {
+     "foreign_mean_cores": 0.003000072874770202,
+     "foreign_max_cores": 0.09000218624310606,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 40866506271.59764,
+     "receive": 22159040753.062325
+    },
+    "wakeups_per_gib": 3736.8141632146053,
+    "overflow": 112,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.260342332,
+    "late_count": 28971,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8855430741090542,
+     "delivery_other": 0.0005263723304130194,
+     "delivery_timer": 0.8850167017786412,
+     "loop": 0.031288891581412126,
+     "loop_blocked": 3.4416223943173404e-06,
+     "loop_running": 0.0312854499590178,
+     "scheduling": 0.08316803430953365,
+     "unarmed": 0
+    },
+    "pacing_wakes": 28956,
+    "wakes_per_gib": 89572.177905664,
+    "select_wakes": {
+     "": 26,
+     "packet": 29424,
+     "scheduled": 44730,
+     "sendq": 20827,
+     "timer": 28957
+    },
+    "timer_lag_pacing": {
+     "n": 28956,
+     "mean_ns": 8767.129714048902,
+     "median_ns": 7548,
+     "p90_ns": 8511,
+     "p99_ns": 18846,
+     "max_ns": 14262948,
+     "share_over_50us": 0.00010360547036883547,
+     "share_over_1ms": 6.907031357922365e-05
+    },
+    "aggregate": {
+     "emit_ns": 349371738,
+     "late_bytes": 3180714.1926802015,
+     "late_count": 28971,
+     "late_ns": 260342332,
+     "opportunities": 401261,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      120375757,
+      0,
+      28823255967,
+      338789608,
+      366472483,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 161832
+   },
+   {
+    "id": "s2-S5-datagram-p3-reno-reno",
+    "arm": "reno",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 94.41279146666668,
+    "cpu_per_gib": 12.829306532060244,
+    "contamination": {
+     "foreign_mean_cores": 0.0033333021255006197,
+     "foreign_max_cores": 0.07999747895944809,
+     "sibling_mean_cores": 0.0003333228289977003,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31476516006.390114,
+     "receive": 23116390923.90969
+    },
+    "wakeups_per_gib": 10177.93600595951,
+    "overflow": 1916
+   },
+   {
+    "id": "s2-S5-datagram-p3-reno-reno-aa",
+    "arm": "aa",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 94.41468586666666,
+    "cpu_per_gib": 12.747223913153578,
+    "contamination": {
+     "foreign_mean_cores": 0.004333267156094647,
+     "foreign_max_cores": 0.0799977779817188,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31546350857.976,
+     "receive": 23011471429.32297
+    },
+    "wakeups_per_gib": 10732.715375804586,
+    "overflow": 1551
+   },
+   {
+    "id": "s2-S5-datagram-p4-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 83.52283306666666,
+    "cpu_per_gib": 15.595845233338702,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38611086940.79474,
+     "receive": 23219658332.416435
+    },
+    "wakeups_per_gib": 4302.363604115804,
+    "overflow": 119,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.288753629,
+    "late_count": 25827,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9792749002543176,
+     "delivery_other": 0.15221791550017016,
+     "delivery_timer": 0.8270569847541475,
+     "loop": 0.01002718954354364,
+     "loop_blocked": 5.448872740719369e-07,
+     "loop_running": 0.010026644656269568,
+     "scheduling": 0.010697910202138769,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22737,
+    "wakes_per_gib": 77946.48706516417,
+    "select_wakes": {
+     "": 22,
+     "packet": 20851,
+     "scheduled": 35826,
+     "sendq": 21034,
+     "timer": 22739
+    },
+    "timer_lag_pacing": {
+     "n": 22737,
+     "mean_ns": 122403.02225447509,
+     "median_ns": 109912,
+     "p90_ns": 170085,
+     "p99_ns": 202287,
+     "max_ns": 23458679,
+     "share_over_50us": 0.9984166776619606,
+     "share_over_1ms": 0.00013194352816994325
+    },
+    "aggregate": {
+     "emit_ns": 419235428,
+     "late_bytes": 40813983.32844898,
+     "late_count": 25827,
+     "late_ns": 3288753629,
+     "opportunities": 351308,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      154772627,
+      0,
+      28311291346,
+      596201682,
+      518281473,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 147135
+   },
+   {
+    "id": "s2-S5-datagram-p4-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 84.4419328,
+    "cpu_per_gib": 15.482836549581382,
+    "contamination": {
+     "foreign_mean_cores": 0.003333263257771357,
+     "foreign_max_cores": 0.07999793989305189,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38703664905.36635,
+     "receive": 23311165662.327007
+    },
+    "wakeups_per_gib": 4652.266107384347,
+    "overflow": 100,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.316238906,
+    "late_count": 26072,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9797477516235376,
+     "delivery_other": 0.14991143493930167,
+     "delivery_timer": 0.8298363166842359,
+     "loop": 0.009538459651615944,
+     "loop_blocked": 6.368660581657141e-07,
+     "loop_running": 0.009537822785557778,
+     "scheduling": 0.010713788724846473,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22980,
+    "wakes_per_gib": 77922.06643417806,
+    "select_wakes": {
+     "": 18,
+     "packet": 21133,
+     "scheduled": 36432,
+     "sendq": 21279,
+     "timer": 22982
+    },
+    "timer_lag_pacing": {
+     "n": 22980,
+     "mean_ns": 119749.42423846823,
+     "median_ns": 110157,
+     "p90_ns": 169586,
+     "p99_ns": 202441,
+     "max_ns": 249670,
+     "share_over_50us": 0.9980417754569191,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 422980137,
+     "late_bytes": 41220260.88062877,
+     "late_count": 26072,
+     "late_ns": 3316238906,
+     "opportunities": 356024,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      158687570,
+      0,
+      28592883828,
+      304328920,
+      519742637,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 147120
+   },
+   {
+    "id": "s2-S5-datagram-p4-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 83.73216426666667,
+    "cpu_per_gib": 15.632305697370551,
+    "contamination": {
+     "foreign_mean_cores": 0.001666699328946018,
+     "foreign_max_cores": 0.040001267040133535,
+     "sibling_mean_cores": 0.0009999803595505368,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38603260381.42934,
+     "receive": 23127688658.190895
+    },
+    "wakeups_per_gib": 4209.537069918836,
+    "overflow": 100,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.322426858,
+    "late_count": 25948,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9788572251543002,
+     "delivery_other": 0.15539446737761714,
+     "delivery_timer": 0.823462757776683,
+     "loop": 0.010222541368584132,
+     "loop_blocked": 2.716086880369181e-06,
+     "loop_running": 0.010219825281703763,
+     "scheduling": 0.010920233477115722,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22742,
+    "wakes_per_gib": 77768.71815117316,
+    "select_wakes": {
+     "": 19,
+     "packet": 20882,
+     "scheduled": 36470,
+     "sendq": 21029,
+     "timer": 22744
+    },
+    "timer_lag_pacing": {
+     "n": 22742,
+     "mean_ns": 122537.71664761235,
+     "median_ns": 110218,
+     "p90_ns": 170555,
+     "p99_ns": 202202,
+     "max_ns": 21392095,
+     "share_over_50us": 0.997889367689737,
+     "share_over_1ms": 0.00013191451939143436
+    },
+    "aggregate": {
+     "emit_ns": 415685916,
+     "late_bytes": 41169656.62920732,
+     "late_count": 25948,
+     "late_ns": 3322426858,
+     "opportunities": 352651,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      160635086,
+      0,
+      28474262252,
+      439722548,
+      508617262,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 145894
+   },
+   {
+    "id": "s2-S5-datagram-p4-new-reno",
+    "arm": "renonew",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 94.41279146666668,
+    "cpu_per_gib": 12.841586169392821,
+    "contamination": {
+     "foreign_mean_cores": 0.00066666757200123,
+     "foreign_max_cores": 0.0200000271600369,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31190712891.275063,
+     "receive": 22781534730.645058
+    },
+    "wakeups_per_gib": 10329.5739083129,
+    "overflow": 1497
+   },
+   {
+    "id": "s2-S5-datagram-p4-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 92.01353386666666,
+    "cpu_per_gib": 13.467608919698677,
+    "contamination": {
+     "foreign_mean_cores": 0.0023332984901869793,
+     "foreign_max_cores": 0.06999895470560938,
+     "sibling_mean_cores": 0.000333328355740997,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 40697948834.471756,
+     "receive": 22098536495.302814
+    },
+    "wakeups_per_gib": 3628.4023713242045,
+    "overflow": 128,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.260910185,
+    "late_count": 28817,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8853335564497031,
+     "delivery_other": 0.0010298371449163628,
+     "delivery_timer": 0.8843037193047868,
+     "loop": 0.03321356734310698,
+     "loop_blocked": 6.377673604424449e-06,
+     "loop_running": 0.033207189669502556,
+     "scheduling": 0.08145287620718984,
+     "unarmed": 0
+    },
+    "pacing_wakes": 28793,
+    "wakes_per_gib": 89599.13334265679,
+    "select_wakes": {
+     "": 28,
+     "packet": 29315,
+     "scheduled": 43759,
+     "sendq": 21233,
+     "timer": 28794
+    },
+    "timer_lag_pacing": {
+     "n": 28793,
+     "mean_ns": 9098.601986593963,
+     "median_ns": 7563,
+     "p90_ns": 8569,
+     "p99_ns": 20046,
+     "max_ns": 17167373,
+     "share_over_50us": 0.00013892265481193344,
+     "share_over_1ms": 6.946132740596672e-05
+    },
+    "aggregate": {
+     "emit_ns": 347983867,
+     "late_bytes": 3184421.2328110994,
+     "late_count": 28817,
+     "late_ns": 260910185,
+     "opportunities": 397191,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      127573897,
+      0,
+      28649678053,
+      498457944,
+      375481687,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 160621
+   },
+   {
+    "id": "s2-S5-datagram-p4-reno-reno",
+    "arm": "reno",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 94.41279146666668,
+    "cpu_per_gib": 12.924507839915748,
+    "contamination": {
+     "foreign_mean_cores": 0.0026665876290093435,
+     "foreign_max_cores": 0.07999762887028031,
+     "sibling_mean_cores": 0.0006666469072523358,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31468776195.560932,
+     "receive": 23108465948.03795
+    },
+    "wakeups_per_gib": 10238.591166900866,
+    "overflow": 1836
+   },
+   {
+    "id": "s2-S5-datagram-p4-reno-reno-aa",
+    "arm": "aa",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 94.41405440000001,
+    "cpu_per_gib": 12.83479397115024,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31404860177.412373,
+     "receive": 22893693343.573547
+    },
+    "wakeups_per_gib": 10405.253671340412,
+    "overflow": 1856
+   },
+   {
+    "id": "s2-S5-datagram-p5-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "datagram",
+    "block": 5,
+    "goodput_mbps": 84.05736959999999,
+    "cpu_per_gib": 15.471880125985422,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38595552381.59677,
+     "receive": 23141187315.17226
+    },
+    "wakeups_per_gib": 4544.107911163251,
+    "overflow": 87,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.29102275,
+    "late_count": 25935,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9801697001334919,
+     "delivery_other": 0.14525680960424842,
+     "delivery_timer": 0.8349128905292436,
+     "loop": 0.009395141981318725,
+     "loop_blocked": 2.528089482213394e-07,
+     "loop_running": 0.009394889172370503,
+     "scheduling": 0.010435157885189339,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22961,
+    "wakes_per_gib": 78213.83939146882,
+    "select_wakes": {
+     "": 18,
+     "packet": 21149,
+     "scheduled": 36155,
+     "sendq": 21064,
+     "timer": 22962
+    },
+    "timer_lag_pacing": {
+     "n": 22961,
+     "mean_ns": 122780.32189364574,
+     "median_ns": 109835,
+     "p90_ns": 169008,
+     "p99_ns": 202410,
+     "max_ns": 24361356,
+     "share_over_50us": 0.9983014677061104,
+     "share_over_1ms": 0.00017420844039893734
+    },
+    "aggregate": {
+     "emit_ns": 420958773,
+     "late_bytes": 40890993.68969233,
+     "late_count": 25935,
+     "late_ns": 3291022750,
+     "opportunities": 354131,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      152027364,
+      0,
+      28443155673,
+      472451916,
+      510272561,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 148361
+   },
+   {
+    "id": "s2-S5-datagram-p5-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "datagram",
+    "block": 5,
+    "goodput_mbps": 83.57461333333333,
+    "cpu_per_gib": 15.538368513965631,
+    "contamination": {
+     "foreign_mean_cores": 0.0006666469899141129,
+     "foreign_max_cores": 0.01999940969742339,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38647577864.4933,
+     "receive": 23198302919.816288
+    },
+    "wakeups_per_gib": 4474.426754612565,
+    "overflow": 90,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.265852437,
+    "late_count": 25794,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9796292682283244,
+     "delivery_other": 0.1491262350014132,
+     "delivery_timer": 0.8305030332269112,
+     "loop": 0.009700420827678687,
+     "loop_blocked": 3.7264390338405237e-07,
+     "loop_running": 0.009700048183775303,
+     "scheduling": 0.010670310943996886,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22793,
+    "wakes_per_gib": 78090.05284677197,
+    "select_wakes": {
+     "": 14,
+     "packet": 20970,
+     "scheduled": 36073,
+     "sendq": 21166,
+     "timer": 22794
+    },
+    "timer_lag_pacing": {
+     "n": 22793,
+     "mean_ns": 121076.037994121,
+     "median_ns": 109706,
+     "p90_ns": 168199,
+     "p99_ns": 201835,
+     "max_ns": 20265767,
+     "share_over_50us": 0.9983766945992191,
+     "share_over_1ms": 0.0001754924757601018
+    },
+    "aggregate": {
+     "emit_ns": 418419846,
+     "late_bytes": 40544436.120755546,
+     "late_count": 25794,
+     "late_ns": 3265852437,
+     "opportunities": 351391,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      155626193,
+      0,
+      28267777363,
+      636495871,
+      520680698,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 149572
+   },
+   {
+    "id": "s2-S5-datagram-p5-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "datagram",
+    "block": 5,
+    "goodput_mbps": 84.01537706666666,
+    "cpu_per_gib": 15.461322108065856,
+    "contamination": {
+     "foreign_mean_cores": 0.003333248038849268,
+     "foreign_max_cores": 0.09999744116547804,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38515544607.515594,
+     "receive": 23099966775.91423
+    },
+    "wakeups_per_gib": 4498.666020960532,
+    "overflow": 122,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.297639776,
+    "late_count": 25937,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.979622047414314,
+     "delivery_other": 0.14837561657310624,
+     "delivery_timer": 0.8312464308412078,
+     "loop": 0.009696216437195232,
+     "loop_blocked": 1.106245753872178e-06,
+     "loop_running": 0.009695110191441359,
+     "scheduling": 0.010681736148490708,
+     "unarmed": 0
+    },
+    "pacing_wakes": 22908,
+    "wakes_per_gib": 78072.30394557868,
+    "select_wakes": {
+     "": 24,
+     "packet": 20924,
+     "scheduled": 37569,
+     "sendq": 21138,
+     "timer": 22909
+    },
+    "timer_lag_pacing": {
+     "n": 22908,
+     "mean_ns": 120686.74960712415,
+     "median_ns": 110249,
+     "p90_ns": 168737,
+     "p99_ns": 201862,
+     "max_ns": 19306409,
+     "share_over_50us": 0.998559455212153,
+     "share_over_1ms": 8.730574471800244e-05
+    },
+    "aggregate": {
+     "emit_ns": 411876542,
+     "late_bytes": 41037827.59842458,
+     "late_count": 25937,
+     "late_ns": 3297639776,
+     "opportunities": 353268,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      156738870,
+      0,
+      28447342567,
+      480312665,
+      502668501,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 149587
+   },
+   {
+    "id": "s2-S5-datagram-p5-new-reno",
+    "arm": "renonew",
+    "workload": "datagram",
+    "block": 5,
+    "goodput_mbps": 94.41437013333334,
+    "cpu_per_gib": 12.727890574268107,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31518163134.34977,
+     "receive": 22993655506.2856
+    },
+    "wakeups_per_gib": 9619.747674478298,
+    "overflow": 1639
+   },
+   {
+    "id": "s2-S5-datagram-p5-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "datagram",
+    "block": 5,
+    "goodput_mbps": 91.02402559999999,
+    "cpu_per_gib": 13.485975207324202,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 40609072432.42015,
+     "receive": 22041660165.7727
+    },
+    "wakeups_per_gib": 3658.409181768086,
+    "overflow": 106,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.257505364,
+    "late_count": 28432,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8827204391750069,
+     "delivery_other": 0.0010142196494205846,
+     "delivery_timer": 0.8817062195255863,
+     "loop": 0.03568436345271627,
+     "loop_blocked": 5.219308751952833e-06,
+     "loop_running": 0.035679144143964316,
+     "scheduling": 0.08159519737227687,
+     "unarmed": 0
+    },
+    "pacing_wakes": 28408,
+    "wakes_per_gib": 89362.07053797747,
+    "select_wakes": {
+     "": 29,
+     "packet": 28746,
+     "scheduled": 42676,
+     "sendq": 22044,
+     "timer": 28410
+    },
+    "timer_lag_pacing": {
+     "n": 28408,
+     "mean_ns": 9268.960081667135,
+     "median_ns": 7510,
+     "p90_ns": 8515,
+     "p99_ns": 20208,
+     "max_ns": 21224963,
+     "share_over_50us": 0.00010560405519571951,
+     "share_over_1ms": 7.0402703463813e-05
+    },
+    "aggregate": {
+     "emit_ns": 346540545,
+     "late_bytes": 3143723.0303769913,
+     "late_count": 28432,
+     "late_ns": 257505364,
+     "opportunities": 389364,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      129257700,
+      0,
+      28226644427,
+      899882491,
+      396414419,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 160606
+   },
+   {
+    "id": "s2-S5-datagram-p5-reno-reno",
+    "arm": "reno",
+    "workload": "datagram",
+    "block": 5,
+    "goodput_mbps": 94.40994986666666,
+    "cpu_per_gib": 12.914209087471727,
+    "contamination": {
+     "foreign_mean_cores": 0.001999954533033646,
+     "foreign_max_cores": 0.05999863599100937,
+     "sibling_mean_cores": 0.000676574965158192,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31456790079.585155,
+     "receive": 23015371623.1719
+    },
+    "wakeups_per_gib": 10172.17664813815,
+    "overflow": 1580
+   },
+   {
+    "id": "s2-S5-datagram-p5-reno-reno-aa",
+    "arm": "aa",
+    "workload": "datagram",
+    "block": 5,
+    "goodput_mbps": 94.41152853333332,
+    "cpu_per_gib": 12.749739807166959,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31599416436.457043,
+     "receive": 22720975572.8733
+    },
+    "wakeups_per_gib": 10575.36877385641,
+    "overflow": 1719
+   },
+   {
+    "id": "s2-S5-datagram-p6-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "datagram",
+    "block": 6,
+    "goodput_mbps": 84.23323306666666,
+    "cpu_per_gib": 15.477360531696117,
+    "contamination": {
+     "foreign_mean_cores": 0.004000139820887299,
+     "foreign_max_cores": 0.12000419462661897,
+     "sibling_mean_cores": 0.00033334498507394165,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38745808953.088745,
+     "receive": 23258678081.50729
+    },
+    "wakeups_per_gib": 4507.426524468138,
+    "overflow": 139,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.290818904,
+    "late_count": 25937,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.979936177916158,
+     "delivery_other": 0.14396358712542512,
+     "delivery_timer": 0.8359725907907328,
+     "loop": 0.009503867551625076,
+     "loop_blocked": 7.195777309780521e-07,
+     "loop_running": 0.009503147973894099,
+     "scheduling": 0.010559954532216946,
+     "unarmed": 0
+    },
+    "pacing_wakes": 23001,
+    "wakes_per_gib": 78186.51394365887,
+    "select_wakes": {
+     "": 20,
+     "packet": 21023,
+     "scheduled": 36113,
+     "sendq": 21047,
+     "timer": 23003
+    },
+    "timer_lag_pacing": {
+     "n": 23001,
+     "mean_ns": 121332.49080474762,
+     "median_ns": 109872,
+     "p90_ns": 169793,
+     "p99_ns": 202727,
+     "max_ns": 16399617,
+     "share_over_50us": 0.9975653232468153,
+     "share_over_1ms": 0.00013042911177774878
+    },
+    "aggregate": {
+     "emit_ns": 424572708,
+     "late_bytes": 40952584.27408882,
+     "late_count": 25937,
+     "late_ns": 3290818904,
+     "opportunities": 355035,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      157285313,
+      0,
+      28446486600,
+      452634709,
+      518750289,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 148346
+   },
+   {
+    "id": "s2-S5-datagram-p6-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "datagram",
+    "block": 6,
+    "goodput_mbps": 84.6067456,
+    "cpu_per_gib": 15.478119052978798,
+    "contamination": {
+     "foreign_mean_cores": 0.0013333307666716086,
+     "foreign_max_cores": 0.039999923000148256,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38637196129.854355,
+     "receive": 23140382304.10566
+    },
+    "wakeups_per_gib": 4325.083195484593,
+    "overflow": 108,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.314977292,
+    "late_count": 26065,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9797300143919055,
+     "delivery_other": 0.14819207093379994,
+     "delivery_timer": 0.8315379434581056,
+     "loop": 0.009672938356888146,
+     "loop_blocked": 6.564147529008171e-07,
+     "loop_running": 0.009672281942135246,
+     "scheduling": 0.010597047251206328,
+     "unarmed": 0
+    },
+    "pacing_wakes": 23033,
+    "wakes_per_gib": 77949.64103411317,
+    "select_wakes": {
+     "": 19,
+     "packet": 21219,
+     "scheduled": 36766,
+     "sendq": 21165,
+     "timer": 23034
+    },
+    "timer_lag_pacing": {
+     "n": 23033,
+     "mean_ns": 119855.9973950419,
+     "median_ns": 110137,
+     "p90_ns": 169328,
+     "p99_ns": 202727,
+     "max_ns": 4215548,
+     "share_over_50us": 0.9983501932010593,
+     "share_over_1ms": 4.341596839317501e-05
+    },
+    "aggregate": {
+     "emit_ns": 424117556,
+     "late_bytes": 41288347.39323402,
+     "late_count": 26065,
+     "late_ns": 3314977292,
+     "opportunities": 356805,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      156250697,
+      0,
+      28597155172,
+      306254310,
+      514903307,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 147120
+   },
+   {
+    "id": "s2-S5-datagram-p6-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "datagram",
+    "block": 6,
+    "goodput_mbps": 84.60358826666666,
+    "cpu_per_gib": 15.450386298822037,
+    "contamination": {
+     "foreign_mean_cores": 0.00033333266566800237,
+     "foreign_max_cores": 0.009999979970040072,
+     "sibling_mean_cores": 0.00033333235500287143,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 38546086374.9927,
+     "receive": 23119286978.596638
+    },
+    "wakeups_per_gib": 4145.8721750796285,
+    "overflow": 87,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.314841495,
+    "late_count": 26063,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.979729735161892,
+     "delivery_other": 0.14664201070645763,
+     "delivery_timer": 0.8330877244554343,
+     "loop": 0.009744116588597248,
+     "loop_blocked": 4.633705721123779e-07,
+     "loop_running": 0.009743653218025136,
+     "scheduling": 0.010526148249510797,
+     "unarmed": 0
+    },
+    "pacing_wakes": 23047,
+    "wakes_per_gib": 77999.93144413078,
+    "select_wakes": {
+     "": 13,
+     "packet": 21108,
+     "scheduled": 37104,
+     "sendq": 21087,
+     "timer": 23049
+    },
+    "timer_lag_pacing": {
+     "n": 23047,
+     "mean_ns": 120359.02395105653,
+     "median_ns": 110000,
+     "p90_ns": 169111,
+     "p99_ns": 202294,
+     "max_ns": 12360667,
+     "share_over_50us": 0.9982210265978219,
+     "share_over_1ms": 4.3389595175077016e-05
+    },
+    "aggregate": {
+     "emit_ns": 414578421,
+     "late_bytes": 41283630.89953597,
+     "late_count": 26063,
+     "late_ns": 3314841495,
+     "opportunities": 356559,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      153631074,
+      0,
+      28603856662,
+      322277602,
+      504343340,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 148361
+   },
+   {
+    "id": "s2-S5-datagram-p6-new-reno",
+    "arm": "renonew",
+    "workload": "datagram",
+    "block": 6,
+    "goodput_mbps": 94.4131072,
+    "cpu_per_gib": 12.84068799005643,
+    "contamination": {
+     "foreign_mean_cores": 0.002666604553446804,
+     "foreign_max_cores": 0.07999813660340412,
+     "sibling_mean_cores": 0.000999984501695037,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31393852470.404728,
+     "receive": 22952167060.40122
+    },
+    "wakeups_per_gib": 9835.201455960556,
+    "overflow": 1624
+   },
+   {
+    "id": "s2-S5-datagram-p6-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "datagram",
+    "block": 6,
+    "goodput_mbps": 91.5819264,
+    "cpu_per_gib": 13.43627101897392,
+    "contamination": {
+     "foreign_mean_cores": 0.003999887667154756,
+     "foreign_max_cores": 0.11999663001464267,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 40646659764.878845,
+     "receive": 22323216790.193478
+    },
+    "wakeups_per_gib": 3704.905866492016,
+    "overflow": 100,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.258014643,
+    "late_count": 28617,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8840317950481593,
+     "delivery_other": 0.0008578272823066092,
+     "delivery_timer": 0.8831739677658528,
+     "loop": 0.03427683366017331,
+     "loop_blocked": 4.464862872143268e-06,
+     "loop_running": 0.03427236879730117,
+     "scheduling": 0.08169137129166736,
+     "unarmed": 0
+    },
+    "pacing_wakes": 28597,
+    "wakes_per_gib": 89408.60174183306,
+    "select_wakes": {
+     "": 27,
+     "packet": 29040,
+     "scheduled": 44139,
+     "sendq": 21301,
+     "timer": 28597
+    },
+    "timer_lag_pacing": {
+     "n": 28597,
+     "mean_ns": 10176.699863622058,
+     "median_ns": 7551,
+     "p90_ns": 8521,
+     "p99_ns": 18837,
+     "max_ns": 17534643,
+     "share_over_50us": 0.0002447809210756373,
+     "share_over_1ms": 0.0001398748120432213
+    },
+    "aggregate": {
+     "emit_ns": 344064011,
+     "late_bytes": 3164748.8646396687,
+     "late_count": 28617,
+     "late_ns": 258014643,
+     "opportunities": 396340,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      123802983,
+      0,
+      28462822578,
+      693772017,
+      374660340,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 160621
+   },
+   {
+    "id": "s2-S5-datagram-p6-reno-reno",
+    "arm": "reno",
+    "workload": "datagram",
+    "block": 6,
+    "goodput_mbps": 94.41152853333332,
+    "cpu_per_gib": 12.805391661769848,
+    "contamination": {
+     "foreign_mean_cores": 0.0013333379666827668,
+     "foreign_max_cores": 0.040000139000483007,
+     "sibling_mean_cores": 0.0006666681020094804,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31485977160.87625,
+     "receive": 22889666858.88745
+    },
+    "wakeups_per_gib": 10247.826523332607,
+    "overflow": 1797
+   },
+   {
+    "id": "s2-S5-datagram-p6-reno-reno-aa",
+    "arm": "aa",
+    "workload": "datagram",
+    "block": 6,
+    "goodput_mbps": 94.41026559999999,
+    "cpu_per_gib": 12.744481579267266,
+    "contamination": {
+     "foreign_mean_cores": 0.0043332133769874185,
+     "foreign_max_cores": 0.12999640130962256,
+     "sibling_mean_cores": 0.0009999796278552465,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 31652637893.21035,
+     "receive": 22981595215.46875
+    },
+    "wakeups_per_gib": 10654.364060206606,
+    "overflow": 1800
+   },
+   {
+    "id": "s2-S5-stream-p1-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 86.7504,
+    "cpu_per_gib": 16.078035680379497,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34093796087.348747,
+     "receive": 21757951474.064907
+    },
+    "wakeups_per_gib": 5776.10613745489,
+    "overflow": 820,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.240195459,
+    "late_count": 25066,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9756957896532871,
+     "delivery_other": 0.14511634497047174,
+     "delivery_timer": 0.8305794446828153,
+     "loop": 0.012726260968443632,
+     "loop_blocked": 4.7404547640284806e-07,
+     "loop_running": 0.01272578692296723,
+     "scheduling": 0.011577949378269281,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21917,
+    "wakes_per_gib": 72339.95326548503,
+    "select_wakes": {
+     "": 15,
+     "packet": 22813,
+     "scheduled": 19003,
+     "sendq": 7492,
+     "timer": 22232
+    },
+    "timer_lag_pacing": {
+     "n": 21917,
+     "mean_ns": 121174.05479764566,
+     "median_ns": 115496,
+     "p90_ns": 173387,
+     "p99_ns": 218316,
+     "max_ns": 278906,
+     "share_over_50us": 0.9955285851165762,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 513474184,
+     "late_bytes": 41658978.98611667,
+     "late_count": 25066,
+     "late_ns": 3240195459,
+     "opportunities": 303612,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      169254483,
+      179229679,
+      27830777199,
+      1087162824,
+      219521630,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 145072
+   },
+   {
+    "id": "s2-S5-stream-p1-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 86.2178944,
+    "cpu_per_gib": 16.263372367146776,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34075440041.082993,
+     "receive": 21648470058.560066
+    },
+    "wakeups_per_gib": 5237.2449075505765,
+    "overflow": 804,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.233436332,
+    "late_count": 24851,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9748152863892543,
+     "delivery_other": 0.15284429172425096,
+     "delivery_timer": 0.8219709946650033,
+     "loop": 0.01334202581107139,
+     "loop_blocked": 9.738246486679238e-06,
+     "loop_running": 0.01333228756458471,
+     "scheduling": 0.011842687799674295,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21574,
+    "wakes_per_gib": 71647.63578661771,
+    "select_wakes": {
+     "": 21,
+     "packet": 22950,
+     "scheduled": 18784,
+     "sendq": 7183,
+     "timer": 21893
+    },
+    "timer_lag_pacing": {
+     "n": 21574,
+     "mean_ns": 121607.85487160471,
+     "median_ns": 115894,
+     "p90_ns": 175261,
+     "p99_ns": 220743,
+     "max_ns": 314075,
+     "share_over_50us": 0.9959210160378233,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 507005546,
+     "late_bytes": 41398694.4374248,
+     "late_count": 24851,
+     "late_ns": 3233436332,
+     "opportunities": 300961,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      169858219,
+      178391465,
+      27607899636,
+      1324066673,
+      212334997,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 147804
+   },
+   {
+    "id": "s2-S5-stream-p1-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 87.48368640000001,
+    "cpu_per_gib": 15.877630588877903,
+    "contamination": {
+     "foreign_mean_cores": 0.000666664719339022,
+     "foreign_max_cores": 0.019999941580170662,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33845864357.680096,
+     "receive": 21644931439.600815
+    },
+    "wakeups_per_gib": 5446.215841024886,
+    "overflow": 502,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.227773105,
+    "late_count": 24978,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9753261876193742,
+     "delivery_other": 0.14815462935087564,
+     "delivery_timer": 0.8271715582684985,
+     "loop": 0.012876482530825227,
+     "loop_blocked": 5.1614532552467e-07,
+     "loop_running": 0.012875966385499702,
+     "scheduling": 0.01179732984980058,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21865,
+    "wakes_per_gib": 71563.40706971702,
+    "select_wakes": {
+     "": 17,
+     "packet": 22864,
+     "scheduled": 19178,
+     "sendq": 7960,
+     "timer": 22073
+    },
+    "timer_lag_pacing": {
+     "n": 21865,
+     "mean_ns": 121107.35632289047,
+     "median_ns": 115525,
+     "p90_ns": 173650,
+     "p99_ns": 220510,
+     "max_ns": 269578,
+     "share_over_50us": 0.9958380974159616,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 508446780,
+     "late_bytes": 41710526.208403885,
+     "late_count": 24978,
+     "late_ns": 3227773105,
+     "opportunities": 305661,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      166342554,
+      181330032,
+      27722314059,
+      1190530677,
+      229685045,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 146403
+   },
+   {
+    "id": "s2-S5-stream-p1-new-reno",
+    "arm": "renonew",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.453286071836319,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26158132646.316513,
+     "receive": 21305170286.53091
+    },
+    "wakeups_per_gib": 7390.4208129049875,
+    "overflow": 376
+   },
+   {
+    "id": "s2-S5-stream-p1-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 93.52893440000001,
+    "cpu_per_gib": 12.408131825849772,
+    "contamination": {
+     "foreign_mean_cores": 0.0023332444553855374,
+     "foreign_max_cores": 0.06999733366156612,
+     "sibling_mean_cores": 0.0003333206364836484,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 35076363407.14838,
+     "receive": 20332443602.73758
+    },
+    "wakeups_per_gib": 3851.2637064521787,
+    "overflow": 834,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.294121031,
+    "late_count": 27304,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8936207897353657,
+     "delivery_other": 0.013281175394764613,
+     "delivery_timer": 0.8803396143406012,
+     "loop": 0.03354002250862503,
+     "loop_blocked": 1.3055849787225858e-06,
+     "loop_running": 0.03353871692364631,
+     "scheduling": 0.07283918775600919,
+     "unarmed": 0
+    },
+    "pacing_wakes": 27071,
+    "wakes_per_gib": 82875.64371809772,
+    "select_wakes": {
+     "": 23,
+     "packet": 28548,
+     "scheduled": 21363,
+     "sendq": 4801,
+     "timer": 27278
+    },
+    "timer_lag_pacing": {
+     "n": 27071,
+     "mean_ns": 8817.24409885117,
+     "median_ns": 7837,
+     "p90_ns": 9294,
+     "p99_ns": 35997,
+     "max_ns": 67752,
+     "share_over_50us": 0.00018469949392338665,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 381479408,
+     "late_bytes": 3623019.8845796627,
+     "late_count": 27304,
+     "late_ns": 294121031,
+     "opportunities": 334617,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      121510451,
+      120629472,
+      27564504053,
+      1699375417,
+      111794548,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 160335
+   },
+   {
+    "id": "s2-S5-stream-p1-reno-reno",
+    "arm": "reno",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.277988276182823,
+    "contamination": {
+     "foreign_mean_cores": 0.0006666627320232229,
+     "foreign_max_cores": 0.019999881960696686,
+     "sibling_mean_cores": 0.00033333986546133697,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26030607937.21711,
+     "receive": 21200314506.32872
+    },
+    "wakeups_per_gib": 6996.2650362167215,
+    "overflow": 384
+   },
+   {
+    "id": "s2-S5-stream-p1-reno-reno-aa",
+    "arm": "aa",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.26270876777893,
+    "contamination": {
+     "foreign_mean_cores": 0.0019999416097047627,
+     "foreign_max_cores": 0.059998248291142885,
+     "sibling_mean_cores": 0.000666647203234921,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26068314207.59784,
+     "receive": 21219398561.5627
+    },
+    "wakeups_per_gib": 6882.795948988281,
+    "overflow": 285
+   },
+   {
+    "id": "s2-S5-stream-p2-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 87.4094848,
+    "cpu_per_gib": 15.954602811619965,
+    "contamination": {
+     "foreign_mean_cores": 0.0033332634993765266,
+     "foreign_max_cores": 0.07999779630070526,
+     "sibling_mean_cores": 0.00033332415125293874,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34039478118.982697,
+     "receive": 21798415376.10511
+    },
+    "wakeups_per_gib": 5798.068048194239,
+    "overflow": 898,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.246404505,
+    "late_count": 25195,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9753893561702041,
+     "delivery_other": 0.14678597484265135,
+     "delivery_timer": 0.8286033813275527,
+     "loop": 0.013084740344148827,
+     "loop_blocked": 7.688505841326141e-07,
+     "loop_running": 0.013083971493564694,
+     "scheduling": 0.011525903485647115,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21964,
+    "wakes_per_gib": 71948.4557121685,
+    "select_wakes": {
+     "": 18,
+     "packet": 23195,
+     "scheduled": 19090,
+     "sendq": 7369,
+     "timer": 22323
+    },
+    "timer_lag_pacing": {
+     "n": 21964,
+     "mean_ns": 120703.71721908578,
+     "median_ns": 115124,
+     "p90_ns": 173162,
+     "p99_ns": 219226,
+     "max_ns": 271747,
+     "share_over_50us": 0.9953560371517027,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 508739703,
+     "late_bytes": 41654713.93996852,
+     "late_count": 25195,
+     "late_ns": 3246404505,
+     "opportunities": 305909,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      164224290,
+      179672774,
+      27984320082,
+      947243579,
+      214670536,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 149203
+   },
+   {
+    "id": "s2-S5-stream-p2-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 87.5404288,
+    "cpu_per_gib": 16.148085364114788,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34100088260.386337,
+     "receive": 21910379777.616158
+    },
+    "wakeups_per_gib": 5380.539634672965,
+    "overflow": 598,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.231253967,
+    "late_count": 24861,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9743196743903603,
+     "delivery_other": 0.15375048543808875,
+     "delivery_timer": 0.8205691889522715,
+     "loop": 0.013797667857532413,
+     "loop_blocked": 3.763244896311798e-07,
+     "loop_running": 0.013797291533042782,
+     "scheduling": 0.011882657752107294,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21670,
+    "wakes_per_gib": 70879.2060081235,
+    "select_wakes": {
+     "": 20,
+     "packet": 23099,
+     "scheduled": 19123,
+     "sendq": 7851,
+     "timer": 21871
+    },
+    "timer_lag_pacing": {
+     "n": 21670,
+     "mean_ns": 121401.14314720812,
+     "median_ns": 115692,
+     "p90_ns": 173931,
+     "p99_ns": 218562,
+     "max_ns": 294129,
+     "share_over_50us": 0.995523765574527,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 516706980,
+     "late_bytes": 41595438.57396664,
+     "late_count": 24861,
+     "late_ns": 3231253967,
+     "opportunities": 305568,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      165383877,
+      180120273,
+      27623150158,
+      1285709957,
+      228511003,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 147788
+   },
+   {
+    "id": "s2-S5-stream-p2-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 88.3042688,
+    "cpu_per_gib": 15.865782557016411,
+    "contamination": {
+     "foreign_mean_cores": 0.0060000256774989545,
+     "foreign_max_cores": 0.12000071460425546,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33780750759.930084,
+     "receive": 21779170241.60102
+    },
+    "wakeups_per_gib": 5055.138032363542,
+    "overflow": 802,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.215619374,
+    "late_count": 24899,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9755857258372147,
+     "delivery_other": 0.144012588599362,
+     "delivery_timer": 0.8315731372378528,
+     "loop": 0.012743358349973668,
+     "loop_blocked": 2.3883423710209303e-07,
+     "loop_running": 0.012743119515736567,
+     "scheduling": 0.011670915812811619,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21808,
+    "wakes_per_gib": 70713.56652327397,
+    "select_wakes": {
+     "": 19,
+     "packet": 23131,
+     "scheduled": 19285,
+     "sendq": 8274,
+     "timer": 22088
+    },
+    "timer_lag_pacing": {
+     "n": 21808,
+     "mean_ns": 121180.77636647102,
+     "median_ns": 115123,
+     "p90_ns": 172529,
+     "p99_ns": 223994,
+     "max_ns": 308571,
+     "share_over_50us": 0.9961482024944974,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 508287999,
+     "late_bytes": 41684678.71338125,
+     "late_count": 24899,
+     "late_ns": 3215619374,
+     "opportunities": 308110,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      164984879,
+      181005793,
+      27643495406,
+      1270223093,
+      230175446,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 150603
+   },
+   {
+    "id": "s2-S5-stream-p2-new-reno",
+    "arm": "renonew",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.373642716716397,
+    "contamination": {
+     "foreign_mean_cores": 0.0003333344433370299,
+     "foreign_max_cores": 0.010000033300110898,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26100821682.725197,
+     "receive": 21482783604.043076
+    },
+    "wakeups_per_gib": 6509.542372578939,
+    "overflow": 322
+   },
+   {
+    "id": "s2-S5-stream-p2-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 93.9261312,
+    "cpu_per_gib": 12.355971001007951,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34793530477.14693,
+     "receive": 20375342285.84836
+    },
+    "wakeups_per_gib": 3804.4926844298684,
+    "overflow": 794,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.298906677,
+    "late_count": 27492,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8932943207555045,
+     "delivery_other": 0.01192784997573005,
+     "delivery_timer": 0.8813664707797745,
+     "loop": 0.032784868168067055,
+     "loop_blocked": 2.5693638151816865e-06,
+     "loop_running": 0.03278229880425187,
+     "scheduling": 0.07392081107642838,
+     "unarmed": 0
+    },
+    "pacing_wakes": 27286,
+    "wakes_per_gib": 83180.59886807163,
+    "select_wakes": {
+     "": 26,
+     "packet": 28733,
+     "scheduled": 21429,
+     "sendq": 4432,
+     "timer": 27469
+    },
+    "timer_lag_pacing": {
+     "n": 27286,
+     "mean_ns": 18666.065857949132,
+     "median_ns": 7825,
+     "p90_ns": 9666,
+     "p99_ns": 36557,
+     "max_ns": 48717330,
+     "share_over_50us": 0.00036648830902294216,
+     "share_over_1ms": 0.0002198929854137653
+    },
+    "aggregate": {
+     "emit_ns": 382297472,
+     "late_bytes": 3666179.068688143,
+     "late_count": 27492,
+     "late_ns": 298906677,
+     "opportunities": 335536,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      124667052,
+      124539932,
+      27802910341,
+      1460899364,
+      103665376,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 157604
+   },
+   {
+    "id": "s2-S5-stream-p2-reno-reno",
+    "arm": "reno",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 95.8859264,
+    "cpu_per_gib": 12.389975909228317,
+    "contamination": {
+     "foreign_mean_cores": 0.0013333353500157017,
+     "foreign_max_cores": 0.030000098730324946,
+     "sibling_mean_cores": 0.0006666634936818229,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26098337253.552834,
+     "receive": 21292911288.65848
+    },
+    "wakeups_per_gib": 6506.852527340933,
+    "overflow": 404
+   },
+   {
+    "id": "s2-S5-stream-p2-reno-reno-aa",
+    "arm": "aa",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.3627586424283,
+    "contamination": {
+     "foreign_mean_cores": 0.003333371777188385,
+     "foreign_max_cores": 0.09000118342556089,
+     "sibling_mean_cores": 0.0006666692244009616,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26118725525.08071,
+     "receive": 21252282506.21928
+    },
+    "wakeups_per_gib": 6548.36074452551,
+    "overflow": 292
+   },
+   {
+    "id": "s2-S5-stream-p3-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 88.7538432,
+    "cpu_per_gib": 15.785235236918245,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0006666673413386625,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33807332239.138626,
+     "receive": 21646932382.25662
+    },
+    "wakeups_per_gib": 5516.676845651232,
+    "overflow": 921,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.222770047,
+    "late_count": 24963,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9757639456551646,
+     "delivery_other": 0.13845823173619684,
+     "delivery_timer": 0.8373057139189677,
+     "loop": 0.012877953560054296,
+     "loop_blocked": 5.957607809428669e-07,
+     "loop_running": 0.012877357799273353,
+     "scheduling": 0.011358100784781186,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21889,
+    "wakes_per_gib": 70616.68975114608,
+    "select_wakes": {
+     "": 15,
+     "packet": 22691,
+     "scheduled": 19437,
+     "sendq": 9111,
+     "timer": 22277
+    },
+    "timer_lag_pacing": {
+     "n": 21889,
+     "mean_ns": 121369.98757366714,
+     "median_ns": 116126,
+     "p90_ns": 172231,
+     "p99_ns": 216932,
+     "max_ns": 279221,
+     "share_over_50us": 0.996299511169994,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 515565761,
+     "late_bytes": 42240613.41152229,
+     "late_count": 24963,
+     "late_ns": 3222770047,
+     "opportunities": 309714,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      172920136,
+      182820637,
+      27668460197,
+      1205726428,
+      254173197,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 146404
+   },
+   {
+    "id": "s2-S5-stream-p3-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 88.452672,
+    "cpu_per_gib": 15.870741451827412,
+    "contamination": {
+     "foreign_mean_cores": 0.002361882420250788,
+     "foreign_max_cores": 0.03999973412176733,
+     "sibling_mean_cores": 0.0003333311176813941,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33846201827.170242,
+     "receive": 21740850621.990883
+    },
+    "wakeups_per_gib": 5337.996701862588,
+    "overflow": 643,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.234688447,
+    "late_count": 25002,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9752971244961447,
+     "delivery_other": 0.14972817349664216,
+     "delivery_timer": 0.8255689509995026,
+     "loop": 0.0130216197603404,
+     "loop_blocked": 5.144235765714225e-07,
+     "loop_running": 0.013021105336763828,
+     "scheduling": 0.011681255743514887,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21768,
+    "wakes_per_gib": 70465.44099826855,
+    "select_wakes": {
+     "": 19,
+     "packet": 22905,
+     "scheduled": 19259,
+     "sendq": 8201,
+     "timer": 22062
+    },
+    "timer_lag_pacing": {
+     "n": 21768,
+     "mean_ns": 121178.59049981624,
+     "median_ns": 115314,
+     "p90_ns": 172928,
+     "p99_ns": 220583,
+     "max_ns": 307479,
+     "share_over_50us": 0.9958654906284454,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 516956302,
+     "late_bytes": 41793593.41933687,
+     "late_count": 25002,
+     "late_ns": 3234688447,
+     "opportunities": 308135,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      169169720,
+      183424236,
+      27751124321,
+      1146662604,
+      231490693,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 145073
+   },
+   {
+    "id": "s2-S5-stream-p3-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 87.41384959999999,
+    "cpu_per_gib": 15.828904974283935,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0003333327540010069,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33772030538.97068,
+     "receive": 21574889622.045166
+    },
+    "wakeups_per_gib": 5064.048370672222,
+    "overflow": 928,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.287029396,
+    "late_count": 25100,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9751194789740785,
+     "delivery_other": 0.14345224310248303,
+     "delivery_timer": 0.8316672358715955,
+     "loop": 0.013553888217189525,
+     "loop_blocked": 5.844182599454916e-07,
+     "loop_running": 0.01355330379892958,
+     "scheduling": 0.011326632808731961,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21921,
+    "wakes_per_gib": 71804.01315233232,
+    "select_wakes": {
+     "": 18,
+     "packet": 22874,
+     "scheduled": 19169,
+     "sendq": 7871,
+     "timer": 22261
+    },
+    "timer_lag_pacing": {
+     "n": 21921,
+     "mean_ns": 122888.1583869349,
+     "median_ns": 116231,
+     "p90_ns": 174667,
+     "p99_ns": 223561,
+     "max_ns": 275466,
+     "share_over_50us": 0.9966698599516446,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 503010283,
+     "late_bytes": 42393164.332726404,
+     "late_count": 25100,
+     "late_ns": 3287029396,
+     "opportunities": 305521,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      161623738,
+      176805284,
+      27843121877,
+      1094689072,
+      220377352,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 146388
+   },
+   {
+    "id": "s2-S5-stream-p3-new-reno",
+    "arm": "renonew",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.381773672624897,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26097106131.491844,
+     "receive": 21273209171.030617
+    },
+    "wakeups_per_gib": 8325.047768233982,
+    "overflow": 285
+   },
+   {
+    "id": "s2-S5-stream-p3-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 93.450368,
+    "cpu_per_gib": 12.38044457664579,
+    "contamination": {
+     "foreign_mean_cores": 0.0009999857482031157,
+     "foreign_max_cores": 0.02999957244609347,
+     "sibling_mean_cores": 0.0009999832976153105,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34933064218.30653,
+     "receive": 20474316826.904366
+    },
+    "wakeups_per_gib": 3284.5991156232435,
+    "overflow": 693,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.287916145,
+    "late_count": 27534,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8883644194388612,
+     "delivery_other": 0.006045659579111133,
+     "delivery_timer": 0.8823187598597502,
+     "loop": 0.03618763372925822,
+     "loop_blocked": 2.889730271985963e-06,
+     "loop_running": 0.03618474399898623,
+     "scheduling": 0.07544794683188051,
+     "unarmed": 0
+    },
+    "pacing_wakes": 27380,
+    "wakes_per_gib": 83892.09308373545,
+    "select_wakes": {
+     "": 29,
+     "packet": 28625,
+     "scheduled": 21410,
+     "sendq": 4352,
+     "timer": 27514
+    },
+    "timer_lag_pacing": {
+     "n": 27380,
+     "mean_ns": 8814.913550036523,
+     "median_ns": 7852,
+     "p90_ns": 9170,
+     "p99_ns": 36371,
+     "max_ns": 82575,
+     "share_over_50us": 0.0001095690284879474,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 377292549,
+     "late_bytes": 3562476.220197148,
+     "late_count": 27534,
+     "late_ns": 287916145,
+     "opportunities": 335108,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      112220283,
+      119243296,
+      27846743359,
+      1441501800,
+      101802504,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 161736
+   },
+   {
+    "id": "s2-S5-stream-p3-reno-reno",
+    "arm": "reno",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 95.894656,
+    "cpu_per_gib": 12.372467402399524,
+    "contamination": {
+     "foreign_mean_cores": 0.0026665658571444375,
+     "foreign_max_cores": 0.07999697571433313,
+     "sibling_mean_cores": 0.00033332073214305464,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26038506735.14086,
+     "receive": 21307863434.462597
+    },
+    "wakeups_per_gib": 6995.946589924677,
+    "overflow": 389
+   },
+   {
+    "id": "s2-S5-stream-p3-reno-reno-aa",
+    "arm": "aa",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 95.8859264,
+    "cpu_per_gib": 12.256825818663101,
+    "contamination": {
+     "foreign_mean_cores": 0.0023333001981372197,
+     "foreign_max_cores": 0.0699990059441166,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 25939403546.337265,
+     "receive": 21228230788.591248
+    },
+    "wakeups_per_gib": 6823.385968322181,
+    "overflow": 284
+   },
+   {
+    "id": "s2-S5-stream-p4-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 87.51424,
+    "cpu_per_gib": 15.988704883927424,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33629425379.688835,
+     "receive": 21484495325.241318
+    },
+    "wakeups_per_gib": 5395.237065498522,
+    "overflow": 584,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.217901167,
+    "late_count": 24865,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9751571785921168,
+     "delivery_other": 0.1522032948130007,
+     "delivery_timer": 0.822953883779116,
+     "loop": 0.012915999853018481,
+     "loop_blocked": 4.176635422439001e-07,
+     "loop_running": 0.012915582189476237,
+     "scheduling": 0.01192682155486474,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21665,
+    "wakes_per_gib": 70884.05762524286,
+    "select_wakes": {
+     "": 17,
+     "packet": 23085,
+     "scheduled": 18904,
+     "sendq": 7160,
+     "timer": 21905
+    },
+    "timer_lag_pacing": {
+     "n": 21665,
+     "mean_ns": 120987.32785598891,
+     "median_ns": 115298,
+     "p90_ns": 173425,
+     "p99_ns": 217972,
+     "max_ns": 290707,
+     "share_over_50us": 0.9955688899146088,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 511082672,
+     "late_bytes": 41089976.92831431,
+     "late_count": 24865,
+     "late_ns": 3217901167,
+     "opportunities": 302036,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      163958488,
+      180364672,
+      27635587414,
+      1293917095,
+      214037340,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 152003
+   },
+   {
+    "id": "s2-S5-stream-p4-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 87.252352,
+    "cpu_per_gib": 16.176066412191823,
+    "contamination": {
+     "foreign_mean_cores": 0.004999872374275485,
+     "foreign_max_cores": 0.1299967777698694,
+     "sibling_mean_cores": 0.0006666725544720964,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34044176677.001892,
+     "receive": 21790279188.43341
+    },
+    "wakeups_per_gib": 5559.1048513504065,
+    "overflow": 706,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.212950031,
+    "late_count": 24931,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9753213398170026,
+     "delivery_other": 0.146188429470785,
+     "delivery_timer": 0.8291329103462176,
+     "loop": 0.013117116853162787,
+     "loop_blocked": 6.97489839050659e-07,
+     "loop_running": 0.013116419363323736,
+     "scheduling": 0.011561543329834624,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21830,
+    "wakes_per_gib": 71638.28742914957,
+    "select_wakes": {
+     "": 20,
+     "packet": 23216,
+     "scheduled": 19094,
+     "sendq": 7347,
+     "timer": 22074
+    },
+    "timer_lag_pacing": {
+     "n": 21830,
+     "mean_ns": 120810.50036646816,
+     "median_ns": 114757,
+     "p90_ns": 172688,
+     "p99_ns": 222033,
+     "max_ns": 276818,
+     "share_over_50us": 0.9954191479615209,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 514113114,
+     "late_bytes": 41211481.328614,
+     "late_count": 24931,
+     "late_ns": 3212950031,
+     "opportunities": 304951,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      165413594,
+      179388645,
+      27705454269,
+      1223560784,
+      210732893,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 147856
+   },
+   {
+    "id": "s2-S5-stream-p4-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 87.91143679999999,
+    "cpu_per_gib": 15.881927901263444,
+    "contamination": {
+     "foreign_mean_cores": 0.0013332946077914511,
+     "foreign_max_cores": 0.03999883823374353,
+     "sibling_mean_cores": 0.0003333236519478625,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33841112738.441513,
+     "receive": 21707295214.931572
+    },
+    "wakeups_per_gib": 4966.987508349615,
+    "overflow": 694,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.218802688,
+    "late_count": 25070,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9758862932824791,
+     "delivery_other": 0.1428495523239727,
+     "delivery_timer": 0.8330367409585063,
+     "loop": 0.012674551674787218,
+     "loop_blocked": 6.56144599317546e-07,
+     "loop_running": 0.012673895530187902,
+     "scheduling": 0.011439155042733703,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21965,
+    "wakes_per_gib": 71540.90532517986,
+    "select_wakes": {
+     "": 26,
+     "packet": 23276,
+     "scheduled": 19257,
+     "sendq": 7409,
+     "timer": 22272
+    },
+    "timer_lag_pacing": {
+     "n": 21965,
+     "mean_ns": 120622.93148190303,
+     "median_ns": 114674,
+     "p90_ns": 172519,
+     "p99_ns": 225025,
+     "max_ns": 282264,
+     "share_over_50us": 0.9953107216025495,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 503990854,
+     "late_bytes": 41271428.80965579,
+     "late_count": 25070,
+     "late_ns": 3218802688,
+     "opportunities": 306794,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      164821291,
+      177962729,
+      27861606759,
+      1082084553,
+      207464319,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 149203
+   },
+   {
+    "id": "s2-S5-stream-p4-new-reno",
+    "arm": "renonew",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.473432806876588,
+    "contamination": {
+     "foreign_mean_cores": 0.00033333149601012574,
+     "foreign_max_cores": 0.009999944880303773,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 25970908756.900585,
+     "receive": 21435967912.912476
+    },
+    "wakeups_per_gib": 7002.237093439271,
+    "overflow": 346
+   },
+   {
+    "id": "s2-S5-stream-p4-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 92.9440512,
+    "cpu_per_gib": 12.373578438853675,
+    "contamination": {
+     "foreign_mean_cores": 0.002389900527010588,
+     "foreign_max_cores": 0.07169701581031764,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34920096375.94089,
+     "receive": 20440735633.336845
+    },
+    "wakeups_per_gib": 3739.949091254302,
+    "overflow": 754,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.288825553,
+    "late_count": 27265,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8904964132449874,
+     "delivery_other": 0.008316348657696503,
+     "delivery_timer": 0.8821800645872908,
+     "loop": 0.03391245649237967,
+     "loop_blocked": 2.665969101425039e-06,
+     "loop_running": 0.03390979052327825,
+     "scheduling": 0.07559113026263296,
+     "unarmed": 0
+    },
+    "pacing_wakes": 27084,
+    "wakes_per_gib": 83437.2167936833,
+    "select_wakes": {
+     "": 27,
+     "packet": 28497,
+     "scheduled": 21241,
+     "sendq": 4284,
+     "timer": 27246
+    },
+    "timer_lag_pacing": {
+     "n": 27084,
+     "mean_ns": 20490.17294343524,
+     "median_ns": 7822,
+     "p90_ns": 9175,
+     "p99_ns": 36483,
+     "max_ns": 48214078,
+     "share_over_50us": 0.0005538325210456358,
+     "share_over_1ms": 0.0002953773445576724
+    },
+    "aggregate": {
+     "emit_ns": 375983689,
+     "late_bytes": 3563843.056380205,
+     "late_count": 27265,
+     "late_ns": 288825553,
+     "opportunities": 332526,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      115611535,
+      123854097,
+      27550254745,
+      1731496338,
+      102328268,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 163136
+   },
+   {
+    "id": "s2-S5-stream-p4-reno-reno",
+    "arm": "reno",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 95.8859264,
+    "cpu_per_gib": 12.254645918550683,
+    "contamination": {
+     "foreign_mean_cores": 0.001666636232759821,
+     "foreign_max_cores": 0.02999889232089997,
+     "sibling_mean_cores": 0.0003333298587028862,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26078200805.50727,
+     "receive": 21228426430.147087
+    },
+    "wakeups_per_gib": 7277.2829780311395,
+    "overflow": 282
+   },
+   {
+    "id": "s2-S5-stream-p4-reno-reno-aa",
+    "arm": "aa",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.360289196766777,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26159084622.09807,
+     "receive": 21308158136.619637
+    },
+    "wakeups_per_gib": 6855.921691486809,
+    "overflow": 288
+   },
+   {
+    "id": "s2-S5-stream-p5-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "stream",
+    "block": 5,
+    "goodput_mbps": 86.82896640000001,
+    "cpu_per_gib": 16.103656236344403,
+    "contamination": {
+     "foreign_mean_cores": 0.005019584177004795,
+     "foreign_max_cores": 0.12999747050921884,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34024640407.406227,
+     "receive": 21651412867.166786
+    },
+    "wakeups_per_gib": 5434.519836157657,
+    "overflow": 795,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.204011246,
+    "late_count": 24756,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9751900927004424,
+     "delivery_other": 0.1471642602967318,
+     "delivery_timer": 0.8280258324037106,
+     "loop": 0.013217137752830472,
+     "loop_blocked": 2.1972457209034403e-07,
+     "loop_running": 0.013216918028258381,
+     "scheduling": 0.011592769546727116,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21632,
+    "wakes_per_gib": 71334.66814063254,
+    "select_wakes": {
+     "": 13,
+     "packet": 23008,
+     "scheduled": 18947,
+     "sendq": 7526,
+     "timer": 21910
+    },
+    "timer_lag_pacing": {
+     "n": 21632,
+     "mean_ns": 121246.66027181952,
+     "median_ns": 115308,
+     "p90_ns": 173873,
+     "p99_ns": 221261,
+     "max_ns": 303705,
+     "share_over_50us": 0.9943602071005917,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 507907055,
+     "late_bytes": 41133537.63928007,
+     "late_count": 24756,
+     "late_ns": 3204011246,
+     "opportunities": 302711,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      166137380,
+      180504123,
+      27501183453,
+      1427696435,
+      214946002,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 146422
+   },
+   {
+    "id": "s2-S5-stream-p5-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "stream",
+    "block": 5,
+    "goodput_mbps": 86.91626240000001,
+    "cpu_per_gib": 16.106503704656603,
+    "contamination": {
+     "foreign_mean_cores": 0.0019999410897352608,
+     "foreign_max_cores": 0.05999823269205782,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34054458519.74901,
+     "receive": 21622176015.923965
+    },
+    "wakeups_per_gib": 5234.69589763369,
+    "overflow": 570,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.200975446,
+    "late_count": 24871,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9756999348129333,
+     "delivery_other": 0.1477470564764838,
+     "delivery_timer": 0.8279528783364495,
+     "loop": 0.012540745056374293,
+     "loop_blocked": 4.598598223674097e-07,
+     "loop_running": 0.012540285196551926,
+     "scheduling": 0.011759320130692436,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21832,
+    "wakes_per_gib": 71921.88850669524,
+    "select_wakes": {
+     "": 23,
+     "packet": 22929,
+     "scheduled": 19037,
+     "sendq": 7908,
+     "timer": 21991
+    },
+    "timer_lag_pacing": {
+     "n": 21832,
+     "mean_ns": 120608.05574386222,
+     "median_ns": 115143,
+     "p90_ns": 173136,
+     "p99_ns": 217201,
+     "max_ns": 271529,
+     "share_over_50us": 0.9960150238182485,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 507982264,
+     "late_bytes": 41398578.26440081,
+     "late_count": 24871,
+     "late_ns": 3200975446,
+     "opportunities": 304114,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      169439961,
+      177310206,
+      27608453283,
+      1306402120,
+      229271671,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 150603
+   },
+   {
+    "id": "s2-S5-stream-p5-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "stream",
+    "block": 5,
+    "goodput_mbps": 87.3352832,
+    "cpu_per_gib": 15.937130137109463,
+    "contamination": {
+     "foreign_mean_cores": 0.005333113454398723,
+     "foreign_max_cores": 0.15999340363196168,
+     "sibling_mean_cores": 0.00033331959089992014,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33928902418.155357,
+     "receive": 21651427438.79459
+    },
+    "wakeups_per_gib": 5770.20891136623,
+    "overflow": 590,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.222199268,
+    "late_count": 25001,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9759691168795834,
+     "delivery_other": 0.14308296590426758,
+     "delivery_timer": 0.8328861509753158,
+     "loop": 0.012619666140399607,
+     "loop_blocked": 6.95487713083299e-07,
+     "loop_running": 0.012618970652686525,
+     "scheduling": 0.011411216980017016,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21969,
+    "wakes_per_gib": 72025.97703057085,
+    "select_wakes": {
+     "": 18,
+     "packet": 23155,
+     "scheduled": 19159,
+     "sendq": 7249,
+     "timer": 22222
+    },
+    "timer_lag_pacing": {
+     "n": 21969,
+     "mean_ns": 120948.53498110974,
+     "median_ns": 114852,
+     "p90_ns": 173076,
+     "p99_ns": 222413,
+     "max_ns": 283823,
+     "share_over_50us": 0.9961309117392689,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 504261309,
+     "late_bytes": 41240122.062431805,
+     "late_count": 25001,
+     "late_ns": 3222199268,
+     "opportunities": 305231,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      166286319,
+      178544789,
+      27782071837,
+      1161333856,
+      206617728,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 150588
+   },
+   {
+    "id": "s2-S5-stream-p5-new-reno",
+    "arm": "renonew",
+    "workload": "stream",
+    "block": 5,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.656306157116886,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26112768332.308586,
+     "receive": 21414501347.25396
+    },
+    "wakeups_per_gib": 6381.143142294125,
+    "overflow": 316
+   },
+   {
+    "id": "s2-S5-stream-p5-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "stream",
+    "block": 5,
+    "goodput_mbps": 93.3587072,
+    "cpu_per_gib": 12.526456006190227,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34877927462.37999,
+     "receive": 20504398615.97983
+    },
+    "wakeups_per_gib": 3563.8539761556026,
+    "overflow": 1787,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.286920225,
+    "late_count": 27052,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8929237944101013,
+     "delivery_other": 0.006605839654559033,
+     "delivery_timer": 0.8863179547555422,
+     "loop": 0.03258269785617239,
+     "loop_blocked": 2.23058517397998e-06,
+     "loop_running": 0.03258046727099841,
+     "scheduling": 0.07449350773372633,
+     "unarmed": 0
+    },
+    "pacing_wakes": 26832,
+    "wakes_per_gib": 82293.74344940372,
+    "select_wakes": {
+     "": 24,
+     "packet": 28577,
+     "scheduled": 21456,
+     "sendq": 4879,
+     "timer": 27040
+    },
+    "timer_lag_pacing": {
+     "n": 26832,
+     "mean_ns": 8764.499366428145,
+     "median_ns": 7807,
+     "p90_ns": 9091,
+     "p99_ns": 36452,
+     "max_ns": 83701,
+     "share_over_50us": 7.453786523553965e-05,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 377411620,
+     "late_bytes": 3543159.5428438457,
+     "late_count": 27052,
+     "late_ns": 286920225,
+     "opportunities": 335582,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      120489965,
+      124609260,
+      27331450135,
+      1933478419,
+      111943768,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 163136
+   },
+   {
+    "id": "s2-S5-stream-p5-reno-reno",
+    "arm": "reno",
+    "workload": "stream",
+    "block": 5,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.333104392289732,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0003333409541742277,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26098149446.902596,
+     "receive": 21299580712.699207
+    },
+    "wakeups_per_gib": 7608.400901528044,
+    "overflow": 302
+   },
+   {
+    "id": "s2-S5-stream-p5-reno-reno-aa",
+    "arm": "aa",
+    "workload": "stream",
+    "block": 5,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.42211491916322,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26071219273.02935,
+     "receive": 21294009517.873608
+    },
+    "wakeups_per_gib": 6787.2430334274895,
+    "overflow": 374
+   },
+   {
+    "id": "s2-S5-stream-p6-cand-wake-timeline-bbrv3",
+    "arm": "base",
+    "workload": "stream",
+    "block": 6,
+    "goodput_mbps": 87.54915840000001,
+    "cpu_per_gib": 15.941511822812963,
+    "contamination": {
+     "foreign_mean_cores": 0.0006666692586767432,
+     "foreign_max_cores": 0.020000077760302295,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33998322263.74952,
+     "receive": 21762692615.72352
+    },
+    "wakeups_per_gib": 5396.355729674267,
+    "overflow": 581,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.219786257,
+    "late_count": 24998,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9758334740913829,
+     "delivery_other": 0.1489893029256445,
+     "delivery_timer": 0.8268441711657384,
+     "loop": 0.012570718292869588,
+     "loop_blocked": 9.345340838877927e-07,
+     "loop_running": 0.0125697837587857,
+     "scheduling": 0.011595807615747581,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21873,
+    "wakes_per_gib": 71536.05386373651,
+    "select_wakes": {
+     "": 19,
+     "packet": 23006,
+     "scheduled": 19165,
+     "sendq": 7655,
+     "timer": 22100
+    },
+    "timer_lag_pacing": {
+     "n": 21873,
+     "mean_ns": 120586.54542129567,
+     "median_ns": 115161,
+     "p90_ns": 172719,
+     "p99_ns": 217398,
+     "max_ns": 272363,
+     "share_over_50us": 0.9960224934851186,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 511196275,
+     "late_bytes": 41382457.3164706,
+     "late_count": 24998,
+     "late_ns": 3219786257,
+     "opportunities": 305467,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      165235638,
+      181079701,
+      27755224777,
+      1167724304,
+      218442046,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 149204
+   },
+   {
+    "id": "s2-S5-stream-p6-cand-wake-timeline-bbrv3-aa",
+    "arm": "bbraa",
+    "workload": "stream",
+    "block": 6,
+    "goodput_mbps": 88.4483072,
+    "cpu_per_gib": 15.864872058464245,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33824707608.32735,
+     "receive": 21658091753.62096
+    },
+    "wakeups_per_gib": 5736.444475832019,
+    "overflow": 677,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.202695243,
+    "late_count": 24873,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9749318368098003,
+     "delivery_other": 0.14052618181004992,
+     "delivery_timer": 0.8344056549997505,
+     "loop": 0.013577728975319803,
+     "loop_blocked": 5.795118983164518e-07,
+     "loop_running": 0.013577149463421487,
+     "scheduling": 0.011490434214879807,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21871,
+    "wakes_per_gib": 70802.35729736008,
+    "select_wakes": {
+     "": 21,
+     "packet": 22879,
+     "scheduled": 19271,
+     "sendq": 8378,
+     "timer": 22128
+    },
+    "timer_lag_pacing": {
+     "n": 21871,
+     "mean_ns": 120899.71121576517,
+     "median_ns": 115010,
+     "p90_ns": 173447,
+     "p99_ns": 219230,
+     "max_ns": 287338,
+     "share_over_50us": 0.9953820127108957,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 516301988,
+     "late_bytes": 41599139.23195169,
+     "late_count": 24873,
+     "late_ns": 3202695243,
+     "opportunities": 307973,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      164533120,
+      180067328,
+      27603238640,
+      1298899444,
+      236460791,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 147872
+   },
+   {
+    "id": "s2-S5-stream-p6-cand2q-wake-timeline-bbrv3",
+    "arm": "twoq",
+    "workload": "stream",
+    "block": 6,
+    "goodput_mbps": 87.00792320000001,
+    "cpu_per_gib": 15.90883130508351,
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 33617850401.405556,
+     "receive": 21707314812.032684
+    },
+    "wakeups_per_gib": 5301.580254134833,
+    "overflow": 511,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 3.199161822,
+    "late_count": 24806,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.9753910110271378,
+     "delivery_other": 0.14782131392914577,
+     "delivery_timer": 0.8275696970979919,
+     "loop": 0.012931286787530312,
+     "loop_blocked": 9.802567592656148e-07,
+     "loop_running": 0.012930306530771046,
+     "scheduling": 0.011677702185331968,
+     "unarmed": 0
+    },
+    "pacing_wakes": 21768,
+    "wakes_per_gib": 71635.50525884981,
+    "select_wakes": {
+     "": 22,
+     "packet": 23071,
+     "scheduled": 19016,
+     "sendq": 7592,
+     "timer": 21960
+    },
+    "timer_lag_pacing": {
+     "n": 21768,
+     "mean_ns": 120662.21255972069,
+     "median_ns": 115309,
+     "p90_ns": 173228,
+     "p99_ns": 219846,
+     "max_ns": 299022,
+     "share_over_50us": 0.9952682837192208,
+     "share_over_1ms": 0
+    },
+    "aggregate": {
+     "emit_ns": 499113935,
+     "late_bytes": 41205854.87418826,
+     "late_count": 24806,
+     "late_ns": 3199161822,
+     "opportunities": 302975,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      161047529,
+      178373163,
+      27542760522,
+      1397855438,
+      220301334,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 145071
+   },
+   {
+    "id": "s2-S5-stream-p6-new-reno",
+    "arm": "renonew",
+    "workload": "stream",
+    "block": 6,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.286588038583293,
+    "contamination": {
+     "foreign_mean_cores": 0.001333266638003035,
+     "foreign_max_cores": 0.03999799914009105,
+     "sibling_mean_cores": 0.0006765434512187568,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26020371221.987823,
+     "receive": 21545158967.71203
+    },
+    "wakeups_per_gib": 6664.8158603652255,
+    "overflow": 452
+   },
+   {
+    "id": "s2-S5-stream-p6-new-wake-timeline-bbrv3",
+    "arm": "new",
+    "workload": "stream",
+    "block": 6,
+    "goodput_mbps": 93.3892608,
+    "cpu_per_gib": 12.39915072921972,
+    "contamination": {
+     "foreign_mean_cores": 0.003999873416500527,
+     "foreign_max_cores": 0.0799968214062982,
+     "sibling_mean_cores": 0.0006666534161335583,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 34839361991.60402,
+     "receive": 20356915065.016808
+    },
+    "wakeups_per_gib": 3688.3938708635756,
+    "overflow": 799,
+    "analysis_usable": true,
+    "analysis_reason": "",
+    "late_s": 0.294883242,
+    "late_count": 27273,
+    "shares": {
+     "ambiguous": 0,
+     "delivery": 0.8921173214719337,
+     "delivery_other": 0.0077329080639991065,
+     "delivery_timer": 0.8843844134079345,
+     "loop": 0.03414019708858193,
+     "loop_blocked": 4.340701056182772e-06,
+     "loop_running": 0.03413585638752575,
+     "scheduling": 0.07374248143948445,
+     "unarmed": 0
+    },
+    "pacing_wakes": 27070,
+    "wakes_per_gib": 82996.52708584954,
+    "select_wakes": {
+     "": 26,
+     "packet": 28527,
+     "scheduled": 21306,
+     "sendq": 4331,
+     "timer": 27263
+    },
+    "timer_lag_pacing": {
+     "n": 27070,
+     "mean_ns": 26329.638492796454,
+     "median_ns": 7831,
+     "p90_ns": 9430,
+     "p99_ns": 36632,
+     "max_ns": 42749719,
+     "share_over_50us": 0.0007388252678241596,
+     "share_over_1ms": 0.0005541189508681197
+    },
+    "aggregate": {
+     "emit_ns": 381794564,
+     "late_bytes": 3637072.809566283,
+     "late_count": 27273,
+     "late_ns": 294883242,
+     "opportunities": 333713,
+     "state_classes": [
+      "immediate",
+      "app",
+      "paced",
+      "cwnd",
+      "credit",
+      "hard",
+      "other"
+     ],
+     "state_ns": [
+      119641355,
+      124157852,
+      27576097071,
+      1694380564,
+      102587428,
+      0,
+      0
+     ]
+    },
+    "max_bytes_per_10ms": 158935
+   },
+   {
+    "id": "s2-S5-stream-p6-reno-reno",
+    "arm": "reno",
+    "workload": "stream",
+    "block": 6,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.445080465212534,
+    "contamination": {
+     "foreign_mean_cores": 0.00033331481969498845,
+     "foreign_max_cores": 0.009999444590849654,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26145393851.11901,
+     "receive": 21261266206.206535
+    },
+    "wakeups_per_gib": 6894.740063433381,
+    "overflow": 310
+   },
+   {
+    "id": "s2-S5-stream-p6-reno-reno-aa",
+    "arm": "aa",
+    "workload": "stream",
+    "block": 6,
+    "goodput_mbps": 95.89029120000001,
+    "cpu_per_gib": 12.306848242710794,
+    "contamination": {
+     "foreign_mean_cores": 0.0016665849673383976,
+     "foreign_max_cores": 0.049997549020151924,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "cycles_per_gib": {
+     "send": 26027675466.015007,
+     "receive": 21253948390.67931
+    },
+    "wakeups_per_gib": 6348.296827570102,
+    "overflow": 407
+   }
+  ],
+  "per_block": {
+   "stream": [
+    {
+     "block": 1,
+     "deficit_diff_new": -0.07069051845782703,
+     "deficit_diff_aa": 0.00555327962128449,
+     "deficit_diff_twoq": -0.007647139150621429,
+     "late_ratio_new": 0.0907726199612577,
+     "late_ratio_aa": 0.9979139755346469,
+     "late_ratio_twoq": 0.9961661714062663,
+     "wakes_ratio_new": 1.1456413776484908,
+     "wakes_ratio_aa": 0.99042966648974,
+     "cpu_ratio_new": 0.7717442648166145,
+     "cpu_ratio_aa": 1.0115273215243235,
+     "cpu_ratio_twoq": 0.9875354741409018,
+     "wake_classes_new": {
+      "": 23,
+      "packet": 28548,
+      "scheduled": 21363,
+      "sendq": 4801,
+      "timer": 27278
+     },
+     "wake_classes_base": {
+      "": 15,
+      "packet": 22813,
+      "scheduled": 19003,
+      "sendq": 7492,
+      "timer": 22232
+     },
+     "deficit": {
+      "base": 0.09531612727024452,
+      "bbraa": 0.10086940689152901,
+      "new": 0.024625608812417488,
+      "twoq": 0.08766898811962309
+     },
+     "goodput": {
+      "base": 86.7504,
+      "bbraa": 86.2178944,
+      "twoq": 87.48368640000001,
+      "renonew": 95.89029120000001,
+      "new": 93.52893440000001,
+      "reno": 95.89029120000001,
+      "aa": 95.89029120000001
+     },
+     "overflow": {
+      "base": 820,
+      "bbraa": 804,
+      "twoq": 502,
+      "renonew": 376,
+      "new": 834,
+      "reno": 384,
+      "aa": 285
+     }
+    },
+    {
+     "block": 2,
+     "deficit_diff_new": -0.06796249089584849,
+     "deficit_diff_aa": -0.0013656227239621233,
+     "deficit_diff_twoq": -0.00933175528040786,
+     "late_ratio_new": 0.09207314631914608,
+     "late_ratio_aa": 0.9953331330163367,
+     "late_ratio_twoq": 0.9905171610769434,
+     "wakes_ratio_new": 1.156113748998833,
+     "wakes_ratio_aa": 0.9851386705460008,
+     "cpu_ratio_new": 0.774445540694308,
+     "cpu_ratio_aa": 1.0121270679552052,
+     "cpu_ratio_twoq": 0.9944329385286317,
+     "wake_classes_new": {
+      "": 26,
+      "packet": 28733,
+      "scheduled": 21429,
+      "sendq": 4432,
+      "timer": 27469
+     },
+     "wake_classes_base": {
+      "": 18,
+      "packet": 23195,
+      "scheduled": 19090,
+      "sendq": 7369,
+      "timer": 22323
+     },
+     "deficit": {
+      "base": 0.08840131099781501,
+      "bbraa": 0.08703568827385288,
+      "new": 0.020438820101966515,
+      "twoq": 0.07906955571740715
+     },
+     "goodput": {
+      "base": 87.4094848,
+      "bbraa": 87.5404288,
+      "twoq": 88.3042688,
+      "renonew": 95.89029120000001,
+      "new": 93.9261312,
+      "reno": 95.8859264,
+      "aa": 95.89029120000001
+     },
+     "overflow": {
+      "base": 898,
+      "bbraa": 598,
+      "twoq": 802,
+      "renonew": 322,
+      "new": 794,
+      "reno": 404,
+      "aa": 292
+     }
+    },
+    {
+     "block": 3,
+     "deficit_diff_new": -0.04897587619481103,
+     "deficit_diff_aa": 0.0031406463359126002,
+     "deficit_diff_twoq": 0.013973600364133087,
+     "late_ratio_new": 0.08933809759961443,
+     "late_ratio_aa": 1.003698185047703,
+     "late_ratio_twoq": 1.0199391666370416,
+     "wakes_ratio_new": 1.1879924332246672,
+     "wakes_ratio_aa": 0.9978581727151111,
+     "cpu_ratio_new": 0.784305358192611,
+     "cpu_ratio_aa": 1.0054168476823955,
+     "cpu_ratio_twoq": 1.0027664926566033,
+     "wake_classes_new": {
+      "": 29,
+      "packet": 28625,
+      "scheduled": 21410,
+      "sendq": 4352,
+      "timer": 27514
+     },
+     "wake_classes_base": {
+      "": 15,
+      "packet": 22691,
+      "scheduled": 19437,
+      "sendq": 9111,
+      "timer": 22277
+     },
+     "deficit": {
+      "base": 0.0744651797906235,
+      "bbraa": 0.0776058261265361,
+      "new": 0.025489303595812474,
+      "twoq": 0.08843878015475659
+     },
+     "goodput": {
+      "base": 88.7538432,
+      "bbraa": 88.452672,
+      "twoq": 87.41384959999999,
+      "renonew": 95.89029120000001,
+      "new": 93.450368,
+      "reno": 95.894656,
+      "aa": 95.8859264
+     },
+     "overflow": {
+      "base": 921,
+      "bbraa": 643,
+      "twoq": 928,
+      "renonew": 285,
+      "new": 693,
+      "reno": 389,
+      "aa": 284
+     }
+    },
+    {
+     "block": 4,
+     "deficit_diff_new": -0.05662782228696295,
+     "deficit_diff_aa": 0.0027312454479242465,
+     "deficit_diff_twoq": -0.0041423889293517036,
+     "late_ratio_new": 0.08975588062242063,
+     "late_ratio_aa": 0.9984613772322238,
+     "late_ratio_twoq": 1.0002801580760916,
+     "wakes_ratio_new": 1.177094252064516,
+     "wakes_ratio_aa": 1.0106403305506895,
+     "cpu_ratio_new": 0.7738949795297154,
+     "cpu_ratio_aa": 1.0117183680369723,
+     "cpu_ratio_twoq": 0.993321724089653,
+     "wake_classes_new": {
+      "": 27,
+      "packet": 28497,
+      "scheduled": 21241,
+      "sendq": 4284,
+      "timer": 27246
+     },
+     "wake_classes_base": {
+      "": 17,
+      "packet": 23085,
+      "scheduled": 18904,
+      "sendq": 7160,
+      "timer": 21905
+     },
+     "deficit": {
+      "base": 0.08730881281864533,
+      "bbraa": 0.09004005826656958,
+      "new": 0.030680990531682384,
+      "twoq": 0.08316642388929363
+     },
+     "goodput": {
+      "base": 87.51424,
+      "bbraa": 87.252352,
+      "twoq": 87.91143679999999,
+      "renonew": 95.89029120000001,
+      "new": 92.9440512,
+      "reno": 95.8859264,
+      "aa": 95.89029120000001
+     },
+     "overflow": {
+      "base": 584,
+      "bbraa": 706,
+      "twoq": 694,
+      "renonew": 346,
+      "new": 754,
+      "reno": 282,
+      "aa": 288
+     }
+    },
+    {
+     "block": 5,
+     "deficit_diff_new": -0.06809595338886598,
+     "deficit_diff_aa": -0.0009103737084072971,
+     "deficit_diff_twoq": -0.005280167508762257,
+     "late_ratio_new": 0.08955031770197475,
+     "late_ratio_aa": 0.9990525002046139,
+     "late_ratio_twoq": 1.0056766411237497,
+     "wakes_ratio_new": 1.153629022106978,
+     "wakes_ratio_aa": 1.0082319071689663,
+     "cpu_ratio_new": 0.7778640963484567,
+     "cpu_ratio_aa": 1.0001768212305584,
+     "cpu_ratio_twoq": 0.9896591123909423,
+     "wake_classes_new": {
+      "": 24,
+      "packet": 28577,
+      "scheduled": 21456,
+      "sendq": 4879,
+      "timer": 27040
+     },
+     "wake_classes_base": {
+      "": 13,
+      "packet": 23008,
+      "scheduled": 18947,
+      "sendq": 7526,
+      "timer": 21910
+     },
+     "deficit": {
+      "base": 0.09449679093267782,
+      "bbraa": 0.09358641722427052,
+      "new": 0.02640083754381184,
+      "twoq": 0.08921662342391556
+     },
+     "goodput": {
+      "base": 86.82896640000001,
+      "bbraa": 86.91626240000001,
+      "twoq": 87.3352832,
+      "renonew": 95.89029120000001,
+      "new": 93.3587072,
+      "reno": 95.89029120000001,
+      "aa": 95.89029120000001
+     },
+     "overflow": {
+      "base": 795,
+      "bbraa": 570,
+      "twoq": 590,
+      "renonew": 316,
+      "new": 1787,
+      "reno": 302,
+      "aa": 374
+     }
+    },
+    {
+     "block": 6,
+     "deficit_diff_new": -0.06090400109244831,
+     "deficit_diff_aa": -0.009376849196595094,
+     "deficit_diff_twoq": 0.005644316992125309,
+     "late_ratio_new": 0.09158472596089473,
+     "late_ratio_aa": 0.9946918793249573,
+     "late_ratio_twoq": 0.9935944707648959,
+     "wakes_ratio_new": 1.1602055551448671,
+     "wakes_ratio_aa": 0.9897436813082535,
+     "cpu_ratio_new": 0.7777901410502372,
+     "cpu_ratio_aa": 0.9951924406417312,
+     "cpu_ratio_twoq": 0.9979499737482435,
+     "wake_classes_new": {
+      "": 26,
+      "packet": 28527,
+      "scheduled": 21306,
+      "sendq": 4331,
+      "timer": 27263
+     },
+     "wake_classes_base": {
+      "": 19,
+      "packet": 23006,
+      "scheduled": 19165,
+      "sendq": 7655,
+      "timer": 22100
+     },
+     "deficit": {
+      "base": 0.08698620783831756,
+      "bbraa": 0.07760935864172247,
+      "new": 0.026082206745869252,
+      "twoq": 0.09263052483044287
+     },
+     "goodput": {
+      "base": 87.54915840000001,
+      "bbraa": 88.4483072,
+      "twoq": 87.00792320000001,
+      "renonew": 95.89029120000001,
+      "new": 93.3892608,
+      "reno": 95.89029120000001,
+      "aa": 95.89029120000001
+     },
+     "overflow": {
+      "base": 581,
+      "bbraa": 677,
+      "twoq": 511,
+      "renonew": 452,
+      "new": 799,
+      "reno": 310,
+      "aa": 407
+     }
+    }
+   ],
+   "datagram": [
+    {
+     "block": 1,
+     "deficit_diff_new": -0.0789488644914037,
+     "deficit_diff_aa": 0.002156981429894844,
+     "deficit_diff_twoq": -0.0006788639228969551,
+     "late_ratio_new": 0.07978644700398187,
+     "late_ratio_aa": 0.9966801537597398,
+     "late_ratio_twoq": 1.0123847491356857,
+     "wakes_ratio_new": 1.1389634489563587,
+     "wakes_ratio_aa": 0.9927702573034862,
+     "cpu_ratio_new": 0.8736662875051393,
+     "cpu_ratio_aa": 1.0050950031545192,
+     "cpu_ratio_twoq": 1.0106665132082082,
+     "wake_classes_new": {
+      "": 24,
+      "packet": 29234,
+      "scheduled": 43295,
+      "sendq": 21225,
+      "timer": 28573
+     },
+     "wake_classes_base": {
+      "": 20,
+      "packet": 21034,
+      "scheduled": 35861,
+      "sendq": 21093,
+      "timer": 23041
+     },
+     "deficit": {
+      "base": 0.10970507877162405,
+      "bbraa": 0.1118620602015189,
+      "new": 0.03075621428022035,
+      "twoq": 0.1090262148487271
+     },
+     "goodput": {
+      "base": 84.05579093333334,
+      "bbraa": 83.85214293333334,
+      "twoq": 84.1198848,
+      "renonew": 94.41216,
+      "new": 91.50962346666667,
+      "reno": 94.41342293333334,
+      "aa": 94.41405440000001
+     },
+     "overflow": {
+      "base": 126,
+      "bbraa": 113,
+      "twoq": 112,
+      "renonew": 1875,
+      "new": 96,
+      "reno": 1479,
+      "aa": 1662
+     }
+    },
+    {
+     "block": 2,
+     "deficit_diff_new": -0.08727218004882453,
+     "deficit_diff_aa": -0.005939203424405681,
+     "deficit_diff_twoq": -0.005404140052837403,
+     "late_ratio_new": 0.07872911050287872,
+     "late_ratio_aa": 1.0058104467680722,
+     "late_ratio_twoq": 1.0110401767450938,
+     "wakes_ratio_new": 1.1446565358594267,
+     "wakes_ratio_aa": 0.9953194835203955,
+     "cpu_ratio_new": 0.8601902969161277,
+     "cpu_ratio_aa": 0.9954327988718454,
+     "cpu_ratio_twoq": 0.9916675647897433,
+     "wake_classes_new": {
+      "": 27,
+      "packet": 29141,
+      "scheduled": 43788,
+      "sendq": 21114,
+      "timer": 28665
+     },
+     "wake_classes_base": {
+      "": 17,
+      "packet": 20950,
+      "scheduled": 35318,
+      "sendq": 21090,
+      "timer": 22787
+     },
+     "deficit": {
+      "base": 0.11759689663244499,
+      "bbraa": 0.11165769320803931,
+      "new": 0.03032471658362046,
+      "twoq": 0.11219275657960759
+     },
+     "goodput": {
+      "base": 83.310976,
+      "bbraa": 83.8717184,
+      "twoq": 83.82120106666666,
+      "renonew": 94.41468586666666,
+      "new": 91.5506688,
+      "reno": 94.41373866666667,
+      "aa": 94.4112128
+     },
+     "overflow": {
+      "base": 105,
+      "bbraa": 128,
+      "twoq": 117,
+      "renonew": 1528,
+      "new": 99,
+      "reno": 1497,
+      "aa": 1692
+     }
+    },
+    {
+     "block": 3,
+     "deficit_diff_new": -0.09575723931283797,
+     "deficit_diff_aa": -0.0032104124376728382,
+     "deficit_diff_twoq": -0.005859002698752835,
+     "late_ratio_new": 0.0793288830998452,
+     "late_ratio_aa": 1.010152415801186,
+     "late_ratio_twoq": 1.0031373789458913,
+     "wakes_ratio_new": 1.1543615970861916,
+     "wakes_ratio_aa": 1.0060247942775538,
+     "cpu_ratio_new": 0.8614784503253254,
+     "cpu_ratio_aa": 1.0035608595124699,
+     "cpu_ratio_twoq": 0.9841623729601608,
+     "wake_classes_new": {
+      "": 26,
+      "packet": 29424,
+      "scheduled": 44730,
+      "sendq": 20827,
+      "timer": 28957
+     },
+     "wake_classes_base": {
+      "": 19,
+      "packet": 20830,
+      "scheduled": 35627,
+      "sendq": 20927,
+      "timer": 22638
+     },
+     "deficit": {
+      "base": 0.1153574760807552,
+      "bbraa": 0.11214706364308236,
+      "new": 0.019600236767917223,
+      "twoq": 0.10949847338200236
+     },
+     "goodput": {
+      "base": 83.52157013333334,
+      "bbraa": 83.82467413333335,
+      "twoq": 84.07473493333333,
+      "renonew": 94.41468586666666,
+      "new": 92.56227840000001,
+      "reno": 94.41279146666668,
+      "aa": 94.41468586666666
+     },
+     "overflow": {
+      "base": 107,
+      "bbraa": 133,
+      "twoq": 106,
+      "renonew": 1879,
+      "new": 112,
+      "reno": 1916,
+      "aa": 1551
+     }
+    },
+    {
+     "block": 4,
+     "deficit_diff_new": -0.0899316784103108,
+     "deficit_diff_aa": -0.009734906881318506,
+     "deficit_diff_twoq": -0.0022171910897679226,
+     "late_ratio_new": 0.07933406221107966,
+     "late_ratio_aa": 1.0083573536058272,
+     "late_ratio_twoq": 1.0102389028789118,
+     "wakes_ratio_new": 1.149495464340181,
+     "wakes_ratio_aa": 0.999686700043766,
+     "cpu_ratio_new": 0.8635382512587026,
+     "cpu_ratio_aa": 0.9927539237491441,
+     "cpu_ratio_twoq": 1.0023378318703695,
+     "wake_classes_new": {
+      "": 28,
+      "packet": 29315,
+      "scheduled": 43759,
+      "sendq": 21233,
+      "timer": 28794
+     },
+     "wake_classes_base": {
+      "": 22,
+      "packet": 20851,
+      "scheduled": 35826,
+      "sendq": 21034,
+      "timer": 22739
+     },
+     "deficit": {
+      "base": 0.11534409936226508,
+      "bbraa": 0.10560919248094658,
+      "new": 0.025412420951954284,
+      "twoq": 0.11312690827249716
+     },
+     "goodput": {
+      "base": 83.52283306666666,
+      "bbraa": 84.4419328,
+      "twoq": 83.73216426666667,
+      "renonew": 94.41279146666668,
+      "new": 92.01353386666666,
+      "reno": 94.41279146666668,
+      "aa": 94.41405440000001
+     },
+     "overflow": {
+      "base": 119,
+      "bbraa": 100,
+      "twoq": 100,
+      "renonew": 1497,
+      "new": 128,
+      "reno": 1836,
+      "aa": 1856
+     }
+    },
+    {
+     "block": 5,
+     "deficit_diff_new": -0.0737915443217465,
+     "deficit_diff_aa": 0.0051134045442079445,
+     "deficit_diff_twoq": 0.00044478927689972636,
+     "late_ratio_new": 0.07824478393532831,
+     "late_ratio_aa": 0.9923518264952741,
+     "late_ratio_twoq": 1.0020106290666024,
+     "wakes_ratio_new": 1.1425352755119274,
+     "wakes_ratio_aa": 0.9984173319496914,
+     "cpu_ratio_new": 0.8716442408750413,
+     "cpu_ratio_aa": 1.0042973696434307,
+     "cpu_ratio_twoq": 0.999317599552634,
+     "wake_classes_new": {
+      "": 29,
+      "packet": 28746,
+      "scheduled": 42676,
+      "sendq": 22044,
+      "timer": 28410
+     },
+     "wake_classes_base": {
+      "": 18,
+      "packet": 21149,
+      "scheduled": 36155,
+      "sendq": 21064,
+      "timer": 22962
+     },
+     "deficit": {
+      "base": 0.10965560601702917,
+      "bbraa": 0.11476901056123712,
+      "new": 0.03586406169528267,
+      "twoq": 0.1101003952939289
+     },
+     "goodput": {
+      "base": 84.05736959999999,
+      "bbraa": 83.57461333333333,
+      "twoq": 84.01537706666666,
+      "renonew": 94.41437013333334,
+      "new": 91.02402559999999,
+      "reno": 94.40994986666666,
+      "aa": 94.41152853333332
+     },
+     "overflow": {
+      "base": 87,
+      "bbraa": 90,
+      "twoq": 122,
+      "renonew": 1639,
+      "new": 106,
+      "reno": 1580,
+      "aa": 1719
+     }
+    },
+    {
+     "block": 6,
+     "deficit_diff_new": -0.07783682191670893,
+     "deficit_diff_aa": -0.0039562174147139695,
+     "deficit_diff_twoq": -0.003922775171140813,
+     "late_ratio_new": 0.07840438824706593,
+     "late_ratio_aa": 1.0073411478129761,
+     "late_ratio_twoq": 1.0072998824003352,
+     "wakes_ratio_new": 1.1435297116106342,
+     "wakes_ratio_aa": 0.9969704121900564,
+     "cpu_ratio_new": 0.8681241863855116,
+     "cpu_ratio_aa": 1.0000490084392055,
+     "cpu_ratio_twoq": 0.9982571813314783,
+     "wake_classes_new": {
+      "": 27,
+      "packet": 29040,
+      "scheduled": 44139,
+      "sendq": 21301,
+      "timer": 28597
+     },
+     "wake_classes_base": {
+      "": 20,
+      "packet": 21023,
+      "scheduled": 36113,
+      "sendq": 21047,
+      "timer": 23003
+     },
+     "deficit": {
+      "base": 0.10780776060704367,
+      "bbraa": 0.1038515431923297,
+      "new": 0.029970938690334736,
+      "twoq": 0.10388498543590285
+     },
+     "goodput": {
+      "base": 84.23323306666666,
+      "bbraa": 84.6067456,
+      "twoq": 84.60358826666666,
+      "renonew": 94.4131072,
+      "new": 91.5819264,
+      "reno": 94.41152853333332,
+      "aa": 94.41026559999999
+     },
+     "overflow": {
+      "base": 139,
+      "bbraa": 108,
+      "twoq": 87,
+      "renonew": 1624,
+      "new": 100,
+      "reno": 1797,
+      "aa": 1800
+     }
+    }
+   ]
+  },
+  "workloads": {
+   "stream": {
+    "blocks": 6,
+    "deficit_diff": {
+     "movement": "reduction",
+     "median": -0.0644332459941484,
+     "aa_min": -0.009376849196595094,
+     "aa_max": 0.00555327962128449,
+     "n": 6
+    },
+    "late_ratio": {
+     "movement": "reduction",
+     "median": 0.09026425029183915,
+     "aa_min": 0.9946918793249573,
+     "aa_max": 1.003698185047703,
+     "n": 6
+    },
+    "wakes_ratio": {
+     "movement": "increase",
+     "median": 1.15815965207185,
+     "aa_min": 0.9851386705460008,
+     "aa_max": 1.0106403305506895,
+     "n": 6
+    },
+    "cpu_ratio": {
+     "movement": "reduction",
+     "median": 0.7761178408722726,
+     "aa_min": 0.9951924406417312,
+     "aa_max": 1.0121270679552052,
+     "n": 6
+    },
+    "unaccounted_wake_share": 0.00031583923579130976
+   },
+   "datagram": {
+    "blocks": 6,
+    "deficit_diff": {
+     "movement": "reduction",
+     "median": -0.08311052227011412,
+     "aa_min": -0.009734906881318506,
+     "aa_max": 0.0051134045442079445,
+     "n": 6
+    },
+    "late_ratio": {
+     "movement": "reduction",
+     "median": 0.07902899680136197,
+     "aa_min": 0.9923518264952741,
+     "aa_max": 1.010152415801186,
+     "n": 6
+    },
+    "wakes_ratio": {
+     "movement": "increase",
+     "median": 1.1440931237350305,
+     "aa_min": 0.9927702573034862,
+     "aa_max": 1.0060247942775538,
+     "n": 6
+    },
+    "cpu_ratio": {
+     "movement": "reduction",
+     "median": 0.8658312188221071,
+     "aa_min": 0.9927539237491441,
+     "aa_max": 1.0050950031545192,
+     "n": 6
+    },
+    "unaccounted_wake_share": 0.00021839747798390642
+   }
+  },
+  "integrity": true,
+  "preservation": {
+   "cells": {
+    "send": "inside",
+    "receive": "inside"
+   },
+   "ratios": {
+    "send": {
+     "renonew": [
+      1.004899029227707,
+      1.0000951949217387,
+      1.0022504898974063,
+      0.9958857572496326,
+      1.0005601502679617,
+      0.9952181776322395,
+      0.997415238505467,
+      1.0003478594078221,
+      0.9940937339232879,
+      0.9911638348260555,
+      1.0019510272538723,
+      0.9970741041321088
+     ],
+     "aa": [
+      1.0014485359109426,
+      1.000781209596987,
+      0.9961939757217395,
+      1.0031015873063496,
+      0.9989681194090778,
+      0.9954975478367496,
+      1.0023340594703767,
+      0.9955272210245023,
+      1.0022186334590433,
+      0.9979689067744053,
+      1.004534040393538,
+      1.005293173258767
+     ]
+    },
+    "receive": {
+     "renonew": [
+      1.0049459539937904,
+      1.0089171608715493,
+      0.9983736396875939,
+      1.0097765834621946,
+      1.005395441164071,
+      1.0133525801686551,
+      0.9907430742094933,
+      1.0022288687602914,
+      1.003881443864458,
+      0.9858523184477916,
+      0.999056451608001,
+      1.0027304985214103
+     ],
+     "aa": [
+      1.0009001779302982,
+      0.9980919104067821,
+      0.996262757825707,
+      1.0037558933882786,
+      0.9997384364086436,
+      0.9996558146887278,
+      0.988582336645243,
+      0.9999395222640644,
+      0.9954612510693355,
+      0.9907058908649609,
+      0.9872087205403972,
+      1.0040161509185794
+     ]
+    }
+   }
+  },
+  "outcome": "negative",
+  "reasons": [
+   "regressed beyond the BBR A/A range: stream: wakes_ratio, datagram: wakes_ratio"
+  ]
  }
 }
