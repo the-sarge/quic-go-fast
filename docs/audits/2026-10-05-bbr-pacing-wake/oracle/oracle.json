@@ -1,0 +1,26 @@
+{
+  "cand": {
+    "revision": "d0fabc4dbab24a68af9a1960348423dbf0ce8388",
+    "exit": 0,
+    "lines": [
+      "zz_pacing_policy_oracle_test.go:93: oracle hash e12804fb43a1907eb3980f709bbd20267cc63f1592f83244c73560270851fa0d",
+      "zz_pacing_policy_oracle_test.go:94: oracle counts opportunities=400000 admitted=16002040 refused=21 rate_changes=772 max_burst_over_Q=0.9999 max_pending_over_2Q=0.9933"
+    ]
+  },
+  "new": {
+    "revision": "95f5b6b7a0689a035c29d859f4e026469e20d20d",
+    "exit": 0,
+    "lines": [
+      "zz_pacing_policy_oracle_test.go:93: oracle hash e12804fb43a1907eb3980f709bbd20267cc63f1592f83244c73560270851fa0d",
+      "zz_pacing_policy_oracle_test.go:94: oracle counts opportunities=400000 admitted=16002040 refused=21 rate_changes=772 max_burst_over_Q=0.9999 max_pending_over_2Q=0.9933"
+    ]
+  },
+  "equal": true,
+  "policy_sources_identical": {
+    "bbr_send_policy.go": true,
+    "local_send_credit.go": true,
+    "packet_emission.go": true,
+    "packet_emission_bbr.go": true,
+    "bbr_controller.go": true
+  }
+}

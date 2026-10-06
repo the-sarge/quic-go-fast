@@ -119,6 +119,10 @@ def usable_obs(d):
         if receipt['exit_codes'] != [0, 0] or receipt.get('relay_exit') not in (None, 0):
             return False
         summarize(d)
+        for role in ['send', 'receive']:
+            p = d / f'{role}.perf-stat.csv'
+            if p.exists() and any(v['running_pct'] is not None and v['running_pct'] < 95 for v in run.perf_counters(p).values()):
+                return False
         return True
     except (AssertionError, FileNotFoundError, KeyError, json.JSONDecodeError):
         return False
@@ -244,6 +248,82 @@ def s1lb():
     print('s1lb verdict', v)
 
 
+S2_ARMS = {('reno', 'reno', ''): 'reno', ('reno', 'reno', 'aa'): 'aa', ('cand-wake-timeline', 'bbrv3', ''): 'base',
+           ('cand-wake-timeline', 'bbrv3', 'aa'): 'bbraa', ('new-wake-timeline', 'bbrv3', ''): 'new', ('new', 'reno', ''): 'renonew',
+           ('cand2q-wake-timeline', 'bbrv3', ''): 'twoq'}
+TRACED = ['base', 'bbraa', 'new', 'twoq']
+
+
+def s2_obs(d):
+    r = summarize(d)
+    meta = json.loads((d / 'meta.json').read_text())
+    arm = S2_ARMS[(meta['variant'], r['controller'], meta.get('tag') or '')]
+    gib = r['useful_bytes'] / 2**30
+    o = dict(id=d.name, arm=arm, workload=r['workload'], block=r['pair'], goodput_mbps=r['goodput_mbps'],
+             cpu_per_gib=r['send']['cpu_seconds_per_gib'], contamination=contamination(d),
+             cycles_per_gib={role: sum(r[role]['counters_per_gib'].get(e, 0) for e in ['cycles:u', 'cycles:k']) for role in ['send', 'receive']},
+             wakeups_per_gib=r['send']['counters_per_gib'].get('sched:sched_wakeup'),
+             overflow=r.get('relay', {}).get('forward', {}).get('stats', {}).get('Overflow'))
+    if arm in TRACED:
+        a = json.loads((d / 'send.wake.ana.json').read_text())
+        n, ns, _ = overlay_lateness(d)
+        ok, why = R.ana_usable(a, (n, ns))
+        o.update(analysis_usable=ok, analysis_reason=why, late_s=a['late']['sum_ns'] / 1e9, late_count=a['late']['count'],
+                 shares=a['late']['shares'], pacing_wakes=a['pacing_timer_wakes'], wakes_per_gib=a['pacing_timer_wakes'] / gib,
+                 select_wakes=a['select_wakes'], timer_lag_pacing=a['timer_lag_pacing'],
+                 aggregate=wake_meta(d)['aggregate'])
+        t = d / 'send.timeline.json'
+        if t.exists():
+            tl = json.loads(t.read_text())
+            ix = {c: i for i, c in enumerate(tl['emit_columns'])}
+            m = wake_meta(d)
+            sel = [e for i, e in enumerate(tl['emit']) if m['start_unix_ns'] <= tl['base_unix_ns'] + i * tl['bucket_ns'] < m['end_unix_ns']]
+            o['max_bytes_per_10ms'] = max((e[ix['bytes']] for e in sel), default=None)
+    return o
+
+
+def s2():
+    dirs, record = chosen('s2')
+    obs = [s2_obs(d) for d in dirs]
+    integrity = all(usable_obs(d) for d in dirs)
+    per, blocks_out = {}, {}
+    pres = {'send': ([], []), 'receive': ([], [])}
+    for wl in ['stream', 'datagram']:
+        blocks = []
+        for b in range(1, 7):
+            x = {o['arm']: o for o in obs if o['workload'] == wl and o['block'] == b}
+            if set(x) != set(S2_ARMS.values()) or not all(x[k]['analysis_usable'] for k in ['base', 'bbraa', 'new']):
+                continue
+            for role in ['send', 'receive']:
+                pres[role][0].append(x['renonew']['cycles_per_gib'][role] / x['reno']['cycles_per_gib'][role])
+                pres[role][1].append(x['aa']['cycles_per_gib'][role] / x['reno']['cycles_per_gib'][role])
+            deficit = {k: 1 - x[k]['goodput_mbps'] / x['reno']['goodput_mbps'] for k in TRACED}
+            base = x['base']
+            ratio = lambda k, m: (x[k][m] / base[m]) if base[m] else None
+            blocks.append(dict(block=b, deficit_diff_new=deficit['new'] - deficit['base'], deficit_diff_aa=deficit['bbraa'] - deficit['base'],
+                               deficit_diff_twoq=deficit['twoq'] - deficit['base'],
+                               late_ratio_new=ratio('new', 'late_s'), late_ratio_aa=ratio('bbraa', 'late_s'), late_ratio_twoq=ratio('twoq', 'late_s'),
+                               wakes_ratio_new=ratio('new', 'wakes_per_gib'), wakes_ratio_aa=ratio('bbraa', 'wakes_per_gib'),
+                               cpu_ratio_new=ratio('new', 'cpu_per_gib'), cpu_ratio_aa=ratio('bbraa', 'cpu_per_gib'),
+                               cpu_ratio_twoq=ratio('twoq', 'cpu_per_gib'),
+                               wake_classes_new=x['new']['select_wakes'], wake_classes_base=base['select_wakes'],
+                               deficit=deficit, goodput={k: v['goodput_mbps'] for k, v in x.items()},
+                               overflow={k: v['overflow'] for k, v in x.items()}))
+        per[wl] = R.s2_workload(blocks)
+        blocks_out[wl] = blocks
+    preservation = {role: R.preservation_cell(*pres[role]) if pres[role][0] else 'unusable' for role in pres}
+    outcome, reasons = R.s2_outcome(per, integrity, preservation)
+    res = dict(blocks=record, observations=obs, per_block=blocks_out, workloads=per, integrity=integrity,
+               preservation=dict(cells=preservation, ratios={r: dict(renonew=v[0], aa=v[1]) for r, v in pres.items()}),
+               outcome=outcome, reasons=reasons)
+    save('s2', res)
+    for wl, w in per.items():
+        print('s2', wl, {m: (w[m].get('movement'), round(w[m].get('median', 0), 4), round(w[m].get('aa_min', 0), 4), round(w[m].get('aa_max', 0), 4))
+                         for m in ['deficit_diff', 'late_ratio', 'wakes_ratio', 'cpu_ratio']})
+    print('s2 preservation', preservation, 'integrity', integrity)
+    print('s2 outcome', outcome, reasons)
+
+
 def bareview():
     runs = []
     for d in sorted((ART / 'bare').glob('*-*')):
@@ -270,7 +350,7 @@ if __name__ == '__main__':
     elif cmd == 'analyze':
         analyze(sys.argv[2])
     elif cmd == 'all':
-        for f in [stage0, s1, s1lb, bareview]:
+        for f in [stage0, s1, s1lb, bareview, s2]:
             f()
     else:
-        dict(stage0=stage0, s1=s1, s1lb=s1lb, bareview=bareview)[cmd]()
+        dict(stage0=stage0, s1=s1, s1lb=s1lb, bareview=bareview, s2=s2)[cmd]()

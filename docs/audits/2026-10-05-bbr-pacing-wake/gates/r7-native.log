@@ -1,0 +1,14 @@
+# Native Linux tests for r7 (code tree a2f1973c2669ecd9953be9cd303d8910ac56b34f, exported) on minimax, 7.0.0-30-generic
+go version go1.27.0 linux/amd64
+$ go test . -run "BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability" -count=1 -v (tallied)
+panic: test timed out after 10m0s
+FAIL	github.com/quic-go/quic-go	600.099s
+FAIL
+2 top-level PASS, 0 top-level SKIP, exit 1
+$ go test -race . -run "LocalSendCredit|BBRPendingCredit|BBRCapability|PacingWaker" -count=1
+	/home/josh/agents/bbr-pacing-wake-gates-r7/connection.go:611 +0x58b
+FAIL	github.com/quic-go/quic-go	600.025s
+FAIL
+$ go test ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	22.649s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.028s

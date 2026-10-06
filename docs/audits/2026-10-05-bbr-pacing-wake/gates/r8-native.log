@@ -1,0 +1,10 @@
+# Native Linux tests for r8 (code tree 95f5b6b7a0689a035c29d859f4e026469e20d20d, exported) on minimax, 7.0.0-30-generic
+go version go1.27.0 linux/amd64
+$ go test . -run "BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability" -count=1 -v (tallied)
+ok  	github.com/quic-go/quic-go	0.702s
+74 top-level PASS, 0 top-level SKIP, exit 0
+$ go test -race . -run "LocalSendCredit|BBRPendingCredit|BBRCapability|PacingKick" -count=1
+ok  	github.com/quic-go/quic-go	4.161s
+$ go test ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	22.596s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.027s

@@ -1,0 +1,3 @@
+# Full root package, natively, for r8 (95f5b6b7) on minimax under taskset -c 1-3 (added beyond #714 native gates)
+ok  	github.com/quic-go/quic-go	1.658s
+661 top-level PASS, 4 top-level SKIP, exit 0

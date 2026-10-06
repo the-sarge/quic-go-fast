@@ -9,7 +9,7 @@ again with the same seed under `observations-rerun`. After each fixture stage,
 `wake.py analyze` runs the analysis on minimax. Launch under `taskset -c 1-3`
 (run.HARNESS_CPUS).
 
-Usage: matrix.py <stage> [attempt]
+Usage: matrix.py <stage> [attempt | comma-separated blocks]
        matrix.py rerun <stage> <workload> <block>
        matrix.py escalate <workload> <block>
 """
@@ -26,6 +26,10 @@ PRE = [('cand', 'bbrv3', ''), ('cand-wake-timeline', 'bbrv3', '')]
 PRELB = [('cand', 'bbrv3', ''), ('cand-lb-timeline', 'bbrv3', '')]
 WAKE = [('cand-wake-timeline', 'bbrv3', '')]
 LB = [('cand-lb-timeline', 'bbrv3', '')]
+# Stage 2 (README, "Stage 2 mechanism and arms"): frozen Reno, A/A frozen Reno, d0fabc4d instrumented (base),
+# d0fabc4d instrumented again (BBR A/A), the new revision instrumented, Reno on the new revision, the 2Q arm.
+S2 = [('reno', 'reno', ''), ('reno', 'reno', 'aa'), ('cand-wake-timeline', 'bbrv3', ''), ('cand-wake-timeline', 'bbrv3', 'aa'),
+      ('new-wake-timeline', 'bbrv3', ''), ('new', 'reno', ''), ('cand2q-wake-timeline', 'bbrv3', '')]
 
 
 def rotated(arms, block):
@@ -34,17 +38,17 @@ def rotated(arms, block):
     return list(reversed(order)) if block % 2 == 0 else order
 
 
-def block(stage, path, arms, b, seed=None, only=None):
+def block(stage, path, arms, b, seed=None, only=None, perf=None):
     rows = []
     for workload in (['stream', 'datagram'] if b % 2 else ['datagram', 'stream']):
         if only and workload != only:
             continue
         for variant, controller, tag in rotated(arms, b):
-            rows.append(run_case_x(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag))
+            rows.append(run_case_x(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, perf=perf))
     return rows
 
 
-# stage -> (phase, path, arms, blocks, seed base or None, workload)
+# stage -> (phase, path, arms, blocks, seed base or None, workload[, perf])
 STAGES = {
     # Stage 0 perturbation checks (README, "Stage 0"): plain against instrumented, same blocks.
     'preflight': ('preflight', 'S5', PRE, 3, 9850, None),
@@ -52,6 +56,8 @@ STAGES = {
     # Stage 1 (README, "Stage 1"); escalation blocks 5-6 use seeds 9865-9866.
     's1': ('s1', 'S5', WAKE, 4, 9860, None),
     's1lb': ('s1lb', 'loopback', LB, 4, None, 'datagram'),
+    # Stage 2: perf stat on both endpoints of every arm, as in #714.
+    's2': ('s2', 'S5', S2, 6, 9870, None, 'stat'),
 }
 
 
@@ -72,20 +78,21 @@ def main(argv):
         # The registered Stage 1 escalation: two more blocks (5, 6) of one workload, once.
         workload, b = argv[2], int(argv[3])
         assert b in (5, 6)
-        phase, path, arms, n, base, _ = STAGES['s1']
+        phase, path, arms, n, base, _, *_ = STAGES['s1']
         rows = block(phase, path, arms, b, seed=base + b, only=workload)
         stage = f'escalate-s1-{workload}-p{b}'
     elif stage == 'rerun':
         name, workload, b = argv[2], argv[3], int(argv[4])
         run.OBS = run.ART / 'observations-rerun'
-        phase, path, arms, n, base, _ = STAGES[name]
-        rows = block(phase, path, arms, b, seed=base + b if base else None, only=workload)
+        phase, path, arms, n, base, _, *perf = STAGES[name]
+        rows = block(phase, path, arms, b, seed=base + b if base else None, only=workload, perf=perf[0] if perf else None)
         stage = f'rerun-{name}-{workload}-p{b}'
     else:
-        phase, path, arms, n, base, only = STAGES[stage]
+        phase, path, arms, n, base, only, *perf = STAGES[stage]
+        blocks = [int(x) for x in argv[2].split(',')] if len(argv) > 2 else range(1, n + 1)
         rows = []
-        for b in range(1, n + 1):
-            rows += block(phase, path, arms, b, seed=base + b if base else None, only=only)
+        for b in blocks:
+            rows += block(phase, path, arms, b, seed=base + b if base else None, only=only, perf=perf[0] if perf else None)
     run.write(run.ART / f'{stage}-summary.json', [dict(id=r['id'], goodput_mbps=r['goodput_mbps']) for r in rows])
 
 

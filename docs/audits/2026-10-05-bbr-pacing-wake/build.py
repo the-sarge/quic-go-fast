@@ -39,15 +39,20 @@ HEAP_PATCH = ('798f499878290fc70a0df9db1c067c326ec3b3af', 'docs/audits/2026-09-3
 REVISIONS = {
     'reno': 'e4f322cbbfd4225a4b714e08ec19c958cccadcb0',  # frozen matched reference
     'cand': 'd0fabc4d',                                  # surviving revision r6 (#714)
+    'new': '95f5b6b7',                                   # Stage 2: the netpoller kick at the pacing deadline (r8)
 }
-# (revision, timeline overlay, wake recorder, trace on)
-VARIANTS = {name: (rev, False, False, False) for name, rev in REVISIONS.items()}
-VARIANTS['cand-wake-timeline'] = (REVISIONS['cand'], True, True, True)
-VARIANTS['cand-notrace-timeline'] = (REVISIONS['cand'], True, True, False)
+# (revision, timeline overlay, wake recorder, trace on, 2Q credit cap)
+VARIANTS = {name: (rev, False, False, False, False) for name, rev in REVISIONS.items()}
+VARIANTS['cand-wake-timeline'] = (REVISIONS['cand'], True, True, True, False)
+VARIANTS['cand-notrace-timeline'] = (REVISIONS['cand'], True, True, False, False)
 # Loopback: the recorder alone (aggregates and events), trace off, without #715's overlay, whose
 # growing JSON snapshot every 500 ms perturbs loopback goodput. The suffix only makes run_case_x set
 # TIMELINE_OUTPUT, which enables the recorder.
-VARIANTS['cand-lb-timeline'] = (REVISIONS['cand'], False, True, False)
+VARIANTS['cand-lb-timeline'] = (REVISIONS['cand'], False, True, False, False)
+# Stage 2: the new revision instrumented, and the diagnostic 2Q arm (d0fabc4d with the pacing
+# credit cap raised to 2Q, D08 broken; never kept).
+VARIANTS['new-wake-timeline'] = (REVISIONS['new'], True, True, True, False)
+VARIANTS['cand2q-wake-timeline'] = (REVISIONS['cand'], True, True, True, True)
 RECORD = '36f7ce01'  # #715
 RECORD_DIR = 'docs/audits/2026-10-05-bbr-linux-redemonstration'
 COPIED = ['run.py', 'stage_run.py', 'localize.py', 'pack.py', 'launch/main.go', 'relay/main.go', 'relay/main-v1.go.src',
@@ -106,14 +111,17 @@ def wake(tree, trace_on):
     (tree / 'wakerec.go').write_text(src)
     shutil.copy(HERE / 'wake/wake_hooks.go', tree / 'wake_hooks.go')
     conn = tree / 'connection.go'
+    cases = [('case <-c.timer.C:\n', 1), ('case <-c.sendingScheduled:\n', 2), ('case <-c.handshakeSendFeedback.wakeup:\n', 3),
+             ('case <-sendQueueAvailable:\n', 4), ('case <-c.notifyReceivedPacket:\n', 5)]
     replace(conn, '\tif c.blocked == blockModeHardBlocked {\n\t\tc.timer.Reset(monotime.Until(deadline))\n',
             '\tif c.blocked == blockModeHardBlocked {\n\t\twakeArm(deadline, c.pacingDeadline, 1)\n\t\tc.timer.Reset(monotime.Until(deadline))\n')
     replace(conn, '\tif c.blocked == blockModeCongestionLimited {\n\t\tc.timer.Reset(monotime.Until(deadline))\n',
             '\tif c.blocked == blockModeCongestionLimited {\n\t\twakeArm(deadline, c.pacingDeadline, 2)\n\t\tc.timer.Reset(monotime.Until(deadline))\n')
-    replace(conn, '\t\tdeadline = c.pacingDeadline\n\t}\n\tc.timer.Reset(monotime.Until(deadline))\n',
-            '\t\tdeadline = c.pacingDeadline\n\t}\n\twakeArm(deadline, c.pacingDeadline, 0)\n\tc.timer.Reset(monotime.Until(deadline))\n')
-    for case, k in [('case <-c.timer.C:\n', 1), ('case <-c.sendingScheduled:\n', 2), ('case <-c.handshakeSendFeedback.wakeup:\n', 3),
-                    ('case <-sendQueueAvailable:\n', 4), ('case <-c.notifyReceivedPacket:\n', 5)]:
+    # d0fabc4d, or the Stage 2 revision, whose pacing branch also sets the netpoller kick.
+    tail = '\t}\n\tc.timer.Reset(monotime.Until(deadline))\n'
+    head = '\t\tdeadline = c.pacingDeadline\n' + ('\t\tc.pacingKick.arm(deadline)\n' if 'c.pacingKick' in conn.read_text() else '')
+    replace(conn, head + tail, head + '\t}\n\twakeArm(deadline, c.pacingDeadline, 0)\n\tc.timer.Reset(monotime.Until(deadline))\n')
+    for case, k in cases:
         replace(conn, '\t\t\t' + case, '\t\t\t' + case + f'\t\t\t\twakeWoke({k})\n')
     em = tree / 'packet_emission_bbr.go'
     head = 'func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result emissionResult) {\n'
@@ -121,6 +129,38 @@ def wake(tree, trace_on):
         head += '\ttimelineEnter(now)\n\tdefer func() { timelineExit(result) }()\n'
     replace(em, head, head + '\twakeOpp(now)\n\tdefer func() { wakeExit(result, e.bbr) }()\n')
     subprocess.run(['gofmt', '-l', '-w', '.'], cwd=tree, check=True)
+
+
+def two_q(tree):
+    """Diagnostic 2Q arm only: the pacing credit cap rises from Q to 2Q (breaking D08); the deadline
+    (credit reaching Q), initial credit, quantum and the 2Q pending-work bound are unchanged."""
+    pol = tree / 'bbr_send_policy.go'
+    replace(pol, '\t\tmissing := int64(p.quantum)*1e9 - p.tokens\n', '\t\tmissing := 2*int64(p.quantum)*1e9 - p.tokens\n')
+    replace(pol, '\tp.tokens = min(p.tokens, int64(p.quantum)*1e9)\n', '\tp.tokens = min(p.tokens, 2*int64(p.quantum)*1e9)\n')
+
+
+def oracle():
+    """Stage 2 equivalence: the frozen-policy oracle in d0fabc4d's tree and the new revision's."""
+    out = {}
+    for name in ['cand', 'new']:
+        full_rev = git('rev-parse', REVISIONS[name], text=True).strip()
+        tree = ART / 'src' / f'oracle-{name}'
+        assert not tree.exists()
+        tree.mkdir(parents=True)
+        subprocess.run(['tar', '-x', '-C', str(tree)], input=git('archive', '--format=tar', full_rev), check=True)
+        shutil.copy(HERE / 'oracle/pacing_policy_oracle_test.go', tree / 'zz_pacing_policy_oracle_test.go')
+        cmd = ['go', 'test', '.', '-run', 'TestPacingWakePolicyOracle', '-count=1', '-v']
+        r = subprocess.run(cmd, cwd=tree, env=ENV, capture_output=True, text=True)
+        lines = [l.strip() for l in r.stdout.splitlines() if 'oracle ' in l]
+        out[name] = dict(revision=full_rev, exit=r.returncode, lines=lines)
+        assert r.returncode == 0, r.stdout + r.stderr
+    strip = lambda ls: [l.split(': ', 1)[1] for l in ls]
+    out['equal'] = strip(out['cand']['lines']) == strip(out['new']['lines'])
+    assert out['equal'], out
+    policy = ['bbr_send_policy.go', 'local_send_credit.go', 'packet_emission.go', 'packet_emission_bbr.go', 'bbr_controller.go']
+    out['policy_sources_identical'] = {f: git('show', f"{REVISIONS['cand']}:{f}") == git('show', f"{REVISIONS['new']}:{f}") for f in policy}
+    (ART / 'bin' / 'oracle.json').write_text(json.dumps(out, indent=2) + '\n')
+    print('oracle', out['equal'], out['new']['lines'])
 
 
 def go_build(module, pkg, binary, label, platform=LINUX):
@@ -160,16 +200,18 @@ def git_path_model_overlay():
 
 
 def fixture(name):
-    rev, tl, wk, trace_on = VARIANTS[name]
+    rev, tl, wk, trace_on, twoq = VARIANTS[name]
     full_rev, tree, module = export(name, rev)
+    if twoq:
+        two_q(tree)
     if tl:
         timeline(tree)
     if wk:
         wake(tree, trace_on)
-    label = full_rev + ('+timeline' if tl else '') + ('+wake' if wk else '') + ('' if trace_on or not wk else '-notrace')
+    label = full_rev + ('+2q' if twoq else '') + ('+timeline' if tl else '') + ('+wake' if wk else '') + ('' if trace_on or not wk else '-notrace')
     return dict(variant=name, revision=full_rev, heap_fixture=':'.join(HEAP_PATCH),
                 overlays=(['timeline/bbr_timeline.go', 'timeline/emission_timeline.go'] if tl else [])
-                + (['wake/wakerec.go', 'wake/wake_hooks.go'] if wk else []), trace=trace_on,
+                + (['wake/wakerec.go', 'wake/wake_hooks.go'] if wk else []), trace=trace_on, two_q=twoq,
                 builds={'fixture': go_build(module, './fixture', ART / 'bin' / f'{name}-fixture', label)})
 
 
@@ -200,6 +242,8 @@ def build(name):
         module = HERE / 'wake/ana'
         receipt = dict(variant='ana', builds={p['GOOS']: go_build(module, '.', ART / 'bin' / f"wakeana-{p['GOOS']}", 'wakeana', p)
                                               for p in [LINUX, DARWIN]})
+    elif name == 'oracle':
+        return oracle()
     else:
         receipt = fixture(name)
     receipt['go'] = subprocess.check_output(['go', 'version'], cwd=ART, env=ENV, text=True).strip()
@@ -212,5 +256,5 @@ def build(name):
     print(name, 'built')
 
 
-for v in sys.argv[1:] or [*VARIANTS, 'relay', 'harness', 'ana']:
+for v in sys.argv[1:] or [*VARIANTS, 'relay', 'harness', 'ana', 'oracle']:
     build(v)
