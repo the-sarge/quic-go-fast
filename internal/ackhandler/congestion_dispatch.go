@@ -57,6 +57,25 @@ type congestionDispatch struct {
 	event            congestion.FeedbackEvent
 	scratch          []congestion.PacketInfo
 	discovered       []*retainedDelivery
+	// ackedUnordered records that event.Acked left ordinal order while it was
+	// assembled; only then does appendRetainedAck need to sort it.
+	ackedUnordered bool
+}
+
+// appendAcked is the only way an ACK's records enter event.Acked.
+func (d *congestionDispatch) appendAcked(p congestion.PacketInfo) {
+	if n := len(d.event.Acked); n > 0 && p.Ordinal < d.event.Acked[n-1].Ordinal {
+		d.ackedUnordered = true
+	}
+	d.event.Acked = append(d.event.Acked, p)
+}
+
+// sortAcked puts event.Acked in ordinal order. Ordinals are unique, so a list
+// assembled in ordinal order is already the sorted result.
+func (d *congestionDispatch) sortAcked() {
+	if d.ackedUnordered {
+		slices.SortFunc(d.event.Acked, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
+	}
 }
 
 func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *packet, ecn protocol.ECN, prior protocol.ByteCount) {
@@ -140,10 +159,11 @@ func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level pro
 		Acked:            d.scratch[:0],
 		Lost:             d.scratch[len(d.scratch):],
 	}
+	d.ackedUnordered = false
 
 	for _, p := range acked {
 		if info, ok := d.packets.take(congestionKey(p.EncryptionLevel, p.PacketNumber)); ok {
-			d.event.Acked = append(d.event.Acked, info)
+			d.appendAcked(info)
 		}
 	}
 }
@@ -273,13 +293,13 @@ func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol
 	for _, rng := range ack.AckRanges {
 		d.discovered = retainedCovered(d.sampler.covered, space, rng.Smallest, rng.Largest, d.discovered[:0])
 		for _, r := range d.discovered {
-			d.event.Acked = append(d.event.Acked, r.packet)
+			d.appendAcked(r.packet)
 			d.removeRetained(r.key, false)
 		}
 	}
 	clear(d.discovered)
 	endServiceWork(prior)
-	slices.SortFunc(d.event.Acked, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
+	d.sortAcked()
 	for _, p := range d.event.Acked {
 		if currentPathRecoveryReceipt(p, d.pathGeneration) {
 			witness = max(witness, p.PacketNumber)
