@@ -85,18 +85,8 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		d.sampler.evidenceLost = false
 		d.sampler.originlessRegistrations = false
 	}
-	// Build the record once: in its delivery-record slot when the live limit
-	// allows, otherwise on the stack. Nothing mutates the table until Sent.
-	key := congestionKey(p.EncryptionLevel, pn)
-	live := d.packets.len() < maxDeliveryLive
-	var info *congestion.PacketInfo
-	if live {
-		info = d.packets.insert(key)
-	} else {
-		info = new(congestion.PacketInfo)
-	}
-	*info = congestion.PacketInfo{
-		Space:             key.space,
+	info := congestion.PacketInfo{
+		Space:             congestionKey(p.EncryptionLevel, pn).space,
 		Ordinal:           d.ordinal,
 		PathGeneration:    d.pathGeneration,
 		SampleGeneration:  d.sampleGeneration,
@@ -114,16 +104,17 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	d.recovery.sent(info, d.pathGeneration)
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
-	if live {
+	if d.packets.len() < maxDeliveryLive {
 		if b, ok := h.congestion.(*congestion.BBRSender); ok && b.InProbeRTT() {
 			d.sampler.markLimited(congestion.SendProbeRTTLimited)
 		}
-		d.sampler.sent(info, prior, h.bytesInFlight)
+		d.sampler.sent(&info, prior, h.bytesInFlight)
+		d.packets.set(congestionKey(p.EncryptionLevel, pn), info)
 	} else {
 		d.sampler.missing++ // Optional evidence never evicts mandatory recovery.
 		d.sampler.evidenceLost = true
 	}
-	d.sink.Sent(congestion.SendEvent{Packet: *info, PriorInFlight: prior, PostInFlight: h.bytesInFlight})
+	d.sink.Sent(congestion.SendEvent{Packet: info, PriorInFlight: prior, PostInFlight: h.bytesInFlight})
 }
 
 func (h *sentPacketHandler) beginCongestionFeedback(now monotime.Time, level protocol.EncryptionLevel, prior protocol.ByteCount, acked []packetWithPacketNumber, largest protocol.PacketNumber) {

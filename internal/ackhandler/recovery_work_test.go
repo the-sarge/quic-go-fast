@@ -129,7 +129,7 @@ func buildLedger(s ledgerShape) builtLedger {
 	r := &recoveryEvidence{measured: true}
 	var pn protocol.PacketNumber
 	reg := func() protocol.PacketNumber {
-		r.sent(new(workInfo(pn, time.Duration(pn)*time.Microsecond)), 0)
+		r.sent(workInfo(pn, time.Duration(pn)*time.Microsecond), 0)
 		pn++
 		return pn - 1
 	}
@@ -164,7 +164,7 @@ func buildLedger(s ledgerShape) builtLedger {
 func (b *builtLedger) register(n int) (lo, hi protocol.PacketNumber) {
 	lo = b.next
 	for range n {
-		b.r.sent(new(workInfo(b.next, time.Duration(b.next)*time.Microsecond)), 0)
+		b.r.sent(workInfo(b.next, time.Duration(b.next)*time.Microsecond), 0)
 		b.next++
 	}
 	return lo, b.next - 1
@@ -253,8 +253,8 @@ func TestRecoveryServiceWorkScaling(t *testing.T) {
 			b := buildLedger(ledgerShape{acked: 64, lostRuns: runs})
 			if qualifying {
 				lo, hi := b.next, b.next+1
-				b.r.sent(new(workInfo(lo, time.Duration(lo)*time.Microsecond)), 0)
-				b.r.sent(new(workInfo(hi, time.Duration(lo)*time.Microsecond+time.Second)), 0)
+				b.r.sent(workInfo(lo, time.Duration(lo)*time.Microsecond), 0)
+				b.r.sent(workInfo(hi, time.Duration(lo)*time.Microsecond+time.Second), 0)
 				b.next += 2
 				b.r.lost(congestionKey(app, lo), false, false, 0)
 				b.r.lost(congestionKey(app, hi), false, false, 0)
@@ -335,7 +335,7 @@ func retainedDispatch(m int, pto time.Duration) (*sentPacketHandler, *congestion
 	for pn := range protocol.PacketNumber(m + 2) {
 		info := workInfo(pn, time.Duration(pn)*time.Microsecond)
 		d.ordinal = info.Ordinal
-		d.recovery.sent(&info, 0)
+		d.recovery.sent(info, 0)
 		d.packets.set(congestionKey(app, pn), info)
 	}
 	d.registrationTime = workBase.Add(time.Duration(m+2) * time.Microsecond)

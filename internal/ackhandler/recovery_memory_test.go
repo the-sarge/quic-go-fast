@@ -78,7 +78,7 @@ func TestRecoveryMemoryObservable(t *testing.T) {
 	candidateLive := liveHeap(func() any {
 		candidateLedger = &recoveryEvidence{measured: true}
 		for pn := range protocol.PacketNumber(ledgerRegistrations) {
-			candidateLedger.sent(new(memoryInfo(pn)), 0)
+			candidateLedger.sent(memoryInfo(pn), 0)
 		}
 		return candidateLedger
 	})

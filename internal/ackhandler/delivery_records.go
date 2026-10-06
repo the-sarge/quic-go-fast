@@ -76,16 +76,10 @@ func (t *deliveryRecords) has(k congestionPacketKey) bool { return t.find(packDe
 
 // set inserts or replaces the record for k.
 func (t *deliveryRecords) set(k congestionPacketKey, info congestion.PacketInfo) {
-	*t.insert(k) = info
-}
-
-// insert has set's semantics but returns the record's slot for the caller to
-// fill, so a registration builds its record once. The pointer is valid only
-// until the table's next mutation.
-func (t *deliveryRecords) insert(k congestionPacketKey) *congestion.PacketInfo {
 	key := packDelivery(k)
 	if i := t.find(key); i >= 0 {
-		return &t.recs[t.slots[i].rec].info
+		t.recs[t.slots[i].rec].info = info
+		return
 	}
 	if (t.n+1)*8 > len(t.slots)*7 {
 		t.grow()
@@ -93,15 +87,13 @@ func (t *deliveryRecords) insert(k congestionPacketKey) *congestion.PacketInfo {
 	var r int32
 	if n := len(t.free); n > 0 {
 		r, t.free = t.free[n-1], t.free[:n-1]
+		t.recs[r] = deliveryRecord{key: key, info: info}
 	} else {
 		r = int32(len(t.recs))
-		t.recs = append(t.recs, deliveryRecord{})
+		t.recs = append(t.recs, deliveryRecord{key: key, info: info})
 	}
-	// The caller overwrites the whole record.
-	t.recs[r].key = key
 	t.place(key, r)
 	t.n++
-	return &t.recs[r].info
 }
 
 func (t *deliveryRecords) place(key uint64, r int32) {
