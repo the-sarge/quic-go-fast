@@ -222,9 +222,9 @@ type Conn struct {
 	peerParams *wire.TransportParameters
 
 	timer *time.Timer
-	// pacingWake, when not nil, wakes the run loop at BBR's pacing deadline in
-	// place of timer (Linux only; see pacingWaker).
-	pacingWake *pacingWaker
+	// pacingKick, when not nil, makes the runtime service timer at BBR's pacing
+	// deadline (Linux only; see pacingKick).
+	pacingKick *pacingKick
 	// keepAlivePingSent stores whether a keep alive PING is in flight.
 	// It is reset as soon as we receive a packet from the peer.
 	keepAlivePingSent bool
@@ -594,12 +594,9 @@ func (c *Conn) run() (err error) {
 	}()
 
 	c.timer = time.NewTimer(monotime.Until(c.idleTimeoutStartTime().Add(c.config.HandshakeIdleTimeout)))
-	var pacingWakeC <-chan struct{}
 	if c.emission.bbr != nil {
-		if c.pacingWake = newPacingWaker(); c.pacingWake != nil {
-			pacingWakeC = c.pacingWake.C
-			defer c.pacingWake.close()
-		}
+		c.pacingKick = newPacingKick()
+		defer c.pacingKick.close()
 	}
 
 	if err := c.cryptoStreamHandler.StartHandshake(c.ctx); err != nil {
@@ -636,8 +633,6 @@ runLoop:
 		// no need to set a timer if we can send packets immediately
 		if c.pacingDeadline != deadlineSendImmediately {
 			c.maybeResetTimer()
-		} else if c.pacingWake != nil {
-			c.pacingWake.arm(0)
 		}
 
 		// 1st: handle undecryptable packets, if any.
@@ -685,7 +680,6 @@ runLoop:
 			case <-c.closeChan:
 				break runLoop
 			case <-c.timer.C:
-			case <-pacingWakeC:
 			case <-c.sendingScheduled:
 			case <-c.handshakeSendFeedback.wakeup:
 			case <-sendQueueAvailable:
@@ -920,7 +914,6 @@ func (c *Conn) maybeResetTimer() {
 	// If the connection is hard-blocked, we can't even send acknowledgments,
 	// nor can we send PTO probe packets.
 	if c.blocked == blockModeHardBlocked {
-		c.pacingWake.arm(0)
 		c.timer.Reset(monotime.Until(deadline))
 		return
 	}
@@ -932,33 +925,16 @@ func (c *Conn) maybeResetTimer() {
 		deadline = t
 	}
 	if c.blocked == blockModeCongestionLimited {
-		c.pacingWake.arm(0)
 		c.timer.Reset(monotime.Until(deadline))
 		return
 	}
 
-	wakeAt := deadline
 	if !c.pacingDeadline.IsZero() && c.pacingDeadline.Before(deadline) {
-		wakeAt = c.pacingDeadline
-		if c.pacingWake == nil {
-			deadline = c.pacingDeadline
-		} else if fallback := c.pacingDeadline.Add(pacingWakeFallback); fallback.Before(deadline) {
-			// The waker owns the pacing deadline; the timer stays behind it so a
-			// waker that never fires delays the loop by at most the fallback.
-			deadline = fallback
-		}
-	}
-	if wakeAt == deadline {
-		c.pacingWake.arm(0)
-	} else {
-		c.pacingWake.arm(wakeAt)
+		deadline = c.pacingDeadline
+		c.pacingKick.arm(deadline)
 	}
 	c.timer.Reset(monotime.Until(deadline))
 }
-
-// pacingWakeFallback bounds how late the connection's Go timer may service a
-// pacing deadline that the pacing waker owns.
-const pacingWakeFallback = 2 * time.Millisecond
 
 func (c *Conn) idleTimeoutStartTime() monotime.Time {
 	startTime := c.lastPacketReceivedTime
