@@ -14,6 +14,16 @@
     "new": "l2",
     "lead": 2,
     "revision": "8f1ffbc5",
-    "site": "appendRetainedAck"
+    "site": "appendRetainedAck",
+    "ran": true,
+    "outcome": "inconclusive; not kept, reverted (b4dce8b8)",
+    "note": "clean data; STREAM median 0.9951 with one block above 1 (1.0057); DATAGRAM reduction 0.9964"
+  },
+  "m3": {
+    "prev": "r8",
+    "new": "l3",
+    "lead": 3,
+    "revision": "076126ea",
+    "site": "beginCongestionFeedback"
   }
 }
