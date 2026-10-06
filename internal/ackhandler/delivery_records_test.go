@@ -61,6 +61,8 @@ func TestDeliveryRecordsMapEquivalence(t *testing.T) {
 	var ops, maxLive int
 	for seed := range seeds {
 		rng := rand.New(rand.NewPCG(uint64(seed), 0x714))
+		// #735 lead 3 draws from its own stream, so the histories stay #714's.
+		pick := rand.New(rand.NewPCG(uint64(seed), 0x735))
 		var got deliveryRecords
 		want := map[congestionPacketKey]congestion.PacketInfo{}
 		next := [3]protocol.PacketNumber{0, 0, protocol.PacketNumber(rng.IntN(3)) * (1<<62 - 1<<20)}
@@ -108,8 +110,20 @@ func TestDeliveryRecordsMapEquivalence(t *testing.T) {
 				lo := hi - protocol.PacketNumber(rng.IntN(32))
 				for pn := lo; pn <= hi; pn++ {
 					k := congestionPacketKey{space: s, number: pn}
-					_, ok := want[k]
-					require.Equal(t, ok, got.delete(k))
+					w, ok := want[k]
+					if pick.IntN(2) == 0 {
+						// #735 lead 3: the ACK path moves the record into the event list.
+						dst := []congestion.PacketInfo{{Ordinal: 1}}
+						dst, gok := got.takeAppend(k, dst)
+						require.Equal(t, ok, gok)
+						if ok {
+							require.Equal(t, []congestion.PacketInfo{{Ordinal: 1}, w}, dst)
+						} else {
+							require.Len(t, dst, 1)
+						}
+					} else {
+						require.Equal(t, ok, got.delete(k))
+					}
 					delete(want, k)
 				}
 			case x < look: // lookups
