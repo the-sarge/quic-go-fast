@@ -102,17 +102,29 @@ var _ sender = &sendQueue{}
 
 const sendQueueCapacity = 8
 
+// bbrSendQueueCapacity is the queue depth of a BBR connection. At high rates
+// BBR's pacer releases about one packet per opportunity, so each entry holds
+// one packet and an eight-entry queue makes the connection loop and the
+// worker hand off every packet. A deeper queue lets the loop run ahead of the
+// worker. It bounds entries only: local send credit still bounds pending
+// bytes at 2Q, and Reno's queue is unchanged.
+const bbrSendQueueCapacity = 32
+
 // maxSendBatch caps how many queued packets one batched send coalesces.
 const maxSendBatch = sendQueueCapacity
 
 func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
+	return newSendQueueWithCapacity(conn, feedback, sendQueueCapacity)
+}
+
+func newSendQueueWithCapacity(conn sendConn, feedback *handshakeSendFeedback, capacity int) sender {
 	return &sendQueue{
 		conn:        conn,
 		feedback:    feedback,
 		runStopped:  make(chan struct{}),
 		closeCalled: make(chan struct{}),
 		available:   make(chan struct{}, 1),
-		queue:       make(chan queueEntry, sendQueueCapacity),
+		queue:       make(chan queueEntry, capacity),
 	}
 }
 
@@ -124,7 +136,7 @@ func (h *sendQueue) Send(p *packetBuffer, gsoSize uint16, ecn protocol.ECN, meta
 	select {
 	case h.queue <- queueEntry{buf: p, gsoSize: gsoSize, ecn: ecn, metadata: metadata}:
 		// clear available channel if we've reached capacity
-		if len(h.queue) == sendQueueCapacity {
+		if len(h.queue) == cap(h.queue) {
 			select {
 			case <-h.available:
 			default:
@@ -145,7 +157,7 @@ func (h *sendQueue) SendProbe(p *packetBuffer, addr net.Addr, info packetInfo) {
 }
 
 func (h *sendQueue) WouldBlock() bool {
-	return len(h.queue) == sendQueueCapacity
+	return len(h.queue) == cap(h.queue)
 }
 
 func (h *sendQueue) Available() <-chan struct{} {

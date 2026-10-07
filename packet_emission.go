@@ -578,9 +578,17 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 	*e.conn = conn
 	e.connMutex.Unlock()
 	e.queue.Close()
-	queue := newSendQueue(conn, feedback)
+	queue := newSendQueueWithCapacity(conn, feedback, sendQueueCapacityFor(e.bbr != nil))
 	e.queue = queue
 	return queue
+}
+
+// sendQueueCapacityFor keeps a connection's queue depth across path replacement.
+func sendQueueCapacityFor(bbr bool) int {
+	if bbr {
+		return bbrSendQueueCapacity
+	}
+	return sendQueueCapacity
 }
 
 // In-place rebinding deliberately retains the active queue: pending writes use
