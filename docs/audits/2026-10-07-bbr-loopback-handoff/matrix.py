@@ -86,7 +86,7 @@ STAGES = {
     'devsyn': ('devsyn', 'loopback', SYN, 1, None, None),
     # Stage 0 (README, "Stage 0").
     'synthetic': ('synthetic', 'loopback', SYN, 1, None, None),
-    'preflight': ('preflight', 'loopback', PRE, 3, None, None),
+    'preflight': ('preflight', 'loopback', PRE, 5, None, None),
     'activation': ('activation', 'loopback', ACT, 1, None, None),
     # Stage 1 (README, "Stage 1").
     's1': ('s1', 'loopback', S1, 4, None, None),
