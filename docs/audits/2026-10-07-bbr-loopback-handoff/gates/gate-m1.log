@@ -1,0 +1,216 @@
+# Gates for gate-m1 (exported tree; build receipt bin/gate-m1-build.json)
+# go version go1.27.0 darwin/arm64
+39:	e.reservation = e.bbr.credit.reserve(n, 4*e.bbr.quantum, ordinary, isolated)
+231:	if e.bbr.credit.waitForReservation(requested, 4*e.bbr.quantum, size, ordinary, isolated) {
+# variant bound: const variantBoundQ = 4
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	22.249s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.155s
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	336.525s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.326s
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	21.950s
+$ go test . -run BBRVariant -count=1 -v
+=== RUN   TestBBRVariantPendingBoundDrainRefill
+=== RUN   TestBBRVariantPendingBoundDrainRefill/false
+    zz_pending_bound_variant_test.go:72: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/zz_pending_bound_variant_test.go:72
+        	Error:      	Not equal: 
+        	            	expected: (<-chan struct {})(0x1809abb08e00)
+        	            	actual  : (<-chan struct {})(0x1809abb08d90)
+        	Test:       	TestBBRVariantPendingBoundDrainRefill/false
+        	Messages:   	byte credit, not the queue, refuses
+=== RUN   TestBBRVariantPendingBoundDrainRefill/true
+--- FAIL: TestBBRVariantPendingBoundDrainRefill (0.00s)
+    --- FAIL: TestBBRVariantPendingBoundDrainRefill/false (0.00s)
+    --- PASS: TestBBRVariantPendingBoundDrainRefill/true (0.00s)
+=== RUN   TestBBRVariantQuantumDecreaseWithDebt
+--- PASS: TestBBRVariantQuantumDecreaseWithDebt (0.00s)
+=== RUN   TestBBRVariantExemptionsUnderBound
+=== RUN   TestBBRVariantExemptionsUnderBound/ACK_with_one_packet_of_headroom
+=== RUN   TestBBRVariantExemptionsUnderBound/PTO_with_one_packet_of_headroom
+=== RUN   TestBBRVariantExemptionsUnderBound/hard_block_isolated=false
+=== RUN   TestBBRVariantExemptionsUnderBound/hard_block_isolated=true
+=== RUN   TestBBRVariantExemptionsUnderBound/isolated_probe_waits_for_an_empty_ledger
+--- PASS: TestBBRVariantExemptionsUnderBound (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/ACK_with_one_packet_of_headroom (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/PTO_with_one_packet_of_headroom (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/hard_block_isolated=false (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/hard_block_isolated=true (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/isolated_probe_waits_for_an_empty_ledger (0.00s)
+=== RUN   TestBBRVariantGSOPressurePreservesControl
+--- PASS: TestBBRVariantGSOPressurePreservesControl (0.00s)
+=== RUN   TestBBRVariantDeliveryLocalLimited
+--- PASS: TestBBRVariantDeliveryLocalLimited (0.00s)
+=== RUN   TestBBRVariantPolicyBounds
+    zz_pending_bound_variant_test.go:329: variant bound 4Q: hash f3d12ed9a2b36a5b3558946ff77231b21d3e0a0f39fddf68dcbdd1b3f93081b3 refused=72296 max_burst_over_Q=0.9993 max_pending_over_bound=0.9999
+--- PASS: TestBBRVariantPolicyBounds (0.29s)
+=== RUN   TestBBRVariantCreditReturnPoint
+    zz_pending_bound_variant_test.go:361: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/zz_pending_bound_variant_test.go:361
+        	Error:      	Expected nil, but got: &quic.sendReservation{owner:(*quic.localSendCredit)(0x1809abb5c0f0), bytes:1, generation:0x0, isolated:false}
+        	Test:       	TestBBRVariantCreditReturnPoint
+        	Messages:   	dequeue must not return credit
+--- FAIL: TestBBRVariantCreditReturnPoint (0.00s)
+panic: deadlock: main bubble goroutine has exited but blocked goroutines remain [recovered, repanicked]
+
+goroutine 65 [running]:
+testing.tRunner.func1.2({0x1055d4058, 0x1809ab992060})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2123 +0x1a0
+testing.tRunner.func1()
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2126 +0x2c8
+panic({0x1055d4058?, 0x1809ab992060?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/panic.go:859 +0x120
+internal/synctest.Run(0x1809abb18680)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/synctest.go:247 +0x2b4
+testing/synctest.Test(0x1809abd4d208, 0x1056276c0)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/synctest/synctest.go:291 +0x90
+github.com/quic-go/quic-go.TestBBRVariantCreditReturnPoint(0x1809abd4d208?)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/zz_pending_bound_variant_test.go:342 +0x24
+testing.tRunner(0x1809abd4d208, 0x105626040)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2193 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2258 +0x3b8
+
+goroutine 68 [chan receive (durable), synctest bubble 3]:
+github.com/quic-go/quic-go.TestBBRVariantCreditReturnPoint.func1.1({0x1809abe93598?, 0x104b9de58?, 0x0?}, 0x0?, 0x0?)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/zz_pending_bound_variant_test.go:349 +0x24
+reflect.Value.call({0x10555c588?, 0x1809abc46180?, 0x1809abe93be8?}, {0x10502f52e, 0x4}, {0x1809abb5c140, 0x3, 0x104dff24c?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/reflect/value.go:586 +0xa88
+reflect.Value.Call({0x10555c588?, 0x1809abc46180?, 0x10502f96a?}, {0x1809abb5c140?, 0x1809abc461a0?, 0x1809abe35008?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/reflect/value.go:369 +0x94
+go.uber.org/mock/gomock.(*Call).DoAndReturn.func1({0x1809abbb2480, 0x3, 0x1809abb02258?})
+	/Users/josh/go/pkg/mod/go.uber.org/mock@v0.6.0/gomock/call.go:140 +0x440
+go.uber.org/mock/gomock.(*Controller).Call(0x1809abbb2210, {0x10552c6f8, 0x1809abb02258}, {0x10502f96a, 0x5}, {0x1809abbb2480, 0x3, 0x3})
+	/Users/josh/go/pkg/mod/go.uber.org/mock@v0.6.0/gomock/controller.go:234 +0xac
+github.com/quic-go/quic-go.(*MockSendConn).Write(0x1809abb02258, {0x1809abdc0000, 0x4b0, 0x5ac}, 0x0, 0x1)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/mock_send_conn_test.go:197 +0x11c
+github.com/quic-go/quic-go.(*sendQueue).writeEntry(0x1809aba9e310, {{0x0, 0x0, 0x0}, 0x1809abbb2300, 0x0, 0x1})
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/send_queue.go:196 +0x4c
+github.com/quic-go/quic-go.(*sendQueue).Run(0x1809aba9e310)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/send_queue.go:176 +0x1cc
+github.com/quic-go/quic-go.TestBBRVariantCreditReturnPoint.func1.2()
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/zz_pending_bound_variant_test.go:359 +0x3c
+created by github.com/quic-go/quic-go.TestBBRVariantCreditReturnPoint.func1 in goroutine 67
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/zz_pending_bound_variant_test.go:359 +0x4fc
+FAIL	github.com/quic-go/quic-go	0.474s
+FAIL
+FAILED: go test . -run BBRVariant -count=1 -v
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+--- FAIL: TestBBRECNCoalescedAndPathProbeMarking (0.00s)
+    --- FAIL: TestBBRECNCoalescedAndPathProbeMarking/server_rebind_worker_fence (0.00s)
+        bbr_ecn_test.go:125: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:125
+            	Error:      	Not equal: 
+            	            	expected: 0x1
+            	            	actual  : 0x3
+            	Test:       	TestBBRECNCoalescedAndPathProbeMarking/server_rebind_worker_fence
+panic: deadlock: main bubble goroutine has exited but blocked goroutines remain [recovered, repanicked]
+
+goroutine 58 [running]:
+testing.tRunner.func1.2({0x1058ec058, 0x2bf59bc1a048})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2123 +0x1a0
+testing.tRunner.func1()
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2126 +0x2c8
+panic({0x1058ec058?, 0x2bf59bc1a048?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/panic.go:859 +0x120
+internal/synctest.Run(0x2bf59ba14440)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/synctest.go:247 +0x2b4
+testing/synctest.Test(0x2bf59b9d8fc8, 0x2bf59bc20230)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/synctest/synctest.go:291 +0x90
+github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4(0x2bf59b9d8fc8)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:107 +0x58
+testing.tRunner(0x2bf59b9d8fc8, 0x2bf59bc20200)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2193 +0xc4
+created by testing.(*T).Run in goroutine 25
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2258 +0x3b8
+
+goroutine 29 [chan receive (durable), synctest bubble 4]:
+github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4.1.1({0x2bf59b9e95a8?, 0x104eb5e58?, 0x0?}, 0x0?, 0x0?)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:115 +0x24
+reflect.Value.call({0x105874588?, 0x2bf59b938300?, 0x2bf59b9e9bf8?}, {0x10534752e, 0x4}, {0x2bf59bc000a0, 0x3, 0x10511724c?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/reflect/value.go:586 +0xa88
+reflect.Value.Call({0x105874588?, 0x2bf59b938300?, 0x10534796a?}, {0x2bf59bc000a0?, 0x2bf59b938340?, 0x2bf59b97c808?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/reflect/value.go:369 +0x94
+go.uber.org/mock/gomock.(*Call).DoAndReturn.func1({0x2bf59bc0c390, 0x3, 0x2bf59bc1a4b0?})
+	/Users/josh/go/pkg/mod/go.uber.org/mock@v0.6.0/gomock/call.go:140 +0x440
+go.uber.org/mock/gomock.(*Controller).Call(0x2bf59b9a7e30, {0x1058446f8, 0x2bf59bc1a4b0}, {0x10534796a, 0x5}, {0x2bf59bc0c390, 0x3, 0x3})
+	/Users/josh/go/pkg/mod/go.uber.org/mock@v0.6.0/gomock/controller.go:234 +0xac
+github.com/quic-go/quic-go.(*MockSendConn).Write(0x2bf59bc1a4b0, {0x2bf59baa8c00, 0x1d, 0x5ac}, 0x0, 0x3)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/mock_send_conn_test.go:197 +0x11c
+github.com/quic-go/quic-go.(*sendQueue).writeEntry(0x2bf59bc123f0, {{0x0, 0x0, 0x0}, 0x2bf59ba9f260, 0x0, 0x3})
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/send_queue.go:196 +0x4c
+github.com/quic-go/quic-go.(*sendQueue).Run(0x2bf59bc123f0)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/send_queue.go:176 +0x1cc
+github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4.1.2()
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:117 +0x24
+created by github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4.1 in goroutine 60
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:117 +0x2c0
+FAIL	github.com/quic-go/quic-go	0.156s
+FAIL
+FAILED: go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+--- FAIL: TestBBRECNCoalescedAndPathProbeMarking (0.00s)
+    --- FAIL: TestBBRECNCoalescedAndPathProbeMarking/server_rebind_worker_fence (0.00s)
+        bbr_ecn_test.go:125: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:125
+            	Error:      	Not equal: 
+            	            	expected: 0x1
+            	            	actual  : 0x3
+            	Test:       	TestBBRECNCoalescedAndPathProbeMarking/server_rebind_worker_fence
+panic: deadlock: main bubble goroutine has exited but blocked goroutines remain [recovered, repanicked]
+
+goroutine 38 [running]:
+testing.tRunner.func1.2({0x101805d30, 0xc00038a048})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2123 +0x2b8
+testing.tRunner.func1()
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2126 +0x438
+panic({0x101805d30?, 0xc00038a048?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/panic.go:859 +0x120
+internal/synctest.Run(0xc0001387a0)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/synctest.go:247 +0x2c4
+testing/synctest.Test(0xc0003b0488, 0xc000012490)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/synctest/synctest.go:291 +0x114
+github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4(0xc0003b0488)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:107 +0x70
+testing.tRunner(0xc0003b0488, 0xc000012450)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2193 +0x168
+created by testing.(*T).Run in goroutine 72
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2258 +0x7c0
+
+goroutine 41 [chan receive (durable), synctest bubble 4]:
+github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4.1.1({0xc0005b9398?, 0x100a6580c?, 0xc0005b9398?}, 0x5800?, 0xa6?)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:115 +0x34
+reflect.Value.call({0x10178b5b8?, 0xc00038c030?, 0xc0005b9af8?}, {0x1011a3583, 0x4}, {0xc000022050, 0x3, 0x100e431cc?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/reflect/value.go:586 +0xbfc
+reflect.Value.Call({0x10178b5b8?, 0xc00038c030?, 0xc0005b9c18?}, {0xc000022050, 0x3, 0x3})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/reflect/value.go:369 +0x94
+go.uber.org/mock/gomock.(*Call).DoAndReturn.func1({0xc0001b6060, 0x3, 0xc00038a4b0?})
+	/Users/josh/go/pkg/mod/go.uber.org/mock@v0.6.0/gomock/call.go:140 +0x648
+go.uber.org/mock/gomock.(*Controller).Call(0xc0001b6d20, {0x10175ad68, 0xc00038a4b0}, {0x1011a3a35, 0x5}, {0xc0001b6060, 0x3, 0x3})
+	/Users/josh/go/pkg/mod/go.uber.org/mock@v0.6.0/gomock/controller.go:234 +0xcc
+github.com/quic-go/quic-go.(*MockSendConn).Write(0xc00038a4b0, {0xc0003e5800, 0x1d, 0x5ac}, 0x0, 0x3)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/mock_send_conn_test.go:197 +0x19c
+github.com/quic-go/quic-go.(*sendQueue).writeEntry(0xc0003804d0, {{0x0, 0x0, 0x0}, 0xc00011db60, 0x0, 0x3})
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/send_queue.go:196 +0xa8
+github.com/quic-go/quic-go.(*sendQueue).Run(0xc0003804d0)
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/send_queue.go:176 +0x2cc
+github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4.1.2()
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:117 +0x34
+created by github.com/quic-go/quic-go.TestBBRECNCoalescedAndPathProbeMarking.func4.1 in goroutine 40
+	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-m1/bbr_ecn_test.go:117 +0x3f4
+FAIL	github.com/quic-go/quic-go	0.210s
+FAIL
+FAILED: go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+--- FAIL: TestBBRECNCoalescedAndPathProbeMarking (0.00s)
+panic: deadlock: main bubble goroutine has exited but blocked goroutines remain [recovered, repanicked]
+panic({0x104f10058?, 0x769f2378e2e8?})
+FAIL	github.com/quic-go/quic-go	0.141s
+FAIL
+4 top-level PASS
+0 top-level SKIP
+FAILED: sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+# status 1

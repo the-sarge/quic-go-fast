@@ -1,0 +1,55 @@
+# Gates for gate-4q (exported tree; build receipt bin/gate-4q-build.json)
+# go version go1.27.0 darwin/arm64
+39:	e.reservation = e.bbr.credit.reserve(n, 4*e.bbr.quantum, ordinary, isolated)
+231:	if e.bbr.credit.waitForReservation(requested, 4*e.bbr.quantum, size, ordinary, isolated) {
+# variant bound: const variantBoundQ = 4
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	21.059s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.210s
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	336.653s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.310s
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	21.959s
+$ go test . -run BBRVariant -count=1 -v
+=== RUN   TestBBRVariantPendingBoundDrainRefill
+=== RUN   TestBBRVariantPendingBoundDrainRefill/false
+=== RUN   TestBBRVariantPendingBoundDrainRefill/true
+--- PASS: TestBBRVariantPendingBoundDrainRefill (0.00s)
+    --- PASS: TestBBRVariantPendingBoundDrainRefill/false (0.00s)
+    --- PASS: TestBBRVariantPendingBoundDrainRefill/true (0.00s)
+=== RUN   TestBBRVariantQuantumDecreaseWithDebt
+--- PASS: TestBBRVariantQuantumDecreaseWithDebt (0.00s)
+=== RUN   TestBBRVariantExemptionsUnderBound
+=== RUN   TestBBRVariantExemptionsUnderBound/ACK_with_one_packet_of_headroom
+=== RUN   TestBBRVariantExemptionsUnderBound/PTO_with_one_packet_of_headroom
+=== RUN   TestBBRVariantExemptionsUnderBound/hard_block_isolated=false
+=== RUN   TestBBRVariantExemptionsUnderBound/hard_block_isolated=true
+=== RUN   TestBBRVariantExemptionsUnderBound/isolated_probe_waits_for_an_empty_ledger
+--- PASS: TestBBRVariantExemptionsUnderBound (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/ACK_with_one_packet_of_headroom (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/PTO_with_one_packet_of_headroom (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/hard_block_isolated=false (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/hard_block_isolated=true (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/isolated_probe_waits_for_an_empty_ledger (0.00s)
+=== RUN   TestBBRVariantGSOPressurePreservesControl
+--- PASS: TestBBRVariantGSOPressurePreservesControl (0.00s)
+=== RUN   TestBBRVariantDeliveryLocalLimited
+--- PASS: TestBBRVariantDeliveryLocalLimited (0.00s)
+=== RUN   TestBBRVariantPolicyBounds
+    zz_pending_bound_variant_test.go:329: variant bound 4Q: hash f3d12ed9a2b36a5b3558946ff77231b21d3e0a0f39fddf68dcbdd1b3f93081b3 refused=72296 max_burst_over_Q=0.9993 max_pending_over_bound=0.9999
+--- PASS: TestBBRVariantPolicyBounds (0.29s)
+=== RUN   TestBBRVariantCreditReturnPoint
+--- PASS: TestBBRVariantCreditReturnPoint (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go	0.472s
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	0.950s
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	17.380s
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+ok  	github.com/quic-go/quic-go	2.148s
+661 top-level PASS
+7 top-level SKIP
+# status 0
