@@ -4,7 +4,55 @@
 
 Branch `codex/bbr-loopback-handoff`, based on `232a6b76` (the accepted decision). The starting revision is **r8, `95f5b6b7`**.
 
-**Status: registered; no counted observation yet.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded development runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: complete. The ticket ends in Stage 0 with an instrumentation gap in both workloads**, under the registered rule; Stages 1 and 2 did not run. The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded development runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+
+## Answer
+
+**The registered instrument failed its perturbation check in both workloads, so under D4 the ticket ends with an instrumentation gap: no Stage 1 attribution, no remedy attempted, and r8 (`95f5b6b7`) survives unchanged.** On a quiet `minimax`, the hand-off recorder delivered 0.977 (STREAM) and 0.982 (DATAGRAM) of the plain build's loopback goodput, against D4's 0.99 floor, in five clean blocks each. It did recover all five synthetic cases in both workloads.
+
+**The diagnostic 4Q arm is inert in both workloads.** Its gates passed, including detection of an injected second violation, but in the registered activation runs no admission took pending work above 2Q: the maximum was 0.17 Q (DATAGRAM) and 0.19 Q (STREAM). Raising the 2Q bound changes nothing on this fixture.
+
+**What the failed instrument showed, descriptively and not as attribution:** both workloads hand the send worker one packet per queue entry, the local credit was never refused, and every local wait was a full eight-entry send queue. On DATAGRAM the recorder read hand-off (queue) in all five preflight blocks; on STREAM it read inconclusive in all five, with the loop's waits split between the full queue (0.20 of the window) and the application writer (0.20). These readings match the excluded development runs, but they come from an instrument that perturbs goodput by about 2%. D4 does not let them stand as Stage 1 findings.
+
+**Endings (D4):** credit response **inert**; remedy status **not attempted**; Stage 1 attribution **instrumentation gap** in both workloads.
+
+## Stage 0 result: instrumentation gap
+
+Run on October 7 (UTC) after the registration commits (`791208b5`, `c5e0916c`), every block started only after 60 s of quiet fixture cores; [results.json](results.json) `stage0`. All 32 observations exited cleanly with receiver integrity and none was contaminated.
+
+- **Synthetic cases: all recovered in both workloads.**
+
+  | Case | DATAGRAM | STREAM |
+  | --- | --- | --- |
+  | Slow worker | worker-bound; worker busy 1.00, submission mean 22.4 µs | worker-bound; 1.00, 22.3 µs |
+  | Delayed local signal | hand-off; local waits 0.75, `j_hh` 0.52 | hand-off; 0.65, `j_hh` 0.45 |
+  | Busy loop | loop-bound; loop running 1.00, local waits 0.00 | loop-bound; 0.99, 0.00 |
+  | Congestion-window waits | window-bound; window waits 0.49 | window-bound; 0.51 |
+  | Mixed | hand-off + window-bound; local 0.32, window 0.31 | hand-off + window-bound; 0.25, 0.31 |
+
+- **Perturbation: failed in both workloads.** Instrumented ÷ plain goodput per block: STREAM 0.975, 0.977, 0.983, 0.978, 0.976 (median **0.977**; plain median 4,463 Mbit/s); DATAGRAM 0.998, 0.980, 0.995, 0.982, 0.978 (median **0.982**). The excluded `devsmoke7` runs of the build before the last two recorder changes had read 1.004 and 1.001; the registered binary differs in code as well as placement, and the registered check decides.
+- **Diagnostic arm: gates passed; activation inert in both workloads** (no admission above 2Q; maximum pending 0.17 Q DATAGRAM, 0.19 Q STREAM). Under the registration it would still have run in Stage 1, which did not run.
+
+### Descriptive only: what the failed instrument recorded on r8
+
+Medians of the five preflight `cand-hand-timeline` blocks. These are not Stage 1 evidence.
+
+| Measure | DATAGRAM | STREAM |
+| --- | --- | --- |
+| Packets per queue entry | 1.00 | 1.00 |
+| Credit refusals; maximum pending | 0; 0.17 Q | 0; 0.19 Q |
+| Worker busy `u_w`; loop running `u_c` | 0.757; 0.569 | 0.701; 0.583 |
+| Blocked on a full queue; on the application; on window or pacing | 0.386; 0.011; 0.032 | 0.202; 0.196; 0.015 |
+| `j_wb`, `j_hh`, `j_ov`, `j_lb` | 0.361, 0.025, 0.377, 0.192 | 0.187, 0.015, 0.363, 0.221 |
+| Local waits per second; mean local wait | 76,300; 5.4 µs | 22,500; 9.7 µs |
+| Verdict in each block | hand-off (queue), 5 of 5 | inconclusive, 5 of 5 |
+
+## Report to the next tickets
+
+- **Surviving revision: r8, `95f5b6b7`**, unchanged. Nothing was kept, so under D5 [Re-demonstrate the loopback-tested BBRv3 revision on owned Linux hardware](https://github.com/the-sarge/quic-go-fast/issues/739) closes as **not run**, and under D6 [Attribute the BBRv3 candidate's memory and S6 latency flags on the final revision](https://github.com/the-sarge/quic-go-fast/issues/740) attributes on r8 against #736's flags.
+- **For the next decision:** the loopback goodput flags (STREAM 0.943, DATAGRAM 0.854) and the loopback DATAGRAM sender CPU flag stay **unresolved, missing evidence**: an instrumentation gap, not a failed intervention or a finding against BBRv3. The 4Q arm is **inert**, so this ticket gives no evidence for a D08 2Q-profile decision: on this fixture the 2Q credit never binds.
+- **Leads, not findings** (development runs and source inspection, disclosed below): BBR hands off one packet per entry at loopback rates because its pacer accrues about one packet of credit between opportunities, so the eight-entry send queue binds and the two goroutines exchange every packet. A queue-side, BBR-only change (for example a deeper BBR send queue, or coalesced availability signals; in one development run, coalesced signals raised DATAGRAM goodput) is the natural candidate for any later remedy. STREAM's loop also waits on the fixture's writer for about a fifth of the window.
+- **If the operator wants Stage 1 anyway**, it would be a recorded deviation that accepts a roughly 2% instrument cost, run in a quiet window of about 40 minutes. Nothing here assumes it.
 
 ## Question
 
@@ -136,6 +184,22 @@ Runs only for workloads with an addressable hand-off finding. The mechanism is r
   - **remedy status:** kept, failed (negative or null), inconclusive, unbuildable, gates failed, or not attempted (no addressable hand-off finding).
 
   Stage 1 attributions (hand-off, worker-bound, loop-bound, window-bound, supply-bound, kick, mixed, inconclusive) and gaps (instrumentation gap, exhausted budget) travel with them. A credit-responsive arm with a failed or unbuildable remedy is evidence for *considering* a separate design decision on D08's 2Q profile; nothing is amended here. A credit-responsive arm with no remedy attempted shows only that the fixture responds to credit.
+
+## Deviations
+
+1. **Aid fix before data.** The registration commit's `matrix.py` ran three perturbation blocks; the README registered five. `c5e0916c` fixed `matrix.py` before any registered run, and five blocks ran.
+
+No other deviation. Stages 1 and 2 did not run, so their registered rules were never applied.
+
+## Limits
+
+One Linux host and loopback endpoints. The Stage 0 result says only that this recorder perturbs loopback goodput by about 2%, more than D4 allows; it says nothing about whether the hand-off limits goodput. The descriptive readings above carry that perturbation. Loopback STREAM's sensitivity to code placement (about 3% between semantically identical builds, in development) means the perturbation check partly measures layout, not only the recorder's work; the registered rule applies regardless.
+
+## Assets
+
+- **Results:** [results.json](results.json) (`stage0`), [gates/](gates/).
+- **Raw data:** [raw.tar.gz](raw.tar.gz) with [raw-manifest.json](raw-manifest.json): every observation (the 244 development runs included), stage logs and build receipts. Binaries, credentials and exported trees are omitted; `build.py` rebuilds them.
+- **To reconstruct:** in a fresh owned worktree of this branch, `build.py`, `sync.sh`, then the [Order](#order) on a Linux host with the same core layout; anywhere, `hand.py stage0` and `rules_test.py`.
 
 ## Disclosures made before data
 
