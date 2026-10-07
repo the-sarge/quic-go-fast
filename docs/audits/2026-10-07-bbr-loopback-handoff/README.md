@@ -189,7 +189,7 @@ Runs only for workloads with an addressable hand-off finding. The mechanism is r
 
 1. **Aid fix before data.** The registration commit's `matrix.py` ran three perturbation blocks; the README registered five. `c5e0916c` fixed `matrix.py` before any registered run, and five blocks ran.
 
-No other deviation. Stages 1 and 2 did not run, so their registered rules were never applied.
+2. **Stage 1 and Stage 2 run by operator decision after the registered instrumentation gap** (recorded 2026-10-07, before any Stage 1 data). The registered Stage 0 outcome stays an **instrumentation gap** in [results.json](results.json). The operator chose to run Stage 1 anyway, accepting the recorder's measured cost (instrumented ÷ plain goodput 0.977 STREAM, 0.982 DATAGRAM), and Stage 2 if Stage 1 finds an addressable hand-off. Everything else is unchanged: Stage 1's arms, usability, states, majority, credit-response and kick rules, inventory and rerun cap; Stage 2's registration after Stage 1 and before its data, its gates, arms and keep rule. Every Stage 1 reading is reported with this cost beside it. The diagnostic arm is already **inert** (Stage 0 activation), so its Stage 1 reading can only be inert. `minimax` is shared during these stages: the quiet-host wait and the registered contamination rerun rule handle foreign load.
 
 ## Limits
 
