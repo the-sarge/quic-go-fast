@@ -1,6 +1,6 @@
 # BBRv3 qualification decision after the pacing-wake and CPU tickets
 
-Status: draft decision set, revised after consideration, for [Decide whether the timing- and CPU-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/737), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Approved in outline by the operator on 2026-10-07. Revised after a multi-agent consideration (RAS run `20261007T154721-a9ee55e06ebcd15a7f10d802`); the [disposition table](#consideration-dispositions) records every finding. Awaiting final acceptance. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
+Status: accepted decision set for [Decide whether the timing- and CPU-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/737), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Approved in outline by the operator on 2026-10-07. Revised after a multi-agent consideration (RAS run `20261007T154721-a9ee55e06ebcd15a7f10d802`); the [disposition table](#consideration-dispositions) records every finding. Accepted by the operator on 2026-10-07, including D3's interpretation. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
 
 Branch `codex/bbr-r8-qualification-decision`, based on `3bf2245e` (the [r8 Linux re-demonstration](../2026-10-06-bbr-r8-linux-redemonstration/README.md) record). That record's history contains the [pacing-wake record](../2026-10-05-bbr-pacing-wake/README.md), the [per-packet CPU-lead record](../2026-10-06-bbr-per-packet-cpu-leads/README.md) and the [previous decision](../2026-10-05-bbr-intervention-qualification-decision/README.md). The surviving revision is **r8, `95f5b6b7`**. The earlier decisions and Mac records live on sibling record branches and are linked by commit.
 
@@ -28,7 +28,7 @@ All readiness figures are from the [r8 Linux re-demonstration](../2026-10-06-bbr
 | --- | --- | --- |
 | 1. Repeatable S6 benefit | 14.02× [12.18–15.51] STREAM, 14.58× [12.44–16.22] DATAGRAM, 5/5 pairs each; sender CPU per useful GiB 0.087 / 0.088× Reno | Yes |
 | 2. Every flag passes, or is attributed and excepted | One cell attributed (S6 STREAM p95, Up policy), not excepted | No |
-| 3. No unresolved flag, no preservation flag | Eleven unresolved candidate cells; one Reno-on-candidate cell raised in readiness, not reproduced by its registered stage, and blocking until the operator accepts D3 | No (unresolved cells) |
+| 3. No unresolved flag, no preservation flag | Eleven unresolved candidate cells; one Reno-on-candidate cell raised in readiness and not reproduced by its registered stage; no longer blocking for r8 on Linux under D3, as accepted | No (unresolved cells) |
 | 4. Mac records reviewed, platforms named | Reviewed below; any advancement would name Linux only | Reviewed |
 
 ### Flags on r8, against `d0fabc4d` on the same host (#715)
@@ -102,16 +102,16 @@ No exception is granted, and the macOS D2 exception is not extended. With eleven
 - **S5 sender RSS:** STREAM 1.261 and DATAGRAM 1.173, both **unresolved**; the DATAGRAM cell is newly raised.
 - **Run-loop wakes per useful GiB (#734's open cost):** not a readiness flag. #734's deviation 3 kept r8 because sender CPU per useful GiB, the cost the guard protects, fell; readiness now passes it on S5 (0.935 / 0.909). The increase (pacing-timer wakes +14–16%, all run-loop wakes +6–11% per useful GiB, measured on S5 only, with `perf` attached) stays disclosed, unmeasured on other paths, and carried into production slicing, not a ticket.
 
-### D3 — The Reno-on-candidate loopback latency cell: resolved for r8 on Linux, by operator interpretation
+### D3 — The Reno-on-candidate loopback latency cell: resolved for r8 on Linux, by accepted operator interpretation
 
 **The historical measurement does not change.** #736's readiness value (2.588, three blocks crossing, 20 replies per run) and its `preslat` verdict stay exactly as recorded in its `summary.json` and `attribution.json`.
 
-**Blocking disposition, proposed for operator acceptance.** This is an operator interpretation, proposed with r8's result already known. The Linux decision's D3 required a registered, adequate-sample, metric-specific rule. It did not say which of that rule's outcomes would end blocking. The proposal:
+**Blocking disposition, accepted by the operator.** This is an operator interpretation, proposed with r8's result already known. The Linux decision's D3 required a registered, adequate-sample, metric-specific rule. It did not say which of that rule's outcomes would end blocking. The proposal:
 
 - `preslat`'s adequacy requirement (at least 100 replies per run, 500 per arm, four usable blocks) and its outcome rule were registered before data in #715 and reused unchanged by #736. Its **not reproduced** outcome requires the 95% block-bootstrap interval's upper bound to be at most the 1.20 limit. r8's result, pooled ratio 0.716 [0.487–1.180], meets it.
 - On acceptance, an adequate **not reproduced** outcome ends the cell's blocking state under condition 3 for the named revision and platform only: r8 on Linux. **Regression reproduced**, **inconclusive**, **evidence gap** or unusable outcomes leave the cell blocking.
 - The estimands differ. Readiness uses the median of five per-run ratios at 20 replies per run. `preslat` uses a pooled 120 s p95 per arm with a block-bootstrap interval. The A/A arm's crossing of this cell in #715 (1.615) is context only and plays no part in the disposition.
-- **Until the operator accepts this interpretation, the cell stays blocking.** It changes nothing today: eleven unresolved cells block advancement on their own.
+- **Accepted by the operator on 2026-10-07.** The cell no longer blocks r8 on Linux. That changes nothing today: eleven unresolved cells block advancement on their own.
 
 **Prospectively,** the same mapping applies to Ticket G. Any new revision re-measures the cell in readiness. A raised value there runs `preslat` again, and only its **not reproduced** outcome ends blocking. It is not an exception and covers no other cell.
 
