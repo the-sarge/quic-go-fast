@@ -1,0 +1,75 @@
+# Gates for gate-new (exported tree; build receipt bin/gate-new-build.json)
+# go version go1.27.0 darwin/arm64
+39:	e.reservation = e.bbr.credit.reserve(n, 4*e.bbr.quantum, ordinary, isolated)
+231:	if e.bbr.credit.waitForReservation(requested, 4*e.bbr.quantum, size, ordinary, isolated) {
+# variant bound: const variantBoundQ = 4
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	22.061s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.144s
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	343.295s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.289s
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	22.494s
+$ go test . -run BBRVariant -count=1 -v
+=== RUN   TestBBRVariantPendingBoundDrainRefill
+=== RUN   TestBBRVariantPendingBoundDrainRefill/false
+=== RUN   TestBBRVariantPendingBoundDrainRefill/true
+--- PASS: TestBBRVariantPendingBoundDrainRefill (0.00s)
+    --- PASS: TestBBRVariantPendingBoundDrainRefill/false (0.00s)
+    --- PASS: TestBBRVariantPendingBoundDrainRefill/true (0.00s)
+=== RUN   TestBBRVariantQuantumDecreaseWithDebt
+--- PASS: TestBBRVariantQuantumDecreaseWithDebt (0.00s)
+=== RUN   TestBBRVariantExemptionsUnderBound
+=== RUN   TestBBRVariantExemptionsUnderBound/ACK_with_one_packet_of_headroom
+=== RUN   TestBBRVariantExemptionsUnderBound/PTO_with_one_packet_of_headroom
+=== RUN   TestBBRVariantExemptionsUnderBound/hard_block_isolated=false
+=== RUN   TestBBRVariantExemptionsUnderBound/hard_block_isolated=true
+=== RUN   TestBBRVariantExemptionsUnderBound/isolated_probe_waits_for_an_empty_ledger
+--- PASS: TestBBRVariantExemptionsUnderBound (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/ACK_with_one_packet_of_headroom (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/PTO_with_one_packet_of_headroom (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/hard_block_isolated=false (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/hard_block_isolated=true (0.00s)
+    --- PASS: TestBBRVariantExemptionsUnderBound/isolated_probe_waits_for_an_empty_ledger (0.00s)
+=== RUN   TestBBRVariantGSOPressurePreservesControl
+--- PASS: TestBBRVariantGSOPressurePreservesControl (0.00s)
+=== RUN   TestBBRVariantDeliveryLocalLimited
+--- PASS: TestBBRVariantDeliveryLocalLimited (0.00s)
+=== RUN   TestBBRVariantPolicyBounds
+    zz_pending_bound_variant_test.go:329: variant bound 4Q: hash f3d12ed9a2b36a5b3558946ff77231b21d3e0a0f39fddf68dcbdd1b3f93081b3 refused=72296 max_burst_over_Q=0.9993 max_pending_over_bound=0.9999
+--- PASS: TestBBRVariantPolicyBounds (0.29s)
+=== RUN   TestBBRVariantCreditReturnPoint
+--- PASS: TestBBRVariantCreditReturnPoint (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go	0.460s
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+--- FAIL: TestBBRSendQueueDepthCreditBindsFirst (0.00s)
+    bbr_send_queue_depth_test.go:132: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-new/bbr_send_queue_depth_test.go:132
+        	Error:      	"7200" is not less than or equal to "4800"
+        	Test:       	TestBBRSendQueueDepthCreditBindsFirst
+FAIL
+FAIL	github.com/quic-go/quic-go	0.975s
+FAIL
+FAILED: go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+--- FAIL: TestBBRSendQueueDepthCreditBindsFirst (0.00s)
+    bbr_send_queue_depth_test.go:132: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-loopback-handoff/.local/bbr-loopback-handoff/src/gate-new/bbr_send_queue_depth_test.go:132
+        	Error:      	"7200" is not less than or equal to "4800"
+        	Test:       	TestBBRSendQueueDepthCreditBindsFirst
+FAIL
+FAIL	github.com/quic-go/quic-go	16.675s
+FAIL
+FAILED: go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+--- FAIL: TestBBRSendQueueDepthCreditBindsFirst (0.00s)
+FAIL
+FAIL	github.com/quic-go/quic-go	2.240s
+FAIL
+665 top-level PASS
+7 top-level SKIP
+FAILED: sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+# status 1

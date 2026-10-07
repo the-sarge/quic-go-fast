@@ -33,6 +33,12 @@ ACT = [('cand4q-hand-timeline', 'bbrv3', '')]
 # d0fabc4d instrumented, the diagnostic 4Q arm instrumented.
 S1 = [('reno', 'reno', ''), ('cand-hand-timeline', 'bbrv3', ''), ('cand-hand-timeline', 'bbrv3', 'aa'),
       ('prev-hand-timeline', 'bbrv3', ''), ('cand4q-hand-timeline', 'bbrv3', '')]
+# Stage 2 (README, "Stage 2"): frozen Reno, A/A frozen Reno, r8 instrumented, a second r8 (BBR A/A), the new revision
+# instrumented, Reno on the new revision; perf stat on both endpoints of every arm. S5 screen: r8, a second r8, the new
+# revision, plain.
+S2 = [('reno', 'reno', ''), ('reno', 'reno', 'aa'), ('cand-hand-timeline', 'bbrv3', ''), ('cand-hand-timeline', 'bbrv3', 'aa'),
+      ('new-hand-timeline', 'bbrv3', ''), ('new', 'reno', '')]
+S5 = [('cand', 'bbrv3', ''), ('cand', 'bbrv3', 'aa'), ('new', 'bbrv3', '')]
 
 
 QUIET_WINDOW_S = 60      # seconds of quiet needed before a block starts
@@ -79,7 +85,7 @@ def block(stage, path, arms, b, seed=None, only=None, perf=None):
     return rows
 
 
-# stage -> (phase, path, arms, blocks, seed base or None, workload or None)
+# stage -> (phase, path, arms, blocks, seed base or None, workload or None[, perf])
 STAGES = {
     # Development checks before registration; excluded from every statistic, disclosed.
     'devsmoke': ('devsmoke', 'loopback', PRE, 1, None, None),
@@ -90,6 +96,8 @@ STAGES = {
     'activation': ('activation', 'loopback', ACT, 1, None, None),
     # Stage 1 (README, "Stage 1").
     's1': ('s1', 'loopback', S1, 4, None, None),
+    's2': ('s2', 'loopback', S2, 6, None, None, 'stat'),
+    's5screen': ('s5screen', 'S5', S5, 4, 9880, None),
 }
 
 
@@ -112,17 +120,17 @@ def main(argv):
     elif stage == 'rerun':
         name, workload, b = argv[2], argv[3], int(argv[4])
         run.OBS = run.ART / 'observations-rerun'
-        phase, path, arms, n, base, _ = STAGES[name]
-        rows = block(phase, path, arms, b, seed=base + b if base else None, only=workload)
+        phase, path, arms, n, base, _, *perf = STAGES[name]
+        rows = block(phase, path, arms, b, seed=base + b if base else None, only=workload, perf=perf[0] if perf else None)
         stage = f'rerun-{name}-{workload}-p{b}'
     else:
-        phase, path, arms, n, base, only = STAGES[stage]
+        phase, path, arms, n, base, only, *perf = STAGES[stage]
         blocks = [int(x) for x in argv[2].split(',')] if len(argv) > 2 else range(1, n + 1)
         if len(argv) > 3:
             only = argv[3]  # a workload whose Stage 0 failed is not run in Stage 1
         rows = []
         for b in blocks:
-            rows += block(phase, path, arms, b, seed=base + b if base else None, only=only)
+            rows += block(phase, path, arms, b, seed=base + b if base else None, only=only, perf=perf[0] if perf else None)
     run.write(run.ART / f'{stage}-summary.json', [dict(id=r['id'], goodput_mbps=r['goodput_mbps']) for r in rows])
 
 

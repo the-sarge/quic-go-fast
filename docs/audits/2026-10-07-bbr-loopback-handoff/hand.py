@@ -46,7 +46,9 @@ def observation(directory):
     cont = contamination(json.loads((directory / 'host-cpu.json').read_text()), facts['measure_window_unix_ns'])
     out.update(variant=meta['variant'], tag=meta.get('tag', ''), workload=row['workload'], pair=meta['pair'],
                goodput_mbps=row['goodput_mbps'], sender_cpu_per_gib=row['send']['cpu_seconds_per_gib'],
-               receiver_cpu_per_gib=row['receive']['cpu_seconds_per_gib'], contamination=cont,
+               receiver_cpu_per_gib=row['receive']['cpu_seconds_per_gib'], contamination=cont, controller=row['controller'],
+               cycles_per_gib={r: (row[r].get('counters_per_gib', {}).get('cycles:u', 0) + row[r].get('counters_per_gib', {}).get('cycles:k', 0))
+                               if row[r].get('counters_per_gib') else None for r in ['send', 'receive']},
                contaminated=bool(cont.get('contaminated')))
     if meta['variant'].endswith('-timeline'):
         p = directory / 'send.hand.json'
@@ -178,6 +180,75 @@ def s1():
     return out
 
 
+S2_ARMS = ['reno', 'reno-aa', 'cand-hand-timeline', 'cand-hand-timeline-aa', 'new-hand-timeline', 'new']
+S5_ARMS = ['cand', 'cand-aa', 'new']
+
+
+def chosen_blocks(phase, wl, n_arms):
+    """Per block, the chosen attempt (original or rerun) under the operator's #714 rule."""
+    attempts = {}
+    for rerun in (False, True):
+        for o in phase_obs(phase, rerun):
+            if o.get('workload', o['id'].split('-')[2]) != wl:
+                continue
+            b = int(o['id'].split('-p')[1].split('-')[0])
+            attempts.setdefault(b, {}).setdefault(rerun, []).append(o)
+    out = {}
+    for b, by in sorted(attempts.items()):
+        labels = [(rr, len(obs) == n_arms and all(o['usable'] for o in obs), any(o.get('contaminated') for o in obs))
+                  for rr, obs in sorted(by.items())]
+        label, status = rules.choose_block(labels)
+        out[b] = dict(status=status, rerun=label, arms={arm_key(o): o for o in by[label]})
+    return out
+
+
+def s2(targeted):
+    """Stage 2: loopback keep rule and S5 screen. targeted: workloads Stage 1 attributed to the hand-off."""
+    out = dict(targeted=targeted)
+    per, screens, integrity, pres = {}, {}, True, {'send': ([], []), 'receive': ([], [])}
+    for wl in WORKLOADS:
+        blocks = chosen_blocks('s2', wl, len(S2_ARMS))
+        rows = []
+        for b, x in blocks.items():
+            if x['status'] != 'clean':
+                integrity = integrity and x['status'] != 'unusable'
+                continue
+            a = x['arms']
+            reno, aa_reno, r8, aa, new, renonew = (a['reno'], a['reno-aa'], a['cand-hand-timeline'], a['cand-hand-timeline-aa'],
+                                                   a['new-hand-timeline'], a['new'])
+            d = lambda o: 1 - o['goodput_mbps'] / reno['goodput_mbps']
+            rows.append(dict(block=b, deficit_diff_new=d(new) - d(r8), deficit_diff_aa=d(aa) - d(r8),
+                             cpu_ratio_new=new['sender_cpu_per_gib'] / r8['sender_cpu_per_gib'],
+                             cpu_ratio_aa=aa['sender_cpu_per_gib'] / r8['sender_cpu_per_gib'],
+                             goodput={k: o['goodput_mbps'] for k, o in a.items()}, verdicts={k: o.get('verdict') for k, o in a.items()},
+                             measures={k: o.get('measures') for k, o in a.items() if o.get('measures')}))
+            for role in ['send', 'receive']:
+                cyc = lambda o: o['cycles_per_gib'][role]
+                pres[role][0].append(cyc(renonew) / cyc(reno))
+                pres[role][1].append(cyc(aa_reno) / cyc(reno))
+        w = rules.s2_workload(rows)
+        per[wl] = w
+        out[wl] = dict(rules_input=rows, result=w, efficacy=rules.efficacy(w), blocks={b: x['status'] for b, x in blocks.items()})
+        s5 = chosen_blocks('s5screen', wl, len(S5_ARMS))
+        srows = []
+        for b, x in s5.items():
+            if x['status'] != 'clean':
+                continue
+            a = x['arms']
+            r8, aa, new = a['cand'], a['cand-aa'], a['new']
+            srows.append(dict(goodput_ratio_new=new['goodput_mbps'] / r8['goodput_mbps'], goodput_ratio_aa=aa['goodput_mbps'] / r8['goodput_mbps'],
+                              cpu_ratio_new=new['sender_cpu_per_gib'] / r8['sender_cpu_per_gib'],
+                              cpu_ratio_aa=aa['sender_cpu_per_gib'] / r8['sender_cpu_per_gib']))
+        screens[wl] = rules.s5_screen(srows)
+        out[wl]['s5'] = dict(rules_input=srows, result=screens[wl])
+    preservation = {role: rules.preservation_cell(v[0], v[1]) if v[0] else 'missing' for role, v in pres.items()}
+    outcome, reasons = rules.s2_outcome(per, targeted, integrity, preservation, screens)
+    out.update(preservation=preservation, preservation_input={r: dict(renonew=v[0], aa=v[1]) for r, v in pres.items()},
+               integrity=integrity, outcome=outcome, reasons=reasons)
+    write('s2', out)
+    return out
+
+
 def describe(rows):
     """Medians across usable blocks of each arm's recorder measures (descriptive, never decisive)."""
     keys = ['u_w', 'u_c', 'local', 'credit', 'queue', 'window', 'cwnd', 'paced', 'app', 'j_wb', 'j_hh', 'j_ov', 'j_lb', 'exposure',
@@ -219,6 +290,11 @@ if __name__ == '__main__':
     what = sys.argv[1] if len(sys.argv) > 1 else 'all'
     if what in ('stage0', 'all'):
         print(json.dumps({k: v for k, v in stage0().items() if k != 'synthetic'}, indent=1, default=str))
+    if what == 's2':
+        r = s2(sys.argv[2].split(',') if len(sys.argv) > 2 else [])
+        print(json.dumps({k: r[k] for k in ['outcome', 'reasons', 'preservation', 'integrity']}, indent=1, default=str))
+        for wl in WORKLOADS:
+            print(wl, r[wl]['efficacy'], json.dumps(r[wl]['result'], default=str), json.dumps(r[wl]['s5']['result'], default=str))
     if what in ('s1', 'all'):
         r = s1()
         print(json.dumps({wl: {k: r[wl][k] for k in ['verdict', 'verdicts', 'credit_response'] + (['kick'] if wl == 'stream' else [])}

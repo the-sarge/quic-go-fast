@@ -44,6 +44,7 @@ REVISIONS = {
     'reno': 'e4f322cbbfd4225a4b714e08ec19c958cccadcb0',  # frozen matched reference
     'cand': '95f5b6b7a0689a035c29d859f4e026469e20d20d',  # surviving revision r8 (#734, kept by #735 and #737)
     'prev': 'd0fabc4dbab24a68af9a1960348423dbf0ce8388',  # r6 (#714), r8 without the Linux kick
+    'new': '81e9dc8c',                                   # Stage 2 candidate: r8 with a 32-entry BBR send queue
 }
 # Stage 0 synthetic injections (README, "Synthetic cases"): spin and delay nanoseconds, cwnd cap bytes.
 SYNTH = {
@@ -58,6 +59,7 @@ VARIANTS = {name: (rev, False, 2, None) for name, rev in REVISIONS.items()}
 VARIANTS['cand-hand-timeline'] = (REVISIONS['cand'], True, 2, None)
 VARIANTS['prev-hand-timeline'] = (REVISIONS['prev'], True, 2, None)
 VARIANTS['cand4q-hand-timeline'] = (REVISIONS['cand'], True, 4, None)
+VARIANTS['new-hand-timeline'] = (REVISIONS['new'], True, 2, None)
 for case in SYNTH:
     VARIANTS[f'syn-{case}-timeline'] = (REVISIONS['cand'], True, 2, case)
 # Development only (excluded, disclosed): recorder parts switched off to locate its cost.
@@ -69,7 +71,7 @@ DEV_SYNTH = {'devmixedb': dict(synSignalDelayNS=100_000, cwnd=9_000, synAlternat
 SYNTH.update(DEV_SYNTH)
 for case in DEV_SYNTH:
     VARIANTS[f'syn-{case}-timeline'] = (REVISIONS['cand'], True, 2, case)
-GATE_TREES = ['gate-r8', 'gate-4q', 'gate-m1']
+GATE_TREES = ['gate-r8', 'gate-4q', 'gate-m1', 'gate-new']
 # Aids copied byte-identical from #736's record (3bf2245e), which copied them from #712/#715.
 RECORD = '3bf2245e'
 RECORD_DIR = 'docs/audits/2026-10-06-bbr-r8-linux-redemonstration'
@@ -216,12 +218,12 @@ def mutant_m1(tree):
 
 
 def gate_tree(name):
-    full_rev = git('rev-parse', REVISIONS['cand'], text=True).strip()
+    full_rev = git('rev-parse', REVISIONS['new' if name == 'gate-new' else 'cand'], text=True).strip()
     tree = ART / 'src' / name
     assert not tree.exists(), f'{tree} exists; builds never overwrite a prior tree'
     tree.mkdir(parents=True)
     subprocess.run(['tar', '-x', '-C', str(tree)], input=git('archive', '--format=tar', full_rev), check=True)
-    bound = 2 if name == 'gate-r8' else 4
+    bound = 4 if name in ('gate-4q', 'gate-m1') else 2
     if bound == 4:
         four_q(tree)
         adapt_tests_4q(tree)
@@ -234,6 +236,32 @@ def gate_tree(name):
                           ['packet_emission_bbr.go', 'send_queue.go', 'bbr_send_policy_test.go', 'delivery_sampling_test.go',
                            'zz_pending_bound_variant_test.go', 'zz_variant_bound_test.go']})
     return receipt
+
+
+ORACLE = ('04094bd7', 'docs/audits/2026-10-05-bbr-pacing-wake/oracle/pacing_policy_oracle_test.go')
+
+
+def oracle():
+    """Stage 2 policy equality: #734's frozen-policy oracle (admissions, deadlines, credit) in r8 and the new revision."""
+    out = {}
+    for name in ['cand', 'new']:
+        full_rev = git('rev-parse', REVISIONS[name], text=True).strip()
+        tree = ART / 'src' / f'oracle-{name}'
+        assert not tree.exists()
+        tree.mkdir(parents=True)
+        subprocess.run(['tar', '-x', '-C', str(tree)], input=git('archive', '--format=tar', full_rev), check=True)
+        (tree / 'zz_pacing_policy_oracle_test.go').write_bytes(git('show', ':'.join(ORACLE)))
+        r = subprocess.run(['go', 'test', '.', '-run', 'TestPacingWakePolicyOracle', '-count=1', '-v'], cwd=tree, env=ENV,
+                           capture_output=True, text=True)
+        out[name] = dict(revision=full_rev, exit=r.returncode, lines=[l.strip() for l in r.stdout.splitlines() if 'oracle ' in l])
+        assert r.returncode == 0, r.stdout + r.stderr
+    strip = lambda ls: [l.split(': ', 1)[1] for l in ls]
+    out['equal'] = strip(out['cand']['lines']) == strip(out['new']['lines'])
+    policy = ['bbr_send_policy.go', 'local_send_credit.go', 'packet_emission_bbr.go', 'bbr_controller.go']
+    out['policy_sources_identical'] = {f: git('show', f"{REVISIONS['cand']}:{f}") == git('show', f"{REVISIONS['new']}:{f}") for f in policy}
+    (HERE / 'gates' / 'oracle.json').write_text(json.dumps(out, indent=2) + '\n')
+    assert out['equal'], out
+    print('oracle', out['equal'], out['new']['lines'])
 
 
 def go_build(module, pkg, binary, label, platform=LINUX):
@@ -299,6 +327,8 @@ def build(name):
         shutil.copy(HERE / 'launch/main.go', module / 'launch/main.go')
         out['launch'] = go_build(module, './launch', ART / 'bin' / 'launch', full_rev)
         receipt = dict(variant='relay', revision=full_rev, builds=out)
+    elif name == 'oracle':
+        return oracle()
     elif name in GATE_TREES:
         receipt = gate_tree(name)
         receipt['builds'] = {}
