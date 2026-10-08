@@ -380,3 +380,8 @@ On the Mac: `build.py` (done), `gate_trees.py`, `gates.sh` (done), `memrules_tes
 4. `follow.py reruns`.
 
 Then `memstages.py all` and `stages.py prereq` anywhere.
+
+**Operator approval and unattended run.** On October 8, 2026, before any comparative observation, the operator approved this registration as written at `ad04c183`: departures A–M, both relayed operator decisions, and the cap of 152 with at most 28 reruns. By operator choice, the order runs unattended from 05:30 America/New_York on October 9, 2026 (09:30 UTC). A systemd user timer on `minimax` starts [driver.sh](driver.sh), whose output goes to `.local/bbr-r9-memory-attribution/driver.log`.
+- [follow.py](follow.py) applies the registered rerun rule after the stages and records each decision in `follow-decisions.json`.
+- If the instrument prerequisite fails, the preflight stops the driver before Stage 1 (a prerequisite gap).
+- #739's prerequisite review (calibration, ECN engagement, native I/O, resources, instruments) stays with the operator's session afterwards. A failure there ends the ticket as a prerequisite gap, and any later observations are reported as excluded.
