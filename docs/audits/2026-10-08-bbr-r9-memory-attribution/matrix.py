@@ -178,8 +178,15 @@ def main(argv):
         # Stage 0 instrument and activation check: every -mem arm once on S5 STREAM, and the candidate on S6
         # DATAGRAM for the phase log; excluded from every statistic.
         attempt = argv[2] if len(argv) > 2 else ''
-        rows = [run_case_m('memsmoke' + attempt, v, 'stream', 1, c, path='S5', seed=9993, tag=t) for v, c, t in [RENO, CAND, RING, RXRENO]]
-        rows.append(run_case_m('memsmoke' + attempt, 'cand-mem', 'datagram', 1, 'bbrv3', path='S6', seed=9992))
+        # A failed run is retained and recorded; the preflight then reports the missing or invalid evidence.
+        rows = []
+        for v, c, t, w, p, seed in [(*RENO, 'stream', 'S5', 9993), (*CAND, 'stream', 'S5', 9993), (*RING, 'stream', 'S5', 9993),
+                                    (*RXRENO, 'stream', 'S5', 9993), (*CAND, 'datagram', 'S6', 9992)]:
+            try:
+                rows.append(run_case_m('memsmoke' + attempt, v, w, 1, c, path=p, seed=seed, tag=t))
+            except Exception as e:  # noqa: BLE001
+                failure(dict(stage='memsmoke' + attempt, path=p, workload=w, variant=v, controller=c, tag=t, error=repr(e),
+                             unix_ns=time.time_ns()))
     elif stage == 'rerun':
         # One same-seed rerun of a contaminated or unusable block, under a separate root.
         name, workload, b = argv[2], argv[3], int(argv[4])

@@ -136,8 +136,14 @@ class Assemble(unittest.TestCase):
         self.assertEqual(MS.expected_arms('S6', 'run'), ['reno', 'cand', 'aa', 'ring', 'rx'])
 
 
+WANT = MS.arm_names('mem', 'S5', 'not run')  # reno, cand, aa, rx
+ARM_PARTS = {'reno-mem-reno': ('reno-mem', 'reno', ''), 'cand-mem-bbrv3': ('cand-mem', 'bbrv3', ''),
+             'cand-mem-bbrv3-aa': ('cand-mem', 'bbrv3', 'aa'), 'cand-mem-bbrv3-rxreno': ('cand-mem', 'bbrv3', 'rxreno')}
+
+
 class Selection(unittest.TestCase):
-    """choose(): completeness, missing blocks and the rerun rule, on temporary observation roots."""
+    """choose() and pending_reruns() on temporary observation roots. Failure paths use #739's real readers;
+    only a valid run's usability, contamination and instrument checks are emulated (by marker files)."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -145,9 +151,14 @@ class Selection(unittest.TestCase):
         self.roots = [root / 'observations', root / 'observations-rerun']
         for r in self.roots:
             r.mkdir()
+        self.real_usable, self.real_cont = MS.S.usable, MS.S.contaminated
+        emulate = lambda real, key, fake: (lambda d: fake(d) if (d / key).exists() else real(d))
         self.patches = [mock.patch.object(MS.S, 'ROOTS', self.roots),
-                        mock.patch.object(MS.S, 'contaminated', lambda d: dict(contaminated=(d / 'contaminated').exists())),
-                        mock.patch.object(MS.S, 'usable', lambda d: not (d / 'bad').exists())]
+                        mock.patch.object(MS.S, 'usable', emulate(self.real_usable, 'valid', lambda d: True)),
+                        mock.patch.object(MS.S, 'contaminated', emulate(self.real_cont, 'valid',
+                                                                         lambda d: dict(contaminated=(d / 'contaminated').exists()))),
+                        mock.patch.object(MS, 'instrument_check', lambda d: (True, None) if (d / 'valid').exists() and not (d / 'sparse').exists()
+                                          else (False, 'memory window coverage 3/30 s'))]
         for p in self.patches:
             p.start()
 
@@ -156,38 +167,146 @@ class Selection(unittest.TestCase):
             p.stop()
         self.tmp.cleanup()
 
-    def make(self, root, workload, b, arm, receipt=True, bad=False, contaminated=False):
+    def make(self, root, workload, b, arm, valid=True, receipt=True, contaminated=False, sparse=False, meta=True):
+        variant, controller, tag = ARM_PARTS[arm]
         d = self.roots[root] / f'mem-S5-{workload}-p{b}-{arm}'
         d.mkdir()
-        (d / 'meta.json').write_text(json.dumps(dict(phase='mem', path='S5', pair=b)))
-        (d / 'config.json').write_text(json.dumps(dict(workload=workload)))
+        if meta:
+            (d / 'meta.json').write_text(json.dumps(dict(phase='mem', path='S5', pair=b, variant=variant, tag=tag)))
+        else:
+            (d / 'meta.json').write_text('{not json')
+        (d / 'config.json').write_text(json.dumps(dict(workload=workload, controller=controller)))
         if receipt:
             (d / 'receipt.json').write_text('{}')
-        if bad:
-            (d / 'bad').write_text('')
-        if contaminated:
-            (d / 'contaminated').write_text('')
+        for flag, on in (('valid', valid), ('contaminated', contaminated), ('sparse', sparse)):
+            if on:
+                (d / flag).write_text('')
 
-    def test_missing_incomplete_and_rerun(self):
-        arms = ['reno', 'cand', 'aa', 'rx']
-        for b in (1, 2, 3):
-            for a in arms:
-                self.make(0, 'stream', b, a, receipt=not (b == 2 and a == 'aa'), contaminated=(b == 3 and a == 'cand'))
-        for a in arms:  # block 3's same-seed rerun is clean
-            self.make(1, 'stream', 3, a)
-        _, rec = MS.choose('mem', 'S5', 4)
-        status = {(r['workload'], r['block']): r for r in rec}
+    def block(self, root, b, workload='stream', **per_arm):
+        for arm in WANT:
+            self.make(root, workload, b, arm, **per_arm.get(arm, {}))
+
+    def records(self):
+        _, rec = MS.choose('mem', 'S5', WANT)
+        return {(r['workload'], r['block']): r for r in rec if 'block' in r}, [r for r in rec if 'malformed' in r]
+
+    def test_selection_and_reruns(self):
+        self.block(0, 1)
+        self.block(0, 2, **{'cand-mem-bbrv3-aa': dict(receipt=False)})                 # an arm left no receipt
+        self.block(0, 3, **{'cand-mem-bbrv3': dict(contaminated=True)})                # contaminated original ...
+        self.block(1, 3)                                                                # ... clean same-seed rerun
+        self.block(0, 4, **{'cand-mem-bbrv3-rxreno': dict(sparse=True)})               # instrument-invalid arm
+        status, malformed = self.records()
         self.assertEqual(status[('stream', 1)]['status'], 'clean')
-        self.assertEqual(status[('stream', 2)]['status'], 'unusable')        # an arm left no receipt
+        self.assertEqual(status[('stream', 2)]['status'], 'unusable')
         self.assertEqual(status[('stream', 3)]['counted'], 'rerun')
-        self.assertEqual(status[('stream', 4)]['status'], 'missing')
+        self.assertEqual(status[('stream', 4)]['status'], 'unusable')
+        self.assertTrue(any('coverage' in r for r in status[('stream', 4)]['reasons']['original']))
         self.assertEqual(status[('datagram', 1)]['status'], 'missing')
-        with mock.patch.object(F.MS, 'choose', MS.choose):
-            pending = {(r['workload'], r['block']) for r in F.pending_reruns('mem', 'S5', 4)}
-        self.assertIn(('stream', 2), pending)
-        self.assertIn(('stream', 4), pending)
-        self.assertNotIn(('stream', 3), pending)  # already rerun once
-        self.assertNotIn(('stream', 1), pending)
+        self.assertEqual(malformed, [])
+        pending = {(r['workload'], r['block']) for r in F.pending_reruns('mem', 'S5', WANT)}
+        self.assertEqual(pending, {('stream', 2), ('stream', 4), ('datagram', 1), ('datagram', 2), ('datagram', 3), ('datagram', 4)})
+
+    def test_arm_identity_not_count(self):
+        # Four directories, but the A/A arm is duplicated in place of the receiver-controller arm.
+        for arm in ['reno-mem-reno', 'cand-mem-bbrv3', 'cand-mem-bbrv3-aa']:
+            self.make(0, 'stream', 1, arm)
+        d = self.roots[0] / 'mem-S5-stream-p1-cand-mem-bbrv3-aa-copy'
+        d.mkdir()
+        (d / 'meta.json').write_text(json.dumps(dict(phase='mem', path='S5', pair=1, variant='cand-mem', tag='aa')))
+        (d / 'config.json').write_text(json.dumps(dict(workload='stream', controller='bbrv3')))
+        (d / 'receipt.json').write_text('{}')
+        (d / 'valid').write_text('')
+        status, _ = self.records()
+        self.assertEqual(status[('stream', 1)]['status'], 'unusable')
+
+    def test_real_readers_on_failed_and_malformed_artifacts(self):
+        # Not emulated: no 'valid' marker, so #739's usability reader runs on a receipt without endpoint results.
+        self.block(0, 1, **{a: dict(valid=False) for a in WANT})
+        self.make(0, 'stream', 2, 'reno-mem-reno', meta=False)                         # malformed metadata
+        status, malformed = self.records()
+        self.assertEqual(status[('stream', 1)]['status'], 'unusable')
+        self.assertEqual(len(malformed), 1)
+        self.assertEqual(status[('stream', 2)]['status'], 'missing')
+
+    def test_latency_reads_only_clean_blocks(self):
+        # A selected but unusable latcand block (no send.json) must not be read; the rule sees None.
+        for b in range(1, 7):
+            for arm, (variant, controller) in {'reno-reno': ('reno', 'reno'), 'cand-bbrv3': ('cand', 'bbrv3')}.items():
+                d = self.roots[0] / f'latcand-loopback-long-stream-p{b}-{arm}'
+                d.mkdir()
+                (d / 'meta.json').write_text(json.dumps(dict(phase='latcand', path='loopback-long', pair=b, variant=variant, tag='')))
+                (d / 'config.json').write_text(json.dumps(dict(workload='stream', controller=controller)))
+                (d / 'receipt.json').write_text('{}')
+        captured = {}
+        with mock.patch.object(MS.S.R, 'latency_preservation', lambda blocks: (captured.setdefault('b', blocks), ('evidence gap', {}))[1]), \
+                mock.patch.object(MS, 'save', lambda *a: None):
+            MS.latency()
+        self.assertEqual(captured['b'], [None] * 6)
+
+
+class Preflight(unittest.TestCase):
+    def test_missing_activation_is_unusable_stops_and_is_never_revised(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            art = Path(tmp)
+            (art / 'observations').mkdir()
+            (art / 'observations' / 'memsmoke-S5-stream-p1-cand-mem-ring-bbrv3').mkdir()  # a failed run: no files
+            with mock.patch.object(MS, 'ART', art), mock.patch.object(MS, 'save', lambda *a: None):
+                with self.assertRaises(SystemExit) as stop:
+                    MS.preflight()
+                self.assertEqual(stop.exception.code, 3)
+                res = json.loads((art / 'ring-preflight.json').read_text())
+                self.assertEqual(res['decision'], 'unusable')
+                self.assertFalse(res['instrument']['ok'])
+                with self.assertRaises(SystemExit) as again:
+                    MS.preflight()
+                self.assertIn('never revised', str(again.exception.code))
+
+
+class S6Scoring(unittest.TestCase):
+    """p95() end to end on fabricated S6 observations with real relay.json files."""
+    T0 = 10**18
+
+    def run_p95(self, phases, queue, blocks=4, statuses=None):
+        with tempfile.TemporaryDirectory() as tmp:
+            grouped, status = {}, {}
+            for b in range(1, blocks + 1):
+                for w in ('stream', 'datagram'):
+                    g = {}
+                    for k in ('cand', 'aa'):
+                        d = Path(tmp) / f'{w}-{b}-{k}'
+                        d.mkdir()
+                        (d / 'relay.json').write_text(json.dumps(dict(QueueSamples=queue)))
+                        g[k] = dict(dir=str(d), usable=True, cfg=dict(start_unix_ns=self.T0, warmup_ms=10_000, measure_ms=30_000),
+                                    summary=dict(id=f'{w}-{b}-{k}', control_p95_ms=150.0), send=dict(tail=dict(phases=phases)))
+                    grouped[(w, b)] = g
+                    status[(w, b)] = (statuses or {}).get((w, b), 'clean')
+            saved = {}
+            with mock.patch.object(MS, 'stage_obs', lambda phase, path: ([], status, [])), mock.patch.object(MS, 'group', lambda obs: grouped), \
+                    mock.patch.object(MS, 'perturbation_ratios', lambda: []), mock.patch.object(MS, 'save', lambda k, v: saved.setdefault(k, v)):
+                MS.p95()
+            return {w: v['attribution'] for w, v in saved['s6_p95'].items()}
+
+    def phases(self, refill=True):
+        p = [[self.T0, 0], [self.T0 + 10_000 * 10**6, 3]]
+        if refill:
+            p += [[self.T0 + 15_000 * 10**6, 4], [self.T0 + 16_000 * 10**6, 3]]
+        return p + [[self.T0 + 20_000 * 10**6, 5], [self.T0 + 21_000 * 10**6, 2], [self.T0 + 22_000 * 10**6, 3]]
+
+    def queue(self):
+        return [[t, 400_000 if 20_000 <= t < 22_000 else 1_000, 0] for t in range(10_000, 40_000, 10)]
+
+    def test_complete_inputs_attribute(self):
+        self.assertEqual(self.run_p95(self.phases(), self.queue()), dict(stream='selected ProbeBW Up policy', datagram='selected ProbeBW Up policy'))
+
+    def test_sparse_timeline_missing_log_and_rejected_block_are_gaps(self):
+        sparse = [[15_500, 1_000, 0], [17_000, 1_000, 0], [20_500, 400_000, 0]]
+        self.assertEqual(set(self.run_p95(self.phases(), sparse).values()), {'evidence gap'})
+        self.assertEqual(set(self.run_p95([], self.queue()).values()), {'evidence gap'})
+        self.assertEqual(self.run_p95(self.phases(), self.queue(), statuses={('stream', 2): 'contaminated'})['stream'], 'evidence gap')
+
+    def test_complete_timeline_without_refill_is_unresolved(self):
+        self.assertEqual(set(self.run_p95(self.phases(refill=False), self.queue()).values()), {'unresolved'})
 
 
 class Caps(unittest.TestCase):

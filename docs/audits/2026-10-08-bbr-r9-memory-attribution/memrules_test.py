@@ -298,7 +298,7 @@ class UpPolicy(unittest.TestCase):
         e = self.run_of([(0, 3), (20_000, 5), (21_000, 3), (25_000, 4), (26_000, 3)], lambda t: 20_000 <= t < 21_000)
         bad = dict(e, cruise_median_ms=0.1, refill_median_ms=1.5)
         self.assertEqual(M.up_policy([bad] * 8, 1.0, 8), 'unresolved')
-        self.assertEqual(M.up_policy([dict(e, refill_median_ms=None)] * 8, 1.0, 8), 'evidence gap')
+        self.assertEqual(M.up_policy([dict(e, refill_median_ms=None)] * 8, 1.0, 8), 'unresolved')  # second round F6
         self.assertEqual(M.up_policy([dict(e, cruise_median_ms=0.999, refill_median_ms=0.999)] * 8, 1.0, 8), 'selected ProbeBW Up policy')
         self.assertEqual(M.up_policy([dict(e, cruise_median_ms=1.0)] * 8, 1.0, 8), 'unresolved')
 
@@ -307,6 +307,70 @@ class UpPolicy(unittest.TestCase):
         self.assertIsNone(e['over_25ms_in_up_or_down'])
         self.assertEqual(M.up_policy([e] * 8, 1.0, 8), 'unresolved')
         self.assertIsNone(M.queue_by_phase([], [[10_000, 1, 0]], self.T0, 10_000, 30_000))
+
+
+class SecondRound(unittest.TestCase):
+    """Regressions for the second consideration (run 20261008T163921-46a8a643)."""
+    T0 = 10**18
+
+    def phases(self):
+        return [[self.T0, 0], [self.T0 + 10_000 * 10**6, 3], [self.T0 + 15_000 * 10**6, 4], [self.T0 + 16_000 * 10**6, 3],
+                [self.T0 + 20_000 * 10**6, 5], [self.T0 + 21_000 * 10**6, 2], [self.T0 + 22_000 * 10**6, 3]]
+
+    def queue(self, step=10, drop=None):
+        return [[t, 400_000 if 20_000 <= t < 22_000 else 1_000, 0] for t in range(10_000, 40_000, step) if not (drop and drop(t))]
+
+    def test_f2_three_sample_timeline_is_a_gap(self):
+        q = [[15_500, 1_000, 0], [17_000, 1_000, 0], [20_500, 400_000, 0]]
+        e = M.queue_by_phase(self.phases(), q, self.T0, 10_000, 30_000)
+        self.assertFalse(e['integrity'])
+        self.assertEqual(M.up_policy([e] * 8, 1.0, 8), 'evidence gap')
+
+    def test_f2_truncated_and_interior_gaps(self):
+        for q in (self.queue(drop=lambda t: t >= 38_000), self.queue(drop=lambda t: 25_000 <= t < 25_500)):
+            self.assertFalse(M.queue_by_phase(self.phases(), q, self.T0, 10_000, 30_000)['integrity'])
+
+    def test_f2_malformed_phase_records(self):
+        bad = self.phases()
+        bad[3] = [bad[3][0], 9]
+        self.assertFalse(M.queue_by_phase(bad, self.queue(), self.T0, 10_000, 30_000)['integrity'])
+        swapped = self.phases()
+        swapped[2], swapped[3] = swapped[3], swapped[2]
+        self.assertFalse(M.queue_by_phase(swapped, self.queue(), self.T0, 10_000, 30_000)['integrity'])
+
+    def test_f2_jitter_is_accepted(self):
+        q = [[t + (3 if (t // 10) % 2 else 0), f, r] for t, f, r in self.queue()]
+        e = M.queue_by_phase(self.phases(), q, self.T0, 10_000, 30_000)
+        self.assertTrue(e['integrity'])
+        self.assertEqual(M.up_policy([e] * 8, 1.0, 8), 'selected ProbeBW Up policy')
+
+    def test_f6_complete_timeline_without_a_phase_is_unresolved(self):
+        no_refill = [p for p in self.phases() if p[1] != 4]
+        no_cruise = [[self.T0, 0], [self.T0 + 20_000 * 10**6, 5], [self.T0 + 21_000 * 10**6, 2], [self.T0 + 25_000 * 10**6, 4]]
+        for ph in (no_refill, no_cruise):
+            e = M.queue_by_phase(ph, self.queue(), self.T0, 10_000, 30_000)
+            self.assertTrue(e['integrity'])
+            self.assertEqual(M.up_policy([e] * 8, 1.0, 8), 'unresolved')
+        self.assertIsNone(M.queue_by_phase([], self.queue(), self.T0, 10_000, 30_000))
+
+    def test_f1_instrument_validity(self):
+        def row(t, ok=True):
+            r = {k: 0 for k in M.REQUIRED}
+            r['unix_ns'] = int(t * 1e9)
+            if not ok:
+                r['rollup_Rss_kb'] = -1
+            return r
+        self.assertEqual(M.instrument_valid([row(s) for s in range(41)], 0, 10_000, 30_000), (True, None))
+        self.assertFalse(M.instrument_valid([row(s) for s in range(0, 41, 2)], 0, 10_000, 30_000)[0])          # half the seconds
+        self.assertFalse(M.instrument_valid([row(s, ok=s < 10) for s in range(41)], 0, 10_000, 30_000)[0])   # invalid in window
+        self.assertFalse(M.instrument_valid([], 0, 10_000, 30_000)[0])
+
+    def test_f7_eligibility(self):
+        for E, want in [(-1.0, False), (0.0, False), (0.4, False), (0.5, False), (0.5001, True)]:
+            self.assertEqual(M.eligibility(dict(usable=True, E=E))[0], want, E)
+        self.assertEqual(M.eligibility(dict(usable=False, E=4.0)), (False, 'unusable'))
+        bs = [blk(E=0.4, ex=ex_of(0.4)) for _ in range(4)]
+        self.assertEqual(M.label_cell('receive', bs, 'not run')['usable'], 0)
 
 
 class Perturbation(unittest.TestCase):

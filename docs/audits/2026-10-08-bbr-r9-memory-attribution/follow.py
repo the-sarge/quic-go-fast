@@ -58,18 +58,20 @@ def counted(roots=None):
     return sum(json.loads(p.read_text())['phase'] in ('mem', 'latcand') for root in (roots or S.ROOTS) for p in root.glob('*/meta.json'))
 
 
-def pending_reruns(phase, path, arms):
-    """Registered blocks not yet rerun whose counted attempt is not clean, is missing an arm, or does not exist."""
-    _, rec = MS.choose(phase, path, arms)
-    return [r for r in rec if r['status'] != 'clean' and not any(a[0] == 'rerun' for a in r['attempts'])]
+def pending_reruns(phase, path, names):
+    """Registered blocks not yet rerun whose counted attempt is not clean (contaminated, unusable, instrument-invalid,
+    missing an arm) or that do not exist. A low baseline excess never requests a rerun."""
+    _, rec = MS.choose(phase, path, names)
+    return [r for r in rec if 'block' in r and r['status'] != 'clean' and not any(a[0] == 'rerun' for a in r['attempts'])]
 
 
 def reruns():
     done = []
     ring = MS.ring_decision()
     for phase, path, name in STAGES:
-        arms = MS.arm_count(phase, path, ring)
-        for r in pending_reruns(phase, path, arms):
+        names = MS.arm_names(phase, path, ring)
+        arms = len(names)
+        for r in pending_reruns(phase, path, names):
             key = {k: r[k] for k in ('path', 'workload', 'block', 'status')}
             if counted() + arms > CAP or counted([S.ROOTS[1]]) + arms > RERUN_CAP:
                 record('reruns_not_run_cap', key)

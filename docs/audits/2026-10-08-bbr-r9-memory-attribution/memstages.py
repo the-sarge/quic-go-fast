@@ -56,56 +56,85 @@ def gate_status(name):
 
 # ---- Stage 0 ------------------------------------------------------------------------------------
 
-def preflight(phase='memsmoke'):
-    """Gates, the injected violations, the activation reduction and the instrument checks; writes ring-preflight.json."""
-    gates = {n: gate_status(n) for n in ['cand-mem', 'cand-mem-ring', 'gate-ring-m1', 'gate-ring-m2']}
-    native = (HERE / 'gates' / 'cand-mem-ring-native.log')
-    native_ok = native.exists() and 'FAIL' not in native.read_text() and 'exit 0' in native.read_text()
-    obs = {}
-    for p in sorted((ART / 'observations').glob(f'{phase}-*/receipt.json')):
-        d = p.parent
+def instrument_check(d):
+    """(valid, reason) for both endpoints' memory series of one observation (second consideration, F1)."""
+    try:
+        cfg = json.loads((d / 'config.json').read_text())
+        for role in ['send', 'receive']:
+            _, rows, _ = series(d, role)
+            ok, why = M.instrument_valid(rows, cfg['start_unix_ns'], cfg['warmup_ms'], cfg['measure_ms'])
+            if not ok:
+                return False, f'{role}: {why}'
+        return True, None
+    except (OSError, ValueError, KeyError, IndexError, TypeError) as e:
+        return False, repr(e)
+
+
+def load_smoke(d):
+    """One activation or instrument observation for the preflight; never raises."""
+    try:
         r = S.summarize(d)
-        e = dict(goodput_mbps=r['goodput_mbps'], usable=S.usable(d), contamination=S.contaminated(d)['contaminated'])
+        e = dict(goodput_mbps=r['goodput_mbps'], usable=S.usable(d), path=r['path'], arm=S.arm(r))
+        e['instrument_valid'], e['instrument_reason'] = instrument_check(d)
         for role in ['send', 'receive']:
             h, rows, tail = series(d, role)
-            a = M.peak_account(rows, r[role]['peak_rss_mib']) or dict(ring_entries=None, bbr_explicit=None, peak=None, rss=None,
-                                                                      residual=None, gap=None)
-            cfg, _ = S.window(d)
-            e[role] = dict(samples=len(rows), expected_s=(cfg['warmup_ms'] + cfg['measure_ms']) / 1000,
-                           controller_override=(tail or {}).get('controller_override', h.get('controller_override')),
-                           phases=len((tail or {}).get('phases') or []), ring_bytes_max=max(x.get('ring_bytes', 0) for x in rows),
-                           ring_entries=a['ring_entries'], bbr_explicit_mib=a['bbr_explicit'], peak=a['peak'], rss=a['rss'],
-                           residual=a['residual'], gap=a['gap'])
-        obs[S.arm(r) + ('' if r['path'] == 'S5' else '-' + r['path'])] = e
-    cand, ring, rx = obs.get(ARMS['cand']), obs.get(ARMS['ring']), obs.get(ARMS['rx'])
-    activation = dict(candidate_ring_bytes=cand['send']['ring_bytes_max'] if cand else None,
-                      ring_ring_bytes=ring['send']['ring_bytes_max'] if ring else None,
-                      ring_entries=ring['send']['ring_entries'] if ring else None)
+            a = M.peak_account(rows, r[role]['peak_rss_mib']) or {}
+            e[role] = dict(controller_override=(tail or {}).get('controller_override', h.get('controller_override')),
+                           phases=len((tail or {}).get('phases') or []), ring_bytes_max=max((x.get('ring_bytes', 0) for x in rows), default=0),
+                           ring_entries=a.get('ring_entries'), bbr_explicit_mib=a.get('bbr_explicit'), peak=a.get('peak'),
+                           packets_sent_last=max((x.get('stats_packets_sent', -1) for x in rows), default=-1))
+        return e
+    except (OSError, ValueError, KeyError, IndexError, TypeError, AssertionError) as err:
+        return dict(usable=False, instrument_valid=False, instrument_reason=repr(err), dir=str(d))
+
+
+def preflight(phase='memsmoke'):
+    """Gates, injected violations, the activation reduction and the instrument prerequisites; writes ring-preflight.json once.
+
+    The ring decision is 'unusable' when a gate fails, a mutant is undetected, or the activation evidence (the
+    candidate and ring runs) is missing or invalid; 'inert' when valid evidence shows no reduction. The instrument
+    prerequisite (all five memsmoke runs present, usable and instrument-valid, the receiver-controller arm engaged,
+    phases logged on S6, packet counters advancing) is separate: if it fails, this exits with status 3 and the driver
+    stops before Stage 1 (a prerequisite gap), whatever the ring decision.
+    """
+    out = ART / ('ring-preflight.json' if phase == 'memsmoke' else f'ring-preflight-{phase}.json')
+    if out.exists():
+        raise SystemExit(f'{out} exists; the preflight decision is never revised')
+    gates = {n: gate_status(n) for n in ['cand-mem', 'cand-mem-ring', 'gate-ring-m1', 'gate-ring-m2']}
+    native = HERE / 'gates' / 'cand-mem-ring-native.log'
+    native_ok = native.exists() and 'FAIL' not in native.read_text() and 'exit 0' in native.read_text()
+    obs = {}
+    for d in sorted(x for x in (ART / 'observations').glob(f'{phase}-*') if x.is_dir()):
+        e = load_smoke(d)
+        key = (e.get('arm') or d.name) + ('' if e.get('path') in (None, 'S5') else '-' + e['path'])
+        obs[key] = e
+    ok = lambda e: bool(e and e.get('usable') and e.get('instrument_valid'))
+    cand, ring, rx, reno, s6 = (obs.get(k) for k in (ARMS['cand'], ARMS['ring'], ARMS['rx'], ARMS['reno'], ARMS['cand'] + '-S6'))
+    activation = dict(candidate_ring_bytes=cand['send']['ring_bytes_max'] if ok(cand) else None,
+                      ring_ring_bytes=ring['send']['ring_bytes_max'] if ok(ring) else None,
+                      ring_entries=ring['send']['ring_entries'] if ok(ring) else None)
     gates_pass = gates['cand-mem-ring'] == 0 and gates['cand-mem'] == 0 and native_ok
-    if not (cand and ring):
-        decision = dict(decision='unusable', predicted_mib=None, reason='activation run missing')
+    if not (ok(cand) and ok(ring)):
+        decision = dict(decision='unusable', predicted_mib=None, reason='activation evidence missing or invalid')
     else:
         decision = M.ring_preflight(gates_pass, [gates['gate-ring-m1'] not in (0, None), gates['gate-ring-m2'] not in (0, None)],
                                     activation['ring_ring_bytes'], activation['candidate_ring_bytes'])
         if decision['decision'] == 'run' and activation['ring_entries'] != RING_ENTRIES:
             decision = dict(decision='inert', predicted_mib=decision['predicted_mib'], reason='ring entries differ')
-    instrument = dict(
-        receiver_controller=dict(override=rx['receive']['controller_override'] if rx else None,
-                                 receiver_ring_bytes_max=rx['receive']['ring_bytes_max'] if rx else None,
-                                 receiver_phases=rx['receive']['phases'] if rx else None,
-                                 sender_ring_bytes_max=rx['send']['ring_bytes_max'] if rx else None,
-                                 engaged=bool(rx and rx['receive']['controller_override'] == 'reno' and rx['receive']['ring_bytes_max'] == 0
-                                              and rx['send']['ring_bytes_max'] > 0)),
-        coverage={k: {role: v[role]['samples'] / v[role]['expected_s'] for role in ['send', 'receive']} for k, v in obs.items()},
-        s6_phases=obs.get(ARMS['cand'] + '-S6', {}).get('send', {}).get('phases'))
+    engaged = bool(ok(rx) and rx['receive']['controller_override'] == 'reno' and rx['receive']['ring_bytes_max'] == 0
+                   and rx['send']['ring_bytes_max'] > 0)
+    counters = all(ok(e) and e['send']['packets_sent_last'] > 0 and e['receive']['packets_sent_last'] > 0 for e in (cand, ring, rx, reno, s6))
+    instrument = dict(runs={k: ok(v) for k, v in obs.items()}, receiver_controller_engaged=engaged,
+                      s6_phases=s6['send']['phases'] if ok(s6) else None, packet_counters=counters)
+    instrument['ok'] = bool(all(ok(e) for e in (cand, ring, rx, reno, s6)) and engaged and instrument['s6_phases'] and counters)
     res = dict(gates=gates, native_gates=native_ok, activation=activation, instrument=instrument, observations=obs, **decision,
                threshold_mib=M.DETECTABLE_MIB)
-    if phase != 'memsmoke':  # an instrument-development attempt: never the registered decision
-        (ART / f'ring-preflight-{phase}.json').write_text(json.dumps(res, indent=1) + '\n')
-        return print(json.dumps({k: v for k, v in res.items() if k != 'observations'}, indent=1))
-    (ART / 'ring-preflight.json').write_text(json.dumps(res, indent=1) + '\n')
-    save('preflight', res)
+    out.write_text(json.dumps(res, indent=1) + '\n')
+    if phase == 'memsmoke':
+        save('preflight', res)
     print(json.dumps({k: v for k, v in res.items() if k != 'observations'}, indent=1))
+    if not instrument['ok']:
+        raise SystemExit(3)
 
 
 # ---- Stage 1 ------------------------------------------------------------------------------------
@@ -212,6 +241,8 @@ def assemble(path, grouped, status, flags, ring_status, perturbed, workloads=('s
                     comp, outside = M.comparable(c['traffic'], x['traffic'], band)
                     row.update(rx_comparable=bool(comp and engaged), rx_outside=outside, rx_engaged=engaged)
                 rows.append(row)
+            for row in rows:  # second consideration F7: fraction eligibility, reported with its reason
+                row['eligible'], row['eligibility_reason'] = M.eligibility(row)
             flag = flags.get((path, workload, role))
             label = None
             if flag and flag['raised']:
@@ -233,34 +264,85 @@ LAYOUT = {('mem', 'S5'): (('stream', 'datagram'), 4), ('mem', 'S6'): (('stream',
           ('mem', 'loopback'): (('stream', 'datagram'), 4), ('latcand', 'loopback-long'): (('stream',), 6)}
 
 
+def arm_names(phase, path, ring_status):
+    """The exact arm set of one block."""
+    if phase == 'latcand':
+        return sorted(['reno-reno', 'cand-bbrv3'])
+    return sorted(ARMS[k] for k in expected_arms(path, ring_status))
+
+
 def arm_count(phase, path, ring_status):
-    return 2 if phase == 'latcand' else len(expected_arms(path, ring_status))
+    return len(arm_names(phase, path, ring_status))
 
 
-def choose(phase, path, arms):
-    """stages.chosen with completeness: an attempt is usable only when it holds every expected arm and each is usable.
+def discover(phase, path):
+    """({(path, workload, block): {'original'|'rerun': [(dir, arm)]}}, malformed dirs), reading every attempt
+    directory (with or without a receipt) and never raising on a malformed one."""
+    found, malformed = {}, []
+    for label, root in zip(['original', 'rerun'], S.ROOTS):
+        for d in sorted(x for x in root.glob(f'{phase}-*') if x.is_dir()):
+            try:
+                meta = json.loads((d / 'meta.json').read_text())
+                cfg = json.loads((d / 'config.json').read_text())
+                if meta['phase'] != phase or meta['path'] != path:
+                    continue
+                arm = '-'.join([meta['variant'], cfg['controller']] + ([meta['tag']] if meta.get('tag') else []))
+                found.setdefault((path, cfg['workload'], meta['pair']), {}).setdefault(label, []).append((d, arm))
+            except (OSError, ValueError, KeyError, TypeError) as e:
+                malformed.append(dict(dir=str(d), error=repr(e)))
+    return found, malformed
 
-    Every registered block appears in the record; a block with no attempt at all has status 'missing'.
-    Returns (counted dirs, record).
-    """
-    found = S.blocks_of(phase, path)
+
+def attempt(entries, want, mem):
+    """(usable, contaminated, reasons) for one attempt: the exact arm set, receipts, #712's usability, instrument
+    validity (memory phases) and #712's contamination test, each guarded."""
+    reasons, contaminated = [], False
+    if sorted(a for _, a in entries) != want:
+        reasons.append(f'arms {sorted(a for _, a in entries)} != {want}')
+    for d, a in entries:
+        if not (d / 'receipt.json').exists():
+            reasons.append(f'{a}: no receipt')
+            continue
+        try:
+            if not S.usable(d):
+                reasons.append(f'{a}: unusable')
+                continue
+            contaminated |= bool(S.contaminated(d)['contaminated'])
+        except (OSError, ValueError, KeyError, IndexError, TypeError, AssertionError) as e:
+            reasons.append(f'{a}: {e!r}')
+            continue
+        if mem:
+            valid, why = instrument_check(d)
+            if not valid:
+                reasons.append(f'{a}: {why}')
+    return not reasons, contaminated, reasons
+
+
+def choose(phase, path, want):
+    """The operator's rerun rule (rules.choose_block) over attempts judged by attempt(); every registered block appears
+    in the record, a block with no attempt as 'missing'. want: the exact arm names. Returns (counted dirs, record)."""
+    found, malformed = discover(phase, path)
     workloads, n = LAYOUT[(phase, path)]
     dirs, record = [], []
     for workload in workloads:
         for b in range(1, n + 1):
             att = found.get((path, workload, b), {})
-            attempts = []
+            attempts, reasons = [], {}
             for label in ['original', 'rerun']:
                 if label in att:
-                    ds = att[label]
-                    cont = [S.contaminated(d)['contaminated'] for d in ds]
-                    attempts.append((label, len(ds) >= arms and all(S.usable(d) for d in ds), any(cont)))
+                    usable, cont, why = attempt(att[label], want, phase == 'mem')
+                    attempts.append((label, usable, cont))
+                    reasons[label] = why
             if not attempts:
-                record.append(dict(path=path, workload=workload, block=b, attempts=[], counted=None, status='missing'))
+                record.append(dict(path=path, workload=workload, block=b, attempts=[], counted=None, status='missing', dirs=[]))
                 continue
             pick, status = S.R.choose_block(attempts)
-            dirs += att[pick]
-            record.append(dict(path=path, workload=workload, block=b, attempts=attempts, counted=pick, status=status))
+            picked = [d for d, _ in att[pick]]
+            dirs += picked
+            record.append(dict(path=path, workload=workload, block=b, attempts=attempts, counted=pick, status=status,
+                               reasons=reasons, dirs=[str(d) for d in picked]))
+    if malformed:
+        record.append(dict(path=path, malformed=malformed))
     return dirs, record
 
 
@@ -269,8 +351,8 @@ def ring_decision():
 
 
 def stage_obs(phase, path):
-    dirs, record = choose(phase, path, arm_count(phase, path, ring_decision()))
-    status = {(x['workload'], x['block']): x['status'] for x in record}
+    dirs, record = choose(phase, path, arm_names(phase, path, ring_decision()))
+    status = {(x['workload'], x['block']): x['status'] for x in record if 'block' in x}
     return [observe(d) for d in dirs], status, record
 
 
@@ -371,20 +453,27 @@ def perturbation_ratios():
 # ---- the candidate's loopback STREAM control p95 (operator decision; #715's preslat rule, unchanged) ----
 
 def latency():
+    """#715's latency_preservation, unchanged, over clean blocks only; an unusable or unreadable block is None."""
     s = json.loads(R9_SUMMARY.read_text())
     flag = next(e['flags']['control_p95'] for e in s['readiness'] if (e['path'], e['workload'], e['arm']) == ('loopback', 'stream', 'cand-bbrv3'))
-    dirs, record = choose('latcand', 'loopback-long', 2)
-    by = {}
-    for d in dirs:
-        r = S.summarize(d)
-        lat = [x / 1e6 for x in json.loads((d / 'send.json').read_text())['result']['control']['latency_ns']]
-        by.setdefault(r['pair'], {})[S.arm(r)] = lat
-    status = {x['block']: x['status'] for x in record}
-    blocks = [dict(cand=v['cand-bbrv3'], reno=v['reno-reno']) if status.get(b) == 'clean' and {'cand-bbrv3', 'reno-reno'} <= set(v) else None
-              for b, v in sorted(by.items())]
+    _, record = choose('latcand', 'loopback-long', arm_names('latcand', 'loopback-long', None))
+    blocks, reasons = [], {}
+    for x in (r for r in record if 'block' in r):
+        if x['status'] != 'clean':
+            blocks.append(None)
+            continue
+        try:
+            by = {}
+            for d in map(Path, x['dirs']):
+                r = S.summarize(d)
+                by[S.arm(r)] = [v / 1e6 for v in json.loads((d / 'send.json').read_text())['result']['control']['latency_ns']]
+            blocks.append(dict(cand=by['cand-bbrv3'], reno=by['reno-reno']))
+        except (OSError, ValueError, KeyError, IndexError, TypeError, AssertionError) as e:
+            reasons[x['block']] = repr(e)
+            blocks.append(None)
     outcome, detail = S.R.latency_preservation(blocks)
     res = dict(readiness=dict(value=flag['median'], raised=flag['raised']), outcome=outcome, detail=detail, blocks=record,
-               blocking='no (r9, Linux only)' if outcome == 'not reproduced' else 'yes, unresolved')
+               load_errors=reasons, blocking='no (r9, Linux only)' if outcome == 'not reproduced' else 'yes, unresolved')
     save('latency', res)
     print('latcand', outcome, res['blocking'], {k: v for k, v in detail.items() if not isinstance(v, list)})
 

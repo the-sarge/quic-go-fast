@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-r9-memory-attribution`, based on `138223ac` (the [r9 Linux re-demonstration](../2026-10-08-bbr-r9-linux-redemonstration/README.md), #739), whose tree's code is exactly r9. The revision under test is **r9, `81e9dc8c`**: r8 plus #738's 32-entry BBR send queue. No BBR revision newer than r9 exists. The operator notes that the BBRv3 implementation is still under active performance development. Every result here describes r9 on `minimax` only. None is a verdict on BBRv3 or on later revisions.
 
-**Status: registration, revised after consideration.** Everything below was written, with the aids built, the gates run and the instruments checked, before any comparative observation of this ticket. The first registration (`c0c33ebf`) was gated by a multi-agent consideration before any data. Its twelve findings were dispositioned and the registration revised ([Consideration and revisions](#consideration-and-revisions)). Results, deviations and later sections will be added after the data, below a marker, and these sections will stay unchanged.
+**Status: registration, revised after two considerations.** Everything below was written, with the aids built, the gates run and the instruments checked, before any comparative observation of this ticket. The first registration (`c0c33ebf`) and its revision (`2bade4e5`) were each gated by a multi-agent consideration before any data. All findings were dispositioned and the registration revised ([Consideration and revisions](#consideration-and-revisions)). Results, deviations and later sections will be added after the data, below a marker, and these sections will stay unchanged.
 
 ## Question
 
@@ -72,7 +72,14 @@ Both decisions were relayed on October 8, 2026, from the #739 session. No compar
 - **other runtime**: other and profiling buckets;
 - a **residual**: Anonymous minus those runtime classes.
 
-Released heap is excluded. Only samples with every accounting value read are used. The readiness cell's peak (`ru_maxrss`, kept per endpoint by the launcher) is the largest valid sampled Rss plus a signed **sampling gap**. The gap is an instrument and sampling discrepancy: it can be negative for one run when kB rounding or timing puts the sample above `ru_maxrss`. Each block's excess is reconciled class by class at each endpoint's own peak sample, so the classes, the residual and the gap sum to the peak excess exactly (`closure`, tested).
+Released heap is excluded. Only samples with every accounting value read are used. The readiness cell's peak is the endpoint's own `getrusage(RUSAGE_SELF)` maximum resident size (`ru_maxrss`, read by the fixture; the launcher only keeps the runner's high-water mark out of it). The synthetic program reads it the same way. That peak is the largest valid sampled Rss plus a signed **sampling gap**, and each block's excess is reconciled class by class at each endpoint's own peak sample, so the classes, the residual and the gap sum to the peak excess exactly (`closure`, tested).
+
+**The sampling gap is mostly negative, and larger than kB rounding.** In the committed synthetic runs, the sampled Rss exceeds `ru_maxrss`:
+- in 15 of 18 runs;
+- with gaps from −0.84 to +0.29 MiB, median −0.41 MiB;
+- with paired (case minus baseline) gap excesses from −0.77 to +0.41 MiB, median absolute 0.39 MiB.
+
+The kernel mechanism is not established. `ru_maxrss` therefore can read below residency the sampler saw moments earlier. The rule keeps charging |gap| in full. For a small cell this alone can exhaust the 25% allowance: at loopback STREAM receiver's E ≈ 1.72 MiB the allowance is 0.43 MiB. Such a cell may end as an evidence gap from the instrument discrepancy alone, which is not a finding about r9.
 
 Closure is bookkeeping, not proof that the classes explain residency at another moment. A block is therefore **unexplained** when |residual excess| + |gap excess| exceeds **25%** of its peak excess; the two terms cannot cancel. A cell is an **evidence gap** with no causal label when fewer than three usable blocks are explained, or when the median unexplained share over its usable blocks exceeds 25% ([departure J](#interpretations-and-departures-from-d6-for-approval)). The heap goal is context only. The BBR structure bytes are explicit accounting, reported beside each cell; they are part of heap objects.
 
@@ -83,7 +90,9 @@ A cell's excess sits in **traffic-dependent live heap** only when all three of t
 - the **live share**: 2 × the excess of `/gc/heap/live` (live heap at the last completed mark) at the peak sample ÷ E;
 - the **window live share**: the same quantity as the window median.
 
-The window measures use only valid samples whose own timestamps fall inside each run's measured window. They are aligned by whole seconds since each run's configured start and need **80% coverage** of the window's seconds in both runs; otherwise the block is unusable. The doubled-live shares are a model and never suffice alone: a 0.70 doubled-live share admits an actual live excess of only 0.35 E, which the measured objects share has to back. A warmup-only excess fails the window share.
+The window measures use only valid samples whose own timestamps fall inside each run's measured window. They are aligned by whole seconds since each run's configured start and need **80% coverage** of the window's seconds in both runs; otherwise the block is unusable.
+
+**Instrument validity per run** (second consideration, F1). Before block selection, every arm's two endpoint series must each hold valid samples in at least 80% of the measured window's seconds ([memrules.py](memrules.py) `instrument_valid`). An instrument-invalid observation makes its attempt unusable. That makes the block eligible for its capped same-seed rerun, and keeps it out of calibration, perturbation and S6 scoring. A low baseline excess is a fraction-eligibility matter, never an instrument failure, and never requests a rerun. The doubled-live shares are a model and never suffice alone: a 0.70 doubled-live share admits an actual live excess of only 0.35 E, which the measured objects share has to back. A warmup-only excess fails the window share.
 
 **Sensitivity, recorded before data.** On the synthetic 8 MiB retained case this reading localizes three of three blocks in the committed set (objects window share 0.71–0.86) and two of three in the previous set (0.62–0.81). The literal peak-sample reading localized one of three. A true live-heap cause can therefore still end inconclusive, and an inconclusive ending is not evidence against live heap.
 
@@ -159,7 +168,7 @@ A block is **usable** when all of these hold:
 - the memory series are valid with window coverage;
 - E exceeds **0.5 MiB**.
 
-Registered blocks with no attempt are listed as **missing**. Every expected cell ends with a registered label, an evidence gap included, even when a stage did not run ([memstages.py](memstages.py) `choose` and `assemble`, tested in [memstages_test.py](memstages_test.py)).
+Registered blocks with no attempt are listed as **missing**. An attempt is judged on the exact set of arm names (not their count), each arm's receipt, #712's usability test, instrument validity and #712's contamination test. Every read is guarded, so a malformed or failed artifact is recorded with its reason instead of stopping the analysis. Every expected cell ends with a registered label, an evidence gap included, even when a stage did not run ([memstages.py](memstages.py) `discover`, `attempt`, `choose` and `assemble`, tested in [memstages_test.py](memstages_test.py) with #739's real readers on failed and malformed artifacts). Each block row records its **fraction eligibility** (usable and E > 0.5 MiB) with the reason, consistent with the label's usable count.
 
 The labels are checked in this order ([memrules.py](memrules.py) `label_cell`, tested in [memrules_test.py](memrules_test.py)):
 
@@ -202,14 +211,22 @@ An arm is comparable in a block when every registered measure is present and ins
 
 ## S6 control p95, both workloads
 
-D2's Up-policy rule, read strictly ([memrules.py](memrules.py) `queue_by_phase` and `up_policy`; [departure L](#interpretations-and-departures-from-d6-for-approval)). Its inputs, per workload, are the S6 candidate and A/A runs of every block, so **eight runs**, all from clean blocks with usable arms, together with each run's phase log and the relay's 10 ms forward queue samples over the measured window. Any missing or invalid run, a run without a phase log, or a failed perturbation check for that workload is an **evidence gap**.
+D2's Up-policy rule, read strictly ([memrules.py](memrules.py) `queue_integrity`, `queue_by_phase` and `up_policy`; [departure L](#interpretations-and-departures-from-d6-for-approval)). Its inputs, per workload, are the S6 candidate and A/A runs of every block, so **eight runs**, all from clean blocks with usable arms, together with each run's phase log and the relay's 10 ms forward queue samples over the measured window.
+
+**Timeline integrity** (second consideration, F2), per run:
+- the phase log exists, its records are well-formed phases, and its timestamps are ordered;
+- the queue samples inside the window are ordered and valid;
+- at least 90% of the window's 10 ms ticks have a sample;
+- no gap between consecutive samples, or at either window edge, exceeds 100 ms. Ticker jitter is allowed.
+
+Any missing or invalid run, a run without a phase log, a failed integrity check, or a failed perturbation check for that workload is an **evidence gap**.
 
 A cell is attributed to the **selected ProbeBW Up policy** when every run meets all three conditions:
 - at least 70% of queue samples above 25 ms fall in Up, or in a Down entered directly from Up;
 - the Cruise median and the Refill median queue delays are each below 1 ms, with both phases present;
 - the readiness S5 matched-load p95 is within 1.20 (#739: STREAM **1.061**, DATAGRAM **1.021**).
 
-Samples with no logged phase stay in the 25 ms denominator. A complete input with no sample above 25 ms is **unresolved**, as under the prior rule; otherwise the cell is **unresolved** when the conditions are not met.
+Samples with no logged phase stay in the 25 ms denominator. A complete timeline (integrity met) that never enters Cruise or Refill, or that has no sample above 25 ms, does not meet the conditions and is **unresolved**, as under the prior rule. Missing evidence is an evidence gap (second consideration, F6).
 
 Changes from #736's code: Down counted only after Up; unknown-phase samples kept in the denominator; Cruise and Refill each below 1 ms rather than the median of their medians; and no truncation at the last work dump. #736 truncated because its phases were dumped every 250 ms, while this log covers the whole run. The same thresholds apply to DATAGRAM.
 
@@ -233,7 +250,14 @@ D6's 100 (80 + 20 reruns) is scaled by 1.4 to 140 for operator decision 1 (112 o
 
 A block is rerun once, with the same seed, when its counted attempt is contaminated, unusable, missing an arm or absent, while the rerun total and the overall total stay within their caps. A block that cannot be rerun under the caps is recorded (`reruns_not_run_cap`) and stays unusable.
 
-**Halt and resume.** A failed observation is retained as it is, recorded in `failures.json`, and leaves its block unusable; the stage continues ([matrix.py](matrix.py) `block`). If the driver itself stops (for example, the quiet-host gate gives up after six hours), the operator session resumes by rerunning the stopped stage and the steps after it. Completed observations are reused and never rerun, retained attempts are never replaced, and the caps count what exists on disk.
+**Halt and resume.** A failed observation is retained as it is, recorded in `failures.json`, and leaves its block unusable; the stage continues ([matrix.py](matrix.py) `block`). The same applies to the `memsmoke` activation runs.
+
+**Preflight decision.** The preflight writes `ring-preflight.json` once and refuses to revise it.
+- Missing or invalid activation evidence (the candidate or ring run) makes the ring **unusable**.
+- Valid evidence with no reduction makes it **inert**.
+- The instrument prerequisite is separate. All five `memsmoke` runs must be present, usable and instrument-valid; the receiver-controller arm engaged; phases logged on S6; and packet counters advancing at both endpoints. If it fails, the preflight exits with status 3 and the driver stops before Stage 1. The ticket then ends as a **prerequisite gap**, whatever the ring decision.
+
+**Resume.** If the driver itself stops (for example, the quiet-host gate gives up after six hours), the operator session resumes by rerunning the stopped stage and the steps after it. Completed observations are reused and never rerun, retained attempts are never replaced, and the caps count what exists on disk.
 
 ## Disclosures made before data
 
@@ -295,7 +319,21 @@ The first registration (`c0c33ebf`) was gated before any data by `ras consider` 
 | 11 | The ring veto weakened as uncertainty grew | Fixed: departure I; monotonicity tested |
 | 12 | Threshold, aggregation and cap needed explicit approval | Fixed: departures C and J and the inventory table; the cap is 152 with 28 reruns, both branches tested |
 
-Not acted on, as the synthesis advised:
+**Second consideration** (run `20261008T163921-46a8a643e7fd18818e03084a`, of `2bade4e5`, the same verbatim governing text). It confirmed departures A–L and the inventory arithmetic. It found seven defects needing no new data, all fixed before any comparative data:
+
+| Item | Finding | Disposition |
+| --- | --- | --- |
+| F1 | Instrument validity was not applied to every arm or to selection | Fixed: per-run validity for every arm and endpoint, the exact arm set, propagation to reruns, calibration, perturbation and S6; tested |
+| F2 | S6 could attribute from a nearly empty timeline | Fixed: registered timeline integrity; the three-sample reproduction, truncation, interior gaps, malformed phases and jitter are tested through the rule and `p95()` |
+| F3 | Failed artifacts could stop selection and latency analysis | Fixed: guarded discovery and reads; latency reads clean blocks only; tested with real readers |
+| F4 | A failed activation run stopped the driver without a registered ending | Fixed: failures recorded; `unusable` versus `inert`; a separate instrument prerequisite with exit status 3; the decision is never revised; tested |
+| F5 | The sampling-gap disclosure was wrong | Fixed: provenance corrected, distribution and small-cell sensitivity disclosed; the conservative charge is kept |
+| F6 | A complete timeline without Cruise or Refill read as an evidence gap | Fixed: it is unresolved, and missing evidence is a gap; tested |
+| F7 | Block rows reported usability inconsistent with the label | Fixed: fraction eligibility with its reason; boundary values tested |
+
+Not acted on, as its synthesis advised: C-011, C-010, C-008, C-012, C-018 and C-013, each disputed or a wording matter.
+
+Not acted on from the first consideration, as its synthesis advised:
 - C-018 (the negative-removal limitation) is recorded above.
 - No new sender intervention is added (C-025), and no larger allocation-rate campaign (C-017).
 - A/A runs stay in S6 scoring (C-046), and the inherited latency adequacy thresholds stay unchanged (C-024).

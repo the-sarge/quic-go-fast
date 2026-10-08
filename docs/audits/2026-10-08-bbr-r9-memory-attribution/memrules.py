@@ -117,6 +117,19 @@ def account(row):
     return out
 
 
+def instrument_valid(rows, t0_ns, warmup_ms, measure_ms):
+    """(valid, reason) for one endpoint's series: a valid sample, and valid samples in at least WINDOW_COVERAGE of
+    the measured window's seconds. Applied to every arm and endpoint before block selection (departure H)."""
+    if not any(valid(r) for r in rows):
+        return False, 'no valid memory sample'
+    lo, hi = t0_ns + warmup_ms * 1_000_000, t0_ns + (warmup_ms + measure_ms) * 1_000_000
+    seconds = {int((r['unix_ns'] - t0_ns) // 1_000_000_000) for r in rows if valid(r) and lo <= r['unix_ns'] < hi}
+    need = int(measure_ms // 1000)
+    if need <= 0 or len(seconds) < WINDOW_COVERAGE * need:
+        return False, f'memory window coverage {len(seconds)}/{need} s'
+    return True, None
+
+
 def peak_account(rows, peak_rss_mib):
     """The partition at the largest valid sampled Rss, with the signed sampling gap to the ru_maxrss peak; None if no valid sample."""
     ok = [r for r in rows if valid(r)]
@@ -296,6 +309,15 @@ def comparable(cand, arm, band):
 
 # ---- Stage 1: per-cell label ---------------------------------------------------------------------
 
+def eligibility(b):
+    """(eligible for fractions, reason): instrument and selection validity first, then detectability of E."""
+    if not b['usable']:
+        return False, 'unusable'
+    if b['E'] <= DETECTABLE_MIB:
+        return False, f'E {b["E"]:.3f} MiB at or below {DETECTABLE_MIB}'
+    return True, None
+
+
 def block_fractions(b):
     """Removal fractions and the A/A variation, as fractions of the block's baseline excess E (an empirical envelope)."""
     e = b['E']
@@ -315,7 +337,7 @@ def label_cell(role, blocks, ring_status):
     accounting excess, with the window fields).
     ring_status: 'run', 'not run', 'not run (below detectability)', 'unusable' or 'inert'.
     """
-    usable = [b for b in blocks if b['usable'] and b['E'] > DETECTABLE_MIB]
+    usable = [b for b in blocks if eligibility(b)[0]]
     detail = dict(usable=len(usable), blocks=len(blocks))
     if len(usable) < MIN_BLOCKS:
         return dict(label='evidence gap (fewer than three usable blocks)', **detail)
@@ -363,19 +385,48 @@ def label_cell(role, blocks, ring_status):
 
 # ---- S6 control p95 (D2's Up-policy rule, both workloads) ----------------------------------------
 
+QUEUE_TICK_MS = 10
+QUEUE_COVERAGE = 0.90      # queue samples present, as a share of the window's 10 ms ticks
+QUEUE_MAX_GAP_MS = 100     # largest permitted gap between consecutive samples, and at either window edge
+
+
+def queue_integrity(phases, window_samples, warmup_ms, measure_ms):
+    """(ok, reason) for one run's S6 inputs: a well-formed phase log and a covered, ordered, valid queue timeline."""
+    if not phases:
+        return False, 'no phase log'
+    if any(len(p) != 2 or not isinstance(p[1], int) or not 0 <= p[1] < len(PHASES) for p in phases):
+        return False, 'malformed phase record'
+    if any(b[0] < a[0] for a, b in zip(phases, phases[1:])):
+        return False, 'phase timestamps out of order'
+    ts = [x[0] for x in window_samples]
+    if any(len(x) < 2 or x[1] is None or x[1] < 0 for x in window_samples):
+        return False, 'invalid queue sample'
+    if len(ts) < QUEUE_COVERAGE * measure_ms / QUEUE_TICK_MS:
+        return False, f'queue coverage {len(ts)} samples'
+    if any(b < a for a, b in zip(ts, ts[1:])):
+        return False, 'queue samples out of order'
+    edges = [ts[0] - warmup_ms, warmup_ms + measure_ms - ts[-1]] + [b - a for a, b in zip(ts, ts[1:])]
+    if max(edges) > QUEUE_MAX_GAP_MS:
+        return False, f'queue gap {max(edges)} ms'
+    return True, None
+
+
 def queue_by_phase(phases, queue_samples, t0_ns, warmup_ms, measure_ms):
-    """Forward queue delay (ms) per BBR phase over the measured window.
+    """Forward queue delay (ms) per BBR phase over the measured window, after the integrity check.
 
     Down counts toward the Up share only when entered from Up ("Up or the
     following Down"). Samples with no logged phase stay in the denominator as
-    'unknown'. A run without a phase log is an evidence gap.
+    'unknown'. Returns None for a missing phase log, and dict(integrity=False,
+    reason) for any other failed integrity check; both are evidence gaps.
     """
+    window = [x for x in queue_samples if warmup_ms <= x[0] < warmup_ms + measure_ms]
+    ok, reason = queue_integrity(phases, window, warmup_ms, measure_ms)
     if not phases:
         return None
+    if not ok:
+        return dict(integrity=False, reason=reason)
     by_phase, above = {}, {'up': 0, 'down_after_up': 0, 'other': 0}
-    for t_ms, fwd, _ in queue_samples:
-        if not warmup_ms <= t_ms < warmup_ms + measure_ms:
-            continue
+    for t_ms, fwd, *_ in window:
         at = t0_ns + t_ms * 1_000_000
         cur, prev = None, None
         for ns, ph in phases:
@@ -393,7 +444,7 @@ def queue_by_phase(phases, queue_samples, t0_ns, warmup_ms, measure_ms):
             else:
                 above['other'] += 1
     total = sum(above.values())
-    return dict(by_phase={k: dict(samples=len(v), median_ms=statistics.median(v), share_over_25ms=sum(x > 25 for x in v) / len(v))
+    return dict(integrity=True, by_phase={k: dict(samples=len(v), median_ms=statistics.median(v), share_over_25ms=sum(x > 25 for x in v) / len(v))
                           for k, v in by_phase.items()},
                 above_25ms=above,
                 over_25ms_in_up_or_down=(above['up'] + above['down_after_up']) / total if total else None,
@@ -403,14 +454,14 @@ def queue_by_phase(phases, queue_samples, t0_ns, warmup_ms, measure_ms):
 
 def up_policy(runs, s5_matched_p95, required_runs):
     """D2 over the registered runs: every run's >25 ms samples at least 70% in Up or the following Down, Cruise and
-    Refill each below 1 ms, and S5 matched-load p95 within 1.20. Missing or invalid inputs are an evidence gap; a
-    complete input with no sample above 25 ms is unresolved, as under the prior rule."""
-    if len(runs) < required_runs or any(r is None for r in runs):
-        return 'evidence gap'
-    if any(r['cruise_median_ms'] is None or r['refill_median_ms'] is None for r in runs):
+    Refill each present and below 1 ms, and S5 matched-load p95 within 1.20. Missing or invalid inputs (too few runs,
+    a missing phase log, a failed integrity check) are an evidence gap. A complete timeline that never enters Cruise
+    or Refill, or has no sample above 25 ms, does not meet the conditions and is unresolved."""
+    if len(runs) < required_runs or any(r is None or not r.get('integrity') for r in runs):
         return 'evidence gap'
     ok = (all(r['over_25ms_in_up_or_down'] is not None and r['over_25ms_in_up_or_down'] >= UP_SHARE for r in runs)
-          and all(r['cruise_median_ms'] < CRUISE_MS and r['refill_median_ms'] < CRUISE_MS for r in runs)
+          and all(r['cruise_median_ms'] is not None and r['refill_median_ms'] is not None
+                  and r['cruise_median_ms'] < CRUISE_MS and r['refill_median_ms'] < CRUISE_MS for r in runs)
           and s5_matched_p95 <= S5_P95)
     return 'selected ProbeBW Up policy' if ok else 'unresolved'
 
