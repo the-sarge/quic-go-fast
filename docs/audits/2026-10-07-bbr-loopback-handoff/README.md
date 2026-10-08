@@ -4,17 +4,29 @@
 
 Branch `codex/bbr-loopback-handoff`, based on `232a6b76` (the accepted decision). The starting revision is **r8, `95f5b6b7`**.
 
-**Status: complete. The ticket ends in Stage 0 with an instrumentation gap in both workloads**, under the registered rule; Stages 1 and 2 did not run. The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded development runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: complete.** Under the registered rules, Stage 0 ended in an **instrumentation gap**. By operator decision (deviations 2 and 3), Stages 1 and 2 ran anyway. Stage 2's registered outcome is **negative**: a large loopback improvement, but S5 DATAGRAM sender CPU rose. The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded development runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
 
 ## Answer
 
-**The registered instrument failed its perturbation check in both workloads, so under D4 the ticket ends with an instrumentation gap: no Stage 1 attribution, no remedy attempted, and r8 (`95f5b6b7`) survives unchanged.** On a quiet `minimax`, the hand-off recorder delivered 0.977 (STREAM) and 0.982 (DATAGRAM) of the plain build's loopback goodput, against D4's 0.99 floor, in five clean blocks each. It did recover all five synthetic cases in both workloads.
+**Under the registered rules the ticket ended in Stage 0 with an instrumentation gap.** The hand-off recorder kept 0.977 (STREAM) and 0.982 (DATAGRAM) of plain loopback goodput, against D4's 0.99 floor. **By operator decision (deviation 2) Stages 1 and 2 ran anyway**, with that cost disclosed beside every reading.
 
-**The diagnostic 4Q arm is inert in both workloads.** Its gates passed, including detection of an injected second violation, but in the registered activation runs no admission took pending work above 2Q: the maximum was 0.17 Q (DATAGRAM) and 0.19 Q (STREAM). Raising the 2Q bound changes nothing on this fixture.
+**What limits BBR loopback goodput (Stage 1).** The answer is the send queue, not the credit.
+- At loopback rates BBR hands the send worker **one packet per queue entry**. The local credit is never refused (pending stays at or below 0.19 Q), and every local wait is a **full eight-entry send queue**.
+- **DATAGRAM: hand-off (queue)**, in all four blocks, and the A/A arm agrees. The loop waits on the full queue for 0.39 of the window while the worker is busy only 0.76 of it. The two goroutines alternate at the per-packet scale: waits of about 5 µs, about 76,000 a second.
+- **STREAM: inconclusive**, in all four blocks. The loop's waits split between the full queue (0.20) and the fixture's writer (0.20).
+- **The 4Q arm is inert** in both workloads: raising D08's 2Q bound changes nothing here.
+- **r8's kick is not supported** as the cause of the loopback STREAM change: r8 never reached a paced stop there.
 
-**What the failed instrument showed, descriptively and not as attribution:** both workloads hand the send worker one packet per queue entry, the local credit was never refused, and every local wait was a full eight-entry send queue. On DATAGRAM the recorder read hand-off (queue) in all five preflight blocks; on STREAM it read inconclusive in all five, with the loop's waits split between the full queue (0.20 of the window) and the application writer (0.20). These readings match the excluded development runs, but they come from an instrument that perturbs goodput by about 2%. D4 does not let them stand as Stage 1 findings.
+**Stage 2: a 32-entry send queue for BBR connections (`81e9dc8c`). Registered outcome: negative.**
+- **Loopback, both workloads, all six blocks clean.** Against the same block's frozen Reno:
+  - DATAGRAM rose from 0.864 to **1.026**, a deficit difference of −0.162 against an A/A range of −0.008 to 0.005.
+  - STREAM rose from 0.938 to **1.135**, a difference of −0.197 against −0.017 to 0.004.
+  - Sender CPU per useful GiB fell to 0.910 and 0.936 of r8's.
+  - The worker became the saturated stage (busy 0.77 → 0.91).
+- **Reno preservation passes at both endpoints, and integrity holds.**
+- **The S5 screen shows a regression: DATAGRAM sender CPU per useful GiB rose to 1.050× r8's** (1.043–1.061 in all four blocks, against an A/A range of 0.994–1.009), with goodput unchanged. That guard makes the outcome negative. S5 STREAM is unchanged.
 
-**Endings (D4):** credit response **inert**; remedy status **not attempted**; Stage 1 attribution **instrumentation gap** in both workloads.
+**Endings (D4):** credit response **inert**; remedy status **failed (negative)**, with efficacy **improved** in both workloads; Stage 1: DATAGRAM **hand-off (queue)**, STREAM **inconclusive**, kick **not supported**. **Surviving revision: r8 (`95f5b6b7`).** The 32-entry queue goes to the decision as a strong lead with one unexplained cost.
 
 ## Stage 0 result: instrumentation gap
 
@@ -47,12 +59,55 @@ Medians of the five preflight `cand-hand-timeline` blocks. These are not Stage 1
 | Local waits per second; mean local wait | 76,300; 5.4 µs | 22,500; 9.7 µs |
 | Verdict in each block | hand-off (queue), 5 of 5 | inconclusive, 5 of 5 |
 
+## Stage 1 result (deviation 2): DATAGRAM hand-off (queue); STREAM inconclusive
+
+Run on October 7 (UTC) after `5c04d795`; [results.json](results.json) `s1`. 40 observations; STREAM block 4 was contaminated (its A/A arm, by foreign load) and its rerun was clean and counts. All four blocks of both workloads were clean in the end.
+
+| Arm (median of four blocks) | DATAGRAM ÷ frozen Reno | STREAM ÷ frozen Reno | Worker busy | Full-queue waits | Application waits |
+| --- | --- | --- | --- | --- | --- |
+| r8, instrumented | 0.854 | 0.934 | 0.76 / 0.70 | 0.39 / 0.20 | 0.01 / 0.20 |
+| `d0fabc4d`, instrumented | 0.844 | 0.939 | 0.76 / 0.71 | 0.39 / 0.20 | 0.01 / 0.20 |
+| 4Q arm, instrumented | 0.851 | 0.921 | 0.76 / 0.69 | 0.39 / 0.20 | 0.01 / 0.19 |
+
+Frozen Reno delivered 4,616 (DATAGRAM) and 4,679 Mbit/s (STREAM). Ratios include the recorder's cost on the BBR arms.
+
+- **Verdicts.** DATAGRAM: hand-off (queue) in 4 of 4 (A/A 4 of 4); `j_wb` 0.365, `j_hh` 0.026, `j_lb` 0.192. STREAM: inconclusive in 4 of 4 (A/A 4 of 4).
+- **Credit response: inert** in both workloads (activation failed; pending at most 0.17 / 0.19 Q in every counted run).
+- **r8 against `d0fabc4d`, STREAM: r8 lower, kick not supported.** `d0fabc4d` ÷ r8 had a median of 1.004, above the A/A maximum (0.999) in three blocks, but r8 showed no timing exposure in any block (no paced stop). They are different binaries (see [Limits of the comparison](#limits-of-the-comparison)).
+- **Stage 2 gate:** DATAGRAM is addressable; STREAM is not targeted and must not get worse.
+
+## Stage 2 result (deviations 2 and 3): negative under the registered rule
+
+Run on October 7 (UTC) after `15348bb9`; reruns after `bfa43c63`; [results.json](results.json) `s2`. 96 observations plus 33 reruns of the seven contaminated block-workloads. Every rerun was clean, every block of both stages is clean, and no observation failed integrity.
+
+| Loopback (median of six blocks), ÷ frozen Reno | DATAGRAM | STREAM |
+| --- | --- | --- |
+| r8 (instrumented) | 0.864 | 0.938 |
+| second r8 (BBR A/A) | 0.866 | 0.938 |
+| **new revision** (instrumented) | **1.026** | **1.135** |
+| Reno on the new revision | 1.003 | 1.009 |
+
+| Keep-rule input | DATAGRAM (targeted) | STREAM | Movement |
+| --- | --- | --- | --- |
+| Deficit difference, new − r8 (A/A range) | −0.162 (−0.008 to 0.005) | −0.197 (−0.017 to 0.004) | **improved**, both |
+| Sender CPU per useful GiB, new ÷ r8 (A/A) | 0.910 (0.994–1.002) | 0.936 (0.990–1.000) | lower, both |
+| S5 goodput, new ÷ r8 (A/A) | 1.008 (0.995–1.010) | 1.003 (0.999–1.009) | inside, both |
+| S5 sender CPU per useful GiB, new ÷ r8 (A/A) | **1.050** (0.994–1.009); blocks 1.043–1.061 | 1.006 (0.998–1.011) | **higher, DATAGRAM** |
+| Reno on the new revision, cycles per useful GiB (frozen Reno A/A) | sender 0.996 (0.994–1.006); receiver 0.997 (0.996–1.015), pooled | | inside, both |
+
+- **Outcome: negative.** The S5 screen regressed on DATAGRAM sender CPU per useful GiB. Every other keep condition held: both loopback deficits fell far beyond the A/A range, loopback sender CPU fell, Reno preservation and integrity held, and S5 STREAM did not move.
+- **What the deeper queue did.** On loopback the worker became the saturated stage (busy 0.77 → 0.91; DATAGRAM verdict worker-bound, STREAM worker-bound plus supply-bound). Full-queue waits fell from 0.40 to 0.20 (DATAGRAM) and from 0.19 to 0.03 (STREAM), and STREAM's application waits rose to 0.26. The new revision delivered 4,535 and 5,436 Mbit/s against frozen Reno's 4,425 and 4,804 (with `perf stat` attached).
+- **The S5 cost is unexplained.** At S5's rate Q is about 12 KiB, so the 2Q credit binds near 17 one-packet entries, before the deeper queue matters, and S5 STREAM is unchanged. Two candidates were not tested here: code placement (the new revision is a different binary, and loopback STREAM has shown about 3% from placement alone), and a real per-packet cost of a deeper DATAGRAM queue on that path. The registered rule reads the guard as written. No keep-by-decision is proposed, because the guarded cost itself rose.
+
 ## Report to the next tickets
 
 - **Surviving revision: r8, `95f5b6b7`**, unchanged. Nothing was kept, so under D5 [Re-demonstrate the loopback-tested BBRv3 revision on owned Linux hardware](https://github.com/the-sarge/quic-go-fast/issues/739) closes as **not run**, and under D6 [Attribute the BBRv3 candidate's memory and S6 latency flags on the final revision](https://github.com/the-sarge/quic-go-fast/issues/740) attributes on r8 against #736's flags.
-- **For the next decision:** the loopback goodput flags (STREAM 0.943, DATAGRAM 0.854) and the loopback DATAGRAM sender CPU flag stay **unresolved, missing evidence**: an instrumentation gap, not a failed intervention or a finding against BBRv3. The 4Q arm is **inert**, so this ticket gives no evidence for a D08 2Q-profile decision: on this fixture the 2Q credit never binds.
-- **Leads, not findings** (development runs and source inspection, disclosed below): BBR hands off one packet per entry at loopback rates because its pacer accrues about one packet of credit between opportunities, so the eight-entry send queue binds and the two goroutines exchange every packet. A queue-side, BBR-only change (for example a deeper BBR send queue, or coalesced availability signals; in one development run, coalesced signals raised DATAGRAM goodput) is the natural candidate for any later remedy. STREAM's loop also waits on the fixture's writer for about a fifth of the window.
-- **If the operator wants Stage 1 anyway**, it would be a recorded deviation that accepts a roughly 2% instrument cost, run in a quiet window of about 40 minutes. Nothing here assumes it.
+- **For the decision, the loopback cells:**
+  - The cause of the loopback deficit now has a measured attribution, though from an instrument that misses D4's perturbation floor. DATAGRAM's deficit is the per-packet hand-off through the eight-entry send queue. STREAM is inconclusive between queue and writer waits.
+  - A BBR-only 32-entry queue removed both loopback goodput deficits and lowered sender CPU, but failed the S5 DATAGRAM sender-CPU guard (+5%).
+  - The loopback flags stay **unresolved on r8**: a failed selected intervention with demonstrated efficacy, not a finding against BBRv3.
+  - The 4Q arm is **inert**: no evidence for a D08 2Q-profile decision.
+- **Leads, not findings:** explain the S5 DATAGRAM CPU rise (placement against a real cost, for example with a placement control or `perf` attribution) before any further queue-depth decision. A smaller BBR depth, or a depth that applies only when entries hold single packets, are untested variants. Loopback control-stream latency with a deeper queue is unmeasured here: readiness would measure it.
 
 ## Question
 
@@ -206,11 +261,11 @@ Runs only for workloads with an addressable hand-off finding. The mechanism is r
 
 ## Limits
 
-One Linux host and loopback endpoints. The Stage 0 result says only that this recorder perturbs loopback goodput by about 2%, more than D4 allows; it says nothing about whether the hand-off limits goodput. The descriptive readings above carry that perturbation. Loopback STREAM's sensitivity to code placement (about 3% between semantically identical builds, in development) means the perturbation check partly measures layout, not only the recorder's work; the registered rule applies regardless.
+One Linux host and loopback endpoints. The Stage 0 result says only that this recorder perturbs loopback goodput by about 2%, more than D4 allows; Stage 1's attributions carry that perturbation, which is small beside DATAGRAM's 15% deficit. Stage 2's loopback arms for r8 and the new revision are both instrumented, so its paired statistics share the cost. Loopback and S5 only; no control-stream latency, memory or S6 judgement is made for the new revision. Loopback STREAM's sensitivity to code placement (about 3% between semantically identical builds, in development) means the perturbation check partly measures layout, not only the recorder's work; the registered rule applies regardless.
 
 ## Assets
 
-- **Results:** [results.json](results.json) (`stage0`), [gates/](gates/).
+- **Results:** [results.json](results.json) (`stage0`, `s1`, `s2`), [gates/](gates/) (including the candidate's gates and [oracle.json](gates/oracle.json)).
 - **Raw data:** [raw.tar.gz](raw.tar.gz) with [raw-manifest.json](raw-manifest.json): every observation (the 244 development runs included), stage logs and build receipts. Binaries, credentials and exported trees are omitted; `build.py` rebuilds them.
 - **To reconstruct:** in a fresh owned worktree of this branch, `build.py`, `sync.sh`, then the [Order](#order) on a Linux host with the same core layout; anywhere, `hand.py stage0` and `rules_test.py`.
 
