@@ -158,7 +158,9 @@ class Selection(unittest.TestCase):
                         mock.patch.object(MS.S, 'contaminated', emulate(self.real_cont, 'valid',
                                                                          lambda d: dict(contaminated=(d / 'contaminated').exists()))),
                         mock.patch.object(MS, 'instrument_check', lambda d: (True, None) if (d / 'valid').exists() and not (d / 'sparse').exists()
-                                          else (False, 'memory window coverage 3/30 s'))]
+                                          else (False, 'memory window coverage 3/30 s')),
+                        mock.patch.object(MS, 'paired_check', lambda dirs: (False, 'paired receive window coverage 0.60')
+                                          if any((d / 'unpaired').exists() for d in dirs.values()) else (True, None))]
         for p in self.patches:
             p.start()
 
@@ -167,7 +169,7 @@ class Selection(unittest.TestCase):
             p.stop()
         self.tmp.cleanup()
 
-    def make(self, root, workload, b, arm, valid=True, receipt=True, contaminated=False, sparse=False, meta=True):
+    def make(self, root, workload, b, arm, valid=True, receipt=True, contaminated=False, sparse=False, meta=True, unpaired=False):
         variant, controller, tag = ARM_PARTS[arm]
         d = self.roots[root] / f'mem-S5-{workload}-p{b}-{arm}'
         d.mkdir()
@@ -178,7 +180,7 @@ class Selection(unittest.TestCase):
         (d / 'config.json').write_text(json.dumps(dict(workload=workload, controller=controller)))
         if receipt:
             (d / 'receipt.json').write_text('{}')
-        for flag, on in (('valid', valid), ('contaminated', contaminated), ('sparse', sparse)):
+        for flag, on in (('valid', valid), ('contaminated', contaminated), ('sparse', sparse), ('unpaired', unpaired)):
             if on:
                 (d / flag).write_text('')
 
@@ -196,13 +198,14 @@ class Selection(unittest.TestCase):
         self.block(0, 3, **{'cand-mem-bbrv3': dict(contaminated=True)})                # contaminated original ...
         self.block(1, 3)                                                                # ... clean same-seed rerun
         self.block(0, 4, **{'cand-mem-bbrv3-rxreno': dict(sparse=True)})               # instrument-invalid arm
+        self.block(0, 1, workload='datagram', **{'reno-mem-reno': dict(unpaired=True)})  # individually valid, unpaired
         status, malformed = self.records()
+        self.assertEqual(status[('datagram', 1)]['status'], 'unusable')
         self.assertEqual(status[('stream', 1)]['status'], 'clean')
         self.assertEqual(status[('stream', 2)]['status'], 'unusable')
         self.assertEqual(status[('stream', 3)]['counted'], 'rerun')
         self.assertEqual(status[('stream', 4)]['status'], 'unusable')
         self.assertTrue(any('coverage' in r for r in status[('stream', 4)]['reasons']['original']))
-        self.assertEqual(status[('datagram', 1)]['status'], 'missing')
         self.assertEqual(malformed, [])
         pending = {(r['workload'], r['block']) for r in F.pending_reruns('mem', 'S5', WANT)}
         self.assertEqual(pending, {('stream', 2), ('stream', 4), ('datagram', 1), ('datagram', 2), ('datagram', 3), ('datagram', 4)})
@@ -307,6 +310,137 @@ class S6Scoring(unittest.TestCase):
 
     def test_complete_timeline_without_refill_is_unresolved(self):
         self.assertEqual(set(self.run_p95(self.phases(refill=False), self.queue()).values()), {'unresolved'})
+
+
+def mem_series(path, seconds, t0=0):
+    """A minimal {role}.mem.jsonl with valid samples at the given seconds."""
+    cols = ['unix_ns'] + M.REQUIRED
+    rows = [[int((t0 + k) * 1e9)] + [1 for _ in M.REQUIRED] for k in seconds]
+    path.write_text('\n'.join([json.dumps(dict(columns=cols))] + [json.dumps(r) for r in rows]) + '\n')
+
+
+class ThirdRound(unittest.TestCase):
+    """Regressions for the third consideration (run 20261008T171423-48c4ce16)."""
+
+    def test_f1_paired_coverage_on_real_series(self):
+        # Candidate and Reno each cover 24 of 30 window seconds but share only 18.
+        with tempfile.TemporaryDirectory() as tmp:
+            dirs = {}
+            for arm, secs in ((MS.ARMS['cand'], list(range(10, 34))), (MS.ARMS['reno'], list(range(16, 40)))):
+                d = Path(tmp) / arm
+                d.mkdir()
+                (d / 'config.json').write_text(json.dumps(dict(start_unix_ns=0, warmup_ms=10_000, measure_ms=30_000)))
+                for role in ('send', 'receive'):
+                    mem_series(d / f'{role}.mem.jsonl', secs)
+                dirs[arm] = d
+                self.assertEqual(MS.instrument_check(d), (True, None))
+            ok, why = MS.paired_check(dirs)
+            self.assertFalse(ok)
+            self.assertIn('0.60', why)
+
+    def test_f1_rejected_block_leaves_band_and_label_unchanged(self):
+        def blocks(n):
+            g = {}
+            for b in range(1, n + 1):
+                g.update(full_block(b))
+            return g
+        g = blocks(4)
+        g[('stream', 4)]['aa']['traffic'] = dict(g[('stream', 4)]['aa']['traffic'], goodput=45.0)
+        status = {k: 'clean' for k in g}
+        status[('stream', 4)] = 'unusable'          # rejected by the paired check during selection
+        with_outlier = assemble(g, status)[('stream', 'receive')]
+        without = assemble(blocks(3))[('stream', 'receive')]
+        self.assertEqual(with_outlier['band'], without['band'])
+        self.assertEqual(with_outlier['label']['label'], without['label']['label'])
+
+    def test_f2_stale_counter_boundaries(self):
+        cand = [{'unix_ns': int(k * 1e9), 'stats_packets_sent': 1000 * k} for k in range(0, 42)]
+        stale = [{'unix_ns': int(k * 1e9), 'stats_packets_sent': 1250 * k} for k in list(range(0, 35)) + [41]]
+        self.assertEqual(M.window_delta(cand, 0, 10_000, 30_000, 'stats_packets_sent'), 30_000)
+        self.assertIsNone(M.window_delta(stale, 0, 10_000, 30_000, 'stats_packets_sent'))
+        jitter = [{'unix_ns': int((k + 0.4) * 1e9), 'stats_packets_sent': 1000 * k} for k in range(0, 42)]
+        self.assertIsNotNone(M.window_delta(jitter, 0, 10_000, 30_000, 'stats_packets_sent'))
+        regress = [dict(r) for r in cand]
+        regress[20]['stats_packets_sent'] = 0
+        self.assertIsNone(M.window_delta(regress, 0, 10_000, 30_000, 'stats_packets_sent'))
+        self.assertIsNone(M.window_delta([], 0, 10_000, 30_000, 'stats_packets_sent'))
+        summary = dict(useful_bytes=2**30, goodput_mbps=90.0, control_replies=30)
+        band = M.aa_band([dict(cand=M.traffic(summary, cand, cand, 0, 10_000, 30_000),
+                               aa=M.traffic(summary, cand, cand, 0, 10_000, 30_000))] * 3, M.TRAFFIC)
+        treat = M.traffic(summary, stale, stale, 0, 10_000, 30_000)
+        self.assertFalse(M.comparable(M.traffic(summary, cand, cand, 0, 10_000, 30_000), treat, band)[0])
+
+    def test_f3_duplicates_add_neither_coverage_nor_weight(self):
+        T0 = 10**18
+        phases = [[T0, 0], [T0 + 10_000 * 10**6, 3], [T0 + 15_000 * 10**6, 4], [T0 + 16_000 * 10**6, 3],
+                  [T0 + 20_000 * 10**6, 5], [T0 + 21_000 * 10**6, 2], [T0 + 22_000 * 10**6, 3]]
+        sparse = [[t, 400_000 if 20_000 <= t < 22_000 else 1_000, 0] for t in range(10_000, 40_000, 100) for _ in range(10)]
+        self.assertFalse(M.queue_by_phase(phases, sparse, T0, 10_000, 30_000)['integrity'])
+        # Half the hot samples in Up, half in Cruise; tripling the Up ones must not change the association.
+        q = [[t, 400_000 if 20_000 <= t < 22_000 or 30_000 <= t < 32_000 else 1_000, 0] for t in range(10_000, 40_000, 10)]
+        q = sorted(q + [x for x in q if 20_000 <= x[0] < 21_000] * 2, key=lambda x: x[0])
+        e = M.queue_by_phase([p for p in phases if p[1] != 2] + [[T0 + 30_000 * 10**6, 3]], q, T0, 10_000, 30_000)
+        self.assertAlmostEqual(e['over_25ms_in_up_or_down'], 0.5)  # 0.67 if the tripled Up samples counted
+
+    def test_f4_treatment_gap_sensitivity(self):
+        # E 1 MiB, A/A 0, candidate and treatment sampled Rss identical; only the treatment's ru_maxrss is 0.8 lower.
+        g = {}
+        for b in range(1, 5):
+            blk = full_block(b, cand_rss=21.0, reno_rss=20.0, aa_rss=21.0)
+            x = blk[('stream', b)]['rx']
+            x['receive']['peak'] = dict(x['receive']['peak'], peak=x['receive']['peak']['peak'] - 0.8,
+                                        gap=x['receive']['peak']['gap'] - 0.8)
+            g.update(blk)
+        cell = assemble(g)[('stream', 'receive')]
+        self.assertEqual(cell['label']['rule_label'], 'receiver-side controller state')
+        self.assertEqual(cell['label']['label'], 'unresolved (sensitive to the peak instrument)')
+        self.assertTrue(all(b['arm_gaps'] for b in cell['sensitivity_blocks']))
+        self.assertEqual(M.combine_sensitivity(dict(label='inconclusive'), dict(label='mixed'))['label'], 'inconclusive')
+
+    def test_f5_malformed_s6_inputs_are_recorded_gaps(self):
+        T0 = 10**18
+        good_phases = [[T0, 3], [T0 + 20_000 * 10**6, 5], [T0 + 21_000 * 10**6, 2], [T0 + 22_000 * 10**6, 4], [T0 + 23_000 * 10**6, 3]]
+        for relay_text, phases in (('{not json', good_phases), (json.dumps(dict(QueueSamples=None)), good_phases),
+                                   (json.dumps(dict(QueueSamples=[[]])), good_phases), (json.dumps(dict(QueueSamples=[['x', 1, 0]])), good_phases),
+                                   (json.dumps(dict(QueueSamples=[[10_000, 1, 0]])), [None]), (None, good_phases)):
+            with tempfile.TemporaryDirectory() as tmp:
+                grouped, status = {}, {}
+                for b in range(1, 5):
+                    for w in ('stream', 'datagram'):
+                        gg = {}
+                        for k in ('cand', 'aa'):
+                            d = Path(tmp) / f'{w}-{b}-{k}'
+                            d.mkdir()
+                            if relay_text is not None:
+                                (d / 'relay.json').write_text(relay_text)
+                            gg[k] = dict(dir=str(d), usable=True, cfg=dict(start_unix_ns=T0, warmup_ms=10_000, measure_ms=30_000),
+                                         summary=dict(id=f'{w}-{b}-{k}', control_p95_ms=150.0), send=dict(tail=dict(phases=phases)))
+                        grouped[(w, b)], status[(w, b)] = gg, 'clean'
+                saved = {}
+                with mock.patch.object(MS, 'stage_obs', lambda phase, path: ([], status, [])), mock.patch.object(MS, 'group', lambda obs: grouped), \
+                        mock.patch.object(MS, 'perturbation_ratios', lambda: []), mock.patch.object(MS, 'save', lambda k, v: saved.setdefault(k, v)):
+                    MS.p95()
+                for w in ('stream', 'datagram'):
+                    self.assertEqual(saved['s6_p95'][w]['attribution'], 'evidence gap', relay_text)
+                    self.assertTrue(all(r.get('reason') for r in saved['s6_p95'][w]['runs']), relay_text)
+
+    def test_f6_counted_survives_malformed_and_missing_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = [Path(tmp) / 'observations', Path(tmp) / 'observations-rerun']
+            for r in roots:
+                r.mkdir()
+            (roots[0] / 'mem-S5-stream-p1-reno-mem-reno').mkdir()
+            (roots[0] / 'mem-S5-stream-p1-reno-mem-reno' / 'meta.json').write_text(json.dumps(dict(phase='mem')))
+            (roots[0] / 'mem-S5-stream-p1-cand-mem-bbrv3').mkdir()
+            (roots[0] / 'mem-S5-stream-p1-cand-mem-bbrv3' / 'meta.json').write_text('{bad')
+            (roots[0] / 'mem-S5-stream-p1-cand-mem-bbrv3-aa').mkdir()                 # no meta.json
+            (roots[0] / 'memsmoke-S5-stream-p1-cand-mem-bbrv3').mkdir()               # excluded phase
+            (roots[1] / 'latcand-loopback-long-stream-p2-cand-bbrv3').mkdir()
+            logged = []
+            with mock.patch.object(F.S, 'ROOTS', roots), mock.patch.object(F, 'record', lambda k, v: logged.append(k)):
+                self.assertEqual(F.counted(), 4)
+                self.assertEqual(F.counted([roots[1]]), 1)
+            self.assertEqual(logged.count('accounting_errors'), 4)  # two each call: malformed and missing
 
 
 class Caps(unittest.TestCase):

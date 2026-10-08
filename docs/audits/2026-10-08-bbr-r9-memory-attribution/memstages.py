@@ -243,6 +243,7 @@ def assemble(path, grouped, status, flags, ring_status, perturbed, workloads=('s
                 rows.append(row)
             for row in rows:  # second consideration F7: fraction eligibility, reported with its reason
                 row['eligible'], row['eligibility_reason'] = M.eligibility(row)
+            sens = [sensitivity_row(r, blocks[r['block']], role) if r.get('ex') is not None else dict(r, E=0.0) for r in rows]
             flag = flags.get((path, workload, role))
             label = None
             if flag and flag['raised']:
@@ -251,12 +252,30 @@ def assemble(path, grouped, status, flags, ring_status, perturbed, workloads=('s
                 elif not blocks:
                     label = dict(label='evidence gap (stage not run or no observation)')
                 else:
-                    label = M.label_cell(role, [r for r in rows if r.get('ex') is not None] +
-                                         [dict(r, E=0.0) for r in rows if r.get('ex') is None], ring_status)
+                    primary = M.label_cell(role, [r for r in rows if r.get('ex') is not None] +
+                                           [dict(r, E=0.0) for r in rows if r.get('ex') is None], ring_status)
+                    label = M.combine_sensitivity(primary, M.label_cell(role, sens, ring_status))
             result.append(dict(path=path, workload=workload, role=role, readiness=flag, label=label, band=band,
                                blocks=[{k: v for k, v in r.items()} for r in rows],
+                               sensitivity_blocks=[{k: r.get(k) for k in ('block', 'E', 'aa_diff', 'ring', 'rx', 'arm_gaps')} for r in sens],
                                descriptive=describe([r for r in rows if r.get('ex') is not None])))
     return result
+
+
+def sensitivity_row(row, g, role):
+    """The block row recomputed with each arm's largest valid sampled Rss in place of ru_maxrss (third consideration,
+    F4): E, the A/A variation and the removals; the accounting then has no sampling gap. Per-arm gaps are recorded."""
+    rss = lambda k: g[k][role]['peak']['rss']
+    c, n = g['cand'][role]['peak'], g['reno'][role]['peak']
+    ex = M.excess(dict(c, peak=c['rss'], gap=0.0), dict(n, peak=n['rss'], gap=0.0),
+                  {'/gc/heap/live:bytes': row['ex']['live_window'], '/memory/classes/heap/objects:bytes': row['ex']['objects_window']},
+                  row['ex']['window_coverage'])
+    out = dict(row, E=ex['peak'], ex=ex, aa_diff=rss('aa') - rss('cand'),
+               arm_gaps={k: g[k][role]['peak']['gap'] for k in g if g[k].get('usable')})
+    out['ring'] = rss('cand') - rss('ring') if row.get('ring') is not None else None
+    out['rx'] = rss('cand') - rss('rx') if row.get('rx') is not None else None
+    out['eligible'], out['eligibility_reason'] = M.eligibility(out)
+    return out
 
 
 # Registered blocks per phase and path: (workloads, blocks).
@@ -315,7 +334,28 @@ def attempt(entries, want, mem):
             valid, why = instrument_check(d)
             if not valid:
                 reasons.append(f'{a}: {why}')
+    if mem and not reasons:
+        ok, why = paired_check(dict((a, d) for d, a in entries))
+        if not ok:
+            reasons.append(why)
     return not reasons, contaminated, reasons
+
+
+def paired_check(dirs):
+    """(valid, reason): the candidate and frozen Reno series share at least WINDOW_COVERAGE of the measured window's
+    seconds at both endpoints (third consideration, F1), checked before selection like every instrument check."""
+    try:
+        c, n = dirs[ARMS['cand']], dirs[ARMS['reno']]
+        cc, nc = (json.loads((x / 'config.json').read_text()) for x in (c, n))
+        for role in ['send', 'receive']:
+            _, cr, _ = series(c, role)
+            _, nr, _ = series(n, role)
+            _, cov = M.window_medians(cr, nr, cc['start_unix_ns'], nc['start_unix_ns'], cc['warmup_ms'], cc['measure_ms'])
+            if cov < M.WINDOW_COVERAGE:
+                return False, f'paired {role} window coverage {cov:.2f}'
+        return True, None
+    except (OSError, ValueError, KeyError, IndexError, TypeError) as e:
+        return False, f'paired check: {e!r}'
 
 
 def choose(phase, path, want):
@@ -404,10 +444,14 @@ def p95():
                 o = g.get(k)
                 if not o or not o['usable']:
                     continue
-                relay = json.loads((Path(o['dir']) / 'relay.json').read_text())
-                q = M.queue_by_phase((o['send']['tail'] or {}).get('phases') or [], relay['QueueSamples'], o['cfg']['start_unix_ns'],
-                                     o['cfg']['warmup_ms'], o['cfg']['measure_ms'])
-                runs.append(dict(id=o['summary']['id'], control_p95_ms=o['summary']['control_p95_ms'], **(q or dict(missing='phase log'))) if q else None)
+                try:
+                    relay = json.loads((Path(o['dir']) / 'relay.json').read_text())
+                    q = M.queue_by_phase(((o['send'].get('tail') or {}).get('phases')) or [], relay.get('QueueSamples') if isinstance(relay, dict) else None,
+                                         o['cfg']['start_unix_ns'], o['cfg']['warmup_ms'], o['cfg']['measure_ms'])
+                except (OSError, ValueError, KeyError, IndexError, TypeError, AttributeError) as e:
+                    q = dict(integrity=False, reason=f'S6 input load: {e!r}')
+                runs.append(dict(id=o['summary']['id'], control_p95_ms=o['summary']['control_p95_ms'], **q) if q
+                            else dict(id=o['summary']['id'], integrity=False, reason='no phase log'))
         if not s6[workload]['raised']:
             attribution = 'passes'
         elif ('S6', workload) in perturbed:

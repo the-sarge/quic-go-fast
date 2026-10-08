@@ -53,9 +53,22 @@ def record(key, value):
     LOG.write_text(json.dumps(out, indent=1) + '\n')
 
 
+CAPPED = ('mem-', 'latcand-')  # directory-name prefixes of the capped phases (never memsmoke- or a prerequisite)
+
+
 def counted(roots=None):
-    """Observations of the capped phases taken so far (originals and reruns, or only the given roots)."""
-    return sum(json.loads(p.read_text())['phase'] in ('mem', 'latcand') for root in (roots or S.ROOTS) for p in root.glob('*/meta.json'))
+    """Attempts of the capped phases retained so far (originals and reruns, or only the given roots), counted once per
+    directory by its name, so a malformed or missing meta.json still consumes allowance (third consideration, F6)."""
+    n = 0
+    for root in (roots or S.ROOTS):
+        for d in root.iterdir() if root.exists() else []:
+            if d.is_dir() and d.name.startswith(CAPPED):
+                n += 1
+                try:
+                    json.loads((d / 'meta.json').read_text())
+                except (OSError, ValueError) as e:
+                    record('accounting_errors', dict(dir=str(d), error=repr(e)))
+    return n
 
 
 def pending_reruns(phase, path, names):

@@ -19,10 +19,11 @@ It is partitioned, at one sample, into:
 The runtime classes are mapped, not necessarily resident; heap/released is
 excluded because it is returned to the OS. The residual is resident anonymous
 memory the runtime accounting does not explain (negative when mapped runtime
-memory is not resident). The readiness cell's peak (ru_maxrss, `peak_rss_mib`)
-is the largest sampled Rss plus a signed sampling gap (peak minus that sample;
-an instrument and sampling discrepancy, negative when kB rounding or timing
-puts the sample above ru_maxrss), so
+memory is not resident). The readiness cell's peak (ru_maxrss from the
+endpoint's own getrusage, `peak_rss_mib`) is the largest sampled Rss plus a
+signed sampling gap (peak minus that sample). The gap is an instrument
+discrepancy, mostly negative and larger than kB rounding in the synthetic runs
+(README, "Accounting rule"); its kernel mechanism is not established. So
   peak = file + objects + unused + free + stacks + metadata + other + residual + gap
 holds exactly at the peak sample (`closure`). Closure is bookkeeping: it does
 not show that the classes explain residency at another moment, so the
@@ -40,9 +41,16 @@ added: 2 x the live-heap excess at the last completed mark (/gc/heap/live) must
 reach 0.70 of E at the peak sample and as the window median. The doubling is a
 model and never suffices alone (a 0.70 doubled-live share admits an actual live
 excess of only 0.35 E); the measured objects share has to back it. On the
-synthetic 8 MiB retained case this reading localizes two of three blocks (the
-literal peak-sample reading, one), so a true live-heap cause can still end
-inconclusive, and an inconclusive ending is not evidence against live heap.
+synthetic 8 MiB retained case this reading localizes three of three blocks in
+the committed set and two of three in the previous set (the literal peak-sample
+reading, one of three), so a true live-heap cause can still end inconclusive,
+and an inconclusive ending is not evidence against live heap.
+
+Peak-instrument sensitivity (third consideration, F4). The primary rule uses
+the readiness instrument (ru_maxrss) for E, the A/A variation and the
+removals. A sensitivity pass repeats the rule with each arm's largest valid
+sampled Rss instead; a causal, localized or mixed conclusion that the
+sensitivity pass does not reproduce ends as unresolved (combine_sensitivity).
 """
 import json
 import statistics
@@ -244,14 +252,26 @@ TRAFFIC = ['goodput', 'fwd_per_gib', 'feedback_per_gib', 'control']
 TRAFFIC_WAN = TRAFFIC + ['overflow']
 
 
+COUNTER_MAX_AGE_NS = 1_500_000_000  # one-second sampler plus 0.5 s of jitter
+
+
 def window_delta(rows, t0, warmup_ms, measure_ms, key):
-    """Counter increase over the measured window: last valid sample at or before each edge (None if missing)."""
+    """Counter increase over the measured window, or None.
+
+    Uses the last valid sample at or before each window edge, which must be at
+    most COUNTER_MAX_AGE_NS old; the counter must not decrease anywhere in the
+    series. The result approximates the window total to within one sampling
+    interval at each edge; it is never interpolated.
+    """
     lo, hi = t0 + warmup_ms * 1_000_000, t0 + (warmup_ms + measure_ms) * 1_000_000
-    before = [r for r in rows if r['unix_ns'] <= lo and r.get(key, -1) >= 0]
-    upto = [r for r in rows if r['unix_ns'] <= hi and r.get(key, -1) >= 0]
-    if not before or not upto:
+    pts = [(r['unix_ns'], r[key]) for r in rows if isinstance(r.get(key), int) and r[key] >= 0 and isinstance(r.get('unix_ns'), int)]
+    if any(b[0] < a[0] or b[1] < a[1] for a, b in zip(pts, pts[1:])):
         return None
-    return upto[-1][key] - before[-1][key]
+    before = [p for p in pts if p[0] <= lo]
+    upto = [p for p in pts if p[0] <= hi]
+    if not before or not upto or lo - before[-1][0] > COUNTER_MAX_AGE_NS or hi - upto[-1][0] > COUNTER_MAX_AGE_NS:
+        return None
+    return upto[-1][1] - before[-1][1]
 
 
 def traffic(summary, send_rows, recv_rows, t0, warmup_ms, measure_ms):
@@ -383,6 +403,19 @@ def label_cell(role, blocks, ring_status):
     return dict(label='inconclusive', **detail)
 
 
+CONCLUSIONS = ('sender bookkeeping (ring)', 'receiver-side controller state',
+               'localized to traffic-dependent live heap (cause unresolved)', 'mixed')
+
+
+def combine_sensitivity(primary, sensitivity):
+    """The registered ending: a causal, localized or mixed primary conclusion stands only when the sampled-Rss
+    sensitivity pass reaches the same label; otherwise it is unresolved. Other primary endings stand."""
+    if primary['label'] in CONCLUSIONS and sensitivity['label'] != primary['label']:
+        return dict(primary, label='unresolved (sensitive to the peak instrument)', rule_label=primary['label'],
+                    sensitivity_label=sensitivity['label'])
+    return dict(primary, sensitivity_label=sensitivity['label'])
+
+
 # ---- S6 control p95 (D2's Up-policy rule, both workloads) ----------------------------------------
 
 QUEUE_TICK_MS = 10
@@ -390,21 +423,46 @@ QUEUE_COVERAGE = 0.90      # queue samples present, as a share of the window's 1
 QUEUE_MAX_GAP_MS = 100     # largest permitted gap between consecutive samples, and at either window edge
 
 
-def queue_integrity(phases, window_samples, warmup_ms, measure_ms):
-    """(ok, reason) for one run's S6 inputs: a well-formed phase log and a covered, ordered, valid queue timeline."""
-    if not phases:
+def _number(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) != float('inf')
+
+
+def well_formed(phases, queue_samples):
+    """(ok, reason): containers and record shapes, checked before any indexing or comparison."""
+    if not isinstance(phases, list) or not phases:
         return False, 'no phase log'
-    if any(len(p) != 2 or not isinstance(p[1], int) or not 0 <= p[1] < len(PHASES) for p in phases):
+    if any(not isinstance(p, (list, tuple)) or len(p) != 2 or not isinstance(p[0], int) or isinstance(p[0], bool)
+           or not isinstance(p[1], int) or isinstance(p[1], bool) or not 0 <= p[1] < len(PHASES) for p in phases):
         return False, 'malformed phase record'
+    if not isinstance(queue_samples, list):
+        return False, 'no queue samples'
+    if any(not isinstance(x, (list, tuple)) or len(x) < 2 or not _number(x[0]) or not _number(x[1]) or x[1] < 0 for x in queue_samples):
+        return False, 'malformed queue sample'
+    return True, None
+
+
+def distinct_ticks(window_samples, warmup_ms):
+    """The window's samples with at most one per 10 ms tick (the first; ticks by nearest multiple, so jitter is
+    allowed), so duplicated records can neither add coverage nor weight."""
+    seen, out = set(), []
+    for x in window_samples:
+        tick = round((x[0] - warmup_ms) / QUEUE_TICK_MS)
+        if tick not in seen:
+            seen.add(tick)
+            out.append(x)
+    return out
+
+
+def queue_integrity(phases, window_samples, warmup_ms, measure_ms):
+    """(ok, reason) for one run's S6 inputs: an ordered phase log and a covered, ordered queue timeline of distinct
+    ticks (shapes are checked first by well_formed)."""
     if any(b[0] < a[0] for a, b in zip(phases, phases[1:])):
         return False, 'phase timestamps out of order'
     ts = [x[0] for x in window_samples]
-    if any(len(x) < 2 or x[1] is None or x[1] < 0 for x in window_samples):
-        return False, 'invalid queue sample'
-    if len(ts) < QUEUE_COVERAGE * measure_ms / QUEUE_TICK_MS:
-        return False, f'queue coverage {len(ts)} samples'
     if any(b < a for a, b in zip(ts, ts[1:])):
         return False, 'queue samples out of order'
+    if len(ts) < QUEUE_COVERAGE * measure_ms / QUEUE_TICK_MS:
+        return False, f'queue coverage {len(ts)} distinct ticks'
     edges = [ts[0] - warmup_ms, warmup_ms + measure_ms - ts[-1]] + [b - a for a, b in zip(ts, ts[1:])]
     if max(edges) > QUEUE_MAX_GAP_MS:
         return False, f'queue gap {max(edges)} ms'
@@ -419,10 +477,13 @@ def queue_by_phase(phases, queue_samples, t0_ns, warmup_ms, measure_ms):
     'unknown'. Returns None for a missing phase log, and dict(integrity=False,
     reason) for any other failed integrity check; both are evidence gaps.
     """
-    window = [x for x in queue_samples if warmup_ms <= x[0] < warmup_ms + measure_ms]
-    ok, reason = queue_integrity(phases, window, warmup_ms, measure_ms)
     if not phases:
         return None
+    ok, reason = well_formed(phases, queue_samples)
+    if not ok:
+        return dict(integrity=False, reason=reason)
+    window = distinct_ticks([x for x in queue_samples if warmup_ms <= x[0] < warmup_ms + measure_ms], warmup_ms)
+    ok, reason = queue_integrity(phases, window, warmup_ms, measure_ms)
     if not ok:
         return dict(integrity=False, reason=reason)
     by_phase, above = {}, {'up': 0, 'down_after_up': 0, 'other': 0}

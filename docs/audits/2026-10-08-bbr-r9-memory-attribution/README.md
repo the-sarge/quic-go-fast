@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-r9-memory-attribution`, based on `138223ac` (the [r9 Linux re-demonstration](../2026-10-08-bbr-r9-linux-redemonstration/README.md), #739), whose tree's code is exactly r9. The revision under test is **r9, `81e9dc8c`**: r8 plus #738's 32-entry BBR send queue. No BBR revision newer than r9 exists. The operator notes that the BBRv3 implementation is still under active performance development. Every result here describes r9 on `minimax` only. None is a verdict on BBRv3 or on later revisions.
 
-**Status: registration, revised after two considerations.** Everything below was written, with the aids built, the gates run and the instruments checked, before any comparative observation of this ticket. The first registration (`c0c33ebf`) and its revision (`2bade4e5`) were each gated by a multi-agent consideration before any data. All findings were dispositioned and the registration revised ([Consideration and revisions](#consideration-and-revisions)). Results, deviations and later sections will be added after the data, below a marker, and these sections will stay unchanged.
+**Status: registration, revised after three considerations.** Everything below was written, with the aids built, the gates run and the instruments checked, before any comparative observation of this ticket. The first registration (`c0c33ebf`) and its revisions (`2bade4e5`, `2edde6af`) were each gated by a multi-agent consideration before any data. All findings were dispositioned and the registration revised ([Consideration and revisions](#consideration-and-revisions)). Results, deviations and later sections will be added after the data, below a marker, and these sections will stay unchanged.
 
 ## Question
 
@@ -92,7 +92,7 @@ A cell's excess sits in **traffic-dependent live heap** only when all three of t
 
 The window measures use only valid samples whose own timestamps fall inside each run's measured window. They are aligned by whole seconds since each run's configured start and need **80% coverage** of the window's seconds in both runs; otherwise the block is unusable.
 
-**Instrument validity per run** (second consideration, F1). Before block selection, every arm's two endpoint series must each hold valid samples in at least 80% of the measured window's seconds ([memrules.py](memrules.py) `instrument_valid`). An instrument-invalid observation makes its attempt unusable. That makes the block eligible for its capped same-seed rerun, and keeps it out of calibration, perturbation and S6 scoring. A low baseline excess is a fraction-eligibility matter, never an instrument failure, and never requests a rerun. The doubled-live shares are a model and never suffice alone: a 0.70 doubled-live share admits an actual live excess of only 0.35 E, which the measured objects share has to back. A warmup-only excess fails the window share.
+**Instrument validity per run** (second consideration, F1). Before block selection, every arm's two endpoint series must each hold valid samples in at least 80% of the measured window's seconds ([memrules.py](memrules.py) `instrument_valid`). The candidate and frozen Reno series must also share at least 80% of the window's seconds at both endpoints (third consideration, F1); this paired check also runs before selection. An instrument-invalid observation, or an attempt that fails the paired check, makes its attempt unusable. That makes the block eligible for its capped same-seed rerun, and keeps it out of calibration, perturbation and S6 scoring. A low baseline excess is a fraction-eligibility matter, never an instrument failure, and never requests a rerun. The doubled-live shares are a model and never suffice alone: a 0.70 doubled-live share admits an actual live excess of only 0.35 E, which the measured objects share has to back. A warmup-only excess fails the window share.
 
 **Sensitivity, recorded before data.** On the synthetic 8 MiB retained case this reading localizes three of three blocks in the committed set (objects window share 0.71–0.86) and two of three in the previous set (0.62–0.81). The literal peak-sample reading localized one of three. A true live-heap cause can therefore still end inconclusive, and an inconclusive ending is not evidence against live heap.
 
@@ -186,6 +186,8 @@ The labels are checked in this order ([memrules.py](memrules.py) `label_cell`, t
 7. **Treatment unusable** or **treatment inert**, for a sender cell whose ring treatment is unusable or inert.
 8. **Inconclusive (receiver-controller arm confounded or uncalibrated)** with fewer than three comparable blocks; **inconclusive (ring diagnostic not run)** for a sender cell whose ring was not run; otherwise **inconclusive**.
 
+**Peak-instrument sensitivity** ([departure M](#interpretations-and-departures-from-d6-for-approval)). Each arm's `ru_maxrss` carries its own sampling gap, and only the candidate-minus-Reno gap enters the unexplained test. A sensitivity pass therefore repeats the whole rule with each arm's largest valid sampled Rss in place of `ru_maxrss`, for E, the A/A variation and both removals, recording every arm's gap. A causal, localized or mixed conclusion that the sensitivity pass does not reproduce ends as **unresolved (sensitive to the peak instrument)**, with both labels recorded. Other endings stand. No observation is added.
+
 The perturbation gate then applies.
 
 Registered limitation (consideration C-018): D6 bounds removal from above, not memory change in both directions. A receiver-controller arm that adds memory (negative removal) still satisfies the upper bound (tested).
@@ -200,6 +202,8 @@ Registered limitation (consideration C-018): D6 bounds removal from above, not m
 | Control traffic | Control replies | All |
 | Forward overflow | Relay forward overflow ÷ received | WAN |
 | Reordering | **Not measured** | — |
+
+Each packet count uses the last counter sample at or before each window edge, which must be at most 1.5 s old; the counter must never decrease. Otherwise the measure is missing, and the arm is not comparable (third consideration, F2). The count approximates the window total to within one sampling interval at each edge and is never interpolated.
 
 The relay model can reorder: its own test is `TestPostServiceDelayCanReorderWithoutPausingService`. Loopback has no relay and no bottleneck overflow. Sender-declared loss is degenerate for BBR (above).
 
@@ -219,7 +223,9 @@ D2's Up-policy rule, read strictly ([memrules.py](memrules.py) `queue_integrity`
 - at least 90% of the window's 10 ms ticks have a sample;
 - no gap between consecutive samples, or at either window edge, exceeds 100 ms. Ticker jitter is allowed.
 
-Any missing or invalid run, a run without a phase log, a failed integrity check, or a failed perturbation check for that workload is an **evidence gap**.
+Before any of these checks, containers, record shapes and finite numeric values are validated. Samples are assigned to the nearest 10 ms tick, and only the first sample per tick counts, so duplicated records can add neither coverage nor weight (third consideration, F3). On the development S6 run the relay's samples were 9–11 ms apart, with 3,000 distinct ticks in the window and none duplicated. A run whose relay file is missing or malformed is recorded with its reason as an invalid input (F5).
+
+Any missing or invalid run, a run without a phase log, or a failed integrity check is an **evidence gap**. A failed perturbation check for that workload is an **instrumentation gap (perturbation)**.
 
 A cell is attributed to the **selected ProbeBW Up policy** when every run meets all three conditions:
 - at least 70% of queue samples above 25 ms fall in Up, or in a Down entered directly from Up;
@@ -248,7 +254,7 @@ Disclosed before data: #736's S6 DATAGRAM figures on r8 (98.3–98.9% in Up or D
 
 D6's 100 (80 + 20 reruns) is scaled by 1.4 to 140 for operator decision 1 (112 originals and 28 reruns), plus 12 for decision 2. The ring's 16 observations are released when it is not run; they do not become rerun allowance.
 
-A block is rerun once, with the same seed, when its counted attempt is contaminated, unusable, missing an arm or absent, while the rerun total and the overall total stay within their caps. A block that cannot be rerun under the caps is recorded (`reruns_not_run_cap`) and stays unusable.
+A block is rerun once, with the same seed, when its counted attempt is contaminated, unusable, missing an arm or absent, while the rerun total and the overall total stay within their caps. The caps count every retained attempt directory of a capped phase once, by its name, so an attempt with missing or malformed metadata still consumes allowance, and the error is recorded (third consideration, F6). A block that cannot be rerun under the caps is recorded (`reruns_not_run_cap`) and stays unusable.
 
 **Halt and resume.** A failed observation is retained as it is, recorded in `failures.json`, and leaves its block unusable; the stage continues ([matrix.py](matrix.py) `block`). The same applies to the `memsmoke` activation runs.
 
@@ -298,6 +304,7 @@ A block is rerun once, with the same seed, when its counted attempt is contamina
 - **I. Sender localization needs a valid ring bound** (consideration item 11): f_ring + v < 0.30 in each localizing block, and never without a valid ring diagnostic.
 - **J. Cell aggregation of unexplained blocks.** At least three explained usable blocks, and a median unexplained share over the usable blocks of at most 25%. A cell with three explained and one unexplained block can therefore be labeled; one with two unexplained cannot.
 - **K. Perturbation gates both builds,** on clean blocks, with at least three on each side, and an unvalidated check fails.
+- **M. Peak-instrument sensitivity** (third consideration, F4). A causal, localized or mixed conclusion must survive the sampled-Rss sensitivity pass, or it ends as unresolved. This is a registration amendment proposed by the consideration, not a D6 requirement. It makes labels harder to reach, never easier, and adds no observation.
 - **L. D2 read strictly** (Down only after Up; unknown phases in the denominator; Cruise and Refill each below 1 ms; all eight runs required). The first registration claimed #736's arithmetic unchanged; that claim was wrong, and these changes make the rule stricter.
 
 ## Consideration and revisions
@@ -332,6 +339,20 @@ The first registration (`c0c33ebf`) was gated before any data by `ras consider` 
 | F7 | Block rows reported usability inconsistent with the label | Fixed: fraction eligibility with its reason; boundary values tested |
 
 Not acted on, as its synthesis advised: C-011, C-010, C-008, C-012, C-018 and C-013, each disputed or a wording matter.
+
+**Third consideration** (run `20261008T171423-48c4ce1680f3dd3ffa40434b`, of `2edde6af`). It confirmed the second round's F4, F6 and F7, and found the following, all fixed before any comparative data:
+
+| Item | Finding | Disposition |
+| --- | --- | --- |
+| F1 | Individually valid candidate and Reno series could share too few seconds, and the block still counted as clean | Fixed: a paired coverage check before selection; the 24/30 versus 18/30 case and band invariance are tested |
+| F2 | A stale counter sample at a window edge could shorten the packet interval silently | Fixed: a 1.5 s maximum boundary age and monotonic counters; the 1,000 versus 1,250 packets/s case is tested |
+| F3 | Duplicated queue records could add coverage and weight | Fixed: distinct ticks, first sample per tick; both reproductions are tested |
+| F4 | Treatment arms' own sampling gaps were not checked | Fixed by proposed amendment M: the sensitivity pass and the unresolved ending; tested |
+| F5 | Missing or malformed S6 inputs could raise | Fixed: shape validation and a per-run boundary; six malformed inputs are tested through `p95()` |
+| F6 | Cap accounting could crash on malformed metadata or skip attempts without it | Fixed: name-based counting of each attempt directory; tested with real directories |
+| F7 | Leftover wording from the gap correction, and the S6 perturbation ending | Fixed |
+
+Not acted on, as its synthesis advised: C-001, C-007, C-011, C-014 and C-021, and earlier items without new evidence.
 
 Not acted on from the first consideration, as its synthesis advised:
 - C-018 (the negative-removal limitation) is recorded above.
