@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-loopback-handoff`, based on `232a6b76` (the accepted decision). The starting revision is **r8, `95f5b6b7`**.
 
-**Status: complete.** Under the registered rules, Stage 0 ended in an **instrumentation gap**. By operator decision (deviations 2 and 3), Stages 1 and 2 ran anyway. Stage 2's registered outcome is **negative**: a large loopback improvement, but S5 DATAGRAM sender CPU rose. The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded development runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
+**Status: complete.** Under the registered rules, Stage 0 ended in an **instrumentation gap**. By operator decision (deviations 2 and 3), Stages 1 and 2 ran anyway. Stage 2's registered outcome is **negative**: a large loopback improvement, but S5 DATAGRAM sender CPU rose. **The operator kept the 32-entry queue after the outcome (deviation 4): the surviving revision is r9, `81e9dc8c`.** The sections from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) to [Order](#order) were written, with the instrument, the analysis and the rules and their synthetic cases, before any counted observation. Excluded development runs that preceded the registration are disclosed in [Disclosures made before data](#disclosures-made-before-data).
 
 ## Answer
 
@@ -26,7 +26,7 @@ Branch `codex/bbr-loopback-handoff`, based on `232a6b76` (the accepted decision)
 - **Reno preservation passes at both endpoints, and integrity holds.**
 - **The S5 screen shows a regression: DATAGRAM sender CPU per useful GiB rose to 1.050× r8's** (1.043–1.061 in all four blocks, against an A/A range of 0.994–1.009), with goodput unchanged. That guard makes the outcome negative. S5 STREAM is unchanged.
 
-**Endings (D4):** credit response **inert**; remedy status **failed (negative)**, with efficacy **improved** in both workloads; Stage 1: DATAGRAM **hand-off (queue)**, STREAM **inconclusive**, kick **not supported**. **Surviving revision: r8 (`95f5b6b7`).** The 32-entry queue goes to the decision as a strong lead with one unexplained cost.
+**Endings (D4):** credit response **inert**; remedy status **failed (negative)**, with efficacy **improved** in both workloads; Stage 1: DATAGRAM **hand-off (queue)**, STREAM **inconclusive**, kick **not supported**. **The operator then kept the change (deviation 4): the surviving revision is r9, `81e9dc8c`**, with its S5 DATAGRAM sender-CPU rise carried as an open cost.
 
 ## Stage 0 result: instrumentation gap
 
@@ -101,13 +101,17 @@ Run on October 7 (UTC) after `15348bb9`; reruns after `bfa43c63`; [results.json]
 
 ## Report to the next tickets
 
-- **Surviving revision: r8, `95f5b6b7`**, unchanged. Nothing was kept, so under D5 [Re-demonstrate the loopback-tested BBRv3 revision on owned Linux hardware](https://github.com/the-sarge/quic-go-fast/issues/739) closes as **not run**, and under D6 [Attribute the BBRv3 candidate's memory and S6 latency flags on the final revision](https://github.com/the-sarge/quic-go-fast/issues/740) attributes on r8 against #736's flags.
-- **For the decision, the loopback cells:**
-  - The cause of the loopback deficit now has a measured attribution, though from an instrument that misses D4's perturbation floor. DATAGRAM's deficit is the per-packet hand-off through the eight-entry send queue. STREAM is inconclusive between queue and writer waits.
-  - A BBR-only 32-entry queue removed both loopback goodput deficits and lowered sender CPU, but failed the S5 DATAGRAM sender-CPU guard (+5%).
-  - The loopback flags stay **unresolved on r8**: a failed selected intervention with demonstrated efficacy, not a finding against BBRv3.
+- **Surviving revision: r9, `81e9dc8c`** (r8 plus a 32-entry send queue for BBR connections), kept by operator decision after a negative registered outcome (deviation 4). It passed every gate on the Mac and natively (`gates/gate-new.log`, `gates/gate-new-native.log`), and #734's frozen-policy oracle gives the same hash as r8. Its plain build is `new` in [build.py](build.py).
+- **Under D5, [Re-demonstrate the loopback-tested BBRv3 revision on owned Linux hardware](https://github.com/the-sarge/quic-go-fast/issues/739) runs on r9:** #736's readiness stage unchanged except for the revision, its conditional preservation stages, and the S5 timeline. **Under D6, [Attribute the BBRv3 candidate's memory and S6 latency flags on the final revision](https://github.com/the-sarge/quic-go-fast/issues/740) attributes on r9** against #739's flags.
+- **Open costs r9 carries:**
+  - S5 DATAGRAM sender CPU per useful GiB at 1.050× r8's (1.043–1.061 in all four blocks), cause untested;
+  - control-stream latency, memory and S6 behaviour with the deeper queue, unmeasured here;
+  - r8's run-loop wake increase.
+- **For the decision:**
+  - The loopback limit is attributed, from an instrument that misses D4's perturbation floor: DATAGRAM is the per-packet hand-off through the send queue; STREAM is inconclusive between queue and writer waits.
   - The 4Q arm is **inert**: no evidence for a D08 2Q-profile decision.
-- **Leads, not findings:** explain the S5 DATAGRAM CPU rise (placement against a real cost, for example with a placement control or `perf` attribution) before any further queue-depth decision. A smaller BBR depth, or a depth that applies only when entries hold single packets, are untested variants. Loopback control-stream latency with a deeper queue is unmeasured here: readiness would measure it.
+  - The production change would carry the BBR queue depth as a BBR-only send-queue change.
+- **Leads, not findings:** explain the S5 DATAGRAM CPU rise (a placement control, or `perf` attribution). Any depth above about 17 entries behaves alike on S5, where the 2Q credit binds first, so the depth itself is unlikely to be the lever there.
 
 ## Question
 
@@ -258,6 +262,8 @@ Runs only for workloads with an addressable hand-off finding. The mechanism is r
 2. **Stage 1 and Stage 2 run by operator decision after the registered instrumentation gap** (recorded 2026-10-07, before any Stage 1 data). The registered Stage 0 outcome stays an **instrumentation gap** in [results.json](results.json). The operator chose to run Stage 1 anyway, accepting the recorder's measured cost (instrumented ÷ plain goodput 0.977 STREAM, 0.982 DATAGRAM), and Stage 2 if Stage 1 finds an addressable hand-off. Everything else is unchanged: Stage 1's arms, usability, states, majority, credit-response and kick rules, inventory and rerun cap; Stage 2's registration after Stage 1 and before its data, its gates, arms and keep rule. Every Stage 1 reading is reported with this cost beside it. The diagnostic arm is already **inert** (Stage 0 activation), so its Stage 1 reading can only be inert. `minimax` is shared during these stages: the quiet-host wait and the registered contamination rerun rule handle foreign load.
 
 3. **Rerun cap extended by operator decision** (recorded 2026-10-07, after Stage 2's original blocks and before any of their reruns). Foreign workloads on the shared host contaminated seven Stage 2 block-workloads: loopback STREAM blocks 1, 5 and 6, loopback DATAGRAM block 1, and S5 screen STREAM blocks 3 and 4 and DATAGRAM block 3. No observation was unusable for any other reason. Rerunning them takes 33 observations; the registered cap of 14 had 9 left after Stage 1's STREAM block 4 rerun (5). The operator extended the cap so that every contaminated block is rerun once, under the registered rule otherwise unchanged (`choose_block`: a rerun replaces its block only if clean). This keeps contamination from deciding the outcome. The ticket's total becomes 136 + 5 + 33 = 174 Linux observations. Before the reruns, the clean blocks already showed the deficit and sender CPU falling far beyond the BBR A/A range on loopback in both workloads, S5 DATAGRAM sender CPU rising beyond its range, and Reno's receiver cycles on the new revision just below frozen Reno's A/A range; the registered rule is applied unchanged to the completed blocks.
+
+4. **r9 kept by operator decision** (2026-10-08, after the outcome). Under the registered rule Stage 2 is **negative**, only because S5 DATAGRAM sender CPU per useful GiB rose to 1.050× r8's; every other keep condition held. The operator kept the 32-entry BBR queue for three reasons: both loopback deficits closed (1.026 and 1.135 of frozen Reno) at 6–9% lower sender CPU; the guard compares the new revision with r8, while readiness compares it with frozen Reno; and #736 measured r8's S5 DATAGRAM sender CPU at 0.909× frozen Reno. 0.909 × 1.050 ≈ 0.95, a cross-record estimate, not a measurement. The registered outcome stays **negative** in [results.json](results.json). Unlike #734's deviation 3, the guarded cost itself rose here, so this keep accepts a real S5 DATAGRAM CPU increase against r8. It is carried as an open cost, with its cause (placement or real) untested. The next ticket's readiness re-demonstration measures r9 against frozen Reno, including the cells this ticket did not judge: control-stream latency, memory and S6.
 
 ## Limits
 
