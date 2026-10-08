@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-r9-memory-attribution`, based on `138223ac` (the [r9 Linux re-demonstration](../2026-10-08-bbr-r9-linux-redemonstration/README.md), #739), whose tree's code is exactly r9. The revision under test is **r9, `81e9dc8c`**: r8 plus #738's 32-entry BBR send queue. No BBR revision newer than r9 exists. The operator notes that the BBRv3 implementation is still under active performance development. Every result here describes r9 on `minimax` only. None is a verdict on BBRv3 or on later revisions.
 
-**Status: registration.** Everything below was written, with the aids built, the gates run and the instruments checked, before any comparative observation of this ticket. Results, deviations and later sections will be added after the data, below a marker, and these sections will stay unchanged.
+**Status: registration, revised after consideration.** Everything below was written, with the aids built, the gates run and the instruments checked, before any comparative observation of this ticket. The first registration (`c0c33ebf`) was gated by a multi-agent consideration before any data. Its twelve findings were dispositioned and the registration revised ([Consideration and revisions](#consideration-and-revisions)). Results, deviations and later sections will be added after the data, below a marker, and these sections will stay unchanged.
 
 ## Question
 
@@ -47,12 +47,13 @@ Both decisions were relayed on October 8, 2026, from the #739 session. No compar
 ## Stage 0: memory accounting instrument
 
 **Overlay (measurement only; [mem/](mem/), applied by build.py to exported trees, never to a tracked source).**
-- **Sampler** ([mem/mem_series.go](mem/mem_series.go)). Once a second, and at stop, each endpoint appends one JSON line to `{role}.mem.jsonl` with:
+- **Sampler** ([mem/mem_series.go](mem/mem_series.go)). Once a second, and at stop, each endpoint appends one JSON line to `{role}.mem.jsonl`. A failed read is written as −1. Each line holds:
   - `smaps_rollup` (Rss, Pss, Anonymous and the other fields) and `/proc/self/status` (VmHWM, VmRSS, RssAnon, RssFile);
   - the Go runtime's disjoint `/memory/classes/…` quantities, GC cycles, heap goal and live heap;
   - the BBR structure bytes;
-  - #710's receive occupancy counters.
-  It writes from preallocated buffers, so its own footprint is small and constant. It replaces #710's 10 ms series, which held every sample in memory until exit.
+  - #710's receive occupancy counters (descriptive only);
+  - the connection's public `ConnectionStats()` packet counters (packets sent, received and lost; atomic in both revisions). The fixture registers its connection at the start of each session.
+  The sampler writes from preallocated buffers, so its own footprint is small and constant. It replaces #710's 10 ms series, which held every sample in memory until exit.
 - **BBR structure accounting** ([mem/mem_ackhandler.go](mem/mem_ackhandler.go), candidate builds only). On the first registration and every 256th, it publishes the outcome ring's `recordBytes()`, entries, occupancy and evictions, the delivery records' slot-table bytes, slab capacity bytes and free-list bytes, the feedback scratch buffer's capacity bytes, and the retained deliveries. It does this through atomics, with the call counter atomic as well.
 - **Phase log** ([mem/mem_phase.go](mem/mem_phase.go), candidate builds only). It records BBR phase transitions after each feedback event as `[unix ns, phase]`, with the semantics of the counting overlay's `c4Phase`, which supplied D2's inputs on #711, #715 and #736. The log is a fixed array in BSS, written to the series file at stop. See [departure B](#interpretations-and-departures-from-d6-for-approval).
 - **Receiver-controller switch.** `MEM_LOCAL_CONTROLLER=reno` selects the receiver's controller in place of the run configuration's, so the shared configuration and the peers' configuration check are unchanged. The fixture's own result then reports the receiver's effective controller. [mem_run.py](mem_run.py)'s `summarize_m` is #712's `summarize` with one assertion changed: the sender must report the configured controller, and the receiver must report the controller recorded in `meta.json`.
@@ -71,33 +72,45 @@ Both decisions were relayed on October 8, 2026, from the #739 session. No compar
 - **other runtime**: other and profiling buckets;
 - a **residual**: Anonymous minus those runtime classes.
 
-Released heap is excluded. The readiness cell's peak (`ru_maxrss`, which the launcher keeps per endpoint) is the largest sampled Rss plus a **sampling gap**. Each block's excess is reconciled class by class at each endpoint's own peak sample, so the classes, the residual and the gap sum to the peak excess exactly (`closure`, tested).
+Released heap is excluded. Only samples with every accounting value read are used. The readiness cell's peak (`ru_maxrss`, kept per endpoint by the launcher) is the largest valid sampled Rss plus a signed **sampling gap**. The gap is an instrument and sampling discrepancy: it can be negative for one run when kB rounding or timing puts the sample above `ru_maxrss`. Each block's excess is reconciled class by class at each endpoint's own peak sample, so the classes, the residual and the gap sum to the peak excess exactly (`closure`, tested).
 
-A block is **unexplained** when |residual + gap| exceeds **25%** of its peak excess. A cell with fewer than three explained usable blocks is an **evidence gap** and gets no causal label. The heap goal is context only. The BBR structure bytes are explicit accounting, reported beside each cell; they are part of heap objects.
+Closure is bookkeeping, not proof that the classes explain residency at another moment. A block is therefore **unexplained** when |residual excess| + |gap excess| exceeds **25%** of its peak excess; the two terms cannot cancel. A cell is an **evidence gap** with no causal label when fewer than three usable blocks are explained, or when the median unexplained share over its usable blocks exceeds 25% ([departure J](#interpretations-and-departures-from-d6-for-approval)). The heap goal is context only. The BBR structure bytes are explicit accounting, reported beside each cell; they are part of heap objects.
 
-**GC alignment** (see [departure A](#interpretations-and-departures-from-d6-for-approval)). Heap objects at one sample include garbage not yet collected, which moves between the objects and free classes with the GC cycle. With the fixture's default GOGC=100, a live-heap excess L raises resident heap by about 2L. The rule therefore reads the heap at GC alignment, using three shares:
-- **heap share**: (objects + unused + free) excess ÷ E;
-- **live share**: 2 × the excess of `/gc/heap/live` (live heap at the last completed mark) at the peak sample ÷ E;
-- **window live share**: the same quantity as the median over the measured window's per-second samples, aligned by seconds since each run's configured start.
+**Heap reading** ([departure A](#interpretations-and-departures-from-d6-for-approval)). Heap objects at one sample include garbage not yet collected, which moves between the objects and free classes with the GC cycle. Under the fixture's default GOGC=100, a pure live-heap cause L leaves between L and 2L of heap objects while it raises resident heap by about 2L, so its objects share of the excess averages about 0.75, close to D6's 0.70. D6's condition, "at least 70% of the excess in heap objects", aligned "to the window and to GC cycles", is read as the **objects window share**: the median over the measured window's per-second samples of the heap-objects excess, divided by E.
 
-A cell's excess sits in **traffic-dependent live heap** only when all three reach 0.70. A warmup-only excess fails the window share.
+A cell's excess sits in **traffic-dependent live heap** only when all three of these reach 0.70:
+- the objects window share;
+- the **live share**: 2 × the excess of `/gc/heap/live` (live heap at the last completed mark) at the peak sample ÷ E;
+- the **window live share**: the same quantity as the window median.
 
-**Synthetic cases (D6), measured on `minimax`** with the unchanged sampler, three blocks each, against a `none` case with a 4 MiB live baseline and steady garbage ([synthetic/](synthetic/), [memrules_test.py](memrules_test.py) `Synthetic`, all passing):
+The window measures use only valid samples whose own timestamps fall inside each run's measured window. They are aligned by whole seconds since each run's configured start and need **80% coverage** of the window's seconds in both runs; otherwise the block is unusable. The doubled-live shares are a model and never suffice alone: a 0.70 doubled-live share admits an actual live excess of only 0.35 E, which the measured objects share has to back. A warmup-only excess fails the window share.
+
+**Sensitivity, recorded before data.** On the synthetic 8 MiB retained case this reading localizes three of three blocks in the committed set (objects window share 0.71–0.86) and two of three in the previous set (0.62–0.81). The literal peak-sample reading localized one of three. A true live-heap cause can therefore still end inconclusive, and an inconclusive ending is not evidence against live heap.
+
+**Synthetic cases (D6), measured on `minimax`** with the unchanged sampler, three blocks each, against a `none` case with a 4 MiB live baseline and steady garbage ([synthetic/](synthetic/), the committed set; [memrules_test.py](memrules_test.py) `Synthetic`, all passing):
 
 | Case | Peak excess (MiB) | What the accounting shows | Rule outcome |
 | --- | --- | --- | --- |
-| Known retained allocation (8 MiB) | 15.5–16.0 | Live +7.99 to +8.01; heap, live and window shares 1.00–1.03 | Live heap, explained |
-| Warmup-only spike (24 MiB) | 47.0–47.5 | Live share at the peak 1.01–1.02; window live share 0.00 | Not live heap (window) |
-| Goroutine-stack growth | 15.25–15.5 | Stacks +8.0; live share 0.00 | Not live heap |
-| Four times the allocation rate at a fixed live heap | 0.32–1.09 | Live +0.07 to +0.16 | Not live heap; unexplained in all three |
-| Runtime accounting fails (8 MiB anonymous mmap) | 7.69–8.00 | Residual +7.73 to +8.09 | Unexplained; **no causal label** even with arms that would otherwise give one (tested) |
+| Known retained allocation (8 MiB) | 15.25–16.00 | Live +7.98 to +8.01; objects window share 0.71–0.86; live and window live shares 1.00–1.05 | Live heap in 3 of 3 blocks; explained |
+| Warmup-only spike (24 MiB) | 47.00–47.75 | Live share at the peak 1.00–1.02; window live share 0.00; objects window share 0.00 | Not live heap |
+| Goroutine-stack growth | 14.75–16.00 | Stacks +8.00 to +8.06; live share 0.00–0.01 | Not live heap |
+| Four times the allocation rate at a fixed live heap | 0.45–0.58 | Live +0.04 to +0.14; unexplained share 0.77–1.49 | Not live heap; unexplained |
+| Runtime accounting fails (8 MiB anonymous mmap) | 7.50–8.25 | Residual +8.03 to +8.24 | Unexplained; **no causal label**, even with arms that would otherwise give one (tested) |
 
-**Perturbation.** D6 requires instrumented goodput of at least 0.99 of plain. The check is the median goodput of the instrumented candidate arm over the four Stage 1 blocks, divided by the median of #739's plain readiness candidate over its blocks 1–4. Those blocks use the same seeds, so the relay impairments match. It applies per path and workload, loopback included (operator decision 1). A failing path and workload ends its raised cells as **evidence gap (instrument perturbation)**, and the rule's own label is kept beside it for the record. The frozen-Reno arm's ratio is reported, not gated.
+**Perturbation** ([departure K](#interpretations-and-departures-from-d6-for-approval)). D6 requires instrumented goodput of at least 0.99 of plain. For each path, workload and build (`cand-mem` and `reno-mem`), the check divides:
+- the median goodput of the instrumented arm over the **clean** Stage 1 blocks, by
+- the median of #739's plain readiness arm over its blocks 1–4 (the same seeds, so the relay impairments match).
+
+At least three clean blocks are needed on each side; otherwise the check is **unvalidated**, which fails it. A failing or unvalidated check on either build ends that path and workload's raised memory cells, and its S6 control p95 cell, as **instrumentation gap (perturbation)**. The rule's own label is recorded beside it. This applies to loopback too (operator decision 1), and a failure on one path or workload never affects another.
+
+Disclosed limitation: the denominator is #739's plain runs from earlier the same day, so session drift between the two runs is confounded with instrument cost. The check is evaluated after Stage 1, not before.
 
 **Instrument checks** (development runs; see [Disclosures](#disclosures-made-before-data)):
 - sampling covers every second of every run;
 - the receiver-controller arm's receiver reports Reno, holds no ring bytes and logs no phases, while its sender holds the candidate's ring;
-- the S6 candidate logs 51–54 phase transitions per run.
+- the S6 candidate logs 51–54 phase transitions per run;
+- the packet counters advance at both endpoints of every arm, the Reno receiver's included.
+- The candidate's `PacketsLost` stays 0 while frozen Reno's counts losses on the same path: the BBR loss path does not update that public counter. Sender-declared loss is therefore recorded but not compared.
 
 ## Stage 0: ring treatment
 
@@ -138,90 +151,156 @@ Per cell (path, workload, endpoint) and block, from the counted attempt:
 - **E**, the baseline excess: the candidate's peak RSS minus frozen Reno's.
 - **v**, the A/A variation: |A/A candidate − candidate| ÷ E.
 - A treatment's **removal fraction** f: (candidate − treatment arm) ÷ E.
-- A removal **counts** only beyond the A/A variation: its lower bound is f − v and its upper bound f + v.
+- f − v and f + v form an empirical envelope, not a statistical confidence interval.
 
-A block is **usable** when its counted attempt is clean (every arm usable and none contaminated) and E exceeds **0.5 MiB**. At least three usable, explained blocks are needed ([memrules.py](memrules.py) `label_cell`, tested in `Labels`). The labels are checked in this order:
+A block is **usable** when all of these hold:
+- its counted attempt is clean;
+- every expected arm is present and usable (an arm that left no receipt counts as missing);
+- the memory series are valid with window coverage;
+- E exceeds **0.5 MiB**.
 
-1. **Evidence gap**: fewer than three usable blocks, or fewer than three explained ones.
+Registered blocks with no attempt are listed as **missing**. Every expected cell ends with a registered label, an evidence gap included, even when a stage did not run ([memstages.py](memstages.py) `choose` and `assemble`, tested in [memstages_test.py](memstages_test.py)).
+
+The labels are checked in this order ([memrules.py](memrules.py) `label_cell`, tested in [memrules_test.py](memrules_test.py)):
+
+1. **Evidence gap**: fewer than three usable blocks; or fewer than three explained ones, or a median unexplained share above 25%.
 2. **Sender bookkeeping (ring)**, sender cells only: in at least three blocks, the ring arm is engaged and comparable and f_ring − v ≥ 0.70.
-3. **Receiver-side controller state**, receiver cells only: in at least three blocks, the receiver-controller arm is comparable and f_rx − v ≥ 0.70.
-4. **Localized to traffic-dependent live heap**. This needs at least three comparable blocks, and at least three blocks in which:
-   - f_rx + v < 0.30 (the upper bound below 30%);
-   - the heap, live and window live shares are all ≥ 0.70;
-   - for sender cells, no engaged, comparable ring arm removes f_ring − v ≥ 0.30.
-   The sub-label is **delivery retention** when, in at least three of those blocks, the receive occupancy excess at the peak sample (bytes received but unread, from the occupancy hooks: the reassembly-buffer evidence D6 allows) is at least 0.70 of the live-heap excess. Otherwise the cause is **unresolved**.
-5. **Mixed**: a treatment's lower bound f − v ≥ 0.30 in at least three blocks, without a label above.
-6. **Inconclusive (headroom-dominant accounting; no discriminating comparison)**: heap share ≥ 0.70 and live share < 0.30 in at least three blocks. **Runtime headroom is never assigned**, because no arm or registered comparison discriminates it ([departure F](#interpretations-and-departures-from-d6-for-approval)).
+3. **Receiver-side controller state**, receiver cells only: in at least three blocks, the receiver-controller arm is engaged and comparable and f_rx − v ≥ 0.70.
+4. **Localized to traffic-dependent live heap (cause unresolved)**. This needs at least three comparable blocks, and at least three blocks in which:
+   - f_rx + v < 0.30;
+   - the heap reading above holds (objects window share, live share and window live share all ≥ 0.70);
+   - for **sender cells**, the ring diagnostic is valid in that block (run, engaged and comparable) and bounds the ring's share: f_ring + v < 0.30.
+
+   A sender cell whose ring diagnostic is not run, inert, unusable or confounded is never localized ([departure I](#interpretations-and-departures-from-d6-for-approval)), so more A/A variation can never turn a competing ring share into localization (tested). **Delivery retention is never named.** No measurement in these runs places resident bytes in delivery storage. Flow-control occupancy (bytes received but unread) includes offset holes and can drain before a sample, so it is reported descriptively only.
+5. **Mixed**: an engaged, comparable ring arm, or the receiver-controller arm, has a lower bound f − v ≥ 0.30 in at least three blocks, without a label above.
+6. **Inconclusive (heap unused and free classes hold the excess; no discriminating comparison)**: (unused + free) excess ≥ 0.70 of E in at least three blocks. **Runtime headroom is never assigned**, because no arm or registered comparison discriminates it (departure F).
 7. **Treatment unusable** or **treatment inert**, for a sender cell whose ring treatment is unusable or inert.
-8. **Inconclusive (receiver-controller arm confounded)** with fewer than three comparable blocks; otherwise **inconclusive**.
+8. **Inconclusive (receiver-controller arm confounded or uncalibrated)** with fewer than three comparable blocks; **inconclusive (ring diagnostic not run)** for a sender cell whose ring was not run; otherwise **inconclusive**.
 
 The perturbation gate then applies.
 
-**Comparability** ([memrules.py](memrules.py) `traffic`, `aa_band` and `comparable`). The measures are:
-- useful goodput;
-- control replies;
-- on WAN paths, forward and reverse relay packets per useful GiB and the forward overflow fraction.
+Registered limitation (consideration C-018): D6 bounds removal from above, not memory change in both directions. A receiver-controller arm that adds memory (negative removal) still satisfies the upper bound (tested).
 
-For each measure, the band is the largest A/A deviation (candidate A/A against candidate) over the cell's blocks: relative for goodput and packets, with a floor of 1%; absolute for overflow, with a floor of 0.0005; and ±1 reply for control. An arm is comparable in a block when every measure is inside the band ([departure G](#interpretations-and-departures-from-d6-for-approval)).
-- The relay does not report reordering, so reordering is not checked.
-- Loopback has no relay, so only goodput and control replies are checked there.
-- The receiver-controller arm also has to be engaged: the receiver reports Reno and holds no ring bytes.
+**Comparability** ([memrules.py](memrules.py) `traffic`, `aa_band` and `comparable`; [departure G](#interpretations-and-departures-from-d6-for-approval)). D6's categories and the measures registered for them:
 
-**Reported descriptively for every cell**, raised or not, without classifying: the median excess per class, the live and window live excess, the explicit BBR structure bytes, E, v, and the ring and receiver-controller removals.
+| D6 category | Measure | Paths |
+| --- | --- | --- |
+| Useful delivery | Goodput | All |
+| Packets per useful GiB | Sender `PacketsSent` over the measured window ÷ useful GiB | All |
+| Feedback traffic | Receiver `PacketsSent` over the measured window ÷ useful GiB | All |
+| Control traffic | Control replies | All |
+| Forward overflow | Relay forward overflow ÷ received | WAN |
+| Reordering | **Not measured** | — |
+
+The relay model can reorder: its own test is `TestPostServiceDelayCanReorderWithoutPausingService`. Loopback has no relay and no bottleneck overflow. Sender-declared loss is degenerate for BBR (above).
+
+The band is computed per measure from **clean, usable calibration pairs only** (candidate against candidate A/A), and needs at least three such pairs; otherwise the cell is **uncalibrated** and no treatment arm is comparable. For each measure, the band is the largest A/A deviation over those pairs: relative for goodput and packets, with a floor of 1%; absolute for overflow, with a floor of 0.0005; and ±1 reply for control. The floors depart from a literal observed range, so that a pair of identical A/A runs does not reject every arm.
+
+An arm is comparable in a block when every registered measure is present and inside the band. A rejected block can neither widen nor narrow the band (tested).
+
+**Reported descriptively for every cell**, raised or not, without classifying: the median excess per class, the live and objects window excesses, flow-control occupancy, the explicit BBR structure bytes, E, v, and the ring and receiver-controller removals.
 
 ## S6 control p95, both workloads
 
-D2's Up-policy rule, unchanged ([memrules.py](memrules.py) `queue_by_phase` and `up_policy`, arithmetic copied from #736's `attribution.timeline_entry` and `stages.d2`). Its inputs are the S6 candidate and A/A runs (eight per workload), the phase log, and the relay's 10 ms forward queue samples over the measured window. A cell is attributed to the **selected ProbeBW Up policy** when every run meets all three conditions:
-- at least 70% of queue samples above 25 ms fall in Up or Down;
-- the median of the Cruise and Refill median queue delays is below 1 ms;
+D2's Up-policy rule, read strictly ([memrules.py](memrules.py) `queue_by_phase` and `up_policy`; [departure L](#interpretations-and-departures-from-d6-for-approval)). Its inputs, per workload, are the S6 candidate and A/A runs of every block, so **eight runs**, all from clean blocks with usable arms, together with each run's phase log and the relay's 10 ms forward queue samples over the measured window. Any missing or invalid run, a run without a phase log, or a failed perturbation check for that workload is an **evidence gap**.
+
+A cell is attributed to the **selected ProbeBW Up policy** when every run meets all three conditions:
+- at least 70% of queue samples above 25 ms fall in Up, or in a Down entered directly from Up;
+- the Cruise median and the Refill median queue delays are each below 1 ms, with both phases present;
 - the readiness S5 matched-load p95 is within 1.20 (#739: STREAM **1.061**, DATAGRAM **1.021**).
 
-Otherwise the cell is **unresolved**, and an evidence gap without inputs. The same thresholds apply to DATAGRAM.
+Samples with no logged phase stay in the 25 ms denominator. A complete input with no sample above 25 ms is **unresolved**, as under the prior rule; otherwise the cell is **unresolved** when the conditions are not met.
 
-Disclosed before data: #736's S6 DATAGRAM figures on r8 (98.3–98.9% in Up or Down; Cruise and Refill 0.15–0.20 ms; S5 matched-load 0.987) already met those thresholds. A phase association neither explains the revision-to-revision rise (1.167 → 1.469 → 1.459) nor establishes algorithm necessity. Readiness p95 at 30 replies per WAN run is a screen, and a later exception decision must weigh tail-sample sparsity.
+Changes from #736's code: Down counted only after Up; unknown-phase samples kept in the denominator; Cruise and Refill each below 1 ms rather than the median of their medians; and no truncation at the last work dump. #736 truncated because its phases were dumped every 250 ms, while this log covers the whole run. The same thresholds apply to DATAGRAM.
+
+Disclosed before data: #736's S6 DATAGRAM figures on r8 (98.3–98.9% in Up or Down; Cruise and Refill 0.15–0.20 ms; S5 matched-load 0.987) met the earlier reading's thresholds. A phase association neither explains the revision-to-revision rise (1.167 → 1.469 → 1.459) nor establishes algorithm necessity. Readiness p95 at 30 replies per WAN run is a screen, and a later exception decision must weigh tail-sample sparsity.
+
+**`latcand-stream`** (operator decision 2) uses #715's `latency_preservation` unchanged. At about 120 replies per run, 500 replies per arm need **at least five** usable blocks, so a stage with only four usable blocks ends as an evidence gap.
 
 ## Inventory and cap
 
 | Stage | Observations |
 | --- | --- |
 | Excluded: prerequisites (`smoke`, `perfsmoke`, `ecnsmoke`; #739's checks) and `memsmoke` (5 activation and instrument runs) | 11, outside the cap |
-| `mem-s5`, `mem-s6` | 80 (64 without the ring) |
+| `mem-s5`, `mem-s6` | 80 with the ring arm, 64 without |
 | `mem-loopback` (operator decision 1) | 32 |
 | `latcand-stream` (operator decision 2) | 12 |
-| Same-seed reruns (#714 rule, [follow.py](follow.py)) | Within the cap |
-| **Cap** | **152** counted observations, originals and reruns |
+| **Originals** | **124** with the ring, **108** without |
+| Same-seed reruns (#714 rule, [follow.py](follow.py)) | At most **28** observations |
+| **Cap** | **152** counted observations (136 when the ring is not run, since the rerun limit holds) |
 
-D6's 100 (80 + 20 reruns) is scaled to 140 for operator decision 1, in proportion, plus 12 for decision 2. If the cap binds, remaining reruns are not run and are recorded (`reruns_not_run_cap`), and the blocks they would have replaced stay under #712's rule.
+D6's 100 (80 + 20 reruns) is scaled by 1.4 to 140 for operator decision 1 (112 originals and 28 reruns), plus 12 for decision 2. The ring's 16 observations are released when it is not run; they do not become rerun allowance.
+
+A block is rerun once, with the same seed, when its counted attempt is contaminated, unusable, missing an arm or absent, while the rerun total and the overall total stay within their caps. A block that cannot be rerun under the caps is recorded (`reruns_not_run_cap`) and stays unusable.
+
+**Halt and resume.** A failed observation is retained as it is, recorded in `failures.json`, and leaves its block unusable; the stage continues ([matrix.py](matrix.py) `block`). If the driver itself stops (for example, the quiet-host gate gives up after six hours), the operator session resumes by rerunning the stopped stage and the steps after it. Completed observations are reused and never rerun, retained attempts are never replaced, and the caps count what exists on disk.
 
 ## Disclosures made before data
 
 - **No comparative observation of this ticket existed** when this registration was written. Instrument development used these runs, all excluded from every statistic and listed in the raw archive:
-  - `memsmokedev` (first overlay build) and `memsmokedev2` (the race-free overlay): one S5 STREAM run each of `reno-mem`, `cand-mem`, `cand-mem-ring` and `cand-mem` receiver-controller (seed 9993), and one S6 DATAGRAM `cand-mem` run (seed 9992). Only instrument function was examined: coverage, receiver-controller engagement, ring bytes and entries, the predicted reduction and the phase count.
+  - `memsmokedev` (first overlay build), `memsmokedev2` (the race-free overlay) and `memsmokedev3` (the overlay with packet counters): one S5 STREAM run each of `reno-mem`, `cand-mem`, `cand-mem-ring` and `cand-mem` receiver-controller (seed 9993), and one S6 DATAGRAM `cand-mem` run (seed 9992). Only instrument function was examined: coverage, receiver-controller engagement, ring bytes and entries, the predicted reduction, the phase count and the packet counters (which showed the candidate's `PacketsLost` at zero).
   - The fixture's one-line console summary, printed by #739's runner for every run, also showed the last S6 run's goodput and RSS. No candidate-versus-Reno figure was computed or examined.
   - A code-path dry run of [memstages.py](memstages.py) `cells`, on `memsmokedev` S5 STREAM copies relabelled as four identical blocks. It printed only key names and the first 12 characters of the labels the duplicates produced. With identical blocks the A/A variation is zero by construction, so these carry no information about r9.
-- **Synthetic cases ran twice.** The first set came from the first overlay build. The second came from the race-free overlay and is the committed set. The test for the higher-allocation-rate case first asserted a peak excess below 0.5 MiB. The second set gave 1.09 MiB in one block, so the test now asserts what D6 requires: a live excess under 0.25 MiB and no live-heap reading. Both sets agree otherwise.
+- **Synthetic cases ran three times,** once per overlay build. The third set is committed.
+  - The test for the higher-allocation-rate case first asserted a peak excess below 0.5 MiB. The second set gave 1.09 MiB in one block, so the test now asserts what D6 requires: a live excess under 0.25 MiB and no live-heap reading.
+  - The heap reading (departure A) was revised after the consideration, using the second set. The literal peak-sample objects share localized the retained case in one of three blocks, and the window median in two of three. The window median was chosen for its D6 wording ("aligned to the window and to GC cycles") and recorded with its sensitivity. The third set gives three of three, and the test asserts at least two.
+  - The synthetic cases are not comparative data about r9.
 - **Gate attempts.**
   - [gates/attempt1](gates/attempt1/) is the ring tree before its two declared-domain adaptations.
   - [gates/attempt2](gates/attempt2/) holds the first overlay. Its native race subset found a data race in the overlay's own call counter: a plain global, incremented by every connection in a multi-connection test process. The overlay was made race-free (an atomic counter, and a phase log with an atomic last phase and a lock taken only on a phase change).
   - `cand-mem-stale-tail.log` holds steps that a superseded gate job appended after its log was moved. It is not evidence.
+  - [gates/attempt3](gates/attempt3/) holds the race-free overlay before the packet counters were added. All its gates passed, and both injected violations were caught.
   - The registered gate logs are the ones in [gates/](gates/).
 - **Prior figures known when writing:** #739's readiness and timeline values for r9, and #736's for r8, including the memory medians above, the A/A ranges and the descriptive heap-peak figures. #736's descriptive heap-site decomposition on r8 found bookkeeping of about 2.2–2.6 MiB leading three of four sender cells, delivery data of 4.0–5.3 MiB leading the STREAM receiver cells, and about 1.1–1.4 MiB of bookkeeping at the receivers, because BBRv3 runs at both endpoints.
 - **Interpretation known in advance.**
-  - *The ring label is out of reach by arithmetic.* The 4,096-entry ring removes about 1.0 MiB per endpoint, and the sender cells' readiness excesses are 2.98–8.93 MiB, so f_ring is at most about 0.34 (S5 DATAGRAM). No sender cell can reach 0.70, and the ring arm can at most produce **mixed** or block localization. It still runs if its preflight passes, because it is the only causal test that the fixed ring's explicit bytes are resident and removable, and that bears on the design-bound question the map defers.
+  - *The ring label is out of reach by arithmetic.* The 4,096-entry ring removes about 1.0 MiB per endpoint, and the sender cells' readiness excesses are 2.98–8.93 MiB, so f_ring is at most about 0.34 (S5 DATAGRAM). No sender cell can reach 0.70. The ring arm can produce **mixed** where it removes at least 30% beyond A/A (likely only for S5 DATAGRAM, at about 0.34), and it is **required** for a sender cell's localization, which needs it to bound the ring's share below 30%. It is also the only causal test that the fixed ring's explicit bytes are resident and removable, which bears on the design-bound question the map defers.
+  - *Without the ring arm, no sender cell can be localized.* If the preflight does not say `run`, every sender cell ends at best as **inconclusive (ring diagnostic not run)**.
   - *For sender cells, the receiver-controller arm leaves the sender unchanged.* Its removal is expected to be near zero there, so a sender cell's localization rests mainly on the GC-aligned accounting and the ring bound. D6 applies the receiver-controller arm to every cell, and so does this registration.
   - *Removing the receiver's BBR state may change ACK-path behavior.* That is what comparability checks.
   - Loopback STREAM goodput moves about 3% with code placement alone (#738), so its perturbation check may fail on placement rather than on instrument cost. Under operator decision 1, the loopback cells would then end as an instrumentation gap.
 
 ## Interpretations and departures from D6, for approval
 
-- **A. GC-aligned heap reading.** D6's "at least 70% of the excess in heap objects" is read as heap share, live share and window live share all ≥ 0.70. On the synthetic retained case, the literal objects-at-sample share was 0.52 in one of three blocks for a known 8 MiB live cause, because garbage moves between objects and free. The GC-aligned live share was 1.00–1.08.
-- **B. Phase log in place of the timeline overlay.** D6 names the timeline overlay for the S6 inputs. That overlay grows its arrays without bound and marshals them to JSON every 500 ms on the connection goroutine, which would inflate the candidate's resident memory in a memory study. The phase log records the same transitions D2's rule used on #711, #715 and #736 (the counting overlay's `c4Phase`), in a fixed BSS array, with nothing marshalled until stop.
-- **C. Ring detectability threshold of 0.5 MiB.** D6 derives it from the BBR A/A arm's RSS range, but no BBR A/A observation exists before Stage 1. The only paired A/A on this host and fixture is #739's frozen-Reno A/A: across S5 and S6, both endpoints, 40 paired |differences|, the median is 0.23 MiB and the upper quartile 0.41 MiB. The threshold is set at 0.5 MiB, above that quartile. The contemporaneous BBR A/A variation then enters every block's rule through v.
-- **D. Ring comparability and the sender localization bound.** The ring arm counts only where its traffic is inside the A/A band. A sender cell is not localized to live heap where an engaged, comparable ring arm removes at least 30% beyond A/A. D6 states neither condition, and both make labels harder to reach, not easier.
-- **E. Stage 1 seeds are #739's readiness seeds,** so perturbation compares matched impairments.
-- **F. Runtime headroom is never assigned**, because D6 requires a discriminating comparison and none is registered. Headroom-dominant accounting ends as inconclusive.
-- **G. Comparability band.** "Within the BBR A/A range" is read as within the largest A/A deviation over the cell's blocks, with stated floors. Reordering is not measured.
-- **H. Block usability.** Only clean counted attempts count for fractions. A block that stays contaminated after its rerun is unusable for this rule.
+- **A. Heap reading.** "At least 70% of the excess in heap objects" is read as the window-median heap-objects excess, aligned to the window and to GC cycles, and backed by GC-aligned doubled live heap at the peak and over the window. The first registration's heap share plus doubled live was rejected by the consideration: a headroom-heavy excess (objects 3.5 and unused 6.5 of E 10) passed it. That case fails this reading (tested). Sensitivity is recorded above.
+- **B. Phase log in place of the timeline overlay.** D6 names the timeline overlay for the S6 inputs. That overlay grows its arrays without bound and marshals them to JSON every 500 ms on the connection goroutine, which would inflate the candidate's resident memory in a memory study. The phase log records the same transitions D2's rule used on #711, #715 and #736 (the counting overlay's `c4Phase`), in a fixed BSS array, with nothing marshalled until stop. It is part of every candidate memory build, so the perturbation check covers it.
+- **C. Ring detectability threshold of 0.5 MiB.** D6 derives it from the BBR A/A arm's RSS range, but no BBR A/A observation exists before Stage 1. The proxy is #739's frozen-Reno A/A: 40 paired |peak RSS differences| across S5 and S6, both endpoints, five blocks each. Their median is 0.23 MiB, their upper quartile (Python `statistics.quantiles`, n=4, exclusive method) 0.41 MiB, and their maximum 2.0 MiB (S5 DATAGRAM sender, block 1); 6 of 40 exceed 0.5 MiB.
+
+  The same threshold serves twice: the ring preflight (predicted reduction 0.999 MiB) and block usability for fractions (E > 0.5 MiB). The proxy is a Reno, not a BBR, tail, and a reduction near 1 MiB is detectable against its typical pair but not against its largest. The contemporaneous BBR A/A variation then enters every block's rule through v.
+- **D. Ring comparability.** The ring arm counts only where its traffic is inside the A/A band.
+- **E. Stage 1 seeds are #739's readiness seeds,** so perturbation compares matched impairments. That does not remove session drift.
+- **F. Runtime headroom is never assigned**, because D6 requires a discriminating comparison and none is registered.
+- **G. Comparability measures and band.** The table above maps each D6 category to its measure. **Reordering is not measured**, and loopback has no overflow measure. This is a narrower rule than D6's: reordering is left unestablished rather than assumed unchanged. The band is the largest clean-pair A/A deviation, with floors, and needs three clean calibration pairs.
+- **H. Block usability.** Only clean counted attempts with every expected arm and valid memory series count, for fractions, calibration, perturbation and S6 scoring.
+- **I. Sender localization needs a valid ring bound** (consideration item 11): f_ring + v < 0.30 in each localizing block, and never without a valid ring diagnostic.
+- **J. Cell aggregation of unexplained blocks.** At least three explained usable blocks, and a median unexplained share over the usable blocks of at most 25%. A cell with three explained and one unexplained block can therefore be labeled; one with two unexplained cannot.
+- **K. Perturbation gates both builds,** on clean blocks, with at least three on each side, and an unvalidated check fails.
+- **L. D2 read strictly** (Down only after Up; unknown phases in the denominator; Cruise and Refill each below 1 ms; all eight runs required). The first registration claimed #736's arithmetic unchanged; that claim was wrong, and these changes make the rule stricter.
+
+## Consideration and revisions
+
+The first registration (`c0c33ebf`) was gated before any data by `ras consider` (run `20261008T154923-d4f838f89528d7c3f5ee84ac`). The prompt quoted D6, D2's rule and both operator decisions verbatim. Every item was fixed, before any comparative data:
+
+| Item | Finding | Disposition |
+| --- | --- | --- |
+| 1 | The A/A band drew on rejected observations | Fixed: clean calibration pairs only, at least three, otherwise uncalibrated; tested with a rejected outlier |
+| 2 | S6 scoring accepted incomplete or invalid inputs | Fixed: eight runs from clean blocks, a phase log in each, and the perturbation gate; otherwise an evidence gap |
+| 3 | Doubled live heap admitted headroom as live heap | Fixed: departure A revised; the counterexample is tested |
+| 4 | Residual and gap could cancel | Fixed: \|residual\| + \|gap\|; both directions and the boundary tested |
+| 5 | Flow-control occupancy named delivery retention | Fixed: occupancy is descriptive; delivery retention is never named |
+| 6 | Comparability omitted D6 categories | Fixed: packet counters added for all arms and paths; reordering left unestablished as a narrower rule (G) |
+| 7 | D2 mismatches (Down without Up, unknown phases, the Cruise/Refill aggregation, quiet queues) | Fixed: departure L; fixtures for each case |
+| 8 | The window evidence accepted out-of-window or sparse samples | Fixed: actual timestamps inside the window, 80% coverage, valid metrics |
+| 9 | Malformed or failed observations crashed the analysis or halted the driver | Fixed: validated loading, missing and incomplete blocks, failures recorded, resume procedure; [memstages_test.py](memstages_test.py) |
+| 10 | Perturbation used rejected observations and gated one build | Fixed: departure K; limitation disclosed |
+| 11 | The ring veto weakened as uncertainty grew | Fixed: departure I; monotonicity tested |
+| 12 | Threshold, aggregation and cap needed explicit approval | Fixed: departures C and J and the inventory table; the cap is 152 with 28 reruns, both branches tested |
+
+Not acted on, as the synthesis advised:
+- C-018 (the negative-removal limitation) is recorded above.
+- No new sender intervention is added (C-025), and no larger allocation-rate campaign (C-017).
+- A/A runs stay in S6 scoring (C-046), and the inherited latency adequacy thresholds stay unchanged (C-024).
+- The rotation is unchanged; its unequal temporal spacing is a limitation (C-042).
+- The 152 cap is kept (C-032).
 
 ## Time estimate
 
@@ -235,7 +314,7 @@ All aids, builds and gates are in place. On a quiet host:
 
 ## Order
 
-On the Mac: `build.py` (done), `gate_trees.py`, `gates.sh` (done), `memrules_test.py`, `rules_test.py`, `localize_test.py`, `receiver_test.py` and `harness_test.py` (done); then `sync.sh`. On `minimax`, `gates-native.sh` (done, before data). Then, sequentially under `taskset -c 1-3`, with no build or test running there while a stage measures, [driver.sh](driver.sh):
+On the Mac: `build.py` (done), `gate_trees.py`, `gates.sh` (done), `memrules_test.py`, `memstages_test.py`, `rules_test.py`, `localize_test.py`, `receiver_test.py` and `harness_test.py` (done); then `sync.sh`. On `minimax`, `gates-native.sh` (done, before data). Then, sequentially under `taskset -c 1-3`, with no build or test running there while a stage measures, [driver.sh](driver.sh):
 1. host facts, `prereq.py`, `smoke`, `perfsmoke`, `ecnsmoke` and `memsmoke`, then `stages.py fold`;
 2. `memstages.py preflight`, which writes `ring-preflight.json` and fixes the ring arm before any Stage 1 observation;
 3. `mem-s5`, `mem-s6`, `mem-loopback` and `latcand-stream`;

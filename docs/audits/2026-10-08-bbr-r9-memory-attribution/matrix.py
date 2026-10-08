@@ -13,7 +13,10 @@ the same number. The ring arm runs only when the registered preflight
 (`memstages.py preflight`, ring-preflight.json) says `run`. The prerequisite
 smokes (`smoke`, `perfsmoke`, `ecnsmoke`), host facts, the quiet-host gate
 (verbatim from #738), the rotation and the same-seed rerun rule are #739's,
-unchanged. Launch under `taskset -c 1-3` (run.HARNESS_CPUS).
+unchanged. A failed observation is retained, recorded in failures.json and
+leaves its block unusable for the rerun rule; the stage continues. A stage can
+be resumed by running it again: completed observations are reused, never
+rerun. Launch under `taskset -c 1-3` (run.HARNESS_CPUS).
 
 Usage: matrix.py <stage> [attempt]
        matrix.py hostfacts LABEL
@@ -106,11 +109,26 @@ def block(stage, path, arms, b, seed=None, runner=None, only=None, **kw):
         if only and workload != only:
             continue
         for variant, controller, tag in rotated(arms, b):
-            if runner is None:
-                rows.append(run.run_case(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
-            else:
-                rows.append(runner(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
+            try:
+                if runner is None:
+                    rows.append(run.run_case(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
+                else:
+                    rows.append(runner(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
+            except Exception as e:  # noqa: BLE001
+                # A failed observation is retained as it is (never replaced); it makes its block unusable, and
+                # follow.py's same-seed rerun rule then reruns the block. The failure is recorded, not suppressed.
+                failure(dict(stage=stage, path=path, workload=workload, block=b, variant=variant, controller=controller, tag=tag,
+                             error=repr(e), unix_ns=time.time_ns()))
     return rows
+
+
+def failure(entry):
+    import json
+    log = run.ART / 'failures.json'
+    out = json.loads(log.read_text()) if log.exists() else []
+    out.append(entry)
+    log.write_text(json.dumps(out, indent=1) + '\n')
+    print('FAILED', entry, flush=True)
 
 
 # stage -> (phase, path, arms (or a function of none), blocks, seed base or None, runner, options, workloads)
@@ -172,7 +190,10 @@ def main(argv):
         stage = f'rerun-{name}-{workload}-p{b}'
     else:
         rows = run_stage(stage)
-    run.write(run.ART / f'{stage}-summary.json', [dict(id=r['id'], goodput_mbps=r['goodput_mbps']) for r in rows])
+    out = run.ART / f'{stage}-summary.json'
+    if out.exists():  # a resumed stage keeps the first summary and writes the resumed one beside it
+        out = run.ART / f'{stage}-summary-resumed-{time.time_ns()}.json'
+    run.write(out, [dict(id=r['id'], goodput_mbps=r['goodput_mbps']) for r in rows])
 
 
 if __name__ == '__main__':

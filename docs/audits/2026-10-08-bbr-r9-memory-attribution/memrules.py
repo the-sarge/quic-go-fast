@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """#740 registered rules (D6 of the #737 decision), as pure functions.
 
-memrules_test.py exercises every rule, the synthetic accounting cases and the
-labels, and is committed with the registration before any comparative data.
+memrules_test.py exercises every rule, the synthetic accounting cases, the
+labels and the consideration's counterexamples, and is committed with the
+registration before any comparative data.
 
 Accounting (Stage 0). One memory sample is one line of an endpoint's
 {role}.mem.jsonl (mem/mem_series.go). Resident memory is smaps_rollup `Rss`.
@@ -16,24 +17,32 @@ It is partitioned, at one sample, into:
   other     /memory/classes/other + /memory/classes/profiling/buckets
   residual  Anonymous - (those six runtime classes)
 The runtime classes are mapped, not necessarily resident; heap/released is
-excluded because it is returned to the OS. The residual is whatever resident
-anonymous memory the runtime accounting does not explain (negative when mapped
-runtime memory is not resident). The peak resident memory of the readiness
-cell (ru_maxrss, `peak_rss_mib`) is the sample maximum plus a sampling gap
-(VmHWM minus the largest sampled Rss), so
+excluded because it is returned to the OS. The residual is resident anonymous
+memory the runtime accounting does not explain (negative when mapped runtime
+memory is not resident). The readiness cell's peak (ru_maxrss, `peak_rss_mib`)
+is the largest sampled Rss plus a signed sampling gap (peak minus that sample;
+an instrument and sampling discrepancy, negative when kB rounding or timing
+puts the sample above ru_maxrss), so
   peak = file + objects + unused + free + stacks + metadata + other + residual + gap
-holds exactly at the peak sample, up to the kB rounding of /proc.
+holds exactly at the peak sample (`closure`). Closure is bookkeeping: it does
+not show that the classes explain residency at another moment, so the
+unexplained test charges |residual| and |gap| separately and they cannot cancel.
 
-GC alignment. Heap objects at one sample include garbage not yet collected,
-which moves between the objects and free classes with the GC cycle (the
-synthetic retained case puts an 8 MiB cause at +8.2 to +15.8 MiB of objects).
-The rule therefore reads the heap at GC alignment: the live heap at the last
-completed mark (/gc/heap/live). With the fixture's default GOGC=100 a live-heap
-excess L raises the heap goal, and so resident heap, by about 2L. The live
-share of a cell's excess E is 2 x (live excess) / E, taken at the peak sample
-and as the median over the measured window's per-second samples (aligned by
-seconds since the run's configured start), so a warmup-only excess fails the
-window test. The heap share is (objects + unused + free) excess / E.
+Heap reading. Heap objects at one sample include garbage not yet collected,
+which moves between the objects and free classes with the GC cycle: under the
+fixture's default GOGC=100 a live-heap cause L leaves between L and 2L of heap
+objects while it raises resident heap by about 2L, so its objects share of the
+excess averages about 0.75, close to D6's 0.70. D6's condition "at least 70%
+of the excess in heap objects", aligned to the window and to GC cycles, is read
+as the median over the measured window's per-second samples of the
+heap-objects excess (objects window share). Two GC-aligned conditions are
+added: 2 x the live-heap excess at the last completed mark (/gc/heap/live) must
+reach 0.70 of E at the peak sample and as the window median. The doubling is a
+model and never suffices alone (a 0.70 doubled-live share admits an actual live
+excess of only 0.35 E); the measured objects share has to back it. On the
+synthetic 8 MiB retained case this reading localizes two of three blocks (the
+literal peak-sample reading, one), so a true live-heap cause can still end
+inconclusive, and an inconclusive ending is not evidence against live heap.
 """
 import json
 import statistics
@@ -43,30 +52,45 @@ MIB = 1 / 2**20
 
 CLASSES = ['file', 'objects', 'unused', 'free', 'stacks', 'metadata', 'other']
 UNEXPLAINED = ['residual', 'gap']
+REQUIRED = ['rollup_Rss_kb', 'rollup_Anonymous_kb', 'status_VmHWM_kb', '/memory/classes/heap/objects:bytes',
+            '/memory/classes/heap/unused:bytes', '/memory/classes/heap/free:bytes', '/memory/classes/heap/stacks:bytes',
+            '/memory/classes/os-stacks:bytes', '/memory/classes/metadata/mcache/free:bytes',
+            '/memory/classes/metadata/mcache/inuse:bytes', '/memory/classes/metadata/mspan/free:bytes',
+            '/memory/classes/metadata/mspan/inuse:bytes', '/memory/classes/metadata/other:bytes',
+            '/memory/classes/other:bytes', '/memory/classes/profiling/buckets:bytes', '/memory/classes/heap/released:bytes',
+            '/gc/heap/live:bytes', '/gc/heap/goal:bytes', '/gc/cycles/total:gc-cycles']
 
 # Registered thresholds.
-DETECTABLE_MIB = 0.5        # block usability for fractions, and the ring preflight (README, "Thresholds")
-UNEXPLAINED_SHARE = 0.25    # a block whose |residual + gap| excess exceeds this share of its baseline excess is unexplained
-LABEL = 0.70                # removal (beyond A/A) for a causal label; heap share for localization
-BOUNDED = 0.30              # removal upper bound for localization; a treatment lower bound this large blocks it
+DETECTABLE_MIB = 0.5        # block usability for fractions, and the ring preflight (README, departure C)
+UNEXPLAINED_SHARE = 0.25    # (|residual| + |gap|) excess above this share of E makes a block unexplained
+LABEL = 0.70                # removal (beyond A/A) for a causal label; heap shares for localization
+BOUNDED = 0.30              # removal upper bound for localization; a ring lower bound this large makes a cell mixed
 MIN_BLOCKS = 3
-COMPARABLE_FLOOR = 0.01     # relative floor of the receiver-controller comparability band
+WINDOW_COVERAGE = 0.80      # share of the measured window's seconds with a valid sample in both runs
+COMPARABLE_FLOOR = 0.01     # relative floor of the comparability band
 OVERFLOW_FLOOR = 0.0005     # absolute floor (fraction of forward packets) for overflow
-# D2's Up-policy thresholds (#715, #736), unchanged.
+CALIBRATION_MIN = 3         # clean A/A pairs needed to calibrate comparability
+# D2's Up-policy thresholds (#715, #736).
 UP_SHARE, CRUISE_MS, S5_P95 = 0.70, 1.0, 1.20
 PHASES = ['startup', 'drain', 'down', 'cruise', 'refill', 'up', 'probertt']
+UP, DOWN = PHASES.index('up'), PHASES.index('down')
 BOTTLENECK_BPS = 100e6
 
 
 # ---- Stage 0: accounting ---------------------------------------------------------------------
 
 def parse_series(text):
-    """(columns, rows as dicts, tail) from one {role}.mem.jsonl."""
+    """(header, rows as dicts, tail) from one {role}.mem.jsonl."""
     lines = [json.loads(x) for x in text.splitlines() if x.strip()]
     header = lines[0]
     rows = [dict(zip(header['columns'], r)) for r in lines[1:] if isinstance(r, list)]
     tails = [r for r in lines[1:] if isinstance(r, dict)]
     return header, rows, (tails[-1] if tails else None)
+
+
+def valid(row):
+    """Every value the accounting needs was read (the sampler writes -1 for a failed read)."""
+    return all(k in row and row[k] is not None and row[k] >= 0 for k in REQUIRED)
 
 
 def account(row):
@@ -89,12 +113,16 @@ def account(row):
                                                 'scratch_bytes', 'retained_bytes'])
     out['ring_entries'] = row.get('ring_entries', 0)
     out['ring_evicted'] = row.get('ring_evicted', 0)
+    out['occupancy'] = max(row.get('conn_received', 0) - row.get('conn_read', 0), 0) * MIB  # descriptive only
     return out
 
 
 def peak_account(rows, peak_rss_mib):
-    """The partition at the largest sampled Rss, with the sampling gap to the endpoint's ru_maxrss peak."""
-    best = max(rows, key=lambda r: r['rollup_Rss_kb'])
+    """The partition at the largest valid sampled Rss, with the signed sampling gap to the ru_maxrss peak; None if no valid sample."""
+    ok = [r for r in rows if valid(r)]
+    if not ok:
+        return None
+    best = max(ok, key=lambda r: r['rollup_Rss_kb'])
     a = account(best)
     a['unix_ns'] = best['unix_ns']
     a['gap'] = peak_rss_mib - a['rss']
@@ -102,49 +130,68 @@ def peak_account(rows, peak_rss_mib):
     return a
 
 
-def excess(cand, reno, live_window=None):
-    """Per-class excess (candidate minus Reno) at each endpoint's own peak sample; sums to the peak excess.
+def window_medians(cand_rows, reno_rows, cand_t0, reno_t0, warmup_ms, measure_ms,
+                   keys=('/gc/heap/live:bytes', '/memory/classes/heap/objects:bytes')):
+    """({key: median excess in MiB over the measured window}, coverage).
 
-    live_window: the median measured-window live-heap excess (MiB, window_live), or None.
+    Only valid samples whose own timestamps fall inside each run's measured
+    window count; they are aligned by whole seconds since each run's configured
+    start. Coverage is the share of the window's seconds present in both runs.
     """
-    keys = CLASSES + UNEXPLAINED + ['live', 'bbr_explicit', 'ring_bytes']
+    def by_second(rows, t0):
+        lo, hi = t0 + warmup_ms * 1_000_000, t0 + (warmup_ms + measure_ms) * 1_000_000
+        out = {}
+        for r in rows:
+            if valid(r) and lo <= r['unix_ns'] < hi:
+                out.setdefault(int((r['unix_ns'] - t0) // 1_000_000_000), r)
+        return out
+    c, r = by_second(cand_rows, cand_t0), by_second(reno_rows, reno_t0)
+    seconds = range(int(warmup_ms // 1000), int((warmup_ms + measure_ms) // 1000))
+    both = [k for k in seconds if k in c and k in r]
+    coverage = len(both) / len(seconds) if len(seconds) else 0.0
+    if not both:
+        return {k: None for k in keys}, coverage
+    return {key: statistics.median((c[k][key] - r[k][key]) * MIB for k in both) for key in keys}, coverage
+
+
+def excess(cand, reno, window=None, coverage=None):
+    """Per-class excess (candidate minus Reno) at each endpoint's own peak sample; the classes sum to the peak excess.
+
+    window: window_medians' dict (or None); coverage: its coverage.
+    """
+    keys = CLASSES + UNEXPLAINED + ['live', 'bbr_explicit', 'ring_bytes', 'occupancy']
     out = {k: cand[k] - reno[k] for k in keys}
     out['peak'] = cand['peak'] - reno['peak']
     out['closure'] = out['peak'] - sum(out[k] for k in CLASSES + UNEXPLAINED)
     out['heap'] = out['objects'] + out['unused'] + out['free']
-    out['live_window'] = live_window
+    window = window or {}
+    out['live_window'] = window.get('/gc/heap/live:bytes')
+    out['objects_window'] = window.get('/memory/classes/heap/objects:bytes')
+    out['window_coverage'] = coverage
     if out['peak'] > 0:
-        out['heap_share'] = out['heap'] / out['peak']
-        out['live_share'] = 2 * out['live'] / out['peak']
-        out['live_window_share'] = 2 * live_window / out['peak'] if live_window is not None else None
+        e = out['peak']
+        share = lambda v: v / e if v is not None else None
+        out.update(objects_share=out['objects'] / e, heap_share=out['heap'] / e, headroom_share=(out['unused'] + out['free']) / e,
+                   live_share=2 * out['live'] / e, live_window_share=share(2 * out['live_window'] if out['live_window'] is not None else None),
+                   objects_window_share=share(out['objects_window']),
+                   unexplained_share=(abs(out['residual']) + abs(out['gap'])) / e)
     return out
 
 
-def window_live(cand_rows, reno_rows, cand_t0, reno_t0, warmup_ms, measure_ms):
-    """Median over the measured window's seconds of the live-heap excess (MiB), aligned by seconds since each run's start."""
-    def at(rows, t0):
-        by = {}
-        for r in rows:
-            by.setdefault(round((r['unix_ns'] - t0) / 1e9), r)
-        return by
-    c, r = at(cand_rows, cand_t0), at(reno_rows, reno_t0)
-    secs = [k for k in range(int(warmup_ms / 1000), int((warmup_ms + measure_ms) / 1000) + 1) if k in c and k in r]
-    if not secs:
-        return None
-    return statistics.median((c[k]['/gc/heap/live:bytes'] - r[k]['/gc/heap/live:bytes']) * MIB for k in secs)
+def explained(ex):
+    """|residual| + |sampling gap| excess within the registered share of a positive peak excess (no cancellation)."""
+    return ex['peak'] > 0 and ex['unexplained_share'] <= UNEXPLAINED_SHARE
+
+
+def window_ok(ex):
+    return (ex.get('window_coverage') is not None and ex['window_coverage'] >= WINDOW_COVERAGE
+            and ex.get('live_window') is not None and ex.get('objects_window') is not None)
 
 
 def live_heap(ex):
-    """The excess sits in GC-aligned live heap: heap share, live share at the peak and over the window all >= LABEL."""
-    return (ex['peak'] > 0 and ex['heap_share'] >= LABEL and ex['live_share'] >= LABEL
-            and ex['live_window_share'] is not None and ex['live_window_share'] >= LABEL)
-
-
-def explained(ex):
-    """True when the unexplained excess (residual + sampling gap) is within the registered share of the peak excess."""
-    if ex['peak'] <= 0:
-        return False
-    return abs(ex['residual'] + ex['gap']) <= UNEXPLAINED_SHARE * ex['peak']
+    """D6's heap-objects condition, window- and GC-aligned, plus GC-aligned live heap at the peak and over the window."""
+    return (ex['peak'] > 0 and window_ok(ex) and ex['objects_window_share'] >= LABEL and ex['live_share'] >= LABEL
+            and ex['live_window_share'] >= LABEL)
 
 
 def dominant(ex):
@@ -160,7 +207,7 @@ def dominant(ex):
 # ---- Stage 0: ring treatment preflight and engagement -------------------------------------------
 
 def ring_preflight(gates_pass, mutants_detected, activation_ring_bytes, candidate_ring_bytes):
-    """'run', 'unusable' or 'inert' and the predicted reduction (MiB), before Stage 1."""
+    """'run', 'unusable', 'inert' or 'not run (below detectability)', and the predicted reduction (MiB), before Stage 1."""
     predicted = (candidate_ring_bytes - activation_ring_bytes) * MIB
     if not gates_pass or not all(mutants_detected):
         return dict(decision='unusable', predicted_mib=predicted)
@@ -176,60 +223,81 @@ def ring_engaged(ring_peak, cand_peak, entries):
     return ring_peak['ring_entries'] == entries and ring_peak['ring_bytes'] < cand_peak['ring_bytes']
 
 
-# ---- Stage 1: receiver-controller comparability ------------------------------------------------
+# ---- Stage 1: comparability ---------------------------------------------------------------------
 
-def traffic(obs):
-    """Traffic measures of one observation (summary row): useful delivery and, on WAN paths, relay packet counts."""
-    out = dict(goodput=obs['goodput_mbps'], control=obs['control_replies'])
-    relay = obs.get('relay')
+# D6's categories and the measures registered for them (README, departure G). Sender-declared lost packets
+# are recorded but not compared: the candidate's BBR loss path leaves ConnectionStats.PacketsLost at zero.
+TRAFFIC = ['goodput', 'fwd_per_gib', 'feedback_per_gib', 'control']
+TRAFFIC_WAN = TRAFFIC + ['overflow']
+
+
+def window_delta(rows, t0, warmup_ms, measure_ms, key):
+    """Counter increase over the measured window: last valid sample at or before each edge (None if missing)."""
+    lo, hi = t0 + warmup_ms * 1_000_000, t0 + (warmup_ms + measure_ms) * 1_000_000
+    before = [r for r in rows if r['unix_ns'] <= lo and r.get(key, -1) >= 0]
+    upto = [r for r in rows if r['unix_ns'] <= hi and r.get(key, -1) >= 0]
+    if not before or not upto:
+        return None
+    return upto[-1][key] - before[-1][key]
+
+
+def traffic(summary, send_rows, recv_rows, t0, warmup_ms, measure_ms):
+    """Traffic measures of one observation; a measure is None when it cannot be computed.
+
+    useful delivery: goodput; packets per useful GiB: sender packets sent;
+    feedback: receiver packets sent; control: control replies; forward
+    overflow (WAN): relay overflow fraction. Sender-declared lost packets are
+    recorded (lost_per_gib) but are not a comparability measure. Packet counts are the
+    connection's ConnectionStats deltas over the measured window.
+    """
+    gib = summary['useful_bytes'] / 2**30
+    per = lambda v: v / gib if v is not None and gib > 0 else None
+    out = dict(goodput=summary['goodput_mbps'], control=summary['control_replies'],
+               fwd_per_gib=per(window_delta(send_rows, t0, warmup_ms, measure_ms, 'stats_packets_sent')),
+               feedback_per_gib=per(window_delta(recv_rows, t0, warmup_ms, measure_ms, 'stats_packets_sent')),
+               lost_per_gib=per(window_delta(send_rows, t0, warmup_ms, measure_ms, 'stats_packets_lost')))
+    relay = summary.get('relay')
     if relay:
-        gib = obs['useful_bytes'] / 2**30
-        f, r = relay['forward']['stats'], relay['reverse']['stats']
-        out.update(fwd_per_gib=f['Delivered'] / gib, rev_per_gib=r['Delivered'] / gib,
-                   overflow=f['Overflow'] / f['Received'] if f['Received'] else 0.0)
+        f = relay['forward']['stats']
+        out['overflow'] = f['Overflow'] / f['Received'] if f['Received'] else 0.0
     return out
 
 
-def aa_band(blocks):
-    """Per measure, the largest A/A deviation over the stage's blocks: relative, or absolute for overflow and control."""
+def deviation(k, a, b):
+    if k in ('overflow', 'control'):
+        return abs(a - b)
+    return abs(a - b) / a if a else 0.0
+
+
+def aa_band(pairs, measures):
+    """Per measure, the largest A/A deviation over clean calibration pairs, with floors; None if uncalibrated.
+
+    pairs: [dict(cand=traffic, aa=traffic)] from clean, usable blocks only.
+    """
+    pairs = [p for p in pairs if all(p['cand'].get(k) is not None and p['aa'].get(k) is not None for k in measures)]
+    if len(pairs) < CALIBRATION_MIN:
+        return None
     band = {}
-    for b in blocks:
-        c, a = b['cand'], b['aa']
-        for k in c:
-            if k in ('overflow',):
-                d = abs(a[k] - c[k])
-            elif k == 'control':
-                d = abs(a[k] - c[k])
-            else:
-                d = abs(a[k] - c[k]) / c[k] if c[k] else 0.0
-            band[k] = max(band.get(k, 0.0), d)
-    for k in band:
-        if k == 'overflow':
-            band[k] = max(band[k], OVERFLOW_FLOOR)
-        elif k == 'control':
-            band[k] = max(band[k], 1)
-        else:
-            band[k] = max(band[k], COMPARABLE_FLOOR)
+    for k in measures:
+        d = max(deviation(k, p['cand'][k], p['aa'][k]) for p in pairs)
+        floor = OVERFLOW_FLOOR if k == 'overflow' else 1 if k == 'control' else COMPARABLE_FLOOR
+        band[k] = max(d, floor)
     return band
 
 
-def comparable(cand, rx, band):
-    """(comparable, measures outside the band) for the receiver-controller arm in one block."""
-    out = []
-    for k, lim in band.items():
-        if k in ('overflow', 'control'):
-            d = abs(rx[k] - cand[k])
-        else:
-            d = abs(rx[k] - cand[k]) / cand[k] if cand[k] else 0.0
-        if d > lim + 1e-12:
-            out.append(k)
+def comparable(cand, arm, band):
+    """(comparable, measures outside the band or missing) for one treatment arm in one block."""
+    if band is None:
+        return False, ['uncalibrated']
+    out = [k for k, lim in band.items()
+           if cand.get(k) is None or arm.get(k) is None or deviation(k, cand[k], arm[k]) > lim + 1e-12]
     return not out, out
 
 
 # ---- Stage 1: per-cell label ---------------------------------------------------------------------
 
 def block_fractions(b):
-    """Removal fractions and the A/A variation, as fractions of the block's baseline excess E."""
+    """Removal fractions and the A/A variation, as fractions of the block's baseline excess E (an empirical envelope)."""
     e = b['E']
     out = dict(E=e, v=abs(b['aa_diff']) / e)
     for k in ('ring', 'rx'):
@@ -239,13 +307,12 @@ def block_fractions(b):
 
 
 def label_cell(role, blocks, ring_status):
-    """D6's per-cell rule over a cell's blocks.
+    """D6's per-cell rule over a cell's blocks (README, "Statistics and rule").
 
-    Each block: E (candidate minus Reno peak RSS, MiB; equals ex['peak']), aa_diff (A/A candidate minus candidate),
-    ring and rx (candidate minus treatment arm, MiB, or None when not run), ring_engaged,
-    ring_comparable, rx_comparable, usable (every arm usable and the block uncontaminated), ex (the
-    accounting excess, with live_window), occ_excess (the receive occupancy excess at the peak sample,
-    MiB, receiver cells only, else None).
+    Each block: E (candidate minus Reno peak RSS, MiB; equals ex['peak']), aa_diff (A/A minus candidate),
+    ring and rx (candidate minus treatment arm, MiB, or None when not run), ring_engaged, ring_comparable,
+    rx_comparable, usable (counted attempt clean, every arm present and usable, instrument valid), ex (the
+    accounting excess, with the window fields).
     ring_status: 'run', 'not run', 'not run (below detectability)', 'unusable' or 'inert'.
     """
     usable = [b for b in blocks if b['usable'] and b['E'] > DETECTABLE_MIB]
@@ -254,12 +321,14 @@ def label_cell(role, blocks, ring_status):
         return dict(label='evidence gap (fewer than three usable blocks)', **detail)
     ok = [b for b in usable if explained(b['ex'])]
     detail['explained'] = len(ok)
-    if len(ok) < MIN_BLOCKS:
+    detail['median_unexplained_share'] = statistics.median(b['ex']['unexplained_share'] for b in usable)
+    if len(ok) < MIN_BLOCKS or detail['median_unexplained_share'] > UNEXPLAINED_SHARE:
         return dict(label='evidence gap (resident memory unexplained by the accounting)', **detail)
     fr = [(b, block_fractions(b)) for b in ok]
     ring_on = ring_status == 'run'
-    ring_hits = [f for b, f in fr if ring_on and b.get('ring_engaged') and b.get('ring_comparable') and 'ring' in f and f['ring'] - f['v'] >= LABEL]
-    ring_part = [f for b, f in fr if ring_on and b.get('ring_engaged') and b.get('ring_comparable') and 'ring' in f and f['ring'] - f['v'] >= BOUNDED]
+    ring_valid = lambda b, f: ring_on and b.get('ring_engaged') and b.get('ring_comparable') and 'ring' in f
+    ring_hits = [f for b, f in fr if ring_valid(b, f) and f['ring'] - f['v'] >= LABEL]
+    ring_part = [f for b, f in fr if ring_valid(b, f) and f['ring'] - f['v'] >= BOUNDED]
     comp = [(b, f) for b, f in fr if b.get('rx_comparable') and 'rx' in f]
     rx_hits = [f for b, f in comp if f['rx'] - f['v'] >= LABEL]
     rx_part = [f for b, f in comp if f['rx'] - f['v'] >= BOUNDED]
@@ -268,59 +337,80 @@ def label_cell(role, blocks, ring_status):
         return dict(label='sender bookkeeping (ring)', **detail)
     if role == 'receive' and len(rx_hits) >= MIN_BLOCKS:
         return dict(label='receiver-side controller state', **detail)
-    local = [(b, f) for b, f in comp
-             if f['rx'] + f['v'] < BOUNDED and live_heap(b['ex'])
-             and not (role == 'send' and ring_on and b.get('ring_engaged') and b.get('ring_comparable') and 'ring' in f and f['ring'] - f['v'] >= BOUNDED)]
+
+    def localizes(b, f):
+        if not (f['rx'] + f['v'] < BOUNDED and live_heap(b['ex'])):
+            return False
+        # A sender cell localizes only where a valid ring diagnostic bounds the ring's share below 30%.
+        return role == 'receive' or (ring_valid(b, f) and f['ring'] + f['v'] < BOUNDED)
+    local = [(b, f) for b, f in comp if localizes(b, f)]
     detail['localized_blocks'] = len(local)
     if len(comp) >= MIN_BLOCKS and len(local) >= MIN_BLOCKS:
-        delivery = [b for b, f in local if b.get('occ_excess') is not None and b['occ_excess'] >= LABEL * b['ex']['live']]
-        detail['delivery_blocks'] = len(delivery)
-        if len(delivery) >= MIN_BLOCKS:
-            return dict(label='localized to traffic-dependent live heap: delivery retention', **detail)
         return dict(label='localized to traffic-dependent live heap (cause unresolved)', **detail)
     if len(ring_part) >= MIN_BLOCKS or len(rx_part) >= MIN_BLOCKS:
         return dict(label='mixed', **detail)
-    headroom = [b for b in ok if b['ex']['heap_share'] >= LABEL and b['ex']['live_share'] < BOUNDED]
+    headroom = [b for b in ok if b['ex']['headroom_share'] >= LABEL]
     if len(headroom) >= MIN_BLOCKS:
-        return dict(label='inconclusive (headroom-dominant accounting; no discriminating comparison)', **detail)
+        return dict(label='inconclusive (heap unused and free classes hold the excess; no discriminating comparison)', **detail)
     if role == 'send' and ring_status in ('unusable', 'inert'):
         return dict(label=f'treatment {ring_status}', **detail)
     if len(comp) < MIN_BLOCKS:
-        return dict(label='inconclusive (receiver-controller arm confounded)', **detail)
+        return dict(label='inconclusive (receiver-controller arm confounded or uncalibrated)', **detail)
+    if role == 'send' and not ring_on:
+        return dict(label='inconclusive (ring diagnostic not run)', **detail)
     return dict(label='inconclusive', **detail)
 
 
 # ---- S6 control p95 (D2's Up-policy rule, both workloads) ----------------------------------------
 
 def queue_by_phase(phases, queue_samples, t0_ns, warmup_ms, measure_ms):
-    """Forward queue delay (ms) per BBR phase over the measured window, and the share of >25 ms samples in Up or Down."""
-    by_phase = {}
+    """Forward queue delay (ms) per BBR phase over the measured window.
+
+    Down counts toward the Up share only when entered from Up ("Up or the
+    following Down"). Samples with no logged phase stay in the denominator as
+    'unknown'. A run without a phase log is an evidence gap.
+    """
+    if not phases:
+        return None
+    by_phase, above = {}, {'up': 0, 'down_after_up': 0, 'other': 0}
     for t_ms, fwd, _ in queue_samples:
         if not warmup_ms <= t_ms < warmup_ms + measure_ms:
             continue
         at = t0_ns + t_ms * 1_000_000
-        cur = None
+        cur, prev = None, None
         for ns, ph in phases:
             if ns > at:
                 break
-            cur = ph
-        if cur is not None:
-            by_phase.setdefault(PHASES[cur], []).append(fwd * 8 / BOTTLENECK_BPS * 1e3)
-    over = {k: sum(x > 25 for x in v) for k, v in by_phase.items()}
-    total = sum(over.values())
-    cr = [statistics.median(by_phase[p]) for p in ('cruise', 'refill') if p in by_phase]
-    return dict(by_phase={k: dict(samples=len(v), median_ms=statistics.median(v), share_over_25ms=over[k] / len(v)) for k, v in by_phase.items()},
-                over_25ms_in_up_or_down=(over.get('up', 0) + over.get('down', 0)) / total if total else None,
-                cruise_refill_median_ms=statistics.median(cr) if cr else None)
+            prev, cur = cur, ph
+        name = PHASES[cur] if cur is not None else 'unknown'
+        delay = fwd * 8 / BOTTLENECK_BPS * 1e3
+        by_phase.setdefault(name, []).append(delay)
+        if delay > 25:
+            if cur == UP:
+                above['up'] += 1
+            elif cur == DOWN and prev == UP:
+                above['down_after_up'] += 1
+            else:
+                above['other'] += 1
+    total = sum(above.values())
+    return dict(by_phase={k: dict(samples=len(v), median_ms=statistics.median(v), share_over_25ms=sum(x > 25 for x in v) / len(v))
+                          for k, v in by_phase.items()},
+                above_25ms=above,
+                over_25ms_in_up_or_down=(above['up'] + above['down_after_up']) / total if total else None,
+                cruise_median_ms=statistics.median(by_phase['cruise']) if 'cruise' in by_phase else None,
+                refill_median_ms=statistics.median(by_phase['refill']) if 'refill' in by_phase else None)
 
 
-def up_policy(runs, s5_matched_p95):
-    """D2: every run's >25 ms samples at least 70% in Up or Down, Cruise/Refill median under 1 ms, S5 matched p95 within 1.20."""
-    if not runs:
+def up_policy(runs, s5_matched_p95, required_runs):
+    """D2 over the registered runs: every run's >25 ms samples at least 70% in Up or the following Down, Cruise and
+    Refill each below 1 ms, and S5 matched-load p95 within 1.20. Missing or invalid inputs are an evidence gap; a
+    complete input with no sample above 25 ms is unresolved, as under the prior rule."""
+    if len(runs) < required_runs or any(r is None for r in runs):
         return 'evidence gap'
-    if any(r['over_25ms_in_up_or_down'] is None or r['cruise_refill_median_ms'] is None for r in runs):
+    if any(r['cruise_median_ms'] is None or r['refill_median_ms'] is None for r in runs):
         return 'evidence gap'
-    ok = (all(r['over_25ms_in_up_or_down'] >= UP_SHARE for r in runs) and all(r['cruise_refill_median_ms'] < CRUISE_MS for r in runs)
+    ok = (all(r['over_25ms_in_up_or_down'] is not None and r['over_25ms_in_up_or_down'] >= UP_SHARE for r in runs)
+          and all(r['cruise_median_ms'] < CRUISE_MS and r['refill_median_ms'] < CRUISE_MS for r in runs)
           and s5_matched_p95 <= S5_P95)
     return 'selected ProbeBW Up policy' if ok else 'unresolved'
 
@@ -328,5 +418,7 @@ def up_policy(runs, s5_matched_p95):
 # ---- Perturbation ---------------------------------------------------------------------------------
 
 def perturbation(instrumented, plain):
-    """Instrumented ÷ plain goodput medians (D6: at least 0.99)."""
+    """Instrumented ÷ plain goodput medians (D6: at least 0.99); None when either side has fewer than three values."""
+    if len(instrumented) < MIN_BLOCKS or len(plain) < MIN_BLOCKS:
+        return None
     return statistics.median(instrumented) / statistics.median(plain)

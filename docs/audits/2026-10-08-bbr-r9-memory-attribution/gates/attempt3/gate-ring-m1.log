@@ -35,8 +35,8 @@ $ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
             	            	  Latest: (map[protocol.EncryptionLevel]protocol.PacketNumber) (len=1) {
             	Test:       	TestRecoveryEquivalenceScenarios/eviction_of_a_run's_first_endpoint_and_loss_of_an_evicted_outcome
             	Messages:   	dispatch state after operation 4100
---- FAIL: TestRecoveryEquivalenceHistories (2.95s)
-    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.65s)
+--- FAIL: TestRecoveryEquivalenceHistories (2.93s)
+    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.64s)
         recovery_twin_test.go:647: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:316
             	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:106
@@ -67,13 +67,13 @@ $ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
         	Test:       	TestRecoveryEquivalenceHistories
         	Messages:   	retained capacity evictions
 FAIL
-FAIL	github.com/quic-go/quic-go/internal/ackhandler	11.192s
-ok  	github.com/quic-go/quic-go/internal/congestion	0.203s
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	11.014s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.209s
 FAIL
 FAILED: go test ./internal/ackhandler/... ./internal/congestion/... -count=1
 $ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
---- FAIL: TestRecoveryEquivalenceScenarios (1.84s)
-    --- FAIL: TestRecoveryEquivalenceScenarios/eviction_of_a_run's_first_endpoint_and_loss_of_an_evicted_outcome (0.18s)
+--- FAIL: TestRecoveryEquivalenceScenarios (1.81s)
+    --- FAIL: TestRecoveryEquivalenceScenarios/eviction_of_a_run's_first_endpoint_and_loss_of_an_evicted_outcome (0.17s)
         recovery_equivalence_test.go:46: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:316
             	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:106
@@ -104,8 +104,8 @@ $ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
             	            	  Latest: (map[protocol.EncryptionLevel]protocol.PacketNumber) (len=1) {
             	Test:       	TestRecoveryEquivalenceScenarios/eviction_of_a_run's_first_endpoint_and_loss_of_an_evicted_outcome
             	Messages:   	dispatch state after operation 4100
---- FAIL: TestRecoveryEquivalenceHistories (50.14s)
-    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (8.27s)
+--- FAIL: TestRecoveryEquivalenceHistories (49.41s)
+    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (8.29s)
         recovery_twin_test.go:647: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:316
             	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:106
@@ -136,8 +136,8 @@ $ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
         	Test:       	TestRecoveryEquivalenceHistories
         	Messages:   	retained capacity evictions
 FAIL
-FAIL	github.com/quic-go/quic-go/internal/ackhandler	167.832s
-ok  	github.com/quic-go/quic-go/internal/congestion	1.306s
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	164.067s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.301s
 FAIL
 FAILED: go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
 $ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
@@ -173,7 +173,7 @@ $ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
             	            	  Latest: (map[protocol.EncryptionLevel]protocol.PacketNumber) (len=1) {
             	Test:       	TestRecoveryEquivalenceScenarios/eviction_of_a_run's_first_endpoint_and_loss_of_an_evicted_outcome
             	Messages:   	dispatch state after operation 4100
---- FAIL: TestRecoveryEquivalenceHistories (2.99s)
+--- FAIL: TestRecoveryEquivalenceHistories (2.92s)
     --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.63s)
         recovery_twin_test.go:647: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:316
@@ -205,15 +205,15 @@ $ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
         	Test:       	TestRecoveryEquivalenceHistories
         	Messages:   	retained capacity evictions
 FAIL
-FAIL	github.com/quic-go/quic-go/internal/ackhandler	11.030s
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	11.171s
 FAIL
 FAILED: go test -tags bbrworkcount ./internal/ackhandler/ -count=1
 $ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
-ok  	github.com/quic-go/quic-go	0.765s
+ok  	github.com/quic-go/quic-go	0.697s
 $ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
-ok  	github.com/quic-go/quic-go	5.452s
+ok  	github.com/quic-go/quic-go	5.285s
 $ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
-ok  	github.com/quic-go/quic-go	1.917s
+ok  	github.com/quic-go/quic-go	1.844s
 659 top-level PASS
 7 top-level SKIP
 # status 1

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """#740 analysis: the ring preflight, Stage 1 memory cells, the S6 control p95 rule and perturbation.
 
-Rules are memrules.py's (tested by memrules_test.py). Observation selection is
-#739's stages.py, unchanged: the operator's same-seed rerun rule
-(stages.chosen), the contamination test and the usability test. A block counts
-for fractions only when its counted attempt is clean (every arm usable and none
-contaminated). Summaries use mem_run.summarize_m (the receiver-controller assertion).
+Rules are memrules.py's (tested by memrules_test.py; the orchestration here by
+memstages_test.py). Observation selection is #739's stages.py, unchanged: the
+operator's same-seed rerun rule (stages.chosen), the contamination test and the
+usability test. A block counts only when its counted attempt is clean, every
+expected arm is present and usable, and the memory series is valid; anything
+else is recorded with its reason and every expected cell still ends with a
+registered label. Calibration, perturbation and S6 scoring use clean blocks only. Summaries use mem_run.summarize_m (the receiver-controller assertion).
 Readiness flags, matched-load S5 p95 and the readiness goodput
 used for perturbation are read from #739's summary.json.
 
@@ -66,7 +68,8 @@ def preflight(phase='memsmoke'):
         e = dict(goodput_mbps=r['goodput_mbps'], usable=S.usable(d), contamination=S.contaminated(d)['contaminated'])
         for role in ['send', 'receive']:
             h, rows, tail = series(d, role)
-            a = M.peak_account(rows, r[role]['peak_rss_mib'])
+            a = M.peak_account(rows, r[role]['peak_rss_mib']) or dict(ring_entries=None, bbr_explicit=None, peak=None, rss=None,
+                                                                      residual=None, gap=None)
             cfg, _ = S.window(d)
             e[role] = dict(samples=len(rows), expected_s=(cfg['warmup_ms'] + cfg['measure_ms']) / 1000,
                            controller_override=(tail or {}).get('controller_override', h.get('controller_override')),
@@ -107,7 +110,12 @@ def preflight(phase='memsmoke'):
 
 # ---- Stage 1 ------------------------------------------------------------------------------------
 
+PATHS = ('S5', 'S6', 'loopback')
+GAP_PERTURBATION = 'instrumentation gap (perturbation)'
+
+
 def readiness_flags():
+    """{(path, workload, role): dict(value, raised)} for the candidate's RSS cells in #739's readiness."""
     s = json.loads(R9_SUMMARY.read_text())
     flags = {}
     for e in s['readiness']:
@@ -120,77 +128,162 @@ def readiness_flags():
     return flags
 
 
+def expected_arms(path, ring_status):
+    keys = ['reno', 'cand', 'aa'] + (['ring'] if path != 'loopback' and ring_status == 'run' else []) + ['rx']
+    return keys
+
+
 def observe(d):
-    r = S.summarize(d)
-    out = dict(dir=str(d), arm=S.arm(r), block=r['pair'], workload=r['workload'], path=r['path'], usable=S.usable(d),
-               goodput=r['goodput_mbps'], traffic=M.traffic(r), cfg=S.window(d)[0], summary=r)
-    for role in ['send', 'receive']:
-        _, rows, tail = series(d, role)
-        out[role] = dict(rows=rows, peak=M.peak_account(rows, r[role]['peak_rss_mib']), tail=tail)
+    """One counted observation, loaded with validation; never raises for a malformed or failed observation."""
+    out = dict(dir=str(d))
+    try:
+        meta = json.loads((d / 'meta.json').read_text())
+        cfg = json.loads((d / 'config.json').read_text())
+        out.update(block=meta['pair'], workload=cfg['workload'], path=meta['path'],
+                   arm='-'.join([meta['variant'], cfg['controller']] + ([meta['tag']] if meta.get('tag') else [])))
+        if not S.usable(d):
+            return dict(out, usable=False, error='unusable (receipt, summary or perf check)')
+        r = S.summarize(d)
+        rows, tails, peaks = {}, {}, {}
+        for role in ['send', 'receive']:
+            _, rows[role], tails[role] = series(d, role)
+            peaks[role] = M.peak_account(rows[role], r[role]['peak_rss_mib'])
+            if peaks[role] is None:
+                return dict(out, usable=False, error=f'no valid {role} memory sample')
+        out.update(usable=True, goodput=r['goodput_mbps'], cfg=cfg, summary=r, rows=rows, tails=tails,
+                   send=dict(peak=peaks['send'], rows=rows['send'], tail=tails['send']),
+                   receive=dict(peak=peaks['receive'], rows=rows['receive'], tail=tails['receive']),
+                   traffic=M.traffic(r, rows['send'], rows['receive'], cfg['start_unix_ns'], cfg['warmup_ms'], cfg['measure_ms']))
+        return out
+    except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError, IndexError, TypeError, AssertionError) as e:
+        return dict(out, usable=False, error=repr(e))
+
+
+def group(obs):
+    """{(workload, block): {arm key: observation}} using ARMS' keys; unknown arms are kept under their name."""
+    inv = {v: k for k, v in ARMS.items()}
+    out = {}
+    for o in obs:
+        if 'workload' in o:
+            out.setdefault((o['workload'], o['block']), {})[inv.get(o['arm'], o['arm'])] = o
     return out
 
 
-def peak_occupancy_mib(o, role):
-    """Receive occupancy (connection bytes received but unread, largest since the previous sample) at the peak sample."""
-    t = o[role]['peak']['unix_ns']
-    row = next(x for x in o[role]['rows'] if x['unix_ns'] == t)
-    return row.get('conn_occ_max', 0) * M.MIB
+def assemble(path, grouped, status, flags, ring_status, perturbed, workloads=('stream', 'datagram')):
+    """Every cell of one path: per-block rows, the A/A band, and, for a raised cell, its registered ending."""
+    want = expected_arms(path, ring_status)
+    result = []
+    for workload in workloads:
+        blocks = {b: g for (w, b), g in grouped.items() if w == workload}
+        clean = {b: g for b, g in blocks.items()
+                 if status.get((workload, b)) == 'clean' and all(k in g and g[k]['usable'] for k in want)}
+        band = M.aa_band([dict(cand=g['cand']['traffic'], aa=g['aa']['traffic']) for g in clean.values()],
+                         M.TRAFFIC_WAN if path != 'loopback' else M.TRAFFIC)
+        for role in ['send', 'receive']:
+            rows = []
+            for bn in sorted(blocks):
+                g = blocks[bn]
+                row = dict(block=bn, usable=bn in clean, status=status.get((workload, bn)),
+                           missing=[k for k in want if k not in g], errors={k: g[k].get('error') for k in g if not g[k]['usable']})
+                if bn not in clean:
+                    row.update(E=0.0, ex=None)
+                    rows.append(row)
+                    continue
+                c, n = g['cand'], g['reno']
+                win, cov = M.window_medians(c[role]['rows'], n[role]['rows'], c['cfg']['start_unix_ns'], n['cfg']['start_unix_ns'],
+                                            c['cfg']['warmup_ms'], c['cfg']['measure_ms'])
+                ex = M.excess(c[role]['peak'], n[role]['peak'], win, cov)
+                row.update(E=ex['peak'], aa_diff=g['aa'][role]['peak']['peak'] - c[role]['peak']['peak'], ex=ex,
+                           ring=None, rx=None, ring_engaged=False, ring_comparable=False, rx_comparable=False,
+                           bbr_explicit_cand=c[role]['peak']['bbr_explicit'], explained=M.explained(ex) if ex['peak'] > 0 else False,
+                           dominant=M.dominant(ex))
+                if not M.window_ok(ex):
+                    row['usable'] = False
+                    row['errors'] = dict(row['errors'], window='memory window coverage below the registered share')
+                if 'ring' in g:
+                    row['ring'] = c[role]['peak']['peak'] - g['ring'][role]['peak']['peak']
+                    row['ring_engaged'] = M.ring_engaged(g['ring']['send']['peak'], c['send']['peak'], RING_ENTRIES)
+                    row['ring_comparable'], row['ring_outside'] = M.comparable(c['traffic'], g['ring']['traffic'], band)
+                if 'rx' in g:
+                    x = g['rx']
+                    row['rx'] = c[role]['peak']['peak'] - x[role]['peak']['peak']
+                    engaged = bool(x['receive']['tail'] and x['receive']['tail'].get('controller_override') == 'reno'
+                                   and max(r.get('ring_bytes', 0) for r in x['receive']['rows']) == 0)
+                    comp, outside = M.comparable(c['traffic'], x['traffic'], band)
+                    row.update(rx_comparable=bool(comp and engaged), rx_outside=outside, rx_engaged=engaged)
+                rows.append(row)
+            flag = flags.get((path, workload, role))
+            label = None
+            if flag and flag['raised']:
+                if (path, workload) in perturbed:
+                    label = dict(label=GAP_PERTURBATION, perturbation=perturbed[(path, workload)])
+                elif not blocks:
+                    label = dict(label='evidence gap (stage not run or no observation)')
+                else:
+                    label = M.label_cell(role, [r for r in rows if r.get('ex') is not None] +
+                                         [dict(r, E=0.0) for r in rows if r.get('ex') is None], ring_status)
+            result.append(dict(path=path, workload=workload, role=role, readiness=flag, label=label, band=band,
+                               blocks=[{k: v for k, v in r.items()} for r in rows],
+                               descriptive=describe([r for r in rows if r.get('ex') is not None])))
+    return result
 
 
-def cells(paths=('S5', 'S6', 'loopback')):
-    perturbed = {(x['path'], x['workload']) for x in perturbation_ratios() if x['arm'] == ARMS['cand'] and not x['passes']}
+# Registered blocks per phase and path: (workloads, blocks).
+LAYOUT = {('mem', 'S5'): (('stream', 'datagram'), 4), ('mem', 'S6'): (('stream', 'datagram'), 4),
+          ('mem', 'loopback'): (('stream', 'datagram'), 4), ('latcand', 'loopback-long'): (('stream',), 6)}
+
+
+def arm_count(phase, path, ring_status):
+    return 2 if phase == 'latcand' else len(expected_arms(path, ring_status))
+
+
+def choose(phase, path, arms):
+    """stages.chosen with completeness: an attempt is usable only when it holds every expected arm and each is usable.
+
+    Every registered block appears in the record; a block with no attempt at all has status 'missing'.
+    Returns (counted dirs, record).
+    """
+    found = S.blocks_of(phase, path)
+    workloads, n = LAYOUT[(phase, path)]
+    dirs, record = [], []
+    for workload in workloads:
+        for b in range(1, n + 1):
+            att = found.get((path, workload, b), {})
+            attempts = []
+            for label in ['original', 'rerun']:
+                if label in att:
+                    ds = att[label]
+                    cont = [S.contaminated(d)['contaminated'] for d in ds]
+                    attempts.append((label, len(ds) >= arms and all(S.usable(d) for d in ds), any(cont)))
+            if not attempts:
+                record.append(dict(path=path, workload=workload, block=b, attempts=[], counted=None, status='missing'))
+                continue
+            pick, status = S.R.choose_block(attempts)
+            dirs += att[pick]
+            record.append(dict(path=path, workload=workload, block=b, attempts=attempts, counted=pick, status=status))
+    return dirs, record
+
+
+def ring_decision():
+    return json.loads((ART / 'ring-preflight.json').read_text())['decision']
+
+
+def stage_obs(phase, path):
+    dirs, record = choose(phase, path, arm_count(phase, path, ring_decision()))
+    status = {(x['workload'], x['block']): x['status'] for x in record}
+    return [observe(d) for d in dirs], status, record
+
+
+def cells(paths=PATHS):
     pre = json.loads((ART / 'ring-preflight.json').read_text())
-    ring_status = pre['decision'] if pre['decision'] != 'run' else 'run'
+    ring_status = pre['decision']
     flags = readiness_flags()
+    perturbed = {(x['path'], x['workload']): x for x in perturbation_ratios() if not x['passes']}
     result, records = [], []
     for path in paths:
-        dirs, record = S.chosen('mem', path)
+        obs, status, record = stage_obs('mem', path)
         records += record
-        if not dirs:
-            continue
-        status = {(x['workload'], x['block']): x['status'] for x in record}
-        obs = [observe(d) for d in dirs]
-        for workload in ['stream', 'datagram']:
-            blocks = {}
-            for o in obs:
-                if o['workload'] == workload:
-                    blocks.setdefault(o['block'], {})[next(k for k, v in ARMS.items() if v == o['arm'])] = o
-            # The A/A band for comparability: per measure, the largest A/A deviation over this cell's blocks.
-            band = M.aa_band([dict(cand=b['cand']['traffic'], aa=b['aa']['traffic']) for b in blocks.values() if 'cand' in b and 'aa' in b])
-            for role in ['send', 'receive']:
-                rows = []
-                for bn, b in sorted(blocks.items()):
-                    clean = status.get((workload, bn)) == 'clean' and all(o['usable'] for o in b.values())
-                    c, n = b['cand'], b['reno']
-                    lw = M.window_live(c[role]['rows'], n[role]['rows'], c['cfg']['start_unix_ns'], n['cfg']['start_unix_ns'],
-                                       c['cfg']['warmup_ms'], c['cfg']['measure_ms'])
-                    ex = M.excess(c[role]['peak'], n[role]['peak'], lw)
-                    row = dict(block=bn, E=ex['peak'], aa_diff=b['aa'][role]['peak']['peak'] - c[role]['peak']['peak'], usable=clean,
-                               ex=ex, ring=None, rx=None, ring_engaged=False, ring_comparable=False, rx_comparable=False, occ_excess=None,
-                               bbr_explicit_cand=c[role]['peak']['bbr_explicit'], ring_bytes_cand=c[role]['peak']['ring_bytes'],
-                               explained=M.explained(ex), dominant=M.dominant(ex))
-                    if 'ring' in b:
-                        g = b['ring']
-                        row['ring'] = c[role]['peak']['peak'] - g[role]['peak']['peak']
-                        row['ring_engaged'] = M.ring_engaged(g['send']['peak'], c['send']['peak'], RING_ENTRIES)
-                        row['ring_comparable'], row['ring_outside'] = M.comparable(c['traffic'], g['traffic'], band)
-                    if 'rx' in b:
-                        x = b['rx']
-                        row['rx'] = c[role]['peak']['peak'] - x[role]['peak']['peak']
-                        rx_ok = x['receive']['tail'] and x['receive']['tail'].get('controller_override') == 'reno' \
-                            and max(r.get('ring_bytes', 0) for r in x['receive']['rows']) == 0
-                        comp, outside = M.comparable(c['traffic'], x['traffic'], band)
-                        row['rx_comparable'], row['rx_outside'], row['rx_engaged'] = bool(comp and rx_ok), outside, bool(rx_ok)
-                    if role == 'receive':
-                        row['occ_excess'] = peak_occupancy_mib(c, role) - peak_occupancy_mib(n, role)
-                    rows.append(row)
-                flag = flags.get((path, workload, role))
-                label = M.label_cell(role, rows, ring_status) if flag and flag['raised'] else None
-                if label and (path, workload) in perturbed:
-                    # D6: instrumented candidate goodput below 0.99 of plain; the operator's loopback mapping.
-                    label = dict(label='evidence gap (instrument perturbation)', rule_label=label['label'])
-                result.append(dict(path=path, workload=workload, role=role, readiness=flag, label=label, band=band,
-                                   blocks=rows, descriptive=describe(rows)))
+        result += assemble(path, group(obs), status, flags, ring_status, perturbed)
     save('cells', result)
     save('blocks', records)
     for c in result:
@@ -199,12 +292,13 @@ def cells(paths=('S5', 'S6', 'loopback')):
 
 
 def describe(rows):
-    keys = M.CLASSES + M.UNEXPLAINED + ['live', 'heap', 'bbr_explicit', 'ring_bytes']
+    keys = M.CLASSES + M.UNEXPLAINED + ['live', 'heap', 'bbr_explicit', 'ring_bytes', 'occupancy']
     med = lambda v: statistics.median(v) if v else None
     out = {k: med([r['ex'][k] for r in rows]) for k in keys}
     out.update(E=med([r['E'] for r in rows]), aa=med([abs(r['aa_diff']) for r in rows]),
-               ring=med([r['ring'] for r in rows if r['ring'] is not None]), rx=med([r['rx'] for r in rows if r['rx'] is not None]),
+               ring=med([r['ring'] for r in rows if r.get('ring') is not None]), rx=med([r['rx'] for r in rows if r.get('rx') is not None]),
                live_window=med([r['ex']['live_window'] for r in rows if r['ex']['live_window'] is not None]),
+               objects_window=med([r['ex']['objects_window'] for r in rows if r['ex']['objects_window'] is not None]),
                bbr_explicit_cand=med([r['bbr_explicit_cand'] for r in rows]))
     return out
 
@@ -215,22 +309,32 @@ def p95():
     s = json.loads(R9_SUMMARY.read_text())
     s5 = {e['workload']: e['flags']['control_p95']['median'] for e in s['readiness'] if e['path'] == 'S5' and e['arm'] == 'cand-bbrv3'}
     s6 = {e['workload']: e['flags']['control_p95'] for e in s['readiness'] if e['path'] == 'S6' and e['arm'] == 'cand-bbrv3'}
-    dirs, _ = S.chosen('mem', 'S6')
+    perturbed = {(x['path'], x['workload']) for x in perturbation_ratios() if not x['passes']}
+    obs, status, _ = stage_obs('mem', 'S6')
+    grouped = group(obs)
     res = {}
     for workload in ['stream', 'datagram']:
         runs = []
-        for d in dirs:
-            r = S.summarize(d)
-            if r['workload'] != workload or S.arm(r) not in (ARMS['cand'], ARMS['aa']):
+        for (w, b), g in sorted(grouped.items()):
+            if w != workload or status.get((w, b)) != 'clean':
                 continue
-            _, _, tail = series(d, 'send')
-            cfg, _ = S.window(d)
-            relay = json.loads((d / 'relay.json').read_text())
-            q = M.queue_by_phase((tail or {}).get('phases') or [], relay['QueueSamples'], cfg['start_unix_ns'], cfg['warmup_ms'], cfg['measure_ms'])
-            runs.append(dict(id=r['id'], control_p95_ms=r['control_p95_ms'], **q))
+            for k in ('cand', 'aa'):
+                o = g.get(k)
+                if not o or not o['usable']:
+                    continue
+                relay = json.loads((Path(o['dir']) / 'relay.json').read_text())
+                q = M.queue_by_phase((o['send']['tail'] or {}).get('phases') or [], relay['QueueSamples'], o['cfg']['start_unix_ns'],
+                                     o['cfg']['warmup_ms'], o['cfg']['measure_ms'])
+                runs.append(dict(id=o['summary']['id'], control_p95_ms=o['summary']['control_p95_ms'], **(q or dict(missing='phase log'))) if q else None)
+        if not s6[workload]['raised']:
+            attribution = 'passes'
+        elif ('S6', workload) in perturbed:
+            attribution = GAP_PERTURBATION
+        else:
+            attribution = M.up_policy(runs, s5[workload], required_runs=8)
         res[workload] = dict(readiness=dict(value=s6[workload]['median'], raised=s6[workload]['raised']), s5_matched_p95=s5[workload],
-                             attribution=M.up_policy(runs, s5[workload]) if s6[workload]['raised'] else 'passes', runs=runs)
-        print(workload, res[workload]['readiness'], res[workload]['attribution'])
+                             attribution=attribution, runs=runs)
+        print(workload, res[workload]['readiness'], attribution)
     save('s6_p95', res)
 
 
@@ -244,21 +348,23 @@ def perturbation():
 
 
 def perturbation_ratios():
+    """Per path, workload and build: instrumented ÷ plain goodput medians over clean blocks (both arms gate)."""
     s = json.loads(R9_SUMMARY.read_text())
     plain = {}
     for o in s['observations']:
         if o['phase'] == 'main' and o['pair'] <= 4 and o['tag'] == '' and (o['variant'], o['controller']) in (('cand', 'bbrv3'), ('reno', 'reno')):
             plain.setdefault((o['path'], o['workload'], o['variant']), []).append(o['goodput_mbps'])
     res = []
-    for path in ['S5', 'S6', 'loopback']:
-        dirs, _ = S.chosen('mem', path)
-        rows = [S.summarize(d) for d in dirs]
+    for path in PATHS:
+        obs, status, _ = stage_obs('mem', path)
+        grouped = group(obs)
         for workload in ['stream', 'datagram']:
-            for arm_name, variant in [(ARMS['cand'], 'cand'), (ARMS['reno'], 'reno')]:
-                inst = [r['goodput_mbps'] for r in rows if r['workload'] == workload and S.arm(r) == arm_name]
-                if inst and plain.get((path, workload, variant)):
-                    ratio = M.perturbation(inst, plain[(path, workload, variant)])
-                    res.append(dict(path=path, workload=workload, arm=arm_name, ratio=ratio, passes=ratio >= 0.99))
+            for key, variant in [('cand', 'cand'), ('reno', 'reno')]:
+                inst = [g[key]['goodput'] for (w, b), g in grouped.items()
+                        if w == workload and status.get((w, b)) == 'clean' and key in g and g[key]['usable']]
+                ratio = M.perturbation(inst, plain.get((path, workload, variant), []))
+                res.append(dict(path=path, workload=workload, arm=ARMS[key], ratio=ratio, blocks=len(inst),
+                                passes=ratio is not None and ratio >= 0.99))
     return res
 
 
@@ -267,7 +373,7 @@ def perturbation_ratios():
 def latency():
     s = json.loads(R9_SUMMARY.read_text())
     flag = next(e['flags']['control_p95'] for e in s['readiness'] if (e['path'], e['workload'], e['arm']) == ('loopback', 'stream', 'cand-bbrv3'))
-    dirs, record = S.chosen('latcand', 'loopback-long')
+    dirs, record = choose('latcand', 'loopback-long', 2)
     by = {}
     for d in dirs:
         r = S.summarize(d)

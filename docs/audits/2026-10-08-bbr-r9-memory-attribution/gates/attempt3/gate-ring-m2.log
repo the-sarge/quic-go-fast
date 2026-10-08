@@ -39,7 +39,7 @@ $ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
         	            	  (uint64) 16777216,
         	Test:       	TestRecoveryLowerBoundEquivalence
         	Messages:   	eligible words
---- FAIL: TestRecoveryEquivalenceScenarios (0.16s)
+--- FAIL: TestRecoveryEquivalenceScenarios (0.15s)
     --- FAIL: TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap (0.02s)
         recovery_equivalence_test.go:341: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
@@ -60,7 +60,7 @@ $ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
             	            	  (uint64) 0,
             	Test:       	TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap
             	Messages:   	eligible words
---- FAIL: TestRecoveryEquivalenceHistories (2.37s)
+--- FAIL: TestRecoveryEquivalenceHistories (2.58s)
     --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.06s)
         recovery_twin_test.go:647: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
@@ -125,11 +125,11 @@ $ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
         	Messages:   	retained capacity evictions
 FAIL
 FAIL	github.com/quic-go/quic-go/internal/ackhandler	10.348s
-ok  	github.com/quic-go/quic-go/internal/congestion	0.182s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.147s
 FAIL
 FAILED: go test ./internal/ackhandler/... ./internal/congestion/... -count=1
 $ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
---- FAIL: TestRecoveryLowerBoundEquivalence (0.04s)
+--- FAIL: TestRecoveryLowerBoundEquivalence (0.05s)
     recovery_bracket_test.go:91: 
         	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
         	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
@@ -165,7 +165,7 @@ $ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
         	            	  (uint64) 16777216,
         	Test:       	TestRecoveryLowerBoundEquivalence
         	Messages:   	eligible words
---- FAIL: TestRecoveryEquivalenceScenarios (1.48s)
+--- FAIL: TestRecoveryEquivalenceScenarios (1.52s)
     --- FAIL: TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap (0.24s)
         recovery_equivalence_test.go:341: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
@@ -186,8 +186,8 @@ $ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
             	            	  (uint64) 0,
             	Test:       	TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap
             	Messages:   	eligible words
---- FAIL: TestRecoveryEquivalenceHistories (42.44s)
-    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.61s)
+--- FAIL: TestRecoveryEquivalenceHistories (42.26s)
+    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.66s)
         recovery_twin_test.go:647: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
             	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
@@ -250,8 +250,8 @@ $ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
         	Test:       	TestRecoveryEquivalenceHistories
         	Messages:   	retained capacity evictions
 FAIL
-FAIL	github.com/quic-go/quic-go/internal/ackhandler	154.611s
-ok  	github.com/quic-go/quic-go/internal/congestion	1.289s
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	156.432s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.276s
 FAIL
 FAILED: go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
 $ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
@@ -291,8 +291,8 @@ $ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
         	            	  (uint64) 16777216,
         	Test:       	TestRecoveryLowerBoundEquivalence
         	Messages:   	eligible words
---- FAIL: TestRecoveryEquivalenceScenarios (0.16s)
-    --- FAIL: TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap (0.02s)
+--- FAIL: TestRecoveryEquivalenceScenarios (0.17s)
+    --- FAIL: TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap (0.03s)
         recovery_equivalence_test.go:341: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
             	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
@@ -312,7 +312,7 @@ $ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
             	            	  (uint64) 0,
             	Test:       	TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap
             	Messages:   	eligible words
---- FAIL: TestRecoveryEquivalenceHistories (2.31s)
+--- FAIL: TestRecoveryEquivalenceHistories (2.39s)
     --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.06s)
         recovery_twin_test.go:647: 
             	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
@@ -376,15 +376,15 @@ $ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
         	Test:       	TestRecoveryEquivalenceHistories
         	Messages:   	retained capacity evictions
 FAIL
-FAIL	github.com/quic-go/quic-go/internal/ackhandler	10.153s
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	10.756s
 FAIL
 FAILED: go test -tags bbrworkcount ./internal/ackhandler/ -count=1
 $ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
-ok  	github.com/quic-go/quic-go	0.697s
+ok  	github.com/quic-go/quic-go	0.705s
 $ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
-ok  	github.com/quic-go/quic-go	5.318s
+ok  	github.com/quic-go/quic-go	5.351s
 $ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
-ok  	github.com/quic-go/quic-go	1.866s
+ok  	github.com/quic-go/quic-go	1.887s
 659 top-level PASS
 7 top-level SKIP
 # status 1

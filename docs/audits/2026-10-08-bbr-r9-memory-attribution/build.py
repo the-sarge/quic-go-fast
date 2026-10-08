@@ -87,6 +87,10 @@ def mem(tree, module, candidate):
     replace(main, '\t<-heapDone\n\tcloseTransport()\n', '\t<-heapDone\n\tstopMem()\n\tcloseTransport()\n')
     replace(module / 'fixture/session.go', '\t_ = c.SetCongestionControlV1(r.Controller)\n',
             '\t_ = c.SetCongestionControlV1(memController(r.Controller))\n')
+    for role in ('receiveSession', 'sendSession'):
+        replace(module / 'fixture/session.go',
+                f'func {role}(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) {{\n',
+                f'func {role}(ctx context.Context, conn *quic.Conn, cfg Run) (Result, error) {{\n\tmemConn.Store(conn)\n')
     if not candidate:
         shutil.copy(HERE / 'mem/mem_root_reno.go', tree / 'mem_root.go')
         return

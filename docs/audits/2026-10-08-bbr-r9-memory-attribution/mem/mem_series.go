@@ -9,6 +9,10 @@ package main
 // they are taken, from preallocated buffers, so the sampler's own footprint is
 // small and constant. The phase log is written once, at stop.
 //
+// The connection's public ConnectionStats packet counters (atomic in both
+// revisions) are recorded for the comparability checks; the fixture registers
+// its connection through memConn at the start of each session.
+//
 // $MEM_LOCAL_CONTROLLER, when set, selects this endpoint's congestion
 // controller in place of the run configuration's (the receiver-controller arm).
 // The shared run configuration, and so the peers' configuration check, is
@@ -21,6 +25,7 @@ import (
 	"os"
 	"runtime/metrics"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	quic "github.com/quic-go/quic-go"
@@ -42,6 +47,8 @@ var memRollup = []string{"Rss", "Pss", "Pss_Anon", "Pss_File", "Pss_Shmem", "Sha
 var memStatus = []string{"VmHWM", "VmRSS", "RssAnon", "RssFile", "RssShmem"}
 
 var memOverride string
+
+var memConn atomic.Pointer[quic.Conn]
 
 func memController(c string) string {
 	if v := os.Getenv("MEM_LOCAL_CONTROLLER"); v != "" {
@@ -99,7 +106,8 @@ func startMemSeries() func() {
 	}
 	columns = append(columns, memMetrics...)
 	columns = append(columns, bbrNames...)
-	columns = append(columns, "rx_len", "rx_max", "conn_received", "conn_read", "conn_occ_max")
+	columns = append(columns, "rx_len", "rx_max", "conn_received", "conn_read", "conn_occ_max",
+		"stats_packets_sent", "stats_packets_received", "stats_packets_lost", "stats_bytes_sent")
 	header, _ := json.Marshal(map[string]any{"columns": columns, "controller_override": memOverride, "pid": os.Getpid(),
 		"interval_ms": 1000})
 	out.Write(append(header, '\n'))
@@ -130,6 +138,12 @@ func startMemSeries() func() {
 		row = quic.MemBBR(row)
 		rxLen, rxMax, recv, read, occ := quic.DiagnosticOccupancy()
 		row = append(row, rxLen, rxMax, recv, read, occ)
+		if c := memConn.Load(); c != nil {
+			st := c.ConnectionStats()
+			row = append(row, int64(st.PacketsSent), int64(st.PacketsReceived), int64(st.PacketsLost), int64(st.BytesSent))
+		} else {
+			row = append(row, -1, -1, -1, -1)
+		}
 		line = append(line[:0], '[')
 		for i, v := range row {
 			if i > 0 {
