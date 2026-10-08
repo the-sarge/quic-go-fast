@@ -1,0 +1,2793 @@
+{
+ "prerequisites": {
+  "calibration": {
+   "unadapted_strips": true,
+   "unadapted_pass": false,
+   "adapted_pass": true,
+   "detail": {
+    "relay-v3": {
+     "forward": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ]
+      ],
+      "unparsed": 0
+     },
+     "reverse": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        200,
+        0,
+        0,
+        0
+       ]
+      ],
+      "unparsed": 0
+     }
+    },
+    "relay-linux": {
+     "forward": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        0,
+        200,
+        0,
+        0
+       ],
+       [
+        0,
+        0,
+        200,
+        0
+       ],
+       [
+        0,
+        0,
+        0,
+        200
+       ]
+      ],
+      "unparsed": 0
+     },
+     "reverse": {
+      "sent": [
+       200,
+       200,
+       200,
+       200
+      ],
+      "received": [
+       [
+        200,
+        0,
+        0,
+        0
+       ],
+       [
+        0,
+        200,
+        0,
+        0
+       ],
+       [
+        0,
+        0,
+        200,
+        0
+       ],
+       [
+        0,
+        0,
+        0,
+        200
+       ]
+      ],
+      "unparsed": 0
+     }
+    }
+   }
+  },
+  "host": {
+   "uname": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux\n",
+   "governor": "     32 powersave\n",
+   "sysctl": "kernel.perf_event_paranoid = 4\nnet.core.rmem_max = 4194304\nnet.core.wmem_max = 4194304\nnet.core.rmem_default = 212992\nnet.core.wmem_default = 212992\nnet.ipv4.udp_mem = 2994543\t3992727\t5989086\nkernel.sched_autogroup_enabled = 1\n",
+   "kernel_accounting": "CONFIG_NO_HZ_FULL=y\nCONFIG_VIRT_CPU_ACCOUNTING=y\nCONFIG_VIRT_CPU_ACCOUNTING_GEN=y\n# CONFIG_IRQ_TIME_ACCOUNTING is not set\nCONFIG_HZ=1000\nCONFIG_HAVE_VIRT_CPU_ACCOUNTING_GEN=y\nCONFIG_HAVE_IRQ_TIME_ACCOUNTING=y\n",
+   "lo_offloads": "\ttx-checksum-ip-generic: on [fixed]\ngeneric-segmentation-offload: on\ngeneric-receive-offload: on\ntx-udp_tnl-segmentation: off [fixed]\ntx-udp_tnl-csum-segmentation: off [fixed]\ntx-udp-segmentation: on\nrx-udp_tunnel-port-offload: off [fixed]\nrx-udp-gro-forwarding: off\n",
+   "perf": "perf version 7.0.14\n",
+   "go": "go version go1.27.0 linux/amd64\n",
+   "id": "uid=1000(josh) gid=1000(josh) groups=1000(josh),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),101(lxd)\n",
+   "uptime": " 09:30:00 up 43 days,  2:33,  2 users,  load average: 0.03, 0.02, 0.06\n"
+  },
+  "checks": {
+   "smoke-S6-datagram-p1-cand-bbrv3": {
+    "goodput_mbps": 84.59822079999999,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 29,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     357434,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     73116,
+     0
+    ]
+   },
+   "smoke-loopback-stream-p1-cand-bbrv3": {
+    "goodput_mbps": 5312.5159296,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0005263189426504696,
+     "samples": 19,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    }
+   },
+   "perfsmoke-S5-stream-p1-cand-bbrv3": {
+    "goodput_mbps": 93.0313472,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_min_running_pct": 100.0,
+    "send_syscalls_per_packet": 0.9989465059112724,
+    "xmit_per_packet": 0.9989465059112724,
+    "receive_min_running_pct": 100.0,
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     337171,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     63103,
+     0
+    ]
+   },
+   "perfsmoke-S5-stream-p1-cand-bbrv3-record": {
+    "goodput_mbps": 93.20157440000001,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.003999875787857284,
+     "foreign_max_cores": 0.11999627363571852,
+     "sibling_mean_cores": 0.0,
+     "samples": 30,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_stages": {
+     "runtime": 2983,
+     "conn_loop": 2753,
+     "send_worker": 3850,
+     "app": 743,
+     "read_loop": 494
+    },
+    "send_ecn_tracker_samples": 66,
+    "send_top_roots": {
+     "runtime.goexit (inlined)": 7871,
+     "runtime.mcall": 2431,
+     "runtime.mstart (inlined)": 508,
+     "[unknown]": 9,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 3,
+     "runtime.morestack (inlined)": 1
+    },
+    "receive_stages": {
+     "runtime": 4611,
+     "read_loop": 2795,
+     "conn_loop": 2392,
+     "app": 1373,
+     "send_worker": 1505
+    },
+    "receive_ecn_tracker_samples": 9,
+    "receive_top_roots": {
+     "runtime.goexit (inlined)": 8160,
+     "runtime.mcall": 2681,
+     "runtime.mstart (inlined)": 1817,
+     "[unknown]": 15,
+     "runtime.morestack (inlined)": 2,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 1
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     338943,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     64075,
+     0
+    ]
+   },
+   "ecnsmoke-S6-datagram-p1-cand-bbrv3": {
+    "goodput_mbps": 85.7036032,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0013590844680513895,
+     "foreign_max_cores": 0.040772534041541686,
+     "sibling_mean_cores": 0.0003397711170128471,
+     "samples": 30,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "send_stages": {
+     "runtime": 3036,
+     "conn_loop": 2419,
+     "app": 1025,
+     "send_worker": 3922,
+     "read_loop": 388
+    },
+    "send_ecn_tracker_samples": 89,
+    "send_top_roots": {
+     "runtime.goexit (inlined)": 7933,
+     "runtime.mcall": 2569,
+     "runtime.mstart (inlined)": 260,
+     "[unknown]": 19,
+     "runtime.morestack (inlined)": 5,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 3,
+     "runtime.systemstack (inlined)": 1
+    },
+    "receive_stages": {
+     "runtime": 3777,
+     "read_loop": 2972,
+     "send_worker": 1638,
+     "conn_loop": 2385,
+     "app": 915
+    },
+    "receive_ecn_tracker_samples": 4,
+    "receive_top_roots": {
+     "runtime.goexit (inlined)": 8269,
+     "runtime.mcall": 2756,
+     "runtime.mstart (inlined)": 629,
+     "[unknown]": 20,
+     "runtime.morestack (inlined)": 8,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 5
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     358941,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     70553,
+     0
+    ]
+   },
+   "ecnsmoke-loopback-stream-p1-cand-bbrv3": {
+    "goodput_mbps": 5272.5976512,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0,
+     "foreign_max_cores": 0.0,
+     "sibling_mean_cores": 0.0,
+     "samples": 20,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r4608,rb8388608,t0,tb8388608,f3584,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r960,rb8388608,t0,tb8388608,f3136,w0,o0,bl0,d0)"
+    },
+    "send_stages": {
+     "runtime": 20079,
+     "send_worker": 97327,
+     "conn_loop": 79283,
+     "app": 28553,
+     "read_loop": 7744
+    },
+    "send_ecn_tracker_samples": 551,
+    "send_top_roots": {
+     "runtime.goexit (inlined)": 214058,
+     "runtime.mcall": 18622,
+     "runtime.morestack (inlined)": 149,
+     "[unknown]": 76,
+     "runtime.mstart (inlined)": 57,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 23,
+     "internal/reflectlite.rtype.NumField": 1
+    },
+    "receive_stages": {
+     "conn_loop": 67660,
+     "runtime": 26542,
+     "read_loop": 66930,
+     "app": 40730,
+     "send_worker": 18944
+    },
+    "receive_ecn_tracker_samples": 70,
+    "receive_top_roots": {
+     "runtime.goexit (inlined)": 196866,
+     "runtime.mcall": 23263,
+     "runtime.morestack (inlined)": 264,
+     "runtime.mstart (inlined)": 163,
+     "[unknown]": 160,
+     "golang.org/x/net/internal/socket.(*syscaller).recvmmsgF-fm": 87,
+     "github.com/quic-go/quic-go/internal/wire.(*StreamFrame).PutBack-fm": 1,
+     "runtime.sigtramp (inlined)": 1,
+     "runtime.sigreturn__sigaction (inlined)": 1
+    }
+   },
+   "xsmoke-S5-datagram-p1-cand-timeline-bbrv3": {
+    "goodput_mbps": 91.53140906666667,
+    "affinity": {
+     "receive": [
+      "12-15"
+     ],
+     "send": [
+      "8-11"
+     ],
+     "relay": [
+      "4-5"
+     ]
+    },
+    "last_cpus": {
+     "receive": [
+      12,
+      13,
+      14,
+      15
+     ],
+     "send": [
+      8,
+      9,
+      10,
+      11
+     ],
+     "relay": [
+      4,
+      5
+     ]
+    },
+    "contamination": {
+     "foreign_mean_cores": 0.0020690413310538317,
+     "foreign_max_cores": 0.06000219860056112,
+     "sibling_mean_cores": 0.0006896486466639689,
+     "samples": 29,
+     "contaminated": false
+    },
+    "udp_errors": {
+     "RcvbufErrors": 0,
+     "SndbufErrors": 0,
+     "InErrors": 0,
+     "MemErrors": 0
+    },
+    "sockets": {
+     "127.0.0.1:24761": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24762": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24771": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)",
+     "127.0.0.1:24772": "skmem:(r0,rb8388608,t0,tb8388608,f4096,w0,o0,bl0,d0)"
+    },
+    "relay_forward_ecn_in": [
+     4,
+     0,
+     381835,
+     0
+    ],
+    "relay_reverse_ecn_in": [
+     2,
+     0,
+     74847,
+     0
+    ],
+    "timeline_coverage_s": 30.0,
+    "timeline_bandwidth_median": 12306211
+   }
+  }
+ },
+ "readiness_blocks": [
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 5,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 5,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 5,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 5,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 5,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 5,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean"
+  }
+ ],
+ "cpu_split": {
+  "loopback/stream/send": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 1.0043963108001672,
+   "outside_share": 0.38880697282503873,
+   "outcome": "mixed",
+   "window_ratios": [
+    1.0233045384972628,
+    1.004352537467855,
+    0.9990502537541653,
+    1.0043963108001672,
+    1.0120482105049948
+   ],
+   "outside_shares": [
+    0.0,
+    0.38880697282503873,
+    1.0,
+    0.5211317082889364,
+    0.022471793282275325
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 10.069610754931846,
+      "inside": 40.17038924506815,
+      "after": 0.04639200000000443
+     },
+     "reno": {
+      "before": 8.696159530542321,
+      "inside": 34.193840469457676,
+      "after": 0.5985860000000045
+     },
+     "cand_gib": 12.618448331952095,
+     "reno_gib": 10.991391956806183
+    },
+    {
+     "cand": {
+      "before": 10.092665349216766,
+      "inside": 40.01733465078323,
+      "after": 0.0482330000000033
+     },
+     "reno": {
+      "before": 8.718384408496656,
+      "inside": 34.77161559150334,
+      "after": 0.03525800000000601
+     },
+     "cand_gib": 12.518616110086441,
+     "reno_gib": 10.92494384944439
+    },
+    {
+     "cand": {
+      "before": 10.11969821034767,
+      "inside": 39.70030178965233,
+      "after": 0.21792299999999898
+     },
+     "reno": {
+      "before": 8.718330585508822,
+      "inside": 34.76166941449118,
+      "after": 0.04249599999999987
+     },
+     "cand_gib": 12.498143568634987,
+     "reno_gib": 10.93300786614418
+    },
+    {
+     "cand": {
+      "before": 10.314132830090365,
+      "inside": 40.575867169909635,
+      "after": 0.05302899999999511
+     },
+     "reno": {
+      "before": 8.718425763540647,
+      "inside": 34.781574236459356,
+      "after": 0.04095299999999469
+     },
+     "cand_gib": 12.642411723732948,
+     "reno_gib": 10.884699985384941
+    },
+    {
+     "cand": {
+      "before": 10.183156971885966,
+      "inside": 40.26684302811404,
+      "after": 0.03552499999999981
+     },
+     "reno": {
+      "before": 8.724431518663055,
+      "inside": 34.65556848133694,
+      "after": 0.16661600000000476
+     },
+     "cand_gib": 12.550567299127579,
+     "reno_gib": 10.931757867336273
+    }
+   ]
+  },
+  "loopback/stream/receive": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.9390676968411883,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.9491452754232765,
+    0.9377381661683736,
+    0.9390676968411883,
+    0.9283626425089868,
+    0.9413862667228792
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 6.4153664933061085,
+      "inside": 25.75463350669389,
+      "after": 0.026586000000005328
+     },
+     "reno": {
+      "before": 5.974247952098153,
+      "inside": 23.635752047901846,
+      "after": 0.4186559999999986
+     },
+     "cand_gib": 12.618448331952095,
+     "reno_gib": 10.991391956806183
+    },
+    {
+     "cand": {
+      "before": 6.4206393002513895,
+      "inside": 25.789360699748613,
+      "after": 0.027436999999999045
+     },
+     "reno": {
+      "before": 5.9994123253511615,
+      "inside": 24.00058767464884,
+      "after": 0.030504999999998006
+     },
+     "cand_gib": 12.518616110086441,
+     "reno_gib": 10.92494384944439
+    },
+    {
+     "cand": {
+      "before": 6.428164523058952,
+      "inside": 25.721835476941045,
+      "after": 0.13216900000000464
+     },
+     "reno": {
+      "before": 5.96931630830147,
+      "inside": 23.96068369169853,
+      "after": 0.022849000000000785
+     },
+     "cand_gib": 12.498143568634987,
+     "reno_gib": 10.93300786614418
+    },
+    {
+     "cand": {
+      "before": 6.551661219095809,
+      "inside": 25.868338780904192,
+      "after": 0.03607199999999722
+     },
+     "reno": {
+      "before": 5.989603974855619,
+      "inside": 23.99039602514438,
+      "after": 0.0193790000000007
+     },
+     "cand_gib": 12.642411723732948,
+     "reno_gib": 10.884699985384941
+    },
+    {
+     "cand": {
+      "before": 6.441085258820688,
+      "inside": 25.828914741179315,
+      "after": 0.0333570000000023
+     },
+     "reno": {
+      "before": 6.001813432690877,
+      "inside": 23.89818656730912,
+      "after": 0.11598299999999995
+     },
+     "cand_gib": 12.550567299127579,
+     "reno_gib": 10.931757867336273
+    }
+   ]
+  },
+  "loopback/datagram/send": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 1.0211545861406612,
+   "outside_share": 0.224707860625137,
+   "outcome": "mixed",
+   "window_ratios": [
+    1.0286584613185812,
+    1.0266906602309394,
+    1.020633745798976,
+    1.0111729394655058,
+    1.0211545861406612
+   ],
+   "outside_shares": [
+    0.2746486433349774,
+    0.12394656958280618,
+    0.224707860625137,
+    0.4635660479635671,
+    0.22257962749951293
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 10.185237996590686,
+      "inside": 40.18546637879584,
+      "after": 0.05035262461348111
+     },
+     "reno": {
+      "before": 9.860955469529097,
+      "inside": 39.449677362979294,
+      "after": 0.047108167491607844
+     },
+     "cand_gib": 10.772622913122177,
+     "reno_gib": 10.878452092409134
+    },
+    {
+     "cand": {
+      "before": 10.126867593534515,
+      "inside": 40.343849609762565,
+      "after": 0.05172379670292315
+     },
+     "reno": {
+      "before": 9.850816355135581,
+      "inside": 39.3175821506011,
+      "after": 0.18514049426332235
+     },
+     "cand_gib": 10.92522582411766,
+     "reno_gib": 10.931493490934372
+    },
+    {
+     "cand": {
+      "before": 10.10158977320779,
+      "inside": 40.28889133943985,
+      "after": 0.0393778873523587
+     },
+     "reno": {
+      "before": 9.845369938560381,
+      "inside": 39.415169223439015,
+      "after": 0.0446658380006042
+     },
+     "cand_gib": 10.825795531272888,
+     "reno_gib": 10.809555172920227
+    },
+    {
+     "cand": {
+      "before": 10.14565883304585,
+      "inside": 40.113521529775,
+      "after": 0.1921246371791483
+     },
+     "reno": {
+      "before": 9.825475980341245,
+      "inside": 39.33524916097716,
+      "after": 0.04520785868158583
+     },
+     "cand_gib": 10.837044030427933,
+     "reno_gib": 10.745518893003464
+    },
+    {
+     "cand": {
+      "before": 10.094010623205707,
+      "inside": 40.30671302925504,
+      "after": 0.05245534753925796
+     },
+     "reno": {
+      "before": 9.851590173161453,
+      "inside": 39.4190521604516,
+      "after": 0.0425926663869447
+     },
+     "cand_gib": 10.85285434126854,
+     "reno_gib": 10.838377177715302
+    }
+   ]
+  },
+  "loopback/datagram/receive": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.955591909091702,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.9799006834341162,
+    0.9493380687996615,
+    0.9621692605817198,
+    0.9551297797946505,
+    0.955591909091702
+   ],
+   "outside_shares": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 6.45255231781804,
+      "inside": 25.607799869875222,
+      "after": 0.03467581230673744
+     },
+     "reno": {
+      "before": 6.470689625042406,
+      "inside": 26.389784999338886,
+      "after": 0.03744737561870792
+     },
+     "cand_gib": 10.772622913122177,
+     "reno_gib": 10.878452092409134
+    },
+    {
+     "cand": {
+      "before": 6.593918975317514,
+      "inside": 24.946439626331024,
+      "after": 0.03190239835146258
+     },
+     "reno": {
+      "before": 6.508825254990012,
+      "inside": 26.29279485389631,
+      "after": 0.12266889111367263
+     },
+     "cand_gib": 10.92522582411766,
+     "reno_gib": 10.931493490934372
+    },
+    {
+     "cand": {
+      "before": 6.461006397412287,
+      "inside": 25.349314344352802,
+      "after": 0.02695325823491146
+     },
+     "reno": {
+      "before": 6.523699654263809,
+      "inside": 26.306480066402656,
+      "after": 0.027985279333535118
+     },
+     "cand_gib": 10.825795531272888,
+     "reno_gib": 10.809555172920227
+    },
+    {
+     "cand": {
+      "before": 6.354684550470394,
+      "inside": 25.157782685363163,
+      "after": 0.13019276416644132
+     },
+     "reno": {
+      "before": 6.48334898706133,
+      "inside": 26.117194868927474,
+      "after": 0.03659614401119882
+     },
+     "cand_gib": 10.837044030427933,
+     "reno_gib": 10.745518893003464
+    },
+    {
+     "cand": {
+      "before": 6.511528000858931,
+      "inside": 25.068833825371442,
+      "after": 0.028985173769626726
+     },
+     "reno": {
+      "before": 6.511487731998146,
+      "inside": 26.19883343480838,
+      "after": 0.032576833193481036
+     },
+     "cand_gib": 10.85285434126854,
+     "reno_gib": 10.838377177715302
+    }
+   ]
+  },
+  "S5/stream/send": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.9209003309353588,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.9352151319661912,
+    0.9140991271694108,
+    0.9316153805105322,
+    0.9209003309353588,
+    0.9195618571814503
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.8022832306814691,
+      "inside": 2.3477167693185312,
+      "after": 0.0204089999999999
+     },
+     "reno": {
+      "before": 0.853734745767167,
+      "inside": 2.596265254232833,
+      "after": 0.030616999999999894
+     },
+     "cand_gib": 0.3238106667995453,
+     "reno_gib": 0.33489297330379486
+    },
+    {
+     "cand": {
+      "before": 0.7822027813520589,
+      "inside": 2.337797218647941,
+      "after": 0.01730199999999993
+     },
+     "reno": {
+      "before": 0.8424595389605578,
+      "inside": 2.617540461039442,
+      "after": 0.014512999999999998
+     },
+     "cand_gib": 0.32719480991363525,
+     "reno_gib": 0.33487772941589355
+    },
+    {
+     "cand": {
+      "before": 0.8595288272920398,
+      "inside": 2.3404711727079603,
+      "after": 0.021180999999999894
+     },
+     "reno": {
+      "before": 0.8722356164113535,
+      "inside": 2.5977643835886464,
+      "after": 0.019527000000000516
+     },
+     "cand_gib": 0.3238716423511505,
+     "reno_gib": 0.33489297330379486
+    },
+    {
+     "cand": {
+      "before": 0.7822278933715018,
+      "inside": 2.3277721066284984,
+      "after": 0.026543999999999457
+     },
+     "reno": {
+      "before": 0.8425414863495755,
+      "inside": 2.6274585136504243,
+      "after": 0.010346000000000188
+     },
+     "cand_gib": 0.32217957079410553,
+     "reno_gib": 0.33489297330379486
+    },
+    {
+     "cand": {
+      "before": 0.7825396202359738,
+      "inside": 2.3274603797640263,
+      "after": 0.01789900000000033
+     },
+     "reno": {
+      "before": 0.8499400454198093,
+      "inside": 2.6100599545801906,
+      "after": 0.02721100000000032
+     },
+     "cand_gib": 0.32475578784942627,
+     "reno_gib": 0.33489297330379486
+    }
+   ]
+  },
+  "S5/stream/receive": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 1.044159834455565,
+   "outside_share": 0.0940019362840174,
+   "outcome": "mixed",
+   "window_ratios": [
+    1.0436439082386764,
+    1.0420164073658058,
+    1.0455766174321015,
+    1.044159834455565,
+    1.0626808812812691
+   ],
+   "outside_shares": [
+    0.1738143983934881,
+    0.05975261771985051,
+    0.0940019362840174,
+    0.43785844887930664,
+    0.08046517661066739
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.712283230681469,
+      "inside": 2.207716769318531,
+      "after": 0.015743999999999758
+     },
+     "reno": {
+      "before": 0.7022086629041485,
+      "inside": 2.1877913370958515,
+      "after": 0.03064700000000009
+     },
+     "cand_gib": 0.3238106667995453,
+     "reno_gib": 0.33489297330379486
+    },
+    {
+     "cand": {
+      "before": 0.7222027813520588,
+      "inside": 2.247797218647941,
+      "after": 0.013648000000000327
+     },
+     "reno": {
+      "before": 0.7221862568538291,
+      "inside": 2.207813743146171,
+      "after": 0.02504799999999996
+     },
+     "cand_gib": 0.32719480991363525,
+     "reno_gib": 0.33487772941589355
+    },
+    {
+     "cand": {
+      "before": 0.7074113101160309,
+      "inside": 2.222588689883969,
+      "after": 0.02141700000000002
+     },
+     "reno": {
+      "before": 0.7219561643599343,
+      "inside": 2.198043835640066,
+      "after": 0.021279999999999966
+     },
+     "cand_gib": 0.3238716423511505,
+     "reno_gib": 0.33489297330379486
+    },
+    {
+     "cand": {
+      "before": 0.751949406700064,
+      "inside": 2.228050593299936,
+      "after": 0.025554000000000077
+     },
+     "reno": {
+      "before": 0.7119767116052254,
+      "inside": 2.218023288394775,
+      "after": 0.019915000000000127
+     },
+     "cand_gib": 0.32217957079410553,
+     "reno_gib": 0.33489297330379486
+    },
+    {
+     "cand": {
+      "before": 0.7319752601835351,
+      "inside": 2.258024739816465,
+      "after": 0.010904000000000025
+     },
+     "reno": {
+      "before": 0.7188355959287194,
+      "inside": 2.1911644040712805,
+      "after": 0.0352140000000003
+     },
+     "cand_gib": 0.32475578784942627,
+     "reno_gib": 0.33489297330379486
+    }
+   ]
+  },
+  "S5/datagram/send": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.9546692726306487,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.9546692726306487,
+    0.9463860476882118,
+    0.9604209263858906,
+    0.944369775498752,
+    0.9560385891957945
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.8721991856311528,
+      "inside": 2.618075632540414,
+      "after": 0.015210181828433367
+     },
+     "reno": {
+      "before": 0.9224114620782173,
+      "inside": 2.8078564315542307,
+      "after": 0.022753106367552345
+     },
+     "cand_gib": 0.32204824686050415,
+     "reno_gib": 0.3297361731529236
+    },
+    {
+     "cand": {
+      "before": 0.8622020236868668,
+      "inside": 2.6177979763131334,
+      "after": 0.01399499999999998
+     },
+     "reno": {
+      "before": 0.94043823582031,
+      "inside": 2.8316480965072826,
+      "after": 0.031033667672407006
+     },
+     "cand_gib": 0.32209786772727966,
+     "reno_gib": 0.32973065972328186
+    },
+    {
+     "cand": {
+      "before": 0.8624715534278146,
+      "inside": 2.6475284465721853,
+      "after": 0.015968000000000426
+     },
+     "reno": {
+      "before": 0.9525032505886274,
+      "inside": 2.8377748182734575,
+      "after": 0.01979993113791556
+     },
+     "cand_gib": 0.32029828429222107,
+     "reno_gib": 0.3297262489795685
+    },
+    {
+     "cand": {
+      "before": 0.8681872216431852,
+      "inside": 2.593858409193706,
+      "after": 0.025782369163108942
+     },
+     "reno": {
+      "before": 0.9324882371723475,
+      "inside": 2.8275117628276525,
+      "after": 0.017171999999999965
+     },
+     "cand_gib": 0.3203015923500061,
+     "reno_gib": 0.32973065972328186
+    },
+    {
+     "cand": {
+      "before": 0.8725149382381409,
+      "inside": 2.618043602356163,
+      "after": 0.023874459405696324
+     },
+     "reno": {
+      "before": 0.9428014527371908,
+      "inside": 2.8174785559410807,
+      "after": 0.022910991321727803
+     },
+     "cand_gib": 0.32049015164375305,
+     "reno_gib": 0.3297416865825653
+    }
+   ]
+  },
+  "S5/datagram/receive": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.9866349496290825,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.9866349496290825,
+    0.9882094720480407,
+    0.9969416050480058,
+    0.985747790985838,
+    0.9822347256343392
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.7021991856311529,
+      "inside": 2.1280756325404138,
+      "after": 0.016423181828433275
+     },
+     "reno": {
+      "before": 0.7121435218473043,
+      "inside": 2.208392265417592,
+      "after": 0.028358212735104082
+     },
+     "cand_gib": 0.32204824686050415,
+     "reno_gib": 0.3297361731529236
+    },
+    {
+     "cand": {
+      "before": 0.7019267707260084,
+      "inside": 2.128348325329313,
+      "after": 0.023942903944678573
+     },
+     "reno": {
+      "before": 0.7173067650742171,
+      "inside": 2.2047795672533756,
+      "after": 0.02997266767240747
+     },
+     "cand_gib": 0.32209786772727966,
+     "reno_gib": 0.32973065972328186
+    },
+    {
+     "cand": {
+      "before": 0.7119223193327447,
+      "inside": 2.1386267028586032,
+      "after": 0.026486977808652057
+     },
+     "reno": {
+      "before": 0.7122251116343353,
+      "inside": 2.2083310260898354,
+      "after": 0.026176862275829382
+     },
+     "cand_gib": 0.32029828429222107,
+     "reno_gib": 0.3297262489795685
+    },
+    {
+     "cand": {
+      "before": 0.697163818937787,
+      "inside": 2.114881811899104,
+      "after": 0.025221369163108687
+     },
+     "reno": {
+      "before": 0.7319352955784926,
+      "inside": 2.2086175741018748,
+      "after": 0.025466130319632185
+     },
+     "cand_gib": 0.3203015923500061,
+     "reno_gib": 0.32973065972328186
+    },
+    {
+     "cand": {
+      "before": 0.6822355006561253,
+      "inside": 2.118043769641026,
+      "after": 0.02236972970284823
+     },
+     "reno": {
+      "before": 0.7219610169160336,
+      "inside": 2.2185990004405096,
+      "after": 0.026982982643456666
+     },
+     "cand_gib": 0.32049015164375305,
+     "reno_gib": 0.3297416865825653
+    }
+   ]
+  },
+  "S6/stream/send": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.08669493485144368,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.08668301825105769,
+    0.103258776820741,
+    0.09905513292610225,
+    0.07913452014428743,
+    0.08669493485144368
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.7420136321279931,
+      "inside": 2.237986367872007,
+      "after": 0.01901900000000012
+     },
+     "reno": {
+      "before": 0.6000003851557014,
+      "inside": 1.7599996148442987,
+      "after": 0.01806299999999994
+     },
+     "cand_gib": 0.3056856840848923,
+     "reno_gib": 0.02083839476108551
+    },
+    {
+     "cand": {
+      "before": 0.7719179012124776,
+      "inside": 2.238082098787522,
+      "after": 0.02222500000000016
+     },
+     "reno": {
+      "before": 0.5713747169353531,
+      "inside": 1.768625283064647,
+      "after": 0.022338999999999887
+     },
+     "cand_gib": 0.3084295839071274,
+     "reno_gib": 0.025167658925056458
+    },
+    {
+     "cand": {
+      "before": 0.8472502349655737,
+      "inside": 2.2127497650344266,
+      "after": 0.021073999999999593
+     },
+     "reno": {
+      "before": 0.591690393529538,
+      "inside": 1.778309606470462,
+      "after": 0.011455000000000215
+     },
+     "cand_gib": 0.30887165665626526,
+     "reno_gib": 0.024588391184806824
+    },
+    {
+     "cand": {
+      "before": 0.7522599608750886,
+      "inside": 2.2277400391249116,
+      "after": 0.016417999999999378
+     },
+     "reno": {
+      "before": 0.5813734324992228,
+      "inside": 1.788626567500777,
+      "after": 0.016508000000000633
+     },
+     "cand_gib": 0.30710336565971375,
+     "reno_gib": 0.019512176513671875
+    },
+    {
+     "cand": {
+      "before": 0.7522120565771059,
+      "inside": 2.227787943422894,
+      "after": 0.01565900000000031
+     },
+     "reno": {
+      "before": 0.6419543690124502,
+      "inside": 1.7680456309875499,
+      "after": 0.024394999999999945
+     },
+     "cand_gib": 0.30906982719898224,
+     "reno_gib": 0.021265223622322083
+    }
+   ]
+  },
+  "S6/stream/receive": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.07490284425195128,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.07376266931324191,
+    0.08789020744051122,
+    0.08744944439131096,
+    0.06677923759702244,
+    0.07490284425195128
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.6823012938605636,
+      "inside": 2.057698706139436,
+      "after": 0.008616000000000401
+     },
+     "reno": {
+      "before": 0.6383336542964179,
+      "inside": 1.901666345703582,
+      "after": 0.03139700000000034
+     },
+     "cand_gib": 0.3056856840848923,
+     "reno_gib": 0.02083839476108551
+    },
+    {
+     "cand": {
+      "before": 0.7019179012124777,
+      "inside": 2.088082098787522,
+      "after": 0.017444000000000237
+     },
+     "reno": {
+      "before": 0.6413747169353531,
+      "inside": 1.9386252830646469,
+      "after": 0.017965999999999926
+     },
+     "cand_gib": 0.3084295839071274,
+     "reno_gib": 0.025167658925056458
+    },
+    {
+     "cand": {
+      "before": 0.6963439555948768,
+      "inside": 2.063656044405123,
+      "after": 0.017379000000000477
+     },
+     "reno": {
+      "before": 0.641408661274615,
+      "inside": 1.878591338725385,
+      "after": 0.01368699999999956
+     },
+     "cand_gib": 0.30887165665626526,
+     "reno_gib": 0.024588391184806824
+    },
+    {
+     "cand": {
+      "before": 0.6919774657657025,
+      "inside": 2.0580225342342975,
+      "after": 0.025940999999999992
+     },
+     "reno": {
+      "before": 0.6219228054989119,
+      "inside": 1.958077194501088,
+      "after": 0.012222000000000177
+     },
+     "cand_gib": 0.30710336565971375,
+     "reno_gib": 0.019512176513671875
+    },
+    {
+     "cand": {
+      "before": 0.6719355495049676,
+      "inside": 2.088064450495032,
+      "after": 0.011786000000000296
+     },
+     "reno": {
+      "before": 0.6819543690124502,
+      "inside": 1.9180456309875498,
+      "after": 0.020967000000000402
+     },
+     "cand_gib": 0.30906982719898224,
+     "reno_gib": 0.021265223622322083
+    }
+   ]
+  },
+  "S6/datagram/send": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.09313825114275293,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.09313825114275293,
+    0.0935362599978481,
+    0.10977695469121332,
+    0.08518818543468921,
+    0.08704949734872916
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.8022027782258259,
+      "inside": 2.4280725103916785,
+      "after": 0.02023171138249591
+     },
+     "reno": {
+      "before": 0.671908345852101,
+      "inside": 1.768091654147899,
+      "after": 0.019063000000000052
+     },
+     "cand_gib": 0.3036113381385803,
+     "reno_gib": 0.020591557025909424
+    },
+    {
+     "cand": {
+      "before": 0.8125185055384947,
+      "inside": 2.3577616466065705,
+      "after": 0.0185688478549344
+     },
+     "reno": {
+      "before": 0.6166211371890447,
+      "inside": 2.01558576306664,
+      "after": 0.028389099744314805
+     },
+     "cand_gib": 0.2950688302516937,
+     "reno_gib": 0.023594170808792114
+    },
+    {
+     "cand": {
+      "before": 0.8019537890497973,
+      "inside": 2.338325379106904,
+      "after": 0.019552831843299145
+     },
+     "reno": {
+      "before": 0.6213988184310362,
+      "inside": 1.878881592259946,
+      "after": 0.030054589309017832
+     },
+     "cand_gib": 0.286161333322525,
+     "reno_gib": 0.025241583585739136
+    },
+    {
+     "cand": {
+      "before": 0.798117713757918,
+      "inside": 2.431882286242082,
+      "after": 0.01701300000000039
+     },
+     "reno": {
+      "before": 0.6116713482894096,
+      "inside": 1.7488860774109773,
+      "after": 0.023464574299612906
+     },
+     "cand_gib": 0.30202677845954895,
+     "reno_gib": 0.01850306987762451
+    },
+    {
+     "cand": {
+      "before": 0.8122387608629725,
+      "inside": 2.418041106263425,
+      "after": 0.019662132873602634
+     },
+     "reno": {
+      "before": 0.6619534633578297,
+      "inside": 1.7983258793356893,
+      "after": 0.02148665730648136
+     },
+     "cand_gib": 0.30111926794052124,
+     "reno_gib": 0.01949438452720642
+    }
+   ]
+  },
+  "S6/datagram/receive": {
+   "flag_raised": false,
+   "registered": false,
+   "window_ratio": 0.08037176562337342,
+   "outside_share": 0.0,
+   "outcome": "mixed",
+   "window_ratios": [
+    0.08037176562337342,
+    0.08541689152235868,
+    0.09670590398605086,
+    0.07487564659588122,
+    0.07668598688598577
+   ],
+   "outside_shares": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "blocks": [
+    {
+     "cand": {
+      "before": 0.6922027782258259,
+      "inside": 2.1080725103916786,
+      "after": 0.02292671138249558
+     },
+     "reno": {
+      "before": 0.6416357250160866,
+      "inside": 1.7789069707564784,
+      "after": 0.027511304227435307
+     },
+     "cand_gib": 0.3036113381385803,
+     "reno_gib": 0.020591557025909424
+    },
+    {
+     "cand": {
+      "before": 0.682238671589773,
+      "inside": 2.0783216327003573,
+      "after": 0.029779695709869713
+     },
+     "reno": {
+      "before": 0.5766211371890446,
+      "inside": 1.9455857630666398,
+      "after": 0.028095099744315455
+     },
+     "cand_gib": 0.2950688302516937,
+     "reno_gib": 0.023594170808792114
+    },
+    {
+     "cand": {
+      "before": 0.6916746763283977,
+      "inside": 2.0483253236716026,
+      "after": 0.01749400000000012
+     },
+     "reno": {
+      "before": 0.5916785821172434,
+      "inside": 1.8683214178827567,
+      "after": 0.01072099999999998
+     },
+     "cand_gib": 0.286161333322525,
+     "reno_gib": 0.025241583585739136
+    },
+    {
+     "cand": {
+      "before": 0.6871029995381781,
+      "inside": 2.124925574096747,
+      "after": 0.02674642636507496
+     },
+     "reno": {
+      "before": 0.5813927902411747,
+      "inside": 1.7386072097588254,
+      "after": 0.01604699999999948
+     },
+     "cand_gib": 0.30202677845954895,
+     "reno_gib": 0.01850306987762451
+    },
+    {
+     "cand": {
+      "before": 0.7016790706472293,
+      "inside": 2.1183209293527705,
+      "after": 0.013520000000000199
+     },
+     "reno": {
+      "before": 0.6422325295518054,
+      "inside": 1.788326155835233,
+      "after": 0.029448314612962045
+     },
+     "cand_gib": 0.30111926794052124,
+     "reno_gib": 0.01949438452720642
+    }
+   ]
+  }
+ },
+ "s5timeline": {
+  "blocks": [
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 1,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 2,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 3,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "datagram",
+    "block": 4,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 1,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 2,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 3,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   },
+   {
+    "path": "S5",
+    "workload": "stream",
+    "block": 4,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean"
+   }
+  ],
+  "observations": [
+   {
+    "id": "s5timeline-S5-datagram-p1-cand-timeline-bbrv3",
+    "workload": "datagram",
+    "block": 1,
+    "goodput_mbps": 91.5411968,
+    "decomposition": {
+     "deficit": 0.02830723733333329,
+     "idle": 0.029593984000000007,
+     "model": 0.019630677871486292,
+     "timing": 0.00011735060455977435,
+     "unexplained": 0.00984595552395394,
+     "loss": 0.0,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "model",
+    "overflow_packets": 0,
+    "phase_share": {
+     "cruise": 0.6460907197333338,
+     "refill": 0.031037736266666633,
+     "up": 0.10041894449999986,
+     "probertt": 0.034493894733333294,
+     "down": 0.18795870476666646
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0060582977266375,
+     "minimum": 1.0050099765629052,
+     "maximum": 1.007521659475995,
+     "n": 1890
+    },
+    "rate_over_capacity": {
+     "median": 0.9958578889508138,
+     "minimum": 0.8950226682431212,
+     "maximum": 1.2468080130958084,
+     "n": 2909
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.0,
+    "late_ms_total": 221.930044,
+    "late_count": 28749,
+    "late_max_ms": 0.049593,
+    "state_share": {
+     "emit_ns": 0.012953633433333334,
+     "immediate_ns": 0.004061170166666667,
+     "paced_ns": 0.9613819986,
+     "cwnd_ns": 0.0216031978,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 0.0,
+     "other_ns": 0.0
+    }
+   },
+   {
+    "id": "s5timeline-S5-datagram-p2-cand-timeline-bbrv3",
+    "workload": "datagram",
+    "block": 2,
+    "goodput_mbps": 91.5601408,
+    "decomposition": {
+     "deficit": 0.03019900266666664,
+     "idle": 0.028997941333333332,
+     "model": 0.01874863703907038,
+     "timing": 0.0001319032952399526,
+     "unexplained": 0.010117400999023,
+     "loss": 0.0,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "model",
+    "overflow_packets": 0,
+    "phase_share": {
+     "cruise": 0.6365283626999997,
+     "refill": 0.029468770233333365,
+     "up": 0.10200484386666675,
+     "down": 0.1961042643666668,
+     "probertt": 0.03589375883333337
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0062953207957965,
+     "minimum": 1.0047677188846746,
+     "maximum": 1.0070763878753797,
+     "n": 1860
+    },
+    "rate_over_capacity": {
+     "median": 0.9957970918744374,
+     "minimum": 0.8952479970204092,
+     "maximum": 1.2462569894899462,
+     "n": 2904
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.0,
+    "late_ms_total": 225.678042,
+    "late_count": 28709,
+    "late_max_ms": 0.528083,
+    "state_share": {
+     "emit_ns": 0.013067254633333334,
+     "immediate_ns": 0.0040257563,
+     "paced_ns": 0.9598159152666667,
+     "cwnd_ns": 0.023049321033333334,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 4.1752766666666664e-05,
+     "other_ns": 0.0
+    }
+   },
+   {
+    "id": "s5timeline-S5-datagram-p3-cand-timeline-bbrv3",
+    "workload": "datagram",
+    "block": 3,
+    "goodput_mbps": 92.53638826666666,
+    "decomposition": {
+     "deficit": 0.019804946666666767,
+     "idle": 0.019594392000000002,
+     "model": 0.010033804439201549,
+     "timing": 0.00015492683542260097,
+     "unexplained": 0.009405660725375853,
+     "loss": 0.0,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "no deficit",
+    "overflow_packets": 0,
+    "phase_share": {
+     "cruise": 0.6104608487666662,
+     "refill": 0.03064937613333337,
+     "up": 0.11502954783333355,
+     "down": 0.22501374850000014,
+     "probertt": 0.018846478766666685
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0057567178924527,
+     "minimum": 1.0044506323687112,
+     "maximum": 1.0070843246550103,
+     "n": 1793
+    },
+    "rate_over_capacity": {
+     "median": 0.9953933322733551,
+     "minimum": 0.894965472934768,
+     "maximum": 1.2462668517605753,
+     "n": 2929
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.0,
+    "late_ms_total": 224.134923,
+    "late_count": 29008,
+    "late_max_ms": 0.405942,
+    "state_share": {
+     "emit_ns": 0.0130458578,
+     "immediate_ns": 0.0039172636,
+     "paced_ns": 0.9707372555333333,
+     "cwnd_ns": 0.012299623066666666,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 0.0,
+     "other_ns": 0.0
+    }
+   },
+   {
+    "id": "s5timeline-S5-datagram-p4-cand-timeline-bbrv3",
+    "workload": "datagram",
+    "block": 4,
+    "goodput_mbps": 92.06689279999999,
+    "decomposition": {
+     "deficit": 0.024924866666666712,
+     "idle": 0.023395898666666665,
+     "model": 0.014413856384824559,
+     "timing": 0.00013913323024272904,
+     "unexplained": 0.008842909051599379,
+     "loss": 0.0,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "model",
+    "overflow_packets": 0,
+    "phase_share": {
+     "cruise": 0.6293655918333335,
+     "refill": 0.030026678066666663,
+     "up": 0.10197888606666666,
+     "down": 0.2129726169666665,
+     "probertt": 0.025656227066666662
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0061002669705905,
+     "minimum": 1.0046166895417186,
+     "maximum": 1.0077794998673295,
+     "n": 1845
+    },
+    "rate_over_capacity": {
+     "median": 0.9954579245262961,
+     "minimum": 0.8951134622805038,
+     "maximum": 1.2471270905799832,
+     "n": 2921
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.0,
+    "late_ms_total": 223.968218,
+    "late_count": 28914,
+    "late_max_ms": 0.400958,
+    "state_share": {
+     "emit_ns": 0.0129878633,
+     "immediate_ns": 0.0038787287333333334,
+     "paced_ns": 0.9668750896333334,
+     "cwnd_ns": 0.016122625633333332,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 0.0001356927,
+     "other_ns": 0.0
+    }
+   },
+   {
+    "id": "s5timeline-S5-stream-p1-cand-timeline-bbrv3",
+    "workload": "stream",
+    "block": 1,
+    "goodput_mbps": 92.6123264,
+    "decomposition": {
+     "deficit": 0.034281141827097406,
+     "idle": 0.037744816,
+     "model": 0.024745025324302165,
+     "timing": 0.00024370855505032122,
+     "unexplained": 0.012756082120647516,
+     "loss": 0.0019116911604307213,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "model",
+    "overflow_packets": 504,
+    "phase_share": {
+     "cruise": 0.6068651883333336,
+     "refill": 0.023810034966666643,
+     "up": 0.15022508309999982,
+     "down": 0.173352212,
+     "probertt": 0.04574748159999995
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0074129534395235,
+     "minimum": 1.0069146645286056,
+     "maximum": 1.0074129534395235,
+     "n": 1737
+    },
+    "rate_over_capacity": {
+     "median": 0.9968455178833194,
+     "minimum": 0.8956085548272401,
+     "maximum": 1.246673509683817,
+     "n": 2848
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.34691011235955055,
+    "late_ms_total": 224.774012,
+    "late_count": 27279,
+    "late_max_ms": 1.123152,
+    "state_share": {
+     "emit_ns": 0.012759174633333334,
+     "immediate_ns": 0.0036438166,
+     "paced_ns": 0.9197011446,
+     "cwnd_ns": 0.059718103866666664,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 0.0041777603,
+     "other_ns": 0.0
+    }
+   },
+   {
+    "id": "s5timeline-S5-stream-p2-cand-timeline-bbrv3",
+    "workload": "stream",
+    "block": 2,
+    "goodput_mbps": 94.345152,
+    "decomposition": {
+     "deficit": 0.029151441784992183,
+     "idle": 0.028338143999999996,
+     "model": 0.017056654013483913,
+     "timing": 0.00028754474873517297,
+     "unexplained": 0.01099394523778091,
+     "loss": 0.0021544657849922617,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "model",
+    "overflow_packets": 568,
+    "phase_share": {
+     "down": 0.2011328708666671,
+     "cruise": 0.5644619248666662,
+     "refill": 0.02730180230000001,
+     "up": 0.17194336376666666,
+     "probertt": 0.03516003819999999
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0062453839747418,
+     "minimum": 1.0055749872120763,
+     "maximum": 1.0062453839747418,
+     "n": 1623
+    },
+    "rate_over_capacity": {
+     "median": 0.9952182932545603,
+     "minimum": 0.8914913904017101,
+     "maximum": 1.245228662668743,
+     "n": 2876
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.5239916550764951,
+    "late_ms_total": 225.512865,
+    "late_count": 27259,
+    "late_max_ms": 0.202893,
+    "state_share": {
+     "emit_ns": 0.012769606966666666,
+     "immediate_ns": 0.003562410933333333,
+     "paced_ns": 0.9205319743,
+     "cwnd_ns": 0.05900613516666667,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 0.004129872633333333,
+     "other_ns": 0.0
+    }
+   },
+   {
+    "id": "s5timeline-S5-stream-p3-cand-timeline-bbrv3",
+    "workload": "stream",
+    "block": 3,
+    "goodput_mbps": 93.1273728,
+    "decomposition": {
+     "deficit": 0.028957825642608737,
+     "idle": 0.031552834666666675,
+     "model": 0.019366412884986237,
+     "timing": 0.00025508371133226287,
+     "unexplained": 0.011931338070348173,
+     "loss": 0.002162052309275297,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "model",
+    "overflow_packets": 570,
+    "phase_share": {
+     "cruise": 0.5453387447,
+     "refill": 0.027295536166666662,
+     "up": 0.1713791095666668,
+     "down": 0.22084470499999986,
+     "probertt": 0.035141904566666674
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0057068596683603,
+     "minimum": 1.0055684551759074,
+     "maximum": 1.0065348384304027,
+     "n": 1563
+    },
+    "rate_over_capacity": {
+     "median": 0.9953727609333665,
+     "minimum": 0.8895915212152328,
+     "maximum": 1.2455868019648548,
+     "n": 2860
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.4807692307692308,
+    "late_ms_total": 222.166113,
+    "late_count": 27369,
+    "late_max_ms": 0.238119,
+    "state_share": {
+     "emit_ns": 0.012779917933333333,
+     "immediate_ns": 0.0034772145666666665,
+     "paced_ns": 0.9232361303333333,
+     "cwnd_ns": 0.056182987233333335,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 0.004323749933333333,
+     "other_ns": 0.0
+    }
+   },
+   {
+    "id": "s5timeline-S5-stream-p4-cand-timeline-bbrv3",
+    "workload": "stream",
+    "block": 4,
+    "goodput_mbps": 93.0837248,
+    "decomposition": {
+     "deficit": 0.0283349079757077,
+     "idle": 0.03298059466666667,
+     "model": 0.019223752487494358,
+     "timing": 0.0002112476176014316,
+     "unexplained": 0.013545594561570881,
+     "loss": 0.001832049309041036,
+     "coverage_s": 30.0,
+     "queue_missing": 0.0
+    },
+    "verdict": "model",
+    "overflow_packets": 483,
+    "phase_share": {
+     "cruise": 0.5997906179666667,
+     "probertt": 0.03428354499999998,
+     "refill": 0.02385081089999998,
+     "up": 0.15022101316666667,
+     "down": 0.1918540129666667
+    },
+    "bandwidth_over_capacity_cruise": {
+     "median": 1.0060031520954065,
+     "minimum": 1.0060031520954065,
+     "maximum": 1.0060031520954065,
+     "n": 1722
+    },
+    "rate_over_capacity": {
+     "median": 0.9959431205744524,
+     "minimum": 0.8953503123401677,
+     "maximum": 1.2449288401252931,
+     "n": 2861
+    },
+    "inflight_long_decreases": 0,
+    "inflight_short_bounded_share": 0.4365606431317721,
+    "late_ms_total": 217.218788,
+    "late_count": 27419,
+    "late_max_ms": 0.219677,
+    "state_share": {
+     "emit_ns": 0.0125298708,
+     "immediate_ns": 0.0034459796,
+     "paced_ns": 0.9257752656666667,
+     "cwnd_ns": 0.054167423,
+     "credit_ns": 0.0,
+     "hard_ns": 0.0,
+     "app_ns": 0.004081460933333334,
+     "other_ns": 0.0
+    }
+   }
+  ],
+  "workloads": {
+   "stream": "model",
+   "datagram": "model"
+  },
+  "verdict": "model behaviour",
+  "instrumented_over_readiness_goodput": {
+   "stream": 1.0040007530829334,
+   "datagram": 1.0005143732044246
+  },
+  "readiness_relay": {
+   "stream/cand-bbrv3": {
+    "goodput": 92.73454079999999,
+    "overflow_rate": 0.0021389206858707325
+   },
+   "stream/cand-reno": {
+    "goodput": 95.89029120000001,
+    "overflow_rate": 0.0010199608632994587
+   },
+   "stream/reno-reno": {
+    "goodput": 95.89029120000001,
+    "overflow_rate": 0.0011257583830328447
+   },
+   "stream/reno-reno-aa": {
+    "goodput": 95.89029120000001,
+    "overflow_rate": 0.0009512594158923357
+   },
+   "datagram/cand-bbrv3": {
+    "goodput": 91.76631466666667,
+    "overflow_rate": 0.0002681495597661111
+   },
+   "datagram/cand-reno": {
+    "goodput": 94.41216,
+    "overflow_rate": 0.0041292679796782646
+   },
+   "datagram/reno-reno": {
+    "goodput": 94.41216,
+    "overflow_rate": 0.004031628908943572
+   },
+   "datagram/reno-reno-aa": {
+    "goodput": 94.41184426666666,
+    "overflow_rate": 0.0039239276527412124
+   }
+  }
+ },
+ "presrss": {},
+ "preslat": {}
+}
