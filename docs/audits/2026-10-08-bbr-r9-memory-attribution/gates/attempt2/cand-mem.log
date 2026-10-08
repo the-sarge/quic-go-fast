@@ -1,0 +1,10 @@
+# Gates for cand-mem (exported tree; build receipt bin/cand-mem-build.json)
+# go version go1.27.0 darwin/arm64
+14:	maxRecoveryOutcomes = 32768
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	21.616s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.143s
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	339.355s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.279s

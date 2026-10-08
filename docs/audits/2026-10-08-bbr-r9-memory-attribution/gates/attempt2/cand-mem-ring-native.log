@@ -1,0 +1,12 @@
+# Native Linux tests for cand-mem-ring (exported tree) on minimax, 7.0.0-30-generic
+go version go1.27.0 linux/amd64
+$ go test . -run "BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability" -count=1 -v (tallied)
+ok  	github.com/quic-go/quic-go	0.699s
+79 top-level PASS, 0 top-level SKIP, exit 0
+$ go test -race . -run "LocalSendCredit|BBRPendingCredit|BBRVariant|BBRCapability|PacingKick" -count=1
+FAIL
+FAIL	github.com/quic-go/quic-go	3.154s
+FAIL
+$ go test ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	12.004s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.027s

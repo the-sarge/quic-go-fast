@@ -1,0 +1,99 @@
+# Gates for gate-ring-m1 (exported tree; build receipt bin/gate-ring-m1-build.json)
+# go version go1.27.0 darwin/arm64
+14:	maxRecoveryOutcomes = 4096
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+--- FAIL: TestBBRPTOEvidenceBounds (0.01s)
+    --- FAIL: TestBBRPTOEvidenceBounds/retained_eviction (0.00s)
+        bbr_pto_test.go:238: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/bbr_pto_test.go:238
+            	Error:      	Not equal: 
+            	            	expected: true
+            	            	actual  : false
+            	Test:       	TestBBRPTOEvidenceBounds/retained_eviction
+--- FAIL: TestRecoveryEquivalenceScenarios (0.19s)
+    --- FAIL: TestRecoveryEquivalenceScenarios/eviction_of_a_run's_first_endpoint_and_loss_of_an_evicted_outcome (0.02s)
+        recovery_equivalence_test.go:46: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:316
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:106
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_equivalence_test.go:46
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_equivalence_test.go:300
+            	Error:      	Not equal: 
+            	            	expected: ackhandler.dispatchSummary{Ordinal:0x1002, PathGeneration:0x0, SampleGeneration:0x1, RegistrationTime:3600411000000, Live:4094, Count:4096, OutcomeEvicted:0x2, Reported:0x0, Measured:true, Unconfirmed:true, NeedsAckFeedback:true, Episode:congestion.RecoveryEpisode{ID:0x1, Boundary:0x5, Pending:3, Active:true, Entered:false, Exited:false, UndoPossible:false, UndoEligible:false}, Members:map[uint64]struct {}(nil), Latest:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:4097}, Boundary:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:4}, Delivered:0x4b0, Lost:0xe10, DeliveredTime:3600010000000, SendOrigin:3600010000000, Outstanding:6000, MinimumRTT:10000000, Evicted:0x0, Expired:0x0, Missing:0x0, LimitedUntil:0x0, Limited:0x0, Stop:0x0, ApplicationExhausted:false, EvidenceLost:false, Originless:false, NextExpiry:3600711000000, Retained:3}
+            	            	actual  : ackhandler.dispatchSummary{Ordinal:0x1002, PathGeneration:0x0, SampleGeneration:0x1, RegistrationTime:3600411000000, Live:4094, Count:4096, OutcomeEvicted:0x2, Reported:0x0, Measured:true, Unconfirmed:true, NeedsAckFeedback:true, Episode:congestion.RecoveryEpisode{ID:0x1, Boundary:0x5, Pending:3, Active:true, Entered:false, Exited:false, UndoPossible:true, UndoEligible:false}, Members:map[uint64]struct {}{0x2:struct {}{}, 0x3:struct {}{}, 0x4:struct {}{}}, Latest:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:4097}, Boundary:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:4}, Delivered:0x4b0, Lost:0xe10, DeliveredTime:3600010000000, SendOrigin:3600010000000, Outstanding:6000, MinimumRTT:10000000, Evicted:0x0, Expired:0x0, Missing:0x0, LimitedUntil:0x0, Limited:0x0, Stop:0x0, ApplicationExhausted:false, EvidenceLost:false, Originless:false, NextExpiry:3600711000000, Retained:3}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -19,6 +19,13 @@
+            	            	   Exited: (bool) false,
+            	            	-  UndoPossible: (bool) false,
+            	            	+  UndoPossible: (bool) true,
+            	            	   UndoEligible: (bool) false
+            	            	  },
+            	            	- Members: (map[uint64]struct {}) <nil>,
+            	            	+ Members: (map[uint64]struct {}) (len=3) {
+            	            	+  (uint64) 2: (struct {}) {
+            	            	+  },
+            	            	+  (uint64) 3: (struct {}) {
+            	            	+  },
+            	            	+  (uint64) 4: (struct {}) {
+            	            	+  }
+            	            	+ },
+            	            	  Latest: (map[protocol.EncryptionLevel]protocol.PacketNumber) (len=1) {
+            	Test:       	TestRecoveryEquivalenceScenarios/eviction_of_a_run's_first_endpoint_and_loss_of_an_evicted_outcome
+            	Messages:   	dispatch state after operation 4100
+--- FAIL: TestRecoveryEquivalenceHistories (2.91s)
+    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.63s)
+        recovery_twin_test.go:647: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:316
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:106
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_twin_test.go:647
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_equivalence_test.go:430
+            	Error:      	Not equal: 
+            	            	expected: ackhandler.dispatchSummary{Ordinal:0x839e, PathGeneration:0x1, SampleGeneration:0x2, RegistrationTime:3608787062000, Live:4119, Count:4096, OutcomeEvicted:0x257e, Reported:0x0, Measured:true, Unconfirmed:false, NeedsAckFeedback:false, Episode:congestion.RecoveryEpisode{ID:0xa8, Boundary:0x739e, Pending:0, Active:true, Entered:false, Exited:false, UndoPossible:false, UndoEligible:false}, Members:map[uint64]struct {}(nil), Latest:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:25905}, Boundary:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:21726}, Delivered:0x10ed81e, Lost:0xb6da9b, DeliveredTime:3607757049000, SendOrigin:3607737193000, Outstanding:2906804, MinimumRTT:10000000, Evicted:0xa3, Expired:0x121, Missing:0x0, LimitedUntil:0x0, Limited:0x0, Stop:0x0, ApplicationExhausted:false, EvidenceLost:true, Originless:false, NextExpiry:0, Retained:0}
+            	            	actual  : ackhandler.dispatchSummary{Ordinal:0x839e, PathGeneration:0x1, SampleGeneration:0x2, RegistrationTime:3608787062000, Live:4119, Count:4096, OutcomeEvicted:0x257e, Reported:0x0, Measured:true, Unconfirmed:false, NeedsAckFeedback:false, Episode:congestion.RecoveryEpisode{ID:0xa8, Boundary:0x739e, Pending:0, Active:true, Entered:false, Exited:false, UndoPossible:true, UndoEligible:false}, Members:map[uint64]struct {}{}, Latest:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:25905}, Boundary:map[protocol.EncryptionLevel]protocol.PacketNumber{0x4:21726}, Delivered:0x10ed81e, Lost:0xb6da9b, DeliveredTime:3607757049000, SendOrigin:3607737193000, Outstanding:2906804, MinimumRTT:10000000, Evicted:0xa3, Expired:0x121, Missing:0x0, LimitedUntil:0x0, Limited:0x0, Stop:0x0, ApplicationExhausted:false, EvidenceLost:true, Originless:false, NextExpiry:0, Retained:0}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -19,6 +19,7 @@
+            	            	   Exited: (bool) false,
+            	            	-  UndoPossible: (bool) false,
+            	            	+  UndoPossible: (bool) true,
+            	            	   UndoEligible: (bool) false
+            	            	  },
+            	            	- Members: (map[uint64]struct {}) <nil>,
+            	            	+ Members: (map[uint64]struct {}) {
+            	            	+ },
+            	            	  Latest: (map[protocol.EncryptionLevel]protocol.PacketNumber) (len=1) {
+            	Test:       	TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets
+            	Messages:   	dispatch state after operation 47795
+    recovery_equivalence_test.go:447: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_equivalence_test.go:447
+        	Error:      	"0" is not positive
+        	Test:       	TestRecoveryEquivalenceHistories
+        	Messages:   	retained capacity evictions
+--- FAIL: TestSlotSetSearches (0.00s)
+panic: runtime error: index out of range [-15] [recovered, repanicked]
+
+goroutine 213 [running]:
+testing.tRunner.func1.2({0x10468ea98, 0x6378326fe588})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2123 +0x1a0
+testing.tRunner.func1()
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2126 +0x2c8
+panic({0x10468ea98?, 0x6378326fe588?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/panic.go:859 +0x120
+github.com/quic-go/quic-go/internal/ackhandler.(*slotSet).set(...)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_index.go:37
+github.com/quic-go/quic-go/internal/ackhandler.TestSlotSetSearches(0x63783325a248)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m1/internal/ackhandler/recovery_equivalence_test.go:477 +0x998
+testing.tRunner(0x63783325a248, 0x1046a8c30)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2193 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2258 +0x3b8
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	10.901s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.197s
+FAIL
+FAILED: go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1

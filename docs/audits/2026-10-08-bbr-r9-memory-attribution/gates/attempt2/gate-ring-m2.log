@@ -1,0 +1,390 @@
+# Gates for gate-ring-m2 (exported tree; build receipt bin/gate-ring-m2-build.json)
+# go version go1.27.0 darwin/arm64
+14:	maxRecoveryOutcomes = 4096
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+--- FAIL: TestRecoveryLowerBoundEquivalence (0.01s)
+    recovery_bracket_test.go:91: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+        	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+        	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_bracket_test.go:91
+        	Error:      	Not equal: 
+        	            	expected: [64]uint64{0x0, 0x400000000000, 0x100000100000000, 0x10000000000000, 0x800000, 0x0, 0x1000, 0x400000020000, 0x80000100000000, 0x100, 0x0, 0x1000000, 0x100, 0x0, 0x40000000000, 0x1, 0x200, 0x0, 0x20000400000000, 0x0, 0x0, 0x8000020000200, 0x10000000000, 0x8020, 0x0, 0x0, 0x100000000000, 0x8, 0x10000000020, 0x0, 0x0, 0x8040000002, 0x2000000000000000, 0x0, 0x2000000000000000, 0x8000000, 0x8200000000004, 0x1000000000000000, 0x0, 0x80000000000, 0x0, 0x0, 0x0, 0x800000, 0x20000000000008, 0x0, 0x0, 0x0, 0x1000000, 0x18000000000, 0x0, 0x0, 0x800000000, 0x100000000000, 0x0, 0x400000, 0x0, 0xa00000, 0x2, 0x80, 0x12000000, 0x81000, 0x0, 0x0}
+        	            	actual  : [64]uint64{0x1200, 0x400000000010, 0x108000100000800, 0x10000000000000, 0x800000, 0x2000000200000000, 0x82081400, 0x400100020000, 0x80000100000000, 0x800100, 0x8000000, 0x1000000, 0x100, 0x0, 0x40000000000, 0x1, 0x200, 0x0, 0x20000400000000, 0x0, 0x0, 0x8000020000200, 0x10000000000, 0x8020, 0x0, 0x0, 0x100000000000, 0x8, 0x10000000020, 0x0, 0x0, 0x8040000002, 0x2000000000000000, 0x0, 0x2000000000000000, 0x8000000, 0x8200000000004, 0x1000000000000000, 0x0, 0x80000000000, 0x0, 0x0, 0x0, 0x800000, 0x20000000000008, 0x0, 0x0, 0x0, 0x1000000, 0x18000000000, 0x0, 0x0, 0x800000000, 0x100000000000, 0x0, 0x400000, 0x0, 0xa00000, 0x2, 0x80, 0x12000000, 0x81000, 0x0, 0x0}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,13 +1,13 @@
+        	            	 ([64]uint64) (len=64) {
+        	            	- (uint64) 0,
+        	            	- (uint64) 70368744177664,
+        	            	- (uint64) 72057598332895232,
+        	            	+ (uint64) 4608,
+        	            	+ (uint64) 70368744177680,
+        	            	+ (uint64) 74309398146582528,
+        	            	  (uint64) 4503599627370496,
+        	            	  (uint64) 8388608,
+        	            	- (uint64) 0,
+        	            	- (uint64) 4096,
+        	            	- (uint64) 70368744308736,
+        	            	+ (uint64) 2305843017803628544,
+        	            	+ (uint64) 2181567488,
+        	            	+ (uint64) 70373039276032,
+        	            	  (uint64) 36028801313931264,
+        	            	- (uint64) 256,
+        	            	- (uint64) 0,
+        	            	+ (uint64) 8388864,
+        	            	+ (uint64) 134217728,
+        	            	  (uint64) 16777216,
+        	Test:       	TestRecoveryLowerBoundEquivalence
+        	Messages:   	eligible words
+--- FAIL: TestRecoveryEquivalenceScenarios (0.16s)
+    --- FAIL: TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap (0.02s)
+        recovery_equivalence_test.go:341: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:353
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:341
+            	Error:      	Not equal: 
+            	            	expected: [64]uint64{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+            	            	actual  : [64]uint64{0x6, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,3 +1,3 @@
+            	            	 ([64]uint64) (len=64) {
+            	            	- (uint64) 0,
+            	            	+ (uint64) 6,
+            	            	  (uint64) 0,
+            	Test:       	TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap
+            	Messages:   	eligible words
+--- FAIL: TestRecoveryEquivalenceHistories (2.32s)
+    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.06s)
+        recovery_twin_test.go:647: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:353
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:329
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:106
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:647
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:430
+            	Error:      	Not equal: 
+            	            	expected: [64]uint64{0xc00041482b200000, 0xb00c464100c24110, 0x4080e44096a32882, 0x2404440a0c011060, 0x524240439409180, 0x44c17a219244a3c0, 0x44880cb020984865, 0x19b0a0852842e240, 0x38004220027420c0, 0x98684036880a4, 0x301a2110481a08d0, 0xe0a6118000601820, 0xa033480e004800c0, 0x1406170001704e22, 0x405859081b488, 0x2e3600a001020c90, 0xc000b0a08122c030, 0x90824098b443808b, 0x2802a2290a833641, 0x8200206290c2013, 0x6484418280104cc0, 0x2001001159400842, 0x64000b000b200111, 0x4470984a8d28210, 0x614900c4a0876082, 0x1080002c72015010, 0x702283000800180a, 0x27a82108822a2b01, 0x306026608280201, 0x41288920000238, 0x80005240899900c9, 0x10283020000480e8, 0x100598888711004, 0x89d608614100a882, 0xa1a806140010000, 0x8000a0ac80308008, 0xb000d12621c10b5c, 0x70d1400852822108, 0x9540000001001080, 0x51c2200221201191, 0x98273882020d0014, 0x5f07c269c00a0108, 0x4880326413704b00, 0x420025c4024134, 0x41412442100a, 0xc28804812910b401, 0xd81030c2910b05cc, 0x488012108040522, 0x70269210003120a, 0x3028004040c32842, 0x24500000442c0052, 0x1104941200143200, 0xa1b142ea20020830, 0x64d012040239410a, 0x38003c4905c0401, 0x14a10005145a124e, 0x410110000818106, 0xa92180c00400a, 0x833084c892002100, 0x40921859501000, 0x20041003c007a480, 0x20a02700f4222b50, 0xd00864400201d03, 0xe04003281c728510}
+            	            	actual  : [64]uint64{0xc0817148eb724241, 0xb08f4ef343ee5370, 0xc481e548b7ab6ea2, 0xa48e458b0c43156f, 0x6f3424a4b940b9a4, 0x6cd1fb23b24ea3c1, 0x7cc93cb0209c6867, 0x19f8a0852842e348, 0x78415a3266f478c0, 0x40a9868483e8e0e7, 0x3a9ebd126b5b48f1, 0xe8afb1ac96609ca2, 0xa0bb49cf5c5eddc0, 0x9d96174d53794f2a, 0x29e8d959c93b4c8, 0x3e7f04a0c1076cba, 0xd138f1f28922c177, 0x90825abab56ba18b, 0x2802a2290a833641, 0x8200206290c2013, 0x6484418280104cc0, 0x2001001159400842, 0x64000b000b200111, 0x4470984a8d28210, 0x614900c4a0876082, 0x1080002c72015010, 0x702283000800180a, 0x27a82108822a2b01, 0x306026608280201, 0x41288920000238, 0x80005240899900c9, 0x10283020000480e8, 0x100598888711004, 0x89d608614100a882, 0xa1a806140010000, 0x8000a0ac80308008, 0xb000d12621c10b5c, 0x70d1400852822108, 0x9540000001001080, 0x51c2200221201191, 0x98273882020d0014, 0x5f07c269c00a0108, 0x4880326413704b00, 0x420025c4024134, 0x41412442100a, 0xc28804812910b401, 0xd81030c2910b05cc, 0x488012108040522, 0x70269210003120a, 0x3028004040c32842, 0x24500000442c0052, 0x1104941200143200, 0xa1b142ea20020830, 0x64d012040239410a, 0x38003c4905c0401, 0x14a10005145a124e, 0x410110000818106, 0xa92180c00400a, 0x833084c892002100, 0x40921859501000, 0x20041003c007a480, 0x20a02700f4222b50, 0xd00864400201d03, 0xe04003281c728510}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,20 +1,20 @@
+            	            	 ([64]uint64) (len=64) {
+            	            	- (uint64) 13835129833499131904,
+            	            	- (uint64) 12685591495395393808,
+            	            	- (uint64) 4647965781502666882,
+            	            	- (uint64) 2595274095214006368,
+            	            	- (uint64) 370460669910225280,
+            	            	- (uint64) 4954375349690737600,
+            	            	- (uint64) 4938210942012377189,
+            	            	- (uint64) 1851155940615840320,
+            	            	- (uint64) 4035297971371516096,
+            	            	- (uint64) 2681176341381284,
+            	            	- (uint64) 3466119217027877072,
+            	            	- (uint64) 16187645152089610272,
+            	            	- (uint64) 11543649494852174016,
+            	            	- (uint64) 1442866019410398754,
+            	            	- (uint64) 1131971120051336,
+            	            	- (uint64) 3329849661698739344,
+            	            	- (uint64) 13835252258689957936,
+            	            	- (uint64) 10412956313037537419,
+            	            	+ (uint64) 13871492885279556161,
+            	            	+ (uint64) 12722474279068652400,
+            	            	+ (uint64) 14159850803911421602,
+            	            	+ (uint64) 11857491332421588335,
+            	            	+ (uint64) 8013069926900218276,
+            	            	+ (uint64) 7841324556962669505,
+            	            	+ (uint64) 8991784858180937831,
+            	            	+ (uint64) 1871422138939007816,
+            	            	+ (uint64) 8665306330559707328,
+            	            	+ (uint64) 4659403193198371047,
+            	            	+ (uint64) 4224021387328309489,
+            	            	+ (uint64) 16766815292539051170,
+            	            	+ (uint64) 11581932021670141376,
+            	            	+ (uint64) 11355289131341664042,
+            	            	+ (uint64) 188743908112708808,
+            	            	+ (uint64) 4503323240873553082,
+            	            	+ (uint64) 15076065776607871351,
+            	            	+ (uint64) 10412985046388154763,
+            	            	  (uint64) 2883045008624268865,
+            	Test:       	TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets
+            	Messages:   	eligible words
+    recovery_equivalence_test.go:447: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:447
+        	Error:      	"0" is not positive
+        	Test:       	TestRecoveryEquivalenceHistories
+        	Messages:   	retained capacity evictions
+FAIL
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	10.110s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.147s
+FAIL
+FAILED: go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+--- FAIL: TestRecoveryLowerBoundEquivalence (0.04s)
+    recovery_bracket_test.go:91: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+        	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+        	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_bracket_test.go:91
+        	Error:      	Not equal: 
+        	            	expected: [64]uint64{0x0, 0x400000000000, 0x100000100000000, 0x10000000000000, 0x800000, 0x0, 0x1000, 0x400000020000, 0x80000100000000, 0x100, 0x0, 0x1000000, 0x100, 0x0, 0x40000000000, 0x1, 0x200, 0x0, 0x20000400000000, 0x0, 0x0, 0x8000020000200, 0x10000000000, 0x8020, 0x0, 0x0, 0x100000000000, 0x8, 0x10000000020, 0x0, 0x0, 0x8040000002, 0x2000000000000000, 0x0, 0x2000000000000000, 0x8000000, 0x8200000000004, 0x1000000000000000, 0x0, 0x80000000000, 0x0, 0x0, 0x0, 0x800000, 0x20000000000008, 0x0, 0x0, 0x0, 0x1000000, 0x18000000000, 0x0, 0x0, 0x800000000, 0x100000000000, 0x0, 0x400000, 0x0, 0xa00000, 0x2, 0x80, 0x12000000, 0x81000, 0x0, 0x0}
+        	            	actual  : [64]uint64{0x1200, 0x400000000010, 0x108000100000800, 0x10000000000000, 0x800000, 0x2000000200000000, 0x82081400, 0x400100020000, 0x80000100000000, 0x800100, 0x8000000, 0x1000000, 0x100, 0x0, 0x40000000000, 0x1, 0x200, 0x0, 0x20000400000000, 0x0, 0x0, 0x8000020000200, 0x10000000000, 0x8020, 0x0, 0x0, 0x100000000000, 0x8, 0x10000000020, 0x0, 0x0, 0x8040000002, 0x2000000000000000, 0x0, 0x2000000000000000, 0x8000000, 0x8200000000004, 0x1000000000000000, 0x0, 0x80000000000, 0x0, 0x0, 0x0, 0x800000, 0x20000000000008, 0x0, 0x0, 0x0, 0x1000000, 0x18000000000, 0x0, 0x0, 0x800000000, 0x100000000000, 0x0, 0x400000, 0x0, 0xa00000, 0x2, 0x80, 0x12000000, 0x81000, 0x0, 0x0}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,13 +1,13 @@
+        	            	 ([64]uint64) (len=64) {
+        	            	- (uint64) 0,
+        	            	- (uint64) 70368744177664,
+        	            	- (uint64) 72057598332895232,
+        	            	+ (uint64) 4608,
+        	            	+ (uint64) 70368744177680,
+        	            	+ (uint64) 74309398146582528,
+        	            	  (uint64) 4503599627370496,
+        	            	  (uint64) 8388608,
+        	            	- (uint64) 0,
+        	            	- (uint64) 4096,
+        	            	- (uint64) 70368744308736,
+        	            	+ (uint64) 2305843017803628544,
+        	            	+ (uint64) 2181567488,
+        	            	+ (uint64) 70373039276032,
+        	            	  (uint64) 36028801313931264,
+        	            	- (uint64) 256,
+        	            	- (uint64) 0,
+        	            	+ (uint64) 8388864,
+        	            	+ (uint64) 134217728,
+        	            	  (uint64) 16777216,
+        	Test:       	TestRecoveryLowerBoundEquivalence
+        	Messages:   	eligible words
+--- FAIL: TestRecoveryEquivalenceScenarios (1.49s)
+    --- FAIL: TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap (0.24s)
+        recovery_equivalence_test.go:341: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:353
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:341
+            	Error:      	Not equal: 
+            	            	expected: [64]uint64{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+            	            	actual  : [64]uint64{0x6, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,3 +1,3 @@
+            	            	 ([64]uint64) (len=64) {
+            	            	- (uint64) 0,
+            	            	+ (uint64) 6,
+            	            	  (uint64) 0,
+            	Test:       	TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap
+            	Messages:   	eligible words
+--- FAIL: TestRecoveryEquivalenceHistories (41.89s)
+    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.60s)
+        recovery_twin_test.go:647: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:353
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:329
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:106
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:647
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:430
+            	Error:      	Not equal: 
+            	            	expected: [64]uint64{0xc00041482b200000, 0xb00c464100c24110, 0x4080e44096a32882, 0x2404440a0c011060, 0x524240439409180, 0x44c17a219244a3c0, 0x44880cb020984865, 0x19b0a0852842e240, 0x38004220027420c0, 0x98684036880a4, 0x301a2110481a08d0, 0xe0a6118000601820, 0xa033480e004800c0, 0x1406170001704e22, 0x405859081b488, 0x2e3600a001020c90, 0xc000b0a08122c030, 0x90824098b443808b, 0x2802a2290a833641, 0x8200206290c2013, 0x6484418280104cc0, 0x2001001159400842, 0x64000b000b200111, 0x4470984a8d28210, 0x614900c4a0876082, 0x1080002c72015010, 0x702283000800180a, 0x27a82108822a2b01, 0x306026608280201, 0x41288920000238, 0x80005240899900c9, 0x10283020000480e8, 0x100598888711004, 0x89d608614100a882, 0xa1a806140010000, 0x8000a0ac80308008, 0xb000d12621c10b5c, 0x70d1400852822108, 0x9540000001001080, 0x51c2200221201191, 0x98273882020d0014, 0x5f07c269c00a0108, 0x4880326413704b00, 0x420025c4024134, 0x41412442100a, 0xc28804812910b401, 0xd81030c2910b05cc, 0x488012108040522, 0x70269210003120a, 0x3028004040c32842, 0x24500000442c0052, 0x1104941200143200, 0xa1b142ea20020830, 0x64d012040239410a, 0x38003c4905c0401, 0x14a10005145a124e, 0x410110000818106, 0xa92180c00400a, 0x833084c892002100, 0x40921859501000, 0x20041003c007a480, 0x20a02700f4222b50, 0xd00864400201d03, 0xe04003281c728510}
+            	            	actual  : [64]uint64{0xc0817148eb724241, 0xb08f4ef343ee5370, 0xc481e548b7ab6ea2, 0xa48e458b0c43156f, 0x6f3424a4b940b9a4, 0x6cd1fb23b24ea3c1, 0x7cc93cb0209c6867, 0x19f8a0852842e348, 0x78415a3266f478c0, 0x40a9868483e8e0e7, 0x3a9ebd126b5b48f1, 0xe8afb1ac96609ca2, 0xa0bb49cf5c5eddc0, 0x9d96174d53794f2a, 0x29e8d959c93b4c8, 0x3e7f04a0c1076cba, 0xd138f1f28922c177, 0x90825abab56ba18b, 0x2802a2290a833641, 0x8200206290c2013, 0x6484418280104cc0, 0x2001001159400842, 0x64000b000b200111, 0x4470984a8d28210, 0x614900c4a0876082, 0x1080002c72015010, 0x702283000800180a, 0x27a82108822a2b01, 0x306026608280201, 0x41288920000238, 0x80005240899900c9, 0x10283020000480e8, 0x100598888711004, 0x89d608614100a882, 0xa1a806140010000, 0x8000a0ac80308008, 0xb000d12621c10b5c, 0x70d1400852822108, 0x9540000001001080, 0x51c2200221201191, 0x98273882020d0014, 0x5f07c269c00a0108, 0x4880326413704b00, 0x420025c4024134, 0x41412442100a, 0xc28804812910b401, 0xd81030c2910b05cc, 0x488012108040522, 0x70269210003120a, 0x3028004040c32842, 0x24500000442c0052, 0x1104941200143200, 0xa1b142ea20020830, 0x64d012040239410a, 0x38003c4905c0401, 0x14a10005145a124e, 0x410110000818106, 0xa92180c00400a, 0x833084c892002100, 0x40921859501000, 0x20041003c007a480, 0x20a02700f4222b50, 0xd00864400201d03, 0xe04003281c728510}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,20 +1,20 @@
+            	            	 ([64]uint64) (len=64) {
+            	            	- (uint64) 13835129833499131904,
+            	            	- (uint64) 12685591495395393808,
+            	            	- (uint64) 4647965781502666882,
+            	            	- (uint64) 2595274095214006368,
+            	            	- (uint64) 370460669910225280,
+            	            	- (uint64) 4954375349690737600,
+            	            	- (uint64) 4938210942012377189,
+            	            	- (uint64) 1851155940615840320,
+            	            	- (uint64) 4035297971371516096,
+            	            	- (uint64) 2681176341381284,
+            	            	- (uint64) 3466119217027877072,
+            	            	- (uint64) 16187645152089610272,
+            	            	- (uint64) 11543649494852174016,
+            	            	- (uint64) 1442866019410398754,
+            	            	- (uint64) 1131971120051336,
+            	            	- (uint64) 3329849661698739344,
+            	            	- (uint64) 13835252258689957936,
+            	            	- (uint64) 10412956313037537419,
+            	            	+ (uint64) 13871492885279556161,
+            	            	+ (uint64) 12722474279068652400,
+            	            	+ (uint64) 14159850803911421602,
+            	            	+ (uint64) 11857491332421588335,
+            	            	+ (uint64) 8013069926900218276,
+            	            	+ (uint64) 7841324556962669505,
+            	            	+ (uint64) 8991784858180937831,
+            	            	+ (uint64) 1871422138939007816,
+            	            	+ (uint64) 8665306330559707328,
+            	            	+ (uint64) 4659403193198371047,
+            	            	+ (uint64) 4224021387328309489,
+            	            	+ (uint64) 16766815292539051170,
+            	            	+ (uint64) 11581932021670141376,
+            	            	+ (uint64) 11355289131341664042,
+            	            	+ (uint64) 188743908112708808,
+            	            	+ (uint64) 4503323240873553082,
+            	            	+ (uint64) 15076065776607871351,
+            	            	+ (uint64) 10412985046388154763,
+            	            	  (uint64) 2883045008624268865,
+            	Test:       	TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets
+            	Messages:   	eligible words
+    recovery_equivalence_test.go:447: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:447
+        	Error:      	"0" is not positive
+        	Test:       	TestRecoveryEquivalenceHistories
+        	Messages:   	retained capacity evictions
+FAIL
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	153.415s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.283s
+FAIL
+FAILED: go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+--- FAIL: TestRecoveryLowerBoundEquivalence (0.01s)
+    recovery_bracket_test.go:91: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+        	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+        	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_bracket_test.go:91
+        	Error:      	Not equal: 
+        	            	expected: [64]uint64{0x0, 0x400000000000, 0x100000100000000, 0x10000000000000, 0x800000, 0x0, 0x1000, 0x400000020000, 0x80000100000000, 0x100, 0x0, 0x1000000, 0x100, 0x0, 0x40000000000, 0x1, 0x200, 0x0, 0x20000400000000, 0x0, 0x0, 0x8000020000200, 0x10000000000, 0x8020, 0x0, 0x0, 0x100000000000, 0x8, 0x10000000020, 0x0, 0x0, 0x8040000002, 0x2000000000000000, 0x0, 0x2000000000000000, 0x8000000, 0x8200000000004, 0x1000000000000000, 0x0, 0x80000000000, 0x0, 0x0, 0x0, 0x800000, 0x20000000000008, 0x0, 0x0, 0x0, 0x1000000, 0x18000000000, 0x0, 0x0, 0x800000000, 0x100000000000, 0x0, 0x400000, 0x0, 0xa00000, 0x2, 0x80, 0x12000000, 0x81000, 0x0, 0x0}
+        	            	actual  : [64]uint64{0x1200, 0x400000000010, 0x108000100000800, 0x10000000000000, 0x800000, 0x2000000200000000, 0x82081400, 0x400100020000, 0x80000100000000, 0x800100, 0x8000000, 0x1000000, 0x100, 0x0, 0x40000000000, 0x1, 0x200, 0x0, 0x20000400000000, 0x0, 0x0, 0x8000020000200, 0x10000000000, 0x8020, 0x0, 0x0, 0x100000000000, 0x8, 0x10000000020, 0x0, 0x0, 0x8040000002, 0x2000000000000000, 0x0, 0x2000000000000000, 0x8000000, 0x8200000000004, 0x1000000000000000, 0x0, 0x80000000000, 0x0, 0x0, 0x0, 0x800000, 0x20000000000008, 0x0, 0x0, 0x0, 0x1000000, 0x18000000000, 0x0, 0x0, 0x800000000, 0x100000000000, 0x0, 0x400000, 0x0, 0xa00000, 0x2, 0x80, 0x12000000, 0x81000, 0x0, 0x0}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,13 +1,13 @@
+        	            	 ([64]uint64) (len=64) {
+        	            	- (uint64) 0,
+        	            	- (uint64) 70368744177664,
+        	            	- (uint64) 72057598332895232,
+        	            	+ (uint64) 4608,
+        	            	+ (uint64) 70368744177680,
+        	            	+ (uint64) 74309398146582528,
+        	            	  (uint64) 4503599627370496,
+        	            	  (uint64) 8388608,
+        	            	- (uint64) 0,
+        	            	- (uint64) 4096,
+        	            	- (uint64) 70368744308736,
+        	            	+ (uint64) 2305843017803628544,
+        	            	+ (uint64) 2181567488,
+        	            	+ (uint64) 70373039276032,
+        	            	  (uint64) 36028801313931264,
+        	            	- (uint64) 256,
+        	            	- (uint64) 0,
+        	            	+ (uint64) 8388864,
+        	            	+ (uint64) 134217728,
+        	            	  (uint64) 16777216,
+        	Test:       	TestRecoveryLowerBoundEquivalence
+        	Messages:   	eligible words
+--- FAIL: TestRecoveryEquivalenceScenarios (0.15s)
+    --- FAIL: TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap (0.02s)
+        recovery_equivalence_test.go:341: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:353
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:341
+            	Error:      	Not equal: 
+            	            	expected: [64]uint64{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+            	            	actual  : [64]uint64{0x6, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,3 +1,3 @@
+            	            	 ([64]uint64) (len=64) {
+            	            	- (uint64) 0,
+            	            	+ (uint64) 6,
+            	            	  (uint64) 0,
+            	Test:       	TestRecoveryEquivalenceScenarios/multi-space_ring_wrap_with_a_run_across_the_physical_wrap
+            	Messages:   	eligible words
+--- FAIL: TestRecoveryEquivalenceHistories (2.28s)
+    --- FAIL: TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets (0.06s)
+        recovery_twin_test.go:647: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:533
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:489
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:353
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:329
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:106
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_twin_test.go:647
+            	            				/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:430
+            	Error:      	Not equal: 
+            	            	expected: [64]uint64{0xc00041482b200000, 0xb00c464100c24110, 0x4080e44096a32882, 0x2404440a0c011060, 0x524240439409180, 0x44c17a219244a3c0, 0x44880cb020984865, 0x19b0a0852842e240, 0x38004220027420c0, 0x98684036880a4, 0x301a2110481a08d0, 0xe0a6118000601820, 0xa033480e004800c0, 0x1406170001704e22, 0x405859081b488, 0x2e3600a001020c90, 0xc000b0a08122c030, 0x90824098b443808b, 0x2802a2290a833641, 0x8200206290c2013, 0x6484418280104cc0, 0x2001001159400842, 0x64000b000b200111, 0x4470984a8d28210, 0x614900c4a0876082, 0x1080002c72015010, 0x702283000800180a, 0x27a82108822a2b01, 0x306026608280201, 0x41288920000238, 0x80005240899900c9, 0x10283020000480e8, 0x100598888711004, 0x89d608614100a882, 0xa1a806140010000, 0x8000a0ac80308008, 0xb000d12621c10b5c, 0x70d1400852822108, 0x9540000001001080, 0x51c2200221201191, 0x98273882020d0014, 0x5f07c269c00a0108, 0x4880326413704b00, 0x420025c4024134, 0x41412442100a, 0xc28804812910b401, 0xd81030c2910b05cc, 0x488012108040522, 0x70269210003120a, 0x3028004040c32842, 0x24500000442c0052, 0x1104941200143200, 0xa1b142ea20020830, 0x64d012040239410a, 0x38003c4905c0401, 0x14a10005145a124e, 0x410110000818106, 0xa92180c00400a, 0x833084c892002100, 0x40921859501000, 0x20041003c007a480, 0x20a02700f4222b50, 0xd00864400201d03, 0xe04003281c728510}
+            	            	actual  : [64]uint64{0xc0817148eb724241, 0xb08f4ef343ee5370, 0xc481e548b7ab6ea2, 0xa48e458b0c43156f, 0x6f3424a4b940b9a4, 0x6cd1fb23b24ea3c1, 0x7cc93cb0209c6867, 0x19f8a0852842e348, 0x78415a3266f478c0, 0x40a9868483e8e0e7, 0x3a9ebd126b5b48f1, 0xe8afb1ac96609ca2, 0xa0bb49cf5c5eddc0, 0x9d96174d53794f2a, 0x29e8d959c93b4c8, 0x3e7f04a0c1076cba, 0xd138f1f28922c177, 0x90825abab56ba18b, 0x2802a2290a833641, 0x8200206290c2013, 0x6484418280104cc0, 0x2001001159400842, 0x64000b000b200111, 0x4470984a8d28210, 0x614900c4a0876082, 0x1080002c72015010, 0x702283000800180a, 0x27a82108822a2b01, 0x306026608280201, 0x41288920000238, 0x80005240899900c9, 0x10283020000480e8, 0x100598888711004, 0x89d608614100a882, 0xa1a806140010000, 0x8000a0ac80308008, 0xb000d12621c10b5c, 0x70d1400852822108, 0x9540000001001080, 0x51c2200221201191, 0x98273882020d0014, 0x5f07c269c00a0108, 0x4880326413704b00, 0x420025c4024134, 0x41412442100a, 0xc28804812910b401, 0xd81030c2910b05cc, 0x488012108040522, 0x70269210003120a, 0x3028004040c32842, 0x24500000442c0052, 0x1104941200143200, 0xa1b142ea20020830, 0x64d012040239410a, 0x38003c4905c0401, 0x14a10005145a124e, 0x410110000818106, 0xa92180c00400a, 0x833084c892002100, 0x40921859501000, 0x20041003c007a480, 0x20a02700f4222b50, 0xd00864400201d03, 0xe04003281c728510}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,20 +1,20 @@
+            	            	 ([64]uint64) (len=64) {
+            	            	- (uint64) 13835129833499131904,
+            	            	- (uint64) 12685591495395393808,
+            	            	- (uint64) 4647965781502666882,
+            	            	- (uint64) 2595274095214006368,
+            	            	- (uint64) 370460669910225280,
+            	            	- (uint64) 4954375349690737600,
+            	            	- (uint64) 4938210942012377189,
+            	            	- (uint64) 1851155940615840320,
+            	            	- (uint64) 4035297971371516096,
+            	            	- (uint64) 2681176341381284,
+            	            	- (uint64) 3466119217027877072,
+            	            	- (uint64) 16187645152089610272,
+            	            	- (uint64) 11543649494852174016,
+            	            	- (uint64) 1442866019410398754,
+            	            	- (uint64) 1131971120051336,
+            	            	- (uint64) 3329849661698739344,
+            	            	- (uint64) 13835252258689957936,
+            	            	- (uint64) 10412956313037537419,
+            	            	+ (uint64) 13871492885279556161,
+            	            	+ (uint64) 12722474279068652400,
+            	            	+ (uint64) 14159850803911421602,
+            	            	+ (uint64) 11857491332421588335,
+            	            	+ (uint64) 8013069926900218276,
+            	            	+ (uint64) 7841324556962669505,
+            	            	+ (uint64) 8991784858180937831,
+            	            	+ (uint64) 1871422138939007816,
+            	            	+ (uint64) 8665306330559707328,
+            	            	+ (uint64) 4659403193198371047,
+            	            	+ (uint64) 4224021387328309489,
+            	            	+ (uint64) 16766815292539051170,
+            	            	+ (uint64) 11581932021670141376,
+            	            	+ (uint64) 11355289131341664042,
+            	            	+ (uint64) 188743908112708808,
+            	            	+ (uint64) 4503323240873553082,
+            	            	+ (uint64) 15076065776607871351,
+            	            	+ (uint64) 10412985046388154763,
+            	            	  (uint64) 2883045008624268865,
+            	Test:       	TestRecoveryEquivalenceHistories/mixed_spaces,_probes,_skips,_invalid_registrations,_retained_pressure_and_resets
+            	Messages:   	eligible words
+    recovery_equivalence_test.go:447: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/gate-ring-m2/internal/ackhandler/recovery_equivalence_test.go:447
+        	Error:      	"0" is not positive
+        	Test:       	TestRecoveryEquivalenceHistories
+        	Messages:   	retained capacity evictions
+FAIL
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	10.085s
+FAIL
+FAILED: go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	0.695s
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	5.294s
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+ok  	github.com/quic-go/quic-go	1.834s
+659 top-level PASS
+7 top-level SKIP
+# status 1

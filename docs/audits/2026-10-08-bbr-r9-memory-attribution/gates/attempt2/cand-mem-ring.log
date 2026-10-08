@@ -1,0 +1,21 @@
+# Gates for cand-mem-ring (exported tree; build receipt bin/cand-mem-ring-build.json)
+# go version go1.27.0 darwin/arm64
+14:	maxRecoveryOutcomes = 4096
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	11.447s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.108s
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	170.032s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.262s
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	11.209s
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	0.650s
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	5.293s
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+ok  	github.com/quic-go/quic-go	1.815s
+659 top-level PASS
+7 top-level SKIP
+# status 0

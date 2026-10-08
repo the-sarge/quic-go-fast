@@ -1,0 +1,12 @@
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+ok  	github.com/quic-go/quic-go/internal/ackhandler	22.386s
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	0.704s
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	5.325s
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+shell-init: error retrieving current directory: getcwd: cannot access parent directories: No such file or directory
+ok  	github.com/quic-go/quic-go	1.835s
+659 top-level PASS
+7 top-level SKIP
+# status 0

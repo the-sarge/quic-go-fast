@@ -1,0 +1,105 @@
+# Gates for cand-mem-ring (exported tree; build receipt bin/cand-mem-ring-build.json)
+# go version go1.27.0 darwin/arm64
+14:	maxRecoveryOutcomes = 4096
+$ go vet .
+$ go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+--- FAIL: TestBBRPTOEvidenceBounds (0.01s)
+    --- FAIL: TestBBRPTOEvidenceBounds/retained_eviction (0.00s)
+        bbr_pto_test.go:238: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/bbr_pto_test.go:238
+            	Error:      	Not equal: 
+            	            	expected: true
+            	            	actual  : false
+            	Test:       	TestBBRPTOEvidenceBounds/retained_eviction
+--- FAIL: TestSlotSetSearches (0.00s)
+panic: runtime error: index out of range [-15] [recovered, repanicked]
+
+goroutine 362 [running]:
+testing.tRunner.func1.2({0x1008e2a98, 0x5e1b158bc3a8})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2123 +0x1a0
+testing.tRunner.func1()
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2126 +0x2c8
+panic({0x1008e2a98?, 0x5e1b158bc3a8?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/panic.go:859 +0x120
+github.com/quic-go/quic-go/internal/ackhandler.(*slotSet).set(...)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/recovery_index.go:37
+github.com/quic-go/quic-go/internal/ackhandler.TestSlotSetSearches(0x5e1b15bfc248)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/recovery_equivalence_test.go:477 +0x998
+testing.tRunner(0x5e1b15bfc248, 0x1008fcc30)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2193 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2258 +0x3b8
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	11.143s
+ok  	github.com/quic-go/quic-go/internal/congestion	0.149s
+FAIL
+FAILED: go test ./internal/ackhandler/... ./internal/congestion/... -count=1
+$ go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+--- FAIL: TestBBRPTOEvidenceBounds (0.13s)
+    --- FAIL: TestBBRPTOEvidenceBounds/retained_eviction (0.04s)
+        bbr_pto_test.go:238: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/bbr_pto_test.go:238
+            	Error:      	Not equal: 
+            	            	expected: true
+            	            	actual  : false
+            	Test:       	TestBBRPTOEvidenceBounds/retained_eviction
+--- FAIL: TestSlotSetSearches (0.00s)
+panic: runtime error: index out of range [-15] [recovered, repanicked]
+
+goroutine 370 [running]:
+testing.tRunner.func1.2({0x1009dbd20, 0xc00001e1f8})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2123 +0x2b8
+testing.tRunner.func1()
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2126 +0x438
+panic({0x1009dbd20?, 0xc00001e1f8?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/panic.go:859 +0x120
+github.com/quic-go/quic-go/internal/ackhandler.(*slotSet).set(...)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/recovery_index.go:37
+github.com/quic-go/quic-go/internal/ackhandler.TestSlotSetSearches(0xc000384488)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/recovery_equivalence_test.go:477 +0xe28
+testing.tRunner(0xc000384488, 0x1009f6be8)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2193 +0x168
+created by testing.(*T).Run in goroutine 1
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2258 +0x7c0
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	169.384s
+ok  	github.com/quic-go/quic-go/internal/congestion	1.291s
+FAIL
+FAILED: go test -race ./internal/ackhandler/ ./internal/congestion/ -count=1
+$ go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+--- FAIL: TestBBRPTOEvidenceBounds (0.01s)
+    --- FAIL: TestBBRPTOEvidenceBounds/retained_eviction (0.00s)
+        bbr_pto_test.go:238: 
+            	Error Trace:	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/bbr_pto_test.go:238
+            	Error:      	Not equal: 
+            	            	expected: true
+            	            	actual  : false
+            	Test:       	TestBBRPTOEvidenceBounds/retained_eviction
+--- FAIL: TestSlotSetSearches (0.00s)
+panic: runtime error: index out of range [-15] [recovered, repanicked]
+
+goroutine 107 [running]:
+testing.tRunner.func1.2({0x1008cb418, 0xc3cc2dbe1c8})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2123 +0x1a0
+testing.tRunner.func1()
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2126 +0x2c8
+panic({0x1008cb418?, 0xc3cc2dbe1c8?})
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/runtime/panic.go:859 +0x120
+github.com/quic-go/quic-go/internal/ackhandler.(*slotSet).set(...)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/recovery_index.go:37
+github.com/quic-go/quic-go/internal/ackhandler.TestSlotSetSearches(0xc3cc3962248)
+	/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/src/cand-mem-ring/internal/ackhandler/recovery_equivalence_test.go:477 +0x998
+testing.tRunner(0xc3cc3962248, 0x1008e56f8)
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2193 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/josh/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.0.darwin-arm64/src/testing/testing.go:2258 +0x3b8
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	11.206s
+FAIL
+FAILED: go test -tags bbrworkcount ./internal/ackhandler/ -count=1
+$ go test . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	0.696s
+$ go test -race . -run BBR|Emission|Credit|Delivery|ECN|Continuation|Pacing|Capability -count=1
+ok  	github.com/quic-go/quic-go	5.295s
+$ sh -c out=$(mktemp); go test . -count=1 -v >"$out" 2>&1; s=$?; grep -E "^(--- FAIL|FAIL|ok|panic)" "$out"; grep -cE "^--- PASS" "$out" | sed "s/$/ top-level PASS/"; grep -cE "^--- SKIP" "$out" | sed "s/$/ top-level SKIP/"; rm -f "$out"; exit $s
+ok  	github.com/quic-go/quic-go	1.844s
+659 top-level PASS
+7 top-level SKIP
+# status 1
