@@ -4,11 +4,128 @@
 
 Branch `codex/bbr-r9-memory-attribution`, based on `138223ac` (the [r9 Linux re-demonstration](../2026-10-08-bbr-r9-linux-redemonstration/README.md), #739), whose tree's code is exactly r9. The revision under test is **r9, `81e9dc8c`**: r8 plus #738's 32-entry BBR send queue. No BBR revision newer than r9 exists. The operator notes that the BBRv3 implementation is still under active performance development. Every result here describes r9 on `minimax` only. None is a verdict on BBRv3 or on later revisions.
 
-**Status: registration, revised after three considerations.** Everything below was written, with the aids built, the gates run and the instruments checked, before any comparative observation of this ticket. The first registration (`c0c33ebf`) and its revisions (`2bade4e5`, `2edde6af`) were each gated by a multi-agent consideration before any data. All findings were dispositioned and the registration revised ([Consideration and revisions](#consideration-and-revisions)). Results, deviations and later sections will be added after the data, below a marker, and these sections will stay unchanged.
+**Status: complete.** The sections from [Cells](#cells) to the end were written before any comparative observation of this ticket: the registration `c0c33ebf`, revised before data after three `ras consider` rounds (`2bade4e5`, `2edde6af`, `ad04c183`), and approved by the operator (`b254dd10`). They are unchanged. The [Answer](#answer), [Results](#results), [Flag report](#flag-report-for-the-next-decision), [Deviations](#deviations), [Preservation](#preservation), [Limits](#limits) and [Assets](#assets-and-reconstruction) sections were added afterwards.
 
 ## Question
 
 On r9, what makes up each raised memory cell's resident-memory excess, and do both S6 control p95 cells meet the Up-policy attribution rule? By operator decision, the same attribution covers r9's two new loopback receiver RSS cells, and the candidate's loopback STREAM control p95 cell gets an adequate-sample check.
+
+## Answer
+
+**No raised memory cell receives a causal label on r9. Both S6 control p95 cells are attributed to the selected ProbeBW Up policy. The candidate's loopback STREAM control p95 regression reproduces at an adequate sample.** Every cell ends with a registered label, on r9 (`81e9dc8c`) on `minimax` only.
+
+Memory cells:
+- **S5 STREAM sender RSS (1.235): mixed.** The 4,096-entry ring treatment removes 0.48–0.57 of the excess. Beyond the A/A variation that is at least 0.44, in all three blocks where its traffic was comparable. The fixed outcome ring therefore accounts for about half of this cell's resident excess, but not the 70% a label needs. The sampled-RSS sensitivity pass agrees.
+- **S5 DATAGRAM sender RSS (1.159): evidence gap** (resident memory unexplained by the accounting). One block had no excess (E −0.01 MiB) and one exceeded the unexplained share (0.26), leaving two explained blocks.
+- **Inconclusive (receiver-controller arm confounded or uncalibrated)**: S5 STREAM receiver (1.518), S6 STREAM sender (1.673) and receiver (1.898), S6 DATAGRAM sender (1.542), and loopback STREAM receiver (1.120). Among each cell's explained blocks, the receiver-controller arm's traffic stayed inside the A/A band in only one block (two for loopback STREAM receiver), fewer than the three a label needs.
+- **Loopback DATAGRAM receiver RSS (1.148): instrumentation gap (perturbation).** The instrumented candidate's goodput was 0.989 of plain, below 0.99. Under operator decision 1 this cell ends here, and the S5 and S6 work is unaffected.
+
+Latency cells:
+- **S6 control p95: selected ProbeBW Up policy, both workloads,** under the strict D2 reading, in all eight runs per workload:
+  - STREAM (1.562): 98.6–99.4% of queue samples above 25 ms fall in Up or the Down entered from Up; Cruise medians 0.11–0.22 ms; Refill medians 0.17–0.23 ms; S5 matched-load p95 1.061.
+  - DATAGRAM (1.459): 98.5–100% in Up or the following Down; Cruise 0.20 ms; Refill 0.10–0.20 ms; S5 matched-load 1.021.
+- **Loopback STREAM control p95 (1.485): regression reproduced** (`latcand-stream`, #715's rule unchanged). Over six blocks the pooled p95 is 0.258 ms against frozen Reno's 0.140 ms. That is a ratio of 1.849, with a 95% block-bootstrap interval of 1.672–2.014; the per-block ratios are 1.41–2.23, all six above 1. Under the operator's mapping the cell **stays blocking and unresolved**; the stage finds no cause.
+
+Descriptive findings (no label):
+- **The outcome ring's resident cost is about twice its bytes.** Shrinking the ring to 4,096 entries cut the sender's peak resident memory as follows:
+
+  | Path | Live heap cut (MiB) | Peak resident cut (MiB) |
+  | --- | --- | --- |
+  | STREAM, S5 and S6 | 0.98–1.13, matching the ring's explicit 0.999 MiB | 0.5–2.7, median about 2.2 |
+  | DATAGRAM | −0.27 to 1.47 | 1.3–2.3 |
+
+  The STREAM pattern is the GOGC doubling the registration modeled. It is about 2 MiB of each sender's 3–10 MiB excess, but the ring arm's traffic left the A/A band in most S6 blocks: S6 STREAM goodput was 1.1–5.0% lower, plausibly from earlier eviction.
+- **Receivers carry BBR bookkeeping.** Each candidate receiver holds 1.18–1.35 MiB of explicit BBR structures. Selecting Reno at the receiver removed 0.83–1.03 of the loopback STREAM receiver's excess, more than the whole excess of the loopback DATAGRAM receiver (1.22–2.64 of E), and 0.17–0.45 of the S5 STREAM receiver's. The loopback STREAM receiver's sensitivity pass would have labeled it receiver-side controller state. Its primary pass did not, because only two explained blocks were comparable.
+- **The accounting places the excesses in heap memory.** In explained blocks the heap classes hold most of each excess. File-backed pages differ by 0.05 MiB, stacks by under 0.1 MiB and runtime metadata by 0.5 MiB or less.
+- **The comparability bands were narrow.** Four clean A/A pairs gave bands of 1–2%, often at the 1% floor, while treatment arms differed from the candidate by about ±1–5%. That scatter, not a single large shift, is what confounded most blocks. One small systematic tendency: with Reno at the receiver, the receiver sent fewer packets per useful GiB in 14 of 16 WAN blocks, by up to 2%.
+
+## Results
+
+All 124 counted observations exited cleanly. Every block's original attempt was clean: no contamination, no failed observation and no rerun, so `follow.py` took no decision. The ring preflight read **run**: predicted reduction 0.999 MiB against the 0.5 MiB threshold; gates and native gates passed; both injected violations were detected; the instrument prerequisite was met (receiver-controller arm engaged; 51 S6 phase transitions; packet counters advancing).
+
+**Perturbation** (instrumented ÷ plain median goodput, the same seeds, four clean blocks each; [memory.json](memory.json) `perturbation`):
+
+| Path | STREAM candidate | STREAM Reno | DATAGRAM candidate | DATAGRAM Reno |
+| --- | --- | --- | --- | --- |
+| S5 | 1.002 | 1.000 | 1.003 | 1.000 |
+| S6 | 1.008 | 1.002 | 1.000 | 1.019 |
+| Loopback | 1.001 | 0.998 | **0.989** | 1.005 |
+
+**Memory cells.** Medians and ranges over the four blocks ([memory.json](memory.json) `cells`; MiB unless noted). E is the candidate's peak excess over frozen Reno. "Ring" and "receiver Reno" are the removal fractions of E. The classes are the accounting excess at the peak sample.
+
+| Cell (readiness ratio) | Ending | E | Ring | Receiver Reno | Heap | Live | Objects (window) | BBR explicit (candidate) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| S5 STREAM sender (1.235) | **mixed** | 4.05–4.82 | 0.48–0.57 | −0.08–0.09 | 4.40 | 2.57 | 3.73 | 2.00 |
+| S5 STREAM receiver (1.518) | inconclusive (confounded) | 8.06–9.36 | 0.15–0.27 | 0.17–0.45 | 8.82 | 4.14 | 6.43 | 1.34 |
+| S5 DATAGRAM sender (1.159) | evidence gap (unexplained) | −0.01–3.35 | 0.39–0.69 | −0.14–0.09 | 2.84 | 0.93 | 1.84 | 2.15 |
+| S6 STREAM sender (1.673) | inconclusive (confounded) | 6.55–9.80 | 0.06–0.38 | −0.06–0.03 | 8.46 | 4.83 | 6.03 | 2.00 |
+| S6 STREAM receiver (1.898) | inconclusive (confounded) | 11.10–16.24 | 0.10–0.48 | −0.12–0.52 | 12.56 | 6.58 | 8.19 | 1.34 |
+| S6 DATAGRAM sender (1.542) | inconclusive (confounded) | 5.76–7.38 | 0.18–0.33 | −0.03–0.04 | 7.02 | 4.30 | 4.42 | 2.15 |
+| Loopback STREAM receiver (1.120) | inconclusive (confounded) | 1.42–1.80 | — | 0.83–1.03 | 1.59 | 1.13 | 1.26 | 1.18 |
+| Loopback DATAGRAM receiver (1.148) | instrumentation gap (perturbation) | 1.44–3.39 | — | 1.22–2.64 | 2.38 | 1.14 | 1.63 | 1.19 |
+
+Per block, the registered rule saw ([memory.json](memory.json) `blocks` within each cell):
+- **S5 STREAM:** ring comparable in blocks 2–4; receiver Reno comparable in block 2 only.
+- **S5 DATAGRAM sender:** explained blocks 1 and 2 only.
+- **S6:** receiver Reno comparable in block 3 only. The ring was not comparable in any STREAM block and in one DATAGRAM block.
+- **Loopback STREAM receiver:** blocks 2–4 explained; receiver Reno comparable in blocks 1–3.
+- The passing cells (S5 and S6 DATAGRAM receivers, the loopback senders) are in the same file, descriptively.
+
+**Sensitivity pass.** It changed no ending. Its labels match the primary labels, except loopback STREAM receiver (sensitivity: receiver-side controller state) and S5 DATAGRAM sender (sensitivity: inconclusive). In both, the primary ending was not a conclusion, so it stands.
+
+**Prerequisites** ([attribution.json](attribution.json) `prerequisites`). These are #739's checks with #739's outcomes:
+- the unadapted frozen relay strips ECN, the expected negative control, and the adapted relay passes;
+- 0.997 send calls and 0.997 transmits per forward packet;
+- `perf` ran 100% and resolved BBR ECN tracker frames (58 and 83 sender samples on the WAN smokes, 548 on loopback);
+- threads stayed inside their CPU sets, socket buffers were 8 MiB, and there were no UDP errors or contamination.
+
+## Flag report for the next decision
+
+For [Decide whether the loopback- and memory-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/741), on r9 (`81e9dc8c`), Linux (`minimax`):
+
+| Status | Cells |
+| --- | --- |
+| **Attributed** (selected ProbeBW Up policy) | S6 control p95: STREAM 1.562, DATAGRAM 1.459 |
+| **Mixed** (ring about half; the rest not localized) | S5 STREAM sender RSS 1.235 |
+| **Unresolved: inconclusive (confounded)** | S5 STREAM receiver RSS 1.518; S6 STREAM sender 1.673 and receiver 1.898; S6 DATAGRAM sender 1.542; loopback STREAM receiver 1.120 |
+| **Unresolved: evidence gap** | S5 DATAGRAM sender RSS 1.159 |
+| **Unresolved: instrumentation gap** | Loopback DATAGRAM receiver RSS 1.148 |
+| **Unresolved, blocking: regression reproduced** | Loopback STREAM control p95 1.485 (adequate sample 1.849 [1.672–2.014]) |
+| **Passing** (from #739, unchanged) | Every goodput and CPU cell; no preservation cell raised |
+
+## Deviations
+
+None. No rule, threshold, seed, arm, cap or stage changed after data. The analysis ran the registered `memstages.py` at `b254dd10`, unchanged. The ring preflight was written once, before Stage 1.
+
+**Disclosed operational facts.**
+- The driver ran from 09:30:00 to 11:34:44 UTC on October 9, 2026. The quiet-host gate passed all 18 block calls on their first 60 s window.
+- Another session read `driver.log` and the stage summaries on `minimax`, read-only, on October 13. The data were pulled back excluding root-owned `*.perf.data`, whose folded stacks are kept.
+- The analysis and this record were written on October 13 on the Mac.
+
+## Preservation
+
+- **Payload integrity.** All 135 counted, prerequisite and activation observations exited cleanly and passed receiver integrity, as did the 15 development smokes.
+- **No code change.** No transport source changed. The memory overlay, the ring treatment and the receiver switch exist only in their exported measurement builds. The ring treatment is diagnostic and is not kept.
+- **No host change.** Host settings were left unchanged, and every `hostfacts` snapshot was recorded.
+
+## Limits
+
+- **Platform.** One Linux host, loopback endpoints and a userspace relay, on r9 only. The BBRv3 implementation is still under active performance development, so these endings describe r9, not BBRv3 or later revisions.
+- **Comparability.** It rests on four A/A pairs per cell, with floors. Reordering is not measured. Many receiver-controller and ring blocks failed comparability by a few percent, so the inconclusive endings reflect the strictness of that check as much as any confound.
+- **Peak instrument.** `ru_maxrss` reads below the sampled RSS (registration disclosure), and the small cells carry the largest relative uncertainty.
+- **Repetition.** Four blocks per memory cell and six for the latency stage.
+
+## Assets and reconstruction
+
+- **Results:**
+  - [memory.json](memory.json): the preflight, every cell with its per-block and sensitivity rows, `s6_p95`, `perturbation`, `latency` and the selection records;
+  - [attribution.json](attribution.json): #739's prerequisite review.
+- **Raw data:** [raw.tar.gz](raw.tar.gz) (12 MiB) with [raw-manifest.json](raw-manifest.json). It holds every observation, including the excluded prerequisite, activation and development runs, plus the synthetic cases, the ring preflight files, the driver log, `hostfacts` snapshots and build receipts. Binaries, credentials and exported source trees are omitted.
+- **To reconstruct,** in a fresh owned worktree of this branch:
+  1. run `build.py` and `gate_trees.py`;
+  2. run `sync.sh` to a Linux host with the same CPU layout;
+  3. run [driver.sh](driver.sh) there;
+  4. then run `stages.py fold` there, and `memstages.py all` and `stages.py prereq` anywhere.
 
 ## Cells
 

@@ -1,0 +1,5244 @@
+{
+ "perturbation": [
+  {
+   "path": "S5",
+   "workload": "stream",
+   "arm": "cand-mem-bbrv3",
+   "ratio": 1.0023300696667294,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "arm": "reno-mem-reno",
+   "ratio": 1.0,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "arm": "cand-mem-bbrv3",
+   "ratio": 1.0027449135841466,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "arm": "reno-mem-reno",
+   "ratio": 1.0,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "arm": "cand-mem-bbrv3",
+   "ratio": 1.0075286658906857,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "arm": "reno-mem-reno",
+   "ratio": 1.0023489932885905,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "arm": "cand-mem-bbrv3",
+   "ratio": 0.999759922584267,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "arm": "reno-mem-reno",
+   "ratio": 1.0187666891268,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "arm": "cand-mem-bbrv3",
+   "ratio": 1.0011661662602571,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "arm": "reno-mem-reno",
+   "ratio": 0.9977257558671105,
+   "blocks": 4,
+   "passes": true
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "arm": "cand-mem-bbrv3",
+   "ratio": 0.9894284809244815,
+   "blocks": 4,
+   "passes": false
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "arm": "reno-mem-reno",
+   "ratio": 1.005051365531772,
+   "blocks": 4,
+   "passes": true
+  }
+ ],
+ "cells": [
+  {
+   "path": "S5",
+   "workload": "stream",
+   "role": "send",
+   "readiness": {
+    "value": 1.234983498349835,
+    "raised": true
+   },
+   "label": {
+    "label": "mixed",
+    "usable": 4,
+    "blocks": 4,
+    "explained": 4,
+    "median_unexplained_share": 0.08282133684111087,
+    "ring_blocks": 0,
+    "rx_comparable": 1,
+    "rx_blocks": 0,
+    "localized_blocks": 0,
+    "sensitivity_label": "mixed"
+   },
+   "band": {
+    "goodput": 0.0181608133086877,
+    "fwd_per_gib": 0.011968410707988802,
+    "feedback_per_gib": 0.011248173285883815,
+    "control": 1,
+    "overflow": 0.0028782595085673005
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 4.82421875,
+     "aa_diff": 0.0,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 1.2881927490234375,
+      "unused": 0.2039947509765625,
+      "free": 3.3671875,
+      "stacks": 0.03125,
+      "metadata": 0.1449432373046875,
+      "other": 0.03863525390625,
+      "residual": -0.1874847412109375,
+      "gap": -0.1171875,
+      "live": 2.4796981811523438,
+      "bbr_explicit": 2.0051727294921875,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 4.82421875,
+      "closure": 0.0,
+      "heap": 4.859375,
+      "live_window": 2.5119094848632812,
+      "objects_window": 3.9449234008789062,
+      "window_coverage": 1.0,
+      "objects_share": 0.26702618927125504,
+      "heap_share": 1.0072874493927126,
+      "headroom_share": 0.7402612601214575,
+      "live_share": 1.0280206224696355,
+      "live_window_share": 1.0413746204453442,
+      "objects_window_share": 0.8177331098178138,
+      "unexplained_share": 0.06315473178137652
+     },
+     "ring": 2.296875,
+     "rx": 0.25,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.0051727294921875,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "goodput",
+      "fwd_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 4.7421875,
+     "aa_diff": 0.05859375,
+     "ex": {
+      "file": 0.0546875,
+      "objects": -0.49063873291015625,
+      "unused": 0.48282623291015625,
+      "free": 4.484375,
+      "stacks": -0.0625,
+      "metadata": 0.2552490234375,
+      "other": -0.0052490234375,
+      "residual": -0.37890625,
+      "gap": 0.40234375,
+      "live": 2.4170455932617188,
+      "bbr_explicit": 2.0000228881835938,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 4.7421875,
+      "closure": 0.0,
+      "heap": 4.4765625,
+      "live_window": 2.3491783142089844,
+      "objects_window": 3.4924392700195312,
+      "window_coverage": 1.0,
+      "objects_share": -0.10346253346375618,
+      "heap_share": 0.943986820428336,
+      "headroom_share": 1.0474493538920921,
+      "live_share": 1.0193800195634266,
+      "live_window_share": 0.99075724619028,
+      "objects_window_share": 0.7364616582578254,
+      "unexplained_share": 0.16474464579901152
+     },
+     "ring": 2.69140625,
+     "rx": 0.44140625,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 2.0000228881835938,
+     "explained": true,
+     "dominant": "free",
+     "ring_outside": [],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 4.22265625,
+     "aa_diff": 0.08203125,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 1.9045944213867188,
+      "unused": 0.07196807861328125,
+      "free": 2.0234375,
+      "stacks": 0.0,
+      "metadata": 0.24603271484375,
+      "other": 0.00396728515625,
+      "residual": -0.19140625,
+      "gap": 0.109375,
+      "live": 2.6533889770507812,
+      "bbr_explicit": 2.0000228881835938,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 4.22265625,
+      "closure": 0.0,
+      "heap": 4.0,
+      "live_window": 2.479877471923828,
+      "objects_window": 3.603923797607422,
+      "window_coverage": 1.0,
+      "objects_share": 0.45104178711840887,
+      "heap_share": 0.9472710453283997,
+      "headroom_share": 0.49622925820999075,
+      "live_share": 1.2567392749768733,
+      "live_window_share": 1.174558062557817,
+      "objects_window_share": 0.8534731657608695,
+      "unexplained_share": 0.07123034227567067
+     },
+     "ring": 2.16796875,
+     "rx": -0.33203125,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.0000228881835938,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 4.0546875,
+     "aa_diff": 0.25,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 4.6539306640625,
+      "unused": -0.2242431640625,
+      "free": -0.109375,
+      "stacks": 0.0625,
+      "metadata": 0.2562255859375,
+      "other": -0.2562255859375,
+      "residual": -0.07421875,
+      "gap": -0.30859375,
+      "live": 2.678802490234375,
+      "bbr_explicit": 2.0000228881835938,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 4.0546875,
+      "closure": 0.0,
+      "heap": 4.3203125,
+      "live_window": 2.472301483154297,
+      "objects_window": 3.8600845336914062,
+      "window_coverage": 1.0,
+      "objects_share": 1.1477902215799614,
+      "heap_share": 1.0655105973025047,
+      "headroom_share": -0.08227962427745665,
+      "live_share": 1.3213361030828517,
+      "live_window_share": 1.2194781882225434,
+      "objects_window_share": 0.952005434128131,
+      "unexplained_share": 0.09441233140655106
+     },
+     "ring": 2.0390625,
+     "rx": 0.0,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.0000228881835938,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 4.94140625,
+     "aa_diff": -0.25390625,
+     "ring": 2.390625,
+     "rx": 0.38671875,
+     "arm_gaps": {
+      "cand": -0.46875,
+      "aa": -0.21484375,
+      "rx": -0.33203125,
+      "ring": -0.375,
+      "reno": -0.3515625
+     }
+    },
+    {
+     "block": 2,
+     "E": 4.33984375,
+     "aa_diff": 0.41796875,
+     "ring": 2.48828125,
+     "rx": 0.2890625,
+     "arm_gaps": {
+      "cand": -0.33203125,
+      "aa": -0.69140625,
+      "rx": -0.484375,
+      "ring": -0.53515625,
+      "reno": -0.734375
+     }
+    },
+    {
+     "block": 3,
+     "E": 4.11328125,
+     "aa_diff": -0.05859375,
+     "ring": 2.05078125,
+     "rx": -0.1875,
+     "arm_gaps": {
+      "cand": -0.51171875,
+      "aa": -0.37109375,
+      "rx": -0.3671875,
+      "ring": -0.62890625,
+      "reno": -0.62109375
+     }
+    },
+    {
+     "block": 4,
+     "E": 4.36328125,
+     "aa_diff": 0.01953125,
+     "ring": 2.203125,
+     "rx": 0.28125,
+     "arm_gaps": {
+      "cand": -0.5390625,
+      "aa": -0.30859375,
+      "rx": -0.2578125,
+      "ring": -0.375,
+      "reno": -0.23046875
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 1.5963935852050781,
+    "unused": 0.13798141479492188,
+    "free": 2.6953125,
+    "stacks": 0.015625,
+    "metadata": 0.250640869140625,
+    "other": -0.000640869140625,
+    "residual": -0.18944549560546875,
+    "gap": -0.00390625,
+    "live": 2.5665435791015625,
+    "heap": 4.3984375,
+    "bbr_explicit": 2.0000228881835938,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 4.482421875,
+    "aa": 0.0703125,
+    "ring": 2.232421875,
+    "rx": 0.125,
+    "live_window": 2.4760894775390625,
+    "objects_window": 3.732004165649414,
+    "bbr_explicit_cand": 2.0000228881835938
+   }
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "role": "receive",
+   "readiness": {
+    "value": 1.5180335400872962,
+    "raised": true
+   },
+   "label": {
+    "label": "inconclusive (receiver-controller arm confounded or uncalibrated)",
+    "usable": 4,
+    "blocks": 4,
+    "explained": 4,
+    "median_unexplained_share": 0.08389699277283383,
+    "ring_blocks": 0,
+    "rx_comparable": 1,
+    "rx_blocks": 0,
+    "localized_blocks": 0,
+    "sensitivity_label": "inconclusive (receiver-controller arm confounded or uncalibrated)"
+   },
+   "band": {
+    "goodput": 0.0181608133086877,
+    "fwd_per_gib": 0.011968410707988802,
+    "feedback_per_gib": 0.011248173285883815,
+    "control": 1,
+    "overflow": 0.0028782595085673005
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 8.9921875,
+     "aa_diff": -0.63671875,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 13.877212524414062,
+      "unused": 0.7009124755859375,
+      "free": -5.2109375,
+      "stacks": -0.03125,
+      "metadata": 0.3968505859375,
+      "other": -0.4593505859375,
+      "residual": 0.26171875,
+      "gap": -0.59765625,
+      "live": 6.99462890625,
+      "bbr_explicit": 1.3366317749023438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 8.9921875,
+      "closure": 0.0,
+      "heap": 9.3671875,
+      "live_window": 6.6497039794921875,
+      "objects_window": 7.953189849853516,
+      "window_coverage": 1.0,
+      "objects_share": 1.5432521312988705,
+      "heap_share": 1.0417028670721111,
+      "headroom_share": -0.5015492642267594,
+      "live_share": 1.5557124239791487,
+      "live_window_share": 1.4789958460034753,
+      "objects_window_share": 0.8844555176205473,
+      "unexplained_share": 0.09556907037358818
+     },
+     "ring": 2.3984375,
+     "rx": 4.03125,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3366317749023438,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "goodput",
+      "fwd_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 8.5078125,
+     "aa_diff": 0.8828125,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 3.2902145385742188,
+      "unused": 0.16291046142578125,
+      "free": 4.8125,
+      "stacks": 0.0625,
+      "metadata": 0.3319854736328125,
+      "other": 0.05474853515625,
+      "residual": -0.2187652587890625,
+      "gap": -0.04296875,
+      "live": 1.6026763916015625,
+      "bbr_explicit": 1.3412704467773438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 8.5078125,
+      "closure": 0.0,
+      "heap": 8.265625,
+      "live_window": 4.447277069091797,
+      "objects_window": 5.890712738037109,
+      "window_coverage": 1.0,
+      "objects_share": 0.38672861426767674,
+      "heap_share": 0.9715335169880625,
+      "headroom_share": 0.5848049027203857,
+      "live_share": 0.3767540461432507,
+      "live_window_share": 1.0454572357093663,
+      "objects_window_share": 0.6923886413854453,
+      "unexplained_share": 0.030763960629017446
+     },
+     "ring": 1.42578125,
+     "rx": 1.4609375,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.3412704467773438,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 8.05859375,
+     "aa_diff": 0.19140625,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 2.5300140380859375,
+      "unused": 0.2824859619140625,
+      "free": 5.3984375,
+      "stacks": 0.03125,
+      "metadata": 0.240234375,
+      "other": 0.087890625,
+      "residual": 0.0078125,
+      "gap": -0.57421875,
+      "live": 1.6371536254882812,
+      "bbr_explicit": 1.3389511108398438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 8.05859375,
+      "closure": 0.0,
+      "heap": 8.2109375,
+      "live_window": 5.445240020751953,
+      "objects_window": 5.191783905029297,
+      "window_coverage": 1.0,
+      "objects_share": 0.31395229944255937,
+      "heap_share": 1.018904507998061,
+      "headroom_share": 0.7049522085555017,
+      "live_share": 0.40631248485215704,
+      "live_window_share": 1.3514119683107126,
+      "objects_window_share": 0.6442543284961222,
+      "unexplained_share": 0.07222491517207949
+     },
+     "ring": 1.20703125,
+     "rx": 2.58984375,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3389511108398438,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 9.35546875,
+     "aa_diff": 0.34375,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 11.468925476074219,
+      "unused": 0.40607452392578125,
+      "free": -2.1015625,
+      "stacks": -0.0625,
+      "metadata": 0.33978271484375,
+      "other": 0.03521728515625,
+      "residual": 0.15234375,
+      "gap": -0.9375,
+      "live": 6.636299133300781,
+      "bbr_explicit": 1.3389511108398438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 9.35546875,
+      "closure": 0.0,
+      "heap": 9.7734375,
+      "live_window": 6.587123870849609,
+      "objects_window": 6.968921661376953,
+      "window_coverage": 1.0,
+      "objects_share": 1.2259060216597077,
+      "heap_share": 1.0446764091858038,
+      "headroom_share": -0.18122961247390396,
+      "live_share": 1.4186994389352818,
+      "live_window_share": 1.4081868149791232,
+      "objects_window_share": 0.7449035262265136,
+      "unexplained_share": 0.11649269311064718
+     },
+     "ring": 2.08984375,
+     "rx": 2.80859375,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3389511108398438,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 9.58984375,
+     "aa_diff": -0.71484375,
+     "ring": 2.28515625,
+     "rx": 3.859375,
+     "arm_gaps": {
+      "cand": -0.4296875,
+      "aa": -0.3515625,
+      "rx": -0.6015625,
+      "ring": -0.54296875,
+      "reno": 0.16796875
+     }
+    },
+    {
+     "block": 2,
+     "E": 8.55078125,
+     "aa_diff": 0.85546875,
+     "ring": 1.37890625,
+     "rx": 1.58984375,
+     "arm_gaps": {
+      "cand": -0.38671875,
+      "aa": -0.359375,
+      "rx": -0.2578125,
+      "ring": -0.43359375,
+      "reno": -0.34375
+     }
+    },
+    {
+     "block": 3,
+     "E": 8.6328125,
+     "aa_diff": 0.12109375,
+     "ring": 1.28125,
+     "rx": 2.9921875,
+     "arm_gaps": {
+      "cand": -0.50390625,
+      "aa": -0.43359375,
+      "rx": -0.1015625,
+      "ring": -0.4296875,
+      "reno": 0.0703125
+     }
+    },
+    {
+     "block": 4,
+     "E": 10.29296875,
+     "aa_diff": 0.28515625,
+     "ring": 2.4140625,
+     "rx": 3.3828125,
+     "arm_gaps": {
+      "cand": -0.72265625,
+      "aa": -0.6640625,
+      "rx": -0.1484375,
+      "ring": -0.3984375,
+      "reno": 0.21484375
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 7.379570007324219,
+    "unused": 0.3442802429199219,
+    "free": 1.35546875,
+    "stacks": 0.0,
+    "metadata": 0.33588409423828125,
+    "other": 0.04498291015625,
+    "residual": 0.080078125,
+    "gap": -0.5859375,
+    "live": 4.136726379394531,
+    "heap": 8.81640625,
+    "bbr_explicit": 1.3389511108398438,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 8.75,
+    "aa": 0.490234375,
+    "ring": 1.7578125,
+    "rx": 2.69921875,
+    "live_window": 6.016181945800781,
+    "objects_window": 6.429817199707031,
+    "bbr_explicit_cand": 1.3389511108398438
+   }
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "role": "send",
+   "readiness": {
+    "value": 1.1586027337817313,
+    "raised": true
+   },
+   "label": {
+    "label": "evidence gap (resident memory unexplained by the accounting)",
+    "usable": 3,
+    "blocks": 4,
+    "explained": 2,
+    "median_unexplained_share": 0.1958041958041958,
+    "sensitivity_label": "inconclusive"
+   },
+   "band": {
+    "goodput": 0.01,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.01,
+    "control": 1,
+    "overflow": 0.0005
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 2.921875,
+     "aa_diff": 0.29296875,
+     "ex": {
+      "file": 0.05859375,
+      "objects": 0.7947769165039062,
+      "unused": 0.15834808349609375,
+      "free": 1.515625,
+      "stacks": 0.03125,
+      "metadata": 0.0902099609375,
+      "other": -0.0902099609375,
+      "residual": -0.078125,
+      "gap": 0.44140625,
+      "live": 1.5784149169921875,
+      "bbr_explicit": 2.1465377807617188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 2.921875,
+      "closure": 0.0,
+      "heap": 2.46875,
+      "live_window": 1.367706298828125,
+      "objects_window": 1.7938995361328125,
+      "window_coverage": 1.0,
+      "objects_share": 0.27200921206550804,
+      "heap_share": 0.8449197860962567,
+      "headroom_share": 0.5729105740307486,
+      "live_share": 1.0804123495989304,
+      "live_window_share": 0.9361839906417112,
+      "objects_window_share": 0.6139549214572193,
+      "unexplained_share": 0.17780748663101603
+     },
+     "ring": 1.546875,
+     "rx": -0.40625,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 2.1465377807617188,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 3.3515625,
+     "aa_diff": -0.1328125,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 0.2506561279296875,
+      "unused": 0.0618438720703125,
+      "free": 2.8671875,
+      "stacks": 0.0,
+      "metadata": 0.1092529296875,
+      "other": 0.1407470703125,
+      "residual": -0.39453125,
+      "gap": 0.26171875,
+      "live": 1.0274200439453125,
+      "bbr_explicit": 2.1465377807617188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 3.3515625,
+      "closure": 0.0,
+      "heap": 3.1796875,
+      "live_window": 1.3288803100585938,
+      "objects_window": 1.8572731018066406,
+      "window_coverage": 1.0,
+      "objects_share": 0.07478784236596736,
+      "heap_share": 0.9487179487179487,
+      "headroom_share": 0.8739301063519813,
+      "live_share": 0.6130991404428905,
+      "live_window_share": 0.7929915136946387,
+      "objects_window_share": 0.5541514149912588,
+      "unexplained_share": 0.1958041958041958
+     },
+     "ring": 1.296875,
+     "rx": -0.08203125,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.1465377807617188,
+     "explained": true,
+     "dominant": "free",
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": -0.01171875,
+     "aa_diff": 0.71875,
+     "ex": {
+      "file": 0.0546875,
+      "objects": -1.2456207275390625,
+      "unused": -0.0356292724609375,
+      "free": 3.8359375,
+      "stacks": 0.125,
+      "metadata": 0.0859375,
+      "other": -0.3359375,
+      "residual": 0.12890625,
+      "gap": -2.625,
+      "live": -0.48743438720703125,
+      "bbr_explicit": 2.1465377807617188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": -0.01171875,
+      "closure": 0.0,
+      "heap": 2.5546875,
+      "live_window": 1.1936798095703125,
+      "objects_window": 1.8307304382324219,
+      "window_coverage": 1.0
+     },
+     "ring": 1.53125,
+     "rx": -0.62890625,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 2.1465377807617188,
+     "explained": false,
+     "dominant": null,
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": false,
+     "eligibility_reason": "E -0.012 MiB at or below 0.5"
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 3.30078125,
+     "aa_diff": 0.1796875,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 2.3109283447265625,
+      "unused": 0.0406341552734375,
+      "free": 0.7734375,
+      "stacks": 0.03125,
+      "metadata": 0.07073974609375,
+      "other": 0.17926025390625,
+      "residual": -0.5078125,
+      "gap": 0.34765625,
+      "live": 0.83270263671875,
+      "bbr_explicit": 2.1465377807617188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 3.30078125,
+      "closure": 0.0,
+      "heap": 3.125,
+      "live_window": 1.3132247924804688,
+      "objects_window": 2.5911788940429688,
+      "window_coverage": 1.0,
+      "objects_share": 0.7001155695266272,
+      "heap_share": 0.9467455621301775,
+      "headroom_share": 0.24662999260355029,
+      "live_share": 0.5045488165680473,
+      "live_window_share": 0.7957054363905326,
+      "objects_window_share": 0.7850198779585799,
+      "unexplained_share": 0.2591715976331361
+     },
+     "ring": 2.28125,
+     "rx": 0.29296875,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 2.1465377807617188,
+     "explained": false,
+     "dominant": "objects",
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 2.48046875,
+     "aa_diff": 0.46484375,
+     "ring": 0.859375,
+     "rx": -0.26953125,
+     "arm_gaps": {
+      "cand": -0.02734375,
+      "aa": -0.19921875,
+      "rx": 0.109375,
+      "ring": -0.71484375,
+      "reno": -0.46875
+     }
+    },
+    {
+     "block": 2,
+     "E": 3.08984375,
+     "aa_diff": -0.6328125,
+     "ring": 1.30859375,
+     "rx": 0.484375,
+     "arm_gaps": {
+      "cand": -0.28125,
+      "aa": 0.21875,
+      "rx": 0.28515625,
+      "ring": -0.26953125,
+      "reno": -0.54296875
+     }
+    },
+    {
+     "block": 3,
+     "E": 2.61328125,
+     "aa_diff": -0.2109375,
+     "ring": 2.59375,
+     "rx": 0.01953125,
+     "arm_gaps": {
+      "cand": -0.40234375,
+      "aa": 0.52734375,
+      "rx": 0.24609375,
+      "ring": 0.66015625,
+      "reno": 2.22265625
+     }
+    },
+    {
+     "block": 4,
+     "E": 2.953125,
+     "aa_diff": -0.46484375,
+     "ring": 2.58984375,
+     "rx": 0.1484375,
+     "arm_gaps": {
+      "cand": -0.2421875,
+      "aa": 0.40234375,
+      "rx": -0.38671875,
+      "ring": 0.06640625,
+      "reno": -0.58984375
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 0.5227165222167969,
+    "unused": 0.051239013671875,
+    "free": 2.19140625,
+    "stacks": 0.03125,
+    "metadata": 0.08807373046875,
+    "other": 0.0252685546875,
+    "residual": -0.236328125,
+    "gap": 0.3046875,
+    "live": 0.9300613403320312,
+    "heap": 2.83984375,
+    "bbr_explicit": 2.1465377807617188,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 3.111328125,
+    "aa": 0.236328125,
+    "ring": 1.5390625,
+    "rx": -0.244140625,
+    "live_window": 1.3210525512695312,
+    "objects_window": 1.8440017700195312,
+    "bbr_explicit_cand": 2.1465377807617188
+   }
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "role": "receive",
+   "readiness": {
+    "value": 1.0704030922142462,
+    "raised": false
+   },
+   "label": null,
+   "band": {
+    "goodput": 0.01,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.01,
+    "control": 1,
+    "overflow": 0.0005
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.16796875,
+     "aa_diff": -0.05859375,
+     "ex": {
+      "file": 0.05859375,
+      "objects": 0.713653564453125,
+      "unused": 0.239471435546875,
+      "free": 0.21875,
+      "stacks": 0.0,
+      "metadata": 0.0166015625,
+      "other": -0.0166015625,
+      "residual": 0.08984375,
+      "gap": -0.15234375,
+      "live": 1.3684310913085938,
+      "bbr_explicit": 1.3528671264648438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.16796875,
+      "closure": 0.0,
+      "heap": 1.171875,
+      "live_window": 1.3501510620117188,
+      "objects_window": 1.454681396484375,
+      "window_coverage": 1.0,
+      "objects_share": 0.6110211120401338,
+      "heap_share": 1.0033444816053512,
+      "headroom_share": 0.3923233695652174,
+      "live_share": 2.3432666178929766,
+      "live_window_share": 2.311964360367893,
+      "objects_window_share": 1.2454797240802675,
+      "unexplained_share": 0.20735785953177258
+     },
+     "ring": 1.0703125,
+     "rx": 1.39453125,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.3528671264648438,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.40234375,
+     "aa_diff": -0.2578125,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 1.058319091796875,
+      "unused": 0.011993408203125,
+      "free": -0.3515625,
+      "stacks": 0.03125,
+      "metadata": 0.01171875,
+      "other": -0.01171875,
+      "residual": -0.0234375,
+      "gap": 0.62109375,
+      "live": 1.3425674438476562,
+      "bbr_explicit": 1.3482284545898438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.40234375,
+      "closure": 0.0,
+      "heap": 0.71875,
+      "live_window": 1.3535919189453125,
+      "objects_window": 1.0589790344238281,
+      "window_coverage": 1.0,
+      "objects_share": 0.754678795264624,
+      "heap_share": 0.5125348189415042,
+      "headroom_share": -0.24214397632311976,
+      "live_share": 1.9147479979108635,
+      "live_window_share": 1.930470926183844,
+      "objects_window_share": 0.7551493950208914,
+      "unexplained_share": 0.4596100278551532
+     },
+     "ring": 1.5625,
+     "rx": 1.22265625,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3482284545898438,
+     "explained": false,
+     "dominant": "objects",
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.125,
+     "aa_diff": 0.109375,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 0.34821319580078125,
+      "unused": 0.01116180419921875,
+      "free": 0.515625,
+      "stacks": 0.03125,
+      "metadata": 0.0888824462890625,
+      "other": -0.0224609375,
+      "residual": 0.0468597412109375,
+      "gap": 0.05078125,
+      "live": 1.36187744140625,
+      "bbr_explicit": 1.3412704467773438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.125,
+      "closure": 0.0,
+      "heap": 0.875,
+      "live_window": 1.3360824584960938,
+      "objects_window": 1.0567703247070312,
+      "window_coverage": 1.0,
+      "objects_share": 0.3095228407118056,
+      "heap_share": 0.7777777777777778,
+      "headroom_share": 0.4682549370659722,
+      "live_share": 2.421115451388889,
+      "live_window_share": 2.3752577039930554,
+      "objects_window_share": 0.9393513997395834,
+      "unexplained_share": 0.0867919921875
+     },
+     "ring": 1.09765625,
+     "rx": 0.91796875,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.3412704467773438,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 0.87109375,
+     "aa_diff": 0.3125,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 2.2791061401367188,
+      "unused": -0.03691864013671875,
+      "free": -1.2421875,
+      "stacks": 0.03125,
+      "metadata": -0.0634307861328125,
+      "other": 0.24700927734375,
+      "residual": -0.3515472412109375,
+      "gap": -0.046875,
+      "live": 1.3963851928710938,
+      "bbr_explicit": 1.3482284545898438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 0.87109375,
+      "closure": 0.0,
+      "heap": 1.0,
+      "live_window": 1.3568954467773438,
+      "objects_window": 1.2638130187988281,
+      "window_coverage": 1.0,
+      "objects_share": 2.6163729680493275,
+      "heap_share": 1.147982062780269,
+      "headroom_share": -1.4683909052690582,
+      "live_share": 3.206050308295964,
+      "live_window_share": 3.1153832679372195,
+      "objects_window_share": 1.4508346762892377,
+      "unexplained_share": 0.45738158632286996
+     },
+     "ring": 0.8515625,
+     "rx": 1.05859375,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.3482284545898438,
+     "explained": false,
+     "dominant": "objects",
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 1.3203125,
+     "aa_diff": -0.15234375,
+     "ring": 1.375,
+     "rx": 1.44140625,
+     "arm_gaps": {
+      "cand": -0.18359375,
+      "aa": -0.08984375,
+      "rx": -0.13671875,
+      "ring": 0.12109375,
+      "reno": -0.03125
+     }
+    },
+    {
+     "block": 2,
+     "E": 0.78125,
+     "aa_diff": 0.3125,
+     "ring": 0.8671875,
+     "rx": 0.91796875,
+     "arm_gaps": {
+      "cand": 0.5078125,
+      "aa": -0.0625,
+      "rx": 0.203125,
+      "ring": -0.1875,
+      "reno": -0.11328125
+     }
+    },
+    {
+     "block": 3,
+     "E": 1.07421875,
+     "aa_diff": 0.0,
+     "ring": 1.265625,
+     "rx": 0.98046875,
+     "arm_gaps": {
+      "cand": 0.00390625,
+      "aa": 0.11328125,
+      "rx": 0.06640625,
+      "ring": 0.171875,
+      "reno": -0.046875
+     }
+    },
+    {
+     "block": 4,
+     "E": 0.91796875,
+     "aa_diff": 0.125,
+     "ring": 0.9140625,
+     "rx": 1.15234375,
+     "arm_gaps": {
+      "cand": -0.0625,
+      "aa": 0.125,
+      "rx": 0.03125,
+      "ring": 0.0,
+      "reno": -0.015625
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 0.885986328125,
+    "unused": 0.011577606201171875,
+    "free": -0.06640625,
+    "stacks": 0.03125,
+    "metadata": 0.01416015625,
+    "other": -0.01416015625,
+    "residual": 0.01171112060546875,
+    "gap": 0.001953125,
+    "live": 1.3651542663574219,
+    "heap": 0.9375,
+    "bbr_explicit": 1.3482284545898438,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 1.146484375,
+    "aa": 0.18359375,
+    "ring": 1.083984375,
+    "rx": 1.140625,
+    "live_window": 1.3518714904785156,
+    "objects_window": 1.1613960266113281,
+    "bbr_explicit_cand": 1.3482284545898438
+   }
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "role": "send",
+   "readiness": {
+    "value": 1.673150604185087,
+    "raised": true
+   },
+   "label": {
+    "label": "inconclusive (receiver-controller arm confounded or uncalibrated)",
+    "usable": 4,
+    "blocks": 4,
+    "explained": 4,
+    "median_unexplained_share": 0.056126830701911934,
+    "ring_blocks": 0,
+    "rx_comparable": 1,
+    "rx_blocks": 0,
+    "localized_blocks": 0,
+    "sensitivity_label": "inconclusive (receiver-controller arm confounded or uncalibrated)"
+   },
+   "band": {
+    "goodput": 0.014806098936117949,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.01,
+    "control": 1,
+    "overflow": 0.0009891404878754613
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 6.5546875,
+     "aa_diff": -1.0,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 7.783836364746094,
+      "unused": 0.39585113525390625,
+      "free": -1.9453125,
+      "stacks": -0.03125,
+      "metadata": 0.271728515625,
+      "other": 0.228271484375,
+      "residual": -0.34375,
+      "gap": 0.140625,
+      "live": 4.674041748046875,
+      "bbr_explicit": 2.0103225708007812,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 3.0517578125e-05,
+      "peak": 6.5546875,
+      "closure": 0.0,
+      "heap": 6.234375,
+      "live_window": 2.1742286682128906,
+      "objects_window": 3.7398223876953125,
+      "window_coverage": 1.0,
+      "objects_share": 1.1875221152413589,
+      "heap_share": 0.9511323003575686,
+      "headroom_share": -0.23638981488379024,
+      "live_share": 1.4261676847437426,
+      "live_window_share": 0.6634118463200238,
+      "objects_window_share": 0.5705569316150179,
+      "unexplained_share": 0.07389749702026222
+     },
+     "ring": 2.5,
+     "rx": 0.0625,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.0103225708007812,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "overflow"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 8.3046875,
+     "aa_diff": 0.25,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 8.467025756835938,
+      "unused": -0.2873382568359375,
+      "free": 0.453125,
+      "stacks": 0.0,
+      "metadata": 0.263671875,
+      "other": 0.236328125,
+      "residual": -0.5390625,
+      "gap": -0.34375,
+      "live": 5.023002624511719,
+      "bbr_explicit": 2.000640869140625,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 8.3046875,
+      "closure": 0.0,
+      "heap": 8.6328125,
+      "live_window": 5.036365509033203,
+      "objects_window": 6.049751281738281,
+      "window_coverage": 1.0,
+      "objects_share": 1.019547786335842,
+      "heap_share": 1.039510818438382,
+      "headroom_share": 0.019963032102539982,
+      "live_share": 1.2096789011053621,
+      "live_window_share": 1.2128970557972718,
+      "objects_window_share": 0.7284742841603951,
+      "unexplained_share": 0.10630291627469426
+     },
+     "ring": 0.5,
+     "rx": -0.5,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.000640869140625,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [
+      "goodput",
+      "fwd_per_gib",
+      "feedback_per_gib",
+      "overflow"
+     ],
+     "rx_outside": [
+      "feedback_per_gib",
+      "overflow"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 8.5546875,
+     "aa_diff": 0.25,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 4.346229553222656,
+      "unused": 0.20064544677734375,
+      "free": 3.7421875,
+      "stacks": 0.03125,
+      "metadata": 0.2569580078125,
+      "other": 0.0008544921875,
+      "residual": -0.203125,
+      "gap": 0.125,
+      "live": 4.248329162597656,
+      "bbr_explicit": 2.0004348754882812,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 8.5546875,
+      "closure": 0.0,
+      "heap": 8.2890625,
+      "live_window": 4.301548004150391,
+      "objects_window": 6.019725799560547,
+      "window_coverage": 1.0,
+      "objects_share": 0.5080524043949771,
+      "heap_share": 0.9689497716894977,
+      "headroom_share": 0.4608973672945205,
+      "live_share": 0.9932166809360731,
+      "live_window_share": 1.0056587114726028,
+      "objects_window_share": 0.703675709902968,
+      "unexplained_share": 0.038356164383561646
+     },
+     "ring": 1.75,
+     "rx": -0.25,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 2.0004348754882812,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "goodput"
+     ],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 9.8046875,
+     "aa_diff": -0.25,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 5.705657958984375,
+      "unused": 0.099029541015625,
+      "free": 3.59375,
+      "stacks": 0.0,
+      "metadata": 0.3253326416015625,
+      "other": -0.2510986328125,
+      "residual": 0.1015472412109375,
+      "gap": 0.17578125,
+      "live": 4.986076354980469,
+      "bbr_explicit": 2.0008468627929688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 9.8046875,
+      "closure": 0.0,
+      "heap": 9.3984375,
+      "live_window": 4.8997802734375,
+      "objects_window": 6.514408111572266,
+      "window_coverage": 1.0,
+      "objects_share": 0.5819316484063745,
+      "heap_share": 0.9585657370517928,
+      "headroom_share": 0.3766340886454183,
+      "live_share": 1.0170801170318724,
+      "live_window_share": 0.9994770916334661,
+      "objects_window_share": 0.6644177197460159,
+      "unexplained_share": 0.028285296314741037
+     },
+     "ring": 2.62890625,
+     "rx": 0.25,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.0008468627929688,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "goodput"
+     ],
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 6.4140625,
+     "aa_diff": -1.2265625,
+     "ring": 2.48046875,
+     "rx": 0.203125,
+     "arm_gaps": {
+      "cand": -0.5390625,
+      "aa": -0.3125,
+      "rx": -0.3984375,
+      "ring": -0.55859375,
+      "reno": -0.6796875
+     }
+    },
+    {
+     "block": 2,
+     "E": 8.6484375,
+     "aa_diff": 0.21875,
+     "ring": 0.7421875,
+     "rx": -0.18359375,
+     "arm_gaps": {
+      "cand": -0.79296875,
+      "aa": -0.76171875,
+      "rx": -0.4765625,
+      "ring": -0.55078125,
+      "reno": -0.44921875
+     }
+    },
+    {
+     "block": 3,
+     "E": 8.4296875,
+     "aa_diff": 0.171875,
+     "ring": 1.66796875,
+     "rx": -0.140625,
+     "arm_gaps": {
+      "cand": -0.41015625,
+      "aa": -0.33203125,
+      "rx": -0.30078125,
+      "ring": -0.4921875,
+      "reno": -0.53515625
+     }
+    },
+    {
+     "block": 4,
+     "E": 9.62890625,
+     "aa_diff": 0.05078125,
+     "ring": 2.390625,
+     "rx": 0.10546875,
+     "arm_gaps": {
+      "cand": -0.18359375,
+      "aa": -0.484375,
+      "rx": -0.328125,
+      "ring": -0.421875,
+      "reno": -0.359375
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 6.744747161865234,
+    "unused": 0.14983749389648438,
+    "free": 2.0234375,
+    "stacks": 0.0,
+    "metadata": 0.2677001953125,
+    "other": 0.11456298828125,
+    "residual": -0.2734375,
+    "gap": 0.1328125,
+    "live": 4.830059051513672,
+    "heap": 8.4609375,
+    "bbr_explicit": 2.000743865966797,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 8.4296875,
+    "aa": 0.25,
+    "ring": 2.125,
+    "rx": -0.09375,
+    "live_window": 4.600664138793945,
+    "objects_window": 6.034738540649414,
+    "bbr_explicit_cand": 2.000743865966797
+   }
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "role": "receive",
+   "readiness": {
+    "value": 1.8975990743419149,
+    "raised": true
+   },
+   "label": {
+    "label": "inconclusive (receiver-controller arm confounded or uncalibrated)",
+    "usable": 4,
+    "blocks": 4,
+    "explained": 4,
+    "median_unexplained_share": 0.02248071182539993,
+    "ring_blocks": 0,
+    "rx_comparable": 1,
+    "rx_blocks": 0,
+    "localized_blocks": 1,
+    "sensitivity_label": "inconclusive (receiver-controller arm confounded or uncalibrated)"
+   },
+   "band": {
+    "goodput": 0.014806098936117949,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.01,
+    "control": 1,
+    "overflow": 0.0009891404878754613
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 13.9921875,
+     "aa_diff": -5.25,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 8.496467590332031,
+      "unused": 2.2379074096679688,
+      "free": 2.828125,
+      "stacks": 0.0,
+      "metadata": 0.5421295166015625,
+      "other": -0.0382080078125,
+      "residual": -0.1875152587890625,
+      "gap": 0.05859375,
+      "live": 4.811546325683594,
+      "bbr_explicit": 1.3343124389648438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.6041450500488281,
+      "peak": 13.9921875,
+      "closure": 0.0,
+      "heap": 13.5625,
+      "live_window": 6.574176788330078,
+      "objects_window": 8.279499053955078,
+      "window_coverage": 1.0,
+      "objects_share": 0.6072293978573423,
+      "heap_share": 0.9692908989391401,
+      "headroom_share": 0.36206150108179785,
+      "live_share": 0.687747548506421,
+      "live_window_share": 0.9396924945910106,
+      "objects_window_share": 0.5917229921307928,
+      "unexplained_share": 0.01758903022054718
+     },
+     "ring": 6.75,
+     "rx": 7.28125,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3343124389648438,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "overflow"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 16.2421875,
+     "aa_diff": 0.45703125,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 10.311592102050781,
+      "unused": 2.0790328979492188,
+      "free": 3.6171875,
+      "stacks": 0.03125,
+      "metadata": 0.5849761962890625,
+      "other": -0.0732421875,
+      "residual": -0.1328277587890625,
+      "gap": -0.23046875,
+      "live": 6.930641174316406,
+      "bbr_explicit": 1.3366317749023438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 16.2421875,
+      "closure": 0.0,
+      "heap": 16.0078125,
+      "live_window": 6.78338623046875,
+      "objects_window": 9.176040649414062,
+      "window_coverage": 1.0,
+      "objects_share": 0.6348647374037999,
+      "heap_share": 0.9855699855699855,
+      "headroom_share": 0.35070524816618565,
+      "live_share": 0.85341228505291,
+      "live_window_share": 0.8352798821548821,
+      "objects_window_share": 0.5649510356541606,
+      "unexplained_share": 0.02236746182058682
+     },
+     "ring": 6.78515625,
+     "rx": 6.58984375,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3366317749023438,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "goodput",
+      "fwd_per_gib",
+      "feedback_per_gib",
+      "overflow"
+     ],
+     "rx_outside": [
+      "feedback_per_gib",
+      "overflow"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 11.09765625,
+     "aa_diff": 0.72265625,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 11.126205444335938,
+      "unused": 0.4050445556640625,
+      "free": -1.015625,
+      "stacks": -0.03125,
+      "metadata": 0.2917938232421875,
+      "other": -0.23321533203125,
+      "residual": 0.5351715087890625,
+      "gap": -0.03515625,
+      "live": 6.4793701171875,
+      "bbr_explicit": 1.3366317749023438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.6757974624633789,
+      "peak": 11.09765625,
+      "closure": 0.0,
+      "heap": 10.515625,
+      "live_window": 6.421043395996094,
+      "objects_window": 8.105766296386719,
+      "window_coverage": 1.0,
+      "objects_share": 1.0025725426786343,
+      "heap_share": 0.947553678282295,
+      "headroom_share": -0.055018864396339316,
+      "live_share": 1.1677006335797255,
+      "live_window_share": 1.1571890949489616,
+      "objects_window_share": 0.7304034395899331,
+      "unexplained_share": 0.051391730464625134
+     },
+     "ring": 1.8125,
+     "rx": -1.36328125,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.3366317749023438,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [
+      "goodput"
+     ],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 12.1015625,
+     "aa_diff": 0.66796875,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 11.276985168457031,
+      "unused": 0.6605148315429688,
+      "free": -0.3828125,
+      "stacks": -0.03125,
+      "metadata": 0.4597320556640625,
+      "other": -0.205810546875,
+      "residual": 0.0859222412109375,
+      "gap": 0.1875,
+      "live": 6.681968688964844,
+      "bbr_explicit": 1.3412704467773438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 12.1015625,
+      "closure": 0.0,
+      "heap": 11.5546875,
+      "live_window": 6.4033203125,
+      "objects_window": 7.527881622314453,
+      "window_coverage": 1.0,
+      "objects_share": 0.9318619119189799,
+      "heap_share": 0.9548095545513234,
+      "headroom_share": 0.022947642632343446,
+      "live_share": 1.1043150318754036,
+      "live_window_share": 1.0582633957391865,
+      "objects_window_share": 0.6220586492293415,
+      "unexplained_share": 0.02259396183021304
+     },
+     "ring": 1.2578125,
+     "rx": 2.3828125,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3412704467773438,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [
+      "goodput"
+     ],
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 13.93359375,
+     "aa_diff": -5.31640625,
+     "ring": 6.890625,
+     "rx": 7.25,
+     "arm_gaps": {
+      "cand": -0.40625,
+      "aa": -0.33984375,
+      "rx": -0.4375,
+      "ring": -0.265625,
+      "reno": -0.46484375
+     }
+    },
+    {
+     "block": 2,
+     "E": 16.47265625,
+     "aa_diff": 0.875,
+     "ring": 6.49609375,
+     "rx": 6.515625,
+     "arm_gaps": {
+      "cand": -0.34765625,
+      "aa": -0.765625,
+      "rx": -0.421875,
+      "ring": -0.63671875,
+      "reno": -0.1171875
+     }
+    },
+    {
+     "block": 3,
+     "E": 11.1328125,
+     "aa_diff": 0.69140625,
+     "ring": 1.50390625,
+     "rx": -1.578125,
+     "arm_gaps": {
+      "cand": -0.35546875,
+      "aa": -0.32421875,
+      "rx": -0.5703125,
+      "ring": -0.6640625,
+      "reno": -0.3203125
+     }
+    },
+    {
+     "block": 4,
+     "E": 11.9140625,
+     "aa_diff": 0.6328125,
+     "ring": 1.08984375,
+     "rx": 1.96484375,
+     "arm_gaps": {
+      "cand": -0.24609375,
+      "aa": -0.2109375,
+      "rx": -0.6640625,
+      "ring": -0.4140625,
+      "reno": -0.43359375
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 10.71889877319336,
+    "unused": 1.3697738647460938,
+    "free": 1.22265625,
+    "stacks": -0.015625,
+    "metadata": 0.5009307861328125,
+    "other": -0.1395263671875,
+    "residual": -0.0234527587890625,
+    "gap": 0.01171875,
+    "live": 6.580669403076172,
+    "heap": 12.55859375,
+    "bbr_explicit": 1.3366317749023438,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.30207252502441406,
+    "E": 13.046875,
+    "aa": 0.6953125,
+    "ring": 4.28125,
+    "rx": 4.486328125,
+    "live_window": 6.497610092163086,
+    "objects_window": 8.192632675170898,
+    "bbr_explicit_cand": 1.3366317749023438
+   }
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "role": "send",
+   "readiness": {
+    "value": 1.541820243833286,
+    "raised": true
+   },
+   "label": {
+    "label": "inconclusive (receiver-controller arm confounded or uncalibrated)",
+    "usable": 4,
+    "blocks": 4,
+    "explained": 4,
+    "median_unexplained_share": 0.09102834527765874,
+    "ring_blocks": 0,
+    "rx_comparable": 1,
+    "rx_blocks": 0,
+    "localized_blocks": 0,
+    "sensitivity_label": "inconclusive (receiver-controller arm confounded or uncalibrated)"
+   },
+   "band": {
+    "goodput": 0.016309290059647246,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.01,
+    "control": 1,
+    "overflow": 0.0005
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 5.76171875,
+     "aa_diff": 0.5546875,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 2.0560989379882812,
+      "unused": 0.22515106201171875,
+      "free": 3.4296875,
+      "stacks": 0.0625,
+      "metadata": 0.124267578125,
+      "other": -0.124267578125,
+      "residual": -0.26171875,
+      "gap": 0.19921875,
+      "live": 3.4833831787109375,
+      "bbr_explicit": 2.14715576171875,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 5.76171875,
+      "closure": 0.0,
+      "heap": 5.7109375,
+      "live_window": 3.444324493408203,
+      "objects_window": 4.121196746826172,
+      "window_coverage": 1.0,
+      "objects_share": 0.3568551377118644,
+      "heap_share": 0.9911864406779661,
+      "headroom_share": 0.6343313029661017,
+      "live_share": 1.209147245762712,
+      "live_window_share": 1.195589247881356,
+      "objects_window_share": 0.7152721133474577,
+      "unexplained_share": 0.08
+     },
+     "ring": 1.91796875,
+     "rx": -0.1875,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.14715576171875,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "goodput",
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "goodput",
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 7.3828125,
+     "aa_diff": -0.1171875,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 3.12176513671875,
+      "unused": 0.37823486328125,
+      "free": 3.5390625,
+      "stacks": 0.03125,
+      "metadata": 0.1319580078125,
+      "other": -0.3819580078125,
+      "residual": -0.08203125,
+      "gap": 0.58984375,
+      "live": 4.27783203125,
+      "bbr_explicit": 2.1473617553710938,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 7.3828125,
+      "closure": 0.0,
+      "heap": 7.0390625,
+      "live_window": 3.4968032836914062,
+      "objects_window": 4.219818115234375,
+      "window_coverage": 1.0,
+      "objects_share": 0.42284226190476193,
+      "heap_share": 0.9534391534391534,
+      "headroom_share": 0.5305968915343915,
+      "live_share": 1.1588624338624338,
+      "live_window_share": 0.9472821593915344,
+      "objects_window_share": 0.5715732473544973,
+      "unexplained_share": 0.091005291005291
+     },
+     "ring": 2.0625,
+     "rx": -0.11328125,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.1473617553710938,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 7.27734375,
+     "aa_diff": -0.77734375,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 5.080177307128906,
+      "unused": 0.24794769287109375,
+      "free": 1.6640625,
+      "stacks": -0.03125,
+      "metadata": 0.1563720703125,
+      "other": -0.1563720703125,
+      "residual": -0.23828125,
+      "gap": 0.5,
+      "live": 4.322257995605469,
+      "bbr_explicit": 2.147979736328125,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 7.27734375,
+      "closure": 0.0,
+      "heap": 6.9921875,
+      "live_window": 3.4871482849121094,
+      "objects_window": 4.622406005859375,
+      "window_coverage": 1.0,
+      "objects_share": 0.6980812617418143,
+      "heap_share": 0.9608158883521203,
+      "headroom_share": 0.26273462661030594,
+      "live_share": 1.187866931696189,
+      "live_window_share": 0.9583574459876543,
+      "objects_window_share": 0.6351776368760065,
+      "unexplained_share": 0.10144927536231885
+     },
+     "ring": 1.328125,
+     "rx": 0.3046875,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 2.147979736328125,
+     "explained": true,
+     "dominant": null,
+     "ring_outside": [],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 7.37890625,
+     "aa_diff": -0.390625,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 5.7977294921875,
+      "unused": 0.3272705078125,
+      "free": 1.8671875,
+      "stacks": 0.0625,
+      "metadata": 0.1259613037109375,
+      "other": -0.1845703125,
+      "residual": -0.2851409912109375,
+      "gap": -0.38671875,
+      "live": 4.90667724609375,
+      "bbr_explicit": 2.1687774658203125,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 7.37890625,
+      "closure": 0.0,
+      "heap": 7.9921875,
+      "live_window": 3.4929733276367188,
+      "objects_window": 4.806713104248047,
+      "window_coverage": 1.0,
+      "objects_share": 0.7857166490206459,
+      "heap_share": 1.0831127580730546,
+      "headroom_share": 0.2973961090524087,
+      "live_share": 1.3299199311805188,
+      "live_window_share": 0.9467455498941239,
+      "objects_window_share": 0.6514126811474324,
+      "unexplained_share": 0.09105139955002647
+     },
+     "ring": 2.12109375,
+     "rx": 0.33203125,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 2.1687774658203125,
+     "explained": true,
+     "dominant": "objects",
+     "ring_outside": [
+      "overflow"
+     ],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 5.5625,
+     "aa_diff": 1.36328125,
+     "ring": 1.6875,
+     "rx": -1.12109375,
+     "arm_gaps": {
+      "cand": 0.58984375,
+      "aa": -0.21875,
+      "rx": -0.34375,
+      "ring": 0.359375,
+      "reno": 0.390625
+     }
+    },
+    {
+     "block": 2,
+     "E": 6.79296875,
+     "aa_diff": 0.1875,
+     "ring": 1.37890625,
+     "rx": -0.48046875,
+     "arm_gaps": {
+      "cand": 0.2109375,
+      "aa": -0.09375,
+      "rx": -0.15625,
+      "ring": -0.47265625,
+      "reno": -0.37890625
+     }
+    },
+    {
+     "block": 3,
+     "E": 6.77734375,
+     "aa_diff": -0.34375,
+     "ring": 1.48046875,
+     "rx": -0.1484375,
+     "arm_gaps": {
+      "cand": 0.17578125,
+      "aa": -0.2578125,
+      "rx": -0.27734375,
+      "ring": 0.328125,
+      "reno": -0.32421875
+     }
+    },
+    {
+     "block": 4,
+     "E": 7.765625,
+     "aa_diff": -0.5390625,
+     "ring": 2.59765625,
+     "rx": 0.2265625,
+     "arm_gaps": {
+      "cand": -0.4375,
+      "aa": -0.2890625,
+      "rx": -0.54296875,
+      "ring": 0.0390625,
+      "reno": -0.05078125
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 4.100971221923828,
+    "unused": 0.2876091003417969,
+    "free": 2.6484375,
+    "stacks": 0.046875,
+    "metadata": 0.12895965576171875,
+    "other": -0.17047119140625,
+    "residual": -0.25,
+    "gap": 0.349609375,
+    "live": 4.300045013427734,
+    "heap": 7.015625,
+    "bbr_explicit": 2.1476707458496094,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 7.328125,
+    "aa": 0.47265625,
+    "ring": 1.990234375,
+    "rx": 0.095703125,
+    "live_window": 3.490060806274414,
+    "objects_window": 4.421112060546875,
+    "bbr_explicit_cand": 2.1476707458496094
+   }
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "role": "receive",
+   "readiness": {
+    "value": 1.0945945945945945,
+    "raised": false
+   },
+   "label": null,
+   "band": {
+    "goodput": 0.016309290059647246,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.01,
+    "control": 1,
+    "overflow": 0.0005
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.2578125,
+     "aa_diff": 0.265625,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 0.107940673828125,
+      "unused": 0.017059326171875,
+      "free": 0.2734375,
+      "stacks": 0.0625,
+      "metadata": 0.03021240234375,
+      "other": 0.21978759765625,
+      "residual": -0.0703125,
+      "gap": 0.5625,
+      "live": 1.4276657104492188,
+      "bbr_explicit": 1.3459091186523438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.2578125,
+      "closure": 0.0,
+      "heap": 0.3984375,
+      "live_window": 1.4225921630859375,
+      "objects_window": 0.8601455688476562,
+      "window_coverage": 1.0,
+      "objects_share": 0.08581618788819875,
+      "heap_share": 0.3167701863354037,
+      "headroom_share": 0.23095399844720496,
+      "live_share": 2.2700771545031055,
+      "live_window_share": 2.262009899068323,
+      "objects_window_share": 0.6838424398291926,
+      "unexplained_share": 0.5031055900621118
+     },
+     "ring": 0.84765625,
+     "rx": 0.6875,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3459091186523438,
+     "explained": false,
+     "dominant": null,
+     "ring_outside": [
+      "goodput",
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "goodput",
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.57421875,
+     "aa_diff": -0.0703125,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 1.362548828125,
+      "unused": 0.004638671875,
+      "free": -0.6875,
+      "stacks": 0.0625,
+      "metadata": -0.0542144775390625,
+      "other": -0.01220703125,
+      "residual": 0.3476715087890625,
+      "gap": 0.49609375,
+      "live": 1.5065231323242188,
+      "bbr_explicit": 1.3537216186523438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.57421875,
+      "closure": 0.0,
+      "heap": 0.6796875,
+      "live_window": 1.4397964477539062,
+      "objects_window": 1.3183746337890625,
+      "window_coverage": 1.0,
+      "objects_share": 0.8655397022332506,
+      "heap_share": 0.4317617866004963,
+      "headroom_share": -0.43377791563275436,
+      "live_share": 1.9139946495037221,
+      "live_window_share": 1.8292203008684864,
+      "objects_window_share": 0.8374786755583127,
+      "unexplained_share": 0.5359898418114144
+     },
+     "ring": 1.17578125,
+     "rx": 0.94921875,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3537216186523438,
+     "explained": false,
+     "dominant": "objects",
+     "ring_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.49609375,
+     "aa_diff": -0.07421875,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 0.9539337158203125,
+      "unused": 0.1710662841796875,
+      "free": -0.9296875,
+      "stacks": 0.125,
+      "metadata": 0.0693511962890625,
+      "other": -0.0029296875,
+      "residual": 0.3593597412109375,
+      "gap": 0.69921875,
+      "live": 1.3959274291992188,
+      "bbr_explicit": 1.3435897827148438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.49609375,
+      "closure": 0.0,
+      "heap": 0.1953125,
+      "live_window": 1.43096923828125,
+      "objects_window": 1.3572845458984375,
+      "window_coverage": 1.0,
+      "objects_share": 0.6376162695822454,
+      "heap_share": 0.13054830287206268,
+      "headroom_share": -0.5070679667101827,
+      "live_share": 1.866096197780679,
+      "live_window_share": 1.9129406005221932,
+      "objects_window_share": 0.9072189131853786,
+      "unexplained_share": 0.7075616024804178
+     },
+     "ring": 1.02734375,
+     "rx": 1.19140625,
+     "ring_engaged": true,
+     "ring_comparable": true,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.3435897827148438,
+     "explained": false,
+     "dominant": null,
+     "ring_outside": [],
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.5234375,
+     "aa_diff": 0.16796875,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 1.046142578125,
+      "unused": 0.149169921875,
+      "free": -0.78125,
+      "stacks": 0.09375,
+      "metadata": 0.03759765625,
+      "other": -0.03759765625,
+      "residual": 0.3515625,
+      "gap": 0.609375,
+      "live": 1.4583969116210938,
+      "bbr_explicit": 1.3514022827148438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.5234375,
+      "closure": 0.0,
+      "heap": 0.4140625,
+      "live_window": 1.4439811706542969,
+      "objects_window": 1.1118583679199219,
+      "window_coverage": 1.0,
+      "objects_share": 0.686698717948718,
+      "heap_share": 0.2717948717948718,
+      "headroom_share": -0.4149038461538462,
+      "live_share": 1.9146133814102564,
+      "live_window_share": 1.8956881009615385,
+      "objects_window_share": 0.7298352363782051,
+      "unexplained_share": 0.6307692307692307
+     },
+     "ring": 1.15625,
+     "rx": 1.0390625,
+     "ring_engaged": true,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.3514022827148438,
+     "explained": false,
+     "dominant": null,
+     "ring_outside": [
+      "overflow"
+     ],
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 0.6953125,
+     "aa_diff": 0.62890625,
+     "ring": 0.984375,
+     "rx": 0.6328125,
+     "arm_gaps": {
+      "cand": 0.078125,
+      "aa": -0.28515625,
+      "rx": 0.0234375,
+      "ring": 0.21484375,
+      "reno": -0.484375
+     }
+    },
+    {
+     "block": 2,
+     "E": 1.078125,
+     "aa_diff": 0.078125,
+     "ring": 1.03125,
+     "rx": 0.953125,
+     "arm_gaps": {
+      "cand": 0.13671875,
+      "aa": -0.01171875,
+      "rx": 0.140625,
+      "ring": -0.0078125,
+      "reno": -0.359375
+     }
+    },
+    {
+     "block": 3,
+     "E": 0.796875,
+     "aa_diff": -0.05078125,
+     "ring": 0.66796875,
+     "rx": 1.046875,
+     "arm_gaps": {
+      "cand": 0.21875,
+      "aa": 0.1953125,
+      "rx": 0.07421875,
+      "ring": -0.140625,
+      "reno": -0.48046875
+     }
+    },
+    {
+     "block": 4,
+     "E": 0.9140625,
+     "aa_diff": 0.21875,
+     "ring": 0.75,
+     "rx": 0.88671875,
+     "arm_gaps": {
+      "cand": 0.31640625,
+      "aa": 0.265625,
+      "rx": 0.1640625,
+      "ring": -0.08984375,
+      "reno": -0.29296875
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.0546875,
+    "objects": 1.0000381469726562,
+    "unused": 0.0831146240234375,
+    "free": -0.734375,
+    "stacks": 0.078125,
+    "metadata": 0.033905029296875,
+    "other": -0.007568359375,
+    "residual": 0.34961700439453125,
+    "gap": 0.5859375,
+    "live": 1.4430313110351562,
+    "heap": 0.40625,
+    "bbr_explicit": 1.3486557006835938,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 1.509765625,
+    "aa": 0.12109375,
+    "ring": 1.091796875,
+    "rx": 0.994140625,
+    "live_window": 1.4353828430175781,
+    "objects_window": 1.2151165008544922,
+    "bbr_explicit_cand": 1.3486557006835938
+   }
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "role": "send",
+   "readiness": {
+    "value": 0.9541062801932367,
+    "raised": false
+   },
+   "label": null,
+   "band": {
+    "goodput": 0.01051867754194369,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.03246984001279662,
+    "control": 1
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 0.3515625,
+     "aa_diff": -0.02734375,
+     "ex": {
+      "file": 0.05078125,
+      "objects": -0.00521087646484375,
+      "unused": -0.19010162353515625,
+      "free": 1.140625,
+      "stacks": -0.09375,
+      "metadata": 0.00201416015625,
+      "other": -0.25201416015625,
+      "residual": 0.3671875,
+      "gap": -0.66796875,
+      "live": 0.00093841552734375,
+      "bbr_explicit": 1.2222824096679688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 0.3515625,
+      "closure": 0.0,
+      "heap": 0.9453125,
+      "live_window": 1.2070388793945312,
+      "objects_window": 1.231048583984375,
+      "window_coverage": 1.0,
+      "objects_share": -0.01482204861111111,
+      "heap_share": 2.688888888888889,
+      "headroom_share": 2.7037109375,
+      "live_share": 0.005338541666666667,
+      "live_window_share": 6.866710069444444,
+      "objects_window_share": 3.5016493055555555,
+      "unexplained_share": 2.9444444444444446
+     },
+     "ring": null,
+     "rx": 0.0234375,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.2222824096679688,
+     "explained": false,
+     "dominant": "free",
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": false,
+     "eligibility_reason": "E 0.352 MiB at or below 0.5"
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 0.5703125,
+     "aa_diff": -0.99609375,
+     "ex": {
+      "file": 0.05078125,
+      "objects": -1.2972412109375,
+      "unused": -0.0386962890625,
+      "free": 0.34375,
+      "stacks": 0.0625,
+      "metadata": -0.02191162109375,
+      "other": 0.02191162109375,
+      "residual": 0.44140625,
+      "gap": 1.0078125,
+      "live": -0.48075103759765625,
+      "bbr_explicit": 1.2315597534179688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 0.5703125,
+      "closure": 0.0,
+      "heap": -0.9921875,
+      "live_window": 1.2162361145019531,
+      "objects_window": 1.30810546875,
+      "window_coverage": 1.0,
+      "objects_share": -2.2746147260273974,
+      "heap_share": -1.7397260273972603,
+      "headroom_share": 0.534888698630137,
+      "live_share": -1.6859214469178083,
+      "live_window_share": 4.265156785102739,
+      "objects_window_share": 2.293664383561644,
+      "unexplained_share": 2.541095890410959
+     },
+     "ring": null,
+     "rx": 0.71484375,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.2315597534179688,
+     "explained": false,
+     "dominant": null,
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.05859375,
+     "aa_diff": -0.30078125,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 1.4533233642578125,
+      "unused": -0.4220733642578125,
+      "free": -0.2421875,
+      "stacks": 0.03125,
+      "metadata": 0.03033447265625,
+      "other": -0.03033447265625,
+      "residual": 0.13671875,
+      "gap": 0.05078125,
+      "live": 1.2485275268554688,
+      "bbr_explicit": 1.2350387573242188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.05859375,
+      "closure": 0.0,
+      "heap": 0.7890625,
+      "live_window": 1.20623779296875,
+      "objects_window": 1.1279067993164062,
+      "window_coverage": 1.0,
+      "objects_share": 1.3728811116236161,
+      "heap_share": 0.7453874538745388,
+      "headroom_share": -0.6274936577490775,
+      "live_share": 2.3588416743542435,
+      "live_window_share": 2.2789437269372694,
+      "objects_window_share": 1.0654765336715868,
+      "unexplained_share": 0.17712177121771217
+     },
+     "ring": null,
+     "rx": 1.08203125,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.2350387573242188,
+     "explained": true,
+     "dominant": "objects",
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": -0.71875,
+     "aa_diff": -0.0234375,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 2.2429428100585938,
+      "unused": -0.6726303100585938,
+      "free": -0.6875,
+      "stacks": 0.03125,
+      "metadata": -0.0218505859375,
+      "other": 0.2718505859375,
+      "residual": 0.0390625,
+      "gap": -1.97265625,
+      "live": 1.2024459838867188,
+      "bbr_explicit": 1.2431564331054688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": -0.71875,
+      "closure": 0.0,
+      "heap": 0.8828125,
+      "live_window": 1.2234916687011719,
+      "objects_window": 1.353118896484375,
+      "window_coverage": 1.0
+     },
+     "ring": null,
+     "rx": -0.49609375,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.2431564331054688,
+     "explained": false,
+     "dominant": null,
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": false,
+     "eligibility_reason": "E -0.719 MiB at or below 0.5"
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 1.01953125,
+     "aa_diff": 0.06640625,
+     "ring": null,
+     "rx": 0.078125,
+     "arm_gaps": {
+      "cand": 0.38671875,
+      "aa": 0.29296875,
+      "rx": 0.44140625,
+      "reno": 1.0546875
+     }
+    },
+    {
+     "block": 2,
+     "E": -0.4375,
+     "aa_diff": 0.13671875,
+     "ring": null,
+     "rx": -0.05859375,
+     "arm_gaps": {
+      "cand": 1.18359375,
+      "aa": 0.05078125,
+      "rx": 0.41015625,
+      "reno": 0.17578125
+     }
+    },
+    {
+     "block": 3,
+     "E": 1.0078125,
+     "aa_diff": -0.078125,
+     "ring": null,
+     "rx": 0.1015625,
+     "arm_gaps": {
+      "cand": 1.09375,
+      "aa": 0.87109375,
+      "rx": 0.11328125,
+      "reno": 1.04296875
+     }
+    },
+    {
+     "block": 4,
+     "E": 1.25390625,
+     "aa_diff": -0.05078125,
+     "ring": null,
+     "rx": -0.0390625,
+     "arm_gaps": {
+      "cand": 0.1171875,
+      "aa": 0.14453125,
+      "rx": 0.57421875,
+      "reno": 2.08984375
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.05078125,
+    "objects": 0.7240562438964844,
+    "unused": -0.3060874938964844,
+    "free": 0.05078125,
+    "stacks": 0.03125,
+    "metadata": -0.009918212890625,
+    "other": -0.00421142578125,
+    "residual": 0.251953125,
+    "gap": -0.30859375,
+    "live": 0.6016921997070312,
+    "heap": 0.8359375,
+    "bbr_explicit": 1.2332992553710938,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 0.4609375,
+    "aa": 0.1640625,
+    "ring": null,
+    "rx": 0.369140625,
+    "live_window": 1.2116374969482422,
+    "objects_window": 1.2695770263671875,
+    "bbr_explicit_cand": 1.2332992553710938
+   }
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "role": "receive",
+   "readiness": {
+    "value": 1.119805720453319,
+    "raised": true
+   },
+   "label": {
+    "label": "inconclusive (receiver-controller arm confounded or uncalibrated)",
+    "usable": 4,
+    "blocks": 4,
+    "explained": 3,
+    "median_unexplained_share": 0.22040140257469804,
+    "ring_blocks": 0,
+    "rx_comparable": 2,
+    "rx_blocks": 2,
+    "localized_blocks": 0,
+    "sensitivity_label": "receiver-side controller state"
+   },
+   "band": {
+    "goodput": 0.01051867754194369,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.03246984001279662,
+    "control": 1
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.609375,
+     "aa_diff": 0.0859375,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 2.4316177368164062,
+      "unused": -0.5956802368164062,
+      "free": -0.1328125,
+      "stacks": -0.0625,
+      "metadata": 0.0849761962890625,
+      "other": 0.2314453125,
+      "residual": 0.0742034912109375,
+      "gap": -0.4765625,
+      "live": 1.3082427978515625,
+      "bbr_explicit": 1.1809921264648438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.609375,
+      "closure": 0.0,
+      "heap": 1.703125,
+      "live_window": 1.2133636474609375,
+      "objects_window": 1.4171638488769531,
+      "window_coverage": 1.0,
+      "objects_share": 1.5109081083131068,
+      "heap_share": 1.058252427184466,
+      "headroom_share": -0.4526556811286408,
+      "live_share": 1.6257774575242718,
+      "live_window_share": 1.5078693871359223,
+      "objects_window_share": 0.8805678284283981,
+      "unexplained_share": 0.34222352851941745
+     },
+     "ring": null,
+     "rx": 1.328125,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.1809921264648438,
+     "explained": false,
+     "dominant": "objects",
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.8046875,
+     "aa_diff": -0.2265625,
+     "ex": {
+      "file": 0.05859375,
+      "objects": 1.2496795654296875,
+      "unused": 0.0628204345703125,
+      "free": 0.390625,
+      "stacks": 0.03125,
+      "metadata": 0.00048828125,
+      "other": -0.25048828125,
+      "residual": 0.26171875,
+      "gap": 0.0,
+      "live": 1.0755386352539062,
+      "bbr_explicit": 1.1792526245117188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.006518363952636719,
+      "peak": 1.8046875,
+      "closure": 0.0,
+      "heap": 1.703125,
+      "live_window": 1.1952056884765625,
+      "objects_window": 1.3800621032714844,
+      "window_coverage": 1.0,
+      "objects_share": 0.6924631358225108,
+      "heap_share": 0.9437229437229437,
+      "headroom_share": 0.2512598079004329,
+      "live_share": 1.1919389204545454,
+      "live_window_share": 1.3245569534632036,
+      "objects_window_share": 0.7647097368777056,
+      "unexplained_share": 0.14502164502164502
+     },
+     "ring": null,
+     "rx": 1.5546875,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.1792526245117188,
+     "explained": true,
+     "dominant": null,
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.41796875,
+     "aa_diff": -0.046875,
+     "ex": {
+      "file": 0.05078125,
+      "objects": -0.15252685546875,
+      "unused": 0.73065185546875,
+      "free": 0.8828125,
+      "stacks": -0.0625,
+      "metadata": 0.0722808837890625,
+      "other": 0.244140625,
+      "residual": -0.2617340087890625,
+      "gap": -0.0859375,
+      "live": 1.0173797607421875,
+      "bbr_explicit": 1.1804122924804688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.41796875,
+      "closure": 0.0,
+      "heap": 1.4609375,
+      "live_window": 1.2058143615722656,
+      "objects_window": 0.7368659973144531,
+      "window_coverage": 1.0,
+      "objects_share": -0.10756714876033058,
+      "heap_share": 1.0303030303030303,
+      "headroom_share": 1.137870179063361,
+      "live_share": 1.4349819214876034,
+      "live_window_share": 1.7007629562672177,
+      "objects_window_share": 0.5196630724862259,
+      "unexplained_share": 0.2451898243801653
+     },
+     "ring": null,
+     "rx": 1.46484375,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": true,
+     "bbr_explicit_cand": 1.1804122924804688,
+     "explained": true,
+     "dominant": null,
+     "rx_outside": [],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.77734375,
+     "aa_diff": -0.3046875,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 1.245025634765625,
+      "unused": -0.229400634765625,
+      "free": 0.4609375,
+      "stacks": -0.03125,
+      "metadata": -0.0312652587890625,
+      "other": -0.03515625,
+      "residual": 0.3398590087890625,
+      "gap": 0.0078125,
+      "live": 1.17950439453125,
+      "bbr_explicit": 1.1786727905273438,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": -0.007822036743164062,
+      "peak": 1.77734375,
+      "closure": 0.0,
+      "heap": 1.4765625,
+      "live_window": 1.2037010192871094,
+      "objects_window": 1.1461029052734375,
+      "window_coverage": 1.0,
+      "objects_share": 0.7004979395604396,
+      "heap_share": 0.8307692307692308,
+      "headroom_share": 0.13027129120879122,
+      "live_share": 1.3272664835164836,
+      "live_window_share": 1.3544943337912088,
+      "objects_window_share": 0.644840315934066,
+      "unexplained_share": 0.19561298076923078
+     },
+     "ring": null,
+     "rx": 1.66015625,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.1786727905273438,
+     "explained": true,
+     "dominant": "objects",
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 2.0859375,
+     "aa_diff": -0.38671875,
+     "ring": null,
+     "rx": 1.875,
+     "arm_gaps": {
+      "cand": -0.26171875,
+      "aa": 0.2109375,
+      "rx": 0.28515625,
+      "reno": 0.21484375
+     }
+    },
+    {
+     "block": 2,
+     "E": 1.8046875,
+     "aa_diff": -0.1796875,
+     "ring": null,
+     "rx": 1.56640625,
+     "arm_gaps": {
+      "cand": 0.12109375,
+      "aa": 0.07421875,
+      "rx": 0.1328125,
+      "reno": 0.12109375
+     }
+    },
+    {
+     "block": 3,
+     "E": 1.50390625,
+     "aa_diff": -0.0234375,
+     "ring": null,
+     "rx": 1.58984375,
+     "arm_gaps": {
+      "cand": 0.19921875,
+      "aa": 0.17578125,
+      "rx": 0.32421875,
+      "reno": 0.28515625
+     }
+    },
+    {
+     "block": 4,
+     "E": 1.76953125,
+     "aa_diff": 0.00390625,
+     "ring": null,
+     "rx": 1.765625,
+     "arm_gaps": {
+      "cand": 0.04296875,
+      "aa": -0.265625,
+      "rx": 0.1484375,
+      "reno": 0.03515625
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.052734375,
+    "objects": 1.2473526000976562,
+    "unused": -0.08329010009765625,
+    "free": 0.42578125,
+    "stacks": -0.046875,
+    "metadata": 0.03638458251953125,
+    "other": 0.09814453125,
+    "residual": 0.16796112060546875,
+    "gap": -0.04296875,
+    "live": 1.1275215148925781,
+    "heap": 1.58984375,
+    "bbr_explicit": 1.1798324584960938,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 1.693359375,
+    "aa": 0.15625,
+    "ring": null,
+    "rx": 1.509765625,
+    "live_window": 1.2047576904296875,
+    "objects_window": 1.263082504272461,
+    "bbr_explicit_cand": 1.1798324584960938
+   }
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "role": "send",
+   "readiness": {
+    "value": 0.95606833814067,
+    "raised": false
+   },
+   "label": null,
+   "band": {
+    "goodput": 0.01,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.04809812850632398,
+    "control": 1
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.484375,
+     "aa_diff": 0.10546875,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 1.3966445922851562,
+      "unused": -0.10758209228515625,
+      "free": -0.578125,
+      "stacks": -0.03125,
+      "metadata": -0.06292724609375,
+      "other": 0.06292724609375,
+      "residual": 0.63671875,
+      "gap": 0.1171875,
+      "live": 1.3571929931640625,
+      "bbr_explicit": 1.2632980346679688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.484375,
+      "closure": 0.0,
+      "heap": 0.7109375,
+      "live_window": 1.2587051391601562,
+      "objects_window": 1.4959716796875,
+      "window_coverage": 1.0,
+      "objects_share": 0.9408974095394737,
+      "heap_share": 0.4789473684210526,
+      "headroom_share": -0.46195004111842103,
+      "live_share": 1.828638980263158,
+      "live_window_share": 1.6959395559210526,
+      "objects_window_share": 1.0078125,
+      "unexplained_share": 0.5078947368421053
+     },
+     "ring": null,
+     "rx": 0.72265625,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.2632980346679688,
+     "explained": false,
+     "dominant": "objects",
+     "rx_outside": [
+      "goodput",
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.5078125,
+     "aa_diff": -0.40625,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 1.2722244262695312,
+      "unused": -0.22534942626953125,
+      "free": -1.7109375,
+      "stacks": 0.09375,
+      "metadata": 0.03765869140625,
+      "other": 0.02484130859375,
+      "residual": 0.8125,
+      "gap": 1.1484375,
+      "live": 1.0111312866210938,
+      "bbr_explicit": 1.2389450073242188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.5078125,
+      "closure": 0.0,
+      "heap": -0.6640625,
+      "live_window": 1.2792816162109375,
+      "objects_window": 1.1650123596191406,
+      "window_coverage": 1.0,
+      "objects_share": 0.8437550599093264,
+      "heap_share": -0.44041450777202074,
+      "headroom_share": -1.2841695676813472,
+      "live_share": 1.341189685880829,
+      "live_window_share": 1.696870952072539,
+      "objects_window_share": 0.7726506840997409,
+      "unexplained_share": 1.3005181347150259
+     },
+     "ring": null,
+     "rx": -0.22265625,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.2389450073242188,
+     "explained": false,
+     "dominant": "objects",
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 2.1875,
+     "aa_diff": 0.58203125,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 1.0033721923828125,
+      "unused": -0.1596221923828125,
+      "free": -1.0546875,
+      "stacks": -0.0625,
+      "metadata": -0.1082916259765625,
+      "other": 0.0418701171875,
+      "residual": 0.7578277587890625,
+      "gap": 1.71875,
+      "live": 1.4724044799804688,
+      "bbr_explicit": 1.2431564331054688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 2.1875,
+      "closure": 0.0,
+      "heap": -0.2109375,
+      "live_window": 1.3061790466308594,
+      "objects_window": 0.9048690795898438,
+      "window_coverage": 1.0,
+      "objects_share": 0.4586844308035714,
+      "heap_share": -0.09642857142857143,
+      "headroom_share": -0.5551130022321429,
+      "live_share": 1.3461983816964285,
+      "live_window_share": 1.1942208426339285,
+      "objects_window_share": 0.41365443638392857,
+      "unexplained_share": 1.1321498325892858
+     },
+     "ring": null,
+     "rx": 1.08984375,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.2431564331054688,
+     "explained": false,
+     "dominant": null,
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 0.93359375,
+     "aa_diff": 0.72265625,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 2.60992431640625,
+      "unused": 0.03851318359375,
+      "free": -1.03125,
+      "stacks": -0.0625,
+      "metadata": 0.0274200439453125,
+      "other": -0.21099853515625,
+      "residual": 1.1093597412109375,
+      "gap": -1.6015625,
+      "live": 1.582305908203125,
+      "bbr_explicit": 1.2246017456054688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 0.93359375,
+      "closure": 0.0,
+      "heap": 1.6171875,
+      "live_window": 1.3229331970214844,
+      "objects_window": 1.1791954040527344,
+      "window_coverage": 1.0,
+      "objects_share": 2.7955674686192467,
+      "heap_share": 1.7322175732217573,
+      "headroom_share": -1.0633498953974896,
+      "live_share": 3.389709728033473,
+      "live_window_share": 2.834066095711297,
+      "objects_window_share": 1.2630712277719665,
+      "unexplained_share": 2.9037493462343096
+     },
+     "ring": null,
+     "rx": -0.0078125,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.2246017456054688,
+     "explained": false,
+     "dominant": "objects",
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 1.3671875,
+     "aa_diff": 1.25390625,
+     "ring": null,
+     "rx": -0.34765625,
+     "arm_gaps": {
+      "cand": 2.4140625,
+      "aa": 1.265625,
+      "rx": 1.34375,
+      "reno": 2.296875
+     }
+    },
+    {
+     "block": 2,
+     "E": 0.359375,
+     "aa_diff": 0.078125,
+     "ring": null,
+     "rx": -0.1484375,
+     "arm_gaps": {
+      "cand": 2.30078125,
+      "aa": 1.81640625,
+      "rx": 2.375,
+      "reno": 1.15234375
+     }
+    },
+    {
+     "block": 3,
+     "E": 0.46875,
+     "aa_diff": 0.32421875,
+     "ring": null,
+     "rx": 0.1484375,
+     "arm_gaps": {
+      "cand": 2.890625,
+      "aa": 3.1484375,
+      "rx": 1.94921875,
+      "reno": 1.171875
+     }
+    },
+    {
+     "block": 4,
+     "E": 2.53515625,
+     "aa_diff": -0.55078125,
+     "ring": null,
+     "rx": 0.87890625,
+     "arm_gaps": {
+      "cand": 0.8203125,
+      "aa": 2.09375,
+      "rx": 1.70703125,
+      "reno": 2.421875
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.052734375,
+    "objects": 1.3344345092773438,
+    "unused": -0.13360214233398438,
+    "free": -1.04296875,
+    "stacks": -0.046875,
+    "metadata": -0.01775360107421875,
+    "other": 0.033355712890625,
+    "residual": 0.7851638793945312,
+    "gap": 0.6328125,
+    "live": 1.4147987365722656,
+    "heap": 0.25,
+    "bbr_explicit": 1.2410507202148438,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 1.49609375,
+    "aa": 0.494140625,
+    "ring": null,
+    "rx": 0.357421875,
+    "live_window": 1.2927303314208984,
+    "objects_window": 1.1721038818359375,
+    "bbr_explicit_cand": 1.2410507202148438
+   }
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "role": "receive",
+   "readiness": {
+    "value": 1.147890208930766,
+    "raised": true
+   },
+   "label": {
+    "label": "instrumentation gap (perturbation)",
+    "perturbation": {
+     "path": "loopback",
+     "workload": "datagram",
+     "arm": "cand-mem-bbrv3",
+     "ratio": 0.9894284809244815,
+     "blocks": 4,
+     "passes": false
+    }
+   },
+   "band": {
+    "goodput": 0.01,
+    "fwd_per_gib": 0.01,
+    "feedback_per_gib": 0.04809812850632398,
+    "control": 1
+   },
+   "blocks": [
+    {
+     "block": 1,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.8203125,
+     "aa_diff": -0.671875,
+     "ex": {
+      "file": 0.05078125,
+      "objects": 0.32819366455078125,
+      "unused": 0.26555633544921875,
+      "free": 2.5,
+      "stacks": 0.0,
+      "metadata": 0.04681396484375,
+      "other": 0.20318603515625,
+      "residual": -0.16015625,
+      "gap": -1.4140625,
+      "live": 1.163482666015625,
+      "bbr_explicit": 1.1804122924804688,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.8203125,
+      "closure": 0.0,
+      "heap": 3.09375,
+      "live_window": 1.1567497253417969,
+      "objects_window": 1.6879730224609375,
+      "window_coverage": 1.0,
+      "objects_share": 0.180295232027897,
+      "heap_share": 1.6995708154506437,
+      "headroom_share": 1.5192755834227467,
+      "live_share": 1.2783328862660943,
+      "live_window_share": 1.2709353205472103,
+      "objects_window_share": 0.9272984844420601,
+      "unexplained_share": 0.8648068669527897
+     },
+     "ring": null,
+     "rx": 2.72265625,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.1804122924804688,
+     "explained": false,
+     "dominant": "free",
+     "rx_outside": [
+      "goodput",
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 2,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.44140625,
+     "aa_diff": 1.85546875,
+     "ex": {
+      "file": 0.0546875,
+      "objects": 0.3287353515625,
+      "unused": 0.0462646484375,
+      "free": 2.125,
+      "stacks": -0.0625,
+      "metadata": 0.0931396484375,
+      "other": -0.0931396484375,
+      "residual": 0.0390625,
+      "gap": -1.08984375,
+      "live": 1.2887802124023438,
+      "bbr_explicit": 1.1931686401367188,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.44140625,
+      "closure": 0.0,
+      "heap": 2.5,
+      "live_window": 1.1751670837402344,
+      "objects_window": 1.8811454772949219,
+      "window_coverage": 1.0,
+      "objects_share": 0.22806571815718157,
+      "heap_share": 1.7344173441734418,
+      "headroom_share": 1.5063516260162602,
+      "live_share": 1.7882262025745257,
+      "live_window_share": 1.6305841378726287,
+      "objects_window_share": 1.305076537093496,
+      "unexplained_share": 0.7831978319783198
+     },
+     "ring": null,
+     "rx": 3.80859375,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.1931686401367188,
+     "explained": false,
+     "dominant": "free",
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 3,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 1.734375,
+     "aa_diff": 0.12109375,
+     "ex": {
+      "file": 0.05859375,
+      "objects": -0.12085723876953125,
+      "unused": 0.08179473876953125,
+      "free": 1.890625,
+      "stacks": 0.0,
+      "metadata": 0.13128662109375,
+      "other": -0.06878662109375,
+      "residual": 0.34765625,
+      "gap": -0.5859375,
+      "live": 0.8308944702148438,
+      "bbr_explicit": 1.1798324584960938,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 1.734375,
+      "closure": 0.0,
+      "heap": 1.8515625,
+      "live_window": 1.1289939880371094,
+      "objects_window": 1.5784988403320312,
+      "window_coverage": 1.0,
+      "objects_share": -0.06968345298423423,
+      "heap_share": 1.0675675675675675,
+      "headroom_share": 1.1372510205518018,
+      "live_share": 0.9581485782657657,
+      "live_window_share": 1.301902977195946,
+      "objects_window_share": 0.9101254574887387,
+      "unexplained_share": 0.5382882882882883
+     },
+     "ring": null,
+     "rx": 3.8515625,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.1798324584960938,
+     "explained": false,
+     "dominant": "free",
+     "rx_outside": [
+      "goodput"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    },
+    {
+     "block": 4,
+     "usable": true,
+     "status": "clean",
+     "missing": [],
+     "errors": {},
+     "E": 3.38671875,
+     "aa_diff": -0.34375,
+     "ex": {
+      "file": 0.05078125,
+      "objects": -0.1959075927734375,
+      "unused": 0.2740325927734375,
+      "free": 2.1875,
+      "stacks": -0.0625,
+      "metadata": 0.0682373046875,
+      "other": 0.1817626953125,
+      "residual": -0.03125,
+      "gap": 0.9140625,
+      "live": 1.12139892578125,
+      "bbr_explicit": 1.1980209350585938,
+      "ring_bytes": 1.1427230834960938,
+      "occupancy": 0.0,
+      "peak": 3.38671875,
+      "closure": 0.0,
+      "heap": 2.265625,
+      "live_window": 1.1641426086425781,
+      "objects_window": 1.3979301452636719,
+      "window_coverage": 1.0,
+      "objects_share": -0.057845840542099194,
+      "heap_share": 0.6689734717416378,
+      "headroom_share": 0.726819312283737,
+      "live_share": 0.6622332756632064,
+      "live_window_share": 0.6874752198673587,
+      "objects_window_share": 0.4127683012543253,
+      "unexplained_share": 0.279123414071511
+     },
+     "ring": null,
+     "rx": 4.1171875,
+     "ring_engaged": false,
+     "ring_comparable": false,
+     "rx_comparable": false,
+     "bbr_explicit_cand": 1.1980209350585938,
+     "explained": false,
+     "dominant": null,
+     "rx_outside": [
+      "feedback_per_gib"
+     ],
+     "rx_engaged": true,
+     "eligible": true,
+     "eligibility_reason": null
+    }
+   ],
+   "sensitivity_blocks": [
+    {
+     "block": 1,
+     "E": 3.234375,
+     "aa_diff": -0.0859375,
+     "ring": null,
+     "rx": 3.03515625,
+     "arm_gaps": {
+      "cand": 1.2578125,
+      "aa": 0.671875,
+      "rx": 1.5703125,
+      "reno": 2.671875
+     }
+    },
+    {
+     "block": 2,
+     "E": 2.53125,
+     "aa_diff": -0.04296875,
+     "ring": null,
+     "rx": 3.390625,
+     "arm_gaps": {
+      "cand": 1.109375,
+      "aa": 3.0078125,
+      "rx": 0.69140625,
+      "reno": 2.19921875
+     }
+    },
+    {
+     "block": 3,
+     "E": 2.3203125,
+     "aa_diff": 0.453125,
+     "ring": null,
+     "rx": 3.2265625,
+     "arm_gaps": {
+      "cand": 1.9609375,
+      "aa": 1.62890625,
+      "rx": 1.3359375,
+      "reno": 2.546875
+     }
+    },
+    {
+     "block": 4,
+     "E": 2.47265625,
+     "aa_diff": -0.12890625,
+     "ring": null,
+     "rx": 2.5234375,
+     "arm_gaps": {
+      "cand": 2.69140625,
+      "aa": 2.4765625,
+      "rx": 1.09765625,
+      "reno": 1.77734375
+     }
+    }
+   ],
+   "descriptive": {
+    "file": 0.052734375,
+    "objects": 0.103668212890625,
+    "unused": 0.173675537109375,
+    "free": 2.15625,
+    "stacks": -0.03125,
+    "metadata": 0.0806884765625,
+    "other": 0.056488037109375,
+    "residual": 0.00390625,
+    "gap": -0.837890625,
+    "live": 1.1424407958984375,
+    "heap": 2.3828125,
+    "bbr_explicit": 1.1867904663085938,
+    "ring_bytes": 1.1427230834960938,
+    "occupancy": 0.0,
+    "E": 1.77734375,
+    "aa": 0.5078125,
+    "ring": null,
+    "rx": 3.830078125,
+    "live_window": 1.1604461669921875,
+    "objects_window": 1.6332359313964844,
+    "bbr_explicit_cand": 1.1867904663085938
+   }
+  }
+ ],
+ "blocks": [
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p1-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p1-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p1-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p1-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p1-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p2-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p2-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p2-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p2-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p2-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p3-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p3-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p3-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p3-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p3-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S5",
+   "workload": "stream",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p4-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p4-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p4-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p4-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-stream-p4-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p1-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p1-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p1-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p1-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p1-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p2-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p2-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p2-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p2-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p2-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p3-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p3-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p3-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p3-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p3-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S5",
+   "workload": "datagram",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p4-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p4-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p4-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p4-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S5-datagram-p4-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p1-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p1-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p1-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p1-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p1-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p2-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p2-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p2-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p2-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p2-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p3-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p3-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p3-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p3-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p3-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "stream",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p4-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p4-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p4-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p4-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-stream-p4-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p1-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p1-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p1-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p1-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p1-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p2-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p2-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p2-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p2-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p2-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p3-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p3-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p3-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p3-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p3-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "S6",
+   "workload": "datagram",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p4-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p4-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p4-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p4-cand-mem-ring-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-S6-datagram-p4-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p1-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p1-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p1-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p1-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p2-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p2-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p2-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p2-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p3-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p3-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p3-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p3-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "stream",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p4-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p4-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p4-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-stream-p4-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 1,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p1-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p1-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p1-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p1-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 2,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p2-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p2-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p2-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p2-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 3,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p3-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p3-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p3-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p3-reno-mem-reno"
+   ]
+  },
+  {
+   "path": "loopback",
+   "workload": "datagram",
+   "block": 4,
+   "attempts": [
+    [
+     "original",
+     true,
+     false
+    ]
+   ],
+   "counted": "original",
+   "status": "clean",
+   "reasons": {
+    "original": []
+   },
+   "dirs": [
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p4-cand-mem-bbrv3",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p4-cand-mem-bbrv3-aa",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p4-cand-mem-bbrv3-rxreno",
+    "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/mem-loopback-datagram-p4-reno-mem-reno"
+   ]
+  }
+ ],
+ "s6_p95": {
+  "stream": {
+   "readiness": {
+    "value": 1.5615581847780555,
+    "raised": true
+   },
+   "s5_matched_p95": 1.0610797210210867,
+   "attribution": "selected ProbeBW Up policy",
+   "runs": [
+    {
+     "id": "mem-S6-stream-p1-cand-mem-bbrv3",
+     "control_p95_ms": 205.418659,
+     "integrity": true,
+     "by_phase": {
+      "refill": {
+       "samples": 88,
+       "median_ms": 0.22636,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 529,
+       "median_ms": 68.85488,
+       "share_over_25ms": 0.8166351606805293
+      },
+      "down": {
+       "samples": 471,
+       "median_ms": 56.22064,
+       "share_over_25ms": 0.8259023354564756
+      },
+      "cruise": {
+       "samples": 1819,
+       "median_ms": 0.11424000000000001,
+       "share_over_25ms": 0.0
+      },
+      "probertt": {
+       "samples": 93,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.12903225806451613
+      }
+     },
+     "above_25ms": {
+      "up": 432,
+      "down_after_up": 389,
+      "other": 12
+     },
+     "over_25ms_in_up_or_down": 0.985594237695078,
+     "cruise_median_ms": 0.11424000000000001,
+     "refill_median_ms": 0.22636
+    },
+    {
+     "id": "mem-S6-stream-p1-cand-mem-bbrv3-aa",
+     "control_p95_ms": 199.370649,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1786,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 91,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 542,
+       "median_ms": 70.50064,
+       "share_over_25ms": 0.8228782287822878
+      },
+      "down": {
+       "samples": 484,
+       "median_ms": 60.08684,
+       "share_over_25ms": 0.8512396694214877
+      },
+      "probertt": {
+       "samples": 97,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.12371134020618557
+      }
+     },
+     "above_25ms": {
+      "up": 446,
+      "down_after_up": 412,
+      "other": 12
+     },
+     "over_25ms_in_up_or_down": 0.9862068965517241,
+     "cruise_median_ms": 0.22304000000000002,
+     "refill_median_ms": 0.22304000000000002
+    },
+    {
+     "id": "mem-S6-stream-p2-cand-mem-bbrv3",
+     "control_p95_ms": 198.697955,
+     "integrity": true,
+     "by_phase": {
+      "down": {
+       "samples": 562,
+       "median_ms": 57.69872,
+       "share_over_25ms": 0.8327402135231317
+      },
+      "cruise": {
+       "samples": 1803,
+       "median_ms": 0.11424000000000001,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 82,
+       "median_ms": 0.16864,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 465,
+       "median_ms": 73.17008,
+       "share_over_25ms": 0.8172043010752689
+      },
+      "probertt": {
+       "samples": 88,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.056818181818181816
+      }
+     },
+     "above_25ms": {
+      "up": 380,
+      "down_after_up": 468,
+      "other": 5
+     },
+     "over_25ms_in_up_or_down": 0.9941383352872216,
+     "cruise_median_ms": 0.11424000000000001,
+     "refill_median_ms": 0.16864
+    },
+    {
+     "id": "mem-S6-stream-p2-cand-mem-bbrv3-aa",
+     "control_p95_ms": 199.938671,
+     "integrity": true,
+     "by_phase": {
+      "up": {
+       "samples": 552,
+       "median_ms": 80.398,
+       "share_over_25ms": 0.842391304347826
+      },
+      "down": {
+       "samples": 565,
+       "median_ms": 60.43072,
+       "share_over_25ms": 0.8424778761061947
+      },
+      "cruise": {
+       "samples": 1658,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "probertt": {
+       "samples": 144,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.09027777777777778
+      },
+      "refill": {
+       "samples": 81,
+       "median_ms": 0.22848000000000002,
+       "share_over_25ms": 0.0
+      }
+     },
+     "above_25ms": {
+      "up": 465,
+      "down_after_up": 476,
+      "other": 13
+     },
+     "over_25ms_in_up_or_down": 0.9863731656184487,
+     "cruise_median_ms": 0.22304000000000002,
+     "refill_median_ms": 0.22848000000000002
+    },
+    {
+     "id": "mem-S6-stream-p3-cand-mem-bbrv3",
+     "control_p95_ms": 186.664224,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1806,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 82,
+       "median_ms": 0.22636,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 511,
+       "median_ms": 73.96464,
+       "share_over_25ms": 0.8317025440313112
+      },
+      "down": {
+       "samples": 515,
+       "median_ms": 56.906,
+       "share_over_25ms": 0.8407766990291262
+      },
+      "probertt": {
+       "samples": 86,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.08139534883720931
+      }
+     },
+     "above_25ms": {
+      "up": 425,
+      "down_after_up": 433,
+      "other": 7
+     },
+     "over_25ms_in_up_or_down": 0.991907514450867,
+     "cruise_median_ms": 0.22304000000000002,
+     "refill_median_ms": 0.22636
+    },
+    {
+     "id": "mem-S6-stream-p3-cand-mem-bbrv3-aa",
+     "control_p95_ms": 190.777912,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1769,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 82,
+       "median_ms": 0.22848000000000002,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 514,
+       "median_ms": 75.56048,
+       "share_over_25ms": 0.8346303501945526
+      },
+      "down": {
+       "samples": 548,
+       "median_ms": 55.9362,
+       "share_over_25ms": 0.8284671532846716
+      },
+      "probertt": {
+       "samples": 87,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.08045977011494253
+      }
+     },
+     "above_25ms": {
+      "up": 429,
+      "down_after_up": 454,
+      "other": 7
+     },
+     "over_25ms_in_up_or_down": 0.9921348314606742,
+     "cruise_median_ms": 0.22304000000000002,
+     "refill_median_ms": 0.22848000000000002
+    },
+    {
+     "id": "mem-S6-stream-p4-cand-mem-bbrv3",
+     "control_p95_ms": 198.699511,
+     "integrity": true,
+     "by_phase": {
+      "up": {
+       "samples": 509,
+       "median_ms": 75.10688,
+       "share_over_25ms": 0.8330058939096268
+      },
+      "down": {
+       "samples": 617,
+       "median_ms": 56.106080000000006,
+       "share_over_25ms": 0.8217179902755267
+      },
+      "cruise": {
+       "samples": 1702,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 83,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "probertt": {
+       "samples": 89,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0898876404494382
+      }
+     },
+     "above_25ms": {
+      "up": 424,
+      "down_after_up": 507,
+      "other": 8
+     },
+     "over_25ms_in_up_or_down": 0.9914802981895634,
+     "cruise_median_ms": 0.22304000000000002,
+     "refill_median_ms": 0.22304000000000002
+    },
+    {
+     "id": "mem-S6-stream-p4-cand-mem-bbrv3-aa",
+     "control_p95_ms": 190.460513,
+     "integrity": true,
+     "by_phase": {
+      "refill": {
+       "samples": 84,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 529,
+       "median_ms": 73.0644,
+       "share_over_25ms": 0.8204158790170132
+      },
+      "down": {
+       "samples": 498,
+       "median_ms": 61.33584,
+       "share_over_25ms": 0.8614457831325302
+      },
+      "cruise": {
+       "samples": 1794,
+       "median_ms": 0.22304000000000002,
+       "share_over_25ms": 0.0
+      },
+      "probertt": {
+       "samples": 95,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.11578947368421053
+      }
+     },
+     "above_25ms": {
+      "up": 434,
+      "down_after_up": 429,
+      "other": 11
+     },
+     "over_25ms_in_up_or_down": 0.9874141876430206,
+     "cruise_median_ms": 0.22304000000000002,
+     "refill_median_ms": 0.22304000000000002
+    }
+   ]
+  },
+  "datagram": {
+   "readiness": {
+    "value": 1.4588054978167335,
+    "raised": true
+   },
+   "s5_matched_p95": 1.021420670615001,
+   "attribution": "selected ProbeBW Up policy",
+   "runs": [
+    {
+     "id": "mem-S6-datagram-p1-cand-mem-bbrv3",
+     "control_p95_ms": 171.868214,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1948,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 91,
+       "median_ms": 0.10032,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 331,
+       "median_ms": 43.2444,
+       "share_over_25ms": 0.716012084592145
+      },
+      "down": {
+       "samples": 512,
+       "median_ms": 49.86228,
+       "share_over_25ms": 0.79296875
+      },
+      "probertt": {
+       "samples": 118,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0847457627118644
+      }
+     },
+     "above_25ms": {
+      "up": 237,
+      "down_after_up": 406,
+      "other": 10
+     },
+     "over_25ms_in_up_or_down": 0.9846860643185299,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.10032
+    },
+    {
+     "id": "mem-S6-datagram-p1-cand-mem-bbrv3-aa",
+     "control_p95_ms": 174.1637,
+     "integrity": true,
+     "by_phase": {
+      "up": {
+       "samples": 352,
+       "median_ms": 46.10436,
+       "share_over_25ms": 0.7272727272727273
+      },
+      "down": {
+       "samples": 588,
+       "median_ms": 49.962360000000004,
+       "share_over_25ms": 0.7925170068027211
+      },
+      "cruise": {
+       "samples": 1877,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "probertt": {
+       "samples": 102,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 81,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      }
+     },
+     "above_25ms": {
+      "up": 256,
+      "down_after_up": 466,
+      "other": 0
+     },
+     "over_25ms_in_up_or_down": 1.0,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.20064
+    },
+    {
+     "id": "mem-S6-datagram-p2-cand-mem-bbrv3",
+     "control_p95_ms": 182.92251,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1821,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 91,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 349,
+       "median_ms": 44.94576,
+       "share_over_25ms": 0.7220630372492837
+      },
+      "down": {
+       "samples": 658,
+       "median_ms": 49.212,
+       "share_over_25ms": 0.7735562310030395
+      },
+      "probertt": {
+       "samples": 81,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.024691358024691357
+      }
+     },
+     "above_25ms": {
+      "up": 252,
+      "down_after_up": 509,
+      "other": 2
+     },
+     "over_25ms_in_up_or_down": 0.9973787680209698,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.20064
+    },
+    {
+     "id": "mem-S6-datagram-p2-cand-mem-bbrv3-aa",
+     "control_p95_ms": 182.291868,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1783,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 105,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 382,
+       "median_ms": 45.0,
+       "share_over_25ms": 0.7303664921465969
+      },
+      "down": {
+       "samples": 679,
+       "median_ms": 48.157199999999996,
+       "share_over_25ms": 0.7702503681885126
+      },
+      "probertt": {
+       "samples": 51,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      }
+     },
+     "above_25ms": {
+      "up": 279,
+      "down_after_up": 523,
+      "other": 0
+     },
+     "over_25ms_in_up_or_down": 1.0,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.20064
+    },
+    {
+     "id": "mem-S6-datagram-p3-cand-mem-bbrv3",
+     "control_p95_ms": 178.500954,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1830,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 92,
+       "median_ms": 0.10032,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 347,
+       "median_ms": 45.2508,
+       "share_over_25ms": 0.7204610951008645
+      },
+      "down": {
+       "samples": 654,
+       "median_ms": 49.56312,
+       "share_over_25ms": 0.7966360856269113
+      },
+      "probertt": {
+       "samples": 77,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      }
+     },
+     "above_25ms": {
+      "up": 250,
+      "down_after_up": 521,
+      "other": 0
+     },
+     "over_25ms_in_up_or_down": 1.0,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.10032
+    },
+    {
+     "id": "mem-S6-datagram-p3-cand-mem-bbrv3-aa",
+     "control_p95_ms": 182.24062,
+     "integrity": true,
+     "by_phase": {
+      "down": {
+       "samples": 632,
+       "median_ms": 48.05628,
+       "share_over_25ms": 0.7863924050632911
+      },
+      "cruise": {
+       "samples": 1903,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 81,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 308,
+       "median_ms": 44.79732,
+       "share_over_25ms": 0.7175324675324676
+      },
+      "probertt": {
+       "samples": 76,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.0
+      }
+     },
+     "above_25ms": {
+      "up": 221,
+      "down_after_up": 497,
+      "other": 0
+     },
+     "over_25ms_in_up_or_down": 1.0,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.20064
+    },
+    {
+     "id": "mem-S6-datagram-p4-cand-mem-bbrv3",
+     "control_p95_ms": 173.046902,
+     "integrity": true,
+     "by_phase": {
+      "cruise": {
+       "samples": 1757,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 91,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "up": {
+       "samples": 424,
+       "median_ms": 55.233239999999995,
+       "share_over_25ms": 0.7712264150943396
+      },
+      "down": {
+       "samples": 617,
+       "median_ms": 51.67248,
+       "share_over_25ms": 0.7909238249594813
+      },
+      "probertt": {
+       "samples": 111,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.036036036036036036
+      }
+     },
+     "above_25ms": {
+      "up": 327,
+      "down_after_up": 488,
+      "other": 4
+     },
+     "over_25ms_in_up_or_down": 0.9951159951159951,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.20064
+    },
+    {
+     "id": "mem-S6-datagram-p4-cand-mem-bbrv3-aa",
+     "control_p95_ms": 178.945791,
+     "integrity": true,
+     "by_phase": {
+      "up": {
+       "samples": 367,
+       "median_ms": 46.45056,
+       "share_over_25ms": 0.7411444141689373
+      },
+      "down": {
+       "samples": 693,
+       "median_ms": 50.5656,
+       "share_over_25ms": 0.7893217893217893
+      },
+      "cruise": {
+       "samples": 1793,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "refill": {
+       "samples": 91,
+       "median_ms": 0.20064,
+       "share_over_25ms": 0.0
+      },
+      "probertt": {
+       "samples": 56,
+       "median_ms": 0.0,
+       "share_over_25ms": 0.05357142857142857
+      }
+     },
+     "above_25ms": {
+      "up": 272,
+      "down_after_up": 547,
+      "other": 3
+     },
+     "over_25ms_in_up_or_down": 0.9963503649635036,
+     "cruise_median_ms": 0.20064,
+     "refill_median_ms": 0.20064
+    }
+   ]
+  }
+ },
+ "latency": {
+  "readiness": {
+   "value": 1.4848740310800426,
+   "raised": true
+  },
+  "outcome": "regression reproduced",
+  "detail": {
+   "ratio": 1.8485030927243926,
+   "ci": [
+    1.6716255785397187,
+    2.0136588417540513
+   ],
+   "per_block": [
+    2.225026822519623,
+    1.41178463399879,
+    1.8528571844858235,
+    1.6502651499817838,
+    1.9348746434469297,
+    2.0690469392636945
+   ],
+   "blocks": 6,
+   "cand_p95_ms": 0.257905,
+   "reno_p95_ms": 0.139521,
+   "cand_p50_ms": 0.1301545,
+   "reno_p50_ms": 0.06931999999999999
+  },
+  "blocks": [
+   {
+    "path": "loopback-long",
+    "workload": "stream",
+    "block": 1,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean",
+    "reasons": {
+     "original": []
+    },
+    "dirs": [
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p1-cand-bbrv3",
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p1-reno-reno"
+    ]
+   },
+   {
+    "path": "loopback-long",
+    "workload": "stream",
+    "block": 2,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean",
+    "reasons": {
+     "original": []
+    },
+    "dirs": [
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p2-cand-bbrv3",
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p2-reno-reno"
+    ]
+   },
+   {
+    "path": "loopback-long",
+    "workload": "stream",
+    "block": 3,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean",
+    "reasons": {
+     "original": []
+    },
+    "dirs": [
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p3-cand-bbrv3",
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p3-reno-reno"
+    ]
+   },
+   {
+    "path": "loopback-long",
+    "workload": "stream",
+    "block": 4,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean",
+    "reasons": {
+     "original": []
+    },
+    "dirs": [
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p4-cand-bbrv3",
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p4-reno-reno"
+    ]
+   },
+   {
+    "path": "loopback-long",
+    "workload": "stream",
+    "block": 5,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean",
+    "reasons": {
+     "original": []
+    },
+    "dirs": [
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p5-cand-bbrv3",
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p5-reno-reno"
+    ]
+   },
+   {
+    "path": "loopback-long",
+    "workload": "stream",
+    "block": 6,
+    "attempts": [
+     [
+      "original",
+      true,
+      false
+     ]
+    ],
+    "counted": "original",
+    "status": "clean",
+    "reasons": {
+     "original": []
+    },
+    "dirs": [
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p6-cand-bbrv3",
+     "/Volumes/worktrees/quic-go-fast/bbr-r9-memory-attribution/.local/bbr-r9-memory-attribution/observations/latcand-loopback-long-stream-p6-reno-reno"
+    ]
+   }
+  ],
+  "load_errors": {},
+  "blocking": "yes, unresolved"
+ }
+}
