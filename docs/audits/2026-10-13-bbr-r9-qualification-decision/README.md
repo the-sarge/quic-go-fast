@@ -1,6 +1,6 @@
 # BBRv3 qualification decision after the loopback and memory tickets
 
-Status: draft decision set for [Decide whether the loopback- and memory-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/741), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Approved in outline by the operator on 2026-10-13. Revised after two multi-agent considerations, whose findings are dispositioned [below](#consideration-dispositions); a third consideration follows. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
+Status: draft decision set for [Decide whether the loopback- and memory-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/741), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Approved in outline by the operator on 2026-10-13. Revised after three multi-agent considerations, whose findings are dispositioned [below](#consideration-dispositions). The third kept the verdict and its eleven fixes are applied; the record now awaits the operator's acceptance, including D4's interpretation and D5's retained-data scope. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
 
 Branch `codex/bbr-r9-qualification-decision`, based on `ddbac0a3` (the [r9 memory and latency attribution](../2026-10-08-bbr-r9-memory-attribution/README.md) record, #740). That record's history contains the [r9 Linux re-demonstration](../2026-10-08-bbr-r9-linux-redemonstration/README.md) (#739), the [loopback hand-off record](../2026-10-07-bbr-loopback-handoff/README.md) (#738) and the [previous decision](../2026-10-07-bbr-r8-qualification-decision/README.md) (#737). The surviving revision is **r9, `81e9dc8c`**: r8 (`95f5b6b7`) plus a 32-entry send queue for BBR connections. The first two decisions and the Mac records live on sibling record branches and are linked by commit.
 
@@ -60,7 +60,7 @@ Every goodput and CPU cell passes on r9: loopback goodput 1.148 / 1.001, S5 good
 - **The removal arms could not keep traffic comparable.** Four clean A/A pairs gave comparability bands of 1–2%, often at the 1% floor, while the treatment arms differed from the candidate by about ±1–5%. #740 reads this as scatter, not a single large shift, with one small systematic tendency: with Reno selected at the receiver, the receiver sent fewer packets per useful GiB in 14 of 16 WAN blocks, by up to 2%. The smaller ring changes eviction age; with it, S6 STREAM goodput was 1.1–5.0% lower.
 - **The ring's resident cost per byte varies by endpoint.** The 4,096-entry ring removed 0.999 MiB of explicit bytes. In blocks where the ring arm's traffic was comparable, the resident cut was 2.04–2.69 MiB at the S5 STREAM sender (the GOGC=100 doubling the registration modeled), 1.21–2.09 MiB at the S5 STREAM receiver, 1.55 MiB at the S5 DATAGRAM sender, 1.33 MiB at the S6 DATAGRAM sender, and 1.07 and 1.03 MiB at the S5 and S6 DATAGRAM receivers (one comparable block each). The observed envelope is about 1.0–2.7 resident bytes per explicit byte; it is not a fixed multiplier.
 - **The heap regimes differ by endpoint.** In #739, frozen Reno's measured heap peaks (heap in use, not the GC goal) are 6.0–6.5 MiB at the S5 senders but 3.1–3.7 MiB at the S5 receivers, both S6 endpoints and the loopback endpoints except the loopback DATAGRAM receiver (4.5 MiB), near Go's heap-goal floor of 4 MiB × GOGC/100. The candidate's are 4.0–14.6 MiB.
-- **Every candidate endpoint carries explicit BBR structures.** In `memory.json` (`descriptive.bbr_explicit`), each sender holds 2.00 MiB (STREAM) or 2.15 MiB (DATAGRAM) on S5 and S6 and about 1.23 MiB on loopback; each receiver holds 1.18–1.35 MiB. The outcome ring is 1.14 MiB at every endpoint.
+- **Every candidate endpoint carries explicit BBR structures.** In `memory.json` (`cells[].descriptive.bbr_explicit`), each sender holds 2.00 MiB (STREAM) or 2.15 MiB (DATAGRAM) on S5 and S6 and about 1.23 MiB on loopback; each receiver holds 1.18–1.35 MiB. The outcome ring is 1.14 MiB at every endpoint.
 - **The accounting places the excesses in heap memory.** File-backed pages, stacks and runtime metadata differ by little.
 - **Logical receive occupancy is small.** #740 sampled connection flow-control occupancy (received minus read, holes included) at each peak. Its candidate excess is 0.0 MiB at the S5 STREAM receiver and a median of 0.30 MiB (0–0.68) at the S6 STREAM receiver, against excesses of 8.75 and 13.05 MiB. These are logical bytes at one instant, and the excess can drain before a sample or sit in pinned backing capacity, so they do not bound storage. They do weigh against unread or out-of-order stream data explaining the receiver cells.
 - **Both S6 control p95 cells meet the Up-policy rule** in all eight runs per workload (STREAM 98.6–99.4% of samples above 25 ms in Up or the Down entered from Up; DATAGRAM 98.5–100%).
@@ -166,12 +166,14 @@ One task ticket on `minimax`, from r9, under #712's core layout and host setting
   - **Depth raises latency** when that interval lies above 1, at least five of six blocks exceed 1, and the point estimate exceeds the upper bound of the r9 A/A ratio's interval.
   - **Non-increase** only under a non-increase (equivalence) test on the direct comparison, with a margin the registration fixes before data. A wider A/A interval must never make this ending easier to reach.
   - Otherwise **inconclusive**: noise-compatible, which is not a finding of no effect.
+
+  The endings are evaluated in that order: *depth raises latency* first, then *non-increase*, otherwise *inconclusive*. An equivalence within its registered margin is reported either way.
 - *Mechanism reading (recorder arms).* The reading must connect send-queue wait to the p95 rise itself, not to an upper-tail mean. One such estimator is a counterfactual p95: r9's per-request latencies with each request's send-queue wait, at either endpoint, replaced by the depth-8 queue wait at the same quantile rank; the share is the fraction of the r9-minus-depth-8 p95 rise that this removes, with a block-bootstrap interval. Whatever estimator the registration chooses must pass the synthetic cases above, including both counterexamples. The share is computed only when the recorder arms' r9 ÷ depth-8 ratio falls inside the plain arms' interval and the p95 rise's interval excludes zero; otherwise, or when the share is unstable, the reading is **inconclusive**.
   - **Queue wait** when the share's lower bound is at least 0.70.
   - **Load or other** when its upper bound is below 0.30. A depth-caused rise in another segment the recorder places, such as packing delay or receive backlog, is reported by segment.
   - Otherwise **mixed**.
 
-  Tail-mean decompositions are reported as supporting evidence only.
+  The reading is endpoint-resolved: the sender's and the receiver's queue-wait contributions are reported separately, as is which queue the rise sits in. Tail-mean decompositions are reported as supporting evidence only.
 - *Baseline reading.* #715's `latency_preservation` rule, unchanged, for depth 8 against frozen Reno: *not reproduced* (a depth-8 configuration would clear the cell), *regression reproduced* (a **BBR baseline** component), or *inconclusive* or a gap (baseline unresolved). It describes the depth-8 configuration only and never decides a survivor's cell, which follows D4.
 - *What Stage 1 cannot do.* It reports r9 against frozen Reno descriptively only. It cannot revise #740's *regression reproduced* verdict.
 - *Inventory.* 6 arms × 6 blocks = 36 observations.
@@ -183,7 +185,7 @@ One task ticket on `minimax`, from r9, under #712's core layout and host setting
   - A depth chosen by trial: speculative tuning.
   - Restoring depth 8: it gives back the loopback goodput the queue bought (r8's flags were 0.943 / 0.854).
   - Draining the queue faster through batched sends. On Linux, r9 has no batched send path: `nativeBatchSendAvailable` is false on every non-Darwin build, and the fixture configures managed packet I/O without a batch callback, so each queue entry costs its own send. Adding one would be new platform I/O capability, not a BBR-only change.
-- *Activation.* An excluded activation run must show the registered treatment executing on the Linux path, and every counted run rechecks engagement. An inert treatment is uninformative and counts for nothing toward D6's prerequisite.
+- *Targeting and activation.* The registration states which queue or queues Stage 1 placed the rise in, and how the bound applies there, including the receiver's queue of ACK-only entries. An excluded activation run must show the treatment engaged at that endpoint on the Linux path, and every counted run rechecks it. An inert or mistargeted treatment is uninformative and counts for nothing toward D6's prerequisite.
 - *Gates before comparative data.* As the previous decision's D4 Stage 2: a fixed-input policy-equality oracle for admissions and credit accounting; lifecycle tests for refusal, wakeup rearming, isolated probes, generation reset and teardown; bound checks; #714's correctness, race and native-coverage gates; and detection of an injected second contract violation.
 - *Arms.*
   - Loopback, both workloads, six blocks: frozen Reno, A/A frozen Reno, r9, a second r9, the new revision and Reno on the new revision.
@@ -195,7 +197,17 @@ One task ticket on `minimax`, from r9, under #712's core layout and host setting
   - sender CPU per useful GiB is not above the BBR A/A maximum in either workload, and receiver integrity holds;
   - Reno on the new revision passes #714's preservation metric;
   - the S5 screen shows neither goodput nor sender CPU per useful GiB moving the wrong way beyond its range, under its own usability rule.
-- *Outcomes, recorded separately.* **Kept**; **null** (latency not reduced beyond the A/A interval); **effective, guard-failed** (latency reduced, but a goodput, CPU, preservation, integrity or S5 guard failed, with the trade recorded); **inconclusive**; **inert**; **gates failed**; **unbuildable**; or **not attempted**. Only a null or an effective, guard-failed outcome on an activated, gate-passing implementation disposes of the class.
+- *Outcomes, each mutually exclusive, classified in this order.*
+  1. **Not attempted**, **unbuildable**, **gates failed**, **inert** or **mistargeted**: no usable treatment.
+  2. Efficacy, on `loopback-long` against r9:
+     - **effective**: both latency clauses of the keep rule hold;
+     - **partial**: exactly one holds (non-disposing);
+     - **demonstrated worsening**: the interval's lower bound is above 1;
+     - **null**: a non-improvement (equivalence) test, with a margin the registration fixes before data, shows the new revision's p95 is not lower than r9's by more than that margin; a wider interval must never make this easier;
+     - otherwise **inconclusive** (non-disposing): a wide interval such as 0.80–1.15 is inconclusive, not null.
+  3. Guards, for an effective treatment: **kept** when every guard holds; **effective, guard-failed** when a guard shows a demonstrated regression beyond its range, with the trade recorded; **inconclusive** when a guard's evidence is insufficient, such as an S5 screen that fails its own usability rule.
+
+  Only **null**, **demonstrated worsening** or **effective, guard-failed**, on an activated, correctly targeted, gate-passing implementation, disposes of the class. The disposal is recorded separately from the outcome label.
 - *Evidence status.* Stage 2's `loopback-long` reading of the new revision against frozen Reno is selection evidence and is reported; it does not decide the survivor's cell, which D4 assigns to K.
 - *Inventory.* 72 loopback + 24 `loopback-long` + 24 S5 = 120 observations, released if Stage 2 does not run.
 
@@ -222,10 +234,10 @@ Blocked by Ticket K, on the final survivor, against the latest readiness flags (
 - **E**: the resident excess. The primary instrument is the per-run peak of `smaps_rollup` Rss sampled at 1 Hz from outside the endpoint process within the measured window; `ru_maxrss`, the readiness instrument, is the second.
 - **ΔL**: the marked live-heap excess, from the runtime's `/gc/heap/live:bytes`.
 - **K**: the candidate's explicit BBR structure bytes. Frozen Reno has none of these stores, so K is also their excess. It is reported in three parts per counted run: the outcome ring and its indexes; the delivery records; and the rest (retained-delivery nodes and heaps, feedback scratch).
-- **G**: the **retained application data** excess, reported both as logical content and as uniquely charged backing capacity, with the overhead (capacity minus content) shown separately.
-- **T**: the **packet-tracking state** excess: sent-packet records' metadata (payload their frames reference counts once, in G), received-packet ranges and acknowledgment state.
+- **G**: the retained-storage excess, in two additive parts: **G_c**, the logical **retained application data** content, and **G_o**, the backing-capacity overhead beyond it. G_c + G_o is the charged backing capacity; content is never added to total capacity. Active backing storage that retained content holds is charged to G even when it came from a pool; idle pool storage is not.
+- **T**: the **packet-tracking state** excess: sent-packet records' metadata (payload their frames reference counts once, in G), received-packet ranges and acknowledgment state. It is reported as occupied metadata **T_m** and backing-capacity overhead **T_o**, or with that split marked unresolved.
 - **B**: the ballast effect, Reno-with-ballast's resident memory minus frozen Reno's.
-- *Not in K, G or T.* Pooled packet and coalescing buffers and `sync.Pool` caches, send-queue entries, BBR structures outside the explicit accounting (the ECN marking ledger, the recovery members map, the retained map), and allocator overhead. The registration either gauges each of these or states that it falls in the residual.
+- *Not in K, G or T.* Idle pooled packet and coalescing buffers and `sync.Pool` caches, send-queue entries, BBR structures outside the explicit accounting (the ECN marking ledger, the recovery members map, the retained map), and allocator overhead. The registration either gauges each of these or states that it falls in the residual.
 
 **Requirements the registration must meet before data.** Each comes from the second consideration. If one cannot be met within the instrument gates, every label that depends on it ends as an evidence gap or an instrumentation gap, never as a label.
 1. *Additive accounting.* ΔL, K, G and T are read over one compatible population: the same GC-marked heap, with allocations made during concurrent marking or between readings handled, components signed, and each allocation, including shared backing storage, charged once. High-water marks are reported as burst diagnostics and never enter a residual. Synthetic cases: G and T peaking at different moments; a burst that drains before marking; allocation during concurrent marking; shared backing storage; negative component excesses. None may produce false closure or a false 70% share.
@@ -238,16 +250,20 @@ Blocked by Ticket K, on the final survivor, against the latest readiness flags (
 
 **Arms.** Each raised cell's path and workload, four blocks: frozen Reno; a second frozen Reno (the **Reno A/A** control); Reno with ballast; the candidate; and a second candidate (the **BBR A/A** control). B's variation is the Reno A/A paired difference; E's combines the Reno A/A and BBR A/A paired differences, in a form the registration fixes. A block or fraction whose denominator is non-positive or below a registered detectability threshold is unusable.
 
-**Labels, per cell**, needing agreement in at least three usable blocks, with estimators the registration fixes under the requirements above:
-- **Controller bookkeeping**: K accounts for at least 70% of the reconciled excess, and the comparable ballast reproduces it, closing at least 70% of E beyond the variation without exceeding E.
-- **Retained application data**: G's logical content accounts for at least 70% of the reconciled excess, and the ballast bounds bookkeeping's share below 30%.
-- **Packet-tracking state**: T accounts for at least 70%, with the same ballast bound.
-- **Composite**: no single component reaches 70%, but K, G and T together account for at least 70% with the residual below a registered share; each component's share is reported.
+**Labels, per cell**, needing agreement in at least three usable blocks, with estimators the registration fixes under the requirements above. **Composition shares use ΔL as their denominator**: the signed, compatible live-heap excess of requirement 1, with an explicit live residual that is never subtracted away to improve a share. Separately, every label also needs requirement 2's resident explanation of E. A composition that holds on ΔL without a validated resident link (for example, a G-dominant ΔL of 1.6 MiB against an E of 8 MiB) receives no attributed label.
+- **Controller bookkeeping**: K is at least 70% of ΔL, and the comparable ballast reproduces it, closing at least 70% of E beyond the variation without exceeding E.
+- **Retained application data**: G_c is at least 70% of ΔL, and the ballast bounds bookkeeping's share below 30% of E.
+- **Retained capacity overhead**: G_o is at least 70% of ΔL, with the same ballast bound.
+- **Packet-tracking state**: T is at least 70% of ΔL, with the same ballast bound.
+- **Composite**: no single component reaches 70%, but K, G_c, G_o and T together reach at least 70% of ΔL with the residual below a registered share.
+- **Multi-component**: under signed accounting, more than one component reaches 70% of ΔL. This ending is deterministic whatever the evaluation order.
 - Otherwise **mixed**, **inconclusive**, **unresolved (instrument-sensitive)**, an **evidence gap** or an **instrumentation gap**. Accounting alone never assigns a label.
 
-**Outputs.** Every cell's ending carries its label, the revision, and E, ΔL, K with its three-part split, G as content and capacity, T, B, the residuals, and the GC-headroom share or "unresolved". D6 routes on these outputs only.
+For composite and multi-component endings, the registration defines what agreement across blocks means when the mix changes, and the discriminating evidence behind each routed share: the ballast for K's share, and the comparability checks. A share without that support is reported descriptively and routed as unresolved. No minority share needs to reach 70% on its own.
 
-**Scope of retained application data, proposed for acceptance with this decision.** The exception-eligible scope is logical content in receiver delivery storage (out-of-order and unread stream data), sender data kept until acknowledged, and queued DATAGRAM payloads. Backing capacity beyond that content is an implementation-integration cost: a candidate for remedy, not for exception, while no remedy has been tested. Packet and acknowledgment metadata are packet-tracking state, routed separately.
+**Outputs.** Every cell's ending carries its label, the revision, and E, ΔL, K with its three-part split, G_c, G_o, T_m and T_o (or their unresolved split), B, the residuals, and the GC-headroom share or "unresolved". D6 routes on these outputs only.
+
+**Scope of retained application data, proposed for acceptance with this decision.** The exception-eligible scope is logical content in receiver delivery storage (out-of-order and unread stream data), sender data kept until acknowledged, and queued DATAGRAM payloads. Backing capacity beyond that content (G_o) is an implementation-integration cost: a candidate for remedy, not for exception, while no remedy has been tested. Packet and acknowledgment metadata are packet-tracking state, routed separately.
 
 **Disclosed before data: r9's figures on L's scales, from #740** (`memory.json`, per usable block):
 
@@ -264,29 +280,38 @@ Blocked by Ticket K, on the final survivor, against the latest readiness flags (
 
 ΔL is often well below E: in two S5 STREAM receiver blocks about 1.6 MiB of live excess sits against 8–8.5 MiB of resident excess, mostly in heap free classes. Live composition alone would not explain those cells, which is why requirement 2 exists. K can exceed ΔL, so signed offsets occur. #740's small logical receive occupancy weighs against G explaining the STREAM receivers. These are r9 figures under #740's instrument; L measures afresh. Each S6 reading also reports G and T against the delivered bandwidth-delay product, descriptively.
 
-**Inventory.** S5, S6 and loopback receiver cells, each 5 arms × 2 workloads × 4 blocks = 40, so 120 observations. For a new survivor, up to 16 more keep the S6 candidate and BBR A/A arms for workloads whose memory passes but whose control p95 is raised. That is at most 136 counted observations, with reruns capped at 20, so the ticket stays within **156** Linux observations. Paths and workloads with neither a raised memory cell nor kept S6 latency arms are dropped. Calibration, preflight and activation runs are excluded from statistics and listed.
+**Inventory.** S5, S6 and loopback receiver cells, each 5 arms × 2 workloads × 4 blocks = 40, so 120 observations. For a new survivor, an S6 workload whose memory passes but whose control p95 is raised keeps only its candidate and BBR A/A arms (8 observations) in place of its five memory arms. Counted observations therefore stay at or below 120, with reruns capped at 20, so the ticket stays within **140** Linux observations. Paths and workloads with neither a raised memory cell nor kept S6 latency arms are dropped. Calibration, preflight and activation runs are excluded from statistics and listed.
 
 ### D6 — Then a fresh decision on every outcome
 
-A new grilling ticket, blocked by Ticket L, re-asks this question on whatever J, K and L find. Its options are the same as this ticket's. **Terminal routing:**
+A new grilling ticket, blocked by Ticket L, re-asks this question on whatever J, K and L find. Its options are the same as this ticket's.
+
+**Two layers.** Pipeline rows say which ticket runs next; disposition rows say what each cell's evidence supports. They apply together, not first-match. Every cell ends with one blocking state and one exception-eligibility state.
+
+**Whole-cell rule, for every memory label.** A cell's disposition aggregates every measured constituent: the dominant label, minority components, capacity overhead (G_o, T_o), any GC-headroom share and the residuals. A cell is exception-eligible only when every constituent is. Any constituent that is unresolved, remedy-only or not yet decided eligible keeps the whole cell ineligible, whatever its dominant label. Any exception keeps the revision, platform, magnitude and composition. Bookkeeping attribution alone grants no exception; its route is the separate design-bound decision.
+
+**Terminal routing:**
 
 | Outcome | Route |
 | --- | --- |
 | J: depth raises latency, mechanism queue wait, remedy kept | K re-demonstrates J's survivor, including `latcand-stream`; L attributes on it. |
 | J ends without a kept change | K closes as not run; L attributes on r9 against #739's flags. |
-| J: remedy null, or effective but guard-failed, on an activated, gate-passing implementation | The named class is disposed of. The cell stays unresolved and blocking. The next decision may name another class and test it, or, recording why it names none, consider an exception for the depth trade-off, weighing the recorded trade. |
-| J: remedy inconclusive, inert, gates failed, unbuildable or not attempted | Untested. Unresolved and blocking; a candidate for remedy, not for exception. |
+| J: remedy null, demonstrated worsening, or effective but guard-failed, on an activated, correctly targeted, gate-passing implementation | The named class is disposed of. The cell stays unresolved and blocking. The next decision may name another class and test it, or, recording why it names none, consider an exception for the depth trade-off, weighing the recorded trade, but only for the depth increment: see the combined row below. |
+| J: class disposed of, and the baseline reading regression reproduced, inconclusive or a gap | A depth-only exception cannot cover the whole cell, because J attributes the r9-minus-depth-8 increment while the cell compares r9 with frozen Reno. The baseline contribution needs its own disposition first. |
+| J: remedy partial, inconclusive, inert, mistargeted, gates failed, unbuildable or not attempted | Untested. Unresolved and blocking; a candidate for remedy, not for exception. |
+| J: remedy kept, and K's `latcand-stream` on the survivor does not read *not reproduced* | The class is not disposed of. The survivor's remaining rise is unresolved and blocking, and J's disposal route gives no exception eligibility. |
 | J: depth raises latency; mechanism load or other, mixed, inconclusive or a gap | Unresolved and blocking; a further cause stage is the next decision's choice. |
 | J: depth reading non-increase or inconclusive | Unresolved and blocking. |
-| J: BBR baseline | Reported for the depth-8 configuration. It does not decide any survivor's cell, which follows D4. |
+| J: BBR baseline | Reported for the depth-8 configuration. It decides no cell: r9's cell follows #740's operator decision 2, and a new revision's follows D4. |
 | K: the survivor's loopback STREAM candidate control p95 | D4's interpretation. |
 | K: a newly raised cell outside L's scope, or a raised Reno-on-candidate cell | Reported as unresolved; a preservation cell blocks under its existing rule. No stage of L attributes it. |
 | S6 control p95, survivor r9 | D2's attributions on r9 stand unchanged: attributed behaviour, eligible for an exception decision. |
-| S6 control p95, new survivor | L's re-attribution to the Up policy makes it eligible for an exception decision; otherwise unresolved. |
+| S6 control p95, new survivor | A cell K raises: L's re-attribution to the Up policy makes it eligible for an exception decision; otherwise unresolved. A cell K passes stays passing and needs no attribution. |
 | L: controller bookkeeping | Two parts, from L's outputs. A measured GC-headroom share is an integration cost: a candidate for a contract-preserving remedy in how the structures are held, not for exception, while such a remedy is untested. An unidentified headroom share stays unresolved. The bounds themselves are evidence for considering a separate design-bound decision, structure by structure, on K's counted split. This route is new for L's outcomes and does not reuse the previous ring trigger; it establishes neither necessity nor authority to amend a bound. |
-| L: retained application data | Logical content within D5's accepted scope: attributed behaviour, eligible for an exception decision. Capacity overhead: a candidate for remedy. |
-| L: packet-tracking state | Attributed behaviour. No earlier route names it, so whether it is eligible for an exception is an explicit question for the next decision. |
-| L: composite | Each component is routed for its share. A cell can be excepted only as a whole: while any component is unresolved, remedy-only or not yet decided eligible, the cell is not exception-eligible. Any exception keeps the revision, platform, magnitude and composition. |
+| L: retained application data | G_c within D5's accepted scope: attributed behaviour, eligible for an exception decision, subject to the whole-cell rule. |
+| L: retained capacity overhead, or any measured G_o share | An implementation-integration cost: a candidate for remedy, not for exception, while no remedy has been tested. |
+| L: packet-tracking state | T_m: attributed behaviour. No earlier route names it, so whether it is eligible for an exception is an explicit question for the next decision. T_o: a candidate for remedy, as for G_o. |
+| L: composite or multi-component | Each supported share is routed by its component's row; an unsupported share is unresolved. The whole-cell rule decides the cell. |
 | L: mixed; inconclusive; instrument-sensitive; gap | Unresolved; not eligible for a cause-based exception. |
 | A prerequisite gap or unusable instruments | The stage ends as a gap and its ticket closes to the next. |
 | Flags persist | Reported as unresolved to the decision. |
@@ -341,7 +366,7 @@ BBRv3 is not advanced, so no qualification is chosen and no paid experiment is p
 | F3 — J's comparison form, direction and placement | C-025, C-037 | Accepted. Interval predicates are defined with direction; r8 is replaced by r9 at depth 8, a one-constant control. The goodput guard still evaluates the actual new binary. | D3 Builds, Stage 1, keep rule |
 | F4 — J's Stage 2 lacks the long-run A/A | C-018, C-020, C-044, C-045, C-047 | Accepted. A second r9 is added to Stage 2's `loopback-long` arms; inventory 156, cap 180. | D3 Stage 2 |
 | F5 — Baseline against clearance, and the reroll risk | C-012, C-069, C-022 | Accepted. The baseline uses all three `latency_preservation` outcomes, Stage 1 cannot revise #740's verdict, and the lead table adds frozen Reno's A/A, which shows the baseline lead is weak. | Evidence; D3 Stage 1 |
-| F6 — Remedy space and a combined queue-plus-baseline outcome | C-011, C-032 (combined part) | Partly accepted. Admissible remedy classes are named and trial-chosen depths excluded; a combined row is added. Not adopted: that no admissible remedy remains. (Its supporting premise, that batching was open because `maxSendBatch` stays eight, was wrong on Linux; corrected in the second round, item 4.) | D3 Stage 2; D6 |
+| F6 — Remedy space and a combined queue-plus-baseline outcome | C-011, C-032 (combined part) | Partly accepted. Admissible remedy classes are named and trial-chosen depths excluded; a combined row is added (removed in the second revision and restored in the third, F5). Not adopted: that no admissible remedy remains. (Its supporting premise, that batching was open because `maxSendBatch` stays eight, was wrong on Linux; corrected in the second round, item 4.) | D3 Stage 2; D6 |
 | F7 — A failed or untested remedy routed toward exception | C-026, C-027, C-034 | Accepted. Untested remedies stay remedy candidates; an exception for the depth trade-off is considerable only once every admissible class has a negative or null outcome. | D6 |
 | F8 — The latency mapping extended to a new revision | C-002 | Accepted. Stated as an operator interpretation proposed for acceptance with this decision. | D4 |
 | F9 — The ballast does not transfer from Reno to the candidate | C-016, C-042, C-052, C-064, C-055, C-007, C-051 | Accepted. Labels now require a candidate-side condition on the live-heap scale (K's share of ΔL); the ballast confirms resident translation and may not over-explain; heap goals and the 4 MiB floor are reported; the ballast has a fixed and an occupancy part, sized from the survivor's own calibration. C-055's premise that the bookkeeping is pointer-bearing is not adopted (it is scalar except ≤4,096 retained-delivery nodes), but the shape difference is disclosed. | D5 |
@@ -389,7 +414,40 @@ Not acted on, as the synthesis advised:
 - C-037's replacement of the keep guard;
 - C-053, beyond a note that frozen Reno has no BBR stores, so K equals its excess.
 
-**Third consideration:** pending.
+**Third consideration**, RAS run `20261013T180431-93e0ccf85c33b063f2a10470` (five reviewers, five adjudicators and a disagreement round; 41 finding clusters, 220 adjudications; synthesis complete). It kept the verdict and said the remaining fixes "concern classification and exception prerequisites, not readiness limits, the median rule, or the advancement condition", with detailed estimators left to J's and L's reviewed registrations. It assessed second-round items 9, 10, 13, 14 and 15 as resolved and the rest as resolved once the fixes below land.
+
+| Fix | Clusters | Disposition | Where |
+| --- | --- | --- | --- |
+| F1 — A disposing null against inadequate discrimination | C-009, C-020, C-039 | Fixed. Mutually exclusive outcomes in a stated order; null needs a registered non-improvement test that a wider interval cannot make easier; partial and insufficient-guard outcomes are non-disposing; disposal is recorded separately from the label. | D3 Stage 2 |
+| F2 — Whole-cell eligibility for every memory label | C-006, C-007, C-012; part of C-035 | Fixed. One whole-cell rule above all routes; bookkeeping attribution alone grants no exception. The demand for a guaranteed future clearance route for bookkeeping is not adopted, as the synthesis advised. | D6 |
+| F3 — The scale of the composition predicates | C-023, C-032; denominator part of C-033 | Fixed. Shares use ΔL; the resident explanation of E is required separately; a ΔL-only composition gets no label. | D5 Labels |
+| F4 — Retained capacity is countable and routable | C-010, C-011, C-014 | Fixed. G = G_c + G_o; active pooled backing charged to G, idle pool storage excluded; a retained-capacity-overhead label routes to remedy. | D5; D6 |
+| F5 — Baseline uncertainty and combined outcomes | C-005, C-021; related C-022, C-036 | Fixed. Combined row restored; a kept remedy with K still blocking leaves the class undisposed; r9's cell follows #740's decision 2 and a new revision's follows D4; F6's historical note updated. | D6; first-round table |
+| F6 — Comparative support for composite shares | C-025; composite part of C-035 | Fixed. The registration defines composite agreement and each routed share's discriminating support; unsupported shares are unresolved; no 70% floor on minority shares. | D5 Labels |
+| F7 — Multiple dominant labels under signed accounting | C-018, C-037 | Fixed. A deterministic multi-component ending, routed by constituent under the whole-cell rule. | D5 Labels; D6 |
+| F8 — Remedy engagement at the relevant endpoint | C-024; supported part of C-040; related C-016 | Fixed. Endpoint-resolved mechanism reading; targeting and engagement at the measured queue; a mistargeted treatment is non-disposing. | D3 Stage 1, Stage 2 |
+| F9 — Mutually exclusive depth endings | C-028 | Fixed. Evaluated as raises, then non-increase, otherwise inconclusive. | D3 Stage 1 |
+| F10 — Passing route for a new survivor's S6 latency | C-031 | Fixed. The row applies only to cells K raises; passing cells stay passing. | D6 |
+| F11 — Implementation cost within T | C-008 | Fixed. T is reported as T_m and T_o (or unresolved); T_o routes to remedy. | D5; D6 |
+
+Also taken: C-002's inventory precision (S6 latency-only arms replace a workload's memory arms, so at most 120 counted and a cap of 140), C-019's citation path, and the DATAGRAM direction in the glossary.
+
+Not acted on, as the synthesis advised:
+- C-001 (ballast closure; covered by the global requirements and F6);
+- C-003 and parts of C-040 (declaring the remedy class invalid or necessarily exhausted);
+- C-004 and part of C-033 (completing estimators here);
+- C-013 and C-026 (predicting instrument failure or bypassing its gates);
+- C-015 (D4 is explicitly an operator proposal; no fallback authorization is invented);
+- C-016 (fixing the endpoint estimator here);
+- C-017 (segmented send is not batching, and the fixture's managed path disables it);
+- C-022 beyond the note;
+- C-027, C-029 and C-034 (mandatory glossary rewrites);
+- C-030 (first-match routing; the two-layer note was added instead);
+- C-036 (tightening the keep rule);
+- C-038 (a numerical margin ceiling);
+- C-041 (pre-authorizing a guard-failed keep).
+
+The operator's acceptance of D4's interpretation and D5's retained-data scope is recorded separately from these technical fixes.
 
 ## Limits
 
