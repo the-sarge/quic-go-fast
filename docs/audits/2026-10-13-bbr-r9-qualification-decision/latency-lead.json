@@ -327,13 +327,20 @@
       "maximum": 1.624445938090394,
       "n": 6
     },
+    "reno_aa_over_reno": {
+      "median": 1.019013057113436,
+      "minimum": 0.7102742599532116,
+      "maximum": 1.4797358655560164,
+      "n": 6
+    },
     "r9_over_reno": {
       "median": 2.05418153929014,
       "minimum": 1.2981519273570215,
       "maximum": 2.648241638460215,
       "n": 6
     },
-    "r9_over_r8_blocks_above_aa_max": 4
+    "r9_over_r8_blocks_above_bbr_aa_max": 4,
+    "r8_over_reno_blocks_above_reno_aa_max": 2
   },
   "p50": {
     "r9_over_r8": {
@@ -348,6 +355,19 @@
       "maximum": 1.2029454230436039,
       "n": 6
     },
-    "r9_over_r8_blocks_above_aa_max": 6
+    "r8_over_reno": {
+      "median": 1.1511724509377994,
+      "minimum": 1.1360803096909653,
+      "maximum": 1.42187658104338,
+      "n": 6
+    },
+    "reno_aa_over_reno": {
+      "median": 1.0540468950340696,
+      "minimum": 0.8750198759739226,
+      "maximum": 1.3543672071839266,
+      "n": 6
+    },
+    "r9_over_r8_blocks_above_bbr_aa_max": 6,
+    "r8_over_reno_blocks_above_reno_aa_max": 1
   }
 }

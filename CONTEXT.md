@@ -78,6 +78,8 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **ECN counter fence**: A feedback boundary at which all previously marked transmissions are accounted for before validating marking on a new path. It separates cumulative-counter continuity from the new path's ECN capability.
 
-**Controller bookkeeping**: Per-connection records a congestion controller keeps about earlier transmissions and their outcomes to drive its model, held within declared capacity bounds. It is distinct from retained application data and from the delivery snapshot of a single outgoing packet.
+**Controller bookkeeping**: Per-connection stores a congestion controller keeps about many earlier transmissions to drive its model, such as recovery outcomes, their indexes and retained delivery snapshots, held within declared capacity bounds. It can hold outstanding delivery evidence for many packets, and it is distinct from retained application data and from in-flight transport state.
 
-**Retained application data**: Application content a connection holds in memory because of transmission progress: data the sender keeps until the peer acknowledges it, and out-of-order or unread data the receiver holds. It grows with the data in flight and is distinct from controller bookkeeping.
+**Retained application data**: Application content a connection holds in memory before its transport role ends: data the sender keeps until the peer acknowledges it, out-of-order or unread data the receiver holds until the application reads it, and queued DATAGRAM payloads. It excludes packet and acknowledgment metadata.
+
+**In-flight transport state**: Per-packet transport metadata a connection keeps for recovery and acknowledgment, such as the sent-packet history and the received-packet ranges, whichever congestion controller is selected. Application payload those records reference is retained application data, not in-flight transport state.

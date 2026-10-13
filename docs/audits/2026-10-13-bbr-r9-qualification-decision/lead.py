@@ -54,13 +54,17 @@ def main():
         p95=dict(r9_over_r8=spread(ratio('r9', 'r8', 'control_p95_ms')),
                  r8_aa_over_r8=spread(ratio('r8_aa', 'r8', 'control_p95_ms')),
                  r8_over_reno=spread(ratio('r8', 'reno', 'control_p95_ms')),
+                 reno_aa_over_reno=spread(ratio('reno_aa', 'reno', 'control_p95_ms')),
                  r9_over_reno=spread(ratio('r9', 'reno', 'control_p95_ms'))),
         p50=dict(r9_over_r8=spread(ratio('r9', 'r8', 'control_p50_ms')),
-                 r8_aa_over_r8=spread(ratio('r8_aa', 'r8', 'control_p50_ms'))),
+                 r8_aa_over_r8=spread(ratio('r8_aa', 'r8', 'control_p50_ms')),
+                 r8_over_reno=spread(ratio('r8', 'reno', 'control_p50_ms')),
+                 reno_aa_over_reno=spread(ratio('reno_aa', 'reno', 'control_p50_ms'))),
     )
-    aa95, aa50 = out['p95']['r8_aa_over_r8']['maximum'], out['p50']['r8_aa_over_r8']['maximum']
-    out['p95']['r9_over_r8_blocks_above_aa_max'] = sum(v > aa95 for v in ratio('r9', 'r8', 'control_p95_ms'))
-    out['p50']['r9_over_r8_blocks_above_aa_max'] = sum(v > aa50 for v in ratio('r9', 'r8', 'control_p50_ms'))
+    for q, key in (('p95', 'control_p95_ms'), ('p50', 'control_p50_ms')):
+        bbr_aa, reno_aa = out[q]['r8_aa_over_r8']['maximum'], out[q]['reno_aa_over_reno']['maximum']
+        out[q]['r9_over_r8_blocks_above_bbr_aa_max'] = sum(v > bbr_aa for v in ratio('r9', 'r8', key))
+        out[q]['r8_over_reno_blocks_above_reno_aa_max'] = sum(v > reno_aa for v in ratio('r8', 'reno', key))
     (HERE / 'latency-lead.json').write_text(json.dumps(out, indent=2) + '\n')
 
 
