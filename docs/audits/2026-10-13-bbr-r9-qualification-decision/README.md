@@ -85,7 +85,7 @@ These estimates predict that the explicit structures alone exceed the allowance 
 
 - **What changed.** r9 differs from r8 only in `bbrSendQueueCapacity = 32` (`send_queue.go`); Reno keeps eight entries. At loopback rates each BBR entry holds one packet. The constant is not platform-specific.
 - **What the cell measures.** The fixture's sender writes a 32-byte message on a reliable control stream once per second and times the receiver's echo (`observeControl` in the [campaign fixture's session.go](../2026-09-25-bbrv3-q1-campaign/fixture/session.go), which #739 and #740 build from). The request travels through the sender's own send queue behind bulk data. (Source inspection.)
-- **#738 Stage 2's runs** (instrumented hand-off builds with about a 2% recorder cost, 20 replies per run, six clean counted blocks; per-run `summary.json` in its [raw.tar.gz](../2026-10-07-bbr-loopback-handoff/raw.tar.gz)):
+- **#738 Stage 2's runs** (r8 and r9 as instrumented hand-off builds with about a 2% recorder cost, frozen Reno plain; 20 replies per run; the six clean counted blocks). [lead.py](lead.py) reads them from #738's [raw.tar.gz](../2026-10-07-bbr-loopback-handoff/raw.tar.gz), matching each block's counted attempt to its `results.json`, and writes [latency-lead.json](latency-lead.json):
 
   | Comparison | p95 median [range] | p50 median [range] |
   | --- | --- | --- |

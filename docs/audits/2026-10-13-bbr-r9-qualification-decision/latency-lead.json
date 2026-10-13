@@ -1,0 +1,353 @@
+{
+  "note": "Descriptive lead only: #738 Stage 2, instrumented hand-off builds for r8 and r9, plain frozen Reno; not registered for latency.",
+  "blocks": [
+    {
+      "block": 1,
+      "r8": {
+        "id": "s2-loopback-stream-p1-cand-hand-timeline-bbrv3",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4573.854278399999,
+        "control_p95_ms": 0.178845,
+        "control_p50_ms": 0.06926,
+        "control_replies": 20
+      },
+      "r8_aa": {
+        "id": "s2-loopback-stream-p1-cand-hand-timeline-bbrv3-aa",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4586.4249024,
+        "control_p95_ms": 0.148708,
+        "control_p50_ms": 0.083316,
+        "control_replies": 20
+      },
+      "reno_on_r9": {
+        "id": "s2-loopback-stream-p1-new-reno",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+        "goodput_mbps": 4837.7457216,
+        "control_p95_ms": 0.118492,
+        "control_p50_ms": 0.067907,
+        "control_replies": 20
+      },
+      "r9": {
+        "id": "s2-loopback-stream-p1-new-hand-timeline-bbrv3",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330+hand",
+        "goodput_mbps": 5424.1784256,
+        "control_p95_ms": 0.270126,
+        "control_p50_ms": 0.120325,
+        "control_replies": 20
+      },
+      "reno": {
+        "id": "s2-loopback-stream-p1-reno-reno",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4831.899072,
+        "control_p95_ms": 0.110096,
+        "control_p50_ms": 0.060964,
+        "control_replies": 20
+      },
+      "reno_aa": {
+        "id": "s2-loopback-stream-p1-reno-reno-aa",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4813.305024,
+        "control_p95_ms": 0.102703,
+        "control_p50_ms": 0.066144,
+        "control_replies": 20
+      }
+    },
+    {
+      "block": 2,
+      "r8": {
+        "id": "s2-loopback-stream-p2-cand-hand-timeline-bbrv3",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4441.1556288,
+        "control_p95_ms": 0.159649,
+        "control_p50_ms": 0.084148,
+        "control_replies": 20
+      },
+      "r8_aa": {
+        "id": "s2-loopback-stream-p2-cand-hand-timeline-bbrv3-aa",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4430.1694271999995,
+        "control_p95_ms": 0.164799,
+        "control_p50_ms": 0.078257,
+        "control_replies": 20
+      },
+      "reno_on_r9": {
+        "id": "s2-loopback-stream-p2-new-reno",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+        "goodput_mbps": 4849.5568704,
+        "control_p95_ms": 0.133771,
+        "control_p50_ms": 0.066715,
+        "control_replies": 20
+      },
+      "r9": {
+        "id": "s2-loopback-stream-p2-new-hand-timeline-bbrv3",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330+hand",
+        "goodput_mbps": 5448.2917632,
+        "control_p95_ms": 0.182563,
+        "control_p50_ms": 0.126828,
+        "control_replies": 20
+      },
+      "reno": {
+        "id": "s2-loopback-stream-p2-reno-reno",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4801.8670656,
+        "control_p95_ms": 0.140633,
+        "control_p50_ms": 0.072496,
+        "control_replies": 20
+      },
+      "reno_aa": {
+        "id": "s2-loopback-stream-p2-reno-reno-aa",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4791.777830399999,
+        "control_p95_ms": 0.099888,
+        "control_p50_ms": 0.073648,
+        "control_replies": 20
+      }
+    },
+    {
+      "block": 3,
+      "r8": {
+        "id": "s2-loopback-stream-p3-cand-hand-timeline-bbrv3",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4442.183539199999,
+        "control_p95_ms": 0.12775,
+        "control_p50_ms": 0.072056,
+        "control_replies": 20
+      },
+      "r8_aa": {
+        "id": "s2-loopback-stream-p3-cand-hand-timeline-bbrv3-aa",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4431.524697600001,
+        "control_p95_ms": 0.134533,
+        "control_p50_ms": 0.065633,
+        "control_replies": 20
+      },
+      "reno_on_r9": {
+        "id": "s2-loopback-stream-p3-new-reno",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+        "goodput_mbps": 4839.781900800001,
+        "control_p95_ms": 0.1329,
+        "control_p50_ms": 0.070432,
+        "control_replies": 20
+      },
+      "r9": {
+        "id": "s2-loopback-stream-p3-new-hand-timeline-bbrv3",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330+hand",
+        "goodput_mbps": 5423.615366399999,
+        "control_p95_ms": 0.169709,
+        "control_p50_ms": 0.107231,
+        "control_replies": 20
+      },
+      "reno": {
+        "id": "s2-loopback-stream-p3-reno-reno",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4775.7044544,
+        "control_p95_ms": 0.089197,
+        "control_p50_ms": 0.059592,
+        "control_replies": 20
+      },
+      "reno_aa": {
+        "id": "s2-loopback-stream-p3-reno-reno-aa",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4784.7723264,
+        "control_p95_ms": 0.131988,
+        "control_p50_ms": 0.068659,
+        "control_replies": 20
+      }
+    },
+    {
+      "block": 4,
+      "r8": {
+        "id": "s2-loopback-stream-p4-cand-hand-timeline-bbrv3",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4372.612992,
+        "control_p95_ms": 0.155933,
+        "control_p50_ms": 0.078097,
+        "control_replies": 20
+      },
+      "r8_aa": {
+        "id": "s2-loopback-stream-p4-cand-hand-timeline-bbrv3-aa",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4453.3923456,
+        "control_p95_ms": 0.164349,
+        "control_p50_ms": 0.07474,
+        "control_replies": 20
+      },
+      "reno_on_r9": {
+        "id": "s2-loopback-stream-p4-new-reno",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+        "goodput_mbps": 4834.4917632,
+        "control_p95_ms": 0.162866,
+        "control_p50_ms": 0.079219,
+        "control_replies": 20
+      },
+      "r9": {
+        "id": "s2-loopback-stream-p4-new-hand-timeline-bbrv3",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330+hand",
+        "goodput_mbps": 5423.582630399999,
+        "control_p95_ms": 0.283152,
+        "control_p50_ms": 0.126657,
+        "control_replies": 20
+      },
+      "reno": {
+        "id": "s2-loopback-stream-p4-reno-reno",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4775.9008704,
+        "control_p95_ms": 0.128371,
+        "control_p50_ms": 0.068409,
+        "control_replies": 20
+      },
+      "reno_aa": {
+        "id": "s2-loopback-stream-p4-reno-reno-aa",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4776.5817792,
+        "control_p95_ms": 0.108213,
+        "control_p50_ms": 0.069991,
+        "control_replies": 20
+      }
+    },
+    {
+      "block": 5,
+      "r8": {
+        "id": "s2-loopback-stream-p5-cand-hand-timeline-bbrv3",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4554.0817344,
+        "control_p95_ms": 0.153427,
+        "control_p50_ms": 0.098364,
+        "control_replies": 20
+      },
+      "r8_aa": {
+        "id": "s2-loopback-stream-p5-cand-hand-timeline-bbrv3-aa",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4535.671008,
+        "control_p95_ms": 0.195697,
+        "control_p50_ms": 0.094527,
+        "control_replies": 20
+      },
+      "reno_on_r9": {
+        "id": "s2-loopback-stream-p5-new-reno",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+        "goodput_mbps": 4840.9145664,
+        "control_p95_ms": 0.087534,
+        "control_p50_ms": 0.06378,
+        "control_replies": 20
+      },
+      "r9": {
+        "id": "s2-loopback-stream-p5-new-hand-timeline-bbrv3",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330+hand",
+        "goodput_mbps": 5465.0656896,
+        "control_p95_ms": 0.276969,
+        "control_p50_ms": 0.132788,
+        "control_replies": 20
+      },
+      "reno": {
+        "id": "s2-loopback-stream-p5-reno-reno",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4807.9756032,
+        "control_p95_ms": 0.104586,
+        "control_p50_ms": 0.069179,
+        "control_replies": 20
+      },
+      "reno_aa": {
+        "id": "s2-loopback-stream-p5-reno-reno-aa",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4810.6468608000005,
+        "control_p95_ms": 0.115586,
+        "control_p50_ms": 0.060533,
+        "control_replies": 20
+      }
+    },
+    {
+      "block": 6,
+      "r8": {
+        "id": "s2-loopback-stream-p6-cand-hand-timeline-bbrv3",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4547.370854399999,
+        "control_p95_ms": 0.169988,
+        "control_p50_ms": 0.070612,
+        "control_replies": 20
+      },
+      "r8_aa": {
+        "id": "s2-loopback-stream-p6-cand-hand-timeline-bbrv3-aa",
+        "source": "95f5b6b7a0689a035c29d859f4e026469e20d20d+hand",
+        "goodput_mbps": 4560.6223872,
+        "control_p95_ms": 0.112882,
+        "control_p50_ms": 0.065823,
+        "control_replies": 20
+      },
+      "reno_on_r9": {
+        "id": "s2-loopback-stream-p6-new-reno",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+        "goodput_mbps": 4845.3142848,
+        "control_p95_ms": 0.116208,
+        "control_p50_ms": 0.062467,
+        "control_replies": 20
+      },
+      "r9": {
+        "id": "s2-loopback-stream-p6-new-hand-timeline-bbrv3",
+        "source": "81e9dc8c7154fe13227386866f83c48dcc75c330+hand",
+        "goodput_mbps": 5447.1001728,
+        "control_p95_ms": 0.201177,
+        "control_p50_ms": 0.111419,
+        "control_replies": 20
+      },
+      "reno": {
+        "id": "s2-loopback-stream-p6-reno-reno",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4805.3043456000005,
+        "control_p95_ms": 0.112631,
+        "control_p50_ms": 0.061916,
+        "control_replies": 20
+      },
+      "reno_aa": {
+        "id": "s2-loopback-stream-p6-reno-reno-aa",
+        "source": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "goodput_mbps": 4811.733696,
+        "control_p95_ms": 0.126076,
+        "control_p50_ms": 0.083857,
+        "control_replies": 20
+      }
+    }
+  ],
+  "p95": {
+    "r9_over_r8": {
+      "median": 1.4194189319496777,
+      "minimum": 1.1435273631529166,
+      "maximum": 1.8158568102967303,
+      "n": 6
+    },
+    "r8_aa_over_r8": {
+      "median": 1.042677078491626,
+      "minimum": 0.6640586394333717,
+      "maximum": 1.275505615048199,
+      "n": 6
+    },
+    "r8_over_reno": {
+      "median": 1.4496083635550914,
+      "minimum": 1.1352171965328195,
+      "maximum": 1.624445938090394,
+      "n": 6
+    },
+    "r9_over_reno": {
+      "median": 2.05418153929014,
+      "minimum": 1.2981519273570215,
+      "maximum": 2.648241638460215,
+      "n": 6
+    },
+    "r9_over_r8_blocks_above_aa_max": 4
+  },
+  "p50": {
+    "r9_over_r8": {
+      "median": 1.5425531013177047,
+      "minimum": 1.34996543450856,
+      "maximum": 1.7372942535373952,
+      "n": 6
+    },
+    "r8_aa_over_r8": {
+      "median": 0.9445968303447592,
+      "minimum": 0.9108609970023316,
+      "maximum": 1.2029454230436039,
+      "n": 6
+    },
+    "r9_over_r8_blocks_above_aa_max": 6
+  }
+}
