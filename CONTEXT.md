@@ -77,3 +77,7 @@ Language for QUIC transport behavior and the fork's transmission work.
 **CE response boundary**: The transmission boundary recorded when validated congestion-experienced feedback triggers a sending reduction. It suppresses repeated reductions for feedback anchored before that boundary without identifying which individual packet was marked.
 
 **ECN counter fence**: A feedback boundary at which all previously marked transmissions are accounted for before validating marking on a new path. It separates cumulative-counter continuity from the new path's ECN capability.
+
+**Controller bookkeeping**: Per-connection records a congestion controller keeps about earlier transmissions and their outcomes to drive its model, held within declared capacity bounds. It is distinct from retained application data and from the delivery snapshot of a single outgoing packet.
+
+**Retained application data**: Application content a connection holds in memory because of transmission progress: data the sender keeps until the peer acknowledges it, and out-of-order or unread data the receiver holds. It grows with the data in flight and is distinct from controller bookkeeping.
