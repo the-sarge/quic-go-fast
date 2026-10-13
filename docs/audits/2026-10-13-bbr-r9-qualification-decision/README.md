@@ -326,6 +326,8 @@ BBRv3 is not advanced, so no qualification is chosen and no paid experiment is p
 
 [Assess the case for a local BBRv1 investigation](https://github.com/the-sarge/quic-go-fast/issues/673) and [Decide whether to investigate BBRv1 next](https://github.com/the-sarge/quic-go-fast/issues/674) remain open, and #673 is re-wired to the new decision ticket. The open costs are memory and a transport-integration latency, and the map rules out switching versions to conceal a shared defect.
 
+**Operator decision, 2026-10-13, after acceptance: a dormant fallback.** Both tickets stay open, but only a decline reaches them. Unless the new decision ticket declines further work on BBRv3, it closes both as out of scope, with one line in the map's Out of scope section. If it declines, they proceed as the destination's BBRv1 branch. The destination is unchanged.
+
 ## Rejected
 
 - **Advance on the S6 benefit.** Nine cells are unresolved.
