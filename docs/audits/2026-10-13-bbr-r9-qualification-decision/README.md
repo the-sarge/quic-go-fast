@@ -1,6 +1,6 @@
 # BBRv3 qualification decision after the loopback and memory tickets
 
-Status: draft decision set for [Decide whether the loopback- and memory-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/741), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Approved in outline by the operator on 2026-10-13. Revised after three multi-agent considerations, whose findings are dispositioned [below](#consideration-dispositions). The third kept the verdict and its eleven fixes are applied; the record now awaits the operator's acceptance, including D4's interpretation and D5's retained-data scope. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
+Status: accepted decision set for [Decide whether the loopback- and memory-tested BBRv3 candidate deserves further qualification](https://github.com/the-sarge/quic-go-fast/issues/741), under the [BBR Wayfinder map](https://github.com/the-sarge/quic-go-fast/issues/666). Approved in outline by the operator on 2026-10-13. Revised after three multi-agent considerations, whose findings are dispositioned [below](#consideration-dispositions). The third kept the verdict and its eleven fixes are applied. **Accepted by the operator on 2026-10-13**, including D4's interpretation and D5's retained-data scope. Planning only: no production merge, paid resource, campaign resumption, default-controller change or ledger change.
 
 Branch `codex/bbr-r9-qualification-decision`, based on `ddbac0a3` (the [r9 memory and latency attribution](../2026-10-08-bbr-r9-memory-attribution/README.md) record, #740). That record's history contains the [r9 Linux re-demonstration](../2026-10-08-bbr-r9-linux-redemonstration/README.md) (#739), the [loopback hand-off record](../2026-10-07-bbr-loopback-handoff/README.md) (#738) and the [previous decision](../2026-10-07-bbr-r8-qualification-decision/README.md) (#737). The surviving revision is **r9, `81e9dc8c`**: r8 (`95f5b6b7`) plus a 32-entry send queue for BBR connections. The first two decisions and the Mac records live on sibling record branches and are linked by commit.
 
@@ -217,7 +217,7 @@ One task ticket on `minimax`, from r9, under #712's core layout and host setting
 
 Blocked by Ticket J. If J keeps a change, Ticket K reruns #739's readiness stage on J's survivor, unchanged except for the revision, with its conditional preservation stages and the S5 timeline. It also **always** runs #740's `latcand-stream` stage on the survivor, with its rule unchanged (six blocks, 12 observations), whatever readiness reads for that cell. If J keeps nothing, Ticket K closes as **not run**: a readiness rerun of unchanged r9 would duplicate #739.
 
-**Operator interpretation, proposed for acceptance with this decision.** #740's operator decision 2 covers r9 only, and the previous decision's D3 mapping covers the Reno-on-candidate cell. For a new revision:
+**Operator interpretation, accepted with this decision on 2026-10-13.** #740's operator decision 2 covers r9 only, and the previous decision's D3 mapping covers the Reno-on-candidate cell. For a new revision:
 - the loopback STREAM candidate control p95 cell's blocking state follows K's `latcand-stream` outcome alone. An adequate *not reproduced* ends it, for that revision on Linux only. *Regression reproduced*, *inconclusive*, an evidence gap or an unusable stage leave it blocking, even if readiness passes the cell at 20 replies per run;
 - J's Stage 2 reading of the same revision and J's depth-8 baseline are reported beside K's outcome and never override it; a conflict is reported to the next decision;
 - it is not an exception and covers no other cell.
@@ -263,7 +263,7 @@ For composite and multi-component endings, the registration defines what agreeme
 
 **Outputs.** Every cell's ending carries its label, the revision, and E, ΔL, K with its three-part split, G_c, G_o, T_m and T_o (or their unresolved split), B, the residuals, and the GC-headroom share or "unresolved". D6 routes on these outputs only.
 
-**Scope of retained application data, proposed for acceptance with this decision.** The exception-eligible scope is logical content in receiver delivery storage (out-of-order and unread stream data), sender data kept until acknowledged, and queued DATAGRAM payloads. Backing capacity beyond that content (G_o) is an implementation-integration cost: a candidate for remedy, not for exception, while no remedy has been tested. Packet and acknowledgment metadata are packet-tracking state, routed separately.
+**Scope of retained application data, accepted with this decision on 2026-10-13.** The exception-eligible scope is logical content in receiver delivery storage (out-of-order and unread stream data), sender data kept until acknowledged, and queued DATAGRAM payloads. Backing capacity beyond that content (G_o) is an implementation-integration cost: a candidate for remedy, not for exception, while no remedy has been tested. Packet and acknowledgment metadata are packet-tracking state, routed separately.
 
 **Disclosed before data: r9's figures on L's scales, from #740** (`memory.json`, per usable block):
 
@@ -447,7 +447,7 @@ Not acted on, as the synthesis advised:
 - C-038 (a numerical margin ceiling);
 - C-041 (pre-authorizing a guard-failed keep).
 
-The operator's acceptance of D4's interpretation and D5's retained-data scope is recorded separately from these technical fixes.
+The operator accepted D4's interpretation and D5's retained-data scope on 2026-10-13, separately from these technical fixes.
 
 ## Limits
 
