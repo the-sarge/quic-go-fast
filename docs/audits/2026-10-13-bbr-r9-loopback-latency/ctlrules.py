@@ -29,7 +29,7 @@ P95_TOLERANCE = 1.15     # perturbation: instrumented ÷ plain pooled control p9
 SHARE_QUEUE = 0.70
 SHARE_OTHER = 0.30
 SEGMENT_REPORT = 0.30    # a segment is named when its share's lower bound reaches this
-RESIDUAL = ('t_req', 't_rep')
+RESIDUAL = ('t_req', 't_rep', 'bookend')
 
 
 def _interval(values):
@@ -75,7 +75,9 @@ def depth_reading(blocks, margin=NONINCREASE_MARGIN):
                   p50_ms={k: statistics.median(_pool(ok, full, k)) for k in ('cand', 'cand8', 'aa')})
     if lo > 1 and above >= MIN_BLOCKS and point > aa_hi:
         return 'depth raises latency', detail
-    if hi < margin:
+    if hi < margin and lo <= 1:
+        # Equivalence on the direct comparison, with an interval that reaches 1: an interval entirely above 1 that
+        # fails another raises clause reads inconclusive, so a wider A/A interval never turns raises into non-increase.
         return 'non-increase', detail
     return 'inconclusive', detail
 
@@ -144,9 +146,27 @@ def _quantile(sorted_values, q):
     return sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * (pos - lo)
 
 
+def _lat(r):
+    """The measured quantity: the fixture's own latency for the request (recorder total in synthetic rows that lack it)."""
+    return r.get('fixture_latency_ns', r['total'])
+
+
+def _augment(rows, segments):
+    """Rows with the derived quantities the estimator rank-matches: the bookend (fixture latency minus the recorder's
+    total: unplaced) and each endpoint's write-to-dequeue span (packing, entry and queue wait as one quantity)."""
+    out = []
+    for r in rows:
+        x = dict(r)
+        x['bookend'] = _lat(r) - r['total']
+        x['s_span'] = r['s_pack'] + r['s_entry'] + r['s_queue']
+        x['r_span'] = r['r_pack'] + r['r_entry'] + r['r_queue']
+        out.append(x)
+    return out
+
+
 def counterfactual_p95(a_rows, b_rows, segments):
-    """p95 of A's totals with each listed segment replaced by B's value at the same quantile rank."""
-    totals = [r['total'] for r in a_rows]
+    """p95 of A's measured latencies with each listed quantity replaced by B's value at the same quantile rank."""
+    totals = [_lat(r) for r in a_rows]
     for seg in segments:
         a = [r[seg] for r in a_rows]
         b = sorted(r[seg] for r in b_rows)
@@ -156,61 +176,30 @@ def counterfactual_p95(a_rows, b_rows, segments):
 
 
 def _share(a_rows, b_rows, segments):
-    pa, pb = pooled_p95([r['total'] for r in a_rows]), pooled_p95([r['total'] for r in b_rows])
+    pa, pb = pooled_p95([_lat(r) for r in a_rows]), pooled_p95([_lat(r) for r in b_rows])
     rise = pa - pb
     removed = pa - counterfactual_p95(a_rows, b_rows, segments)
     return rise, (removed / rise if rise > 0 else None)
 
 
-def _imputed(block, arm, segments, mode, all_segments):
-    """An arm's rows plus its incomplete requests, each with its whole fixture latency in one segment:
-    the first evaluated segment ('in') or the request's residual ('out')."""
-    rows = block[arm]
-    missing = block.get(arm + '_missing') or []
-    if not missing:
-        return rows
-    target = segments[0] if mode == 'in' else 't_req'
-    fill = []
-    for t in missing:
-        r = dict.fromkeys(all_segments, 0)
-        r[target] = t
-        r['total'] = t
-        fill.append(r)
-    return rows + fill
-
-
-def share_interval(blocks, segments, boots, all_segments):
-    """Share and bootstrap interval under every imputation of incomplete requests.
-
-    Without incomplete requests there is one imputation. With them, each arm's incomplete requests are
-    placed wholly in the evaluated segments or wholly outside them (four combinations); the reported
-    interval is their envelope (the smallest lower bound and the largest upper bound), so a label holds
-    only if no placement of the missing requests could change it.
-    """
-    missing = any(b.get('a_missing') or b.get('b_missing') for b in blocks)
-    combos = [('in', 'in'), ('in', 'out'), ('out', 'in'), ('out', 'out')] if missing else [('out', 'out')]
-    per = {}
-    for ma, mb in combos:
-        bl = [dict(a=_imputed(b, 'a', segments, ma, all_segments), b=_imputed(b, 'b', segments, mb, all_segments)) for b in blocks]
-        full = list(range(len(bl)))
-        pool = lambda idx, k: [r for i in idx for r in bl[i][k]]
-        _, point = _share(pool(full, 'a'), pool(full, 'b'), segments)
-        shares = [s for _, s in (_share(pool(i, 'a'), pool(i, 'b'), segments) for i in boots) if s is not None]
-        lo, hi = _interval(shares) if shares else (None, None)
-        per[f'{ma}/{mb}'] = dict(share=point, ci=[lo, hi], replicates=len(shares))
-    los, his = [v['ci'][0] for v in per.values()], [v['ci'][1] for v in per.values()]
-    envelope = [None, None] if None in los or None in his else [min(los), max(his)]
-    return dict(share=per['out/out']['share'], ci=envelope, replicates=min(v['replicates'] for v in per.values()),
-                imputations=per if missing else None)
+def share_interval(blocks, segments, boots):
+    """Share of the measured p95 rise that replacing the listed quantities removes, with its bootstrap interval over
+    replicates whose rise is positive."""
+    full = list(range(len(blocks)))
+    pool = lambda idx, k: [r for i in idx for r in blocks[i][k]]
+    _, point = _share(pool(full, 'a'), pool(full, 'b'), segments)
+    shares = [s for _, s in (_share(pool(i, 'a'), pool(i, 'b'), segments) for i in boots) if s is not None]
+    lo, hi = _interval(shares) if shares else (None, None)
+    return dict(share=point, ci=[lo, hi], replicates=len(shares))
 
 
 def tail_means(blocks, segments):
-    """Supporting evidence only: each segment's mean over complete requests at or above each arm's p95, A minus B (ns)."""
+    """Supporting evidence only: each segment's mean over requests at or above each arm's p95, A minus B (ns)."""
     out = {}
     for arm in ('a', 'b'):
         rows = [r for b in blocks for r in b[arm]]
-        p = pooled_p95([r['total'] for r in rows])
-        tail = [r for r in rows if r['total'] >= p]
+        p = pooled_p95([_lat(r) for r in rows])
+        tail = [r for r in rows if _lat(r) >= p]
         out[arm] = {s: statistics.fmean(r[s] for r in tail) for s in segments}
     return {s: out['a'][s] - out['b'][s] for s in segments}
 
@@ -220,42 +209,53 @@ def mechanism_reading(blocks, consistency, prerequisite, segments, queue_segment
 
     blocks: per block chosen under the recorder mask, dict(a=[complete request rows] for r9-ctl,
       b=[rows] for r9-depth8-ctl, a_missing=[fixture latency ns of measured requests without a complete
-      chain], b_missing=[...], a_fixture=[reply ms], b_fixture=[reply ms]); rows carry 'total' and every
-      segment (ns).
+      chain], b_missing=[...], a_fixture=[reply ms], b_fixture=[reply ms]); rows carry 'total', every
+      segment and 'fixture_latency_ns' (ns).
     consistency: (lo, hi) of the plain arms' r9 ÷ depth-8 interval, or None if the depth reading is a gap.
     prerequisite: dict(state='pass' | 'instrumentation gap' | 'evidence gap', reasons=[...]): Stage 0's
       validation (runtime and data-level synthetic cases, bound to the current code) and perturbation.
     queue_segments: {'sender': [...], 'receiver': [...]}.
     min_blocks: five for Stage 1; for the runtime synthetic cases, their registered block count.
     Endings: 'queue wait', 'load or other', 'mixed', 'inconclusive', 'instrumentation gap', 'evidence gap'.
+
+    The estimator works on the fixture's measured latency per request: the counterfactual starts from it, the
+    rise is in it, and the difference from the recorder's total (the bookend) is an unplaced quantity of its own.
+    Any measured request without a complete chain makes the reading abstain (inconclusive), since no allocation
+    of its time can be bounded. Queue wait also needs each endpoint's write-to-dequeue span (packing, entry and
+    queue wait, rank-matched as one quantity) to carry the rise, so time displaced from packing into the queue
+    cannot read as queue wait.
     """
     if prerequisite['state'] != 'pass':
         return prerequisite['state'], dict(reason='Stage 0 prerequisite', prerequisite=prerequisite)
     ok = [b for b in blocks if b]
     if len(ok) < min_blocks or consistency is None:
         return 'evidence gap', dict(usable_blocks=len(ok), consistency=consistency)
+    missing = dict(a=sum(len(b.get('a_missing') or []) for b in ok), b=sum(len(b.get('b_missing') or []) for b in ok))
+    if missing['a'] or missing['b']:
+        return 'inconclusive', dict(reason='missing chains: attribution abstains', missing=missing, usable_blocks=len(ok))
+    ok = [dict(b, a=_augment(b['a'], segments), b=_augment(b['b'], segments)) for b in ok]
     n = len(ok)
     full = list(range(n))
     boots = _resamples(n, seed=SEED + 1)
     fix = lambda idx, k: pooled_p95([x for i in idx for x in ok[i][k]])
     rec_ratio = fix(full, 'a_fixture') / fix(full, 'b_fixture')
-    # The rise is on the protected full sample: complete requests' totals plus incomplete requests' fixture latencies.
-    tot = lambda idx, k: pooled_p95([r['total'] for i in idx for r in ok[i][k]] + [t for i in idx for t in ok[i].get(k + '_missing') or []])
+    tot = lambda idx, k: pooled_p95([_lat(r) for i in idx for r in ok[i][k]])
     rise = tot(full, 'a') - tot(full, 'b')
     rise_lo, rise_hi = _interval(tot(i, 'a') - tot(i, 'b') for i in boots)
     both = queue_segments['sender'] + queue_segments['receiver']
     detail = dict(blocks=n, recorder_ratio=rec_ratio, consistency_interval=list(consistency), rise_ns=rise,
-                  rise_ci_ns=[rise_lo, rise_hi], p95_ns=dict(a=tot(full, 'a'), b=tot(full, 'b')),
-                  missing=dict(a=sum(len(b.get('a_missing') or []) for b in ok), b=sum(len(b.get('b_missing') or []) for b in ok)))
+                  rise_ci_ns=[rise_lo, rise_hi], p95_ns=dict(a=tot(full, 'a'), b=tot(full, 'b')), missing=missing)
     if not consistency[0] <= rec_ratio <= consistency[1]:
         return 'inconclusive', dict(detail, reason='recorder arms outside the plain arms\' interval')
     if rise_lo <= 0:
         return 'inconclusive', dict(detail, reason='the p95 rise\'s interval does not exclude zero')
-    combined = share_interval(ok, both, boots, segments)
+    named_set = list(segments) + ['bookend']
+    combined = share_interval(ok, both, boots)
     detail['queue_share'] = combined
-    detail['endpoint_shares'] = {side: share_interval(ok, segs, boots, segments) for side, segs in queue_segments.items()}
-    detail['segment_shares'] = {s: share_interval(ok, [s], boots, segments) for s in segments}
-    detail['tail_mean_difference_ns'] = tail_means(ok, segments)
+    detail['span_share'] = share_interval(ok, ['s_span', 'r_span'], boots)
+    detail['endpoint_shares'] = {side: share_interval(ok, segs, boots) for side, segs in queue_segments.items()}
+    detail['segment_shares'] = {s: share_interval(ok, [s], boots) for s in named_set}
+    detail['tail_mean_difference_ns'] = tail_means(ok, named_set)
     detail['named_segments'] = sorted(s for s, v in detail['segment_shares'].items()
                                       if v['ci'][0] is not None and v['ci'][0] >= SEGMENT_REPORT)
     # A rise named only in the residuals is reported as unplaced; that is a qualifier, not a new ending.
@@ -264,6 +264,9 @@ def mechanism_reading(blocks, consistency, prerequisite, segments, queue_segment
     if lo is None or combined['replicates'] < 0.975 * RESAMPLES:
         return 'inconclusive', dict(detail, reason='too few bootstrap replicates with a positive rise')
     if lo >= SHARE_QUEUE:
+        slo = detail['span_share']['ci'][0]
+        if slo is None or slo < SHARE_QUEUE:
+            return 'inconclusive', dict(detail, reason='displacement: the write-to-dequeue spans do not carry the rise')
         return 'queue wait', detail
     if hi < SHARE_OTHER:
         return 'load or other', detail
@@ -292,14 +295,19 @@ def stage2_bound(a_rows, b_rows, side, goodput, kappa):
     kappa: {'cand': k9, 'cand8': k8}, the endpoint's wire bytes sent per useful byte delivered in each
       recorder arm (its send rate over the measured requests ÷ that arm's goodput; median over blocks).
     The endpoint's send rate in each arm is R = G × k (bytes/s); the time that arm's median bytes ahead
-    takes to drain is tau = b / R; T = sqrt(tau8 × tau9), halfway in log terms between the depths; and
-    B = T × R9 bytes. B is rounded down to whole entries of the endpoint's median entry size m in r9 and
-    clipped to [b8 + m, b9 - m]. An empty interval: 'not attempted'.
+    takes to drain is tau = b / R; T = sqrt(tau8 × tau9), the geometric mean of the two drain times; and
+    B = T × R9 bytes. B is rounded down to whole entries of m, the mean size of the entries queued ahead in r9,
+    and clipped to [b8 + m, b9 - m]. An empty interval: 'not attempted'. Feasibility against the implementation's
+    actual refusal threshold and one-entry allowance is checked in Stage 2's registered section before any Stage 2
+    data (README); an infeasible bound is 'not attempted', never retuned.
     """
     q = {'sender': 'sender_queue', 'receiver': 'receiver_queue'}[side]
     b9 = statistics.median(r[q]['bytes_ahead'] for r in a_rows)
     b8 = statistics.median(r[q]['bytes_ahead'] for r in b_rows)
-    m = statistics.median(r[q]['entry_bytes'] for r in a_rows)
+    # m: the mean size of the entries queued ahead (bytes ahead ÷ entries ahead, median over r9's control enqueues
+    # with a nonempty queue), the entries the bound admits; not the tagged control-carrying entry's own size.
+    sizes = [r[q]['bytes_ahead'] / r[q]['entries_ahead'] for r in a_rows if r[q]['entries_ahead'] > 0]
+    m = statistics.median(sizes) if sizes else 0
     lo, hi = b8 + m, b9 - m
     detail = dict(side=side, b9=b9, b8=b8, entry_bytes=m, interval=[lo, hi], goodput=goodput, kappa=kappa)
     if m <= 0 or lo > hi or min(goodput.values()) <= 0 or min(kappa.values()) <= 0 or b8 <= 0 or b9 <= 0:
@@ -316,9 +324,9 @@ def stage2_bound(a_rows, b_rows, side, goodput, kappa):
 
 
 def common_bound(per_side, target_sides):
-    """One bound applies to every BBR queue. With one target, its bound. With two, a bound feasible at both:
-    the sender's bound clipped into the intersection of both intervals (the receiver's when the sender's is
-    not attempted); an empty intersection, or any targeted side not attempted: 'not attempted'."""
+    """One bound applies to every BBR queue. With one target, its bound. With two, both must be attempted and a
+    bound must be feasible at both: the sender's bound clipped into the intersection of both intervals; an empty
+    intersection, or any targeted side not attempted: 'not attempted'."""
     if any(per_side[s][0] is None for s in target_sides):
         return None, 'not attempted: a targeted endpoint has no bound between the depths'
     if len(target_sides) == 1:
@@ -327,15 +335,16 @@ def common_bound(per_side, target_sides):
     hi = min(per_side[s][1]['interval'][1] for s in target_sides)
     if lo > hi:
         return None, 'not attempted: no common bound is feasible at every targeted endpoint'
-    return min(max(per_side['sender'][0], lo), hi), 'attempted'
+    return min(max(per_side['sender'][0], lo), hi), 'attempted'  # both targets attempted: the sender's bound, clipped
 
 
 # ---- Stage 2: efficacy, guards and the outcome -----------------------------------------------------
 
 def stage2_null_margin(depth_ci_lo):
-    """The registered null margin: the remedy is null only if shown to recover less than half the smallest
-    plausible depth increment (the depth interval's lower bound), and never on a margin wider than 1.15."""
-    return min(NONINCREASE_MARGIN, 1 + 0.5 * (depth_ci_lo - 1))
+    """The registered null margin m2 = min(1.15, 2L / (L + 1)), L the depth interval's lower bound: new ÷ r9 at or
+    above 1/m2 = (L + 1) / 2L means the new revision recovers less than half of the smallest plausible absolute
+    latency increment (half recovery is new ÷ r9 = 1 - 0.5 (1 - 1/L)); never a margin wider than 1.15."""
+    return min(NONINCREASE_MARGIN, 2 * depth_ci_lo / (depth_ci_lo + 1))
 
 
 def _range_movement(pairs, n_min=MIN_BLOCKS):
@@ -354,8 +363,8 @@ def stage2_latency(blocks, margin):
     blocks: per usable block, dict(cand=[ms], aa=[ms], new=[ms]); margin: stage2_null_margin(...).
     Returns (efficacy, detail): 'effective' (interval upper bound below 1 and the point below the A/A
     interval's lower bound), 'partial' (exactly one of those), 'demonstrated worsening' (lower bound above
-    1), 'null' (the lower bound at least 1/margin: not lower than r9 by more than the margin), otherwise
-    'inconclusive'; 'evidence gap' as in depth_reading.
+    1), 'null' (the lower bound at least 1/margin, the point at least 1 and the A/A upper bound at most the point),
+    otherwise 'inconclusive'; 'evidence gap' as in depth_reading.
     """
     ok = [b for b in blocks if b and all(len(b[k]) >= PER_RUN_MIN for k in ('cand', 'aa', 'new'))]
     if len(ok) < MIN_BLOCKS or any(sum(len(b[k]) for b in ok) < POOLED_MIN for k in ('cand', 'aa', 'new')):
@@ -375,7 +384,9 @@ def stage2_latency(blocks, margin):
         return 'partial', detail
     if lo > 1:
         return 'demonstrated worsening', detail
-    if lo >= 1 / margin:
+    # Null also needs the point at or above 1 and the A/A interval's upper bound at or below the point, so widening
+    # either interval cannot move a partial or inconclusive reading to null.
+    if lo >= 1 / margin and point >= 1 and aa_hi <= point:
         return 'null', detail
     return 'inconclusive', detail
 

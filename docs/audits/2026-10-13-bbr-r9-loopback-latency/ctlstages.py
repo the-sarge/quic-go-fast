@@ -46,6 +46,7 @@ OUT = HERE / 'results.json'
 BUILDS = HERE / 'builds'
 SYN_CASES = ('sq', 'rq', 'sw', 'rl', 'rw', 'un')
 CAPACITY = {'cand-ctl': 32, 'cand8-ctl': 8, **{f'syn-{c}-ctl': 32 for c in SYN_CASES}}
+REPLY_MIN = {'loopback-long': 100, 'loopback-syn': 50}  # control replies per run, by path
 PLAIN = ['reno-reno', 'cand-bbrv3', 'cand-bbrv3-aa', 'cand8-bbrv3']
 RECORDER = ['cand-bbrv3', 'cand8-bbrv3', 'cand-ctl-bbrv3', 'cand8-ctl-bbrv3']
 SYN_ARMS = ['cand-ctl-bbrv3', 'cand-ctl-bbrv3-aa'] + [f'syn-{c}-ctl-bbrv3' for c in SYN_CASES]
@@ -118,6 +119,11 @@ def usable(d):
         summarize(d)
         meta = json.loads((d / 'meta.json').read_text())
         reasons = provenance(d, meta)
+        # The registered per-run reply minimum, applied here so a short run takes the #714 rerun.
+        need = REPLY_MIN.get(meta['path'])
+        replies = len(json.loads((d / 'send.json').read_text())['result']['control']['latency_ns'])
+        if need and replies < need:
+            reasons.append(f'{replies} control replies < {need}')
         for role in ['send', 'receive']:
             p = d / f'{role}.perf-stat.csv'
             if p.exists() and any(v['running_pct'] is not None and v['running_pct'] < 95 for v in run.perf_counters(p).values()):
@@ -388,6 +394,18 @@ STAGE2_SPEC = HERE / 'stage2.json'  # registered after Stage 1, before Stage 2 d
 ROLE = {'sender': 'send', 'receiver': 'receive'}
 
 
+def stage2_ready():
+    """Interim fail-closed check (second consideration F01): Stage 2 may launch or be analysed only once its registered
+    section's validator has written stage2.json with validator == 'complete'. That validator, implementing F01, F05,
+    F06, F07, F08 and F13, is part of the Stage 2 section and is reviewed before any Stage 2 data."""
+    if not STAGE2_SPEC.exists():
+        return False, 'stage2.json missing'
+    spec = json.loads(STAGE2_SPEC.read_text())
+    if spec.get('validator') != 'complete':
+        return False, 'stage2.json not validated by the Stage 2 section'
+    return True, 'validated'
+
+
 def engagement_reasons(d):
     """A counted loopback-long run of the new revision must show byte-bound refusals at every targeted endpoint."""
     if not STAGE2_SPEC.exists():
@@ -435,8 +453,9 @@ def s2():
         save('stage2', res)
         print('s2', res['outcome'])
         return res
-    if not STAGE2_SPEC.exists():
-        raise SystemExit('Stage 2 gate is open but its section (stage2.json) is not registered')
+    ready, why = stage2_ready()
+    if not ready:
+        raise SystemExit(f'Stage 2 gate is open but its registered section is not complete: {why}')
     spec = json.loads(STAGE2_SPEC.read_text())
     res = dict(spec=spec)
     status = spec.get('status')  # None, or 'not attempted' | 'unbuildable' | 'gates failed' | 'inert' | 'mistargeted'

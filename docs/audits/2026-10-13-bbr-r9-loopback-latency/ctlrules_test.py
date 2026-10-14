@@ -27,8 +27,9 @@ WIDE = (0.0, 100.0)  # a consistency interval that never binds (the data-level c
 PASS = dict(state='pass', reasons=[])
 
 
-def rows(rng, n=120, scale=1.0, add=None, spikes=None, sender_bytes=(30, 1400), receiver_bytes=(0, 60)):
-    """n request rows. add: {segment: us added to every request}; spikes: (segment, us, share) on a random share."""
+def rows(rng, n=120, scale=1.0, add=None, spikes=None, sender_bytes=(30, 1400), receiver_bytes=(0, 60), bookend=0):
+    """n request rows. add: {segment: us added to every request}; spikes: (segment, us, share) on a random share;
+    bookend: us by which the fixture's latency exceeds the recorder's total."""
     out = []
     for _ in range(n):
         r = {}
@@ -41,6 +42,7 @@ def rows(rng, n=120, scale=1.0, add=None, spikes=None, sender_bytes=(30, 1400), 
             r[spikes[0]] += int(spikes[1] * US)
             r['spiked'] = True
         r['total'] = sum(r[s] for s in SEGMENTS)
+        r['fixture_latency_ns'] = r['total'] + int(bookend * US)
         r['sender_queue'] = dict(entries_ahead=sender_bytes[0], bytes_ahead=sender_bytes[0] * sender_bytes[1], capacity=32,
                                  entry_bytes=sender_bytes[1])
         r['receiver_queue'] = dict(entries_ahead=receiver_bytes[0], bytes_ahead=receiver_bytes[0] * receiver_bytes[1], capacity=32,
@@ -59,7 +61,7 @@ def pair(seed, a_kw=None, b_kw=None, blocks=6, n=120, drop_a=None, drop_b=None, 
         blk = {}
         for arm, kw, drop in (('a', a_kw, drop_a), ('b', b_kw, drop_b)):
             rs = rows(rng, n=n, scale=s, **(kw or {}))
-            blk[arm + '_fixture'] = [r['total'] / 1e6 for r in rs]
+            blk[arm + '_fixture'] = [r['fixture_latency_ns'] / 1e6 for r in rs]
             keep = [not (drop and drop(r, rng)) for r in rs]
             blk[arm] = [r for r, k in zip(rs, keep) if k]
             blk[arm + '_missing'] = [r['total'] for r, k in zip(rs, keep) if not k]
@@ -168,9 +170,8 @@ class Missing(unittest.TestCase):
     def test_reversal_by_missing_slow_chains_is_not_labelled(self):
         # Every A request carries 100 us more sender queue wait, and 6% carry 600 us more in the reply's
         # application segment, which sets the full-sample p95: with every chain present the reading is mixed.
-        # Five in six of those slow requests lose their chains (about 5% of requests, as usability allows). On
-        # complete rows alone the rise looks like queue wait; with the missing requests' latencies kept, no
-        # placement-independent label survives.
+        # Five in six of those slow requests lose their chains. On complete rows alone the rise looks like queue
+        # wait; with chains missing the reading abstains.
         kw = dict(add=dict(s_queue=100), spikes=('r_app', 600, 0.06))
         self.assertEqual(mech(pair(70, a_kw=kw))[0], 'mixed')  # the truth, every chain present
         blocks = pair(70, a_kw=kw, drop_a=lambda r, rng: r.get('spiked') and rng.random() < 5 / 6)
@@ -178,21 +179,41 @@ class Missing(unittest.TestCase):
         self.assertEqual(mech(complete_only)[0], 'queue wait')  # the censored analysis the rule must not follow
         out, d = mech(blocks)
         self.assertEqual(out, 'inconclusive')
-        self.assertGreater(d['missing']['a'], 0)
+        self.assertIn('missing chains', d['reason'])
 
-    def test_random_missingness_keeps_a_strong_label(self):
-        out, d = mech(pair(71, a_kw=dict(add=dict(s_queue=300)), drop_a=lambda r, rng: rng.random() < 0.02,
-                           drop_b=lambda r, rng: rng.random() < 0.02))
+    def test_any_missing_chain_abstains(self):
+        # Allocation-dependent counterexamples (second consideration, F02) cannot be bounded by imputation, so one
+        # missing chain in either arm is enough to abstain, even under a strong queue effect.
+        for drop in ('a', 'b'):
+            kw = {f'drop_{drop}': (lambda r, rng: rng.random() < 0.01)}
+            out, d = mech(pair(71, a_kw=dict(add=dict(s_queue=300)), **kw))
+            self.assertEqual(out, 'inconclusive', drop)
+
+
+class Bookend(unittest.TestCase):
+    def test_fixture_latency_is_the_attributed_quantity(self):
+        # A's fixture latency exceeds its recorder total by 19 us, and its queue wait by 10 us: the measured rise is
+        # about 29 us, of which queue wait is about a third. On recorder totals the share would be about 1.
+        out, d = mech(pair(80, a_kw=dict(add=dict(s_queue=10), bookend=19), variation=0.0))
+        self.assertNotEqual(out, 'queue wait')
+        self.assertLess(d['queue_share']['share'], 0.6)
+        self.assertIn('bookend', d['named_segments'])
+
+
+class Displacement(unittest.TestCase):
+    def test_upstream_displacement_is_not_queue_wait(self):
+        # A waits 150 us in its sender queue where B waits 150 us before packing; A's net rise is 60 us of receive
+        # backlog. The narrow queue share is large, but the write-to-dequeue spans do not carry the rise.
+        out, d = mech(pair(501, a_kw=dict(add=dict(s_queue=150, r_backlog=60)), b_kw=dict(add=dict(s_pack=150))))
+        self.assertNotEqual(out, 'queue wait')
+        for seg in ('r_queue',):
+            out, d = mech(pair(502, a_kw=dict(add={seg: 150, 'r_backlog': 60}), b_kw=dict(add=dict(r_pack=150))))
+            self.assertNotEqual(out, 'queue wait', seg)
+
+    def test_genuine_queue_wait_keeps_its_span(self):
+        out, d = mech(pair(503, a_kw=dict(add=dict(s_queue=200))))
         self.assertEqual(out, 'queue wait')
-
-    def test_missingness_at_each_endpoint_widens_its_envelope(self):
-        for seg in ('s_queue', 'r_queue'):
-            blocks = pair(72, a_kw=dict(add={seg: 150, 'r_app': 150}),
-                          drop_a=lambda r, rng: r[seg] > (150 + 2 * BASE[seg]) * US and rng.random() < 0.5)
-            out, d = mech(blocks)
-            self.assertIsNotNone(d['queue_share']['imputations'], seg)
-            ci = [v['ci'] for v in d['queue_share']['imputations'].values()]
-            self.assertEqual(d['queue_share']['ci'], [min(c[0] for c in ci), max(c[1] for c in ci)])
+        self.assertGreaterEqual(d['span_share']['ci'][0], C.SHARE_QUEUE)
 
 
 def latencies(rng, n, p95_ms, sigma=0.42):
@@ -246,6 +267,18 @@ class Depth(unittest.TestCase):
         out, d = C.depth_reading(b)
         self.assertGreater(d['ci'][0], 1)
         self.assertNotEqual(out, 'depth raises latency')
+
+    def test_wider_aa_never_turns_raises_into_non_increase(self):
+        # r9 is exactly 1.10 x depth 8 (an interval entirely above 1 but below the margin): with a wide A/A interval
+        # "raises" fails on its A/A clause, and the reading is inconclusive, not non-increase; equivalence is reported.
+        base = plain(26, 0.16, 0.16)
+        rng = random.Random(27)
+        blocks = [dict(cand8=b['cand8'], cand=[x * 1.10 for x in b['cand8']], aa=[x * 1.10 * rng.uniform(0.5, 2.0) for x in b['cand8']])
+                  for b in base]
+        out, d = C.depth_reading(blocks)
+        self.assertGreater(d['ci'][0], 1)
+        self.assertTrue(d['equivalent_within_margin'])
+        self.assertEqual(out, 'inconclusive')
 
     def test_evidence_gap(self):
         self.assertEqual(C.depth_reading(plain(25, 0.26, 0.16, blocks=4))[0], 'evidence gap')
@@ -358,14 +391,18 @@ class Stage2(unittest.TestCase):
         return out
 
     def test_null_margin(self):
-        self.assertAlmostEqual(C.stage2_null_margin(1.10), 1.05)
+        # m2 = 2L / (L + 1): new ÷ r9 = 1/m2 is exactly half recovery of the absolute increment, 1 - 0.5 (1 - 1/L).
+        for L in (1.10, 1.30):
+            self.assertAlmostEqual(1 / C.stage2_null_margin(L), 1 - 0.5 * (1 - 1 / L))
         self.assertAlmostEqual(C.stage2_null_margin(1.60), 1.15)
 
     def test_efficacy_endings(self):
         m = C.stage2_null_margin(1.30)
         self.assertEqual(C.stage2_latency(self.lat(0.18), m)[0], 'effective')
         self.assertEqual(C.stage2_latency(self.lat(0.34), m)[0], 'demonstrated worsening')
-        self.assertEqual(C.stage2_latency(self.lat(0.26, sigma=0.2), m)[0], 'null')
+        # No change: new exactly r9, the A/A arm exactly 0.98 x r9 (point 1, A/A upper bound below it).
+        exact = [dict(cand=b['cand'], new=list(b['cand']), aa=[x * 0.98 for x in b['cand']]) for b in self.lat(0.26)]
+        self.assertEqual(C.stage2_latency(exact, m)[0], 'null')
         # A wide interval such as 0.80-1.15 is inconclusive or partial, never null.
         out, d = C.stage2_latency(self.lat(0.25, noise=0.30, seed=51), m)
         self.assertNotEqual(out, 'null')
@@ -374,6 +411,17 @@ class Stage2(unittest.TestCase):
     def test_small_increment_margin_resists_null(self):
         # With a small Stage 1 increment the margin is narrow: equality with r9 at ordinary noise is not null.
         out, d = C.stage2_latency(self.lat(0.26, seed=53), C.stage2_null_margin(1.04))
+        self.assertNotEqual(out, 'null')
+
+    def test_widening_never_creates_null(self):
+        # A point of 0.95 with a wide direct interval and a wide A/A interval: not partial, and never null.
+        rng = random.Random(54)
+        blocks = []
+        for i, b in enumerate(self.lat(0.26, seed=55)):
+            f = 0.85 if i % 2 else 1.05
+            blocks.append(dict(cand=b['cand'], new=[x * f for x in b['cand']], aa=[x * rng.uniform(0.5, 2.0) for x in b['cand']]))
+        out, d = C.stage2_latency(blocks, C.stage2_null_margin(1.6))
+        self.assertLess(d['ratio'], 1)
         self.assertNotEqual(out, 'null')
 
     def test_partial(self):

@@ -135,7 +135,9 @@ STAGES = {
 def run_stage(name, blocks=None):
     phase, path, arms, n, base, workloads, perf = STAGES[name]
     if name.startswith('s2'):
-        assert (run.ART / 'bin/new-fixture').exists(), 'Stage 2 needs its registered `new` build'
+        import ctlstages
+        ok, why = ctlstages.stage2_ready()
+        assert ok and (run.ART / 'bin/new-fixture').exists(), f'Stage 2 is not registered and validated: {why}'
     rows = []
     for b in blocks or range(1, n + 1):
         rows += block(phase, path, arms, b, seed=base + b if base else None, workloads=workloads, perf=perf)
@@ -167,6 +169,10 @@ def main(argv):
         import inventory
         name, workload, b = argv[2], argv[3], int(argv[4])
         phase, path, arms, n, base, _, perf = STAGES[name]
+        if name.startswith('s2'):
+            ready, why = ctlstages.stage2_ready()
+            if not ready:
+                raise SystemExit(f'rerun refused: Stage 2 is not registered and validated: {why}')
         ok, why = inventory.admit_rerun(name, workload, b, ctlstages.chosen(name), ctlstages.ROOTS, len(arms))
         print('rerun', name, workload, b, 'admitted' if ok else 'REFUSED', why, flush=True)
         if not ok:

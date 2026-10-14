@@ -308,6 +308,26 @@ class Stages(unittest.TestCase):
         self.assertEqual(rec[1]['masks']['plain']['counted'], 'rerun')
         self.assertFalse(inventory.admit_rerun('s1', 'stream', 2, rec, S.ROOTS, 6)[0])  # already rerun
 
+    def test_reply_minimum_makes_a_run_unusable(self):
+        for b in range(1, 7):
+            self.s1_block(b, n=99 if b == 3 else 120)
+        rec = S.chosen('s1')
+        self.assertEqual(rec[2]['status'], 'unusable')
+        self.assertTrue(inventory.admit_rerun('s1', 'stream', 3, rec, S.ROOTS, 6)[0])
+
+    def test_stage2_blocked_until_validated(self):
+        saved = S.STAGE2_SPEC
+        try:
+            S.STAGE2_SPEC = Path(self.tmp.name) / 'stage2.json'
+            self.assertFalse(S.stage2_ready()[0])
+            S.STAGE2_SPEC.write_text(json.dumps(dict(targets=[], status=None)))
+            self.assertFalse(S.stage2_ready()[0])
+            S.save('stage1', dict(stage2_gate=True))
+            with self.assertRaises(SystemExit):
+                S.s2()
+        finally:
+            S.STAGE2_SPEC = saved
+
     def test_caps(self):
         rec = [dict(workload='stream', block=1, status='contaminated', attempts=[('original',)])]
         roots = S.ROOTS
