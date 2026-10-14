@@ -55,7 +55,7 @@ func deliveryInfo(k congestionPacketKey, ordinal uint64) congestion.PacketInfo {
 // resets, including packet numbers at both ends of the valid range.
 func TestDeliveryRecordsMapEquivalence(t *testing.T) {
 	seeds := 400
-	if testing.Short() {
+	if reducedEquivalenceBudget() {
 		seeds = 40
 	}
 	var ops, maxLive int

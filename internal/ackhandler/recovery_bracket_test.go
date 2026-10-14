@@ -45,7 +45,7 @@ func frozenLowerBound(r *recoveryEvidence, q *spaceSlots, pn protocol.PacketNumb
 // numbers, ring eviction and resets.
 func TestRecoveryLowerBoundEquivalence(t *testing.T) {
 	seeds := 60
-	if testing.Short() {
+	if reducedEquivalenceBudget() {
 		seeds = 6
 	}
 	var queries, evicted int
