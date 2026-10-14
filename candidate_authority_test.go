@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/handshake"
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/testdata"
@@ -192,6 +193,104 @@ func TestCandidateQueuedWorkRevoked(t *testing.T) {
 			for _, buf := range bufs {
 				require.Zero(t, buf.refCount, "revoked work still releases its storage")
 			}
+		})
+	}
+}
+
+// deniedWriteConn fences its candidate during the first authorized write, the
+// way a transition between the worker's check and the submission does.
+type deniedWriteConn struct {
+	*fakeBatchSendConn
+	authority *connAuthority
+}
+
+func (c *deniedWriteConn) writeAuthorized(b []byte, gsoSize uint16, ecn protocol.ECN, permit submissionPermit) error {
+	c.authority.state.Store(authorityClosing)
+	if !permit.allows() {
+		return errSubmissionDenied
+	}
+	return c.Write(b, gsoSize, ecn)
+}
+
+// BBR reservations are recycled, so each queued entry a fenced candidate
+// discards must return its local send credit exactly once: a second completion
+// would corrupt whichever live reservation reused it. Every discard path
+// retires the entry through queueEntry.release.
+func TestCandidateFencedBBRCreditReturnedOnce(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		batch    bool
+		denied   bool   // the first submission is fenced inside the write
+		state    uint32 // before the queue runs; authorityLive leaves the fence to the first submission
+		batches  int
+		accepted int
+	}{
+		{name: "per-packet write after fencing", state: authorityClosing},
+		{name: "per-packet write after revocation", state: authorityRevoked},
+		{name: "per-packet write fenced during submission", denied: true, state: authorityLive},
+		{name: "batch remainder revoked after a partial acceptance", batch: true, state: authorityLive, batches: 1, accepted: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				c := newEmissionTestConnection(t, false).conn
+				c.emission.bbr = newBBRSendPolicy(100_000_000, 1200, monotime.Now())
+				for _, d := range []string{"first", "second", "third"} {
+					require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte(d)}))
+				}
+				for range 3 {
+					require.True(t, c.triggerSending(monotime.Now()).progress)
+				}
+
+				authority := &connAuthority{}
+				fake := &fakeBatchSendConn{available: func() bool { return tc.batch }}
+				var conn sendConn = fake
+				if tc.denied {
+					conn = &deniedWriteConn{fakeBatchSendConn: fake, authority: authority}
+				}
+				fake.accept = func(_ int, bufs [][]byte) (int, error) {
+					authority.state.Store(authorityRevoked)
+					return tc.accepted, nil
+				}
+				q := newSendQueue(conn, nil).(*sendQueue)
+				q.authority = authority
+				credit := c.emission.bbr.credit
+				var reservations []*sendReservation
+				var bufs []*packetBuffer
+				for queued := c.emission.queue.(*sendQueue); len(queued.queue) > 0; {
+					e := <-queued.queue
+					require.NotNil(t, e.metadata.credit, "a BBR entry carries its local credit")
+					for _, r := range reservations {
+						require.NotSame(t, r, e.metadata.credit, "queued entries own distinct reservations")
+					}
+					reservations = append(reservations, e.metadata.credit)
+					bufs = append(bufs, e.buf)
+					q.Send(e.buf, e.gsoSize, e.ecn, e.metadata)
+				}
+				require.Len(t, reservations, 3)
+				credit.mu.Lock()
+				require.Positive(t, credit.pending)
+				credit.mu.Unlock()
+
+				authority.state.Store(tc.state)
+				startAndFinishQueue(t, q, nil) // a fenced discard is not a write error
+
+				require.Len(t, fake.batches, tc.batches)
+				require.Empty(t, fake.writes, "no per-packet submission after the fence")
+				credit.mu.Lock()
+				defer credit.mu.Unlock()
+				require.Zero(t, credit.pending, "all local credit is returned")
+				require.Zero(t, credit.current)
+				for i, r := range reservations {
+					var recycled int
+					for _, f := range credit.free {
+						if f == r {
+							recycled++
+						}
+					}
+					require.Equal(t, 1, recycled, "reservation %d completes exactly once", i)
+					require.Zero(t, bufs[i].refCount, "entry %d releases its storage", i)
+				}
+			})
 		})
 	}
 }
