@@ -47,7 +47,8 @@ func TestEmissionProbeAllocations(t *testing.T) {
 		c.sentPacketHandler.ReceivedBytes(1<<30, now)
 		allocs := testing.AllocsPerRun(1000, func() {
 			now = now.Add(time.Second)
-			c.mtuDiscoverer.Reset(now.Add(-time.Hour), 1200, 1400)
+			c.mtuDiscoverer.Reset(1200, 1400)
+			c.mtuDiscoverer.Start(now.Add(-time.Hour))
 			require.NoError(t, c.emitPackets(now).err)
 			entry := <-q.queue
 			_, pn, _, _, err := wire.ParseShortHeader(entry.buf.Data, c.connIDManager.Get().Len())

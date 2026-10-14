@@ -971,9 +971,11 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
 		maxPacketSize = c.peerParams.MaxUDPPayloadSize
 	}
-	c.mtuDiscoverer.Reset(now, initialPacketSize, maxPacketSize)
+	c.mtuDiscoverer.Reset(initialPacketSize, maxPacketSize)
 	conn := newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
 	queue := c.emission.replacePath(conn, &c.handshakeSendFeedback)
+	// replacePath published the new socket, so DF is checked on the new path.
+	c.startMTUDiscovery(now)
 	go func() {
 		if err := queue.Run(); err != nil {
 			c.destroyImpl(err)
@@ -1041,10 +1043,17 @@ func (c *Conn) handleHandshakeConfirmed(now monotime.Time) error {
 	c.handshakeConfirmed = true
 	c.cryptoStreamHandler.SetHandshakeConfirmed()
 
+	c.startMTUDiscovery(now)
+	return nil
+}
+
+// startMTUDiscovery is the only place probing starts: at handshake confirmation and
+// after each path change. Without DF, a probe could be fragmented instead of testing
+// the path.
+func (c *Conn) startMTUDiscovery(now monotime.Time) {
 	if !c.config.DisablePathMTUDiscovery && c.conn.capabilities().DF {
 		c.mtuDiscoverer.Start(now)
 	}
-	return nil
 }
 
 const maxPacketsToProcess = 32
@@ -1348,10 +1357,10 @@ func (c *Conn) handleShortHeaderPacket(
 		maxPacketSize = c.peerParams.MaxUDPPayloadSize
 	}
 	c.mtuDiscoverer.Reset(
-		p.rcvTime,
 		protocol.ByteCount(c.config.InitialPacketSize),
 		maxPacketSize,
 	)
+	c.startMTUDiscovery(p.rcvTime)
 	c.pathGeneration++
 	c.emission.resetLocalPath(c.pathGeneration, p.rcvTime)
 	c.emission.rebindPath(p.remoteAddr, p.info)
@@ -2594,7 +2603,7 @@ func (c *Conn) applyHandshakeMTUFallback() {
 	}
 	c.effectiveInitialPacketSize = protocol.MinInitialPacketSize
 	if c.mtuDiscoverer != nil {
-		// No probes exist before confirmation. Do not Reset: that would start discovery.
+		// No probes exist before confirmation, so a fresh finder suffices; confirmation starts it.
 		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, protocol.MinInitialPacketSize, c.mtuDiscoverer.max(), c.qlogger)
 	}
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)))
