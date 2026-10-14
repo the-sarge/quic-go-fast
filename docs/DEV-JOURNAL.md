@@ -4684,3 +4684,46 @@ Under `-race`, `internal/ackhandler` now takes 67 s alone, up from 25.7 s after 
 ### Next
 
 Slice 4 ports the kept per-packet changes (`fc4c1bf1..d0fabc4d`). Its merge seam is three fields in `packet_emission.go`, with a focused seam test that a fenced candidate's queued BBR entries return all local credit exactly once. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
+
+---
+
+## Path-change MTU probing fix landed - 2026-10-14 19:11 EDT
+
+**Main:** `4d89a66e2fb0`
+**Actor:** Claude
+
+### Summary
+
+Merged [path-change MTU probing fix #762](https://github.com/the-sarge/quic-go-fast/pull/762) as `4d89a66e2fb0dead79eb8c6f9560d51c83329196`, closing [#761](https://github.com/the-sarge/quic-go-fast/issues/761). After a client migration or a server path switch, a connection used to start MTU probing even with `Config.DisablePathMTUDiscovery` set or on a socket without DF. `mtuFinder.Reset` stamped `lastProbeTime`, which armed probing, and neither path-change seam checked the setting or DF. The defect was found while narrowing [#756](https://github.com/the-sarge/quic-go-fast/issues/756); its scratch evidence is in that work's audit folder.
+
+- `Reset(start, max)` now leaves the finder stopped until `Start`.
+- The new `Conn.startMTUDiscovery` is the only place probing starts, and only with discovery enabled and DF on the active socket. It runs at handshake confirmation (unchanged behavior) and after `Reset` at both seams.
+- On the client it runs after `replacePath`, so DF is read from the new socket.
+- The H1 fallback comment that relied on `Reset` starting discovery is corrected.
+- The `emission_experiment`-tagged allocation capture now arms its probe with `Start`.
+
+### Decisions
+
+- There is no upstream sync (owner, 2026-10-14). quic-go [#5887](https://github.com/quic-go/quic-go/pull/5887) fixed the equivalent upstream and served as reference only. This fix puts the start rule in one helper rather than repeating the condition at each seam.
+- Sizing is untouched; start size and admission estimate belong to #756. #756 rewrites the same two `Reset` call lines in `switchToNewPath` and the server path switch. When it rebases, it keeps its size arguments, the two-argument `Reset`, and the `startMTUDiscovery` call.
+
+### Validation
+
+- **Red first.** The new regression tests failed on `55e20b72` before the fix:
+  - client `TestConnectionMigrationMTUDiscovery` and server `TestConnectionPathValidation` (both NAT rebinding and intentional migration) selected or scheduled a probe with discovery disabled or without DF;
+  - `TestMTUDiscovererReset` saw probing armed after `Reset`.
+- **Green and discriminating.** After the fix, every cell passes, including the discovery-enabled control. That control's original client socket has no DF, so it also proves the new socket's DF is read. Forcing the `startMTUDiscovery` condition to `true` failed the disabled and no-DF cells at both seams.
+- **Local certification at exact head `09538038`** (go1.27.2, darwin/arm64):
+  - builds for darwin, linux, windows, freebsd and openbsd;
+  - `go vet`, including the `emission_experiment` tag and windows/amd64;
+  - focused tests with `-race`;
+  - `go test ./...`;
+  - `go mod tidy -diff`;
+  - golangci-lint v2.14.0 on all five lint GOOS values: 0 issues.
+- **One local flake, unrelated.** A root-package run made while RAS reviewers loaded the machine failed `TestDialOwnerHeldPort`: its port-owner query timed out. It passed when rerun on a quiet machine.
+- **Review.** RAS review `20261014T225833-551e7eb82e410c2672058051` was briefed verbatim from #761 and completed by six reviewers with 0 findings, so there are no deferred follow-ups.
+- **Hosted.** All 33 hosted checks passed on the exact head before the matched-head squash merge.
+
+### Next
+
+#756 is next on these seams and should expect the small `Reset` conflict described above. #758 stays blocked on it. [#756](https://github.com/the-sarge/quic-go-fast/issues/756) is the live view.
