@@ -84,11 +84,16 @@ type BBRSender struct {
 }
 
 func NewBBRSender(size protocol.ByteCount) *BBRSender {
+	w := bbrInitialWindow(size)
+	return &BBRSender{random: (&utils.Rand{}).Int31n, size: size, initialWindow: w, window: w, rate: bbrScale(uint64(w)*10, 2772588722, 1000000000), inflightLong: protocol.MaxByteCount, inflightShort: protocol.MaxByteCount, bandwidthShort: math.MaxUint64}
+}
+
+// bbrInitialWindow validates a packet size and returns its initial window.
+func bbrInitialWindow(size protocol.ByteCount) protocol.ByteCount {
 	if size <= 0 || size > protocol.MaxPacketBufferSize {
 		panic("invalid BBR packet size")
 	}
-	w := min(10*size, max(14720, 2*size))
-	return &BBRSender{random: (&utils.Rand{}).Int31n, size: size, initialWindow: w, window: w, rate: bbrScale(uint64(w)*10, 2772588722, 1000000000), inflightLong: protocol.MaxByteCount, inflightShort: protocol.MaxByteCount, bandwidthShort: math.MaxUint64}
+	return min(10*size, max(14720, 2*size))
 }
 
 // bbrScale floors a full-width product, saturating before any signed conversion.
@@ -510,8 +515,7 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
 	if b.closed {
 		return
 	}
-	fresh := NewBBRSender(size)
-	b.size, b.initialWindow = size, fresh.initialWindow
+	b.size, b.initialWindow = size, bbrInitialWindow(size)
 	if b.persistentModel {
 		b.initialWindow = 2 * size
 	}
