@@ -4637,3 +4637,50 @@ No further RAS cycle ran, under the docs-only policy. On `ad5d98ac`, one hosted 
 ### Next
 
 Slice 3 ports bounded ECN feedback and quantum-release pacing (`8a0e0962..fc4c1bf1`). It carries the D08 amendment with its drop-tail overflow disclosure, fixes the QF1001 lint finding in `bbr_ecn_equivalence_test.go`, and routes its oracles' `testing.Short()` budgets through `reducedEquivalenceBudget()`. [#613](https://github.com/the-sarge/quic-go-fast/issues/613) is revalidated after it. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
+
+---
+
+## BBR port slice 3: bounded ECN feedback and quantum pacing landed - 2026-10-14 18:13 EDT
+
+**Main:** `db64d20fe05f`
+**Actor:** Claude
+
+### Summary
+
+Merged [BBR port slice 3 #757](https://github.com/the-sarge/quic-go-fast/pull/757) as `db64d20fe05ffe080c63ab49e712fb145a23e1d3`. It is the third of five slices of the operator-approved production port of r9 (`81e9dc8c`) into `main`'s experimental opt-in sender ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)). The slice ports the lineage range `8a0e0962..fc4c1bf1`, the "D1+D2 candidate", verbatim:
+
+- **D1, bounded BBR ECN feedback** ([#709](https://github.com/the-sarge/quic-go-fast/issues/709)), in `internal/ackhandler`. Feedback locates the ACK's window with two binary searches and merges it with the ACK ranges in one cursor into reused scratch. It charges the unchanged 4,096-record cap before mutating and splices in place. Ledger semantics and overflow outcomes are unchanged. The pre-change tracker came with it as a test reference, along with the differential frozen-equivalence oracles and the work and allocation tests.
+- **D2, quantum-release pacing** ([#710](https://github.com/the-sarge/quic-go-fast/issues/710)), in the root package. When credit cannot cover the next admission, the BBR deadline is when credit reaches a full quantum, so each wakeup can release Q.
+
+`internal/congestion`, `internal/ackhandler`, `bbr_send_policy.go` and `bbr_send_policy_test.go` on `main` now equal `fc4c1bf1`, except slice 1's race-budget files and this slice's three declared test lines. The sender stays unqualified and Reno remains the default; README and CHANGELOG are unchanged.
+
+### Decisions
+
+- Declared deviations from the [contract](agents/bbr-production-port.md), in `bbr_ecn_equivalence_test.go` only:
+  - The QF1001 De Morgan finding is fixed, reported by golangci-lint v2.14.0 at line 303 here (317 at r9). The rewritten operand makes no RNG call, so the seeded histories are unchanged.
+  - The two randomized oracles' `testing.Short()` budget checks now go through `reducedEquivalenceBudget()`.
+- The [design](designs/bbrv3.md) carries the D08 amendment verbatim from `fc4c1bf1`: the pacing paragraph and the register row. It also adds the [#710 record](https://github.com/the-sarge/quic-go-fast/blob/a59a9779/docs/audits/2026-10-02-bbr-quantum-pacing/README.md)'s disclosure: quantum release made S5's ordinary one-BDP drop-tail queue overflow about six times as often (0.13% to 0.84% of forward packets), without a goodput loss.
+- [#613](https://github.com/the-sarge/quic-go-fast/issues/613) closed after revalidation on `db64d20f` ([comment](https://github.com/the-sarge/quic-go-fast/issues/613#issuecomment-6179639943)):
+  - bounded feedback allocates nothing per advancing 10-packet ACK cycle, against the frozen tracker's 1–9;
+  - its work stays flat as the unaffected ledger grows;
+  - it costs 79–121 ns/op at 0 to 4,000 retained records, against the frozen tracker's 132 ns to 46 µs and up to 328 KB;
+  - r9's inert right neighbour and `ecnLedgerWork` counters stay, as recorded.
+
+### Validation
+
+Local certification ran at `2e20e7eb` under go1.27.2 on darwin/arm64; the final head `aa20aa5b` changed one design-doc line:
+
+- the identity diff against `fc4c1bf1`: 5 declared files, +24/−4, and every root file `main` has not changed since `e4f322cb` identical;
+- `go build`, plus `GOOS=windows/freebsd/linux/openbsd` builds;
+- `go vet ./...`;
+- plain, `-race` and `-tags bbrworkcount` tests of the root package, `internal/congestion` and `internal/ackhandler`;
+- `go mod tidy -diff`;
+- golangci-lint v2.14.0 on all six GOOS steps under Go 1.27.2 and 1.26.8: 0 issues.
+
+Under `-race`, `internal/ackhandler` now takes 67 s alone, up from 25.7 s after slice 2. `TestBBRECNFeedbackCapEquivalence` accounts for 19.6 s of that; it is deterministic, has no `testing.Short()` budget and was ported unchanged. Hosted unit jobs finished within 6 minutes.
+
+[RAS review `20261014T214812-32f3749a183402f0ca2c0774`](https://github.com/the-sarge/quic-go-fast/pull/757#issuecomment-6179518146) was briefed verbatim from the contract and run by six reviewers. It found no runtime, identity or default-Reno defect. Its one cluster, C-001 (low), was fixed docs-only in `aa20aa5b`: the disclosure had called S5's queue "shallow", but the acceptance plan classes it as ordinary buffering. No further RAS cycle ran, under the docs-only policy. All 33 hosted checks passed on the exact head `aa20aa5b` before the matched-head squash merge.
+
+### Next
+
+Slice 4 ports the kept per-packet changes (`fc4c1bf1..d0fabc4d`). Its merge seam is three fields in `packet_emission.go`, with a focused seam test that a fenced candidate's queued BBR entries return all local credit exactly once. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
