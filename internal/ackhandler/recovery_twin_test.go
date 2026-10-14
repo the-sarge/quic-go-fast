@@ -57,7 +57,7 @@ type twinCoverage struct {
 
 func newRecoveryTwin(t testing.TB) *recoveryTwin {
 	w := &recoveryTwin{t: t, sink: &twinSink{}, now: monotime.Time(time.Hour), pto: 60 * time.Millisecond, lossDelay: 25 * time.Millisecond, checkEvery: 1}
-	w.d = &congestionDispatch{sink: w.sink, pending: func() protocol.ByteCount { return w.pending }, packets: make(map[congestionPacketKey]congestion.PacketInfo)}
+	w.d = &congestionDispatch{sink: w.sink, pending: func() protocol.ByteCount { return w.pending }}
 	w.h = &sentPacketHandler{congestionEvents: w.d}
 	w.ref = newFrozenDispatch()
 	return w
@@ -198,9 +198,9 @@ func (w *recoveryTwin) lose(level protocol.EncryptionLevel, tp *twinPacket) {
 	// Candidate: captureCongestionLoss with the level's PTO supplied here.
 	key := congestionKey(level, pn)
 	congestionLoss := p.includedInBytesInFlight && !p.IsPathMTUProbePacket && !p.isPathProbePacket
-	_, retained := d.packets[key]
+	_, retained := d.packets.get(key)
 	d.recovery.lost(key, congestionLoss, retained, d.ordinal)
-	if info, ok := d.packets[key]; ok && congestionLoss {
+	if info, ok := d.packets.get(key); ok && congestionLoss {
 		start := len(d.scratch) - len(d.event.Lost) - 1
 		d.scratch[start] = info
 		d.event.Lost = d.scratch[start:]
@@ -348,7 +348,8 @@ func (w *recoveryTwin) checkpoint() {
 		}
 	}
 	require.Equal(w.t, frozenRetainedView(w.ref), candidateRetainedView(w.d), "retained contents")
-	require.Equal(w.t, w.ref.packets, w.d.packets, "live delivery records")
+	require.Equal(w.t, w.ref.packets, w.d.packets.asMap(), "live delivery records")
+	checkDeliveryRecords(w.t, &w.d.packets)
 	checkRecoveryIndex(w.t, &w.d.recovery)
 	checkRetainedIndex(w.t, &w.d.sampler)
 }
@@ -393,9 +394,9 @@ func frozenDispatchSummary(d *frozenDispatch) dispatchSummary {
 func candidateDispatchSummary(d *congestionDispatch) dispatchSummary {
 	r, s := &d.recovery, &d.sampler
 	return dispatchSummary{
-		Ordinal: d.ordinal, PathGeneration: d.pathGeneration, SampleGeneration: d.sampleGeneration, RegistrationTime: d.registrationTime, Live: len(d.packets),
+		Ordinal: d.ordinal, PathGeneration: d.pathGeneration, SampleGeneration: d.sampleGeneration, RegistrationTime: d.registrationTime, Live: d.packets.len(),
 		Count: r.count, OutcomeEvicted: r.evicted, Reported: r.reported, Measured: r.measured, Unconfirmed: r.unconfirmedLoss, NeedsAckFeedback: r.needsAckFeedback(),
-		Episode: r.episode, Members: r.members, Latest: r.latestPackets, Boundary: r.boundaryPackets,
+		Episode: r.episode, Members: r.members, Latest: r.latestPackets.asMap(), Boundary: r.boundaryPackets.asMap(),
 		Delivered: s.delivered, Lost: s.lost, DeliveredTime: s.deliveredTime, SendOrigin: s.sendOrigin, Outstanding: s.outstanding, MinimumRTT: s.minimumRTT,
 		Evicted: s.evicted, Expired: s.expired, Missing: s.missing, LimitedUntil: s.limitedUntil, Limited: s.limited, Stop: s.stop,
 		ApplicationExhausted: s.applicationExhausted, EvidenceLost: s.evidenceLost, Originless: s.originlessRegistrations, NextExpiry: s.nextExpiry, Retained: len(s.retained),
@@ -471,7 +472,7 @@ func checkRecoveryIndex(t testing.TB, r *recoveryEvidence) {
 		p := r.slot(l)
 		o := &x.outcomes[p]
 		s := recoverySpace(o.space)
-		want.spaces[s].push(p)
+		want.spaces[s].push(p, o.number)
 		want.pending[s].assign(p, pendingOutcome(o.state))
 		want.eligible[s].assign(p, o.receiptEligible && o.state != outcomeDisposed)
 		want.ptoPending[s].assign(p, o.ptoRetired && o.state == outcomeUnresolved)
@@ -480,6 +481,7 @@ func checkRecoveryIndex(t testing.TB, r *recoveryEvidence) {
 	}
 	for s := range 3 {
 		require.Equal(t, want.spaces[s].n, x.spaces[s].n, "space %d size", s)
+		require.Equal(t, [3]any{want.spaces[s].first, want.spaces[s].last, want.spaces[s].gaps}, [3]any{x.spaces[s].first, x.spaces[s].last, x.spaces[s].gaps}, "space %d bracket", s)
 		for i := range want.spaces[s].n {
 			require.Equal(t, want.spaces[s].at(i), x.spaces[s].at(i), "space %d position %d", s, i)
 		}

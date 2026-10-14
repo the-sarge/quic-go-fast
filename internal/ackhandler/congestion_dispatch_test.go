@@ -185,7 +185,7 @@ func TestCongestionEventBorrowLifetime(t *testing.T) {
 		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.EncryptionInitial, now.Add(time.Second))
 		require.NoError(t, err)
 		require.Equal(t, []congestion.PacketInfo{{}}, borrowed)
-		require.Empty(t, h.congestionEvents.packets)
+		require.Zero(t, h.congestionEvents.packets.len())
 		// Reuse pooled packets and the dispatch scratch. Retained copies stay values.
 		for range 2 {
 			next := sendCongestionTestPacket(h, now.Add(time.Second), protocol.EncryptionInitial, 999)
@@ -222,7 +222,7 @@ func TestCongestionEventBorrowLifetime(t *testing.T) {
 			pn := h.PopPacketNumber(tc.level)
 			h.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}, Handler: &customFrameHandler{}}}, tc.level, protocol.ECNNon, 1000, false, tc.pathProbe)
 			tc.retire(h, now.Add(time.Millisecond))
-			require.Empty(t, h.congestionEvents.packets)
+			require.Zero(t, h.congestionEvents.packets.len())
 			require.Empty(t, r.feedback, "disposal is not delivery or congestion loss")
 		})
 	}
@@ -298,7 +298,7 @@ func TestCongestionDispatchPreservesRenoOrder(t *testing.T) {
 				require.True(t, r.feedback[0].ECNChecked)
 				require.True(t, r.feedback[0].Congested)
 				require.Len(t, r.feedback[0].Lost, 1, "MTU loss and CE are not real congestion-loss bytes")
-				require.Empty(t, h.congestionEvents.packets)
+				require.Zero(t, h.congestionEvents.packets.len())
 			} else {
 				require.Nil(t, h.congestionEvents)
 			}

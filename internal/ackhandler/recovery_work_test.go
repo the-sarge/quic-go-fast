@@ -329,14 +329,14 @@ func TestRecoveryServiceWorkScaling(t *testing.T) {
 // with the given PTO, except m/2, which expires 3 ms after the registration
 // time. Two live registrations, m and m+1, remain.
 func retainedDispatch(m int, pto time.Duration) (*sentPacketHandler, *congestionDispatch) {
-	d := &congestionDispatch{sink: &twinSink{}, pending: func() protocol.ByteCount { return 0 }, packets: make(map[congestionPacketKey]congestion.PacketInfo)}
+	d := &congestionDispatch{sink: &twinSink{}, pending: func() protocol.ByteCount { return 0 }}
 	h := &sentPacketHandler{congestionEvents: d}
 	app := protocol.Encryption1RTT
 	for pn := range protocol.PacketNumber(m + 2) {
 		info := workInfo(pn, time.Duration(pn)*time.Microsecond)
 		d.ordinal = info.Ordinal
 		d.recovery.sent(info, 0)
-		d.packets[congestionKey(app, pn)] = info
+		d.packets.set(congestionKey(app, pn), info)
 	}
 	d.registrationTime = workBase.Add(time.Duration(m+2) * time.Microsecond)
 	for pn := range protocol.PacketNumber(m) {

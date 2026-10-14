@@ -172,7 +172,7 @@ func newSentPacketHandler(
 		logger:                         logger,
 	}
 	if sink != nil {
-		h.congestionEvents = &congestionDispatch{sink: sink, packets: make(map[congestionPacketKey]congestion.PacketInfo)}
+		h.congestionEvents = &congestionDispatch{sink: sink}
 	}
 	if enableECN {
 		h.enableECN = true

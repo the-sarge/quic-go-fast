@@ -51,11 +51,14 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 }
 
 // sendBounded performs at most one owned handoff per opportunity. Continuation
-// goes through the connection loop, which can service receive and close events.
+// goes through the connection loop, which services receive, timer and close
+// events on every pass.
 // ACK/PTO exemptions bypass only ordinary pacing, never local byte ownership.
 func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result emissionResult) {
+	e.inOpportunity = true
+	defer func() { e.inOpportunity, e.capsTaken = false, false }()
 	defer func() {
-		e.reservation.complete() // unused construction allowance / packing failure
+		e.reservation.completeLocal() // unused construction allowance / packing failure
 		e.reservation = nil
 		if result.err == nil {
 			if available := e.capacity(); available != nil {
@@ -141,7 +144,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
 	}
 	limit := size
-	if confirmed && (*e.conn).capabilities().GSO {
+	if confirmed && e.opportunityCapabilities().GSO {
 		limit = min(e.bbr.budget(now), allowance, protocol.MaxLargePacketBufferSize)
 		limit -= limit % size
 	}
@@ -159,7 +162,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 
 func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protocol.ByteCount) emissionResult {
 	exhausted := false
-	gso := (*e.conn).capabilities().GSO
+	gso := e.opportunityCapabilities().GSO
 	buf := getPacketBuffer()
 	if gso {
 		buf.Release()
@@ -190,7 +193,24 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		gsoSize = uint16(size)
 	}
 	e.handoff(buf, gsoSize, ecn, sendMetadata{})
-	return emissionResult{progress: true, retry: true, supplyExhausted: exhausted}
+	// Continue as Reno's receive-yield stop does: the connection makes its next
+	// full pass (close, receive, timers, capacity) without a scheduling token,
+	// timer re-arm or select between consecutive datagrams.
+	return emissionResult{progress: true, deadline: deadlineSendImmediately, supplyExhausted: exhausted}
+}
+
+// opportunityCapabilities queries the connection once per BBR opportunity and
+// reuses that snapshot within it; a concurrent change (a GSO error, managed ECN
+// or receive state, lease DF) is seen by the next opportunity. Outside an
+// opportunity it queries live.
+func (e *packetEmission) opportunityCapabilities() connCapabilities {
+	if !e.inOpportunity {
+		return (*e.conn).capabilities()
+	}
+	if !e.capsTaken {
+		e.caps, e.capsTaken = (*e.conn).capabilities(), true
+	}
+	return e.caps
 }
 
 // A refused ordinary or isolated-probe request must not suppress control
@@ -205,7 +225,7 @@ func (e *packetEmission) waitForReservation(now monotime.Time, confirmed bool, s
 	if err != nil || progress {
 		return emissionResult{progress: progress, retry: progress, err: err}
 	}
-	e.reservation.complete()
+	e.reservation.completeLocal()
 	e.reservation = nil
 	result := e.localBlocked()
 	if e.bbr.credit.waitForReservation(requested, 2*e.bbr.quantum, size, ordinary, isolated) {

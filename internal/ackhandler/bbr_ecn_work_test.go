@@ -22,7 +22,7 @@ type ecnLedgerAPI interface {
 func newECNLedgers() (*frozenBBRECNTracker, *bbrECNTracker) {
 	path := func() (uint64, bool, bool) { return 0, true, true }
 	return &frozenBBRECNTracker{path: path, watermark: protocol.InvalidPacketNumber},
-		&bbrECNTracker{path: path, watermark: protocol.InvalidPacketNumber}
+		&bbrECNTracker{path: func(bool) (uint64, bool, bool) { return path() }, watermark: protocol.InvalidPacketNumber}
 }
 
 // ecnSteadyStream sends batches of ECT0 packets behind an optional block of
