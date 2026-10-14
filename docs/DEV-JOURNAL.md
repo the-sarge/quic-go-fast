@@ -4542,3 +4542,52 @@ Local certification at PR head `f9d0d4f0712868418e57051c92d2643020ca5a29` ran un
 ### Next
 
 Open PRs based on earlier `main`, including the BBR port's [#749](https://github.com/the-sarge/quic-go-fast/pull/749), pick up the go1.27.2 lint workflow once updated onto `b6588e13`.
+
+---
+
+## BBR port slice 1: recovery correction layer landed - 2026-10-14 15:36 EDT
+
+**Main:** `c6c3e9c3330f`
+**Actor:** Claude
+
+### Summary
+
+Merged [BBR port slice 1 #749](https://github.com/the-sarge/quic-go-fast/pull/749) as `c6c3e9c3330f8073e74e83a16c44423fe82736bf`. It is the first of five slices of the operator-approved production port of the corrected BBRv3 revision r9 (`81e9dc8c`) into `main`'s experimental opt-in sender ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)), which D5 of the [r9 advancement decision](https://github.com/the-sarge/quic-go-fast/blob/0ba467db/docs/audits/2026-10-14-bbr-r9-advancement-decision/README.md) ([#747](https://github.com/the-sarge/quic-go-fast/issues/747)) chose as the next step. The slice ports the lineage range `e4f322cb..c6bb13b7` ([#706](https://github.com/the-sarge/quic-go-fast/issues/706)), the recovery-service correction layer:
+
+- C1 indexes recovery and retained-evidence service;
+- C2 replaces the 32,768-entry key map with per-space slot lists and compacts outcome entries;
+- C3 shares the initial-window arithmetic ([#630](https://github.com/the-sarge/quic-go-fast/issues/630)) and keeps the unmeasured-bandwidth fallback on genuine idle ([#636](https://github.com/the-sarge/quic-go-fast/issues/636)).
+
+`internal/congestion` and `internal/ackhandler` on `main` now equal `c6bb13b7` except the declared race-mode test budget. The slice also adds the port's normative contract, [docs/agents/bbr-production-port.md](agents/bbr-production-port.md), and carries five glossary entries verbatim from record branches: Matched Reno, Controller bookkeeping, Retained application data, Packet-tracking state and Readiness exception. The sender stays unqualified and Reno remains the default; README and CHANGELOG are unchanged.
+
+### Decisions
+
+- The operator approved the Planit plan on 2026-10-14, choosing it with one tracking issue over an architecture-handoff program. The plan has five PRs in recorded lineage order. Each must be byte-identical to its recorded commit except for three declared deviation kinds: merge seams in the three root files both `main` and r9's lineage changed, lint fixes, and the race-mode test budget. After the last slice, a readiness measurement and an explicit operator advancement disposition follow; no r9 exception transfers. The [contract](agents/bbr-production-port.md) holds the details.
+- Randomized frozen-equivalence oracles use their existing reduced (`-short`) budget under the race detector, and ordinary runs keep the full budget. At r9 the full oracles take `internal/ackhandler` from 5.5 s to 333 s under `-race`; at this slice the budget cut 205 s to 47 s locally.
+- The operator chose to wait for a separate CI repair rather than merge with a failing check. The blocker was first misattributed to golangci-lint and then corrected to govulncheck drift; [#750](https://github.com/the-sarge/quic-go-fast/pull/750) fixed it.
+- Review finding C-003 is deferred as [#752](https://github.com/the-sarge/quic-go-fast/issues/752). Retained-discovery scratch keeps removed records referenced; it was inherited verbatim from `c6bb13b7` through r9, and the retention is bounded and metadata-only. Fixing it is a deviation from the recorded revision, so it lands as its own PR. #630 and #636 were closed after revalidation against `c6c3e9c3`.
+
+### Validation
+
+Before slicing, applying r9's whole code diff to `d3648918` in a throwaway worktree conflicted only in `send_queue.go`, at `main`'s authorized-writer capture against r9's `newSendQueueWithCapacity`. With that resolved, it built and passed the root, `ackhandler` and `congestion` tests.
+
+Local certification ran at `1333a7cb` under go1.27.1 on darwin/arm64:
+
+- the identity diff against `c6bb13b7`: four declared test files, +21/−1;
+- `go build`, plus `GOOS=linux/windows/freebsd/openbsd` builds;
+- `go vet`;
+- plain, `-race` and `-tags bbrworkcount` tests of the affected packages and the root package;
+- `go mod tidy -diff`;
+- golangci-lint v2.14.0: 0 issues.
+
+[RAS review `20261014T184828-cb6412ddcc876412ac3e9cf7`](https://github.com/the-sarge/quic-go-fast/pull/749#issuecomment-6176155432) confirmed production identity and produced three canonical findings:
+
+- C-001, the blocker attribution: fixed, docs-only, in `6f9ad537`;
+- C-006, the merge-seam wording: fixed, docs-only, in `6f9ad537`;
+- C-003: deferred.
+
+No further RAS cycle ran, under the docs-only policy. After `main` advanced to `2d7da1be`, the branch was updated with an unchanged PR diff and recertified at `bdfe3d4f`. All 33 hosted checks passed on that exact head, including the pull-request govulncheck step, before the matched-head squash merge.
+
+### Next
+
+Slice 2 ports C4's four draft-06 conformance items (`c6bb13b7..8a0e0962`) and amends the design's undo sentence. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view. The operator chooses whether #752 lands before the readiness measurement, which needs a booked quiet window on `minimax`.
