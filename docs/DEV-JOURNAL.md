@@ -4727,3 +4727,56 @@ Merged [path-change MTU probing fix #762](https://github.com/the-sarge/quic-go-f
 ### Next
 
 #756 is next on these seams and should expect the small `Reset` conflict described above. #758 stays blocked on it. [#756](https://github.com/the-sarge/quic-go-fast/issues/756) is the live view.
+
+---
+
+## BBR port slice 4: kept per-packet changes landed - 2026-10-14 19:32 EDT
+
+**Main:** `d716cc4f8063`
+**Actor:** Claude
+
+### Summary
+
+Merged [BBR port slice 4 #763](https://github.com/the-sarge/quic-go-fast/pull/763) as `d716cc4f80637ca70e32f83c9dad7815f48c67fc`. It is the fourth of five slices of the operator-approved production port of r9 (`81e9dc8c`) into `main`'s experimental opt-in sender ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)). The slice ports the lineage range `fc4c1bf1..d0fabc4d` verbatim. That range holds the per-packet changes [#714](https://github.com/the-sarge/quic-go-fast/issues/714) kept; the reverted first attempt at intervention 4 nets out and r6 re-applies it.
+
+- **Loop continuation and lazy credit reads** (`b8b5aaae`). A BBR datagram handoff continues through the connection loop's next full pass instead of a scheduling token. The ECN adapter reads local credit only for a counter-fence drain check.
+- **Slab-backed delivery-record table** (`97c7be6c`). It replaces the map, removing the per-packet churn in `captureCongestionSend`.
+- **Bracketed recovery searches** (`8e4510ba`). Each space's slot list tracks its first and last numbers and gap count, so a search starts from a narrow bracket.
+- **Recycled send reservations** (`2d777bb0`). Completed reservations go to a free list, removing `&sendReservation{}` from `reserve`. Connection-side releases skip a wakeup no waiter could observe.
+- **Per-opportunity capability snapshot** (r6, `d0fabc4d`). Connection capabilities are read once per BBR opportunity.
+
+This removes both BBR-only per-packet allocation sites D5 named. `internal/congestion`, `internal/ackhandler` and every root file `main` has not changed since `e4f322cb` now equal `d0fabc4d`. The only exceptions are slice 1's race-budget files, slice 3's three test lines and this slice's two budget lines. The sender stays unqualified and Reno remains the default; README and CHANGELOG are unchanged.
+
+### Decisions
+
+- Declared deviation from the [contract](agents/bbr-production-port.md): the two randomized oracles this range adds to `internal/ackhandler` now run their `testing.Short()` budget checks through `reducedEquivalenceBudget()`. They are `TestDeliveryRecordsMapEquivalence` and `TestRecoveryLowerBoundEquivalence`. Lint reported nothing, so no lint deviation was used.
+- The root-package oracle `TestLocalSendCreditFrozenEquivalence` has its own `testing.Short()` guard, but the contract defines no race budget for the root package. It costs 0.50 s plain and 4.05 s under `-race` at its full budget, about a tenth of the root package's race run. That is not material, so it was ported unchanged and the deviation was not extended.
+- Merge seam `packet_emission.go`: the slice adds r6's three snapshot fields. Its change set against `d0fabc4d` is line-for-line the one `main` already had against `fc4c1bf1`, so `main`'s candidate-authority behavior is unchanged.
+- Seam evidence: the new `TestCandidateFencedBBRCreditReturnedOnce` in `candidate_authority_test.go` queues real BBR entries and discards them through every authority path in `send_queue.go`:
+  - a fenced or revoked per-packet write;
+  - `errSubmissionDenied` during an authorized write;
+  - a batch remainder revoked after a partial acceptance.
+
+  Each reservation returns to the free list exactly once, and the ledger returns to zero. Mutating either release path makes the test fail.
+
+### Validation
+
+`main` advanced twice during review. [#762](https://github.com/the-sarge/quic-go-fast/pull/762) touched no slice file and created no new seam, because r9 never touched `mtu_discoverer.go`. Its journal followed as a docs-only commit. The branch was updated by merge each time. Local certification ran in full under go1.27.2 on darwin/arm64, on `eadc6e51` and again on `f80fb6b1`, the #762 merge:
+
+- the identity diff against `d0fabc4d`: 7 declared files, +26/−6;
+- the `packet_emission.go` seam delta;
+- `go build` and `go vet`;
+- plain, `-race` and `-tags bbrworkcount` tests of the root package, `internal/ackhandler` and `internal/congestion` (`internal/ackhandler`: about 22 s plain and 75 s under `-race`);
+- `go mod tidy -diff`, `go fix -diff` and gcassert;
+- cross-builds for windows, freebsd, linux, openbsd, netbsd, solaris, linux/arm and iOS;
+- golangci-lint v2.14.0 on all six GOOS steps under Go 1.27.2 and 1.26.8: 0 issues.
+
+[RAS review `20261014T225928-5e9f84bbd8e162fe1a6598ef`](https://github.com/the-sarge/quic-go-fast/pull/763#issuecomment-6180534306) on `eadc6e51` was briefed verbatim from the contract. It found no runtime, identity, seam or default-Reno defect. Its one low cluster was rejected: a duplicated `spaceSlots` doc comment that is r9's recorded text, which the identity invariant keeps.
+
+The [replacement review `20261014T231248-dfe77b55ce00984cad40b2c6`](https://github.com/the-sarge/quic-go-fast/pull/763#issuecomment-6180715577) ran on `f80fb6b1`. It found no #762 interaction. Its one low cluster was also rejected, as unreachable. It claimed that an empty-buffer `handoff` would recycle a reservation twice, but every BBR handoff carries a packed, non-empty packet.
+
+There was no `fix-now` finding, so no defers remain to revalidate. All 33 hosted checks passed on the exact head `737c6e5a` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+Slice 5 ports r8's Linux netpoller kick and r9's 32-entry BBR send queue (`d0fabc4d..81e9dc8c`). Its merge seams are `connection.go`, `packet_emission.go` and `send_queue.go`. It discloses #734's wake increase and #738's S5 DATAGRAM CPU rise. Then [#752](https://github.com/the-sarge/quic-go-fast/issues/752) lands before the readiness measurement. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
