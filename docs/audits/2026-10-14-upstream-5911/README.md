@@ -11,7 +11,9 @@ This folder supports the [proposed alignment record](../../adr/2026-10-14-upstre
 
 All evidence came from an isolated bare clone made with `git clone --bare --shared`, with the upstream commit fetched by SHA into that clone only. The primary checkout's refs, index and worktrees were not touched.
 
-## Merge simulation
+## Merge simulation (historical)
+
+These results were recorded before the owner confirmed on 2026-10-14 that there will be no upstream sync. They are kept as history and no longer inform the decision.
 
 Command for #5911 alone onto the fork: `git merge-tree --write-tree --name-only --messages --merge-base=53a52d50… d3648918 99c74363…`. Results:
 
@@ -89,4 +91,58 @@ The packer discards a DATAGRAM frame that does not fit when the packet carries n
 
 ## Existing H1 tests and the explicit-floor contract
 
-Every H1 regression configures an explicit size: `connection_handshake_mtu_test.go` uses 1452 and 1337, and `integrationtests/self/handshake_mtu_test.go` uses 1452. Under the proposed contract, each fallback case moves to an unset configuration, and explicit configurations gain fail-fast cases.
+Every H1 regression configures an explicit size: `connection_handshake_mtu_test.go` uses 1452 and 1337, and `integrationtests/self/handshake_mtu_test.go` uses 1452. Under the proposed contract, each fallback case moves to an unset configuration, and explicit configurations gain a no-reduction case that ends in the documented handshake timeout.
+
+## Probing after a path change with discovery disabled, reproduced on `d3648918`
+
+This is a related defect, kept out of the decision record's scope. A second throwaway test, run the same way:
+
+```go
+package quic
+
+import (
+	"net"
+	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/wire"
+	"go.uber.org/mock/gomock"
+)
+
+// Scratch evidence only: does a path change start MTU probing although discovery is disabled?
+func TestScratchMigrationProbeWithDiscoveryDisabled(t *testing.T) {
+	tc := newConfiguredEmissionTestConnection(t, false, &Config{EnableDatagrams: true, DisablePathMTUDiscovery: true})
+	c := tc.conn
+	c.peerParams = &wire.TransportParameters{MaxDatagramFrameSize: 1456, MaxUDPPayloadSize: 1456}
+	c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, 1280, 1456, nil)
+	now := monotime.Now()
+	t.Logf("before migration: ShouldSendProbe(+1h)=%v", c.mtuDiscoverer.ShouldSendProbe(now.Add(time.Hour)))
+
+	raw := NewMockRawConn(gomock.NewController(t))
+	raw.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}).AnyTimes()
+	raw.EXPECT().capabilities().Return(connCapabilities{}).AnyTimes() // no DF either
+	old := c.emission.queue
+	go func() { _ = old.Run() }()
+	c.switchToNewPath(&Transport{conn: raw}, now)
+	later := now.Add(time.Hour)
+	intent := c.prepareEmission(later)
+	t.Logf("after migration: DisablePathMTUDiscovery=%v DF=false ShouldSendProbe(+1h)=%v prepareEmission selects MTU probe=%v",
+		c.config.DisablePathMTUDiscovery, c.mtuDiscoverer.ShouldSendProbe(later), intent.mtu != nil)
+	c.emission.queue.Close()
+}
+```
+
+Exact output:
+
+```
+=== RUN   TestScratchMigrationProbeWithDiscoveryDisabled
+    zz_scratch_migration_probe_test.go:20: before migration: ShouldSendProbe(+1h)=false
+    zz_scratch_migration_probe_test.go:30: after migration: DisablePathMTUDiscovery=true DF=false ShouldSendProbe(+1h)=true prepareEmission selects MTU probe=true
+--- PASS: TestScratchMigrationProbeWithDiscoveryDisabled (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go	0.259s
+```
+
+`mtuFinder.Reset` (`mtu_discoverer.go:176`) sets `lastProbeTime`. The emission gate (`connection.go:2624`) checks neither `DisablePathMTUDiscovery` nor DF. Upstream fixed the equivalent in #5887.
+
