@@ -4591,3 +4591,49 @@ No further RAS cycle ran, under the docs-only policy. After `main` advanced to `
 ### Next
 
 Slice 2 ports C4's four draft-06 conformance items (`c6bb13b7..8a0e0962`) and amends the design's undo sentence. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view. The operator chooses whether #752 lands before the readiness measurement, which needs a booked quiet window on `minimax`.
+
+---
+
+## BBR port slice 2: C4 draft-06 conformance landed - 2026-10-14 16:47 EDT
+
+**Main:** `ec28ca58140f`
+**Actor:** Claude
+
+### Summary
+
+Merged [BBR port slice 2 #754](https://github.com/the-sarge/quic-go-fast/pull/754) as `ec28ca58140f67599c10e57345bb3940b369b3cb`. It is the second of five slices of the operator-approved production port of r9 (`81e9dc8c`) into `main`'s experimental opt-in sender ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)). The slice ports the lineage range `c6bb13b7..8a0e0962` ([#707](https://github.com/the-sarge/quic-go-fast/issues/707)), C4's four draft-06 conformance items, in `internal/congestion` only:
+
+- an all-spurious undo restores the loss-driven probing phase (`558d1729`);
+- Startup, Drain and ProbeBW decide on the pre-update RTT minimum (`1710d64f`);
+- delivered-at-send evidence advances packet rounds even when the rate interval is rejected, including the Up probe-slope raise (`f3383912`, `8a0e0962`);
+- the Startup high-loss exit learns unquantized capacity (`fd0b90b2`).
+
+The recorded conformance oracles came with it verbatim. `internal/congestion` and `internal/ackhandler` on `main` now equal `8a0e0962` except slice 1's declared race-mode test budget. The sender stays unqualified and Reno remains the default; README and CHANGELOG are unchanged.
+
+### Decisions
+
+- The [design](designs/bbrv3.md)'s undo sentence now states that an all-spurious undo also restores the loss-driven probing phase, as `558d1729` implements, including CE precedence and ProbeRTT completion. This is the carried input the [contract](agents/bbr-production-port.md) assigns to slice 2.
+- The contract now records the operator's 2026-10-14 decision: [#752](https://github.com/the-sarge/quic-go-fast/issues/752) lands as its own PR after slice 5 and before the readiness measurement, so the measured revision is the one that would ship. The contract's former "known blocker" section now records its resolution by [#750](https://github.com/the-sarge/quic-go-fast/pull/750).
+
+### Validation
+
+Local certification ran at `ad5d98ac` and again at the final head `5c3982a0`, under go1.27.2 on darwin/arm64:
+
+- the identity diff against `8a0e0962`: slice 1's four declared test files only, +21/−1;
+- `go build`, plus `GOOS=linux/windows/freebsd/openbsd` builds;
+- `go vet`;
+- plain, `-race` and `-tags bbrworkcount` tests of both packages, and the root package's tests;
+- the four conformance oracles, verbose: 48 tests and subtests pass;
+- `go mod tidy -diff`;
+- golangci-lint v2.14.0 under Go 1.27.2 and 1.26.8: 0 issues.
+
+[RAS review `20261014T202954-c63829a7a9148cab83715ff8`](https://github.com/the-sarge/quic-go-fast/pull/754#issuecomment-6177994459), briefed verbatim from the contract, found no runtime or identity defect. Its dispositions:
+
+- C-001: fixed, docs-only, in `5c3982a0`. The rewritten blocker paragraph had attributed govulncheck's failure to both Go pins; only the primary 1.27.1 toolchain runs it.
+- C-002: rejected. The readiness wording was already settled by the explicit #752 ordering.
+
+No further RAS cycle ran, under the docs-only policy. On `ad5d98ac`, one hosted job failed only in `TestConnectionMigration`: the [#434](https://github.com/the-sarge/quic-go-fast/issues/434) old-path observation race, a default-Reno test outside the slice. Its identical assertion has failed on `main` before. All 33 hosted checks passed on the exact final head `5c3982a0` before the matched-head squash merge, so no rerun was needed.
+
+### Next
+
+Slice 3 ports bounded ECN feedback and quantum-release pacing (`8a0e0962..fc4c1bf1`). It carries the D08 amendment with its drop-tail overflow disclosure, fixes the QF1001 lint finding in `bbr_ecn_equivalence_test.go`, and routes its oracles' `testing.Short()` budgets through `reducedEquivalenceBudget()`. [#613](https://github.com/the-sarge/quic-go-fast/issues/613) is revalidated after it. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
