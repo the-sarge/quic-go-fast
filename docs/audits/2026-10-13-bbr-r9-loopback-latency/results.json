@@ -1,0 +1,3105 @@
+{
+ "stage0_data_level": {
+  "passes": true,
+  "runs": {
+   "ctlrules_test.py": {
+    "exit": 0,
+    "tail": [
+     "Ran 42 tests in 373.826s",
+     "",
+     "OK"
+    ]
+   },
+   "rules_test.py": {
+    "exit": 0,
+    "tail": [
+     "Ran 43 tests in 0.487s",
+     "",
+     "OK"
+    ]
+   }
+  },
+  "fingerprint": "058ced459312c1a4d3d4088c96c34ff77ae49bb2d978376b3b59ece769af822c"
+ },
+ "stage0_synthetic_runtime": {
+  "blocks": [
+   {
+    "workload": "stream",
+    "block": 1,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "all": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-cand-ctl-bbrv3",
+       "cand-ctl-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-cand-ctl-bbrv3-aa",
+       "syn-sq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-syn-sq-ctl-bbrv3",
+       "syn-rq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-syn-rq-ctl-bbrv3",
+       "syn-sw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-syn-sw-ctl-bbrv3",
+       "syn-rl-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-syn-rl-ctl-bbrv3",
+       "syn-rw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-syn-rw-ctl-bbrv3",
+       "syn-un-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p1-syn-un-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 2,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ],
+     [
+      "rerun"
+     ]
+    ],
+    "masks": {
+     "all": {
+      "status": "clean",
+      "counted": "rerun",
+      "dirs": {
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-cand-ctl-bbrv3",
+       "cand-ctl-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-cand-ctl-bbrv3-aa",
+       "syn-sq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-syn-sq-ctl-bbrv3",
+       "syn-rq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-syn-rq-ctl-bbrv3",
+       "syn-sw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-syn-sw-ctl-bbrv3",
+       "syn-rl-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-syn-rl-ctl-bbrv3",
+       "syn-rw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-syn-rw-ctl-bbrv3",
+       "syn-un-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations-rerun/syn-loopback-syn-stream-p2-syn-un-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [
+       "syn-rl-ctl-bbrv3",
+       "syn-rq-ctl-bbrv3",
+       "syn-sw-ctl-bbrv3"
+      ],
+      "missing": []
+     },
+     "rerun": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 3,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "all": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-cand-ctl-bbrv3",
+       "cand-ctl-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-cand-ctl-bbrv3-aa",
+       "syn-sq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-syn-sq-ctl-bbrv3",
+       "syn-rq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-syn-rq-ctl-bbrv3",
+       "syn-sw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-syn-sw-ctl-bbrv3",
+       "syn-rl-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-syn-rl-ctl-bbrv3",
+       "syn-rw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-syn-rw-ctl-bbrv3",
+       "syn-un-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p3-syn-un-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 4,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "all": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-cand-ctl-bbrv3",
+       "cand-ctl-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-cand-ctl-bbrv3-aa",
+       "syn-sq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-syn-sq-ctl-bbrv3",
+       "syn-rq-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-syn-rq-ctl-bbrv3",
+       "syn-sw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-syn-sw-ctl-bbrv3",
+       "syn-rl-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-syn-rl-ctl-bbrv3",
+       "syn-rw-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-syn-rw-ctl-bbrv3",
+       "syn-un-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/syn-loopback-syn-stream-p4-syn-un-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   }
+  ],
+  "clean_blocks": 4,
+  "cases": {
+   "syn-sq-ctl-bbrv3": {
+    "expected": "queue wait",
+    "ending": "queue wait",
+    "recovered": true,
+    "median_rise_us": {
+     "s_pack": -0.1105,
+     "s_entry": 0.029,
+     "s_queue": 298.4695,
+     "s_submit": 0.1,
+     "t_req": -2.65,
+     "r_backlog": -3.567,
+     "r_wake": -4.5535,
+     "r_app": 0.009,
+     "r_pack": -0.09,
+     "r_entry": 0.0245,
+     "r_queue": -1.207,
+     "r_submit": 0.0,
+     "t_rep": 27.296,
+     "s_backlog": 0.4605,
+     "s_wake": 15.154
+    },
+    "reason": null,
+    "detail": {
+     "blocks": 4,
+     "recorder_ratio": 2.2963942946832145,
+     "consistency_interval": [
+      0.0,
+      Infinity
+     ],
+     "rise_ns": 302301,
+     "rise_ci_ns": [
+      287830,
+      333244
+     ],
+     "p95_ns": {
+      "a": 535487,
+      "b": 233186
+     },
+     "missing": {
+      "a": 0,
+      "b": 0
+     },
+     "queue_share": {
+      "share": 0.9681112533534457,
+      "ci": [
+       0.8833887481845134,
+       1.0445853455164507
+      ],
+      "replicates": 2000
+     },
+     "span_share": {
+      "share": 0.9881244190393019,
+      "ci": [
+       0.8907227136872682,
+       1.0376819650488136
+      ],
+      "replicates": 2000
+     },
+     "endpoint_shares": {
+      "sender": {
+       "share": 0.9690440984316956,
+       "ci": [
+        0.8950828822124329,
+        1.0429176944724317
+       ],
+       "replicates": 2000
+      },
+      "receiver": {
+       "share": -0.0003274881657685552,
+       "ci": [
+        -0.011694134027919483,
+        0.0026091790292881215
+       ],
+       "replicates": 2000
+      }
+     },
+     "tail_mean_difference_ns": {
+      "s_pack": 10870.692307692309,
+      "s_entry": -282.07692307692287,
+      "s_queue": 280881.6923076923,
+      "s_submit": 81.23076923076923,
+      "t_req": -5946.076923076923,
+      "r_backlog": -24969.846153846156,
+      "r_wake": -10965.153846153848,
+      "r_app": -39.46153846153845,
+      "r_pack": -8758.692307692309,
+      "r_entry": -386.07692307692287,
+      "r_queue": -1964.538461538462,
+      "r_submit": -52.07692307692308,
+      "t_rep": 39880.69230769231,
+      "s_backlog": -903.9230769230771,
+      "s_wake": 5897.230769230766,
+      "bookend": 77.15384615384608
+     },
+     "named_segments": [
+      "s_queue"
+     ],
+     "unplaced": false
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.029771651433505016,
+      "ci": [
+       -0.0011844406940959397,
+       0.08817876307982499
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": 0.00023155728892726123,
+      "ci": [
+       -6.948546016745995e-05,
+       0.00023155728892726123
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": 0.9690440984316956,
+      "ci": [
+       0.8950828822124329,
+       1.0429176944724317
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": 0.0004267270038802386,
+      "ci": [
+       0.0,
+       0.0006880568960502407
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": -0.017346948901922257,
+      "ci": [
+       -0.040825516327170804,
+       0.006037618081645881
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": -0.02700950377272983,
+      "ci": [
+       -0.060517067064657454,
+       0.0014763956740406429
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": -0.029497090648062694,
+      "ci": [
+       -0.06069268625050174,
+       -0.001173314448272137
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": 0.0,
+      "ci": [
+       -0.000129994637721194,
+       0.0004814404698858986
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": -0.018074700381407936,
+      "ci": [
+       -0.04847648748292659,
+       -0.000238369281691196
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": 6.615922540778893e-05,
+      "ci": [
+       -3.127531345682912e-05,
+       0.0002779418406698398
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": -0.0003274881657685552,
+      "ci": [
+       -0.011694134027919483,
+       0.0026091790292881215
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": -3.307961270389446e-05,
+      "ci": [
+       -9.302493068142262e-05,
+       0.0
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": 0.08631794138954221,
+      "ci": [
+       0.04662454681340819,
+       0.1610531622474823
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.000830298278867751,
+      "ci": [
+       0.0002758273116712411,
+       0.020539727450172806
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": 0.0219086274937893,
+      "ci": [
+       -0.0007325731460593384,
+       0.04546913114861349
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": -0.0007277514794856782,
+      "ci": [
+       -0.002152134086126227,
+       0.0004171117859586369
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "syn-rq-ctl-bbrv3": {
+    "expected": "queue wait",
+    "ending": "queue wait",
+    "recovered": true,
+    "median_rise_us": {
+     "s_pack": 0.551,
+     "s_entry": -0.001,
+     "s_queue": -0.005,
+     "s_submit": 0.0,
+     "t_req": -0.952,
+     "r_backlog": -1.769,
+     "r_wake": -1.377,
+     "r_app": -0.01,
+     "r_pack": -0.07,
+     "r_entry": -0.021,
+     "r_queue": 299.6885,
+     "r_submit": 0.12,
+     "t_rep": -7.314,
+     "s_backlog": 1.4965,
+     "s_wake": 13.2605
+    },
+    "reason": null,
+    "detail": {
+     "blocks": 4,
+     "recorder_ratio": 2.2470688634823706,
+     "consistency_interval": [
+      0.0,
+      Infinity
+     ],
+     "rise_ns": 290799,
+     "rise_ci_ns": [
+      256270,
+      317526
+     ],
+     "p95_ns": {
+      "a": 523985,
+      "b": 233186
+     },
+     "missing": {
+      "a": 0,
+      "b": 0
+     },
+     "queue_share": {
+      "share": 1.0632120468089643,
+      "ci": [
+       0.9898533162111812,
+       1.142471440224572
+      ],
+      "replicates": 2000
+     },
+     "span_share": {
+      "share": 1.0754438632870127,
+      "ci": [
+       1.007360868250483,
+       1.1742334160032313
+      ],
+      "replicates": 2000
+     },
+     "endpoint_shares": {
+      "sender": {
+       "share": 0.032592959398072205,
+       "ci": [
+        -0.030064860439854537,
+        0.0916994865147814
+       ],
+       "replicates": 2000
+      },
+      "receiver": {
+       "share": 1.033621161008119,
+       "ci": [
+        0.9414441652022196,
+        1.1761696648066493
+       ],
+       "replicates": 2000
+      }
+     },
+     "tail_mean_difference_ns": {
+      "s_pack": 8529.23076923077,
+      "s_entry": 601.0769230769231,
+      "s_queue": 24673.307692307695,
+      "s_submit": 57.230769230769226,
+      "t_req": -3431.3076923076915,
+      "r_backlog": -19341.53846153846,
+      "r_wake": -10102.692307692309,
+      "r_app": 168.61538461538458,
+      "r_pack": -8363.923076923078,
+      "r_entry": -446.38461538461524,
+      "r_queue": 300165.07692307694,
+      "r_submit": 38.769230769230774,
+      "t_rep": 55584.30769230769,
+      "s_backlog": 29215.692307692305,
+      "s_wake": 19921.076923076922,
+      "bookend": 253.30769230769226
+     },
+     "named_segments": [
+      "r_queue"
+     ],
+     "unplaced": false
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.03864181101035423,
+      "ci": [
+       0.0007414055488352128,
+       0.10134104392043472
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": 0.0,
+      "ci": [
+       -6.415479268378745e-05,
+       0.005893237797258558
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": 0.032592959398072205,
+      "ci": [
+       -0.030064860439854537,
+       0.0916994865147814
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": 0.0,
+      "ci": [
+       -0.00022051703254383974,
+       0.000290806907480926
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": -0.00027166530834012495,
+      "ci": [
+       -0.010617511703562644,
+       0.0183118782807262
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": -0.004824638324065764,
+      "ci": [
+       -0.04595463538722442,
+       0.017252438639347258
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": 0.0004470441782812183,
+      "ci": [
+       -0.01083253674465751,
+       0.0028071492308104733
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": -3.438801371393987e-05,
+      "ci": [
+       -0.00010051463493084593,
+       0.0
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": -0.022221534461947943,
+      "ci": [
+       -0.022221534461947943,
+       0.0014089802056261136
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": -7.221482879927373e-05,
+      "ci": [
+       -0.00019931709389142118,
+       3.774881185614683e-05
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": 1.033621161008119,
+      "ci": [
+       0.9414441652022196,
+       1.1761696648066493
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": 0.00020632808228363922,
+      "ci": [
+       3.195899022374489e-05,
+       0.00044738725841088047
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": -0.07767564537704738,
+      "ci": [
+       -0.15342947615269575,
+       -0.02004752646359905
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.02768578984109299,
+      "ci": [
+       -0.013334916264232017,
+       0.05467950973589274
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": 0.02928483247879119,
+      "ci": [
+       -0.047107301796604585,
+       0.04926466922578394
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": 7.221482879927373e-05,
+      "ci": [
+       -0.0008623717173293792,
+       0.001211889271590764
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "syn-sw-ctl-bbrv3": {
+    "expected": "queue wait",
+    "ending": "queue wait",
+    "recovered": true,
+    "median_rise_us": {
+     "s_pack": 60.734,
+     "s_entry": 0.0045,
+     "s_queue": 662.72,
+     "s_submit": 20.058,
+     "t_req": -3.521,
+     "r_backlog": -6.0315,
+     "r_wake": -7.5595,
+     "r_app": -0.0005,
+     "r_pack": -0.17,
+     "r_entry": -0.03,
+     "r_queue": -1.2025,
+     "r_submit": -0.01,
+     "t_rep": -6.492,
+     "s_backlog": -0.4615,
+     "s_wake": -35.1805
+    },
+    "reason": null,
+    "detail": {
+     "blocks": 4,
+     "recorder_ratio": 3.659404938546911,
+     "consistency_interval": [
+      0.0,
+      Infinity
+     ],
+     "rise_ns": 620136,
+     "rise_ci_ns": [
+      606871,
+      640785
+     ],
+     "p95_ns": {
+      "a": 853322,
+      "b": 233186
+     },
+     "missing": {
+      "a": 0,
+      "b": 0
+     },
+     "queue_share": {
+      "share": 1.042630971270818,
+      "ci": [
+       1.011524779684837,
+       1.0588395227321787
+      ],
+      "replicates": 2000
+     },
+     "span_share": {
+      "share": 1.1173516776965053,
+      "ci": [
+       1.0822087387377517,
+       1.140359642798437
+      ],
+      "replicates": 2000
+     },
+     "endpoint_shares": {
+      "sender": {
+       "share": 1.0458963840189894,
+       "ci": [
+        1.0207963669561553,
+        1.0658591364556882
+       ],
+       "replicates": 2000
+      },
+      "receiver": {
+       "share": -0.01006472773714153,
+       "ci": [
+        -0.013615890942980819,
+        -0.003485482012712139
+       ],
+       "replicates": 2000
+      }
+     },
+     "tail_mean_difference_ns": {
+      "s_pack": 56091.61538461539,
+      "s_entry": -197.30769230769215,
+      "s_queue": 649312.9230769231,
+      "s_submit": 20019.923076923078,
+      "t_req": -6917.615384615384,
+      "r_backlog": -27146.384615384617,
+      "r_wake": -13021.076923076926,
+      "r_app": 28.230769230769226,
+      "r_pack": -8876.461538461539,
+      "r_entry": -456.9230769230769,
+      "r_queue": -3546.923076923077,
+      "r_submit": -62.769230769230774,
+      "t_rep": -63809.307692307695,
+      "s_backlog": 53734.230769230766,
+      "s_wake": -65513.769230769234,
+      "bookend": -57.92307692307696
+     },
+     "named_segments": [
+      "s_queue"
+     ],
+     "unplaced": false
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.0816627320458738,
+      "ci": [
+       0.07472096310376761,
+       0.09538720434605
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": 8.22400247687604e-05,
+      "ci": [
+       1.4830169838400583e-05,
+       0.00012941739238698095
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": 1.0458963840189894,
+      "ci": [
+       1.0207963669561553,
+       1.0658591364556882
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": 0.03232839248164918,
+      "ci": [
+       0.031271019140585374,
+       0.03308446111282299
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": -0.018575764025955597,
+      "ci": [
+       -0.02762566689255068,
+       -0.00665813905249197
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": -0.014271063121637834,
+      "ci": [
+       -0.025415863943747057,
+       -0.00794896357744125
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": -0.02200968819742766,
+      "ci": [
+       -0.028518977591942937,
+       -0.007953288945103373
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": -1.6125495052698117e-06,
+      "ci": [
+       -9.881178824633779e-05,
+       0.0006729569886583272
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": -0.008677128887856857,
+      "ci": [
+       -0.01893371038842219,
+       -0.00016206142127866461
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": -1.773804455796793e-05,
+      "ci": [
+       -8.194300661061007e-05,
+       6.552779361366124e-05
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": -0.01006472773714153,
+      "ci": [
+       -0.013615890942980819,
+       -0.003485482012712139
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": -3.2250990105396234e-05,
+      "ci": [
+       -0.001783994181131927,
+       -1.5605858439258097e-05
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": -0.023243288568959068,
+      "ci": [
+       -0.0611718335331931,
+       -0.007429710040165691
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.017316362862339875,
+      "ci": [
+       0.004799134991266739,
+       0.025205021965245752
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": -0.08560864068526904,
+      "ci": [
+       -0.0947819655651381,
+       -0.07360959119854261
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": -0.00016125495052698118,
+      "ci": [
+       -0.0008914807715835406,
+       -0.00014054067559464322
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "syn-rl-ctl-bbrv3": {
+    "expected": [
+     "load or other",
+     "mixed"
+    ],
+    "ending": "load or other",
+    "recovered": true,
+    "median_rise_us": {
+     "s_pack": 8.466,
+     "s_entry": -0.0355,
+     "s_queue": 11.637,
+     "s_submit": -0.01,
+     "t_req": -4.238,
+     "r_backlog": 86.868,
+     "r_wake": 14.4525,
+     "r_app": 0.02,
+     "r_pack": 59.096,
+     "r_entry": 0.129,
+     "r_queue": 30.7525,
+     "r_submit": 0.0,
+     "t_rep": -8.0405,
+     "s_backlog": 3.1755,
+     "s_wake": -5.37
+    },
+    "reason": null,
+    "detail": {
+     "blocks": 4,
+     "recorder_ratio": 1.8336606828883382,
+     "consistency_interval": [
+      0.0,
+      Infinity
+     ],
+     "rise_ns": 194398,
+     "rise_ci_ns": [
+      178821,
+      217077
+     ],
+     "p95_ns": {
+      "a": 427584,
+      "b": 233186
+     },
+     "missing": {
+      "a": 0,
+      "b": 0
+     },
+     "queue_share": {
+      "share": 0.18157079805347792,
+      "ci": [
+       0.16172959444105975,
+       0.2959261168670625
+      ],
+      "replicates": 2000
+     },
+     "span_share": {
+      "share": 0.5618679204518565,
+      "ci": [
+       0.5040740861179116,
+       0.6476470816495097
+      ],
+      "replicates": 2000
+     },
+     "endpoint_shares": {
+      "sender": {
+       "share": 0.05216103046327637,
+       "ci": [
+        -0.008898626715260096,
+        0.1162291660542638
+       ],
+       "replicates": 2000
+      },
+      "receiver": {
+       "share": 0.13714647270033642,
+       "ci": [
+        0.10897341681609297,
+        0.25423823749066465
+       ],
+       "replicates": 2000
+      }
+     },
+     "tail_mean_difference_ns": {
+      "s_pack": 31959.999999999996,
+      "s_entry": -287.6153846153845,
+      "s_queue": -15895.0,
+      "s_submit": 20.230769230769226,
+      "t_req": -4588.846153846153,
+      "r_backlog": 102547.3076923077,
+      "r_wake": 42621.07692307692,
+      "r_app": 119.15384615384613,
+      "r_pack": 67154.61538461538,
+      "r_entry": -142.46153846153834,
+      "r_queue": 33083.61538461538,
+      "r_submit": -47.69230769230771,
+      "t_rep": -58577.61538461539,
+      "s_backlog": -2746.7692307692305,
+      "s_wake": -30644.307692307695,
+      "bookend": 64.61538461538453
+     },
+     "named_segments": [
+      "r_backlog"
+     ],
+     "unplaced": false
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.13559810286114055,
+      "ci": [
+       0.06792425085863732,
+       0.14107087882160702
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": -0.0001543225753351372,
+      "ci": [
+       -0.003062728612764099,
+       0.0020031866549856804
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": 0.05216103046327637,
+      "ci": [
+       -0.008898626715260096,
+       0.1162291660542638
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": -5.144085844504573e-05,
+      "ci": [
+       -0.00018935963511221616,
+       0.0
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": -0.004228438564182759,
+      "ci": [
+       -0.0434776600008292,
+       -0.0007558295363173412
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": 0.42906820029012643,
+      "ci": [
+       0.3526819943492737,
+       0.45676402659642884
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": 0.17790306484634616,
+      "ci": [
+       0.0974206316209609,
+       0.20321360623189005
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": 5.144085844504573e-05,
+      "ci": [
+       -0.00043675274335316916,
+       0.00020171509553020036
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": 0.334638216442556,
+      "ci": [
+       0.25267723201687287,
+       0.351584337992105
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": 0.0007201720182306402,
+      "ci": [
+       0.0003670359747688984,
+       0.0015203542757003812
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": 0.13714647270033642,
+      "ci": [
+       0.10897341681609297,
+       0.25423823749066465
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": 0.0,
+      "ci": [
+       -0.000248403122782115,
+       0.0
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": -0.1446568380333131,
+      "ci": [
+       -0.17652442142776392,
+       -0.09594752092575445
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.01865245527217358,
+      "ci": [
+       -0.003088071612949061,
+       0.019001386962552012
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": -0.021785203551476867,
+      "ci": [
+       -0.15384535353114986,
+       0.008408744663784797
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": 0.00010288171689009146,
+      "ci": [
+       -0.009341741998869332,
+       0.0003176158355718969
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "syn-rw-ctl-bbrv3": {
+    "expected": "load or other",
+    "ending": "load or other",
+    "recovered": true,
+    "median_rise_us": {
+     "s_pack": 0.2855,
+     "s_entry": -0.021,
+     "s_queue": -1.5225,
+     "s_submit": 0.0,
+     "t_req": -0.381,
+     "r_backlog": -0.2965,
+     "r_wake": -0.957,
+     "r_app": 300.083,
+     "r_pack": 1.152,
+     "r_entry": 0.049,
+     "r_queue": 1.6675,
+     "r_submit": 0.01,
+     "t_rep": 2.295,
+     "s_backlog": 0.851,
+     "s_wake": -12.7535
+    },
+    "reason": null,
+    "detail": {
+     "blocks": 4,
+     "recorder_ratio": 2.3385837914797625,
+     "consistency_interval": [
+      0.0,
+      Infinity
+     ],
+     "rise_ns": 312139,
+     "rise_ci_ns": [
+      292107,
+      344220
+     ],
+     "p95_ns": {
+      "a": 545325,
+      "b": 233186
+     },
+     "missing": {
+      "a": 0,
+      "b": 0
+     },
+     "queue_share": {
+      "share": -0.007640826682984183,
+      "ci": [
+       -0.0211085116148609,
+       0.025548599670510708
+      ],
+      "replicates": 2000
+     },
+     "span_share": {
+      "share": 0.018491761683096315,
+      "ci": [
+       -0.019268864771581008,
+       0.09447775947281713
+      ],
+      "replicates": 2000
+     },
+     "endpoint_shares": {
+      "sender": {
+       "share": -0.01011088008867844,
+       "ci": [
+        -0.03116901981291035,
+        0.02297528830313015
+       ],
+       "replicates": 2000
+      },
+      "receiver": {
+       "share": 0.002470053405694258,
+       "ci": [
+        0.0005670913882695654,
+        0.018786151311722465
+       ],
+       "replicates": 2000
+      }
+     },
+     "tail_mean_difference_ns": {
+      "s_pack": 4069.8461538461524,
+      "s_entry": 233.69230769230785,
+      "s_queue": -8190.692307692305,
+      "s_submit": 138.0,
+      "t_req": 6364.153846153848,
+      "r_backlog": -13896.076923076924,
+      "r_wake": -5802.230769230771,
+      "r_app": 300038.3076923077,
+      "r_pack": -4945.307692307692,
+      "r_entry": -300.46153846153834,
+      "r_queue": 147.7692307692305,
+      "r_submit": -35.15384615384616,
+      "t_rep": 46945.07692307692,
+      "s_backlog": 10275.461538461537,
+      "s_wake": 11100.0,
+      "bookend": 199.53846153846155
+     },
+     "named_segments": [
+      "r_app"
+     ],
+     "unplaced": false
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.013798339842185692,
+      "ci": [
+       -0.010594533500236987,
+       0.03454612862192619
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": 0.0007720919205866617,
+      "ci": [
+       -0.0007210821476448474,
+       0.003976066625021094
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": -0.01011088008867844,
+      "ci": [
+       -0.03116901981291035,
+       0.02297528830313015
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": 0.0,
+      "ci": [
+       -2.905118819359712e-05,
+       0.00026701913192080215
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": -0.0018581465308724638,
+      "ci": [
+       -0.009913679369746315,
+       0.02418274227017707
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": -0.004600514514366997,
+      "ci": [
+       -0.039964807416460406,
+       0.02223796459969993
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": 0.0015730171494109995,
+      "ci": [
+       -0.004738274977680895,
+       0.005240079867632886
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": 0.9613185151486998,
+      "ci": [
+       0.8717128580558945,
+       1.0277227180450998
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": 0.008054104101057542,
+      "ci": [
+       -0.02765991678049673,
+       0.034576504132181586
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": 9.611102745892054e-05,
+      "ci": [
+       -1.452559409679856e-05,
+       0.0009690472928494334
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": 0.002470053405694258,
+      "ci": [
+       0.0005670913882695654,
+       0.018786151311722465
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": 3.2037009152973513e-06,
+      "ci": [
+       -3.1412165303378695e-05,
+       6.348930539358357e-05
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": 0.021375092506863928,
+      "ci": [
+       -0.0226583676666765,
+       0.1410659137033442
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.0030963769346348904,
+      "ci": [
+       -0.002272862531492749,
+       0.058124096107336876
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": 0.00613188355187913,
+      "ci": [
+       -0.04622157675339985,
+       0.03919924108208627
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": -0.00017460169988370566,
+      "ci": [
+       -0.00020026434894060158,
+       0.0005575403438061628
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "syn-un-ctl-bbrv3": {
+    "expected": "load or other",
+    "ending": "load or other",
+    "recovered": true,
+    "median_rise_us": {
+     "s_pack": -0.005,
+     "s_entry": -0.021,
+     "s_queue": -1.828,
+     "s_submit": 0.0,
+     "t_req": 297.6075,
+     "r_backlog": -3.5875,
+     "r_wake": -4.824,
+     "r_app": 0.01,
+     "r_pack": -0.1405,
+     "r_entry": -0.0205,
+     "r_queue": -1.197,
+     "r_submit": -0.009,
+     "t_rep": 27.1655,
+     "s_backlog": 0.686,
+     "s_wake": 16.2205
+    },
+    "reason": null,
+    "detail": {
+     "blocks": 4,
+     "recorder_ratio": 2.3720978103316663,
+     "consistency_interval": [
+      0.0,
+      Infinity
+     ],
+     "rise_ns": 319954,
+     "rise_ci_ns": [
+      310535,
+      330367
+     ],
+     "p95_ns": {
+      "a": 553140,
+      "b": 233186
+     },
+     "missing": {
+      "a": 0,
+      "b": 0
+     },
+     "queue_share": {
+      "share": -0.007841752251886209,
+      "ci": [
+       -0.04075541733547351,
+       0.037452213589838454
+      ],
+      "replicates": 2000
+     },
+     "span_share": {
+      "share": -0.035625433656088064,
+      "ci": [
+       -0.04026789586110531,
+       0.020427081408417425
+      ],
+      "replicates": 2000
+     },
+     "endpoint_shares": {
+      "sender": {
+       "share": -0.0034254924145345894,
+       "ci": [
+        -0.035695475521669344,
+        0.03759094832901714
+       ],
+       "replicates": 2000
+      },
+      "receiver": {
+       "share": -0.0013595704382504984,
+       "ci": [
+        -0.0100611542405156,
+        0.0021950918732272784
+       ],
+       "replicates": 2000
+      }
+     },
+     "tail_mean_difference_ns": {
+      "s_pack": 313.84615384615427,
+      "s_entry": -244.38461538461524,
+      "s_queue": 867.076923076922,
+      "s_submit": -3.6153846153846416,
+      "t_req": 294053.07692307694,
+      "r_backlog": -25292.69230769231,
+      "r_wake": -12085.000000000002,
+      "r_app": -9.30769230769232,
+      "r_pack": -8804.307692307693,
+      "r_entry": -402.9230769230769,
+      "r_queue": -464.92307692307713,
+      "r_submit": -24.461538461538467,
+      "t_rep": 55120.30769230769,
+      "s_backlog": 9639.615384615385,
+      "s_wake": 2167.0,
+      "bookend": 288.23076923076917
+     },
+     "named_segments": [
+      "t_req"
+     ],
+     "unplaced": true
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.001975283947067391,
+      "ci": [
+       -0.0012640276236280676,
+       0.013294188821088902
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": -6.250898566668959e-05,
+      "ci": [
+       -0.00033912936243679864,
+       8.9406831915156e-05
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": -0.0034254924145345894,
+      "ci": [
+       -0.035695475521669344,
+       0.03759094832901714
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": 0.0,
+      "ci": [
+       -3.165989672541688e-05,
+       0.000184938830316292
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": 0.906427173906249,
+      "ci": [
+       0.8802396842178606,
+       0.953330146237063
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": -0.0458222119429668,
+      "ci": [
+       -0.07689632408585184,
+       -0.013524353219298537
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": -0.04537527269544997,
+      "ci": [
+       -0.04952557644756963,
+       -0.007722900480947096
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": 3.437994211667927e-05,
+      "ci": [
+       -0.000122838427545289,
+       0.00016783848444900152
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": -0.00789175944041956,
+      "ci": [
+       -0.026974232010055183,
+       -0.00030269367097803353
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": -6.250898566668959e-05,
+      "ci": [
+       -0.00012117503430768159,
+       9.212882065896675e-05
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": -0.0013595704382504984,
+      "ci": [
+       -0.0100611542405156,
+       0.0021950918732272784
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": 0.0,
+      "ci": [
+       -0.00012590938823392122,
+       0.0
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": 0.09040674596973315,
+      "ci": [
+       0.018008258411456146,
+       0.14022587001728382
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.012634628727879633,
+      "ci": [
+       0.002674938882342071,
+       0.05596503282712862
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": -0.0006625952480669097,
+      "ci": [
+       -0.00612138819532751,
+       0.043519546183253176
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": -0.00021565600055007908,
+      "ci": [
+       -0.00024355654211370082,
+       0.0010321854180350943
+      ],
+      "replicates": 2000
+     }
+    }
+   },
+   "cand-ctl-bbrv3-aa": {
+    "expected": "inconclusive",
+    "ending": "inconclusive",
+    "recovered": true,
+    "median_rise_us": {
+     "s_pack": 0.2205,
+     "s_entry": -0.021,
+     "s_queue": 1.2675,
+     "s_submit": 0.0,
+     "t_req": -0.285,
+     "r_backlog": -1.118,
+     "r_wake": -2.8555,
+     "r_app": 0.0,
+     "r_pack": 0.075,
+     "r_entry": 0.0145,
+     "r_queue": 0.0195,
+     "r_submit": 0.001,
+     "t_rep": 3.3515,
+     "s_backlog": 0.345,
+     "s_wake": 3.742
+    },
+    "reason": "unstable share",
+    "detail": {
+     "blocks": 4,
+     "recorder_ratio": 1.212774351804997,
+     "consistency_interval": [
+      0.0,
+      Infinity
+     ],
+     "rise_ns": 49616,
+     "rise_ci_ns": [
+      8192,
+      74649
+     ],
+     "p95_ns": {
+      "a": 282802,
+      "b": 233186
+     },
+     "missing": {
+      "a": 0,
+      "b": 0
+     },
+     "queue_share": {
+      "share": 0.07292002579812963,
+      "ci": [
+       -0.7834353276691819,
+       0.6741371903193469
+      ],
+      "replicates": 2000
+     },
+     "span_share": {
+      "share": 0.33640357949048694,
+      "ci": [
+       -0.6005859375,
+       1.0746575015513866
+      ],
+      "replicates": 2000
+     },
+     "endpoint_shares": {
+      "sender": {
+       "share": 0.07251693002257337,
+       "ci": [
+        -0.4427490234375,
+        0.7477683898992792
+       ],
+       "replicates": 2000
+      },
+      "receiver": {
+       "share": 0.00040309577555627216,
+       "ci": [
+        -0.052475805693883305,
+        0.11958860106680812
+       ],
+       "replicates": 2000
+      }
+     },
+     "tail_mean_difference_ns": {
+      "s_pack": 16158.461538461539,
+      "s_entry": -354.15384615384596,
+      "s_queue": 1421.0,
+      "s_submit": -10.615384615384642,
+      "t_req": 7968.538461538461,
+      "r_backlog": -13610.692307692309,
+      "r_wake": -3179.7692307692323,
+      "r_app": 6.0,
+      "r_pack": 9526.538461538463,
+      "r_entry": -338.46153846153834,
+      "r_queue": 6857.2307692307695,
+      "r_submit": -17.30769230769232,
+      "t_rep": 24219.692307692312,
+      "s_backlog": -183.0,
+      "s_wake": -7220.0,
+      "bookend": 1.7692307692307168
+     },
+     "named_segments": [],
+     "unplaced": false,
+     "reason": "unstable share"
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.14459045469203483,
+      "ci": [
+       0.004463027341914874,
+       0.30513069872985
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": -0.00040309577555627216,
+      "ci": [
+       -0.009165119500191554,
+       0.030616876418403136
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": 0.07251693002257337,
+      "ci": [
+       -0.4427490234375,
+       0.7477683898992792
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": 0.0,
+      "ci": [
+       -0.0020218691974417165,
+       0.0009308320206215094
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": -0.0028216704288939053,
+      "ci": [
+       -0.0770263671875,
+       0.0384567773880751
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": -0.007275878748790713,
+      "ci": [
+       -0.19304270406054247,
+       0.41462599646761183
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": -0.019882699129313126,
+      "ci": [
+       -0.14612891102132858,
+       0.015059087024430495
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": -2.0154788777813607e-05,
+      "ci": [
+       -0.0002737725862383647,
+       0.008544921875
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": 0.058972911963882615,
+      "ci": [
+       -0.12165148970029176,
+       0.4230034846532054
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": 0.0,
+      "ci": [
+       -0.03041287242507294,
+       0.00244140625
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": 0.00040309577555627216,
+      "ci": [
+       -0.052475805693883305,
+       0.11958860106680812
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": 0.0,
+      "ci": [
+       -0.0011882835244489335,
+       0.000773706362961129
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": 0.4924822637858755,
+      "ci": [
+       -0.42611924902001236,
+       1.3058641791931556
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.03190503063527894,
+      "ci": [
+       -0.0014989614338636803,
+       0.07052023121387284
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": -0.0036278619800064497,
+      "ci": [
+       -1.6475830078125,
+       0.17007361440652188
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": -0.0005844888745565947,
+      "ci": [
+       -0.0048828125,
+       0.0012874408828166053
+      ],
+      "replicates": 2000
+     }
+    }
+   }
+  },
+  "fingerprint": "058ced459312c1a4d3d4088c96c34ff77ae49bb2d978376b3b59ece769af822c",
+  "passes": true
+ },
+ "stage1": {
+  "blocks": [
+   {
+    "workload": "stream",
+    "block": 1,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "plain": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "reno-reno": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-reno-reno",
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-cand-bbrv3",
+       "cand-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-cand-bbrv3-aa",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-cand8-bbrv3"
+      }
+     },
+     "recorder": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-cand-bbrv3",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-cand8-bbrv3",
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-cand-ctl-bbrv3",
+       "cand8-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p1-cand8-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 2,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "plain": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "reno-reno": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-reno-reno",
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-cand-bbrv3",
+       "cand-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-cand-bbrv3-aa",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-cand8-bbrv3"
+      }
+     },
+     "recorder": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-cand-bbrv3",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-cand8-bbrv3",
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-cand-ctl-bbrv3",
+       "cand8-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p2-cand8-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 3,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "plain": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "reno-reno": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-reno-reno",
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-cand-bbrv3",
+       "cand-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-cand-bbrv3-aa",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-cand8-bbrv3"
+      }
+     },
+     "recorder": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-cand-bbrv3",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-cand8-bbrv3",
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-cand-ctl-bbrv3",
+       "cand8-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p3-cand8-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 4,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "plain": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "reno-reno": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-reno-reno",
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-cand-bbrv3",
+       "cand-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-cand-bbrv3-aa",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-cand8-bbrv3"
+      }
+     },
+     "recorder": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-cand-bbrv3",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-cand8-bbrv3",
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-cand-ctl-bbrv3",
+       "cand8-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p4-cand8-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 5,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "plain": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "reno-reno": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-reno-reno",
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-cand-bbrv3",
+       "cand-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-cand-bbrv3-aa",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-cand8-bbrv3"
+      }
+     },
+     "recorder": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-cand-bbrv3",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-cand8-bbrv3",
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-cand-ctl-bbrv3",
+       "cand8-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p5-cand8-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   },
+   {
+    "workload": "stream",
+    "block": 6,
+    "status": "clean",
+    "attempts": [
+     [
+      "original"
+     ]
+    ],
+    "masks": {
+     "plain": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "reno-reno": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-reno-reno",
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-cand-bbrv3",
+       "cand-bbrv3-aa": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-cand-bbrv3-aa",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-cand8-bbrv3"
+      }
+     },
+     "recorder": {
+      "status": "clean",
+      "counted": "original",
+      "dirs": {
+       "cand-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-cand-bbrv3",
+       "cand8-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-cand8-bbrv3",
+       "cand-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-cand-ctl-bbrv3",
+       "cand8-ctl-bbrv3": "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/observations/s1-loopback-long-stream-p6-cand8-ctl-bbrv3"
+      }
+     }
+    },
+    "evidence": {
+     "original": {
+      "unusable": {},
+      "contaminated": [],
+      "missing": []
+     }
+    }
+   }
+  ],
+  "clean_blocks": {
+   "plain": 6,
+   "recorder": 6
+  },
+  "depth": {
+   "ending": "depth raises latency",
+   "detail": {
+    "ratio": 1.186778542492486,
+    "ci": [
+     1.0577743708926148,
+     1.5508361248295313
+    ],
+    "aa_ratio": 1.090099514128804,
+    "aa_ci": [
+     0.9828707838298845,
+     1.1750150790422353
+    ],
+    "per_block": [
+     1.2330893781590766,
+     1.537274386245046,
+     1.5950619182154229,
+     0.960492764923885,
+     1.100965524344087,
+     1.7417964914337636
+    ],
+    "blocks_above_1": 5,
+    "blocks": 6,
+    "equivalent_within_margin": false,
+    "margin": 1.15,
+    "p95_ms": {
+     "cand": 0.217959,
+     "cand8": 0.183656,
+     "aa": 0.237597
+    },
+    "p50_ms": {
+     "cand": 0.128988,
+     "cand8": 0.08233,
+     "aa": 0.12597150000000001
+    }
+   }
+  },
+  "baseline": {
+   "ending": "BBR baseline",
+   "rule_outcome": "regression reproduced",
+   "detail": {
+    "ratio": 1.3451104470615811,
+    "ci": [
+     1.0751628934290447,
+     1.490127169031046
+    ],
+    "per_block": [
+     1.271616658366534,
+     1.0328290079145959,
+     1.1560389264130821,
+     1.6343601687467042,
+     1.3959615274023807,
+     0.9331327566754418
+    ],
+    "blocks": 6,
+    "cand_p95_ms": 0.183656,
+    "reno_p95_ms": 0.136536,
+    "cand_p50_ms": 0.08233,
+    "reno_p50_ms": 0.070292
+   }
+  },
+  "r9_vs_reno_descriptive": {
+   "ratio": 1.5963482158551592,
+   "ci": [
+    1.5039351772710177,
+    1.7349508235572935
+   ],
+   "cand_p95_ms": 0.217959,
+   "reno_p95_ms": 0.136536,
+   "cand_p50_ms": 0.128988,
+   "reno_p50_ms": 0.070292
+  },
+  "perturbation": {
+   "cand": {
+    "goodput_ratio": 0.980873653722907,
+    "goodput_per_block": [
+     0.9809666232345589,
+     0.9747954841609837,
+     0.9839695323163282,
+     0.9807806842112553,
+     0.9878221930755323,
+     0.9753705865377605
+    ],
+    "p95_ratio": 1.111516386109314,
+    "goodput_passes": false,
+    "p95_passes": true,
+    "blocks": 6,
+    "state": "fail"
+   },
+   "cand8": {
+    "goodput_ratio": 1.0000697935376024,
+    "goodput_per_block": [
+     1.0025104598428853,
+     0.9999465064063441,
+     1.0043548631871586,
+     0.9951786225024856,
+     1.0001930806688606,
+     0.9950869731637817
+    ],
+    "p95_ratio": 1.029402796532648,
+    "goodput_passes": true,
+    "p95_passes": true,
+    "blocks": 6,
+    "state": "pass"
+   },
+   "state": "fail"
+  },
+  "mechanism": {
+   "ending": "instrumentation gap",
+   "detail": {
+    "reason": "Stage 0 prerequisite",
+    "prerequisite": {
+     "state": "instrumentation gap",
+     "reasons": [
+      "perturbation: failed"
+     ]
+    }
+   },
+   "prerequisite": {
+    "state": "instrumentation gap",
+    "reasons": [
+     "perturbation: failed"
+    ]
+   },
+   "recorder_facts": [
+    {
+     "cand": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       32
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231309039232400,
+        "half_width_ns": 15,
+        "offset_ns": 4231309039232400
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231309035081860,
+        "half_width_ns": 15,
+        "offset_ns": 4231309035081870
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 686304688.8887776,
+       "receiver": 2043790.2265096912
+      },
+      "total_agree": 119
+     },
+     "cand8": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       8
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231437038123647,
+        "half_width_ns": 15,
+        "offset_ns": 4231437038123657
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231437034152856,
+        "half_width_ns": 15,
+        "offset_ns": 4231437034152856
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 574818910.8708426,
+       "receiver": 2257816.72707587
+      },
+      "total_agree": 120
+     }
+    },
+    {
+     "cand": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       32
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231881039937831,
+        "half_width_ns": 15,
+        "offset_ns": 4231881039937821
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231881035421910,
+        "half_width_ns": 15,
+        "offset_ns": 4231881035421910
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 683143445.6997299,
+       "receiver": 2096249.3095855885
+      },
+      "total_agree": 120
+     },
+     "cand8": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       8
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231753038607828,
+        "half_width_ns": 15,
+        "offset_ns": 4231753038607828
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4231753034099692,
+        "half_width_ns": 15,
+        "offset_ns": 4231753034099682
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 575035647.8431919,
+       "receiver": 2258341.0173159335
+      },
+      "total_agree": 120
+     }
+    },
+    {
+     "cand": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       32
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4232829039864855,
+        "half_width_ns": 55,
+        "offset_ns": 4232829039864855
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4232829034831923,
+        "half_width_ns": 15,
+        "offset_ns": 4232829034831923
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 687136154.5155542,
+       "receiver": 2086107.1681379802
+      },
+      "total_agree": 120
+     },
+     "cand8": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       8
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4232957040489992,
+        "half_width_ns": 15,
+        "offset_ns": 4232957040490002
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4232957035611049,
+        "half_width_ns": 55,
+        "offset_ns": 4232957035611049
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 574694571.1036234,
+       "receiver": 2259395.9173709764
+      },
+      "total_agree": 120
+     }
+    },
+    {
+     "cand": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       32
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4233913040572735,
+        "half_width_ns": 15,
+        "offset_ns": 4233913040572735
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4233913035743865,
+        "half_width_ns": 15,
+        "offset_ns": 4233913035743855
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 683216984.5072427,
+       "receiver": 2086125.6721161294
+      },
+      "total_agree": 120
+     },
+     "cand8": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       8
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4233785039796152,
+        "half_width_ns": 15,
+        "offset_ns": 4233785039796152
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4233785035560697,
+        "half_width_ns": 55,
+        "offset_ns": 4233785035560707
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 572145028.5983882,
+       "receiver": 2261274.6206805627
+      },
+      "total_agree": 120
+     }
+    },
+    {
+     "cand": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       32
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4234229145737201,
+        "half_width_ns": 15,
+        "offset_ns": 4234229145737191
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4234229120205506,
+        "half_width_ns": 15,
+        "offset_ns": 4234229120205506
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 689136788.9603457,
+       "receiver": 2095293.9868334616
+      },
+      "total_agree": 120
+     },
+     "cand8": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       8
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4234357040142316,
+        "half_width_ns": 15,
+        "offset_ns": 4234357040142316
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4234357035479317,
+        "half_width_ns": 15,
+        "offset_ns": 4234357035479307
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 575821972.2088774,
+       "receiver": 2256493.99809379
+      },
+      "total_agree": 120
+     }
+    },
+    {
+     "cand": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       32
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4235057122556631,
+        "half_width_ns": 15,
+        "offset_ns": 4235057122556631
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4235057117874846,
+        "half_width_ns": 15,
+        "offset_ns": 4235057117874856
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 682749260.248795,
+       "receiver": 2055634.867553404
+      },
+      "total_agree": 120
+     },
+     "cand8": {
+      "measured": 120,
+      "complete": 120,
+      "capacities": [
+       8
+      ],
+      "dropped": 0,
+      "tags_exhausted": 0,
+      "clock": {
+       "send": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4235697040555740,
+        "half_width_ns": 15,
+        "offset_ns": 4235697040555730
+       },
+       "receive": {
+        "flush_half_width_ns": 15,
+        "flush_offset_ns": 4235697035225116,
+        "half_width_ns": 15,
+        "offset_ns": 4235697035225126
+       }
+      },
+      "clock_ok": true,
+      "synthetic": {
+       "busy_loop_us": 0,
+       "receiver_hold_us": 0,
+       "reply_delay_us": 0,
+       "sender_hold_us": 0,
+       "slow_worker_us": 0,
+       "unplaced_us": 0
+      },
+      "ambiguous": 0,
+      "retransmitted": 0,
+      "split": 0,
+      "unordered": 0,
+      "ahead_vs_channel": 0,
+      "send_rate_bytes_per_s": {
+       "sender": 572509964.5296896,
+       "receiver": 2251236.359791294
+      },
+      "total_agree": 120
+     }
+    }
+   ]
+  },
+  "mechanism_decision1": {
+   "ending": "mixed",
+   "detail": {
+    "blocks": 6,
+    "recorder_ratio": 1.2814457092078537,
+    "consistency_interval": [
+     1.0577743708926148,
+     1.5508361248295313
+    ],
+    "rise_ns": 53209,
+    "rise_ci_ns": [
+     35647,
+     83307
+    ],
+    "p95_ns": {
+     "a": 242265,
+     "b": 189056
+    },
+    "missing": {
+     "a": 0,
+     "b": 0
+    },
+    "queue_share": {
+     "share": 0.6343099851528877,
+     "ci": [
+      0.3839312496250525,
+      0.8241331932433524
+     ],
+     "replicates": 2000
+    },
+    "span_share": {
+     "share": 0.6687966321486967,
+     "ci": [
+      0.40172950124279994,
+      0.8883776218413283
+     ],
+     "replicates": 2000
+    },
+    "endpoint_shares": {
+     "sender": {
+      "share": 0.5970606476347986,
+      "ci": [
+       0.38140922159187,
+       0.7318134773793827
+      ],
+      "replicates": 2000
+     },
+     "receiver": {
+      "share": 0.06842827341239265,
+      "ci": [
+       -0.0009015942825728422,
+       0.11562768892976887
+      ],
+      "replicates": 2000
+     }
+    },
+    "segment_shares": {
+     "s_pack": {
+      "share": 0.06570317051626605,
+      "ci": [
+       -0.05966638638274663,
+       0.17643175243376907
+      ],
+      "replicates": 2000
+     },
+     "s_entry": {
+      "share": 0.009772782799902272,
+      "ci": [
+       -0.0022670642539111964,
+       0.03895188964388792
+      ],
+      "replicates": 2000
+     },
+     "s_queue": {
+      "share": 0.5970606476347986,
+      "ci": [
+       0.38140922159187,
+       0.7318134773793827
+      ],
+      "replicates": 2000
+     },
+     "s_submit": {
+      "share": 0.0001879381307673514,
+      "ci": [
+       0.0,
+       0.012147838717034582
+      ],
+      "replicates": 2000
+     },
+     "t_req": {
+      "share": 0.06606025296472401,
+      "ci": [
+       0.0012669962917181705,
+       0.2276037143429755
+      ],
+      "replicates": 2000
+     },
+     "r_backlog": {
+      "share": -0.013212050592944802,
+      "ci": [
+       -0.19881933391090606,
+       0.07209750536116616
+      ],
+      "replicates": 2000
+     },
+     "r_wake": {
+      "share": 0.04196658460034956,
+      "ci": [
+       -0.1265869215250749,
+       0.10835824120422054
+      ],
+      "replicates": 2000
+     },
+     "r_app": {
+      "share": 0.0001879381307673514,
+      "ci": [
+       1.355785135171778e-05,
+       0.006351864711408848
+      ],
+      "replicates": 2000
+     },
+     "r_pack": {
+      "share": 0.053750305399462496,
+      "ci": [
+       -0.04763335837716003,
+       0.12212690608399664
+      ],
+      "replicates": 2000
+     },
+     "r_entry": {
+      "share": 0.0001879381307673514,
+      "ci": [
+       -0.0031371957135772656,
+       0.0014306954301904788
+      ],
+      "replicates": 2000
+     },
+     "r_queue": {
+      "share": 0.06842827341239265,
+      "ci": [
+       -0.0009015942825728422,
+       0.11562768892976887
+      ],
+      "replicates": 2000
+     },
+     "r_submit": {
+      "share": 0.0001879381307673514,
+      "ci": [
+       0.0,
+       0.0019135459920779196
+      ],
+      "replicates": 2000
+     },
+     "t_rep": {
+      "share": 0.08304985998609257,
+      "ci": [
+       -0.35588469595491695,
+       0.2527327682203486
+      ],
+      "replicates": 2000
+     },
+     "s_backlog": {
+      "share": 0.02315397771053769,
+      "ci": [
+       -0.08810672294241785,
+       0.04531052963430013
+      ],
+      "replicates": 2000
+     },
+     "s_wake": {
+      "share": 0.2575880020297318,
+      "ci": [
+       0.0995950476316925,
+       0.40447376367564053
+      ],
+      "replicates": 2000
+     },
+     "bookend": {
+      "share": 0.000939690653836757,
+      "ci": [
+       1.7572530620134607e-05,
+       0.016956131157358886
+      ],
+      "replicates": 2000
+     }
+    },
+    "tail_mean_difference_ns": {
+     "s_pack": 9769.72972972973,
+     "s_entry": 273.35135135135147,
+     "s_queue": 49494.83783783784,
+     "s_submit": 213.027027027027,
+     "t_req": 145.83783783783838,
+     "r_backlog": -10501.837837837838,
+     "r_wake": -5466.594594594595,
+     "r_app": -495.64864864864865,
+     "r_pack": -3910.864864864865,
+     "r_entry": -1170.5135135135135,
+     "r_queue": -4996.45945945946,
+     "r_submit": 7.675675675675677,
+     "t_rep": 22612.027027027027,
+     "s_backlog": 3555.3513513513517,
+     "s_wake": 22975.162162162167,
+     "bookend": 117.81081081081084
+    },
+    "named_segments": [
+     "s_queue"
+    ],
+    "unplaced": false
+   },
+   "note": "read under a disclosed goodput perturbation (operator decision 1)",
+   "goodput_ratio": {
+    "cand": 0.980873653722907,
+    "cand8": 1.0000697935376024
+   },
+   "p95_ratio": {
+    "cand": 1.111516386109314,
+    "cand8": 1.029402796532648
+   }
+  },
+  "descriptive": {
+   "goodput_mbps": {
+    "reno-reno": 4671.6187056,
+    "cand-bbrv3": 5453.5540752,
+    "cand-bbrv3-aa": 5451.6548416,
+    "cand8-bbrv3": 4487.194448
+   },
+   "p95_ms": {
+    "reno-reno": 0.136536,
+    "cand-bbrv3": 0.217959,
+    "cand-bbrv3-aa": 0.237597,
+    "cand8-bbrv3": 0.183656
+   },
+   "p50_ms": {
+    "reno-reno": 0.070292,
+    "cand-bbrv3": 0.128988,
+    "cand-bbrv3-aa": 0.12597150000000001,
+    "cand8-bbrv3": 0.08233
+   },
+   "segments": {
+    "cand-ctl": {
+     "s_pack": {
+      "p50_us": 3.011,
+      "p95_us": 27.722,
+      "mean_us": 7.2976277777777785
+     },
+     "s_entry": {
+      "p50_us": 1.222,
+      "p95_us": 2.424,
+      "mean_us": 1.278875
+     },
+     "s_queue": {
+      "p50_us": 21.846,
+      "p95_us": 57.217,
+      "mean_us": 26.65847361111111
+     },
+     "s_submit": {
+      "p50_us": 0.11,
+      "p95_us": 0.29,
+      "mean_us": 0.16958472222222223
+     },
+     "t_req": {
+      "p50_us": 6.497,
+      "p95_us": 20.223,
+      "mean_us": 8.924597222222221
+     },
+     "r_backlog": {
+      "p50_us": 6.648,
+      "p95_us": 13.912,
+      "mean_us": 7.157055555555555
+     },
+     "r_wake": {
+      "p50_us": 9.537500000000001,
+      "p95_us": 22.151,
+      "mean_us": 10.584529166666666
+     },
+     "r_app": {
+      "p50_us": 0.36,
+      "p95_us": 0.501,
+      "mean_us": 0.4295013888888889
+     },
+     "r_pack": {
+      "p50_us": 2.6799999999999997,
+      "p95_us": 15.319,
+      "mean_us": 4.978211111111111
+     },
+     "r_entry": {
+      "p50_us": 1.313,
+      "p95_us": 1.613,
+      "mean_us": 1.3537625
+     },
+     "r_queue": {
+      "p50_us": 1.7835,
+      "p95_us": 14.448,
+      "mean_us": 4.296
+     },
+     "r_submit": {
+      "p50_us": 0.09,
+      "p95_us": 0.2,
+      "mean_us": 0.10914861111111111
+     },
+     "t_rep": {
+      "p50_us": 13.1395,
+      "p95_us": 68.544,
+      "mean_us": 25.092499999999998
+     },
+     "s_backlog": {
+      "p50_us": 3.3465,
+      "p95_us": 13.441,
+      "mean_us": 4.767930555555555
+     },
+     "s_wake": {
+      "p50_us": 34.936499999999995,
+      "p95_us": 60.644,
+      "mean_us": 34.325722222222225
+     },
+     "total": {
+      "p50_us": 129.51850000000002,
+      "p95_us": 241.604,
+      "mean_us": 137.42351944444442
+     },
+     "sender_queue": {
+      "entries_ahead": 9.0,
+      "bytes_ahead": 12580.0,
+      "entry_bytes": 1400.0,
+      "bytes_ahead_p95": 37740
+     },
+     "receiver_queue": {
+      "entries_ahead": 0.0,
+      "bytes_ahead": 0.0,
+      "entry_bytes": 59.0,
+      "bytes_ahead_p95": 0
+     }
+    },
+    "cand8-ctl": {
+     "s_pack": {
+      "p50_us": 3.331,
+      "p95_us": 19.186,
+      "mean_us": 6.315709722222222
+     },
+     "s_entry": {
+      "p50_us": 1.182,
+      "p95_us": 1.613,
+      "mean_us": 1.1851222222222222
+     },
+     "s_queue": {
+      "p50_us": 8.801,
+      "p95_us": 18.905,
+      "mean_us": 9.539770833333334
+     },
+     "s_submit": {
+      "p50_us": 0.1,
+      "p95_us": 0.24,
+      "mean_us": 0.1505013888888889
+     },
+     "t_req": {
+      "p50_us": 4.854,
+      "p95_us": 18.47,
+      "mean_us": 7.417868055555555
+     },
+     "r_backlog": {
+      "p50_us": 4.213,
+      "p95_us": 11.266,
+      "mean_us": 5.857348611111111
+     },
+     "r_wake": {
+      "p50_us": 7.224,
+      "p95_us": 15.83,
+      "mean_us": 8.441419444444445
+     },
+     "r_app": {
+      "p50_us": 0.35,
+      "p95_us": 0.441,
+      "mean_us": 0.4411041666666667
+     },
+     "r_pack": {
+      "p50_us": 2.535,
+      "p95_us": 10.58,
+      "mean_us": 3.975556944444444
+     },
+     "r_entry": {
+      "p50_us": 1.263,
+      "p95_us": 1.633,
+      "mean_us": 1.381526388888889
+     },
+     "r_queue": {
+      "p50_us": 1.162,
+      "p95_us": 10.53,
+      "mean_us": 3.1410097222222224
+     },
+     "r_submit": {
+      "p50_us": 0.09,
+      "p95_us": 0.19,
+      "mean_us": 0.1022861111111111
+     },
+     "t_rep": {
+      "p50_us": 8.3255,
+      "p95_us": 70.999,
+      "mean_us": 20.29697361111111
+     },
+     "s_backlog": {
+      "p50_us": 3.306,
+      "p95_us": 15.965,
+      "mean_us": 5.116038888888888
+     },
+     "s_wake": {
+      "p50_us": 16.1455,
+      "p95_us": 57.548,
+      "mean_us": 22.61352361111111
+     },
+     "total": {
+      "p50_us": 85.86099999999999,
+      "p95_us": 188.566,
+      "mean_us": 95.97575972222224
+     },
+     "sender_queue": {
+      "entries_ahead": 1.0,
+      "bytes_ahead": 1400.0,
+      "entry_bytes": 1400.0,
+      "bytes_ahead_p95": 8400
+     },
+     "receiver_queue": {
+      "entries_ahead": 0.0,
+      "bytes_ahead": 0.0,
+      "entry_bytes": 59.0,
+      "bytes_ahead_p95": 0
+     }
+    }
+   }
+  },
+  "stage2_gate": false,
+  "stage2_gate_via": null
+ }
+}

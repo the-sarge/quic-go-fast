@@ -4,11 +4,67 @@
 
 Branch `codex/bbr-r9-loopback-latency`, based on `af90a739` (the accepted decision), whose tree's code is exactly r9 plus a glossary. The revision under test is **r9, `81e9dc8c`**: r8 plus #738's 32-entry BBR send queue.
 
-**Status: registration, revised after two considerations. No comparative observation exists.** Everything below was written before any Stage 0 or Stage 1 observation of this ticket. The draft (`f36fd10b`) and its first revision (`d2515d49`) each went through a `ras consider` round; their findings are dispositioned in [Consideration dispositions](#consideration-dispositions). The excluded development runs are listed in [Disclosures made before data](#disclosures-made-before-data). Accepting the decision did not authorize measurement; the operator's approval of this registration does.
+**Status: complete.** The [Answer](#answer) and [Results](#results) sections were added after the run. Every section from [What stays fixed and what changes](#what-stays-fixed-and-what-changes) on was written before any Stage 0 or Stage 1 observation of this ticket: the registration `7c9c8ce8`, then the calibrations `1196d394` from synthetic data only. Those sections are unchanged, except that this status line and the results sections were added. The draft (`f36fd10b`) and its first revision (`d2515d49`) each went through a `ras consider` round; their findings are dispositioned in [Consideration dispositions](#consideration-dispositions). The excluded development runs are listed in [Disclosures made before data](#disclosures-made-before-data). Accepting the decision did not authorize measurement; the operator's approval of this registration does.
 
 ## Question
 
 On r9 (`81e9dc8c`), does the 32-entry BBR send queue raise the candidate's loopback STREAM control-stream p95 (1.485 in readiness; 1.849 [1.672–2.014] at an adequate sample in #740)? Where in the request's path does the rise sit? And does one contract-preserving remedy reduce it without giving back the loopback goodput the queue bought?
+
+## Answer
+
+**The 32-entry queue raises r9's loopback control latency, and most of the rise is sender queue wait, but not enough to call it queue wait. The remedy stage was not attempted, so r9 survives.**
+
+On `minimax`, October 14: Stage 0 passed, with 32 synthetic observations, every case recovered, and one contaminated block rerun clean. Stage 1 ran 36 counted observations, all six blocks clean under both masks, with no rerun.
+
+- **Depth reading: depth raises latency.** The pooled control p95 ratio r9 ÷ depth 8 is **1.187** [95% block bootstrap 1.058–1.551]. Five of six blocks are above 1 (1.23, 1.54, 1.60, 0.96, 1.10, 1.74). The point estimate clears the r9 A/A interval's upper bound only narrowly (A/A 1.090 [0.983–1.175]). Pooled p95 is 0.218 ms for r9 and 0.184 ms for depth 8; p50 is 0.129 against 0.082 ms.
+- **Mechanism reading.**
+  - **Registered ending: instrumentation gap.** The perturbation check failed on the goodput clause only: r9 with the recorder ran at 0.981 of plain goodput, all six blocks between 0.975 and 0.988, below D3's 0.99 floor. The latency clause passed for both revisions (1.11 and 1.03), and depth 8's goodput passed (1.000).
+  - **Read beside it under operator decision 1: mixed.** The counterfactual share of the p95 rise is **0.63 [0.38–0.82]**: both components are shown, and the share falls short of queue wait's 0.70 lower bound. Nearly all of it is the **sender's** queue wait (0.60 [0.38–0.73]); the receiver's is 0.07 [−0.00–0.12]. The write-to-dequeue span carries 0.67 [0.40–0.89], so the queue rise is not displacement from packing. The one other substantial component is the sender's application wake, 0.26 [0.10–0.40]. Only `s_queue` reaches the 0.30 naming threshold. The rise is 53 µs [36–83] at p95.
+- **Baseline reading: BBR baseline.** Depth 8 alone against frozen Reno reads *regression reproduced* under #715's rule: 1.345 [1.075–1.490] (0.184 against 0.137 ms). A depth-8 configuration would not clear the cell.
+- **Remedy: not attempted.** The Stage 2 gate needs a queue-wait reading, and neither reading is one. The bytes- or time-ahead bound class is **untested, not disposed of**, and Stage 2's 120 observations are released. Because Stage 2 never ran, the second consideration's deferred Stage 2 items (F01, F05–F08, F13) are moot here.
+- **Surviving revision: r9, `81e9dc8c`.**
+
+**Under D6's routing:**
+- *J ends without a kept change*: Ticket K closes as **not run**, and Ticket L attributes on r9 against #739's flags.
+- *Depth raises latency, mechanism mixed*: the loopback STREAM control p95 cell stays **unresolved and blocking**, and a further cause stage is the next decision's choice.
+- *BBR baseline*: reported for the depth-8 configuration only. It decides no cell; r9's cell follows #740's operator decision 2, under which it stays blocking.
+- *Remedy not attempted*: **untested**, a candidate for remedy, not for exception.
+
+Stage 1 reports r9 against frozen Reno descriptively only: pooled p95 ratio 1.596 [1.504–1.735], 0.218 against 0.137 ms. It does not revise #740's *regression reproduced*.
+
+## Results
+
+Run by the unattended driver on `minimax`: `syn` 05:30–06:58 UTC with one same-seed rerun, and `s1` 07:08–08:34 UTC with none. Results are in [results.json](results.json); raw data is in [raw.tar.gz](raw.tar.gz) and [raw-manifest.json](raw-manifest.json), 2,095 files.
+
+**Stage 0** (`results.json` `stage0_data_level`, `stage0_synthetic_runtime`). Both receipts passed with the current fingerprint: 42 + 43 rule cases, and every runtime case recovered. Synthetic block 2 was contaminated, and its same-seed rerun was clean and replaced it.
+
+| Case | Ending | Median segment rise against the base (µs) |
+| --- | --- | --- |
+| Deep sender queue | queue wait (sender) | `s_queue` +299 |
+| Deep receiver queue | queue wait (receiver) | `r_queue` +300 |
+| Slow worker | queue wait (sender) | `s_queue` +663, `s_pack` +61, `s_submit` +20 |
+| Busy receiver loop | load or other, `r_backlog` named | `r_backlog` +87, `r_pack` +59, `r_queue` +31 |
+| Delayed reply write | load or other, `r_app` named | `r_app` +300 |
+| Unplaceable delay | load or other, unplaced | `t_req` +298 |
+| Near-zero rise (A/A) | inconclusive | — |
+
+**Stage 1, recorder facts.** In all twelve recorder runs, all 120 measured requests had complete chains: no ambiguous, retransmitted or split request, and no exhausted tag. Clock calibration half-widths were 15 ns.
+
+**Stage 1, segments** (recorder arms, pooled medians and p95 in µs):
+
+| Segment | r9 p50 | r9 p95 | depth 8 p50 | depth 8 p95 |
+| --- | --- | --- | --- | --- |
+| Sender queue wait `s_queue` | 21.8 | 57.2 | 8.8 | 18.9 |
+| Sender application wake `s_wake` | 34.9 | 60.6 | 16.1 | 57.5 |
+| Reply transit `t_rep` | 13.1 | 68.5 | 8.3 | 71.0 |
+| Receiver queue wait `r_queue` | 1.8 | 14.4 | 1.2 | 10.5 |
+| Total (recorder) | 129.5 | 241.6 | 85.9 | 188.6 |
+
+The sender's queue held a median of **9 entries** (12.6 KB) ahead of a control request at r9, against **1 entry** (1.4 KB) at depth 8. The receiver's queue was empty at the median in both. The upper-tail mean differences are supporting evidence only: `s_queue` +49.5, `s_wake` +23.0 and `t_rep` +22.6 µs.
+
+**Goodput**: medians in Mbit/s, plain arms: frozen Reno 4,672; r9 5,454; the second r9 5,452; depth 8 4,487. Depth 8 gives back loopback goodput (0.96 of Reno against r9's 1.17), as D3 expected.
+
+**Deviations from the registration after data: none.** Operator decision 1 was made before data.
 
 ## What stays fixed and what changes
 
