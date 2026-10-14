@@ -3071,28 +3071,45 @@ func TestConnectionEarlyClose(t *testing.T) {
 }
 
 func TestConnectionPathValidation(t *testing.T) {
-	t.Run("NAT rebinding", func(t *testing.T) {
-		testConnectionPathValidation(t, true)
-	})
+	for _, test := range pathChangeMTUDiscoveryTests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Run("NAT rebinding", func(t *testing.T) {
+				testConnectionPathValidation(t, true, test.disableDiscovery, test.df)
+			})
 
-	t.Run("intentional migration", func(t *testing.T) {
-		testConnectionPathValidation(t, false)
-	})
+			t.Run("intentional migration", func(t *testing.T) {
+				testConnectionPathValidation(t, false, test.disableDiscovery, test.df)
+			})
+		})
+	}
 }
 
-func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
+// dfTestSendConn reports the chosen DF capability for the wrapped connection.
+type dfTestSendConn struct {
+	sendConn
+	df bool
+}
+
+func (c *dfTestSendConn) capabilities() connCapabilities {
+	caps := c.sendConn.capabilities()
+	caps.DF = c.df
+	return caps
+}
+
+func testConnectionPathValidation(t *testing.T, isNATRebinding, disableDiscovery, df bool) {
 	synctest.Test(t, func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		unpacker := NewMockUnpacker(mockCtrl)
 		tc := newServerTestConnection(
 			t,
 			mockCtrl,
-			nil,
+			&Config{DisablePathMTUDiscovery: disableDiscovery},
 			false,
 			connectionOptUnpacker(unpacker),
 			connectionOptHandshakeConfirmed(),
 			connectionOptRTT(time.Second),
 		)
+		tc.conn.conn = &dfTestSendConn{sendConn: tc.conn.conn, df: df}
 		useSchedulingPacketPacker(t, mockCtrl, tc, nil)
 		// Ordinary writes retain the fixture's fixed destination ID across migration.
 		connIDLen := tc.conn.connIDManager.Get().Len()
@@ -3246,6 +3263,9 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding bool) {
 		default:
 			t.Fatal("should have migrated")
 		}
+		// The finder was reset before the rebind that closed migrated.
+		require.False(t, tc.conn.mtuDiscoverer.ShouldSendProbe(monotime.Now()), "no probe immediately after the switch")
+		require.Equal(t, !disableDiscovery && df, tc.conn.mtuDiscoverer.ShouldSendProbe(monotime.Now().Add(time.Hour)), "MTU probe due")
 	})
 }
 
@@ -3373,6 +3393,53 @@ func testConnectionMigration(t *testing.T, enabled bool) {
 	case <-errChan:
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
+	}
+}
+
+// After a path change, MTU discovery resumes only where handshake confirmation
+// would start it: discovery is enabled and the active socket sets DF.
+var pathChangeMTUDiscoveryTests = []struct {
+	name             string
+	disableDiscovery bool
+	df               bool
+}{
+	{name: "discovery disabled", disableDiscovery: true, df: true},
+	{name: "DF unavailable"},
+	{name: "discovery enabled", df: true},
+}
+
+func TestConnectionMigrationMTUDiscovery(t *testing.T) {
+	for _, test := range pathChangeMTUDiscoveryTests {
+		t.Run(test.name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			sender := NewMockSender(mockCtrl)
+			// The original socket reports no DF, so only the new path's socket can permit probing.
+			tc := newClientTestConnection(t, mockCtrl,
+				&Config{DisablePathMTUDiscovery: test.disableDiscovery},
+				false,
+				connectionOptSender(sender),
+				connectionOptHandshakeConfirmed(),
+			)
+			require.NoError(t, tc.conn.handleTransportParameters(&wire.TransportParameters{
+				InitialSourceConnectionID:       tc.destConnID,
+				OriginalDestinationConnectionID: tc.destConnID,
+				MaxUDPPayloadSize:               1456,
+			}))
+			tc.conn.applyTransportParameters()
+
+			raw := NewMockRawConn(mockCtrl)
+			raw.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4321}).AnyTimes()
+			raw.EXPECT().capabilities().Return(connCapabilities{DF: test.df}).AnyTimes()
+			sender.EXPECT().Close()
+			now := monotime.Now()
+			tc.conn.switchToNewPath(&Transport{conn: raw}, now)
+			// Closing joins the new path's send worker.
+			defer tc.conn.emission.queue.Close()
+
+			require.False(t, tc.conn.mtuDiscoverer.ShouldSendProbe(now), "no probe immediately after the switch")
+			intent := tc.conn.prepareEmission(now.Add(time.Hour))
+			require.Equal(t, !test.disableDiscovery && test.df, intent.mtu != nil, "MTU probe selected")
+		})
 	}
 }
 
