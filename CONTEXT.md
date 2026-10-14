@@ -28,6 +28,8 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Send quantum**: The amount of traffic a pacing decision permits to leave together before another pacing opportunity. It is distinct from the congestion window and from a socket API's maximum batch or segmentation capacity.
 
+**Matched Reno**: The Reno reference run paired with a candidate controller's run under the same workload demand, emulator schedule and seed. Matching is of conditions, not achieved throughput; a loss-starved Reno remains the matched reference, and unequal utilization is reported as context rather than removing the comparison.
+
 **Handshake MTU fallback**: Reduction of the handshake packetization budget in response to an eligible local message-size failure before handshake confirmation. It is distinct from recovery from a path that silently drops oversized traffic.
 
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
@@ -77,3 +79,11 @@ Language for QUIC transport behavior and the fork's transmission work.
 **CE response boundary**: The transmission boundary recorded when validated congestion-experienced feedback triggers a sending reduction. It suppresses repeated reductions for feedback anchored before that boundary without identifying which individual packet was marked.
 
 **ECN counter fence**: A feedback boundary at which all previously marked transmissions are accounted for before validating marking on a new path. It separates cumulative-counter continuity from the new path's ECN capability.
+
+**Controller bookkeeping**: Per-connection stores a congestion controller keeps about many earlier transmissions to drive its model, such as recovery outcomes and their indexes, delivery records and working scratch, held within declared capacity bounds. Its records can carry delivery snapshots and outstanding delivery evidence, which may also appear in other stores; it is distinct from retained application data and packet-tracking state.
+
+**Retained application data**: Application content a connection still holds before its transport role ends: data the sender keeps until the peer acknowledges it, stream data the receiver holds out of order or unread, and DATAGRAM payloads queued to send or awaiting the application. It is the content, not the storage holding it; a backing buffer can pin more memory than the content it carries.
+
+**Packet-tracking state**: Per-packet metadata a connection keeps for loss recovery and acknowledgment, such as sent-packet records and received-packet ranges, whichever congestion controller is selected. Its lifetime is not limited to congestion-controlled flight, and payload its records reference is retained application data.
+
+**Readiness exception**: An explicit operator decision that one raised readiness flag does not block an advancement decision, for one candidate revision, platform and cell, covering the recorded evidence it names at no more than a recorded magnitude; the flag stays raised in every report, and the exception neither carries over to another revision or platform nor pre-clears later measurements. It is *attributed* when it rests on a registered cause attribution and *unattributed* when the operator grants it without a completed attribution or remedy test; neither kind changes the readiness limit.
