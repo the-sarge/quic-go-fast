@@ -96,12 +96,12 @@ Disclosed open costs, recorded here and in the PR: [#734](https://github.com/the
 | Glossary entries on record branches | PR 1 |
 | Open memory and loopback-latency questions | readiness step; no exception carries over |
 | Bookkeeping remedy and bound changes | untriggered conditional leads; bounds unchanged |
-| Discovery-scratch retention found in PR 1's review (inherited from `c6bb13b7` through r9) | deferred: bounded metadata retention, no functional effect; a follow-up is filed after PR 1 merges, and the operator chooses whether it lands before the readiness measurement |
+| Discovery-scratch retention found in PR 1's review (inherited from `c6bb13b7` through r9) | deferred: bounded metadata retention, no functional effect; filed as [#752](https://github.com/the-sarge/quic-go-fast/issues/752) after PR 1 merged. **Operator decision (2026-10-14):** #752 lands as its own PR after PR 5 and before the readiness measurement, so the measured revision is the one that would ship |
 
 ## Stop conditions
 
 Stop and return to the operator if: a ported test fails on `main` for a reason outside the declared merge seams; a fix would change BBR behavior beyond r9 or touch a Reno-observable path; a deviation beyond the three declared kinds is needed; a review finding is `stop-for-decision`; or a hosted check fails for a reason that is not a demonstrated external infrastructure failure.
 
-## Known blocker outside this effort
+## Resolved blocker outside this effort
 
-On pull requests, the lint workflow's `check` job runs govulncheck against the pinned toolchains (Go 1.27.1 and 1.26.8). Since the last passing pull-request runs (2026-10-05), the vulnerability database flags standard-library vulnerabilities in those patch releases, so the job fails on every pull request regardless of its change (first seen here on [#749](https://github.com/the-sarge/quic-go-fast/pull/749)). Moving the pins to fixed patch releases also needs a golangci-lint release newer than the pinned v2.13.2, which cannot read go1.27.2 export data: record branches whose older lint workflow resolved `1.27.x` to go1.27.2 already fail with `could not load export data`. **Operator decision (2026-10-14):** a separate CI-repair PR lands first; a port PR whose only failing check is this one waits for that repair, then is updated and rechecked on its new exact head.
+PR 1 found the lint workflow's pull-request `check` job failing on every pull request: govulncheck flagged standard-library vulnerabilities in the pinned Go 1.27.1 and 1.26.8, and moving the pins also needed a golangci-lint release newer than v2.13.2, which cannot read go1.27.2 export data. Per the operator's 2026-10-14 decision a separate CI-repair PR landed first: [#750](https://github.com/the-sarge/quic-go-fast/pull/750) (`b6588e13`) pins Go 1.27.2 and golangci-lint v2.14.0. Later port PRs branch from a `main` that includes it.
