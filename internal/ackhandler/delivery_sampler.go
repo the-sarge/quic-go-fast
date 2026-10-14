@@ -189,7 +189,7 @@ func (h *sentPacketHandler) CloseDelivery() {
 	h.congestionEvents = nil
 	if h.bbrECN != nil {
 		h.bbrECN.closed = true
-		h.bbrECN.ranges = nil
+		h.bbrECN.ranges, h.bbrECN.scratch = nil, nil
 		h.bbrECN.path = nil
 	}
 }

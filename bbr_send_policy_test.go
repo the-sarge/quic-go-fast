@@ -20,19 +20,87 @@ import (
 
 func TestBBRPacingQuantumAndDeadline(t *testing.T) {
 	now := monotime.Now()
-	p := newBBRSendPolicy(100_000_000, 1200, now)
-	require.EqualValues(t, 65536, p.quantum)
-	require.EqualValues(t, 65536, p.budget(now))
-	p.sent(65536, now)
-	require.Equal(t, now.Add(12122*time.Nanosecond), p.deadline(1200, now))
-	require.EqualValues(t, 1199, p.budget(now.Add(12121*time.Nanosecond)))
-	require.EqualValues(t, 1200, p.budget(now.Add(12122*time.Nanosecond)))
-	require.EqualValues(t, 65536, p.budget(now.Add(time.Second)))
-	p = newBBRSendPolicy(1_000_000, 1200, now)
-	require.EqualValues(t, 2560, newBBRSendPolicy(1_000_000, 1280, now).quantum)
-	require.EqualValues(t, 2400, p.quantum)
-	p.sent(2400, now)
-	require.Equal(t, now.Add(1212122*time.Nanosecond), p.deadline(1200, now))
+	at := func(ns int64) monotime.Time { return now.Add(time.Duration(ns)) }
+	for _, tc := range []struct {
+		name          string
+		rate          uint64
+		size, quantum protocol.ByteCount
+		fill          int64 // ns for credit to rise from zero to Q
+	}{
+		{"floor", 1_000_000, 1200, 2400, 2424243},
+		{"floor larger MTU", 1_000_000, 1300, 2600, 2626263},
+		{"rate derived", 10_000_000, 1200, 9900, 1000000},
+		{"capped", 100_000_000, 1200, 65536, 661980},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newBBRSendPolicy(tc.rate, tc.size, now)
+			require.Equal(t, tc.quantum, p.quantum)
+			require.Equal(t, tc.quantum, p.budget(now))
+			require.Zero(t, p.deadline(tc.size, now), "covered admissions are not paced")
+			p.sent(tc.quantum, now)
+			require.Equal(t, at(tc.fill), p.deadline(tc.size, now), "a short admission waits for a full quantum")
+			require.Equal(t, tc.quantum-1, p.budget(at(tc.fill-1)))
+			require.Equal(t, tc.quantum, p.budget(at(tc.fill)))
+			require.Equal(t, tc.quantum, p.budget(now.Add(time.Second)), "delayed wakeups accumulate at most Q")
+		})
+	}
+
+	t.Run("fractional credit", func(t *testing.T) {
+		p := newBBRSendPolicy(1_000_000, 1200, now)
+		p.sent(2400, now)
+		// 1199.99979 bytes of credit: still short of M, and the target stays Q.
+		require.EqualValues(t, 1199, p.budget(at(1212121)))
+		require.Equal(t, at(2424243), p.deadline(1200, at(1212121)))
+		// Admission is unchanged: once credit covers M, an opportunity may send it.
+		require.EqualValues(t, 1200, p.budget(at(1212122)))
+		require.Zero(t, p.deadline(1200, at(1212122)))
+		p.sent(1200, at(1212122))
+		// The retained 0.00078 bytes shorten the wait for Q by one nanosecond.
+		require.Equal(t, at(1212122+2424242), p.deadline(1200, at(1212122)))
+	})
+
+	t.Run("rate and quantum decreases", func(t *testing.T) {
+		p := newBBRSendPolicy(100_000_000, 1200, now)
+		p.update(1_000_000, 1200, now)
+		require.EqualValues(t, 2400, p.budget(now), "unused credit is clamped immediately")
+		p = newBBRSendPolicy(100_000_000, 1200, now)
+		p.sent(65536, now)
+		p.update(1_000_000, 1200, now)
+		require.Equal(t, at(2424243), p.deadline(1200, now), "the wait targets the decreased Q")
+		p = newBBRSendPolicy(1_000_000, 1300, now)
+		p.sent(2600, now)
+		p.update(1_000_000, 1200, now)
+		require.EqualValues(t, 2400, p.quantum)
+		require.Equal(t, at(2424243), p.deadline(1200, now))
+		require.EqualValues(t, 2400, p.budget(at(2424243)))
+	})
+
+	t.Run("probes", func(t *testing.T) {
+		for _, tc := range []struct {
+			name          string
+			probe         protocol.ByteCount
+			after, refill int64 // credit (bytes) after a probe sent at full Q; ns until Q again
+		}{
+			{"below Q", 1300, 1100, 1313132},
+			{"equal to Q", 2400, 0, 2424243},
+			{"above Q", 7000, -4600, 7070708},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				p := newBBRSendPolicy(1_000_000, 1200, now)
+				admission := min(tc.probe, p.quantum)
+				require.Zero(t, p.deadline(admission, now))
+				p.sentProbe(tc.probe, now)
+				require.Equal(t, tc.after*1e9, p.tokens, "post-send credit or debt")
+				if tc.after >= 1200 {
+					require.Zero(t, p.deadline(1200, now), "ordinary sends may use remaining credit")
+				} else {
+					require.Equal(t, at(tc.refill), p.deadline(1200, now), "debt drains, then Q accrues")
+				}
+				require.Equal(t, at(tc.refill), p.deadline(admission, now), "a short probe waits for Q")
+				require.Equal(t, p.quantum, p.budget(at(tc.refill)))
+			})
+		}
+	})
 }
 
 func TestBBRPendingCreditWorkerOwned(t *testing.T) {
@@ -299,6 +367,100 @@ func TestBBRPendingCreditGSOFallback(t *testing.T) {
 	})
 }
 
+// Exempt traffic never waits for the quantum deadline: with ordinary pacing
+// credit spent, it proceeds whenever local credit admits it.
+func TestBBRQuantumDeadlineExemptions(t *testing.T) {
+	quantumWait := 2424243 * time.Nanosecond // Q = 2400 at 990,000 B/s
+	for _, constrained := range []bool{false, true} {
+		name := map[bool]string{false: "local credit free", true: "local credit for one packet"}[constrained]
+		// constrain leaves exactly M of the 2Q local bound, so an ordinary
+		// quantum could not be reserved but one control packet can.
+		constrain := func(t *testing.T, p *bbrSendPolicy) {
+			if !constrained {
+				return
+			}
+			held := p.credit.reserve(2*p.quantum-p.credit.pending-1200, 2*p.quantum, false, false)
+			require.NotNil(t, held)
+			t.Cleanup(held.complete)
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Run("ACK", func(t *testing.T) {
+				c := newEmissionTestConnection(t, false).conn
+				now := monotime.Now()
+				c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+				p := c.emission.bbr
+				q := c.emission.queue.(*sendQueue)
+				p.sent(p.budget(now), now)
+				constrain(t, p)
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("paced payload")}))
+				require.NoError(t, c.receivedPacketHandler.ReceivedPacket(4, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+				require.NoError(t, c.receivedPacketHandler.ReceivedPacket(5, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+				result := c.triggerSending(now)
+				require.NoError(t, result.err)
+				require.True(t, result.progress, "ACK proceeds without ordinary credit")
+				require.Equal(t, emissionPaced, result.stop)
+				require.Equal(t, now.Add(quantumWait), result.deadline, "payload waits for Q")
+				require.Len(t, q.queue, 1)
+				(<-q.queue).release()
+				require.NotNil(t, c.datagramQueue.Peek())
+				require.Zero(t, p.budget(now), "ACK is pacing exempt")
+			})
+			t.Run("PTO", func(t *testing.T) {
+				c := newEmissionTestConnection(t, false).conn
+				now := monotime.Now()
+				c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+				p := c.emission.bbr
+				q := c.emission.queue.(*sendQueue)
+				defer func() {
+					for len(q.queue) > 0 {
+						(<-q.queue).release()
+					}
+				}()
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("outstanding data")}))
+				require.True(t, c.triggerSending(now).progress)
+				alarm := c.sentPacketHandler.GetLossDetectionTimeout()
+				require.NoError(t, c.sentPacketHandler.OnLossDetectionTimeout(alarm))
+				p.sent(p.budget(alarm), alarm)
+				constrain(t, p)
+				before := len(q.queue)
+				result := c.triggerSending(alarm)
+				require.NoError(t, result.err)
+				require.True(t, result.progress, "authorized PTO proceeds without ordinary credit")
+				require.Zero(t, result.deadline)
+				require.Len(t, q.queue, before+1)
+				require.Zero(t, p.budget(alarm), "PTO is pacing exempt")
+			})
+			t.Run("path validation", func(t *testing.T) {
+				c := newEmissionTestConnection(t, false).conn
+				c.perspective = protocol.PerspectiveClient // only clients probe new paths here
+				now := monotime.Now()
+				c.emission.bbr = newBBRSendPolicy(1_000_000, 1200, now)
+				p := c.emission.bbr
+				p.sent(p.budget(now), now)
+				constrain(t, p)
+				pending := p.credit.pending
+				raw := NewMockRawConn(gomock.NewController(t))
+				tr := &Transport{conn: raw}
+				tr.initOnce.Do(func() {})
+				raw.EXPECT().WritePacket(gomock.Any(), gomock.Any(), gomock.Any(), uint16(0), gomock.Any()).DoAndReturn(
+					func(b []byte, _ net.Addr, _ []byte, _ uint16, _ protocol.ECN) (int, error) { return len(b), nil })
+				connID := protocol.ParseConnectionID([]byte{8, 7, 6, 5})
+				pm := newPathManagerOutgoing(func(pathID) (protocol.ConnectionID, bool) { return connID, true }, nil, func() {})
+				pm.paths[1] = &pathOutgoing{tr: tr, probeSent: make(chan struct{}, 1), validated: make(chan struct{}), enablePath: func() {}}
+				pm.pathsToProbe = []pathID{1}
+				c.pathManagerOutgoing.Store(pm)
+				result := c.triggerSending(now)
+				require.NoError(t, result.err)
+				require.True(t, result.retry, "path validation proceeds without ordinary credit")
+				require.Zero(t, result.deadline)
+				require.Empty(t, c.emission.queue.(*sendQueue).queue, "direct probes never enter the ordinary queue")
+				require.Equal(t, pending, p.credit.pending)
+				require.Zero(t, p.budget(now), "path validation is pacing exempt")
+			})
+		})
+	}
+}
+
 func TestBBRPendingCreditRateDecrease(t *testing.T) {
 	now := monotime.Now()
 	p := newBBRSendPolicy(100_000_000, 1200, now)
@@ -415,12 +577,12 @@ func TestBBRPendingCreditMTUException(t *testing.T) {
 		require.Equal(t, emissionPaced, result.stop)
 		require.True(t, c.mtuDiscoverer.ShouldSendProbe(now))
 		require.Empty(t, c.emission.queue.(*sendQueue).queue)
-		require.Equal(t, now.Add(1313132*time.Nanosecond), result.deadline)
+		require.Equal(t, now.Add(2424243*time.Nanosecond), result.deadline, "a sub-Q probe waits for Q")
 		require.True(t, c.triggerSending(result.deadline).progress)
 		entry := <-c.emission.queue.(*sendQueue).queue
 		defer entry.release()
 		require.Len(t, entry.buf.Data, 1300)
-		require.Zero(t, c.emission.bbr.budget(result.deadline))
+		require.EqualValues(t, 1100, c.emission.bbr.budget(result.deadline))
 	})
 
 	c := newEmissionTestConnection(t, false).conn
@@ -460,8 +622,9 @@ func TestBBRPendingCreditMTUException(t *testing.T) {
 	now = now.Add(time.Second)
 	p.sentProbe(7000, now)
 	require.Zero(t, p.budget(now))
-	require.Equal(t, now.Add(5858586*time.Nanosecond), p.deadline(1200, now), "oversized probe debt must drain before ordinary sends")
+	require.Equal(t, now.Add(7070708*time.Nanosecond), p.deadline(1200, now), "oversized probe debt must drain, then Q accrues")
 	require.EqualValues(t, 1200, p.budget(now.Add(5858586*time.Nanosecond)))
+	require.EqualValues(t, 2400, p.budget(now.Add(7070708*time.Nanosecond)))
 }
 
 func TestBBRPendingCreditMigrationDebt(t *testing.T) {
