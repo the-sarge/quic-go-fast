@@ -299,8 +299,13 @@ func TestCandidateFencedBBRCreditReturnedOnce(t *testing.T) {
 // during the first authorized write.
 type deniedPathConn struct{ *deniedWriteConn }
 
-func (*deniedPathConn) LocalAddr() net.Addr  { return &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234} }
-func (*deniedPathConn) RemoteAddr() net.Addr { return &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4321} }
+func (*deniedPathConn) LocalAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}
+}
+
+func (*deniedPathConn) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4321}
+}
 
 // Every send queue a connection builds, at setup and on path replacement and at
 // Reno's and BBR's depth, captures the authorized writer and carries the
