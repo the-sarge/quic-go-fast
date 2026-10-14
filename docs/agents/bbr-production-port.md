@@ -28,7 +28,7 @@ Method: apply the range's diff (excluding `docs/audits` and `CONTEXT.md`) to `ma
 
 **Declared deviations** (the only permitted differences from the recorded state):
 
-1. **Merge seams** in the three root files `main` has changed since the frozen component: `send_queue.go` and `packet_emission.go` (candidate authority, network-admission probes) and `connection.go` (candidate authority, setup reservation, receive phase). r9's hunks are applied to `main`'s versions; `main`'s behavior there is preserved.
+1. **Merge seams** in the three root files that both `main` and r9's lineage have changed since the frozen component: `send_queue.go` and `packet_emission.go` (candidate authority, network-admission probes) and `connection.go` (candidate authority, setup reservation, receive phase). r9's hunks are applied to `main`'s versions; `main`'s behavior there is preserved.
 2. **Lint:** the one staticcheck finding in r9's tests (`bbr_ecn_equivalence_test.go:317`, QF1001 De Morgan) is fixed in PR 3, and any further finding the pinned linter reports on ported files is fixed minimally and listed in its PR.
 3. **Race-mode test budget:** in `internal/ackhandler`, a test-only `raceEnabled` constant (`race_on_test.go` / `race_off_test.go`, mirroring `service_work_on.go` / `service_work_off.go`) and `reducedEquivalenceBudget()` (`equivalence_budget_test.go`) make each randomized frozen-equivalence oracle use its own existing reduced (`testing.Short()`) budget under the race detector: each ported `testing.Short()` budget check in those oracles becomes `reducedEquivalenceBudget()`, and nothing else in them changes. Ordinary runs keep the full budget. Reason: at r9 these oracles take `internal/ackhandler` from 5.5 s to 333 s under `-race` (0.4 s to 22 s plain), which roughly tripled hosted unit CI on r9 heads; they are single-goroutine comparisons that the race detector adds little to.
 
@@ -96,6 +96,7 @@ Disclosed open costs, recorded here and in the PR: [#734](https://github.com/the
 | Glossary entries on record branches | PR 1 |
 | Open memory and loopback-latency questions | readiness step; no exception carries over |
 | Bookkeeping remedy and bound changes | untriggered conditional leads; bounds unchanged |
+| Discovery-scratch retention found in PR 1's review (inherited from `c6bb13b7` through r9) | deferred: bounded metadata retention, no functional effect; a follow-up is filed after PR 1 merges, and the operator chooses whether it lands before the readiness measurement |
 
 ## Stop conditions
 
@@ -103,4 +104,4 @@ Stop and return to the operator if: a ported test fails on `main` for a reason o
 
 ## Known blocker outside this effort
 
-Since a date between 2026-10-08 and 2026-10-13 the hosted `golangci-lint (Go 1.27.x)` jobs fail on every head with `could not import sync … could not load export data` in untouched `internal/utils/linkedlist`: `setup-go` now resolves `1.27.x` to `go1.27.2`, which the pinned `golangci-lint v2.13.2` cannot read. It is unrelated to this port but blocks its lint check. **Operator decision (2026-10-14):** a separate CI-repair PR lands first; a port PR whose only failing check is this one waits for that repair, then is updated and rechecked on its new exact head.
+On pull requests, the lint workflow's `check` job runs govulncheck against the pinned toolchains (Go 1.27.1 and 1.26.8). Since the last passing pull-request runs (2026-10-05), the vulnerability database flags standard-library vulnerabilities in those patch releases, so the job fails on every pull request regardless of its change (first seen here on [#749](https://github.com/the-sarge/quic-go-fast/pull/749)). Moving the pins to fixed patch releases also needs a golangci-lint release newer than the pinned v2.13.2, which cannot read go1.27.2 export data: record branches whose older lint workflow resolved `1.27.x` to go1.27.2 already fail with `could not load export data`. **Operator decision (2026-10-14):** a separate CI-repair PR lands first; a port PR whose only failing check is this one waits for that repair, then is updated and rechecked on its new exact head.
