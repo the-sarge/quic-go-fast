@@ -1,0 +1,52 @@
+{
+  "cand": {
+    "want": 32,
+    "command": [
+      "go",
+      "test",
+      "-count=1",
+      "-run",
+      "^(TestCtlDepthIdentity|TestBBRSendQueueDepth.*)$",
+      "-v",
+      "."
+    ],
+    "exit": 0,
+    "passed": [
+      "TestBBRSendQueueDepth",
+      "TestBBRSendQueueDepthCloseReleasesOnce",
+      "TestBBRSendQueueDepthCreditBindsFirst",
+      "TestBBRSendQueueDepthOnePacketEntries",
+      "TestBBRSendQueueDepthRenoUnchanged",
+      "TestCtlDepthIdentity"
+    ],
+    "failed": [],
+    "tested_send_queue_sha256": "cf1f1041a0eb8584b45fe88f27b57faf820e56f58de2590ce2c25ed66b3ca6bf",
+    "binary_sha256": "4fa753223fdc777265e3ba1306f025e82fdf382a5d22f8a8992b8d0a72c5c1b6",
+    "ok": true
+  },
+  "cand8": {
+    "want": 8,
+    "command": [
+      "go",
+      "test",
+      "-count=1",
+      "-run",
+      "^(TestCtlDepthIdentity|TestBBRSendQueueDepth.*)$",
+      "-v",
+      "."
+    ],
+    "exit": 0,
+    "passed": [
+      "TestBBRSendQueueDepth",
+      "TestBBRSendQueueDepthCloseReleasesOnce",
+      "TestBBRSendQueueDepthCreditBindsFirst",
+      "TestBBRSendQueueDepthOnePacketEntries",
+      "TestBBRSendQueueDepthRenoUnchanged",
+      "TestCtlDepthIdentity"
+    ],
+    "failed": [],
+    "tested_send_queue_sha256": "b940f905a76a2472efcf99c19da36f0f4e8ebb3c4dc174168ec1e63942188197",
+    "binary_sha256": "8463fe201bf96ffadfed72f1a4f4e1b4638baa55508f0eb49d99736152e7e041",
+    "ok": true
+  }
+}

@@ -3,6 +3,7 @@ package quic
 import (
 	"encoding/binary"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -23,22 +24,33 @@ import (
 // Events, in each endpoint's own log (ctl-<role>.json beside -output):
 //   - write: the application writes a 32-byte message on stream 0 (its id and
 //     the stream's write offset);
-//   - pack: a stream-0 STREAM frame is popped for a packet (offset range);
+//   - pack: a stream-0 STREAM frame is popped for a packet (offset range,
+//     retransmission flag);
 //   - enqueue: the queue entry carrying the last popped stream-0 frame enters
-//     the send queue, with the entries and bytes already queued ahead of it and
-//     the queue's capacity;
-//   - dequeue and submit: the send worker takes that entry and its write
-//     returns (stamped at release, before the buffer is recycled);
-//   - arrive: a stream-0 STREAM frame is handled (its packet's receive time and
-//     the handling time);
+//     the send queue, with the entries queued ahead of it (the channel's length,
+//     read once) and their bytes (the sizes of that many most recently enqueued
+//     entries, from the connection loop's own ring, so both describe the same
+//     snapshot), the queue's capacity and the endpoint's cumulative enqueued
+//     bytes;
+//   - dequeue: the send worker takes that entry;
+//   - submit: the worker is about to hand that entry to the socket (before the
+//     write, so a peer's receipt always follows it);
+//   - done: that entry's write returned (stamped in release, before the buffer
+//     is recycled);
+//   - discard: a tagged entry was released without being submitted;
+//   - arrive: a stream-0 STREAM frame is handled (its packet's socket-read time
+//     and the handling time);
 //   - read: an application read on stream 0 returns (the read position after);
 //   - note: the fixture's sender records each reply's id and whether its
 //     request was offered inside the measured window.
 //
-// Per-packet cost is a stream-ID compare in the frame paths, one pointer
-// compare per dequeue and release, a plain byte counter in Send (connection
-// loop only) and one uncontended atomic add per dequeue (send worker only).
-// Clock reads and the event log run only for stream-0 events.
+// Per-packet cost: a stream-ID compare in the frame paths; in Send (connection
+// loop only) one store into a private ring of entry sizes and two counter
+// increments; and at dequeue, submission and release (send worker) one load of
+// the in-flight tag count, which is zero except while a control entry is
+// queued. Nothing on an ordinary packet is shared between the two goroutines
+// except that read-mostly count. Clock reads and the event log run only for
+// stream-0 events.
 //
 // build.py copies this file into exported fixture trees and rewrites the
 // synthetic-case constants for the Stage 0 cases. Not a maintained hook.
@@ -53,7 +65,7 @@ const ctlStream protocol.StreamID = 0
 const (
 	ctlSynSenderHold   = 0 // sender: the worker holds a tagged entry before its dequeue stamp
 	ctlSynReceiverHold = 0 // receiver: the same at the receiver's queue
-	ctlSynSlowWorker   = 0 // sender: the worker spins inside every submission
+	ctlSynSlowWorker   = 0 // sender: the worker spins before every submission
 	ctlSynBusyLoop     = 0 // receiver: the connection loop spins for every received packet
 	ctlSynReplyDelay   = 0 // receiver: the fixture spins between reading a request and writing its reply
 	ctlSynUnplaced     = 0 // sender: a tagged entry's submission stamp precedes a spin and its write
@@ -65,31 +77,42 @@ const (
 	ceEnqueue
 	ceDequeue
 	ceSubmit
+	ceDone
+	ceDiscard
 	ceArrive
 	ceRead
 	ceNote
 )
 
-var ceNames = []string{"write", "pack", "enqueue", "dequeue", "submit", "arrive", "read", "note"}
+var ceNames = []string{"write", "pack", "enqueue", "dequeue", "submit", "done", "discard", "arrive", "read", "note"}
 
 // ctlEvent fields by kind (T is CLOCK_MONOTONIC nanoseconds):
 //
 //	write:   A offset, B id
 //	pack:    A offset, B end, C 1 for a retransmission, R pack sequence
-//	enqueue: A entries ahead, B bytes ahead, C capacity, D entry bytes, E first and R last pack sequence in the entry
-//	dequeue: R last pack sequence of the entry
-//	submit:  R last pack sequence of the entry
-//	arrive:  T receive time, A offset, B end, C handling time
+//	enqueue: A entries ahead (the channel's length), B their bytes, C capacity, D entry bytes,
+//	         E first pack sequence in the entry, F cumulative enqueued bytes before it, G the channel's length
+//	         (equal to A; kept for the schema), R last pack sequence in the entry
+//	dequeue, submit, done, discard: R last pack sequence of the entry
+//	arrive:  T socket-read time, A offset, B end, C handling time
 //	read:    A read position after, B bytes
 //	note:    A id, B measured (0/1), C fixture sent and D fixture received (wall-clock UnixNano)
 type ctlEvent struct {
-	K             int8
-	T             int64
-	A, B, C, D, E int64
-	R             int64
+	K                   int8
+	T                   int64
+	A, B, C, D, E, F, G int64
+	R                   int64
 }
 
-const ctlMaxEvents = 1 << 14
+const (
+	// About ten events per request at each endpoint: a loopback-long run logs about 1,300. The log is a
+	// fixed-size array in BSS, not a heap allocation, so it does not move the Go heap or its GC goal; only
+	// the pages written become resident.
+	ctlMaxEvents = 4096
+	ctlRing      = 64 // entry sizes kept by the connection loop: a power of two, at least the deepest queue (32)
+)
+
+var ctlEvents [ctlMaxEvents]ctlEvent
 
 type ctlSlot struct {
 	buf atomic.Pointer[packetBuffer]
@@ -100,27 +123,50 @@ var ctl struct {
 	on        bool
 	role      string
 	output    string
-	monoOff   int64 // runtime.nanotime minus monotime.Now
+	monoOff   int64 // runtime.nanotime minus monotime.Now, from the tightest bracketed sample
+	monoHalf  int64 // that sample's half-width
 	wall0     int64
 	mono0     int64
 	mu        sync.Mutex
-	events    []ctlEvent
+	n         int // events logged into ctlEvents
 	dropped   int
 	nPack     int64 // connection loop: pack sequence
 	pending   bool  // connection loop: a stream-0 frame was popped since the last enqueue
 	first     int64
 	last      int64
 	slots     [2]ctlSlot
-	unplaced  atomic.Bool
+	exhausted atomic.Int64 // tags lost because both slots were busy
 	holdArmed atomic.Bool
 	_         [64]byte
-	enqBytes  int64 // connection loop only
-	_         [56]byte
-	deqBytes  atomic.Int64 // send worker only (atomic for the connection loop's reads)
-	_         [56]byte
+	inflight  atomic.Int32 // tagged entries not yet released: the worker's only per-packet read
+	_         [60]byte
+	enqCount  uint64 // connection loop only
+	enqBytes  int64  // connection loop only
+	ring      [ctlRing]int32
 }
 
+// ctlCalibrate brackets monotime.Now between two nanotime reads and keeps the
+// tightest of 101 samples: the offset at its midpoint and its half-width.
+func ctlCalibrate() (off, half int64) {
+	half = math.MaxInt64
+	for range 101 {
+		t1 := ctlNanotime()
+		m := int64(monotime.Now())
+		t2 := ctlNanotime()
+		if h := (t2 - t1 + 1) / 2; h < half {
+			half, off = h, t1+(t2-t1)/2-m
+		}
+	}
+	return off, half
+}
+
+// ctlQuiet keeps every hook but never enables logging or tagging (development-only variants).
+const ctlQuiet = false
+
 func init() {
+	if ctlQuiet {
+		return
+	}
 	var out, role string
 	for i, a := range os.Args {
 		if (a == "-output" || a == "--output") && i+1 < len(os.Args) {
@@ -135,16 +181,16 @@ func init() {
 	}
 	ctl.role = role
 	ctl.output = filepath.Join(filepath.Dir(out), "ctl-"+role+".json")
-	ctl.events = make([]ctlEvent, 0, ctlMaxEvents)
-	ctl.monoOff = ctlNanotime() - int64(monotime.Now())
+	ctl.monoOff, ctl.monoHalf = ctlCalibrate()
 	ctl.wall0, ctl.mono0 = time.Now().UnixNano(), ctlNanotime()
 	ctl.on = true
 }
 
 func ctlLog(e ctlEvent) {
 	ctl.mu.Lock()
-	if len(ctl.events) < ctlMaxEvents {
-		ctl.events = append(ctl.events, e)
+	if ctl.n < ctlMaxEvents {
+		ctlEvents[ctl.n] = e
+		ctl.n++
 	} else {
 		ctl.dropped++
 	}
@@ -188,28 +234,50 @@ func ctlPopped(offset, end protocol.ByteCount, retransmission bool) {
 
 // ctlEnqueue: sendQueue.Send, before the entry enters the queue (connection loop).
 func ctlEnqueue(h *sendQueue, p *packetBuffer) {
-	n := int64(len(p.Data))
 	if !ctl.pending {
-		ctl.enqBytes += n
+		n := len(p.Data)
+		ctl.ring[ctl.enqCount&(ctlRing-1)] = int32(n)
+		ctl.enqCount++
+		ctl.enqBytes += int64(n)
 		return
 	}
-	// Read the worker's counter only when tagging, so the connection loop never
-	// pulls the worker's cache line on an ordinary packet.
-	ahead := ctl.enqBytes - ctl.deqBytes.Load()
+	ctlEnqueueTagged(h, p)
+}
+
+func ctlEnqueueTagged(h *sendQueue, p *packetBuffer) {
+	n := int64(len(p.Data))
+	// The channel's length, read once, is the snapshot: FIFO makes the queued
+	// entries the most recently enqueued ones, whose sizes are in the ring.
+	ahead := int64(len(h.queue))
+	var bytes int64
+	for i := uint64(1); i <= uint64(ahead); i++ {
+		bytes += int64(ctl.ring[(ctl.enqCount-i)&(ctlRing-1)])
+	}
+	cum := ctl.enqBytes
+	ctl.ring[ctl.enqCount&(ctlRing-1)] = int32(n)
+	ctl.enqCount++
 	ctl.enqBytes += n
 	ctl.pending = false
 	t := ctlNanotime()
+	tagged := false
 	for i := range ctl.slots {
 		if ctl.slots[i].buf.Load() == nil {
 			ctl.slots[i].ref.Store(ctl.last)
 			ctl.slots[i].buf.Store(p)
+			ctl.inflight.Add(1)
+			tagged = true
 			break
 		}
+	}
+	if !tagged {
+		ctl.exhausted.Add(1)
+		return
 	}
 	if (ctlSynSenderHold > 0 && ctl.role == "send") || (ctlSynReceiverHold > 0 && ctl.role == "receive") {
 		ctl.holdArmed.Store(true)
 	}
-	ctlLog(ctlEvent{K: ceEnqueue, T: t, A: int64(len(h.queue)), B: ahead, C: int64(cap(h.queue)), D: n, E: ctl.first, R: ctl.last})
+	ctlLog(ctlEvent{K: ceEnqueue, T: t, A: ahead, B: bytes, C: int64(cap(h.queue)), D: n, E: ctl.first, F: cum, G: ahead,
+		R: ctl.last})
 }
 
 func ctlSlotOf(b *packetBuffer) int {
@@ -222,9 +290,14 @@ func ctlSlotOf(b *packetBuffer) int {
 }
 
 // ctlDequeued: the send worker took an entry from the queue.
-func ctlDequeued(e queueEntry) {
-	ctl.deqBytes.Add(int64(len(e.buf.Data)))
-	if i := ctlSlotOf(e.buf); i >= 0 {
+func ctlDequeued(b *packetBuffer) {
+	if ctl.inflight.Load() != 0 {
+		ctlDequeuedTagged(b)
+	}
+}
+
+func ctlDequeuedTagged(b *packetBuffer) {
+	if i := ctlSlotOf(b); i >= 0 {
 		if ctl.holdArmed.Load() {
 			ctl.holdArmed.Store(false)
 			if ctl.role == "send" {
@@ -237,25 +310,51 @@ func ctlDequeued(e queueEntry) {
 	}
 }
 
-// ctlBeforeWrite: the send worker is about to submit an entry (per-packet path).
-func ctlBeforeWrite(e queueEntry) {
+// ctlBeforeWrite: the send worker is about to submit one entry (per-packet path).
+func ctlBeforeWrite(b *packetBuffer) {
 	if ctlSynSlowWorker > 0 && ctl.role == "send" {
 		ctlSpin(ctlSynSlowWorker)
 	}
-	if ctlSynUnplaced > 0 && ctl.role == "send" {
-		if i := ctlSlotOf(e.buf); i >= 0 {
-			ctlLog(ctlEvent{K: ceSubmit, T: ctlNanotime(), R: ctl.slots[i].ref.Load()})
-			ctl.slots[i].buf.Store(nil)
+	if ctl.inflight.Load() != 0 {
+		ctlBeforeSubmitTagged(b)
+		if ctlSynUnplaced > 0 && ctl.role == "send" && ctlSlotOf(b) >= 0 {
 			ctlSpin(ctlSynUnplaced)
 		}
 	}
 }
 
-// ctlReleased: an entry's write returned; stamped before its buffer is recycled (send worker).
-func ctlReleased(e queueEntry) {
-	if i := ctlSlotOf(e.buf); i >= 0 {
+// ctlBeforeSubmit: an entry is about to be handed to the socket (batched path).
+func ctlBeforeSubmit(b *packetBuffer) {
+	if ctl.inflight.Load() != 0 {
+		ctlBeforeSubmitTagged(b)
+	}
+}
+
+func ctlBeforeSubmitTagged(b *packetBuffer) {
+	if i := ctlSlotOf(b); i >= 0 {
 		ctlLog(ctlEvent{K: ceSubmit, T: ctlNanotime(), R: ctl.slots[i].ref.Load()})
+	}
+}
+
+// ctlReleased: an entry's buffer is about to be recycled (send worker, or the drain at Close).
+func ctlReleased(b *packetBuffer) {
+	if ctl.inflight.Load() != 0 {
+		ctlUntag(b, ceDone)
+	}
+}
+
+// ctlDiscarded: Send found the queue stopped and released the entry unsent.
+func ctlDiscarded(b *packetBuffer) {
+	if ctl.inflight.Load() != 0 {
+		ctlUntag(b, ceDiscard)
+	}
+}
+
+func ctlUntag(b *packetBuffer, kind int8) {
+	if i := ctlSlotOf(b); i >= 0 {
+		ctlLog(ctlEvent{K: kind, T: ctlNanotime(), R: ctl.slots[i].ref.Load()})
 		ctl.slots[i].buf.Store(nil)
+		ctl.inflight.Add(-1)
 	}
 }
 
@@ -307,16 +406,21 @@ func CtlFlush() {
 	if !ctl.on {
 		return
 	}
+	off1, half1 := ctlCalibrate()
 	ctl.mu.Lock()
 	defer ctl.mu.Unlock()
-	rows := make([][8]int64, len(ctl.events))
-	for i, e := range ctl.events {
-		rows[i] = [8]int64{int64(e.K), e.T, e.A, e.B, e.C, e.D, e.E, e.R}
+	rows := make([][10]int64, ctl.n)
+	for i, e := range ctlEvents[:ctl.n] {
+		rows[i] = [10]int64{int64(e.K), e.T, e.A, e.B, e.C, e.D, e.E, e.F, e.G, e.R}
 	}
 	b, err := json.Marshal(map[string]any{
-		"role": ctl.role, "stream": int64(ctlStream), "kinds": ceNames, "fields": []string{"k", "t", "a", "b", "c", "d", "e", "r"},
-		"events": rows, "dropped": ctl.dropped, "wall0_unix_ns": ctl.wall0, "mono0_ns": ctl.mono0, "flush_mono_ns": ctlNanotime(),
-		"enqueued_bytes": ctl.enqBytes, "dequeued_bytes": ctl.deqBytes.Load(),
+		"role": ctl.role, "stream": int64(ctlStream), "kinds": ceNames,
+		"fields": []string{"k", "t", "a", "b", "c", "d", "e", "f", "g", "r"},
+		"events": rows, "dropped": ctl.dropped, "tags_exhausted": ctl.exhausted.Load(),
+		"wall0_unix_ns": ctl.wall0, "mono0_ns": ctl.mono0, "flush_mono_ns": ctlNanotime(),
+		"clock": map[string]int64{"offset_ns": ctl.monoOff, "half_width_ns": ctl.monoHalf, "flush_offset_ns": off1,
+			"flush_half_width_ns": half1},
+		"enqueued": map[string]int64{"entries": int64(ctl.enqCount), "bytes": ctl.enqBytes},
 		"synthetic": map[string]int64{"sender_hold_us": ctlSynSenderHold, "receiver_hold_us": ctlSynReceiverHold,
 			"slow_worker_us": ctlSynSlowWorker, "busy_loop_us": ctlSynBusyLoop, "reply_delay_us": ctlSynReplyDelay,
 			"unplaced_us": ctlSynUnplaced},

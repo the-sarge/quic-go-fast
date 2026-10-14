@@ -1,0 +1,41 @@
+{
+  "variant": "syn-rw-ctl",
+  "revision": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+  "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+  "bbr_send_queue_capacity": 32,
+  "recorder": true,
+  "synthetic": {
+    "constant": "ctlSynReplyDelay",
+    "microseconds": 300
+  },
+  "development": null,
+  "changes": [
+    "ctl+syn-rw-ctl"
+  ],
+  "patched_source_sha256": {
+    "send_queue.go": "c0c5e73c18a4dc8a1f1d8e78ce6eae30549eeb1da948d6a595440eb8642fa7f7",
+    "send_stream.go": "694a77a47721406684bdab17efb198332c824f116d8b8ea5eee23d6a7bb9077e",
+    "receive_stream.go": "c102b56ea5189a2341d9662f57208fd6bd91ec0522d8a0edfec2af76a823445d",
+    "connection.go": "06315173e3455b6a690ccd4a8f75d38adce4d389454fe80d82325ed37efb9563",
+    "zz_ctlrec.go": "aa1e281496c62f67d7a5acf11fb21ea7276676ab11e91d75573e8d49570d5536"
+  },
+  "builds": {
+    "fixture": {
+      "binary": "bin/syn-rw-ctl-fixture",
+      "sha256": "386ebcb503f1d80f3a02a906e533c701d6e7130f1633419e44ee2f1dad610428",
+      "command": [
+        "go",
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-ldflags",
+        "-X main.sourceRevision=81e9dc8c7154fe13227386866f83c48dcc75c330+ctl+syn-rw-ctl",
+        "-o",
+        "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/bin/syn-rw-ctl-fixture",
+        "./fixture"
+      ],
+      "platform": "linux/amd64"
+    }
+  },
+  "go": "go version go1.27.0 darwin/arm64"
+}

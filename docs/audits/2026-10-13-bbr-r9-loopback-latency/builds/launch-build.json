@@ -1,0 +1,24 @@
+{
+  "variant": "launch",
+  "revision": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "builds": {
+    "launch": {
+      "binary": "bin/launch",
+      "sha256": "a6146d62e16339f247a7e5fdac29ff47a66be7d8b6fc8d5e647d0479a58d5917",
+      "command": [
+        "go",
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-ldflags",
+        "-X main.sourceRevision=e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "-o",
+        "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/bin/launch",
+        "./launch"
+      ],
+      "platform": "linux/amd64",
+      "byte_identical_to_prior_record": true
+    }
+  },
+  "go": "go version go1.27.0 darwin/arm64"
+}

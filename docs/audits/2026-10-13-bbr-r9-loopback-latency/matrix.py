@@ -123,7 +123,7 @@ def failure(entry):
 
 # stage -> (phase, path, arms, blocks, seed base or None, workloads, perf)
 STAGES = {
-    'syn': ('syn', 'loopback-syn', SYN_ARMS, 3, None, ('stream',), None),
+    'syn': ('syn', 'loopback-syn', SYN_ARMS, 4, None, ('stream',), None),
     's1': ('s1', 'loopback-long', S1_ARMS, 6, None, ('stream',), None),
     # Stage 2 (D3): runs only after its mechanism section is registered and the `new` builds exist.
     's2-loopback': ('s2', 'loopback', S2_LOOPBACK, 6, None, ('stream', 'datagram'), 'stat'),
@@ -160,10 +160,17 @@ def main(argv):
         for b in range(1, nblocks + 1):
             rows += block('dev' + attempt, path, arms, b)
     elif stage == 'rerun':
-        # One same-seed rerun of a contaminated or unusable block, under a separate root.
+        # One same-seed rerun of a contaminated or unusable block, under a separate root, only if inventory.py
+        # admits it (eligibility and the caps are enforced here, whoever asks).
+        import ctlstages
+        import inventory
         name, workload, b = argv[2], argv[3], int(argv[4])
-        run.OBS = run.ART / 'observations-rerun'
         phase, path, arms, n, base, _, perf = STAGES[name]
+        ok, why = inventory.admit_rerun(name, workload, b, ctlstages.chosen(name), ctlstages.ROOTS, len(arms))
+        print('rerun', name, workload, b, 'admitted' if ok else 'REFUSED', why, flush=True)
+        if not ok:
+            raise SystemExit(f'rerun refused: {why}')
+        run.OBS = run.ART / 'observations-rerun'
         rows = block(phase, path, arms, b, seed=base + b if base else None, workloads=(workload,), perf=perf)
         stage = f'rerun-{name}-{workload}-p{b}'
     else:

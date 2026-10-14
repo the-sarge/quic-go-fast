@@ -1,0 +1,39 @@
+{
+  "variant": "cand8-ctl",
+  "revision": "81e9dc8c7154fe13227386866f83c48dcc75c330",
+  "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+  "bbr_send_queue_capacity": 8,
+  "recorder": true,
+  "synthetic": null,
+  "development": null,
+  "changes": [
+    "depth8",
+    "ctl"
+  ],
+  "patched_source_sha256": {
+    "send_queue.go": "d89968b5b7c9d7cff395676c2c0b2e5b712426fdee31d90a1152bcfaac11e131",
+    "send_stream.go": "694a77a47721406684bdab17efb198332c824f116d8b8ea5eee23d6a7bb9077e",
+    "receive_stream.go": "c102b56ea5189a2341d9662f57208fd6bd91ec0522d8a0edfec2af76a823445d",
+    "connection.go": "06315173e3455b6a690ccd4a8f75d38adce4d389454fe80d82325ed37efb9563",
+    "zz_ctlrec.go": "c2665700007c9ab914ea81fef3ed35b276aed09b9d95d324850cce22113f0821"
+  },
+  "builds": {
+    "fixture": {
+      "binary": "bin/cand8-ctl-fixture",
+      "sha256": "a6e586c6b9678cae1ec722872228f6ad31a92110ee8160c9a9736db748ed5c48",
+      "command": [
+        "go",
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-ldflags",
+        "-X main.sourceRevision=81e9dc8c7154fe13227386866f83c48dcc75c330+depth8+ctl",
+        "-o",
+        "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/bin/cand8-ctl-fixture",
+        "./fixture"
+      ],
+      "platform": "linux/amd64"
+    }
+  },
+  "go": "go version go1.27.0 darwin/arm64"
+}

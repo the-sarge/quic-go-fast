@@ -1,0 +1,35 @@
+{
+  "variant": "reno",
+  "revision": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+  "bbr_send_queue_capacity": null,
+  "recorder": false,
+  "synthetic": null,
+  "changes": [],
+  "patched_source_sha256": {
+    "send_queue.go": "f7c28057e81ca7d5468c38d4c347425327af292d5cdbaa20acd3dc1cf7ff8e53",
+    "send_stream.go": "5d12e930ab022d629083a049df7a87e52a25505bfaaaec4baecb753dcf3f1acb",
+    "receive_stream.go": "675ebd6f8b26c44e73d3f0f70c6659cce11058ad1b006ca1bc0392b06285a0b7",
+    "connection.go": "4edc4c6a064faaac23585de9ef25148df274743f60e890408db957141a73ab05"
+  },
+  "builds": {
+    "fixture": {
+      "binary": "bin/reno-fixture",
+      "sha256": "cda8feb1b2fb004d72425adee5edeffb64a4c437f3ef07f9eb4e686af3ab5c8b",
+      "command": [
+        "go",
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-ldflags",
+        "-X main.sourceRevision=e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+        "-o",
+        "/Volumes/worktrees/quic-go-fast/bbr-r9-loopback-latency/.local/bbr-r9-loopback-latency/bin/reno-fixture",
+        "./fixture"
+      ],
+      "platform": "linux/amd64",
+      "byte_identical_to_prior_record": true
+    }
+  },
+  "go": "go version go1.27.0 darwin/arm64"
+}
