@@ -109,6 +109,14 @@ def perturbation(blocks):
     return out
 
 
+def goodput_only_failure(pert):
+    """Operator decision 1 (2026-10-14, before data): the perturbation check failed on the goodput clause alone,
+    with five or more blocks and the latency clause passing for both revisions."""
+    revs = [pert.get(r) or {} for r in ('cand', 'cand8')]
+    return (pert.get('state') == 'fail' and all(r.get('state') in ('pass', 'fail') for r in revs)
+            and all(r.get('p95_passes') for r in revs) and any(not r.get('goodput_passes') for r in revs))
+
+
 # ---- mechanism reading (recorder arms) --------------------------------------------------------
 
 def _midrank_quantiles(values):

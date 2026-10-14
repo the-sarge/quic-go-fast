@@ -151,14 +151,15 @@ def main(argv):
         run.write(out, host_facts())
         return
     run.ensure_credentials()
-    if stage == 'dev':
-        # Development only, excluded from every statistic: phase dev<attempt>, the given arms on a path.
-        # matrix.py dev <attempt> <path> <blocks> <variant:controller:tag> ...
+    if stage in ('dev', 'devperf'):
+        # Development only, excluded from every statistic: phase dev<attempt>, the given arms on a path;
+        # devperf attaches #712's `perf stat` to both endpoints.
+        # matrix.py dev|devperf <attempt> <path> <blocks> <variant:controller:tag> ...
         attempt, path, nblocks = argv[2], argv[3], int(argv[4])
         arms = [tuple((a.split(':') + ['', ''])[:3]) for a in argv[5:]]
         rows = []
         for b in range(1, nblocks + 1):
-            rows += block('dev' + attempt, path, arms, b)
+            rows += block('dev' + attempt, path, arms, b, perf='stat' if stage == 'devperf' else None)
     elif stage == 'rerun':
         # One same-seed rerun of a contaminated or unusable block, under a separate root, only if inventory.py
         # admits it (eligibility and the caps are enforced here, whoever asks).

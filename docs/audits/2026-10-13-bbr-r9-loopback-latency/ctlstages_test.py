@@ -222,7 +222,7 @@ class Stages(unittest.TestCase):
         S.ROOTS, S.OUT, S.BUILDS, S.contaminated = self.saved
         self.tmp.cleanup()
 
-    def s1_block(self, b, root=0, recorder_ok=True, swap=False, **kw):
+    def s1_block(self, b, root=0, recorder_ok=True, swap=False, ctl_goodput=5000.0, **kw):
         arms = [('reno', 'reno', ''), ('cand', 'bbrv3', ''), ('cand', 'bbrv3', 'aa'), ('cand8', 'bbrv3', ''),
                 ('cand-ctl', 'bbrv3', ''), ('cand8-ctl', 'bbrv3', '')]
         p95 = {'reno': 0.14, 'cand': 0.26, 'cand8': 0.16, 'cand-ctl': 0.26, 'cand8-ctl': 0.16}
@@ -230,7 +230,8 @@ class Stages(unittest.TestCase):
             rec = v.endswith('-ctl')
             binv = {'cand': 'cand8', 'cand8': 'cand'}.get(v, v) if swap else v
             observation(S.ROOTS[root], 's1', 'loopback-long', 'stream', b, v, c, tag, p95_ms=p95[v], recorder=rec and recorder_ok,
-                        capacity=8 if v == 'cand8-ctl' else 32, binary=f'sha-{binv}', source=f'label-{binv}', seed=b * 10 + i, **kw)
+                        capacity=8 if v == 'cand8-ctl' else 32, binary=f'sha-{binv}', source=f'label-{binv}', seed=b * 10 + i,
+                        goodput=ctl_goodput if rec else 5000.0, **kw)
 
     def test_recorder_failure_keeps_plain_evidence(self):
         for b in range(1, 7):
@@ -241,6 +242,20 @@ class Stages(unittest.TestCase):
         self.assertIn(res['mechanism']['ending'], ('evidence gap', 'instrumentation gap'))
         self.assertEqual(res['perturbation']['state'], 'insufficient')
         self.assertTrue(json.loads(S.OUT.read_text())['stage1'])
+
+    def test_operator_decision1_reads_beside_a_goodput_only_failure(self):
+        for b in range(1, 7):
+            self.s1_block(b, ctl_goodput=4900.0)
+        fp = S.fingerprint()
+        S.save('stage0_data_level', dict(passes=True, fingerprint=fp))
+        S.save('stage0_synthetic_runtime', dict(passes=True, fingerprint=fp))
+        res = S.s1()
+        self.assertEqual(res['perturbation']['state'], 'fail')
+        self.assertEqual(res['mechanism']['ending'], 'instrumentation gap')  # the registered ending stands
+        d1 = res['mechanism_decision1']
+        self.assertIsNotNone(d1)
+        self.assertNotIn(d1['ending'], ('instrumentation gap', 'evidence gap'))
+        self.assertIn('operator decision 1', d1['note'])
 
     def test_empty_stage_writes_explicit_gaps(self):
         res = S.s1()

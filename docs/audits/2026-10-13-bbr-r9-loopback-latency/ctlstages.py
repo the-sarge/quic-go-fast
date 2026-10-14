@@ -344,14 +344,28 @@ def s1():
     consistency = tuple(ddet['ci']) if depth != 'evidence gap' else None
     mech, mdet = C.mechanism_reading(mblocks, consistency, prereq, ctl.SEGMENTS, ctl.QUEUE_SEGMENTS)
     res['mechanism'] = dict(ending=mech, detail=mdet, prerequisite=prereq, recorder_facts=facts)
+    # Operator decision 1 (2026-10-14, before data): when the registered prerequisite fails only because the goodput
+    # clause did, the mechanism reading is also computed and reported beside the registered ending; it may open Stage 2.
+    decision1 = None
+    if C.goodput_only_failure(pert):
+        rest = stage0_prerequisite(dict(state='pass'))
+        if rest['state'] == 'pass':
+            d1, d1det = C.mechanism_reading(mblocks, consistency, rest, ctl.SEGMENTS, ctl.QUEUE_SEGMENTS)
+            decision1 = dict(ending=d1, detail=d1det, note='read under a disclosed goodput perturbation (operator decision 1)',
+                             goodput_ratio={r: pert[r]['goodput_ratio'] for r in ('cand', 'cand8')},
+                             p95_ratio={r: pert[r]['p95_ratio'] for r in ('cand', 'cand8')})
+    res['mechanism_decision1'] = decision1
     res['descriptive'] = dict(
         goodput_mbps={a: med(x[a] for x in good) for a in PLAIN},
         p95_ms={a: R.pooled_p95([v for x in lat for v in x[a]]) for a in PLAIN},
         p50_ms={a: med(v for x in lat for v in x[a]) for a in PLAIN},
         segments={'cand-ctl': seg_stats([r for x in mblocks for r in x['a']]), 'cand8-ctl': seg_stats([r for x in mblocks for r in x['b']])})
     # Stage 2 gate and, if it opens, the registered bound at each targeted endpoint and the common bound.
-    res['stage2_gate'] = depth == 'depth raises latency' and mech == 'queue wait'
+    via = 'registered' if mech == 'queue wait' else 'decision1' if decision1 and decision1['ending'] == 'queue wait' else None
+    res['stage2_gate'] = depth == 'depth raises latency' and via is not None
+    res['stage2_gate_via'] = via if res['stage2_gate'] else None
     if res['stage2_gate']:
+        mdet = mdet if via == 'registered' else decision1['detail']
         a_all, b_all = [r for x in mblocks for r in x['a']], [r for x in mblocks for r in x['b']]
         goodput = {'cand': med(x['cand-bbrv3'] for x in good) * 1e6 / 8, 'cand8': med(x['cand8-bbrv3'] for x in good) * 1e6 / 8}
         tgt = C.targets(mdet)

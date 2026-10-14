@@ -280,6 +280,16 @@ class Perturbation(unittest.TestCase):
         self.assertEqual(C.perturbation([])['state'], 'insufficient')
 
 
+class Decision1(unittest.TestCase):
+    def test_goodput_only_failure(self):
+        ok = lambda g, p: dict(state='pass' if g and p else 'fail', goodput_passes=g, p95_passes=p)
+        self.assertTrue(C.goodput_only_failure(dict(state='fail', cand=ok(False, True), cand8=ok(True, True))))
+        self.assertFalse(C.goodput_only_failure(dict(state='fail', cand=ok(False, False), cand8=ok(True, True))))
+        self.assertFalse(C.goodput_only_failure(dict(state='pass', cand=ok(True, True), cand8=ok(True, True))))
+        self.assertFalse(C.goodput_only_failure(dict(state='insufficient', cand=dict(state='insufficient'), cand8=dict(state='insufficient'))))
+        self.assertFalse(C.goodput_only_failure({}))
+
+
 class Bound(unittest.TestCase):
     GOOD = dict(cand=600e6, cand8=500e6)  # useful bytes per second
     KAPPA = dict(cand=1.04, cand8=1.04)

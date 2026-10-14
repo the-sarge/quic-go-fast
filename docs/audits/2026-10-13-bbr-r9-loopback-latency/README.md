@@ -142,7 +142,7 @@ The depth, perturbation, Stage 2 bound, common bound, null margin, efficacy, gua
   - a contaminated block's clean rerun replaces it;
   - the inventory refuses reruns that are ineligible or over either cap.
 
-The `datalevel` step ([ctlstages.py](ctlstages.py)) runs `ctlrules_test.py` and `rules_test.py` and records the result with its fingerprint. All tests pass: 37 rule cases, 12 extraction and integration cases, and #715's 43 copied rule tests.
+The `datalevel` step ([ctlstages.py](ctlstages.py)) runs `ctlrules_test.py` and `rules_test.py` and records the result with its fingerprint. All tests pass: 38 rule cases, 13 extraction and integration cases (one checks operator decision 1 end to end), and #715's 43 copied rule tests.
 
 **Operating characteristics of the depth rule** ([ctlrules_oc.py](ctlrules_oc.py) `depth`). The synthetic generator uses six blocks of 120 lognormal replies per arm, with σ 0.42, the p95/p50 of about 2.0 in #740's `latcand` arms, and shared block variation. Over 200 seeds per true r9 ÷ depth-8 ratio:
 
@@ -162,6 +162,13 @@ D3 asks the registration to state where the check is scored. **It is scored on t
 - **control p95**: the pooled p95 ratio, instrumented ÷ plain, must lie within **[1/1.15, 1.15]**. The tolerance is set from #740's interval half-width of about ±9% at this sample (1.672–2.014 around 1.849) and from the lead's 1.42 r9 ÷ r8 ratio: a 15% shift cannot create or erase an effect of that size.
 
 Each revision's state is **pass**, **fail** (a measured breach with at least five blocks), or **insufficient** (fewer than five blocks). Any fail makes the mechanism reading an instrumentation gap. Otherwise, any insufficient makes it an evidence gap.
+
+**Operator decision 1 (recorded 2026-10-14, before any comparative observation).** The development runs ([Disclosures](#disclosures-made-before-data)) put the enabled recorder at about 0.975 of plain goodput without perf attached, and above its quiet twin with perf attached, at the same work per GiB. Under D3's floor the mechanism reading would then probably end as an instrumentation gap. That gap would come from a run-state sensitivity rather than the recorder's work. The latency clause, the one that guards the measured quantity, passed in every development pool (1.04–1.07). The operator decided:
+- D3's check is scored and reported unchanged, and its registered ending stands.
+- When it fails on the goodput clause alone, with the latency clause passing for both revisions and every other prerequisite met, the mechanism reading is also computed and reported beside the registered ending. It is labeled as read under a disclosed goodput perturbation, by operator decision, with the measured ratios beside it.
+- That reading may open Stage 2, whose keep rule is judged on plain arms only.
+
+The alternatives offered were to keep D3 strictly, which ends the mechanism reading and Stage 2 on a goodput failure, or to spend more development on the recorder, which is uncertain because the gap is not work. The analysis implements it as `mechanism_decision1` ([ctlstages.py](ctlstages.py) `s1`, `ctlrules.goodput_only_failure`); `stage2_gate_via` names which reading opened the gate. It departs from D3's text ("If either fails, the mechanism reading ends as an instrumentation gap") only by adding a reported reading; the registered ending is unchanged.
 
 ## Registration: Stage 1, attribution
 
@@ -198,7 +205,7 @@ Each revision's state is **pass**, **fail** (a measured breach with at least fiv
 
 ## Registration: Stage 2, one contract-preserving remedy (conditional)
 
-**Gate.** Stage 2 runs only if the depth reading is **depth raises latency** and the mechanism reading is **queue wait**. Otherwise it is **not attempted** and its 120 observations are released.
+**Gate.** Stage 2 runs only if the depth reading is **depth raises latency** and the mechanism reading is **queue wait**, either the registered reading or, under operator decision 1, the reading taken beside a goodput-only perturbation failure. Otherwise it is **not attempted** and its 120 observations are released.
 
 **The named remedy class (D3).** Exactly one class: **a bytes- or time-ahead bound on BBR's send queue in place of its entry count**. This registration uses its bytes member: one entry is always admissible, and the channel's 32 entries remain the physical maximum. It keeps D08's 2Q bound, the credit-return points, ownership, packet ordering and Reno's eight-entry queue unchanged. A null, worsening or guard-failed outcome disposes of the whole named class, not only its bytes member.
 
@@ -304,7 +311,7 @@ Only **null**, **demonstrated worsening** or **effective, guard-failed** dispose
 
 ## Deviations
 
-None.
+1. **Operator decision 1, before data** (2026-10-14): a goodput-only perturbation failure still yields a reported mechanism reading that may open Stage 2, beside D3's registered instrumentation-gap ending ([Perturbation](#perturbation-d3-on-the-measured-quantity)). Decided after the development runs and before any comparative observation.
 
 ## Limits
 
@@ -359,7 +366,8 @@ All of these runs are excluded from every statistic.
   - `dev1`: queued, then stopped before it started, because the host was busy and the recorder was being revised.
   - `dev2` (2 blocks) and `dev4` (2 blocks), `loopback-long`, with the first recorder, which kept its log on the Go heap: instrumented ÷ plain goodput 0.98, 0.969, 0.968 and 0.974; pooled p95 ratio 1.47 and 1.04. In `dev4`, a **quiet build** with every hook present but logging never enabled read 1.003 and 0.993 (p95 0.95). The first recorder failed both perturbation limits.
   - `dev5` and `dev7` (3 blocks each), the final recorder (log in BSS, worker-side hooks reduced to one load): goodput 0.979, 0.997, 0.980 and 0.983, 0.984, 0.986; pooled p95 ratio 1.07 and 1.05. Its quiet build read 1.018, 1.017, 1.012 (p95 0.98). The enabled and quiet builds run identical per-packet code; enabled logging adds about ten stream-0 events per second at each endpoint (counted). The about 3% gap between them follows the binary's code layout: the quiet build's smaller `init` shifted every later function in the package. That matches #738's measured placement sensitivity of about 3% on loopback STREAM. The recorder was then written as `zz_ctlrec.go`, so its functions link after the transport's.
-  - `dev8` and `dev9`: DEV89
+  - `dev8` and `dev9` (3 blocks each), the final recorder linked last: instrumented ÷ plain goodput 0.976 and 1.000 in `dev8` (its second block was hit by foreign load and is not read), then 0.975, 0.971, 0.979 in `dev9`. The quiet twin, linked last too and so sharing the transport's layout, read 1.003, 1.000, 1.005. Link order therefore does not explain the gap.
+  - `dev10` (2 blocks, `perf stat` on both endpoints): the enabled recorder and its quiet twin. **With perf attached the order reversed:** the enabled recorder read 1.079 and 1.023 of the quiet twin's goodput. Their work per useful GiB matched within about 0.5% at both endpoints: sender user instructions 25.80 and 25.85 against 25.93 and 25.94 G/GiB, receiver 22.27 and 22.34 against 22.48 and 22.46. The enabled recorder used slightly fewer cycles. **The recorder adds no measurable work**, and the goodput differences of ±3% between builds follow a run-state sensitivity of this loopback fixture that small timing differences flip, the same class of effect #738 measured.
   - `dev3` (1 block, the first recorder) and `dev6` (2 blocks, the final recorder), `loopback-syn`, the synthetic builds against the base. Each injection landed in its segment: the deep sender and receiver queues added about 300 µs to `s_queue` and `r_queue`; the slow worker 20 µs to `s_submit` and about 670 µs to `s_queue`; the delayed reply 300 µs to `r_app`; the unplaceable delay 300 µs to `t_req` only. At 1 µs per packet the busy receiver loop raised `r_backlog` by 30–40 µs, but the p95 rose little, because the base's tail sits in the reply's transit. At 2 µs it raised `r_backlog` by 80–100 µs, `r_pack` by about 60 µs and `r_queue` by about 30 µs, a by-product of ACK bursts, with goodput 33% lower. **The registered strength was therefore raised to 2 µs, and its predicate accepts mixed** (never queue wait), as #738 tuned its injections. No other strength or predicate changed after a development run.
 - **Values seen for r9 before registration** (the final recorder, 6 `loopback-long` runs, 720 requests, all complete; development only). The sender's queue held a median of **9 entries ahead** (95th percentile 27; 12.6 KB), not a full 32, with a queue wait median of 22.5 µs (p95 55.7). The reply's transit to the sender's socket read had a median of 15 µs but a p95 of 92 µs. The sender's application wake had a median of 35 µs (p95 61). The total had a median of 129 µs and a p95 of 247 µs. These describe r9 alone and say nothing about depth. They do hint that the p95 tail is not mainly queue wait, which is why they are disclosed. No rule, threshold or arm changed after they were seen. The perturbation tolerance, margins and estimator were registered in the draft `f36fd10b` before any development run produced recorder output.
 - **Calibrations** ([ctlrules_oc.py](ctlrules_oc.py)), synthetic data only: the depth-rule, Stage 2 and synthetic-geometry tables above. The synthetic geometry (four blocks) and the Stage 2 null margin were chosen from them.
