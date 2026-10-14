@@ -15,6 +15,9 @@ type localSendCredit struct {
 	generation       uint64
 	isolated         bool
 	available        chan struct{}
+	// Completed reservations, reused by reserve. Bounded by the most
+	// reservations ever outstanding at once: construction plus queued work.
+	free []*sendReservation
 }
 
 type sendReservation struct {
@@ -58,12 +61,33 @@ func (c *localSendCredit) reserve(n, limit protocol.ByteCount, ordinary, isolate
 	c.pending += n
 	c.current += n
 	c.isolated = isolated
-	return &sendReservation{owner: c, bytes: n, generation: c.generation, isolated: isolated}
+	var r *sendReservation
+	if k := len(c.free); k > 0 {
+		r, c.free = c.free[k-1], c.free[:k-1]
+	} else {
+		r = new(sendReservation)
+	}
+	*r = sendReservation{owner: c, bytes: n, generation: c.generation, isolated: isolated}
+	return r
 }
 
 // resize is connection-owned until handoff. Afterwards only the buffer's final
 // owner calls complete. Nil reservations leave the legacy path allocation-free.
-func (r *sendReservation) resize(n protocol.ByteCount) {
+// Connection-side releases do not signal: the connection is the only waiter,
+// and it drains the wakeup under the lock before every wait, so such a token
+// could never be observed.
+func (r *sendReservation) resize(n protocol.ByteCount) { r.release(n, false) }
+
+// complete returns the remaining credit and recycles the reservation. Each
+// reservation completes exactly once: a queued one only in queueEntry.release,
+// after packetBuffer.Release has rejected any second release, and every
+// connection-side completion clears its only reference at once.
+func (r *sendReservation) complete() { r.release(0, true) }
+
+// completeLocal returns unused construction allowance on the connection.
+func (r *sendReservation) completeLocal() { r.release(0, false) }
+
+func (r *sendReservation) release(n protocol.ByteCount, signal bool) {
 	if r == nil {
 		return
 	}
@@ -82,15 +106,17 @@ func (r *sendReservation) resize(n protocol.ByteCount) {
 	if n == 0 && r.isolated {
 		c.isolated = false
 	}
-	if released != 0 {
+	if signal && released != 0 {
 		select {
 		case c.available <- struct{}{}:
 		default:
 		}
 	}
+	if n == 0 {
+		*r = sendReservation{}
+		c.free = append(c.free, r)
+	}
 }
-
-func (r *sendReservation) complete() { r.resize(0) }
 
 // waitForReservation rearms the refused request and reports whether ACK/PTO
 // deadlines remain useful. Reservation and wakeup state share the same lock.

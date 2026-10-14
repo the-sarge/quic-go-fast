@@ -6,10 +6,13 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 )
 
+// bbrECNPath reports endpoint capability on every call. Only when drain is set
+// does it also report the connection-owned generation and the synchronized
+// completion of all old-generation local sends; otherwise both are unspecified.
+type bbrECNPath func(drain bool) (generation uint64, drained, capable bool)
+
 // EnableBBRECN installs the private validation policy before any registration.
-// path reports connection-owned generation and endpoint capability, plus the
-// synchronized completion of all old-generation local sends.
-func EnableBBRECN(handler SentPacketHandler, path func() (generation uint64, drained, capable bool)) {
+func EnableBBRECN(handler SentPacketHandler, path bbrECNPath) {
 	h, ok := handler.(*sentPacketHandler)
 	if !ok || h.bytesSent != 0 || h.congestionEvents == nil || h.bbrECN != nil || path == nil {
 		panic("invalid BBR ECN installation")
@@ -42,7 +45,7 @@ type bbrECNTracker struct {
 	compactedOrdinal uint64
 	evidenceLost     bool
 	counterFailed    bool
-	path             func() (uint64, bool, bool)
+	path             bbrECNPath
 	ranges           []ecnMarkRange
 	state            ecnState
 	generation       uint64
@@ -67,7 +70,8 @@ func (e *bbrECNTracker) mode(shortHeader bool) protocol.ECN {
 	if e.closed {
 		return protocol.ECNNon
 	}
-	generation, drained, capable := e.path()
+	// Generation and drain state are read only for the counter fence.
+	generation, drained, capable := e.path(e.draining)
 	// Unsupported endpoints must omit ECN ancillary data entirely, including
 	// explicit Not-ECT. The basic and unqualified OOB writers enforce this.
 	if !capable {

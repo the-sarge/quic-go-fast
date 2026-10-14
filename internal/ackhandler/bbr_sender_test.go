@@ -97,7 +97,7 @@ func TestBBRCEIsNotLoss(t *testing.T) {
 		t.Run(fmt.Sprintf("limitation after registration %d", limitation), func(t *testing.T) {
 			h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)
 			b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
-			EnableBBRECN(h, func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
+			EnableBBRECN(h, func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
 			now := monotime.Now()
 			var pending []protocol.PacketNumber
 			var receipts, ce uint64
@@ -146,7 +146,7 @@ func TestBBRCEIsNotLoss(t *testing.T) {
 	stats := &utils.ConnectionStats{}
 	h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), stats, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)
 	b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
-	EnableBBRECN(h, func() (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
+	EnableBBRECN(h, func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
 	now := monotime.Now()
 	send := func(at monotime.Time) protocol.PacketNumber {
 		pn := h.PopPacketNumber(protocol.Encryption1RTT)
