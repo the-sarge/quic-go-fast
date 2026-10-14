@@ -332,7 +332,33 @@ Only **null**, **demonstrated worsening** or **effective, guard-failed** dispose
 
 ## Calibrations, final estimator
 
-RECALIBRATION
+Recomputed with the final rules ([ctlrules_oc.py](ctlrules_oc.py), the same seeds, synthetic data only), after `7c9c8ce8` registered them and before any Stage 0 or Stage 1 result was read. They supersede the tables above, which describe the first revision.
+
+**Depth rule** (200 seeds per true ratio):
+
+| True ratio | depth raises latency | non-increase | inconclusive |
+| --- | --- | --- | --- |
+| 1.0 | 9 | 172 | 19 |
+| 1.075 | 51 | 60 | 89 |
+| 1.15 | 141 | 3 | 56 |
+| 1.3 | 195 | 0 | 5 |
+
+The lo ≤ 1 clause (F10) cut false non-increase at the margin from 10 to 3 in 200.
+
+**Stage 2 efficacy** (200 seeds; recovery f of the absolute increment, new ÷ r9 = 1 − f(1 − 1/L)):
+
+| L | f | m₂ | effective | partial | null | demonstrated worsening | inconclusive |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1.10 | 0 | 1.048 | 1 | 13 | 6 | 8 | 172 |
+| 1.10 | ½ | 1.048 | 14 | 68 | 0 | 2 | 116 |
+| 1.10 | 1 | 1.048 | 88 | 70 | 0 | 0 | 42 |
+| 1.30 | 0 | 1.130 | 1 | 13 | 9 | 8 | 169 |
+| 1.30 | ½ | 1.130 | 136 | 48 | 0 | 0 | 16 |
+| 1.30 | 1 | 1.130 | 199 | 1 | 0 | 0 | 0 |
+
+With the stricter null rule (F09), a remedy that recovers nothing mostly reads inconclusive, which does not dispose of the class. Null never occurs at half or full recovery. The six-block interval still reads "demonstrated worsening" about 4% of the time under no change.
+
+**Runtime synthetic analogs, four blocks** (100 seeds per case): deep sender queue, deep receiver queue, slow worker, delayed reply write and unplaceable delay 100 each. Busy receiver loop 95, now modeled across `r_backlog`, `r_pack` and `r_queue` as `dev6` measured: 73 load or other, 22 mixed, 5 inconclusive. Near-zero rise 98 (2 read queue wait). A sound instrument is therefore expected to pass Stage 0 about 93% of the time on these analogs.
 
 ## Limits
 
