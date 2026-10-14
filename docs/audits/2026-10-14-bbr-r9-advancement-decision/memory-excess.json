@@ -1,0 +1,462 @@
+{
+ "cells": {
+  "S5 datagram receive": {
+   "blocks": [
+    {
+     "candidate_mib": 15.0078125,
+     "excess_mib": 0.74609375,
+     "pair": 1,
+     "reno_mib": 14.26171875
+    },
+    {
+     "candidate_mib": 15.28125,
+     "excess_mib": 1.05078125,
+     "pair": 2,
+     "reno_mib": 14.23046875
+    },
+    {
+     "candidate_mib": 15.10546875,
+     "excess_mib": 1.078125,
+     "pair": 3,
+     "reno_mib": 14.02734375
+    },
+    {
+     "candidate_mib": 15.14453125,
+     "excess_mib": 0.99609375,
+     "pair": 4,
+     "reno_mib": 14.1484375
+    },
+    {
+     "candidate_mib": 15.3203125,
+     "excess_mib": 0.890625,
+     "pair": 5,
+     "reno_mib": 14.4296875
+    }
+   ],
+   "candidate_median_mib": 15.14453125,
+   "max_excess_mib": 1.078125,
+   "median_excess_mib": 0.99609375,
+   "reno_median_mib": 14.23046875
+  },
+  "S5 datagram send": {
+   "blocks": [
+    {
+     "candidate_mib": 20.87109375,
+     "excess_mib": 3.0546875,
+     "pair": 1,
+     "reno_mib": 17.81640625
+    },
+    {
+     "candidate_mib": 20.859375,
+     "excess_mib": 2.85546875,
+     "pair": 2,
+     "reno_mib": 18.00390625
+    },
+    {
+     "candidate_mib": 20.55078125,
+     "excess_mib": 0.296875,
+     "pair": 3,
+     "reno_mib": 20.25390625
+    },
+    {
+     "candidate_mib": 21.21484375,
+     "excess_mib": 3.65234375,
+     "pair": 4,
+     "reno_mib": 17.5625
+    },
+    {
+     "candidate_mib": 20.515625,
+     "excess_mib": 2.63671875,
+     "pair": 5,
+     "reno_mib": 17.87890625
+    }
+   ],
+   "candidate_median_mib": 20.859375,
+   "max_excess_mib": 3.65234375,
+   "median_excess_mib": 2.85546875,
+   "reno_median_mib": 17.87890625
+  },
+  "S5 stream receive": {
+   "blocks": [
+    {
+     "candidate_mib": 25.15625,
+     "excess_mib": 8.71484375,
+     "pair": 1,
+     "reno_mib": 16.44140625
+    },
+    {
+     "candidate_mib": 25.421875,
+     "excess_mib": 8.4375,
+     "pair": 2,
+     "reno_mib": 16.984375
+    },
+    {
+     "candidate_mib": 25.70703125,
+     "excess_mib": 8.765625,
+     "pair": 3,
+     "reno_mib": 16.94140625
+    },
+    {
+     "candidate_mib": 25.8828125,
+     "excess_mib": 9.44140625,
+     "pair": 4,
+     "reno_mib": 16.44140625
+    },
+    {
+     "candidate_mib": 25.8125,
+     "excess_mib": 8.80859375,
+     "pair": 5,
+     "reno_mib": 17.00390625
+    }
+   ],
+   "candidate_median_mib": 25.70703125,
+   "max_excess_mib": 9.44140625,
+   "median_excess_mib": 8.765625,
+   "reno_median_mib": 16.94140625
+  },
+  "S5 stream send": {
+   "blocks": [
+    {
+     "candidate_mib": 21.92578125,
+     "excess_mib": 4.171875,
+     "pair": 1,
+     "reno_mib": 17.75390625
+    },
+    {
+     "candidate_mib": 22.17578125,
+     "excess_mib": 4.171875,
+     "pair": 2,
+     "reno_mib": 18.00390625
+    },
+    {
+     "candidate_mib": 22.55078125,
+     "excess_mib": 4.578125,
+     "pair": 3,
+     "reno_mib": 17.97265625
+    },
+    {
+     "candidate_mib": 22.23828125,
+     "excess_mib": 4.53515625,
+     "pair": 4,
+     "reno_mib": 17.703125
+    },
+    {
+     "candidate_mib": 21.73828125,
+     "excess_mib": 3.484375,
+     "pair": 5,
+     "reno_mib": 18.25390625
+    }
+   ],
+   "candidate_median_mib": 22.17578125,
+   "max_excess_mib": 4.578125,
+   "median_excess_mib": 4.171875,
+   "reno_median_mib": 17.97265625
+  },
+  "S6 datagram receive": {
+   "blocks": [
+    {
+     "candidate_mib": 15.1875,
+     "excess_mib": 0.99609375,
+     "pair": 1,
+     "reno_mib": 14.19140625
+    },
+    {
+     "candidate_mib": 15.1875,
+     "excess_mib": 1.3125,
+     "pair": 2,
+     "reno_mib": 13.875
+    },
+    {
+     "candidate_mib": 15.0390625,
+     "excess_mib": 1.0390625,
+     "pair": 3,
+     "reno_mib": 14.0
+    },
+    {
+     "candidate_mib": 15.15625,
+     "excess_mib": 1.40234375,
+     "pair": 4,
+     "reno_mib": 13.75390625
+    },
+    {
+     "candidate_mib": 15.98046875,
+     "excess_mib": 2.3828125,
+     "pair": 5,
+     "reno_mib": 13.59765625
+    }
+   ],
+   "candidate_median_mib": 15.1875,
+   "max_excess_mib": 2.3828125,
+   "median_excess_mib": 1.3125,
+   "reno_median_mib": 13.875
+  },
+  "S6 datagram send": {
+   "blocks": [
+    {
+     "candidate_mib": 20.875,
+     "excess_mib": 6.05859375,
+     "pair": 1,
+     "reno_mib": 14.81640625
+    },
+    {
+     "candidate_mib": 20.62109375,
+     "excess_mib": 6.37109375,
+     "pair": 2,
+     "reno_mib": 14.25
+    },
+    {
+     "candidate_mib": 21.2421875,
+     "excess_mib": 7.46484375,
+     "pair": 3,
+     "reno_mib": 13.77734375
+    },
+    {
+     "candidate_mib": 21.62890625,
+     "excess_mib": 7.875,
+     "pair": 4,
+     "reno_mib": 13.75390625
+    },
+    {
+     "candidate_mib": 21.3671875,
+     "excess_mib": 7.6796875,
+     "pair": 5,
+     "reno_mib": 13.6875
+    }
+   ],
+   "candidate_median_mib": 21.2421875,
+   "max_excess_mib": 7.875,
+   "median_excess_mib": 7.46484375,
+   "reno_median_mib": 13.77734375
+  },
+  "S6 stream receive": {
+   "blocks": [
+    {
+     "candidate_mib": 26.484375,
+     "excess_mib": 8.859375,
+     "pair": 1,
+     "reno_mib": 17.625
+    },
+    {
+     "candidate_mib": 26.67578125,
+     "excess_mib": 13.35546875,
+     "pair": 2,
+     "reno_mib": 13.3203125
+    },
+    {
+     "candidate_mib": 26.34375,
+     "excess_mib": 12.27734375,
+     "pair": 3,
+     "reno_mib": 14.06640625
+    },
+    {
+     "candidate_mib": 25.80078125,
+     "excess_mib": 12.47265625,
+     "pair": 4,
+     "reno_mib": 13.328125
+    },
+    {
+     "candidate_mib": 25.625,
+     "excess_mib": 12.12109375,
+     "pair": 5,
+     "reno_mib": 13.50390625
+    }
+   ],
+   "candidate_median_mib": 26.34375,
+   "max_excess_mib": 13.35546875,
+   "median_excess_mib": 12.27734375,
+   "reno_median_mib": 13.50390625
+  },
+  "S6 stream send": {
+   "blocks": [
+    {
+     "candidate_mib": 22.17578125,
+     "excess_mib": 5.421875,
+     "pair": 1,
+     "reno_mib": 16.75390625
+    },
+    {
+     "candidate_mib": 22.17578125,
+     "excess_mib": 8.921875,
+     "pair": 2,
+     "reno_mib": 13.25390625
+    },
+    {
+     "candidate_mib": 21.796875,
+     "excess_mib": 7.984375,
+     "pair": 3,
+     "reno_mib": 13.8125
+    },
+    {
+     "candidate_mib": 22.05078125,
+     "excess_mib": 8.984375,
+     "pair": 4,
+     "reno_mib": 13.06640625
+    },
+    {
+     "candidate_mib": 22.453125,
+     "excess_mib": 9.94921875,
+     "pair": 5,
+     "reno_mib": 12.50390625
+    }
+   ],
+   "candidate_median_mib": 22.17578125,
+   "max_excess_mib": 9.94921875,
+   "median_excess_mib": 8.921875,
+   "reno_median_mib": 13.25390625
+  },
+  "loopback datagram receive": {
+   "blocks": [
+    {
+     "candidate_mib": 21.2578125,
+     "excess_mib": 2.5390625,
+     "pair": 1,
+     "reno_mib": 18.71875
+    },
+    {
+     "candidate_mib": 21.72265625,
+     "excess_mib": 3.125,
+     "pair": 2,
+     "reno_mib": 18.59765625
+    },
+    {
+     "candidate_mib": 22.390625,
+     "excess_mib": 3.359375,
+     "pair": 3,
+     "reno_mib": 19.03125
+    },
+    {
+     "candidate_mib": 21.890625,
+     "excess_mib": 2.8203125,
+     "pair": 4,
+     "reno_mib": 19.0703125
+    },
+    {
+     "candidate_mib": 20.9453125,
+     "excess_mib": 2.484375,
+     "pair": 5,
+     "reno_mib": 18.4609375
+    }
+   ],
+   "candidate_median_mib": 21.72265625,
+   "max_excess_mib": 3.359375,
+   "median_excess_mib": 2.8203125,
+   "reno_median_mib": 18.71875
+  },
+  "loopback datagram send": {
+   "blocks": [
+    {
+     "candidate_mib": 16.83203125,
+     "excess_mib": -0.7734375,
+     "pair": 1,
+     "reno_mib": 17.60546875
+    },
+    {
+     "candidate_mib": 17.296875,
+     "excess_mib": -0.6875,
+     "pair": 2,
+     "reno_mib": 17.984375
+    },
+    {
+     "candidate_mib": 16.55859375,
+     "excess_mib": -0.8828125,
+     "pair": 3,
+     "reno_mib": 17.44140625
+    },
+    {
+     "candidate_mib": 16.5390625,
+     "excess_mib": -1.3359375,
+     "pair": 4,
+     "reno_mib": 17.875
+    },
+    {
+     "candidate_mib": 17.421875,
+     "excess_mib": 0.296875,
+     "pair": 5,
+     "reno_mib": 17.125
+    }
+   ],
+   "candidate_median_mib": 16.83203125,
+   "max_excess_mib": 0.296875,
+   "median_excess_mib": -0.7734375,
+   "reno_median_mib": 17.60546875
+  },
+  "loopback stream receive": {
+   "blocks": [
+    {
+     "candidate_mib": 15.9140625,
+     "excess_mib": 1.9765625,
+     "pair": 1,
+     "reno_mib": 13.9375
+    },
+    {
+     "candidate_mib": 16.2109375,
+     "excess_mib": 1.734375,
+     "pair": 2,
+     "reno_mib": 14.4765625
+    },
+    {
+     "candidate_mib": 16.35546875,
+     "excess_mib": 1.70703125,
+     "pair": 3,
+     "reno_mib": 14.6484375
+    },
+    {
+     "candidate_mib": 16.19921875,
+     "excess_mib": 1.83203125,
+     "pair": 4,
+     "reno_mib": 14.3671875
+    },
+    {
+     "candidate_mib": 15.95703125,
+     "excess_mib": 1.203125,
+     "pair": 5,
+     "reno_mib": 14.75390625
+    }
+   ],
+   "candidate_median_mib": 16.19921875,
+   "max_excess_mib": 1.9765625,
+   "median_excess_mib": 1.734375,
+   "reno_median_mib": 14.4765625
+  },
+  "loopback stream send": {
+   "blocks": [
+    {
+     "candidate_mib": 15.4296875,
+     "excess_mib": -0.7421875,
+     "pair": 1,
+     "reno_mib": 16.171875
+    },
+    {
+     "candidate_mib": 15.53515625,
+     "excess_mib": -0.33984375,
+     "pair": 2,
+     "reno_mib": 15.875
+    },
+    {
+     "candidate_mib": 15.51953125,
+     "excess_mib": -0.7578125,
+     "pair": 3,
+     "reno_mib": 16.27734375
+    },
+    {
+     "candidate_mib": 15.20703125,
+     "excess_mib": -1.24609375,
+     "pair": 4,
+     "reno_mib": 16.453125
+    },
+    {
+     "candidate_mib": 15.74609375,
+     "excess_mib": -0.5234375,
+     "pair": 5,
+     "reno_mib": 16.26953125
+    }
+   ],
+   "candidate_median_mib": 15.51953125,
+   "max_excess_mib": -0.33984375,
+   "median_excess_mib": -0.7421875,
+   "reno_median_mib": 16.26953125
+  }
+ },
+ "instrument": "peak_rss_mib (ru_maxrss), readiness instrument",
+ "source": "2026-10-08-bbr-r9-linux-redemonstration/summary.json"
+}
