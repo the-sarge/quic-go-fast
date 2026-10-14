@@ -300,7 +300,7 @@ func (s *ecnSequence) send() {
 	s.marks[pn] = mark
 	// The model has no ack-of-ack, so permanent losses would accumulate gaps
 	// past the range limit. The pinned regime's only permanent hole is pn 0.
-	if (s.pin || s.c.IntN(20) != 0) && !(s.pin && pn == 0) {
+	if (s.pin || s.c.IntN(20) != 0) && (!s.pin || pn != 0) {
 		s.pending = append(s.pending, pn)
 	}
 }
@@ -448,7 +448,7 @@ func TestBBRECNFeedbackFrozenEquivalence(t *testing.T) {
 		{name: "fragmented frames", seeds: 300, ops: 600, maxRanges: 400},
 		{name: "near cap", seeds: 6, ops: 12000, maxRanges: 64, fragment: true},
 	}
-	if testing.Short() {
+	if reducedEquivalenceBudget() {
 		for i := range regimes {
 			regimes[i].seeds = max(regimes[i].seeds/10, 2)
 		}
@@ -857,7 +857,7 @@ func TestBBRECNFeedbackCapEquivalence(t *testing.T) {
 // splits land on both sides of the 4,096-record budget.
 func TestBBRECNFeedbackRandomizedCapEquivalence(t *testing.T) {
 	seeds := 200
-	if testing.Short() {
+	if reducedEquivalenceBudget() {
 		seeds = 20
 	}
 	var fits, overflows int
