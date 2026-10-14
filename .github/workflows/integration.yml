@@ -12,17 +12,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu" ]
-        go: [ "1.26.8", "1.27.1" ]
+        go: [ "1.26.8", "1.27.2" ]
         race: [ false ]
         include:
           - os: "ubuntu"
-            go: "1.27.1"
+            go: "1.27.2"
             race: true
           - os: "windows"
-            go: "1.27.1"
+            go: "1.27.2"
             race: false
           - os: "macos"
-            go: "1.27.1"
+            go: "1.27.2"
             race: false
     runs-on: ${{ fromJSON(vars[format('INTEGRATION_RUNNER_{0}', matrix.os)] || format('"{0}-latest"', matrix.os)) }}
     timeout-minutes: 30

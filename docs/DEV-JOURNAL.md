@@ -4518,3 +4518,27 @@ A fresh module cache using the public proxy and checksum database resolved the t
 ### Next
 
 README adoption now names fast.7. BBRv3 correction and qualification continue under the [BBR performance map #666](https://github.com/the-sarge/quic-go-fast/issues/666), the live view. A future release would pick up the post-cut `main` changes, including the single-family client sockets (#726) and the HTTP/3 idle-timer start (#730).
+
+---
+
+## Go 1.27.2 CI pin landed - 2026-10-14 15:12 EDT
+
+**Main:** `b6588e134400`
+**Actor:** Claude
+
+### Summary
+
+Merged [CI Go 1.27.2 pin #750](https://github.com/the-sarge/quic-go-fast/pull/750) as `b6588e1344007e1aea7038d01622b47e01ef64dd`. Every PR to `main` had begun failing lint's `check` job, as in [run 38618176888](https://github.com/the-sarge/quic-go-fast/actions/runs/38618176888) on #749. Its PR-only `govulncheck@latest` step reported ten reachable standard-library vulnerabilities in the pinned go1.27.1 (net/http, net/http/internal/http2, net/textproto and crypto/tls), all fixed in go1.27.2. The primary CI pin moved from 1.27.1 to 1.27.2 in every workflow that pins it, and in the unit workflow's macOS dial-owner gate, `.go-version` and the README. golangci-lint moved from v2.13.2 to v2.14.0 because v2.13.2 cannot read go1.27.2's version-5 export data. The 1.26.8 compatibility lanes, the `go 1.26.0` module minimum and all dependencies are unchanged.
+
+### Decisions
+
+- The operator chose to move the maintainer pin in every pinned workflow rather than only in `lint.yml`, so CI keeps a single primary toolchain and the README stays accurate. Moving 1.26.8 to 1.26.9 and changing the interop image toolchain were left out of scope.
+- The `could not load export data` golangci-lint failures on the `codex/bbr-*` record branches come from their pre-[#657](https://github.com/the-sarge/quic-go-fast/pull/657) `lint.yml`, which floats `1.27.x` with `check-latest: true` and so now resolves to go1.27.2. `main`'s exact pins never hit that error. The break on `main` was the vulnerability-database drift #657 had anticipated.
+
+### Validation
+
+Local certification at PR head `f9d0d4f0712868418e57051c92d2643020ca5a29` ran under go1.27.2 on darwin/arm64. The `check` job's steps, `go vet ./...` and an all-test compile passed. govulncheck found no vulnerabilities, and actionlint reported only main's eight baseline diagnostics. golangci-lint v2.14.0 reported 0 issues under go1.27.2 and go1.26.8 for all six GOOS steps (solaris needs `GOARCH=amd64` on Apple silicon). RAS review `20261014T190057-975cc8f7ff79d86100b25262` produced 0 findings from the five of six reviewers that completed; the sixth failed with a RAS delivery error. All 33 hosted checks passed on the exact head before the matched-head squash merge. The hosted logs show the prebuilt `golangci-lint-2.14.0-linux-amd64` release reporting 0 issues on every GOOS step under go1.27.2. The macOS Go 1.27.2 unit lane received `QUIC_GO_DIAL_OWNER_UNTIL`. Its configured expiry, 2026-09-26T23:15:25Z, has already passed, so the #241 opt-in is inert by design, as it was before this change.
+
+### Next
+
+Open PRs based on earlier `main`, including the BBR port's [#749](https://github.com/the-sarge/quic-go-fast/pull/749), pick up the go1.27.2 lint workflow once updated onto `b6588e13`.
