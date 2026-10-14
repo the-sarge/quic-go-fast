@@ -170,13 +170,15 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 		e.RawRTT = 0
 		e.Delivery.Valid = false
 	}
+	// Startup, Drain and ProbeBW decide on the pre-update minimum; UpdateMinRTT
+	// then CheckProbeRTT follow them, as in the draft's per-ACK order.
 	oldProbeCap := b.probeRTTTarget()
-	expired := false
-	if clockValid && e.HasAck {
-		expired = b.updateRTT(e.Time, e.RawRTT)
+	updateRTT := func() bool {
+		return clockValid && e.HasAck && b.updateRTT(e.Time, e.RawRTT)
 	}
 	s := e.Delivery
 	if !e.HasAck || s.Delivered < b.delivered {
+		updateRTT()
 		return
 	}
 	if clockValid {
@@ -189,29 +191,23 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 			break
 		}
 	}
-	if anchor == nil || !anchor.Delivery.Valid || anchor.Delivery.Delivered > s.Delivered || anchor.PathGeneration != b.pathGeneration || anchor.SampleGeneration != b.sampleGeneration || anchor.MTUProbe || anchor.PathProbe || !s.Valid || s.Interval <= 0 {
+	// Delivered-at-send evidence owns packet rounds, as UpdateRound precedes the
+	// draft's positive-rate test. Missing history and invalid clocks supply none.
+	roundEvidence := clockValid && anchor != nil && anchor.Delivery.Valid && anchor.Delivery.Delivered <= s.Delivered && anchor.PathGeneration == b.pathGeneration && anchor.SampleGeneration == b.sampleGeneration && !anchor.MTUProbe && !anchor.PathProbe
+	roundStart := roundEvidence && b.startRound(anchor.Delivery.Delivered, s.Delivered)
+	if !roundEvidence || !s.Valid || s.Interval <= 0 {
 		b.checkDrainDone(e)
-		if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
+		if roundStart && b.phase != bbrStartup && b.phase != bbrProbeRTT {
+			b.updateProbeCycle(e, *anchor, true, false)
+		} else if clockValid && s.Delivered > b.delivered && b.phase >= bbrDown {
 			b.updateProbePhase(e, false, false)
 		}
+		expired := updateRTT()
 		if clockValid {
 			b.checkProbeRTT(e, expired, oldProbeCap)
 		}
 		b.applyACK(e, clockValid)
 		return
-	}
-	roundStart := anchor.Delivery.Delivered >= b.nextRound
-	if roundStart {
-		// Consumers on the boundary ACK still see the just-completed round.
-		// A later complete round replaces it, including a round with no usage.
-		b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
-		b.round++
-		b.roundsSinceProbe++
-		if b.InProbeRTT() {
-			b.probeSample = false
-			b.ackPhase = bbrAcksInit
-		}
-		b.nextRound = s.Delivered
 	}
 	b.updateMaxBandwidth(s)
 	volume := s.Delivered - anchor.Delivery.Delivered
@@ -223,7 +219,9 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	lossRoundStart := anchor.Delivery.Delivered >= b.lossRoundDelivered
 	if lossRoundStart {
 		if b.lossPending && b.phase == bbrStartup && b.recoveryEligible && !b.lossOverflow && b.discontiguousLosses() >= 6 && uint64(b.lossBytes) > uint64(b.lossFlight)/50 {
-			b.inflightLong = max(b.inflight(1), bbrBytes(b.latestVolume))
+			// Learned capacity is the model BDP; output quantization is not loss evidence.
+			b.inflightLong = max(b.bdp(1), bbrBytes(b.latestVolume))
+			b.noteLossExit()
 			b.phase = bbrDrain
 			b.drainRound = b.round
 		} else if b.lossPending && !b.probingBandwidth() {
@@ -259,16 +257,34 @@ func (b *BBRSender) Feedback(e FeedbackEvent) {
 	}
 	b.checkDrainDone(e)
 	if b.phase != bbrStartup && b.phase != bbrProbeRTT {
-		b.updateProbeCycle(e, *anchor, roundStart)
+		b.updateProbeCycle(e, *anchor, roundStart, true)
 	}
 	if lossRoundStart {
 		// Seed the next loss round after a phase entry has reset its signals.
 		b.latestRate, b.latestVolume = s.BytesPerSecond, volume
 	}
+	expired := updateRTT()
 	if clockValid {
 		b.checkProbeRTT(e, expired, oldProbeCap)
 	}
 	b.applyACK(e, clockValid)
+}
+
+func (b *BBRSender) startRound(sentDelivered, delivered uint64) bool {
+	if sentDelivered < b.nextRound {
+		return false
+	}
+	// Consumers on the boundary ACK still see the just-completed round.
+	// A later complete round replaces it, including a round with no usage.
+	b.windowUsedLastRound, b.windowUsedInRound = b.windowUsedInRound, false
+	b.round++
+	b.roundsSinceProbe++
+	if b.InProbeRTT() {
+		b.probeSample = false
+		b.ackPhase = bbrAcksInit
+	}
+	b.nextRound = delivered
+	return true
 }
 
 func (b *BBRSender) checkDrainDone(e FeedbackEvent) {

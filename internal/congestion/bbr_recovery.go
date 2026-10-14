@@ -13,6 +13,9 @@ type bbrUndo struct {
 	valid                               bool
 	window, inflightLong, inflightShort protocol.ByteCount
 	bandwidthShort                      uint64
+	// The draft's undo_state: a loss-driven exit from Startup or Up.
+	exited bool
+	phase  bbrPhase
 }
 
 func (b *BBRSender) beginRecovery(e FeedbackEvent) {
@@ -38,6 +41,18 @@ func (b *BBRSender) finishRecovery(e FeedbackEvent) {
 		b.lossRanges = b.lossRanges[:0]
 		b.lossBytes, b.lossFlight = 0, 0
 		b.lossPending, b.lossOverflow = false, false
+		// A probe ended by spurious loss resumes. An active CE response owns
+		// the exit and forbids a new probe; ProbeRTT finishes its measurement.
+		if b.undo.exited && !b.ce.active {
+			switch {
+			case b.undo.phase == bbrStartup && b.phase == bbrProbeRTT:
+				b.probeRTTReturnStartup = true
+			case b.undo.phase == bbrStartup && b.phase != bbrStartup:
+				b.phase = bbrStartup
+			case b.undo.phase == bbrUp && b.phase != bbrUp && b.phase != bbrProbeRTT:
+				b.startProbeRefill(b.delivered)
+			}
+		}
 	}
 	if r.Exited || r.UndoEligible {
 		b.window = max(b.window, b.undo.window)
@@ -49,6 +64,13 @@ func (b *BBRSender) finishRecovery(e FeedbackEvent) {
 	}
 	if r.UndoEligible || (!r.Active && !r.UndoPossible) {
 		b.undo = bbrUndo{}
+	}
+}
+
+// A loss-driven exit from Startup or Up is the draft's undo_state.
+func (b *BBRSender) noteLossExit() {
+	if b.undo.valid {
+		b.undo.exited, b.undo.phase = true, b.phase
 	}
 }
 
