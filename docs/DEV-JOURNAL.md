@@ -4844,3 +4844,30 @@ The bounded initial and replacement RAS reviews completed; the frozen-evidence f
 ### Next
 
 The portfolio batch remains partial: turn and QUIC are merged, raptorq is next, and cpace is blocked on official gosec compatibility with Go 1.27.2. [Infrastructure issue #686](https://github.com/the-sarge/infra/issues/686) owns the live batch status and approved scope.
+
+---
+
+## BBR retained-discovery scratch release landed - 2026-10-14 21:34 EDT
+
+**Main:** `6a587c123039`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #770](https://github.com/the-sarge/quic-go-fast/pull/770) as `6a587c123039b624799c0e852cb57f8c96d39af1`, closing [#752](https://github.com/the-sarge/quic-go-fast/issues/752). It fixes a bounded metadata retention in BBR's retained ACK discovery that the production port ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)) inherited from `c6bb13b7` through r9. `appendRetainedAck` reused `d.discovered[:0]` as scratch for every ACK range but cleared it once, after the loop. When an earlier range discovered more records than the last, the scratch's spare capacity kept pointers to records that `removeRetained` had already removed, up to `maxDeliveryRetained` (4,096) records or about 0.9 MB per BBR connection, and `resetCongestionCapture` left the scratch in place. Each range's result is now cleared after it is processed, and a capture reset releases the scratch beside the other scratch. ACK, recovery and ECN outputs, the bookkeeping bounds and default Reno are unchanged; a Reno connection has no congestion dispatch.
+
+### Decisions
+
+- The fix landed as its own PR after slice 5 and before the readiness measurement, per the operator's 2026-10-14 decision on #752, so the measured revision is the one that would ship. The [port contract](agents/bbr-production-port.md) records it as declared deviation 4 and names it as part of the readiness candidate.
+- Per-range clearing was chosen over three alternatives: clearing the full capacity once per ACK (an O(capacity) clear on every later ACK after one large discovery), storing keys instead of pointers (a map lookup per record and a larger departure from r9) and a fresh slice per ACK (a per-ACK allocation).
+
+### Validation
+
+- `TestDeliverySamplerReleasesDiscoveryScratch` ACKs descending, gap-separated ranges that discover 3, 2, 1 and then no records. On unchanged code it failed at scratch slot 0, which still referenced removed record pn 2; with only the per-range clear it failed at the reset assertion; with both lines it passes.
+- Local certification ran under go1.27.1 on darwin/arm64 on the exact head `94116d28`: `go build`, `go vet`, `go mod tidy -diff`, gofmt and `git diff --check`; plain, `-race` and `-tags bbrworkcount` tests of `internal/ackhandler` (22 s, 73 s and 22 s); golangci-lint v2.14.0 for darwin, linux, windows, freebsd and openbsd: 0 issues. Against `81e9dc8c`, the seven files `main` already differed in diff identically; the only additions are `congestion_dispatch.go` and `delivery_sampler_test.go`.
+- [RAS review `20261015T011907-3458278bd32b61b98aea605e`](https://github.com/the-sarge/quic-go-fast/pull/770#issuecomment-6182285801) on `89839415` was briefed with #752's criteria verbatim. Five of six reviewers completed; claude-fable failed on an adapter protocol error. It found no runtime defect. Its one low documentation cluster, the stop condition still counting "three declared kinds", was fixed in `94116d28`, so no verification or replacement review ran under the docs-only policy. No defers remain to revalidate.
+- All 33 hosted checks passed on the exact head `94116d28` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+The ported revision, now including deviation 4, is measured for readiness on `minimax` under #739's readiness stage, which needs an operator-booked quiet window. The operator's advancement disposition on its raised cells follows, before any qualification. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
