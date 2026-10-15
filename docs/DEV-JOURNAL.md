@@ -4825,3 +4825,22 @@ All 33 hosted checks passed on the exact head `953d4ecd`, including the four kic
 ### Next
 
 [#752](https://github.com/the-sarge/quic-go-fast/issues/752) (retained-discovery scratch release) lands as its own PR. Then the ported revision's readiness is measured on `minimax` under #739's readiness stage, which needs an operator-booked quiet window. The operator's advancement disposition on its raised cells follows, before any qualification. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
+
+---
+
+## Go 1.27.2 foundational upgrade landed - 2026-10-14 20:41 EDT
+
+**Main:** `989c5459b63e`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #767](https://github.com/the-sarge/quic-go-fast/pull/767): refreshed maintained Go module dependencies, Go 1.26.9 compatibility lanes, Go 1.27.2 interop tooling, and current setup documentation. The Go 1.26 consumer floor, transport behavior, and frozen campaign evidence remain unchanged. No release was needed.
+
+### Validation
+
+The bounded initial and replacement RAS reviews completed; the frozen-evidence finding was rejected against the approved contract and the maintained CI sentence was corrected. No deferred findings remain. Exact-head local tests covered unit/race/vet, compatibility, maintained module graphs, v1/v2 and FIPS integration, generation, hooks and interop builds. All five hosted pull-request workflow suites passed. [Final certification and review dispositions](https://github.com/the-sarge/quic-go-fast/pull/767#issuecomment-6181686289) record the candidate/base, run links and a corrected local integration timing invocation.
+
+### Next
+
+The portfolio batch remains partial: turn and QUIC are merged, raptorq is next, and cpace is blocked on official gosec compatibility with Go 1.27.2. [Infrastructure issue #686](https://github.com/the-sarge/infra/issues/686) owns the live batch status and approved scope.
