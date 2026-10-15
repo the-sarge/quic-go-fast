@@ -265,7 +265,9 @@ func TestHTTPCaptureCheckPreservation(t *testing.T) {
 	binary, err := os.Executable()
 	require.NoError(t, err)
 	name := t.Name()
-	runCheck := func(t *testing.T, fixture string, env ...string) ([]byte, error) {
+	// Callers assert ctxErr only after receiving output, so a failed check
+	// still has the output to report and preserve.
+	runCheck := func(t *testing.T, fixture string, env ...string) (output []byte, err, ctxErr error) {
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, binary, "-test.run=^"+name+"$", "-test.v", "-test.timeout=25s", "-version=2")
@@ -275,14 +277,14 @@ func TestHTTPCaptureCheckPreservation(t *testing.T) {
 			}
 		}
 		cmd.Env = append(append(cmd.Env, checkMode+"="+fixture), env...)
-		output, err := cmd.CombinedOutput()
-		require.NoError(t, ctx.Err(), string(output))
-		return output, err
+		output, err = cmd.CombinedOutput()
+		return output, err, ctx.Err()
 	}
 
 	t.Run("natural child failure", func(t *testing.T) {
 		outer := t.TempDir()
-		output, err := runCheck(t, name, "QUIC_GO_HTTP_CAPTURE_DIR="+outer)
+		output, err, ctxErr := runCheck(t, name, "QUIC_GO_HTTP_CAPTURE_DIR="+outer)
+		require.NoError(t, ctxErr, string(output))
 		require.Error(t, err, "a natural child failure must still fail the check")
 		slots, err := filepath.Glob(filepath.Join(outer, "slot-*"))
 		require.NoError(t, err)
@@ -345,7 +347,8 @@ func TestHTTPCaptureCheckPreservation(t *testing.T) {
 				t.Logf("HTTP capture check child preservation: path=%s observed=%d retained=%d dropped=%d error=%v", c.path, c.observed, c.retained, c.dropped, c.err)
 			}
 		})
-		output, err := runCheck(t, fixture, "QUIC_GO_HTTP_CAPTURE_DIR="+outer)
+		output, err, ctxErr := runCheck(t, fixture, "QUIC_GO_HTTP_CAPTURE_DIR="+outer)
+		require.NoError(t, ctxErr, string(output))
 		require.NoError(t, err, string(output))
 		entries, err := os.ReadDir(outer)
 		require.NoError(t, err)
@@ -353,7 +356,8 @@ func TestHTTPCaptureCheckPreservation(t *testing.T) {
 	})
 
 	t.Run("outer directory unset", func(t *testing.T) {
-		output, err := runCheck(t, name)
+		output, err, ctxErr := runCheck(t, name)
+		require.NoError(t, ctxErr, string(output))
 		require.Error(t, err, "a natural child failure must still fail the check")
 		require.Contains(t, string(output), "HTTP capture check child not preserved: QUIC_GO_HTTP_CAPTURE_DIR is unset")
 	})
