@@ -295,6 +295,79 @@ func TestCandidateFencedBBRCreditReturnedOnce(t *testing.T) {
 	}
 }
 
+// deniedPathConn is a path socket, with addresses, that fences its candidate
+// during the first authorized write.
+type deniedPathConn struct{ *deniedWriteConn }
+
+func (*deniedPathConn) LocalAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}
+}
+
+func (*deniedPathConn) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4321}
+}
+
+// Every send queue a connection builds, at setup and on path replacement and at
+// Reno's and BBR's depth, captures the authorized writer and carries the
+// connection's authority: once the first submission of a full queue is fenced,
+// nothing more reaches the socket, and every entry releases its storage.
+func TestCandidateSendQueueAuthorityAtEachDepth(t *testing.T) {
+	for _, tc := range []struct {
+		controller string
+		replace    bool
+		depth      int
+	}{
+		{"reno", false, sendQueueCapacity},
+		{"bbrv3", false, bbrSendQueueCapacity},
+		{"reno", true, sendQueueCapacity},
+		{"bbrv3", true, bbrSendQueueCapacity},
+	} {
+		t.Run(tc.controller+map[bool]string{false: " initial", true: " replacePath"}[tc.replace], func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				authority := &connAuthority{}
+				conn := &deniedPathConn{&deniedWriteConn{fakeBatchSendConn: &fakeBatchSendConn{available: func() bool { return false }}, authority: authority}}
+				conf := &Config{DisablePathMTUDiscovery: true}
+				require.NoError(t, conf.SetCongestionControlV1(tc.controller))
+				var c *Conn
+				if tc.replace {
+					c = newServerTestConnection(t, nil, conf, false).conn
+					c.emission.bindAuthority(authority)
+					go c.emission.queue.Run() // replacePath drains and joins the old worker
+					c.emission.replacePath(conn, &c.handshakeSendFeedback)
+				} else {
+					// The first queue is the one connection setup builds on its socket.
+					ctx, cancel := context.WithCancelCause(context.Background())
+					t.Cleanup(func() { cancel(nil) })
+					c = newConnection(ctx, cancel, conn, NewMockConnRunner(gomock.NewController(t)), randConnID(6), nil,
+						protocol.ConnectionID{}, protocol.ConnectionID{}, randConnID(6), &protocol.DefaultConnectionIDGenerator{},
+						newStatelessResetter(nil), populateConfig(conf), &tls.Config{},
+						handshake.NewTokenGenerator(handshake.TokenProtectorKey{}), false, time.Second, nil, utils.DefaultLogger, protocol.Version1,
+					).Conn
+					c.emission.bindAuthority(authority) // as bindCandidate does
+				}
+				require.Equal(t, tc.controller == "bbrv3", c.emission.bbr != nil)
+				q := c.emission.queue.(*sendQueue)
+				var bufs []*packetBuffer
+				for range tc.depth {
+					require.False(t, q.WouldBlock())
+					buf := getPacketWithContents([]byte("queued"))
+					bufs = append(bufs, buf)
+					q.Send(buf, 0, protocol.ECNNon, sendMetadata{})
+				}
+				require.True(t, q.WouldBlock(), "the queue is full at %d entries", tc.depth)
+
+				startAndFinishQueue(t, q, nil) // a fenced discard is not a write error
+				require.Empty(t, conn.writes, "no submission after the first one is fenced")
+				for i, buf := range bufs {
+					require.Zero(t, buf.refCount, "entry %d releases its storage", i)
+				}
+				require.Same(t, conn, q.authorized, "the queue captures the authorized writer")
+				require.Same(t, authority, q.authority, "the queue carries the connection's authority")
+			})
+		})
+	}
+}
+
 // After selection, input for a revoked candidate or an unknown connection ID
 // has no effect: no close retransmission, reset or allocation, and the winner
 // keeps its shared socket.

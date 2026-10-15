@@ -229,6 +229,9 @@ type Conn struct {
 	peerParams *wire.TransportParameters
 
 	timer *time.Timer
+	// pacingKick, when not nil, makes the runtime service timer at BBR's pacing
+	// deadline (Linux only; see pacingKick).
+	pacingKick *pacingKick
 	// keepAlivePingSent stores whether a keep alive PING is in flight.
 	// It is reset as soon as we receive a packet from the peer.
 	keepAlivePingSent bool
@@ -610,6 +613,10 @@ func (c *Conn) run() (err error) {
 	}()
 
 	c.timer = time.NewTimer(monotime.Until(c.idleTimeoutStartTime().Add(c.config.HandshakeIdleTimeout)))
+	if c.emission.bbr != nil {
+		c.pacingKick = newPacingKick()
+		defer c.pacingKick.close()
+	}
 
 	if err := c.cryptoStreamHandler.StartHandshake(c.ctx); err != nil {
 		return err
@@ -950,6 +957,7 @@ func (c *Conn) maybeResetTimer() {
 
 	if !c.pacingDeadline.IsZero() && c.pacingDeadline.Before(deadline) {
 		deadline = c.pacingDeadline
+		c.pacingKick.arm(deadline)
 	}
 	c.timer.Reset(monotime.Until(deadline))
 }
@@ -2646,7 +2654,8 @@ func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 // feedback exist. Recovery follows the live Conn slot; the packer retains its
 // captured packet-number manager.
 func (c *Conn) initPacketEmission(packer *packetPacker) {
-	queue := newSendQueue(c.conn, &c.handshakeSendFeedback)
+	bbr := c.config.CongestionControlV1() == "bbrv3"
+	queue := newSendQueueWithCapacity(c.conn, &c.handshakeSendFeedback, sendQueueCapacityFor(bbr))
 	c.emission = packetEmission{
 		packer:   packer,
 		recovery: &c.sentPacketHandler,
@@ -2655,7 +2664,7 @@ func (c *Conn) initPacketEmission(packer *packetPacker) {
 		policy:   c,
 		conn:     &c.conn,
 	}
-	if c.config.CongestionControlV1() == "bbrv3" {
+	if bbr {
 		c.emission.enableBBR(monotime.Now())
 		c.emission.enableBBRECN()
 	}
