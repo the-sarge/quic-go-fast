@@ -230,6 +230,40 @@ func TestDeliverySamplerBoundedEviction(t *testing.T) {
 	require.Equal(t, protocol.ByteCount(25001), h.bytesInFlight)
 }
 
+func TestDeliverySamplerReleasesDiscoveryScratch(t *testing.T) {
+	r := &congestionRecorder{}
+	h := newCongestionTestHandler(r)
+	now := monotime.Now()
+	for range 10 {
+		sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1000)
+	}
+	for range 10 {
+		require.True(t, h.QueueProbePacketAt(protocol.EncryptionInitial, now))
+	}
+	require.Equal(t, 10, h.DeliveryStats().Retained)
+	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(0)}, protocol.EncryptionInitial, now.Add(time.Millisecond))
+	require.NoError(t, err)
+	// Descending ranges discover 3, 2, 1 and then no retained records, since
+	// packet 0 has already been acknowledged.
+	ack := ackFrame(ackRange(7, 9), ackRange(4, 5), ackRange(2, 2), ackRange(0, 0))
+	_, err = h.ReceivedAck(ack, protocol.EncryptionInitial, now.Add(2*time.Millisecond))
+	require.NoError(t, err)
+	var acked []protocol.PacketNumber
+	for _, p := range r.feedback[len(r.feedback)-1].Acked {
+		acked = append(acked, p.PacketNumber)
+	}
+	require.Equal(t, []protocol.PacketNumber{2, 4, 5, 7, 8, 9}, acked)
+	require.Equal(t, 3, h.DeliveryStats().Retained)
+
+	d := h.congestionEvents
+	require.GreaterOrEqual(t, cap(d.discovered), 3)
+	for i, rec := range d.discovered[:cap(d.discovered)] {
+		require.Nil(t, rec, "discovery scratch slot %d still references a removed record", i)
+	}
+	h.MigratedPath(now.Add(3*time.Millisecond), 1200)
+	require.Nil(t, d.discovered, "a capture reset releases the discovery scratch")
+}
+
 func TestDeliverySamplerPTOAndLossRetirement(t *testing.T) {
 	for _, mtu := range []bool{false, true} {
 		t.Run(map[bool]string{false: "ordinary", true: "MTU"}[mtu], func(t *testing.T) {
