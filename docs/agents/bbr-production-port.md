@@ -101,7 +101,7 @@ Disclosed open costs, recorded here and in the PR: [#734](https://github.com/the
 
 ## Stop conditions
 
-Stop and return to the operator if: a ported test fails on `main` for a reason outside the declared merge seams; a fix would change BBR behavior beyond r9 or touch a Reno-observable path; a deviation beyond the three declared kinds is needed; a review finding is `stop-for-decision`; or a hosted check fails for a reason that is not a demonstrated external infrastructure failure.
+Stop and return to the operator if: a ported test fails on `main` for a reason outside the declared merge seams; a fix would change BBR behavior beyond r9 or touch a Reno-observable path; a deviation beyond those declared above is needed; a review finding is `stop-for-decision`; or a hosted check fails for a reason that is not a demonstrated external infrastructure failure.
 
 ## Resolved blocker outside this effort
 
