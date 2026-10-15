@@ -559,16 +559,20 @@ func (t *Transport) Close() error {
 	initErr := t.init(false)
 
 	t.close(nil)
+	var connErr error
 	if t.createdConn {
-		if err := t.Conn.Close(); err != nil {
-			return err
-		}
+		// A concurrent closer gets an error while the socket is still closing,
+		// so wait for the receive loop before reporting it.
+		connErr = t.Conn.Close()
 	} else if t.conn != nil {
 		t.conn.SetReadDeadline(time.Now())
 		defer func() { t.conn.SetReadDeadline(time.Time{}) }()
 	}
 	if t.listening != nil {
 		<-t.listening // wait until listening returns
+	}
+	if connErr != nil {
+		return connErr
 	}
 	if t.packetIO.external != nil || t.policyConn.policy != nil || t.policyConn.network != nil {
 		return initErr

@@ -196,6 +196,44 @@ func TestTransportAndDialConcurrentClose(t *testing.T) {
 	}
 }
 
+// Only the first closer of a socket waits for in-flight reads; a concurrent
+// closer gets net.ErrClosed immediately. Close must still wait for the receive
+// loop before returning that error.
+func TestTransportConcurrentCloseOfCreatedConnWaitsForReceiveLoop(t *testing.T) {
+	type closeResult struct {
+		err    error
+		exited bool
+	}
+	for range 500 {
+		tr := &Transport{Conn: newUDPConnLocalhost(t), createdConn: true, isSingleUse: true}
+		t.Cleanup(func() { tr.Close() })
+		require.NoError(t, tr.init(false))
+
+		results := make(chan closeResult, 2)
+		for range 2 {
+			go func() {
+				err := tr.Close()
+				select {
+				case <-tr.listening:
+					results <- closeResult{err: err, exited: true}
+				default:
+					results <- closeResult{err: err}
+				}
+			}()
+		}
+		var errs []error
+		for range 2 {
+			r := <-results
+			require.True(t, r.exited, "Close returned (err: %v) before the receive loop exited", r.err)
+			if r.err != nil {
+				errs = append(errs, r.err)
+			}
+		}
+		require.Len(t, errs, 1, "exactly one Close loses the socket close")
+		require.ErrorIs(t, errs[0], net.ErrClosed)
+	}
+}
+
 func TestTransportErrFromConn(t *testing.T) {
 	t.Setenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING", "true")
 
