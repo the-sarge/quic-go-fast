@@ -252,6 +252,7 @@ func (h *sentPacketHandler) resetCongestionCapture(pathChanged bool) {
 		d.packets = deliveryRecords{}
 		d.event = congestion.FeedbackEvent{}
 		d.scratch = nil
+		d.discovered = nil
 		d.sampler = deliverySampler{delivered: d.sampler.delivered, lost: d.sampler.lost}
 		if b, ok := h.congestion.(*congestion.BBRSender); ok {
 			b.Reset(d.pathGeneration, d.sampleGeneration, d.sampler.delivered)
@@ -276,8 +277,10 @@ func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol
 			d.event.Acked = append(d.event.Acked, r.packet)
 			d.removeRetained(r.key, false)
 		}
+		// A later range may discover fewer records, so release this range's
+		// removed records before its writes fall beyond the reused length.
+		clear(d.discovered)
 	}
-	clear(d.discovered)
 	endServiceWork(prior)
 	slices.SortFunc(d.event.Acked, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
 	for _, p := range d.event.Acked {
