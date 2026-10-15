@@ -4898,3 +4898,30 @@ Merged [PR #772](https://github.com/the-sarge/quic-go-fast/pull/772) as `b95d1bd
 ### Next
 
 In the maintainer-decisions lane (#151, then #719, then #241), #151 is closed and #719 is now done. [#241](https://github.com/the-sarge/quic-go-fast/issues/241), the macOS rebind timeout after `DialAddr` cancellation, remains open for its next capture-scope decision; the #719 triage did not offer this race as its cause. #241 is the live view.
+
+---
+
+## Capture-check timeout output preserved - 2026-10-15 12:05 EDT
+
+**Main:** `70ec8bb5d6e6`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #774](https://github.com/the-sarge/quic-go-fast/pull/774) as `70ec8bb5d6e61694a91ad35015284cd14c95d4ae`, closing [#724](https://github.com/the-sarge/quic-go-fast/issues/724). In `TestHTTPCaptureCheckPreservation`, the `runCheck` closure asserted its context error before returning. If a check process outlived the 30s context, `FailNow` ended the `passing check` subtest before `output` was assigned, so its cleanup preserved an empty `child-output.log`. `runCheck` now returns the output, the process error and the context error, and makes no assertions. Each of its three callers asserts the context error first, with the output as the message, then runs its existing assertions unchanged. The change is test-only and touches one file. Timeouts, the fixture and existing assertions are unchanged.
+
+### Decisions
+
+- The contract follows the [#724 triage brief](https://github.com/the-sarge/quic-go-fast/issues/724#issuecomment-6053597107). Only the outer 30s context triggers the gap. A permanent forced-timeout test or knob is out of scope, so the forced-timeout evidence stays a one-off local edit.
+- Having `runCheck` write the output into the caller's variable before asserting was rejected, because it adds a side channel and keeps an assertion in the helper.
+
+### Validation
+
+- A one-off, uncommitted edit shortened the context to 250 ms and ran only `passing_check`, with `QUIC_GO_HTTP_CAPTURE_DIR` set. On the base `0caefb4f`, the preserved `child-output.log` was 0 bytes. With the fix it held 66 bytes, identical to the assertion-message output. The edit was then reverted, and the diff was checked against the fix-only patch.
+- Local certification ran under go1.27.1 on darwin/arm64 on the exact head `bbaa5738`: the focused `^TestHTTPCaptureCheckPreservation` tests, `go test -count=1 ./integrationtests/self`, `go vet`, `go mod tidy -diff` and `git diff --check`. golangci-lint v2.14.0 for darwin, linux, windows, freebsd and openbsd reported 0 issues. See the [certification receipt](https://github.com/the-sarge/quic-go-fast/pull/774#issuecomment-6196523530).
+- RAS review `20261015T155754-015120b86c482eb70110a612` on `bbaa5738` was briefed with the #724 brief verbatim. All six reviewers completed with no findings, so no verification or replacement review ran, and no defers remain to revalidate.
+- All 33 hosted checks passed on the exact head `bbaa5738` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+#724 is done. In the maintainer-decisions lane, [#241](https://github.com/the-sarge/quic-go-fast/issues/241), the macOS rebind timeout after `DialAddr` cancellation, is the remaining open item and awaits its next capture-scope decision. #241 is the live view.
