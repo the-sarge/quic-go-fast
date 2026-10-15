@@ -4871,3 +4871,30 @@ Merged [PR #770](https://github.com/the-sarge/quic-go-fast/pull/770) as `6a587c1
 ### Next
 
 The ported revision, now including deviation 4, is measured for readiness on `minimax` under #739's readiness stage, which needs an operator-booked quiet window. The operator's advancement disposition on its raised cells follows, before any qualification. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
+
+---
+
+## Transport.Close receive-loop wait landed - 2026-10-15 11:34 EDT
+
+**Main:** `b95d1bdbadd1`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #772](https://github.com/the-sarge/quic-go-fast/pull/772) as `b95d1bdbadd136706bd7373d7d1a5318186d0ec3`, closing [#719](https://github.com/the-sarge/quic-go-fast/issues/719). When the transport created its own socket (the transports behind `DialAddr`, `DialAddrEarly`, `ListenAddr` and `ListenAddrEarly`), `(*Transport).Close` returned as soon as closing that socket failed, which skipped the wait for the receive goroutine. Go's `poll.FD.Close` makes only the first caller wait for in-flight socket operations; a concurrent closer gets `net.ErrClosed` immediately, so a `Close` that lost that race could return while the receive loop still ran. `Close` now keeps the socket-close error, waits for the receive loop as before, and then returns the error. Without a socket-close error it returns what it did before, including the `initErr` result for external packet I/O and packet-policy transports, and the socket-close error keeps its precedence over `initErr`. The signature is unchanged and no goroutine, channel, lock or flag was added.
+
+### Decisions
+
+- The contract follows the [#719 triage brief](https://github.com/the-sarge/quic-go-fast/issues/719#issuecomment-6053642613): always wait for the receive loop, then return the close error, including `net.ErrClosed`, as upstream also returns it. This is an internal fix under ADR 0001; no upstream report.
+- Making later `Close` calls wait for the first and return `nil` was rejected: it swallows `net.ErrClosed`, which the brief places out of scope, and adds state.
+
+### Validation
+
+- `TestTransportConcurrentCloseOfCreatedConnWaitsForReceiveLoop` closes a created-socket transport from two goroutines 500 times and requires, for both calls, that the receive loop had exited on return, exactly one error, and `net.ErrClosed`. On unchanged code it failed on its first iterations; with the fix it passes.
+- Local certification ran under go1.27.1 on darwin/arm64 on the exact head `3061fa8b`: `go test -count=1 .`, `go test -race -shuffle=on -count=1 .` (34 s), the regression test 20 times under `-race`, `go vet .`, `go mod tidy -diff`, gofmt and `git diff --check`; golangci-lint v2.14.0 for darwin, linux, windows, freebsd and openbsd: 0 issues.
+- RAS review `20261015T152801-2d654df1e24ff61f042dd2ce` on `3061fa8b` was briefed with the #719 brief verbatim. All six reviewers approved with no findings, so no verification or replacement review ran, and no defers remain to revalidate.
+- All 33 hosted checks passed on the exact head `3061fa8b` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+In the maintainer-decisions lane (#151, then #719, then #241), #151 is closed and #719 is now done. [#241](https://github.com/the-sarge/quic-go-fast/issues/241), the macOS rebind timeout after `DialAddr` cancellation, remains open for its next capture-scope decision; the #719 triage did not offer this race as its cause. #241 is the live view.
