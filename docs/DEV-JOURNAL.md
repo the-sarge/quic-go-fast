@@ -4780,3 +4780,48 @@ There was no `fix-now` finding, so no defers remain to revalidate. All 33 hosted
 ### Next
 
 Slice 5 ports r8's Linux netpoller kick and r9's 32-entry BBR send queue (`d0fabc4d..81e9dc8c`). Its merge seams are `connection.go`, `packet_emission.go` and `send_queue.go`. It discloses #734's wake increase and #738's S5 DATAGRAM CPU rise. Then [#752](https://github.com/the-sarge/quic-go-fast/issues/752) lands before the readiness measurement. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
+
+---
+
+## BBR port slice 5: Linux pacing kick and 32-entry BBR queue landed - 2026-10-14 20:12 EDT
+
+**Main:** `4b3f3a5aefe4`
+**Actor:** Claude
+
+### Summary
+
+Merged [BBR port slice 5 #766](https://github.com/the-sarge/quic-go-fast/pull/766) as `4b3f3a5aefe4ce274c435e2b72f6cd638a783c09`. It is the last of five code slices of the operator-approved production port of r9 (`81e9dc8c`) into `main`'s experimental opt-in sender ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)). The slice ports the lineage range `d0fabc4d..81e9dc8c` verbatim; the first r8 attempt (a timerfd-reading goroutine, `a2f1973c`) and #735's three reverted leads net out.
+
+- **Linux netpoller kick** (r8, `95f5b6b7`). On every GOOS that satisfies Go's `linux` build constraint, a BBR connection's run loop owns one timerfd, registered with the runtime's netpoller and never read, and sets it 2 µs after each new pacing deadline. Its expiry ends `epoll_wait`, so the runtime runs the already-due pacing timer instead of waiting for the next whole-millisecond timeout. Reno connections never create it, and other platforms compile a no-op.
+- **32-entry BBR send queue** (r9, `81e9dc8c`). A BBR connection's queue holds 32 entries instead of 8, at setup and across path replacement; local send credit still bounds pending bytes at 2Q. Reno keeps 8.
+
+`main`'s BBR sender is now r9's code apart from the declared deviations. `internal/congestion` and `internal/ackhandler` differ from `81e9dc8c` only in slices 1–4's race-budget lines (7 test files, +26/−6). Of 256 root `.go` files, 221 equal `81e9dc8c`, 31 are `main`-only files outside r9's lineage, and 4 are declared: the three merge seams and `candidate_authority_test.go`. The sender stays unqualified and Reno remains the default; README and CHANGELOG are unchanged.
+
+### Decisions
+
+- Merge seam `send_queue.go`, the only conflict: `newSendQueue` now delegates to `newSendQueueWithCapacity`, which owns `main`'s `authorizedWriter` capture, as the [contract](agents/bbr-production-port.md) specifies. `packet_emission.go` and `connection.go` merged without conflict; `replacePath` builds the replacement at the connection's depth and still rebinds authority. For all three files, the changed lines of `d0fabc4d → main` equal those of `81e9dc8c → HEAD` (71, 15 and 51 lines), so `main`'s candidate-authority, setup-reservation and receive-phase behavior is unchanged.
+- Seam evidence for the contract's authority-seam matrix: `TestCandidateSendQueueAuthorityAtEachDepth` covers Reno and BBR, on the queue connection setup builds and on a `replacePath` replacement. A socket fences the candidate during the first submission of a full queue; nothing more is submitted, every buffer is released, and the queue holds the authorized writer and the connection's authority. The Reno rows are included because no existing test asserted a replacement queue's authority. Removing the capture from `newSendQueueWithCapacity` fails all four rows; removing `replacePath`'s `bindAuthority` call fails both replacement rows.
+- No lint or race-budget deviation was needed. golangci-lint v2.14.0 reported 0 issues on ported code. The new root tests are negligible under `-race`: the depth and seam tests take 0.00 s, and the Linux kick tests 0.15–0.16 s and 0.01–0.03 s.
+- Android satisfies Go's `linux` build constraint, so it compiles r9's timerfd kick, as r9 does; RAS caught the PR description saying otherwise, and the description was corrected. Android runtime behavior is unmeasured, and the code is unchanged, since excluding Android would change recorded r9 behavior.
+- Disclosed open costs, carried from the record and re-measured by readiness: [#734](https://github.com/the-sarge/quic-go-fast/issues/734)'s run-loop wake increase (6–16% per useful GiB on S5) and [#738](https://github.com/the-sarge/quic-go-fast/issues/738)'s S5 DATAGRAM sender CPU rise (+5% against r8; 0.953 of frozen Reno in r9's readiness, passing).
+
+### Validation
+
+Local certification ran under go1.27.2 on darwin/arm64 on the final head `953d4ecd`:
+
+- the identity diff and the seam change-line check;
+- `go build` and `go vet`, plus `go vet` for linux/arm64 and windows;
+- plain, `-race` and `-tags bbrworkcount` tests of the root package, `internal/ackhandler` and `internal/congestion` (root package 13.4 s plain, 33.7 s under `-race`);
+- `go mod tidy -diff`, `go fix -diff` and gcassert;
+- the workflow's cross-compile script over 41 dist targets, Android arm64 and amd64 library builds, and Linux amd64 and arm64 test binaries;
+- golangci-lint v2.14.0 on all six GOOS steps under Go 1.27.2 and 1.26.8: 0 issues. Its one earlier finding was gofmt on this slice's own seam test.
+
+A Linux arm64 container (Go 1.27.1, non-root) ran the full root package under `-shuffle on`, plain (14.6 s) and `-race` (40.0 s), including the kick tests. Run as root, the container fails the two buffer-forcing tests because it lacks `CAP_NET_ADMIN`; that is an environment artifact. `minimax` was not used: another project's measurement stage was running there.
+
+[RAS review `20261015T000203-876f8a1bffdb382e31d5caf1`](https://github.com/the-sarge/quic-go-fast/pull/766#issuecomment-6181314132) on `953d4ecd` was briefed verbatim from the contract. It found no runtime, identity, seam, authority, default-Reno or credit defect. Its one low documentation cluster, the Android disclosure, was fixed in the PR description only, so no verification or replacement review ran under the docs-only policy. No defers remain to revalidate.
+
+All 33 hosted checks passed on the exact head `953d4ecd`, including the four kick tests on both hosted Ubuntu lanes, plain and `-race`, before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+[#752](https://github.com/the-sarge/quic-go-fast/issues/752) (retained-discovery scratch release) lands as its own PR. Then the ported revision's readiness is measured on `minimax` under #739's readiness stage, which needs an operator-booked quiet window. The operator's advancement disposition on its raised cells follows, before any qualification. [#748](https://github.com/the-sarge/quic-go-fast/issues/748) is the live view.
