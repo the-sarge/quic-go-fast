@@ -1,0 +1,13 @@
+--- a/relay/main.go
++++ b/relay/main.go
+@@ -99,7 +99,9 @@
+ 		return 0
+ 	}
+ 	for _, m := range msgs {
+-		if m.Header.Level == unix.IPPROTO_IP && m.Header.Type == unix.IP_RECVTOS && len(m.Data) > 0 {
++		// Linux ECN adapter (#712): Linux delivers the received TOS byte as an
++		// IP_TOS control message, where Darwin uses IP_RECVTOS.
++		if m.Header.Level == unix.IPPROTO_IP && (m.Header.Type == unix.IP_RECVTOS || m.Header.Type == unix.IP_TOS) && len(m.Data) > 0 {
+ 			return m.Data[0] & 3
+ 		}
+ 	}
