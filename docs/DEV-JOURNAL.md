@@ -4925,3 +4925,47 @@ Merged [PR #774](https://github.com/the-sarge/quic-go-fast/pull/774) as `70ec8bb
 ### Next
 
 #724 is done. In the maintainer-decisions lane, [#241](https://github.com/the-sarge/quic-go-fast/issues/241), the macOS rebind timeout after `DialAddr` cancellation, is the remaining open item and awaits its next capture-scope decision. #241 is the live view.
+
+---
+
+## BBR port readiness measured - 2026-10-16 07:50 EDT
+
+**Main:** `abfa5456d99a`
+**Actor:** Claude
+
+### Summary
+
+Slice 6 of the BBR production port ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)) measured the readiness of the merged port head, `main` at `abfa5456`, on `minimax`. The record is [docs/audits/2026-10-16-bbr-port-readiness/README.md](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md) at `9b38f0ab` on `codex/bbr-port-readiness`. Like every #666 record, it stays off `main`; this entry is only a pointer to it.
+
+It reran #739's readiness stage, `s5timeline` and conditional preservation stages, unchanged except for the candidate. The baseline is frozen Reno `e4f322cb`, byte-identical to #739's binary, and r9's #739 value sits beside each cell as context. The unattended run took 2 h 11 min: 110 readiness, 8 timeline and 12 `preslat` observations, all clean, with no block rerun.
+
+- Every goodput and CPU cell passes.
+- The S6 benefit is 14.28× (STREAM) and 14.42× (DATAGRAM), five of five pairs each.
+- The S5 timeline reads model behaviour in both workloads.
+- **Ten cells are raised.**
+  - Nine are candidate cells: the eight S5 and S6 memory and control p95 cells r9 also raised, and loopback STREAM control p95 (1.656).
+  - One is a Reno-on-candidate preservation cell: loopback DATAGRAM control p95 (1.504). Its `preslat` stage was *inconclusive* (0.913; 95% interval 0.611–1.494), and it is not attributed to the port or to `main`'s other changes.
+
+### Decisions
+
+The operator approved these choices on 2026-10-16: candidate `abfa5456`; an unattended run at 05:30 America/New_York with #738's quiet-host gate; #734's wake increase reported through the CPU-per-useful-GiB cells, without measuring the wake count; a record branch, with this pointer on `main`; and one review before data.
+
+The registration states how a Reno-on-candidate difference is reported, because `main` carries non-BBR changes since `e4f322cb`:
+
+- It is held to the unchanged limits against frozen Reno.
+- A raised cell stays raised, as an unattributed preservation flag.
+- D3's mapping is not applied, so the record ends no blocking state.
+
+The registration review added handling for a failed or receipt-less observation: `resume.py`, its `mark` mode, driver fallbacks, and a two-line `stages.py` view filter. The synthesis had asked only for a disclosure; this is recorded in the record as a departure. The handling never engaged.
+
+### Validation
+
+- Registration commits `0d142c9e` and `893aedc2` landed before any observation.
+- `ras consider` run `20261016T053350-9337927278ff908e13ee843d` (six reviewers) queued five fixes, all made.
+- A dry run on #739's retained observations reproduced #739's readiness list exactly, and handled a failed and a receipt-less observation.
+- The prerequisite review passed. Twenty-five quiet-host gates passed on their first window, no observation was contaminated, and all 12 `hostfacts` snapshots match.
+- Every figure in the record's results was checked by script against `summary.json`, `attribution.json` and `r9-context.json`. The one exception is r8's 0.909, which was checked against #736's JSON.
+
+### Next
+
+Slice 7: the operator's advancement disposition on the ten raised cells, before any qualification. Under the contract, the raised preservation flag blocks advancement. #748 is the live view.
