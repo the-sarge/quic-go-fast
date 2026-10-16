@@ -1,0 +1,432 @@
+{
+ "candidate_over_reno_on_candidate": [
+  {
+   "measure": "control_p95",
+   "path": "loopback",
+   "ratio": {
+    "maximum": 1.6437272412972517,
+    "median": 0.8365202999001982,
+    "minimum": 0.2787322243894738,
+    "n": 5
+   },
+   "workload": "datagram"
+  }
+ ],
+ "cells": [
+  {
+   "aa": {
+    "maximum": 1.0517633713973484,
+    "median": 0.7587336398014985,
+    "minimum": 0.4310678328302968,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 0.21327,
+   "blocks": 5,
+   "blocks_crossing": 4,
+   "difference_of_arm_medians_ms": 0.068689,
+   "frozen_median": 0.144581,
+   "measure": "control_p95",
+   "path": "loopback",
+   "per_block_difference_ms": [
+    -0.03165899999999999,
+    0.11587800000000001
+   ],
+   "per_block_ratio": [
+    0.8605053865303695,
+    1.80147460593024
+   ],
+   "r9": {
+    "blocks_crossing": 4,
+    "median": 1.4848740310800426,
+    "raised": true
+   },
+   "ratio": 1.6558489027596193,
+   "unit": "ms",
+   "workload": "stream"
+  },
+  {
+   "aa": {
+    "maximum": 5.507944456615859,
+    "median": 1.5191851673149006,
+    "minimum": 0.689216537489028,
+    "n": 5
+   },
+   "arm": "cand-reno",
+   "arm_median": 0.363721,
+   "blocks": 5,
+   "blocks_crossing": 3,
+   "difference_of_arm_medians_ms": -0.058209999999999984,
+   "frozen_median": 0.421931,
+   "measure": "control_p95",
+   "path": "loopback",
+   "per_block_difference_ms": [
+    -0.26114,
+    0.62958
+   ],
+   "per_block_ratio": [
+    0.5820830552714924,
+    2.4921397100473777
+   ],
+   "r9": {
+    "blocks_crossing": 2,
+    "median": 0.7442933684283165,
+    "raised": false
+   },
+   "ratio": 1.5038086636582537,
+   "unit": "ms",
+   "workload": "datagram"
+  },
+  {
+   "aa": {
+    "maximum": 1.2383612662942272,
+    "median": 0.9995803608896349,
+    "minimum": 0.9857231533209186,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 22.734375,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "excess_max_mib": 4.4375,
+   "excess_median_mib": 4.10546875,
+   "frozen_median": 18.796875,
+   "measure": "send_rss",
+   "path": "S5",
+   "per_block_ratio": [
+    1.2042209807572937,
+    1.2360764754779718
+   ],
+   "r9": {
+    "blocks_crossing": 5,
+    "median": 1.234983498349835,
+    "raised": true
+   },
+   "ratio": 1.217463273329195,
+   "unit": "MiB",
+   "workload": "stream"
+  },
+  {
+   "aa": {
+    "maximum": 1.0978807078872623,
+    "median": 1.013982958269609,
+    "minimum": 0.9580511251911733,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 26.49609375,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "excess_max_mib": 13.7421875,
+   "excess_median_mib": 8.6171875,
+   "frozen_median": 17.87890625,
+   "measure": "receive_rss",
+   "path": "S5",
+   "per_block_ratio": [
+    1.4468864468864469,
+    1.7907394920206787
+   ],
+   "r9": {
+    "blocks_crossing": 5,
+    "median": 1.5180335400872962,
+    "raised": true
+   },
+   "ratio": 1.4819750928555822,
+   "unit": "MiB",
+   "workload": "stream"
+  },
+  {
+   "aa": {
+    "maximum": 1.1342000419375131,
+    "median": 1.0671000209687564,
+    "minimum": 0.973515414856197,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 21.703125,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "excess_max_mib": 3.51171875,
+   "excess_median_mib": 2.92578125,
+   "frozen_median": 18.62890625,
+   "measure": "send_rss",
+   "path": "S5",
+   "per_block_ratio": [
+    1.143803020897993,
+    1.1885091214091004
+   ],
+   "r9": {
+    "blocks_crossing": 4,
+    "median": 1.1586027337817313,
+    "raised": true
+   },
+   "ratio": 1.1570559865799959,
+   "unit": "MiB",
+   "workload": "datagram"
+  },
+  {
+   "aa": {
+    "maximum": 1.0366867297219833,
+    "median": 1.0057339449541285,
+    "minimum": 0.9520119970007498,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 22.984375,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "excess_max_mib": 10.10546875,
+   "excess_median_mib": 9.10546875,
+   "frozen_median": 13.87890625,
+   "measure": "send_rss",
+   "path": "S6",
+   "per_block_ratio": [
+    1.334862385321101,
+    1.7414732014903984
+   ],
+   "r9": {
+    "blocks_crossing": 5,
+    "median": 1.673150604185087,
+    "raised": true
+   },
+   "ratio": 1.65606529693217,
+   "unit": "MiB",
+   "workload": "stream"
+  },
+  {
+   "aa": {
+    "maximum": 1.0215493726132023,
+    "median": 1.0,
+    "minimum": 0.9834753421120578,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 26.890625,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "excess_max_mib": 12.83984375,
+   "excess_median_mib": 12.17578125,
+   "frozen_median": 14.62890625,
+   "measure": "receive_rss",
+   "path": "S6",
+   "per_block_ratio": [
+    1.5142920452027475,
+    1.896617566830333
+   ],
+   "r9": {
+    "blocks_crossing": 5,
+    "median": 1.8975990743419149,
+    "raised": true
+   },
+   "ratio": 1.832309746328438,
+   "unit": "MiB",
+   "workload": "stream"
+  },
+  {
+   "aa": {
+    "maximum": 0.995430599041162,
+    "median": 0.9936839372527652,
+    "minimum": 0.931673659575993,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 199.259282,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "difference_of_arm_medians_ms": 73.74712900000002,
+   "frozen_median": 125.512153,
+   "measure": "control_p95",
+   "path": "S6",
+   "per_block_difference_ms": [
+    60.55743199999998,
+    76.304906
+   ],
+   "per_block_ratio": [
+    1.462334967245736,
+    1.6202099865106905
+   ],
+   "r9": {
+    "blocks_crossing": 5,
+    "median": 1.5615581847780555,
+    "raised": true
+   },
+   "ratio": 1.5811165953153443,
+   "unit": "ms",
+   "workload": "stream"
+  },
+  {
+   "aa": {
+    "maximum": 1.0072134651349185,
+    "median": 1.0,
+    "minimum": 0.9850039463299132,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 21.74609375,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "excess_max_mib": 8.96875,
+   "excess_median_mib": 6.8984375,
+   "frozen_median": 14.62890625,
+   "measure": "send_rss",
+   "path": "S6",
+   "per_block_ratio": [
+    1.3923385077616424,
+    1.6130841121495327
+   ],
+   "r9": {
+    "blocks_crossing": 5,
+    "median": 1.541820243833286,
+    "raised": true
+   },
+   "ratio": 1.4661855118952152,
+   "unit": "MiB",
+   "workload": "datagram"
+  },
+  {
+   "aa": {
+    "maximum": 1.111692019372987,
+    "median": 1.0190041381827528,
+    "minimum": 0.972503396511056,
+    "n": 5
+   },
+   "arm": "cand-bbrv3",
+   "arm_median": 184.585338,
+   "blocks": 5,
+   "blocks_crossing": 5,
+   "difference_of_arm_medians_ms": 57.941342000000006,
+   "frozen_median": 126.643996,
+   "measure": "control_p95",
+   "path": "S6",
+   "per_block_difference_ms": [
+    36.508335999999986,
+    62.608433000000005
+   ],
+   "per_block_ratio": [
+    1.3015982420093783,
+    1.5087904839865676
+   ],
+   "r9": {
+    "blocks_crossing": 5,
+    "median": 1.4588054978167335,
+    "raised": true
+   },
+   "ratio": 1.461440287198202,
+   "unit": "ms",
+   "workload": "datagram"
+  }
+ ],
+ "instrument": "readiness: peak_rss_mib (ru_maxrss) and control_p95_ms at 20 (loopback) or 30 (WAN) replies per run",
+ "preslat": {
+  "loopback/datagram": {
+   "blocks": [
+    {
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "block": 1,
+     "counted": "original",
+     "path": "loopback-long",
+     "status": "clean",
+     "workload": "datagram"
+    },
+    {
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "block": 2,
+     "counted": "original",
+     "path": "loopback-long",
+     "status": "clean",
+     "workload": "datagram"
+    },
+    {
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "block": 3,
+     "counted": "original",
+     "path": "loopback-long",
+     "status": "clean",
+     "workload": "datagram"
+    },
+    {
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "block": 4,
+     "counted": "original",
+     "path": "loopback-long",
+     "status": "clean",
+     "workload": "datagram"
+    },
+    {
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "block": 5,
+     "counted": "original",
+     "path": "loopback-long",
+     "status": "clean",
+     "workload": "datagram"
+    },
+    {
+     "attempts": [
+      [
+       "original",
+       true,
+       false
+      ]
+     ],
+     "block": 6,
+     "counted": "original",
+     "path": "loopback-long",
+     "status": "clean",
+     "workload": "datagram"
+    }
+   ],
+   "detail": {
+    "blocks": 6,
+    "cand_p50_ms": 0.09127199999999999,
+    "cand_p95_ms": 0.474861,
+    "ci": [
+     0.6105545999302956,
+     1.494406311285434
+    ],
+    "per_block": [
+     0.5658182781901107,
+     1.3038001333380118,
+     1.2292007281209618,
+     1.7061568974066008,
+     0.49324305360651133,
+     1.8380426357084931
+    ],
+    "ratio": 0.9133066377400296,
+    "reno_p50_ms": 0.0876795,
+    "reno_p95_ms": 0.519936
+   },
+   "outcome": "inconclusive"
+  }
+ },
+ "source": "2026-10-16-bbr-port-readiness"
+}
