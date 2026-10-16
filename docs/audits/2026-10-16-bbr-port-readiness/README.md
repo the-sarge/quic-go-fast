@@ -4,11 +4,185 @@
 
 Branch `codex/bbr-port-readiness`, based on `abfa5456`, the candidate itself. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666) record, this record stays off `main`. The [#739 re-demonstration of r9](https://github.com/the-sarge/quic-go-fast/blob/138223ac/docs/audits/2026-10-08-bbr-r9-linux-redemonstration/README.md) (`138223ac`, on `codex/bbr-r9-linux-redemonstration`) supplies the readiness stage, the S5 timeline, the preservation stages, the fixture, the host layout and the aids that this record reruns.
 
-**Status: registration.** Everything below was written, with the aids adapted and the builds made, before any prerequisite, smoke, readiness or attribution observation of this record. That includes the changes from this registration's one review (`ras consider`). Results, deviations and assets will be added afterwards, and these sections will stay unchanged.
+**Status: complete.** The sections from [The candidate](#the-candidate) to [Order](#order) are the registration. They were written, with the aids adapted and the builds made, before any prerequisite, smoke, readiness or attribution observation of this record, including the changes from its one review (`ras consider`). They were committed as `0d142c9e` and `893aedc2`, and are unchanged. The [Answer](#answer), results, [Deviations](#deviations) and later sections were added afterwards.
 
 ## Question
 
 On owned Linux hardware, what are the readiness flags of the merged port head (`main` at `abfa5456`), what does the S5 timeline show, and does any raised Reno-on-candidate preservation cell reproduce under its registered stage? Beside each cell: what did r9 (`81e9dc8c`) record in #739?
+
+## Answer
+
+**On `minimax`, the merged port head raises ten cells. Nine are candidate cells: the eight S5 and S6 memory and control p95 cells r9 also raised, and loopback STREAM control p95. One is a Reno-on-candidate preservation cell, loopback DATAGRAM control p95, whose conditional stage is *inconclusive*. Every goodput and CPU cell passes, and the S6 benefit holds.** Nothing here is cleared: every raised cell goes to slice 7's operator disposition. Under the contract, the raised preservation flag blocks advancement.
+
+- **Useful benefit holds.** On S6 the candidate's goodput is 14.28× Reno's (STREAM) and 14.42× (DATAGRAM), beating Reno in five of five pairs each. r9 recorded 14.53× and 14.74×.
+- **Every goodput and CPU cell passes, on every path, as on r9.**
+  - [#738](https://github.com/the-sarge/quic-go-fast/issues/738)'s open cost: S5 DATAGRAM sender CPU per useful GiB is **0.948** of frozen Reno's. r9 recorded 0.953, r8 0.909.
+  - [#734](https://github.com/the-sarge/quic-go-fast/issues/734)'s wake increase, read through CPU per useful GiB (the operator's choice): on loopback and S5, sender CPU is 0.927–1.028 and receiver CPU 0.938–1.029 of frozen Reno's, all under 1.10. The wake count itself was not measured.
+- **The eight S5 and S6 cells r9 raised stay raised, at about r9's magnitudes.**
+  - S5: STREAM sender RSS 1.217 and receiver RSS 1.482; DATAGRAM sender RSS 1.157.
+  - S6: STREAM sender RSS 1.656 and receiver RSS 1.832; DATAGRAM sender RSS 1.466; control p95 1.581 (STREAM) and 1.461 (DATAGRAM).
+- **Loopback STREAM control p95 is raised at 1.656**, crossing in four of five blocks. That is 0.213 ms against frozen Reno's 0.145 ms; r9 recorded 1.485.
+- **Two cells r9 raised are not raised here: loopback receiver RSS.** It is 1.095 (STREAM) and 1.098 (DATAGRAM), against r9's 1.120 and 1.148. Each median is under 1.10, but two of five blocks cross the limit in each. This is the rule's outcome on different runs from r9's, not a measured improvement.
+- **One preservation cell is raised: Reno on candidate, loopback DATAGRAM control p95, at 1.504**, crossing in three of five blocks. r9 recorded 0.744.
+  - The frozen-Reno A/A arm crosses the same cell at 1.519 (per-block 0.69–5.51). That is context only and never overrides the rule.
+  - `preslat` ran with six clean blocks. Its outcome is ***inconclusive***: pooled p95 ratio 0.913, with a 95% block-bootstrap interval of 0.611–1.494, whose upper end is above the 1.20 limit.
+  - **The cell stays a raised, blocking preservation flag.** It is not attributed to the port or to `main`'s other changes.
+- **S5 timing stays model-bound.** The S5 timeline reads **model behaviour** in both workloads, in four of four blocks each. Timing is 0.0001–0.0003 of capacity, as on r9.
+
+## Readiness results
+
+Plain builds, five blocks per path and workload: 110 counted observations, all exiting cleanly and passing receiver integrity. **No observation was contaminated or unusable**, so no block was rerun, and `summary.json` equals `summary-original.json` in every flag. The failure handling added after the registration review never engaged.
+
+How to read the table:
+
+- Each ratio is the median of per-block ratios against the same block's frozen Reno.
+- **Bold** marks a raised flag, and parentheses give the number of blocks crossing the limit.
+- Brackets give r9's value from #739, bold where r9 raised it. It is descriptive context from runs made on October 8.
+- Every cell has all five blocks.
+- A/A per-block ranges are beside every ratio in [summary.json](summary.json) and [r9-context.json](r9-context.json).
+
+| Path, workload | Arm | Goodput | Sender CPU/GiB | Receiver CPU/GiB | Sender RSS | Receiver RSS | Control p95 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Loopback STREAM | Candidate | 1.160 [1.148] | 1.014 [1.007] | 0.938 [0.937] | 0.974 [0.954] | 1.095 (2) [**1.120**] | **1.656 (4)** [**1.485**] |
+| Loopback STREAM | Reno on candidate | 0.998 [1.003] | 1.003 [1.000] | 1.003 [1.000] | 0.998 [1.006] | 1.002 [0.998] | 0.880 [0.930] |
+| Loopback DATAGRAM | Candidate | 0.995 [1.001] | 1.028 [1.022] | 0.968 [0.964] | 0.949 [0.956] | 1.098 (2) [**1.148**] | 0.695 (2) [0.868] |
+| Loopback DATAGRAM | Reno on candidate | 0.999 [0.999] | 1.002 [1.000] | 0.998 [1.002] | 0.996 [0.998] | 0.987 [1.044] | **1.504 (3)** [0.744] |
+| S5 STREAM | Candidate | 0.972 [0.967] | 0.927 [0.937] | 1.029 [1.040] | **1.217 (5)** [**1.235**] | **1.482 (5)** [**1.518**] | 1.096 [1.061] |
+| S5 STREAM | Reno on candidate | 1.000 [1.000] | 1.002 [1.003] | 0.997 [0.991] | 0.992 [0.999] | 0.974 [0.988] | 0.997 [0.993] |
+| S5 DATAGRAM | Candidate | 0.972 [0.972] | 0.948 [0.953] | 0.992 [0.988] | **1.157 (5)** [**1.159**] | 1.072 [1.070] | 1.037 [1.021] |
+| S5 DATAGRAM | Reno on candidate | 1.000 [1.000] | 0.995 [0.993] | 0.999 [0.999] | 1.006 [1.023] | 1.008 [0.990] | 1.005 [1.003] |
+| S6 STREAM | Candidate | benefit 14.28× [12.32–15.61], 5/5 [14.53×, 5/5] | 0.089 [0.086] | 0.073 [0.073] | **1.656 (5)** [**1.673**] | **1.832 (5)** [**1.898**] | **1.581 (5)** [**1.562**] |
+| S6 DATAGRAM | Candidate | benefit 14.42× [12.21–16.26], 5/5 [14.74×, 5/5] | 0.088 [0.090] | 0.076 [0.078] | **1.466 (5)** [**1.542**] | 1.090 (2) [1.095] | **1.461 (5)** [**1.459**] |
+
+The A/A frozen-Reno arm crosses one limit: loopback DATAGRAM control p95, 1.519 (three blocks; per-block range 0.69–5.51). This is the cell its arm crossed in #739 (1.599) and #715 (1.615). Every other A/A cell passes.
+
+Absolute medians, with r9's in brackets (Mbit/s; s/GiB; MiB; ms):
+
+| Path, workload | Arm | Goodput | Sender / receiver CPU | Sender / receiver RSS | Receiver heap peak (measured) | Control p95 / p50 | Forward overflow |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Loopback STREAM | Reno | 4692.8 [4695.2] | 3.98 / 2.75 [3.98 / 2.75] | 16.77 / 15.27 [16.27 / 14.48] | 3.22 [3.27] | 0.145 / 0.074 [0.134 / 0.070] | — [—] |
+| Loopback STREAM | Candidate | 5459.6 [5390.4] | 4.04 / 2.58 [4.01 / 2.57] | 16.37 / 16.79 [15.52 / 16.20] | 4.33 [4.46] | 0.213 / 0.138 [0.199 / 0.121] | — [—] |
+| Loopback STREAM | Reno on candidate | 4679.0 [4705.6] | 3.99 / 2.76 [3.98 / 2.75] | 16.75 / 15.31 [16.20 / 14.46] | 3.29 [3.17] | 0.124 / 0.071 [0.112 / 0.071] | — [—] |
+| Loopback DATAGRAM | Reno | 4661.9 [4655.0] | 4.54 / 3.02 [4.55 / 3.02] | 18.21 / 20.05 [17.61 / 18.72] | 4.60 [4.49] | 0.422 / 0.082 [0.314 / 0.099] | — [—] |
+| Loopback DATAGRAM | Candidate | 4637.9 [4654.5] | 4.67 / 2.92 [4.66 / 2.92] | 17.73 / 21.53 [16.83 / 21.72] | 6.86 [6.94] | 0.304 / 0.172 [0.253 / 0.174] | — [—] |
+| Loopback DATAGRAM | Reno on candidate | 4658.7 [4647.3] | 4.55 / 3.02 [4.55 / 3.02] | 18.33 / 19.68 [17.69 / 19.42] | 4.83 [4.43] | 0.364 / 0.094 [0.604 / 0.092] | — [—] |
+| S5 STREAM | Reno | 95.9 [95.9] | 10.40 / 8.80 [10.39 / 8.79] | 18.80 / 17.88 [17.97 / 16.94] | 3.42 [3.38] | 182.7 / 176.0 [187.2 / 181.4] | 0.094% [0.113%] |
+| S5 STREAM | Candidate | 93.2 [92.7] | 9.64 / 9.03 [9.74 / 9.12] | 22.73 / 26.50 [22.18 / 25.71] | 14.36 [14.62] | 198.9 / 102.1 [199.6 / 102.3] | 0.217% [0.214%] |
+| S5 STREAM | Reno on candidate | 95.9 [95.9] | 10.42 / 8.71 [10.42 / 8.71] | 18.64 / 17.42 [17.98 / 16.68] | 3.40 [3.43] | 182.6 / 176.6 [184.8 / 178.5] | 0.093% [0.102%] |
+| S5 DATAGRAM | Reno | 94.4 [94.4] | 11.54 / 8.93 [11.47 / 8.95] | 18.63 / 14.88 [17.88 / 14.23] | 3.28 [3.26] | 177.5 / 170.7 [179.6 / 172.1] | 0.398% [0.403%] |
+| S5 DATAGRAM | Candidate | 91.8 [91.8] | 10.92 / 8.86 [10.89 / 8.86] | 21.70 / 15.94 [20.86 / 15.14] | 4.18 [4.23] | 187.3 / 102.1 [183.7 / 102.3] | 0.025% [0.027%] |
+| S5 DATAGRAM | Reno on candidate | 94.4 [94.4] | 11.47 / 8.91 [11.44 / 8.94] | 18.98 / 14.99 [18.51 / 14.12] | 3.31 [3.33] | 178.6 / 172.3 [179.2 / 172.8] | 0.406% [0.413%] |
+| S6 STREAM | Reno | 6.1 [6.1] | 109.87 / 121.18 [114.12 / 123.25] | 13.88 / 14.63 [13.25 / 13.50] | 3.47 [3.55] | 125.5 / 105.6 [127.7 / 105.5] | 0.000% [0.000%] |
+| S6 STREAM | Candidate | 87.9 [88.3] | 9.80 / 8.87 [9.81 / 8.99] | 22.98 / 26.89 [22.18 / 26.34] | 14.98 [14.38] | 199.3 / 102.1 [199.5 / 102.1] | 0.239% [0.250%] |
+| S6 DATAGRAM | Reno | 5.9 [5.9] | 122.97 / 121.07 [119.42 / 118.89] | 14.63 / 14.59 [13.78 / 13.88] | 3.34 [3.35] | 126.6 / 104.5 [125.8 / 104.8] | 0.000% [0.000%] |
+| S6 DATAGRAM | Candidate | 85.7 [86.2] | 10.85 / 9.29 [10.79 / 9.41] | 21.75 / 15.85 [21.24 / 15.19] | 4.20 [4.18] | 184.6 / 102.0 [187.3 / 102.0] | 0.029% [0.047%] |
+
+**Loopback latency, per block.** These are sub-millisecond quantities at 20 replies per run:
+
+- *Candidate, loopback STREAM:* per-block ratios 0.86–1.80. The candidate's p95 is 0.195–0.260 ms in every block, against frozen Reno's 0.118–0.227 ms.
+- *Reno on candidate, loopback DATAGRAM:* per-block ratios 0.58–2.49. The arm's median p95 (0.364 ms) is below frozen Reno's (0.422 ms). The rule's per-block median is 1.504 because frozen Reno's own per-block p95 ranges 0.170–0.630 ms.
+
+None of this changes either flag.
+
+## Carried open costs and preservation
+
+- **#738's S5 DATAGRAM sender CPU per useful GiB:** 0.948 of frozen Reno's, passing, with no block crossing. r9 recorded 0.953 in #739, and r8 0.909 in #736. Those are different runs, so they are descriptive context.
+- **#734's run-loop wake increase:** its guarded cost, CPU per useful GiB, passes on every path:
+  - sender 0.927–1.028 on loopback and S5, and 0.088–0.089 on S6;
+  - receiver 0.938–1.029 on loopback and S5, and 0.073–0.076 on S6.
+  The wake count was not measured.
+- **Reno on candidate.** One cell is raised: loopback DATAGRAM control p95, 1.504.
+  - Every other Reno-on-candidate cell lies within 0.974–1.008 on goodput, CPU and RSS, and within 0.880–1.005 on control p95. r9's were 0.988–1.044 and 0.744–1.003.
+  - `presrss` did not trigger, because no Reno-on-candidate RSS cell is raised. No Reno-on-candidate cell was left out by a limit or by the cap.
+
+| Cell | Readiness | `preslat` (registered) | Candidate ÷ Reno on candidate (descriptive) | r9 (#739) |
+| --- | --- | --- | --- | --- |
+| Loopback DATAGRAM control p95, Reno on candidate | **1.504 (3)**; A/A 0.69–5.51 | ***inconclusive***: pooled p95 0.475 ms ÷ 0.520 ms = 0.913; 95% interval 0.611–1.494; per block 0.49–1.84; 6 of 6 blocks clean, 120 s window | 0.837 (0.28–1.64) over five blocks | 0.744 (2), not raised |
+
+**Reading the `preslat` outcome:**
+
+- The stage was adequate: six usable blocks, at least 100 replies per run, and at least 500 per arm.
+- Its point estimate is under 1. But its interval reaches above the 1.20 limit, so the rule says *inconclusive*, not *not reproduced*.
+- Under the registration, no outcome would have ended the cell's blocking state. Under #739's D3 mapping, only an adequate *not reproduced* outcome would have done so, and this is not that outcome.
+- No arm here measures `main` without the port, so the cell is not attributed.
+
+## S5 timeline: model behaviour
+
+The stage ran straight after readiness (`s5timeline`, 8 observations, all clean, none rerun). There was no escalation: no workload had exactly two of four agreeing blocks. The figures are per block, as fractions of the bottleneck's capacity over the measured window, from the [timeline overlay](timeline/), in [attribution.json](attribution.json) `s5timeline` and [r9-context.json](r9-context.json).
+
+| Workload | Delivery deficit | Attributed idle | Model | Timing | Unexplained | Verdicts |
+| --- | --- | --- | --- | --- | --- | --- |
+| STREAM | 0.023–0.037 | 0.025–0.038 | 0.014–0.024 | 0.0002–0.0003 | 0.010–0.015 | model ×4 → **model** |
+| DATAGRAM | 0.022–0.035 | 0.020–0.034 | 0.012–0.024 | 0.0001–0.0002 | 0.007–0.010 | model ×4 → **model** |
+| r9 STREAM (#739) | 0.028–0.034 | 0.028–0.038 | 0.017–0.025 | 0.0002–0.0003 | 0.011–0.014 | model ×4 → model |
+| r9 DATAGRAM (#739) | 0.020–0.030 | 0.020–0.030 | 0.010–0.020 | 0.0001–0.0002 | 0.009–0.010 | model ×3, no deficit ×1 → model |
+
+- **Stage verdict: model behaviour**, in both workloads, as on r9.
+- **Lateness.** Late arrivals at a full-quantum deadline per 30 s run: 27,264–27,498 (STREAM) and 28,505–28,946 (DATAGRAM). They total 0.215–0.227 s per run, with maxima of 0.18–1.61 ms. r9 recorded 27,259–29,008 events and 0.217–0.226 s.
+- **Phase shares** are r9's within a few points. Cruise is 0.54–0.62 (STREAM) and 0.59–0.67 (DATAGRAM); Down 0.16–0.24; Up 0.13–0.17 (STREAM) and 0.09–0.11 (DATAGRAM); ProbeRTT 0.02–0.05.
+- **Connection-goroutine states.** The connection goroutine is pacer-bound for 0.92–0.93 (STREAM) and 0.95–0.97 (DATAGRAM) of the window, as on r9.
+- **Instrument perturbation is negligible.** Instrumented goodput is 1.002 (STREAM) and 1.001 (DATAGRAM) of the readiness candidate's.
+
+**Receiver CPU split.** No S5 receiver CPU cell is raised, so the registered split classifies nothing. [attribution.json](attribution.json) `cpu_split` holds every cell's descriptive figures.
+
+## Flag report for slice 7
+
+For slice 7 of [#748](https://github.com/the-sarge/quic-go-fast/issues/748), the operator's advancement disposition: candidate `main` at `abfa5456`, Linux (`minimax`). Every cell is presented with its absolute values above. Nothing is pre-cleared, and no r9 readiness exception covers any cell.
+
+| Status | Flags |
+| --- | --- |
+| **Useful benefit** | S6: 14.28× (STREAM) and 14.42× (DATAGRAM) Reno goodput, 5/5 pairs each, at 0.089 / 0.088× Reno's sender CPU per useful GiB. |
+| **Not raised** | Every goodput and CPU cell on every path. Loopback sender RSS (both), loopback receiver RSS (both; medians 1.095 and 1.098, two blocks crossing each), loopback DATAGRAM control p95, S5 control p95 (both), S5 DATAGRAM receiver RSS, S6 DATAGRAM receiver RSS. Every Reno-on-candidate cell but one. |
+| **Raised, candidate (9)** | S5 STREAM sender RSS 1.217 and receiver 1.482; S5 DATAGRAM sender 1.157; S6 STREAM sender 1.656 and receiver 1.832; S6 DATAGRAM sender 1.466; S6 control p95 1.581 (STREAM) and 1.461 (DATAGRAM); loopback STREAM control p95 1.656. |
+| **Raised, preservation (1)** | Reno on candidate, loopback DATAGRAM control p95, 1.504. `preslat`: *inconclusive* (0.913; 0.611–1.494). Not attributed. **Blocks advancement** under the contract. |
+| **Not measured** | The run-loop wake count; the candidate on macOS and Windows; the port's share of any Reno-on-candidate difference (no `main`-without-port arm). |
+
+## Deviations
+
+None. No rule, threshold, seed, arm, cap or stage changed after data. The registration (`0d142c9e`) and its review changes (`893aedc2`) were committed before the first observation.
+
+**Disclosed operational facts.**
+
+- The pre-start check passed (`PRESTART-EMPTY`, 09:30:00 UTC).
+- The prerequisite review ran on `minimax` at about 09:36 UTC, during the first loopback readiness block, under `nice -n 19 taskset -c 1-3` (runner cores), as in #739.
+- Two watchers polled `minimax` over ssh: every 60 s until the prerequisites finished, then every 120 s.
+- After `DRIVER-DONE` (11:41:26 UTC), with no stage running, `stages.py fold`, `readiness` and `s5timeline` ran on `minimax` under `taskset -c 1-3` to read the timeline verdicts for the escalation decision. The observations were then copied to the Mac, where `stages.py prereq`, `stages.py all` and `r9context.py` ran.
+- The registration's Order omitted `stages.py prereq` after `stages.py all`, whose step list does not include it. It was run as #739's reconstruction note says, and changes no figure.
+- The contamination test found no foreign load in any counted observation. All 25 quiet-host gates passed on their first 60 s window.
+- `resume.py mark` ran three times and marked nothing. No stage stopped, and no `follow.py` step failed.
+
+**Timing.** Prerequisites took 5 minutes, readiness 85 minutes (09:35–10:59 UTC), `s5timeline` 10 minutes and `preslat` 32 minutes: 2 h 11 min in total. The registered estimate was about 1 h 50 min without conditional stages and up to about 2 h 50 min with all of them.
+
+## Preservation
+
+- **Payload integrity.** All 137 retained observations exited cleanly and passed receiver integrity: 110 readiness, 8 timeline, 12 `preslat`, and 7 excluded prerequisite and smoke runs.
+- **Default Reno.** One Reno-on-candidate cell is raised (above). The others lie within 0.974–1.008 on goodput, CPU and RSS.
+- **No code change.** No transport source changed. No recorded translation, cap, evidence contract, controller version or default changed. The overlays exist only in their measurement builds.
+- **No host change.** `perf_event_paranoid`, socket-buffer limits, offloads, the governor, EPP, boost and idle states were left unchanged. All 12 `hostfacts` snapshots match the first (powersave, EPP performance, boost on, every idle state enabled).
+
+## Limits
+
+- **Platform and topology.** One Linux host, with loopback endpoints and a userspace relay. This certifies no other platform, no real carrier path and no production readiness.
+- **Repetition.** Five blocks per readiness cell, four timeline blocks per workload, six `preslat` blocks.
+- **Loopback latency.**
+  - Loopback control p95 is a sub-millisecond quantity at 20 replies per run. The frozen-Reno A/A arm alone ranges 0.69–5.51 per block on loopback DATAGRAM, and 0.43–1.05 on loopback STREAM.
+  - Nothing here explains the raised loopback STREAM cell or the raised Reno-on-candidate loopback DATAGRAM cell.
+- **Comparison with r9.** r9's values come from runs on a different day, and the candidate's root code and module versions differ from r9's. A difference from r9 is descriptive and is not attributed.
+- **Engagement.** No queue CE-marked any packet, so the CE response stays unengaged, as on r9.
+
+## Assets and reconstruction
+
+- **Results:**
+  - [summary.json](summary.json): registered readiness.
+  - [summary-original.json](summary-original.json): #712's rule; identical flags.
+  - [attribution.json](attribution.json): prerequisites, readiness blocks, CPU split, `s5timeline`, `preslat`, and `presrss` as not triggered.
+  - [r9-context.json](r9-context.json): r9's values beside every cell, the S5 timeline beside r9's, and candidate ÷ Reno on candidate for the raised preservation cell.
+- **Raw data:** [raw.tar.gz](raw.tar.gz) with [raw-manifest.json](raw-manifest.json) holds every observation, prerequisite, `driver.log`, `follow-decisions.json`, `resume-marks.json`, `hostfacts` snapshot and build receipt. Binaries, credentials, exported source trees and root-owned perf data are omitted.
+- **To reconstruct,** in a fresh owned worktree of this branch:
+  1. Run `build.py`, then `sync.sh` to a Linux host with the same CPU layout.
+  2. Run [driver.sh](driver.sh) there, or its steps by hand under `taskset -c 1-3`.
+  3. Run `stages.py fold` there.
+  4. Run `stages.py prereq`, `stages.py all` and `r9context.py` anywhere.
 
 ## The candidate
 
