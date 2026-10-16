@@ -4969,3 +4969,35 @@ The registration review added handling for a failed or receipt-less observation:
 ### Next
 
 Slice 7: the operator's advancement disposition on the ten raised cells, before any qualification. Under the contract, the raised preservation flag blocks advancement. #748 is the live view.
+
+---
+
+## BBR port advanced on Linux - 2026-10-16 14:10 EDT
+
+**Main:** `899be6bd26ff`
+**Actor:** Claude
+
+### Summary
+
+Slice 7 of the BBR production port ([#748](https://github.com/the-sarge/quic-go-fast/issues/748)) recorded the operator's advancement disposition on the ten cells slice 6 raised for the merged port, `main` at `abfa5456`. The record is [docs/audits/2026-10-16-bbr-port-advancement-decision/README.md](https://github.com/the-sarge/quic-go-fast/blob/ebfd9339/docs/audits/2026-10-16-bbr-port-advancement-decision/README.md) at `ebfd9339` on `codex/bbr-port-advancement-decision`. Like every #666 record, it stays off `main`; this entry is only a pointer to it.
+
+**Outcome: the port is advanced on Linux, by explicit operator amendment.** Under the unchanged advancement condition it is not advanced, and that verdict stands. BBRv3 stays experimental, opt-in and unqualified, and Reno stays the default. Advancement makes `abfa5456` eligible for qualification; it is not a qualification, adoption, release or default change.
+
+### Decisions
+
+The operator accepted the record on 2026-10-16.
+
+- **Nine candidate cells** (six S5/S6 memory cells, S6 control p95 for both workloads, loopback STREAM control p95) get unattributed readiness exceptions for `abfa5456` on Linux, at this record's magnitudes. These are r9's costs at close to r9's sizes: four cells exceed #747's accepted figures slightly. They pre-clear no later measurement, revision or platform.
+- **The preservation cell** (Reno on candidate, loopback DATAGRAM control p95, 1.504; `preslat` *inconclusive*) gets the first readiness exception granted on a preservation flag. It is a discretionary ruling, from the option the operator chose, "Rule it noise now". The flag stays raised, and its evidence stays noise-compatible or inconclusive, never a noise attribution.
+  - The ruling overrides, for slice 6's evidence on that one cell only: condition 3's preservation clause and the contract's "A raised preservation flag blocks advancement"; the Linux decision's D3 rules that A/A overlap never clears or excepts a preservation flag and that such an exception needs a demonstrated cause; and the r8 decision's D3 mapping.
+  - The agent recommended keeping the flag blocking and filing one re-measurement. Before accepting, the operator was shown the corrected history (A/A and Reno on candidate each raised the cell in three of five readiness records, including #712) and the Linux decision's assessment of the same cell.
+- **L6 coexistence** is filed, not started, as [#777](https://github.com/the-sarge/quic-go-fast/issues/777), by operator choice. It runs when the operator asks. A run on a later `main` commit first needs that revision's own readiness and disposition.
+
+### Validation
+
+- Every decisive figure was checked by script against the readiness record's `summary.json` (`raised_cells.py` writes `raised-cells.json`). The five-record cell history was read from each record's pinned `summary.json`.
+- `ras consider` run `20261016T154533-91aace82280fc433a50ddca8` reviewed draft `d70597c2`: six reviewers, 40 clusters, 160 adjudications (grok failed and agy-argon timed out in adjudication), synthesis complete. Every queue item was fixed in `27100bae` and dispositioned in the record. The synthesis kept the operator's decision.
+
+### Next
+
+#748 closes with this slice: all seven are done. L6 (#777) waits for the operator. #748 is the record of the port; #777 is the live view for what comes next.
