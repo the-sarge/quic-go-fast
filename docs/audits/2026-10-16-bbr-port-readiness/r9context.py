@@ -14,8 +14,10 @@ no flag, changes no registered rule and reads no observation directly.
 - `absolute`: each arm's medians (goodput, CPU seconds per GiB, peak RSS,
   measured-window heap peak, control p95 and p50, relay overflow rate) beside
   r9's.
-- `s5timeline`: the stage and workload verdicts and the per-block
-  decomposition ranges beside r9's.
+- `s5timeline`: the stage and workload verdicts, and per workload the ranges
+  over blocks of the decomposition, the lateness figures (late arrivals,
+  total and maximum lateness per run), the phase shares and the
+  connection-goroutine state shares, beside r9's.
 - `cand_over_reno_on_cand`: only for a raised Reno-on-candidate cell, the
   median (minimum, maximum) over blocks of the per-block ratio candidate ÷
   Reno on candidate for the same measure. Both arms are ratios against the
@@ -37,6 +39,8 @@ R9 = '138223ac'
 R9_DIR = 'docs/audits/2026-10-08-bbr-r9-linux-redemonstration'
 MEASURES = ['goodput', 'send_cpu', 'receive_cpu', 'send_rss', 'receive_rss', 'control_p95']
 DECOMPOSITION = ['deficit', 'idle', 'model', 'timing', 'unexplained']
+LATENESS = ['late_count', 'late_ms_total', 'late_max_ms']
+SHARES = ['phase_share', 'state_share']
 
 
 def stats(v):
@@ -105,7 +109,11 @@ def timeline_ranges(t):
     for w in ['stream', 'datagram']:
         obs = [o for o in t['observations'] if o['workload'] == w and o.get('decomposition')]
         out[w] = dict(verdicts=[o.get('verdict') for o in obs],
-                      **{k: stats([o['decomposition'][k] for o in obs]) for k in DECOMPOSITION})
+                      **{k: stats([o['decomposition'][k] for o in obs]) for k in DECOMPOSITION},
+                      **{k: stats([o.get(k) for o in obs]) for k in LATENESS})
+        for k in SHARES:
+            keys = sorted({x for o in obs for x in (o.get(k) or {})})
+            out[w][k] = {x: stats([(o.get(k) or {}).get(x) for o in obs]) for x in keys}
     return dict(verdict=t.get('verdict'), workloads=t.get('workloads'), blocks=out,
                 instrumented_over_readiness_goodput=t.get('instrumented_over_readiness_goodput'))
 

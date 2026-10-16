@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
-"""#739 analysis: prerequisites, readiness views, the S5 timeline and the conditional preservation stages.
+"""Port readiness analysis (#748 slice 6): prerequisites, readiness views, the S5 timeline and the conditional preservation stages.
+
+Copied from #739's stages.py (138223ac) with one recorded change, made after
+this record's registration review and before any observation: an unusable
+observation (failed exit, missing or marker receipt, failed integrity) is left
+out of every analysis view. `chosen` still records every attempt, so the rerun
+rule and its block status are unchanged, but its directory list holds only
+usable observations, and the original-blocks readiness view drops unusable
+originals. #739's aids assumed every counted observation was usable (none
+failed there), and analyze.py and summarize stop on a failed one. The #739
+docstring follows.
+
+#739 analysis: prerequisites, readiness views, the S5 timeline and the conditional preservation stages.
 
 Copied from #736's stages.py (3bf2245e). Recorded changes: the registered
 steps are D5's (`fold`, `prereq`, `readiness`, the descriptive `receiver`
@@ -108,7 +120,7 @@ def chosen(phase, path=None):
                 cont = [contaminated(d)['contaminated'] for d in ds]
                 attempts.append((label, all(usable(d) for d in ds), any(cont)))
         pick, status = R.choose_block(attempts)
-        dirs += att[pick]
+        dirs += [d for d in att[pick] if usable(d)]
         record.append(dict(path=key[0], workload=key[1], block=key[2], attempts=attempts, counted=pick, status=status))
     return dirs, record
 
@@ -281,7 +293,7 @@ def readiness():
         if pick == 'rule':
             dirs, record = chosen('main')
         else:
-            dirs = [d for att in blocks_of('main').values() for d in att.get('original', [])]
+            dirs = [d for att in blocks_of('main').values() for d in att.get('original', []) if usable(d)]
             record = None
         for d in dirs:
             os.symlink(d, view / d.name)

@@ -7,8 +7,9 @@ scratch release, declared deviation 4 of the port contract) instead of r9;
 the artifact directory is this record's; #739's EXPECTED entry for the r9
 `cand` fixture is dropped (the port head has no prior build); every aid this
 record copies unchanged is also checked byte-identical against #739's record
-(R9_COPIED: every aid #739 copied, plus #739's adapted `matrix.py`,
-`stages.py` and `follow.py`, which this record keeps verbatim); and each
+(R9_COPIED: every aid #739 copied, plus #739's adapted `matrix.py` and
+`follow.py`, which this record keeps verbatim; `stages.py` is adapted, see its
+docstring); and each
 build receipt records `go version -m` (the module versions it resolved,
 because `main`'s go.mod requires newer golang.org/x modules than frozen Reno's
 and the campaign module resolves them with -mod=mod). The #739 docstring
@@ -72,7 +73,7 @@ R8_COPIED = ['harness.py', 'harness_test.py']
 # Copied byte-identical from #739's record (138223ac): every aid, including #739's adapted order and analysis.
 R9 = '138223ac'
 R9_DIR = 'docs/audits/2026-10-08-bbr-r9-linux-redemonstration'
-R9_COPIED = COPIED + PRIOR_COPIED + LEADS_COPIED + R8_COPIED + ['matrix.py', 'stages.py', 'follow.py']
+R9_COPIED = COPIED + PRIOR_COPIED + LEADS_COPIED + R8_COPIED + ['matrix.py', 'follow.py']
 # Binaries this record rebuilds from a revision and overlays a prior record already built (SHA-256).
 EXPECTED = {
     ('reno', 'fixture'): 'cda8feb1b2fb004d72425adee5edeffb64a4c437f3ef07f9eb4e686af3ab5c8b',  # #715, #736, #738, #739

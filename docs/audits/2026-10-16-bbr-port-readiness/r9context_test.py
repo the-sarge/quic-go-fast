@@ -52,6 +52,24 @@ class Timeline(unittest.TestCase):
         self.assertEqual((out['blocks']['stream']['model']['minimum'], out['blocks']['stream']['model']['maximum']), (0.017, 0.025))
         self.assertIsNone(out['blocks']['datagram']['model'])
 
+    def test_lateness_and_shares(self):
+        dec = dict(deficit=0.03, idle=0.03, model=0.02, timing=0.0002, unexplained=0.01)
+        obs = [dict(workload='datagram', verdict='model', decomposition=dec, late_count=c, late_ms_total=c / 100, late_max_ms=0.05,
+                    phase_share=dict(cruise=0.6, down=d), state_share=dict(paced_ns=0.96)) for c, d in [(28709, 0.17), (29008, 0.23)]]
+        out = C.timeline_ranges(dict(observations=obs))['blocks']['datagram']
+        self.assertEqual((out['late_count']['minimum'], out['late_count']['maximum']), (28709, 29008))
+        self.assertEqual((out['phase_share']['down']['minimum'], out['phase_share']['down']['maximum']), (0.17, 0.23))
+        self.assertEqual(out['state_share']['paced_ns']['n'], 2)
+
+    def test_missing_field_is_dropped_and_zero_is_kept(self):
+        dec = dict(deficit=0.03, idle=0.03, model=0.02, timing=0.0002, unexplained=0.01)
+        obs = [dict(workload='stream', verdict='model', decomposition=dec, late_count=0, phase_share=dict(cruise=0.6)),
+               dict(workload='stream', verdict='model', decomposition=dec, phase_share=dict(cruise=0.5, down=0.2))]
+        out = C.timeline_ranges(dict(observations=obs))['blocks']['stream']
+        self.assertEqual((out['late_count']['n'], out['late_count']['median']), (1, 0))
+        self.assertIsNone(out['late_ms_total'])
+        self.assertEqual(out['phase_share']['down']['n'], 1)
+
     def test_absent_stage(self):
         self.assertIsNone(C.timeline_ranges({}))
 
