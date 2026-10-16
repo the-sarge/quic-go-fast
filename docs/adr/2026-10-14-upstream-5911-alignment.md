@@ -1,6 +1,6 @@
 # Explicit InitialPacketSize floor for the handshake MTU fallback
 
-**Status:** Proposed. **Date:** 2026-10-14. This revision follows the owner's statement that there will be no upstream sync. It narrows the record to the fork's own documented contract. If accepted, it supersedes the clauses of the [handshake MTU recovery plan](2026-09-06-handshake-mtu-plan.md) named under "Superseded H1 clauses". **Related:** [Upstream compatibility](0001-upstream-compatibility.md), [H1 / PR #20](https://github.com/the-sarge/quic-go-fast/pull/20), [#756](https://github.com/the-sarge/quic-go-fast/issues/756). The trigger was upstream [#5911](https://github.com/quic-go/quic-go/pull/5911) (merge `99c743630f4a96a3c584ed64fb189db6ebd84f38`), but no upstream code is adopted. **Evidence:** [audit folder](../audits/2026-10-14-upstream-5911/README.md).
+**Status:** Accepted on 2026-10-16 and implemented for [#756](https://github.com/the-sarge/quic-go-fast/issues/756). **Date:** 2026-10-14. This revision follows the owner's statement that there will be no upstream sync. It narrows the record to the fork's own documented contract. It supersedes the clauses of the [handshake MTU recovery plan](2026-09-06-handshake-mtu-plan.md) named under "Superseded H1 clauses". **Related:** [Upstream compatibility](0001-upstream-compatibility.md), [H1 / PR #20](https://github.com/the-sarge/quic-go-fast/pull/20), [#756](https://github.com/the-sarge/quic-go-fast/issues/756). The trigger was upstream [#5911](https://github.com/quic-go/quic-go/pull/5911) (merge `99c743630f4a96a3c584ed64fb189db6ebd84f38`), but no upstream code is adopted. **Evidence:** [audit folder](../audits/2026-10-14-upstream-5911/README.md).
 
 ## Context
 
@@ -118,7 +118,7 @@ These H1 non-goals are unchanged: silent black-hole recovery, post-confirmation 
 - silent-drop recovery, tracked by the separate handshake silent-drop plan, which depends on this record;
 - the probing-after-path-change defect below.
 
-A related defect is confirmed and kept separate. After a path change, `mtuFinder.Reset` (`mtu_discoverer.go:176`) sets `lastProbeTime`, and the probe gate (`connection.go:2624`) does not check `DisablePathMTUDiscovery` or DF. A connection with discovery disabled and no DF therefore starts MTU probing after migrating. Evidence is in the audit folder. Upstream fixed the equivalent in #5887; without a sync, the fork must fix it itself.
+A related defect was confirmed and kept separate. After a path change, `mtuFinder.Reset` (`mtu_discoverer.go:176`) sets `lastProbeTime`, and the probe gate (`connection.go:2624`) does not check `DisablePathMTUDiscovery` or DF. A connection with discovery disabled and no DF therefore starts MTU probing after migrating. Evidence is in the audit folder. Upstream fixed the equivalent in #5887. The fork fixed it separately in [#761](https://github.com/the-sarge/quic-go-fast/issues/761) by [#762](https://github.com/the-sarge/quic-go-fast/pull/762) (`4d89a66e`), before this record was implemented.
 
 ## Acceptance criteria
 

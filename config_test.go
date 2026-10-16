@@ -121,6 +121,7 @@ func TestConfigDefaultValues(t *testing.T) {
 	// if set, the values should be copied
 	c := configWithNonZeroNonFunctionFields(t)
 	require.Equal(t, c, populateConfig(c))
+	require.EqualValues(t, 1350, populateConfig(c).initialPacketSize())
 
 	// if not set, some fields use default values
 	c = populateConfig(&Config{})
@@ -133,7 +134,9 @@ func TestConfigDefaultValues(t *testing.T) {
 	require.EqualValues(t, protocol.DefaultMaxReceiveConnectionFlowControlWindow, c.MaxConnectionReceiveWindow)
 	require.EqualValues(t, protocol.DefaultMaxIncomingStreams, c.MaxIncomingStreams)
 	require.EqualValues(t, protocol.DefaultMaxIncomingUniStreams, c.MaxIncomingUniStreams)
-	require.Equal(t, uint16(protocol.InitialPacketSize), c.InitialPacketSize)
+	// The stored size stays unset so that only unset configurations take the handshake MTU fallback.
+	require.Zero(t, c.InitialPacketSize)
+	require.EqualValues(t, protocol.InitialPacketSize, c.initialPacketSize())
 	require.False(t, c.DisablePathMTUDiscovery)
 	require.Nil(t, c.GetConfigForClient)
 }
@@ -181,7 +184,8 @@ func TestConfigPreparationForTransport(t *testing.T) {
 		require.EqualValues(t, protocol.DefaultMaxReceiveConnectionFlowControlWindow, prepared.MaxConnectionReceiveWindow)
 		require.Zero(t, prepared.MaxIncomingStreams)
 		require.EqualValues(t, protocol.DefaultMaxIncomingUniStreams, prepared.MaxIncomingUniStreams)
-		require.Equal(t, uint16(protocol.InitialPacketSize), prepared.InitialPacketSize)
+		require.Zero(t, prepared.InitialPacketSize)
+		require.EqualValues(t, protocol.InitialPacketSize, prepared.initialPacketSize())
 
 		require.Equal(t, uint64(quicvarint.Max+1), conf.InitialStreamReceiveWindow)
 		require.Zero(t, conf.MaxStreamReceiveWindow)

@@ -3443,6 +3443,121 @@ func TestConnectionMigrationMTUDiscovery(t *testing.T) {
 	}
 }
 
+// migratedPathSize records the size a path change gives congestion control.
+type migratedPathSize struct {
+	ackhandler.SentPacketHandler
+	size protocol.ByteCount
+}
+
+func (h *migratedPathSize) MigratedPath(now monotime.Time, size protocol.ByteCount) {
+	h.size = size
+	h.SentPacketHandler.MigratedPath(now, size)
+}
+
+// A path change restarts at the connection's effective initial size, and datagram
+// admission follows it: a datagram that fit the old path is refused, not dropped later.
+func TestPathChangeInitialPacketSize(t *testing.T) {
+	for _, start := range []struct {
+		name     string
+		size     uint16
+		fallback bool
+		want     protocol.ByteCount
+	}{
+		{"unset", 0, false, protocol.InitialPacketSize},
+		{"unset fallback", 0, true, protocol.MinInitialPacketSize},
+		{"explicit", 1350, false, 1350},
+	} {
+		conf := &Config{InitialPacketSize: start.size, EnableDatagrams: true}
+		// growPath takes the fallback if required, grows discovery on the old path and returns a
+		// payload that fits the grown path but not the start size.
+		growPath := func(t *testing.T, c *Conn, now monotime.Time) []byte {
+			t.Helper()
+			if start.fallback {
+				c.handshakeSendFeedback.publish(c.pathGeneration)
+				c.applyHandshakeMTUFallback()
+			}
+			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, MaxDatagramFrameSize: wire.MaxDatagramSize, ActiveConnectionIDLimit: 2}
+			c.applyTransportParameters()
+			c.handshakeConfirmed = true
+			ping, _ := c.mtuDiscoverer.GetPing(now)
+			ping.Handler.OnAcked(ping.Frame)
+			// As the ACK path does once a probe is acknowledged.
+			c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(c.mtuDiscoverer.CurrentSize())))
+			payload := make([]byte, estimateMaxPayloadSize(start.want)+1)
+			require.NoError(t, c.SendDatagram(payload), "fits the grown path")
+			return payload
+		}
+		requirePathStart := func(t *testing.T, c *Conn, congestion *migratedPathSize, payload []byte) {
+			t.Helper()
+			require.Equal(t, start.want, congestion.size, "congestion reset")
+			require.Equal(t, start.want, c.maxPacketSize())
+			require.EqualValues(t, estimateMaxPayloadSize(start.want), c.maxPayloadSizeEstimate.Load())
+			var tooLarge *DatagramTooLargeError
+			require.ErrorAs(t, c.SendDatagram(payload), &tooLarge)
+			require.EqualValues(t, estimateMaxPayloadSize(start.want), tooLarge.MaxDatagramPayloadSize)
+			require.NoError(t, c.SendDatagram(payload[:len(payload)-1]))
+		}
+
+		t.Run(start.name+"/client migration", func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			sender := NewMockSender(mockCtrl)
+			c := newClientTestConnection(t, mockCtrl, conf.Clone(), false, connectionOptSender(sender)).conn
+			now := monotime.Now()
+			payload := growPath(t, c, now)
+			congestion := &migratedPathSize{SentPacketHandler: c.sentPacketHandler}
+			c.sentPacketHandler = congestion
+
+			raw := NewMockRawConn(mockCtrl)
+			raw.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4321}).AnyTimes()
+			raw.EXPECT().capabilities().Return(connCapabilities{}).AnyTimes()
+			sender.EXPECT().Close()
+			c.switchToNewPath(&Transport{conn: raw}, now)
+			// Closing joins the new path's send worker.
+			defer c.emission.queue.Close()
+			requirePathStart(t, c, congestion, payload)
+		})
+
+		t.Run(start.name+"/server path switch", func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			unpacker := NewMockUnpacker(mockCtrl)
+			tc := newServerTestConnection(t, mockCtrl, conf.Clone(), false, connectionOptUnpacker(unpacker))
+			c := tc.conn
+			now := monotime.Now()
+			payload := growPath(t, c, now)
+			congestion := &migratedPathSize{SentPacketHandler: c.sentPacketHandler}
+			c.sentPacketHandler = congestion
+
+			// Validate the new path, so that its next non-probing packet switches to it.
+			newRemoteAddr := &net.UDPAddr{IP: net.IPv4(192, 168, 1, 1), Port: 1234}
+			c.pathManager = newPathManager(
+				func(pathID) (protocol.ConnectionID, bool) {
+					return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
+				},
+				func(pathID) {},
+				utils.DefaultLogger,
+			)
+			_, frames, _ := c.pathManager.HandlePacket(newRemoteAddr, now, nil, false)
+			require.Len(t, frames, 1)
+			challenge := frames[0].Frame.(*wire.PathChallengeFrame)
+			c.pathManager.HandlePathResponseFrame(&wire.PathResponseFrame{Data: challenge.Data})
+
+			unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(
+				protocol.PacketNumber(10), protocol.PacketNumberLen2, protocol.KeyPhaseZero, []byte{1}, nil, // PING
+			)
+			tc.sendConn.EXPECT().ChangeRemoteAddr(newRemoteAddr, gomock.Any())
+			_, err := c.handleShortHeaderPacket(receivedPacket{
+				data:       make([]byte, 10),
+				buffer:     getPacketBuffer(),
+				remoteAddr: newRemoteAddr,
+				rcvTime:    now,
+			}, false, 0)
+			require.NoError(t, err)
+			require.EqualValues(t, 1, c.pathGeneration, "switched paths")
+			requirePathStart(t, c, congestion, payload)
+		})
+	}
+}
+
 func TestConnectionDatagrams(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		testConnectionDatagrams(t, false)

@@ -615,7 +615,8 @@ func TestTransportConfigPreparation(t *testing.T) {
 	require.Equal(t, uint64(quicvarint.Max), prepared.InitialConnectionReceiveWindow)
 	require.Zero(t, prepared.MaxIncomingStreams)
 	require.EqualValues(t, protocol.DefaultMaxIncomingUniStreams, prepared.MaxIncomingUniStreams)
-	require.Equal(t, uint16(protocol.InitialPacketSize), prepared.InitialPacketSize)
+	require.Zero(t, prepared.InitialPacketSize)
+	require.EqualValues(t, protocol.InitialPacketSize, prepared.initialPacketSize())
 
 	require.Equal(t, uint64(quicvarint.Max+1), conf.InitialStreamReceiveWindow)
 	require.Equal(t, uint64(quicvarint.Max+2), conf.InitialConnectionReceiveWindow)

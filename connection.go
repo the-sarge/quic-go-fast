@@ -331,7 +331,7 @@ var newConnection = func(
 	s.rttStats.SetInitialRTT(rtt)
 	s.sentPacketHandler = ackhandler.NewSentPacketHandler(
 		0,
-		protocol.ByteCount(s.config.InitialPacketSize),
+		s.config.initialPacketSize(),
 		s.rttStats,
 		&s.connStats,
 		clientAddressValidated,
@@ -341,7 +341,7 @@ var newConnection = func(
 		s.qlogger,
 		s.logger,
 	)
-	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.ByteCount(s.config.InitialPacketSize))))
+	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
 	statelessResetToken := statelessResetter.GetStatelessResetToken(srcConnID)
 	params := &wire.TransportParameters{
 		InitialMaxStreamDataBidiLocal:   protocol.ByteCount(s.config.InitialStreamReceiveWindow),
@@ -462,7 +462,7 @@ var newClientConnection = func(
 	s.preSetup()
 	s.sentPacketHandler = ackhandler.NewSentPacketHandler(
 		initialPacketNumber,
-		protocol.ByteCount(s.config.InitialPacketSize),
+		s.config.initialPacketSize(),
 		s.rttStats,
 		&s.connStats,
 		false, // has no effect
@@ -472,7 +472,7 @@ var newClientConnection = func(
 		s.qlogger,
 		s.logger,
 	)
-	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.ByteCount(s.config.InitialPacketSize))))
+	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
 	oneRTTStream := newCryptoStream()
 	params := &wire.TransportParameters{
 		InitialMaxStreamDataBidiRemote: protocol.ByteCount(s.config.InitialStreamReceiveWindow),
@@ -532,7 +532,7 @@ var newClientConnection = func(
 }
 
 func (c *Conn) preSetup() {
-	c.effectiveInitialPacketSize = protocol.ByteCount(c.config.InitialPacketSize)
+	c.effectiveInitialPacketSize = c.config.initialPacketSize()
 	c.handshakeSendFeedback.wakeup = make(chan struct{}, 1)
 	c.largestRcvdAppData = protocol.InvalidPacketNumber
 	c.initialStream = newInitialCryptoStream(c.perspective == protocol.PerspectiveClient)
@@ -973,13 +973,7 @@ func (c *Conn) idleTimeoutStartTime() monotime.Time {
 func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 	c.pathGeneration++
 	c.emission.resetLocalPath(c.pathGeneration, now)
-	initialPacketSize := protocol.ByteCount(c.config.InitialPacketSize)
-	c.sentPacketHandler.MigratedPath(now, initialPacketSize)
-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
-	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
-		maxPacketSize = c.peerParams.MaxUDPPayloadSize
-	}
-	c.mtuDiscoverer.Reset(initialPacketSize, maxPacketSize)
+	c.resetPathPacketSize(now)
 	conn := newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
 	queue := c.emission.replacePath(conn, &c.handshakeSendFeedback)
 	// replacePath published the new socket, so DF is checked on the new path.
@@ -989,6 +983,21 @@ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
 			c.destroyImpl(err)
 		}
 	}()
+}
+
+// resetPathPacketSize starts a new path at the connection's effective initial size:
+// 1200 after the unset handshake fallback, otherwise the configured or default size.
+// Datagram admission follows, so SendDatagram refuses payloads that no longer fit.
+// The caller starts discovery once the new path is in place.
+func (c *Conn) resetPathPacketSize(now monotime.Time) {
+	size := c.effectiveInitialPacketSize
+	c.sentPacketHandler.MigratedPath(now, size)
+	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
+	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
+		maxPacketSize = c.peerParams.MaxUDPPayloadSize
+	}
+	c.mtuDiscoverer.Reset(size, maxPacketSize)
+	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
 }
 
 func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
@@ -1359,15 +1368,7 @@ func (c *Conn) handleShortHeaderPacket(
 		return true, nil
 	}
 	c.pathManager.SwitchToPath(p.remoteAddr)
-	c.sentPacketHandler.MigratedPath(p.rcvTime, protocol.ByteCount(c.config.InitialPacketSize))
-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
-	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
-		maxPacketSize = c.peerParams.MaxUDPPayloadSize
-	}
-	c.mtuDiscoverer.Reset(
-		protocol.ByteCount(c.config.InitialPacketSize),
-		maxPacketSize,
-	)
+	c.resetPathPacketSize(p.rcvTime)
 	c.startMTUDiscovery(p.rcvTime)
 	c.pathGeneration++
 	c.emission.resetLocalPath(c.pathGeneration, p.rcvTime)
@@ -2256,7 +2257,7 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 		if maxPayloadSize > protocol.ByteCount(c.maxPayloadSizeEstimate.Load()) {
 			c.maxPayloadSizeEstimate.Store(uint32(maxPayloadSize))
 			// Handshake fallback lowers packetization, not congestion accounting.
-			c.sentPacketHandler.SetMaxDatagramSize(max(mtu, protocol.ByteCount(c.config.InitialPacketSize)))
+			c.sentPacketHandler.SetMaxDatagramSize(max(mtu, c.config.initialPacketSize()))
 		}
 	}
 	return c.cryptoStreamHandler.SetLargest1RTTAcked(frame.LargestAcked())
@@ -2603,10 +2604,20 @@ func (c *Conn) applyTransportParameters() {
 	)
 }
 
-// applyHandshakeMTUFallback is the sole owner of the pre-confirmation size reduction.
+// applyHandshakeMTUFallback consumes the send worker's message-size feedback for the current path.
 func (c *Conn) applyHandshakeMTUFallback() {
 	generation, pending := c.handshakeSendFeedback.take()
-	if !pending || c.handshakeConfirmed || generation != c.pathGeneration || c.effectiveInitialPacketSize <= protocol.MinInitialPacketSize {
+	if !pending || generation != c.pathGeneration {
+		return
+	}
+	c.lowerUnsetInitialPacketSize()
+}
+
+// lowerUnsetInitialPacketSize is the sole owner of the pre-confirmation size reduction,
+// for every trigger. An explicit InitialPacketSize is a floor and is never lowered.
+// Congestion accounting keeps its size.
+func (c *Conn) lowerUnsetInitialPacketSize() {
+	if !c.config.initialPacketSizeUnset() || c.handshakeConfirmed || c.effectiveInitialPacketSize <= protocol.MinInitialPacketSize {
 		return
 	}
 	c.effectiveInitialPacketSize = protocol.MinInitialPacketSize
@@ -2686,7 +2697,8 @@ func (c *Conn) noteCoalescedRegistration(level protocol.EncryptionLevel, now mon
 }
 
 func (c *Conn) coalescedSendMetadata(hasHandshakePacket bool) sendMetadata {
-	return sendMetadata{handshake: !c.handshakeConfirmed && hasHandshakePacket, pathGeneration: c.pathGeneration}
+	handshake := !c.handshakeConfirmed && hasHandshakePacket && c.config.initialPacketSizeUnset()
+	return sendMetadata{handshake: handshake, pathGeneration: c.pathGeneration}
 }
 
 func (c *Conn) noteEmissionRegistration() {
