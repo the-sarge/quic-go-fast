@@ -102,7 +102,7 @@ The experimental count is cumulative per handshake attempt and path epoch. It co
 | --- | --- |
 | Harness | Root-package `quic` internal tests: [silent_drop_capture_test.go.src](fixture/silent_drop_capture_test.go.src), [silent_drop_baseline_test.go.src](fixture/silent_drop_baseline_test.go.src) |
 | Network | Simnet in `testing/synctest` virtual time; a custom router owns every drop and records every datagram. The real-UDP case uses loopback sockets and the existing `integrationtests/tools/proxy` in wall-clock time |
-| Link MTU | 1452 bytes on every simnet uplink and downlink, set explicitly; the largest attempted datagram is 1280, so simnet's implicit 1400-byte limit plays no part |
+| Size limits | Simnet: 1452 bytes on every uplink and downlink, set explicitly, so simnet's implicit 1400-byte limit plays no part. Real UDP: the run records the loopback interface (`lo0`, MTU 16384) and the proxy's 1452-byte per-datagram read buffer. The largest attempted datagram is 1280 bytes, so only the selected filter drops anything |
 | Size filter | Drops datagrams over 1250 bytes in the selected direction; 1200 passes. Writes always succeed locally; no EMSGSIZE is injected |
 | Latency | 10 ms one way (20 ms RTT); 150 ms one way (300 ms RTT) for the high-delay row |
 | Configuration | `InitialPacketSize` unset on both endpoints (effective 1280). Default `HandshakeIdleTimeout` (5 s, so a 10 s handshake timeout), `MaxIdleTimeout`, congestion control and path MTU discovery |
@@ -127,7 +127,7 @@ Times are virtual milliseconds from the start of the dial. The real-UDP times ar
 | One lost transmission round | 1 + 0 at 200 (release) | 1 | 220 | 0 | success; Dial 220, confirmed 240 |
 | Two lost transmission rounds | 2 + 0 at 200 and 600 (release) | 2 | 620 | 0 | success; Dial 620, confirmed 640 |
 | Total loss | 4 + 0, as client-only | 4 | none | no server connection | client `IdleTimeoutError` at 5000 |
-| Real UDP, client oversized dropped | 4 + 0 at 202, 603, 1404, 3005 | 4 | none | no server connection | client `IdleTimeoutError` at 5001 |
+| Real UDP, client oversized dropped | 4 + 0 at 202, 603, 1404, 3005 | 4 | none | no server connection | client `IdleTimeoutError` at 5002 |
 
 **At every recorded point** (receipt, completion, confirmation and every timer call), both endpoints have effective initial size 1280 and maximum packet size 1280. The one exception is the server's own first receipt, at 1200, because it has not yet processed the client's transport parameters. Every successful case verified the bidirectional transfer. Every case recorded joined cleanup. The [summary](summary.json) shows every fixture check and scenario witness true.
 
@@ -138,7 +138,7 @@ Times are virtual milliseconds from the start of the dial. The real-UDP times ar
   - The server never creates a connection. The client times out after the 5 s handshake idle timeout, before the 30 s fixture deadline.
 - **Server oversized dropped.**
   - The server processes the client's Initial at 10 ms, before its first dropped write and its first eligible PTO.
-  - Of its 23 datagrams, the 7 ServerHello-bearing ones (1280 bytes) are dropped. The Handshake-only datagrams (1195 bytes) and 41-byte ACK-only Initials get through.
+  - Of its 23 datagrams, the 7 ServerHello-bearing ones (1280 bytes) are dropped. The Handshake-only datagrams (1185 bytes in run1) and 41-byte ACK-only Initials get through.
   - The client buffers the Handshake packets as undecryptable. It processes the 41-byte ACK at 220 ms, after its first PTO.
   - Because those ACKs acknowledge all of its Initial data, every later client expiry takes the silent branch.
   - Both endpoints process packets throughout, so both end at the 10 s handshake timeout rather than the 5 s idle timeout.
@@ -152,10 +152,10 @@ Times are virtual milliseconds from the start of the dial. The real-UDP times ar
 - **Lossless high delay.**
   - The client's first eligible PTO (200 ms) precedes its receipt (300 ms), and receipt precedes its second eligible PTO (500 ms).
   - That second PTO is spurious. At 200 ms the client re-sent both ClientHello packets and declared the originals lost (`QueueProbePacketAt`, [sent_packet_handler.go:1129-1146](../../../internal/ackhandler/sent_packet_handler.go)). The server's ACK at 300 ms therefore acknowledges no newly acknowledged packet, so it yields no round-trip sample ([sent_packet_handler.go:446-460](../../../internal/ackhandler/sent_packet_handler.go)).
-  - The Handshake timer, armed at 300 ms, uses the unsampled 200 ms PTO and fires before the Finished's ACK arrives at 600 ms. The first round-trip sample (300 ms) is recorded at 600 ms.
+  - The Handshake timer, armed at 300 ms, uses the unsampled 200 ms PTO and fires at 500 ms. Confirmation arrives at 600 ms in a 1-RTT packet carrying HANDSHAKE_DONE and an ACK of the client's 1-RTT data; that ACK gives the first round-trip sample (300 ms). The client's Finished is never acknowledged in the Handshake space (see below).
   - The server's Initial PTO at 350 ms fires before the client's ACK reaches it at 450 ms.
 - **One and two lost transmission rounds.** Every client datagram before the release is dropped: 2 and 4 datagrams respectively, so the second row also drops the first PTO's probes. Delivery is restored inside the client's first or second eligible timer call, and the next client datagrams are that expiration's probes. Server-to-client delivery stays enabled.
-- **Total loss.** All 10 datagrams are dropped, the 1200-byte filter case included. The client times out at 5 s with joined cleanup.
+- **Total loss.** All 10 attempted datagrams are 1280 bytes, and all are dropped. The policy drops every datagram whatever its size, so it would also drop a 1200-byte one, but none was attempted: no fallback ran. The client times out at 5 s with joined cleanup.
 - **Real UDP.** It matches the simnet client-oversized row to within 5 ms per timer call. The proxy drops all 10 client datagrams.
 
 **Repeat run.** [run2](raw/run2.tar.gz) matches [run1](raw/run1.tar.gz) in all ten cases on several projections:
@@ -165,7 +165,7 @@ Times are virtual milliseconds from the start of the dial. The real-UDP times ar
 - every receipt;
 - every outcome.
 
-Two things vary between runs. The server's Handshake-only datagram varies between 1185 and 1196 bytes, always under the filter. Packetization of the 1-RTT echo also differs.
+Two things vary between runs. The server's Handshake-only datagram varies between 1184 and 1203 bytes across scenarios and runs, always under the filter. Packetization of the 1-RTT echo also differs.
 
 **Amplification.** No server send happened at or over three times the client bytes delivered to it, in any scenario. The two 1280-byte ClientHello datagrams give a 7680-byte budget, and the server's first flight is about 2.6 KB. The server's `cancelled` timer events coincide with completion or close, not with the amplification limit.
 
@@ -182,10 +182,15 @@ Two things vary between runs. The server's Handshake-only datagram varies betwee
 - The client drops its Initial keys when its first Handshake packet is registered ([connection.go:2692-2696](../../../connection.go)).
 - It completes on TLS completion ([connection.go:2138](../../../connection.go)); at completion the client only applies transport parameters ([connection.go:1021-1023](../../../connection.go)).
 - It confirms on HANDSHAKE_DONE or an ACK of a 1-RTT packet, which drops the Handshake space ([connection.go:1052-1063](../../../connection.go)).
-- **Timers in between.** The client's Finished is outstanding and a Handshake PTO is armed ([sent_packet_handler.go:723-730](../../../internal/ackhandler/sent_packet_handler.go)). Once the Finished is acknowledged, a Handshake ACK also completes address validation ([:415-421](../../../internal/ackhandler/sent_packet_handler.go)), and no PTO is armed until confirmation ([:705-708](../../../internal/ackhandler/sent_packet_handler.go)). A 1-RTT PTO needs confirmation ([:731](../../../internal/ackhandler/sent_packet_handler.go)).
-- The server confirms at completion.
+- **Timers in between.** The client's Finished is outstanding and a Handshake PTO is armed ([sent_packet_handler.go:723-730](../../../internal/ackhandler/sent_packet_handler.go)). A 1-RTT PTO needs confirmation ([:731](../../../internal/ackhandler/sent_packet_handler.go)).
+- **A branch these captures never reach.** If a Handshake ACK of the Finished arrived, it would complete address validation ([:415-421](../../../internal/ackhandler/sent_packet_handler.go)), and with no crypto data outstanding no PTO would be armed until confirmation ([:705-708](../../../internal/ackhandler/sent_packet_handler.go)).
+- The server confirms at completion ([connection.go:1026-1029](../../../connection.go)). It drops its Handshake keys before it can acknowledge the client's Finished in that space.
 
-**Observed.** Client completion and confirmation are 20 and 40 ms (healthy), 20 and 100 ms (loss after receipt), 300 and 600 ms (high delay), 220 and 240 ms (one round) and 620 and 640 ms (two rounds). The eligible client PTOs inside that window are the Handshake PTOs at 80 ms (loss after receipt) and 500 ms (high delay). A trigger window that ends at completion would exclude both; one that ends at confirmation includes both. This investigation does not choose between them.
+**Observed.**
+
+- **No Handshake ACK.** In every successful scenario of both runs, the server sends no Handshake packet after its completion. The client receives no Handshake ACK of its Finished, and it confirms on a 1-RTT packet carrying HANDSHAKE_DONE. So the client's Handshake PTO stays armed for the whole window between completion and confirmation.
+- **Window lengths.** Client completion and confirmation are 20 and 40 ms (healthy), 20 and 100 ms (loss after receipt), 300 and 600 ms (high delay), 220 and 240 ms (one round) and 620 and 640 ms (two rounds). These are properties of these schedules, not a minimum delay.
+- **PTOs inside the window.** The eligible client PTOs there are the Handshake PTOs at 80 ms (loss after receipt) and 500 ms (high delay). A trigger window that ends at completion would exclude both; one that ends at confirmation includes both. This investigation does not choose between them.
 
 ## Discovery-gating status
 
@@ -209,7 +214,25 @@ python3 -I docs/audits/2026-10-17-handshake-silent-drop-baseline/summarize.py --
 
 The capture mode writes one JSONL stream per scenario plus `mapping.jsonl` and the test logs. Each record has a sequence number and, inside synctest, a virtual timestamp. `summarize.py` reads only the archived tarballs and runs no tests; `--check` fails unless it regenerates [summary.json](summary.json) byte for byte. [SHA256SUMS](SHA256SUMS) covers every other file in this directory.
 
-**Run ledger.** Counted evidence used the frozen fixture:
+`reproduce.sh` refuses an output directory that is not empty, because the mapping test appends to `mapping.jsonl`.
+
+**Preflight commands, as run.** E0 was written to `raw/E0-baseline.txt` and renamed to `.log` before commit, because the repository ignores `*.txt`:
+
+```bash
+{ echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"; echo "head: $(git rev-parse HEAD)"; echo "go: $(GOTOOLCHAIN=local go version)"; echo "go.mod: $(grep -E '^go ' go.mod)"; echo "ci unit matrix: $(grep -E 'go: \[' .github/workflows/unit.yml | tr -s ' ')"; echo "ci lint go: $(grep -m1 'go-version' .github/workflows/lint.yml | tr -s ' ')"; echo "ancestor 81a72481 (#756 merge): $(git merge-base --is-ancestor 81a72481 HEAD && echo yes)"; echo "ancestor 4d89a66e (#762 fix): $(git merge-base --is-ancestor 4d89a66e HEAD && echo yes)"; uname -srm; } > docs/audits/2026-10-17-handshake-silent-drop-baseline/raw/E0-baseline.log
+```
+
+E1 concatenates the filtered output of these two commands:
+
+```bash
+GOTOOLCHAIN=local go test -count=1 -run 'TestHandshakeMTUFallback|TestPathChangeInitialPacketSize|TestEmissionCoalescedHandshake|TestConnectionDatagrams' -v . 2>&1 | grep -E '^(=== RUN|--- |ok|FAIL|PASS)'
+```
+
+```bash
+GOTOOLCHAIN=local go test -count=1 -run 'TestHandshakeMTUFallback' -v ./integrationtests/self 2>&1 | grep -E '^(=== RUN|--- |    --- |ok|FAIL|PASS)'
+```
+
+**Run ledger.** The archived captures come from the fixture as archived here; each run's `receipt.txt` holds its file hashes. The counted evidence is:
 
 - E0, the toolchain and ancestry audit;
 - E1, #779's focused tests;
@@ -217,7 +240,12 @@ The capture mode writes one JSONL stream per scenario plus `mapping.jsonl` and t
 - run2, an identical repeat capture;
 - one race-detector run of the same tests without capture, [race](raw/race.tar.gz), which passed with no race report.
 
-Before freezing, development used four mapping-test runs, one capture run and one race run. Two corrections came out of that development: a string match on qlog output that could never fail was replaced by parsed JSON, and DF fields were added. No outcome was taken from a development run.
+**History.**
+
+- **Development.** Before the first freeze, development used four mapping-test runs, one capture run and one race run. Two corrections came out of it: a string match on qlog output that could never fail was replaced by parsed JSON, and DF fields were added.
+- **First captures.** The first frozen fixture's captures are at commit `ce5f926e`.
+- **Review round 1** (RAS run `20261017T031328-36c952f9b0c71fea2229d791`) changed the fixture in two ways. The Accept helper is now joined on every outcome; before, the real-UDP case did not wait for it. The manifest also records each network's own size limits, where it had recorded the simnet link MTU for the real-UDP case too. All three runs were then repeated with the corrected fixture, and they replace the first captures. Every timer classification, receipt, delivery decision and outcome is unchanged; only the real-UDP wall-clock times moved, by about a millisecond.
+- **Development runs never supplied an outcome.**
 
 ## Limitations
 
@@ -236,6 +264,7 @@ Before freezing, development used four mapping-test runs, one capture run and on
   - So P1 and the guarded P1 would both trigger at the client's first PTO. This is an implication of the baseline timeline, not a measured variant.
   - Later client expiries are silent-branch PTOs.
   - The server takes 6 eligible PTOs, the first at 210 ms after its receipt at 10 ms, so the receipt guard excludes server reduction.
+- **Completion-to-confirmation window.** The server never acknowledges the client's Finished in the Handshake space, so the client's Handshake PTO stays armed until HANDSHAKE_DONE arrives.
 - **Ordinary-loss and high-delay rows.**
   - In the loss-after-receipt row, the client's only eligible PTO is a Handshake PTO after completion, with receipt true.
   - In the lossless 300 ms row, the client takes a pre-receipt Initial PTO and a spurious post-completion Handshake PTO. P2 would trigger there under a confirmation boundary but not under a completion boundary.

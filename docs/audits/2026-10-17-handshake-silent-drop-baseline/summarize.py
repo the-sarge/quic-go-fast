@@ -138,8 +138,14 @@ def summarize_scenario(rows):
         s["max_size"] = max(int(k) for k in s["sizes"])
         s["sizes"] = dict(sorted(s["sizes"].items(), key=lambda kv: int(kv[0])))
     out["datagrams"] = dict(sorted(by_dir.items()))
-    link_mtu = out["fixture"]["link_mtu"]
-    checks["every attempted datagram fits the link MTU"] = all(d["size"] <= link_mtu for d in dgrams)
+    limits = out["fixture"]["size_limits"]
+    if "simnet_link_mtu" in limits:
+        checks["every attempted datagram fits the simnet link MTU"] = all(
+            d["size"] <= limits["simnet_link_mtu"] for d in dgrams)
+    else:
+        bound = min(limits["proxy_read_buffer"], limits["loopback_interface_mtu"])
+        checks["every attempted datagram fits the proxy read buffer and the loopback MTU"] = all(
+            d["size"] <= bound for d in dgrams)
     checks["size filters drop only datagrams over 1250 bytes"] = all(
         d["size"] > FILTER for d in dgrams if d["cause"] == "size_filter"
     )

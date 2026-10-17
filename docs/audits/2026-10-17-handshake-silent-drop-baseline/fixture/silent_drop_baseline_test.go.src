@@ -135,14 +135,15 @@ func errString(err error) string {
 	return err.Error()
 }
 
-func (r *silentDropRun) manifest(sc silentDropScenario, network string) {
+// manifest records the shared setup; limits names the network's own size limits.
+func (r *silentDropRun) manifest(sc silentDropScenario, network string, limits map[string]any) {
 	r.capture.record("fixture", map[string]any{
 		"scenario":                   sc.name,
 		"network":                    network,
+		"size_limits":                limits,
 		"policy":                     sc.policy,
 		"release_at_client_eligible": sc.releaseAt,
 		"one_way_latency_ns":         sc.oneWay.Nanoseconds(),
-		"link_mtu":                   silentDropLinkMTU,
 		"filter_drops_over":          silentDropFilterSize,
 		"dial_deadline_ns":           silentDropDialDeadline.Nanoseconds(),
 		"config":                     "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
@@ -181,11 +182,18 @@ type silentDropAccepted struct {
 func (r *silentDropRun) handshake(t *testing.T, ln *Listener, clientTr *Transport, serverAddr net.Addr, clientTLS *tls.Config) {
 	c := r.capture
 	acceptCtx, cancelAccept := context.WithCancel(context.Background())
-	defer cancelAccept()
 	acceptCh := make(chan silentDropAccepted, 1)
+	acceptDone := make(chan struct{})
 	go func() {
+		defer close(acceptDone)
 		conn, err := ln.Accept(acceptCtx)
 		acceptCh <- silentDropAccepted{conn, err}
+	}()
+	// Join the Accept helper on every outcome, before the caller closes anything.
+	defer func() {
+		cancelAccept()
+		<-acceptDone
+		c.record("phase", map[string]any{"what": "accept helper joined"})
 	}()
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), silentDropDialDeadline)
@@ -297,7 +305,7 @@ func TestSilentDropBaseline(t *testing.T) {
 				run = newSilentDropRun() // the capture clock is the bubble's
 				installSilentDropObservers(t)
 				run.installRelease(sc.releaseAt)
-				run.manifest(sc, "simnet, testing/synctest virtual time")
+				run.manifest(sc, "simnet, testing/synctest virtual time", map[string]any{"simnet_link_mtu": silentDropLinkMTU})
 
 				clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
 				serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
@@ -340,7 +348,12 @@ func TestSilentDropRealUDP(t *testing.T) {
 	sc := silentDropScenario{name: "real-udp-client-oversized-dropped", policy: "proxy drops client-to-server datagrams over 1250 bytes", decide: sizeFilter("c2s")}
 	run := newSilentDropRun()
 	installSilentDropObservers(t)
-	run.manifest(sc, "loopback UDP through integrationtests/tools/proxy, wall-clock time")
+	loName, loMTU := silentDropLoopbackMTU(t)
+	run.manifest(sc, "loopback UDP through integrationtests/tools/proxy, wall-clock time", map[string]any{
+		"loopback_interface":     loName,
+		"loopback_interface_mtu": loMTU,
+		"proxy_read_buffer":      protocol.MaxPacketBufferSize, // the proxy reads each datagram into a buffer of this size
+	})
 
 	listen := func() *net.UDPConn {
 		conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
@@ -379,6 +392,23 @@ func TestSilentDropRealUDP(t *testing.T) {
 	}
 	run.capture.record("phase", map[string]any{"what": "fixture closed"})
 	run.capture.finish(t, sc.name, "transports, listener and proxy closed; proxy workers joined")
+}
+
+// silentDropLoopbackMTU reports the interface that carries 127.0.0.1 and its MTU.
+func silentDropLoopbackMTU(t *testing.T) (string, int) {
+	ifaces, err := net.Interfaces()
+	require.NoError(t, err)
+	for _, ifi := range ifaces {
+		addrs, err := ifi.Addrs()
+		require.NoError(t, err)
+		for _, a := range addrs {
+			if ipn, ok := a.(*net.IPNet); ok && ipn.IP.Equal(net.IPv4(127, 0, 0, 1)) {
+				return ifi.Name, ifi.MTU
+			}
+		}
+	}
+	t.Fatal("no interface carries 127.0.0.1")
+	return "", 0
 }
 
 // TestSilentDropObserverFidelity shows the observer forwards every optional

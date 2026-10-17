@@ -776,20 +776,20 @@
  "receipts": {
   "run1": [
    "mode: capture",
-   "head: a7b8353ac2e87e716fcfa23119959ff5aeaef648",
+   "head: ce5f926e78ef390c7909bd71b2567951ffd43a2a",
    "baseline: a7b8353ac2e87e716fcfa23119959ff5aeaef648",
    "go version go1.27.2 darwin/arm64",
    "dcfae9da32508f1b203f0f0d3eb77252b4c09759f7d2b5e2750dcff79f72632d  silent_drop_capture_test.go",
-   "bb145f7656e48c37d174861260e47190c591724fcb6df63d3bf6f006afc01c43  silent_drop_baseline_test.go",
+   "f4f3eb3ae97f780fa4dc294a7ee94afd81ec7e32efc96e657c0e5ff2c1ae825c  silent_drop_baseline_test.go",
    "0a4a53552069553c427c2f8c5dd25ad45831e4152881846c2b4129c3e94555a3  internal/ackhandler/silent_drop_mapping_test.go"
   ],
   "run2": [
    "mode: capture",
-   "head: a7b8353ac2e87e716fcfa23119959ff5aeaef648",
+   "head: ce5f926e78ef390c7909bd71b2567951ffd43a2a",
    "baseline: a7b8353ac2e87e716fcfa23119959ff5aeaef648",
    "go version go1.27.2 darwin/arm64",
    "dcfae9da32508f1b203f0f0d3eb77252b4c09759f7d2b5e2750dcff79f72632d  silent_drop_capture_test.go",
-   "bb145f7656e48c37d174861260e47190c591724fcb6df63d3bf6f006afc01c43  silent_drop_baseline_test.go",
+   "f4f3eb3ae97f780fa4dc294a7ee94afd81ec7e32efc96e657c0e5ff2c1ae825c  silent_drop_baseline_test.go",
    "0a4a53552069553c427c2f8c5dd25ad45831e4152881846c2b4129c3e94555a3  internal/ackhandler/silent_drop_mapping_test.go"
   ]
  },
@@ -825,50 +825,14 @@
   "healthy": {
    "datagram_counts": {
     "run1": 18,
-    "run2": 17
+    "run2": 18
    },
    "handshake_datagrams": true,
    "phases": true,
    "receipts": true,
    "sub_filter_large_datagram_sizes": {
     "run1": [
-     1185
-    ],
-    "run2": [
      1191
-    ]
-   },
-   "timeout_calls": true
-  },
-  "loss-after-client-receipt": {
-   "datagram_counts": {
-    "run1": 20,
-    "run2": 22
-   },
-   "handshake_datagrams": true,
-   "phases": true,
-   "receipts": true,
-   "sub_filter_large_datagram_sizes": {
-    "run1": [
-     1193
-    ],
-    "run2": [
-     1195
-    ]
-   },
-   "timeout_calls": true
-  },
-  "lossless-high-delay": {
-   "datagram_counts": {
-    "run1": 27,
-    "run2": 28
-   },
-   "handshake_datagrams": true,
-   "phases": true,
-   "receipts": true,
-   "sub_filter_large_datagram_sizes": {
-    "run1": [
-     1196
     ],
     "run2": [
      1186
@@ -876,20 +840,56 @@
    },
    "timeout_calls": true
   },
-  "one-lost-round": {
+  "loss-after-client-receipt": {
    "datagram_counts": {
     "run1": 21,
-    "run2": 20
+    "run2": 22
    },
    "handshake_datagrams": true,
    "phases": true,
    "receipts": true,
    "sub_filter_large_datagram_sizes": {
     "run1": [
-     1194
+     1198
+    ],
+    "run2": [
+     1203
+    ]
+   },
+   "timeout_calls": true
+  },
+  "lossless-high-delay": {
+   "datagram_counts": {
+    "run1": 27,
+    "run2": 27
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1199
     ],
     "run2": [
      1192
+    ]
+   },
+   "timeout_calls": true
+  },
+  "one-lost-round": {
+   "datagram_counts": {
+    "run1": 19,
+    "run2": 21
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1184
+    ],
+    "run2": [
+     1199
     ]
    },
    "timeout_calls": true
@@ -918,10 +918,10 @@
    "receipts": true,
    "sub_filter_large_datagram_sizes": {
     "run1": [
-     1195
+     1185
     ],
     "run2": [
-     1196
+     1202
     ]
    },
    "timeout_calls": true
@@ -943,17 +943,17 @@
   "two-lost-rounds": {
    "datagram_counts": {
     "run1": 21,
-    "run2": 22
+    "run2": 23
    },
    "handshake_datagrams": true,
    "phases": true,
    "receipts": true,
    "sub_filter_large_datagram_sizes": {
     "run1": [
-     1193
+     1184
     ],
     "run2": [
-     1194
+     1190
     ]
    },
    "timeout_calls": true
@@ -965,7 +965,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no indeterminate loss-timer call": true,
     "no unknown datagram direction": true,
     "outcome is a transport outcome, not the fixture deadline": true,
@@ -1098,12 +1098,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "drop datagrams over 1250 bytes in both directions",
     "release_at_client_eligible": 0,
     "scenario": "both-oversized-dropped",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "server_amplification": {
@@ -1122,7 +1124,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no indeterminate loss-timer call": true,
     "no unknown datagram direction": true,
     "outcome is a transport outcome, not the fixture deadline": true,
@@ -1255,12 +1257,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "drop client-to-server datagrams over 1250 bytes",
     "release_at_client_eligible": 0,
     "scenario": "client-oversized-dropped",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "server_amplification": {
@@ -1279,7 +1283,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no indeterminate loss-timer call": true,
     "no unknown datagram direction": true,
     "outcome is a transport outcome, not the fixture deadline": true,
@@ -1315,12 +1319,12 @@
     },
     "s2c": {
      "attempted": 9,
-     "bytes": 7100,
+     "bytes": 7106,
      "delivered": 9,
      "dropped": {},
      "max_size": 1280,
      "sizes": {
-      "1185": 1,
+      "1191": 1,
       "1280": 4,
       "28": 1,
       "310": 1,
@@ -1414,12 +1418,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "no loss",
     "release_at_client_eligible": 0,
     "scenario": "healthy",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "server_amplification": {
@@ -1437,7 +1443,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no client datagram at the release instant was routed before it": true,
     "no indeterminate loss-timer call": true,
     "no loss-window drop after release": true,
@@ -1478,14 +1484,15 @@
      }
     },
     "s2c": {
-     "attempted": 9,
-     "bytes": 7100,
-     "delivered": 9,
+     "attempted": 10,
+     "bytes": 7132,
+     "delivered": 10,
      "dropped": {},
      "max_size": 1280,
      "sizes": {
-      "1193": 1,
+      "1198": 1,
       "1280": 4,
+      "27": 1,
       "28": 1,
       "302": 1,
       "362": 1,
@@ -1591,12 +1598,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "after the client processes a peer packet, drop every client-to-server datagram until the client's first eligible PTO",
     "release_at_client_eligible": 1,
     "scenario": "loss-after-client-receipt",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "release": {
@@ -1636,7 +1645,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no indeterminate loss-timer call": true,
     "no unknown datagram direction": true,
     "outcome is a transport outcome, not the fixture deadline": true,
@@ -1674,12 +1683,12 @@
     },
     "s2c": {
      "attempted": 13,
-     "bytes": 9740,
+     "bytes": 9743,
      "delivered": 13,
      "dropped": {},
      "max_size": 1280,
      "sizes": {
-      "1196": 1,
+      "1199": 1,
       "1280": 6,
       "27": 1,
       "28": 1,
@@ -1813,12 +1822,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 150000000,
     "policy": "no loss, 300 ms RTT",
     "release_at_client_eligible": 0,
     "scenario": "lossless-high-delay",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "server_amplification": {
@@ -1838,7 +1849,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no client datagram at the release instant was routed before it": true,
     "no indeterminate loss-timer call": true,
     "no loss-window drop after release": true,
@@ -1863,9 +1874,9 @@
    },
    "datagrams": {
     "c2s": {
-     "attempted": 12,
-     "bytes": 10683,
-     "delivered": 10,
+     "attempted": 11,
+     "bytes": 10656,
+     "delivered": 9,
      "dropped": {
       "loss_window": 2
      },
@@ -1873,23 +1884,21 @@
      "sizes": {
       "1280": 8,
       "26": 1,
-      "27": 1,
       "28": 1,
       "362": 1
      }
     },
     "s2c": {
-     "attempted": 9,
-     "bytes": 7109,
-     "delivered": 9,
+     "attempted": 8,
+     "bytes": 7076,
+     "delivered": 8,
      "dropped": {},
      "max_size": 1280,
      "sizes": {
-      "1194": 1,
+      "1184": 1,
       "1280": 4,
-      "28": 1,
       "310": 1,
-      "362": 1,
+      "367": 1,
       "95": 1
      }
     }
@@ -1992,12 +2001,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "drop every client-to-server datagram until the client's first eligible PTO",
     "release_at_client_eligible": 1,
     "scenario": "one-lost-round",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "release": {
@@ -2032,7 +2043,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the proxy read buffer and the loopback MTU": true,
     "no indeterminate loss-timer call": true,
     "no unknown datagram direction": true,
     "outcome is a transport outcome, not the fixture deadline": true,
@@ -2064,7 +2075,7 @@
    "dial": {
     "error": "timeout: no recent network activity",
     "error_class": "idle_timeout",
-    "t_ms": 5000.924
+    "t_ms": 5001.779
    },
    "endpoints": {
     "client": {
@@ -2092,7 +2103,7 @@
        "handshake_confirmed": false,
        "level": "Initial",
        "received_first_packet": false,
-       "t_ms": 201.706
+       "t_ms": 201.647
       },
       {
        "class": "pto",
@@ -2104,7 +2115,7 @@
        "handshake_confirmed": false,
        "level": "Initial",
        "received_first_packet": false,
-       "t_ms": 602.76
+       "t_ms": 603.136
       },
       {
        "class": "pto",
@@ -2116,7 +2127,7 @@
        "handshake_confirmed": false,
        "level": "Initial",
        "received_first_packet": false,
-       "t_ms": 1403.771
+       "t_ms": 1404.089
       },
       {
        "class": "pto",
@@ -2128,7 +2139,7 @@
        "handshake_confirmed": false,
        "level": "Initial",
        "received_first_packet": false,
-       "t_ms": 3004.825
+       "t_ms": 3004.769
       }
      ],
      "packets_buffered_before_receipt": 0,
@@ -2165,12 +2176,16 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "loopback UDP through integrationtests/tools/proxy, wall-clock time",
     "one_way_latency_ns": 0,
     "policy": "proxy drops client-to-server datagrams over 1250 bytes",
     "release_at_client_eligible": 0,
     "scenario": "real-udp-client-oversized-dropped",
+    "size_limits": {
+     "loopback_interface": "lo0",
+     "loopback_interface_mtu": 16384,
+     "proxy_read_buffer": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "server_amplification": {
@@ -2189,7 +2204,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no indeterminate loss-timer call": true,
     "no unknown datagram direction": true,
     "outcome is a transport outcome, not the fixture deadline": true,
@@ -2218,14 +2233,14 @@
     },
     "s2c": {
      "attempted": 23,
-     "bytes": 17748,
+     "bytes": 17678,
      "delivered": 16,
      "dropped": {
       "size_filter": 7
      },
      "max_size": 1280,
      "sizes": {
-      "1195": 7,
+      "1185": 7,
       "1280": 7,
       "41": 8,
       "95": 1
@@ -2459,12 +2474,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "drop server-to-client datagrams over 1250 bytes",
     "release_at_client_eligible": 0,
     "scenario": "server-oversized-dropped",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "server_amplification": {
@@ -2487,7 +2504,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no indeterminate loss-timer call": true,
     "no unknown datagram direction": true,
     "outcome is a transport outcome, not the fixture deadline": true,
@@ -2620,12 +2637,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "drop every datagram in both directions",
     "release_at_client_eligible": 0,
     "scenario": "total-loss",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "server_amplification": {
@@ -2643,7 +2662,7 @@
     "Go and Python classifications agree": true,
     "at most one connection per endpoint": true,
     "cleanup recorded": true,
-    "every attempted datagram fits the link MTU": true,
+    "every attempted datagram fits the simnet link MTU": true,
     "no client datagram at the release instant was routed before it": true,
     "no indeterminate loss-timer call": true,
     "no loss-window drop after release": true,
@@ -2684,12 +2703,12 @@
     },
     "s2c": {
      "attempted": 8,
-     "bytes": 7085,
+     "bytes": 7076,
      "delivered": 8,
      "dropped": {},
      "max_size": 1280,
      "sizes": {
-      "1193": 1,
+      "1184": 1,
       "1280": 4,
       "310": 1,
       "367": 1,
@@ -2807,12 +2826,14 @@
     "go": "go1.27.2",
     "goarch": "arm64",
     "goos": "darwin",
-    "link_mtu": 1452,
     "network": "simnet, testing/synctest virtual time",
     "one_way_latency_ns": 10000000,
     "policy": "drop every client-to-server datagram until the client's second eligible PTO",
     "release_at_client_eligible": 2,
     "scenario": "two-lost-rounds",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
     "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
    },
    "release": {

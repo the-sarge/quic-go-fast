@@ -19,6 +19,11 @@ if ! git diff --quiet "$BASE" -- . ':(exclude)docs'; then
 	echo "the product tree differs from $BASE" >&2
 	exit 1
 fi
+# The mapping test appends to mapping.jsonl, so a reused directory would mix runs.
+if [ -e "$OUT" ] && [ -n "$(ls -A "$OUT")" ]; then
+	echo "$OUT is not empty; use a new output directory" >&2
+	exit 1
+fi
 for f in silent_drop_capture_test.go silent_drop_baseline_test.go internal/ackhandler/silent_drop_mapping_test.go; do
 	if [ -e "$f" ]; then
 		echo "$f already exists; refusing to overwrite it" >&2
