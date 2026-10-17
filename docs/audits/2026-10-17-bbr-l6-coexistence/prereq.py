@@ -7,8 +7,9 @@ written before any calibration run of this record. Every run here is excluded
 from every statistic. A failed check ends the record as a prerequisite gap.
 
 Checks (zero = the relay's model time zero; D = the model's one-way delay):
-- ecn: every codepoint read as sent, per flow and direction; nothing at the
-  other flow's endpoint.
+- ecn: every codepoint read as sent, per flow and direction.
+- isolation, in every probe and rate check (both flows at once): no packet
+  carrying the other flow's identity at either endpoint.
 - delay-warmup (zero = now + 1 h): both flows, both directions, D = 50 ms.
 - delay-short (zero = now - 150 s): competitor D = 12.5 ms, focal D = 50 ms.
 - switch-100 (zero = now - 99 s) and switch-200 (zero = now - 199 s):

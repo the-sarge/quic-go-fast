@@ -4,10 +4,11 @@
 // model time zero and judges the report against the registered criteria. A
 // finite prerequisite check, not a maintained tool.
 //
-//   - ecn:   each flow sends every ECN codepoint through the relay in both
-//     directions; the far side records the codepoint it reads and any packet
-//     that arrives at the other flow's endpoint (the ECN exchange is #712's
-//     calibrate/main.go, per flow).
+//   - ecn:   each flow in turn sends every ECN codepoint through the relay in
+//     both directions; the far side records the codepoint it reads (#712's
+//     calibrate/main.go exchange, per flow).
+//   - In probe and blast modes both flows run at once, so a receiver also counts
+//     any packet carrying the other flow's identity (a routing failure).
 //   - probe: each flow sends timestamped probes in both directions; the far side
 //     records each probe's send time and one-way delay.
 //   - blast: both flows send faster than the bottleneck in one direction; the far
@@ -247,14 +248,14 @@ func execute() error {
 	switch *mode {
 	case "ecn":
 		// One flow and direction at a time, as in #712's exchange.
-		for id, f := range flows {
+		for _, f := range flows {
 			for _, fwd := range []bool{true, false} {
 				legs = append(legs, run([]*flow{f}, []bool{fwd}, 2*time.Second,
-					func(l *leg, _ uint16, from *net.UDPConn, via *net.UDPAddr) error {
+					func(l *leg, id uint16, from *net.UDPConn, via *net.UDPAddr) error {
 						b := make([]byte, 1200)
 						for cp := uint8(0); cp < 4; cp++ {
 							for range *count {
-								header(b, uint16(id))
+								header(b, id)
 								b[headerSize] = cp
 								if _, _, err := from.WriteMsgUDP(b, tosOOB(cp), via); err != nil {
 									return err
