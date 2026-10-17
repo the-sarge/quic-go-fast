@@ -22,6 +22,21 @@ func (c *Config) maxRetryTokenAge() time.Duration {
 	return c.handshakeTimeout()
 }
 
+// initialPacketSize returns the effective initial packet size.
+func (c *Config) initialPacketSize() protocol.ByteCount {
+	if c.initialPacketSizeUnset() {
+		return protocol.InitialPacketSize
+	}
+	return protocol.ByteCount(c.InitialPacketSize)
+}
+
+// initialPacketSizeUnset reports whether the handshake MTU fallback may lower the
+// initial packet size. An explicit size is a floor. This relies on preparation
+// keeping InitialPacketSize at 0 when it is unset.
+func (c *Config) initialPacketSizeUnset() bool {
+	return c.InitialPacketSize == 0
+}
+
 func prepareConfig(config *Config) (*Config, error) {
 	prepared := clipConfig(config)
 	if config == nil {
@@ -138,11 +153,6 @@ func populateConfig(config *Config) *Config {
 	} else if maxIncomingUniStreams < 0 {
 		maxIncomingUniStreams = 0
 	}
-	initialPacketSize := config.InitialPacketSize
-	if initialPacketSize == 0 {
-		initialPacketSize = protocol.InitialPacketSize
-	}
-
 	return &Config{
 		congestionControl:                config.congestionControl,
 		GetConfigForClient:               config.GetConfigForClient,
@@ -159,7 +169,7 @@ func populateConfig(config *Config) *Config {
 		MaxIncomingUniStreams:            maxIncomingUniStreams,
 		TokenStore:                       config.TokenStore,
 		EnableDatagrams:                  config.EnableDatagrams,
-		InitialPacketSize:                initialPacketSize,
+		InitialPacketSize:                config.InitialPacketSize,
 		DisablePathMTUDiscovery:          config.DisablePathMTUDiscovery,
 		EnableStreamResetPartialDelivery: config.EnableStreamResetPartialDelivery,
 		Allow0RTT:                        config.Allow0RTT,

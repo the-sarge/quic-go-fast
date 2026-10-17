@@ -30,7 +30,7 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Matched Reno**: The Reno reference run paired with a candidate controller's run under the same workload demand, emulator schedule and seed. Matching is of conditions, not achieved throughput; a loss-starved Reno remains the matched reference, and unequal utilization is reported as context rather than removing the comparison.
 
-**Handshake MTU fallback**: Reduction of the handshake packetization budget in response to an eligible local message-size failure before handshake confirmation. It is distinct from recovery from a path that silently drops oversized traffic.
+**Handshake MTU fallback**: Reduction of the handshake packetization budget to 1200 bytes in response to an eligible local message-size failure before handshake confirmation. It applies only when `InitialPacketSize` is unset; an explicit size is a floor that it never lowers. It is distinct from recovery from a path that silently drops oversized traffic.
 
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
 

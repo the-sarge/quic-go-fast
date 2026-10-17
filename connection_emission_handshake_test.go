@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -17,8 +18,13 @@ import (
 
 func newHandshakeEmissionConnection(t *testing.T, client bool) *testConnection {
 	t.Helper()
+	return newSizedHandshakeEmissionConnection(t, client, 1200)
+}
+
+func newSizedHandshakeEmissionConnection(t *testing.T, client bool, initialPacketSize uint16) *testConnection {
+	t.Helper()
 	ctrl := gomock.NewController(t)
-	config := &Config{InitialPacketSize: 1200, DisablePathMTUDiscovery: true}
+	config := &Config{InitialPacketSize: initialPacketSize, DisablePathMTUDiscovery: true}
 	var tc *testConnection
 	if client {
 		crypto := mocks.NewMockCryptoSetup(ctrl)
@@ -45,40 +51,47 @@ func newHandshakeEmissionConnection(t *testing.T, client bool) *testConnection {
 
 func TestEmissionCoalescedHandshake(t *testing.T) {
 	for _, client := range []bool{false, true} {
-		t.Run(map[bool]string{false: "server", true: "client"}[client], func(t *testing.T) {
-			c := newHandshakeEmissionConnection(t, client).conn
-			c.pathGeneration = 9
-			c.retransmissionQueue.addInitial(&wire.PingFrame{})
-			c.handshakeStream.Write([]byte("handshake payload"))
-			now := monotime.Now()
-			result := c.triggerSending(now)
-			require.NoError(t, result.err)
-			require.True(t, c.sentFirstPacket)
-			require.Equal(t, client, c.droppedInitialKeys)
-			require.Equal(t, now, c.firstAckElicitingPacketAfterIdleSentTime)
-			q := c.emission.queue.(*sendQueue)
-			require.Len(t, q.queue, 1)
-			entry := <-q.queue
-			defer entry.buf.Release()
-			hdrs, more := parsePacket(t, entry.buf.Data)
-			require.Len(t, hdrs, 2)
-			require.Empty(t, more)
-			require.Equal(t, protocol.PacketTypeInitial, hdrs[0].Type)
-			require.Equal(t, protocol.PacketTypeHandshake, hdrs[1].Type)
-			require.True(t, entry.metadata.handshake)
-			require.EqualValues(t, 9, entry.metadata.pathGeneration)
-			_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: hdrs[1].PacketNumber, Largest: hdrs[1].PacketNumber}}}, protocol.EncryptionHandshake, now.Add(time.Millisecond))
-			require.NoError(t, err, "registration precedes queue handoff")
-			if client {
-				c.handshakeStream.Write([]byte("next flight"))
-				require.NoError(t, c.triggerSending(now.Add(time.Millisecond)).err)
-				next := <-q.queue
-				defer next.buf.Release()
-				nextHdrs, _ := parsePacket(t, next.buf.Data)
-				require.Len(t, nextHdrs, 1)
-				require.Equal(t, protocol.PacketTypeHandshake, nextHdrs[0].Type)
-			}
-		})
+		// Only an unset size marks the send for the handshake MTU fallback.
+		for _, size := range []uint16{0, 1200} {
+			t.Run(fmt.Sprintf("%s/InitialPacketSize=%d", map[bool]string{false: "server", true: "client"}[client], size), func(t *testing.T) {
+				testEmissionCoalescedHandshake(t, client, size)
+			})
+		}
+	}
+}
+
+func testEmissionCoalescedHandshake(t *testing.T, client bool, size uint16) {
+	c := newSizedHandshakeEmissionConnection(t, client, size).conn
+	c.pathGeneration = 9
+	c.retransmissionQueue.addInitial(&wire.PingFrame{})
+	c.handshakeStream.Write([]byte("handshake payload"))
+	now := monotime.Now()
+	result := c.triggerSending(now)
+	require.NoError(t, result.err)
+	require.True(t, c.sentFirstPacket)
+	require.Equal(t, client, c.droppedInitialKeys)
+	require.Equal(t, now, c.firstAckElicitingPacketAfterIdleSentTime)
+	q := c.emission.queue.(*sendQueue)
+	require.Len(t, q.queue, 1)
+	entry := <-q.queue
+	defer entry.buf.Release()
+	hdrs, more := parsePacket(t, entry.buf.Data)
+	require.Len(t, hdrs, 2)
+	require.Empty(t, more)
+	require.Equal(t, protocol.PacketTypeInitial, hdrs[0].Type)
+	require.Equal(t, protocol.PacketTypeHandshake, hdrs[1].Type)
+	require.Equal(t, size == 0, entry.metadata.handshake)
+	require.EqualValues(t, 9, entry.metadata.pathGeneration)
+	_, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: hdrs[1].PacketNumber, Largest: hdrs[1].PacketNumber}}}, protocol.EncryptionHandshake, now.Add(time.Millisecond))
+	require.NoError(t, err, "registration precedes queue handoff")
+	if client {
+		c.handshakeStream.Write([]byte("next flight"))
+		require.NoError(t, c.triggerSending(now.Add(time.Millisecond)).err)
+		next := <-q.queue
+		defer next.buf.Release()
+		nextHdrs, _ := parsePacket(t, next.buf.Data)
+		require.Len(t, nextHdrs, 1)
+		require.Equal(t, protocol.PacketTypeHandshake, nextHdrs[0].Type)
 	}
 }
 

@@ -22,7 +22,7 @@ A private emission component owns packet construction, recovery registration, an
 
 ### More reliable handshakes and HTTP/3 lifecycles
 
-Eligible local message-size errors reduce oversized handshake flights and enter the existing recovery path. Repeated successful path probes complete their waiters, and send-path publication is synchronized. HTTP/3 keeps pooled connections busy through complete uploads and response consumption, preserves replacement connections during stale failure cleanup, honors cancellation while waiting for SETTINGS, and makes server admission atomic with shutdown. Response completion has one owner for buffered output, lengths, and trailers.
+When `InitialPacketSize` is left unset, eligible local message-size errors reduce oversized handshake flights to 1200 bytes and enter the existing recovery path; an explicit size is kept as a floor. Repeated successful path probes complete their waiters, and send-path publication is synchronized. HTTP/3 keeps pooled connections busy through complete uploads and response consumption, preserves replacement connections during stale failure cleanup, honors cancellation while waiting for SETTINGS, and makes server admission atomic with shutdown. Response completion has one owner for buffered output, lengths, and trailers.
 
 `ConfigureFixedPeerV1` fixes a transport's permitted UDP peer before initialization, guarding receive, ordinary/batched/stateless output and alternate paths. It does not authenticate identity or enable migration. Wiremux retains its selected-peer wrapper.
 

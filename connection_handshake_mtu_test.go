@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,38 +16,76 @@ import (
 )
 
 func TestHandshakeMTUFallbackInitialization(t *testing.T) {
-	for _, fallback := range []bool{false, true} {
-		t.Run(map[bool]string{false: "healthy", true: "fallback"}[fallback], func(t *testing.T) {
-			c := newClientTestConnection(t, nil, &Config{InitialPacketSize: 1452}, false).conn
-			require.EqualValues(t, 1452, c.maxPacketSize())
-			want := protocol.ByteCount(1452)
-			if fallback {
+	for _, tc := range []struct {
+		name     string
+		size     uint16
+		fallback bool
+		want     protocol.ByteCount
+	}{
+		{"unset healthy", 0, false, protocol.InitialPacketSize},
+		{"unset fallback", 0, true, protocol.MinInitialPacketSize},
+		{"explicit healthy", 1452, false, 1452},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newClientTestConnection(t, nil, &Config{InitialPacketSize: tc.size}, false).conn
+			if tc.fallback {
 				c.handshakeSendFeedback.publish(c.pathGeneration)
 				c.applyHandshakeMTUFallback()
-				want = 1200
 			}
-			require.Equal(t, want, c.maxPacketSize())
+			require.Equal(t, tc.want, c.maxPacketSize())
+			require.EqualValues(t, estimateMaxPayloadSize(tc.want), c.maxPayloadSizeEstimate.Load())
 			// Preserve the baseline's start-size behavior even with a smaller peer limit.
 			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1400, ActiveConnectionIDLimit: 2}
 			c.applyTransportParameters()
-			require.Equal(t, want, c.maxPacketSize())
+			require.Equal(t, tc.want, c.maxPacketSize())
 			require.EqualValues(t, 1400, c.mtuDiscoverer.max())
-			require.EqualValues(t, estimateMaxPayloadSize(want), c.maxPayloadSizeEstimate.Load())
-			require.EqualValues(t, 1452, c.config.InitialPacketSize)
+			require.EqualValues(t, estimateMaxPayloadSize(tc.want), c.maxPayloadSizeEstimate.Load())
+			require.Equal(t, tc.size, c.config.InitialPacketSize)
 		})
 	}
 }
 
-func TestHandshakeMTUFallbackPhaseAndPath(t *testing.T) {
+func TestHandshakeMTUFallbackServerStart(t *testing.T) {
+	for _, tc := range []struct {
+		size uint16
+		want protocol.ByteCount
+	}{{0, protocol.InitialPacketSize}, {1452, 1452}} {
+		t.Run(fmt.Sprintf("InitialPacketSize=%d", tc.size), func(t *testing.T) {
+			c := newServerTestConnection(t, nil, &Config{InitialPacketSize: tc.size}, false).conn
+			require.EqualValues(t, protocol.MinInitialPacketSize, c.maxPacketSize(), "until the client's transport parameters")
+			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, ActiveConnectionIDLimit: 2}
+			c.applyTransportParameters()
+			require.Equal(t, tc.want, c.maxPacketSize())
+		})
+	}
+}
+
+func TestHandshakeMTUFallbackExplicitFloor(t *testing.T) {
 	c := newClientTestConnection(t, nil, &Config{InitialPacketSize: 1452}, false).conn
+	c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, ActiveConnectionIDLimit: 2}
+	c.applyTransportParameters()
+	finder := c.mtuDiscoverer
+	// Explicit sends are never marked, so only direct publication reaches the fallback.
+	c.handshakeSendFeedback.publish(c.pathGeneration)
+	c.applyHandshakeMTUFallback()
+	_, pending := c.handshakeSendFeedback.take()
+	require.False(t, pending, "the event is consumed")
+	require.EqualValues(t, 1452, c.effectiveInitialPacketSize)
+	require.Same(t, finder, c.mtuDiscoverer)
+	require.EqualValues(t, 1452, c.maxPacketSize())
+	require.EqualValues(t, estimateMaxPayloadSize(1452), c.maxPayloadSizeEstimate.Load())
+}
+
+func TestHandshakeMTUFallbackPhaseAndPath(t *testing.T) {
+	c := newClientTestConnection(t, nil, &Config{}, false).conn
 	c.pathGeneration = 2
 	c.handshakeSendFeedback.publish(1)
 	c.applyHandshakeMTUFallback()
-	require.EqualValues(t, 1452, c.maxPacketSize())
+	require.EqualValues(t, protocol.InitialPacketSize, c.maxPacketSize())
 	c.handshakeConfirmed = true
 	c.handshakeSendFeedback.publish(2)
 	c.applyHandshakeMTUFallback()
-	require.EqualValues(t, 1452, c.maxPacketSize())
+	require.EqualValues(t, protocol.InitialPacketSize, c.maxPacketSize())
 	c.handshakeConfirmed = false
 	c.handshakeSendFeedback.publish(2)
 	c.applyHandshakeMTUFallback()
@@ -69,7 +108,7 @@ func TestHandshakeMTUFallbackDiscovery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			cs := mocks.NewMockCryptoSetup(ctrl)
-			c := newServerTestConnection(t, ctrl, &Config{InitialPacketSize: 1452, DisablePathMTUDiscovery: tc.disabled}, false, connectionOptCryptoSetup(cs)).conn
+			c := newServerTestConnection(t, ctrl, &Config{DisablePathMTUDiscovery: tc.disabled}, false, connectionOptCryptoSetup(cs)).conn
 			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, ActiveConnectionIDLimit: 2}
 			c.applyTransportParameters()
 			c.handshakeSendFeedback.publish(0)
@@ -96,32 +135,49 @@ func TestHandshakeMTUFallbackDiscovery(t *testing.T) {
 }
 
 func TestHandshakeMTUFallbackCongestionGrowth(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	cs := mocks.NewMockCryptoSetup(ctrl)
-	c := newClientTestConnection(t, ctrl, &Config{InitialPacketSize: 1337}, false, connectionOptCryptoSetup(cs)).conn
-	c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, ActiveConnectionIDLimit: 2}
-	c.applyTransportParameters()
-	c.handshakeSendFeedback.publish(0)
-	c.applyHandshakeMTUFallback()
-	c.handshakeConfirmed = true
-	// Keep the real congestion controller behind the ACK seam: decreasing its size panics.
-	realHandler := c.sentPacketHandler
-	sph := mockackhandler.NewMockSentPacketHandler(ctrl)
-	c.sentPacketHandler = sph
-	sph.EXPECT().ReceivedAck(gomock.Any(), protocol.Encryption1RTT, gomock.Any()).Return(true, nil).Times(3)
-	cs.EXPECT().SetLargest1RTTAcked(gomock.Any()).Times(3)
-	for _, expected := range []protocol.ByteCount{1337, 1389, 1420} {
-		ping, _ := c.mtuDiscoverer.GetPing(monotime.Now())
-		ping.Handler.OnAcked(ping.Frame)
-		sph.EXPECT().SetMaxDatagramSize(expected).Do(func(size protocol.ByteCount) { realHandler.SetMaxDatagramSize(size) })
-		require.NoError(t, c.handleAckFrame(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 1, Largest: 1}}}, protocol.Encryption1RTT, monotime.Now()))
-		require.EqualValues(t, estimateMaxPayloadSize(c.maxPacketSize()), c.maxPayloadSizeEstimate.Load())
+	for _, tc := range []struct {
+		name     string
+		size     uint16
+		fallback bool
+		ceiling  protocol.ByteCount
+		growth   []protocol.ByteCount // max(discovered MTU, configured or default initial size)
+	}{
+		// Discovery restarts from 1200 and probes 1250 and 1275 first, but congestion
+		// accounting never drops below 1280.
+		{"unset fallback", 0, true, 1300, []protocol.ByteCount{1280, 1280, 1287}},
+		{"explicit", 1337, false, 1500, []protocol.ByteCount{1394, 1423, 1437}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			cs := mocks.NewMockCryptoSetup(ctrl)
+			c := newClientTestConnection(t, ctrl, &Config{InitialPacketSize: tc.size}, false, connectionOptCryptoSetup(cs)).conn
+			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: tc.ceiling, ActiveConnectionIDLimit: 2}
+			c.applyTransportParameters()
+			if tc.fallback {
+				c.handshakeSendFeedback.publish(0)
+				c.applyHandshakeMTUFallback()
+			}
+			c.handshakeConfirmed = true
+			// Keep the real congestion controller behind the ACK seam: decreasing its size panics.
+			realHandler := c.sentPacketHandler
+			sph := mockackhandler.NewMockSentPacketHandler(ctrl)
+			c.sentPacketHandler = sph
+			sph.EXPECT().ReceivedAck(gomock.Any(), protocol.Encryption1RTT, gomock.Any()).Return(true, nil).Times(len(tc.growth))
+			cs.EXPECT().SetLargest1RTTAcked(gomock.Any()).Times(len(tc.growth))
+			for _, expected := range tc.growth {
+				ping, _ := c.mtuDiscoverer.GetPing(monotime.Now())
+				ping.Handler.OnAcked(ping.Frame)
+				sph.EXPECT().SetMaxDatagramSize(expected).Do(func(size protocol.ByteCount) { realHandler.SetMaxDatagramSize(size) })
+				require.NoError(t, c.handleAckFrame(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 1, Largest: 1}}}, protocol.Encryption1RTT, monotime.Now()))
+				require.EqualValues(t, estimateMaxPayloadSize(c.maxPacketSize()), c.maxPayloadSizeEstimate.Load())
+			}
+		})
 	}
 }
 
 func TestHandshakeMTUFallbackBeforePacking(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	tc := newClientTestConnection(t, ctrl, &Config{InitialPacketSize: 1452}, false)
+	tc := newClientTestConnection(t, ctrl, &Config{}, false)
 	useLifecyclePacketPacker(t, ctrl, tc)
 	c := tc.conn
 	now := monotime.Now()
@@ -152,23 +208,27 @@ func TestHandshakeMTUFallbackSendClassification(t *testing.T) {
 		{"0-RTT only", []protocol.PacketType{protocol.PacketType0RTT}, false},
 		{"1-RTT only", nil, false},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			sph := mockackhandler.NewMockSentPacketHandler(ctrl)
-			sender := NewMockSender(ctrl)
-			c := newServerTestConnection(t, ctrl, nil, false, connectionOptSentPacketHandler(sph), connectionOptSender(sender)).conn
-			c.pathGeneration = 7
-			packet := &coalescedPacket{buffer: getPacketBuffer()}
-			defer packet.buffer.Release()
-			for _, typ := range tt.types {
-				packet.longHdrPackets = append(packet.longHdrPackets, &longHeaderPacket{header: &wire.ExtendedHeader{Header: wire.Header{Type: typ}}})
-			}
-			if len(tt.types) == 0 {
-				packet.shortHdrPacket = &shortHeaderPacket{}
-			}
-			sph.EXPECT().SentPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false, false).Times(max(1, len(tt.types)))
-			sender.EXPECT().Send(packet.buffer, uint16(0), protocol.ECNNon, sendMetadata{handshake: tt.eligible, pathGeneration: 7})
-			c.emission.sendCoalesced(packet, protocol.ECNNon, monotime.Now())
-		})
+		for _, size := range []uint16{0, 1452} {
+			// An explicit size is a floor, so its sends are never eligible for the fallback.
+			t.Run(fmt.Sprintf("%s/InitialPacketSize=%d", tt.name, size), func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				sph := mockackhandler.NewMockSentPacketHandler(ctrl)
+				sender := NewMockSender(ctrl)
+				conf := &Config{InitialPacketSize: size, DisablePathMTUDiscovery: true}
+				c := newServerTestConnection(t, ctrl, conf, false, connectionOptSentPacketHandler(sph), connectionOptSender(sender)).conn
+				c.pathGeneration = 7
+				packet := &coalescedPacket{buffer: getPacketBuffer()}
+				defer packet.buffer.Release()
+				for _, typ := range tt.types {
+					packet.longHdrPackets = append(packet.longHdrPackets, &longHeaderPacket{header: &wire.ExtendedHeader{Header: wire.Header{Type: typ}}})
+				}
+				if len(tt.types) == 0 {
+					packet.shortHdrPacket = &shortHeaderPacket{}
+				}
+				sph.EXPECT().SentPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false, false).Times(max(1, len(tt.types)))
+				sender.EXPECT().Send(packet.buffer, uint16(0), protocol.ECNNon, sendMetadata{handshake: tt.eligible && size == 0, pathGeneration: 7})
+				c.emission.sendCoalesced(packet, protocol.ECNNon, monotime.Now())
+			})
+		}
 	}
 }

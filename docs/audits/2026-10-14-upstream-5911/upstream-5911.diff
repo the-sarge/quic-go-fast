@@ -1,0 +1,484 @@
+diff --git a/config.go b/config.go
+index 74c2054e45c..f107ac489b7 100644
+--- a/config.go
++++ b/config.go
+@@ -22,6 +22,13 @@ func (c *Config) maxRetryTokenAge() time.Duration {
+ 	return c.handshakeTimeout()
+ }
+ 
++func (c *Config) initialPacketSize() protocol.ByteCount {
++	if c.InitialPacketSize == 0 {
++		return protocol.InitialPacketSize
++	}
++	return protocol.ByteCount(c.InitialPacketSize)
++}
++
+ func validateConfig(config *Config) error {
+ 	if config == nil {
+ 		return nil
+@@ -56,6 +63,7 @@ func validateConfig(config *Config) error {
+ 
+ // populateConfig populates fields in the quic.Config with their default values, if none are set
+ // it may be called with nil
++// InitialPacketSize keeps zero to distinguish the default from an explicit packet-size floor.
+ func populateConfig(config *Config) *Config {
+ 	if config == nil {
+ 		config = &Config{}
+@@ -100,11 +108,6 @@ func populateConfig(config *Config) *Config {
+ 	} else if maxIncomingUniStreams < 0 {
+ 		maxIncomingUniStreams = 0
+ 	}
+-	initialPacketSize := config.InitialPacketSize
+-	if initialPacketSize == 0 {
+-		initialPacketSize = protocol.InitialPacketSize
+-	}
+-
+ 	return &Config{
+ 		GetConfigForClient:               config.GetConfigForClient,
+ 		Versions:                         versions,
+@@ -120,7 +123,7 @@ func populateConfig(config *Config) *Config {
+ 		MaxIncomingUniStreams:            maxIncomingUniStreams,
+ 		TokenStore:                       config.TokenStore,
+ 		EnableDatagrams:                  config.EnableDatagrams,
+-		InitialPacketSize:                initialPacketSize,
++		InitialPacketSize:                config.InitialPacketSize,
+ 		DisablePathMTUDiscovery:          config.DisablePathMTUDiscovery,
+ 		EnableStreamResetPartialDelivery: config.EnableStreamResetPartialDelivery,
+ 		Allow0RTT:                        config.Allow0RTT,
+diff --git a/config_test.go b/config_test.go
+index 0d71974a7ac..0950b8cb05c 100644
+--- a/config_test.go
++++ b/config_test.go
+@@ -186,6 +186,9 @@ func TestConfigDefaultValues(t *testing.T) {
+ 	require.EqualValues(t, protocol.DefaultMaxIncomingUniStreams, c.MaxIncomingUniStreams)
+ 	require.False(t, c.DisablePathMTUDiscovery)
+ 	require.Nil(t, c.GetConfigForClient)
++	// Keep zero to distinguish the default from an explicitly configured floor.
++	require.Zero(t, c.InitialPacketSize)
++	require.Equal(t, protocol.ByteCount(protocol.InitialPacketSize), c.initialPacketSize())
+ }
+ 
+ func TestConfigZeroLimits(t *testing.T) {
+diff --git a/connection.go b/connection.go
+index 423a20ab376..60428b6cf47 100644
+--- a/connection.go
++++ b/connection.go
+@@ -2,6 +2,7 @@ package quic
+ 
+ import (
+ 	"bytes"
++	"cmp"
+ 	"context"
+ 	"crypto/tls"
+ 	"errors"
+@@ -162,7 +163,7 @@ type Conn struct {
+ 	unpacker      unpacker
+ 	frameParser   wire.FrameParser
+ 	packer        packer
+-	mtuDiscoverer *mtuFinder // initialized when the transport parameters are received
++	mtuDiscoverer *mtuFinder // initialized after the first write at the configured Initial size
+ 
+ 	maxPayloadSizeEstimate atomic.Uint32
+ 
+@@ -311,7 +312,7 @@ var newConnection = func(
+ 	s.rttStats.SetInitialRTT(rtt)
+ 	s.sentPacketHandler = ackhandler.NewSentPacketHandler(
+ 		0,
+-		protocol.ByteCount(s.config.InitialPacketSize),
++		s.config.initialPacketSize(),
+ 		s.rttStats,
+ 		&s.connStats,
+ 		clientAddressValidated,
+@@ -321,7 +322,7 @@ var newConnection = func(
+ 		s.qlogger,
+ 		s.logger,
+ 	)
+-	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.ByteCount(s.config.InitialPacketSize))))
++	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
+ 	statelessResetToken := statelessResetter.GetStatelessResetToken(srcConnID)
+ 	params := &wire.TransportParameters{
+ 		InitialMaxStreamDataBidiLocal:   protocol.ByteCount(s.config.InitialStreamReceiveWindow),
+@@ -440,7 +441,7 @@ var newClientConnection = func(
+ 	s.preSetup()
+ 	s.sentPacketHandler = ackhandler.NewSentPacketHandler(
+ 		initialPacketNumber,
+-		protocol.ByteCount(s.config.InitialPacketSize),
++		s.config.initialPacketSize(),
+ 		s.rttStats,
+ 		&s.connStats,
+ 		false, // has no effect
+@@ -450,7 +451,7 @@ var newClientConnection = func(
+ 		s.qlogger,
+ 		s.logger,
+ 	)
+-	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.ByteCount(s.config.InitialPacketSize))))
++	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
+ 	oneRTTStream := newCryptoStream()
+ 	params := &wire.TransportParameters{
+ 		InitialMaxStreamDataBidiRemote: protocol.ByteCount(s.config.InitialStreamReceiveWindow),
+@@ -920,13 +921,10 @@ func (c *Conn) idleTimeoutStartTime() monotime.Time {
+ }
+ 
+ func (c *Conn) switchToNewPath(tr *Transport, now monotime.Time) {
+-	initialPacketSize := protocol.ByteCount(c.config.InitialPacketSize)
++	initialPacketSize := protocol.ByteCount(cmp.Or(c.config.InitialPacketSize, protocol.MinInitialPacketSize))
+ 	c.sentPacketHandler.MigratedPath(now, initialPacketSize)
+-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
+-	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
+-		maxPacketSize = c.peerParams.MaxUDPPayloadSize
+-	}
+-	c.mtuDiscoverer.Reset(initialPacketSize, maxPacketSize)
++	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(initialPacketSize)))
++	c.mtuDiscoverer.Reset(initialPacketSize, c.maxMTU())
+ 	c.conn = newSendConn(tr.conn, c.conn.RemoteAddr(), packetInfo{}, utils.DefaultLogger) // TODO: find a better way
+ 	if !c.config.DisablePathMTUDiscovery && c.conn.capabilities().DF {
+ 		c.mtuDiscoverer.Start(now)
+@@ -1298,12 +1296,10 @@ func (c *Conn) handleShortHeaderPacket(
+ 		return true, nil
+ 	}
+ 	c.pathManager.SwitchToPath(p.remoteAddr)
+-	c.sentPacketHandler.MigratedPath(p.rcvTime, protocol.ByteCount(c.config.InitialPacketSize))
+-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
+-	if c.peerParams.MaxUDPPayloadSize > 0 && c.peerParams.MaxUDPPayloadSize < maxPacketSize {
+-		maxPacketSize = c.peerParams.MaxUDPPayloadSize
+-	}
+-	c.mtuDiscoverer.Reset(protocol.ByteCount(c.config.InitialPacketSize), maxPacketSize)
++	initialPacketSize := protocol.ByteCount(cmp.Or(c.config.InitialPacketSize, protocol.MinInitialPacketSize))
++	c.sentPacketHandler.MigratedPath(p.rcvTime, initialPacketSize)
++	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(initialPacketSize)))
++	c.mtuDiscoverer.Reset(initialPacketSize, c.maxMTU())
+ 	if !c.config.DisablePathMTUDiscovery && c.conn.capabilities().DF {
+ 		c.mtuDiscoverer.Start(p.rcvTime)
+ 	}
+@@ -2445,16 +2441,16 @@ func (c *Conn) applyTransportParameters() {
+ 		// Retire the connection ID.
+ 		c.connIDManager.AddFromPreferredAddress(params.PreferredAddress.ConnectionID, params.PreferredAddress.StatelessResetToken)
+ 	}
+-	maxPacketSize := protocol.ByteCount(protocol.MaxPacketBufferSize)
+-	if params.MaxUDPPayloadSize > 0 && params.MaxUDPPayloadSize < maxPacketSize {
+-		maxPacketSize = params.MaxUDPPayloadSize
++	if c.mtuDiscoverer != nil {
++		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, c.mtuDiscoverer.CurrentSize(), c.maxMTU(), c.qlogger)
+ 	}
+-	c.mtuDiscoverer = newMTUDiscoverer(
+-		c.rttStats,
+-		protocol.ByteCount(c.config.InitialPacketSize),
+-		maxPacketSize,
+-		c.qlogger,
+-	)
++}
++
++func (c *Conn) maxMTU() protocol.ByteCount {
++	if c.peerParams == nil || c.peerParams.MaxUDPPayloadSize <= 0 {
++		return protocol.MaxPacketBufferSize
++	}
++	return min(protocol.MaxPacketBufferSize, c.peerParams.MaxUDPPayloadSize)
+ }
+ 
+ func (c *Conn) triggerSending(now monotime.Time) error {
+@@ -2842,7 +2838,31 @@ func (c *Conn) sendPackedCoalescedPacket(packet *coalescedPacket, ecn protocol.E
+ 		)
+ 	}
+ 	c.connIDManager.SentPacket()
+-	c.sendQueue.Send(packet.buffer, 0, ecn)
++	if c.mtuDiscoverer != nil {
++		c.sendQueue.Send(packet.buffer, 0, ecn)
++		return nil
++	}
++
++	// Write directly until we've tried the configured Initial size. The server
++	// can send smaller ACKs before receiving the full ClientHello. Keep those
++	// writes here too, so the send queue can't write concurrently with us.
++	packetSize := packet.buffer.Len()
++	err := c.conn.Write(packet.buffer.Data, 0, ecn)
++	packet.buffer.Release()
++	if err != nil {
++		if !isSendMsgSizeErr(err) || c.config.InitialPacketSize != 0 {
++			return err
++		}
++	}
++	initialPacketSize := c.config.initialPacketSize()
++	if packetSize >= initialPacketSize {
++		if err != nil {
++			initialPacketSize = protocol.MinInitialPacketSize
++			c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)))
++			c.sentPacketHandler.SetMaxDatagramSize(protocol.MinInitialPacketSize)
++		}
++		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, initialPacketSize, c.maxMTU(), c.qlogger)
++	}
+ 	return nil
+ }
+ 
+@@ -2868,20 +2888,13 @@ func (c *Conn) sendConnectionClose(e error) ([]byte, error) {
+ }
+ 
+ func (c *Conn) maxPacketSize() protocol.ByteCount {
+-	if c.mtuDiscoverer == nil {
+-		// Use the configured packet size on the client side.
+-		// If the server sends a max_udp_payload_size that's smaller than this size, we can ignore this:
+-		// Apparently the server still processed the (fully padded) Initial packet anyway.
+-		if c.perspective == protocol.PerspectiveClient {
+-			return protocol.ByteCount(c.config.InitialPacketSize)
+-		}
+-		// On the server side, there's no downside to using 1200 bytes until we received the client's transport
+-		// parameters:
+-		// * If the first packet didn't contain the entire ClientHello, all we can do is ACK that packet. We don't
+-		//   need a lot of bytes for that.
+-		// * If it did, we will have processed the transport parameters and initialized the MTU discoverer.
++	if c.perspective == protocol.PerspectiveServer && c.peerParams == nil {
++		// Use 1200-byte server packets until we've received the client's transport parameters.
+ 		return protocol.MinInitialPacketSize
+ 	}
++	if c.mtuDiscoverer == nil {
++		return c.config.initialPacketSize()
++	}
+ 	return c.mtuDiscoverer.CurrentSize()
+ }
+ 
+diff --git a/connection_test.go b/connection_test.go
+index faacf6791a1..40e44b7f3d5 100644
+--- a/connection_test.go
++++ b/connection_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"net"
+ 	"net/netip"
+ 	"strconv"
++	"syscall"
+ 	"testing"
+ 	"testing/synctest"
+ 	"time"
+@@ -62,6 +63,7 @@ func connectionOptHandshakeConfirmed() testConnectionOpt {
+ 	return func(conn *Conn) {
+ 		conn.handshakeComplete = true
+ 		conn.handshakeConfirmed = true
++		conn.mtuDiscoverer = newMTUDiscoverer(conn.rttStats, conn.config.initialPacketSize(), conn.maxMTU(), conn.qlogger)
+ 	}
+ }
+ 
+@@ -1807,6 +1809,51 @@ func TestConnectionPacketBuffering(t *testing.T) {
+ 	})
+ }
+ 
++func TestConnectionInitialPacketSizeFallback(t *testing.T) {
++	if !isSendMsgSizeErr(syscall.EMSGSIZE) {
++		t.Skip("message too long errors aren't recognized on this platform")
++	}
++	for _, initialSize := range []uint16{0, protocol.MinInitialPacketSize} {
++		t.Run(strconv.Itoa(int(initialSize)), func(t *testing.T) {
++			mockCtrl := gomock.NewController(t)
++			sender := NewMockSender(mockCtrl)
++			tc := newClientTestConnection(t, mockCtrl, &Config{InitialPacketSize: initialSize}, false, connectionOptSender(sender))
++
++			buf := getPacketBuffer()
++			buf.Data = buf.Data[:tc.conn.config.initialPacketSize()]
++			require.Nil(t, tc.conn.mtuDiscoverer)
++			packet := &coalescedPacket{buffer: buf, longHdrPackets: []*longHeaderPacket{{
++				header: &wire.ExtendedHeader{Header: wire.Header{Type: protocol.PacketTypeInitial}},
++				length: buf.Len(),
++			}}}
++			tc.sendConn.EXPECT().Write(buf.Data, uint16(0), protocol.ECT0).Return(fmt.Errorf("sendmsg: %w", syscall.EMSGSIZE))
++			err := tc.conn.sendPackedCoalescedPacket(packet, protocol.ECT0, monotime.Now())
++			if initialSize != 0 {
++				require.ErrorIs(t, err, syscall.EMSGSIZE)
++				return
++			}
++			require.NoError(t, err)
++			require.Equal(t, protocol.ByteCount(protocol.MinInitialPacketSize), tc.conn.maxPacketSize())
++			require.Equal(t, uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)), tc.conn.maxPayloadSizeEstimate.Load())
++			require.Zero(t, tc.conn.config.InitialPacketSize)
++
++			tc.conn.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1300, ActiveConnectionIDLimit: 2}
++			tc.conn.applyTransportParameters()
++			require.Equal(t, protocol.ByteCount(protocol.MinInitialPacketSize), tc.conn.maxPacketSize())
++
++			// The next packet goes through the send queue before handshake confirmation.
++			buf = getPacketBuffer()
++			buf.Data = buf.Data[:protocol.MinInitialPacketSize]
++			defer buf.Release()
++			packet.buffer = buf
++			packet.longHdrPackets[0].header.PacketNumber++
++			packet.longHdrPackets[0].length = buf.Len()
++			sender.EXPECT().Send(buf, uint16(0), protocol.ECT0)
++			require.NoError(t, tc.conn.sendPackedCoalescedPacket(packet, protocol.ECT0, monotime.Now()))
++		})
++	}
++}
++
+ func TestConnectionPacketPacing(t *testing.T) {
+ 	synctest.Test(t, func(t *testing.T) {
+ 		mockCtrl := gomock.NewController(t)
+@@ -3252,16 +3299,17 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding, disableMTU, df b
+ 		tc := newServerTestConnection(
+ 			t,
+ 			mockCtrl,
+-			&Config{DisablePathMTUDiscovery: disableMTU, InitialPacketSize: 1234},
++			&Config{DisablePathMTUDiscovery: disableMTU, InitialPacketSize: 1234, EnableDatagrams: true},
+ 			false,
+ 			connectionOptUnpacker(unpacker),
+ 			connectionOptHandshakeConfirmed(),
+ 			connectionOptRTT(time.Second),
+ 		)
+ 		tc.sendConn.EXPECT().capabilities().Return(connCapabilities{DF: df}).AnyTimes()
+-		require.NoError(t, tc.conn.handleTransportParameters(&wire.TransportParameters{MaxUDPPayloadSize: 1456}))
++		require.NoError(t, tc.conn.handleTransportParameters(&wire.TransportParameters{MaxUDPPayloadSize: 1456, MaxDatagramFrameSize: 1456}))
+ 		ping, _ := tc.conn.mtuDiscoverer.GetPing(monotime.Now())
+ 		ping.Handler.OnAcked(ping.Frame)
++		tc.conn.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(tc.conn.mtuDiscoverer.CurrentSize())))
+ 
+ 		newRemoteAddr := &net.UDPAddr{IP: net.IPv4(192, 168, 1, 1), Port: 1234}
+ 		require.NotEqual(t, tc.remoteAddr, newRemoteAddr)
+@@ -3386,6 +3434,8 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding, disableMTU, df b
+ 			t.Fatal("should have migrated")
+ 		}
+ 		assert.Equal(t, protocol.ByteCount(1234), tc.conn.mtuDiscoverer.CurrentSize())
++		maxPayloadSize := estimateMaxPayloadSize(1234)
++		require.Equal(t, &DatagramTooLargeError{MaxDatagramPayloadSize: int64(maxPayloadSize)}, tc.conn.SendDatagram(make([]byte, 1234)))
+ 		assert.False(t, tc.conn.mtuDiscoverer.ShouldSendProbe(monotime.Now()))
+ 		assert.Equal(t, !disableMTU && df, tc.conn.mtuDiscoverer.ShouldSendProbe(monotime.Now().Add(time.Hour)))
+ 
+@@ -3424,13 +3474,14 @@ func TestConnectionMigrationMTUDiscovery(t *testing.T) {
+ 			mockCtrl := gomock.NewController(t)
+ 			sender := NewMockSender(mockCtrl)
+ 			tc := newClientTestConnection(t, mockCtrl,
+-				&Config{DisablePathMTUDiscovery: test.disableMTU, InitialPacketSize: 1234},
+-				false, connectionOptSender(sender),
++				&Config{DisablePathMTUDiscovery: test.disableMTU, EnableDatagrams: true},
++				false, connectionOptSender(sender), connectionOptHandshakeConfirmed(),
+ 			)
+ 			require.NoError(t, tc.conn.handleTransportParameters(&wire.TransportParameters{
+ 				InitialSourceConnectionID:       tc.destConnID,
+ 				OriginalDestinationConnectionID: tc.destConnID,
+ 				MaxUDPPayloadSize:               1456,
++				MaxDatagramFrameSize:            1456,
+ 			}))
+ 			tc.conn.applyTransportParameters()
+ 			now := monotime.Now()
+@@ -3444,7 +3495,9 @@ func TestConnectionMigrationMTUDiscovery(t *testing.T) {
+ 			tc.conn.switchToNewPath(&Transport{conn: conn}, now)
+ 			defer tc.conn.sendQueue.Close()
+ 
+-			require.Equal(t, protocol.ByteCount(1234), tc.conn.mtuDiscoverer.CurrentSize())
++			require.Equal(t, protocol.ByteCount(protocol.MinInitialPacketSize), tc.conn.mtuDiscoverer.CurrentSize())
++			maxPayloadSize := estimateMaxPayloadSize(protocol.MinInitialPacketSize)
++			require.Equal(t, &DatagramTooLargeError{MaxDatagramPayloadSize: int64(maxPayloadSize)}, tc.conn.SendDatagram(make([]byte, protocol.MinInitialPacketSize)))
+ 			require.False(t, tc.conn.mtuDiscoverer.ShouldSendProbe(now))
+ 			require.Equal(t, !test.disableMTU && test.df, tc.conn.mtuDiscoverer.ShouldSendProbe(now.Add(time.Hour)))
+ 		})
+diff --git a/integrationtests/self/mtu_fallback_test.go b/integrationtests/self/mtu_fallback_test.go
+new file mode 100644
+index 00000000000..b65aae66eec
+--- /dev/null
++++ b/integrationtests/self/mtu_fallback_test.go
+@@ -0,0 +1,62 @@
++//go:build darwin || linux
++
++package self_test
++
++import (
++	"context"
++	"net"
++	"strconv"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/quic-go/quic-go"
++	"github.com/quic-go/quic-go/internal/protocol"
++
++	"github.com/stretchr/testify/require"
++)
++
++type mtuLimitedUDPConn struct {
++	*net.UDPConn
++}
++
++var _ quic.OOBCapablePacketConn = &mtuLimitedUDPConn{}
++
++func (c *mtuLimitedUDPConn) WriteMsgUDP(b, oob []byte, addr *net.UDPAddr) (int, int, error) {
++	if len(b) > protocol.MinInitialPacketSize {
++		return 0, 0, syscall.EMSGSIZE
++	}
++	return c.UDPConn.WriteMsgUDP(b, oob, addr)
++}
++
++func TestHandshakePacketSizeFallback(t *testing.T) {
++	// The wrapper limits individual datagrams, not GSO batches.
++	t.Setenv("QUIC_GO_DISABLE_GSO", "true")
++	for _, initialSize := range []uint16{0, protocol.InitialPacketSize} {
++		t.Run(strconv.Itoa(int(initialSize)), func(t *testing.T) {
++			serverUDP := &mtuLimitedUDPConn{UDPConn: newUDPConnLocalhost(t)}
++			clientUDP := &mtuLimitedUDPConn{UDPConn: newUDPConnLocalhost(t)}
++			config := getQuicConfig(&quic.Config{
++				Versions:                []quic.Version{version},
++				InitialPacketSize:       initialSize,
++				DisablePathMTUDiscovery: true,
++			})
++			ln, err := quic.Listen(serverUDP, getTLSConfig(), config)
++			require.NoError(t, err)
++			defer ln.Close()
++
++			ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(5*time.Second))
++			defer cancel()
++			client, err := quic.Dial(ctx, clientUDP, ln.Addr(), getTLSClientConfig(), config)
++			if initialSize != 0 {
++				require.ErrorContains(t, err, syscall.EMSGSIZE.Error())
++				return
++			}
++			require.NoError(t, err)
++			defer client.CloseWithError(0, "")
++			server, err := ln.Accept(ctx)
++			require.NoError(t, err)
++			defer server.CloseWithError(0, "")
++		})
++	}
++}
+diff --git a/interface.go b/interface.go
+index 0e6016acd91..db942ac9ca6 100644
+--- a/interface.go
++++ b/interface.go
+@@ -171,6 +171,9 @@ type Config struct {
+ 	// Under most circumstances, it is not necessary to manually set this value,
+ 	// since path MTU discovery quickly finds the path's MTU.
+ 	// If set too high, the path might not support packets of that size, leading to a timeout of the QUIC handshake.
++	// If set to 0, it defaults to 1280 bytes and falls back to 1200 bytes if the first write at that size
++	// returns a "message too long" error. An explicitly set value is kept as the lower limit;
++	// a "message too long" error at that size fails the handshake instead.
+ 	// Values below 1200 are invalid.
+ 	InitialPacketSize uint16
+ 	// DisablePathMTUDiscovery disables Path MTU Discovery (RFC 8899).
+diff --git a/internal/congestion/cubic_sender.go b/internal/congestion/cubic_sender.go
+index d4777da545e..e398b046f83 100644
+--- a/internal/congestion/cubic_sender.go
++++ b/internal/congestion/cubic_sender.go
+@@ -1,8 +1,6 @@
+ package congestion
+ 
+ import (
+-	"fmt"
+-
+ 	"github.com/quic-go/quic-go/internal/monotime"
+ 	"github.com/quic-go/quic-go/internal/protocol"
+ 	"github.com/quic-go/quic-go/internal/utils"
+@@ -404,9 +402,6 @@ func (c *cubicSender) maybeQlogStateChange(new qlog.CongestionState) {
+ }
+ 
+ func (c *cubicSender) SetMaxDatagramSize(s protocol.ByteCount) {
+-	if s < c.maxDatagramSize {
+-		panic(fmt.Sprintf("congestion BUG: decreased max datagram size from %d to %d", c.maxDatagramSize, s))
+-	}
+ 	cwndIsMinCwnd := c.congestionWindow == c.minCongestionWindow()
+ 	c.maxDatagramSize = s
+ 	if cwndIsMinCwnd {
+diff --git a/internal/congestion/cubic_sender_test.go b/internal/congestion/cubic_sender_test.go
+index c11d8050b37..f4e2ce9215f 100644
+--- a/internal/congestion/cubic_sender_test.go
++++ b/internal/congestion/cubic_sender_test.go
+@@ -603,7 +603,7 @@ func TestCubicSenderSlowStartsUpToMaximumCongestionWindow(t *testing.T) {
+ 
+ func TestCubicSenderMaximumPacketSizeReduction(t *testing.T) {
+ 	sender := newTestCubicSender(false)
+-	require.Panics(t, func() { sender.sender.SetMaxDatagramSize(initialMaxDatagramSize - 1) })
++	require.NotPanics(t, func() { sender.sender.SetMaxDatagramSize(protocol.MinInitialPacketSize) })
+ }
+ 
+ func TestCubicSenderSlowStartsPacketSizeIncrease(t *testing.T) {
