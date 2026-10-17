@@ -5050,3 +5050,47 @@ Merged [PR #779](https://github.com/the-sarge/quic-go-fast/pull/779) as `81a7248
 - The deferred finding survived revalidation against `81a72481` and is filed as [#780](https://github.com/the-sarge/quic-go-fast/issues/780) (`needs-triage`): a learned fallback is not kept when Version Negotiation recreates the client.
 - [#758](https://github.com/the-sarge/quic-go-fast/issues/758), the handshake silent-drop baseline, is now unblocked; its baseline must pin a `main` commit at or after `81a72481`.
 - GitHub issues are the live view.
+
+---
+
+## Handshake silent-drop baseline recorded - 2026-10-17 00:54 EDT
+
+**Main:** `bb7988b4cecd`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #782](https://github.com/the-sarge/quic-go-fast/pull/782) as `bb7988b4cecd16e376ccc8cc597c641ae980efa4`, closing [#758](https://github.com/the-sarge/quic-go-fast/issues/758). It adds the audit record [docs/audits/2026-10-17-handshake-silent-drop-baseline/](https://github.com/the-sarge/quic-go-fast/blob/bb7988b4/docs/audits/2026-10-17-handshake-silent-drop-baseline/README.md). The record covers nine simnet scenarios and one real-UDP case at baseline `a7b8353a`, which contains #756 and #762. This is an investigation only: no product code, active test or CI changed.
+
+- **No silent size drop recovers.** Dropping datagrams over 1250 bytes ends every size-drop case in a transport timeout. The effective initial size stays 1280 because local writes succeed, and H1 only reacts to EMSGSIZE.
+- **The controls complete.** The healthy, ordinary-loss and lossless 300 ms controls finish with a verified 4096-byte echo in each direction.
+- **qlog undercounts PTOs.** The client's one-probe PTO branch counts an expiration without any qlog event. A test-side observer at the connection's loss-timer call counts both branches, and white-box mapping tests prove it against recovery's private counter. In the server-drop case the client takes 8 eligible PTOs where qlog shows 1.
+- **The client Handshake PTO stays armed until confirmation.** The server drops its Handshake keys at completion, so it never acknowledges the client's Finished in that space. Two eligible client PTOs fall inside that window: the loss-after-receipt control and a spurious Handshake PTO on the 300 ms path.
+
+### Decisions
+
+- The operator approved the plan on 2026-10-16:
+  - a test-side observer rather than recovery instrumentation;
+  - a docs-only record whose fixture is archived as `.go.src` and copied in by `reproduce.sh`;
+  - root-package fixtures;
+  - client-oversized drops through the existing proxy as the real-UDP case.
+- The first captures were replaced after review round 1 changed the fixture; they stay at `ce5f926e`.
+
+### Validation
+
+- **Evidence runs.**
+  - E0 audited the toolchain and the baseline's ancestry.
+  - E1 ran #779's focused tests, all passing.
+  - With the archived fixture: one capture run, one repeat capture, which matched on every handshake-relevant projection, and one `-race` run with no race report.
+- **Review.**
+  - RAS review `20261017T031328-36c952f9b0c71fea2229d791` at `ce5f926e` found five clusters, all taken as fix-now in `17f705e6`. Four duplicates were rejected.
+  - `ras verify` resolved all nine clusters.
+  - Replacement review `20261017T042757-284f1e702722c5ac23600ad7` had no Fix First items. Its relative-output-path cluster was fixed in `cbd4512c`; the other was rejected.
+- **Local certification at `cbd4512c`.** A clean detached worktree ran `reproduce.sh` with a relative output path. The fresh capture matched the archived run1. `git diff --check`, the link check, `SHA256SUMS` (12 of 12) and `summarize.py --check` all passed.
+- **Hosted.** All 33 hosted checks passed on `cbd4512c` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+- [#759](https://github.com/the-sarge/quic-go-fast/issues/759) compares P1, P2 and the receipt-guarded P1 on this baseline and these nine rows. The record's handoff section lists the inputs it reuses.
+- No review finding was deferred.
+- GitHub issues are the live view.
