@@ -1,0 +1,481 @@
+package ackhandler
+
+// Disposable evidence for the handshake silent-drop baseline (#758); it is not a
+// maintained test. Each case drives the real sentPacketHandler through one
+// OnLossDetectionTimeout branch or counter reset. It records the private PTO
+// counter (the ground truth) next to what the connection boundary can see: the
+// qlog events emitted during the call and SendMode before and after it.
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/qlogwriter/jsontext"
+	"github.com/quic-go/quic-go/testutils/events"
+
+	"github.com/stretchr/testify/require"
+)
+
+const silentDropCaptureEnv = "QUIC_GO_SILENT_DROP_CAPTURE_DIR"
+
+type mappingEvent struct {
+	Name  string          `json:"name"`
+	Data  json.RawMessage `json:"data,omitempty"`
+	Error string          `json:"encode_error,omitempty"`
+}
+
+// mappingRecord is one observed call or state change.
+type mappingRecord struct {
+	Case         string         `json:"case"`
+	Kind         string         `json:"kind"` // "timeout_call" or "state_change"
+	Perspective  string         `json:"perspective"`
+	Action       string         `json:"action"`
+	PTOBefore    uint32         `json:"pto_count_before"`
+	PTOAfter     uint32         `json:"pto_count_after"`
+	ProbesBefore int            `json:"probes_before"`
+	ProbesAfter  int            `json:"probes_after"`
+	ModeBefore   string         `json:"send_mode_before"`
+	ModeAfter    string         `json:"send_mode_after"`
+	AlarmBefore  string         `json:"alarm_before"`
+	AlarmAfter   string         `json:"alarm_after"`
+	Events       []mappingEvent `json:"events"`
+	Class        string         `json:"boundary_class,omitempty"`
+	ClassLevel   string         `json:"boundary_level,omitempty"`
+	Err          string         `json:"error,omitempty"`
+}
+
+// classifyTimeoutCall is the boundary rule. It sees only the events emitted
+// during one OnLossDetectionTimeout call and SendMode before and after it.
+//
+//   - pto: an Expired PTO event (the ordinary branch, however many probes it requests)
+//   - ack_loss: an Expired ACK event (time-threshold loss; no PTO)
+//   - pto_silent: no Expired event, and SendMode moved from a non-probe, non-none
+//     mode into a probe mode (only the one-probe branch does that silently)
+//   - no_op: no Expired event and no probe mode on either side
+//   - indeterminate: no Expired event while probes were already pending, or a
+//     mode of none hides the probe count; never counted, always reported
+func classifyTimeoutCall(evs []qlogwriter.Event, before, after SendMode) (string, protocol.EncryptionLevel) {
+	for _, ev := range evs {
+		e, ok := ev.(qlog.LossTimerUpdated)
+		if !ok || e.Type != qlog.LossTimerUpdateTypeExpired {
+			continue
+		}
+		switch e.TimerType {
+		case qlog.TimerTypePTO:
+			return "pto", e.EncLevel
+		case qlog.TimerTypeACK:
+			return "ack_loss", e.EncLevel
+		}
+	}
+	isProbe := func(m SendMode) bool {
+		return m == SendPTOInitial || m == SendPTOHandshake || m == SendPTOAppData
+	}
+	if isProbe(before) || before == SendNone || after == SendNone {
+		return "indeterminate", 0
+	}
+	switch after {
+	case SendPTOInitial:
+		return "pto_silent", protocol.EncryptionInitial
+	case SendPTOHandshake:
+		return "pto_silent", protocol.EncryptionHandshake
+	case SendPTOAppData:
+		return "pto_silent", protocol.Encryption1RTT
+	}
+	return "no_op", 0
+}
+
+type mappingHarness struct {
+	t    *testing.T
+	name string
+	h    *sentPacketHandler
+	rec  *events.Recorder
+	base monotime.Time
+	out  *os.File
+}
+
+func newMappingHarness(t *testing.T, pers protocol.Perspective, addressValidated bool) *mappingHarness {
+	t.Helper()
+	rec := &events.Recorder{}
+	h := NewSentPacketHandler(0, 1280, utils.NewRTTStats(), &utils.ConnectionStats{}, addressValidated, false, nil, pers, rec, utils.DefaultLogger).(*sentPacketHandler)
+	m := &mappingHarness{t: t, name: t.Name(), h: h, rec: rec, base: monotime.Now()}
+	if dir := os.Getenv(silentDropCaptureEnv); dir != "" {
+		f, err := os.OpenFile(filepath.Join(dir, "mapping.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, f.Close()) })
+		m.out = f
+	}
+	return m
+}
+
+func (m *mappingHarness) at(d time.Duration) monotime.Time { return m.base.Add(d) }
+
+func (m *mappingHarness) sendAckEliciting(at monotime.Time, level protocol.EncryptionLevel, size protocol.ByteCount) protocol.PacketNumber {
+	pn := m.h.PopPacketNumber(level)
+	m.h.SentPacket(at, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, level, protocol.ECNNon, size, false, false)
+	return pn
+}
+
+func (m *mappingHarness) ack(at monotime.Time, level protocol.EncryptionLevel, pns ...protocol.PacketNumber) {
+	_, err := m.h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns...)}, level, at)
+	require.NoError(m.t, err)
+}
+
+func (m *mappingHarness) alarmString(t monotime.Time) string {
+	if t.IsZero() {
+		return "none"
+	}
+	return t.Sub(m.base).String()
+}
+
+func (m *mappingHarness) snapshot() (uint32, int, SendMode, monotime.Time, int) {
+	return m.h.ptoCount, m.h.numProbesToSend, m.h.SendMode(m.base), m.h.GetLossDetectionTimeout(), len(m.rec.Events())
+}
+
+func (m *mappingHarness) encode(evs []events.Event) []mappingEvent {
+	out := make([]mappingEvent, 0, len(evs))
+	for _, ev := range evs {
+		var buf bytes.Buffer
+		me := mappingEvent{Name: ev.Event.Name()}
+		if err := ev.Event.Encode(jsontext.NewEncoder(&buf), ev.Time); err != nil {
+			me.Error = err.Error()
+		} else {
+			me.Data = json.RawMessage(bytes.TrimSpace(buf.Bytes()))
+		}
+		out = append(out, me)
+	}
+	return out
+}
+
+func (m *mappingHarness) write(r mappingRecord) {
+	if m.out == nil {
+		return
+	}
+	b, err := json.Marshal(r)
+	require.NoError(m.t, err)
+	_, err = m.out.Write(append(b, '\n'))
+	require.NoError(m.t, err)
+}
+
+// timeout makes the call the connection makes once the alarm is due.
+func (m *mappingHarness) timeout(now monotime.Time) mappingRecord {
+	m.t.Helper()
+	ptoBefore, probesBefore, _, alarmBefore, n := m.snapshot()
+	modeBefore := m.h.SendMode(now)
+	err := m.h.OnLossDetectionTimeout(now)
+	modeAfter := m.h.SendMode(now)
+	all := m.rec.EventsWithTime()
+	inCall := make([]qlogwriter.Event, 0, len(all)-n)
+	for _, ev := range all[n:] {
+		inCall = append(inCall, ev.Event)
+	}
+	class, level := classifyTimeoutCall(inCall, modeBefore, modeAfter)
+	r := mappingRecord{
+		Case: m.name, Kind: "timeout_call", Perspective: m.h.perspective.String(), Action: "OnLossDetectionTimeout@" + m.alarmString(now),
+		PTOBefore: ptoBefore, PTOAfter: m.h.ptoCount, ProbesBefore: probesBefore, ProbesAfter: m.h.numProbesToSend,
+		ModeBefore: modeBefore.String(), ModeAfter: modeAfter.String(),
+		AlarmBefore: m.alarmString(alarmBefore), AlarmAfter: m.alarmString(m.h.GetLossDetectionTimeout()),
+		Events: m.encode(all[n:]), Class: class,
+	}
+	if class == "pto" || class == "pto_silent" || class == "ack_loss" {
+		r.ClassLevel = level.String()
+	}
+	if err != nil {
+		r.Err = err.Error()
+	}
+	m.write(r)
+	return r
+}
+
+// change records a state change that may reset recovery's PTO counter.
+func (m *mappingHarness) change(action string, now monotime.Time, f func()) mappingRecord {
+	m.t.Helper()
+	ptoBefore, probesBefore, _, alarmBefore, n := m.snapshot()
+	modeBefore := m.h.SendMode(now)
+	f()
+	all := m.rec.EventsWithTime()
+	r := mappingRecord{
+		Case: m.name, Kind: "state_change", Perspective: m.h.perspective.String(), Action: action,
+		PTOBefore: ptoBefore, PTOAfter: m.h.ptoCount, ProbesBefore: probesBefore, ProbesAfter: m.h.numProbesToSend,
+		ModeBefore: modeBefore.String(), ModeAfter: m.h.SendMode(now).String(),
+		AlarmBefore: m.alarmString(alarmBefore), AlarmAfter: m.alarmString(m.h.GetLossDetectionTimeout()),
+		Events: m.encode(all[n:]),
+	}
+	m.write(r)
+	return r
+}
+
+func hasPTOCountEvent(r mappingRecord, count int) bool {
+	for _, e := range r.Events {
+		if e.Name != (qlog.PTOCountUpdated{}).Name() {
+			continue
+		}
+		var v struct {
+			PTOCount *int `json:"pto_count"`
+		}
+		if json.Unmarshal(e.Data, &v) == nil && v.PTOCount != nil && *v.PTOCount == count {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExpiredEvent(r mappingRecord) bool {
+	for _, e := range r.Events {
+		var v struct {
+			EventType string `json:"event_type"`
+		}
+		if e.Name == (qlog.LossTimerUpdated{}).Name() && json.Unmarshal(e.Data, &v) == nil && v.EventType == "expired" {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSilentDropTimeoutMapping(t *testing.T) {
+	const pto = 200 * time.Millisecond // unsampled PTO: 2 * DefaultInitialRTT
+
+	t.Run("ordinary Initial PTO, then two probes counted once", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+		require.Equal(t, m.at(pto), m.h.GetLossDetectionTimeout())
+
+		r := m.timeout(m.at(pto))
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore)
+		require.Equal(t, "pto", r.Class)
+		require.Equal(t, protocol.EncryptionInitial.String(), r.ClassLevel)
+		require.True(t, hasExpiredEvent(r))
+		require.True(t, hasPTOCountEvent(r, 1))
+		require.Equal(t, 2, r.ProbesAfter)
+		require.Equal(t, SendPTOInitial.String(), r.ModeAfter)
+
+		// Sending both requested probes emits no expiration.
+		probes := m.change("send two Initial probes", m.at(pto), func() {
+			m.sendAckEliciting(m.at(pto), protocol.EncryptionInitial, 1280)
+			m.sendAckEliciting(m.at(pto), protocol.EncryptionInitial, 1280)
+		})
+		require.False(t, hasExpiredEvent(probes))
+		require.Zero(t, probes.ProbesAfter)
+
+		// The next expiration counts once more, not once per probe.
+		next := m.h.GetLossDetectionTimeout()
+		require.Equal(t, m.at(pto+2*pto), next)
+		r = m.timeout(next)
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore)
+		require.Equal(t, "pto", r.Class)
+		require.True(t, hasPTOCountEvent(r, 2))
+	})
+
+	t.Run("ordinary Initial PTO with probes still pending", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+		r := m.timeout(m.at(pto))
+		require.Equal(t, "pto", r.Class)
+		// The probes are never sent; the next call still expires on the ordinary branch.
+		next := m.h.GetLossDetectionTimeout()
+		r = m.timeout(next)
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore)
+		require.Equal(t, SendPTOInitial.String(), r.ModeBefore)
+		require.Equal(t, "pto", r.Class, "the Expired event decides; pending probes do not")
+		require.Equal(t, 4, r.ProbesAfter)
+	})
+
+	t.Run("ordinary Handshake PTO", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		m.change("drop Initial", m.at(0), func() { m.h.DropPackets(protocol.EncryptionInitial, m.at(0)) })
+		m.sendAckEliciting(m.at(0), protocol.EncryptionHandshake, 1000)
+		r := m.timeout(m.h.GetLossDetectionTimeout())
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore)
+		require.Equal(t, "pto", r.Class)
+		require.Equal(t, protocol.EncryptionHandshake.String(), r.ClassLevel)
+		require.Equal(t, SendPTOHandshake.String(), r.ModeAfter)
+	})
+
+	t.Run("ordinary Initial PTO on an unvalidated server", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveServer, false)
+		m.h.ReceivedBytes(1280, m.at(0))
+		m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+		r := m.timeout(m.h.GetLossDetectionTimeout())
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore)
+		require.Equal(t, "pto", r.Class)
+		require.Equal(t, protocol.EncryptionInitial.String(), r.ClassLevel)
+	})
+
+	t.Run("silent one-probe Initial PTO with nothing in flight", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		pn := m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+		ackRecord := m.change("Initial ACK before address validation", m.at(10*time.Millisecond), func() {
+			m.ack(m.at(10*time.Millisecond), protocol.EncryptionInitial, pn)
+		})
+		require.Zero(t, m.h.getBytesInFlight())
+		require.False(t, m.h.peerCompletedAddressValidation)
+		require.NotEqual(t, "none", ackRecord.AlarmAfter, "the client keeps an anti-deadlock alarm")
+
+		r := m.timeout(m.h.GetLossDetectionTimeout())
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore, "recovery counts an expiration")
+		require.False(t, hasExpiredEvent(r), "no Expired event")
+		for _, e := range r.Events {
+			var v struct {
+				PTOCount *int `json:"pto_count"`
+			}
+			require.False(t, json.Unmarshal(e.Data, &v) == nil && v.PTOCount != nil, "no PTO count event")
+		}
+		require.Equal(t, 1, r.ProbesAfter, "one probe, not two")
+		require.Equal(t, "pto_silent", r.Class)
+		require.Equal(t, protocol.EncryptionInitial.String(), r.ClassLevel)
+
+		// The probe is not sent, so the next silent expiration is unclassifiable.
+		r = m.timeout(m.h.GetLossDetectionTimeout())
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore)
+		require.Equal(t, SendPTOInitial.String(), r.ModeBefore)
+		require.Equal(t, "indeterminate", r.Class, "a pending probe hides the silent branch")
+	})
+
+	t.Run("silent one-probe Handshake PTO after Initial discard", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		m.change("drop Initial with nothing in flight", m.at(0), func() { m.h.DropPackets(protocol.EncryptionInitial, m.at(0)) })
+		require.Equal(t, m.at(pto), m.h.GetLossDetectionTimeout())
+		r := m.timeout(m.at(pto))
+		require.Equal(t, uint32(1), r.PTOAfter-r.PTOBefore)
+		require.Equal(t, "pto_silent", r.Class)
+		require.Equal(t, protocol.EncryptionHandshake.String(), r.ClassLevel)
+	})
+
+	t.Run("ACK-loss expiry is not a PTO", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+		pn1 := m.sendAckEliciting(m.at(time.Millisecond), protocol.EncryptionInitial, 1280)
+		m.ack(m.at(11*time.Millisecond), protocol.EncryptionInitial, pn1)
+		r := m.timeout(m.h.GetLossDetectionTimeout())
+		require.Zero(t, r.PTOAfter-r.PTOBefore)
+		require.True(t, hasExpiredEvent(r))
+		require.Equal(t, "ack_loss", r.Class)
+		require.Equal(t, protocol.EncryptionInitial.String(), r.ClassLevel)
+	})
+
+	t.Run("no-op call with nothing outstanding", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveServer, true)
+		require.Zero(t, m.h.GetLossDetectionTimeout())
+		r := m.timeout(m.at(pto))
+		require.Zero(t, r.PTOAfter-r.PTOBefore)
+		require.Equal(t, "no_op", r.Class)
+		require.Empty(t, r.Events)
+	})
+
+	t.Run("no-op call while only 0-RTT is in flight", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		pn := m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+		m.sendAckEliciting(m.at(0), protocol.Encryption0RTT, 1000)
+		m.ack(m.at(10*time.Millisecond), protocol.EncryptionInitial, pn)
+		require.NotZero(t, m.h.getBytesInFlight())
+		alarm := m.h.GetLossDetectionTimeout()
+		require.NotZero(t, alarm)
+		r := m.timeout(alarm)
+		require.Zero(t, r.PTOAfter-r.PTOBefore, "stale return: the chosen space has nothing outstanding")
+		require.Equal(t, "no_op", r.Class)
+		require.NotEqual(t, "none", r.AlarmAfter, "the alarm is re-armed")
+	})
+
+	t.Run("counter resets", func(t *testing.T) {
+		t.Run("client Initial ACK before address validation keeps the count", func(t *testing.T) {
+			m := newMappingHarness(t, protocol.PerspectiveClient, false)
+			pn := m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+			m.timeout(m.at(pto))
+			r := m.change("Initial ACK", m.at(pto+10*time.Millisecond), func() {
+				m.ack(m.at(pto+10*time.Millisecond), protocol.EncryptionInitial, pn)
+			})
+			require.Equal(t, uint32(1), r.PTOAfter)
+			require.False(t, hasPTOCountEvent(r, 0))
+			require.Zero(t, r.ProbesAfter, "pending probes are cleared")
+		})
+
+		t.Run("client Handshake ACK resets with an event", func(t *testing.T) {
+			m := newMappingHarness(t, protocol.PerspectiveClient, false)
+			m.h.DropPackets(protocol.EncryptionInitial, m.at(0))
+			pn := m.sendAckEliciting(m.at(0), protocol.EncryptionHandshake, 1000)
+			m.timeout(m.h.GetLossDetectionTimeout())
+			r := m.change("Handshake ACK", m.at(pto+10*time.Millisecond), func() {
+				m.ack(m.at(pto+10*time.Millisecond), protocol.EncryptionHandshake, pn)
+			})
+			require.Zero(t, r.PTOAfter)
+			require.True(t, hasPTOCountEvent(r, 0))
+		})
+
+		t.Run("server ACK resets with an event", func(t *testing.T) {
+			m := newMappingHarness(t, protocol.PerspectiveServer, true)
+			pn := m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+			m.timeout(m.h.GetLossDetectionTimeout())
+			r := m.change("Initial ACK", m.at(pto+10*time.Millisecond), func() {
+				m.ack(m.at(pto+10*time.Millisecond), protocol.EncryptionInitial, pn)
+			})
+			require.Zero(t, r.PTOAfter)
+			require.True(t, hasPTOCountEvent(r, 0))
+		})
+
+		t.Run("key discard resets with an event", func(t *testing.T) {
+			m := newMappingHarness(t, protocol.PerspectiveClient, false)
+			m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+			m.timeout(m.at(pto))
+			r := m.change("drop Initial", m.at(pto), func() { m.h.DropPackets(protocol.EncryptionInitial, m.at(pto)) })
+			require.Zero(t, r.PTOAfter)
+			require.True(t, hasPTOCountEvent(r, 0))
+			require.Zero(t, r.ProbesAfter)
+		})
+
+		t.Run("Retry always emits a reset", func(t *testing.T) {
+			m := newMappingHarness(t, protocol.PerspectiveClient, false)
+			m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+			r := m.change("Retry with count 0", m.at(10*time.Millisecond), func() { m.h.ResetForRetry(m.at(10 * time.Millisecond)) })
+			require.True(t, hasPTOCountEvent(r, 0))
+			m.sendAckEliciting(m.at(10*time.Millisecond), protocol.EncryptionInitial, 1280)
+			m.timeout(m.h.GetLossDetectionTimeout())
+			r = m.change("Retry with count 1", m.at(pto+20*time.Millisecond), func() { m.h.ResetForRetry(m.at(pto + 20*time.Millisecond)) })
+			require.Zero(t, r.PTOAfter)
+			require.True(t, hasPTOCountEvent(r, 0))
+		})
+
+		t.Run("path migration keeps the count", func(t *testing.T) {
+			m := newMappingHarness(t, protocol.PerspectiveClient, false)
+			m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+			m.timeout(m.at(pto))
+			r := m.change("MigratedPath", m.at(pto), func() { m.h.MigratedPath(m.at(pto), 1280) })
+			require.Equal(t, uint32(1), r.PTOAfter)
+			require.False(t, hasPTOCountEvent(r, 0))
+		})
+	})
+
+	t.Run("server amplification limit cancels and re-arms the alarm", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveServer, false)
+		m.h.ReceivedBytes(1200, m.at(0))
+		r := m.change("send 3 x 1280 bytes against a 3600-byte budget", m.at(0), func() {
+			for range 3 {
+				m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+			}
+		})
+		require.Equal(t, SendNone.String(), r.ModeAfter)
+		require.Equal(t, "none", r.AlarmAfter)
+		r = m.change("receive 1280 more bytes", m.at(5*time.Millisecond), func() { m.h.ReceivedBytes(1280, m.at(5*time.Millisecond)) })
+		require.NotEqual(t, "none", r.AlarmAfter)
+		require.NotEqual(t, SendNone.String(), r.ModeAfter)
+	})
+
+	t.Run("SendMode leaves recovery state unchanged", func(t *testing.T) {
+		m := newMappingHarness(t, protocol.PerspectiveClient, false)
+		m.sendAckEliciting(m.at(0), protocol.EncryptionInitial, 1280)
+		m.timeout(m.at(pto))
+		before := [4]any{m.h.ptoCount, m.h.numProbesToSend, m.h.ptoMode, m.h.bytesInFlight}
+		for range 3 {
+			m.h.SendMode(m.at(pto))
+		}
+		require.Equal(t, before, [4]any{m.h.ptoCount, m.h.numProbesToSend, m.h.ptoMode, m.h.bytesInFlight})
+	})
+}

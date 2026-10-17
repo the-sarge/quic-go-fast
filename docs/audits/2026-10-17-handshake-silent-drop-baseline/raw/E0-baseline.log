@@ -1,0 +1,9 @@
+date: 2026-10-17T02:51:33Z
+head: a7b8353ac2e87e716fcfa23119959ff5aeaef648
+go: go version go1.27.2 darwin/arm64
+go.mod: go 1.26.0
+ci unit matrix:  go: [ "1.26.9", "1.27.2" ]
+ci lint go:  go-version: "1.27.2"
+ancestor 81a72481 (#756 merge): yes
+ancestor 4d89a66e (#762 fix): yes
+Darwin 27.0.0 arm64

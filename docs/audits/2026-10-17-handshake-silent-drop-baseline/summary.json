@@ -1,0 +1,2867 @@
+{
+ "baseline": [
+  "date: 2026-10-17T02:51:33Z",
+  "head: a7b8353ac2e87e716fcfa23119959ff5aeaef648",
+  "go: go version go1.27.2 darwin/arm64",
+  "go.mod: go 1.26.0",
+  "ci unit matrix:  go: [ \"1.26.9\", \"1.27.2\" ]",
+  "ci lint go:  go-version: \"1.27.2\"",
+  "ancestor 81a72481 (#756 merge): yes",
+  "ancestor 4d89a66e (#762 fix): yes",
+  "Darwin 27.0.0 arm64"
+ ],
+ "mapping": {
+  "records": [
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "ordinary_Initial_PTO,_then_two_probes_counted_once",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "send two Initial probes",
+    "case": "ordinary_Initial_PTO,_then_two_probes_counted_once",
+    "events": [
+     "recovery:metrics_updated",
+     "recovery:loss_timer_updated[set pto initial]",
+     "recovery:metrics_updated"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     2,
+     0
+    ],
+    "pto_count": [
+     1,
+     1
+    ],
+    "send_mode": [
+     "pto (Initial)",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@600ms",
+    "boundary_class": "pto",
+    "case": "ordinary_Initial_PTO,_then_two_probes_counted_once",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=2]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     1,
+     2
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "ordinary_Initial_PTO_with_probes_still_pending",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@400ms",
+    "boundary_class": "pto",
+    "case": "ordinary_Initial_PTO_with_probes_still_pending",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=2]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     2,
+     4
+    ],
+    "pto_count": [
+     1,
+     2
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "pto (Initial)",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "drop Initial",
+    "case": "ordinary_Handshake_PTO",
+    "events": [
+     "recovery:loss_timer_updated[set pto handshake]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "send_mode": [
+     "any",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "ordinary_Handshake_PTO",
+    "events": [
+     "recovery:loss_timer_updated[expired pto handshake]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto handshake]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Handshake)"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "ordinary_Initial_PTO_on_an_unvalidated_server",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "server",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "Initial ACK before address validation",
+    "case": "silent_one-probe_Initial_PTO_with_nothing_in_flight",
+    "events": [
+     "recovery:congestion_state_updated",
+     "recovery:metrics_updated",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "send_mode": [
+     "any",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@40ms",
+    "boundary_class": "pto_silent",
+    "case": "silent_one-probe_Initial_PTO_with_nothing_in_flight",
+    "events": [
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     1
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@100ms",
+    "boundary_class": "indeterminate",
+    "case": "silent_one-probe_Initial_PTO_with_nothing_in_flight",
+    "events": [
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     1,
+     2
+    ],
+    "pto_count": [
+     1,
+     2
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "pto (Initial)",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "drop Initial with nothing in flight",
+    "case": "silent_one-probe_Handshake_PTO_after_Initial_discard",
+    "events": [
+     "recovery:loss_timer_updated[set pto handshake]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "send_mode": [
+     "any",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto_silent",
+    "case": "silent_one-probe_Handshake_PTO_after_Initial_discard",
+    "events": [
+     "recovery:loss_timer_updated[set pto handshake]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     1
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Handshake)"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@11.25ms",
+    "boundary_class": "ack_loss",
+    "case": "ACK-loss_expiry_is_not_a_PTO",
+    "events": [
+     "recovery:loss_timer_updated[expired ack initial]",
+     "recovery:packet_lost",
+     "recovery:congestion_state_updated",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "no_op",
+    "case": "no-op_call_with_nothing_outstanding",
+    "events": [],
+    "kind": "timeout_call",
+    "perspective": "server",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@40ms",
+    "boundary_class": "no_op",
+    "case": "no-op_call_while_only_0-RTT_is_in_flight",
+    "events": [
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "counter_resets/client_Initial_ACK_before_address_validation_keeps_the_count",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "Initial ACK",
+    "case": "counter_resets/client_Initial_ACK_before_address_validation_keeps_the_count",
+    "events": [
+     "recovery:congestion_state_updated",
+     "recovery:metrics_updated",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     2,
+     0
+    ],
+    "pto_count": [
+     1,
+     1
+    ],
+    "send_mode": [
+     "pto (Initial)",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "counter_resets/client_Handshake_ACK_resets_with_an_event",
+    "events": [
+     "recovery:loss_timer_updated[expired pto handshake]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto handshake]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Handshake)"
+    ]
+   },
+   {
+    "action": "Handshake ACK",
+    "case": "counter_resets/client_Handshake_ACK_resets_with_an_event",
+    "events": [
+     "recovery:congestion_state_updated",
+     "recovery:metrics_updated[pto_count=0]",
+     "recovery:metrics_updated",
+     "recovery:loss_timer_updated[cancelled unknown encryption level]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     2,
+     0
+    ],
+    "pto_count": [
+     1,
+     0
+    ],
+    "send_mode": [
+     "pto (Handshake)",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "counter_resets/server_ACK_resets_with_an_event",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "server",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "Initial ACK",
+    "case": "counter_resets/server_ACK_resets_with_an_event",
+    "events": [
+     "recovery:congestion_state_updated",
+     "recovery:metrics_updated[pto_count=0]",
+     "recovery:metrics_updated",
+     "recovery:loss_timer_updated[cancelled unknown encryption level]"
+    ],
+    "kind": "state_change",
+    "perspective": "server",
+    "probes": [
+     2,
+     0
+    ],
+    "pto_count": [
+     1,
+     0
+    ],
+    "send_mode": [
+     "pto (Initial)",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "counter_resets/key_discard_resets_with_an_event",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "drop Initial",
+    "case": "counter_resets/key_discard_resets_with_an_event",
+    "events": [
+     "recovery:metrics_updated[pto_count=0]",
+     "recovery:loss_timer_updated[set pto handshake]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     2,
+     0
+    ],
+    "pto_count": [
+     1,
+     0
+    ],
+    "send_mode": [
+     "pto (Initial)",
+     "any"
+    ]
+   },
+   {
+    "action": "Retry with count 0",
+    "case": "counter_resets/Retry_always_emits_a_reset",
+    "events": [
+     "recovery:metrics_updated",
+     "recovery:metrics_updated[pto_count=0]",
+     "recovery:loss_timer_updated[cancelled unknown encryption level]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "send_mode": [
+     "any",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@40ms",
+    "boundary_class": "pto",
+    "case": "counter_resets/Retry_always_emits_a_reset",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "Retry with count 1",
+    "case": "counter_resets/Retry_always_emits_a_reset",
+    "events": [
+     "recovery:metrics_updated[pto_count=0]",
+     "recovery:loss_timer_updated[cancelled unknown encryption level]"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     2,
+     2
+    ],
+    "pto_count": [
+     1,
+     0
+    ],
+    "send_mode": [
+     "pto (Initial)",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "counter_resets/path_migration_keeps_the_count",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "MigratedPath",
+    "case": "counter_resets/path_migration_keeps_the_count",
+    "events": [
+     "recovery:congestion_state_updated"
+    ],
+    "kind": "state_change",
+    "perspective": "client",
+    "probes": [
+     2,
+     2
+    ],
+    "pto_count": [
+     1,
+     1
+    ],
+    "send_mode": [
+     "pto (Initial)",
+     "pto (Initial)"
+    ]
+   },
+   {
+    "action": "send 3 x 1280 bytes against a 3600-byte budget",
+    "case": "server_amplification_limit_cancels_and_re-arms_the_alarm",
+    "events": [
+     "recovery:metrics_updated",
+     "recovery:loss_timer_updated[set pto initial]",
+     "recovery:metrics_updated",
+     "recovery:metrics_updated",
+     "recovery:loss_timer_updated[cancelled unknown encryption level]"
+    ],
+    "kind": "state_change",
+    "perspective": "server",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "send_mode": [
+     "any",
+     "none"
+    ]
+   },
+   {
+    "action": "receive 1280 more bytes",
+    "case": "server_amplification_limit_cancels_and_re-arms_the_alarm",
+    "events": [
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "state_change",
+    "perspective": "server",
+    "probes": [
+     0,
+     0
+    ],
+    "pto_count": [
+     0,
+     0
+    ],
+    "send_mode": [
+     "none",
+     "any"
+    ]
+   },
+   {
+    "action": "OnLossDetectionTimeout@200ms",
+    "boundary_class": "pto",
+    "case": "SendMode_leaves_recovery_state_unchanged",
+    "events": [
+     "recovery:loss_timer_updated[expired pto initial]",
+     "recovery:metrics_updated[pto_count=1]",
+     "recovery:loss_timer_updated[set pto initial]"
+    ],
+    "kind": "timeout_call",
+    "perspective": "client",
+    "probes": [
+     0,
+     2
+    ],
+    "pto_count": [
+     0,
+     1
+    ],
+    "python_class_agrees": true,
+    "send_mode": [
+     "any",
+     "pto (Initial)"
+    ]
+   }
+  ],
+  "rule_violations": []
+ },
+ "mapping_runs_identical": true,
+ "receipts": {
+  "run1": [
+   "mode: capture",
+   "head: ce5f926e78ef390c7909bd71b2567951ffd43a2a",
+   "baseline: a7b8353ac2e87e716fcfa23119959ff5aeaef648",
+   "go version go1.27.2 darwin/arm64",
+   "dcfae9da32508f1b203f0f0d3eb77252b4c09759f7d2b5e2750dcff79f72632d  silent_drop_capture_test.go",
+   "f4f3eb3ae97f780fa4dc294a7ee94afd81ec7e32efc96e657c0e5ff2c1ae825c  silent_drop_baseline_test.go",
+   "0a4a53552069553c427c2f8c5dd25ad45831e4152881846c2b4129c3e94555a3  internal/ackhandler/silent_drop_mapping_test.go"
+  ],
+  "run2": [
+   "mode: capture",
+   "head: ce5f926e78ef390c7909bd71b2567951ffd43a2a",
+   "baseline: a7b8353ac2e87e716fcfa23119959ff5aeaef648",
+   "go version go1.27.2 darwin/arm64",
+   "dcfae9da32508f1b203f0f0d3eb77252b4c09759f7d2b5e2750dcff79f72632d  silent_drop_capture_test.go",
+   "f4f3eb3ae97f780fa4dc294a7ee94afd81ec7e32efc96e657c0e5ff2c1ae825c  silent_drop_baseline_test.go",
+   "0a4a53552069553c427c2f8c5dd25ad45831e4152881846c2b4129c3e94555a3  internal/ackhandler/silent_drop_mapping_test.go"
+  ]
+ },
+ "repeat_run": {
+  "both-oversized-dropped": {
+   "datagram_counts": {
+    "run1": 10,
+    "run2": 10
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [],
+    "run2": []
+   },
+   "timeout_calls": true
+  },
+  "client-oversized-dropped": {
+   "datagram_counts": {
+    "run1": 10,
+    "run2": 10
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [],
+    "run2": []
+   },
+   "timeout_calls": true
+  },
+  "healthy": {
+   "datagram_counts": {
+    "run1": 18,
+    "run2": 18
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1191
+    ],
+    "run2": [
+     1186
+    ]
+   },
+   "timeout_calls": true
+  },
+  "loss-after-client-receipt": {
+   "datagram_counts": {
+    "run1": 21,
+    "run2": 22
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1198
+    ],
+    "run2": [
+     1203
+    ]
+   },
+   "timeout_calls": true
+  },
+  "lossless-high-delay": {
+   "datagram_counts": {
+    "run1": 27,
+    "run2": 27
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1199
+    ],
+    "run2": [
+     1192
+    ]
+   },
+   "timeout_calls": true
+  },
+  "one-lost-round": {
+   "datagram_counts": {
+    "run1": 19,
+    "run2": 21
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1184
+    ],
+    "run2": [
+     1199
+    ]
+   },
+   "timeout_calls": true
+  },
+  "real-udp-client-oversized-dropped": {
+   "datagram_counts": {
+    "run1": 10,
+    "run2": 10
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [],
+    "run2": []
+   },
+   "timeout_calls": true
+  },
+  "server-oversized-dropped": {
+   "datagram_counts": {
+    "run1": 34,
+    "run2": 34
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1185
+    ],
+    "run2": [
+     1202
+    ]
+   },
+   "timeout_calls": true
+  },
+  "total-loss": {
+   "datagram_counts": {
+    "run1": 10,
+    "run2": 10
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [],
+    "run2": []
+   },
+   "timeout_calls": true
+  },
+  "two-lost-rounds": {
+   "datagram_counts": {
+    "run1": 21,
+    "run2": 23
+   },
+   "handshake_datagrams": true,
+   "phases": true,
+   "receipts": true,
+   "sub_filter_large_datagram_sizes": {
+    "run1": [
+     1184
+    ],
+    "run2": [
+     1190
+    ]
+   },
+   "timeout_calls": true
+  }
+ },
+ "scenarios": {
+  "both-oversized-dropped": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no indeterminate loss-timer call": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 10,
+     "bytes": 12800,
+     "delivered": 0,
+     "dropped": {
+      "size_filter": 10
+     },
+     "max_size": 1280,
+     "sizes": {
+      "1280": 10
+     }
+    }
+   },
+   "dial": {
+    "error": "timeout: no recent network activity",
+    "error_class": "idle_timeout",
+    "t_ms": 5000.0
+   },
+   "endpoints": {
+    "client": {
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 4,
+     "eligible_by_branch": {
+      "ordinary": 4,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 4,
+     "final_comparison_count": 2,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 200.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 600.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 3,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 1400.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 4,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 3000.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 4,
+     "receipt_ms": null
+    },
+    "server": {
+     "connection": false,
+     "effective_size_changes": [],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": null
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "drop datagrams over 1250 bytes in both directions",
+    "release_at_client_eligible": 0,
+    "scenario": "both-oversized-dropped",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "no server connection",
+   "transfer_verified": false,
+   "witnesses": {
+    "client never processes a peer packet": true,
+    "every client datagram is over 1250 bytes and dropped": true
+   }
+  },
+  "client-oversized-dropped": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no indeterminate loss-timer call": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 10,
+     "bytes": 12800,
+     "delivered": 0,
+     "dropped": {
+      "size_filter": 10
+     },
+     "max_size": 1280,
+     "sizes": {
+      "1280": 10
+     }
+    }
+   },
+   "dial": {
+    "error": "timeout: no recent network activity",
+    "error_class": "idle_timeout",
+    "t_ms": 5000.0
+   },
+   "endpoints": {
+    "client": {
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 4,
+     "eligible_by_branch": {
+      "ordinary": 4,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 4,
+     "final_comparison_count": 2,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 200.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 600.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 3,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 1400.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 4,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 3000.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 4,
+     "receipt_ms": null
+    },
+    "server": {
+     "connection": false,
+     "effective_size_changes": [],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": null
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "drop client-to-server datagrams over 1250 bytes",
+    "release_at_client_eligible": 0,
+    "scenario": "client-oversized-dropped",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "no server connection",
+   "transfer_verified": false,
+   "witnesses": {
+    "client never processes a peer packet": true,
+    "every client datagram is over 1250 bytes and dropped": true
+   }
+  },
+  "healthy": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no indeterminate loss-timer call": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1,
+    "server": 1
+   },
+   "curves": {
+    "client": "X25519MLKEM768",
+    "server": "X25519MLKEM768"
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 9,
+     "bytes": 8096,
+     "delivered": 9,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1280": 6,
+      "26": 1,
+      "28": 1,
+      "362": 1
+     }
+    },
+    "s2c": {
+     "attempted": 9,
+     "bytes": 7106,
+     "delivered": 9,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1191": 1,
+      "1280": 4,
+      "28": 1,
+      "310": 1,
+      "362": 1,
+      "95": 1
+     }
+    }
+   },
+   "dial": {
+    "error": "",
+    "error_class": "none",
+    "t_ms": 20.0
+   },
+   "endpoints": {
+    "client": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 20.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 40.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": 20.0
+    },
+    "server": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 30.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 30.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": 10.0
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "no loss",
+    "release_at_client_eligible": 0,
+    "scenario": "healthy",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "handshake succeeded",
+   "transfer_verified": true,
+   "witnesses": {
+    "no datagram dropped": true
+   }
+  },
+  "loss-after-client-receipt": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no client datagram at the release instant was routed before it": true,
+    "no indeterminate loss-timer call": true,
+    "no loss-window drop after release": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "release precedes the probes it releases": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1,
+    "server": 1
+   },
+   "curves": {
+    "client": "X25519MLKEM768",
+    "server": "X25519MLKEM768"
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 11,
+     "bytes": 8318,
+     "delivered": 10,
+     "dropped": {
+      "loss_window_after_receipt": 1
+     },
+     "max_size": 1280,
+     "sizes": {
+      "102": 1,
+      "1280": 6,
+      "26": 1,
+      "362": 1,
+      "74": 2
+     }
+    },
+    "s2c": {
+     "attempted": 10,
+     "bytes": 7132,
+     "delivered": 10,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1198": 1,
+      "1280": 4,
+      "27": 1,
+      "28": 1,
+      "302": 1,
+      "362": 1,
+      "95": 1
+     }
+    }
+   },
+   "dial": {
+    "error": "",
+    "error_class": "none",
+    "t_ms": 20.0
+   },
+   "endpoints": {
+    "client": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 20.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 1,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 1,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 1,
+     "final_comparison_count": 1,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 100.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": true,
+       "handshake_confirmed": false,
+       "level": "Handshake",
+       "received_first_packet": true,
+       "t_ms": 80.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 1,
+     "receipt_ms": 20.0
+    },
+    "server": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 90.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 90.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": 10.0
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "after the client processes a peer packet, drop every client-to-server datagram until the client's first eligible PTO",
+    "release_at_client_eligible": 1,
+    "scenario": "loss-after-client-receipt",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "release": {
+    "at_client_eligible_count": 1,
+    "client_datagrams_routed_at_the_release_instant_before_it": 0,
+    "client_had_processed_peer_packet": true,
+    "client_packets_sent_at_the_release_instant_after_it": [
+     "handshake#1",
+     "handshake#2"
+    ],
+    "first_client_datagram_after_release": {
+     "decision": "deliver",
+     "size": 74,
+     "t_ms": 80.0
+    },
+    "t_ms": 80.0
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "handshake succeeded",
+   "transfer_verified": true,
+   "witnesses": {
+    "client receipt precedes the first loss-window drop": true,
+    "dropped client datagrams carried handshake packets": [
+     "1RTT",
+     "handshake",
+     "initial"
+    ],
+    "no eligible client PTO before receipt": true,
+    "release happens at the client's first eligible PTO": true
+   }
+  },
+  "lossless-high-delay": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no indeterminate loss-timer call": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1,
+    "server": 1
+   },
+   "curves": {
+    "client": "X25519MLKEM768",
+    "server": "X25519MLKEM768"
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 14,
+     "bytes": 10833,
+     "delivered": 14,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1280": 8,
+      "26": 1,
+      "28": 1,
+      "29": 1,
+      "362": 1,
+      "74": 2
+     }
+    },
+    "s2c": {
+     "attempted": 13,
+     "bytes": 9743,
+     "delivered": 13,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1199": 1,
+      "1280": 6,
+      "27": 1,
+      "28": 1,
+      "311": 1,
+      "362": 1,
+      "41": 1,
+      "95": 1
+     }
+    }
+   },
+   "dial": {
+    "error": "",
+    "error_class": "none",
+    "t_ms": 300.0
+   },
+   "endpoints": {
+    "client": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 300.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 1,
+     "eligible_before_receipt": 1,
+     "eligible_by_branch": {
+      "ordinary": 2,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 2,
+     "final_comparison_count": 2,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 600.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 200.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": true,
+       "handshake_confirmed": false,
+       "level": "Handshake",
+       "received_first_packet": true,
+       "t_ms": 500.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 2,
+     "receipt_ms": 300.0
+    },
+    "server": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 450.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 1,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 1,
+     "final_comparison_count": 1,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 450.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 350.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 1,
+     "receipt_ms": 150.0
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 150000000,
+    "policy": "no loss, 300 ms RTT",
+    "release_at_client_eligible": 0,
+    "scenario": "lossless-high-delay",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "handshake succeeded",
+   "transfer_verified": true,
+   "witnesses": {
+    "client receipt precedes any second eligible client PTO": true,
+    "first eligible client PTO precedes client receipt": true,
+    "no datagram dropped": true
+   }
+  },
+  "one-lost-round": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no client datagram at the release instant was routed before it": true,
+    "no indeterminate loss-timer call": true,
+    "no loss-window drop after release": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "release precedes the probes it releases": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1,
+    "server": 1
+   },
+   "curves": {
+    "client": "X25519MLKEM768",
+    "server": "X25519MLKEM768"
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 11,
+     "bytes": 10656,
+     "delivered": 9,
+     "dropped": {
+      "loss_window": 2
+     },
+     "max_size": 1280,
+     "sizes": {
+      "1280": 8,
+      "26": 1,
+      "28": 1,
+      "362": 1
+     }
+    },
+    "s2c": {
+     "attempted": 8,
+     "bytes": 7076,
+     "delivered": 8,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1184": 1,
+      "1280": 4,
+      "310": 1,
+      "367": 1,
+      "95": 1
+     }
+    }
+   },
+   "dial": {
+    "error": "",
+    "error_class": "none",
+    "t_ms": 220.0
+   },
+   "endpoints": {
+    "client": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 220.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 1,
+     "eligible_by_branch": {
+      "ordinary": 1,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 1,
+     "final_comparison_count": 1,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 240.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 200.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 1,
+     "receipt_ms": 220.0
+    },
+    "server": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 230.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 230.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": 210.0
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "drop every client-to-server datagram until the client's first eligible PTO",
+    "release_at_client_eligible": 1,
+    "scenario": "one-lost-round",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "release": {
+    "at_client_eligible_count": 1,
+    "client_datagrams_routed_at_the_release_instant_before_it": 0,
+    "client_had_processed_peer_packet": false,
+    "client_packets_sent_at_the_release_instant_after_it": [
+     "initial#2",
+     "initial#3"
+    ],
+    "first_client_datagram_after_release": {
+     "decision": "deliver",
+     "size": 1280,
+     "t_ms": 200.0
+    },
+    "t_ms": 200.0
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "handshake succeeded",
+   "transfer_verified": true,
+   "witnesses": {
+    "every client datagram before the release is dropped": true,
+    "release happens at eligible client PTO #1": true,
+    "server-to-client delivery stays enabled": true
+   }
+  },
+  "real-udp-client-oversized-dropped": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the proxy read buffer and the loopback MTU": true,
+    "no indeterminate loss-timer call": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "transports, listener and proxy closed; proxy workers joined",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 10,
+     "bytes": 12800,
+     "delivered": 0,
+     "dropped": {
+      "size_filter": 10
+     },
+     "max_size": 1280,
+     "sizes": {
+      "1280": 10
+     }
+    }
+   },
+   "dial": {
+    "error": "timeout: no recent network activity",
+    "error_class": "idle_timeout",
+    "t_ms": 5001.779
+   },
+   "endpoints": {
+    "client": {
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 4,
+     "eligible_by_branch": {
+      "ordinary": 4,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 4,
+     "final_comparison_count": 2,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 201.647
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 603.136
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 3,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 1404.089
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 4,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 3004.769
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 4,
+     "receipt_ms": null
+    },
+    "server": {
+     "connection": false,
+     "effective_size_changes": [],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": null
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "loopback UDP through integrationtests/tools/proxy, wall-clock time",
+    "one_way_latency_ns": 0,
+    "policy": "proxy drops client-to-server datagrams over 1250 bytes",
+    "release_at_client_eligible": 0,
+    "scenario": "real-udp-client-oversized-dropped",
+    "size_limits": {
+     "loopback_interface": "lo0",
+     "loopback_interface_mtu": 16384,
+     "proxy_read_buffer": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "no server connection",
+   "transfer_verified": false,
+   "witnesses": {
+    "client never processes a peer packet": true,
+    "every client datagram is over 1250 bytes and dropped": true
+   }
+  },
+  "server-oversized-dropped": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no indeterminate loss-timer call": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1,
+    "server": 1
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 11,
+     "bytes": 14080,
+     "delivered": 11,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1280": 11
+     }
+    },
+    "s2c": {
+     "attempted": 23,
+     "bytes": 17678,
+     "delivered": 16,
+     "dropped": {
+      "size_filter": 7
+     },
+     "max_size": 1280,
+     "sizes": {
+      "1185": 7,
+      "1280": 7,
+      "41": 8,
+      "95": 1
+     }
+    }
+   },
+   "dial": {
+    "error": "timeout: handshake did not complete in time",
+    "error_class": "handshake_timeout",
+    "t_ms": 10000.0
+   },
+   "endpoints": {
+    "client": {
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 1,
+     "eligible_by_branch": {
+      "ordinary": 1,
+      "silent_one_probe": 7
+     },
+     "eligible_expirations": 8,
+     "final_comparison_count": 2,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 200.0
+      },
+      {
+       "class": "pto_silent",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 340.0
+      },
+      {
+       "class": "pto_silent",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 3,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 560.0
+      },
+      {
+       "class": "pto_silent",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 4,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 920.0
+      },
+      {
+       "class": "pto_silent",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 5,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 1529.952
+      },
+      {
+       "class": "pto_silent",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 6,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 2594.816
+      },
+      {
+       "class": "pto_silent",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 7,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 4502.048
+      },
+      {
+       "class": "pto_silent",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 8,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 7992.896
+      }
+     ],
+     "packets_buffered_before_receipt": 2,
+     "packets_buffered_undecryptable": 8,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 1,
+     "receipt_ms": 220.0
+    },
+    "server": {
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 6,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 6,
+     "final_comparison_count": 2,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 210.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Handshake",
+       "received_first_packet": true,
+       "t_ms": 410.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 3,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 1010.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 4,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Handshake",
+       "received_first_packet": true,
+       "t_ms": 2010.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 5,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": true,
+       "t_ms": 4210.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 6,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Handshake",
+       "received_first_packet": true,
+       "t_ms": 8410.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 6,
+     "receipt_ms": 10.0
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "drop server-to-client datagrams over 1250 bytes",
+    "release_at_client_eligible": 0,
+    "scenario": "server-oversized-dropped",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": {
+    "error": "timeout: handshake did not complete in time",
+    "error_class": "handshake_timeout",
+    "t_ms": 10010.0
+   },
+   "transfer_verified": false,
+   "witnesses": {
+    "server processes the client's Initial before its first dropped write": true,
+    "server processes the client's Initial before its first eligible PTO": true
+   }
+  },
+  "total-loss": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no indeterminate loss-timer call": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 10,
+     "bytes": 12800,
+     "delivered": 0,
+     "dropped": {
+      "total_loss": 10
+     },
+     "max_size": 1280,
+     "sizes": {
+      "1280": 10
+     }
+    }
+   },
+   "dial": {
+    "error": "timeout: no recent network activity",
+    "error_class": "idle_timeout",
+    "t_ms": 5000.0
+   },
+   "endpoints": {
+    "client": {
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 4,
+     "eligible_by_branch": {
+      "ordinary": 4,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 4,
+     "final_comparison_count": 2,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 200.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 600.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 3,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 1400.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 4,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 3000.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 4,
+     "receipt_ms": null
+    },
+    "server": {
+     "connection": false,
+     "effective_size_changes": [],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": null
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "drop every datagram in both directions",
+    "release_at_client_eligible": 0,
+    "scenario": "total-loss",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "no server connection",
+   "transfer_verified": false,
+   "witnesses": {
+    "every datagram dropped": true
+   }
+  },
+  "two-lost-rounds": {
+   "checks": {
+    "Go and Python classifications agree": true,
+    "at most one connection per endpoint": true,
+    "cleanup recorded": true,
+    "every attempted datagram fits the simnet link MTU": true,
+    "no client datagram at the release instant was routed before it": true,
+    "no indeterminate loss-timer call": true,
+    "no loss-window drop after release": true,
+    "no unknown datagram direction": true,
+    "outcome is a transport outcome, not the fixture deadline": true,
+    "release precedes the probes it releases": true,
+    "size filters drop only datagrams over 1250 bytes": true,
+    "transfer verified after every successful dial": true
+   },
+   "cleanup": "synctest bubble exited",
+   "client_first_flight_datagrams": [
+    1280,
+    1280
+   ],
+   "connections_created": {
+    "client": 1,
+    "server": 1
+   },
+   "curves": {
+    "client": "X25519MLKEM768",
+    "server": "X25519MLKEM768"
+   },
+   "datagrams": {
+    "c2s": {
+     "attempted": 13,
+     "bytes": 13216,
+     "delivered": 9,
+     "dropped": {
+      "loss_window": 4
+     },
+     "max_size": 1280,
+     "sizes": {
+      "1280": 10,
+      "26": 1,
+      "28": 1,
+      "362": 1
+     }
+    },
+    "s2c": {
+     "attempted": 8,
+     "bytes": 7076,
+     "delivered": 8,
+     "dropped": {},
+     "max_size": 1280,
+     "sizes": {
+      "1184": 1,
+      "1280": 4,
+      "310": 1,
+      "367": 1,
+      "95": 1
+     }
+    }
+   },
+   "dial": {
+    "error": "",
+    "error_class": "none",
+    "t_ms": 620.0
+   },
+   "endpoints": {
+    "client": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 620.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 2,
+     "eligible_by_branch": {
+      "ordinary": 2,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 2,
+     "final_comparison_count": 2,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 640.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [
+      {
+       "class": "pto",
+       "comparison_count": 1,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 1,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 200.0
+      },
+      {
+       "class": "pto",
+       "comparison_count": 2,
+       "effective_initial_packet_size": 1280,
+       "eligible": true,
+       "eligible_count": 2,
+       "handshake_complete": false,
+       "handshake_confirmed": false,
+       "level": "Initial",
+       "received_first_packet": false,
+       "t_ms": 600.0
+      }
+     ],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 2,
+     "receipt_ms": 620.0
+    },
+    "server": {
+     "completion": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": false,
+      "max_packet_size": 1280,
+      "t_ms": 630.0
+     },
+     "connection": true,
+     "effective_size_changes": [
+      1280
+     ],
+     "eligible_after_completion": 0,
+     "eligible_before_receipt": 0,
+     "eligible_by_branch": {
+      "ordinary": 0,
+      "silent_one_probe": 0
+     },
+     "eligible_expirations": 0,
+     "final_comparison_count": 0,
+     "handshake_keys_discarded": {
+      "df": false,
+      "effective_initial_packet_size": 1280,
+      "handshake_confirmed": true,
+      "max_packet_size": 1280,
+      "t_ms": 630.0
+     },
+     "indeterminate_calls": 0,
+     "loss_timer_calls": [],
+     "packets_buffered_before_receipt": 0,
+     "packets_buffered_undecryptable": 0,
+     "python_go_class_disagreements": 0,
+     "qlog_pto_expired_events_before_confirmation": 0,
+     "receipt_ms": 610.0
+    }
+   },
+   "fixture": {
+    "config": "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+    "default_handshake_idle_ns": 5000000000,
+    "dial_deadline_ns": 30000000000,
+    "filter_drops_over": 1250,
+    "go": "go1.27.2",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "network": "simnet, testing/synctest virtual time",
+    "one_way_latency_ns": 10000000,
+    "policy": "drop every client-to-server datagram until the client's second eligible PTO",
+    "release_at_client_eligible": 2,
+    "scenario": "two-lost-rounds",
+    "size_limits": {
+     "simnet_link_mtu": 1452
+    },
+    "tls": "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01"
+   },
+   "release": {
+    "at_client_eligible_count": 2,
+    "client_datagrams_routed_at_the_release_instant_before_it": 0,
+    "client_had_processed_peer_packet": false,
+    "client_packets_sent_at_the_release_instant_after_it": [
+     "initial#4",
+     "initial#5"
+    ],
+    "first_client_datagram_after_release": {
+     "decision": "deliver",
+     "size": 1280,
+     "t_ms": 600.0
+    },
+    "t_ms": 600.0
+   },
+   "server_amplification": {
+    "first_flight_note": "budget counts delivered client datagrams; server bytes count every write",
+    "server_sends_at_or_over_3x_budget": []
+   },
+   "server_outcome": "handshake succeeded",
+   "transfer_verified": true,
+   "witnesses": {
+    "every client datagram before the release is dropped": true,
+    "release happens at eligible client PTO #2": true,
+    "server-to-client delivery stays enabled": true
+   }
+  }
+ }
+}

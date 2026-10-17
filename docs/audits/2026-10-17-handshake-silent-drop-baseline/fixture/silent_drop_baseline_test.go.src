@@ -1,0 +1,445 @@
+package quic
+
+// Disposable scenarios for the handshake silent-drop baseline (#758); not a
+// maintained test. Outcomes are recorded, not asserted: a test failure means the
+// fixture did not realize the required sequence or did not clean up.
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"runtime"
+	"sync/atomic"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
+	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/congestion"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/testutils/simnet"
+
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	silentDropFilterSize   = 1250                         // datagrams above this are dropped by the size filters
+	silentDropLinkMTU      = protocol.MaxPacketBufferSize // every link accepts every attempted size
+	silentDropDialDeadline = 30 * time.Second             // longer than the 10 s handshake timeout
+	silentDropLowLatency   = 10 * time.Millisecond        // one way; 20 ms RTT
+	silentDropHighLatency  = 150 * time.Millisecond       // one way; 300 ms RTT
+	silentDropPayloadSize  = 4096                         // echoed in each direction after success
+	silentDropServerWait   = 60 * time.Second             // bound for a failed server connection to end itself
+)
+
+type silentDropRun struct {
+	capture        *silentDropCapture
+	client, server *silentDropEndpoint
+	released       atomic.Bool
+}
+
+func newSilentDropRun() *silentDropRun {
+	c := newSilentDropCapture()
+	return &silentDropRun{capture: c, client: newSilentDropEndpoint(c, "client"), server: newSilentDropEndpoint(c, "server")}
+}
+
+type silentDropScenario struct {
+	name      string
+	oneWay    time.Duration
+	policy    string
+	releaseAt int // the client's eligible PTO count that restores delivery; 0 for none
+	decide    func(r *silentDropRun) silentDropPolicy
+}
+
+func sizeFilter(dirs ...string) func(*silentDropRun) silentDropPolicy {
+	return func(*silentDropRun) silentDropPolicy {
+		return func(dir string, size int) (bool, string) {
+			for _, d := range dirs {
+				if d == dir && size > silentDropFilterSize {
+					return true, "size_filter"
+				}
+			}
+			return false, ""
+		}
+	}
+}
+
+func lossUntilRelease(r *silentDropRun) silentDropPolicy {
+	return func(dir string, _ int) (bool, string) {
+		if dir == "c2s" && !r.released.Load() {
+			return true, "loss_window"
+		}
+		return false, ""
+	}
+}
+
+func lossAfterClientReceipt(r *silentDropRun) silentDropPolicy {
+	return func(dir string, _ int) (bool, string) {
+		if dir == "c2s" && r.client.receipt.Load() && !r.released.Load() {
+			return true, "loss_window_after_receipt"
+		}
+		return false, ""
+	}
+}
+
+func deliverAll(*silentDropRun) silentDropPolicy {
+	return func(string, int) (bool, string) { return false, "" }
+}
+
+func dropAll(*silentDropRun) silentDropPolicy {
+	return func(string, int) (bool, string) { return true, "total_loss" }
+}
+
+var silentDropScenarios = []silentDropScenario{
+	{name: "client-oversized-dropped", oneWay: silentDropLowLatency, policy: "drop client-to-server datagrams over 1250 bytes", decide: sizeFilter("c2s")},
+	{name: "server-oversized-dropped", oneWay: silentDropLowLatency, policy: "drop server-to-client datagrams over 1250 bytes", decide: sizeFilter("s2c")},
+	{name: "both-oversized-dropped", oneWay: silentDropLowLatency, policy: "drop datagrams over 1250 bytes in both directions", decide: sizeFilter("c2s", "s2c")},
+	{name: "loss-after-client-receipt", oneWay: silentDropLowLatency, policy: "after the client processes a peer packet, drop every client-to-server datagram until the client's first eligible PTO", releaseAt: 1, decide: lossAfterClientReceipt},
+	{name: "healthy", oneWay: silentDropLowLatency, policy: "no loss", decide: deliverAll},
+	{name: "lossless-high-delay", oneWay: silentDropHighLatency, policy: "no loss, 300 ms RTT", decide: deliverAll},
+	{name: "one-lost-round", oneWay: silentDropLowLatency, policy: "drop every client-to-server datagram until the client's first eligible PTO", releaseAt: 1, decide: lossUntilRelease},
+	{name: "two-lost-rounds", oneWay: silentDropLowLatency, policy: "drop every client-to-server datagram until the client's second eligible PTO", releaseAt: 2, decide: lossUntilRelease},
+	{name: "total-loss", oneWay: silentDropLowLatency, policy: "drop every datagram in both directions", decide: dropAll},
+}
+
+func silentDropErrorClass(err error) string {
+	var idle *IdleTimeoutError
+	var hs *HandshakeTimeoutError
+	switch {
+	case err == nil:
+		return "none"
+	case errors.As(err, &idle):
+		return "idle_timeout"
+	case errors.As(err, &hs):
+		return "handshake_timeout"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "fixture_deadline"
+	case errors.Is(err, context.Canceled):
+		return "fixture_canceled"
+	default:
+		return "other"
+	}
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+// manifest records the shared setup; limits names the network's own size limits.
+func (r *silentDropRun) manifest(sc silentDropScenario, network string, limits map[string]any) {
+	r.capture.record("fixture", map[string]any{
+		"scenario":                   sc.name,
+		"network":                    network,
+		"size_limits":                limits,
+		"policy":                     sc.policy,
+		"release_at_client_eligible": sc.releaseAt,
+		"one_way_latency_ns":         sc.oneWay.Nanoseconds(),
+		"filter_drops_over":          silentDropFilterSize,
+		"dial_deadline_ns":           silentDropDialDeadline.Nanoseconds(),
+		"config":                     "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
+		"default_handshake_idle_ns":  protocol.DefaultHandshakeIdleTimeout.Nanoseconds(),
+		"tls":                        "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01",
+		"go":                         runtime.Version(),
+		"goos":                       runtime.GOOS,
+		"goarch":                     runtime.GOARCH,
+	})
+}
+
+func (r *silentDropRun) installRelease(releaseAt int) {
+	if releaseAt == 0 {
+		return
+	}
+	// Runs on the client's connection goroutine inside its loss-timer call, before
+	// the connection builds and hands off that expiration's probes.
+	r.client.onEligible = func(count int) {
+		if count == releaseAt && !r.released.Load() {
+			r.released.Store(true)
+			r.capture.record("release", map[string]any{
+				"endpoint": "client", "at_eligible_count": count,
+				"received_first_packet": r.client.conn.receivedFirstPacket,
+			})
+		}
+	}
+}
+
+type silentDropAccepted struct {
+	conn *Conn
+	err  error
+}
+
+// handshake dials, verifies a bidirectional echo on success, and waits for the
+// server connection (if any) to end; it records every outcome.
+func (r *silentDropRun) handshake(t *testing.T, ln *Listener, clientTr *Transport, serverAddr net.Addr, clientTLS *tls.Config) {
+	c := r.capture
+	acceptCtx, cancelAccept := context.WithCancel(context.Background())
+	acceptCh := make(chan silentDropAccepted, 1)
+	acceptDone := make(chan struct{})
+	go func() {
+		defer close(acceptDone)
+		conn, err := ln.Accept(acceptCtx)
+		acceptCh <- silentDropAccepted{conn, err}
+	}()
+	// Join the Accept helper on every outcome, before the caller closes anything.
+	defer func() {
+		cancelAccept()
+		<-acceptDone
+		c.record("phase", map[string]any{"what": "accept helper joined"})
+	}()
+
+	dialCtx, cancelDial := context.WithTimeout(context.Background(), silentDropDialDeadline)
+	defer cancelDial()
+	start := time.Now()
+	c.record("phase", map[string]any{"what": "dial start"})
+	conn, err := clientTr.Dial(dialCtx, serverAddr, clientTLS, &Config{Tracer: r.client.tracer})
+	c.record("phase", map[string]any{
+		"what": "dial returned", "elapsed_ns": time.Since(start).Nanoseconds(),
+		"error": errString(err), "error_class": silentDropErrorClass(err),
+	})
+	if err == nil {
+		r.transfer(t, start, conn, acceptCh)
+		return
+	}
+
+	// The server connection, if one exists, ends on its own transport timeout.
+	if sc := r.server.connForTest(); sc != nil {
+		select {
+		case <-sc.Context().Done():
+			cause := context.Cause(sc.Context())
+			c.record("phase", map[string]any{
+				"what": "server connection ended", "elapsed_ns": time.Since(start).Nanoseconds(),
+				"error": errString(cause), "error_class": silentDropErrorClass(cause),
+			})
+		case <-time.After(silentDropServerWait):
+			t.Fatal("server connection did not end")
+		}
+	} else {
+		c.record("phase", map[string]any{"what": "no server connection"})
+	}
+}
+
+func (r *silentDropRun) transfer(t *testing.T, start time.Time, conn *Conn, acceptCh <-chan silentDropAccepted) {
+	c := r.capture
+	var server *Conn
+	select {
+	case a := <-acceptCh:
+		require.NoError(t, a.err)
+		server = a.conn
+	case <-time.After(silentDropDialDeadline):
+		t.Fatal("server did not accept")
+	}
+	c.record("phase", map[string]any{
+		"what": "accepted", "elapsed_ns": time.Since(start).Nanoseconds(),
+		"client_curve": conn.ConnectionState().TLS.CurveID.String(),
+		"server_curve": server.ConnectionState().TLS.CurveID.String(),
+	})
+
+	payload := make([]byte, silentDropPayloadSize)
+	for i := range payload {
+		payload[i] = byte(i)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), silentDropDialDeadline)
+	defer cancel()
+	echoErr := make(chan error, 1)
+	go func() {
+		echoErr <- func() error {
+			str, err := server.AcceptStream(ctx)
+			if err != nil {
+				return err
+			}
+			data, err := io.ReadAll(str)
+			if err != nil {
+				return err
+			}
+			if _, err := str.Write(data); err != nil {
+				return err
+			}
+			return str.Close()
+		}()
+	}()
+	str, err := conn.OpenStreamSync(ctx)
+	require.NoError(t, err)
+	require.NoError(t, str.SetDeadline(time.Now().Add(silentDropDialDeadline)))
+	_, err = str.Write(payload)
+	require.NoError(t, err)
+	require.NoError(t, str.Close())
+	got, err := io.ReadAll(str)
+	require.NoError(t, err)
+	require.NoError(t, <-echoErr)
+	require.True(t, bytes.Equal(payload, got), "echo mismatch")
+	c.record("phase", map[string]any{
+		"what": "bidirectional transfer verified", "elapsed_ns": time.Since(start).Nanoseconds(),
+		"bytes_each_way": len(payload),
+	})
+
+	require.NoError(t, conn.CloseWithError(0, ""))
+	<-server.Context().Done()
+	c.record("phase", map[string]any{"what": "connections closed", "elapsed_ns": time.Since(start).Nanoseconds()})
+}
+
+// connForTest returns the connection for the test goroutine; attach publishes it
+// before the connection runs.
+func (e *silentDropEndpoint) connForTest() *Conn {
+	e.mx.Lock()
+	defer e.mx.Unlock()
+	if e.conns == 0 {
+		return nil
+	}
+	return e.published
+}
+
+func TestSilentDropBaseline(t *testing.T) {
+	for _, sc := range silentDropScenarios {
+		t.Run(sc.name, func(t *testing.T) {
+			var run *silentDropRun
+			synctest.Test(t, func(t *testing.T) {
+				run = newSilentDropRun() // the capture clock is the bubble's
+				installSilentDropObservers(t)
+				run.installRelease(sc.releaseAt)
+				run.manifest(sc, "simnet, testing/synctest virtual time", map[string]any{"simnet_link_mtu": silentDropLinkMTU})
+
+				clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
+				serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
+				router := &silentDropRouter{client: clientAddr.String(), server: serverAddr.String(), capture: run.capture, policy: sc.decide(run)}
+				n := &simnet.Simnet{Router: router}
+				settings := simnet.NodeBiDiLinkSettings{
+					Uplink:   simnet.LinkSettings{MTU: silentDropLinkMTU},
+					Downlink: simnet.LinkSettings{MTU: silentDropLinkMTU},
+					Latency:  sc.oneWay,
+				}
+				clientConn := n.NewEndpoint(clientAddr, settings)
+				serverConn := n.NewEndpoint(serverAddr, settings)
+				require.NoError(t, n.Start())
+
+				serverTLS, clientTLS := silentDropTLSConfigs()
+				serverTr := &Transport{Conn: serverConn}
+				clientTr := &Transport{Conn: clientConn}
+				ln, err := serverTr.Listen(serverTLS, &Config{Tracer: run.server.tracer})
+				require.NoError(t, err)
+
+				run.handshake(t, ln, clientTr, serverAddr, clientTLS)
+
+				require.NoError(t, ln.Close())
+				require.NoError(t, clientTr.Close())
+				require.NoError(t, serverTr.Close())
+				require.NoError(t, clientConn.Close())
+				require.NoError(t, serverConn.Close())
+				require.NoError(t, n.Close())
+				run.capture.record("phase", map[string]any{"what": "fixture closed"})
+			})
+			// synctest.Test returns only after every goroutine in the bubble exited.
+			run.capture.finish(t, sc.name, "synctest bubble exited")
+		})
+	}
+}
+
+// TestSilentDropRealUDP is the representative real-UDP size-drop case: loopback
+// sockets and the existing proxy, in wall-clock time.
+func TestSilentDropRealUDP(t *testing.T) {
+	sc := silentDropScenario{name: "real-udp-client-oversized-dropped", policy: "proxy drops client-to-server datagrams over 1250 bytes", decide: sizeFilter("c2s")}
+	run := newSilentDropRun()
+	installSilentDropObservers(t)
+	loName, loMTU := silentDropLoopbackMTU(t)
+	run.manifest(sc, "loopback UDP through integrationtests/tools/proxy, wall-clock time", map[string]any{
+		"loopback_interface":     loName,
+		"loopback_interface_mtu": loMTU,
+		"proxy_read_buffer":      protocol.MaxPacketBufferSize, // the proxy reads each datagram into a buffer of this size
+	})
+
+	listen := func() *net.UDPConn {
+		conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		require.NoError(t, err)
+		return conn
+	}
+	serverUDP, clientUDP, proxyUDP := listen(), listen(), listen()
+	policy := sc.decide(run)
+	p := &quicproxy.Proxy{
+		Conn:       proxyUDP,
+		ServerAddr: serverUDP.LocalAddr().(*net.UDPAddr),
+		DropPacket: func(dir quicproxy.Direction, _, _ net.Addr, packet []byte) bool {
+			d := "s2c"
+			if dir == quicproxy.DirectionIncoming {
+				d = "c2s"
+			}
+			return recordSilentDropDatagram(run.capture, policy, d, packet)
+		},
+	}
+	require.NoError(t, p.Start())
+
+	serverTLS, clientTLS := silentDropTLSConfigs()
+	serverTr := &Transport{Conn: serverUDP}
+	clientTr := &Transport{Conn: clientUDP}
+	ln, err := serverTr.Listen(serverTLS, &Config{Tracer: run.server.tracer})
+	require.NoError(t, err)
+
+	run.handshake(t, ln, clientTr, proxyUDP.LocalAddr(), clientTLS)
+
+	require.NoError(t, ln.Close())
+	require.NoError(t, clientTr.Close())
+	require.NoError(t, serverTr.Close())
+	require.NoError(t, p.Close()) // joins the proxy's workers
+	for _, c := range []*net.UDPConn{serverUDP, clientUDP, proxyUDP} {
+		require.NoError(t, c.Close())
+	}
+	run.capture.record("phase", map[string]any{"what": "fixture closed"})
+	run.capture.finish(t, sc.name, "transports, listener and proxy closed; proxy workers joined")
+}
+
+// silentDropLoopbackMTU reports the interface that carries 127.0.0.1 and its MTU.
+func silentDropLoopbackMTU(t *testing.T) (string, int) {
+	ifaces, err := net.Interfaces()
+	require.NoError(t, err)
+	for _, ifi := range ifaces {
+		addrs, err := ifi.Addrs()
+		require.NoError(t, err)
+		for _, a := range addrs {
+			if ipn, ok := a.(*net.IPNet); ok && ipn.IP.Equal(net.IPv4(127, 0, 0, 1)) {
+				return ifi.Name, ifi.MTU
+			}
+		}
+	}
+	t.Fatal("no interface carries 127.0.0.1")
+	return "", 0
+}
+
+// TestSilentDropObserverFidelity shows the observer forwards every optional
+// interface the connection and emission assert on the recovery slot, and that
+// the connection's real handler implements all of them.
+func TestSilentDropObserverFidelity(t *testing.T) {
+	inner := ackhandler.NewSentPacketHandler(0, 1280, utils.NewRTTStats(), &utils.ConnectionStats{}, false, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger)
+	var wrapped ackhandler.SentPacketHandler = &silentDropRecovery{SentPacketHandler: inner}
+	checks := map[string]func(ackhandler.SentPacketHandler) bool{
+		"deliveryLifecycle": func(h ackhandler.SentPacketHandler) bool { _, ok := h.(deliveryLifecycle); return ok },
+		"boundedRecovery":   func(h ackhandler.SentPacketHandler) bool { _, ok := h.(boundedRecovery); return ok },
+		"QueueProbePacketAt": func(h ackhandler.SentPacketHandler) bool {
+			_, ok := h.(interface {
+				QueueProbePacketAt(protocol.EncryptionLevel, monotime.Time) bool
+			})
+			return ok
+		},
+		"ObserveDeliveryLimitation": func(h ackhandler.SentPacketHandler) bool {
+			_, ok := h.(interface {
+				ObserveDeliveryLimitation(congestion.SendLimitation)
+			})
+			return ok
+		},
+		"BBRDiagnostics": func(h ackhandler.SentPacketHandler) bool {
+			_, ok := h.(interface{ BBRDiagnostics() string })
+			return ok
+		},
+	}
+	for name, check := range checks {
+		require.True(t, check(inner), "the real handler implements %s", name)
+		require.True(t, check(wrapped), "the observer forwards %s", name)
+	}
+	require.Equal(t, fmt.Sprintf("%T", inner), "*ackhandler.sentPacketHandler")
+}
