@@ -168,6 +168,9 @@ type Conn struct {
 	frameParser                wire.FrameParser
 	mtuDiscoverer              *mtuFinder // initialized when the transport parameters are received
 	effectiveInitialPacketSize protocol.ByteCount
+	// handshakeTimeouts counts eligible handshake PTO expirations; see countHandshakeTimeout.
+	handshakeTimeouts     int
+	handshakeTimeoutsPath uint64 // the pathGeneration that handshakeTimeouts counts for
 
 	maxPayloadSizeEstimate atomic.Uint32
 
@@ -729,10 +732,12 @@ runLoop:
 			h.ExpireDelivery(now)
 		}
 		if timeout := c.sentPacketHandler.GetLossDetectionTimeout(); !timeout.IsZero() && !timeout.After(now) {
-			if err := c.sentPacketHandler.OnLossDetectionTimeout(now); err != nil {
+			outcome, err := c.sentPacketHandler.OnLossDetectionTimeout(now)
+			if err != nil {
 				c.setCloseError(&closeError{err: err})
 				break runLoop
 			}
+			c.countHandshakeTimeout(outcome)
 		}
 
 		if keepAliveTime := c.nextKeepAliveTime(); !keepAliveTime.IsZero() && !now.Before(keepAliveTime) {
@@ -1606,6 +1611,7 @@ func (c *Conn) handleRetryPacket(hdr *wire.Header, data []byte, rcvTime monotime
 	newDestConnID := hdr.SrcConnectionID
 	c.receivedRetry = true
 	c.sentPacketHandler.ResetForRetry(rcvTime)
+	c.handshakeTimeouts = 0 // a new handshake attempt
 	c.handshakeDestConnID = newDestConnID
 	c.retrySrcConnID = &newDestConnID
 	c.cryptoStreamHandler.ChangeConnectionID(newDestConnID)
@@ -2611,6 +2617,26 @@ func (c *Conn) applyHandshakeMTUFallback() {
 		return
 	}
 	c.lowerUnsetInitialPacketSize()
+}
+
+// countHandshakeTimeout counts Initial and Handshake PTO expirations before handshake completion.
+// The second in a handshake attempt and path epoch lowers an unset initial packet size, since the
+// path might silently drop larger packets. It runs in the loss-timer call, before that expiration's
+// probes are packed. Unlike recovery's PTO count, ACK progress and key discards don't reset it.
+// A Retry or a path change starts a new count, which never restores the size.
+func (c *Conn) countHandshakeTimeout(outcome ackhandler.TimeoutOutcome) {
+	if !outcome.PTO || c.handshakeComplete ||
+		(outcome.EncLevel != protocol.EncryptionInitial && outcome.EncLevel != protocol.EncryptionHandshake) {
+		return
+	}
+	if c.handshakeTimeoutsPath != c.pathGeneration {
+		c.handshakeTimeoutsPath = c.pathGeneration
+		c.handshakeTimeouts = 0
+	}
+	c.handshakeTimeouts++
+	if c.handshakeTimeouts == 2 {
+		c.lowerUnsetInitialPacketSize()
+	}
 }
 
 // lowerUnsetInitialPacketSize is the sole owner of the pre-confirmation size reduction,

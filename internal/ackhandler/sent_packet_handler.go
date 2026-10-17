@@ -928,7 +928,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 	}
 }
 
-func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) error {
+func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOutcome, error) {
 	defer h.setLossDetectionTimer(now)
 
 	if h.handshakeConfirmed {
@@ -951,7 +951,7 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) error {
 		h.beginCongestionFeedback(now, encLevel, h.bytesInFlight, nil, protocol.InvalidPacketNumber)
 		h.detectLostPackets(now, encLevel)
 		h.finishCongestionFeedback()
-		return nil
+		return TimeoutOutcome{}, nil
 	}
 
 	// PTO
@@ -960,25 +960,28 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) error {
 	// When OnLossDetectionTimeout is called, we therefore need to make sure that there are
 	// actually packets outstanding.
 	if h.bytesInFlight == 0 && !h.peerCompletedAddressValidation {
+		// A client with nothing in flight sends one probe, so that the server isn't
+		// stuck at its amplification limit. This branch emits no qlog event.
 		h.ptoCount++
 		h.numProbesToSend++
-		if h.initialPackets != nil {
+		switch {
+		case h.initialPackets != nil:
 			h.ptoMode = SendPTOInitial
-		} else if h.handshakePackets != nil {
+			return TimeoutOutcome{PTO: true, EncLevel: protocol.EncryptionInitial}, nil
+		case h.handshakePackets != nil:
 			h.ptoMode = SendPTOHandshake
-		} else {
-			return errors.New("sentPacketHandler BUG: PTO fired, but bytes_in_flight is 0 and Initial and Handshake already dropped")
+			return TimeoutOutcome{PTO: true, EncLevel: protocol.EncryptionHandshake}, nil
 		}
-		return nil
+		return TimeoutOutcome{}, errors.New("sentPacketHandler BUG: PTO fired, but bytes_in_flight is 0 and Initial and Handshake already dropped")
 	}
 
 	ptoTime, encLevel := h.getPTOTimeAndSpace(now)
 	if ptoTime.IsZero() {
-		return nil
+		return TimeoutOutcome{}, nil
 	}
 	ps := h.getPacketNumberSpace(encLevel)
 	if !ps.history.HasOutstandingPackets() && !ps.history.HasOutstandingPathProbes() && !h.peerCompletedAddressValidation {
-		return nil
+		return TimeoutOutcome{}, nil
 	}
 	h.ptoCount++
 	if h.logger.Debug() {
@@ -1005,9 +1008,9 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) error {
 		h.getPacketNumberSpace(protocol.Encryption1RTT).history.SkippedPacket(pn)
 		h.ptoMode = SendPTOAppData
 	default:
-		return fmt.Errorf("PTO timer in unexpected encryption level: %s", encLevel)
+		return TimeoutOutcome{}, fmt.Errorf("PTO timer in unexpected encryption level: %s", encLevel)
 	}
-	return nil
+	return TimeoutOutcome{PTO: true, EncLevel: encLevel}, nil
 }
 
 func (h *sentPacketHandler) GetLossDetectionTimeout() monotime.Time {

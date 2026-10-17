@@ -19,7 +19,8 @@ func TestBBRPTOConfirmedSmallFlight(t *testing.T) {
 	var newest []protocol.PacketNumber
 	for range 4 {
 		deadline := h.GetLossDetectionTimeout()
-		require.NoError(t, h.OnLossDetectionTimeout(deadline))
+		_, err := h.OnLossDetectionTimeout(deadline)
+		require.NoError(t, err)
 		for h.initialPackets.history.HasOutstandingPackets() {
 			require.True(t, h.QueueProbePacketAt(protocol.EncryptionInitial, deadline))
 		}

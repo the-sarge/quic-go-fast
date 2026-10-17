@@ -280,7 +280,8 @@ func TestBBRPTOAndRetryPolicy(t *testing.T) {
 			sendCongestionTestPacket(h, now, protocol.Encryption1RTT, 1200)
 			before := b.GetCongestionWindow()
 			if mode == "PTO" {
-				require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout()))
+				_, err := h.OnLossDetectionTimeout(h.GetLossDetectionTimeout())
+				require.NoError(t, err)
 				require.True(t, h.QueueProbePacketAt(protocol.Encryption1RTT, h.GetLossDetectionTimeout()))
 				require.Equal(t, before, b.GetCongestionWindow())
 				require.False(t, b.InRecovery())

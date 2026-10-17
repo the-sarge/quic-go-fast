@@ -757,7 +757,9 @@ func testSentPacketHandlerPTO(t *testing.T, encLevel protocol.EncryptionLevel, p
 	require.Equal(t, sendTimes[2].Add(rttStats.PTO(encLevel == protocol.Encryption1RTT)), timeout)
 
 	eventRecorder.Clear()
-	sph.OnLossDetectionTimeout(timeout)
+	outcome, err := sph.OnLossDetectionTimeout(timeout)
+	require.NoError(t, err)
+	require.Equal(t, TimeoutOutcome{PTO: true, EncLevel: encLevel}, outcome)
 	require.Equal(t,
 		[]qlogwriter.Event{
 			qlog.LossTimerUpdated{
@@ -851,7 +853,7 @@ func testSentPacketHandlerPTO(t *testing.T, encLevel protocol.EncryptionLevel, p
 
 	// Receive an ACK for packet 7.
 	// This now declares packets lost, and leads to arming of a timer for packet 8.
-	_, err := sph.ReceivedAck(
+	_, err = sph.ReceivedAck(
 		&wire.AckFrame{AckRanges: ackRanges(pns[7])},
 		encLevel,
 		sendTimes[7].Add(time.Microsecond),
@@ -902,6 +904,107 @@ func testSentPacketHandlerPTO(t *testing.T, encLevel protocol.EncryptionLevel, p
 		},
 		eventRecorder.Events(qlog.LossTimerUpdated{}),
 	)
+}
+
+// The connection counts handshake timeouts from the reported outcome, so it must not
+// depend on tracing: these handlers have no tracer, and the one-probe branch emits no
+// qlog event anyway.
+func TestSentPacketHandlerTimeoutOutcome(t *testing.T) {
+	const pto = 200 * time.Millisecond // unsampled PTO: 2 * DefaultInitialRTT
+	start := monotime.Now()
+	at := func(d time.Duration) monotime.Time { return start.Add(d) }
+	newHandler := func(pers protocol.Perspective, addressValidated bool) *sentPacketHandler {
+		return NewSentPacketHandler(0, 1280, utils.NewRTTStats(), &utils.ConnectionStats{}, addressValidated, false, nil, pers, nil, utils.DefaultLogger).(*sentPacketHandler)
+	}
+	send := func(h *sentPacketHandler, t monotime.Time, encLevel protocol.EncryptionLevel) protocol.PacketNumber {
+		pn := h.PopPacketNumber(encLevel)
+		h.SentPacket(t, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, encLevel, protocol.ECNNon, 1000, false, false)
+		return pn
+	}
+	ack := func(t *testing.T, h *sentPacketHandler, now monotime.Time, encLevel protocol.EncryptionLevel, pns ...protocol.PacketNumber) {
+		t.Helper()
+		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns...)}, encLevel, now)
+		require.NoError(t, err)
+	}
+	expire := func(t *testing.T, h *sentPacketHandler, now monotime.Time) TimeoutOutcome {
+		t.Helper()
+		outcome, err := h.OnLossDetectionTimeout(now)
+		require.NoError(t, err)
+		return outcome
+	}
+	ptoIn := func(encLevel protocol.EncryptionLevel) TimeoutOutcome {
+		return TimeoutOutcome{PTO: true, EncLevel: encLevel}
+	}
+
+	t.Run("ordinary Initial PTO, once per expiration", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveClient, false)
+		send(h, at(0), protocol.EncryptionInitial)
+		require.Equal(t, at(pto), h.GetLossDetectionTimeout())
+		require.Equal(t, ptoIn(protocol.EncryptionInitial), expire(t, h, at(pto)))
+		// Sending both probes reports nothing; the next expiration is one more PTO.
+		send(h, at(pto), protocol.EncryptionInitial)
+		send(h, at(pto), protocol.EncryptionInitial)
+		require.Equal(t, at(3*pto), h.GetLossDetectionTimeout())
+		require.Equal(t, ptoIn(protocol.EncryptionInitial), expire(t, h, at(3*pto)))
+	})
+
+	t.Run("ordinary Handshake PTO", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveClient, false)
+		h.DropPackets(protocol.EncryptionInitial, at(0))
+		send(h, at(0), protocol.EncryptionHandshake)
+		require.Equal(t, ptoIn(protocol.EncryptionHandshake), expire(t, h, h.GetLossDetectionTimeout()))
+	})
+
+	t.Run("server Initial PTO", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveServer, false)
+		h.ReceivedBytes(1280, at(0))
+		send(h, at(0), protocol.EncryptionInitial)
+		require.Equal(t, ptoIn(protocol.EncryptionInitial), expire(t, h, h.GetLossDetectionTimeout()))
+	})
+
+	t.Run("client one-probe Initial PTO", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveClient, false)
+		pn := send(h, at(0), protocol.EncryptionInitial)
+		// Nothing is in flight, but the server may be amplification limited.
+		ack(t, h, at(10*time.Millisecond), protocol.EncryptionInitial, pn)
+		require.Equal(t, ptoIn(protocol.EncryptionInitial), expire(t, h, h.GetLossDetectionTimeout()))
+		require.Equal(t, SendPTOInitial, h.SendMode(h.GetLossDetectionTimeout()))
+		// The probe is never sent, so the next expiration is another PTO.
+		require.Equal(t, ptoIn(protocol.EncryptionInitial), expire(t, h, h.GetLossDetectionTimeout()))
+	})
+
+	t.Run("client one-probe Handshake PTO", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveClient, false)
+		h.DropPackets(protocol.EncryptionInitial, at(0))
+		require.Equal(t, at(pto), h.GetLossDetectionTimeout())
+		require.Equal(t, ptoIn(protocol.EncryptionHandshake), expire(t, h, at(pto)))
+		require.Equal(t, SendPTOHandshake, h.SendMode(at(pto)))
+	})
+
+	t.Run("time-threshold loss", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveClient, false)
+		send(h, at(0), protocol.EncryptionInitial)
+		pn := send(h, at(time.Millisecond), protocol.EncryptionInitial)
+		ack(t, h, at(11*time.Millisecond), protocol.EncryptionInitial, pn)
+		require.Zero(t, expire(t, h, h.GetLossDetectionTimeout()))
+	})
+
+	t.Run("nothing outstanding", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveServer, true)
+		require.Zero(t, h.GetLossDetectionTimeout())
+		require.Zero(t, expire(t, h, at(pto)))
+	})
+
+	t.Run("only 0-RTT in flight", func(t *testing.T) {
+		h := newHandler(protocol.PerspectiveClient, false)
+		pn := send(h, at(0), protocol.EncryptionInitial)
+		send(h, at(0), protocol.Encryption0RTT)
+		ack(t, h, at(10*time.Millisecond), protocol.EncryptionInitial, pn)
+		alarm := h.GetLossDetectionTimeout()
+		require.NotZero(t, alarm)
+		require.Zero(t, expire(t, h, alarm), "the PTO space has nothing outstanding")
+		require.NotZero(t, h.GetLossDetectionTimeout(), "the alarm is re-armed")
+	})
 }
 
 func TestSentPacketHandlerPacketNumberSpacesPTO(t *testing.T) {
@@ -1471,12 +1574,13 @@ func TestSentPacketHandlerPathProbeAckAndLoss(t *testing.T) {
 
 	now = now.Add(100 * time.Millisecond)
 	require.Equal(t, t1.Add(pathProbePacketLossTimeout), sph.GetLossDetectionTimeout())
-	require.NoError(t, sph.OnLossDetectionTimeout(sph.GetLossDetectionTimeout()))
+	_, err := sph.OnLossDetectionTimeout(sph.GetLossDetectionTimeout())
+	require.NoError(t, err)
 	require.Equal(t, []protocol.PacketNumber{pn1}, packets.Lost)
 	packets.Lost = packets.Lost[:0]
 
 	// receive a delayed ACK for the path probe packet
-	_, err := sph.ReceivedAck(
+	_, err = sph.ReceivedAck(
 		&wire.AckFrame{AckRanges: ackRanges(pn1, pn3)},
 		protocol.Encryption1RTT,
 		now,

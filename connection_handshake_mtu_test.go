@@ -196,6 +196,91 @@ func TestHandshakeMTUFallbackBeforePacking(t *testing.T) {
 	require.Equal(t, protocol.PacketTypeInitial, hdrs[0].Type)
 }
 
+func handshakePTO(encLevel protocol.EncryptionLevel) ackhandler.TimeoutOutcome {
+	return ackhandler.TimeoutOutcome{PTO: true, EncLevel: encLevel}
+}
+
+// newHandshakeTimeoutTestConnection returns a connection whose packet size is its
+// effective initial size: the server learns the client's transport parameters.
+func newHandshakeTimeoutTestConnection(t *testing.T, pers protocol.Perspective, conf *Config) *Conn {
+	t.Helper()
+	if pers == protocol.PerspectiveClient {
+		return newClientTestConnection(t, nil, conf, false).conn
+	}
+	c := newServerTestConnection(t, nil, conf, false).conn
+	c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, ActiveConnectionIDLimit: 2}
+	c.applyTransportParameters()
+	return c
+}
+
+func TestHandshakeTimeoutFallback(t *testing.T) {
+	for _, pers := range []protocol.Perspective{protocol.PerspectiveClient, protocol.PerspectiveServer} {
+		t.Run(pers.String(), func(t *testing.T) {
+			t.Run("the second eligible PTO lowers an unset size", func(t *testing.T) {
+				c := newHandshakeTimeoutTestConnection(t, pers, &Config{})
+				c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+				require.EqualValues(t, protocol.InitialPacketSize, c.maxPacketSize())
+				// Recovery resets its own PTO count on ACK progress and key discards; this count is cumulative.
+				c.countHandshakeTimeout(handshakePTO(protocol.EncryptionHandshake))
+				require.EqualValues(t, 1200, c.maxPacketSize())
+				require.EqualValues(t, estimateMaxPayloadSize(1200), c.maxPayloadSizeEstimate.Load())
+			})
+
+			t.Run("only Initial and Handshake PTOs before completion count", func(t *testing.T) {
+				c := newHandshakeTimeoutTestConnection(t, pers, &Config{})
+				c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+				for range 2 {
+					c.countHandshakeTimeout(ackhandler.TimeoutOutcome{})
+					c.countHandshakeTimeout(handshakePTO(protocol.Encryption1RTT))
+				}
+				require.EqualValues(t, protocol.InitialPacketSize, c.maxPacketSize())
+				c.handshakeComplete = true
+				c.countHandshakeTimeout(handshakePTO(protocol.EncryptionHandshake))
+				require.EqualValues(t, protocol.InitialPacketSize, c.maxPacketSize(), "completion ends eligibility")
+			})
+
+			t.Run("explicit sizes are never lowered", func(t *testing.T) {
+				for _, size := range []uint16{1200, 1280} {
+					c := newHandshakeTimeoutTestConnection(t, pers, &Config{InitialPacketSize: size})
+					for range 3 {
+						c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+					}
+					require.EqualValues(t, size, c.maxPacketSize())
+				}
+			})
+		})
+	}
+
+	t.Run("a path change starts a new count", func(t *testing.T) {
+		c := newClientTestConnection(t, nil, &Config{}, false).conn
+		c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		c.pathGeneration++
+		c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		require.EqualValues(t, protocol.InitialPacketSize, c.maxPacketSize())
+		c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		require.EqualValues(t, 1200, c.maxPacketSize())
+		// A new count never restores the size.
+		c.pathGeneration++
+		c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		require.EqualValues(t, 1200, c.maxPacketSize())
+	})
+
+	t.Run("a Retry starts a new count", func(t *testing.T) {
+		tc := newClientTestConnection(t, nil, &Config{}, false)
+		c := tc.conn
+		c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		retryConnID := protocol.ParseConnectionID([]byte{0xde, 0xad, 0xbe, 0xef})
+		wasProcessed, err := c.handleOnePacket(getRetryPacket(t, retryConnID, tc.srcConnID, tc.destConnID, []byte("token")), 0)
+		require.NoError(t, err)
+		require.True(t, wasProcessed)
+		require.True(t, c.receivedRetry)
+		c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		require.EqualValues(t, protocol.InitialPacketSize, c.maxPacketSize())
+		c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		require.EqualValues(t, 1200, c.maxPacketSize())
+	})
+}
+
 func TestHandshakeMTUFallbackSendClassification(t *testing.T) {
 	for _, tt := range []struct {
 		name     string

@@ -93,7 +93,8 @@ func TestCongestionEventTimerOnlyLoss(t *testing.T) {
 		pn := sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1000)
 		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.EncryptionInitial, now.Add(1100*time.Millisecond))
 		require.NoError(t, err)
-		require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout()))
+		_, err = h.OnLossDetectionTimeout(h.GetLossDetectionTimeout())
+		require.NoError(t, err)
 		require.Len(t, r.feedback, 2)
 		e := r.feedback[1]
 		require.False(t, e.HasAck)
@@ -112,9 +113,11 @@ func TestCongestionEventTimerOnlyLoss(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, r.feedback[0].Lost)
 	timeout := h.GetLossDetectionTimeout()
-	require.NoError(t, h.OnLossDetectionTimeout(timeout.Add(-time.Microsecond)))
+	_, err = h.OnLossDetectionTimeout(timeout.Add(-time.Microsecond))
+	require.NoError(t, err)
 	require.Len(t, r.feedback, 1, "an early alarm has no recovery facts to dispatch")
-	require.NoError(t, h.OnLossDetectionTimeout(timeout))
+	_, err = h.OnLossDetectionTimeout(timeout)
+	require.NoError(t, err)
 	require.Len(t, r.feedback, 2)
 	e := r.feedback[1]
 	require.False(t, e.HasAck)
@@ -129,7 +132,8 @@ func TestCongestionEventTimerOnlyLoss(t *testing.T) {
 	require.Equal(t, p0, e.Lost[0].PacketNumber)
 	// A later PTO creates no loss or synthetic feedback.
 	sendCongestionTestPacket(h, timeout, protocol.EncryptionInitial, 1000)
-	require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout()))
+	_, err = h.OnLossDetectionTimeout(h.GetLossDetectionTimeout())
+	require.NoError(t, err)
 	require.Len(t, r.feedback, 2)
 }
 
@@ -212,7 +216,8 @@ func TestCongestionEventBorrowLifetime(t *testing.T) {
 		{"migration", protocol.Encryption1RTT, false, func(h *sentPacketHandler, now monotime.Time) { h.MigratedPath(now, 1200) }},
 		{"path probe timeout", protocol.Encryption1RTT, true, func(h *sentPacketHandler, now monotime.Time) {
 			h.DropPackets(protocol.EncryptionHandshake, now)
-			require.NoError(t, h.OnLossDetectionTimeout(now.Add(2*time.Second)))
+			_, err := h.OnLossDetectionTimeout(now.Add(2 * time.Second))
+			require.NoError(t, err)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
