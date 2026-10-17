@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-l6-coexistence`, based on `abfa5456`, the candidate itself. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666) and [#748](https://github.com/the-sarge/quic-go-fast/issues/748) record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: registration reviewed (two considerations, every item dispositioned); awaiting operator acceptance before any counted observation.** The decisions were committed before any fixture, calibration, development or counted run of this record existed. The sections from [The candidate and the reference](#the-candidate-and-the-reference) to [Order](#order) are the registration. The development runs it discloses are excluded from every statistic. No counted observation exists.
+**Status: registration accepted by the operator on October 17, 2026 (about 22:15 UTC), before any counted observation; counted stage started unattended immediately after this commit.** The operator answered "Accept, start now" after being told the development runs' figures and the agent's expectation of an *adverse* outcome. The decisions were committed before any fixture, calibration, development or counted run of this record existed. The sections from [The candidate and the reference](#the-candidate-and-the-reference) to [Order](#order) are the registration. The development runs it discloses are excluded from every statistic. No counted observation exists.
 
 ## Question
 
