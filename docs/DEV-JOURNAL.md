@@ -5001,3 +5001,52 @@ The operator accepted the record on 2026-10-16.
 ### Next
 
 #748 closes with this slice: all seven are done. L6 (#777) waits for the operator. #748 is the record of the port; #777 is the live view for what comes next.
+
+---
+
+## Handshake MTU fallback limited to unset sizes - 2026-10-16 20:27 EDT
+
+**Main:** `81a72481e766`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #779](https://github.com/the-sarge/quic-go-fast/pull/779) as `81a72481e76667c1b2492b21d75bdbd9ba7bc5ea`, closing [#756](https://github.com/the-sarge/quic-go-fast/issues/756).
+
+- **Explicit sizes are a floor.** The H1 handshake MTU fallback now applies only when `Config.InitialPacketSize` is unset. `populateConfig` keeps an unset size at 0, and a private `initialPacketSize()` returns the effective size (1280 when unset).
+- **Unset-only marking and lowering.** Only unset configurations mark handshake sends `handshake`. Only they can be lowered by `lowerUnsetInitialPacketSize`, now the single transition every trigger must use. An explicit size keeps the documented handshake timeout.
+- **Path changes fixed.** Both path-change seams now go through `resetPathPacketSize`. It starts the congestion reset, the finder and the datagram admission estimate at the connection's effective size: 1200 after a fallback, otherwise 1280 or the explicit floor. `SendDatagram` therefore refuses payloads that no longer fit; before, the packer silently dropped them.
+- **Docs.** The godoc, `CONTEXT.md` and `README.md` say the fallback is unset-only. The decision record merged with the code and is marked Accepted.
+
+### Decisions
+
+- The decision record is [docs/adr/2026-10-14-upstream-5911-alignment.md](https://github.com/the-sarge/quic-go-fast/blob/81a72481/docs/adr/2026-10-14-upstream-5911-alignment.md), D1–D4. There is no upstream sync, no early close for explicit sizes, and H1's monotone congestion rule and cubic decrease panic stay.
+- The operator approved the plan's four choices on 2026-10-16:
+  - the explicit-floor and pre-confirmation guards live inside the reusable transition, not in the feedback reader;
+  - one sizing helper serves both path-change seams;
+  - the record is marked Accepted in this PR;
+  - `TestSendQueueHandshakeMTU*` stay unchanged, because they contain no configuration.
+- The explicit integration cells accept either handshake timeout. The client cell ends with `IdleTimeoutError`, because none of its datagrams arrive. The server cell ends with `HandshakeTimeoutError`, because the client still processes small server packets.
+
+### Validation
+
+- **Test-first.** Each new guard's test failed before its fix. A guard-deletion mutation (both unset checks removed) turned the explicit integration cells and the focused explicit tests red. A bare-`mtu` mutation of the ACK-growth floor fails the strengthened congestion regression.
+- **Local certification** on the exact head `f5f618b8`, under go1.27.2 on darwin/arm64:
+  - the record's validation commands;
+  - `go vet` for darwin and windows/amd64, and `go mod tidy -diff`;
+  - golangci-lint v2.14.0 on all five GOOS values, 0 issues;
+  - full `go test -count=1 ./...`, all 25 packages ok.
+
+  `git diff --check` flags only the record branch's frozen audit evidence. It is byte-identical to `103602ab`, including the verbatim upstream diff.
+- **Stress gates.** `-race -count=10` on the focused unit tests passed at `06921770`; that head differs from the final one only in the congestion test row. `-count=5` on the four integration cells passed 20 of 20 at `f5f618b8`.
+- **Review.**
+  - RAS review `20261016T235842-b81391513eeab9502c6db76b` at `06921770` had no Fix First items. Its congestion-floor follow-up (C-001/C-003) was taken as fix-now in `f5f618b8`, and the checklist item (C-002) was rejected.
+  - `ras verify` at `f5f618b8` resolved C-001 and C-003.
+  - Replacement review `20261017T001330-8662e2135b9df082b2c7ee0e` had no Fix First items. It raised one deferred, pre-existing finding.
+- **Hosted.** All 33 hosted checks passed on `f5f618b8` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+- The deferred finding survived revalidation against `81a72481` and is filed as [#780](https://github.com/the-sarge/quic-go-fast/issues/780) (`needs-triage`): a learned fallback is not kept when Version Negotiation recreates the client.
+- [#758](https://github.com/the-sarge/quic-go-fast/issues/758), the handshake silent-drop baseline, is now unblocked; its baseline must pin a `main` commit at or after `81a72481`.
+- GitHub issues are the live view.
