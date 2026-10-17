@@ -5197,3 +5197,55 @@ Merged [PR #787](https://github.com/the-sarge/quic-go-fast/pull/787) as `57f9df0
   - the slower server-direction recovery;
   - Retry, Version Negotiation ([#780](https://github.com/the-sarge/quic-go-fast/issues/780)) and path changes, which only unit tests cover.
 - GitHub issues are the live view.
+
+---
+
+## Version Negotiation keeps the handshake fallback - 2026-10-17 19:49 EDT
+
+**Main:** `814bd485a1f9`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #790](https://github.com/the-sarge/quic-go-fast/pull/790) as `814bd485a1f9dcd2367f2747a7d89e4442306d36`, closing [#780](https://github.com/the-sarge/quic-go-fast/issues/780). A client connection recreated for Version Negotiation now starts at 1200 bytes when the connection it replaces had already lowered its unset `InitialPacketSize`. The lowering can come from a local "message too long" rejection (#756) or from the second eligible handshake PTO (#786).
+
+- **The fact is derived, not stored.** `errCloseForRecreating` gains `initialPacketSizeLowered`. The Version Negotiation handler sets it from `effectiveInitialPacketSize < config.initialPacketSize()`. After `preSetup`, only `lowerUnsetInitialPacketSize` writes that size, and it only lowers, so the comparison covers both triggers.
+- **It rides the existing hand-off.** `Transport.doDial` passes it to the next connection alongside the packet number and version; the first dial passes `false`. `newClientConnection` applies it by calling `lowerUnsetInitialPacketSize` after its payload-size estimate and before the first packet, so every guard applies: unset only, before confirmation, above 1200.
+- **Scope.** No public API, configuration, wire or qlog change, and no new goroutine, channel or lock. The caller's `Config` is never written, and a later dial on the same `Transport` starts at the default size again. Explicit sizes stay a floor. Retry, the setup-reservation hand-off, the cancelled-recreation teardown and congestion sizing are unchanged. The `InitialPacketSize` godoc is unchanged.
+
+### Decisions
+
+- The operator approved the plan on 2026-10-17 with six choices:
+  - one PR;
+  - the fact derived from the size rather than a new flag;
+  - applying it in the constructor rather than in `doDial`;
+  - not carrying message-size feedback still unconsumed when Version Negotiation is handled, since that needs a race and costs only today's extra PTO;
+  - an unchanged godoc;
+  - a simnet case for the timeout trigger beyond the required unit test.
+- Converting Version Negotiation into an in-place reset like Retry, which would remove the hand-off, was rejected as out of the issue's scope. It is the revisit path if a ticket proposes it.
+- Heavy work was coordinated by message around other sessions' measurements:
+  - local gates ran on minimax under `taskset -c 1-3` during wiremux 1865's `tb` campaign;
+  - the RAS review and the darwin certification waited for its "tb free" at 23:38Z;
+  - minimax was then left to quic 777's exclusive L6 stage.
+
+### Validation
+
+- **Test-first.** Four tests failed on `ee2e20bb` before the change. One more, the recreated-connection unit test, did not compile there.
+  - The loopback integration test logged client writes `[1280 1280 1200 1200 1280 1280 1200 …]` before and `[1280 1280 1200 1200 1200 …]` after.
+  - The simnet second-PTO case lost 4 client flights before and 2 after.
+  - Removing the constructor's lowering call fails the recreated-connection, simnet and integration tests. That mutation was not committed.
+- **Gates on minimax at `8f0aa2a5`** (linux/amd64, go1.27.2):
+  - `go mod tidy -diff` clean;
+  - `go vet` for linux, windows and darwin;
+  - `-race` on the new and named tests;
+  - the full root package, `integrationtests/self` and `integrationtests/versionnegotiation`;
+  - golangci-lint v2.14.0 on all five GOOS values, 0 issues.
+- **Exact-head certification on mbp128** (darwin/arm64, go1.27.2) at `8f0aa2a5`: the affected-package tests, `-race` on the new and named tests, `go vet` and `go mod tidy -diff` all pass, with a clean tree.
+- **Review.** RAS review `20261017T233946-a4a2e6d26aa4f23c6e68b7f1` at `8f0aa2a5`: all six reviewers completed and approved, with no findings, so no fixes or replacement review were needed.
+- **Hosted.** All 33 hosted checks passed on `8f0aa2a5` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+- No review finding was deferred, so nothing was filed.
+- [#788](https://github.com/the-sarge/quic-go-fast/issues/788) (README and glossary mention of the second-PTO trigger) is open and labelled `ready-for-agent`.
+- GitHub issues are the live view.
