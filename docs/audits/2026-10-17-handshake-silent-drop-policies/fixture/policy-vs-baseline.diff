@@ -1,0 +1,480 @@
+--- 2026-10-17-handshake-silent-drop-baseline/fixture/silent_drop_baseline_test.go.src	2026-10-17 01:35:44
++++ 2026-10-17-handshake-silent-drop-policies/fixture/silent_drop_policy_test.go.src	2026-10-17 01:54:05
+@@ -1,8 +1,13 @@
+ package quic
+ 
+-// Disposable scenarios for the handshake silent-drop baseline (#758); not a
+-// maintained test. Outcomes are recorded, not asserted: a test failure means the
+-// fixture did not realize the required sequence or did not clean up.
++// Disposable policy variants for the handshake silent-drop comparison (#759); not a
++// maintained test. It replaces #758's scenario file and reuses #758's capture
++// fixture, observer and mapping test unchanged. A variant decides in the observer's
++// eligible-PTO hook, on the endpoint's connection goroutine inside its loss-timer
++// call, after recovery queued that expiration's probes and before the connection
++// packs them. It calls the connection's existing size owner. Outcomes are recorded,
++// not asserted: a test failure means the fixture did not realize the required
++// sequence or did not clean up.
+ 
+ import (
+ 	"bytes"
+@@ -12,7 +17,9 @@
+ 	"fmt"
+ 	"io"
+ 	"net"
++	"reflect"
+ 	"runtime"
++	"sort"
+ 	"sync/atomic"
+ 	"testing"
+ 	"testing/synctest"
+@@ -24,6 +31,8 @@
+ 	"github.com/quic-go/quic-go/internal/monotime"
+ 	"github.com/quic-go/quic-go/internal/protocol"
+ 	"github.com/quic-go/quic-go/internal/utils"
++	"github.com/quic-go/quic-go/qlog"
++	"github.com/quic-go/quic-go/testutils"
+ 	"github.com/quic-go/quic-go/testutils/simnet"
+ 
+ 	"github.com/stretchr/testify/require"
+@@ -39,10 +48,29 @@
+ 	silentDropServerWait   = 60 * time.Second             // bound for a failed server connection to end itself
+ )
+ 
++// silentDropVariant is one experimental trigger. The baseline variant never triggers.
++type silentDropVariant struct {
++	name      string
++	threshold int  // the endpoint's eligible PTO count at which the reduction runs; 0 never
++	guard     bool // also require that the connection has processed no long-header peer packet
++}
++
++var (
++	silentDropBaselineVariant = silentDropVariant{name: "baseline"}
++	silentDropP1              = silentDropVariant{name: "p1", threshold: 1}
++	silentDropVariants        = []silentDropVariant{
++		silentDropBaselineVariant,
++		silentDropP1,
++		{name: "p2", threshold: 2},
++		{name: "p1-guarded", threshold: 1, guard: true},
++	}
++)
++
+ type silentDropRun struct {
+ 	capture        *silentDropCapture
+ 	client, server *silentDropEndpoint
+ 	released       atomic.Bool
++	variant        silentDropVariant
+ }
+ 
+ func newSilentDropRun() *silentDropRun {
+@@ -56,6 +84,10 @@
+ 	policy    string
+ 	releaseAt int // the client's eligible PTO count that restores delivery; 0 for none
+ 	decide    func(r *silentDropRun) silentDropPolicy
++
++	initialSize  uint16 // InitialPacketSize on both endpoints; 0 leaves it unset
++	congestion   string // SetCongestionControlV1 on both endpoints; "" keeps the default
++	localMsgSize bool   // the client's socket rejects writes over 1250 bytes with the native message-size error
+ }
+ 
+ func sizeFilter(dirs ...string) func(*silentDropRun) silentDropPolicy {
+@@ -97,6 +129,7 @@
+ 	return func(string, int) (bool, string) { return true, "total_loss" }
+ }
+ 
++// silentDropScenarios are #758's nine rows, unchanged.
+ var silentDropScenarios = []silentDropScenario{
+ 	{name: "client-oversized-dropped", oneWay: silentDropLowLatency, policy: "drop client-to-server datagrams over 1250 bytes", decide: sizeFilter("c2s")},
+ 	{name: "server-oversized-dropped", oneWay: silentDropLowLatency, policy: "drop server-to-client datagrams over 1250 bytes", decide: sizeFilter("s2c")},
+@@ -109,6 +142,28 @@
+ 	{name: "total-loss", oneWay: silentDropLowLatency, policy: "drop every datagram in both directions", decide: dropAll},
+ }
+ 
++// silentDropPreservation are the focused explicit-size and native-error checks.
++var silentDropPreservation = []silentDropScenario{
++	{name: "explicit-1280-client-oversized-dropped", initialSize: 1280, oneWay: silentDropLowLatency, policy: "explicit 1280; drop client-to-server datagrams over 1250 bytes", decide: sizeFilter("c2s")},
++	{name: "explicit-1280-server-oversized-dropped", initialSize: 1280, oneWay: silentDropLowLatency, policy: "explicit 1280; drop server-to-client datagrams over 1250 bytes", decide: sizeFilter("s2c")},
++	{name: "explicit-1280-one-lost-round", initialSize: 1280, oneWay: silentDropLowLatency, policy: "explicit 1280; drop every client-to-server datagram until the client's first eligible PTO", releaseAt: 1, decide: lossUntilRelease},
++	{name: "explicit-1200-one-lost-round", initialSize: 1200, oneWay: silentDropLowLatency, policy: "explicit 1200; drop every client-to-server datagram until the client's first eligible PTO", releaseAt: 1, decide: lossUntilRelease},
++	{name: "explicit-1200-total-loss", initialSize: 1200, oneWay: silentDropLowLatency, policy: "explicit 1200; drop every datagram in both directions", decide: dropAll},
++	{name: "explicit-1280-client-local-msgsize", initialSize: 1280, localMsgSize: true, oneWay: silentDropLowLatency, policy: "explicit 1280; the client's socket rejects writes over 1250 bytes with the native message-size error", decide: deliverAll},
++	{name: "unset-client-local-msgsize", localMsgSize: true, oneWay: silentDropLowLatency, policy: "unset; the client's socket rejects writes over 1250 bytes with the native message-size error", decide: deliverAll},
++}
++
++// silentDropBBR is the client size drop with BBRv3 selected on both endpoints.
++var silentDropBBR = silentDropScenario{name: "bbrv3-client-oversized-dropped", congestion: "bbrv3", oneWay: silentDropLowLatency, policy: "BBRv3; drop client-to-server datagrams over 1250 bytes", decide: sizeFilter("c2s")}
++
++func (sc silentDropScenario) config(t *testing.T, ep *silentDropEndpoint) *Config {
++	conf := &Config{Tracer: ep.tracer, InitialPacketSize: sc.initialSize}
++	if sc.congestion != "" {
++		require.NoError(t, conf.SetCongestionControlV1(sc.congestion))
++	}
++	return conf
++}
++
+ func silentDropErrorClass(err error) string {
+ 	var idle *IdleTimeoutError
+ 	var hs *HandshakeTimeoutError
+@@ -137,8 +192,15 @@
+ 
+ // manifest records the shared setup; limits names the network's own size limits.
+ func (r *silentDropRun) manifest(sc silentDropScenario, network string, limits map[string]any) {
++	congestionControl := sc.congestion
++	if congestionControl == "" {
++		congestionControl = "default"
++	}
+ 	r.capture.record("fixture", map[string]any{
+ 		"scenario":                   sc.name,
++		"variant":                    r.variant.name,
++		"variant_threshold":          r.variant.threshold,
++		"variant_receipt_guard":      r.variant.guard,
+ 		"network":                    network,
+ 		"size_limits":                limits,
+ 		"policy":                     sc.policy,
+@@ -146,7 +208,10 @@
+ 		"one_way_latency_ns":         sc.oneWay.Nanoseconds(),
+ 		"filter_drops_over":          silentDropFilterSize,
+ 		"dial_deadline_ns":           silentDropDialDeadline.Nanoseconds(),
+-		"config":                     "InitialPacketSize unset; HandshakeIdleTimeout, MaxIdleTimeout, congestion control and path MTU discovery at defaults",
++		"initial_packet_size":        sc.initialSize,
++		"congestion_control":         congestionControl,
++		"client_local_msg_size":      sc.localMsgSize,
++		"config":                     "InitialPacketSize as recorded (0 is unset); HandshakeIdleTimeout, MaxIdleTimeout and path MTU discovery at defaults; congestion control as recorded",
+ 		"default_handshake_idle_ns":  protocol.DefaultHandshakeIdleTimeout.Nanoseconds(),
+ 		"tls":                        "internal/testdata RSA-2048 leaf for localhost signed by the quic-go test CA (one certificate sent); Go default curve preferences; TLS clock fixed at 2026-01-01",
+ 		"go":                         runtime.Version(),
+@@ -155,23 +220,73 @@
+ 	})
+ }
+ 
+-func (r *silentDropRun) installRelease(releaseAt int) {
+-	if releaseAt == 0 {
+-		return
+-	}
+-	// Runs on the client's connection goroutine inside its loss-timer call, before
+-	// the connection builds and hands off that expiration's probes.
++// installHooks composes the release and the variant in each endpoint's eligible-PTO
++// hook. Both run on that endpoint's connection goroutine inside its loss-timer call,
++// before the connection builds and hands off that expiration's probes.
++func (r *silentDropRun) installHooks(releaseAt int) {
+ 	r.client.onEligible = func(count int) {
+-		if count == releaseAt && !r.released.Load() {
++		if releaseAt != 0 && count == releaseAt && !r.released.Load() {
+ 			r.released.Store(true)
+ 			r.capture.record("release", map[string]any{
+ 				"endpoint": "client", "at_eligible_count": count,
+ 				"received_first_packet": r.client.conn.receivedFirstPacket,
+ 			})
+ 		}
++		r.applyVariant(r.client, count)
++	}
++	r.server.onEligible = func(count int) { r.applyVariant(r.server, count) }
++}
++
++// applyVariant is the experimental trigger. lowerUnsetInitialPacketSize stays the sole
++// owner of the reduction and keeps its unset, pre-confirmation and above-1200 guards.
++func (r *silentDropRun) applyVariant(e *silentDropEndpoint, count int) {
++	v := r.variant
++	if v.threshold == 0 {
++		return
+ 	}
++	c := e.conn
++	fields := e.state("policy decision")
++	fields["variant"] = v.name
++	fields["eligible_count"] = count
++	switch {
++	case count < v.threshold:
++		fields["decision"] = "below_threshold"
++	case v.guard && c.receivedFirstPacket:
++		fields["decision"] = "guard_abstains"
++	default:
++		before := c.effectiveInitialPacketSize
++		c.lowerUnsetInitialPacketSize()
++		fields["decision"] = "trigger"
++		fields["reduced"] = c.effectiveInitialPacketSize < before
++		fields["effective_initial_packet_size_after"] = c.effectiveInitialPacketSize
++		fields["max_packet_size_after"] = c.maxPacketSize()
++		fields["max_payload_size_estimate_after"] = c.maxPayloadSizeEstimate.Load()
++	}
++	r.capture.record("policy", fields)
+ }
+ 
++// silentDropMsgSizeConn rejects the client's writes over 1250 bytes with the native
++// message-size error, as #779's integration test does on real sockets. Every other
++// method is the simnet endpoint's own.
++type silentDropMsgSizeConn struct {
++	*simnet.SimConn
++	capture *silentDropCapture
++}
++
++func (c *silentDropMsgSizeConn) WriteTo(p []byte, addr net.Addr) (int, error) {
++	if len(p) > silentDropFilterSize {
++		c.capture.record("datagram", map[string]any{
++			"dir":      "c2s",
++			"size":     len(p),
++			"checksum": uint32(qlog.CalculateDatagramPayloadChecksum(p)),
++			"decision": "local_msg_size",
++			"cause":    "local_msg_size",
++		})
++		return 0, &net.OpError{Op: "write", Net: "udp", Err: testutils.SendMsgSizeErr}
++	}
++	return c.SimConn.WriteTo(p, addr)
++}
++
+ type silentDropAccepted struct {
+ 	conn *Conn
+ 	err  error
+@@ -179,7 +294,7 @@
+ 
+ // handshake dials, verifies a bidirectional echo on success, and waits for the
+ // server connection (if any) to end; it records every outcome.
+-func (r *silentDropRun) handshake(t *testing.T, ln *Listener, clientTr *Transport, serverAddr net.Addr, clientTLS *tls.Config) {
++func (r *silentDropRun) handshake(t *testing.T, ln *Listener, clientTr *Transport, serverAddr net.Addr, clientTLS *tls.Config, clientConf *Config) {
+ 	c := r.capture
+ 	acceptCtx, cancelAccept := context.WithCancel(context.Background())
+ 	acceptCh := make(chan silentDropAccepted, 1)
+@@ -200,7 +315,7 @@
+ 	defer cancelDial()
+ 	start := time.Now()
+ 	c.record("phase", map[string]any{"what": "dial start"})
+-	conn, err := clientTr.Dial(dialCtx, serverAddr, clientTLS, &Config{Tracer: r.client.tracer})
++	conn, err := clientTr.Dial(dialCtx, serverAddr, clientTLS, clientConf)
+ 	c.record("phase", map[string]any{
+ 		"what": "dial returned", "elapsed_ns": time.Since(start).Nanoseconds(),
+ 		"error": errString(err), "error_class": silentDropErrorClass(err),
+@@ -297,101 +412,133 @@
+ 	return e.published
+ }
+ 
+-func TestSilentDropBaseline(t *testing.T) {
+-	for _, sc := range silentDropScenarios {
+-		t.Run(sc.name, func(t *testing.T) {
+-			var run *silentDropRun
+-			synctest.Test(t, func(t *testing.T) {
+-				run = newSilentDropRun() // the capture clock is the bubble's
+-				installSilentDropObservers(t)
+-				run.installRelease(sc.releaseAt)
+-				run.manifest(sc, "simnet, testing/synctest virtual time", map[string]any{"simnet_link_mtu": silentDropLinkMTU})
+-
+-				clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
+-				serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
+-				router := &silentDropRouter{client: clientAddr.String(), server: serverAddr.String(), capture: run.capture, policy: sc.decide(run)}
+-				n := &simnet.Simnet{Router: router}
+-				settings := simnet.NodeBiDiLinkSettings{
+-					Uplink:   simnet.LinkSettings{MTU: silentDropLinkMTU},
+-					Downlink: simnet.LinkSettings{MTU: silentDropLinkMTU},
+-					Latency:  sc.oneWay,
+-				}
+-				clientConn := n.NewEndpoint(clientAddr, settings)
+-				serverConn := n.NewEndpoint(serverAddr, settings)
+-				require.NoError(t, n.Start())
++// TestSilentDropPolicies runs every variant over #758's nine rows and the focused
++// preservation rows, and the baseline and P1 over the BBRv3 row. A capture is named
++// <variant>.<scenario>.
++func TestSilentDropPolicies(t *testing.T) {
++	type cell struct {
++		v  silentDropVariant
++		sc silentDropScenario
++	}
++	var cells []cell
++	for _, v := range silentDropVariants {
++		for _, sc := range silentDropScenarios {
++			cells = append(cells, cell{v, sc})
++		}
++		for _, sc := range silentDropPreservation {
++			cells = append(cells, cell{v, sc})
++		}
++	}
++	for _, v := range []silentDropVariant{silentDropBaselineVariant, silentDropP1} {
++		cells = append(cells, cell{v, silentDropBBR})
++	}
++	for _, cl := range cells {
++		t.Run(cl.v.name+"/"+cl.sc.name, func(t *testing.T) { runSilentDropSimnet(t, cl.v, cl.sc) })
++	}
++}
+ 
+-				serverTLS, clientTLS := silentDropTLSConfigs()
+-				serverTr := &Transport{Conn: serverConn}
+-				clientTr := &Transport{Conn: clientConn}
+-				ln, err := serverTr.Listen(serverTLS, &Config{Tracer: run.server.tracer})
+-				require.NoError(t, err)
++func runSilentDropSimnet(t *testing.T, v silentDropVariant, sc silentDropScenario) {
++	var run *silentDropRun
++	synctest.Test(t, func(t *testing.T) {
++		run = newSilentDropRun() // the capture clock is the bubble's
++		run.variant = v
++		installSilentDropObservers(t)
++		run.installHooks(sc.releaseAt)
++		run.manifest(sc, "simnet, testing/synctest virtual time", map[string]any{"simnet_link_mtu": silentDropLinkMTU})
+ 
+-				run.handshake(t, ln, clientTr, serverAddr, clientTLS)
++		clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
++		serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
++		router := &silentDropRouter{client: clientAddr.String(), server: serverAddr.String(), capture: run.capture, policy: sc.decide(run)}
++		n := &simnet.Simnet{Router: router}
++		settings := simnet.NodeBiDiLinkSettings{
++			Uplink:   simnet.LinkSettings{MTU: silentDropLinkMTU},
++			Downlink: simnet.LinkSettings{MTU: silentDropLinkMTU},
++			Latency:  sc.oneWay,
++		}
++		clientConn := n.NewEndpoint(clientAddr, settings)
++		serverConn := n.NewEndpoint(serverAddr, settings)
++		require.NoError(t, n.Start())
+ 
+-				require.NoError(t, ln.Close())
+-				require.NoError(t, clientTr.Close())
+-				require.NoError(t, serverTr.Close())
+-				require.NoError(t, clientConn.Close())
+-				require.NoError(t, serverConn.Close())
+-				require.NoError(t, n.Close())
+-				run.capture.record("phase", map[string]any{"what": "fixture closed"})
+-			})
+-			// synctest.Test returns only after every goroutine in the bubble exited.
+-			run.capture.finish(t, sc.name, "synctest bubble exited")
+-		})
+-	}
++		var clientPC net.PacketConn = clientConn
++		if sc.localMsgSize {
++			clientPC = &silentDropMsgSizeConn{SimConn: clientConn, capture: run.capture}
++		}
++		serverTLS, clientTLS := silentDropTLSConfigs()
++		serverTr := &Transport{Conn: serverConn}
++		clientTr := &Transport{Conn: clientPC}
++		ln, err := serverTr.Listen(serverTLS, sc.config(t, run.server))
++		require.NoError(t, err)
++
++		run.handshake(t, ln, clientTr, serverAddr, clientTLS, sc.config(t, run.client))
++
++		require.NoError(t, ln.Close())
++		require.NoError(t, clientTr.Close())
++		require.NoError(t, serverTr.Close())
++		require.NoError(t, clientConn.Close())
++		require.NoError(t, serverConn.Close())
++		require.NoError(t, n.Close())
++		run.capture.record("phase", map[string]any{"what": "fixture closed"})
++	})
++	// synctest.Test returns only after every goroutine in the bubble exited.
++	run.capture.finish(t, v.name+"."+sc.name, "synctest bubble exited")
+ }
+ 
+-// TestSilentDropRealUDP is the representative real-UDP size-drop case: loopback
+-// sockets and the existing proxy, in wall-clock time.
+-func TestSilentDropRealUDP(t *testing.T) {
++// TestSilentDropPolicyRealUDP is the representative real-UDP size-drop case under every
++// variant: loopback sockets and the existing proxy, in wall-clock time.
++func TestSilentDropPolicyRealUDP(t *testing.T) {
+ 	sc := silentDropScenario{name: "real-udp-client-oversized-dropped", policy: "proxy drops client-to-server datagrams over 1250 bytes", decide: sizeFilter("c2s")}
+-	run := newSilentDropRun()
+-	installSilentDropObservers(t)
+-	loName, loMTU := silentDropLoopbackMTU(t)
+-	run.manifest(sc, "loopback UDP through integrationtests/tools/proxy, wall-clock time", map[string]any{
+-		"loopback_interface":     loName,
+-		"loopback_interface_mtu": loMTU,
+-		"proxy_read_buffer":      protocol.MaxPacketBufferSize, // the proxy reads each datagram into a buffer of this size
+-	})
++	for _, v := range silentDropVariants {
++		t.Run(v.name, func(t *testing.T) {
++			run := newSilentDropRun()
++			run.variant = v
++			installSilentDropObservers(t)
++			run.installHooks(sc.releaseAt)
++			loName, loMTU := silentDropLoopbackMTU(t)
++			run.manifest(sc, "loopback UDP through integrationtests/tools/proxy, wall-clock time", map[string]any{
++				"loopback_interface":     loName,
++				"loopback_interface_mtu": loMTU,
++				"proxy_read_buffer":      protocol.MaxPacketBufferSize, // the proxy reads each datagram into a buffer of this size
++			})
+ 
+-	listen := func() *net.UDPConn {
+-		conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+-		require.NoError(t, err)
+-		return conn
+-	}
+-	serverUDP, clientUDP, proxyUDP := listen(), listen(), listen()
+-	policy := sc.decide(run)
+-	p := &quicproxy.Proxy{
+-		Conn:       proxyUDP,
+-		ServerAddr: serverUDP.LocalAddr().(*net.UDPAddr),
+-		DropPacket: func(dir quicproxy.Direction, _, _ net.Addr, packet []byte) bool {
+-			d := "s2c"
+-			if dir == quicproxy.DirectionIncoming {
+-				d = "c2s"
++			listen := func() *net.UDPConn {
++				conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
++				require.NoError(t, err)
++				return conn
+ 			}
+-			return recordSilentDropDatagram(run.capture, policy, d, packet)
+-		},
+-	}
+-	require.NoError(t, p.Start())
++			serverUDP, clientUDP, proxyUDP := listen(), listen(), listen()
++			policy := sc.decide(run)
++			p := &quicproxy.Proxy{
++				Conn:       proxyUDP,
++				ServerAddr: serverUDP.LocalAddr().(*net.UDPAddr),
++				DropPacket: func(dir quicproxy.Direction, _, _ net.Addr, packet []byte) bool {
++					d := "s2c"
++					if dir == quicproxy.DirectionIncoming {
++						d = "c2s"
++					}
++					return recordSilentDropDatagram(run.capture, policy, d, packet)
++				},
++			}
++			require.NoError(t, p.Start())
+ 
+-	serverTLS, clientTLS := silentDropTLSConfigs()
+-	serverTr := &Transport{Conn: serverUDP}
+-	clientTr := &Transport{Conn: clientUDP}
+-	ln, err := serverTr.Listen(serverTLS, &Config{Tracer: run.server.tracer})
+-	require.NoError(t, err)
++			serverTLS, clientTLS := silentDropTLSConfigs()
++			serverTr := &Transport{Conn: serverUDP}
++			clientTr := &Transport{Conn: clientUDP}
++			ln, err := serverTr.Listen(serverTLS, sc.config(t, run.server))
++			require.NoError(t, err)
+ 
+-	run.handshake(t, ln, clientTr, proxyUDP.LocalAddr(), clientTLS)
++			run.handshake(t, ln, clientTr, proxyUDP.LocalAddr(), clientTLS, sc.config(t, run.client))
+ 
+-	require.NoError(t, ln.Close())
+-	require.NoError(t, clientTr.Close())
+-	require.NoError(t, serverTr.Close())
+-	require.NoError(t, p.Close()) // joins the proxy's workers
+-	for _, c := range []*net.UDPConn{serverUDP, clientUDP, proxyUDP} {
+-		require.NoError(t, c.Close())
++			require.NoError(t, ln.Close())
++			require.NoError(t, clientTr.Close())
++			require.NoError(t, serverTr.Close())
++			require.NoError(t, p.Close()) // joins the proxy's workers
++			for _, c := range []*net.UDPConn{serverUDP, clientUDP, proxyUDP} {
++				require.NoError(t, c.Close())
++			}
++			run.capture.record("phase", map[string]any{"what": "fixture closed"})
++			run.capture.finish(t, v.name+"."+sc.name, "transports, listener and proxy closed; proxy workers joined")
++		})
+ 	}
+-	run.capture.record("phase", map[string]any{"what": "fixture closed"})
+-	run.capture.finish(t, sc.name, "transports, listener and proxy closed; proxy workers joined")
+ }
+ 
+ // silentDropLoopbackMTU reports the interface that carries 127.0.0.1 and its MTU.
+@@ -443,3 +590,19 @@
+ 	}
+ 	require.Equal(t, fmt.Sprintf("%T", inner), "*ackhandler.sentPacketHandler")
+ }
++
++// TestSilentDropMsgSizeConnFidelity shows the message-size wrapper has exactly the
++// simnet endpoint's method set, so every interface the transport asserts on its
++// connection resolves the same way. WriteTo is the wrapper's own.
++func TestSilentDropMsgSizeConnFidelity(t *testing.T) {
++	methods := func(v any) []string {
++		typ := reflect.TypeOf(v)
++		names := make([]string, 0, typ.NumMethod())
++		for i := range typ.NumMethod() {
++			names = append(names, typ.Method(i).Name)
++		}
++		sort.Strings(names)
++		return names
++	}
++	require.Equal(t, methods(&simnet.SimConn{}), methods(&silentDropMsgSizeConn{}))
++}

@@ -1,0 +1,16 @@
+date: 2026-10-17T07:32:46Z
+head: 43e0f2fd6fbb6bde82415097f4f9ec1c2b59ab10
+baseline: a7b8353ac2e87e716fcfa23119959ff5aeaef648
+product tree equals baseline (outside docs/): yes
+go: go version go1.27.2 darwin/arm64
+go.mod: go 1.26.0
+ci unit matrix:  go: [ "1.26.9", "1.27.2" ]
+ci lint go:  go-version: "1.27.2"
+ancestor 81a72481 (#756 merge): yes
+ancestor 4d89a66e (#762 fix): yes
+#758 fixture and summarizer as archived:
+fixture/silent_drop_capture_test.go.src: OK
+fixture/silent_drop_mapping_test.go.src: OK
+raw/run1.tar.gz: OK
+summarize.py: OK
+Darwin 27.0.0 arm64
