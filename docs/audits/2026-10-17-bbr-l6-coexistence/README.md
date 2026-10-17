@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-l6-coexistence`, based on `abfa5456`, the candidate itself. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666) and [#748](https://github.com/the-sarge/quic-go-fast/issues/748) record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: decisions accepted; no fixture built and no observation made.** This commit records the operator's decisions before any fixture, calibration, development or counted run of this record exists. The registration follows in later commits, before any counted observation.
+**Status: registration drafted; under review before any counted observation.** The decisions were committed before any fixture, calibration, development or counted run of this record existed. The sections from [The candidate and the reference](#the-candidate-and-the-reference) to [Order](#order) are the registration. The development runs it discloses are excluded from every statistic. No counted observation exists.
 
 ## Question
 
@@ -130,7 +130,7 @@ None of these changes the classification or ends in a decision here.
 - **The A/A ratio** (`aa` ÷ `reno`) beside every pair ratio, in every period.
 - **The competitor's control latency:** per pair and period, `cand` p95 ÷ `reno` p95, flagged when the median over usable pairs (at least three) is above 1.20, with the pairs crossing.
 - **The focal flow against matched Reno** under the unchanged readiness limits, whole measured window, median of per-pair ratios: control p95 (1.20), sender and receiver CPU seconds per useful GiB (1.10), and sender and receiver peak RSS (1.10), each with its A/A ratios. No readiness exception covers any of them. The goodput limit is for clean paths and is not applied to a contested one.
-- **Descriptive:** each participant's delivery in every period including back and absent, the combined delivery, the focal flow's delivery ratio, the relay's per-flow drops, queue occupancy and reorders, and absolute medians beside every ratio.
+- **Descriptive:** each participant's delivery in every period including back and absent, the combined delivery, the focal flow's delivery ratio, the relay's per-flow drops, queue occupancy, reorders and ECN codepoints, and absolute medians beside every ratio.
 
 ## Observation usability and reruns
 
@@ -160,3 +160,59 @@ Run first, on a quiet host, each excluded from every statistic; a failure ends t
   - one-way delays per flow and direction in warm-up (50 ms), in the short-path window (competitor 12.5 ms, focal 50 ms) and across both switch points (100 s, 200 s), each median in [D, D + 2 ms] and every probe in [D, D + 5 ms];
   - a combined delivered rate within 1% of 100 Mbit/s under overload from both flows, in each direction, with the shared queue reaching capacity less one packet and both flows losing packets.
 - **Smoke** (`matrix.py smoke`): two full-length observations (STREAM `cand`, DATAGRAM `reno`). Each must be usable under the rules above, with every thread inside its CPU set and no UDP receive-buffer, send-buffer or input errors. Each endpoint's CPU load, the relay's lag and lateness, and the competitor's observed pause are recorded.
+
+## Development runs (before this registration)
+
+Made on `minimax`, each excluded from every statistic. Times are UTC on October 17. The decisions (`50792abf`, 05:55) and the classification, usability, contamination and rerun rules ([l6rules.py](l6rules.py) at `93314fd8`, 06:10) were committed before the first of them.
+
+| Run | What | Result |
+| --- | --- | --- |
+| `prereq-dev1` (06:11) | Path calibration, first attempt | The ECN check failed because of a calibrate2 defect: its ECN mode labelled competitor probes with the wrong flow identity, so they arrived at the right endpoint but counted as foreign. The other six checks passed. Fixed in `5d8dd10d`. |
+| `prereq-dev2` (06:12) | Path calibration, second attempt | All seven checks passed. Median one-way delays sat 0.3–0.9 ms above the model's (largest probe +2.2 ms), and the competitor's switches at 100 s and 200 s fell where the model puts them. The delivered rate was 99.98 (forward) and 99.99 Mbit/s (reverse), the queue reached 1,250,928 bytes, and both flows lost packets. |
+| `dev1` (06:13–06:19) | STREAM, `cand` (BBRv3 focal), full length | Usable under the rules. Relay arrival lag 0.87 ms; lateness 2.85 ms forward, 2.11 ms reverse; every endpoint under 0.02 of its allotted cores; pause observed at 240.04 s and 270.00 s; control assignment exact. **Seen by the agent:** focal delivery 86.0, 83.1, 86.9, 93.7 and 87.4 Mbit/s, competitor 7.4, 11.3, 6.5, 0.0 and 5.7 Mbit/s (equal, short, back, absent, resumed). The BBRv3 flow sent 1,732,596 of its 2,791,964 forward packets as Not-ECT (its ECN was disabled during the run); the competitor kept ECT(0). |
+| `dev2` (06:20–06:26) | STREAM, `reno` (Reno against Reno), full length | Usable. Relay arrival lag 0.27 ms; lateness 3.77 ms forward, 3.34 ms reverse; endpoints under 0.02 of their cores; pause at 240.00 s and 270.00 s. **Seen by the agent:** focal 47.0, 37.3, 45.9, 93.5 and 51.1 Mbit/s, competitor 48.9, 58.3, 49.6, 0.2 and 44.5 Mbit/s. Both flows kept ECT(0). |
+
+What changed after these runs started:
+- calibrate2's ECN-mode fix (`5d8dd10d`), for the defect `prereq-dev1` exposed;
+- the correctness gate ([l6rules.py](l6rules.py) `correctness`, `matrix.py`, committed in `acc0b4f0` at 06:18, during `dev1` and before its result was read). It stops a stage on corrupt or duplicated content, which #777's "correctness gates apply unchanged" requires; no observation prompted it;
+- the documentation of these sections.
+
+No threshold, period, arm, order, estimator, usability limit or rerun rule changed after either observation. The relay limits (5 ms) were set before them; both runs fell under them.
+
+**The ECN observation is outside this record's question.** The L6 queue never marks, so a sender's ECN state does not change the queue's treatment of its packets. It is reported for every counted observation, per flow, from relay2's counters, and is a candidate follow-up, not part of the classification.
+
+## Limits
+
+- **One declared model, one host.** Results describe behavior under the frozen Q1 model's L6 on `minimax` loopback, five pairs per workload. They are not a measurement of any real path and make no universal claim.
+- **One competitor schedule.** Both flows start together; the competitor's 25 ms period and its pause are the acceptance plan's fixed phases, with carryover between them. The periods are not independent steady states.
+- **The competitor shares the host.** It has two cores per endpoint against the focal flow's four; the record reports each endpoint's load.
+- **Not measured:** L7 (TCP CUBIC), L8, ECN marking (S8), other platforms, and any revision but `abfa5456`.
+
+## Disclosures made before counted data
+
+- **D2 preceded all data of this record,** and the operator chose 0.70 over the agent's 0.80 before any fixture existed.
+- **Q1's cloud orchestration examples** were known (see [Known before these decisions](#known-before-these-decisions)).
+- **The development runs above were seen,** including `dev1`, where the competitor next to BBRv3 delivered about 7 Mbit/s against about 49 Mbit/s next to Reno in `dev2`. On that evidence the agent expects the counted stage to be *adverse*. Nothing in this registration was changed after it, and the expectation is not a result: the counted stage decides.
+- **Interpretation known in advance.** The competitor's window reduction at 100 s is a property of the frozen model (reordering), common to every arm. Reno's growth at this path's bandwidth-delay product is slow, so a contested period is not a steady state. The candidate's ECN state can change during a run (`dev1`).
+
+## Time estimate
+
+All aids exist and both fixture binaries are slice 6's. On a quiet host:
+
+| Step | Estimate |
+| --- | --- |
+| Host facts and path calibration | about 3 minutes |
+| Smoke (two observations) | about 13 minutes |
+| Counted stage (30 observations of about 6.4 minutes, ten quiet-host gates of at least 1 minute) | about 3 h 25 min |
+| Reruns, if triggered (up to four triples of about 20 minutes) | up to about 1 h 20 min |
+| **Total** | **about 3 h 40 min without reruns; up to about 5 h** |
+
+Foreign load extends the gates' waits.
+
+## Order
+
+**On the Mac:** `build.py` (every binary byte-identical to the one this registration names), `l6rules_test.py`, relay2's Go tests (also run on `minimax`), then `sync.sh`.
+
+**On `minimax`,** sequentially under `taskset -c 1`, with nothing else built or tested there while a stage measures ([driver.sh](driver.sh)): `matrix.py hostfacts start`, `prereq`, `smoke`, `main`, `follow`, `hostfacts end`. The driver first checks that no counted, rerun or smoke observation, calibration, smoke report or follow decision exists (`PRESTART-EMPTY`), since `run_case` reuses an existing clean observation. A failed calibration, smoke, or correctness gate stops it.
+
+**Then, anywhere:** [analyze.py](analyze.py) writes `summary.json` and prints each cell; every figure the record reports is checked by script against it.
