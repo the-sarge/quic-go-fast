@@ -5094,3 +5094,52 @@ Merged [PR #782](https://github.com/the-sarge/quic-go-fast/pull/782) as `bb7988b
 - [#759](https://github.com/the-sarge/quic-go-fast/issues/759) compares P1, P2 and the receipt-guarded P1 on this baseline and these nine rows. The record's handoff section lists the inputs it reuses.
 - No review finding was deferred.
 - GitHub issues are the live view.
+
+---
+
+## Handshake silent-drop policies compared - 2026-10-17 04:54 EDT
+
+**Main:** `fb42aeb66983`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #784](https://github.com/the-sarge/quic-go-fast/pull/784) as `fb42aeb66983c1f1d666b6d51b81656e4fc79365`, closing [#759](https://github.com/the-sarge/quic-go-fast/issues/759). It adds the audit record [docs/audits/2026-10-17-handshake-silent-drop-policies/](https://github.com/the-sarge/quic-go-fast/blob/fb42aeb6/docs/audits/2026-10-17-handshake-silent-drop-policies/README.md). The record compares three disposable size-fallback policies against a no-policy control on #758's baseline `a7b8353a`. This is an investigation only: no product code, active test or CI changed.
+
+- **What was compared.** The candidates are P1 (first eligible PTO), P2 (second) and P1 with a receipt guard. Each ran over #758's nine rows, the real-UDP case, seven preservation rows and one BBRv3 row: 70 cells per capture.
+- **How the trigger ran.** Each variant fires from #758's unchanged eligible-PTO hook on the connection goroutine, before packing, and calls the existing size owner `lowerUnsetInitialPacketSize`.
+- **Recovery.** P1 and P2 recover client-direction, server-direction and both-direction drops. P1 completes them at 220, 220 and 420 ms; P2 at 620, 1020 and 1620 ms. Both also recover the real-UDP case, and P1 recovers under BBRv3. The guarded P1 recovers only client-direction drops, because a server has always processed the client's Initial before its first PTO.
+- **False positives.** No false positive changed handshake timing; the cost is the 1200-byte start the connection keeps. P1 reduces under one lost round, loss after receipt and the lossless 300 ms path. P2's count is cumulative per epoch, so any second eligible expiration before completion triggers it; two lost rounds is the measured case.
+- **Collateral and phase.** Every candidate reduces the client collaterally in the server-direction row. Only two reductions fell after completion, both unnecessary, and no necessary reduction can on an unchanged path.
+- **Preservation.** Explicit 1200 and 1280, explicit-size local EMSGSIZE and unset native-error recovery matched the control exactly under every candidate.
+
+### Decisions
+
+- **The plan.** The operator approved it on 2026-10-17:
+  - test-side variants in an archived `.go.src` scenario file, beside #758's unchanged capture and mapping fixture;
+  - the no-policy control required to reproduce #758;
+  - CPU-heavy steps on mbp128 held until wiremux 1861's `tb` campaigns were idle.
+- **The recommendation is not a decision.** It is P2, with eligibility ending at handshake completion. The owner decides; an implementation ticket follows only an accepted policy and boundary.
+
+### Validation
+
+- **Evidence runs.**
+  - E0 checked identity: the product tree equals `a7b8353a`, and #758's fixture, summarizer and run1 hashes verify.
+  - E1 ran #779's focused tests, 12 passing.
+  - Then one capture run, one repeat capture and one `-race` run, with no race report.
+  - The baseline control matched #758's run1. The repeat matched apart from one pinned packetization difference at P2's 410 ms server trigger: 1197 + 1197 bytes against 1200 + 1200 + 45.
+- **Review.**
+  - RAS review `20261017T074302-d0f596b1a135ea0b545c7b36` at `2c382c0e` found two wording clusters, C-001 and C-006. Both were fixed in `45795bf3`, and C-002, C-005 and C-008 were rejected.
+  - The RAS rerun was skipped under the docs-only rule.
+- **Local certification at `45795bf3`:**
+  - `summarize.py --check` passed;
+  - `SHA256SUMS` verified in both records;
+  - the link check passed;
+  - `git diff --check` passed on everything except the archived unified diff, whose context lines begin with a space by format.
+- **Hosted.** All 33 hosted checks passed on `45795bf3` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+- The owner chooses the policy and phase boundary from the record's recommendation table.
+- No review finding was deferred.
+- GitHub issues are the live view.
