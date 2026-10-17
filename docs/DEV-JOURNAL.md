@@ -5143,3 +5143,57 @@ Merged [PR #784](https://github.com/the-sarge/quic-go-fast/pull/784) as `fb42aeb
 - The owner chooses the policy and phase boundary from the record's recommendation table.
 - No review finding was deferred.
 - GitHub issues are the live view.
+
+---
+
+## Handshake silent-drop fallback landed - 2026-10-17 14:39 EDT
+
+**Main:** `57f9df04d558`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #787](https://github.com/the-sarge/quic-go-fast/pull/787) as `57f9df04d5587bc6ff038ccbd4668c293cfffaa6`, closing [#786](https://github.com/the-sarge/quic-go-fast/issues/786). It implements the policy the owner accepted from [#759](https://github.com/the-sarge/quic-go-fast/issues/759): P2, with eligibility ending at handshake completion. An unset `InitialPacketSize` now drops to 1200 bytes at an endpoint's second Initial or Handshake PTO before the handshake completes.
+
+- **Recovery reports expirations.** `OnLossDetectionTimeout` now returns a `TimeoutOutcome{PTO, EncLevel}` with its error. `PTO` is set exactly where recovery counts an expiration. That includes the client's one-probe branch, which emits no qlog event. The report does not depend on tracing.
+- **The connection counts and triggers.** `countHandshakeTimeout` counts Initial and Handshake PTOs before completion, cumulatively per handshake attempt and path epoch.
+  - ACK progress and key discards do not reset the count. Retry resets it, and a `pathGeneration` tag restarts it after a path change.
+  - At the second PTO it calls the unchanged `lowerUnsetInitialPacketSize`. The call happens in the loss-timer call, before that expiration's probes are packed.
+- **Docs.** The `Config.InitialPacketSize` godoc names both unset-only triggers and says the 1200-byte size is kept afterwards.
+- **Scope.** No public API, configuration, default, wire or qlog change, and no new goroutine, timer, lock or mailbox. Congestion sizing, BBR, H1's feedback order and path-change sizing are unchanged.
+
+### Decisions
+
+- The policy decision is recorded on [#759](https://github.com/the-sarge/quic-go-fast/issues/759); its design input is the record's [Recommendation](https://github.com/the-sarge/quic-go-fast/blob/fb42aeb6/docs/audits/2026-10-17-handshake-silent-drop-policies/README.md#recommendation).
+- The operator approved the implementation plan on 2026-10-17, including three choices:
+  - the simnet tests pin the known collateral client reduction and the two-lost-rounds false positive;
+  - an explicit-1280 preservation row is included;
+  - one guard mutation is run and not committed.
+- wiremux 1862's and then 1857's `tb` campaigns were measuring on mbp128, so heavy work moved or waited, coordinated by message:
+  - local gates ran on minimax under `taskset -c 1-3`;
+  - the RAS review and the darwin certification waited for 1857's "tb free" at 18:23Z.
+
+### Validation
+
+- **Test-first.** The outcome and count tests failed before their implementations. The simnet tests were written after the trigger, so their red check came later. With the outcome discarded, the three recovery rows and the two-lost-rounds row fail. A guard mutation that removes the completion check fails the lossless 300 ms row and both completion unit cases.
+- **Gates on minimax at `4b51aaee`** (linux/amd64, go1.27.2):
+  - `go vet` for linux and windows;
+  - the affected-package tests with shuffle, and #779's integration tests;
+  - `-race` on the new tests;
+  - `TestHandshakeSilentDrop` `-count=20` with a connection-leak probe;
+  - no mock drift, and `go mod tidy -diff` clean;
+  - golangci-lint v2.14.0 on all five GOOS values, 0 issues.
+- **Exact-head certification on mbp128** (darwin/arm64, go1.27.2) at `4b51aaee`: `go vet` (also windows/amd64), `go mod tidy -diff`, the affected-package tests, #779's integration tests, and `-race` on the new and #779 root tests all pass.
+- **Review.** RAS review `20261017T182423-34b3495ac30b6e0f28bfe71b` at `4b51aaee`: six reviewers and six adjudicators completed, with no Fix First items. Its one low cluster, C-001, was deferred, so no replacement review was needed.
+- **Hosted.** All 33 hosted checks passed on `4b51aaee` before the matched-head squash merge. The merged tree equals that head's tree.
+
+### Next
+
+- C-001 survived revalidation against `57f9df04` and is filed as [#788](https://github.com/the-sarge/quic-go-fast/issues/788) (`needs-triage`). The README and glossary do not yet mention the second-PTO trigger.
+- These limits carry over from #759:
+  - the collateral client reduction in a server-direction drop;
+  - the false positive at any second eligible expiration before completion;
+  - the retained 1200-byte start;
+  - the slower server-direction recovery;
+  - Retry, Version Negotiation ([#780](https://github.com/the-sarge/quic-go-fast/issues/780)) and path changes, which only unit tests cover.
+- GitHub issues are the live view.
