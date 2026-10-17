@@ -139,17 +139,19 @@ func TestHandshakeMTUFallbackCongestionGrowth(t *testing.T) {
 		name     string
 		size     uint16
 		fallback bool
-		growth   []protocol.ByteCount // max(discovered MTU, effective initial size)
+		ceiling  protocol.ByteCount
+		growth   []protocol.ByteCount // max(discovered MTU, configured or default initial size)
 	}{
-		// Discovery restarts from 1200, but congestion accounting never drops below 1280.
-		{"unset fallback", 0, true, []protocol.ByteCount{1326, 1389, 1420}},
-		{"explicit", 1337, false, []protocol.ByteCount{1394, 1423, 1437}},
+		// Discovery restarts from 1200 and probes 1250 and 1275 first, but congestion
+		// accounting never drops below 1280.
+		{"unset fallback", 0, true, 1300, []protocol.ByteCount{1280, 1280, 1287}},
+		{"explicit", 1337, false, 1500, []protocol.ByteCount{1394, 1423, 1437}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			cs := mocks.NewMockCryptoSetup(ctrl)
 			c := newClientTestConnection(t, ctrl, &Config{InitialPacketSize: tc.size}, false, connectionOptCryptoSetup(cs)).conn
-			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: 1500, ActiveConnectionIDLimit: 2}
+			c.peerParams = &wire.TransportParameters{MaxUDPPayloadSize: tc.ceiling, ActiveConnectionIDLimit: 2}
 			c.applyTransportParameters()
 			if tc.fallback {
 				c.handshakeSendFeedback.publish(0)
