@@ -185,6 +185,23 @@ func newClientTestConnection(
 	enable0RTT bool,
 	opts ...testConnectionOpt,
 ) *testConnection {
+	return buildClientTestConnection(t, mockCtrl, config, enable0RTT, nil, opts...)
+}
+
+// newRecreatedClientTestConnection builds the connection that Transport.doDial
+// creates after Version Negotiation closed the previous one with recreate.
+func newRecreatedClientTestConnection(t *testing.T, config *Config, recreate errCloseForRecreating) *testConnection {
+	return buildClientTestConnection(t, nil, config, false, &recreate)
+}
+
+func buildClientTestConnection(
+	t *testing.T,
+	mockCtrl *gomock.Controller,
+	config *Config,
+	enable0RTT bool,
+	recreate *errCloseForRecreating,
+	opts ...testConnectionOpt,
+) *testConnection {
 	if mockCtrl == nil {
 		mockCtrl = gomock.NewController(t)
 	}
@@ -202,6 +219,10 @@ func newClientTestConnection(
 	if config == nil {
 		config = &Config{DisablePathMTUDiscovery: true}
 	}
+	pn, negotiated, lowered, version := protocol.PacketNumber(0), false, false, protocol.Version1
+	if recreate != nil {
+		pn, negotiated, lowered, version = recreate.nextPacketNumber, true, recreate.initialPacketSizeLowered, recreate.nextVersion
+	}
 	conn := newClientConnection(
 		context.Background(),
 		sendConn,
@@ -212,12 +233,13 @@ func newClientTestConnection(
 		newStatelessResetter(nil),
 		populateConfig(config),
 		&tls.Config{ServerName: "quic-go.net"},
-		0,
+		pn,
 		enable0RTT,
-		false,
+		negotiated,
+		lowered,
 		nil,
 		utils.DefaultLogger,
-		protocol.Version1,
+		version,
 	)
 	require.Nil(t, conn.testHooks)
 	for _, opt := range opts {

@@ -85,12 +85,13 @@ func countClientConstructors(t *testing.T) *atomic.Int32 {
 		initialPacketNumber protocol.PacketNumber,
 		enable0RTT bool,
 		hasNegotiatedVersion bool,
+		initialPacketSizeLowered bool,
 		qlogTrace qlogwriter.Trace,
 		logger utils.Logger,
 		v protocol.Version,
 	) *wrappedConn {
 		n.Add(1)
-		return orig(ctx, conn, runner, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, initialPacketNumber, enable0RTT, hasNegotiatedVersion, qlogTrace, logger, v)
+		return orig(ctx, conn, runner, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, initialPacketNumber, enable0RTT, hasNegotiatedVersion, initialPacketSizeLowered, qlogTrace, logger, v)
 	}
 	t.Cleanup(func() { newClientConnection = orig })
 	return &n
@@ -429,12 +430,13 @@ func TestDialSetupAdmissionRecreation(t *testing.T) {
 			initialPacketNumber protocol.PacketNumber,
 			enable0RTT bool,
 			hasNegotiatedVersion bool,
+			initialPacketSizeLowered bool,
 			qlogTrace qlogwriter.Trace,
 			logger utils.Logger,
 			v protocol.Version,
 		) *wrappedConn {
 			constructed.Add(1)
-			real := orig(ctx, conn, runner, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, initialPacketNumber, enable0RTT, hasNegotiatedVersion, qlogTrace, logger, v).Conn
+			real := orig(ctx, conn, runner, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, initialPacketNumber, enable0RTT, hasNegotiatedVersion, initialPacketSizeLowered, qlogTrace, logger, v).Conn
 			// The real connection closes for recreation; the dial is then
 			// canceled and destroys it before its run returns, so only the
 			// cancellation is ready when the dial selects.

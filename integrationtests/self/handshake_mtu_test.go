@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -19,14 +21,26 @@ import (
 type handshakeMTUConn struct {
 	net.PacketConn
 	rejected atomic.Int32
+
+	mx     sync.Mutex
+	writes []int // the size of every write, in order
 }
 
 func (c *handshakeMTUConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	c.mx.Lock()
+	c.writes = append(c.writes, len(p))
+	c.mx.Unlock()
 	if len(p) > 1200 {
 		c.rejected.Add(1)
 		return 0, &net.OpError{Op: "write", Net: "udp", Err: testutils.SendMsgSizeErr}
 	}
 	return c.PacketConn.WriteTo(p, addr)
+}
+
+func (c *handshakeMTUConn) writeSizes() []int {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+	return slices.Clone(c.writes)
 }
 
 func newHandshakeMTUConns(t *testing.T, role string) (client, server net.PacketConn, rejecting *handshakeMTUConn) {
@@ -95,6 +109,56 @@ func TestHandshakeMTUFallback(t *testing.T) {
 			requireHandshakeTimeout(t, err)
 		})
 	}
+}
+
+// The client lowers its unset size after the local rejection, before the Version Negotiation
+// packet arrives. The connection recreated for v1 keeps 1200 bytes, and the fallback ends with
+// that dial (#780).
+func TestHandshakeMTUFallbackVersionNegotiation(t *testing.T) {
+	client, server, rejecting := newHandshakeMTUConns(t, "client")
+	ln, err := quic.Listen(server, getTLSConfig(), getQuicConfig(&quic.Config{
+		Versions:                []quic.Version{quic.Version1},
+		DisablePathMTUDiscovery: true,
+	}))
+	require.NoError(t, err)
+	defer ln.Close()
+	tr := &quic.Transport{Conn: client}
+	t.Cleanup(func() { tr.Close() })
+	conf := getQuicConfig(&quic.Config{
+		Versions:                []quic.Version{quic.Version2, quic.Version1},
+		DisablePathMTUDiscovery: true,
+	})
+
+	// dial returns the sizes of the writes made until the handshake completed.
+	dial := func() []int {
+		t.Helper()
+		start := len(rejecting.writeSizes())
+		ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(3*time.Second))
+		defer cancel()
+		conn, err := tr.Dial(ctx, ln.Addr(), getTLSClientConfig(), conf)
+		writes := rejecting.writeSizes()[start:]
+		require.NoError(t, err)
+		require.Equal(t, quic.Version1, conn.ConnectionState().Version)
+		peer, err := ln.Accept(ctx)
+		require.NoError(t, err)
+		require.NoError(t, peer.CloseWithError(0, ""))
+		require.NoError(t, conn.CloseWithError(0, ""))
+		return writes
+	}
+
+	writes := dial()
+	t.Logf("first dial writes: %v", writes)
+	accepted := slices.IndexFunc(writes, func(size int) bool { return size <= 1200 })
+	require.Positive(t, accepted, "the first flight must exercise the native error")
+	for i, size := range writes[accepted:] {
+		require.LessOrEqual(t, size, 1200, "write %d, after the first accepted write", accepted+i)
+	}
+
+	// A later dial starts at the default size again.
+	writes = dial()
+	t.Logf("second dial writes: %v", writes)
+	require.Equal(t, 1280, slices.Max(writes))
+	require.Zero(t, conf.InitialPacketSize)
 }
 
 // requireHandshakeTimeout accepts either handshake timeout. The idle variant fires when

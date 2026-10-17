@@ -588,6 +588,7 @@ func TestTransportConfigPreparation(t *testing.T) {
 		_ protocol.PacketNumber,
 		_ bool,
 		_ bool,
+		_ bool,
 		_ qlogwriter.Trace,
 		_ utils.Logger,
 		_ protocol.Version,
@@ -662,6 +663,7 @@ func testTransportDial(t *testing.T, early bool) {
 			_ protocol.PacketNumber,
 			_ bool,
 			_ bool,
+			_ bool,
 			_ qlogwriter.Trace,
 			_ utils.Logger,
 			_ protocol.Version,
@@ -705,13 +707,24 @@ func testTransportDial(t *testing.T, early bool) {
 	})
 }
 
+// The recreated connection receives the lowered fact; the first one never does (#780).
 func TestTransportDialingVersionNegotiation(t *testing.T) {
+	for _, lowered := range []bool{false, true} {
+		t.Run(map[bool]string{false: "not lowered", true: "lowered"}[lowered], func(t *testing.T) {
+			testTransportDialingVersionNegotiation(t, lowered)
+		})
+	}
+}
+
+func testTransportDialingVersionNegotiation(t *testing.T, lowered bool) {
 	originalClientConnConstructor := newClientConnection
 	t.Cleanup(func() { newClientConnection = originalClientConnConstructor })
 
 	conn := &connTestHooks{
 		handshakeComplete: func() <-chan struct{} { return make(chan struct{}) },
-		run:               func() error { return &errCloseForRecreating{nextPacketNumber: 109, nextVersion: 789} },
+		run: func() error {
+			return &errCloseForRecreating{nextPacketNumber: 109, nextVersion: 789, initialPacketSizeLowered: lowered}
+		},
 	}
 	conn2 := &connTestHooks{
 		handshakeComplete: func() <-chan struct{} { return make(chan struct{}) },
@@ -721,6 +734,7 @@ func TestTransportDialingVersionNegotiation(t *testing.T) {
 	type connParams struct {
 		pn                   protocol.PacketNumber
 		hasNegotiatedVersion bool
+		lowered              bool
 		version              protocol.Version
 	}
 
@@ -739,11 +753,12 @@ func TestTransportDialingVersionNegotiation(t *testing.T) {
 		pn protocol.PacketNumber,
 		_ bool,
 		hasNegotiatedVersion bool,
+		initialPacketSizeLowered bool,
 		_ qlogwriter.Trace,
 		_ utils.Logger,
 		v protocol.Version,
 	) *wrappedConn {
-		connChan <- connParams{pn: pn, hasNegotiatedVersion: hasNegotiatedVersion, version: v}
+		connChan <- connParams{pn: pn, hasNegotiatedVersion: hasNegotiatedVersion, lowered: initialPacketSizeLowered, version: v}
 		if counter == 0 {
 			counter++
 			return &wrappedConn{testHooks: conn}
@@ -762,6 +777,7 @@ func TestTransportDialingVersionNegotiation(t *testing.T) {
 	case params := <-connChan:
 		require.Zero(t, params.pn)
 		require.False(t, params.hasNegotiatedVersion)
+		require.False(t, params.lowered)
 		require.Equal(t, protocol.Version1, params.version)
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
@@ -770,6 +786,7 @@ func TestTransportDialingVersionNegotiation(t *testing.T) {
 	case params := <-connChan:
 		require.Equal(t, protocol.PacketNumber(109), params.pn)
 		require.True(t, params.hasNegotiatedVersion)
+		require.Equal(t, lowered, params.lowered)
 		require.Equal(t, protocol.Version(789), params.version)
 	case <-time.After(time.Second):
 		t.Fatal("timeout")

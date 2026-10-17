@@ -196,6 +196,83 @@ func TestHandshakeMTUFallbackBeforePacking(t *testing.T) {
 	require.Equal(t, protocol.PacketTypeInitial, hdrs[0].Type)
 }
 
+// Version Negotiation reports whether the connection lowered its unset size, whatever
+// triggered the lowering, so that the recreated connection keeps it (#780).
+func TestHandshakeMTUFallbackVersionNegotiation(t *testing.T) {
+	messageTooLong := func(c *Conn) {
+		c.handshakeSendFeedback.publish(c.pathGeneration)
+		c.applyHandshakeMTUFallback()
+	}
+	for _, tc := range []struct {
+		name  string
+		size  uint16
+		lower func(*Conn)
+		want  bool
+	}{
+		{"unset healthy", 0, func(*Conn) {}, false},
+		{"unset message too long", 0, messageTooLong, true},
+		{"unset second PTO", 0, func(c *Conn) {
+			c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+			c.countHandshakeTimeout(handshakePTO(protocol.EncryptionInitial))
+		}, true},
+		{"explicit message too long", 1452, messageTooLong, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tconn := newClientTestConnection(t, nil, &Config{InitialPacketSize: tc.size}, false)
+			tc.lower(tconn.conn)
+			err := tconn.conn.handleVersionNegotiationPacket(
+				getVersionNegotiationPacket(tconn.destConnID, tconn.srcConnID, []protocol.Version{protocol.Version2}),
+			)
+			var recreate *errCloseForRecreating
+			require.ErrorAs(t, err, &recreate)
+			require.Equal(t, protocol.Version2, recreate.nextVersion)
+			require.Equal(t, tc.want, recreate.initialPacketSizeLowered)
+		})
+	}
+}
+
+// A connection recreated after Version Negotiation applies the lowered fact before its first
+// packet, through the same guards: an explicit size is a floor, and no Config is written (#780).
+func TestHandshakeMTUFallbackRecreatedConnection(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		size    uint16
+		lowered bool
+		want    protocol.ByteCount
+	}{
+		{"unset lowered", 0, true, protocol.MinInitialPacketSize},
+		{"unset not lowered", 0, false, protocol.InitialPacketSize},
+		{"explicit lowered", 1452, true, 1452},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			conf := &Config{InitialPacketSize: tc.size}
+			tconn := newRecreatedClientTestConnection(t, conf, errCloseForRecreating{
+				nextPacketNumber:         3,
+				nextVersion:              protocol.Version1,
+				initialPacketSizeLowered: tc.lowered,
+			})
+			c := tconn.conn
+			require.Equal(t, tc.want, c.maxPacketSize())
+			require.EqualValues(t, estimateMaxPayloadSize(tc.want), c.maxPayloadSizeEstimate.Load())
+			require.Equal(t, tc.size, conf.InitialPacketSize)
+			require.Equal(t, tc.size, c.config.InitialPacketSize)
+
+			ctrl := gomock.NewController(t)
+			useLifecyclePacketPacker(t, ctrl, tconn)
+			now := monotime.Now()
+			require.NoError(t, c.receivedPacketHandler.ReceivedPacket(4, protocol.ECNNon, protocol.EncryptionInitial, now, true))
+			c.sentPacketHandler = emissionRecoveryOutcome{SentPacketHandler: c.sentPacketHandler, mode: ackhandler.SendAck}
+			c.pacingDeadline = deadlineSendImmediately
+			require.NoError(t, c.triggerSending(now).err)
+			q := c.emission.queue.(*sendQueue)
+			require.Len(t, q.queue, 1)
+			entry := <-q.queue
+			defer entry.buf.Release()
+			require.Len(t, entry.buf.Data, int(tc.want), "the first packet")
+		})
+	}
+}
+
 func handshakePTO(encLevel protocol.EncryptionLevel) ackhandler.TimeoutOutcome {
 	return ackhandler.TimeoutOutcome{PTO: true, EncLevel: encLevel}
 }
