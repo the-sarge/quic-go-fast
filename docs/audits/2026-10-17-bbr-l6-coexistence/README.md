@@ -171,13 +171,17 @@ Made on `minimax`, each excluded from every statistic. Times are UTC on October 
 | `prereq-dev2` (06:12) | Path calibration, second attempt | All seven checks passed. Median one-way delays sat 0.3–0.9 ms above the model's (largest probe +2.2 ms), and the competitor's switches at 100 s and 200 s fell where the model puts them. The delivered rate was 99.98 (forward) and 99.99 Mbit/s (reverse), the queue reached 1,250,928 bytes, and both flows lost packets. |
 | `dev1` (06:13–06:19) | STREAM, `cand` (BBRv3 focal), full length | Usable under the rules. Relay arrival lag 0.87 ms; lateness 2.85 ms forward, 2.11 ms reverse; every endpoint under 0.02 of its allotted cores; pause observed at 240.04 s and 270.00 s; control assignment exact. **Seen by the agent:** focal delivery 86.0, 83.1, 86.9, 93.7 and 87.4 Mbit/s, competitor 7.4, 11.3, 6.5, 0.0 and 5.7 Mbit/s (equal, short, back, absent, resumed). The BBRv3 flow sent 1,732,596 of its 2,791,964 forward packets as Not-ECT (its ECN was disabled during the run); the competitor kept ECT(0). |
 | `dev2` (06:20–06:26) | STREAM, `reno` (Reno against Reno), full length | Usable. Relay arrival lag 0.27 ms; lateness 3.77 ms forward, 3.34 ms reverse; endpoints under 0.02 of their cores; pause at 240.00 s and 270.00 s. **Seen by the agent:** focal 47.0, 37.3, 45.9, 93.5 and 51.1 Mbit/s, competitor 48.9, 58.3, 49.6, 0.2 and 44.5 Mbit/s. Both flows kept ECT(0). |
+| `dev3` (06:28–06:34) | DATAGRAM, `cand`, full length | Usable. Lag 0.40 ms; lateness 2.79 ms forward, 2.25 ms reverse; endpoints under 0.02 of their cores; pause at 240.01 s and 270.00 s. **Seen:** focal 83.8, 75.4, 85.7, 92.3 and 85.6 Mbit/s, competitor 8.4, 18.8, 6.3, 0.0 and 6.4 Mbit/s. The BBRv3 flow sent 1,109,180 of 3,085,709 forward packets as Not-ECT. |
+| `dev4` (06:34–06:40) | DATAGRAM, `reno`, full length | Usable. Lag 1.53 ms; lateness 3.74 ms forward, 3.80 ms reverse; endpoints under 0.02 of their cores; pause at 240.00 s and 270.00 s. **Seen:** focal 47.4, 39.3, 49.9, 94.2 and 53.4 Mbit/s, competitor 47.7, 55.8, 45.0, 0.2 and 41.6 Mbit/s. Both flows kept ECT(0). |
+
+Across the four full-length runs, the relay's largest forward lateness in a 100 ms interval had a median near 1 ms and exceeded 3 ms in at most three intervals per run; the largest single value was 3.80 ms.
 
 What changed after these runs started:
 - calibrate2's ECN-mode fix (`5d8dd10d`), for the defect `prereq-dev1` exposed;
 - the correctness gate ([l6rules.py](l6rules.py) `correctness`, `matrix.py`, committed in `acc0b4f0` at 06:18, during `dev1` and before its result was read). It stops a stage on corrupt or duplicated content, which #777's "correctness gates apply unchanged" requires; no observation prompted it;
 - the documentation of these sections.
 
-No threshold, period, arm, order, estimator, usability limit or rerun rule changed after either observation. The relay limits (5 ms) were set before them; both runs fell under them.
+No threshold, period, arm, order, estimator, usability limit or rerun rule changed after any of these observations. The relay limits (5 ms) were set before them; every run fell under them.
 
 **The ECN observation is outside this record's question.** The L6 queue never marks, so a sender's ECN state does not change the queue's treatment of its packets. It is reported for every counted observation, per flow, from relay2's counters, and is a candidate follow-up, not part of the classification.
 
@@ -192,8 +196,8 @@ No threshold, period, arm, order, estimator, usability limit or rerun rule chang
 
 - **D2 preceded all data of this record,** and the operator chose 0.70 over the agent's 0.80 before any fixture existed.
 - **Q1's cloud orchestration examples** were known (see [Known before these decisions](#known-before-these-decisions)).
-- **The development runs above were seen,** including `dev1`, where the competitor next to BBRv3 delivered about 7 Mbit/s against about 49 Mbit/s next to Reno in `dev2`. On that evidence the agent expects the counted stage to be *adverse*. Nothing in this registration was changed after it, and the expectation is not a result: the counted stage decides.
-- **Interpretation known in advance.** The competitor's window reduction at 100 s is a property of the frozen model (reordering), common to every arm. Reno's growth at this path's bandwidth-delay product is slow, so a contested period is not a steady state. The candidate's ECN state can change during a run (`dev1`).
+- **The development runs above were seen,** including `dev1` and `dev3`, where the competitor next to BBRv3 delivered about 7–8 Mbit/s in the equal period against about 48–49 Mbit/s next to Reno in `dev2` and `dev4`. On that evidence the agent expects the counted stage to be *adverse*. Nothing in this registration was changed after it, and the expectation is not a result: the counted stage decides.
+- **Interpretation known in advance.** The competitor's window reduction at 100 s is a property of the frozen model (reordering), common to every arm. Reno's growth at this path's bandwidth-delay product is slow, so a contested period is not a steady state. The candidate's ECN state can change during a run (`dev1`, `dev3`).
 
 ## Time estimate
 
