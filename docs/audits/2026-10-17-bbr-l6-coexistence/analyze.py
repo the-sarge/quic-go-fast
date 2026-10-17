@@ -3,7 +3,10 @@
 
 Loads every counted observation (`main`, and `rerun` for rerun triples), judges
 usability and contamination with l6rules and matrix.judge, chooses each triple
-with the #714 rule (l6rules.choose_triple) and applies l6rules.analyze. Run it
+with the #714 rule (l6rules.choose_triple) and applies l6rules.analyze.
+summary.json keeps every attempt's per-arm reasons, contamination, competitor
+pause timing and CPU loads, and the full summary of every selected observation,
+so each figure the record reports can be checked against it alone. Run it
 anywhere the observation tree is available: python3 analyze.py
 """
 import json
@@ -28,30 +31,40 @@ def triple_rows(phase, pair, workload):
     return out
 
 
+def attempted(phase, pair, workload):
+    """A phase counts as attempted for a triple when any of its arms has a directory (a partial rerun included)."""
+    return any((run.OBS / f'{phase}-L6-{workload}-p{pair}-{arm}').exists() for arm in matrix.ARMS)
+
+
 def main():
-    triples, choices, observations = {}, [], []
+    triples, choices, attempts_out, selected = {}, [], [], {}
     for pair in range(1, l6rules.PAIRS + 1):
         for workload in matrix.workloads(pair):
             attempts = []
             for phase in ['main', 'rerun']:
-                if not (run.OBS / f'{phase}-L6-{workload}-p{pair}-{matrix.ARMS[0]}').exists() and phase == 'rerun':
+                if not attempted(phase, pair, workload):
                     continue
-                usable, contaminated, reasons = matrix.judge(phase, pair, workload)
+                usable, contaminated, detail = matrix.judge(phase, pair, workload)
                 attempts.append((phase, usable, contaminated))
-                observations.append(dict(phase=phase, pair=pair, workload=workload, usable=usable, contaminated=contaminated, reasons=reasons))
-            label, status = l6rules.choose_triple(attempts)
+                attempts_out.append(dict(phase=phase, pair=pair, workload=workload, usable=usable, contaminated=contaminated,
+                                         complete=all((run.OBS / f'{phase}-L6-{workload}-p{pair}-{a}' / 'receipt.json').exists()
+                                                      for a in matrix.ARMS),
+                                         detail=detail))
+            label, status = l6rules.choose_triple(attempts) if attempts else (None, 'unusable')
             choices.append(dict(pair=pair, workload=workload, chosen=label, status=status))
-            triples[(workload, pair)] = triple_rows(label, pair, workload) if status == 'clean' else None
+            rows = triple_rows(label, pair, workload) if status == 'clean' else None
+            triples[(workload, pair)] = rows
+            for arm, row in (rows or {}).items():
+                selected[f'{workload}/p{pair}/{arm}'] = row
     analysis = l6rules.analyze(triples)
-    out = dict(classification=analysis['classification'], cells=analysis['cells'], triples=choices, observations=observations,
-               analysis=analysis)
+    out = dict(classification=analysis['classification'], cells=analysis['cells'], triples=choices, attempts=attempts_out,
+               analysis=analysis, selected_observations=selected)
     OUT.write_text(json.dumps(out, indent=2) + '\n')
     print('classification:', analysis['classification'])
+    fmt = lambda xs: ' '.join('  -  ' if x is None else f'{x:.3f}' for x in xs)
     for cell, outcome in analysis['cells'].items():
-        ratios = [r['ratio'] for r in analysis['periods'][cell]]
-        aa = [r['aa_ratio'] for r in analysis['periods'][cell]]
-        fmt = lambda xs: ' '.join('  -  ' if x is None else f'{x:.3f}' for x in xs)
-        print(f'{cell:18} {outcome:12} ratios {fmt(ratios)} | A/A {fmt(aa)}')
+        rows = analysis['periods'][cell]
+        print(f"{cell:18} {outcome:12} ratios {fmt([r['ratio'] for r in rows])} | A/A {fmt([r['aa_ratio'] for r in rows])}")
 
 
 if __name__ == '__main__':

@@ -89,14 +89,40 @@ def ratio(a, b):
 
 
 # ---- correctness, usability, contamination, reruns --------------------------------
-def correctness(receivers):
-    """Correctness-gate failures from the receivers' own reports: {participant: receiver report}.
+# The frozen fixture's integrity errors (fixture/session.go, accounting.go): content
+# the transport delivered differs from what was sent. Timeouts and setup failures
+# are not in this list; they leave an observation unusable, and the rerun rule applies.
+INTEGRITY_ERRORS = (
+    'invalid campaign payload',         # receiver: a record failed its header or content check
+    'non-contiguous stream identity',   # receiver: a STREAM record out of sequence
+    'invalid stream frame length',      # receiver: a STREAM record with a bad length
+    'control sequence mismatch',        # sender: a control reply for another request
+    'run config mismatch',              # receiver: the configuration read back differs
+    'invalid report acknowledgment',    # receiver: the report acknowledgment byte differs
+    'record too large',                 # either: a length prefix beyond any record the fixture writes
+)
 
-    Corrupt or duplicated useful content is a transport correctness failure. It
-    is never rerun or excepted: the stage stops and the record reports it.
+
+def correctness(reports):
+    """Correctness-gate failures from the endpoints' own reports: {'<participant>-<role>': parsed JSON or None}.
+
+    Corrupt or duplicated useful content, or any of the fixture's integrity
+    errors in an endpoint's errors, control error or top-level error, is a
+    transport correctness failure. It is never rerun or excepted: the stage stops
+    and the record reports it. A missing report is not a correctness failure
+    (the observation is unusable instead).
     """
-    return [f"{who}: {r['corrupt']} corrupt, {r['duplicates']} duplicated" for who, r in receivers.items()
-            if r['corrupt'] or r['duplicates']]
+    failures = []
+    for name, rec in sorted(reports.items()):
+        if not rec:
+            continue
+        result = rec.get('result') or {}
+        receiver = result.get('receiver') or {}
+        if receiver.get('corrupt') or receiver.get('duplicates'):
+            failures.append(f"{name}: {receiver.get('corrupt')} corrupt, {receiver.get('duplicates')} duplicated")
+        messages = list(result.get('errors') or []) + [(result.get('control') or {}).get('error') or '', rec.get('error') or '']
+        failures += [f'{name}: {m}' for m in messages if any(e in m for e in INTEGRITY_ERRORS)]
+    return failures
 
 
 def health(summary, receipt, wall_s):
@@ -149,6 +175,21 @@ def contamination(samples, window, fixture_cpus, sibling_cpus):
                 contaminated=mean > CONTAMINATION_MEAN or peak > CONTAMINATION_PEAK)
 
 
+def verdict(reasons, contamination_result):
+    """(usable, contaminated, reasons) for one observation from its health reasons and contamination result.
+
+    An unevaluable contamination test (contaminated None) makes the observation
+    unusable with an explicit reason, so it can never be selected as clean.
+    """
+    reasons = list(reasons)
+    c = contamination_result.get('contaminated')
+    if c is None:
+        reasons.append(f"contamination not evaluable: {contamination_result.get('reason', 'no result')}")
+    elif c:
+        reasons.append('contaminated')
+    return not [r for r in reasons if r != 'contaminated'], bool(c), reasons
+
+
 def choose_triple(attempts):
     """attempts: [(label, usable, contaminated)] in run order, the original first.
 
@@ -158,13 +199,16 @@ def choose_triple(attempts):
     replaces the original only when every arm is usable and uncontaminated.
     Returns (label, status) with status 'clean', 'contaminated' or 'unusable'.
     """
+    # Clean needs an affirmative result: usable is True and contaminated is False
+    # (an unevaluable contamination test, None, is never clean).
+    clean = lambda a: a[1] is True and a[2] is False
     original = attempts[0]
-    if original[1] and not original[2]:
+    if clean(original):
         return original[0], 'clean'
-    for label, usable, contaminated in attempts[1:2]:
-        if usable and not contaminated:
-            return label, 'clean'
-    return original[0], 'unusable' if not original[1] else 'contaminated'
+    for attempt in attempts[1:2]:
+        if clean(attempt):
+            return attempt[0], 'clean'
+    return original[0], 'unusable' if original[1] is not True else 'contaminated'
 
 
 # ---- the analysis -----------------------------------------------------------------

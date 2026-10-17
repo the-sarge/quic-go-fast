@@ -48,7 +48,7 @@ The agent presented one consolidated plan with six recommended decisions on Octo
 - **Known properties of the model at the competitor's delay changes** (source inspection and [relay2's tests](relay2/main_test.go), before any observation):
   - At 100 s, competitor packets finishing service after the boundary overtake earlier ones still in propagation, up to 37.5 ms of the competitor's traffic. QUIC's packet-threshold loss detection is likely to declare some overtaken packets lost, so the competitor probably takes a window reduction at the start of the short-path period, in every arm.
   - At 200 s the competitor's deliveries pause for 37.5 ms; nothing is reordered.
-  - relay2 counts reordered deliveries per flow and direction, and the record reports them per period.
+  - relay2 counts reordered deliveries per flow and direction over the whole observation, warm-up included. Its samples carry no reorder timing, so the record attributes reordering to the 100 s change only through the model's structure, not by measurement.
 
 ## The two-flow relay
 
@@ -122,7 +122,7 @@ For each participant (focal and competitor), each observation and each period, f
 - **Useful delivery,** Mbit/s, from the receiver's one-second bins (bytes inside the measured window, fixture header excluded).
 - **Control latency** p50 and p95 per period (ceil-index quantiles, as the readiness summaries), each reply assigned to the period of the opportunity that offered it. With no skipped and no unresolved request, the assignment is exact. Otherwise it is reconstructed from offer times and latencies, and it is used only if the reconstructed offered, skipped, replied and unresolved counts equal the fixture's own; else that observation's per-period control latency is unusable. Whole-window control p95, replies, skipped, unresolved and missed opportunities are reported too.
 - **CPU seconds per useful GiB and peak RSS** per endpoint (the fixture's `getrusage` figures, through slice 6's launcher).
-- **From relay2,** per period: each flow's forward drops and mean queue occupancy, the largest combined queue, the largest forward lateness, and the reorder counts.
+- **From relay2:** per period, each flow's forward drops and mean queue occupancy, the largest sampled (100 ms) combined forward queue, and the largest forward lateness; per observation, the reorder counts and ECN codepoints per flow and direction.
 
 ## Classification: D2 and its estimator
 
@@ -145,22 +145,29 @@ None of these changes the classification or ends in a decision here.
 An observation is **unusable** ([l6rules.py](l6rules.py) `health`) when any of the following holds; the reason is recorded:
 
 - any of the five processes exits non-zero, or `summarize` rejects it: a receiver report differing between the endpoints, a controller other than configured, bins not summing to the useful bytes, relay errors, send errors, truncated reads, propagation overflow, or a relay model zero other than the measured start;
-- the competitor's observed pause starts or ends more than 0.5 s from 240 s or 270 s;
+- the competitor's observed pause starts or ends more than 0.5 s from 240 s or 270 s. The fixture checks for the pause between blocking STREAM writes, so a starved competitor can observe it late: such an exclusion can depend on the arm. Every attempt's pause timing and reason is kept per arm (`summary.json` `attempts`) and reported, and a pair lost this way is never read as evidence of acceptable coexistence. The development runs observed offsets of 4–42 ms;
 - relay2's largest arrival lag, or its largest forward or reverse lateness, exceeds 5 ms (Q1's native gateway gate);
 - either participant's control stream reports an error;
 - any endpoint's CPU time over the observation is at least 80% of its allotted cores (four focal, two competitor): a fixture limit, not controller behavior.
 
-An observation is **contaminated** under #712's test, unchanged except for this record's CPUs: foreign CPU on the fixture cores and their siblings during the measured window above 0.10 cores mean or 0.50 cores in any second.
+An observation is **contaminated** under #712's test, unchanged except for this record's CPUs: foreign CPU on the fixture cores and their siblings during the measured window above 0.10 cores mean or 0.50 cores in any second. When the test cannot be evaluated (missing host samples, or fewer than two in the window), the observation is unusable with that reason; only an affirmative uncontaminated result counts as clean (`l6rules.verdict`, `choose_triple`).
+
+A receipt whose fixture or relay hash differs from the registered one also makes an observation unusable.
 
 **Reruns** (the operator's #714 rule, [matrix.py](matrix.py) `follow`): a triple holding an unusable or contaminated observation is rerun once, all three arms, with the same seed, as phase `rerun`; the rerun replaces the original only when all three arms are usable and uncontaminated. At most four triples are rerun. A triple that stays unusable or contaminated leaves its pair's ratios not computable for that workload; it is never replaced by a third attempt. #738's quiet-host gate (60 s under 0.05 cores mean and 0.30 peak on the fixture cores and siblings) runs before every triple.
 
 ## Correctness gates
 
-Corrupt or duplicated useful content at either receiver is a transport correctness failure ([l6rules.py](l6rules.py) `correctness`). It is never rerun, excepted or classified: the stage stops (`matrix.py` checks after every observation) and the record reports it.
+A transport correctness failure is never rerun, excepted or classified: the stage stops (`matrix.py` checks all four endpoint reports after every observation, before any summary, usability judgment or rerun choice) and the record reports it ([l6rules.py](l6rules.py) `correctness`). It is any of:
+
+- corrupt or duplicated useful content counted at a receiver;
+- one of the frozen fixture's integrity errors in any endpoint's errors, control error or top-level error: `invalid campaign payload`, `non-contiguous stream identity` and `invalid stream frame length` (receiver content checks), `control sequence mismatch` (sender), `run config mismatch` and `invalid report acknowledgment` (bytes read back on the control and report streams), and `record too large` (a length prefix beyond any record the fixture writes).
+
+Timeouts, setup failures and a missed pause are not correctness failures: they leave an observation unusable, and the rerun rule applies.
 
 ## Prerequisites
 
-Run first, on a quiet host, each excluded from every statistic; a failure ends the record as a reported prerequisite gap.
+Run first, each excluded from every statistic; a failure ends the record as a reported prerequisite gap. First, every deployed binary is checked against the registered hashes (`matrix.py binaries`). Calibration and smoke each start after #738's quiet-host gate.
 
 - **Path calibration** ([prereq.py](prereq.py), criteria in its docstring), relay2 driven by [calibrate2](calibrate2/main.go)'s stand-in endpoints:
   - ECN codepoints preserved per flow and direction;
@@ -198,6 +205,7 @@ No threshold, period, arm, order, estimator, usability limit or rerun rule chang
 - **One declared model, one host.** Results describe behavior under the frozen Q1 model's L6 on `minimax` loopback, five pairs per workload. They are not a measurement of any real path and make no universal claim.
 - **One competitor schedule.** Both flows start together; the competitor's 25 ms period and its pause are the acceptance plan's fixed phases, with carryover between them. The periods are not independent steady states.
 - **The competitor shares the host.** It has two cores per endpoint against the focal flow's four; the record reports each endpoint's load.
+- **Pause-timing exclusions can depend on the arm** (see [Usability](#observation-usability-and-reruns)); they are reported, never counted as acceptable.
 - **Not measured:** L7 (TCP CUBIC), L8, ECN marking (S8), other platforms, and any revision but `abfa5456`.
 
 ## Disclosures made before counted data
@@ -206,6 +214,35 @@ No threshold, period, arm, order, estimator, usability limit or rerun rule chang
 - **Q1's cloud orchestration examples** were known (see [Known before these decisions](#known-before-these-decisions)).
 - **The development runs above were seen,** including `dev1` and `dev3`, where the competitor next to BBRv3 delivered about 7–8 Mbit/s in the equal period against about 48–49 Mbit/s next to Reno in `dev2` and `dev4`. On that evidence the agent expects the counted stage to be *adverse*. Nothing in this registration was changed after it, and the expectation is not a result: the counted stage decides.
 - **Interpretation known in advance.** The competitor's window reduction at 100 s is a property of the frozen model (reordering), common to every arm. Reno's growth at this path's bandwidth-delay product is slow, so a contested period is not a steady state. The candidate's ECN state can change during a run (`dev1`, `dev3`).
+
+## Registration review
+
+**First consideration:** RAS run `20261017T204953-20752a2689fc1b9ddaa31f4d` (`ras consider`, kind plan, default agents and adjudication), on `477f9763`. Its context was this registration, relay2 and its tests, the model overlay, `l6rules.py`, `run.py`, `matrix.py`, `prereq.py`, calibrate2 and the frozen model, with #777's binding requirements, the accepted decisions and the acceptance plan's L6 text quoted in the prompt. The synthesis queued eight items; each was checked against the code and dispositioned here.
+
+| Item | Disposition | Change |
+| --- | --- | --- |
+| 1. The correctness gate missed the fixture's explicit integrity errors. STREAM identity and length failures are reported in `errors` before the corruption counter, so a corrupt observation would have been rerun. | fix-now | `l6rules.correctness` reads all four endpoint reports and stops on corrupt or duplicated content or any listed integrity error, before any summary or rerun choice. Tests cover each error with zero counters, plus timeout controls. |
+| 2. The clean-start check passed when only some leftovers existed (one `ls -d` over several operands). | fix-now | `driver.sh` checks each path or glob alone, including the correctness-failure report and binary check. Tested under `/bin/sh` with each category alone and with development artifacts. |
+| 3. An unevaluable contamination test counted as clean. | fix-now | `l6rules.verdict` makes it unusable with a reason; `choose_triple` needs an affirmative uncontaminated result. |
+| 4. The deployed binaries were not checked before execution. | fix-now | `matrix.py binaries` checks all five against the registered pins before calibration, and the driver stops on a mismatch. Each receipt's fixture and relay hashes are also checked when judging. |
+| 5. `summary.json` lacked evidence the record promises to check figures against. | fix-now | It now holds every attempt's per-arm reasons, contamination, pause timing and CPU loads, and the full summary of every selected observation. |
+| 6. Reorder counts are whole-observation totals, and period queue maxima are sampled. | fix-now (wording) | [Path](#path-the-frozen-q1-models-l6) and [Measures](#measures) corrected; no aid change. |
+| 7. A pause-timing exclusion can depend on the arm (a starved competitor sees the pause late). | fix-now (disclosure) | The rule is unchanged. Exclusions are reported per arm and never read as acceptable ([Usability](#observation-usability-and-reruns), [Limits](#limits)). |
+| 8. Prerequisites lacked the quiet-host gate; a smoke exception lost its report; an empty thread snapshot passed; a partial rerun was found only through its `reno` arm. | fix-now | `wait_quiet` runs before calibration and smoke; smoke keeps a failed observation's report and still fails; thread snapshots must be complete and error-free; any arm marks a rerun attempt. |
+
+The synthesis also listed changes not to make. All were declined, in agreement with it:
+- a goodput flag on the contested path;
+- changes to A/A eligibility;
+- a per-flow calibration bound;
+- carryover telemetry;
+- reopening settled scope.
+
+**What changed in the registered rules.** Three usability or correctness rules became stricter after the development runs:
+- integrity errors now stop the stage;
+- an unevaluable contamination test leaves the observation unusable;
+- a receipt with a hash other than the registered one is unusable.
+
+None loosens a rule. No threshold, period, arm, order, estimator, calibration criterion, fixture or model source, or registered hash changed. The aids' Go code is unchanged, so no binary was rebuilt and no calibration repeated.
 
 ## Time estimate
 
@@ -225,6 +262,6 @@ Foreign load extends the gates' waits.
 
 **On the Mac:** `build.py` (every binary byte-identical to the one this registration names), `l6rules_test.py`, relay2's Go tests (also run on `minimax`), then `sync.sh`.
 
-**On `minimax`,** sequentially under `taskset -c 1`, with nothing else built or tested there while a stage measures ([driver.sh](driver.sh)): `matrix.py hostfacts start`, `prereq`, `smoke`, `main`, `follow`, `hostfacts end`. The driver first checks that no counted, rerun or smoke observation, calibration, smoke report or follow decision exists (`PRESTART-EMPTY`), since `run_case` reuses an existing clean observation. A failed calibration, smoke, or correctness gate stops it.
+**On `minimax`,** sequentially under `taskset -c 1`, with nothing else built or tested there while a stage measures ([driver.sh](driver.sh)): `matrix.py hostfacts start`, `binaries`, `prereq`, `smoke`, `main`, `follow`, `hostfacts end`. The driver first checks, path by path, that no counted, rerun or smoke observation, calibration, smoke report, follow decision, correctness-failure report or binary check exists (`PRESTART-EMPTY`), since `run_case` reuses an existing clean observation; development artifacts are allowed. A failed binary check, calibration, smoke or correctness gate stops it.
 
-**Then, anywhere:** [analyze.py](analyze.py) writes `summary.json` and prints each cell; every figure the record reports is checked by script against it.
+**Then, anywhere:** [analyze.py](analyze.py) writes `summary.json` and prints each cell. `summary.json` holds the classification, every period's per-pair values, the review flags, every attempt's per-arm reasons, contamination, pause timing and CPU loads, and the full summary of every selected observation; every figure the record reports is checked by script against it.

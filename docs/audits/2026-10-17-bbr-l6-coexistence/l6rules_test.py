@@ -3,7 +3,10 @@
 
 Run before any observation of this record existed: python3 l6rules_test.py
 """
+import json
+import os
 import unittest
+from pathlib import Path
 
 import l6rules as r
 import run
@@ -148,10 +151,34 @@ class Usability(unittest.TestCase):
         busy = r.contamination(rows([0] * 10 + [60] + [0] * 9), [0, 30e9], [2, 3], [18, 19])
         self.assertTrue(busy['contaminated'])  # one 0.6-core second exceeds the 0.50 peak
 
+    @staticmethod
+    def report(errors=(), control_error='', top='', corrupt=0, duplicates=0):
+        return dict(error=top, result=dict(errors=list(errors), control=dict(error=control_error),
+                                           receiver=dict(corrupt=corrupt, duplicates=duplicates)))
+
     def test_correctness(self):
-        clean = dict(corrupt=0, duplicates=0)
-        self.assertEqual(r.correctness({'focal': clean, 'competitor': clean}), [])
-        self.assertEqual(len(r.correctness({'focal': dict(corrupt=1, duplicates=0), 'competitor': dict(corrupt=0, duplicates=2)})), 2)
+        clean = self.report()
+        self.assertEqual(r.correctness({'focal-receive': clean, 'competitor-send': clean, 'focal-send': None}), [])
+        self.assertEqual(len(r.correctness({'focal-receive': self.report(corrupt=1), 'competitor-receive': self.report(duplicates=2)})), 2)
+        # Each fixture integrity error counts with zero bulk counters, wherever it is reported.
+        for e in r.INTEGRITY_ERRORS:
+            self.assertTrue(r.correctness({'focal-receive': self.report(errors=[e])}), e)
+            self.assertTrue(r.correctness({'competitor-send': self.report(top=e)}), e)
+        self.assertTrue(r.correctness({'focal-send': self.report(control_error='control sequence mismatch')}))
+        # Ordinary operational failures are not correctness failures.
+        for e in ['timeout: no recent network activity', 'context deadline exceeded', 'start deadline missed during setup',
+                  'competitor bulk pause was missed']:
+            self.assertEqual(r.correctness({'focal-receive': self.report(errors=[e], top=e)}), [], e)
+
+    def test_unevaluable_contamination_is_unusable(self):
+        usable, dirty, reasons = r.verdict([], dict(contaminated=None, reason='no samples in window'))
+        self.assertFalse(usable)
+        self.assertTrue(any('not evaluable' in x for x in reasons))
+        self.assertEqual(r.verdict([], dict(contaminated=False))[:2], (True, False))
+        self.assertEqual(r.verdict([], dict(contaminated=True))[:2], (True, True))
+        self.assertEqual(r.verdict(['process exit'], dict(contaminated=False))[:2], (False, False))
+        self.assertNotEqual(r.choose_triple([('main', True, None)])[1], 'clean')
+        self.assertEqual(r.choose_triple([('main', True, None), ('rerun', True, False)]), ('rerun', 'clean'))
 
     def test_choose_triple(self):
         self.assertEqual(r.choose_triple([('a', True, False)]), ('a', 'clean'))
@@ -159,6 +186,72 @@ class Usability(unittest.TestCase):
         self.assertEqual(r.choose_triple([('a', False, False), ('b', True, True)]), ('a', 'unusable'))
         self.assertEqual(r.choose_triple([('a', True, True), ('b', False, False)]), ('a', 'contaminated'))
         self.assertEqual(r.choose_triple([('a', True, True), ('b', True, True), ('c', True, False)]), ('a', 'contaminated'))
+
+
+class Orchestration(unittest.TestCase):
+    """matrix.py and driver.sh behavior, on temporary directories only."""
+
+    def setUp(self):
+        import tempfile
+        import matrix
+        self.matrix = matrix
+        self.tmp = Path(tempfile.mkdtemp())
+        self.saved = (run.ART, run.OBS)
+        run.ART, run.OBS = self.tmp, self.tmp / 'observations'
+        run.OBS.mkdir()
+
+    def tearDown(self):
+        import shutil
+        run.ART, run.OBS = self.saved
+        shutil.rmtree(self.tmp)
+
+    def test_integrity_error_stops_even_without_a_summary(self):
+        d = run.OBS / 'main-L6-stream-p1-cand'
+        d.mkdir()
+        (d / 'focal-receive.json').write_text(json.dumps(Usability.report(errors=['non-contiguous stream identity'])))
+        with self.assertRaises(SystemExit):
+            self.matrix.correctness(d)
+        self.assertTrue((self.tmp / 'correctness-failure.json').exists())
+        e = run.OBS / 'main-L6-stream-p1-reno'
+        e.mkdir()
+        (e / 'focal-receive.json').write_text(json.dumps(Usability.report(errors=['timeout: no recent network activity'])))
+        self.matrix.correctness(e)  # an operational failure does not stop the stage
+
+    def test_partial_rerun_is_an_attempt(self):
+        import analyze
+        (run.OBS / 'rerun-L6-datagram-p2-cand').mkdir()
+        self.assertTrue(analyze.attempted('rerun', 2, 'datagram'))
+        self.assertFalse(analyze.attempted('rerun', 2, 'stream'))
+
+    def test_binary_check(self):
+        import hashlib
+        b = self.tmp / 'bin'
+        b.mkdir()
+        expected = {}
+        for name in self.matrix.BINARIES:
+            (b / name).write_bytes(name.encode())
+            expected[name] = hashlib.sha256(name.encode()).hexdigest()
+        self.assertEqual(self.matrix.check_binaries(b, expected), [])
+        (b / 'relay2').write_bytes(b'other')
+        (b / 'launch').unlink()
+        problems = self.matrix.check_binaries(b, expected)
+        self.assertEqual(len(problems), 2)
+        self.assertEqual(set(self.matrix.registered_hashes()), set(self.matrix.BINARIES))
+
+    def test_clean_start_preflight(self):
+        import subprocess
+        driver = Path(__file__).resolve().parent / 'driver.sh'
+        check = lambda: subprocess.run(['/bin/sh', str(driver), '--preflight-only'], env={**os.environ, 'L6_ART': str(self.tmp)}).returncode
+        (run.OBS / 'dev-L6-stream-p0-cand-dev1').mkdir()
+        (self.tmp / 'prereq-dev1').mkdir()
+        self.assertEqual(check(), 0)  # development artifacts are allowed
+        for leftover in ['observations/main-L6-stream-p1-reno', 'observations/rerun-L6-stream-p1-reno', 'observations/smoke-L6-stream-p0-cand',
+                         'prereq', 'smoke.json', 'follow-decisions.json', 'correctness-failure.json', 'binaries.json']:
+            path = self.tmp / leftover
+            path.mkdir() if '.' not in leftover else path.write_text('{}')
+            self.assertEqual(check(), 1, leftover)
+            path.rmdir() if path.is_dir() else path.unlink()
+        self.assertEqual(check(), 0)
 
 
 class ControlPeriods(unittest.TestCase):

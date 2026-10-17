@@ -136,5 +136,6 @@ def build(name):
     print(name, 'built')
 
 
-for v in sys.argv[1:] or ['reno', 'cand', 'relay']:
-    build(v)
+if __name__ == '__main__':
+    for v in sys.argv[1:] or ['reno', 'cand', 'relay']:
+        build(v)
