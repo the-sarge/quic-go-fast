@@ -1,0 +1,450 @@
+package quic
+
+// Disposable capture fixture for the handshake silent-drop baseline (#758); it is
+// not a maintained test. It records one totally ordered JSONL stream per scenario:
+// every qlog event of both connections, every routed datagram with its delivery
+// decision, every loss-timer call the connection makes, and connection state read
+// on the connection's own goroutine.
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/congestion"
+	"github.com/quic-go/quic-go/internal/handshake"
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/testdata"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
+	"github.com/quic-go/quic-go/qlogwriter/jsontext"
+	"github.com/quic-go/quic-go/testutils/simnet"
+
+	"github.com/stretchr/testify/require"
+)
+
+const silentDropCaptureEnv = "QUIC_GO_SILENT_DROP_CAPTURE_DIR"
+
+// The synctest clock starts in 2000, before the test certificate's validity.
+var silentDropTLSTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+func silentDropTLSConfigs() (server, client *tls.Config) {
+	server = testdata.GetTLSConfig()
+	server.Time = func() time.Time { return silentDropTLSTime }
+	client = &tls.Config{
+		RootCAs:    testdata.GetRootCA(),
+		ServerName: "localhost",
+		Time:       func() time.Time { return silentDropTLSTime },
+	}
+	return server, client
+}
+
+type silentDropCapture struct {
+	mx     sync.Mutex
+	origin time.Time
+	seq    int
+	lines  bytes.Buffer
+	failed error
+}
+
+func newSilentDropCapture() *silentDropCapture { return &silentDropCapture{origin: time.Now()} }
+
+func (c *silentDropCapture) record(kind string, fields map[string]any) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+	c.seq++
+	rec := map[string]any{"seq": c.seq, "t_ns": time.Since(c.origin).Nanoseconds(), "kind": kind}
+	maps.Copy(rec, fields)
+	b, err := json.Marshal(rec)
+	if err != nil {
+		if c.failed == nil {
+			c.failed = fmt.Errorf("%s record %d: %w", kind, c.seq, err)
+		}
+		return
+	}
+	c.lines.Write(b)
+	c.lines.WriteByte('\n')
+}
+
+// finish runs after the fixture ended; its closing line has no time because it
+// may be written outside the synctest bubble whose clock the stream uses.
+func (c *silentDropCapture) finish(t *testing.T, name, cleanup string) {
+	t.Helper()
+	c.mx.Lock()
+	defer c.mx.Unlock()
+	require.NoError(t, c.failed)
+	c.seq++
+	b, err := json.Marshal(map[string]any{"seq": c.seq, "kind": "cleanup", "what": cleanup})
+	require.NoError(t, err)
+	c.lines.Write(b)
+	c.lines.WriteByte('\n')
+	if dir := os.Getenv(silentDropCaptureEnv); dir != "" {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name+".jsonl"), c.lines.Bytes(), 0o644))
+	}
+}
+
+// silentDropEndpoint is one endpoint's qlog trace and recorder.
+type silentDropEndpoint struct {
+	name    string
+	capture *silentDropCapture
+
+	mx        sync.Mutex
+	events    []qlogwriter.Event
+	conns     int
+	published *Conn // for the test goroutine
+
+	// conn is set by the constructor override before the connection runs and is
+	// dereferenced only on the connection's goroutine (qlog hooks, timer calls).
+	conn *Conn
+
+	receipt atomic.Bool // read by the router
+
+	// Owned by the connection's goroutine.
+	receiptRecorded       bool
+	handshakeKeysRecorded bool
+	eligible              int
+	epochPathGeneration   uint64
+	epochRetry            bool
+	onEligible            func(count int) // set before dialing
+}
+
+func newSilentDropEndpoint(c *silentDropCapture, name string) *silentDropEndpoint {
+	return &silentDropEndpoint{name: name, capture: c}
+}
+
+func (e *silentDropEndpoint) tracer(context.Context, bool, ConnectionID) qlogwriter.Trace { return e }
+func (e *silentDropEndpoint) AddProducer() qlogwriter.Recorder                            { return e }
+func (e *silentDropEndpoint) SupportsSchemas(string) bool                                 { return true }
+func (e *silentDropEndpoint) Close() error                                                { return nil }
+
+func (e *silentDropEndpoint) RecordEvent(ev qlogwriter.Event) {
+	now := time.Now()
+	var buf bytes.Buffer
+	fields := map[string]any{"endpoint": e.name, "name": ev.Name()}
+	if err := ev.Encode(jsontext.NewEncoder(&buf), now); err != nil {
+		fields["encode_error"] = err.Error()
+	} else {
+		fields["data"] = json.RawMessage(bytes.TrimSpace(buf.Bytes()))
+	}
+	e.mx.Lock()
+	fields["index"] = len(e.events)
+	e.events = append(e.events, ev)
+	e.mx.Unlock()
+	e.capture.record("qlog", fields)
+	e.hook(ev)
+}
+
+func (e *silentDropEndpoint) eventCount() int {
+	e.mx.Lock()
+	defer e.mx.Unlock()
+	return len(e.events)
+}
+
+func (e *silentDropEndpoint) eventsFrom(i int) []qlogwriter.Event {
+	e.mx.Lock()
+	defer e.mx.Unlock()
+	return append([]qlogwriter.Event(nil), e.events[i:]...)
+}
+
+// hook runs synchronously in RecordEvent. The events it inspects are emitted on
+// the connection's goroutine, so reading connection state here does not race.
+func (e *silentDropEndpoint) hook(ev qlogwriter.Event) {
+	if e.conn == nil {
+		return
+	}
+	switch ev := ev.(type) {
+	case qlog.PacketReceived:
+		switch ev.Header.PacketType {
+		case qlog.PacketTypeInitial, qlog.PacketTypeHandshake, qlog.PacketType0RTT:
+			if !e.receiptRecorded && e.conn.receivedFirstPacket {
+				e.receiptRecorded = true
+				e.receipt.Store(true)
+				e.capture.record("receipt", e.state("first processed long-header packet"))
+			}
+		}
+	case qlog.ALPNInformation:
+		e.capture.record("conn_state", e.state("handshake complete"))
+	case qlog.KeyDiscarded:
+		if (ev.KeyType == qlog.KeyTypeClientHandshake || ev.KeyType == qlog.KeyTypeServerHandshake) && !e.handshakeKeysRecorded {
+			e.handshakeKeysRecorded = true
+			e.capture.record("conn_state", e.state("handshake keys discarded"))
+		}
+	}
+}
+
+func (e *silentDropEndpoint) state(what string) map[string]any {
+	c := e.conn
+	return map[string]any{
+		"endpoint":                      e.name,
+		"what":                          what,
+		"handshake_complete":            c.handshakeComplete,
+		"handshake_confirmed":           c.handshakeConfirmed,
+		"received_first_packet":         c.receivedFirstPacket,
+		"received_retry":                c.receivedRetry,
+		"dropped_initial_keys":          c.droppedInitialKeys,
+		"path_generation":               c.pathGeneration,
+		"initial_packet_size_unset":     c.config.initialPacketSizeUnset(),
+		"effective_initial_packet_size": c.effectiveInitialPacketSize,
+		"max_packet_size":               c.maxPacketSize(),
+		"mtu_discoverer":                c.mtuDiscoverer != nil,
+		"df":                            c.conn.capabilities().DF,
+		"disable_path_mtu_discovery":    c.config.DisablePathMTUDiscovery,
+	}
+}
+
+func (e *silentDropEndpoint) attach(t *testing.T, c *Conn) {
+	e.mx.Lock()
+	e.conns++
+	n := e.conns
+	e.published = c
+	e.mx.Unlock()
+	if n > 1 {
+		t.Errorf("%s: %d connections created; the fixture expects one", e.name, n)
+	}
+	e.conn = c
+	c.sentPacketHandler = &silentDropRecovery{SentPacketHandler: c.sentPacketHandler, ep: e}
+	e.capture.record("conn_created", map[string]any{"endpoint": e.name, "count": n})
+}
+
+// classifySilentDropTimeout is the boundary rule; it must match the ackhandler
+// mapping test's classifyTimeoutCall.
+func classifySilentDropTimeout(evs []qlogwriter.Event, before, after ackhandler.SendMode) (string, protocol.EncryptionLevel) {
+	for _, ev := range evs {
+		e, ok := ev.(qlog.LossTimerUpdated)
+		if !ok || e.Type != qlog.LossTimerUpdateTypeExpired {
+			continue
+		}
+		switch e.TimerType {
+		case qlog.TimerTypePTO:
+			return "pto", e.EncLevel
+		case qlog.TimerTypeACK:
+			return "ack_loss", e.EncLevel
+		}
+	}
+	isProbe := func(m ackhandler.SendMode) bool {
+		return m == ackhandler.SendPTOInitial || m == ackhandler.SendPTOHandshake || m == ackhandler.SendPTOAppData
+	}
+	if isProbe(before) || before == ackhandler.SendNone || after == ackhandler.SendNone {
+		return "indeterminate", 0
+	}
+	switch after {
+	case ackhandler.SendPTOInitial:
+		return "pto_silent", protocol.EncryptionInitial
+	case ackhandler.SendPTOHandshake:
+		return "pto_silent", protocol.EncryptionHandshake
+	case ackhandler.SendPTOAppData:
+		return "pto_silent", protocol.Encryption1RTT
+	}
+	return "no_op", 0
+}
+
+// silentDropRecovery observes the connection's loss-timer calls. Every other
+// method, including the optional interfaces the connection and emission assert,
+// goes to the real handler unchanged.
+type silentDropRecovery struct {
+	ackhandler.SentPacketHandler
+	ep *silentDropEndpoint
+}
+
+var (
+	_ deliveryLifecycle = &silentDropRecovery{}
+	_ boundedRecovery   = &silentDropRecovery{}
+)
+
+func (r *silentDropRecovery) OnLossDetectionTimeout(now monotime.Time) error {
+	e := r.ep
+	c := e.conn
+	alarmBefore := r.SentPacketHandler.GetLossDetectionTimeout()
+	before := r.SentPacketHandler.SendMode(now)
+	start := e.eventCount()
+	err := r.SentPacketHandler.OnLossDetectionTimeout(now)
+	after := r.SentPacketHandler.SendMode(now)
+	alarmAfter := r.SentPacketHandler.GetLossDetectionTimeout()
+	end := e.eventCount()
+	class, level := classifySilentDropTimeout(e.eventsFrom(start), before, after)
+
+	// The experimental count is cumulative per attempt and path epoch; Retry and
+	// path changes start a new epoch.
+	epochReset := false
+	if c.pathGeneration != e.epochPathGeneration || c.receivedRetry != e.epochRetry {
+		e.epochPathGeneration, e.epochRetry = c.pathGeneration, c.receivedRetry
+		e.eligible = 0
+		epochReset = true
+	}
+	eligible := (class == "pto" || class == "pto_silent") &&
+		(level == protocol.EncryptionInitial || level == protocol.EncryptionHandshake) &&
+		!c.handshakeConfirmed
+	if eligible {
+		e.eligible++
+	}
+	fields := e.state("loss timer call")
+	fields["class"] = class
+	if class == "pto" || class == "pto_silent" || class == "ack_loss" {
+		fields["level"] = level.String()
+	}
+	fields["eligible"] = eligible
+	fields["eligible_count"] = e.eligible
+	fields["comparison_count"] = min(e.eligible, 2)
+	fields["epoch_reset"] = epochReset
+	fields["send_mode_before"] = before.String()
+	fields["send_mode_after"] = after.String()
+	fields["alarm_before_minus_now_ns"] = alarmBefore.Sub(now).Nanoseconds()
+	if !alarmAfter.IsZero() {
+		fields["alarm_after_minus_now_ns"] = alarmAfter.Sub(now).Nanoseconds()
+	}
+	fields["event_index_start"] = start
+	fields["event_index_end"] = end
+	if err != nil {
+		fields["error"] = err.Error()
+	}
+	e.capture.record("timeout_call", fields)
+	if eligible && e.onEligible != nil {
+		e.onEligible(e.eligible)
+	}
+	return err
+}
+
+func (r *silentDropRecovery) DeliveryExpiry() monotime.Time {
+	return r.SentPacketHandler.(deliveryLifecycle).DeliveryExpiry()
+}
+
+func (r *silentDropRecovery) ExpireDelivery(now monotime.Time) {
+	r.SentPacketHandler.(deliveryLifecycle).ExpireDelivery(now)
+}
+
+func (r *silentDropRecovery) CloseDelivery() { r.SentPacketHandler.(deliveryLifecycle).CloseDelivery() }
+
+func (r *silentDropRecovery) QueueProbePacketAt(level protocol.EncryptionLevel, now monotime.Time) bool {
+	return r.SentPacketHandler.(interface {
+		QueueProbePacketAt(protocol.EncryptionLevel, monotime.Time) bool
+	}).QueueProbePacketAt(level, now)
+}
+
+func (r *silentDropRecovery) ObserveDeliveryLimitation(l congestion.SendLimitation) {
+	r.SentPacketHandler.(interface {
+		ObserveDeliveryLimitation(congestion.SendLimitation)
+	}).ObserveDeliveryLimitation(l)
+}
+
+func (r *silentDropRecovery) BBRDiagnostics() string {
+	return r.SentPacketHandler.(interface{ BBRDiagnostics() string }).BBRDiagnostics()
+}
+
+func (r *silentDropRecovery) PrepareBBRSend(now monotime.Time) {
+	r.SentPacketHandler.(boundedRecovery).PrepareBBRSend(now)
+}
+
+func (r *silentDropRecovery) SendAllowance(now monotime.Time) (ackhandler.SendMode, protocol.ByteCount) {
+	return r.SentPacketHandler.(boundedRecovery).SendAllowance(now)
+}
+
+// installSilentDropObservers wraps the recovery handler of every connection whose
+// trace is one of the fixture's endpoints, before its run loop starts.
+func installSilentDropObservers(t *testing.T) {
+	origClient, origServer := newClientConnection, newConnection
+	newClientConnection = func(
+		ctx context.Context,
+		conn sendConn,
+		runner connRunner,
+		destConnID protocol.ConnectionID,
+		srcConnID protocol.ConnectionID,
+		connIDGenerator ConnectionIDGenerator,
+		statelessResetter *statelessResetter,
+		conf *Config,
+		tlsConf *tls.Config,
+		initialPacketNumber protocol.PacketNumber,
+		enable0RTT bool,
+		hasNegotiatedVersion bool,
+		qlogTrace qlogwriter.Trace,
+		logger utils.Logger,
+		v protocol.Version,
+	) *wrappedConn {
+		wc := origClient(ctx, conn, runner, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, initialPacketNumber, enable0RTT, hasNegotiatedVersion, qlogTrace, logger, v)
+		if ep, ok := qlogTrace.(*silentDropEndpoint); ok {
+			ep.attach(t, wc.Conn)
+		}
+		return wc
+	}
+	newConnection = func(
+		ctx context.Context,
+		ctxCancel context.CancelCauseFunc,
+		conn sendConn,
+		runner connRunner,
+		origDestConnID protocol.ConnectionID,
+		retrySrcConnID *protocol.ConnectionID,
+		clientDestConnID protocol.ConnectionID,
+		destConnID protocol.ConnectionID,
+		srcConnID protocol.ConnectionID,
+		connIDGenerator ConnectionIDGenerator,
+		statelessResetter *statelessResetter,
+		conf *Config,
+		tlsConf *tls.Config,
+		tokenGenerator *handshake.TokenGenerator,
+		clientAddressValidated bool,
+		rtt time.Duration,
+		qlogTrace qlogwriter.Trace,
+		logger utils.Logger,
+		v protocol.Version,
+	) *wrappedConn {
+		wc := origServer(ctx, ctxCancel, conn, runner, origDestConnID, retrySrcConnID, clientDestConnID, destConnID, srcConnID, connIDGenerator, statelessResetter, conf, tlsConf, tokenGenerator, clientAddressValidated, rtt, qlogTrace, logger, v)
+		if ep, ok := qlogTrace.(*silentDropEndpoint); ok {
+			ep.attach(t, wc.Conn)
+		}
+		return wc
+	}
+	t.Cleanup(func() { newClientConnection, newConnection = origClient, origServer })
+}
+
+// silentDropPolicy decides delivery for one datagram; it runs on a router or
+// proxy goroutine and must only read atomics.
+type silentDropPolicy func(dir string, size int) (drop bool, cause string)
+
+func recordSilentDropDatagram(c *silentDropCapture, policy silentDropPolicy, dir string, data []byte) bool {
+	drop, cause := policy(dir, len(data))
+	decision := "deliver"
+	if drop {
+		decision = "drop"
+	}
+	c.record("datagram", map[string]any{
+		"dir":      dir,
+		"size":     len(data),
+		"checksum": uint32(qlog.CalculateDatagramPayloadChecksum(data)),
+		"decision": decision,
+		"cause":    cause,
+	})
+	return drop
+}
+
+// silentDropRouter owns every intended drop; the links' MTUs accept all sizes.
+type silentDropRouter struct {
+	simnet.PerfectRouter
+	client, server string
+	capture        *silentDropCapture
+	policy         silentDropPolicy
+}
+
+func (r *silentDropRouter) SendPacket(p simnet.Packet) error {
+	dir := "unknown"
+	switch p.To.String() {
+	case r.server:
+		dir = "c2s"
+	case r.client:
+		dir = "s2c"
+	}
+	if recordSilentDropDatagram(r.capture, r.policy, dir, p.Data) {
+		return nil
+	}
+	return r.PerfectRouter.SendPacket(p)
+}

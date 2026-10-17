@@ -1,0 +1,69 @@
+=== RUN   TestEmissionCoalescedHandshake
+=== RUN   TestEmissionCoalescedHandshake/server/InitialPacketSize=0
+=== RUN   TestEmissionCoalescedHandshake/server/InitialPacketSize=1200
+=== RUN   TestEmissionCoalescedHandshake/client/InitialPacketSize=0
+=== RUN   TestEmissionCoalescedHandshake/client/InitialPacketSize=1200
+--- PASS: TestEmissionCoalescedHandshake (0.00s)
+=== RUN   TestHandshakeMTUFallbackInitialization
+=== RUN   TestHandshakeMTUFallbackInitialization/unset_healthy
+=== RUN   TestHandshakeMTUFallbackInitialization/unset_fallback
+=== RUN   TestHandshakeMTUFallbackInitialization/explicit_healthy
+--- PASS: TestHandshakeMTUFallbackInitialization (0.00s)
+=== RUN   TestHandshakeMTUFallbackServerStart
+=== RUN   TestHandshakeMTUFallbackServerStart/InitialPacketSize=0
+=== RUN   TestHandshakeMTUFallbackServerStart/InitialPacketSize=1452
+--- PASS: TestHandshakeMTUFallbackServerStart (0.00s)
+=== RUN   TestHandshakeMTUFallbackExplicitFloor
+--- PASS: TestHandshakeMTUFallbackExplicitFloor (0.00s)
+=== RUN   TestHandshakeMTUFallbackPhaseAndPath
+--- PASS: TestHandshakeMTUFallbackPhaseAndPath (0.00s)
+=== RUN   TestHandshakeMTUFallbackDiscovery
+=== RUN   TestHandshakeMTUFallbackDiscovery/enabled
+=== RUN   TestHandshakeMTUFallbackDiscovery/disabled
+=== RUN   TestHandshakeMTUFallbackDiscovery/unavailable
+=== RUN   TestHandshakeMTUFallbackDiscovery/disabled_unavailable
+--- PASS: TestHandshakeMTUFallbackDiscovery (0.00s)
+=== RUN   TestHandshakeMTUFallbackCongestionGrowth
+=== RUN   TestHandshakeMTUFallbackCongestionGrowth/unset_fallback
+=== RUN   TestHandshakeMTUFallbackCongestionGrowth/explicit
+--- PASS: TestHandshakeMTUFallbackCongestionGrowth (0.00s)
+=== RUN   TestHandshakeMTUFallbackBeforePacking
+--- PASS: TestHandshakeMTUFallbackBeforePacking (0.00s)
+=== RUN   TestHandshakeMTUFallbackSendClassification
+=== RUN   TestHandshakeMTUFallbackSendClassification/Initial/InitialPacketSize=0
+=== RUN   TestHandshakeMTUFallbackSendClassification/Initial/InitialPacketSize=1452
+=== RUN   TestHandshakeMTUFallbackSendClassification/Handshake/InitialPacketSize=0
+=== RUN   TestHandshakeMTUFallbackSendClassification/Handshake/InitialPacketSize=1452
+=== RUN   TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT/InitialPacketSize=0
+=== RUN   TestHandshakeMTUFallbackSendClassification/Initial_and_0-RTT/InitialPacketSize=1452
+=== RUN   TestHandshakeMTUFallbackSendClassification/0-RTT_only/InitialPacketSize=0
+=== RUN   TestHandshakeMTUFallbackSendClassification/0-RTT_only/InitialPacketSize=1452
+=== RUN   TestHandshakeMTUFallbackSendClassification/1-RTT_only/InitialPacketSize=0
+=== RUN   TestHandshakeMTUFallbackSendClassification/1-RTT_only/InitialPacketSize=1452
+--- PASS: TestHandshakeMTUFallbackSendClassification (0.00s)
+=== RUN   TestPathChangeInitialPacketSize
+=== RUN   TestPathChangeInitialPacketSize/unset/client_migration
+=== RUN   TestPathChangeInitialPacketSize/unset/server_path_switch
+=== RUN   TestPathChangeInitialPacketSize/unset_fallback/client_migration
+=== RUN   TestPathChangeInitialPacketSize/unset_fallback/server_path_switch
+=== RUN   TestPathChangeInitialPacketSize/explicit/client_migration
+=== RUN   TestPathChangeInitialPacketSize/explicit/server_path_switch
+--- PASS: TestPathChangeInitialPacketSize (0.00s)
+=== RUN   TestConnectionDatagrams
+=== RUN   TestConnectionDatagrams/disabled
+=== RUN   TestConnectionDatagrams/enabled
+--- PASS: TestConnectionDatagrams (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go	0.233s
+=== RUN   TestHandshakeMTUFallback
+=== RUN   TestHandshakeMTUFallback/client/unset
+=== RUN   TestHandshakeMTUFallback/client/explicit
+=== RUN   TestHandshakeMTUFallback/server/unset
+=== RUN   TestHandshakeMTUFallback/server/explicit
+--- PASS: TestHandshakeMTUFallback (1.91s)
+    --- PASS: TestHandshakeMTUFallback/client/unset (0.20s)
+    --- PASS: TestHandshakeMTUFallback/client/explicit (0.50s)
+    --- PASS: TestHandshakeMTUFallback/server/unset (0.20s)
+    --- PASS: TestHandshakeMTUFallback/server/explicit (1.00s)
+PASS
+ok  	github.com/quic-go/quic-go/integrationtests/self	2.244s
