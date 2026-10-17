@@ -6,7 +6,7 @@
 - **Delay.** P1 completes the three simnet size-drop rows at 220, 220 and 420 ms; P2 at 620, 1020 and 1620 ms. The server-direction cost of P2 is larger than one round. Its second server PTO is a Handshake PTO, whose probes cannot carry the ServerHello the client needs, so recovery waits for the next Initial PTO at 1010 ms.
 - **False positives.** No reduction changed any control's completion or confirmation time; the cost is the 1200-byte size the connection keeps afterwards. Every candidate reduces under two lost rounds and total loss. P1 also reduces under one lost round, loss after receipt and the lossless 300 ms path (on both endpoints). P2 also reduces on the lossless 300 ms path, at 500 ms, after completion. The guarded P1 also reduces under one lost round and on the lossless 300 ms path.
 - **Collateral.** Every candidate reduces the client in the server-direction row, where the client's direction was never limited. The guard does not prevent it: the client's first PTO (200 ms) comes before the 41-byte server ACK it processes at 220 ms.
-- **Phase boundary.** Only two triggers came after completion, both unnecessary: P1's at 80 ms (loss after receipt) and P2's at 500 ms (lossless 300 ms). No necessary reduction came after completion, and on an unchanged path none can.
+- **Phase boundary.** Only two reductions came after completion, both unnecessary: P1's at 80 ms (loss after receipt) and P2's at 500 ms (lossless 300 ms). P1's call at 500 ms on the 300 ms path was a third post-completion trigger, a no-op because it had reduced at 200 ms. No necessary reduction came after completion, and on an unchanged path none can.
 - **Preservation.** Under every candidate, explicit 1200 and 1280, explicit-size local message-size errors and unset native-error recovery behave exactly as the baseline, loss-timer call for loss-timer call.
 - **Controls.** The baseline variant reproduces #758's run1 exactly, the mapping evidence is identical to #758's, a repeat run matches with one explained packetization difference, and the race-detector run is clean.
 
@@ -199,9 +199,15 @@ Each candidate's run is compared with the baseline variant's run of the same row
   - Before confirmation the size only falls, and the client starts no path change, so every later client datagram fits a size already delivered.
   - A Handshake PTO after completion therefore means loss or delay, not a size limit.
 
-**Measured.** The only eligible PTOs after completion are the client's Handshake PTOs at 80 ms (loss after receipt) and 500 ms (lossless 300 ms). P1 reduced at the first; P2 at the second. Neither was needed. No necessary reduction in any row came after completion.
+**Measured.** The only eligible PTOs after completion are the client's Handshake PTOs at 80 ms (loss after receipt) and 500 ms (lossless 300 ms). Three trigger calls fell there:
 
-**A completion boundary, derived from these runs.** With a completion boundary, both triggers disappear. In each of those two cells it was the cell's only reduction, so the run would be the baseline run of that row, which completed and confirmed at the same times. Every other trigger fired before completion and is unaffected. So a completion boundary removes one measured false positive for P1 and one for P2, and loses no recovery.
+- P1 at 80 ms, which reduced;
+- P1 at 500 ms, a no-op, because P1 had already reduced at 200 ms;
+- P2 at 500 ms, which reduced.
+
+Neither reduction was needed. No necessary reduction in any row came after completion.
+
+**A completion boundary, derived from these runs.** With a completion boundary, the two post-completion reductions disappear, and so does P1's no-op call. Each removed reduction was its cell's only reduction, so the run would be the baseline run of that row, which completed and confirmed at the same times. Every other reduction happened before completion and is unaffected, including P1's at 200 ms on the 300 ms path. So a completion boundary removes one measured false positive for P1 and one for P2, and loses no recovery.
 
 ## Persistent sizing
 
@@ -244,7 +250,7 @@ Each cell is tagged **M** (measured here), **S** (derived from source) or **U** 
 | Collateral reduction, server-direction row | client at 200 ms (M) | client at 340 ms (M) | client at 200 ms, before receipt (M) |
 | Effect of a false positive on handshake timing | none in any control (M) | none (M) | none (M) |
 | Cost of any reduction afterwards | the connection keeps 1200 bytes, and every later path starts there; only discovery (enabled, with DF) grows it after confirmation, and congestion accounting keeps 1280 (S) | same (S) | same (S) |
-| Longer RTTs | fires before the first response once RTT exceeds the first client PTO (200 ms with the default initial RTT); measured at 300 ms (M, S) | fires before the first response once RTT exceeds the second client PTO (600 ms with the default initial RTT) (S) | as P1 on the client (S) |
+| Longer RTTs | fires before the first response once RTT exceeds the first client PTO (200 ms with the default initial RTT); measured at 300 ms (M, S) | on a lossless path, fires before the first response once RTT exceeds the second client PTO (600 ms with the default initial RTT); with any loss, a spurious first PTO plus one lost round suffices, since the count is cumulative (S) | as P1 on the client (S) |
 | State beyond the shared recovery signal | none (S) | a per-epoch counter (S) | a borrowed read of `receivedFirstPacket` (S) |
 | Real-network false-positive rate, throughput or lifetime cost, Retry, Version Negotiation, path changes | U | U | U |
 
@@ -253,7 +259,7 @@ Each cell is tagged **M** (measured here), **S** (derived from source) or **U** 
 - **Server coverage.** It rules out the guard. In a server-direction or both-direction drop the guarded P1 never acts on the server, so the handshake fails exactly as at baseline. It also does not prevent the collateral client reduction it was meant to prevent.
 - **False-positive cost.** It decides between P1 and P2. A false positive does not slow the handshake, but the connection keeps 1200 bytes for its life, and for every later path, unless discovery grows it after confirmation. Discovery needs it enabled and a DF-capable socket.
   - P1 takes that cost on every handshake that loses one round. It also takes it whenever the RTT exceeds the first client PTO; on the lossless 300 ms path P1 reduced both endpoints.
-  - P2 takes it only after two consecutive lost rounds, or an RTT beyond the second client PTO.
+  - P2 takes it when an endpoint reaches a second eligible expiration before completion in the same attempt and path epoch. The count is cumulative: ACK progress and key discards do not reset it. Two consecutive lost rounds do it (measured). Other combinations count the same way but are not measured here: a spurious first PTO on a path whose RTT exceeds 200 ms, followed by any later loss before completion; or two separate losses. In the server-direction row the client's two counted PTOs straddled its receipt (200 and 340 ms). On a lossless path, P2 fires before the first response only once RTT exceeds the second client PTO.
   - This record does not measure how often each happens on real networks.
 - **Delay cost of P2.** One more PTO round at the limited endpoint, in failures that otherwise never recover and end in a 5–10 s timeout. Here that is +400 ms for a client-direction drop, +800 ms for a server-direction drop and +1200 ms for both. The server-direction cost is larger because the second server PTO here is a Handshake PTO: its probes cannot carry the ServerHello, so recovery waits for the next Initial PTO.
 - **Phase boundary: completion.**
@@ -267,7 +273,7 @@ Each cell is tagged **M** (measured here), **S** (derived from source) or **U** 
   - Tests: recovery outcomes for both PTO branches and the ACK-loss and no-op cases; the connection's count, epoch and phase rules; and a silent-drop regression for each direction.
 - **Known limits.** These remain under P2:
   - the collateral client reduction in a server-direction drop;
-  - the false positive under two consecutive lost rounds, or an RTT beyond the second PTO;
+  - the false positive at any second eligible expiration before completion: measured for two consecutive lost rounds; other combinations, and lossless paths with an RTT beyond the second PTO, are not measured;
   - the retained 1200-byte start;
   - Retry, Version Negotiation (#780) and path changes, which were not exercised.
 
