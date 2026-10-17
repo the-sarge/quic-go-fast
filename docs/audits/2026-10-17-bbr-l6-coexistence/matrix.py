@@ -98,7 +98,21 @@ def triple(phase, pair, workload):
         except Exception as e:  # a failed observation stays on disk; follow decides
             print(f'{phase} p{pair} {workload} {arm} failed: {e!r}', flush=True)
             rows[arm] = None
+        correctness(run.OBS / f'{phase}-L6-{workload}-p{pair}-{arm}')
     return rows
+
+
+def correctness(d):
+    """Stop the stage on a correctness-gate failure in observation directory d (l6rules.correctness)."""
+    receivers = {}
+    for who in ['focal', 'competitor']:
+        path = d / f'{who}-receive.json'
+        if path.exists():
+            receivers[who] = json.loads(path.read_text())['result']['receiver']
+    failures = l6rules.correctness(receivers)
+    if failures:
+        run.write(run.ART / 'correctness-failure.json', dict(observation=d.name, failures=failures))
+        raise SystemExit(f'correctness failure in {d.name}: {failures}; stage stopped')
 
 
 def judge(phase, pair, workload):
@@ -106,6 +120,7 @@ def judge(phase, pair, workload):
     usable, contaminated, reasons = True, False, {}
     for arm in ARMS:
         d = run.OBS / f'{phase}-L6-{workload}-p{pair}-{arm}'
+        correctness(d)
         receipt_path = d / 'receipt.json'
         if not receipt_path.exists():
             usable, reasons[arm] = False, ['no receipt']
@@ -149,8 +164,11 @@ def smoke():
     """Two full-length observations on the candidate and frozen Reno, excluded from every statistic."""
     out = {}
     for workload, arm in [('stream', 'cand'), ('datagram', 'reno')]:
-        row = run.run_case('smoke', workload, 0, arm, 9990)
         d = run.OBS / f'smoke-L6-{workload}-p0-{arm}'
+        try:
+            row = run.run_case('smoke', workload, 0, arm, 9990)
+        finally:
+            correctness(d)
         receipt = json.loads((d / 'receipt.json').read_text())
         facts = json.loads((d / 'host-facts.json').read_text())
         wall = (receipt['end_unix_ns'] - receipt['start_unix_ns']) / 1e9

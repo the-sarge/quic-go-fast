@@ -148,6 +148,11 @@ class Usability(unittest.TestCase):
         busy = r.contamination(rows([0] * 10 + [60] + [0] * 9), [0, 30e9], [2, 3], [18, 19])
         self.assertTrue(busy['contaminated'])  # one 0.6-core second exceeds the 0.50 peak
 
+    def test_correctness(self):
+        clean = dict(corrupt=0, duplicates=0)
+        self.assertEqual(r.correctness({'focal': clean, 'competitor': clean}), [])
+        self.assertEqual(len(r.correctness({'focal': dict(corrupt=1, duplicates=0), 'competitor': dict(corrupt=0, duplicates=2)})), 2)
+
     def test_choose_triple(self):
         self.assertEqual(r.choose_triple([('a', True, False)]), ('a', 'clean'))
         self.assertEqual(r.choose_triple([('a', True, True), ('b', True, False)]), ('b', 'clean'))

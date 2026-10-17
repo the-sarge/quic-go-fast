@@ -88,7 +88,17 @@ def ratio(a, b):
     return None if a is None or b is None or b == 0 else a / b
 
 
-# ---- usability, contamination, reruns ---------------------------------------------
+# ---- correctness, usability, contamination, reruns --------------------------------
+def correctness(receivers):
+    """Correctness-gate failures from the receivers' own reports: {participant: receiver report}.
+
+    Corrupt or duplicated useful content is a transport correctness failure. It
+    is never rerun or excepted: the stage stops and the record reports it.
+    """
+    return [f"{who}: {r['corrupt']} corrupt, {r['duplicates']} duplicated" for who, r in receivers.items()
+            if r['corrupt'] or r['duplicates']]
+
+
 def health(summary, receipt, wall_s):
     """Fixture-health reasons an observation is unusable (empty when usable)."""
     reasons = []
