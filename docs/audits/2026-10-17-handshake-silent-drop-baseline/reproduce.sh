@@ -37,6 +37,8 @@ cp "$REC/fixture/silent_drop_mapping_test.go.src" internal/ackhandler/silent_dro
 trap 'rm -f silent_drop_capture_test.go silent_drop_baseline_test.go internal/ackhandler/silent_drop_mapping_test.go' EXIT
 
 mkdir -p "$OUT"
+# go test runs each package in its own directory, so the capture path must be absolute.
+OUT=$(cd "$OUT" && pwd -P)
 export GOTOOLCHAIN=local
 {
 	echo "mode: $MODE"
