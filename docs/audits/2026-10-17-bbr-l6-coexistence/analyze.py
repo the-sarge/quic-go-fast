@@ -36,7 +36,34 @@ def attempted(phase, pair, workload):
     return any((run.OBS / f'{phase}-L6-{workload}-p{pair}-{arm}').exists() for arm in matrix.ARMS)
 
 
+def completion():
+    """(complete, reasons): the registered order has finished only when no correctness failure stopped it and
+    follow recorded a decision for every pair-workload triple (it writes each after any rerun returns)."""
+    reasons = []
+    if (run.ART / 'correctness-failure.json').exists():
+        reasons.append('stopped by a correctness failure (correctness-failure.json)')
+    path = run.ART / 'follow-decisions.json'
+    decided = set()
+    if path.exists():
+        for e in json.loads(path.read_text()):
+            needed = not e['usable'] or e['contaminated']
+            if not needed or isinstance(e.get('rerun'), dict) or e.get('rerun') == 'cap reached':
+                decided.add((e['pair'], e['workload']))
+    else:
+        reasons.append('no follow decisions')
+    missing = [(p, w) for p in range(1, l6rules.PAIRS + 1) for w in matrix.workloads(p) if (p, w) not in decided]
+    if missing:
+        reasons.append(f'no completed follow decision for {missing}')
+    return not reasons, reasons
+
+
 def main():
+    complete, why = completion()
+    if not complete:
+        out = dict(status='incomplete', classification=None, reasons=why)
+        OUT.write_text(json.dumps(out, indent=2) + '\n')
+        print('incomplete: no classification;', why)
+        return
     triples, choices, attempts_out, selected = {}, [], [], {}
     for pair in range(1, l6rules.PAIRS + 1):
         for workload in matrix.workloads(pair):
@@ -57,7 +84,7 @@ def main():
             for arm, row in (rows or {}).items():
                 selected[f'{workload}/p{pair}/{arm}'] = row
     analysis = l6rules.analyze(triples)
-    out = dict(classification=analysis['classification'], cells=analysis['cells'], triples=choices, attempts=attempts_out,
+    out = dict(status='complete', classification=analysis['classification'], cells=analysis['cells'], triples=choices, attempts=attempts_out,
                analysis=analysis, selected_observations=selected)
     OUT.write_text(json.dumps(out, indent=2) + '\n')
     print('classification:', analysis['classification'])

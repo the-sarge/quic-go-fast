@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-l6-coexistence`, based on `abfa5456`, the candidate itself. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666) and [#748](https://github.com/the-sarge/quic-go-fast/issues/748) record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: registration drafted; under review before any counted observation.** The decisions were committed before any fixture, calibration, development or counted run of this record existed. The sections from [The candidate and the reference](#the-candidate-and-the-reference) to [Order](#order) are the registration. The development runs it discloses are excluded from every statistic. No counted observation exists.
+**Status: registration reviewed (two considerations, every item dispositioned); awaiting operator acceptance before any counted observation.** The decisions were committed before any fixture, calibration, development or counted run of this record existed. The sections from [The candidate and the reference](#the-candidate-and-the-reference) to [Order](#order) are the registration. The development runs it discloses are excluded from every statistic. No counted observation exists.
 
 ## Question
 
@@ -72,7 +72,7 @@ Its tests ([main_test.go](relay2/main_test.go), six) cover the competitor's dela
 
 ## Host
 
-`minimax` (AMD Ryzen AI MAX+ 395), with its host settings unchanged and recorded by `matrix.py hostfacts` before and after each stage:
+`minimax` (AMD Ryzen AI MAX+ 395), with its host settings unchanged and recorded by `matrix.py hostfacts` at the start and end of the order and when a step fails:
 
 | Process | Physical cores |
 | --- | --- |
@@ -120,7 +120,7 @@ Thirty counted observations. Seeds 7701–7705 by pair.
 For each participant (focal and competitor), each observation and each period, from [run.py](run.py) `summarize`:
 
 - **Useful delivery,** Mbit/s, from the receiver's one-second bins (bytes inside the measured window, fixture header excluded).
-- **Control latency** p50 and p95 per period (ceil-index quantiles, as the readiness summaries), each reply assigned to the period of the opportunity that offered it. With no skipped and no unresolved request, the assignment is exact. Otherwise it is reconstructed from offer times and latencies, and it is used only if the reconstructed offered, skipped, replied and unresolved counts equal the fixture's own; else that observation's per-period control latency is unusable. Whole-window control p95, replies, skipped, unresolved and missed opportunities are reported too.
+- **Control latency** p50 and p95 per period (ceil-index quantiles, as the readiness summaries), each reply assigned to the period of the opportunity that offered it, only when that assignment is exact: no skipped and no unresolved request. Otherwise the assignment can be ambiguous (a request pending from warm-up can skip the first measured opportunity), and that observation's per-period control latency is unusable. Whole-window control p95, replies, skipped, unresolved and missed opportunities are always reported.
 - **CPU seconds per useful GiB and peak RSS** per endpoint (the fixture's `getrusage` figures, through slice 6's launcher).
 - **From relay2:** per period, each flow's forward drops and mean queue occupancy, the largest sampled (100 ms) combined forward queue, and the largest forward lateness; per observation, the reorder counts and ECN codepoints per flow and direction.
 
@@ -152,18 +152,20 @@ An observation is **unusable** ([l6rules.py](l6rules.py) `health`) when any of t
 
 An observation is **contaminated** under #712's test, unchanged except for this record's CPUs: foreign CPU on the fixture cores and their siblings during the measured window above 0.10 cores mean or 0.50 cores in any second. When the test cannot be evaluated (missing host samples, or fewer than two in the window), the observation is unusable with that reason; only an affirmative uncontaminated result counts as clean (`l6rules.verdict`, `choose_triple`).
 
-A receipt whose fixture or relay hash differs from the registered one also makes an observation unusable.
+A receipt whose fixture or relay hash differs from the registered one also makes an observation unusable. So does any rise during the observation in the host's UDP `InErrors`, `RcvbufErrors`, `SndbufErrors` or `MemErrors` (the smoke rule, applied to every observation). These counters are host-wide: they show that some socket dropped or rejected datagrams outside the model's queue, not which flow. Every attempt keeps its counter deltas, and each endpoint's raw errors, pause timestamps and resources even when its summary fails (`matrix.py` `observation`, `raw_diagnostics`).
 
 **Reruns** (the operator's #714 rule, [matrix.py](matrix.py) `follow`): a triple holding an unusable or contaminated observation is rerun once, all three arms, with the same seed, as phase `rerun`; the rerun replaces the original only when all three arms are usable and uncontaminated. At most four triples are rerun. A triple that stays unusable or contaminated leaves its pair's ratios not computable for that workload; it is never replaced by a third attempt. #738's quiet-host gate (60 s under 0.05 cores mean and 0.30 peak on the fixture cores and siblings) runs before every triple.
 
 ## Correctness gates
 
-A transport correctness failure is never rerun, excepted or classified: the stage stops (`matrix.py` checks all four endpoint reports after every observation, before any summary, usability judgment or rerun choice) and the record reports it ([l6rules.py](l6rules.py) `correctness`). It is any of:
+A transport correctness or protocol-compliance failure is never rerun, excepted or classified: the stage stops and the record reports it ([l6rules.py](l6rules.py) `correctness`). `matrix.py` checks all four endpoint reports after each observation is collected, before any usability judgment, rerun choice or classification; it does not depend on the summary succeeding. A failure is any of:
 
 - corrupt or duplicated useful content counted at a receiver;
-- one of the frozen fixture's integrity errors in any endpoint's errors, control error or top-level error: `invalid campaign payload`, `non-contiguous stream identity` and `invalid stream frame length` (receiver content checks), `control sequence mismatch` (sender), `run config mismatch` and `invalid report acknowledgment` (bytes read back on the control and report streams), and `record too large` (a length prefix beyond any record the fixture writes).
+- one of the frozen fixture's integrity errors in any endpoint's errors, control error or top-level error: `invalid campaign payload`, `non-contiguous stream identity` and `invalid stream frame length` (receiver content checks), `control sequence mismatch` (sender), `run config mismatch` and `invalid report acknowledgment` (bytes read back on the control and report streams), and `record too large` (a length prefix beyond any record the fixture writes);
+- a QUIC transport error code that states a protocol violation (RFC 9000, section 20.1), in the same places: `FLOW_CONTROL_ERROR`, `STREAM_LIMIT_ERROR`, `STREAM_STATE_ERROR`, `FINAL_SIZE_ERROR`, `FRAME_ENCODING_ERROR`, `TRANSPORT_PARAMETER_ERROR`, `CONNECTION_ID_LIMIT_ERROR`, `PROTOCOL_VIOLATION`, `CRYPTO_BUFFER_EXCEEDED` or `KEY_UPDATE_ERROR`. Codes that can reflect setup or operation (`INTERNAL_ERROR`, `CRYPTO_ERROR` TLS alerts, `AEAD_LIMIT_REACHED`, timeouts and others) are not in the list;
+- when both endpoints of a participant completed their report exchange without a top-level error, a receiver report at the sender that differs from the receiver's own. This is a failed integrity check of the exchange, not proof of where it failed.
 
-Timeouts, setup failures and a missed pause are not correctness failures: they leave an observation unusable, and the rerun rule applies.
+Timeouts, setup failures, incomplete exchanges and a missed pause are not correctness failures: they leave an observation unusable, and the rerun rule applies.
 
 ## Prerequisites
 
@@ -174,7 +176,7 @@ Run first, each excluded from every statistic; a failure ends the record as a re
   - no packet at the other flow's endpoint while both flows run;
   - one-way delays per flow and direction in warm-up (50 ms), in the short-path window (competitor 12.5 ms, focal 50 ms) and across both switch points (100 s, 200 s), each median in [D, D + 2 ms] and every probe in [D, D + 5 ms];
   - a combined delivered rate within 1% of 100 Mbit/s under overload from both flows, in each direction, with the shared queue reaching capacity less one packet and both flows losing packets.
-- **Smoke** (`matrix.py smoke`): two full-length observations (STREAM `cand`, DATAGRAM `reno`). Each must be usable under the rules above, with every thread inside its CPU set and no UDP receive-buffer, send-buffer or input errors. Each endpoint's CPU load, the relay's lag and lateness, and the competitor's observed pause are recorded.
+- **Smoke** (`matrix.py smoke`): two full-length observations (STREAM `cand`, DATAGRAM `reno`). Each must be usable under the same per-observation verdict as a counted observation (correctness gate, health, registered hashes, host UDP errors, an evaluable contamination test), with every thread inside its CPU set. An affirmatively contaminated smoke observation is reported, not failed. Each observation's verdict and diagnostics are kept in `smoke.json`.
 
 ## Development runs (before this registration)
 
@@ -192,7 +194,7 @@ Made on `minimax`, each excluded from every statistic. Times are UTC on October 
 Across the four full-length runs, the relay's largest forward lateness in a 100 ms interval had a median near 1 ms and exceeded 3 ms in at most three intervals per run; the largest single value was 3.80 ms.
 
 What changed after these runs started:
-- calibrate2's ECN-mode fix (`5d8dd10d`), for the defect `prereq-dev1` exposed;
+- calibrate2's ECN-mode fix (`5d8dd10d`), for the defect `prereq-dev1` exposed. The same commit corrected the ECN and isolation wording in `prereq.py`'s docstring (the ECN check judges codepoints only; isolation is judged in the probe and rate checks), with `prereq.py`'s judging code unchanged;
 - the correctness gate ([l6rules.py](l6rules.py) `correctness`, `matrix.py`, committed in `acc0b4f0` at 06:18, during `dev1` and before its result was read). It stops a stage on corrupt or duplicated content, which #777's "correctness gates apply unchanged" requires; no observation prompted it;
 - the documentation of these sections.
 
@@ -221,7 +223,7 @@ No threshold, period, arm, order, estimator, usability limit or rerun rule chang
 
 | Item | Disposition | Change |
 | --- | --- | --- |
-| 1. The correctness gate missed the fixture's explicit integrity errors. STREAM identity and length failures are reported in `errors` before the corruption counter, so a corrupt observation would have been rerun. | fix-now | `l6rules.correctness` reads all four endpoint reports and stops on corrupt or duplicated content or any listed integrity error, before any summary or rerun choice. Tests cover each error with zero counters, plus timeout controls. |
+| 1. The correctness gate missed the fixture's explicit integrity errors. STREAM identity and length failures are reported in `errors` before the corruption counter, so a corrupt observation would have been rerun. | fix-now | `l6rules.correctness` reads all four endpoint reports and stops on corrupt or duplicated content or any listed integrity error, before any usability judgment or rerun choice. Tests cover each error with zero counters, plus timeout controls. |
 | 2. The clean-start check passed when only some leftovers existed (one `ls -d` over several operands). | fix-now | `driver.sh` checks each path or glob alone, including the correctness-failure report and binary check. Tested under `/bin/sh` with each category alone and with development artifacts. |
 | 3. An unevaluable contamination test counted as clean. | fix-now | `l6rules.verdict` makes it unusable with a reason; `choose_triple` needs an affirmative uncontaminated result. |
 | 4. The deployed binaries were not checked before execution. | fix-now | `matrix.py binaries` checks all five against the registered pins before calibration, and the driver stops on a mismatch. Each receipt's fixture and relay hashes are also checked when judging. |
@@ -237,12 +239,32 @@ The synthesis also listed changes not to make. All were declined, in agreement w
 - carryover telemetry;
 - reopening settled scope.
 
-**What changed in the registered rules.** Three usability or correctness rules became stricter after the development runs:
-- integrity errors now stop the stage;
-- an unevaluable contamination test leaves the observation unusable;
-- a receipt with a hash other than the registered one is unusable.
+**Replacement consideration:** RAS run `20261017T211548-5d8a87cbad5bf59d3cf09887`, on `5e431a1e`, with the first round's dispositions quoted as settled. It queued seven items, each checked against the code; no further review round is run.
 
-None loosens a rule. No threshold, period, arm, order, estimator, calibration criterion, fixture or model source, or registered hash changed. The aids' Go code is unchanged, so no binary was rebuilt and no calibration repeated.
+| Item | Disposition | Change |
+| --- | --- | --- |
+| 1. QUIC protocol-violation errors (`PROTOCOL_VIOLATION`, `FLOW_CONTROL_ERROR`) would have been rerun, not stopped. A receiver report that diverged after a completed exchange was only an unusability. | fix-now | Both now stop the stage ([Correctness gates](#correctness-gates)). Operational codes and incomplete exchanges stay rerunnable. Tests cover both kinds. |
+| 2. Reconstructed control-period assignments could be wrong but count-consistent (a request pending from warm-up). | fix-now | Per-period control latency is reported only when the assignment is exact, and is otherwise unusable for that observation. The review's carryover case is a test. |
+| 3. The host's UDP error counters were judged only in smoke. | fix-now | A rise in any of them makes an observation unusable, disclosed as host-wide. The deltas are kept per attempt. The four development runs had none. |
+| 4. Exclusion diagnostics were lost when an observation's summary failed. | fix-now | Each endpoint's raw errors, pause timestamps and resources are kept per attempt whether or not it summarizes or has a receipt. |
+| 5. Smoke skipped the registered hash and contamination-evaluability checks. | fix-now | Smoke uses the counted stage's per-observation verdict; affirmative contamination is reported, not failed. |
+| 6. Analysis would classify an incomplete order. | fix-now | No classification until the order completes ([Order](#order)). |
+| 7. Three descriptions were inaccurate: the correctness gate's position, the host-facts timing, and `5d8dd10d`'s docstring change. | fix-now (wording) | Corrected in [Correctness gates](#correctness-gates), [Host](#host) and [Development runs](#development-runs-before-this-registration). |
+
+The synthesis's items not to act on were declined, in agreement with it:
+- a supposed classifier defect on exclusions (inconclusive is already the registered result);
+- a figure checker before figures exist;
+- stored derived fields;
+- reopening settled scope.
+
+**What changed in the registered rules,** across both rounds and after the development runs. Every change is stricter:
+- the fixture's integrity errors, QUIC protocol-violation codes and a diverging receiver report after a completed exchange now stop the stage;
+- an unevaluable contamination test, a receipt hash other than the registered one, and a rise in the host's UDP error counters each leave an observation unusable;
+- per-period control latency is reported only from exact assignments;
+- smoke applies the counted stage's per-observation verdict;
+- no classification is emitted before the order completes.
+
+None loosens a rule. No D2 threshold, period, arm, order, denominator floor, calibration criterion, fixture or model source, or registered hash changed. The aids' Go code is unchanged, so no binary was rebuilt and no calibration repeated. These changes are part of what the operator accepts with this registration.
 
 ## Time estimate
 
@@ -264,4 +286,4 @@ Foreign load extends the gates' waits.
 
 **On `minimax`,** sequentially under `taskset -c 1`, with nothing else built or tested there while a stage measures ([driver.sh](driver.sh)): `matrix.py hostfacts start`, `binaries`, `prereq`, `smoke`, `main`, `follow`, `hostfacts end`. The driver first checks, path by path, that no counted, rerun or smoke observation, calibration, smoke report, follow decision, correctness-failure report or binary check exists (`PRESTART-EMPTY`), since `run_case` reuses an existing clean observation; development artifacts are allowed. A failed binary check, calibration, smoke or correctness gate stops it.
 
-**Then, anywhere:** [analyze.py](analyze.py) writes `summary.json` and prints each cell. `summary.json` holds the classification, every period's per-pair values, the review flags, every attempt's per-arm reasons, contamination, pause timing and CPU loads, and the full summary of every selected observation; every figure the record reports is checked by script against it.
+**Then, anywhere:** [analyze.py](analyze.py) writes `summary.json` and prints each cell. It emits no classification unless the order completed: no correctness failure, and a completed follow decision for every triple; otherwise `summary.json` says `incomplete`, with the reasons. `summary.json` holds the classification, every period's per-pair values, the review flags, every attempt's per-arm reasons, contamination, pause timing and CPU loads, and the full summary of every selected observation; every figure the record reports is checked by script against it.

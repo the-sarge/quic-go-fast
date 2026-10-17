@@ -140,39 +140,22 @@ def quantile(values, q):
 
 
 def control_periods(control, measured_start_ns):
-    """Assign each measured control latency to the period of its offer.
+    """Assign each measured control latency to the period of its offer, only when the assignment is exact.
 
     An opportunity is offered when no request is pending, and replies arrive in
     offer order. With no skipped and no unresolved request, every measured
-    opportunity was offered and answered, so latency i belongs to opportunity i
-    (exact). Otherwise the pending interval is reconstructed from each offer's
-    observed time plus its latency (`reconstructed`); a count that does not
-    match the fixture's own counts marks the assignment unusable.
+    opportunity was offered and answered, so latency i belongs to opportunity i.
+    Otherwise the assignment can be ambiguous (a request pending from warm-up can
+    skip the first measured opportunity without leaving a measured latency), so
+    the observation's per-period control latency is unusable; its whole-window
+    figures are unaffected.
     """
     opps, lat = control['opportunity_times_ns'], control['latency_ns']
-    assigned = []
-    if control['skipped'] == 0 and control['unresolved'] == 0 and len(lat) == len(opps):
-        assigned = [(o[1], l) for o, l in zip(opps, lat)]
-        method = 'exact'
-    else:
-        pending_until, k, offered, skipped = -math.inf, 0, 0, 0
-        for _, observed in opps:
-            if observed < pending_until:
-                skipped += 1
-                continue
-            offered += 1
-            if k < len(lat):
-                assigned.append((observed, lat[k]))
-                pending_until = observed + lat[k]
-                k += 1
-            else:
-                pending_until = math.inf
-        # An offer left without a reply is the fixture's unresolved request.
-        counts = (offered, skipped, k, offered - k)
-        method = 'reconstructed' if counts == (control['offered'], control['skipped'], control['replies'], control['unresolved']) else 'unusable'
-    out = dict(method=method, periods={})
+    exact = control['skipped'] == 0 and control['unresolved'] == 0 and len(lat) == len(opps)
+    assigned = [(o[1], l) for o, l in zip(opps, lat)] if exact else []
+    out = dict(method='exact' if exact else 'unusable', periods={})
     for name, (a, b) in PERIODS.items():
-        values = [l for at, l in assigned if a * 1e9 <= at - measured_start_ns < b * 1e9] if method != 'unusable' else []
+        values = [l for at, l in assigned if a * 1e9 <= at - measured_start_ns < b * 1e9]
         out['periods'][name] = dict(replies=len(values), p50_ms=None if not values else quantile(values, .5) / 1e6,
                                     p95_ms=None if not values else quantile(values, .95) / 1e6)
     return out

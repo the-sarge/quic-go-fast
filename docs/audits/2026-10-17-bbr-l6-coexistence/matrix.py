@@ -145,46 +145,93 @@ def check_binaries(bin_dir, expected):
     return problems
 
 
-def judge(phase, pair, workload):
-    """(usable, contaminated, detail) for one triple on disk; detail holds each arm's reasons and context."""
-    usable, contaminated, detail = True, False, {}
-    expected = registered_hashes()
-    for arm in ARMS:
-        d = run.OBS / f'{phase}-L6-{workload}-p{pair}-{arm}'
-        correctness(d)
-        receipt_path = d / 'receipt.json'
-        if not receipt_path.exists():
-            usable, detail[arm] = False, dict(reasons=['no receipt'])
-            continue
-        receipt = json.loads(receipt_path.read_text())
-        reasons = []
+def raw_diagnostics(d):
+    """What each endpoint reported, read from its raw report whether or not the observation summarizes.
+
+    Missing values stay missing (None); relative pause times and CPU loads are
+    computed only when their timing evidence exists.
+    """
+    out = {}
+    measured_start = None
+    cfg_path = d / 'competitor-config.json'
+    if cfg_path.exists():
+        cfg = json.loads(cfg_path.read_text())
+        measured_start = cfg['start_unix_ns'] + cfg['warmup_ms'] * 1_000_000
+    receipt = json.loads((d / 'receipt.json').read_text()) if (d / 'receipt.json').exists() else None
+    wall = (receipt['end_unix_ns'] - receipt['start_unix_ns']) / 1e9 if receipt else None
+    for name in REPORTS:
+        path = d / f'{name}.json'
         try:
-            summary = run.summarize(d)
-        except Exception as e:  # noqa: BLE001 - recorded as the reason
-            summary, reasons = None, [f'summary: {e!r}']
-        variant = run.ARMS[arm][0]
-        for who, h in (receipt.get('binary_sha256') or {}).items():
-            want = expected[f"{variant if who == 'focal' else 'reno'}-fixture"]
-            if h != want:
-                reasons.append(f'{who} fixture hash differs from the registered {want[:16]}')
-        if receipt.get('relay_sha256') != expected['relay2']:
-            reasons.append('relay hash differs from the registered one')
-        facts_path, cpu_path = d / 'host-facts.json', d / 'host-cpu.json'
-        wall = (receipt['end_unix_ns'] - receipt['start_unix_ns']) / 1e9
-        reasons = l6rules.health(summary, receipt, wall) + reasons
-        if facts_path.exists() and cpu_path.exists():
-            c = l6rules.contamination(json.loads(cpu_path.read_text()), json.loads(facts_path.read_text())['measure_window_unix_ns'],
-                                      run.FIXTURE_CPUS, run.SIBLING_CPUS)
-        else:
-            c = dict(contaminated=None, reason='host samples missing')
-        ok, dirty, reasons = l6rules.verdict(reasons, c)
-        detail[arm] = dict(reasons=reasons, contamination=c,
-                           competitor_pause_s=summary['competitor']['bulk_pause_observed_s'] if summary else None,
-                           cpu_load={f'{who}-{role}': summary[who][role]['total_cpu_seconds'] / wall / l6rules.ALLOTTED_CORES[who]
-                                     for who in ['focal', 'competitor'] for role in ['send', 'receive']} if summary else None)
-        usable = usable and ok
-        contaminated = contaminated or dirty
-    return usable, contaminated, detail
+            rec = json.loads(path.read_text()) if path.exists() else None
+        except ValueError:
+            out[name] = dict(report='unreadable')
+            continue
+        if rec is None:
+            out[name] = dict(report='missing')
+            continue
+        result = rec.get('result') or {}
+        control = result.get('control') or {}
+        res = rec.get('resources') or {}
+        who = name.split('-')[0]
+        entry = dict(error=rec.get('error'), errors=result.get('errors'), control_error=control.get('error'),
+                     control_counts={k: control.get(k) for k in ['offered', 'replies', 'skipped', 'unresolved']},
+                     cpu_seconds=res.get('cpu_seconds'), peak_rss_bytes=res.get('peak_rss_bytes'),
+                     cpu_load=res['cpu_seconds'] / wall / l6rules.ALLOTTED_CORES[who] if wall and res.get('cpu_seconds') is not None else None)
+        pause = result.get('bulk_pause_observed_ns')
+        if name == 'competitor-send':
+            entry['pause_observed_ns'] = pause
+            entry['pause_observed_s'] = [(t - measured_start) / 1e9 for t in pause] if pause is not None and measured_start else None
+        out[name] = entry
+    out['receipt'] = 'present' if receipt else 'missing'
+    return out
+
+
+def observation(d, variant, expected):
+    """The registered verdict for one observation directory, shared by the counted stage and smoke.
+
+    Returns dict(usable, contaminated, reasons, contamination, udp, raw). The
+    correctness gate runs first and stops the stage on a failure.
+    """
+    correctness(d)
+    raw = raw_diagnostics(d)
+    receipt_path = d / 'receipt.json'
+    if not receipt_path.exists():
+        return dict(usable=False, contaminated=False, reasons=['no receipt'], contamination=None, udp=None, raw=raw)
+    receipt = json.loads(receipt_path.read_text())
+    reasons = []
+    try:
+        summary = run.summarize(d)
+    except Exception as e:  # noqa: BLE001 - recorded as the reason
+        summary, reasons = None, [f'summary: {e!r}']
+    for who, h in (receipt.get('binary_sha256') or {}).items():
+        want = expected[f"{variant if who == 'focal' else 'reno'}-fixture"]
+        if h != want:
+            reasons.append(f'{who} fixture hash differs from the registered {want[:16]}')
+    if receipt.get('relay_sha256') != expected['relay2']:
+        reasons.append('relay hash differs from the registered one')
+    wall = (receipt['end_unix_ns'] - receipt['start_unix_ns']) / 1e9
+    reasons = l6rules.health(summary, receipt, wall) + reasons
+    facts_path, cpu_path = d / 'host-facts.json', d / 'host-cpu.json'
+    udp = None
+    if facts_path.exists():
+        facts = json.loads(facts_path.read_text())
+        udp = {k: facts['udp_after'].get(k, 0) - facts['udp_before'].get(k, 0) for k in l6rules.UDP_ERRORS}
+        reasons += l6rules.udp_reasons(udp)
+    else:
+        reasons.append('host facts missing')
+    if facts_path.exists() and cpu_path.exists():
+        c = l6rules.contamination(json.loads(cpu_path.read_text()), facts['measure_window_unix_ns'], run.FIXTURE_CPUS, run.SIBLING_CPUS)
+    else:
+        c = dict(contaminated=None, reason='host samples missing')
+    usable, dirty, reasons = l6rules.verdict(reasons, c)
+    return dict(usable=usable, contaminated=dirty, reasons=reasons, contamination=c, udp=udp, raw=raw)
+
+
+def judge(phase, pair, workload):
+    """(usable, contaminated, detail) for one triple on disk; detail holds each arm's verdict and diagnostics."""
+    expected = registered_hashes()
+    detail = {arm: observation(run.OBS / f'{phase}-L6-{workload}-p{pair}-{arm}', run.ARMS[arm][0], expected) for arm in ARMS}
+    return all(v['usable'] for v in detail.values()), any(v['contaminated'] for v in detail.values()), detail
 
 
 def follow():
@@ -215,32 +262,28 @@ def threads_in_sets(processes):
 
 
 def smoke():
-    """Two full-length observations on the candidate and frozen Reno, excluded from every statistic."""
-    out = {}
+    """Two full-length observations on the candidate and frozen Reno, excluded from every statistic.
+
+    Each must be usable under the shared registered verdict (observation(): the
+    correctness gate, health, hashes, host UDP errors and an evaluable
+    contamination test; an affirmatively contaminated smoke observation is
+    reported, not failed), with every thread inside its CPU set.
+    """
+    out, expected = {}, registered_hashes()
     for workload, arm in [('stream', 'cand'), ('datagram', 'reno')]:
         d = run.OBS / f'smoke-L6-{workload}-p0-{arm}'
         key = f'{workload}-{arm}'
+        error = None
         try:
-            row = run.run_case('smoke', workload, 0, arm, 9990)
-        except Exception as e:  # noqa: BLE001 - the failed report is kept; the stage still fails
-            out[key] = dict(error=repr(e))
-            continue
-        finally:
-            correctness(d)
-        receipt = json.loads((d / 'receipt.json').read_text())
-        facts = json.loads((d / 'host-facts.json').read_text())
-        wall = (receipt['end_unix_ns'] - receipt['start_unix_ns']) / 1e9
-        udp = {k: facts['udp_after'][k] - facts['udp_before'][k] for k in ['InErrors', 'RcvbufErrors', 'SndbufErrors']}
-        out[key] = dict(health=l6rules.health(row, receipt, wall), threads_in_cpu_sets=threads_in_sets(facts['mid']['processes']),
-                        udp_errors=udp, sockets=facts['mid']['sockets'],
-                        cpu_load={f'{who}-{role}': row[who][role]['total_cpu_seconds'] / wall / l6rules.ALLOTTED_CORES[who]
-                                  for who in ['focal', 'competitor'] for role in ['send', 'receive']},
-                        relay=dict(max_arrival_lag_ms=row['relay']['max_arrival_lag_ms'],
-                                   forward_max_late_ms=row['relay']['forward']['max_late_ms'],
-                                   reverse_max_late_ms=row['relay']['reverse']['max_late_ms']),
-                        pause_s=row['competitor']['bulk_pause_observed_s'])
-    passed = all('error' not in v and not v['health'] and v['threads_in_cpu_sets'] and not any(v['udp_errors'].values())
-                 for v in out.values())
+            run.run_case('smoke', workload, 0, arm, 9990)
+        except Exception as e:  # noqa: BLE001 - the failed observation is judged and kept; the stage still fails
+            error = repr(e)
+        v = observation(d, run.ARMS[arm][0], expected)
+        facts_path = d / 'host-facts.json'
+        facts = json.loads(facts_path.read_text()) if facts_path.exists() else {}
+        threads = threads_in_sets(facts['mid']['processes']) if facts.get('mid') else False
+        out[key] = dict(error=error, threads_in_cpu_sets=threads, sockets=(facts.get('mid') or {}).get('sockets'), **v)
+    passed = all(v['error'] is None and v['usable'] and v['threads_in_cpu_sets'] for v in out.values())
     run.write(run.ART / 'smoke.json', dict(passed=passed, observations=out))
     print('smoke', 'pass' if passed else 'FAIL', flush=True)
     if not passed:

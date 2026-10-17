@@ -170,6 +170,26 @@ class Usability(unittest.TestCase):
                   'competitor bulk pause was missed']:
             self.assertEqual(r.correctness({'focal-receive': self.report(errors=[e], top=e)}), [], e)
 
+    def test_protocol_errors_and_report_divergence(self):
+        for e in ['PROTOCOL_VIOLATION (remote): bad frame', 'FLOW_CONTROL_ERROR (local): window exceeded']:
+            self.assertTrue(r.correctness({'competitor-receive': self.report(top=e)}), e)
+            self.assertTrue(r.correctness({'focal-send': self.report(errors=[e])}), e)
+        for e in ['CRYPTO_ERROR 0x12a (local): tls: bad certificate', 'INTERNAL_ERROR (local): x', 'NO_ERROR (remote)']:
+            self.assertEqual(r.correctness({'focal-send': self.report(top=e)}), [], e)
+        send, receive = self.report(), self.report()
+        send['result']['receiver'] = dict(corrupt=0, duplicates=0, useful_bytes=1)
+        receive['result']['receiver'] = dict(corrupt=0, duplicates=0, useful_bytes=2)
+        self.assertTrue(r.correctness({'focal-send': send, 'focal-receive': receive}))
+        send['error'] = 'context deadline exceeded'  # an incomplete exchange is not a divergence
+        self.assertEqual(r.correctness({'focal-send': send, 'focal-receive': receive}), [])
+
+    def test_udp_errors(self):
+        self.assertEqual(r.udp_reasons({'InErrors': 0, 'RcvbufErrors': 0, 'SndbufErrors': 0, 'MemErrors': 0}), [])
+        reasons = r.udp_reasons({'InErrors': 3, 'RcvbufErrors': 3, 'SndbufErrors': 0, 'MemErrors': 0})
+        self.assertEqual(len(reasons), 1)
+        self.assertIn('host-wide', reasons[0])
+        self.assertNotIn('focal', reasons[0])
+
     def test_unevaluable_contamination_is_unusable(self):
         usable, dirty, reasons = r.verdict([], dict(contaminated=None, reason='no samples in window'))
         self.assertFalse(usable)
@@ -216,6 +236,73 @@ class Orchestration(unittest.TestCase):
         e.mkdir()
         (e / 'focal-receive.json').write_text(json.dumps(Usability.report(errors=['timeout: no recent network activity'])))
         self.matrix.correctness(e)  # an operational failure does not stop the stage
+
+    def write_obs(self, name, receipt=True, pause=(1_000 + 240 * 10**9 + 60 * 10**9, 1_000 + 270 * 10**9 + 60 * 10**9), errors=()):
+        d = run.OBS / name
+        d.mkdir()
+        (d / 'competitor-config.json').write_text(json.dumps(dict(start_unix_ns=1_000, warmup_ms=60000)))
+        rep = Usability.report(errors=list(errors))
+        rep['result']['bulk_pause_observed_ns'] = list(pause)
+        rep['resources'] = dict(cpu_seconds=10.0, peak_rss_bytes=1 << 20)
+        (d / 'competitor-send.json').write_text(json.dumps(rep))
+        if receipt:
+            (d / 'receipt.json').write_text(json.dumps(dict(start_unix_ns=0, end_unix_ns=370 * 10**9, exit_codes=[0, 1, 0, 0], relay_exit=0,
+                                                         binary_sha256={'focal': 'x', 'competitor': 'y'}, relay_sha256='z')))
+        return d
+
+    def test_diagnostics_survive_without_summary_or_receipt(self):
+        expected = self.matrix.registered_hashes()
+        d = self.write_obs('main-L6-stream-p1-cand', receipt=False, errors=['competitor bulk pause was missed'])
+        v = self.matrix.observation(d, 'cand', expected)
+        self.assertFalse(v['usable'])
+        raw = v['raw']['competitor-send']
+        self.assertEqual(raw['errors'], ['competitor bulk pause was missed'])
+        self.assertEqual([round(x) for x in raw['pause_observed_s']], [240, 270])
+        self.assertEqual(v['raw']['focal-send'], dict(report='missing'))
+        e = self.write_obs('main-L6-stream-p1-reno')
+        v = self.matrix.observation(e, 'reno', expected)
+        self.assertFalse(v['usable'])
+        self.assertTrue(any('summary' in x for x in v['reasons']))
+        self.assertTrue(any('fixture hash' in x for x in v['reasons']))
+        self.assertTrue(any('not evaluable' in x or 'host facts missing' in x for x in v['reasons']))
+        self.assertAlmostEqual(v['raw']['competitor-send']['cpu_load'], 10.0 / 370 / 2)
+
+    def test_smoke_fails_on_unregistered_hashes_and_missing_samples(self):
+        saved = run.run_case
+        run.run_case = lambda phase, workload, pair, arm, seed, tag='': self.write_obs(f'smoke-L6-{workload}-p0-{arm}')
+        try:
+            with self.assertRaises(SystemExit):
+                self.matrix.smoke()
+        finally:
+            run.run_case = saved
+        report = json.loads((self.tmp / 'smoke.json').read_text())
+        self.assertFalse(report['passed'])
+        for v in report['observations'].values():
+            self.assertTrue(any('hash' in x for x in v['reasons']))
+
+    def test_completion_guard(self):
+        import analyze
+        self.assertFalse(analyze.completion()[0])  # empty tree
+        decisions = [dict(pair=p, workload=w, usable=True, contaminated=False) for p in range(1, 6) for w in self.matrix.workloads(p)]
+        (self.tmp / 'follow-decisions.json').write_text(json.dumps(decisions[:7]))
+        self.assertFalse(analyze.completion()[0])  # partial
+        decisions[3].update(usable=False)
+        (self.tmp / 'follow-decisions.json').write_text(json.dumps(decisions))
+        self.assertFalse(analyze.completion()[0])  # a needed rerun without a decision
+        decisions[3]['rerun'] = 'cap reached'
+        (self.tmp / 'follow-decisions.json').write_text(json.dumps(decisions))
+        self.assertTrue(analyze.completion()[0])
+        decisions[3]['rerun'] = dict(usable=False, contaminated=False, detail={})
+        (self.tmp / 'follow-decisions.json').write_text(json.dumps(decisions))
+        self.assertTrue(analyze.completion()[0])
+        (self.tmp / 'correctness-failure.json').write_text('{}')
+        self.assertFalse(analyze.completion()[0])
+        analyze.OUT, saved = self.tmp / 'summary.json', analyze.OUT
+        try:
+            analyze.main()
+            self.assertIsNone(json.loads((self.tmp / 'summary.json').read_text())['classification'])
+        finally:
+            analyze.OUT = saved
 
     def test_partial_rerun_is_an_attempt(self):
         import analyze
@@ -272,21 +359,24 @@ class ControlPeriods(unittest.TestCase):
         self.assertAlmostEqual(out['periods']['short']['p95_ms'], 200.0)
         self.assertEqual(out['periods']['resumed']['replies'], 30)
 
-    def test_reconstruction_with_a_skip(self):
+    def test_a_skip_makes_periods_unusable(self):
         # The request offered at t = 10 s takes 1.5 s, so the t = 11 s opportunity is skipped.
         offers = list(range(300))
         lat = [int(1.5e9) if s == 10 else int(100e6) for s in offers if s != 11]
         out = run.control_periods(self.control(offers, lat, skipped=1), self.START)
-        self.assertEqual(out['method'], 'reconstructed')
-        self.assertEqual(out['periods']['equal']['replies'], 99)
-        self.assertAlmostEqual(out['periods']['equal']['p95_ms'], 100.0)
-
-    def test_inconsistent_counts_are_unusable(self):
-        offers = list(range(300))
-        lat = [int(100e6)] * 298
-        out = run.control_periods(self.control(offers, lat, skipped=1), self.START)
         self.assertEqual(out['method'], 'unusable')
         self.assertIsNone(out['periods']['equal']['p95_ms'])
+
+    def test_warmup_carryover_cannot_yield_a_wrong_p95(self):
+        # The review's case: a request pending from warm-up skips t = 0; t = 1..298 are answered, with
+        # 200 ms at the true offers t = 95..99; t = 299 is unresolved. Counts match a shifted assignment.
+        lat = [int(200e6) if 95 <= t <= 99 else int(100e6) for t in range(1, 299)]
+        control = self.control(list(range(300)), lat, skipped=1, unresolved=1)
+        control['offered'] = 299
+        out = run.control_periods(control, self.START)
+        self.assertEqual(out['method'], 'unusable')
+        for p in out['periods'].values():
+            self.assertIsNone(p['p95_ms'])
 
 
 class RelayPeriods(unittest.TestCase):

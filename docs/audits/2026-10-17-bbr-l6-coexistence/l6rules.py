@@ -103,14 +103,29 @@ INTEGRITY_ERRORS = (
 )
 
 
-def correctness(reports):
-    """Correctness-gate failures from the endpoints' own reports: {'<participant>-<role>': parsed JSON or None}.
+# QUIC transport error codes (RFC 9000, section 20.1) that state a peer violated the
+# protocol, as quic-go names them in an error's text. Excluded as possibly operational
+# or setup failures: NO_ERROR, INTERNAL_ERROR, CONNECTION_REFUSED, INVALID_TOKEN,
+# APPLICATION_ERROR, AEAD_LIMIT_REACHED, NO_VIABLE_PATH, CRYPTO_ERROR (TLS alerts) and
+# idle or handshake timeouts.
+PROTOCOL_ERRORS = (
+    'FLOW_CONTROL_ERROR', 'STREAM_LIMIT_ERROR', 'STREAM_STATE_ERROR', 'FINAL_SIZE_ERROR',
+    'FRAME_ENCODING_ERROR', 'TRANSPORT_PARAMETER_ERROR', 'CONNECTION_ID_LIMIT_ERROR',
+    'PROTOCOL_VIOLATION', 'CRYPTO_BUFFER_EXCEEDED', 'KEY_UPDATE_ERROR',
+)
 
-    Corrupt or duplicated useful content, or any of the fixture's integrity
-    errors in an endpoint's errors, control error or top-level error, is a
-    transport correctness failure. It is never rerun or excepted: the stage stops
-    and the record reports it. A missing report is not a correctness failure
-    (the observation is unusable instead).
+
+def correctness(reports):
+    """Correctness- and protocol-gate failures from the endpoints' own reports: {'<participant>-<role>': parsed JSON or None}.
+
+    A failure is any of: corrupt or duplicated useful content; one of the
+    fixture's integrity errors or a QUIC protocol-violation error code in an
+    endpoint's errors, control error or top-level error; or, when both endpoints
+    of a participant completed their report exchange without a top-level error,
+    a receiver report at the sender that differs from the receiver's own. It is
+    never rerun or excepted: the stage stops and the record reports it. A
+    missing or incomplete report is not a failure here (the observation is
+    unusable instead).
     """
     failures = []
     for name, rec in sorted(reports.items()):
@@ -121,8 +136,26 @@ def correctness(reports):
         if receiver.get('corrupt') or receiver.get('duplicates'):
             failures.append(f"{name}: {receiver.get('corrupt')} corrupt, {receiver.get('duplicates')} duplicated")
         messages = list(result.get('errors') or []) + [(result.get('control') or {}).get('error') or '', rec.get('error') or '']
-        failures += [f'{name}: {m}' for m in messages if any(e in m for e in INTEGRITY_ERRORS)]
+        failures += [f'{name}: {m}' for m in messages if any(e in m for e in INTEGRITY_ERRORS + PROTOCOL_ERRORS)]
+    for who in sorted({n.split('-')[0] for n in reports}):
+        send, receive = reports.get(f'{who}-send'), reports.get(f'{who}-receive')
+        if send and receive and not send.get('error') and not receive.get('error'):
+            if (send.get('result') or {}).get('receiver') != (receive.get('result') or {}).get('receiver'):
+                failures.append(f'{who}: the receiver report at the sender differs from the receiver\'s own after a completed exchange')
     return failures
+
+
+UDP_ERRORS = ['InErrors', 'RcvbufErrors', 'SndbufErrors', 'MemErrors']
+
+
+def udp_reasons(udp_delta):
+    """Host-wide UDP error counters that rose during the observation (the smoke stage's rule, also for counted ones).
+
+    They are host-wide: they show that some UDP socket on the host dropped or
+    rejected datagrams outside the model's queue, not which flow.
+    """
+    rose = {k: v for k, v in udp_delta.items() if k in UDP_ERRORS and v}
+    return [f'host UDP errors {rose} (host-wide counters)'] if rose else []
 
 
 def health(summary, receipt, wall_s):
