@@ -90,6 +90,9 @@ type closeError struct {
 type errCloseForRecreating struct {
 	nextPacketNumber protocol.PacketNumber
 	nextVersion      protocol.Version
+	// initialPacketSizeLowered reports that the connection had lowered its unset initial
+	// packet size, so the recreated connection starts at 1200 bytes too.
+	initialPacketSizeLowered bool
 }
 
 func (e *errCloseForRecreating) Error() string {
@@ -412,6 +415,7 @@ var newClientConnection = func(
 	initialPacketNumber protocol.PacketNumber,
 	enable0RTT bool,
 	hasNegotiatedVersion bool,
+	initialPacketSizeLowered bool,
 	qlogTrace qlogwriter.Trace,
 	logger utils.Logger,
 	v protocol.Version,
@@ -476,6 +480,11 @@ var newClientConnection = func(
 		s.logger,
 	)
 	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
+	if initialPacketSizeLowered {
+		// The connection that Version Negotiation replaced had lowered its unset size.
+		// This follows the estimate above, which the lowering replaces.
+		s.lowerUnsetInitialPacketSize()
+	}
 	oneRTTStream := newCryptoStream()
 	params := &wire.TransportParameters{
 		InitialMaxStreamDataBidiRemote: protocol.ByteCount(s.config.InitialStreamReceiveWindow),
@@ -1711,6 +1720,8 @@ func (c *Conn) handleVersionNegotiationPacket(p receivedPacket) error {
 	return &errCloseForRecreating{
 		nextPacketNumber: nextPN,
 		nextVersion:      newVersion,
+		// Only lowerUnsetInitialPacketSize takes the size below its configured start.
+		initialPacketSizeLowered: c.effectiveInitialPacketSize < c.config.initialPacketSize(),
 	}
 }
 

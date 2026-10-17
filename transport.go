@@ -293,6 +293,7 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr, host string, tlsCon
 		false,
 		use0RTT,
 		conf.Versions[0],
+		false,
 		setup,
 	)
 }
@@ -308,6 +309,7 @@ func (t *Transport) doDial(
 	hasNegotiatedVersion bool,
 	use0RTT bool,
 	version protocol.Version,
+	initialPacketSizeLowered bool,
 	setup *setupReservation,
 ) (*Conn, error) {
 	srcConnID, err := t.connIDGenerator.GenerateConnectionID()
@@ -354,6 +356,7 @@ func (t *Transport) doDial(
 		initialPacketNumber,
 		use0RTT,
 		hasNegotiatedVersion,
+		initialPacketSizeLowered,
 		qlogTrace,
 		logger,
 		version,
@@ -420,6 +423,7 @@ func (t *Transport) doDial(
 			true,
 			use0RTT,
 			params.nextVersion,
+			params.initialPacketSizeLowered,
 			setup,
 		)
 	case err := <-errChan:

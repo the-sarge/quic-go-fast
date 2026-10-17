@@ -195,6 +195,30 @@ func TestHandshakeSilentDrop(t *testing.T) {
 			require.Zero(t, router.clientDelivered(), "every client datagram stays at 1280 bytes")
 		})
 	})
+
+	// The second PTO's 1200-byte probes draw a Version Negotiation packet. The connection
+	// recreated for v1 keeps 1200 bytes, so no further client flight is lost (#780).
+	t.Run("client direction, version negotiation", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			router, clientTr, serverTr := newSilentDropNetwork(t, silentDropOneWay, dropOversized(true, false))
+			serverTLS, clientTLS := silentDropTLSConfigs()
+			ln, err := serverTr.Listen(serverTLS, &Config{Versions: []Version{Version1}})
+			require.NoError(t, err)
+			t.Cleanup(func() { ln.Close() })
+
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			conn, err := clientTr.Dial(ctx, ln.Addr(), clientTLS, &Config{Versions: []Version{Version2, Version1}})
+			require.NoError(t, err)
+			server, err := ln.Accept(ctx)
+			require.NoError(t, err)
+			require.Equal(t, Version1, conn.ConnectionState().Version)
+			require.Equal(t, 2, router.clientFlightsLost())
+
+			require.NoError(t, conn.CloseWithError(0, ""))
+			<-server.Context().Done()
+		})
+	})
 }
 
 func newSilentDropNetwork(t *testing.T, oneWay time.Duration, policy silentDropPolicy) (_ *silentDropRouter, client, server *Transport) {
