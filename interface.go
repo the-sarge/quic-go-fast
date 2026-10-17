@@ -169,9 +169,11 @@ type Config struct {
 	// Under most circumstances, it is not necessary to manually set this value,
 	// since path MTU discovery quickly finds the path's MTU.
 	// If set too high, the path might not support packets of that size, leading to a timeout of the QUIC handshake.
-	// If left at 0, it defaults to 1280 bytes. Only in that case, if the local network stack rejects a
-	// handshake packet larger than 1200 bytes with a "message too long" error before the handshake is
-	// confirmed, the connection falls back to 1200 bytes.
+	// If left at 0, it defaults to 1280 bytes. Only in that case, the connection falls back to 1200 bytes
+	// if the local network stack rejects a handshake packet larger than 1200 bytes with a "message too long"
+	// error before the handshake is confirmed, or if a second Initial or Handshake probe timeout (PTO) expires
+	// before the handshake completes, since the path might silently drop larger packets. The connection then
+	// keeps 1200 bytes, also as the start for any later path, unless path MTU discovery grows it after the handshake.
 	// Values below 1200 are invalid.
 	InitialPacketSize uint16
 	// DisablePathMTUDiscovery disables Path MTU Discovery (RFC 8899).

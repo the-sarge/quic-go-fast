@@ -85,7 +85,8 @@ func TestDeliverySamplerLateOnlyAck(t *testing.T) {
 				last := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1200)
 				_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(last)}, protocol.EncryptionInitial, now.Add(100*time.Millisecond))
 				require.NoError(t, err)
-				require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout()))
+				_, err = h.OnLossDetectionTimeout(h.GetLossDetectionTimeout())
+				require.NoError(t, err)
 			}
 			before := len(r.feedback)
 			_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.EncryptionInitial, now.Add(200*time.Millisecond))

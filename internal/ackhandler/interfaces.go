@@ -33,7 +33,18 @@ type SentPacketHandler interface {
 	PopPacketNumber(protocol.EncryptionLevel) protocol.PacketNumber
 
 	GetLossDetectionTimeout() monotime.Time
-	OnLossDetectionTimeout(now monotime.Time) error
+	OnLossDetectionTimeout(now monotime.Time) (TimeoutOutcome, error)
 
 	MigratedPath(now monotime.Time, initialMaxPacketSize protocol.ByteCount)
+}
+
+// TimeoutOutcome reports what an OnLossDetectionTimeout call did.
+// It does not depend on tracing.
+type TimeoutOutcome struct {
+	// PTO is set if a probe timeout expired: recovery counted the expiration and
+	// requested probe packets. Time-threshold loss and calls that expire nothing
+	// leave it unset.
+	PTO bool
+	// EncLevel is the packet number space whose probe timeout expired. It is only set if PTO is set.
+	EncLevel protocol.EncryptionLevel
 }

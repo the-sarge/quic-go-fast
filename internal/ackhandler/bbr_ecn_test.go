@@ -277,7 +277,8 @@ func TestBBRECNTestingVersusCapableCE(t *testing.T) {
 					ce = 1
 				}
 				ackBBRECN(t, h, ranges, 0, ce)
-				require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout().Add(time.Second)))
+				_, err := h.OnLossDetectionTimeout(h.GetLossDetectionTimeout().Add(time.Second))
+				require.NoError(t, err)
 			}
 			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
 			require.True(t, h.bbrECN.state == ecnStateFailed)
@@ -371,7 +372,8 @@ func TestBBRECNRepeatedMigration(t *testing.T) {
 		}
 		anchor := sendBBRECNPacket(h, protocol.ECNNon, false)
 		ackBBRECN(t, h, ackRanges(old[9], anchor), 0, 1)
-		require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout().Add(time.Second)))
+		_, err := h.OnLossDetectionTimeout(h.GetLossDetectionTimeout().Add(time.Second))
+		require.NoError(t, err)
 		h.MigratedPath(monotime.Now(), 1200)
 		next := sendBBRECNPacket(h, h.ECNMode(true), false)
 		ackBBRECN(t, h, ackRanges(append(old, next)...), 9, 1)
@@ -381,7 +383,8 @@ func TestBBRECNRepeatedMigration(t *testing.T) {
 		}
 		last := sendBBRECNPacket(h, protocol.ECNNon, false)
 		ackBBRECN(t, h, ackRanges(last), 9, 1)
-		require.NoError(t, h.OnLossDetectionTimeout(h.GetLossDetectionTimeout().Add(time.Second)))
+		_, err = h.OnLossDetectionTimeout(h.GetLossDetectionTimeout().Add(time.Second))
+		require.NoError(t, err)
 		require.Equal(t, ecnStateFailed, h.bbrECN.state)
 	})
 

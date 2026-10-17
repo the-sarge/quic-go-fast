@@ -192,11 +192,12 @@ func (c *MockSentPacketHandlerMigratedPathCall) DoAndReturn(f func(monotime.Time
 }
 
 // OnLossDetectionTimeout mocks base method.
-func (m *MockSentPacketHandler) OnLossDetectionTimeout(now monotime.Time) error {
+func (m *MockSentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (ackhandler.TimeoutOutcome, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "OnLossDetectionTimeout", now)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(ackhandler.TimeoutOutcome)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // OnLossDetectionTimeout indicates an expected call of OnLossDetectionTimeout.
@@ -212,19 +213,19 @@ type MockSentPacketHandlerOnLossDetectionTimeoutCall struct {
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockSentPacketHandlerOnLossDetectionTimeoutCall) Return(arg0 error) *MockSentPacketHandlerOnLossDetectionTimeoutCall {
-	c.Call = c.Call.Return(arg0)
+func (c *MockSentPacketHandlerOnLossDetectionTimeoutCall) Return(arg0 ackhandler.TimeoutOutcome, arg1 error) *MockSentPacketHandlerOnLossDetectionTimeoutCall {
+	c.Call = c.Call.Return(arg0, arg1)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockSentPacketHandlerOnLossDetectionTimeoutCall) Do(f func(monotime.Time) error) *MockSentPacketHandlerOnLossDetectionTimeoutCall {
+func (c *MockSentPacketHandlerOnLossDetectionTimeoutCall) Do(f func(monotime.Time) (ackhandler.TimeoutOutcome, error)) *MockSentPacketHandlerOnLossDetectionTimeoutCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockSentPacketHandlerOnLossDetectionTimeoutCall) DoAndReturn(f func(monotime.Time) error) *MockSentPacketHandlerOnLossDetectionTimeoutCall {
+func (c *MockSentPacketHandlerOnLossDetectionTimeoutCall) DoAndReturn(f func(monotime.Time) (ackhandler.TimeoutOutcome, error)) *MockSentPacketHandlerOnLossDetectionTimeoutCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }
