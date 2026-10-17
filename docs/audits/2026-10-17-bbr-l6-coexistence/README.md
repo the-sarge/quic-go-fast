@@ -83,7 +83,15 @@ Its tests ([main_test.go](relay2/main_test.go), six) cover the competitor's dela
 | Competitor receiver | 6–7 |
 | Runner | 1 |
 
-Every SMT sibling (n + 16) and core 0 stay out of every affinity set. Each competitor endpoint has two cores against the fixture's four Go processors; the acceptance plan asks for separate background-flow CPU, and the record reports each endpoint's CPU load (see [Usability](#observation-usability-and-reruns)). Binaries build with `GOTOOLCHAIN=go1.27.0`.
+Every SMT sibling (n + 16) and core 0 stay out of every affinity set. Each competitor endpoint has two cores against the fixture's four Go processors; the acceptance plan asks for separate background-flow CPU, and the record reports each endpoint's CPU load (see [Usability](#observation-usability-and-reruns)). Binaries build with `GOTOOLCHAIN=go1.27.0`, `-trimpath`, `-buildvcs=false` and `CGO_ENABLED=0` for linux/amd64. [build.py](build.py) rebuilt every one byte-identically on the Mac; the aids were built identically on `minimax` from the same assembled module:
+
+| Binary | SHA-256 | Source |
+| --- | --- | --- |
+| `reno-fixture` | `cda8feb1b2fb004d…` | frozen Reno `e4f322cb`, as slice 6 |
+| `cand-fixture` | `d3f05ad685f92732…` | `abfa5456`, as slice 6 |
+| `relay2` | `bff3ba4f86d4c71c…` | this record, frozen tree |
+| `calibrate2` | `f4773dc9b53ae600…` | this record, frozen tree |
+| `launch` | `a6146d62e16339f2…` | slice 6's launcher, frozen tree |
 
 ## Arms, pairs and order
 

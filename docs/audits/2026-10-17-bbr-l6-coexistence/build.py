@@ -45,6 +45,11 @@ EXPECTED = {
     ('cand', 'fixture'): 'd3f05ad685f92732c5354ee683c01c30f17aa067c400b725d9a30029b3410c15',  # slice 6
     ('relay', 'launch'): 'a6146d62e16339f247a7e5fdac29ff47a66be7d8b6fc8d5e647d0479a58d5917',  # #712 onwards, slice 6
 }
+# This record's own aids, as registered (built on the Mac and, identically, on minimax).
+REGISTERED = {
+    ('relay', 'relay2'): 'bff3ba4f86d4c71c40c0979e748fe698ddac22492fbf63158fa7a889a79de8fc',
+    ('relay', 'calibrate2'): 'f4773dc9b53ae600b60dfaa6716247eef45bba78fdde546d5df36cfdb65b909d',
+}
 LINUX = {'GOOS': 'linux', 'GOARCH': 'amd64'}
 ENV = {**os.environ, 'GOTOOLCHAIN': 'go1.27.0', 'GOFLAGS': '-mod=mod', 'CGO_ENABLED': '0', 'GOWORK': 'off'}
 
@@ -123,6 +128,9 @@ def build(name):
         if (name, key) in EXPECTED:
             assert b['sha256'] == EXPECTED[(name, key)], (name, key, b['sha256'])
             b['byte_identical_to_slice6'] = True
+        if (name, key) in REGISTERED:
+            assert b['sha256'] == REGISTERED[(name, key)], (name, key, b['sha256'])
+            b['registered'] = True
     receipt['go'] = subprocess.check_output(['go', 'version'], cwd=ART, env=ENV, text=True).strip()
     (ART / 'bin' / f'{name}-build.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(name, 'built')
