@@ -160,4 +160,10 @@ No remedy is adopted here. Any accepted alternative must still meet the five obl
 
 ## Operator decision
 
-Pending.
+On 2026-10-18 at about 12:40 (America/New_York), after review, the operator approved this decision set:
+
+- **D1, the verdict:** a defect in the design, not in the code.
+- **D2, the next step:** a remedy ticket, filed as [#803](https://github.com/the-sarge/quic-go-fast/issues/803) and not started; it starts when the operator asks. It retires the ledger records of packets that will never be acknowledged, in three stages: a design amendment (the classic ECN response section and T4's representation contract) under a `ras consider` review, because it reverses part of #612's retain decision; the implementation, which flips this record's test to show ECN staying on; and one measurement showing ECN stays on through an L6-length run.
+- **D3, the bound:** `maxECNMarkRanges` stays at 4,096; no bound amendment.
+
+Two alternatives were presented and not chosen: keeping the fallback and documenting the limit, and raising the cap as a stopgap.
