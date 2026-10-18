@@ -173,6 +173,7 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		buf = getLargePacketBuffer()
 	}
 	ecn := (*e.recovery).ECNMode(true)
+	packets := 0 // packed into buf
 	for {
 		n, err := e.appendPacket(buf, size, ecn, now)
 		if err != nil {
@@ -187,13 +188,15 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 			exhausted = true
 			break
 		}
+		packets++
 		mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
 		if !gso || n != size || buf.Len()+size > limit || mode != ackhandler.SendAny || allowance < size || (*e.recovery).ECNMode(true) != ecn {
 			break
 		}
 	}
+	// A lone packet takes the ordinary socket path, without a segment size.
 	var gsoSize uint16
-	if gso {
+	if gso && packets > 1 {
 		gsoSize = uint16(size)
 	}
 	e.handoff(buf, gsoSize, ecn, sendMetadata{})
