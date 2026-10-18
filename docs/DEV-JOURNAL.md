@@ -5421,3 +5421,45 @@ Merged [PR #798](https://github.com/the-sarge/quic-go-fast/pull/798) as `3786c42
 - [#800](https://github.com/the-sarge/quic-go-fast/issues/800): the STREAM application-limited marking and the clamp. It needs a fix, readiness on the fixed revision, and L6 again.
 - [#793](https://github.com/the-sarge/quic-go-fast/issues/793): find what disables ECN on the BBRv3 connection.
 - Both are filed, not started. GitHub issues are the live view.
+
+---
+
+## BBRv3 ECN switch-off diagnosed as ledger exhaustion - 2026-10-18 12:54 EDT
+
+**Main:** `736220a0e7c4`
+**Actor:** Claude
+
+### Summary
+
+[#793](https://github.com/the-sarge/quic-go-fast/issues/793) asked what disables ECN on the BBRv3 connection mid-run on #777's codepoint-preserving L6 path, whether that is correct, and whether Reno would hit it. [PR #802](https://github.com/the-sarge/quic-go-fast/pull/802) merged as `736220a0` with the record [docs/audits/2026-10-18-bbr-ecn-ledger-exhaustion/README.md](audits/2026-10-18-bbr-ecn-ledger-exhaustion/README.md) and a deterministic test. It changes no runtime behavior.
+
+- **The trigger is the BBR ECN validator's range budget.**
+  - The marking ledger never retires the record of a packet that is really lost, so prefix compaction stops at the first loss, and each later loss event adds a hole and an ACKed run.
+  - After at most 2,048 loss events the 4,096-record budget (`maxECNMarkRanges`) is exhausted. `failEvidence` sets `evidenceLost`, and marking falls back to Not-ECT for the rest of the connection.
+  - None of `ecn.go`'s failure paths is involved, because `EnableBBRECN` replaces that tracker.
+- **Evidence.**
+  - `TestBBRECNOrdinaryLossExhaustsRangeBudget`: isolated and paired loss both fall back after 2,048 events (2,048 and 4,096 lost packets), with `counterFailed` clear and diagnostics reading `ecn=missing-marking-evidence`.
+  - #792's sender traces: the first ECN failure came after 3,271–3,794 declared losses, at 16.5–177.6 s (11 runs).
+  - The relay counters in both archives: all 31 BBRv3 runs that got that far switched after 3,131–3,995 drops, at 16.8–200.7 s. The one run that did not was a 45 s development run with 1,628 drops. `crossrun.py` regenerates these tables from the pinned archives.
+- **Verdict: a defect in the design, not in the code.** The code follows the design's compaction and fallback rules and [#612](audits/issue-612-ecn-ledger-lifetime/README.md)'s retain decision. #612 reproduced exhaustion only with alternating codepoints and left its frequency unknown. Ordinary loss exhausts the budget, so D03's CE response goes inert on long connections that lose packets.
+- **Reno would not hit it.** Its legacy validator keeps no per-packet ledger and ignores loss once the path is validated; the test keeps it at ECT(0) through 4,096 loss events.
+- **Observing it.** The BBR validator emits no `ECNStateUpdated` qlog events. Its once-per-second `congestion_control` debug event carries `ecn=missing-marking-evidence`, which also covers a missing ordinal anchor.
+
+### Decisions
+
+- The operator approved the plan on 2026-10-18: a diagnosis record and a characterization test on `main`, with no new host runs.
+- After review, the operator approved three decisions, recorded in the record's "Operator decision" section:
+  - D1: a defect in the design, not in the code;
+  - D2: a remedy ticket, [#803](https://github.com/the-sarge/quic-go-fast/issues/803), not started. It amends the design first under a `ras consider` review, then implements retirement and flips the test, then measures one L6-length run;
+  - D3: `maxECNMarkRanges` stays at 4,096.
+
+### Validation
+
+- RAS review `20261018T162248-3976683728eee964947d0be4` at `144fcfc1` supported the diagnosis. Two low README corrections, an exact #612 quotation and separate failure-path exclusions, were fixed in `96e86e58`. One item, in-flight-tail coverage of the ACK-split budget site, was rejected for this PR and carried into #803. The verify and replacement review were skipped under the low/nit policy for docs-only fixes.
+- Local certification at `9a399139`: `go test -count=1 ./internal/ackhandler`, `go vet`, gofmt, `go mod tidy -diff`, golangci-lint v2.14.0 (0 issues), `crossrun.py --check`, `git diff --check` and a relative-link check. All 33 hosted checks passed on that head, and it was squash-merged with `--match-head-commit`.
+
+### Next
+
+- [#803](https://github.com/the-sarge/quic-go-fast/issues/803): retire ECN ledger records of packets that will never be acknowledged.
+- [#800](https://github.com/the-sarge/quic-go-fast/issues/800): the STREAM application-limited marking and the clamp.
+- Both are filed, not started. GitHub issues are the live view.
