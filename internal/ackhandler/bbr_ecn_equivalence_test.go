@@ -268,7 +268,9 @@ type ecnSequence struct {
 	fragment  bool
 	maxRanges int
 	// pin never acknowledges packet 0, so an unresolved prefix keeps every
-	// later record retained, as individually ACKed records behind a hole.
+	// later record retained, as individually ACKed records behind a hole, until
+	// the path is capable: then packet 0 lies below every reported span and
+	// retires (#803). The near-cap regime reaches the cap before that.
 	pin bool
 	// chaotic frames pick arbitrary ranges below a sent largest. Otherwise a
 	// modelled receiver delivers packets late or never and acknowledges its

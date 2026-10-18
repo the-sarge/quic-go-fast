@@ -483,7 +483,8 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 				require.Equal(t, b, h.bbrECN.ranges[0].first)
 				ect0, ce = accepted+1, 1
 			}
-			// The next accepted advancing ACK on the capable path retires them.
+			// The next accepted advancing ACK on the capable path retires any
+			// record left below its span.
 			last := next + 1
 			sendBBRECNAt(h, last, h.ECNMode(true))
 			ackBBRECN(t, h, ackRanges(last), ect0+1, ce)
