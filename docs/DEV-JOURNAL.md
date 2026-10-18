@@ -5741,3 +5741,68 @@ Its helpers read the real clock. The first RTT sample is about 1 ms, so time-thr
 ### Next
 
 - No follow-ups from this PR; no review finding was deferred. GitHub issues are the live view.
+
+---
+
+## Equal-size short DATAGRAM packets batch in GSO sends - 2026-10-18 18:59 EDT
+
+**Main:** `9b52dca8a200`
+**Actor:** Claude
+
+### Summary
+
+[#743](https://github.com/the-sarge/quic-go-fast/issues/743) is closed by [PR #818](https://github.com/the-sarge/quic-go-fast/pull/818) (squash `9b52dca8`). Segmented send used to continue a batch only while each packet came out at exactly the maximum packet size, so DATAGRAMs that don't fill a packet each went out alone. A batch whose first packet is a short DATAGRAM packet now uses that packet's size as its segment size. On minimax loopback, single-connection DATAGRAM throughput reads 2.28× post-#742 `main` at 0.36× its sender CPU per GiB. The operator decided to keep it, on by default on `main`.
+
+### Completed
+
+- **One batch owner for both paths.** `gsoBatch` (`packet_emission_gso.go`) decides batch growth for both segmented-send paths: Reno's `withGSO` and BBR's `boundedDatagrams`.
+  - The first packet sets the segment size.
+  - After a full-size first packet, batching is unchanged.
+  - After a short first packet that carries a DATAGRAM frame, the batch continues only with packets that each carry the next DATAGRAM frame, packed with the segment size as their limit, while they come out exactly that size.
+- **Safeguards:**
+  - The packer's new `AppendDatagramPacket` pops a frame only when it fits. A DATAGRAM that misses only the short limit stays queued for the next batch.
+  - Stream data and control frames start the next, full-size batch.
+  - A short packet without a DATAGRAM frame cannot set a short segment size.
+  - A batch holds at most 64 segments: Linux enforced `UDP_MAX_SEGMENTS` = 64 until 6.9 (`EINVAL` beyond), not the 128 suggested in the issue.
+  - BBR's reservation is still resized to the physical bytes at handoff.
+  - `QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true` restores the max-size-only rule. The README documents it.
+- **Measurement record.** [docs/audits/2026-10-18-equal-size-gso/](audits/2026-10-18-equal-size-gso/README.md) holds the registration, harness, runner, analyzer, receiver drop-counter patch, data and summary.
+
+| Arm vs `main` | Result |
+| --- | --- |
+| DATAGRAM | 9,493 against 4,163 Mbit/s; 14.8 segments per send |
+| Kill switch | 0.996× |
+| STREAM | 0.979× |
+| Mixed | 1.015× |
+| Packer discards | 0 |
+| DATAGRAM loss | 0.0005% → 1.66%, 99% at the receiver's 128-entry received-DATAGRAM queue |
+
+### Decisions
+
+- **Plan.** The operator approved the plan (D1–D7) on 2026-10-18. On the record, they approved K1–K5 ([decision comment](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6256104407)):
+  - **Keep**, merged before the shared BBR campaign #808.
+  - **On by default on `main`.** No release ships it on until [#824](https://github.com/the-sarge/quic-go-fast/issues/824) (a deeper received-DATAGRAM queue with visible discards) lands, or the release sets the kill switch.
+  - **STREAM cost.** The 0.979× is accepted as an open cost, re-checked in #808. A `perf` diagnostic shows the same work per GiB at a lower IPC, consistent with code placement.
+  - **Review.** The review completed by four of six reviewers is accepted.
+
+### Validation
+
+- **Tests.** Focused tests for both paths went red on the base where they assert new behaviour, then green. Guard mutations each failed a test: the DATAGRAM requirement, the 64-segment cap, DATAGRAM-only continuation, the kill switch, and continuing after a continuation stop. A looser BBR window gate survived its mutation and was reverted to the original `allowance < size`. Four existing tests changed fixtures, not intent.
+- **Linux and Windows socket tests** send 64 × 300-byte segments and check delivery.
+- **RAS review.** Runs `20261018T213708-12ea953e981f8f37264e8eda` and `20261018T214648-cbc564232157f609b279304d` at `2c2c2db7` found no findings: agy-argon, codex-astra, codex-sol and grok approved. claude-fable and claude-opus failed at process level in both runs.
+- **minimax.**
+  - The development round ran 21:42 UTC; the counted stage ran 21:55–22:18 UTC with reruns 22:24–22:36 UTC, all under wiremux 1869 yields.
+  - GridCast GARM CI contaminated rounds 2–8. Three of their one-time reruns were contaminated again, so five rounds count under the registered rule.
+- **Certification.** Local exact-head certification at `14466907`: build, `go mod tidy -diff`, Windows vet and test build, vet, golangci-lint v2.14.0 on five GOOS values, and `go test -shuffle=on ./...`. All 33 hosted checks passed on `14466907`, which was squash-merged with `--match-head-commit`.
+- **Process miss.** `main` had advanced from the PR's base `c8dbe35e` before the merge: #816 (BBR diagnostics), #817 (GSO-error fallback for segmented writes only) and #814 (BBR ECN test clock). The branch was not updated and re-gated first, as planit requires; GitHub's rules allowed the merge. Afterwards, on `9b52dca8`:
+  - the root package, `internal/ackhandler` and `internal/congestion` passed with shuffle;
+  - the emission, BBR, delivery and send-conn tests passed under `-race`;
+  - the root package passed in Linux Docker;
+  - push CI passed: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/39174130035), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/39174130004), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/39174129985), [cross-compile](https://github.com/the-sarge/quic-go-fast/actions/runs/39174129979) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/39174129991).
+  - #817's fallback still covers these batches, because their segment size is above 0.
+
+### Next
+
+- [#824](https://github.com/the-sarge/quic-go-fast/issues/824) (`needs-triage`): deepen the received-DATAGRAM queue and make its discards visible. It blocks any release that ships #743 on by default.
+- [#808](https://github.com/the-sarge/quic-go-fast/issues/808), the shared BBR readiness and L6 campaign, now runs on a revision that includes #743. It re-checks the STREAM cost.
+- GitHub issues are the live view.
