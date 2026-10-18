@@ -80,6 +80,31 @@ func TestDeliverySamplerObservedStop(t *testing.T) {
 	}
 }
 
+// Diagnostics report the latest stop and, separately, the limitation a packet
+// registered now would carry.
+func TestDeliverySamplerDiagnostics(t *testing.T) {
+	r := &congestionRecorder{}
+	h := newCongestionTestHandler(r)
+	EnableBBRECN(h, func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
+	now := monotime.Now()
+	require.Contains(t, h.BBRDiagnostics(), " stop=unknown limitation=none ")
+	h.ObserveDeliveryLimitation(congestion.SendApplicationLimited)
+	h.ObserveDeliveryStop(congestion.SendPacingLimited)
+	require.Contains(t, h.BBRDiagnostics(), " stop=pacing limitation=application ", "a later stop does not hide an established boundary")
+	pn := sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1000)
+	require.Equal(t, congestion.SendApplicationLimited, r.sends[0].Packet.Delivery.Limited)
+	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.EncryptionInitial, now.Add(100*time.Millisecond))
+	require.NoError(t, err)
+	require.Contains(t, h.BBRDiagnostics(), " stop=pacing limitation=none ", "delivery passed the boundary")
+	sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1000)
+	require.Equal(t, congestion.SendUnknown, r.sends[1].Packet.Delivery.Limited)
+	// ProbeRTT marks samples without reporting a stop.
+	h.congestionEvents.sampler.markLimited(congestion.SendProbeRTTLimited)
+	require.Contains(t, h.BBRDiagnostics(), " stop=pacing limitation=ProbeRTT ")
+	sendCongestionTestPacket(h, now.Add(100*time.Millisecond), protocol.EncryptionInitial, 1000)
+	require.Equal(t, congestion.SendProbeRTTLimited, r.sends[2].Packet.Delivery.Limited)
+}
+
 func TestDeliverySamplerLateOnlyAck(t *testing.T) {
 	t.Run("compressed late ACK below measured minimum", func(t *testing.T) {
 		r := &congestionRecorder{}
