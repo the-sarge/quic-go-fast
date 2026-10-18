@@ -5609,3 +5609,42 @@ The operator approved the plan on 2026-10-18 with four decisions, and later decl
   - Reusing #792's trace overlay needs one hook updated: its `bbr_probe.go` patch site matches the old `previousFlight+prefix` line, which is now `bbrBytes(atLoss)`.
   - Judge the marking from the overlay's per-packet markers, not from the qlog field ([#812](https://github.com/the-sarge/quic-go-fast/issues/812)).
 - GitHub issues are the live view.
+
+---
+
+## BBR diagnostics report the latest stop and active limitation separately - 2026-10-18 17:39 EDT
+
+**Main:** `30d823c61b37`
+**Actor:** Claude
+
+### Summary
+
+[#812](https://github.com/the-sarge/quic-go-fast/issues/812) is closed by [#816](https://github.com/the-sarge/quic-go-fast/pull/816) (squash `30d823c6`). The BBR `congestion_control` qlog snapshot formatted the delivery sampler's latest send-opportunity stop as `limitation=`. After #806 that field disagreed with the per-packet marker `PacketInfo.Delivery.Limited` in both directions. An absorbed supply gap showed `limitation=application` on unmarked packets. A later pacing stop showed `limitation=pacing` on application-marked packets. ProbeRTT marking never showed.
+
+### Completed
+
+- **Code.** `BBRDiagnostics()` now reports `stop=` (the old value, with the same names) and `limitation=`: the marker a packet registered now would carry, or `none`. The snapshot and packet registration both read `deliverySampler.activeLimitation()`, so they cannot drift. No control behavior, per-packet marker, `DeliveryStats().Stop` or idle decision changed, and the Reno path is untouched.
+- **Design.** The tracing list in the BBRv3 design's [Consumer adoption and diagnostics](https://github.com/the-sarge/quic-go-fast/blob/30d823c6/docs/designs/bbrv3.md#consumer-adoption-and-diagnostics) now names the latest stop reason and the active limitation as separate fields.
+- **Tests.** `TestDeliverySamplerDiagnostics` covers a later stop, a boundary passed by an ACK, and ProbeRTT marking. `TestDeliverySupplyGapDiagnostics` covers absorbed and established gaps on ordinary and GSO emission. `TestCongestionControlV1Diagnostics` now requires `stop=`, and `TestCongestionControlV1DiagnosticsReno` shows default Reno records no snapshot. Deriving `limitation=` from the stop, or from `limited` alone, fails the new tests.
+- **Frozen records.** `limitation=` values recorded before `30d823c6` are stop reasons, not established limitation. The records are not rewritten.
+
+### Decisions
+
+- Operator decision on #812, 2026-10-18 ([agent brief](https://github.com/the-sarge/quic-go-fast/issues/812#issuecomment-6255267796)): report both `stop=` and `limitation=`. A rename to `stop=` alone was rejected because qlog would lose the established marker.
+- The operator approved the plan on 2026-10-18 ("Plan approved. Implement #812 as planned and drive it to merge."), including the ProbeRTT assertion and the Reno test beyond the brief's four cases.
+
+### Validation
+
+- RAS review `20261018T213154-282514d9ab7d53056ca5eaf1` at `a1cc463e`, briefed with the agent brief verbatim, found nothing (0 findings). Four of six reviewers completed every axis. Both Claude reviewers exited at start because the local Claude CLI had hit its session limit. With no fix-now finding, the bounded loop needed no verification or replacement review.
+- Local certification at `a1cc463e` (base `c8dbe35e`), Go 1.27.2 on darwin/arm64:
+  - tests for the root package, `internal/ackhandler` and `internal/congestion`;
+  - `go vet` for darwin, linux and windows;
+  - golangci-lint v2.14.0 for five GOOS (0 issues);
+  - test binaries cross-compiled for windows, linux, freebsd and openbsd;
+  - `go mod tidy -diff` and `git diff --check`.
+- All 33 hosted checks passed on that head, and it was squash-merged with `--match-head-commit`.
+
+### Next
+
+- The qlog `limitation=` field now matches the per-packet marker, so #812's caveat on [#808](https://github.com/the-sarge/quic-go-fast/issues/808) no longer applies to snapshots from `30d823c6` on. Snapshots from earlier revisions still report stop reasons.
+- The operator's BBR/GSO order is unchanged: #743, then the #808 campaign, then Q2 #599. GitHub issues are the live view.
