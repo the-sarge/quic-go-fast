@@ -37,6 +37,7 @@ R1_SHARE, R1_PACKETS = 0.02, 15
 R2_RANGE = (0.98, 1.02)
 R3_LIMIT = 1.05
 R4_RANGE_NS = (99_000_000, 210_000_000)
+BOUNDARY_NS = 1_000_000_000        # a boundary record further than this from its boundary is missing
 
 
 def rounds(trace):
@@ -49,24 +50,26 @@ def rounds(trace):
 def at(series, t, key):
     """The value of a cumulative series at the last record at or before time t
     (rounds are about one round trip apart; the sender stops starting rounds when
-    the measured window's data is delivered, so a later record may not exist)."""
-    value = None
+    the measured window's data is delivered, so a later record may not exist).
+    A record more than BOUNDARY_NS before t does not stand for t: missing."""
+    value, when = None, None
     for x in series:
         if x['t'] > t:
             break
-        value = x[key]
-    return value
+        value, when = x[key], x['t']
+    return value if when is not None and t - when <= BOUNDARY_NS else None
 
 
 def relay_at(samples, ms, col):
-    """A cumulative relay column at the last sample at or before model time ms."""
-    value = None
+    """A cumulative relay column at the last sample at or before model time ms (100 ms apart);
+    one more than BOUNDARY_NS before ms is missing."""
+    value, when = None, None
     for s in samples:
         if s[0] <= ms:
-            value = s[col]
+            value, when = s[col], s[0]
         else:
             break
-    return value
+    return value if when is not None and (ms - when) * 1_000_000 <= BOUNDARY_NS else None
 
 
 def reconcile(trace, relay, measured_start_ns):

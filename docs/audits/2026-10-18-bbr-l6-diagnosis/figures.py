@@ -100,10 +100,10 @@ def inputs(s):
         for per in CLASSIFIED:
             ps = [v['trace']['reconcile']['periods'][per] for _, v in ts]
             dec = sum(p['r1']['declared'] for p in ps)
-            dro = sum(p['r1']['dropped'] or 0 for p in ps)
-            ratios = [p['r2']['ratio'] for p in ps if p['r2']['ratio']]
-            caps = [p['r3']['max_over_capacity'] for p in ps if p.get('r3')]
-            rtt = [p['r4']['min_ms'] for p in ps if p.get('r4')]
+            dro = sum(p['r1'].get('dropped') or 0 for p in ps)
+            ratios = [p['r2']['ratio'] for p in ps if p['r2'].get('ratio') is not None]
+            caps = [p['r3']['max_over_capacity'] for p in ps if p['r3'].get('max_over_capacity') is not None]
+            rtt = [p['r4']['min_ms'] for p in ps if p['r4'].get('min_ms') is not None]
             rows.append(f"| {wl.upper()} | {per} | {dec} / {dro} | {f(min(ratios), 4) if ratios else '—'}–{f(max(ratios), 4) if ratios else '—'} | {f(max(caps), 3) if caps else '—'} | {f(min(rtt), 1) if rtt else '—'} |")
     return '\n'.join(rows)
 

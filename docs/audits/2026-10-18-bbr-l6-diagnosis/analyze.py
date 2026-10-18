@@ -129,12 +129,16 @@ def properties(t, check, cross, s0, s1, pipe):
                 actual.append(cruise_cap(t.v(r, 'inflight_long'), size))
         out['application_limited_crossings'] = dict(events=len(app),
             counterfactual_cruise_cap_over_pipe=None if not pipe else median(cf) / pipe,
-            actual_cruise_cap_over_pipe=None if not pipe or not actual else median(actual) / pipe)
+            actual_cruise_cap_over_pipe=None if not pipe or not actual else median(actual) / pipe,
+            counterfactual_events=None if not pipe else [x / pipe for x in cf], actual_events=None if not pipe else [x / pipe for x in actual])
     devs = [x for x in check['rules']['C4'].get('deviations', []) if s0 <= x['unix_ns'] < s1]
     if devs:
+        cf = [cruise_cap(int(x['draft']), x['size']) for x in devs]
+        actual = [cruise_cap(x['port'], x['size']) for x in devs]
         out['clamp'] = dict(events=len(devs), excess_bytes=sum(x['excess_bytes'] for x in devs),
-            counterfactual_cruise_cap_over_pipe=None if not pipe else median(cruise_cap(int(x['draft']), x['size']) for x in devs) / pipe,
-            actual_cruise_cap_over_pipe=None if not pipe else median(cruise_cap(x['port'], x['size']) for x in devs) / pipe)
+            counterfactual_cruise_cap_over_pipe=None if not pipe else median(cf) / pipe,
+            actual_cruise_cap_over_pipe=None if not pipe else median(actual) / pipe,
+            counterfactual_events=None if not pipe else [x / pipe for x in cf], actual_events=None if not pipe else [x / pipe for x in actual])
     return out
 
 
@@ -167,6 +171,15 @@ def mechanism(t, check, relay, measured_start, quic_share):
                                        crossings=len(cross), crossings_limited=sum(map(limited, cross)),
                                        checks_by_reason=reasons(checks), crossings_by_reason=reasons(cross))
         p['properties'] = properties(t, check, cross, s0, s1, pipe)
+        # Other draft rules a supply-limited mark switches (descriptive): an Up round start on a limited
+        # sample does not advance the plateau count, and a limited sample at the probe's end does not
+        # advance the max_bw filter's cycle, so max_bw cannot age.
+        up_rounds = [r for r in inside if t.v(r, 'phase') == dc.UP]
+        cycles = sorted({t.v(r, 'cycle') for r in inside})
+        aging = [r for r in t.rows if r[0] == dc.POST and s0 <= t.v(r, 'unix_ns') < s1 and r[t.c['a0']] & (1 << 9)]
+        p['limited_marks'] = dict(rounds_with_limited_samples_share=sum(1 for r in inside if r[t.c['a5']] > 0) / len(inside) if inside else None,
+                                  up_round_starts=len(up_rounds), up_round_starts_on_limited_samples=sum(1 for r in up_rounds if t.flag(r, 'sample_limited')),
+                                  cycle_advances=len(cycles) - 1 if cycles else 0, max_bw_aging_events=len(aging))
         after = []
         for r in cross:
             post = t.end_of_event(r)
@@ -262,8 +275,8 @@ def attribute(traces):
             for name, ev in x['mechanism']['periods'][per]['properties'].items():
                 a = acting.setdefault(name, dict(events=0, counterfactual=[], actual=[]))
                 a['events'] += ev['events']
-                a['counterfactual'].append(ev['counterfactual_cruise_cap_over_pipe'])
-                a['actual'].append(ev['actual_cruise_cap_over_pipe'])
+                a['counterfactual'] += ev.get('counterfactual_events') or []  # pooled over events, as registered
+                a['actual'] += ev.get('actual_events') or []
     connection = {name: dict(events=a['events'], counterfactual_cruise_cap_over_pipe=median(a['counterfactual']),
                              actual_cruise_cap_over_pipe=median(a['actual']),
                              role=None if median(a['counterfactual']) is None else 'cause' if median(a['counterfactual']) <= 1 else 'contributor')

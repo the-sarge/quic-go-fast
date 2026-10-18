@@ -333,8 +333,14 @@ def check_probe_losses(t, rep):
         target = t.v(r, 'window') if b is None else min(b, t.v(r, 'window'))
         draft_hi = max(inflight_at_loss(lost, flight, length, False), 0.7 * target)
         port_hi = max(inflight_at_loss(lost, flight, length, True), target * 7 // 10)
-        if got != before:
+        if before == INF or got < before:
             lowering.add(r[t.c['seq']])
+        post = t.end_of_event(r)
+        if post is not None and not t.same_seq(r, RESET):
+            # Nothing later in the event lowers the assignment (undo and the sample raise only raise it).
+            rep.check(rule, t.v(post, 'inflight_long') != INF and t.v(post, 'inflight_long') >= got, post,
+                      "inflight_longterm lowered after its crossing's assignment in the same event", assigned=got,
+                      end=t.v(post, 'inflight_long'))
         if got == port_hi and port_hi - draft_hi >= 1:
             # The port's clamp (bbr_probe.go:173-176), demonstrated in code: a deviation event.
             rep.note(rule, 'clamp_cases')
@@ -349,7 +355,8 @@ def check_probe_losses(t, rep):
         m = post[t.c['a0']]
         if not m & (1 << 3 | 1 << 4):
             continue
-        cause = (pre[t.c['seq']] in lowering or bool(t.same_seq(pre, RESET))
+        undo_to_unbounded = t.flag(post, 'undo_eligible') and t.v(post, 'inflight_long') == INF  # 5.5.11 restores the saved bound
+        cause = (pre[t.c['seq']] in lowering or bool(t.same_seq(pre, RESET)) or undo_to_unbounded
                  or (t.v(pre, 'phase') == STARTUP and t.v(post, 'phase') == DRAIN and bool(t.same_seq(pre, LOSSPRE))))
         rep.check(rule, cause, post, 'inflight_longterm lowered, set or reset without an unlimited crossing, Startup loss exit or reset',
                   before=t.v(pre, 'inflight_long'), after=t.v(post, 'inflight_long'))

@@ -157,6 +157,22 @@ class InjectedDeviations(unittest.TestCase):
         t.set(post, 'flags', t.get(post, 'flags') | t.f['has_ack'])
         self.assertFalse([m for m in mismatches(t.data, 'C4') if 'assignment' in m['what']])
 
+    def test_c4_lowered_after_assignment(self):
+        t = Tr(fixture())
+        _, s, post = self._crossing(t)
+        t.set(post, 'inflight_long', t.get(s, 'inflight_long') - 1200)
+        self.assertTrue([m for m in mismatches(t.data, 'C4') if 'after its crossing' in m['what']])
+
+    def test_c4_undo_to_unbounded_is_explained(self):
+        t = Tr(fixture())
+        p, q = next((p, q) for p, q in t.pairs() if t.get(p, 'inflight_long') != d.INF
+                    and not [r for r in t.seq_rows(t.get(p, 'seq')) if r[0] == d.PROBELOSS])
+        t.set(q, 'inflight_long', d.INF)
+        t.set(q, 'a0', t.get(q, 'a0') | 1 << 4)
+        self.assertTrue([m for m in mismatches(t.data, 'C4') if 'without an unlimited crossing' in m['what']])
+        t.set(q, 'flags', t.get(q, 'flags') | t.f['undo_eligible'])
+        self.assertFalse([m for m in mismatches(t.data, 'C4') if 'without an unlimited crossing' in m['what']])
+
     def test_c4_crossing_without_assignment_row(self):
         t = Tr(fixture())
         _, s, _ = self._crossing(t)
@@ -185,7 +201,9 @@ class InjectedDeviations(unittest.TestCase):
         t.set(r, 'bandwidth', bdp1 * 1_000_000_000 // t.get(r, 'min_rtt_ns'))
         target = min(d.bdp(d.Trace(t.data), r, 1, 1), window)
         port = max(d.inflight_at_loss(lost, flight, length, True), target * 7 // 10)
-        t.set(s, 'inflight_long', port)
+        for x in t.seq_rows(t.get(r, 'seq')):  # the assignment and the event's end state agree
+            if x[0] in (d.PROBESET, d.POST):
+                t.set(x, 'inflight_long', port)
         return port, max(d.inflight_at_loss(lost, flight, length, False), 0.7 * target)
 
     def test_c4_clamp_is_a_deviation_not_a_pass(self):

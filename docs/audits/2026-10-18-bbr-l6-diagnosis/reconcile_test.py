@@ -95,6 +95,9 @@ class Reconcile(unittest.TestCase):
         out = r.reconcile(trace, relay, START)
         self.assertFalse(out['ok'])
         self.assertIn(('short', 'incomplete'), {(f['period'], f['status']) for f in out['findings']})
+        # A stale record from before the gap never stands for a boundary: incomplete, not a false failure.
+        self.assertEqual(out['status'], 'incomplete')
+        self.assertFalse([f for f in out['findings'] if f['status'] == 'fail'])
 
     def test_missing_relay_boundary_is_incomplete(self):
         trace, relay, _ = synthetic()
