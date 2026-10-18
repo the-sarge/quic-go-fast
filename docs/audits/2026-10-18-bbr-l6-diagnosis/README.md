@@ -331,7 +331,29 @@ No threshold of D3, tolerance of R1–R4, checker rule other than C6, arm, pair 
 
 Every change implements a review finding. None loosens a rule, except that the classification replaces the rewritten rules the review found unsound. No D3 threshold, R1–R4 tolerance, arm, pair count, order, fixture binary or relay binary changed; the trace binary did (`73555c57…`). Two more development runs (`dev5`, `dev6`) put the new rules and the new row on real traces.
 
-**Replacement consideration:** at most one, on the fixed registration.
+**Replacement consideration:** RAS run `20261018T045000-4354da5542ac8fa9fe336768`, on `b983b92a`, with the first round's dispositions quoted as settled. One of six reviewers (claude-fable) failed. Its 17 findings were each checked against the code:
+
+| Finding (reviewers) | Disposition | Change |
+| --- | --- | --- |
+| The counterfactual rule is circular. It is evaluated at BBRv3's already-displaced flight, so on this path it can hardly return "cause" given the displacement D3 confirms (agy-argon, claude-opus, grok). | **stop-for-decision** (repeated root) | None; the decision is the operator's ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). |
+| The cause test never checks that the property changed the ceiling; a ceiling left unchanged, or already at or below the pipe, could be named the cause (claude-opus, codex-astra, codex-sol, grok). | **stop-for-decision** (same root) | As above. |
+| A ceiling above the pipe permits a standing queue but does not show that the displacement persists without the property (codex-astra, codex-sol, grok). | **stop-for-decision** (same root) | As above. |
+| The counterfactual covers only the `inflight_longterm` channel. A supply-limited mark also stops the plateau count and the `max_bw` filter's cycle (claude-opus). | fix-now (measured) | analyze.py reports the other channels. In `dev5` (STREAM), the filter's cycle never advanced and `max_bw` never aged in any period, and every Up round start was on a limited sample. In `dev6` (DATAGRAM), the cycle advanced 19 times per 100 s and aged 6–15 times. |
+| Attribution took a median of period medians, not the registered median over events (claude-opus, codex-astra, codex-sol, grok). | fix-now | Events pooled. |
+| Flow-control-limited crossings (reason 2) escape both C4 and the property list (claude-opus). | defer to the decision | None on L6's paths so far (counted by reason). |
+| A stale boundary record turns missing sender rounds into a false R2 failure; figures.py fails on incomplete checks (agy-argon). | fix-now | A boundary record more than 1 s from its boundary is missing; incomplete checks have no values. Tests added. |
+| C4's lowering bookkeeping counted any change, never checked the event's end against the assignment, and flagged an undo to unbounded (agy-argon). | fix-now | Counted only for an unlimited crossing that lowers or sets the bound; nothing later in the event may lower the assignment; an undo to unbounded is explained. Tests added. |
+
+**Why stop.** The first round's F1 and these three findings are behaviorally distinct counterexamples to one invariant, at one enforcement point:
+- **The invariant:** the classification names a cause only with evidence.
+- **The enforcement point:** the attribution rule.
+- **The counterexamples:** a workload-local cause hidden by one clean workload (round 1); a cause decided from a circular estimate; a cause named without any change; a "contributor" inferred from a permitted standing queue.
+
+The review protocol treats two such counterexamples as an approach failure, so the attribution goes back to the operator rather than being patched again. The fixes in this round that are outside the attribution rule were applied and tested, and no further RAS round ran on them; the result consideration (D4) reviews them with the result.
+
+### Attribution: stopped for a decision
+
+*Pending the operator's decision; recorded after it.*
 
 ## Time estimate
 
