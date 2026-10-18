@@ -72,8 +72,8 @@ type ecnOracle struct {
 }
 
 type ecnOracleStats struct {
-	Accepted, Deferred, Grew, Shrank, Compacted, CounterFailures, AnchorFailures, SplitCapFailures, InsertCapFailures int
-	MaxLedger                                                                                                         int
+	Accepted, Deferred, Grew, Shrank, Compacted, Retired, CounterFailures, AnchorFailures, SplitCapFailures, InsertCapFailures int
+	MaxLedger                                                                                                                  int
 }
 
 func newECNOracle(t testing.TB) *ecnOracle {
@@ -135,7 +135,11 @@ func (o *ecnOracle) send(pn protocol.PacketNumber, ordinal, generation uint64, m
 func (o *ecnOracle) ack(f *wire.AckFrame) congestion.ECNResult {
 	o.t.Helper()
 	before, compacted, failed := len(o.got.ranges), o.got.compactedOrdinal, o.got.counterFailed || o.got.evidenceLost
+	capable, watermark := o.frozen.state == ecnStateCapable, o.frozen.watermark
 	want, got := o.frozen.feedback(f), o.got.feedback(f)
+	if capable && o.frozen.watermark != watermark && retireFrozen(o.frozen, f.LowestAcked()) > 0 {
+		o.stats.Retired++
+	}
 	require.Equal(o.t, want, got, "feedback result diverged after op %d: %+v", o.ops, f)
 	o.check(fmt.Sprintf("ack(%+v)", f))
 	switch {
@@ -166,6 +170,30 @@ func (o *ecnOracle) ack(f *wire.AckFrame) congestion.ECNResult {
 	}
 	o.stats.MaxLedger = max(o.stats.MaxLedger, len(o.got.ranges))
 	return got
+}
+
+// retireFrozen models #803's retirement on the frozen reference, which predates
+// it. After an accepted advancing ACK on a capable path, the leading records
+// that end below the ACK's smallest acknowledged packet number leave the
+// ledger, and the frozen compaction then removes any accounted prefix behind
+// them. Only accounted marks join the offsets; the ordinal boundary passes over
+// every removed record. It returns the number of records below the span.
+func retireFrozen(e *frozenBBRECNTracker, lowest protocol.PacketNumber) int {
+	n := 0
+	for ; n < len(e.ranges) && e.ranges[n].last < lowest; n++ {
+		r := e.ranges[n]
+		count := uint64(r.last - r.first + 1)
+		if r.acked && r.mark == protocol.ECT0 {
+			e.compacted.ECT0 += count
+		}
+		if r.acked && r.mark == protocol.ECT1 {
+			e.compacted.ECT1 += count
+		}
+		e.compactedOrdinal = r.ordinal + count - 1
+	}
+	e.ranges = append(e.ranges[:0], e.ranges[n:]...)
+	e.compact()
+	return n
 }
 
 func (o *ecnOracle) lost(pn protocol.PacketNumber) {
@@ -492,6 +520,7 @@ func TestBBRECNFeedbackFrozenEquivalence(t *testing.T) {
 				total.Grew += st.Grew
 				total.Shrank += st.Shrank
 				total.Compacted += st.Compacted
+				total.Retired += st.Retired
 				total.CounterFailures += st.CounterFailures
 				total.AnchorFailures += st.AnchorFailures
 				total.SplitCapFailures += st.SplitCapFailures
@@ -504,6 +533,7 @@ func TestBBRECNFeedbackFrozenEquivalence(t *testing.T) {
 			}
 			if !rg.fragment {
 				require.NotZero(t, total.Compacted)
+				require.NotZero(t, total.Retired, "accepted ACKs on capable paths retire records below their span")
 				require.NotZero(t, total.CounterFailures)
 				require.NotZero(t, capable)
 				require.NotZero(t, drainReads, "the counter fence must read drain state")
@@ -591,7 +621,9 @@ func TestBBRECNFeedbackAdversarialEquivalence(t *testing.T) {
 		b.send(protocol.ECT0)
 		b.pn++
 		b.send(protocol.ECT0)
-		res = o.ack(ackOf(5, 0, 0, r(8, 8))) // only pn 8; 6 is still unresolved
+		// Only pn 8 is new. The receiver still reports 0-5, so 6 stays an
+		// unresolved hole inside the span rather than retiring (#803).
+		res = o.ack(ackOf(5, 0, 0, r(8, 8), r(0, 5)))
 		require.Equal(t, uint64(6), res.Ordinal)
 		require.Len(t, o.got.ranges, 2)
 	})
@@ -847,7 +879,9 @@ func TestBBRECNFeedbackCapEquivalence(t *testing.T) {
 		require.Len(t, o.got.ranges, 2*k+3)
 		// Splitting the tail and one triple grows past that capacity in the splice.
 		o.ack(ackOf(k+3, 0, 0, r(anchor, anchor), r(first+2, first+2)))
-		require.Len(t, o.got.ranges, 2*k+6)
+		// The splice grows the ledger to 2k+6 records. The path is capable, so
+		// the four records then ending below the span retire or compact (#803).
+		require.Len(t, o.got.ranges, 2*k+2)
 		require.LessOrEqual(t, cap(o.got.ranges), maxECNMarkRanges)
 	})
 

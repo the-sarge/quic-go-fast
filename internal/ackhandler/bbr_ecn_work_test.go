@@ -29,6 +29,8 @@ func newECNLedgers() (*frozenBBRECNTracker, *bbrECNTracker) {
 // retained, never-delivered records, and acknowledges each batch with a
 // preallocated frame. With reorder, the middle packet of each batch arrives
 // late and is acknowledged by the next frame, so every ACK splits a record.
+// The frames never report the retained block, so the bounded tracker retires
+// it on the first ACK after validation (#803); the frozen tracker keeps it.
 type ecnSteadyStream struct {
 	e           ecnLedgerAPI
 	pn          protocol.PacketNumber
