@@ -49,7 +49,7 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 	e.bbr.credit.resetGeneration(generation)
 	e.bbr.tokens = int64(e.bbr.quantum) * 1e9
 	e.bbr.updated = now
-	// The refilled credit is not elapsed time; an open gap must not confirm on it.
+	// An open supply gap belongs to the old path's samples.
 	e.bbr.supplyGap = congestion.SendUnknown
 }
 
@@ -68,7 +68,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 				result.stop, result.available, result.deadline = emissionQueueFull, available, 0
 				result.blocked, result.retry = blockModeHardBlocked, false
 			}
-			e.observeDeliveryResult(result)
+			e.observeDeliveryResult(result, now)
 		}
 	}()
 	if e.queue.WouldBlock() {
@@ -146,7 +146,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
 		return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
 	}
-	e.confirmSupplyGap()
+	e.confirmSupplyGap(now)
 	limit := size
 	if confirmed && e.opportunityCapabilities().GSO {
 		limit = min(e.bbr.budget(now), allowance, protocol.MaxLargePacketBufferSize)

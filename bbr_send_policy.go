@@ -19,8 +19,10 @@ type bbrSendPolicy struct {
 	updated    monotime.Time
 	lastTrace  monotime.Time
 	// supplyGap is the application or flow-control exhaustion observed at the
-	// latest opportunity, not yet established as supply limitation.
-	supplyGap congestion.SendLimitation
+	// latest opportunity, not yet established as supply limitation, and
+	// supplyGapFull is when the credit would have refilled, fixed as it opened.
+	supplyGap     congestion.SendLimitation
+	supplyGapFull monotime.Time
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
@@ -54,12 +56,6 @@ func (p *bbrSendPolicy) budget(now monotime.Time) protocol.ByteCount {
 	return max(0, protocol.ByteCount(p.tokens/1e9))
 }
 
-// creditFull reports that pacing cannot bank more credit, so time without
-// eligible data now loses sending opportunity. Call it after budget.
-func (p *bbrSendPolicy) creditFull() bool {
-	return p.tokens >= int64(p.quantum)*1e9
-}
-
 func ceilSendDelay(deficit, rate uint64) uint64 {
 	d := deficit / rate
 	if deficit%rate != 0 {
@@ -74,6 +70,12 @@ func (p *bbrSendPolicy) deadline(size protocol.ByteCount, now monotime.Time) mon
 	if p.budget(now) >= size {
 		return 0
 	}
+	return p.fullAt(now)
+}
+
+// fullAt is when credit, refilling at the current rate, reaches the quantum.
+// Call it after budget.
+func (p *bbrSendPolicy) fullAt(now monotime.Time) monotime.Time {
 	return now.Add(time.Duration(ceilSendDelay(uint64(int64(p.quantum)*1e9-p.tokens), p.rate)))
 }
 
