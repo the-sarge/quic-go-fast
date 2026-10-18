@@ -2,6 +2,7 @@ package quic
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 	"testing/synctest"
@@ -38,12 +39,18 @@ type supplyGapFixture struct {
 	held     *queueEntry // the newest handed-off entry, still with the worker
 }
 
+// At 100 MB/s one quantum (64 KiB) holds a whole write, so the stream runs
+// dry mid-quantum.
 func newSupplyGapFixture(t *testing.T, gso bool, writes int) *supplyGapFixture {
+	t.Helper()
+	return newSupplyGapFixtureAt(t, gso, writes, 100_000_000)
+}
+
+func newSupplyGapFixtureAt(t *testing.T, gso bool, writes int, rate uint64) *supplyGapFixture {
 	t.Helper()
 	c := newEmissionTestConnection(t, gso).conn
 	now := monotime.Now()
-	// One quantum (64 KiB) holds a whole write, so the stream runs dry mid-quantum.
-	c.emission.bbr = newBBRSendPolicy(100_000_000, 1200, now)
+	c.emission.bbr = newBBRSendPolicy(rate, 1200, now)
 	f := &supplyGapFixture{c: c, sink: &deliveryTestSink{}, next: make([]chan struct{}, writes)}
 	for i := range f.next {
 		f.next[i] = make(chan struct{})
@@ -66,7 +73,15 @@ func newSupplyGapFixture(t *testing.T, gso bool, writes int) *supplyGapFixture {
 		}
 	}()
 	synctest.Wait()
-	t.Cleanup(func() { s.CancelWrite(0); synctest.Wait(); <-done })
+	t.Cleanup(func() {
+		// A test that stops early still lets the writer finish.
+		for _, next := range f.next[f.released:] {
+			close(next)
+		}
+		s.CancelWrite(0)
+		synctest.Wait()
+		<-done
+	})
 	t.Cleanup(func() {
 		if f.held != nil {
 			f.held.release()
@@ -101,6 +116,25 @@ func (f *supplyGapFixture) drain(t *testing.T, now monotime.Time) {
 		require.NoError(t, f.c.triggerSending(now).err)
 		f.take()
 	}
+}
+
+// ackOnly sends an ACK-only packet, which spends no pacing credit, and then
+// lets an empty opportunity observe the stream still dry.
+func (f *supplyGapFixture) ackOnly(t *testing.T, now monotime.Time) {
+	t.Helper()
+	for pn := range protocol.PacketNumber(2) {
+		require.NoError(t, f.c.receivedPacketHandler.ReceivedPacket(100+pn, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+	}
+	sends := len(f.sink.sends)
+	r := f.c.triggerSending(now)
+	require.NoError(t, r.err)
+	require.True(t, r.progress, "the ACK is sent")
+	require.Len(t, f.sink.sends, sends+1)
+	require.False(t, f.sink.sends[sends].Packet.AckEliciting, "an ACK-only packet")
+	require.NoError(t, f.c.triggerSending(now).err, "the next opportunity still finds no data")
+	f.take()
+	f.held.release()
+	f.held = nil
 }
 
 // resupply releases the next write and sends once at now, returning the index
@@ -164,19 +198,7 @@ func TestDeliverySupplyGap(t *testing.T) {
 						require.NoError(t, c.triggerSending(now).err, "an ACK-driven opportunity still finds no data")
 					}
 					if tc.ackOnly {
-						for pn := range protocol.PacketNumber(2) {
-							require.NoError(t, c.receivedPacketHandler.ReceivedPacket(100+pn, protocol.ECNNon, protocol.Encryption1RTT, now, true))
-						}
-						sends := len(f.sink.sends)
-						r := c.triggerSending(now)
-						require.NoError(t, r.err)
-						require.True(t, r.progress, "the ACK is sent")
-						require.Len(t, f.sink.sends, sends+1)
-						require.False(t, f.sink.sends[sends].Packet.AckEliciting, "an ACK-only packet")
-						require.NoError(t, c.triggerSending(now).err, "the next opportunity still finds no data")
-						f.take()
-						f.held.release()
-						f.held = nil
+						f.ackOnly(t, now)
 					}
 					first := f.resupply(t, now.Add(tc.resupply))
 					require.Equal(t, tc.want, f.sink.sends[first].Packet.Delivery.Limited)
@@ -205,6 +227,31 @@ func TestDeliverySupplyGap(t *testing.T) {
 			})
 		})
 	}
+	// A rate rise enlarges the quantum, so a recomputed refill would be later.
+	// The gap still counts from the spend-time refill, with or without an
+	// ACK-only send in it.
+	for _, ack := range []bool{false, true} {
+		for _, gso := range []bool{false, true} {
+			t.Run(fmt.Sprintf("rate rise within the gap, ACK-only %t", ack)+map[bool]string{false: "/ordinary", true: "/GSO"}[gso], func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					f := newSupplyGapFixtureAt(t, gso, 2, 20_000_000)
+					c, now := f.c, monotime.Now()
+					f.drain(t, now)
+					f.held.release()
+					f.held = nil
+					refill := c.emission.bbr.refilledAt
+					require.Greater(t, refill, now)
+					c.emission.bbr.update(40_000_000, 1200, now)
+					if ack {
+						f.ackOnly(t, now)
+					}
+					require.Equal(t, refill, c.emission.bbr.refilledAt)
+					first := f.resupply(t, refill.Add(10*time.Microsecond))
+					require.Equal(t, congestion.SendApplicationLimited, f.sink.sends[first].Packet.Delivery.Limited)
+				})
+			})
+		}
+	}
 	// Only spending moves the refill time, and only later: a smaller quantum
 	// that clamps the credit does not bring it earlier.
 	t.Run("pacer refill clock", func(t *testing.T) {
@@ -226,6 +273,17 @@ func TestDeliverySupplyGap(t *testing.T) {
 		require.Greater(t, grown.fullAt(at.Add(time.Microsecond)), first, "the larger quantum has more to refill")
 		grown.sent(0, at.Add(time.Microsecond))
 		require.Equal(t, first, grown.refilledAt, "an unpaced send after a rate rise changes no refill")
+		// At the 2-packet quantum floor a rate cut slows the refill without a
+		// clamp, so a recomputed refill would also be later.
+		floor := newBBRSendPolicy(1_000_000, 1200, now)
+		floor.sent(1200, at)
+		first = floor.refilledAt
+		floor.update(500_000, 1200, at.Add(time.Microsecond))
+		require.Equal(t, protocol.ByteCount(2400), floor.quantum)
+		require.GreaterOrEqual(t, floor.budget(at.Add(time.Microsecond)), protocol.ByteCount(1200), "credit for a packet remains")
+		require.Greater(t, floor.fullAt(at.Add(time.Microsecond)), first)
+		floor.sent(0, at.Add(time.Microsecond))
+		require.Equal(t, first, floor.refilledAt, "an unpaced send after a slower rate changes no refill")
 		p.sentProbe(1200, at.Add(time.Microsecond))
 		require.Equal(t, p.fullAt(at.Add(time.Microsecond)), p.refilledAt, "probe credit is spending too")
 		spent := p.refilledAt
