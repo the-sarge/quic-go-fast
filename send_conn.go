@@ -92,7 +92,9 @@ func (c *sconn) Write(p []byte, gsoSize uint16, ecn protocol.ECN) error {
 func (c *sconn) writeAuthorized(p []byte, gsoSize uint16, ecn protocol.ECN, permit submissionPermit) error {
 	ai := c.remoteAddrInfo.Load()
 	err := c.writePacket(p, ai.addr, ai.oob, gsoSize, ecn, permit)
-	if err != nil && isGSOError(err) {
+	// Only a write with a segment size can fail for GSO. Without one, the
+	// fallback below would resend p as empty pieces and never shorten it.
+	if err != nil && gsoSize > 0 && isGSOError(err) {
 		// disable GSO for future calls
 		c.gotGSOError.Store(true)
 		if c.logger.Debug() {

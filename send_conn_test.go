@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"runtime"
@@ -110,6 +111,63 @@ func TestSendConnGSOFallbackConcurrentCapabilities(t *testing.T) {
 	require.True(t, caps.ECN)
 	require.True(t, caps.DF)
 	require.Equal(t, connCapabilities{GSO: false, ECN: true, DF: true}, c.capabilities())
+}
+
+var errSubmissionCap = errors.New("submission cap reached")
+
+// gsoErrorOnceRawConn fails its first submission with errGSO and records every
+// submission. Past a cap it fails with errSubmissionCap, so a write that keeps
+// resubmitting fails the test instead of hanging it.
+type gsoErrorOnceRawConn struct {
+	rawConn
+	lengths  []int
+	gsoSizes []uint16
+}
+
+func (*gsoErrorOnceRawConn) LocalAddr() net.Addr { return &net.UDPAddr{} }
+
+func (*gsoErrorOnceRawConn) capabilities() connCapabilities { return connCapabilities{GSO: true} }
+
+func (c *gsoErrorOnceRawConn) WritePacket(p []byte, _ net.Addr, _ []byte, gsoSize uint16, _ protocol.ECN) (int, error) {
+	c.lengths = append(c.lengths, len(p))
+	c.gsoSizes = append(c.gsoSizes, gsoSize)
+	switch {
+	case len(c.lengths) == 1:
+		return 0, errGSO
+	case len(c.lengths) > 10:
+		return 0, errSubmissionCap
+	}
+	return len(p), nil
+}
+
+// A write without a segment size was not segmented, so its error is not a GSO
+// failure: it is returned after one submission and GSO stays enabled.
+func TestSendConnGSOErrorWithoutSegmentSize(t *testing.T) {
+	if !platformSupportsGSO {
+		t.Skip("GSO is not supported on this platform")
+	}
+
+	rawConn := &gsoErrorOnceRawConn{}
+	c := newSendConn(rawConn, &net.UDPAddr{}, packetInfo{}, utils.DefaultLogger)
+	err := c.Write([]byte("foobar"), 0, protocol.ECNCE)
+	require.ErrorIs(t, err, errGSO)
+	require.True(t, isGSOError(err))
+	require.Equal(t, []int{6}, rawConn.lengths)
+	require.True(t, c.capabilities().GSO)
+}
+
+// A segmented write falls back even when its payload fits in one segment.
+func TestSendConnGSOFailureSingleSegment(t *testing.T) {
+	if !platformSupportsGSO {
+		t.Skip("GSO is not supported on this platform")
+	}
+
+	rawConn := &gsoErrorOnceRawConn{}
+	c := newSendConn(rawConn, &net.UDPAddr{}, packetInfo{}, utils.DefaultLogger)
+	require.NoError(t, c.Write([]byte("foobar"), 6, protocol.ECNCE))
+	require.Equal(t, []int{6, 6}, rawConn.lengths)
+	require.Equal(t, []uint16{6, 0}, rawConn.gsoSizes)
+	require.False(t, c.capabilities().GSO)
 }
 
 func TestSendConnSendmsgFailures(t *testing.T) {
