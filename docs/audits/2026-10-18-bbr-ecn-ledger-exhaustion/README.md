@@ -24,7 +24,7 @@ References are to `7a84a914`.
 
 After *k* isolated loss events the ledger holds 2*k* records: hole, ACKed run, hole, ACKed run. A burst of consecutive lost packets is one hole, so a loss event costs two records whatever its size. Other distinct records lower that count: a random packet-number skip adds one, as do Not-ECT holes from path probes or coalesced short-header packets. Skips are rare, because the skip period doubles from 256 packets up to its cap. The sender traces below put the exhaustion at 3,271–3,794 declared losses, so L6's loss events averaged roughly 1.6–1.9 packets each. That is an inference; the traces do not record burst sizes.
 
-**Observing it.** With the BBR validator installed, no `ECNStateUpdated` qlog events are emitted: those come from the legacy tracker that `EnableBBRECN` (`bbr_ecn.go:15`) removes. The BBR connection's once-per-second `congestion_control` qlog debug event ([`bbr_diagnostics.go`](../../../bbr_diagnostics.go)) carries the validator state, which reads `ecn=missing-marking-evidence` after exhaustion and `ecn=invalid-counters` after a counter failure ([`internal/ackhandler/bbr_diagnostics.go`](../../../internal/ackhandler/bbr_diagnostics.go)).
+**Observing it.** With the BBR validator installed, no `ECNStateUpdated` qlog events are emitted: those come from the legacy tracker that `EnableBBRECN` (`bbr_ecn.go:15`) removes. The BBR connection's once-per-second `congestion_control` qlog debug event ([`bbr_diagnostics.go`](../../../bbr_diagnostics.go)) carries the validator state ([`internal/ackhandler/bbr_diagnostics.go`](../../../internal/ackhandler/bbr_diagnostics.go)). It reads `ecn=missing-marking-evidence` once `evidenceLost` is set, which covers both range exhaustion and a missing ordinal anchor, as #612's diagnostics table records, and `ecn=invalid-counters` after a counter failure. The string alone therefore does not separate exhaustion from a missing anchor; the argument under the cross-run tables does.
 
 ## Evidence
 
@@ -119,7 +119,13 @@ Range over the 31 observations that switched: drop share 0.16–0.77%, switch at
 | #777 `reno` | 13 | 324–835 | 3 |
 <!-- crossrun:end -->
 
-The failure time varies by a factor of twelve across runs, and the drop rate by a factor of five, while the number of losses at the failure stays within about ±12% of its midpoint. The only failure path that depends on accumulated loss is the range budget. The other failure paths (counter regressions, counts above what was sent, too few new counts, a missing anchor) respond to peer counting errors or bleaching, which a codepoint-preserving relay does not produce. #777 records that relay2 passed `calibrate2`'s per-flow, per-direction ECN check.
+The failure time varies by a factor of twelve across runs, and the drop rate by a factor of five, while the number of losses at the failure stays within about ±12% of its midpoint. A fixed budget consumed by loss events produces exactly that. The validator's other failure paths do not explain it for valid feedback on one path, which is what these runs had:
+
+- **Counter checks** (`bbr_ecn.go:198` and `bbr_ecn.go:209`: counts that decrease, exceed what was sent, or rise by less than the newly acknowledged marks) respond to peer counting errors or bleaching, which a codepoint-preserving relay does not produce. #777 records that relay2 passed `calibrate2`'s per-flow, per-direction ECN check.
+- **A missing ordinal anchor** (`bbr_ecn.go:203`) needs an advancing ACK whose largest packet has no retained record. Every application-space send is registered (`congestion_dispatch.go:71`). An ACK of an unsent or skipped packet number is rejected as a protocol violation before ECN feedback runs (`sent_packet_handler.go:410` and `sent_packet_handler.go:597`, both before `captureBBRECN`), and such a rejection closes the connection, while every BBRv3 connection here kept sending until its run ended. Compaction removes only ACKed records, which lie at or below the feedback watermark, so the record of an advancing largest ACK is always retained.
+- **Testing-state failures** (`failTesting` and `lostPacket`, `bbr_ecn.go:305`–`323`) do depend on loss, but they act only in the testing and unknown states, before validation. Those states allow at most ten ECT(0) packets before marking stops, so a flow that sent hundreds of thousands of ECT(0) packets had been validated. Only connection migration (`MigratedPath`, through `resetPath`) restarts testing, and the L6 fixture never migrates.
+
+That leaves the range budget, the one failure path that depends on loss accumulated after validation. The deterministic test reaches it with `counterFailed` clear.
 
 ### Slice 6's single-flow runs
 
@@ -141,14 +147,14 @@ No remedy is adopted here. Any accepted alternative must still meet the five obl
 
 | Option | What it changes | What it leads to |
 | --- | --- | --- |
-| Retire records of packets that will not be acknowledged | The ledger's representation and the design's compaction rule (a design amendment, then implementation). A retired hole would leave the ledger; a late ACK covering it would raise the peer's counters without adding newly acknowledged marks, which loosens the "too few counts" check by that packet and can attribute a late CE mark to a later ACK. | A bounded ledger whose size tracks unresolved packets in flight. Needs a retirement rule that answers #612's objection that recovery loss "is not evidence that the receiver can never acknowledge that transmission", a reviewed design amendment, and a fresh measurement. |
+| Retire records of packets that will not be acknowledged | The ledger's representation and the design's compaction rule (a design amendment, then implementation). A retired hole would leave the ledger; a late ACK covering it would raise the peer's counters without adding newly acknowledged marks, which loosens the "too few counts" check by that packet and can attribute a late CE mark to a later ACK. | A bounded ledger whose size tracks unresolved packets in flight. Needs a retirement rule that answers #612's objection that recovery loss is "a scheduling/accounting judgment, not evidence that the receiver can never acknowledge that transmission", a reviewed design amendment, and a fresh measurement. |
 | Raise `maxECNMarkRanges` | A bound change, which the [port contract](../../agents/bbr-production-port.md) leaves to named evidence or an explicit operator amendment | The same failure later, in proportion to the bound (16× the bound is roughly 4.5–53 minutes on L6), with a larger worst-case ledger and ACK-split work |
 | Keep the fallback and document it | Documentation only | BBRv3 is ECN-capable only for about its first 2,048 loss events per connection; a CE-response qualification would have to stay inside that window |
 | Use the legacy validator's inference for BBR | Replaces the representation contract | Conflicts with the design's rule that numeric membership in a capable epoch is not evidence of marking; rejected by T4's contract |
 
 ## Not examined
 
-- No new host run. The evidence is the code, the deterministic test, and the existing #777 and #792 archives. The `ecn=missing-marking-evidence` state was not observed in a live run's qlog; the traces time the failure, and the counter-failure paths are excluded by the argument above.
+- No new host run. The evidence is the code, the deterministic test, and the existing #777 and #792 archives. The `ecn=missing-marking-evidence` state was not observed in a live run's qlog; the traces time the failure, and the argument under the cross-run tables excludes the other failure paths (which the string alone would not distinguish from a missing anchor).
 - Burst sizes of the L6 drops, other paths and platforms, and other revisions than `abfa5456`/`7a84a914`.
 - Whether a remedy can meet all five #612 obligations. That is the remedy's design work.
 
