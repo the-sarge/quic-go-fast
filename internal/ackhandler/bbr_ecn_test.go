@@ -29,7 +29,13 @@ func sendBBRECNPacket(h *sentPacketHandler, mark protocol.ECN, pathProbe bool) p
 
 func ackBBRECN(t *testing.T, h *sentPacketHandler, ranges []wire.AckRange, ect0, ce uint64) {
 	t.Helper()
-	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ranges, ECT0: ect0, ECNCE: ce}, protocol.Encryption1RTT, monotime.Now().Add(time.Millisecond))
+	ackBBRECNAt(t, h, monotime.Now().Add(time.Millisecond), ranges, ect0, ce)
+}
+
+// ackBBRECNAt delivers a 1-RTT ACK received at now.
+func ackBBRECNAt(t *testing.T, h *sentPacketHandler, now monotime.Time, ranges []wire.AckRange, ect0, ce uint64) {
+	t.Helper()
+	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ranges, ECT0: ect0, ECNCE: ce}, protocol.Encryption1RTT, now)
 	require.NoError(t, err)
 }
 
@@ -347,24 +353,30 @@ func TestBBRECNOrdinaryLossKeepsECN(t *testing.T) {
 	})
 }
 
-// sendBBRECNAt registers pn directly, excluding random packet-number skips.
-func sendBBRECNAt(h *sentPacketHandler, pn protocol.PacketNumber, mark protocol.ECN) {
-	h.SentPacket(monotime.Now(), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, mark, 1200, false, false)
+// sendBBRECNAt registers pn at now directly, excluding random packet-number
+// skips. An explicit time keeps scheduling out of loss detection: on the real
+// clock, a stall of an eighth of the RTT between a send and a later
+// acknowledged one lets the time threshold declare the earlier packet lost.
+func sendBBRECNAt(h *sentPacketHandler, now monotime.Time, pn protocol.PacketNumber, mark protocol.ECN) {
+	h.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, mark, 1200, false, false)
 }
 
-// newCapableBBRECNHandler validates ECN with packet 0. Its 100 ms RTT sample
-// keeps packets that a test sends and acknowledges within a few milliseconds
-// clear of the time threshold, so only the packet threshold declares loss.
-func newCapableBBRECNHandler(t *testing.T) (*sentPacketHandler, *congestionRecorder) {
+// newCapableBBRECNHandler validates ECN with packet 0, acknowledged 100 ms
+// after it was sent, and returns that ACK's instant. A test that sends at the
+// returned instant and acknowledges 1 ms later stays below the time threshold,
+// at least 9/8 of the latest RTT sample, so only the packet threshold declares
+// loss.
+func newCapableBBRECNHandler(t *testing.T) (*sentPacketHandler, *congestionRecorder, monotime.Time) {
 	t.Helper()
 	h, r := newBBRECNTestHandler()
 	now := monotime.Now()
 	h.SentPacket(now, 0, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
-	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(0), ECT0: 1}, protocol.Encryption1RTT, now.Add(100*time.Millisecond))
+	now = now.Add(100 * time.Millisecond)
+	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(0), ECT0: 1}, protocol.Encryption1RTT, now)
 	require.NoError(t, err)
 	require.Equal(t, ecnStateCapable, h.bbrECN.state)
 	require.Empty(t, h.bbrECN.ranges)
-	return h, r
+	return h, r, now
 }
 
 // TestBBRECNRetiresRecordsBelowReportedSpan pins #803's retirement rule. Once
@@ -380,12 +392,12 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 	}
 
 	t.Run("below the span retires; the span and the tail stay", func(t *testing.T) {
-		h, r := newCapableBBRECNHandler(t)
+		h, r, now := newCapableBBRECNHandler(t)
 		for pn := protocol.PacketNumber(1); pn <= 6; pn++ {
-			sendBBRECNAt(h, pn, protocol.ECT0)
+			sendBBRECNAt(h, now, pn, protocol.ECT0)
 		}
 		// 1 and 2 lie below the span, 4 is a hole inside it and 6 lies above it.
-		ackBBRECN(t, h, []wire.AckRange{{Smallest: 5, Largest: 5}, {Smallest: 3, Largest: 3}}, 3, 0)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), []wire.AckRange{{Smallest: 5, Largest: 5}, {Smallest: 3, Largest: 3}}, 3, 0)
 		e := r.feedback[len(r.feedback)-1].ECN
 		require.True(t, e.Eligible)
 		require.Equal(t, uint64(6), e.Ordinal)
@@ -398,11 +410,11 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 	})
 
 	t.Run("recovery still owns retired packets in flight", func(t *testing.T) {
-		h, _ := newCapableBBRECNHandler(t)
+		h, _, now := newCapableBBRECNHandler(t)
 		for pn := protocol.PacketNumber(1); pn <= 3; pn++ {
-			sendBBRECNAt(h, pn, protocol.ECT0)
+			sendBBRECNAt(h, now, pn, protocol.ECT0)
 		}
-		ackBBRECN(t, h, ackRanges(3), 2, 0)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), ackRanges(3), 2, 0)
 		require.Empty(t, h.bbrECN.ranges, "1 and 2 retired below the span; 3 compacted")
 		pn, _ := h.appDataPackets.history.FirstOutstanding()
 		require.Equal(t, protocol.PacketNumber(1), pn, "below the packet threshold, so not declared lost")
@@ -410,19 +422,20 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 	})
 
 	t.Run("deferred and failed ACKs retire nothing", func(t *testing.T) {
-		h, r := newCapableBBRECNHandler(t)
+		h, r, now := newCapableBBRECNHandler(t)
+		ackTime := now.Add(time.Millisecond)
 		for pn := protocol.PacketNumber(1); pn <= 4; pn++ {
-			sendBBRECNAt(h, pn, protocol.ECT0)
+			sendBBRECNAt(h, now, pn, protocol.ECT0)
 		}
-		ackBBRECN(t, h, []wire.AckRange{{Smallest: 4, Largest: 4}, {Smallest: 2, Largest: 2}}, 3, 0)
+		ackBBRECNAt(t, h, ackTime, []wire.AckRange{{Smallest: 4, Largest: 4}, {Smallest: 2, Largest: 2}}, 3, 0)
 		kept := []ecnMarkRange{ect0(3, 3, false), ect0(4, 4, true)}
 		require.Equal(t, kept, h.bbrECN.ranges)
 		// The hole at 3 lies below this span, but the ACK does not advance.
-		ackBBRECN(t, h, ackRanges(4), 3, 0)
+		ackBBRECNAt(t, h, ackTime, ackRanges(4), 3, 0)
 		require.True(t, r.feedback[len(r.feedback)-1].ECN.Deferred)
 		require.Equal(t, kept, h.bbrECN.ranges)
-		sendBBRECNAt(h, 5, protocol.ECT0)
-		ackBBRECN(t, h, ackRanges(5), 2, 0) // decreased counters
+		sendBBRECNAt(h, now, 5, protocol.ECT0)
+		ackBBRECNAt(t, h, ackTime, ackRanges(5), 2, 0) // decreased counters
 		require.True(t, r.feedback[len(r.feedback)-1].ECN.Failed)
 		require.True(t, h.bbrECN.counterFailed)
 		require.Equal(t, append(kept, ect0(5, 5, false)), h.bbrECN.ranges)
@@ -439,39 +452,42 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var h *sentPacketHandler
+			var now monotime.Time
 			var accepted uint64
 			b := protocol.PacketNumber(0)
 			if tc.revalidation {
-				h, _ = newCapableBBRECNHandler(t)
-				h.MigratedPath(monotime.Now(), 1200)
+				h, _, now = newCapableBBRECNHandler(t)
+				h.MigratedPath(now, 1200)
 				accepted, b = 1, 1
 			} else {
 				h, _ = newBBRECNTestHandler()
+				now = monotime.Now()
 			}
+			ackTime := now.Add(time.Millisecond)
 			// Ten probes, then Unknown sends an unmarked packet.
 			for pn := b; pn < b+numECNTestingPackets; pn++ {
-				sendBBRECNAt(h, pn, h.ECNMode(true))
+				sendBBRECNAt(h, now, pn, h.ECNMode(true))
 			}
 			require.Equal(t, ecnStateUnknown, h.bbrECN.state)
 			unmarked := b + numECNTestingPackets
-			sendBBRECNAt(h, unmarked, h.ECNMode(true))
+			sendBBRECNAt(h, now, unmarked, h.ECNMode(true))
 			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
 			// The first advancing report starts above most probes.
 			if tc.ceFirst {
-				ackBBRECN(t, h, ackRanges(unmarked-1), accepted, 1)
+				ackBBRECNAt(t, h, ackTime, ackRanges(unmarked-1), accepted, 1)
 			} else {
-				ackBBRECN(t, h, ackRanges(unmarked), accepted, 0)
+				ackBBRECNAt(t, h, ackTime, ackRanges(unmarked), accepted, 0)
 			}
 			require.Equal(t, ecnStateUnknown, h.bbrECN.state)
 			require.NotEmpty(t, h.bbrECN.ranges, "unresolved probes are not retired")
 			require.Equal(t, b, h.bbrECN.ranges[0].first, "unresolved probes are not retired")
 			// Late feedback for a probe establishes capability.
 			next := unmarked + 1
-			sendBBRECNAt(h, next, h.ECNMode(true))
+			sendBBRECNAt(h, now, next, h.ECNMode(true))
 			if tc.ceFirst {
-				ackBBRECN(t, h, []wire.AckRange{{Smallest: unmarked - 2, Largest: next}}, accepted+1, 1)
+				ackBBRECNAt(t, h, ackTime, []wire.AckRange{{Smallest: unmarked - 2, Largest: next}}, accepted+1, 1)
 			} else {
-				ackBBRECN(t, h, []wire.AckRange{{Smallest: b, Largest: next}}, accepted+numECNTestingPackets, 0)
+				ackBBRECNAt(t, h, ackTime, []wire.AckRange{{Smallest: b, Largest: next}}, accepted+numECNTestingPackets, 0)
 			}
 			require.Equal(t, ecnStateCapable, h.bbrECN.state)
 			require.Equal(t, protocol.ECT0, h.ECNMode(true))
@@ -486,23 +502,23 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 			// The next accepted advancing ACK on the capable path retires any
 			// record left below its span.
 			last := next + 1
-			sendBBRECNAt(h, last, h.ECNMode(true))
-			ackBBRECN(t, h, ackRanges(last), ect0+1, ce)
+			sendBBRECNAt(h, now, last, h.ECNMode(true))
+			ackBBRECNAt(t, h, ackTime, ackRanges(last), ect0+1, ce)
 			require.Empty(t, h.bbrECN.ranges)
 		})
 	}
 
 	t.Run("the post-reset drain retires nothing", func(t *testing.T) {
-		h, r := newCapableBBRECNHandler(t)
+		h, r, now := newCapableBBRECNHandler(t)
 		drained := false
 		h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
-		sendBBRECNAt(h, 1, protocol.ECT0)
-		sendBBRECNAt(h, 2, protocol.ECT0)
-		h.MigratedPath(monotime.Now(), 1200)
+		sendBBRECNAt(h, now, 1, protocol.ECT0)
+		sendBBRECNAt(h, now, 2, protocol.ECT0)
+		h.MigratedPath(now, 1200)
 		require.Equal(t, protocol.ECNNon, h.ECNMode(true), "draining the old generation")
-		sendBBRECNAt(h, 3, protocol.ECNNon)
+		sendBBRECNAt(h, now, 3, protocol.ECNNon)
 		// An accepted advancing ACK whose span starts above the old records.
-		ackBBRECN(t, h, ackRanges(3), 1, 0)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), ackRanges(3), 1, 0)
 		e := r.feedback[len(r.feedback)-1].ECN
 		require.False(t, e.Deferred)
 		require.False(t, e.Failed)
@@ -519,22 +535,22 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 // report, which loosens the too-few-counts check by that packet in that report
 // only. A late CE still counts as congestion through the advancing anchor.
 func TestBBRECNLateACKOfRetiredRecord(t *testing.T) {
-	setup := func(t *testing.T) (*sentPacketHandler, *congestionRecorder) {
-		h, r := newCapableBBRECNHandler(t)
+	setup := func(t *testing.T) (*sentPacketHandler, *congestionRecorder, monotime.Time) {
+		h, r, now := newCapableBBRECNHandler(t)
 		for pn := protocol.PacketNumber(1); pn <= 5; pn++ {
-			sendBBRECNAt(h, pn, protocol.ECT0)
+			sendBBRECNAt(h, now, pn, protocol.ECT0)
 		}
 		// Packet 1 lies below the span and retires.
-		ackBBRECN(t, h, ackRanges(2, 3, 4), 4, 0)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), ackRanges(2, 3, 4), 4, 0)
 		require.Equal(t, []ecnMarkRange{{first: 5, last: 5, ordinal: 6, mark: protocol.ECT0}}, h.bbrECN.ranges)
 		require.Equal(t, congestion.ECNCounts{ECT0: 4}, h.bbrECN.compacted)
-		return h, r
+		return h, r, now
 	}
 	late := []wire.AckRange{{Smallest: 1, Largest: 5}}
 
 	t.Run("ECT(0)", func(t *testing.T) {
-		h, r := setup(t)
-		ackBBRECN(t, h, late, 6, 0)
+		h, r, now := setup(t)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), late, 6, 0)
 		e := r.feedback[len(r.feedback)-1]
 		require.True(t, e.ECN.Eligible)
 		require.Equal(t, congestion.ECNCounts{ECT0: 2}, e.ECN.Delta, "one newly acknowledged mark plus the retired packet's receipt")
@@ -544,8 +560,8 @@ func TestBBRECNLateACKOfRetiredRecord(t *testing.T) {
 	})
 
 	t.Run("CE", func(t *testing.T) {
-		h, r := setup(t)
-		ackBBRECN(t, h, late, 5, 1)
+		h, r, now := setup(t)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), late, 5, 1)
 		e := r.feedback[len(r.feedback)-1]
 		require.True(t, e.ECN.Eligible)
 		require.Equal(t, congestion.ECNCounts{ECT0: 1, CE: 1}, e.ECN.Delta)
@@ -556,8 +572,8 @@ func TestBBRECNLateACKOfRetiredRecord(t *testing.T) {
 	t.Run("the check loosens by the retired packet", func(t *testing.T) {
 		// The counts cover one of the two acknowledged packets. With packet 1
 		// still recorded this fails; retired, only packet 5 is newly marked.
-		h, r := setup(t)
-		ackBBRECN(t, h, late, 5, 0)
+		h, r, now := setup(t)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), late, 5, 0)
 		e := r.feedback[len(r.feedback)-1].ECN
 		require.True(t, e.Eligible)
 		require.False(t, e.Failed)
@@ -565,28 +581,29 @@ func TestBBRECNLateACKOfRetiredRecord(t *testing.T) {
 	})
 
 	t.Run("and by no more", func(t *testing.T) {
-		h, r := setup(t)
-		sendBBRECNAt(h, 6, protocol.ECT0)
-		ackBBRECN(t, h, []wire.AckRange{{Smallest: 1, Largest: 6}}, 5, 0)
+		h, r, now := setup(t)
+		sendBBRECNAt(h, now, 6, protocol.ECT0)
+		ackBBRECNAt(t, h, now.Add(time.Millisecond), []wire.AckRange{{Smallest: 1, Largest: 6}}, 5, 0)
 		require.True(t, r.feedback[len(r.feedback)-1].ECN.Failed)
 		require.True(t, h.bbrECN.counterFailed)
 		require.Equal(t, protocol.ECNNon, h.ECNMode(true))
 	})
 
 	t.Run("a deferred receipt is consumed once", func(t *testing.T) {
-		h, r := setup(t)
-		ackBBRECN(t, h, ackRanges(1, 2, 3, 4), 5, 0)
+		h, r, now := setup(t)
+		ackTime := now.Add(time.Millisecond)
+		ackBBRECNAt(t, h, ackTime, ackRanges(1, 2, 3, 4), 5, 0)
 		e := r.feedback[len(r.feedback)-1].ECN
 		require.True(t, e.Deferred)
 		require.Equal(t, congestion.ECNCounts{ECT0: 4}, e.Accepted)
 		require.Equal(t, []ecnMarkRange{{first: 5, last: 5, ordinal: 6, mark: protocol.ECT0}}, h.bbrECN.ranges)
 		// The next advancing report omits packet 1 but carries its count.
-		ackBBRECN(t, h, ackRanges(5), 6, 0)
+		ackBBRECNAt(t, h, ackTime, ackRanges(5), 6, 0)
 		e = r.feedback[len(r.feedback)-1].ECN
 		require.True(t, e.Eligible)
 		require.Equal(t, congestion.ECNCounts{ECT0: 2}, e.Delta)
 		require.Equal(t, uint64(6), e.Ordinal)
-		ackBBRECN(t, h, ackRanges(5), 6, 0)
+		ackBBRECNAt(t, h, ackTime, ackRanges(5), 6, 0)
 		e = r.feedback[len(r.feedback)-1].ECN
 		require.True(t, e.Deferred)
 		require.Equal(t, congestion.ECNCounts{ECT0: 6}, e.Accepted)
