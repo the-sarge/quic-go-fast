@@ -5806,3 +5806,51 @@ Its helpers read the real clock. The first RTT sample is about 1 ms, so time-thr
 - [#824](https://github.com/the-sarge/quic-go-fast/issues/824) (`needs-triage`): deepen the received-DATAGRAM queue and make its discards visible. It blocks any release that ships #743 on by default.
 - [#808](https://github.com/the-sarge/quic-go-fast/issues/808), the shared BBR readiness and L6 campaign, now runs on a revision that includes #743. It re-checks the STREAM cost.
 - GitHub issues are the live view.
+
+---
+
+## Server drop-event tests wait for the recorded drop - 2026-10-18 19:22 EDT
+
+**Main:** `ebc8ef5b0070`
+**Actor:** Claude
+
+### Summary
+
+[#822](https://github.com/the-sarge/quic-go-fast/issues/822) is closed by [PR #823](https://github.com/the-sarge/quic-go-fast/pull/823) (squash `ebc8ef5b`). `TestServerPacketDropping/destination_connection_ID_too_short` failed once on hosted Windows unit ([run 39169880153](https://github.com/the-sarge/quic-go-fast/actions/runs/39169880153/job/117800532483), docs-only PR #821) because its expected `qlog.PacketDropped` event list was empty. `server.handlePacket` only enqueues the packet. The server's `run` goroutine records the drop later, but the helper `testServerDroppedPacket` asserted after a fixed scaled 5 ms wait (50 ms on hosted runners). Tests only; no production code changed.
+
+### Completed
+
+- `testServerDroppedPacket`, which backs all five `TestServerPacketDropping` subtests, now waits for the drop before its no-datagram check. It uses `require.Eventually` (1 s, 10 ms tick), the form `server_test.go` already uses. The exact `require.Equal` on the event list and the no-datagram check itself are unchanged. The no-datagram window now opens after the server has handled the packet, so a slow runner can no longer make it pass vacuously.
+- The `disabled` branch of `testServerVersionNegotiation` had the same race and is now fixed: a fixed scaled 10 ms wait, then an exact assertion on the `unexpected_version` drop. It had not been seen failing. An independent review found it, and #822's scope was widened to cover it.
+- Two other fixed waits, at `server_test.go:1093` and `:1131` (base `8207a0fa`), guard negative "not accepted yet" checks. A slow runner can only make those vacuous, not failing, so they were left unchanged.
+
+### Decisions
+
+- As with #684 and #815, the flake was filed as [#822](https://github.com/the-sarge/quic-go-fast/issues/822) and closed by the PR. Both helpers are unchanged from upstream quic-go, so this is an independently reviewable fork patch under ADR 0003, with no upstream PR.
+
+### Validation
+
+- **Cause:** a temporary `time.Sleep(100 * time.Millisecond)` before `handlePacketImpl` in `baseServer.run`.
+  - At the base, all five packet-dropping subtests and `TestServerVersionNegotiation/disabled` failed with the hosted empty-list signature.
+  - With only the first helper fixed (`24bd7697`), only the `disabled` subtest failed.
+  - The candidate passed. The check was repeated at the rebased base `9b52dca8`.
+- **Repetition:** both tests passed `-count=200` at the default scale, with `TIMESCALE_FACTOR=10` (the hosted scale), and with `-race -shuffle on`.
+- **Local certification at `1146b0f8`, Go 1.27.2:**
+  - root package with `-shuffle on`;
+  - `go vet` for darwin and windows;
+  - Windows test build;
+  - `go mod tidy -diff` and `git diff --check`;
+  - golangci-lint v2.14.0 for the six `lint.yml` GOOS values.
+- **RAS review:** no findings in either round; all six reviewers completed both times.
+  - Round 1: `20261018T230149-3930ed900da8c6b4676998a9` at `e289ce47`.
+  - Round 2: `20261018T230917-79ad485ca9c9d68f36460858` at `1146b0f8`, after main advanced.
+  - An earlier independent review of `24bd7697` approved and raised the `disabled`-branch sibling.
+- **Main advanced twice during the loop.**
+  - The branch was rebased onto `9b52dca8` (#818) and recertified.
+  - It was then rebased onto `cf7fcc09` (#825, journal-only); the Go sources at the resulting head, `de492220`, were byte-identical to `1146b0f8`.
+  - All 33 hosted checks passed on `de492220`, including the Windows unit jobs, and it was squash-merged with `--match-head-commit`.
+- The CPU-heavy local steps ran inside yield windows granted by the wiremux `1869-windows-uro` campaign, and each window was released when done.
+
+### Next
+
+- No follow-ups from this PR; no review finding was deferred. GitHub issues are the live view.
