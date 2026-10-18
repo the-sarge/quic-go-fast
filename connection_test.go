@@ -2325,7 +2325,7 @@ func TestConnectionGSOBatchPacketSize(t *testing.T) {
 		// The connection ID is fixed for this fixture; capture it before startup.
 		connIDLen := tc.conn.connIDManager.Get().Len()
 		var writes []schedulingWriteObservation
-		tc.sendConn.EXPECT().Write(gomock.Any(), uint16(maxPacketSize), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
 			writes = append(writes, schedulingWriteObservation{data: bytes.Clone(b), segment: segment, ecn: ecn})
 			return nil
 		}).Times(2)
@@ -2358,11 +2358,91 @@ func TestConnectionGSOBatchPacketSize(t *testing.T) {
 		require.Equal(t, protocol.ECT1, writes[0].ecn)
 		require.Len(t, writes[0].data, int(maxPacketSize)*4-1)
 		require.Equal(t, want, schedulingGSODatagrams(t, connIDLen, writes[0].data, writes[0].segment))
-		require.Equal(t, uint16(maxPacketSize), writes[1].segment)
+		require.Zero(t, writes[1].segment, "the lone trailing packet carries no segment size")
 		require.Equal(t, protocol.ECT1, writes[1].ecn)
 		payload, err := decodeSchedulingDatagram(writes[1].data, connIDLen)
 		require.NoError(t, err)
 		require.Equal(t, []byte("foobar"), payload)
+	})
+}
+
+// A GSO emission buffer holding one packet is sent without a segment size,
+// like an ordinary send; two or more packets keep the batch's segment size.
+func TestConnectionGSOSinglePacket(t *testing.T) {
+	// Each queued DATAGRAM is this many bytes shorter than a full packet; each
+	// write carries the listed DATAGRAMs.
+	t.Run("short datagrams", func(t *testing.T) {
+		testConnectionGSOSinglePacket(t, []int{60, 60, 60, 60}, [][]int{{0}, {1}, {2}, {3}})
+	})
+	t.Run("two packets with a short tail", func(t *testing.T) {
+		testConnectionGSOSinglePacket(t, []int{0, 60}, [][]int{{0, 1}})
+	})
+}
+
+func testConnectionGSOSinglePacket(t *testing.T, shortBy []int, batches [][]int) {
+	synctest.Test(t, func(t *testing.T) {
+		tc, sph := newGSOBatchTestConnection(t)
+		sph.EXPECT().ECNMode(gomock.Any()).Return(protocol.ECT1).AnyTimes()
+
+		maxPacketSize := int(tc.conn.maxPacketSize())
+		payloadSize := gsoDatagramPayloadSize(tc)
+		var sizes []int
+		for _, short := range shortBy {
+			sizes = append(sizes, payloadSize-short)
+		}
+		payloads := queueGSODatagrams(t, tc, sizes...)
+		// The connection ID is fixed for this fixture; capture it before startup.
+		connIDLen := tc.conn.connIDManager.Get().Len()
+		var writes []schedulingWriteObservation
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
+			writes = append(writes, schedulingWriteObservation{data: bytes.Clone(b), segment: segment, ecn: ecn})
+			return nil
+		}).Times(len(batches))
+
+		errChan := make(chan error, 1)
+		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		defer func() {
+			tc.conn.destroy(nil)
+			synctest.Wait()
+		}()
+
+		go func() { errChan <- tc.conn.run() }()
+		tc.conn.scheduleSending()
+
+		synctest.Wait()
+
+		// Drain all writes and stop both producers before validating snapshots.
+		tc.conn.destroy(nil)
+
+		synctest.Wait()
+
+		select {
+		case err := <-errChan:
+			require.NoError(t, err)
+		default:
+			t.Fatal("connection did not stop")
+		}
+		require.Len(t, writes, len(batches))
+		for i, batch := range batches {
+			w := writes[i]
+			require.Equal(t, protocol.ECT1, w.ecn)
+			var want [][]byte
+			size := 0
+			for _, j := range batch {
+				want = append(want, payloads[j])
+				size += maxPacketSize - shortBy[j]
+			}
+			require.Len(t, w.data, size)
+			if len(batch) == 1 {
+				require.Zero(t, w.segment, "write %d holds one packet", i)
+				payload, err := decodeSchedulingDatagram(w.data, connIDLen)
+				require.NoError(t, err)
+				require.Equal(t, want, [][]byte{payload})
+				continue
+			}
+			require.Equal(t, uint16(maxPacketSize), w.segment, "write %d holds %d packets", i, len(batch))
+			require.Equal(t, want, schedulingGSODatagrams(t, connIDLen, w.data, w.segment))
+		}
 	})
 }
 
@@ -2384,7 +2464,7 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 		// The connection ID is fixed for this fixture; capture it before startup.
 		connIDLen := tc.conn.connIDManager.Get().Len()
 		var writes []schedulingWriteObservation
-		tc.sendConn.EXPECT().Write(gomock.Any(), uint16(maxPacketSize), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
+		tc.sendConn.EXPECT().Write(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(b []byte, segment uint16, ecn protocol.ECN) error {
 			writes = append(writes, schedulingWriteObservation{data: bytes.Clone(b), segment: segment, ecn: ecn})
 			return nil
 		}).Times(2)
@@ -2417,7 +2497,7 @@ func TestConnectionGSOBatchECN(t *testing.T) {
 		require.Equal(t, protocol.ECT1, writes[0].ecn)
 		require.Len(t, writes[0].data, int(maxPacketSize)*3)
 		require.Equal(t, want, schedulingGSODatagrams(t, connIDLen, writes[0].data, writes[0].segment))
-		require.Equal(t, uint16(maxPacketSize), writes[1].segment)
+		require.Zero(t, writes[1].segment, "the lone trailing packet carries no segment size")
 		require.Equal(t, protocol.ECNCE, writes[1].ecn)
 		payload, err := decodeSchedulingDatagram(writes[1].data, connIDLen)
 		require.NoError(t, err)

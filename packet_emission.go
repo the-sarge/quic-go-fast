@@ -252,6 +252,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 	buf := getLargePacketBuffer()
 	maxSize := e.policy.maxPacketSize()
 	ecn := (*e.recovery).ECNMode(true)
+	packets := 0 // packed into buf
 	for {
 		var done bool
 		size, err := e.appendPacket(buf, maxSize, ecn, now)
@@ -268,6 +269,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			done = true
 		}
 		if !done {
+			packets++
 			mode := (*e.recovery).SendMode(now)
 			if mode == ackhandler.SendPacingLimited {
 				result.stop, result.deadline = emissionPaced, e.pacingDeadline()
@@ -280,7 +282,12 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 		if !done && size == maxSize && nextECN == ecn && buf.Len()+maxSize <= buf.Cap() {
 			continue
 		}
-		e.handoff(buf, uint16(maxSize), ecn, sendMetadata{})
+		// A lone packet takes the ordinary socket path, without a segment size.
+		gso := uint16(maxSize)
+		if packets == 1 {
+			gso = 0
+		}
+		e.handoff(buf, gso, ecn, sendMetadata{})
 		result.progress = true
 		if done {
 			return result
@@ -294,7 +301,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			return result
 		}
 		ecn = nextECN
-		buf = getLargePacketBuffer()
+		buf, packets = getLargePacketBuffer(), 0
 	}
 }
 
