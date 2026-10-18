@@ -143,6 +143,21 @@ def paired(events, pipe):
     return rows, counts
 
 
+def clamp_events(t, cross, devs):
+    """Each clamp (a C4 deviation) paired at its crossing row, the row before its assignment, so both
+    ceilings take every cap binding there; masked when another cap hides the clamp's change."""
+    pos = {id(r): i for i, r in enumerate(t.rows)}
+    events = []
+    for x in devs:
+        at = [r for r in cross if r[t.c['a4']] not in dc.LIMITED and pos[id(r)] + 1 < len(t.rows)
+              and t.v(t.rows[pos[id(r)] + 1], 'unix_ns') == x['unix_ns'] and t.v(t.rows[pos[id(r)] + 1], 'inflight_long') == x['port']]
+        if len(at) != 1:
+            raise ValueError(f"clamp at {x['unix_ns']}: {len(at)} crossing rows")
+        cf, ac = effective_ceiling(t, at[0], x['draft']), effective_ceiling(t, at[0], x['port'])
+        events.append((cf, ac, cf == ac))
+    return events
+
+
 def properties(t, check, cross, s0, s1, pipe):
     """Each port property acting in [s0, s1): its events, and descriptive mechanism evidence for one
     channel, the inflight_longterm assignment: the effective Cruise ceiling with the property against the
@@ -169,8 +184,7 @@ def properties(t, check, cross, s0, s1, pipe):
                                                     paired=rows, effect=counts)
     devs = [x for x in check['rules']['C4'].get('deviations', []) if s0 <= x['unix_ns'] < s1]
     if devs:
-        events = [(cruise_cap(int(x['draft']), x['size']), cruise_cap(x['port'], x['size']), False) for x in devs]
-        rows, counts = paired(events, pipe)
+        rows, counts = paired(clamp_events(t, cross, devs), pipe)
         out['clamp'] = dict(events=len(devs), excess_bytes=sum(x['excess_bytes'] for x in devs), channel='inflight_longterm assignment only',
                             paired=rows, effect=counts)
     flow = [r for r in cross if r[t.c['a4']] == 2]

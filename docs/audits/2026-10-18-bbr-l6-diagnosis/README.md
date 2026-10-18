@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-l6-diagnosis`, based on `9b5c91f2` (the tip of #777's record branch, `71e88789` plus one disclosure line in #777's README), so #777's aids are in this tree at their recorded paths. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666), [#748](https://github.com/the-sarge/quic-go-fast/issues/748) and #777 record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: counted stage complete; result under review.** The operator accepted the registration on October 18, 2026, at about 01:57 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The order ran from 05:57 to 07:29 UTC, its counted stage from 06:07 to 07:29. The sections from [Question](#question) through [Order](#order) are the registration, unchanged since acceptance except this status line; the [Answer](#answer), [Results](#results) and their following sections were added after the counted stage.
+**Status: complete.** The operator decided its consequences on October 18, 2026 ([Decisions after the result](#decisions-after-the-result)). The operator accepted the registration on October 18, 2026, at about 01:57 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The order ran from 05:57 to 07:29 UTC, its counted stage from 06:07 to 07:29. The sections from [Question](#question) through [Order](#order) are the registration, unchanged since acceptance except this status line; the [Answer](#answer), [Results](#results) and their following sections were added after the counted stage.
 
 ## Question
 
@@ -50,6 +50,14 @@ Why does BBRv3 at `abfa5456` displace the Reno flow on #777's L6 path? Which of 
 - **The undiagnosed path:** the operator decides whether to spend more on it, or to let the fix ticket's L6 run settle STREAM.
 - **The clamp** (a contributor; 2 classified events of 174 bytes): the operator decides whether to file it.
 - **#777's classification stands.**
+
+### Decisions after the result
+
+The agent presented one recommended set of four decisions, with an executive summary, on October 18, 2026, at about 11:20 America/New_York. The operator answered "Approve all four (Recommended)":
+- **The STREAM marking:** filed as a fix ticket, not started: [#800](https://github.com/the-sarge/quic-go-fast/issues/800).
+- **Adoption for GridCast's shared paths:** BBRv3 stays experimental (opt-in). It is not made a default where it shares a path with other traffic.
+- **More on the undiagnosed path:** nothing more under #792, which closes with this record. #800's L6 run settles STREAM, and #793 owns the ECN switch.
+- **The clamp:** folded into #800 as its secondary item, not filed separately.
 
 ## Accepted decisions (before any data)
 
@@ -361,7 +369,7 @@ The medians over pairs are close: the competitor gets about the same next to the
 
 **Gates.** All three traces are complete and representative (D3), conform (zero mismatches) and reconcile (every check `ok`). No two-percent check in any classified period judged a supply-limited packet.
 
-**The acting property.** Two clamp events (C4 deviations) in the classified periods, one each in pair 2's and pair 3's resumed periods, 174 bytes each; a third fell in pair 3's back period, which is not classified. They are the only port property seen, and each moved `inflight_longterm` by less than one packet. The paired headroom ceilings (other caps not applied) are 1.6570 and 1.6569 × the pipe, with and without the clamp. The clamp is a **contributor**: the equal and short periods have no clamp event and show the same displacement, so the displacement persists without it.
+**The acting property.** Two clamp events (C4 deviations) in the classified periods, one each in pair 2's and pair 3's resumed periods, 174 bytes each; a third fell in pair 3's back period, which is not classified. They are the only port property seen, and each moved `inflight_longterm` by less than one packet. The paired effective ceilings, with every cap binding at each crossing (headroom, `inflight_shortterm` and the model target), are 1.6570 and 1.6569 × the pipe, with and without the clamp; at both, the headroom ceiling was the binding one. The clamp is a **contributor**: the equal and short periods have no clamp event and show the same displacement, so the displacement persists without it.
 
 **The mechanism, rule by rule** (DATAGRAM, the three classified periods; figures from the tables above and [summary.json](summary.json)):
 1. **Loss rounds and the long-term bound** (5.5.10.2). On L6's drop-tail queue with no random loss, a packet is lost only when the shared queue is full. A two-percent crossing therefore happens at a flight near the whole path, and HandleInflightTooHigh sets `inflight_longterm` there: 0.90–0.98 × the path, median over rounds.
@@ -439,7 +447,7 @@ None from the accepted registration. The driver ran the registered order unchang
 - **STREAM's cause** (above).
 - **Other paths.** Deeper, shallower or marking queues, other round trips, other competitors, and other platforms are unmeasured.
 - **Other implementations.** The record shows that a sender conforming under the registered rules C0–C9 (apart from two clamp events), on faithful inputs, displaces the competitor here (DATAGRAM). It does not show how another BBRv3 implementation behaves, or what Linux's BBRv3 does on the same path.
-- **What a fix to the STREAM marking would change.** That belongs to the fix ticket's own readiness and L6 run.
+- **What a fix to the STREAM marking would change.** That belongs to [#800](https://github.com/the-sarge/quic-go-fast/issues/800)'s own readiness and L6 run.
 
 ### Result review
 
@@ -455,10 +463,10 @@ None from the accepted registration. The driver ran the registered order unchang
 | Routing omitted the spend-more decision and the clamp filing decision (claude-opus) | fix-now | Both added to What it leads to. |
 | The plateau channel is inert on this path; `max_bw` is partly masked by `bw_shortterm` (claude-opus) | fix-now | Stated. |
 | The competitor is quic-go's Reno with `renoBeta` 0.7, not halving; the RTT includes the queue (claude-opus) | fix-now | Step 5 corrected (checked at `e4f322cb`). |
-| Labels and figures: clamp ceilings are headroom ceilings; "contributor at most" is not a verdict; the R1 wording; the stage timing; the `max_bw` band (claude-opus, grok) | fix-now | Corrected; the clamp is a contributor because the clamp-free periods show the same displacement. |
+| Labels and figures: the clamp's ceilings took only the headroom cap; "contributor at most" is not a verdict; the R1 wording; the stage timing; the `max_bw` band (claude-opus, grok) | fix-now | `analyze.py` now pairs each clamp at its crossing row with every binding cap (`clamp_events`, tested unmasked, short-term capped and model capped). Replayed on the archived observations, `summary.json` is byte-identical: the headroom cap bound at all three clamp events. The rest corrected; the clamp is a contributor because the clamp-free periods show the same displacement. |
 | The fix ticket's consequence presupposed an effect (grok) | fix-now | It now asks whether, and by how much, switching the mark off changes STREAM's displacement. |
 
-Every change is a wording or reporting correction from `summary.json`: no class, rule or figure source changed. Under the docs-only policy no further RAS round ran, and figures.py's check passes.
+The synthesis consolidated these into nine fixes (F1–F9). Every change is a wording or reporting correction from `summary.json`, except the clamp ceilings' computation (F5), which left `summary.json` byte-identical: no class, rule or figure changed. As D4 allows one result consideration, no further RAS round ran; the analyzer's tests and figures.py's check pass.
 
 ## Development runs (before this registration)
 

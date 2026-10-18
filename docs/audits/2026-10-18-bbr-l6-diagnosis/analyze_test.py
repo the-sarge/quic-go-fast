@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Tests for analyze.py's attribution evidence: no class is ever decided from a ratio."""
+import json
 import pathlib
 import sys
 import unittest
 
 sys.dont_write_bytecode = True
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
 import analyze  # noqa: E402
 
 
@@ -60,6 +62,47 @@ class Attribution(unittest.TestCase):
         clean = analyze.attribute([trace({})] * 2)
         self.assertEqual(clean['class'], 'needs an argument')
         self.assertIn('rule 4', clean['reason'])
+
+
+class ClampCeilings(unittest.TestCase):
+    """A clamp's paired ceilings take every cap binding at its crossing row (the result review's F5)."""
+
+    def setUp(self):
+        data = json.loads((HERE / 'testdata' / 'port-fixture-trace.json').read_text())
+        self.t = analyze.dc.Trace(data)
+        i = next(i for i, r in enumerate(self.t.rows) if r[0] == analyze.dc.PROBELOSS)
+        self.r, s = self.t.rows[i], self.t.rows[i + 1]
+        self.r[self.t.c['a4']] = 0  # an unlimited crossing
+        self.size = self.t.v(self.r, 'size')
+        port = 1000 * self.size
+        s[self.t.c['inflight_long']] = port
+        self.dev = dict(unix_ns=self.t.v(s, 'unix_ns'), draft=port - 174, port=port, size=self.size)
+
+    def events(self, inflight_short=analyze.dc.INF, min_rtt_ns=0):
+        self.r[self.t.c['inflight_short']] = inflight_short
+        self.r[self.t.c['min_rtt_ns']] = min_rtt_ns
+        self.r[self.t.c['extra']] = 0
+        return analyze.clamp_events(self.t, [self.r], [self.dev])
+
+    def test_unmasked(self):
+        [(cf, ac, masked)] = self.events()
+        self.assertEqual((cf, ac), (analyze.cruise_cap(self.dev['draft'], self.size), analyze.cruise_cap(self.dev['port'], self.size)))
+        self.assertLess(cf, ac)
+        self.assertFalse(masked)
+
+    def test_short_term_capped(self):
+        self.assertEqual(self.events(inflight_short=5 * self.size), [(5 * self.size, 5 * self.size, True)])
+
+    def test_model_capped(self):
+        [(cf, ac, masked)] = self.events(min_rtt_ns=1)  # a near-zero BDP: the model target is its floor
+        self.assertEqual(cf, ac)
+        self.assertLess(ac, analyze.cruise_cap(self.dev['draft'], self.size))
+        self.assertTrue(masked)
+
+    def test_unmatched_clamp_fails(self):
+        self.dev['port'] += 1
+        with self.assertRaises(ValueError):
+            self.events()
 
 
 if __name__ == '__main__':
