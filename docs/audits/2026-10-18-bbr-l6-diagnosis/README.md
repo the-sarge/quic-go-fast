@@ -36,7 +36,7 @@ The agent presented one plan with six recommended decisions on October 17, 2026,
 ## Known before these decisions
 
 - **#777's result** (adverse; [Answer](https://github.com/the-sarge/quic-go-fast/blob/71e88789/docs/audits/2026-10-17-bbr-l6-coexistence/README.md#answer)): next to BBRv3 the competitor delivers 6.2–17.8 Mbit/s, against 42.7–59.9 next to matched Reno. BBRv3 holds most of the shared queue and causes nearly all overflow drops. While the competitor pauses, BBRv3 alone keeps the queue near full. BBRv3's ECN switched off mid-run in every run (#793 owns that).
-- **The agent's expectation** (stated to the operator in the plan, not a result): (a) is the most likely class. At the points read, the port follows draft-06's loss rules, and Reno at a 100 ms round trip needs very long loss-free periods to hold a large share.
+- **The agent's expectation** (stated to the operator in the plan, not a result): (a) is the most likely class. At the points read, the port follows draft-06's loss rules, and Reno at a 100 ms round trip needs very long loss-free periods to hold a large share. After the [development runs](#development-runs-before-this-registration) the agent still expects (a), with a STREAM-only port property reported separately.
 - **Draft-06 states its own coexistence target** ([section 5.3.3.8.1](https://www.ietf.org/archive/id/draft-ietf-ccwg-bbr-06.html#section-5.3.3.8.1)): it aims to let Reno/CUBIC keep working where they work today, at bandwidth-delay products of about 100 packets or fewer, and says that BBR flows with large BDPs deliberately probe more often than Reno/CUBIC would (every 2–3 s at high round-trip times). L6's BDP is about 857 packets. This is context for reading a trace, not evidence of a cause.
 - **The port's controller is r9's code.** `git diff 81e9dc8c abfa5456` has no non-test change in `internal/congestion`; in `internal/ackhandler` the only non-test change is the port contract's declared deviation 4 (the #752 discovery-scratch release in `congestion_dispatch.go`, which changes no ACK, recovery, ECN, bound or Reno behavior). The root-package merge seams (send queue depth, candidate authority, setup admission, receive phase) are outside the controller.
 
@@ -51,17 +51,18 @@ Authority: [draft-ietf-ccwg-bbr-06](https://www.ietf.org/archive/id/draft-ietf-c
 | Up exits: plateau, loss above 2%, precautionary deceleration; reset the plateau detector while cwnd-limited at `inflight_longterm` | 5.3.3.7, 5.3.3.9 `IsTimeToGoDown` | `bbr_probe.go:123` | Matches. |
 | The 2% check per lost packet while probing, `inflight_longterm = max(inflight at loss, 0.7 × min(BDP, cwnd))`, Up → Down | 5.5.10.2 `HandleLostPacket`, `IsInflightTooHigh`, `HandleInflightTooHigh`, `InflightAtLoss` | `bbr_probe.go:156` | Matches, with one arithmetic difference: when the losses before a packet already exceed 2%, the draft's prefix is negative and the port clamps it to zero (`:175`), so the port's `inflight_longterm` can be higher by that negative prefix. Unsigned arithmetic, not a declared translation. The traces measure how often and by how much. |
 | Short-term bounds outside probing: once per loss round with loss, `bw_shortterm = max(bw_latest, 0.7 × bw_shortterm)`, the same for `inflight_shortterm` | 5.5.10.3 `AdaptLowerBoundsFromCongestion`, `InitLowerBounds`, `LossLowerBounds` | `bbr_sender.go:219`–`:251` | Matches; 0.7 × is an integer floor. |
-| No cwnd cut on entering fast recovery; save on entry, restore on exit through the model bounds | 5.6.4.4, 5.5.11 | `bbr_recovery.go:21`, `:31` | Matches. (Draft-06 has no packet-conservation step; PTO handling is the declared translation D07.) |
+| No cwnd cut on entering fast recovery; save on entry, restore on exit through the volume caps | 5.6.4.4 `RestoreCwnd`, 5.6.4.7, 5.5.11 | `bbr_recovery.go:21`, `:31` | Matches. Draft-06 has no packet-conservation step; PTO handling is the declared translation D07. The port restores after the event's window update, so `max_inflight` bounds a restored window from the next ACK; the draft leaves that order open (a one-ACK transient, seen in the development runs). |
 | cwnd: `min(cwnd + acked, max_inflight)`, `max_inflight = quantized(cwnd_gain × BDP + extra_acked)`, then the volume caps per phase | 5.6.4.2, 5.6.4.6, 5.6.4.7 | `bbr_sender.go:296`, `:322`, `:401` | Matches. |
 | Pacing: gain × min(max_bw, bw_shortterm), gains 2.77, 0.5, 0.9, 1, 1, 1.25, 1; 1% margin | 5.6.1, 5.6.2 | `bbr_sender.go:362` | Matches; the margin is applied in emission (design, Pacing). |
 | max_bw: largest sample of the current and previous ProbeBW cycle; the cycle advances at the end of the probe's feedback | 5.5.3–5.5.5, 5.3.3.9 `AdaptLongTermModel` | `bbr_probe.go:23`, `:66` | Matches. |
 | ProbeRTT: enter when the 5 s filter expires, hold 200 ms and one round, exit to ProbeBW (Cruise) or Startup with the short-term model reset | 5.3.4.3, 5.3.4.4 | `bbr_probe_rtt.go:14`, `:29`, `:80` | Matches, with the declared translation D02 (pre-expiration cap). |
+| Application-limited samples: when cwnd and pacing would allow sending but there is no data, mark the next flight's samples application-limited; a limited crossing does not lower `inflight_longterm` | 4.1.1.3, 4.1.2.4 `CheckIfApplicationLimited`, `MarkConnectionAppLimited`; 5.5.10.2 | `delivery_sampling.go:32`, `:51`, `:104`, `:133`; `internal/ackhandler/delivery_sampler.go:222`, `:240`, `:274` | The rule matches: no data while cwnd and pacing permit and no retransmission is pending, and one flight is marked. **A property of the port's send path.** quic-go's `SendStream.Write` returns once less than one packet of a write remains (`send_stream.go:265`–`:312`), so within one packing burst the stream runs dry at every 16,384-byte record, and a bulk STREAM sender is marked application-limited almost continuously. The draft leaves the precise determination to the implementation (4.1.1.3). DATAGRAM senders are not marked this way. Seen in the development runs, and measured in every trace. |
 
-**Not checked here:** delivery-rate sampling (section 4.1, owned by `internal/ackhandler`'s sampler), `extra_acked` (5.5.9) beyond its use in the cwnd bound, and the offload budget (5.5.8). The [input check](#input-check-the-senders-view-against-the-relays) tests the sampler's output against the relay instead.
+**Not checked here:** delivery-rate sampling other than the application-limited marking (section 4.1, owned by `internal/ackhandler`'s sampler), `extra_acked` (5.5.9) beyond its use in the cwnd bound, and the offload budget (5.5.8). The [input check](#input-check-the-senders-view-against-the-relays) tests the sampler's output against the relay instead.
 
 ## The instrument: a measurement-only trace overlay
 
-[trace/bbr_trace.go](trace/bbr_trace.go) is a verification aid in package `congestion`, built only into the `cand-trace` fixture variant. It records rows of the BBR model's state (48 integer columns, named in the file) into a fixed array outside the Go heap (65,536 rows), and writes them once as JSON, from the connection goroutine, at its first feedback event at or after `BBR_TRACE_UNTIL_UNIX_NS`. It records nothing after that. It is enabled only in a sender-role process with both environment variables set, and only for the first BBR sender that receives feedback; the runner sets them only for the `trace` arm's focal sender, with the end time 2 s after the measured window.
+[trace/bbr_trace.go](trace/bbr_trace.go) is a verification aid in package `congestion`, built only into the `cand-trace` fixture variant. It records rows of the BBR model's state (48 integer columns, named in the file) into a fixed array outside the Go heap (65,536 rows). It writes them once, streamed row by row as JSON: when the fixture exits, after the fixture has written its own record (so the record's CPU and memory figures do not include the write), or at the first feedback event at or after `BBR_TRACE_UNTIL_UNIX_NS`, whichever comes first. It records nothing after that. A mutex orders the hooks (on the connection goroutine) and the exit write (on the main goroutine). It is enabled only in a sender-role process with both environment variables set, and only for the first BBR sender that receives feedback; the runner sets them only for the `trace` arm's focal sender, with the end time 2 s after the measured window.
 
 Rows:
 - one per packet-timed round, with that round's lost bytes and packets, largest prior flight, largest rate sample, feedback events, limited events and two-percent checks;
@@ -70,9 +71,18 @@ Rows:
 - one per two-percent check, with its inputs, before its outcome is applied;
 - a pre/post pair for any such change made between feedback events (send-side idle restart), and one per model reset.
 
-[build.py](build.py) applies seven hooks, each a text that must occur exactly once, all in BBR-only controller code: `Feedback` entry and exit, the round start, both sides of the loss-round close, `Reset`, and `probeLoss` (entry and the check). Reno, emission and recovery code are untouched.
+[build.py](build.py) applies eight hooks, each a text that must occur exactly once. Seven are in BBR-only controller code: `Feedback` entry and exit, the round start, both sides of the loss-round close, `Reset`, and `probeLoss` (entry and the check). The eighth is in the fixture's `main.go`, after it writes its own record: a call to a two-line exit hook ([trace/fixture_trace_exit.go](trace/fixture_trace_exit.go), through [trace/quic_trace_exit.go](trace/quic_trace_exit.go) in the root package). Reno, emission and recovery code are untouched.
 
-Tests ([trace/bbr_trace_test.go](trace/bbr_trace_test.go), run in the exported `cand-trace` tree with the port's own `internal/congestion` tests, which also pass): configuration, nothing recorded when disabled, a probe cycle and its loss check, loss-round rows, changes between events, a second sender ignored, overflow counted, the reset row, and the single dump. Two injected faults (the check hook removed; phase changes ignored) each failed the tests; the source was restored. `go vet` passes.
+Tests ([trace/bbr_trace_test.go](trace/bbr_trace_test.go)) run in the exported `cand-trace` tree, alongside the port's own `internal/congestion` tests, which also pass. They cover:
+- configuration, and nothing recorded when disabled;
+- a probe cycle and its loss check, and loss-round rows;
+- changes between events, and a second sender ignored;
+- overflow counted, and the reset row;
+- the single write, at the end time and at exit.
+
+They also pass under `-race`. Two injected faults (the check hook removed; phase changes ignored) each failed the tests, and the source was restored. `go vet` passes for `internal/congestion`, the root package and the fixture.
+
+**A development defect, fixed before this registration.** The first version wrote the trace only at a feedback event 2 s after the measured window. The fixture exits about 1 s after the window, so the first development run left no trace ([Development runs](#development-runs-before-this-registration)). The exit write was added then, and the binary was rebuilt.
 
 **Disturbance.** The overlay adds work on the connection goroutine per feedback event (two struct copies and a few comparisons) and a JSON write after the measured window. Its effect on the measured flows is measured, not assumed: the `cand` arm runs beside it in every pair, and D3 decides whether the traces are representative.
 
@@ -88,7 +98,7 @@ Tests ([trace/bbr_trace_test.go](trace/bbr_trace_test.go), run in the exported `
 | C3 | Up ends only on loss, precautionary deceleration, plateau (not while cwnd-limited at `inflight_longterm`), CE or ProbeRTT | 5.3.3.7 |
 | C4 | Each two-percent crossing sets `prev_probe_too_high`, ends Up, and sets `inflight_longterm` as the draft computes it (the port's clamp counted separately); every lowering of `inflight_longterm` has such a cause | 5.5.10.2 |
 | C5 | Each loss-round close with loss outside probing sets both short-term bounds to `max(latest, 0.7 × bound)`; no other change except resets at Refill, ProbeRTT exit or reset, and undo raises | 5.5.10.3, 5.5.11 |
-| C6 | cwnd never above `max(4 M, min(caps, quantized(gain × BDP + extra_acked)))` | 5.6.4.2–5.6.4.7 |
+| C6 | cwnd never above `max(4 M, min(caps, quantized(gain × BDP + extra_acked)))`; a window restored at a recovery exit never above the volume caps | 5.6.4.2–5.6.4.7 |
 | C7 | Pacing rate equals the phase gain × `min(max_bw, bw_shortterm)` (at or below under CE) | 5.6.1, 5.6.2 |
 | C8 | `max_bw` never above every sample of the current and previous cycle after its event's own sample, and never below one when it ages | 5.5.3–5.5.5 |
 | C9 | ProbeRTT starts only when the 5 s filter has expired, holds more than 200 ms, exits to Cruise or Startup with the short-term model reset, and is never overdue by more than 0.5 s | 5.3.4.3, 5.3.4.4 |
@@ -113,7 +123,7 @@ Tests ([trace/bbr_trace_test.go](trace/bbr_trace_test.go), run in the exported `
   - a filter above its samples, and one aged below a sample;
   - a short ProbeRTT hold, and an entry without expiry.
 - **Arithmetic and completeness.** The clamp arithmetic is checked, and a trace with overflow is marked incomplete.
-- **Development history.** While the checker was developed on the first fixture, its first versions flagged 19, then 35, then 11 events that were checker errors, each traced to the row data and fixed. In order: a rule that forgot `max(latest, 0.7 × bound)` can raise a bound; four rules that read end-of-event values where the port decides mid-event; and a lateness allowance replaced by the first-event rule. The fixtures were regenerated with a driver whose flight follows the window, after the first one stayed in ProbeRTT because its synthetic flight never drained.
+- **Development history.** While the checker was developed on the first fixture, its first versions flagged 19, then 35, then 11 events that were checker errors, each traced to the row data and fixed. In order: a rule that forgot `max(latest, 0.7 × bound)` can raise a bound; four rules that read end-of-event values where the port decides mid-event; and a lateness allowance replaced by the first-event rule. The fixtures were regenerated with a driver whose flight follows the window, after the first one stayed in ProbeRTT because its synthetic flight never drained. After the development runs, C6 was given the recovery-exit restore rule; every event it had flagged there was such a restore ([Development runs](#development-runs-before-this-registration)).
 
 ## Input check: the sender's view against the relay's
 
@@ -136,6 +146,7 @@ For each traced observation and period, [analyze.py](analyze.py) reports, withou
 - why each Up ended;
 - BBRv3's own loss per packet-timed round, and the share of rounds above 2%;
 - which bound set the window ceiling (the model target, `inflight_shortterm`, `inflight_longterm` or the headroom) and how often a round was cwnd-limited;
+- the two-percent checks: how many judged a packet marked supply-limited, how many crossed, how many crossings were limited, and where each crossing left `inflight_longterm` against the path's capacity;
 - how often `bw_shortterm` was below `max_bw`;
 - `inflight_longterm` and the window against the path's capacity (queue plus pipe);
 - `max_bw` against BBRv3's own delivery;
@@ -146,7 +157,7 @@ For each traced observation and period, [analyze.py](analyze.py) reports, withou
 
 | Arm | Focal fixture | Focal controller | Binary (SHA-256) |
 | --- | --- | --- | --- |
-| `trace` | `abfa5456` + this record's overlay | BBRv3 | `cand-trace-fixture` `57d794d4…` (built on `minimax` and rebuilt identically) |
+| `trace` | `abfa5456` + this record's overlay | BBRv3 | `cand-trace-fixture` `6c25a98b…` (built on `minimax` from the exported tree) |
 | `cand` | `abfa5456` | BBRv3 | `cand-fixture` `d3f05ad6…`, byte-identical to #777's |
 
 The competitor is #777's: frozen Reno `e4f322cb` (`reno-fixture` `cda8feb1…`), a reliable stream, Q1's accepted bulk pause. relay2 (`bff3ba4f…`), calibrate2 (`f4773dc9…`) and the launcher (`a6146d62…`) are #777's binaries, rebuilt byte-identically from #777's sources, which [build.py](build.py) checks against `71e88789` before every export. The path, endpoint contract, timing, periods, core layout and host are #777's ([Path](https://github.com/the-sarge/quic-go-fast/blob/71e88789/docs/audits/2026-10-17-bbr-l6-coexistence/README.md#path-the-frozen-q1-models-l6), [Endpoints and timing](https://github.com/the-sarge/quic-go-fast/blob/71e88789/docs/audits/2026-10-17-bbr-l6-coexistence/README.md#endpoints-and-timing), [Host](https://github.com/the-sarge/quic-go-fast/blob/71e88789/docs/audits/2026-10-17-bbr-l6-coexistence/README.md#host)).
@@ -174,19 +185,23 @@ While any observation runs, the file `RUNNING` exists at the worktree root on `m
 
 ## Classification (fixed before counted data)
 
-Evaluated over the selected counted observations, in this order:
+Evaluated over the selected counted observations. Terms:
+
+- A trace **conforms** when [draft06check.py](draft06check.py) reports no mismatch in its measured window. A mismatch can be dismissed only when a test built from that event's rows shows the checker misreading it; the checker is then fixed and rerun on every trace, and the change is disclosed as post-data.
+- A trace's inputs **reconcile** when [reconcile.py](reconcile.py)'s R1–R4 are within tolerance in every classified period, or each finding is shown not to change what the controller saw.
+- A **port property acts** in a trace when, in its classified periods, either:
+  - at least half of the two-percent crossings judged packets marked supply-limited (draft-06 then leaves `inflight_longterm` unlowered); or
+  - a deviation from draft-06 or r9 is demonstrated in code and changes a transition, bound or rate in that trace. The demonstration is a unit-level reproduction in the exported tree, driving the port's sender with a mismatching event's recorded inputs.
+
+Rules:
 
 1. **Undiagnosed (instrument)** if D3 fails for any selected `trace` observation, or fewer than two `trace` observations per workload are usable with complete traces.
-2. **(b), the port** if either holds:
-   - the code check above (or the counted traces) shows an undeclared deviation from draft-06 or from r9 on a rule in the mechanism's path, and the traces show it acting during the classified periods (it changes a transition, a bound or a rate that the draft would set differently);
-   - the input check fails in a way the port owns (for example declared losses that are not relay drops, or a sampler rate above the link).
-
-   A checker mismatch counts as a deviation only when a unit-level reproduction in the exported tree, driving the port's sender with the mismatching event's recorded inputs, shows the port's transition differing from draft-06's. A mismatch can be dismissed as an instrument artifact only when a test built from that event's rows shows the checker misreading it; then the checker is fixed, rerun on every trace, and the change is disclosed as post-data.
-3. **(c), the fixture** if the input check fails in a way the fixture owns (the relay or model delivering signals that differ from the modeled path), or the competitor is limited by something other than its controller (CPU saturation, supply, flow control), in the classified periods.
-4. **(a), draft-06 behavior** if no rule above applies: no undeclared deviation, zero unexplained checker mismatches in the measured window of every selected trace, the input check within tolerance (or each finding shown not to change the controller's inputs), and the mechanism figures showing which draft rules produce the displacement.
+2. **(c), the fixture** if, in any selected trace, the inputs fail to reconcile in a way the fixture owns (relay or model signals that differ from the modeled path), or the competitor is limited by something other than its controller (CPU saturation, supply, flow control) in a classified period.
+3. **(b), the port** if a port property acts in every selected trace of both workloads. #777 found both workloads adverse, so a cause must be present wherever the displacement is.
+4. **(a), draft-06 behavior** if neither (b) nor (c) holds and, in at least one workload, every selected trace conforms, reconciles, has no port property acting, and is adverse under D3. There, draft-06's rules alone produce the displacement, and the mechanism figures say which rules. A port property acting in the other workload is reported as a separate finding, for the operator to decide whether to file. Its contribution to that workload's displacement is not measured here.
 5. **Undiagnosed** otherwise, saying what was ruled out.
 
-A deviation found but not acting in the classified periods does not make the class (b); it is reported separately, for the operator to decide whether to file it. More than one class can hold only through rule 2 and rule 3 together; the record then reports both and names neither alone.
+If (b) and (c) both hold, the record reports both and names neither alone.
 
 **What each outcome leads to (#792):**
 - **(b):** a fix ticket, then readiness and L6 again on the fixed revision.
@@ -196,7 +211,30 @@ A deviation found but not acting in the classified periods does not make the cla
 
 ## Development runs (before this registration)
 
-*To be filled from the two development observations (one STREAM, one DATAGRAM `trace` observation, made on `minimax` on October 18 before this registration's review).*
+Made on `minimax` on October 18 (UTC), unbooked, with the wiremux sessions confirming they would not use `minimax`. Each is excluded from every statistic. None ran a quiet-host gate.
+
+| Run | What | Result |
+| --- | --- | --- |
+| `dev1` (03:31–03:38) | STREAM, `trace`, full length | Usable, but **no trace**: the first overlay waited for a feedback event 2 s after the measured window, and the fixture exits about 1 s after it. Focal 85.0, 80.2, 85.3, 93.4 and 87.3 Mbit/s, competitor 8.6, 14.4, 7.9, 0.0 and 6.3 (equal, short, back, absent, resumed). This led to the exit write and the rebuilt binary (`6c25a98b…`). |
+| `dev2` (03:38–03:40) | DATAGRAM, `trace` | Stopped by the agent mid-run once `dev1`'s missing trace was understood; no result. |
+| `dev3` (03:41–03:48) | STREAM, `trace`, full length | Complete trace: 6,666 rows, no overflow, every two-percent check recorded. Checker: no mismatch (after the C6 change below). Input check within tolerance in every period; declared losses equal the relay's drops exactly. Focal 86.1, 83.5, 86.1, 93.3 and 87.4; competitor 7.3, 11.0, 7.1, 0.0 and 5.7. |
+| `dev4` (03:48–03:54) | DATAGRAM, `trace`, full length | Complete trace: 6,823 rows. Checker: no mismatch. Input check within tolerance. Focal 83.7, 75.3, 83.9, 92.5 and 85.3; competitor 8.5, 18.8, 8.2, 0.0 and 6.8. |
+
+**Seen by the agent** (equal period unless stated; `dev3`, then `dev4`):
+- **Representative.** Both traces are adverse under D3. The competitor's delivery is close to #777's plain-port medians (7.6 and 8.3).
+- **The ceiling.** `inflight_longterm` is 1.06 and 0.96 × the path's capacity (queue plus pipe) and the window 0.90 and 0.82 ×. The Cruise headroom set the window ceiling in 79% and 77% of rounds.
+- **Where the competitor loses.** 99.7% and 99% of the competitor's drops fall in BBRv3's Up phase. Probes come about every 4.7 and 5.3 s (the 2–3 s waits lengthened by ProbeRTT). Up ended on loss in 19 of 22 and 19 of 20 probes.
+- **The two-percent checks.** In STREAM, all 2,429 checks and all 69 crossings judged packets marked application-limited, so no crossing lowered `inflight_longterm`. In DATAGRAM, none of 2,599 checks did, and its 62 crossings set `inflight_longterm` as draft-06 computes it (at 0.96 × the path, the flight at which drop-tail loss passed 2%).
+- **ECN.** The ECN failure came at 54 s and 178 s. The competitor's delivery in the 30 s before and after was 7.3 and 7.4, then 20.5 and 17.8 Mbit/s.
+- **Inputs.** `min_rtt` 100.2–100.8 ms; `max_bw` 0.95–0.98 of the link's capacity in the contested periods (1.007 while the competitor paused). In rounds with any loss, BBRv3 lost a median of 9.7% and 2.0% of the round's data.
+
+**What changed after these runs:**
+- the exit write (`dev1`);
+- C6's recovery-exit rule. All 66 (`dev3`) and 3 (`dev4`) events C6 had flagged were windows restored at a recovery exit, and in 65 of the 66 the window was below `max_inflight` at the next recorded row;
+- the application-limited row of the code check, the two-percent-check measures in [analyze.py](analyze.py), and the classification's "port property acts" term, written to cover what `dev3` showed;
+- the agent's expectation (above).
+
+No threshold of D3, tolerance of R1–R4, checker rule other than C6, arm, pair count or order changed after these runs.
 
 ## Time estimate
 

@@ -16,7 +16,7 @@ Rules (draft section):
   C3  ProbeBW_UP exits: loss, precautionary, plateau, CE, ProbeRTT (5.3.3.7)
   C4  The two-percent check and inflight_longterm (5.5.10.2)
   C5  Short-term bounds outside probing (5.5.10.3)
-  C6  cwnd upper bound (5.6.4.2, 5.6.4.6, 5.6.4.7)
+  C6  cwnd upper bound; a recovery-exit restore by the volume caps (5.6.4.2, 5.6.4.4, 5.6.4.6, 5.6.4.7)
   C7  Pacing rate by phase (5.6.1, 5.6.2)
   C8  max_bw filter: upper bound and aging only at a cycle advance (5.5.3-5.5.5)
   C9  ProbeRTT entry, hold and exit (5.3.4.3, D02)
@@ -303,7 +303,7 @@ def check_probe_losses(t, rep):
         if t.v(r, 'phase') == UP:
             rep.check(rule, t.v(post, 'phase') in (DOWN, PROBERTT), post, 'crossing in Up did not start ProbeBW_DOWN')
         if limited in LIMITED:
-            rep.note(rule, 'crossing_app_limited')
+            rep.note(rule, 'crossing_limited')
             continue
         b = bdp(t, r, 1, 1)
         target = t.v(r, 'window') if b is None else min(b, t.v(r, 'window'))
@@ -389,6 +389,15 @@ def check_window(t, rep):
         if t.flag(r, 'ce_active'):
             cap = lo(cap, t.v(r, 'ce_flight'))
         bound = min(size * MAX_CWND_PACKETS, max(4 * size, lo(cap, target)))
+        if t.flag(r, 'episode_exited') or t.flag(r, 'undo_eligible'):
+            # RestoreCwnd (5.6.4.4): the restored window is bounded by the volume caps
+            # (BoundCwndForModel); the draft leaves its order against this ACK's
+            # max_inflight open, so max_inflight applies from the next ACK.
+            restored = min(size * MAX_CWND_PACKETS, max(4 * size, cap)) if cap != INF else size * MAX_CWND_PACKETS
+            rep.check(rule, t.v(r, 'window') <= restored, r, 'restored cwnd above the volume caps', window=t.v(r, 'window'), bound=restored)
+            if t.v(r, 'window') > bound:
+                rep.note(rule, 'restored_above_max_inflight')
+            continue
         rep.check(rule, t.v(r, 'window') <= bound, r, 'cwnd above BoundCwndForModel(max_inflight)', window=t.v(r, 'window'), bound=bound)
         rep.note(rule, 'at_bound' if t.v(r, 'window') == bound else 'below_bound')
 

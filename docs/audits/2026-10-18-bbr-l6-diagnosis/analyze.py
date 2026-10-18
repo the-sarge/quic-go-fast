@@ -122,6 +122,20 @@ def mechanism(t, check, relay, measured_start, quic_share):
         p['up_exits'] = {k: sum(1 for e in ups if e['reason'] == k) for k in sorted({str(e['reason']) for e in ups})}
         crossings = [e for e in check['rules']['C4'].get('events', []) if s0 <= e['unix_ns'] < s1]
         p['crossings'] = len(crossings)
+        # The two-percent checks: how many judged a packet marked supply-limited at send
+        # (such a crossing cannot lower inflight_longterm), and where each crossing left it.
+        checks = [r for r in t.rows if r[0] == dc.PROBELOSS and s0 <= t.v(r, 'unix_ns') < s1]
+        cross = [r for r in checks if dc.crosses(t, r)]
+        limited = lambda r: r[t.c['a4']] in dc.LIMITED
+        p['two_percent_checks'] = dict(checks=len(checks), limited_share=sum(map(limited, checks)) / len(checks) if checks else None,
+                                       crossings=len(cross), crossings_limited=sum(map(limited, cross)))
+        after = []
+        for r in cross:
+            post = t.end_of_event(r)
+            if post is not None and t.v(post, 'inflight_long') != dc.INF and capacity:
+                after.append(t.v(post, 'inflight_long') / capacity)
+        p['two_percent_checks']['inflight_longterm_after_crossing_over_path_median'] = median(after)
+        p['two_percent_checks']['crossing_flight_over_path_median'] = None if not capacity else median(r[t.c['a1']] / capacity for r in cross)
         # BBRv3's own loss per packet-timed round (lost bytes / bytes delivered in that round).
         rates = []
         for r in inside:
