@@ -5340,3 +5340,36 @@ Merged [PR #795](https://github.com/the-sarge/quic-go-fast/pull/795) as `6e3f920
 ### Next
 
 - [#796](https://github.com/the-sarge/quic-go-fast/issues/796) awaits triage. GitHub issues are the live view.
+
+---
+
+## H1 generic-timeout alternative marked superseded - 2026-10-17 23:36 EDT
+
+**Main:** `3786c42df3b1`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #798](https://github.com/the-sarge/quic-go-fast/pull/798) as `3786c42df3b11d5a26ccfd738ab03d4c25d29a08`, closing [#796](https://github.com/the-sarge/quic-go-fast/issues/796). The 2026-09-06 handshake-MTU plan's status line now says that the second-PTO trigger from [#786](https://github.com/the-sarge/quic-go-fast/issues/786) ([PR #787](https://github.com/the-sarge/quic-go-fast/pull/787)) also supersedes the plan's rejected alternative "infer MTU from a generic timeout", for that trigger only. Inferring MTU from an interface name or from any other timeout stays rejected. Docs only: one physical line changed, the status line. The rejected-alternatives line, non-goals, matrix and body are unchanged.
+
+### Decisions
+
+- The owner decided the narrow supersession while triaging #796 on 2026-10-17; the rationale is in the [triage comment](https://github.com/the-sarge/quic-go-fast/issues/796#issuecomment-6245148200). The sentence uses the brief's suggested wording unchanged.
+- The #796 agent brief served as the approved plan. The edit was made without the separate plan approval that planit asks for. The merge followed the planit flow once review, local certification and exact-head CI had passed.
+- RAS review `20261018T032800-d2764836c376a7fac2618d07` at `494566be` was briefed with the agent brief quoted verbatim. All six reviewers completed and the synthesis had no findings, so nothing needed verification and no replacement review was due. Nothing was deferred.
+
+### Validation
+
+- **Docs checks at `494566be` against base `0b3334ba`:**
+  - only `docs/adr/2026-09-06-handshake-mtu-plan.md` changed;
+  - `1 1` numstat, with the line count unchanged at 88;
+  - base and head byte-identical with line 3 removed from both;
+  - `git diff --check` clean;
+  - no non-Markdown difference;
+  - the #786, PR #787 and #796 links resolve.
+- **Wording checked against the base:** the **Handshake MTU fallback** glossary entry, the `Config.InitialPacketSize` godoc, `countHandshakeTimeout` and `lowerUnsetInitialPacketSize`.
+- **Hosted CI:** all 33 check runs succeeded on exact head `494566be`. The PR was merged with `--match-head-commit`.
+
+### Next
+
+- Nothing from this PR remains open. Making any other timeout, an earlier PTO or an interface-name signal a trigger would need its own ticket and owner decision; none is filed. GitHub issues are the live view.
