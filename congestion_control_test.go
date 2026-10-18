@@ -69,7 +69,17 @@ func TestCongestionControlV1Diagnostics(t *testing.T) {
 	require.Len(t, records, 1, "diagnostic snapshots are rate bounded")
 	diagnostic := records[0].(qlog.DebugEvent)
 	require.Equal(t, "congestion_control", diagnostic.EventName)
-	for _, field := range []string{"selected=bbrv3", "policy=bbrv3-draft06-classic-ecn-v1", "phase=Startup", "pacing=", "window=", "quantum=", "ce_active=", "recovery=", "ecn=", "limitation=", "pending=", "sample_valid=", "retained="} {
+	for _, field := range []string{"selected=bbrv3", "policy=bbrv3-draft06-classic-ecn-v1", "phase=Startup", "pacing=", "window=", "quantum=", "ce_active=", "recovery=", "ecn=", "stop=", "limitation=", "pending=", "sample_valid=", "retained="} {
 		require.Contains(t, diagnostic.Message, field)
+	}
+}
+
+func TestCongestionControlV1DiagnosticsReno(t *testing.T) {
+	c := newConfiguredEmissionTestConnection(t, false, &Config{InitialPacketSize: 1200, EnableDatagrams: true}).conn
+	recorder := &events.Recorder{}
+	c.qlogger = recorder
+	require.NoError(t, c.triggerSending(monotime.Now()).err)
+	for _, e := range recorder.Events(qlog.DebugEvent{}) {
+		require.NotEqual(t, "congestion_control", e.(qlog.DebugEvent).EventName, "default Reno records no BBR snapshot")
 	}
 }

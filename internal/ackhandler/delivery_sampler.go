@@ -253,6 +253,15 @@ func (s *deliverySampler) markLimited(reason congestion.SendLimitation) {
 	s.limited = reason
 }
 
+// activeLimitation is the marker a packet registered now carries, SendUnknown
+// once delivery passes the boundary even though limited keeps the last reason.
+func (s *deliverySampler) activeLimitation() congestion.SendLimitation {
+	if s.limitedUntil != 0 && s.delivered <= s.limitedUntil {
+		return s.limited
+	}
+	return congestion.SendUnknown
+}
+
 func addDelivery(a, b uint64) uint64 {
 	if b > math.MaxUint64-a {
 		return math.MaxUint64
@@ -281,9 +290,7 @@ func (s *deliverySampler) sent(info *congestion.PacketInfo, prior, post protocol
 		PriorInFlight: prior, PostInFlight: post, Outstanding: s.outstanding,
 		Valid: info.Length > 0 && info.RegistrationValid && !s.sendOrigin.IsZero() && !info.SendTime.Before(s.sendOrigin),
 	}
-	if s.limitedUntil != 0 && s.delivered <= s.limitedUntil {
-		info.Delivery.Limited = s.limited
-	}
+	info.Delivery.Limited = s.activeLimitation()
 	s.outstanding += info.Length
 	s.applicationExhausted = false
 }

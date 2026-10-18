@@ -362,6 +362,38 @@ func TestDeliverySupplyGap(t *testing.T) {
 	})
 }
 
+// The BBR diagnostic reports a drained writer's stop at once, but its
+// limitation only once the gap costs sending time, as the packet marker does.
+func TestDeliverySupplyGapDiagnostics(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		resupply   time.Duration
+		want       congestion.SendLimitation
+		limitation string
+	}{
+		{name: "resupplied within the pacing credit", resupply: time.Microsecond, want: congestion.SendUnknown, limitation: "none"},
+		{name: "gap fills the pacing credit", resupply: 10 * time.Millisecond, want: congestion.SendApplicationLimited, limitation: "application"},
+	} {
+		for _, gso := range []bool{false, true} {
+			t.Run(tc.name+map[bool]string{false: "/ordinary", true: "/GSO"}[gso], func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					f := newSupplyGapFixture(t, gso, 2)
+					c, now := f.c, monotime.Now()
+					c.emission.enableBBRECN() // without it the diagnostic reports only ecn=unavailable
+					diagnostics := c.sentPacketHandler.(interface{ BBRDiagnostics() string }).BBRDiagnostics
+					f.drain(t, now)
+					require.Contains(t, diagnostics(), " stop=application limitation=none ")
+					f.held.release()
+					f.held = nil
+					first := f.resupply(t, now.Add(tc.resupply))
+					require.Equal(t, tc.want, f.sink.sends[first].Packet.Delivery.Limited)
+					require.Contains(t, diagnostics(), " limitation="+tc.limitation+" ")
+				})
+			})
+		}
+	}
+}
+
 func TestDeliverySamplerNoDataReasons(t *testing.T) {
 	t.Run("pending stream opener is not application idle", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
