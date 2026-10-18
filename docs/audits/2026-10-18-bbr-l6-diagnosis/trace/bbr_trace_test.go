@@ -139,6 +139,32 @@ func TestTraceRecordsProbeCycleAndLoss(t *testing.T) {
 	require.Equal(t, trace.rows[0], dump.Rows[0])
 }
 
+func TestTraceDumpAtExit(t *testing.T) {
+	out := traceEnable(t)
+	x := newBBRProbeTrace()
+	x.cruise()
+	n := trace.n
+	require.Positive(t, n)
+	TraceDumpAtExit()
+	require.True(t, trace.dumped)
+	first, err := os.ReadFile(out)
+	require.NoError(t, err)
+	var dump struct {
+		Rows [][traceCols]int64
+	}
+	require.NoError(t, json.Unmarshal(first, &dump))
+	require.Len(t, dump.Rows, n)
+	TraceDumpAtExit()
+	x.ack(100000, 9000, SendUnknown)
+	again, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Equal(t, first, again, "written once")
+	require.Equal(t, n, trace.n, "nothing is recorded after the dump")
+
+	traceConfigure(nil, "", "")
+	TraceDumpAtExit() // disabled: no file, no panic
+}
+
 func TestTraceLossRoundRows(t *testing.T) {
 	traceEnable(t)
 	x := newBBRProbeTrace()

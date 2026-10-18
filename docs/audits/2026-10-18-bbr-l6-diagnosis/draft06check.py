@@ -97,6 +97,9 @@ class Report:
             x['mismatches'].append(dict(seq=self.t.v(r, 'seq'), unix_ns=self.t.v(r, 'unix_ns'), period=self.t.period(r),
                                         phase=PHASES[self.t.v(r, 'phase')], what=what, **detail))
 
+    def event(self, name, r, **detail):
+        self.rule(name).setdefault('events', []).append(dict(unix_ns=self.t.v(r, 'unix_ns'), period=self.t.period(r), **detail))
+
     def note(self, name, key, n=1):
         notes = self.rule(name)['notes']
         notes[key] = notes.get(key, 0) + n
@@ -196,6 +199,7 @@ def check_probe_timing(t, rep):
                   probe_wait_ns=t.v(pre, 'probe_wait_ns'), rounds=rsp, rounds_needed=reno_rounds(t, pre, mid_bdp1(t, pre, post), t.v(pre, 'window')))
         if reason:
             rep.note('C1', 'refill_by_' + reason)
+        rep.event('C1', post, reason=reason, elapsed_ns=elapsed)
         if reason == 'time':
             # Lateness is bounded by the event gap; a missed trigger is caught at the next round below.
             x = rep.rule('C1')['notes']
@@ -257,6 +261,7 @@ def check_up_exits(t, rep):
         rep.check('C3', reason is not None and b in (DOWN, PROBERTT), post, 'Up exit without a draft exit condition', to=PHASES[b])
         if reason:
             rep.note('C3', 'up_exit_' + reason)
+        rep.event('C3', post, reason=reason)
         if reason == 'plateau':
             # At the decision: the event's round usage (unchanged by the window update), the
             # pre-update window, and inflight_longterm after this event's upward adjustment.
@@ -289,6 +294,7 @@ def check_probe_losses(t, rep):
         if not port:
             continue
         rep.note(rule, 'crossings')
+        rep.event(rule, r, lost=lost, flight=flight)
         post = t.end_of_event(r)
         rep.check(rule, post is not None, r, 'a crossing changed no recorded state')
         if post is None:

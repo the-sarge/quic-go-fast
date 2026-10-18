@@ -7,9 +7,11 @@ the same fixtures and relay. Recorded changes:
   overlays are read from #777's record directory in this tree, after a check
   that each is byte-identical to its file at 71e88789.
 - One more fixture variant, `cand-trace`: the `cand` revision (`abfa5456`) with
-  this record's measurement-only overlay (trace/bbr_trace.go, and its test file,
-  which does not enter the binary) and six patch sites in BBR-only code, each
-  asserted to occur exactly once. `reno`, `cand` and the relay target must stay
+  this record's measurement-only overlay (trace/: the recorder, its test file,
+  which does not enter the binary, and a two-line exit hook in the root package
+  and the fixture) and eight patch sites: seven in BBR-only controller code and
+  one in the fixture after it writes its own record, each asserted to occur
+  exactly once. `reno`, `cand` and the relay target must stay
   byte-identical to #777's binaries (EXPECTED).
 - The artifact directory is this record's (.local/bbr-l6-diagnosis).
 - The build is split in two steps so that the Go compile can run on another
@@ -56,7 +58,7 @@ EXPECTED = {
 }
 # This record's own binary, registered after its first build (None until then).
 REGISTERED = {
-    ('cand-trace', 'fixture'): '57d794d47b123e28c436e029ca86c3d5953f664edf9f987b68c32281d921a7b2',
+    ('cand-trace', 'fixture'): '6c25a98b35856d096d8b5a021583bfdc1d941691366c1c758aa9776bd66dfbe1',
 }
 LINUX = {'GOOS': 'linux', 'GOARCH': 'amd64'}
 ENV = {**os.environ, 'GOTOOLCHAIN': 'go1.27.0', 'GOFLAGS': '-mod=mod', 'CGO_ENABLED': '0', 'GOWORK': 'off'}
@@ -77,7 +79,13 @@ TRACE_SITES = [
      'func (b *BBRSender) probeLoss(e FeedbackEvent, p PacketInfo, remaining uint64) {\n\ttraceProbeLossEntry(b)\n'),
     ('internal/congestion/bbr_probe.go', '\tif lost <= flight/50 || lost < uint64(p.Length) || p.Delivery.PostInFlight < p.Length {\n',
      '\ttraceProbeLoss(b, &e, &p, lost, flight, remaining)\n\tif lost <= flight/50 || lost < uint64(p.Length) || p.Delivery.PostInFlight < p.Length {\n'),
+    # The fixture writes the trace once it has written its own record.
+    ('campaign/fixture/main.go', "\tif err = os.WriteFile(*output, append(data, '\\n'), 0600); err != nil {\n\t\treturn err\n\t}\n",
+     "\tif err = os.WriteFile(*output, append(data, '\\n'), 0600); err != nil {\n\t\treturn err\n\t}\n\tbbrTraceDumpAtExit()\n"),
 ]
+# Overlay files: (record path, tree path).
+TRACE_FILES = [('trace/bbr_trace.go', 'internal/congestion/bbr_trace.go'), ('trace/bbr_trace_test.go', 'internal/congestion/bbr_trace_test.go'),
+               ('trace/quic_trace_exit.go', 'bbr_trace_exit.go'), ('trace/fixture_trace_exit.go', 'campaign/fixture/bbr_trace_exit.go')]
 
 
 def git(*args, **kw):
@@ -126,8 +134,9 @@ def aids(module):
 
 def trace_overlay(tree):
     """#792 measurement-only overlay: hooks only BBR-selected controller code."""
-    shutil.copy(HERE / 'trace/bbr_trace.go', tree / 'internal/congestion/bbr_trace.go')
-    shutil.copy(HERE / 'trace/bbr_trace_test.go', tree / 'internal/congestion/bbr_trace_test.go')
+    for src, dst in TRACE_FILES:
+        assert not (tree / dst).exists(), dst
+        shutil.copy(HERE / src, tree / dst)
     for rel, old, new in TRACE_SITES:
         replace(tree / rel, old, new)
 
@@ -145,7 +154,7 @@ def export_variant(name):
         overlays = []
         if name == 'cand-trace':
             trace_overlay(tree)
-            overlays = ['trace/bbr_trace.go', 'trace/bbr_trace_test.go']
+            overlays = [src for src, _ in TRACE_FILES]
         plan = dict(variant=name, revision=full_rev, heap_fixture=':'.join(HEAP_PATCH), overlays=overlays,
                     overlay_sha256={rel: hashlib.sha256((HERE / rel).read_bytes()).hexdigest() for rel in overlays},
                     builds=[['fixture', './fixture']])

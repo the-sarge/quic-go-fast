@@ -1,10 +1,12 @@
 package congestion
 
 import (
+	"bufio"
 	"encoding/json"
 	"math"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -14,10 +16,13 @@ import (
 // round, every loss-round close with loss, every two-percent probe-loss check,
 // and before and after every event that changes the phase, a loss bound, the
 // recovery episode or the CE state. Rows live in a fixed array outside the Go
-// heap; the connection goroutine writes them once, on its first feedback event
-// at or after BBR_TRACE_UNTIL_UNIX_NS (the measured window's end), and records
-// nothing afterwards. Enabled only in the fixture's sender process, only for
-// the first BBR sender that receives feedback. Not a maintained hook.
+// heap. They are written once, streamed row by row: when the fixture exits
+// (TraceDumpAtExit, after it has recorded its own results), or at the first
+// feedback event at or after BBR_TRACE_UNTIL_UNIX_NS, whichever comes first;
+// nothing is recorded afterwards. A mutex orders the hooks (connection
+// goroutine) and the exit dump (main goroutine). Enabled only in the fixture's
+// sender process, only for the first BBR sender that receives feedback. Not a
+// maintained hook.
 
 const (
 	traceKindRound       = 1
@@ -49,6 +54,7 @@ var TraceFlags = []string{"probe_sample", "previous_probe_too_high", "previous_p
 	"probe_rtt_holding", "loss_overflow", "episode_entered", "episode_exited", "undo_eligible", "closed"}
 
 type bbrTraceState struct {
+	mu             sync.Mutex
 	on, dumped     bool
 	output         string
 	untilNS        int64
@@ -87,6 +93,18 @@ func traceConfigure(args []string, output, until string) {
 	}
 	ns, err := strconv.ParseInt(until, 10, 64)
 	trace = bbrTraceState{on: sender && output != "" && err == nil && ns > 0, output: output, untilNS: ns, rows: &traceRowStore}
+}
+
+// TraceDumpAtExit writes the trace if it has not been written yet.
+func TraceDumpAtExit() {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
+	if !trace.dumped {
+		traceDump()
+	}
 }
 
 func traceClampU(v uint64) int64 {
@@ -210,6 +228,11 @@ func traceChanged(a, b *BBRSender, eventFlags int64) int64 {
 }
 
 func traceFeedbackStart(b *BBRSender, e *FeedbackEvent) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if !traceActive(b) {
 		return
 	}
@@ -244,6 +267,11 @@ func traceFeedbackStart(b *BBRSender, e *FeedbackEvent) {
 }
 
 func traceFeedbackEnd(b *BBRSender, e *FeedbackEvent) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if !trace.on || trace.dumped || trace.target != b {
 		return
 	}
@@ -261,6 +289,11 @@ func traceFeedbackEnd(b *BBRSender, e *FeedbackEvent) {
 
 // traceRoundStart records the round that has just completed.
 func traceRoundStart(b *BBRSender, e *FeedbackEvent) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if !trace.on || trace.dumped || trace.target != b {
 		return
 	}
@@ -274,6 +307,11 @@ func traceRoundStart(b *BBRSender, e *FeedbackEvent) {
 // traceLossRoundPre and traceLossRoundPost bracket the loss-round close, only
 // for a round that had loss.
 func traceLossRoundPre(b *BBRSender, e *FeedbackEvent) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if !trace.on || trace.dumped || trace.target != b || !b.lossPending {
 		return
 	}
@@ -282,6 +320,11 @@ func traceLossRoundPre(b *BBRSender, e *FeedbackEvent) {
 }
 
 func traceLossRoundPost(b *BBRSender, e *FeedbackEvent) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if !trace.on || trace.dumped || trace.target != b || !trace.lossPreWritten {
 		return
 	}
@@ -290,6 +333,11 @@ func traceLossRoundPost(b *BBRSender, e *FeedbackEvent) {
 }
 
 func traceProbeLossEntry(b *BBRSender) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if trace.on && !trace.dumped && trace.target == b && b.probeSample {
 		trace.probeEntries++
 	}
@@ -297,6 +345,11 @@ func traceProbeLossEntry(b *BBRSender) {
 
 // traceProbeLoss records one two-percent check, before its outcome is applied.
 func traceProbeLoss(b *BBRSender, e *FeedbackEvent, p *PacketInfo, lost, flight, remaining uint64) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if !trace.on || trace.dumped || trace.target != b {
 		return
 	}
@@ -307,27 +360,67 @@ func traceProbeLoss(b *BBRSender, e *FeedbackEvent, p *PacketInfo, lost, flight,
 }
 
 func traceReset(b *BBRSender, path, sample, delivered uint64) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
 	if !trace.on || trace.dumped || trace.target != b {
 		return
 	}
 	traceRow(traceKindReset, b, 0, [5]int64{}, 0, traceClampU(path), traceClampU(sample), traceClampU(delivered))
 }
 
+// traceDump writes the trace once; the caller holds trace.mu.
 func traceDump() {
 	trace.dumped = true
-	data, err := json.Marshal(map[string]any{
-		"columns": TraceColumns, "flags": TraceFlags, "rows": trace.rows[:trace.n],
-		"overflow": trace.overflow, "foreign_events": trace.foreign, "probe_loss_entries": trace.probeEntries,
-		"until_unix_ns": trace.untilNS, "dumped_unix_ns": time.Now().UnixNano(), "events": trace.seq, "capacity": traceCapacity,
-	})
-	if err == nil {
-		tmp := trace.output + ".tmp"
-		if err = os.WriteFile(tmp, data, 0o644); err == nil {
-			err = os.Rename(tmp, trace.output)
-		}
-	}
-	if err != nil {
+	if err := traceWrite(); err != nil {
 		trace.dumpError = err.Error()
 		_ = os.WriteFile(trace.output+".error", []byte(trace.dumpError+"\n"), 0o644)
 	}
+}
+
+// traceWrite streams the rows, so the dump allocates little beyond one buffer.
+func traceWrite() error {
+	head, err := json.Marshal(map[string]any{
+		"columns": TraceColumns, "flags": TraceFlags,
+		"overflow": trace.overflow, "foreign_events": trace.foreign, "probe_loss_entries": trace.probeEntries,
+		"until_unix_ns": trace.untilNS, "dumped_unix_ns": time.Now().UnixNano(), "events": trace.seq, "capacity": traceCapacity,
+	})
+	if err != nil {
+		return err
+	}
+	tmp := trace.output + ".tmp"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	w := bufio.NewWriterSize(f, 1<<16)
+	_, _ = w.Write(head[:len(head)-1])
+	_, _ = w.WriteString(`,"rows":[`)
+	buf := make([]byte, 0, 1024)
+	for i := 0; i < trace.n; i++ {
+		buf = buf[:0]
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '[')
+		for j, v := range trace.rows[i] {
+			if j > 0 {
+				buf = append(buf, ',')
+			}
+			buf = strconv.AppendInt(buf, v, 10)
+		}
+		buf = append(buf, ']')
+		_, _ = w.Write(buf)
+	}
+	_, _ = w.WriteString("]}\n")
+	if err = w.Flush(); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, trace.output)
 }
