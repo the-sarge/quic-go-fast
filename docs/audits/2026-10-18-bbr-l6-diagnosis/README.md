@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-l6-diagnosis`, based on `9b5c91f2` (the tip of #777's record branch, `71e88789` plus one disclosure line in #777's README), so #777's aids are in this tree at their recorded paths. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666), [#748](https://github.com/the-sarge/quic-go-fast/issues/748) and #777 record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: registration accepted; counted stage running.** The operator accepted the registration on October 18, 2026, at about 02:20 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The [development runs](#development-runs-before-this-registration) are disclosed with what was seen.
+**Status: registration accepted; counted stage running.** The operator accepted the registration on October 18, 2026, at about 01:57 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The [development runs](#development-runs-before-this-registration) are disclosed with what was seen.
 
 ## Question
 
@@ -369,7 +369,7 @@ The replacement synthesis agreed: the counterfactual rule could not decide a cau
 - rendering of incomplete checks (F6);
 - flow-control crossings as review items (F7).
 
-The Classification above states the evidence-only rule. **The operator's decision (October 18, 2026, about 02:20 America/New_York):** "Accept, run counted". This accepts the registration with the evidence-only rule, before any counted observation. The operator was shown the development runs' figures and the agent's expectation (DATAGRAM (a); STREAM unresolved; the path undiagnosed under D5, with both conclusions kept), and also offered closing on the development evidence or adding a diagnostic arm with the marking switched off.
+The Classification above states the evidence-only rule. **The operator's decision (October 18, 2026, about 01:57 America/New_York):** "Accept, run counted". This accepts the registration with the evidence-only rule, before any counted observation. The operator was shown the development runs' figures and the agent's expectation (DATAGRAM (a); STREAM unresolved; the path undiagnosed under D5, with both conclusions kept), and also offered closing on the development evidence or adding a diagnostic arm with the marking switched off.
 
 ## Time estimate
 
