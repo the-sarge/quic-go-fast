@@ -320,7 +320,7 @@ None. The driver ran the registered order unchanged: host facts, the binary chec
 
 ## Decisions after the result
 
-On October 18, 2026, the operator was shown the adverse result and asked two questions. In each case they chose the agent's recommendation:
+On October 17, 2026, at about 22:00 America/New_York, the operator was shown the adverse result and asked two questions. In each case they chose the agent's recommendation:
 
 - **"Diagnose the cause."** Filed, not started, as [#792](https://github.com/the-sarge/quic-go-fast/issues/792). It is a measurement-only diagnosis of why BBRv3 at `abfa5456` displaces the Reno flow on this path: draft-06 behavior, a property of the port, or a fixture interaction. A fix, if any, is a separate ticket with its own readiness and L6.
 - **"File it, not started"** for the ECN change: [#793](https://github.com/the-sarge/quic-go-fast/issues/793), finding what disables ECN on the BBRv3 connection mid-run.
