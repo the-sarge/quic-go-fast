@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-l6-diagnosis`, based on `9b5c91f2` (the tip of #777's record branch, `71e88789` plus one disclosure line in #777's README), so #777's aids are in this tree at their recorded paths. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666), [#748](https://github.com/the-sarge/quic-go-fast/issues/748) and #777 record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: registration accepted; counted stage running.** The operator accepted the registration on October 18, 2026, at about 01:57 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The [development runs](#development-runs-before-this-registration) are disclosed with what was seen.
+**Status: counted stage complete; result under review.** The operator accepted the registration on October 18, 2026, at about 01:57 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The counted order ran from 05:57 to 07:29 UTC. The sections from [Question](#question) through [Order](#order) are the registration, unchanged since acceptance except this status line; the [Answer](#answer), [Results](#results) and their following sections were added after the counted stage.
 
 ## Question
 
@@ -21,6 +21,30 @@ Why does BBRv3 at `abfa5456` displace the Reno flow on #777's L6 path? Which of 
 - **Evidence for the cause class.** The record names the class (a, b or c) with evidence: state traces compared with draft-06's expected transitions, or a demonstrated deviation in code. Otherwise it ends *undiagnosed* and says what was ruled out.
 - **#777's classification stands.** Nothing here reclassifies it.
 - **Revision.** `abfa5456`, unless the operator picks another revision with its own readiness.
+
+## Answer
+
+**Undiagnosed for the path (D5: mixed attribution), with a supported conclusion for each workload.**
+
+- **DATAGRAM: (a), draft-06 behavior.**
+  - In the three counted pairs, BBRv3 at `abfa5456` followed every registered draft-06 rule (zero mismatches) on inputs that match the path: declared losses equal the relay's drops (within 3 packets in two periods), and delivered bytes agree within 0.3%.
+  - It still displaced the Reno competitor. The competitor got 8.5, 16.8 and 6.0 Mbit/s in the equal, short and resumed periods, against 45.5, 55.5 and 45.2 next to Reno in #777.
+  - The draft's own rules produce this on a one-BDP drop-tail queue. Loss appears only when the shared queue overflows, so the two-percent rule sets `inflight_longterm` at about the whole path (0.90–0.98 × pipe plus queue). Cruise keeps 85% of that in flight, a standing queue that is most of the buffer. Every 5 s or so a probe overflows it, and 97–99% of the competitor's drops fall in those probes.
+  - The only port property acting there, two sub-packet clamp events, is a contributor at most ([The argument](#datagram-a-draft-06-behavior)).
+- **STREAM: unresolved.**
+  - The same mechanism is present, and the competitor got 7.2, 10.8 and 5.9 Mbit/s.
+  - A port property also acts in every probe: the port marks bulk STREAM sends application-limited. All 142 two-percent crossings judged such packets, so none lowered `inflight_longterm` (1.04–1.07 × the path). The bandwidth filter's cycle never advanced, and no Up could end on a plateau.
+  - A measurement-only record cannot switch the property off, so whether STREAM's displacement depends on it is not established ([The argument](#stream-unresolved)).
+- **Ruled out for both workloads:**
+  - a deviation from draft-06 in the checked rules, or from r9 in the controller's code;
+  - a fixture artifact in what the sender saw (every input check `ok`; calibration passed);
+  - the instrument: D3 holds, and the competitor's delivery next to the traced arm is 0.95–1.05 of its delivery next to the plain arm (median over pairs);
+  - the ECN switch: the competitor's delivery does not change at it.
+
+**What it leads to (#792):**
+- **From DATAGRAM's (a):** the adoption question for GridCast's shared paths goes to the operator.
+- **From STREAM:** the application-limited marking is reported for a fix ticket. That ticket's own readiness and L6 run would show how much of STREAM's displacement it removes.
+- **#777's classification stands.**
 
 ## Accepted decisions (before any data)
 
@@ -255,6 +279,126 @@ If (b) and (c) both hold in one workload, that workload reports both and is undi
 - **(a):** the adoption question for GridCast's shared paths goes to the operator.
 - **(c):** #777's validity question goes back to the operator before anything else.
 - **Undiagnosed:** what was ruled out, and a decision for the operator on whether to spend more.
+
+## Results
+
+Every table below is generated from [summary.json](summary.json) by [figures.py](figures.py); `figures.py --check` confirms that this file contains each one verbatim. Delivery is useful payload in Mbit/s; cells are medians over the three pairs.
+
+### Preconditions
+
+| Precondition | Result |
+| --- | --- |
+| Selected `trace` observations | 6 |
+| Every one representative (D3) | yes |
+| Traces complete | yes |
+| Checker mismatches in the measured window | 0 |
+| Input check within tolerance in every trace | yes |
+
+### Delivery by period
+
+| Workload | Period | Competitor next to `trace` | Next to `cand` | #777: next to BBRv3 | #777: next to Reno | Focal `trace` | Focal `cand` |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| STREAM | equal | 7.2 | 7.4 | 7.6 | 50.6 | 86.3 | 86.1 |
+| STREAM | short | 10.8 | 10.6 | 11.9 | 59.9 | 83.5 | 83.8 |
+| STREAM | back | 6.7 | 7.1 | 7.2 | 51.3 | 86.7 | 86.1 |
+| STREAM | absent | 0.0 | 0.0 | 0.0 | 0.2 | 93.6 | 93.1 |
+| STREAM | resumed | 5.9 | 5.9 | 6.7 | 45.2 | 87.6 | 87.3 |
+| DATAGRAM | equal | 8.5 | 8.4 | 8.3 | 45.5 | 83.7 | 83.8 |
+| DATAGRAM | short | 16.8 | 17.3 | 17.8 | 55.5 | 77.1 | 76.6 |
+| DATAGRAM | back | 7.5 | 7.0 | 6.2 | 42.7 | 84.5 | 85.1 |
+| DATAGRAM | absent | 0.0 | 0.0 | 0.0 | 0.2 | 92.3 | 91.8 |
+| DATAGRAM | resumed | 6.0 | 6.4 | 7.1 | 45.2 | 86.0 | 86.0 |
+
+The competitor gets the same next to the traced and the plain port (the instrument's disturbance, reported beside D3), and about the same as next to #777's plain port.
+
+### Mechanism
+
+| Workload | Period | `inflight_longterm` / path | Window / path | Ceiling set by headroom | Competitor drops in BBRv3 Up | Probe interval (s) | Up exits on loss | Two-percent checks on limited packets | Crossings (limited) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| STREAM | equal | 1.04 | 0.89 | 78% | 97% | 4.9 | 57 of 65 | 100% | 60 (60) |
+| STREAM | short | 1.05 | 0.90 | 56% | 65% | 5.0 | 58 of 65 | 100% | 63 (63) |
+| STREAM | resumed | 1.07 | 0.91 | 77% | 93% | 4.8 | 19 of 21 | 100% | 19 (19) |
+| DATAGRAM | equal | 0.96 | 0.82 | 78% | 99% | 5.2 | 57 of 59 | 0% | 57 (0) |
+| DATAGRAM | short | 0.90 | 0.82 | 53% | 97% | 5.0 | 57 of 61 | 0% | 59 (0) |
+| DATAGRAM | resumed | 0.98 | 0.84 | 74% | 98% | 4.6 | 18 of 19 | 0% | 19 (0) |
+
+`inflight_longterm` and the window are medians over each period's packet-timed rounds, against the path's capacity (queue plus pipe, in QUIC bytes). "Ceiling set by headroom" is the share of rounds in which Cruise's `InflightWithHeadroom` set the window's ceiling.
+
+### Checker and input check
+
+| Rule | Checks | Mismatches |
+| --- | ---: | ---: |
+| C0 | 12 | 0 |
+| C1 | 13233 | 0 |
+| C2 | 1880 | 0 |
+| C3 | 1383 | 0 |
+| C4 | 2009 | 0 |
+| C5 | 2450 | 0 |
+| C6 | 5095 | 0 |
+| C7 | 5095 | 0 |
+| C8 | 14584 | 0 |
+| C9 | 1524 | 0 |
+
+| Workload | Period | Declared losses / relay drops | Delivered ratio | `max_bw` / capacity (max) | `min_rtt` (ms) | Checks not `ok` |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| STREAM | equal | 10115 / 10115 | 0.9992–1.0002 | 0.991 | 100.2 | none |
+| STREAM | short | 12874 / 12874 | 0.9989–1.0001 | 1.000 | 100.2 | none |
+| STREAM | resumed | 4335 / 4335 | 1.0007–1.0030 | 1.008 | 100.2 | none |
+| DATAGRAM | equal | 4126 / 4126 | 0.9990–1.0004 | 0.947 | 100.2 | none |
+| DATAGRAM | short | 4454 / 4460 | 0.9993–1.0005 | 0.987 | 100.3 | none |
+| DATAGRAM | resumed | 1893 / 1893 | 0.9972–1.0006 | 1.008 | 100.2 | none |
+
+### The arguments
+
+#### DATAGRAM: (a), draft-06 behavior
+
+**Gates.** All three traces are complete and representative (D3), conform (zero mismatches) and reconcile (every check `ok`). No two-percent check in any classified period judged a supply-limited packet.
+
+**The acting property.** Two clamp events (C4 deviations) in the classified periods, one each in pair 2's and pair 3's resumed periods, 174 bytes each; a third fell in pair 3's back period, which is not classified. They are the only port property seen, and each moved `inflight_longterm` by less than one packet. The paired effective Cruise ceilings are 1.6570 and 1.6569 × the pipe, with and without the clamp, against the same displacement in every probe cycle of every pair. On that evidence the clamp is a **contributor** at most: a sub-packet change in two of 139 probes cannot produce a displacement present in all of them.
+
+**The mechanism, rule by rule** (DATAGRAM, the three classified periods; figures from the tables above and [summary.json](summary.json)):
+1. **Loss rounds and the long-term bound** (5.5.10.2). On L6's drop-tail queue with no random loss, a packet is lost only when the shared queue is full. A two-percent crossing therefore happens at a flight near the whole path, and HandleInflightTooHigh sets `inflight_longterm` there: 0.90–0.98 × the path, median over rounds.
+2. **Cruise keeps most of it** (5.3.3.2, 5.6.4.7). `InflightWithHeadroom` (85%) set the window's ceiling in 53–78% of rounds. The window sits at 0.82–0.84 × the path, about 1.65 × the pipe, with pacing at `max_bw`, which is 0.95–1.01 of the link's capacity. BBRv3 therefore holds its own standing queue:
+   - about 320–780 KB in Cruise, 550–630 KB in Down and 1.07–1.12 MB in Up, out of 1,251 KB;
+   - the competitor's share is 25–170 KB.
+3. **Probes overflow it** (5.3.3.4–5.3.3.8). A probe starts about every 4.6–5.2 s (the 2–3 s wait, lengthened by ProbeRTT and the probe's own rounds). It raises the rate to 1.25× and the window toward `inflight_longterm` and above it (ProbeInflightLongtermUpward), and the queue overflows. Up ended on loss in 132 of 139 probes (ProbeRTT the rest), and 97–99% of the competitor's drops fall in BBRv3's Up phase.
+4. **The loss response outside probing does not release the queue** (5.5.10.3). In loss rounds, `bw_shortterm` and `inflight_shortterm` move to `max(latest, 0.7 × bound)`. That floor is BBRv3's latest delivery, so it does not fall below what BBRv3 already gets, and both reset at every Refill.
+5. **Reno cannot recover between probes.** Reno halves its window when a probe drops its packets and regrows by about one packet per round trip: about 50 packets between probes, against an 857-packet BDP. Draft-06 states its coexistence target as BDPs of about 100 packets or fewer, with large-BDP flows probing more often than Reno would (5.3.3.8.1–5.3.3.8.3).
+
+**What the argument rests on beyond the rules:** emission obeying cwnd and pacing, and upward adjustments of `inflight_longterm`, are read in the code, not checked by a rule ([What a conforming trace shows](#classification-fixed-before-counted-data)). Neither changes the steps above: the window and `inflight_longterm` levels are recorded, and the drops and queue occupancy come from the relay.
+
+#### STREAM: unresolved
+
+**Gates.** All three traces are complete and representative, conform (zero mismatches) and reconcile (every check `ok`).
+
+**The acting property: the application-limited marking of bulk STREAM sends.** Every two-percent check in every classified period of every pair judged a packet marked application-limited (reason 1). The port marks these packets because quic-go's `SendStream.Write` returns while the last packet of a 16,384-byte record is still buffered, so the stream runs dry within a packing burst at every record ([Code check](#code-check-draft-06-rules-on-the-mechanisms-path)). The design fixes the determination point; the draft leaves it to the implementation. Through draft-06's own rules the mark acts through three channels:
+- **`inflight_longterm`** (5.5.10.2): none of the 142 crossings lowered it. It stays at 1.04–1.07 × the path, above the flight at which drop-tail loss passes 2%. The descriptive pairing puts the effective Cruise ceiling at a median 1.79 × the pipe with the mark and 1.65 × with the draft's assignment instead; the mark kept it higher in all 142 events.
+- **`max_bw`** (5.5.4, 5.3.3.9 `AdaptLongTermModel`): a limited sample at the probe's end does not advance the filter's cycle. The cycle never advanced in any classified period of any pair, so `max_bw` never aged (DATAGRAM: 6–19 advances and 6–13 aging events per period).
+- **The plateau exit** (5.3.1.2, 5.3.3.7): every Up round start was on a limited sample, which does not count toward the plateau. Up ended on loss in 134 of 151 probes and on ProbeRTT in the rest; none ended on a plateau.
+
+**Why unresolved.** STREAM's displacement could depend on these channels (a cause) or persist without them (a contributor). DATAGRAM, where the mark does not act, shows the same mechanism displacing the competitor to a similar degree (8.5 against 7.2 Mbit/s in the equal period). That corroborates persistence, but a change of workload does not isolate the property: the workloads differ in more than the mark (DATAGRAM's competitor does notably better in the short period, 16.8 against 10.8). This record changes no code, so it cannot switch the mark off. Under rule 5 the connection is unresolved and STREAM is undiagnosed.
+
+### Health
+
+- **Observations.** 12 counted observations in 6 pair-workloads, all usable and uncontaminated, with no rerun; follow found nothing to rerun.
+- **Contamination.** The largest foreign load on the fixture cores and siblings was 0.005 cores mean and 0.30 cores peak (limits 0.10 and 0.50).
+- **Relay.** Largest arrival lag 1.28 ms; largest lateness 4.46 ms forward and 4.26 ms reverse (limit 5 ms).
+- **Endpoints.** Largest endpoint CPU load 0.019 of its allotted cores (limit 0.80).
+- **Competitor pause.** Observed at 240.000–240.020 s and 270.000–270.001 s (tolerance 0.5 s).
+- **Host.** Host UDP error deltas: none.
+- **Prerequisites.** Calibration (all seven checks) and smoke (one traced STREAM observation, complete trace, every thread in its CPU set) passed.
+- **Correctness.** No correctness failure.
+
+### Deviations
+
+None from the accepted registration. The driver ran the registered order unchanged: host facts, the binary check, calibration, smoke, the counted stage and follow. The quiet-host gate waited twice for 120 s instead of 60 s. The order ran from 05:57 to 07:29 UTC (1 h 31 min), against the registered estimate of about 1 h 35 min without reruns.
+
+### Not established
+
+- **STREAM's cause** (above).
+- **Other paths.** Deeper, shallower or marking queues, other round trips, other competitors, and other platforms are unmeasured.
+- **Other implementations.** The record shows that a draft-06-conforming sender on faithful inputs displaces the competitor here (DATAGRAM). It does not show how another BBRv3 implementation behaves, or what Linux's BBRv3 does on the same path.
+- **What a fix to the STREAM marking would change.** That belongs to the fix ticket's own readiness and L6 run.
 
 ## Development runs (before this registration)
 
