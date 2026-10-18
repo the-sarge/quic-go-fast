@@ -1,6 +1,7 @@
 package ackhandler
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -244,6 +245,109 @@ func TestBBRECNDistinctACKedSuffixPinsRangeBudget(t *testing.T) {
 	require.Equal(t, before.Watermark, after.Watermark)
 	require.Zero(t, after.Ordinal)
 	t.Logf("distinct suffix after overflow and late ACK: ranges=%d marking=%v eligible=%v accepted=%+v failed=%v", len(h.bbrECN.ranges), h.ECNMode(true), after.Eligible, after.Accepted, after.Failed)
+}
+
+// ordinaryLossPath sends blocks of contiguous packet numbers at the sender's
+// current marking and acknowledges all but each block's leading lost packets.
+// Every ACK repeats the previous block's range, as a peer does, so each hole
+// lies inside the acknowledged span and real loss detection declares it lost.
+type ordinaryLossPath struct {
+	h    *sentPacketHandler
+	next protocol.PacketNumber
+	prev wire.AckRange
+	ect0 uint64 // the peer's cumulative ECT(0) count
+}
+
+const ordinaryLossBlock = 64
+
+func newOrdinaryLossPath(t *testing.T, h *sentPacketHandler) *ordinaryLossPath {
+	t.Helper()
+	// Register packet numbers directly to exclude random skips.
+	h.SentPacket(monotime.Now(), 0, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
+	ackBBRECN(t, h, ackRanges(0), 1, 0)
+	require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	return &ordinaryLossPath{h: h, next: 1, prev: wire.AckRange{Smallest: 0, Largest: 0}, ect0: 1}
+}
+
+func (p *ordinaryLossPath) lossEvent(t *testing.T, lost protocol.PacketNumber) {
+	t.Helper()
+	first := p.next
+	for pn := first; pn < first+ordinaryLossBlock; pn++ {
+		mark := p.h.ECNMode(true)
+		p.h.SentPacket(monotime.Now(), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, mark, 1200, false, false)
+		if pn >= first+lost && mark == protocol.ECT0 {
+			p.ect0++
+		}
+	}
+	p.next = first + ordinaryLossBlock
+	acked := wire.AckRange{Smallest: first + lost, Largest: p.next - 1}
+	ackBBRECN(t, p.h, []wire.AckRange{acked, p.prev}, p.ect0, 0)
+	p.prev = acked
+}
+
+// TestBBRECNOrdinaryLossExhaustsRangeBudget characterizes issue #793: a packet
+// that is really lost is never ACKed, so its record stays unaccounted, prefix
+// compaction stops at the first loss, and each later loss event adds a hole and
+// an ACKed suffix. Ordinary loss alone therefore exhausts the range budget, and
+// marking falls back to Not-ECT for the rest of the connection. A remedy that
+// retires such records changes these expectations. The legacy validator keeps
+// no per-packet ledger and stays ECN-capable under the same pattern.
+func TestBBRECNOrdinaryLossExhaustsRangeBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		lost protocol.PacketNumber // leading packets of each block that are never ACKed
+	}{
+		{name: "isolated loss", lost: 1},
+		{name: "paired loss", lost: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, r := newBBRECNTestHandler()
+			p := newOrdinaryLossPath(t, h)
+			const events = maxECNMarkRanges / 2
+			for event := 1; event <= events; event++ {
+				p.lossEvent(t, tc.lost)
+				require.Equal(t, protocol.ECT0, h.ECNMode(true), "loss event %d", event)
+				require.Len(t, h.bbrECN.ranges, 2*event, "one hole and one ACKed suffix per loss event")
+			}
+			var declaredLost int
+			for _, e := range r.feedback {
+				declaredLost += len(e.Lost)
+			}
+			require.Equal(t, events*int(tc.lost), declaredLost, "recovery declared every hole lost")
+			first := h.bbrECN.ranges[0]
+			require.False(t, first.acked)
+			require.Equal(t, protocol.PacketNumber(1), first.first, "the first loss pins the prefix")
+			before := r.feedback[len(r.feedback)-1].ECN
+			require.True(t, before.Eligible)
+
+			// The next block's first registration needs a fresh record.
+			p.lossEvent(t, tc.lost)
+			require.True(t, h.bbrECN.evidenceLost)
+			require.False(t, h.bbrECN.counterFailed)
+			require.Len(t, h.bbrECN.ranges, maxECNMarkRanges)
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			require.True(t, strings.HasPrefix(h.BBRDiagnostics(), "ecn=missing-marking-evidence "), h.BBRDiagnostics())
+			after := r.feedback[len(r.feedback)-1].ECN
+			require.True(t, after.Failed)
+			require.False(t, after.Eligible)
+			require.Equal(t, before.Accepted, after.Accepted)
+			p.lossEvent(t, tc.lost)
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "the fallback persists")
+			t.Logf("%s: ECN fell back after %d loss events (%d lost packets); ranges=%d accepted=%+v", tc.name, events, events*int(tc.lost), len(h.bbrECN.ranges), after.Accepted)
+		})
+	}
+
+	t.Run("legacy validator", func(t *testing.T) {
+		h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger).(*sentPacketHandler)
+		p := newOrdinaryLossPath(t, h)
+		// Twice the loss events that exhaust the BBR ledger.
+		for range maxECNMarkRanges {
+			p.lossEvent(t, 1)
+		}
+		require.False(t, h.appDataPackets.history.HasOutstandingPackets(), "recovery declared every hole lost")
+		require.Nil(t, h.bbrECN)
+		require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	})
 }
 
 func TestBBRECNTestingVersusCapableCE(t *testing.T) {
