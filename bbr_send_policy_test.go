@@ -368,6 +368,46 @@ func TestBBRPendingCreditGSOFallback(t *testing.T) {
 	})
 }
 
+// A bounded GSO opportunity that packs one packet sends it without a segment
+// size; a batch keeps it. Local credit and pacing account for the physical
+// bytes either way, and the buffer stays in the large tier.
+func TestBBRBoundedGSOSegmentSize(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		payloads []int
+		segment  uint16
+		length   protocol.ByteCount // 0: shorter than one full packet
+	}{
+		{name: "one short packet", payloads: []int{1000}},
+		{name: "full-size batch", payloads: []int{1187, 1187, 1187}, segment: 1200, length: 3600},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newEmissionTestConnection(t, true).conn
+			now := monotime.Now()
+			c.emission.bbr = newBBRSendPolicy(100_000_000, 1200, now)
+			for _, n := range tc.payloads {
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: make([]byte, n)}))
+			}
+			budget := c.emission.bbr.budget(now)
+			require.True(t, c.emission.send(now, true).progress)
+			q := c.emission.queue.(*sendQueue)
+			require.Len(t, q.queue, 1)
+			entry := <-q.queue
+			defer entry.release()
+			require.Nil(t, c.datagramQueue.Peek(), "one opportunity sends every queued datagram")
+			require.Equal(t, tc.segment, entry.gsoSize)
+			if tc.length == 0 {
+				require.Less(t, entry.buf.Len(), protocol.ByteCount(1200))
+			} else {
+				require.Equal(t, tc.length, entry.buf.Len())
+			}
+			require.Equal(t, protocol.MaxLargePacketBufferSize, cap(entry.buf.Data))
+			require.Equal(t, entry.buf.Len(), c.emission.bbr.credit.pending, "the reservation is resized to the physical bytes")
+			require.Equal(t, budget-entry.buf.Len(), c.emission.bbr.budget(now), "pacing spends the physical bytes")
+		})
+	}
+}
+
 // Exempt traffic never waits for the quantum deadline: with ordinary pacing
 // credit spent, it proceeds whenever local credit admits it.
 func TestBBRQuantumDeadlineExemptions(t *testing.T) {

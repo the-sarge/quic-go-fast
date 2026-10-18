@@ -190,10 +190,10 @@ func TestWindowsConnSegmentedSend(t *testing.T) {
 	require.Equal(t, payload, received)
 	require.Equal(t, []int{segmentSize, segmentSize, 250}, sizes)
 
-	// A GSO-mode submission always carries the segment-size message, even
-	// when it holds a single packet smaller than the segment size (the
-	// platform-neutral emission path sets gsoSize to the max packet size for
-	// every batch); such a send must arrive as exactly one datagram.
+	// A segmented submission no longer than one segment carries the
+	// segment-size message and must arrive as exactly one datagram. Emission
+	// sends a lone packet without a segment size, but the socket contract
+	// still covers this shape.
 	single := payload[:300]
 	n, err = conn.WritePacket(single, receiver.LocalAddr(), nil, segmentSize, protocol.ECNUnsupported)
 	require.NoError(t, err)

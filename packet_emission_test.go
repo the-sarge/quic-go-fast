@@ -171,8 +171,11 @@ func TestEmissionECNBatchBoundary(t *testing.T) {
 	for _, want := range []protocol.ECN{protocol.ECT0, protocol.ECNNon} {
 		entry := <-q.queue
 		require.Equal(t, want, entry.ecn)
-		require.EqualValues(t, 1200, entry.gsoSize)
+		// Each batch holds one full-size packet: no segment size, but the
+		// buffer stays in the large tier.
+		require.Zero(t, entry.gsoSize)
 		require.Len(t, entry.buf.Data, 1200)
+		require.Equal(t, protocol.MaxLargePacketBufferSize, cap(entry.buf.Data))
 		entry.buf.Release()
 	}
 }

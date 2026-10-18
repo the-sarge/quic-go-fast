@@ -1,0 +1,16 @@
+Engagement check (shape only, not counted): one 1 s DATAGRAM run per sender build on minimax,
+sender traced with `strace -f -qq -e trace=sendmsg -e signal=none -v -s 0`; receiver = pre build.
+
+sender build pre: 77787 sendmsg calls, 77768 with a UDP_SEGMENT control message
+  UDP_SEGMENT segment sizes: {1441: 77575, 1280: 62, 1366: 44}
+  most common datagram sizes: {1216: 76797, 1230: 557, 1226: 406}
+  send: {"cpu_sys_s":0.602385,"cpu_user_s":0.416247,"disable_gso_env":"","elapsed_ns":1000062696,"mode":"datagram","role":"send","sent_bytes":92555820,"sent_datagrams":77778}
+  recv: {"bytes":92555820,"cpu_sys_s":0.252637,"cpu_user_s":0.383121,"datagrams":77778,"disable_gso_env":"","elapsed_ns":1000417170,"max_seq":77778,"mbps":740.1377967153443,"mode":"datagram","role":"recv"}
+
+sender build post: 86116 sendmsg calls, 0 with a UDP_SEGMENT control message
+  UDP_SEGMENT segment sizes: none
+  most common datagram sizes: {1216: 85020, 1230: 658, 1226: 404}
+  send: {"cpu_sys_s":0.630868,"cpu_user_s":0.393896,"disable_gso_env":"","elapsed_ns":1000079457,"mode":"datagram","role":"send","sent_bytes":102467330,"sent_datagrams":86107}
+  recv: {"bytes":102467330,"cpu_sys_s":0.247621,"cpu_user_s":0.384126,"datagrams":86107,"disable_gso_env":"","elapsed_ns":1000353280,"max_seq":86107,"mbps":819.4491450060524,"mode":"datagram","role":"recv"}
+
+strace slows the sender, so the throughput above is not comparable with the counted runs.

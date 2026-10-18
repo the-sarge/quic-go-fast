@@ -5463,3 +5463,57 @@ Merged [PR #798](https://github.com/the-sarge/quic-go-fast/pull/798) as `3786c42
 - [#803](https://github.com/the-sarge/quic-go-fast/issues/803): retire ECN ledger records of packets that will never be acknowledged.
 - [#800](https://github.com/the-sarge/quic-go-fast/issues/800): the STREAM application-limited marking and the clamp.
 - Both are filed, not started. GitHub issues are the live view.
+
+---
+
+## Lone GSO packets sent without a segment size - 2026-10-18 14:29 EDT
+
+**Main:** `592e98cbcc79`
+**Actor:** Claude
+
+### Summary
+
+[#742](https://github.com/the-sarge/quic-go-fast/issues/742): a GSO emission buffer holding exactly one packet was handed off with the maximum packet size as its segment size, so every such send carried `UDP_SEGMENT` (USO on Windows) with nothing to segment. A DATAGRAM packet shorter than a full packet always ends its batch, so a fixed-size DATAGRAM workload paid this cost on every packet.
+
+[PR #805](https://github.com/the-sarge/quic-go-fast/pull/805) merged as `592e98cb`:
+- `packetEmission.withGSO` and the BBR `packetEmission.boundedDatagrams` count the packets in each buffer and pass a segment size of 0 for one packet.
+- Batches of two or more packets keep the maximum packet size, ECN grouping, termination rules and the large buffer tier.
+- BBR credit and pacing still account physical bytes.
+- **Traced consequences:** Linux GSO-broken detection (EIO) now happens on the first multi-packet batch. On endpoints with a send-batch callback, lone packets now batch through that callback, as non-GSO sends do.
+- **New tests:** `TestConnectionGSOSinglePacket` and `TestBBRBoundedGSOSegmentSize`. Three existing tests changed only their lone-packet expectation.
+
+**Measurement**, recorded in [docs/audits/2026-10-18-single-packet-gso/README.md](audits/2026-10-18-single-packet-gso/README.md):
+- Setup: minimax loopback, eight interleaved rounds, single-connection DATAGRAM with 1,190-byte payloads, STREAM as the guard. Rules were registered before the counted stage.
+- Before #742, GSO read 0.955× the GSO-off arm's throughput at 1.040× its sender CPU per GiB. After #742 it reads 0.995× and 1.004×, inside the registered ±1.5% band.
+- The STREAM guard passed: 1.019× throughput at 0.985× CPU per GiB.
+- strace showed 77,768 of 77,787 pre-#742 sender `sendmsg` calls carrying `UDP_SEGMENT`, each with a single 1,216-byte datagram; post-#742 showed none.
+- All 40 counted runs were clean.
+
+### Decisions
+
+The operator approved the plan on 2026-10-18 with four decisions, and later declined a #743 prototype arm. They are recorded in the record's fixture section and [registration.md](audits/2026-10-18-single-packet-gso/registration.md):
+- measurement on minimax loopback;
+- the registered gap and guard rules;
+- the pre-existing GSO-error fallback hazard filed as a follow-up, not fixed here;
+- lone packets batching through send-batch callbacks, accepted as the "same socket path as a non-GSO send".
+
+### Validation
+
+- **RAS review:**
+  - The first run, `20261018T180227-d127ff80890107c6cba39d55`, failed in synthesis with a structured-delivery `plan_drift` error. Five reviewers had already completed with no findings, but nothing was adjudicated.
+  - The rerun, `20261018T181134-0bef95ecd6cc8458de3bc111` at `1878b414`, had no Fix First or Follow Up. Its one Do Not Act On item, that the README overstated byte-for-byte harness reproduction, was fixed anyway as docs-only in `364a3a5d`, because the build info embeds the absolute replace directory. No further RAS cycle, under the low/nit policy for docs-only fixes.
+- **Local gates on `dc7d387b`:**
+  - darwin `go test ./...` and root `-race -shuffle on`
+  - Linux Docker root `-shuffle on` and `-race -shuffle on`
+  - vet for darwin, Linux and Windows, plus a Windows test build
+  - golangci-lint v2.14.0 on five GOOS values
+  - `go mod tidy -diff`
+- **Exact-head certification at `364a3a5d`:** no Go change since `dc7d387b`; vet, tidy, root tests, `git diff --check`, record links, and `analyze.py` regenerating `summary.json` byte for byte.
+- All 33 hosted checks passed on `364a3a5d`, which was squash-merged with `--match-head-commit`.
+
+### Next
+
+- [#809](https://github.com/the-sarge/quic-go-fast/issues/809): the GSO-error fallback loops on a size-0 write that returns EIO. Pre-existing, filed `needs-triage`.
+- [#743](https://github.com/the-sarge/quic-go-fast/issues/743): measure equal-size short-packet GSO batching. Its #742 blocker has cleared, and it needs a human keep/reject decision.
+- [#800](https://github.com/the-sarge/quic-go-fast/issues/800) and [#803](https://github.com/the-sarge/quic-go-fast/issues/803) are in progress in other sessions. The shared BBR readiness and L6 campaign follows them and also covers #742's change to the bounded path.
+- GitHub issues are the live view.
