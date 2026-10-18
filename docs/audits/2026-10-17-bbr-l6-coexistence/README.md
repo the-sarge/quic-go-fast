@@ -318,6 +318,15 @@ None. The driver ran the registered order unchanged: host facts, the binary chec
 - **Other paths.** Deeper or marking queues, other round trips, a CUBIC or BBR competitor, and other platforms are unmeasured.
 - **The ECN change** described above.
 
+## Decisions after the result
+
+On October 18, 2026, the operator was shown the adverse result and asked two questions. In each case they chose the agent's recommendation:
+
+- **"Diagnose the cause."** Filed, not started, as [#792](https://github.com/the-sarge/quic-go-fast/issues/792). It is a measurement-only diagnosis of why BBRv3 at `abfa5456` displaces the Reno flow on this path: draft-06 behavior, a property of the port, or a fixture interaction. A fix, if any, is a separate ticket with its own readiness and L6.
+- **"File it, not started"** for the ECN change: [#793](https://github.com/the-sarge/quic-go-fast/issues/793), finding what disables ECN on the BBRv3 connection mid-run.
+
+No adoption or default-controller decision was asked or made. BBRv3 stays the experimental, unqualified opt-in sender.
+
 ## Development runs (before this registration)
 
 Made on `minimax`, each excluded from every statistic. Times are UTC on October 17. The decisions (`50792abf`, 05:55) and the classification, usability, contamination and rerun rules ([l6rules.py](l6rules.py) at `93314fd8`, 06:10) were committed before the first of them.
