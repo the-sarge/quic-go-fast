@@ -4,7 +4,7 @@
 
 Branch `codex/bbr-l6-diagnosis`, based on `9b5c91f2` (the tip of #777's record branch, `71e88789` plus one disclosure line in #777's README), so #777's aids are in this tree at their recorded paths. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666), [#748](https://github.com/the-sarge/quic-go-fast/issues/748) and #777 record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: counted stage complete; result under review.** The operator accepted the registration on October 18, 2026, at about 01:57 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The counted order ran from 05:57 to 07:29 UTC. The sections from [Question](#question) through [Order](#order) are the registration, unchanged since acceptance except this status line; the [Answer](#answer), [Results](#results) and their following sections were added after the counted stage.
+**Status: counted stage complete; result under review.** The operator accepted the registration on October 18, 2026, at about 01:57 America/New_York, before any counted observation ([Attribution: stopped for a decision](#attribution-stopped-for-a-decision)). The order ran from 05:57 to 07:29 UTC, its counted stage from 06:07 to 07:29. The sections from [Question](#question) through [Order](#order) are the registration, unchanged since acceptance except this status line; the [Answer](#answer), [Results](#results) and their following sections were added after the counted stage.
 
 ## Question
 
@@ -27,23 +27,28 @@ Why does BBRv3 at `abfa5456` displace the Reno flow on #777's L6 path? Which of 
 **Undiagnosed for the path (D5: mixed attribution), with a supported conclusion for each workload.**
 
 - **DATAGRAM: (a), draft-06 behavior.**
-  - In the three counted pairs, BBRv3 at `abfa5456` followed every registered draft-06 rule (zero mismatches) on inputs that match the path: declared losses equal the relay's drops (within 3 packets in two periods), and delivered bytes agree within 0.3%.
+  - In the three counted pairs, BBRv3 at `abfa5456` showed no checker mismatch under the registered draft-06 rules (C0–C9). The one deviation recorded was two sub-packet clamp events. Its inputs match the path: declared losses equal the relay's drops (within 3 packets in two pairs' short periods), and delivered bytes agree within 0.3%.
   - It still displaced the Reno competitor. The competitor got 8.5, 16.8 and 6.0 Mbit/s in the equal, short and resumed periods, against 45.5, 55.5 and 45.2 next to Reno in #777.
-  - The draft's own rules produce this on a one-BDP drop-tail queue. Loss appears only when the shared queue overflows, so the two-percent rule sets `inflight_longterm` at about the whole path (0.90–0.98 × pipe plus queue). Cruise keeps 85% of that in flight, a standing queue that is most of the buffer. Every 5 s or so a probe overflows it, and 97–99% of the competitor's drops fall in those probes.
-  - The only port property acting there, two sub-packet clamp events, is a contributor at most ([The argument](#datagram-a-draft-06-behavior)).
+  - The draft's own rules produce this on a one-BDP drop-tail queue. Loss appears only when the shared queue overflows, so the two-percent rule sets `inflight_longterm` at about the whole path (0.90–0.98 × pipe plus queue).
+  - Cruise caps the window at 85% of that. BBRv3 keeps about 320–360 KB queued in Cruise in the equal and resumed periods, and about 770 KB in the short period.
+  - About every 5 s a probe fills the queue until it overflows, and 96–100% of the competitor's drops fall in BBRv3's Up phase.
+  - The only port property acting there, the clamp, is a **contributor**: the clamp-free equal and short periods show the same displacement ([The argument](#datagram-a-draft-06-behavior)).
 - **STREAM: unresolved.**
-  - The same mechanism is present, and the competitor got 7.2, 10.8 and 5.9 Mbit/s.
-  - A port property also acts in every probe: the port marks bulk STREAM sends application-limited. All 142 two-percent crossings judged such packets, so none lowered `inflight_longterm` (1.04–1.07 × the path). The bandwidth filter's cycle never advanced, and no Up could end on a plateau.
-  - A measurement-only record cannot switch the property off, so whether STREAM's displacement depends on it is not established ([The argument](#stream-unresolved)).
+  - The probe overflows are present as in DATAGRAM, and the competitor got 7.2, 10.8 and 5.9 Mbit/s.
+  - A port property also acts in every probe: the port marks bulk STREAM sends application-limited. All 142 two-percent crossings judged such packets, so none lowered `inflight_longterm`; it stays wherever it was raised, 0.97–1.15 × the path by pair. The bandwidth filter's cycle never advanced either. The plateau rule is switched off too, but is inert here, since Up lasts about a round in both workloads.
+  - The mark changes the shared queue and the competitor's losses. In pair 2, `inflight_longterm` froze at 1.154 × the path; up to 64% of the competitor's drops in a period fell in Cruise or Refill rather than in a probe, and the competitor got 5.3, 6.7 and 4.1 Mbit/s.
+  - A measurement-only record cannot switch the mark off, so whether STREAM's displacement depends on it is not established ([The argument](#stream-unresolved)).
 - **Ruled out for both workloads:**
-  - a deviation from draft-06 in the checked rules, or from r9 in the controller's code;
-  - a fixture artifact in what the sender saw (every input check `ok`; calibration passed);
-  - the instrument: D3 holds, and the competitor's delivery next to the traced arm is 0.95–1.05 of its delivery next to the plain arm (median over pairs);
-  - the ECN switch: the competitor's delivery does not change at it.
+  - a checker mismatch in rules C0–C9 (none occurred) and a deviation from r9 in the controller's code. The clamp is the one recorded deviation from draft-06, and it is a contributor;
+  - a fixture artifact in what the sender saw: every input check is `ok`, and calibration passed;
+  - an unrepresentative instrument as D3 defines it: every traced observation is itself adverse. The paired trace/plain comparison is reported, not ruled on. The competitor's per-pair delivery next to the traced arm is 0.63–1.25 of its delivery next to the plain arm in STREAM and 0.93–1.22 in DATAGRAM, with STREAM's pair 2 the outlier ([Delivery by period](#delivery-by-period)).
+- **The ECN switch** (#793 owns its cause): the displacement is present before and after it, with no consistent change at it (−10% to +23% in the competitor's 30 s before and after; [ECN](#ecn-switch)).
 
 **What it leads to (#792):**
 - **From DATAGRAM's (a):** the adoption question for GridCast's shared paths goes to the operator.
-- **From STREAM:** the application-limited marking is reported for a fix ticket. That ticket's own readiness and L6 run would show how much of STREAM's displacement it removes.
+- **From STREAM:** the application-limited marking is reported for a fix ticket. That ticket's own readiness and L6 run would show whether, and by how much, switching the marking off changes STREAM's displacement.
+- **The undiagnosed path:** the operator decides whether to spend more on it, or to let the fix ticket's L6 run settle STREAM.
+- **The clamp** (a contributor; 2 classified events of 174 bytes): the operator decides whether to file it.
 - **#777's classification stands.**
 
 ## Accepted decisions (before any data)
@@ -309,7 +314,9 @@ Every table below is generated from [summary.json](summary.json) by [figures.py]
 | DATAGRAM | absent | 0.0 | 0.0 | 0.0 | 0.2 | 92.3 | 91.8 |
 | DATAGRAM | resumed | 6.0 | 6.4 | 7.1 | 45.2 | 86.0 | 86.0 |
 
-The competitor gets the same next to the traced and the plain port (the instrument's disturbance, reported beside D3), and about the same as next to #777's plain port.
+The medians over pairs are close: the competitor gets about the same next to the traced and the plain port, and about the same as next to #777's plain port. The instrument's disturbance is reported beside D3, not ruled on, and per pair the spread is wider:
+- the competitor's delivery next to the traced arm is 0.63–1.25 of its delivery next to the plain arm in STREAM's classified periods, and 0.93–1.22 in DATAGRAM's;
+- STREAM's pair 2 traced observation is the outlier. The competitor got 5.3, 6.7 and 4.1 Mbit/s, against 7.4, 10.6 and 5.9 next to the plain arm, with a control p95 of 260 ms against about 190–203 ms elsewhere. Its `inflight_longterm` stayed at 1.154 × the path throughout ([STREAM](#stream-unresolved)).
 
 ### Mechanism
 
@@ -354,16 +361,16 @@ The competitor gets the same next to the traced and the plain port (the instrume
 
 **Gates.** All three traces are complete and representative (D3), conform (zero mismatches) and reconcile (every check `ok`). No two-percent check in any classified period judged a supply-limited packet.
 
-**The acting property.** Two clamp events (C4 deviations) in the classified periods, one each in pair 2's and pair 3's resumed periods, 174 bytes each; a third fell in pair 3's back period, which is not classified. They are the only port property seen, and each moved `inflight_longterm` by less than one packet. The paired effective Cruise ceilings are 1.6570 and 1.6569 × the pipe, with and without the clamp, against the same displacement in every probe cycle of every pair. On that evidence the clamp is a **contributor** at most: a sub-packet change in two of 139 probes cannot produce a displacement present in all of them.
+**The acting property.** Two clamp events (C4 deviations) in the classified periods, one each in pair 2's and pair 3's resumed periods, 174 bytes each; a third fell in pair 3's back period, which is not classified. They are the only port property seen, and each moved `inflight_longterm` by less than one packet. The paired headroom ceilings (other caps not applied) are 1.6570 and 1.6569 × the pipe, with and without the clamp. The clamp is a **contributor**: the equal and short periods have no clamp event and show the same displacement, so the displacement persists without it.
 
 **The mechanism, rule by rule** (DATAGRAM, the three classified periods; figures from the tables above and [summary.json](summary.json)):
 1. **Loss rounds and the long-term bound** (5.5.10.2). On L6's drop-tail queue with no random loss, a packet is lost only when the shared queue is full. A two-percent crossing therefore happens at a flight near the whole path, and HandleInflightTooHigh sets `inflight_longterm` there: 0.90–0.98 × the path, median over rounds.
-2. **Cruise keeps most of it** (5.3.3.2, 5.6.4.7). `InflightWithHeadroom` (85%) set the window's ceiling in 53–78% of rounds. The window sits at 0.82–0.84 × the path, about 1.65 × the pipe, with pacing at `max_bw`, which is 0.95–1.01 of the link's capacity. BBRv3 therefore holds its own standing queue:
-   - about 320–780 KB in Cruise, 550–630 KB in Down and 1.07–1.12 MB in Up, out of 1,251 KB;
-   - the competitor's share is 25–170 KB.
-3. **Probes overflow it** (5.3.3.4–5.3.3.8). A probe starts about every 4.6–5.2 s (the 2–3 s wait, lengthened by ProbeRTT and the probe's own rounds). It raises the rate to 1.25× and the window toward `inflight_longterm` and above it (ProbeInflightLongtermUpward), and the queue overflows. Up ended on loss in 132 of 139 probes (ProbeRTT the rest), and 97–99% of the competitor's drops fall in BBRv3's Up phase.
+2. **Cruise caps the window at 85% of it** (5.3.3.2, 5.6.4.7). `InflightWithHeadroom` set the window's ceiling in 53–78% of rounds; the window sits at 0.82–0.84 × the path (about 1.65 × the pipe). Pacing is at `max_bw`, from 0.95 of the link's capacity in the equal period to 1.01 in the resumed one. The relay's measured queue, out of 1,251 KB:
+   - BBRv3's own: about 320–360 KB in Cruise in the equal and resumed periods, where the window binds in only 11–18% of rounds, so BBRv3 is mostly pacing-limited there; about 770 KB in Cruise in the short period, where it binds in about half; 550–630 KB in Down; 1.07–1.12 MB in Up;
+   - the competitor's: 25–170 KB.
+3. **Probes overflow it** (5.3.3.4–5.3.3.8). A probe starts about every 4.6–5.2 s (the 2–3 s wait, lengthened by ProbeRTT and the probe's own rounds). It raises the rate to 1.25× and the window toward `inflight_longterm` and above it (ProbeInflightLongtermUpward), and the queue overflows. Up ended on loss in 132 of 139 probes (ProbeRTT the rest), after 1.3–2.5 rounds on average, and 96–100% of the competitor's drops in every pair and period fall in BBRv3's Up phase.
 4. **The loss response outside probing does not release the queue** (5.5.10.3). In loss rounds, `bw_shortterm` and `inflight_shortterm` move to `max(latest, 0.7 × bound)`. That floor is BBRv3's latest delivery, so it does not fall below what BBRv3 already gets, and both reset at every Refill.
-5. **Reno cannot recover between probes.** Reno halves its window when a probe drops its packets and regrows by about one packet per round trip: about 50 packets between probes, against an 857-packet BDP. Draft-06 states its coexistence target as BDPs of about 100 packets or fewer, with large-BDP flows probing more often than Reno would (5.3.3.8.1–5.3.3.8.3).
+5. **Reno cannot recover between probes.** The competitor is quic-go's Reno (the cubic sender in Reno mode at `e4f322cb`, `renoBeta` 0.7). It cuts its window by 30% when a probe drops its packets and regrows by about one packet per round trip. With BBRv3's queue the round trip is about 130–190 ms, so that is about 26–38 packets between probes, against an 857-packet BDP. Draft-06 states its coexistence target as BDPs of about 100 packets or fewer, with large-BDP flows probing more often than Reno would (5.3.3.8.1–5.3.3.8.3).
 
 **What the argument rests on beyond the rules:** emission obeying cwnd and pacing, and upward adjustments of `inflight_longterm`, are read in the code, not checked by a rule ([What a conforming trace shows](#classification-fixed-before-counted-data)). Neither changes the steps above: the window and `inflight_longterm` levels are recorded, and the drops and queue occupancy come from the relay.
 
@@ -372,11 +379,45 @@ The competitor gets the same next to the traced and the plain port (the instrume
 **Gates.** All three traces are complete and representative, conform (zero mismatches) and reconcile (every check `ok`).
 
 **The acting property: the application-limited marking of bulk STREAM sends.** Every two-percent check in every classified period of every pair judged a packet marked application-limited (reason 1). The port marks these packets because quic-go's `SendStream.Write` returns while the last packet of a 16,384-byte record is still buffered, so the stream runs dry within a packing burst at every record ([Code check](#code-check-draft-06-rules-on-the-mechanisms-path)). The design fixes the determination point; the draft leaves it to the implementation. Through draft-06's own rules the mark acts through three channels:
-- **`inflight_longterm`** (5.5.10.2): none of the 142 crossings lowered it. It stays at 1.04–1.07 × the path, above the flight at which drop-tail loss passes 2%. The descriptive pairing puts the effective Cruise ceiling at a median 1.79 × the pipe with the mark and 1.65 × with the draft's assignment instead; the mark kept it higher in all 142 events.
-- **`max_bw`** (5.5.4, 5.3.3.9 `AdaptLongTermModel`): a limited sample at the probe's end does not advance the filter's cycle. The cycle never advanced in any classified period of any pair, so `max_bw` never aged (DATAGRAM: 6–19 advances and 6–13 aging events per period).
-- **The plateau exit** (5.3.1.2, 5.3.3.7): every Up round start was on a limited sample, which does not count toward the plateau. Up ended on loss in 134 of 151 probes and on ProbeRTT in the rest; none ended on a plateau.
+- **`inflight_longterm`** (5.5.10.2): none of the 142 crossings lowered it. It stays wherever it was raised: 0.97–1.15 × the path by pair (median of the period medians 1.04–1.07), mostly above the flight at which drop-tail loss passes 2%. The descriptive pairing puts the effective Cruise ceiling at a median 1.79 × the pipe with the mark and 1.65 × with the draft's assignment instead, and the mark kept it higher in all 142 events.
+- **`max_bw`** (5.5.4, 5.3.3.9 `AdaptLongTermModel`): a limited sample at the probe's end does not advance the filter's cycle. The cycle never advanced in any classified period of any pair, so `max_bw` never aged (DATAGRAM: 6–19 advances and 6–13 aging events per period). This is partly masked: pacing uses `min(max_bw, bw_shortterm)`, and `bw_shortterm` was below `max_bw` in 32–54% of STREAM's rounds.
+- **The plateau exit** (5.3.1.2, 5.3.3.7): every Up round start was on a limited sample, which does not count toward the plateau. The rule is switched off, but it had no observable effect here. Up lasts about one round per probe in STREAM and 1.3–2.5 in DATAGRAM, and no probe in either workload ended on a plateau (STREAM: 134 of 151 on loss, the rest on ProbeRTT).
 
-**Why unresolved.** STREAM's displacement could depend on these channels (a cause) or persist without them (a contributor). DATAGRAM, where the mark does not act, shows the same mechanism displacing the competitor to a similar degree (8.5 against 7.2 Mbit/s in the equal period). That corroborates persistence, but a change of workload does not isolate the property: the workloads differ in more than the mark (DATAGRAM's competitor does notably better in the short period, 16.8 against 10.8). This record changes no code, so it cannot switch the mark off. Under rule 5 the connection is unresolved and STREAM is undiagnosed.
+**What the mark changes, pair by pair** (from [summary.json](summary.json)):
+
+| Pair | Period | `inflight_longterm` / path | Ceiling kept higher by the mark (× pipe, median) | Competitor next to `trace` | Next to `cand` | Competitor drops in Up | In Cruise or Refill |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | equal | 1.041 | 0.127 | 7.2 | 6.2 | 97% | 0% |
+| 1 | short | 1.054 | 0.148 | 10.8 | 9.8 | 65% | 29% |
+| 1 | resumed | 1.068 | 0.155 | 5.9 | 4.8 | 96% | 2% |
+| 2 | equal | 1.154 | 0.289 | 5.3 | 7.4 | 80% | 15% |
+| 2 | short | 1.154 | 0.270 | 6.7 | 10.6 | 34% | 64% |
+| 2 | resumed | 1.154 | 0.264 | 4.1 | 5.9 | 55% | 42% |
+| 3 | equal | 0.973 | 0.021 | 8.4 | 8.6 | 99% | 0% |
+| 3 | short | 0.985 | 0.090 | 14.3 | 14.4 | 70% | 26% |
+| 3 | resumed | 1.056 | 0.139 | 6.4 | 6.1 | 93% | 5% |
+
+- **Pair 2.** `inflight_longterm` froze at 1.154 × the path, and the mark kept the ceiling 0.26–0.29 × the pipe higher. Up to 64% of the competitor's drops in a period fell in Cruise or Refill, against none in any DATAGRAM pair and period, and the competitor got least.
+- **Pair 3.** In the equal period, where the mark moved the ceiling by only 0.02 × the pipe, the competitor got 8.4 Mbit/s with 99% of its drops in Up, as in DATAGRAM (8.5).
+
+So the mark changes the shared queue and the competitor's losses, by an amount that depends on where `inflight_longterm` happened to freeze. That shows an effect; it does not show that STREAM's displacement depends on the mark.
+
+**Why unresolved.** STREAM's displacement could depend on these channels (a cause) or persist without them (a contributor). DATAGRAM, where the mark does not act, shows the probe overflows displacing the competitor to a similar degree (8.5 against 7.2 Mbit/s in the equal period). That corroborates persistence, but a change of workload does not isolate the property: the workloads differ in more than the mark (DATAGRAM's competitor does notably better in the short period, 16.8 against 10.8). This record changes no code, so it cannot switch the mark off. Under rule 5 the connection is unresolved and STREAM is undiagnosed.
+
+### ECN switch
+
+The focal flow's ECN state change (#793 owns its cause), and the competitor's delivery in the 30 s before and after it:
+
+| Workload | Pair | ECN switch | Competitor, 30 s before (Mbit/s) | 30 s after | Change | Window crosses a period boundary |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| DATAGRAM | 1 | 166.8 s (short) | 15.13 | 18.56 | +23% | no |
+| DATAGRAM | 2 | 161.2 s (short) | 17.48 | 15.71 | -10% | no |
+| DATAGRAM | 3 | 166.4 s (short) | 19.45 | 19.26 | -1% | no |
+| STREAM | 1 | 76.8 s (equal) | 7.28 | 7.58 | +4% | yes |
+| STREAM | 2 | 16.5 s (equal) | 4.74 | 5.19 | +10% | yes |
+| STREAM | 3 | 146.5 s (short) | 14.59 | 14.61 | +0% | no |
+
+The displacement is present before and after the switch in every pair, and the changes have no consistent direction. Two windows cross a period boundary: STREAM pair 1's "after" window reaches into the short period, where the competitor does better anyway, and STREAM pair 2's "before" window starts in the warm-up.
 
 ### Health
 
@@ -397,8 +438,27 @@ None from the accepted registration. The driver ran the registered order unchang
 
 - **STREAM's cause** (above).
 - **Other paths.** Deeper, shallower or marking queues, other round trips, other competitors, and other platforms are unmeasured.
-- **Other implementations.** The record shows that a draft-06-conforming sender on faithful inputs displaces the competitor here (DATAGRAM). It does not show how another BBRv3 implementation behaves, or what Linux's BBRv3 does on the same path.
+- **Other implementations.** The record shows that a sender conforming under the registered rules C0–C9 (apart from two clamp events), on faithful inputs, displaces the competitor here (DATAGRAM). It does not show how another BBRv3 implementation behaves, or what Linux's BBRv3 does on the same path.
 - **What a fix to the STREAM marking would change.** That belongs to the fix ticket's own readiness and L6 run.
+
+### Result review
+
+**Result consideration (D4):** RAS run `20261018T073351-c137cfe1b4f4c6ef207902a3`, on `eb5ea374`, briefed with #792's requirements and the registered rules. Two of six reviewers (agy-argon, claude-fable) failed. It produced 21 findings; none disputed a class. Each was checked against `summary.json` and the code:
+
+| Finding (reviewers) | Disposition | Change |
+| --- | --- | --- |
+| The Answer "ruled out" a draft-06 deviation in the checked rules, while the clamp is one (all four) | fix-now | It now says no C0–C9 mismatch and no r9 deviation, with the clamp kept as the recorded deviation and a contributor. |
+| "Most of the buffer" in Cruise: the relay shows about 26–28% in the equal and resumed periods (all four) | fix-now | Separates the 85% ceiling from the measured queue; adds the cwnd-limited shares. |
+| The ECN switch was ruled out with no figure; the changes are −10% to +23% (all four) | fix-now | ECN table added; claim narrowed to no consistent change, with the displacement present before and after. |
+| The instrument claim quoted a median band hiding per-pair ratios of 0.63–1.25 (claude-opus, grok) | fix-now | Per-pair spread reported; STREAM pair 2 named as the outlier; D3 alone is ruled on. |
+| The STREAM argument left out its own trace and relay evidence (claude-opus) | fix-now | Per-pair table added: the frozen bound, the ceiling difference, and drop placement (Cruise and Refill overflows in STREAM, none in DATAGRAM). It shows an effect, not dependence; still unresolved. |
+| Routing omitted the spend-more decision and the clamp filing decision (claude-opus) | fix-now | Both added to What it leads to. |
+| The plateau channel is inert on this path; `max_bw` is partly masked by `bw_shortterm` (claude-opus) | fix-now | Stated. |
+| The competitor is quic-go's Reno with `renoBeta` 0.7, not halving; the RTT includes the queue (claude-opus) | fix-now | Step 5 corrected (checked at `e4f322cb`). |
+| Labels and figures: clamp ceilings are headroom ceilings; "contributor at most" is not a verdict; the R1 wording; the stage timing; the `max_bw` band (claude-opus, grok) | fix-now | Corrected; the clamp is a contributor because the clamp-free periods show the same displacement. |
+| The fix ticket's consequence presupposed an effect (grok) | fix-now | It now asks whether, and by how much, switching the mark off changes STREAM's displacement. |
+
+Every change is a wording or reporting correction from `summary.json`: no class, rule or figure source changed. Under the docs-only policy no further RAS round ran, and figures.py's check passes.
 
 ## Development runs (before this registration)
 
