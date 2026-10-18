@@ -217,6 +217,15 @@ func TestDeliverySupplyGap(t *testing.T) {
 		first := p.refilledAt
 		p.sent(0, at.Add(time.Microsecond))
 		require.Equal(t, first, p.refilledAt, "an unpaced send changes no refill")
+		// A larger quantum would put a recomputed refill later; spending nothing
+		// must not move it.
+		grown := newBBRSendPolicy(20_000_000, 1200, now)
+		grown.sent(12000, at)
+		first = grown.refilledAt
+		grown.update(40_000_000, 1200, at.Add(time.Microsecond))
+		require.Greater(t, grown.fullAt(at.Add(time.Microsecond)), first, "the larger quantum has more to refill")
+		grown.sent(0, at.Add(time.Microsecond))
+		require.Equal(t, first, grown.refilledAt, "an unpaced send after a rate rise changes no refill")
 		p.sentProbe(1200, at.Add(time.Microsecond))
 		require.Equal(t, p.fullAt(at.Add(time.Microsecond)), p.refilledAt, "probe credit is spending too")
 		spent := p.refilledAt

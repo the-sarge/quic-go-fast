@@ -19,8 +19,8 @@ type bbrSendPolicy struct {
 	updated    monotime.Time
 	lastTrace  monotime.Time
 	// refilledAt is when all credit spent so far will have refilled to the
-	// quantum, at the rates when it was spent. Spending moves it, and only
-	// later: a rate cut that clamps the credit to a smaller quantum is not refill.
+	// quantum, at the rate and quantum when it was spent. Only spending moves
+	// it, and only later: a rate cut that clamps the credit is not refill.
 	refilledAt monotime.Time
 	// supplyGap is the application or flow-control exhaustion observed at the
 	// latest opportunity, not yet established as supply limitation.
@@ -86,7 +86,11 @@ func (p *bbrSendPolicy) sent(size protocol.ByteCount, now monotime.Time) {
 		panic("BBR pacing credit exceeded")
 	}
 	p.tokens -= int64(size) * 1e9
-	p.refilledAt = max(p.refilledAt, p.fullAt(now))
+	// An unpaced send spends nothing; recomputing at a changed rate or quantum
+	// would move the refill time without any spending.
+	if size > 0 {
+		p.refilledAt = max(p.refilledAt, p.fullAt(now))
+	}
 }
 
 // An isolated oversized probe waits for a full quantum, then retains its excess
