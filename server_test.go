@@ -413,6 +413,13 @@ func testServerDroppedPacket(t *testing.T,
 
 	server.handlePacket(p)
 
+	// The server goroutine records the drop asynchronously.
+	// Wait for it before checking that nothing was sent in response.
+	require.Eventually(t,
+		func() bool { return len(eventRecorder.Events(qlog.PacketDropped{})) > 0 },
+		time.Second,
+		10*time.Millisecond,
+	)
 	select {
 	case <-readChan:
 		t.Fatal("didn't expect to receive a packet")
@@ -507,6 +514,13 @@ func testServerVersionNegotiation(t *testing.T, enabled bool) {
 			t.Fatal("timeout")
 		}
 	case false:
+		// The server goroutine records the drop asynchronously.
+		// Wait for it before checking that nothing was sent in response.
+		require.Eventually(t,
+			func() bool { return len(eventRecorder.Events(qlog.PacketDropped{})) > 0 },
+			time.Second,
+			10*time.Millisecond,
+		)
 		select {
 		case <-written:
 			t.Fatal("expected no version negotiation packet")
