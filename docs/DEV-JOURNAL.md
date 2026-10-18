@@ -5648,3 +5648,56 @@ The operator approved the plan on 2026-10-18 with four decisions, and later decl
 
 - The qlog `limitation=` field now matches the per-packet marker, so #812's caveat on [#808](https://github.com/the-sarge/quic-go-fast/issues/808) no longer applies to snapshots from `30d823c6` on. Snapshots from earlier revisions still report stop reasons.
 - The operator's BBR/GSO order is unchanged: #743, then the #808 campaign, then Q2 #599. GitHub issues are the live view.
+
+---
+
+## BBRv3 ECN retirement tests no longer read the real clock - 2026-10-18 17:51 EDT
+
+**Main:** `ac588aa863f8`
+**Actor:** Claude
+
+### Summary
+
+[#815](https://github.com/the-sarge/quic-go-fast/issues/815) is closed by [#814](https://github.com/the-sarge/quic-go-fast/pull/814) (squash `ac588aa8`). `TestBBRECNRetiresRecordsBelowReportedSpan`, added by #803, failed once on a hosted race run ([run 39161596187](https://github.com/the-sarge/quic-go-fast/actions/runs/39161596187/job/117775860644), #806's head `070ef40b`): expected `ecnStateUnknown`, got `ecnStateFailed`.
+
+Its helpers read the real clock. The first RTT sample is about 1 ms, so time-threshold loss (9/8 × RTT) declares a probe lost once it was sent about 125 µs before the acknowledged packet. A scheduler stall of that size lost two more probes than the packet threshold does, and ten lost probes fail ECN validation. Tests only; no production code changed.
+
+### Completed
+
+- `sendBBRECNAt` takes the send time, the new `ackBBRECNAt` takes the receive time, and `newCapableBBRECNHandler` returns the instant of its validating ACK. The two #803 test functions send at that instant and acknowledge 1 ms later, so only the packet threshold declares loss. Assertions are unchanged.
+- Siblings with the same dependency, now fixed:
+  - the CE-first and revalidation subtests (about a 125 µs margin);
+  - "recovery still owns retired packets in flight" (about a 98 ms margin from the 100 ms RTT fixture).
+- The file's other tests still use the real-clock helpers. Stalls of 200 µs and 2 ms injected into those helpers changed no outcome, so they were left unchanged.
+
+### Decisions
+
+- Explicit times rather than a `testing/synctest` bubble ([#814](https://github.com/the-sarge/quic-go-fast/pull/814)): the package's tests already pass explicit times, and a helper that takes a time cannot bring the dependency back for a future caller.
+- The operator chose to file the flake as [#815](https://github.com/the-sarge/quic-go-fast/issues/815) and have the PR close it, as with #684.
+
+### Validation
+
+- **Cause:** injected stalls on the old tests (go test `-overlay`, worktree untouched).
+  - 200 µs before the acknowledged send failed 40 of 40 subtest runs.
+  - 5 ms after that send, or 60 µs before it, failed none.
+  - The new tests passed every injected stall, including 5 ms per send and 120 ms in the 98 ms case.
+- **Natural reproduction, no injected code** (`GOGC=1 -race -cpu 1 -count=3000`): the old tests reproduced the hosted signature, and the new tests passed 81,000 subtest runs.
+- **Repetition:** `go test -race -count=200` over the file's tests at `4b902858` passed 200 of 200 (1,071 s). A first attempt hit `go test`'s default 10-minute timeout with no test failure, so long `-count` runs need `-timeout`.
+- **Non-vacuity overlays:**
+  - retiring while validation is pending fails the three pending subtests;
+  - packet threshold 2 fails the in-flight subtest.
+- **Local certification at `4b902858`, Go 1.27.2:**
+  - package tests;
+  - `go vet` for darwin, linux and windows;
+  - Windows test build;
+  - `go mod tidy -diff` and `git diff --check`;
+  - golangci-lint v2.14.0 for the six `lint.yml` GOOS values.
+- **RAS review** `20261018T213236-d5d5f724534c0cb6e4181012`:
+  - no findings;
+  - four of six reviewers completed;
+  - claude-fable and claude-opus failed to launch (`claude process failed`, about 8 s), and a retry failed the same way.
+- All 33 hosted checks passed on `4b902858`, which was squash-merged with `--match-head-commit`.
+
+### Next
+
+- The ECN suite no longer depends on scheduling. The operator's BBR/GSO order is unchanged: #743, then the [#808](https://github.com/the-sarge/quic-go-fast/issues/808) campaign, then Q2 #599. GitHub issues are the live view.
