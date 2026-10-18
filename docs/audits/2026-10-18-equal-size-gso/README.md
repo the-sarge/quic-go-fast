@@ -122,6 +122,16 @@ Per-round throughput (Mbit/s):
 6. **Correctness: passes.** No sender or receiver error. The largest packer residual was 0.
 7. **Loss: reported above.**
 
+## Operator decision (2026-10-18)
+
+The operator approved the recommended set ("Approve all") on 2026-10-18 at about 18:50 EDT:
+
+- **K1, keep:** PR #818 merges before the shared BBR campaign #808, which then measures the BBR bounded path with this change.
+- **K2, on by default on `main`:** no release ships it on by default until the received-DATAGRAM queue is deeper or its discards are visible. Follow-up issue #824 tracks this as a release blocker. Otherwise the release turns the batching off (`QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS`).
+- **K3:** the STREAM cost (0.979×) is accepted as an open cost and re-checked in #808.
+- **K4:** one follow-up issue, #824, for the receive queue.
+- **K5:** the review that four of six reviewers completed is accepted. The two Claude reviewers failed at the process level in both runs.
+
 ## Observations outside the rules
 
 - **The STREAM cost is cycles, not work.** [perfdiag.py](perfdiag.py) ran four alternating `S-main`/`S-proto` pairs right after the reruns, all clean.
