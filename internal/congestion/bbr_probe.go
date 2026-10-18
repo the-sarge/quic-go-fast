@@ -168,16 +168,18 @@ func (b *BBRSender) probeLoss(e FeedbackEvent, p PacketInfo, remaining uint64) {
 	}
 	previousFlight := flight - uint64(p.Length)
 	previousLost := lost - uint64(p.Length)
-	// Clamp a negative prefix when the threshold was crossed before this
-	// packet. Full-width arithmetic avoids wrapping large byte counters.
-	prefix := uint64(0)
-	if previousLost <= previousFlight/50 {
-		prefix = (previousFlight - previousLost*50) / 49
+	// Draft-06 InflightAtLoss, inflight_prev + (0.02*inflight_prev - lost_prev)/0.98,
+	// is 50/49 * (inflight_prev - lost_prev). Its prefix is negative when the
+	// threshold was crossed before this packet, and a nonpositive result leaves
+	// the 0.7 floor. Full-width arithmetic avoids wrapping large byte counters.
+	atLoss := uint64(0)
+	if previousLost < previousFlight {
+		atLoss = bbrScale(previousFlight-previousLost, 50, 49)
 	}
 	b.probeSample = false
 	b.previousProbeTooHigh = true
 	if !bbrLimited(p.Delivery.Limited) {
-		b.inflightLong = max(bbrBytes(previousFlight+prefix), bbrBytes(bbrScale(uint64(min(b.bdp(1), b.window)), 7, 10)))
+		b.inflightLong = max(bbrBytes(atLoss), bbrBytes(bbrScale(uint64(min(b.bdp(1), b.window)), 7, 10)))
 	}
 	if b.phase == bbrUp {
 		b.noteLossExit()
