@@ -173,9 +173,12 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 		buf = getLargePacketBuffer()
 	}
 	ecn := (*e.recovery).ECNMode(true)
-	packets := 0 // packed into buf
+	// The reservation covers whole maximum-size packets; handoff resizes it to
+	// the physical bytes, so shorter segments release the remainder.
+	batch := newGSOBatch(size, e.shortSegments)
 	for {
-		n, err := e.appendPacket(buf, size, ecn, now)
+		next, datagramOnly := batch.next()
+		p, n, err := e.appendPacket(buf, next, datagramOnly, ecn, now)
 		if err != nil {
 			if err != errNothingToPack || buf.Len() == 0 {
 				buf.Release()
@@ -185,21 +188,18 @@ func (e *packetEmission) boundedDatagrams(now monotime.Time, size, limit protoco
 				}
 				return emissionResult{err: err, supplyExhausted: exhausted}
 			}
-			exhausted = true
+			// A DATAGRAM-only continuation that finds no DATAGRAM of the
+			// segment size only ends the batch, like a short packet does.
+			exhausted = !datagramOnly
 			break
 		}
-		packets++
+		more := batch.add(n, p.Frames)
 		mode, allowance := (*e.recovery).(boundedRecovery).SendAllowance(now)
-		if !gso || n != size || buf.Len()+size > limit || mode != ackhandler.SendAny || allowance < size || (*e.recovery).ECNMode(true) != ecn {
+		if !gso || !more || !batch.fits(buf.Len(), limit) || mode != ackhandler.SendAny || allowance < size || (*e.recovery).ECNMode(true) != ecn {
 			break
 		}
 	}
-	// A lone packet takes the ordinary socket path, without a segment size.
-	var gsoSize uint16
-	if gso && packets > 1 {
-		gsoSize = uint16(size)
-	}
-	e.handoff(buf, gsoSize, ecn, sendMetadata{})
+	e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{})
 	// Continue as Reno's receive-yield stop does: the connection makes its next
 	// full pass (close, receive, timers, capacity) without a scheduling token,
 	// timer re-arm or select between consecutive datagrams.

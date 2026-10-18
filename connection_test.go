@@ -2372,6 +2372,9 @@ func TestConnectionGSOSinglePacket(t *testing.T) {
 	// Each queued DATAGRAM is this many bytes shorter than a full packet; each
 	// write carries the listed DATAGRAMs.
 	t.Run("short datagrams", func(t *testing.T) {
+		// With equal-size batching off, each short packet is a lone send
+		// (TestGSOEqualSizeBatches covers the default).
+		t.Setenv(disableShortGSOSegmentsEnv, "true")
 		testConnectionGSOSinglePacket(t, []int{60, 60, 60, 60}, [][]int{{0}, {1}, {2}, {3}})
 	})
 	t.Run("two packets with a short tail", func(t *testing.T) {
@@ -2548,7 +2551,8 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 		connIDLen := tc.conn.connIDManager.Get().Len()
 		var firstSent, nextSent []byte
 		first := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("first")}
-		next := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("next")}
+		// Longer than first, so it cannot join first's batch as a short segment.
+		next := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("next, longer")}
 		require.NoError(t, tc.conn.datagramQueue.Add(first))
 		require.NoError(t, tc.conn.datagramQueue.Add(next))
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(b *packetBuffer, _ uint16, _ protocol.ECN, _ sendMetadata) {

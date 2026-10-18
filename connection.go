@@ -2705,12 +2705,13 @@ func (c *Conn) initPacketEmission(packer *packetPacker) {
 	bbr := c.config.CongestionControlV1() == "bbrv3"
 	queue := newSendQueueWithCapacity(c.conn, &c.handshakeSendFeedback, sendQueueCapacityFor(bbr))
 	c.emission = packetEmission{
-		packer:   packer,
-		recovery: &c.sentPacketHandler,
-		queue:    queue,
-		version:  c.version,
-		policy:   c,
-		conn:     &c.conn,
+		packer:        packer,
+		recovery:      &c.sentPacketHandler,
+		queue:         queue,
+		version:       c.version,
+		policy:        c,
+		conn:          &c.conn,
+		shortSegments: shortGSOSegmentsEnabled(),
 	}
 	if bbr {
 		c.emission.enableBBR(monotime.Now())

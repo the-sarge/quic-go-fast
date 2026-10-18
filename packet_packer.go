@@ -465,6 +465,35 @@ func (p *packetPacker) AppendPacket(buf *packetBuffer, maxSize protocol.ByteCoun
 	return p.appendPacket(buf, false, maxSize, now, v)
 }
 
+// AppendDatagramPacket packs a packet carrying only the next queued DATAGRAM
+// frame, with maxSize as its limit. Unlike AppendPacket, it never discards a
+// frame that doesn't fit: it returns errNothingToPack and leaves the frame
+// queued, since a later packet with a larger limit can carry it.
+// It should be called after the handshake is confirmed.
+func (p *packetPacker) AppendDatagramPacket(buf *packetBuffer, maxSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, error) {
+	if p.datagramQueue == nil {
+		return shortHeaderPacket{}, errNothingToPack
+	}
+	sealer, err := p.cryptoSetup.Get1RTTSealer()
+	if err != nil {
+		return shortHeaderPacket{}, err
+	}
+	f := p.datagramQueue.Peek()
+	if f == nil {
+		return shortHeaderPacket{}, errNothingToPack
+	}
+	pn, pnLen := p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
+	connID := p.getDestConnID()
+	size := f.Length(v)
+	if size > maxSize-wire.ShortHeaderLen(connID, pnLen)-protocol.ByteCount(sealer.Overhead()) {
+		return shortHeaderPacket{}, errNothingToPack
+	}
+	p.datagramQueue.Pop()
+	p.numNonAckElicitingAcks = 0
+	pl := payload{frames: []ackhandler.Frame{{Frame: f}}, length: size}
+	return p.appendShortHeaderPacket(buf, connID, pn, pnLen, sealer.KeyPhase(), pl, 0, maxSize, sealer, false, v)
+}
+
 func (p *packetPacker) appendPacket(
 	buf *packetBuffer,
 	onlyAck bool,

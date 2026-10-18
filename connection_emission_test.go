@@ -46,7 +46,8 @@ func TestEmissionReceiveFairness(t *testing.T) {
 			tc := newEmissionTestConnection(t, gso)
 			c := tc.conn
 			first := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("first short batch")}
-			next := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("next batch")}
+			// Longer than first, so it cannot join first's batch as a short segment.
+			next := &wire.DatagramFrame{DataLenPresent: true, Data: []byte("next batch, a longer one")}
 			require.NoError(t, c.datagramQueue.Add(first))
 			require.NoError(t, c.datagramQueue.Add(next))
 			// A pending receive must get a turn before another batch. The receive
