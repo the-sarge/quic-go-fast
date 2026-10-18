@@ -5298,3 +5298,45 @@ Merged [PR #790](https://github.com/the-sarge/quic-go-fast/pull/790) as `814bd48
 - [#792](https://github.com/the-sarge/quic-go-fast/issues/792): diagnose why BBRv3 displaces Reno on this path. Measurement only; about 4–8 h, 1–2 h of it on `minimax`.
 - [#793](https://github.com/the-sarge/quic-go-fast/issues/793): find what disables ECN on the BBRv3 connection.
 - Both are filed, not started. GitHub issues are the live view.
+
+---
+
+## Handshake fallback docs name both triggers - 2026-10-17 23:18 EDT
+
+**Main:** `6e3f92008323`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #795](https://github.com/the-sarge/quic-go-fast/pull/795) as `6e3f9200832318cb17c7cc173620bf5e70add4da`, closing [#788](https://github.com/the-sarge/quic-go-fast/issues/788). Three docs now describe both triggers that lower an unset `InitialPacketSize` to 1200 bytes, agreeing with the `Config.InitialPacketSize` godoc. Docs only; one physical line changed in each file.
+
+- **README.** The "More reliable handshakes" paragraph keeps its message-size sentence. It adds the second Initial or Handshake PTO before handshake completion, hedged as "the path might silently drop larger packets", since ordinary loss causes the same timeouts. The size is kept afterwards unless path MTU discovery grows it, and an explicit size stays a floor.
+- **Glossary.** **Handshake MTU fallback** now means the reduction and the lowered state, whatever triggered it. It keeps the triggers distinct:
+  - the message-size failure is direct evidence, eligible until handshake confirmation;
+  - the second timeout is an inference, counted per path generation before handshake completion.
+
+  The sentence calling the fallback distinct from silent-drop recovery is gone, and no term was added.
+- **H1 plan.** The 2026-09-06 handshake-MTU plan's status line points to [#786](https://github.com/the-sarge/quic-go-fast/issues/786) ([PR #787](https://github.com/the-sarge/quic-go-fast/pull/787)) for its superseded silent-drop non-goal. Its non-goal paragraph, matrix and body are unchanged.
+
+### Decisions
+
+- The operator approved the plan on 2026-10-17: one docs-only PR within the triage brief, plus docs-only local certification. That certification is evidence that no non-Markdown file differs from the base, with hosted CI as the Go-side gate, in place of local `go vet`, lint and `go test`.
+- RAS review `20261018T030438-5599ebecd6fba0875ccecb86` at `8129c733` had no Fix First items. Its two low clusters were dispositioned independently:
+  - **C-002, fixed** (`85ae2448`), against RAS's "Do not act on". The glossary distinguishes QUIC packets from UDP datagrams, so the entry says "larger UDP datagrams". The README keeps "packets" to match the godoc. The RAS rerun was skipped under the docs-only policy.
+  - **C-001, deferred and filed as [#796](https://github.com/the-sarge/quic-go-fast/issues/796)** (`needs-triage`). H1's rejected alternative "infer MTU from a generic timeout" still stands beside the second-PTO trigger. Whether #786 supersedes it is the owner's call.
+- The `tb` pair was left to wiremux 1866's campaign. This PR needed no local builds or tests, and no RAS run followed its hold.
+
+### Validation
+
+- **Docs checks at `85ae2448` against base `b10791e3`:**
+  - exactly three files changed;
+  - `1 1` numstat per file, with unchanged line counts (83/89/88);
+  - `git diff --check` clean;
+  - no non-Markdown difference;
+  - the added #786 and PR #787 links resolve.
+- **Wording checked against code at the base:** the `Config.InitialPacketSize` godoc, `countHandshakeTimeout`, `applyHandshakeMTUFallback` and `lowerUnsetInitialPacketSize`.
+- **Hosted CI:** all 33 check runs succeeded on exact head `85ae2448`. The PR was merged with `--match-head-commit`.
+
+### Next
+
+- [#796](https://github.com/the-sarge/quic-go-fast/issues/796) awaits triage. GitHub issues are the live view.
