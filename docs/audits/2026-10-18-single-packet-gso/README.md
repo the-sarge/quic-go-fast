@@ -100,9 +100,18 @@ Per-round DATAGRAM and STREAM throughput:
 
 ## Reproduction
 
-1. Build the harness once per source tree. Use a module containing `gso742bench.go.txt` as `main.go`, with `require github.com/quic-go/quic-go v0.0.0` and `replace github.com/quic-go/quic-go => <tree>`, where `<tree>` is a checkout of `f97ceb75` (pre) or `dc7d387b` (post).
-2. Compile with `GOPROXY=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false` using Go 1.27.2. These commands reproduce the counted binaries byte for byte:
-   - pre: sha256 `5960f1726b9573f2a2af2226f004a2ac5b0170eedf30a8c5e7832d624096f443`
-   - post: sha256 `a6281a2f100590bd4235b29628b235ea412f52360fa0228c74d6329f3bb28e81`
-3. Copy them to `~/agents/quic-742/bin/gso742bench-{pre,post}` on minimax.
+1. Build the harness once per source tree. Use a module containing `gso742bench.go.txt` as `main.go`, with this `go.mod`:
+   - `module gso742bench`
+   - `go 1.26.0`
+   - `require github.com/quic-go/quic-go v0.0.0`
+   - the indirect requirements `golang.org/x/crypto v0.58.0`, `golang.org/x/net v0.61.0` and `golang.org/x/sys v0.49.0`
+   - `replace github.com/quic-go/quic-go => <tree>`, where `<tree>` is a checkout of `f97ceb75` (pre) or `dc7d387b` (post)
+2. Compile with `GOPROXY=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false` using Go 1.27.2.
+3. Copy the binaries to `~/agents/quic-742/bin/gso742bench-{pre,post}` on minimax.
 4. Run `taskset -c 1-3 python3 runner.py counted 8 --tag=counted --duration=10`.
+
+The sha256 values identify the counted binaries:
+- pre: `5960f1726b9573f2a2af2226f004a2ac5b0170eedf30a8c5e7832d624096f443`
+- post: `a6281a2f100590bd4235b29628b235ea412f52360fa0228c74d6329f3bb28e81`
+
+The binaries' build info embeds the absolute `replace` directory, so a rebuild in any other directory produces a different hash. Rebuilding in the original scratch directories reproduced both hashes exactly.
