@@ -33,6 +33,9 @@ type packetEmission struct {
 
 	policy emissionPolicy
 	conn   *sendConn
+	// shortSegments lets a short DATAGRAM packet set a segmented send's
+	// segment size (see gsoBatch); fixed at construction.
+	shortSegments bool
 	// authority gates queued work and the close submission; nil is ungrouped.
 	authority *connAuthority
 
@@ -198,11 +201,20 @@ func (e *packetEmission) pacingDeadline() monotime.Time {
 	return deadline
 }
 
-func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCount, ecn protocol.ECN, now monotime.Time) (protocol.ByteCount, error) {
+// appendPacket packs, logs and registers one packet. With datagramOnly, the
+// packet carries only the next queued DATAGRAM frame, and errNothingToPack
+// leaves a frame that doesn't fit queued.
+func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCount, datagramOnly bool, ecn protocol.ECN, now monotime.Time) (shortHeaderPacket, protocol.ByteCount, error) {
 	start := buf.Len()
-	p, err := e.packer.AppendPacket(buf, maxSize, now, e.version)
+	var p shortHeaderPacket
+	var err error
+	if datagramOnly {
+		p, err = e.packer.AppendDatagramPacket(buf, maxSize, e.version)
+	} else {
+		p, err = e.packer.AppendPacket(buf, maxSize, now, e.version)
+	}
 	if err != nil {
-		return 0, err
+		return shortHeaderPacket{}, 0, err
 	}
 	size := buf.Len() - start
 	if e.bbr != nil && e.paceReservation && (p.IsAckEliciting() || len(p.StreamFrames) != 0) {
@@ -210,14 +222,14 @@ func (e *packetEmission) appendPacket(buf *packetBuffer, maxSize protocol.ByteCo
 	}
 	e.policy.logShortHeaderPacket(p, ecn, size)
 	e.registerPacket(p, ecn, now)
-	return size, nil
+	return p, size, nil
 }
 
 func (e *packetEmission) withoutGSO(now monotime.Time) (result emissionResult) {
 	for {
 		buf := getPacketBuffer()
 		ecn := (*e.recovery).ECNMode(true)
-		if _, err := e.appendPacket(buf, e.policy.maxPacketSize(), ecn, now); err != nil {
+		if _, _, err := e.appendPacket(buf, e.policy.maxPacketSize(), false, ecn, now); err != nil {
 			if err == errNothingToPack {
 				buf.Release()
 				return result
@@ -252,10 +264,11 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 	buf := getLargePacketBuffer()
 	maxSize := e.policy.maxPacketSize()
 	ecn := (*e.recovery).ECNMode(true)
-	packets := 0 // packed into buf
+	batch := newGSOBatch(maxSize, e.shortSegments)
 	for {
-		var done bool
-		size, err := e.appendPacket(buf, maxSize, ecn, now)
+		var done, more bool
+		limit, datagramOnly := batch.next()
+		p, size, err := e.appendPacket(buf, limit, datagramOnly, ecn, now)
 		if err != nil {
 			if err != errNothingToPack {
 				buf.Release()
@@ -266,10 +279,11 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 				buf.Release()
 				return result
 			}
-			done = true
-		}
-		if !done {
-			packets++
+			// A DATAGRAM-only continuation that finds no DATAGRAM of the segment
+			// size only ends the batch; whatever is queued starts the next one.
+			done = !datagramOnly
+		} else {
+			more = batch.add(size, p.Frames)
 			mode := (*e.recovery).SendMode(now)
 			if mode == ackhandler.SendPacingLimited {
 				result.stop, result.deadline = emissionPaced, e.pacingDeadline()
@@ -279,15 +293,10 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			done = mode != ackhandler.SendAny
 		}
 		nextECN := (*e.recovery).ECNMode(true)
-		if !done && size == maxSize && nextECN == ecn && buf.Len()+maxSize <= buf.Cap() {
+		if !done && more && nextECN == ecn && batch.fits(buf.Len(), buf.Cap()) {
 			continue
 		}
-		// A lone packet takes the ordinary socket path, without a segment size.
-		gso := uint16(maxSize)
-		if packets == 1 {
-			gso = 0
-		}
-		e.handoff(buf, gso, ecn, sendMetadata{})
+		e.handoff(buf, batch.gsoSize(), ecn, sendMetadata{})
 		result.progress = true
 		if done {
 			return result
@@ -301,7 +310,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 			return result
 		}
 		ecn = nextECN
-		buf, packets = getLargePacketBuffer(), 0
+		buf, batch = getLargePacketBuffer(), newGSOBatch(maxSize, e.shortSegments)
 	}
 }
 

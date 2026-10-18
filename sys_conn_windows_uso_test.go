@@ -204,6 +204,38 @@ func TestWindowsConnSegmentedSend(t *testing.T) {
 	require.Equal(t, single, buf[:n])
 }
 
+// Equal-size batching sends segments shorter than a full packet, up to
+// maxGSOSegments per send; USO delivers that many intact.
+func TestWindowsConnShortSegmentLimit(t *testing.T) {
+	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	require.NoError(t, err)
+	defer udpConn.Close()
+	conn, err := newConn(udpConn, true, true)
+	require.NoError(t, err)
+	requireUSOCapableHost(t, conn)
+
+	receiver, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	require.NoError(t, err)
+	defer receiver.Close()
+
+	const segmentSize = 300
+	payload := make([]byte, maxGSOSegments*segmentSize)
+	for i := range payload {
+		payload[i] = byte(i / segmentSize)
+	}
+	n, err := conn.WritePacket(payload, receiver.LocalAddr(), nil, segmentSize, protocol.ECNUnsupported)
+	require.NoError(t, err)
+	require.Equal(t, len(payload), n)
+
+	buf := make([]byte, protocol.MaxPacketBufferSize)
+	for i := range maxGSOSegments {
+		require.NoError(t, receiver.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+		n, _, err := receiver.ReadFromUDP(buf)
+		require.NoError(t, err)
+		require.Equal(t, payload[i*segmentSize:(i+1)*segmentSize], buf[:n], "segment %d", i)
+	}
+}
+
 // externalUSOConn represents a participating policy wrapper. The unavailable
 // case denies only the read-only probe at newConn's socket boundary.
 type externalUSOConn struct {

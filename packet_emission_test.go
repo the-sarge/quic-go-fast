@@ -107,7 +107,8 @@ func TestEmissionResultConnection(t *testing.T) {
 			require.False(t, result.progress)
 			require.Equal(t, emissionNoData, result.stop)
 			require.Nil(t, result.available)
-			for _, payload := range []string{"first packet", "next packet"} {
+			// The second is longer, so it cannot join the first's batch as a short segment.
+			for _, payload := range []string{"first packet", "the next packet"} {
 				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte(payload)}))
 			}
 			c.receivedPackets.PushBack(receivedPacket{})
