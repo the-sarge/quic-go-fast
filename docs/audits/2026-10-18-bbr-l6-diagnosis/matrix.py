@@ -154,7 +154,12 @@ def correctness(d):
 
 
 def registered_hashes():
-    import build  # the registered pins live in build.py
+    # The registered pins live in this record's build.py, loaded by path: #777's prereq.py puts its
+    # own directory first on sys.path, where a plain `import build` would find #777's build.py.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('build792', HERE / 'build.py')
+    build = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(build)
     return {'reno-fixture': build.EXPECTED[('reno', 'fixture')], 'cand-fixture': build.EXPECTED[('cand', 'fixture')],
             'cand-trace-fixture': build.REGISTERED[('cand-trace', 'fixture')], 'relay2': build.EXPECTED[('relay', 'relay2')],
             'calibrate2': build.EXPECTED[('relay', 'calibrate2')], 'launch': build.EXPECTED[('relay', 'launch')]}
