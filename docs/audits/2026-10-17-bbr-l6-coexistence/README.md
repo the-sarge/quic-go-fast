@@ -312,6 +312,8 @@ Slice 6's single-flow S5 runs (40 s) showed no such change. Why the candidate di
 
 None. The driver ran the registered order unchanged: host facts, the binary check, calibration, smoke, the counted stage and follow. All seven calibration checks and both smoke observations passed, every quiet-host gate passed in its first window, and follow found nothing to rerun. The order ran from 22:16 to 01:47 UTC (3 h 31 min), against the registered estimate of about 3 h 40 min without reruns.
 
+**Disclosed afterwards by a peer session.** Before learning that the stage was running, wiremux 1865 made seven read-only ssh checks on `minimax`, each `cat /proc/loadavg` plus a `pgrep` and a fraction of a second long, about every 10 minutes from 23:47 to 00:51 UTC. Eleven counted observations overlap that interval. Under the registered contamination test their foreign CPU on the fixture cores and siblings was at most 0.0037 cores mean and 0.20 cores peak, within the range of every counted observation (largest peak 0.21) and far under the limits (0.10 mean, 0.50 peak). Nothing changes.
+
 ## Not established
 
 - **The cause.** The record shows that BBRv3 displaces the Reno flow on this path, not why. Whether it is draft-06 behavior on a one-BDP drop-tail queue, a property of the port, or the fixture's interaction with either is open; #777 requires that diagnosis before any claim about the algorithm.
