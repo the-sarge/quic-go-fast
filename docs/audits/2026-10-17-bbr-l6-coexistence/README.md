@@ -4,11 +4,27 @@
 
 Branch `codex/bbr-l6-coexistence`, based on `abfa5456`, the candidate itself. As for every [#666](https://github.com/the-sarge/quic-go-fast/issues/666) and [#748](https://github.com/the-sarge/quic-go-fast/issues/748) record, this record stays off `main`; a dev-journal entry on `main` points to it.
 
-**Status: registration accepted by the operator on October 17, 2026 (about 22:15 UTC), before any counted observation; counted stage started unattended immediately after this commit.** The operator answered "Accept, start now" after being told the development runs' figures and the agent's expectation of an *adverse* outcome. The decisions were committed before any fixture, calibration, development or counted run of this record existed. The sections from [The candidate and the reference](#the-candidate-and-the-reference) to [Order](#order) are the registration. The development runs it discloses are excluded from every statistic. No counted observation exists.
+**Status: complete.** The operator accepted the registration on October 17, 2026, at about 22:15 UTC, before any counted observation. They answered "Accept, start now" after being told the development runs' figures and the agent's expectation of an *adverse* outcome. The sections from [The candidate and the reference](#the-candidate-and-the-reference) to [Order](#order) are the registration; it was committed as `b709a116` and is unchanged. The [Answer](#answer), [Results](#results) and later sections were added after the counted stage.
 
 ## Question
 
 When BBRv3 shares a bottleneck with a competing QUIC Reno flow, does it displace that flow beyond a fairness criterion fixed before any data?
+
+## Answer
+
+**Adverse.** On `minimax`, under the frozen Q1 model's L6, BBRv3 at `abfa5456` displaces a competing QUIC Reno flow far beyond the registered criterion:
+- every one of the six classified cells is adverse (two workloads × three periods);
+- all 30 pair ratios are below 0.70, ranging 0.091–0.347;
+- the A/A ratios, frozen Reno against itself, range 0.749–1.328.
+
+- **What the competitor gets.** Next to matched Reno, the Reno competitor delivers a median of 42.7–59.9 Mbit/s in the contested periods; next to BBRv3, 6.2–17.8 Mbit/s. BBRv3 itself delivers 76.2–87.0 Mbit/s, and the two flows together fill about the same link (92.0–94.5 Mbit/s).
+- **The shared queue.** BBRv3 holds most of it and causes nearly all the overflow drops. In the equal period on STREAM, BBRv3 lost a median of 2868 of its own packets and the competitor 716, against 4 and 3 between two Reno flows.
+- **Beside the classification:**
+  - The competitor's control-latency flag is not raised in any classified period. It is raised in the reported-only absent period, where BBRv3 alone keeps the queue near full.
+  - The focal flow's control p95 and CPU per useful GiB pass the readiness limits; its peak RSS cells are raised (1.113–1.795), as in every readiness record of this revision.
+- **Health.** All 30 counted observations were usable and uncontaminated, with no rerun, no correctness failure and every per-period control assignment exact.
+
+**What it means (#777):** evidence against adopting the revision as it stands; its cause needs diagnosis before any claim about the algorithm. It changes nothing in the code: BBRv3 stays the experimental, unqualified opt-in sender, and Reno stays the default.
 
 ## Accepted decisions (before any data)
 
@@ -178,6 +194,130 @@ Run first, each excluded from every statistic; a failure ends the record as a re
   - a combined delivered rate within 1% of 100 Mbit/s under overload from both flows, in each direction, with the shared queue reaching capacity less one packet and both flows losing packets.
 - **Smoke** (`matrix.py smoke`): two full-length observations (STREAM `cand`, DATAGRAM `reno`). Each must be usable under the same per-observation verdict as a counted observation (correctness gate, health, registered hashes, host UDP errors, an evaluable contamination test), with every thread inside its CPU set. An affirmatively contaminated smoke observation is reported, not failed. Each observation's verdict and diagnostics are kept in `smoke.json`.
 
+## Results
+
+Every table below is generated from [summary.json](summary.json) by [figures.py](figures.py); `figures.py --check` confirms that this file contains each one verbatim. Delivery is useful payload in Mbit/s; each cell is the median over the five pairs.
+
+### Classification (D2)
+
+| Workload | Period | Outcome | Pair ratios (pairs 1–5) | A/A ratios |
+| --- | --- | --- | --- | --- |
+| STREAM | equal | **adverse** | 0.091 0.139 0.162 0.182 0.159 | 0.749 1.064 1.001 1.328 0.859 |
+| STREAM | short | **adverse** | 0.142 0.189 0.198 0.211 0.217 | 0.923 1.119 1.090 1.077 0.836 |
+| STREAM | resumed | **adverse** | 0.108 0.130 0.149 0.131 0.163 | 1.017 1.007 1.056 0.926 0.959 |
+| DATAGRAM | equal | **adverse** | 0.169 0.201 0.178 0.194 0.173 | 1.101 1.038 1.189 1.125 1.193 |
+| DATAGRAM | short | **adverse** | 0.347 0.339 0.325 0.334 0.281 | 1.244 1.049 0.985 0.991 0.995 |
+| DATAGRAM | resumed | **adverse** | 0.119 0.184 0.128 0.219 0.208 | 0.940 0.997 0.887 1.328 1.062 |
+
+The overall outcome is **adverse**. No pair in any classified period comes within 0.35 of the 0.70 threshold. The largest ratio, 0.347, is DATAGRAM in the short period, where the competitor's 25 ms round trip helps it.
+
+### Delivery by period
+
+| Workload | Period | Competitor next to Reno | Competitor next to BBRv3 | Competitor, A/A | Focal Reno | Focal BBRv3 | Combined, BBRv3 arm |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| STREAM | equal | 50.6 | 7.6 | 48.1 | 45.3 | 85.8 | 93.5 |
+| STREAM | short | 59.9 | 11.9 | 62.5 | 35.7 | 82.6 | 94.5 |
+| STREAM | back | 51.3 | 7.2 | 54.0 | 44.2 | 86.1 | 93.2 |
+| STREAM | absent | 0.2 | 0.0 | 0.2 | 89.8 | 93.9 | 94.0 |
+| STREAM | resumed | 45.2 | 6.7 | 46.6 | 50.4 | 87.0 | 93.6 |
+| DATAGRAM | equal | 45.5 | 8.3 | 50.5 | 49.6 | 83.9 | 92.2 |
+| DATAGRAM | short | 55.5 | 17.8 | 58.2 | 39.7 | 76.2 | 94.0 |
+| DATAGRAM | back | 42.7 | 6.2 | 48.3 | 52.2 | 85.8 | 92.0 |
+| DATAGRAM | absent | 0.2 | 0.0 | 0.2 | 93.7 | 91.7 | 91.8 |
+| DATAGRAM | resumed | 45.2 | 7.1 | 43.4 | 49.8 | 84.9 | 92.3 |
+
+The back (200–240 s) and absent (240–270 s) periods are reported, not classified. While the competitor is absent, the focal flow takes almost the whole link in every arm.
+
+### Reported beside the classification
+
+**The competitor's control latency** (p95 per period, median over pairs; flag above 1.20):
+
+| Workload | Period | Competitor p95, next to Reno (ms) | Next to BBRv3 (ms) | Ratio, median | Pairs above 1.20 | Flag |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| STREAM | equal | 197.8 | 206.6 | 1.038 | 1 of 5 | not raised |
+| STREAM | short | 123.0 | 133.6 | 1.085 | 1 of 5 | not raised |
+| STREAM | back | 175.7 | 204.2 | 1.178 | 2 of 5 | not raised |
+| STREAM | absent | 107.8 | 200.0 | 1.855 | 5 of 5 | raised |
+| STREAM | resumed | 177.2 | 205.3 | 1.132 | 1 of 5 | not raised |
+| DATAGRAM | equal | 197.7 | 199.5 | 1.002 | 0 of 5 | not raised |
+| DATAGRAM | short | 123.1 | 119.7 | 0.971 | 0 of 5 | not raised |
+| DATAGRAM | back | 187.4 | 202.3 | 1.101 | 1 of 5 | not raised |
+| DATAGRAM | absent | 119.1 | 194.0 | 1.628 | 5 of 5 | raised |
+| DATAGRAM | resumed | 198.9 | 201.0 | 1.012 | 0 of 5 | not raised |
+
+The flag is raised only in the absent period. There, the competitor's control probe crosses a queue that BBRv3 alone keeps near full (p95 about 200 ms), while a lone Reno focal flow leaves it nearly empty (about 108–119 ms).
+
+**The focal flow against matched Reno** (whole measured window; readiness limits unchanged; no exception applies):
+
+| Workload | Measure | Matched Reno | BBRv3 | Ratio, median (limit) | Pairs crossing | A/A ratios | Flag |
+| --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| STREAM | control p95 | 197.76 ms | 199.21 ms | 1.005 (1.20) | 0 of 5 | 0.990 1.008 1.002 0.996 1.002 | not raised |
+| STREAM | sender CPU per useful GiB | 15.60 s | 8.60 s | 0.548 (1.10) | 0 of 5 | 0.884 1.198 1.055 1.121 0.888 | not raised |
+| STREAM | receiver CPU per useful GiB | 12.91 s | 8.34 s | 0.641 (1.10) | 0 of 5 | 0.845 1.258 1.062 1.127 0.886 | not raised |
+| STREAM | sender peak RSS | 15.74 MiB | 23.81 MiB | 1.543 (1.10) | 5 of 5 | 0.989 0.953 1.056 0.953 1.033 | raised |
+| STREAM | receiver peak RSS | 14.73 MiB | 26.57 MiB | 1.795 (1.10) | 5 of 5 | 1.036 0.975 0.993 0.946 1.057 | raised |
+| DATAGRAM | control p95 | 198.56 ms | 195.51 ms | 0.989 (1.20) | 0 of 5 | 0.998 0.993 0.997 0.995 1.001 | not raised |
+| DATAGRAM | sender CPU per useful GiB | 14.93 s | 9.68 s | 0.648 (1.10) | 0 of 5 | 1.136 1.065 1.042 1.058 1.063 | not raised |
+| DATAGRAM | receiver CPU per useful GiB | 12.42 s | 8.61 s | 0.690 (1.10) | 0 of 5 | 1.092 1.059 1.030 1.036 1.040 | not raised |
+| DATAGRAM | sender peak RSS | 16.07 MiB | 22.98 MiB | 1.415 (1.10) | 5 of 5 | 0.975 0.954 0.982 0.948 0.987 | raised |
+| DATAGRAM | receiver peak RSS | 14.63 MiB | 16.32 MiB | 1.113 (1.10) | 4 of 5 | 1.011 0.967 1.009 1.016 0.999 | raised |
+
+CPU per useful GiB is lower for BBRv3 partly because it delivers more useful bytes over the same process lifetime. The raised peak RSS cells repeat, at similar magnitudes, the memory cells every readiness record of this revision raised. Neither changes the classification.
+
+### Context: the shared queue
+
+Forward overflow drops per flow and mean queue occupancy per flow, per classified period (medians over pairs; the queue holds 1,251 KB):
+
+| Workload | Period | Arm | Focal drops | Competitor drops | Focal mean queue (KB) | Competitor mean queue (KB) |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| STREAM | equal | Reno | 4 | 3 | 439 | 488 |
+| STREAM | equal | BBRv3 | 2868 | 716 | 502 | 39 |
+| STREAM | short | Reno | 9 | 7 | 359 | 620 |
+| STREAM | short | BBRv3 | 3092 | 1638 | 698 | 79 |
+| STREAM | resumed | Reno | 27 | 3 | 421 | 357 |
+| STREAM | resumed | BBRv3 | 1114 | 231 | 628 | 43 |
+| DATAGRAM | equal | Reno | 6 | 2 | 514 | 443 |
+| DATAGRAM | equal | BBRv3 | 1539 | 312 | 434 | 37 |
+| DATAGRAM | short | Reno | 13 | 16 | 437 | 584 |
+| DATAGRAM | short | BBRv3 | 1296 | 995 | 673 | 134 |
+| DATAGRAM | resumed | Reno | 5 | 0 | 528 | 483 |
+| DATAGRAM | resumed | BBRv3 | 637 | 108 | 501 | 37 |
+
+With BBRv3 as the focal flow, the competitor holds a small part of the queue yet loses a larger share of its own packets than BBRv3 does. In the equal period on STREAM, BBRv3 lost a median of about 0.4% of its forward packets and the competitor about 1.0% (DATAGRAM: 0.2% and 0.4%). These estimates divide drops by drops plus useful payload over the maximum payload per packet. A plausible mechanism, **not diagnosed here**, is the difference in loss response: BBRv3 by design keeps its rate through loss below its per-round loss threshold, while Reno halves its window at each loss episode.
+
+### ECN state (outside the question)
+
+The L6 queue never marks, so a sender's ECN state does not change its treatment there. The candidate's BBRv3 flow nevertheless stopped marking its packets ECT(0) part-way through every counted observation; neither Reno flow did:
+
+| Workload | Arm | Focal forward packets sent Not-ECT, per pair | Competitor Not-ECT, largest |
+| --- | --- | --- | ---: |
+| STREAM | Reno | 0% 0% 0% 0% 0% | 0.000% |
+| STREAM | BBRv3 | 77% 67% 65% 62% 46% | 0.001% |
+| STREAM | Reno (A/A) | 0% 0% 0% 0% 0% | 0.000% |
+| DATAGRAM | Reno | 0% 0% 0% 0% 0% | 0.000% |
+| DATAGRAM | BBRv3 | 37% 30% 45% 30% 42% | 0.001% |
+| DATAGRAM | Reno (A/A) | 0% 0% 0% 0% 0% | 0.000% |
+
+Slice 6's single-flow S5 runs (40 s) showed no such change. Why the candidate disables ECN on a path that preserves codepoints is not examined here; it is a candidate follow-up.
+
+### Health
+
+- 10 triples attempted, 10 usable and uncontaminated, 0 reruns; 30 observations selected.
+- Relay: largest arrival lag 3.024 ms; largest lateness 3.760 ms (limit 5 ms).
+- Competitor pause observed at 240.000–240.024 s and 270.000–270.001 s (tolerance 0.5 s).
+- Largest endpoint CPU load: 0.019 of its allotted cores (limit 0.80).
+- Per-period control assignments: exact in every observation; host UDP error deltas: [0].
+
+## Deviations
+
+None. The driver ran the registered order unchanged: host facts, the binary check, calibration, smoke, the counted stage and follow. All seven calibration checks and both smoke observations passed, every quiet-host gate passed in its first window, and follow found nothing to rerun. The order ran from 22:16 to 01:47 UTC (3 h 31 min), against the registered estimate of about 3 h 40 min without reruns.
+
+## Not established
+
+- **The cause.** The record shows that BBRv3 displaces the Reno flow on this path, not why. Whether it is draft-06 behavior on a one-BDP drop-tail queue, a property of the port, or the fixture's interaction with either is open; #777 requires that diagnosis before any claim about the algorithm.
+- **Other paths.** Deeper or marking queues, other round trips, a CUBIC or BBR competitor, and other platforms are unmeasured.
+- **The ECN change** described above.
+
 ## Development runs (before this registration)
 
 Made on `minimax`, each excluded from every statistic. Times are UTC on October 17. The decisions (`50792abf`, 05:55) and the classification, usability, contamination and rerun rules ([l6rules.py](l6rules.py) at `93314fd8`, 06:10) were committed before the first of them.
@@ -287,3 +427,19 @@ Foreign load extends the gates' waits.
 **On `minimax`,** sequentially under `taskset -c 1`, with nothing else built or tested there while a stage measures ([driver.sh](driver.sh)): `matrix.py hostfacts start`, `binaries`, `prereq`, `smoke`, `main`, `follow`, `hostfacts end`. The driver first checks, path by path, that no counted, rerun or smoke observation, calibration, smoke report, follow decision, correctness-failure report or binary check exists (`PRESTART-EMPTY`), since `run_case` reuses an existing clean observation; development artifacts are allowed. A failed binary check, calibration, smoke or correctness gate stops it.
 
 **Then, anywhere:** [analyze.py](analyze.py) writes `summary.json` and prints each cell. It emits no classification unless the order completed: no correctness failure, and a completed follow decision for every triple; otherwise `summary.json` says `incomplete`, with the reasons. `summary.json` holds the classification, every period's per-pair values, the review flags, every attempt's per-arm reasons, contamination, pause timing and CPU loads, and the full summary of every selected observation; every figure the record reports is checked by script against it.
+
+## Assets and reconstruction
+
+- **Results:**
+  - [summary.json](summary.json): the classification, every period's per-pair values, the review flags, every attempt's per-arm verdict and diagnostics, and the full summary of every selected observation.
+  - [figures.py](figures.py) generates every result table from it.
+- **Raw data:** [raw.tar.gz](raw.tar.gz), with [raw-manifest.json](raw-manifest.json) giving each file's size and SHA-256, written by [pack.py](pack.py) deterministically. It holds:
+  - every observation: counted, smoke and the four development runs;
+  - all three calibration attempts;
+  - `driver.log`, `follow-decisions.json`, `smoke.json`, `binaries.json`, the `hostfacts` snapshots and the build receipts.
+
+  Binaries, credentials and exported source trees are omitted.
+- **To reconstruct,** in a fresh owned worktree of this branch:
+  1. Run `build.py` (every binary byte-identical to the registered hashes), then `sync.sh` to a Linux host with the same CPU layout.
+  2. Run [driver.sh](driver.sh) there.
+  3. Run `analyze.py` and `figures.py` anywhere.
