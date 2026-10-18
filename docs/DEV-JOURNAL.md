@@ -5563,3 +5563,49 @@ The operator approved the plan on 2026-10-18 with four decisions, and later decl
 - [#808](https://github.com/the-sarge/quic-go-fast/issues/808): one BBR readiness and L6 campaign on the revision with #742, #800 and #803. It carries #803's measurement, that ECN stays on through an L6-length BBRv3 run. Not started.
 - [#800](https://github.com/the-sarge/quic-go-fast/issues/800) ([PR #806](https://github.com/the-sarge/quic-go-fast/pull/806)) is still open; #743 needs a decision before the campaign.
 - GitHub issues are the live view.
+
+---
+
+## BBRv3 supply limitation waits for pacing-credit refill - 2026-10-18 16:27 EDT
+
+**Main:** `1f9ceb6e0643`
+**Actor:** Claude
+
+### Summary
+
+[#800](https://github.com/the-sarge/quic-go-fast/issues/800) is closed by [#806](https://github.com/the-sarge/quic-go-fast/pull/806) (squash `1f9ceb6e`). [#792](https://github.com/the-sarge/quic-go-fast/blob/89e71a60/docs/audits/2026-10-18-bbr-l6-diagnosis/README.md#stream-unresolved) found that the BBRv3 port marked a bulk STREAM sender application-limited at nearly every 16 KiB write. `SendStream.Write` returns while a write's last packet is still buffered, so the stream ran dry for microseconds and the port marked the next flight at that instant. The mark kept `inflight_longterm` from being lowered, kept `max_bw` from aging and switched off the plateau exit.
+
+### Completed
+
+- **Design first** ([Delivery sampling and limitation](https://github.com/the-sarge/quic-go-fast/blob/1f9ceb6e/docs/designs/bbrv3.md#delivery-sampling-and-limitation), register D14). Packing that finds no data now only *observes* supply exhaustion. Exhaustion *becomes* supply limitation, setting the delivery boundary and the CE response's supply-limitation latch, once the gap costs sending time: the pacing credit has had time to refill since it was last spent, at the rate and quantum then, and no ordinary local work is pending (draft-06's `C.pending_transmissions == 0`). The check runs at each exhausted opportunity and again before the next ordinary packing, where draft-06 checks (4.1.2.4). Genuine idle keeps using the observed exhaustion.
+- **Code.** The BBR pacer owns the refill clock (`bbrSendPolicy.refilledAt`): only nonzero spending moves it, and only later; a path reset refills it. Rate cuts that clamp the credit, and ACK-only sends, do not count as refill. The recovery handler gained `ObserveDeliveryStop` for an observed stop that is not limitation.
+- **Loss prefix.** `bbr_probe.go` now uses draft-06's `InflightAtLoss`, `50/49 × (inflight_prev − lost_prev)`, in place of the zero-clamped prefix. The value is unchanged when the prefix is nonnegative.
+- **Tests.** `TestDeliverySupplyGap` covers ordinary and GSO emission and the pacer clock. `TestDeliverySamplerObservedStop` and the CE observed-stop variants cover the new handler method, and `TestBBRProbeBWLossPrefix` covers the prefix. Each guard was removed in turn and failed its own cases. Reno is unchanged: every changed line is on a BBR-only path.
+
+### Decisions
+
+- The operator approved the plan on 2026-10-18 ("Approve all (Recommended)"): the refill-based rule, the CE latch following it, draft-06's prefix arithmetic, and one PR.
+- **Review stop.** The initial review's F-001 was a rate cut that clamped the credit to full, so a microsecond gap was marked. The replacement review's C-001 reached the same result through an ACK-only send that reopened a gap. That made two counterexamples at one invariant ("a clamp is not elapsed time") and one seam, so the loop stopped. The operator chose "A: pacer clock (Recommended)": the pacer owns the refill time, which removed the gap-open and restart rules. The comparison and the rejected interim designs are in D14 and the PR.
+- **Measurement moved.** #800's readiness, advancement disposition and L6 requirement moved to the shared campaign [#808](https://github.com/the-sarge/quic-go-fast/issues/808), by operator decision on 2026-10-18.
+- **Deferred.** The qlog `congestion_control` field `limitation=` reports the stop reason, not established limitation. Revalidated at `1f9ceb6e` and filed as [#812](https://github.com/the-sarge/quic-go-fast/issues/812), not started.
+
+### Validation
+
+- RAS reviews:
+  - Initial review `20261018T180314-f2494e6da86dfc778a5a2c6f` at `026151a6`. Five of six reviewers completed, but adjudication and synthesis failed on RAS `plan_drift`, and `ras verify` then could not run without a stored synthesis.
+  - Replacement review `20261018T184049-4a7652b783c01fe359c14a71` at `df96e796`. It confirmed F-001 and F-002 resolved and raised C-001.
+  - Fresh review of the revised seam `20261018T190911-0fc5527cd1773eba03bc7db4` at `c00778a0`, approved by the operator. It found one Fix First: an unpaced `sent(0)` moved the clock after a rate rise, fixed in `3e4e1782` and `8795fec0`.
+  - `ras verify --head` at `8795fec0`: all four clusters resolved, blocking projection clear.
+- Local certification at `8795fec0` (contains `main` at `6bdc2138`), Go 1.27.2:
+  - build, tests and `-race` for the root package, `internal/ackhandler` and `internal/congestion`;
+  - `TestDeliverySupplyGap` 300× plain and 30× under `-race`;
+  - golangci-lint v2.14.0 for five GOOS (0 issues);
+  - Windows vet and test binary, FreeBSD build, `go mod tidy -diff`, `git diff --check`.
+- All 33 hosted checks passed on that head, and it was squash-merged with `--match-head-commit`.
+
+### Next
+
+- [#808](https://github.com/the-sarge/quic-go-fast/issues/808): one readiness and L6 campaign on the revision with #742, #800 and #803, with #743 decided before it. Not started.
+  - Reusing #792's trace overlay needs one hook updated: its `bbr_probe.go` patch site matches the old `previousFlight+prefix` line, which is now `bbrBytes(atLoss)`.
+  - Judge the marking from the overlay's per-packet markers, not from the qlog field ([#812](https://github.com/the-sarge/quic-go-fast/issues/812)).
+- GitHub issues are the live view.
