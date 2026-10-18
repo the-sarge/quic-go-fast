@@ -48,7 +48,7 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 	}
 	e.bbr.credit.resetGeneration(generation)
 	e.bbr.tokens = int64(e.bbr.quantum) * 1e9
-	e.bbr.updated = now
+	e.bbr.updated, e.bbr.refilledAt = now, now
 	// An open supply gap belongs to the old path's samples.
 	e.bbr.supplyGap = congestion.SendUnknown
 }

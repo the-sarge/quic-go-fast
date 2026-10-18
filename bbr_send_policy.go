@@ -18,15 +18,17 @@ type bbrSendPolicy struct {
 	tokens     int64 // byte-nanoseconds, retaining fractional byte credit
 	updated    monotime.Time
 	lastTrace  monotime.Time
+	// refilledAt is when all credit spent so far will have refilled to the
+	// quantum, at the rates when it was spent. Spending moves it, and only
+	// later: a rate cut that clamps the credit to a smaller quantum is not refill.
+	refilledAt monotime.Time
 	// supplyGap is the application or flow-control exhaustion observed at the
-	// latest opportunity, not yet established as supply limitation, and
-	// supplyGapFull is when the credit would have refilled, fixed as it opened.
-	supplyGap     congestion.SendLimitation
-	supplyGapFull monotime.Time
+	// latest opportunity, not yet established as supply limitation.
+	supplyGap congestion.SendLimitation
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
-	p := &bbrSendPolicy{updated: now, credit: newLocalSendCredit()}
+	p := &bbrSendPolicy{updated: now, refilledAt: now, credit: newLocalSendCredit()}
 	p.update(rate, size, now)
 	p.tokens = int64(p.quantum) * 1e9
 	return p
@@ -84,6 +86,7 @@ func (p *bbrSendPolicy) sent(size protocol.ByteCount, now monotime.Time) {
 		panic("BBR pacing credit exceeded")
 	}
 	p.tokens -= int64(size) * 1e9
+	p.refilledAt = max(p.refilledAt, p.fullAt(now))
 }
 
 // An isolated oversized probe waits for a full quantum, then retains its excess
@@ -93,4 +96,5 @@ func (p *bbrSendPolicy) sentProbe(size protocol.ByteCount, now monotime.Time) {
 		panic("BBR probe pacing credit exceeded")
 	}
 	p.tokens -= int64(size) * 1e9
+	p.refilledAt = max(p.refilledAt, p.fullAt(now))
 }

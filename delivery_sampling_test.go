@@ -119,8 +119,8 @@ func (f *supplyGapFixture) resupply(t *testing.T, now monotime.Time) int {
 
 // SendStream.Write returns while the last packet of a write is still buffered,
 // so a bulk writer's stream runs dry between writes. That gap is supply
-// limitation only once it costs sending time: it has lasted as long as the
-// pacing credit takes to refill, and no ordinary local work is pending (#800).
+// limitation only once it costs sending time: the pacing credit has had time to
+// refill since it was last spent, and no ordinary local work is pending (#800).
 func TestDeliverySupplyGap(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -128,6 +128,7 @@ func TestDeliverySupplyGap(t *testing.T) {
 		hold     bool   // keep the last queued entry with the worker
 		reset    bool   // replace the local path before resupplying
 		rateCut  uint64 // lower the pacing rate, clamping the credit, within the gap
+		ackOnly  bool   // send an ACK-only packet, which spends no pacing credit, within the gap
 		want     congestion.SendLimitation
 	}{
 		{name: "resupplied within the pacing credit", resupply: time.Microsecond, want: congestion.SendUnknown},
@@ -136,6 +137,8 @@ func TestDeliverySupplyGap(t *testing.T) {
 		{name: "path reset discards the gap", resupply: 10 * time.Millisecond, reset: true, want: congestion.SendUnknown},
 		// A smaller quantum clamps the credit to full, but no sending time passed.
 		{name: "rate cut within the gap", resupply: time.Microsecond, rateCut: 25_000_000, want: congestion.SendUnknown},
+		{name: "ACK-only send within the gap", resupply: time.Microsecond, ackOnly: true, want: congestion.SendUnknown},
+		{name: "rate cut and an ACK-only send within the gap", resupply: time.Microsecond, rateCut: 25_000_000, ackOnly: true, want: congestion.SendUnknown},
 	} {
 		for _, gso := range []bool{false, true} {
 			t.Run(tc.name+map[bool]string{false: "/ordinary", true: "/GSO"}[gso], func(t *testing.T) {
@@ -160,49 +163,84 @@ func TestDeliverySupplyGap(t *testing.T) {
 						require.Equal(t, int64(c.emission.bbr.quantum)*1e9, c.emission.bbr.tokens, "the cut clamps the credit to its quantum")
 						require.NoError(t, c.triggerSending(now).err, "an ACK-driven opportunity still finds no data")
 					}
+					if tc.ackOnly {
+						for pn := range protocol.PacketNumber(2) {
+							require.NoError(t, c.receivedPacketHandler.ReceivedPacket(100+pn, protocol.ECNNon, protocol.Encryption1RTT, now, true))
+						}
+						sends := len(f.sink.sends)
+						r := c.triggerSending(now)
+						require.NoError(t, r.err)
+						require.True(t, r.progress, "the ACK is sent")
+						require.Len(t, f.sink.sends, sends+1)
+						require.False(t, f.sink.sends[sends].Packet.AckEliciting, "an ACK-only packet")
+						require.NoError(t, c.triggerSending(now).err, "the next opportunity still finds no data")
+						f.take()
+						f.held.release()
+						f.held = nil
+					}
 					first := f.resupply(t, now.Add(tc.resupply))
 					require.Equal(t, tc.want, f.sink.sends[first].Packet.Delivery.Limited)
 				})
 			})
 		}
 	}
-	// Each write spends more credit, so a later gap takes longer to refill than
-	// the one before it. A write's short last packet ends its opportunity, so
-	// the gap reopens at the next, empty one.
+	// Each write spends more credit, so the gap after it takes longer to refill
+	// than the one before.
 	for _, gso := range []bool{false, true} {
-		t.Run("a later gap refills from its own opening"+map[bool]string{false: "/ordinary", true: "/GSO"}[gso], func(t *testing.T) {
+		t.Run("a later gap refills from the latest spending"+map[bool]string{false: "/ordinary", true: "/GSO"}[gso], func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				f := newSupplyGapFixture(t, gso, 3)
 				now := monotime.Now()
 				f.drain(t, now)
-				fill := f.c.emission.bbr.supplyGapFull
+				fill := f.c.emission.bbr.refilledAt
 				f.resupply(t, now.Add(time.Microsecond))
 				f.drain(t, now.Add(time.Microsecond))
-				require.Greater(t, f.c.emission.bbr.supplyGapFull, fill)
+				require.Greater(t, f.c.emission.bbr.refilledAt, fill)
 				f.held.release()
 				f.held = nil
 				// Past the first gap's refill, short of the second's.
-				at := fill.Add(f.c.emission.bbr.supplyGapFull.Sub(fill) / 2)
+				at := fill.Add(f.c.emission.bbr.refilledAt.Sub(fill) / 2)
 				first := f.resupply(t, at)
 				require.Equal(t, congestion.SendUnknown, f.sink.sends[first].Packet.Delivery.Limited)
 			})
 		})
 	}
-	// An opportunity that packs data and then finds none (supply ending on a
-	// full-size packet) opens a new gap even while one is open.
-	t.Run("packed data restarts an open gap", func(t *testing.T) {
+	// Only spending moves the refill time, and only later: a smaller quantum
+	// that clamps the credit does not bring it earlier.
+	t.Run("pacer refill clock", func(t *testing.T) {
+		now := monotime.Now()
+		p := newBBRSendPolicy(100_000_000, 1200, now)
+		require.Equal(t, now, p.refilledAt, "a new policy starts with full credit")
+		at := now.Add(time.Microsecond)
+		p.sent(12000, at)
+		require.Equal(t, p.fullAt(at), p.refilledAt)
+		first := p.refilledAt
+		p.sent(0, at.Add(time.Microsecond))
+		require.Equal(t, first, p.refilledAt, "an unpaced send changes no refill")
+		p.sentProbe(1200, at.Add(time.Microsecond))
+		require.Equal(t, p.fullAt(at.Add(time.Microsecond)), p.refilledAt, "probe credit is spending too")
+		spent := p.refilledAt
+		p.update(25_000_000, 1200, at.Add(2*time.Microsecond))
+		require.Equal(t, int64(p.quantum)*1e9, p.tokens, "the cut clamps the credit")
+		require.Equal(t, spent, p.refilledAt, "a clamp is not refill")
+		p.sent(1200, at.Add(2*time.Microsecond))
+		require.Less(t, p.fullAt(at.Add(2*time.Microsecond)), spent, "the clamped credit refills sooner")
+		require.Equal(t, spent, p.refilledAt, "later spending cannot bring the refill time earlier")
+	})
+	t.Run("path reset refills the credit", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
-			f := newSupplyGapFixture(t, true, 1)
-			now := monotime.Now()
+			f := newSupplyGapFixture(t, false, 1)
+			c, now := f.c, monotime.Now()
 			f.drain(t, now)
-			fill := f.c.emission.bbr.supplyGapFull
+			f.held.release()
+			f.held = nil
 			at := now.Add(time.Microsecond)
-			f.c.emission.bbr.budget(at)
-			f.c.emission.bbr.sent(12000, at)
-			f.c.emission.observeDeliveryResult(emissionResult{progress: true, supplyExhausted: true}, at)
-			require.Equal(t, congestion.SendApplicationLimited, f.c.emission.bbr.supplyGap)
-			require.Equal(t, f.c.emission.bbr.fullAt(at), f.c.emission.bbr.supplyGapFull)
-			require.Greater(t, f.c.emission.bbr.supplyGapFull, fill)
+			c.emission.resetLocalPath(c.pathGeneration, at)
+			require.NoError(t, c.triggerSending(at).err)
+			first := len(f.sink.sends)
+			pn := c.sentPacketHandler.PopPacketNumber(protocol.Encryption1RTT)
+			c.sentPacketHandler.SentPacket(at, pn, protocol.InvalidPacketNumber, nil, []ackhandler.Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, false)
+			require.Equal(t, congestion.SendApplicationLimited, f.sink.sends[first].Packet.Delivery.Limited, "a dry opportunity at refilled credit marks at once")
 		})
 	})
 	// An empty opportunity at full credit with nothing queued establishes the

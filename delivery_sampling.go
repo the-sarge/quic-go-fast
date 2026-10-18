@@ -72,12 +72,6 @@ func (e *packetEmission) observeDeliveryResult(result emissionResult, now monoti
 		h.ObserveDeliveryStop(reason)
 		return
 	}
-	// A gap opens when supply runs out with none open or after packed data. Its
-	// refill time is fixed then: a later rate cut that clamps the credit to a
-	// smaller quantum fills it without any sending time passing.
-	if e.bbr.supplyGap == congestion.SendUnknown || result.progress {
-		e.bbr.supplyGapFull = e.bbr.fullAt(now)
-	}
 	e.bbr.supplyGap = reason
 	if e.supplyGapCostsSending(now) {
 		h.ObserveDeliveryLimitation(reason)
@@ -99,12 +93,12 @@ func (e *packetEmission) confirmSupplyGap(now monotime.Time) {
 }
 
 // Exhaustion becomes supply limitation only once the gap costs sending time.
-// Until the pacing credit would have refilled, data that returns is sent within
-// credit still accumulating; SendStream.Write, for one, returns with the last
-// packet of a write still buffered. Pending local work is draft-06's
+// Until the credit last spent has had time to refill, data that returns is sent
+// within credit still accumulating; SendStream.Write, for one, returns with the
+// last packet of a write still buffered. Pending local work is draft-06's
 // C.pending_transmissions: those bytes still reach the path.
 func (e *packetEmission) supplyGapCostsSending(now monotime.Time) bool {
-	return !now.Before(e.bbr.supplyGapFull) && e.deliveryPendingBytes() == 0
+	return !now.Before(e.bbr.refilledAt) && e.deliveryPendingBytes() == 0
 }
 
 func (c *Conn) emissionStreamOpenBlocked() bool {
