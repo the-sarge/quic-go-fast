@@ -142,7 +142,9 @@ func TestBBRECNRangeBudgetFallback(t *testing.T) {
 		sendBBRECNPacket(h, h.ECNMode(true), false) // unresolved marked packet 1
 		for pn := protocol.PacketNumber(2); pn <= 4200; pn++ {
 			h.SentPacket(monotime.Now(), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
-			ackBBRECN(t, h, ackRanges(pn), uint64(pn), 0)
+			// The peer keeps reporting packet 0, so the hole stays inside every
+			// reported span and is never retired.
+			ackBBRECN(t, h, []wire.AckRange{{Smallest: 2, Largest: pn}, {Smallest: 0, Largest: 0}}, uint64(pn), 0)
 		}
 		require.Equal(t, protocol.ECT0, h.ECNMode(true))
 		require.Len(t, h.bbrECN.ranges, 2, "one unresolved hole and one affine ACKed suffix")
@@ -205,7 +207,9 @@ func TestBBRECNDistinctACKedSuffixPinsRangeBudget(t *testing.T) {
 	require.Equal(t, protocol.PacketNumber(1), pinned)
 	ect0 := uint64(1)
 	// Register contiguous packet numbers directly to exclude random skips.
-	// Alternating actual codepoints keep the individually ACKed suffix distinct.
+	// Alternating actual codepoints keep the ACKed suffix distinct. The peer
+	// keeps reporting packet 0, so the hole stays inside every reported span:
+	// retirement (#803) cannot free these records, and the budget still binds.
 	for pn := protocol.PacketNumber(2); pn <= maxECNMarkRanges; pn++ {
 		mark := protocol.ECNNon
 		if pn%2 != 0 {
@@ -213,7 +217,7 @@ func TestBBRECNDistinctACKedSuffixPinsRangeBudget(t *testing.T) {
 			ect0++
 		}
 		h.SentPacket(monotime.Now(), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, mark, 1200, false, false)
-		ackBBRECN(t, h, ackRanges(pn), ect0, 0)
+		ackBBRECN(t, h, []wire.AckRange{{Smallest: 2, Largest: pn}, {Smallest: 0, Largest: 0}}, ect0, 0)
 	}
 	require.Len(t, h.bbrECN.ranges, maxECNMarkRanges)
 	require.False(t, h.bbrECN.ranges[0].acked)
@@ -285,14 +289,15 @@ func (p *ordinaryLossPath) lossEvent(t *testing.T, lost protocol.PacketNumber) {
 	p.prev = acked
 }
 
-// TestBBRECNOrdinaryLossExhaustsRangeBudget characterizes issue #793: a packet
-// that is really lost is never ACKed, so its record stays unaccounted, prefix
-// compaction stops at the first loss, and each later loss event adds a hole and
-// an ACKed suffix. Ordinary loss alone therefore exhausts the range budget, and
-// marking falls back to Not-ECT for the rest of the connection. A remedy that
-// retires such records changes these expectations. The legacy validator keeps
-// no per-packet ledger and stays ECN-capable under the same pattern.
-func TestBBRECNOrdinaryLossExhaustsRangeBudget(t *testing.T) {
+// TestBBRECNOrdinaryLossKeepsECN was TestBBRECNOrdinaryLossExhaustsRangeBudget,
+// which characterized issue #793: a really lost packet is never ACKed, so its
+// record pinned prefix compaction, every loss event added a hole and an ACKed
+// suffix, and ordinary loss alone exhausted the range budget. With #803's
+// retirement, each hole retires once an accepted ACK's reported span starts
+// above it, so the ledger stays small and marking stays ECT(0) through twice
+// the loss events that used to exhaust it. The legacy validator keeps no
+// per-packet ledger and stays ECN-capable under the same pattern.
+func TestBBRECNOrdinaryLossKeepsECN(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		lost protocol.PacketNumber // leading packets of each block that are never ACKed
@@ -303,50 +308,288 @@ func TestBBRECNOrdinaryLossExhaustsRangeBudget(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			h, r := newBBRECNTestHandler()
 			p := newOrdinaryLossPath(t, h)
-			const events = maxECNMarkRanges / 2
+			// Twice the 2,048 loss events that exhausted the ledger before #803.
+			const events = maxECNMarkRanges
 			for event := 1; event <= events; event++ {
 				p.lossEvent(t, tc.lost)
 				require.Equal(t, protocol.ECT0, h.ECNMode(true), "loss event %d", event)
-				require.Len(t, h.bbrECN.ranges, 2*event, "one hole and one ACKed suffix per loss event")
+				// The previous hole lay below this ACK's span and retired; this
+				// block's hole lies inside it and stays with its ACKed suffix.
+				require.Len(t, h.bbrECN.ranges, 2, "loss event %d", event)
+				require.False(t, h.bbrECN.ranges[0].acked)
+				require.Equal(t, p.prev.Smallest-tc.lost, h.bbrECN.ranges[0].first)
 			}
 			var declaredLost int
 			for _, e := range r.feedback {
 				declaredLost += len(e.Lost)
 			}
 			require.Equal(t, events*int(tc.lost), declaredLost, "recovery declared every hole lost")
-			first := h.bbrECN.ranges[0]
-			require.False(t, first.acked)
-			require.Equal(t, protocol.PacketNumber(1), first.first, "the first loss pins the prefix")
-			before := r.feedback[len(r.feedback)-1].ECN
-			require.True(t, before.Eligible)
-
-			// The next block's first registration needs a fresh record.
-			p.lossEvent(t, tc.lost)
-			require.True(t, h.bbrECN.evidenceLost)
+			require.False(t, h.bbrECN.evidenceLost)
 			require.False(t, h.bbrECN.counterFailed)
-			require.Len(t, h.bbrECN.ranges, maxECNMarkRanges)
-			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
-			require.True(t, strings.HasPrefix(h.BBRDiagnostics(), "ecn=missing-marking-evidence "), h.BBRDiagnostics())
-			after := r.feedback[len(r.feedback)-1].ECN
-			require.True(t, after.Failed)
-			require.False(t, after.Eligible)
-			require.Equal(t, before.Accepted, after.Accepted)
-			p.lossEvent(t, tc.lost)
-			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "the fallback persists")
-			t.Logf("%s: ECN fell back after %d loss events (%d lost packets); ranges=%d accepted=%+v", tc.name, events, events*int(tc.lost), len(h.bbrECN.ranges), after.Accepted)
+			require.True(t, strings.HasPrefix(h.BBRDiagnostics(), "ecn=capable "), h.BBRDiagnostics())
+			last := r.feedback[len(r.feedback)-1].ECN
+			require.True(t, last.Eligible)
+			require.Equal(t, congestion.ECNCounts{ECT0: p.ect0}, last.Accepted)
+			t.Logf("%s: ECN stayed ECT(0) through %d loss events (%d lost packets); ranges=%d accepted=%+v", tc.name, events, events*int(tc.lost), len(h.bbrECN.ranges), last.Accepted)
 		})
 	}
 
 	t.Run("legacy validator", func(t *testing.T) {
 		h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger).(*sentPacketHandler)
 		p := newOrdinaryLossPath(t, h)
-		// Twice the loss events that exhaust the BBR ledger.
+		// Twice the loss events that exhausted the BBR ledger before #803.
 		for range maxECNMarkRanges {
 			p.lossEvent(t, 1)
 		}
 		require.False(t, h.appDataPackets.history.HasOutstandingPackets(), "recovery declared every hole lost")
 		require.Nil(t, h.bbrECN)
 		require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	})
+}
+
+// sendBBRECNAt registers pn directly, excluding random packet-number skips.
+func sendBBRECNAt(h *sentPacketHandler, pn protocol.PacketNumber, mark protocol.ECN) {
+	h.SentPacket(monotime.Now(), pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, mark, 1200, false, false)
+}
+
+// newCapableBBRECNHandler validates ECN with packet 0. Its 100 ms RTT sample
+// keeps packets that a test sends and acknowledges within a few milliseconds
+// clear of the time threshold, so only the packet threshold declares loss.
+func newCapableBBRECNHandler(t *testing.T) (*sentPacketHandler, *congestionRecorder) {
+	t.Helper()
+	h, r := newBBRECNTestHandler()
+	now := monotime.Now()
+	h.SentPacket(now, 0, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, h.ECNMode(true), 1200, false, false)
+	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(0), ECT0: 1}, protocol.Encryption1RTT, now.Add(100*time.Millisecond))
+	require.NoError(t, err)
+	require.Equal(t, ecnStateCapable, h.bbrECN.state)
+	require.Empty(t, h.bbrECN.ranges)
+	return h, r
+}
+
+// TestBBRECNRetiresRecordsBelowReportedSpan pins #803's retirement rule. Once
+// ECN is capable, an accepted advancing ACK retires the records that end below
+// its smallest acknowledged packet number. Holes inside its span and records
+// above it stay, and recovery's own accounting is untouched. Deferred and
+// failed ACKs retire nothing, and nothing retires while validation is pending,
+// so late probe feedback can still establish capability.
+func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
+	// Packet numbers registered from 0 on one path have ordinal pn+1.
+	ect0 := func(first, last protocol.PacketNumber, acked bool) ecnMarkRange {
+		return ecnMarkRange{first: first, last: last, ordinal: uint64(first) + 1, mark: protocol.ECT0, acked: acked}
+	}
+
+	t.Run("below the span retires; the span and the tail stay", func(t *testing.T) {
+		h, r := newCapableBBRECNHandler(t)
+		for pn := protocol.PacketNumber(1); pn <= 6; pn++ {
+			sendBBRECNAt(h, pn, protocol.ECT0)
+		}
+		// 1 and 2 lie below the span, 4 is a hole inside it and 6 lies above it.
+		ackBBRECN(t, h, []wire.AckRange{{Smallest: 5, Largest: 5}, {Smallest: 3, Largest: 3}}, 3, 0)
+		e := r.feedback[len(r.feedback)-1].ECN
+		require.True(t, e.Eligible)
+		require.Equal(t, uint64(6), e.Ordinal)
+		require.Equal(t, []ecnMarkRange{ect0(4, 4, false), ect0(5, 5, true), ect0(6, 6, false)}, h.bbrECN.ranges)
+		// Only accounted marks (0 and 3) become offsets; the ordinal boundary
+		// passes over the retired 1 and 2 to packet 3.
+		require.Equal(t, congestion.ECNCounts{ECT0: 2}, h.bbrECN.compacted)
+		require.Equal(t, uint64(4), h.bbrECN.compactedOrdinal)
+		require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	})
+
+	t.Run("recovery still owns retired packets in flight", func(t *testing.T) {
+		h, _ := newCapableBBRECNHandler(t)
+		for pn := protocol.PacketNumber(1); pn <= 3; pn++ {
+			sendBBRECNAt(h, pn, protocol.ECT0)
+		}
+		ackBBRECN(t, h, ackRanges(3), 2, 0)
+		require.Empty(t, h.bbrECN.ranges, "1 and 2 retired below the span; 3 compacted")
+		pn, _ := h.appDataPackets.history.FirstOutstanding()
+		require.Equal(t, protocol.PacketNumber(1), pn, "below the packet threshold, so not declared lost")
+		require.Equal(t, 2, h.appDataPackets.history.NumOutstanding())
+	})
+
+	t.Run("deferred and failed ACKs retire nothing", func(t *testing.T) {
+		h, r := newCapableBBRECNHandler(t)
+		for pn := protocol.PacketNumber(1); pn <= 4; pn++ {
+			sendBBRECNAt(h, pn, protocol.ECT0)
+		}
+		ackBBRECN(t, h, []wire.AckRange{{Smallest: 4, Largest: 4}, {Smallest: 2, Largest: 2}}, 3, 0)
+		kept := []ecnMarkRange{ect0(3, 3, false), ect0(4, 4, true)}
+		require.Equal(t, kept, h.bbrECN.ranges)
+		// The hole at 3 lies below this span, but the ACK does not advance.
+		ackBBRECN(t, h, ackRanges(4), 3, 0)
+		require.True(t, r.feedback[len(r.feedback)-1].ECN.Deferred)
+		require.Equal(t, kept, h.bbrECN.ranges)
+		sendBBRECNAt(h, 5, protocol.ECT0)
+		ackBBRECN(t, h, ackRanges(5), 2, 0) // decreased counters
+		require.True(t, r.feedback[len(r.feedback)-1].ECN.Failed)
+		require.True(t, h.bbrECN.counterFailed)
+		require.Equal(t, append(kept, ect0(5, 5, false)), h.bbrECN.ranges)
+	})
+
+	for _, tc := range []struct {
+		name         string
+		revalidation bool
+		ceFirst      bool
+	}{
+		{name: "pending validation keeps unresolved probes"},
+		{name: "pending validation keeps probes after a CE-first report", ceFirst: true},
+		{name: "pending revalidation keeps unresolved probes", revalidation: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var h *sentPacketHandler
+			var accepted uint64
+			b := protocol.PacketNumber(0)
+			if tc.revalidation {
+				h, _ = newCapableBBRECNHandler(t)
+				h.MigratedPath(monotime.Now(), 1200)
+				accepted, b = 1, 1
+			} else {
+				h, _ = newBBRECNTestHandler()
+			}
+			// Ten probes, then Unknown sends an unmarked packet.
+			for pn := b; pn < b+numECNTestingPackets; pn++ {
+				sendBBRECNAt(h, pn, h.ECNMode(true))
+			}
+			require.Equal(t, ecnStateUnknown, h.bbrECN.state)
+			unmarked := b + numECNTestingPackets
+			sendBBRECNAt(h, unmarked, h.ECNMode(true))
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+			// The first advancing report starts above most probes.
+			if tc.ceFirst {
+				ackBBRECN(t, h, ackRanges(unmarked-1), accepted, 1)
+			} else {
+				ackBBRECN(t, h, ackRanges(unmarked), accepted, 0)
+			}
+			require.Equal(t, ecnStateUnknown, h.bbrECN.state)
+			require.NotEmpty(t, h.bbrECN.ranges, "unresolved probes are not retired")
+			require.Equal(t, b, h.bbrECN.ranges[0].first, "unresolved probes are not retired")
+			// Late feedback for a probe establishes capability.
+			next := unmarked + 1
+			sendBBRECNAt(h, next, h.ECNMode(true))
+			if tc.ceFirst {
+				ackBBRECN(t, h, []wire.AckRange{{Smallest: unmarked - 2, Largest: next}}, accepted+1, 1)
+			} else {
+				ackBBRECN(t, h, []wire.AckRange{{Smallest: b, Largest: next}}, accepted+numECNTestingPackets, 0)
+			}
+			require.Equal(t, ecnStateCapable, h.bbrECN.state)
+			require.Equal(t, protocol.ECT0, h.ECNMode(true))
+			ect0, ce := accepted+numECNTestingPackets, uint64(0)
+			if tc.ceFirst {
+				// The establishing ACK is compacted before its own transition,
+				// so the probes below its span stay for one more ACK.
+				require.NotEmpty(t, h.bbrECN.ranges)
+				require.Equal(t, b, h.bbrECN.ranges[0].first)
+				ect0, ce = accepted+1, 1
+			}
+			// The next accepted advancing ACK on the capable path retires any
+			// record left below its span.
+			last := next + 1
+			sendBBRECNAt(h, last, h.ECNMode(true))
+			ackBBRECN(t, h, ackRanges(last), ect0+1, ce)
+			require.Empty(t, h.bbrECN.ranges)
+		})
+	}
+
+	t.Run("the post-reset drain retires nothing", func(t *testing.T) {
+		h, r := newCapableBBRECNHandler(t)
+		drained := false
+		h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
+		sendBBRECNAt(h, 1, protocol.ECT0)
+		sendBBRECNAt(h, 2, protocol.ECT0)
+		h.MigratedPath(monotime.Now(), 1200)
+		require.Equal(t, protocol.ECNNon, h.ECNMode(true), "draining the old generation")
+		sendBBRECNAt(h, 3, protocol.ECNNon)
+		// An accepted advancing ACK whose span starts above the old records.
+		ackBBRECN(t, h, ackRanges(3), 1, 0)
+		e := r.feedback[len(r.feedback)-1].ECN
+		require.False(t, e.Deferred)
+		require.False(t, e.Failed)
+		require.Equal(t, protocol.PacketNumber(3), e.Watermark)
+		require.True(t, h.bbrECN.draining)
+		require.NotEmpty(t, h.bbrECN.ranges)
+		require.Equal(t, ect0(1, 2, false), h.bbrECN.ranges[0], "old marking stays through the drain")
+	})
+}
+
+// TestBBRECNLateACKOfRetiredRecord shows what a later receipt of a packet whose
+// ledger record retired (#803) does. It adds no newly acknowledged mark, so the
+// peer's counter surplus is consumed once by the first accepted advancing
+// report, which loosens the too-few-counts check by that packet in that report
+// only. A late CE still counts as congestion through the advancing anchor.
+func TestBBRECNLateACKOfRetiredRecord(t *testing.T) {
+	setup := func(t *testing.T) (*sentPacketHandler, *congestionRecorder) {
+		h, r := newCapableBBRECNHandler(t)
+		for pn := protocol.PacketNumber(1); pn <= 5; pn++ {
+			sendBBRECNAt(h, pn, protocol.ECT0)
+		}
+		// Packet 1 lies below the span and retires.
+		ackBBRECN(t, h, ackRanges(2, 3, 4), 4, 0)
+		require.Equal(t, []ecnMarkRange{{first: 5, last: 5, ordinal: 6, mark: protocol.ECT0}}, h.bbrECN.ranges)
+		require.Equal(t, congestion.ECNCounts{ECT0: 4}, h.bbrECN.compacted)
+		return h, r
+	}
+	late := []wire.AckRange{{Smallest: 1, Largest: 5}}
+
+	t.Run("ECT(0)", func(t *testing.T) {
+		h, r := setup(t)
+		ackBBRECN(t, h, late, 6, 0)
+		e := r.feedback[len(r.feedback)-1]
+		require.True(t, e.ECN.Eligible)
+		require.Equal(t, congestion.ECNCounts{ECT0: 2}, e.ECN.Delta, "one newly acknowledged mark plus the retired packet's receipt")
+		require.Equal(t, uint64(6), e.ECN.Ordinal)
+		require.False(t, e.Congested)
+		require.Equal(t, protocol.ECT0, h.ECNMode(true))
+	})
+
+	t.Run("CE", func(t *testing.T) {
+		h, r := setup(t)
+		ackBBRECN(t, h, late, 5, 1)
+		e := r.feedback[len(r.feedback)-1]
+		require.True(t, e.ECN.Eligible)
+		require.Equal(t, congestion.ECNCounts{ECT0: 1, CE: 1}, e.ECN.Delta)
+		require.Equal(t, uint64(6), e.ECN.Ordinal, "attributed to the advancing anchor")
+		require.True(t, e.Congested)
+	})
+
+	t.Run("the check loosens by the retired packet", func(t *testing.T) {
+		// The counts cover one of the two acknowledged packets. With packet 1
+		// still recorded this fails; retired, only packet 5 is newly marked.
+		h, r := setup(t)
+		ackBBRECN(t, h, late, 5, 0)
+		e := r.feedback[len(r.feedback)-1].ECN
+		require.True(t, e.Eligible)
+		require.False(t, e.Failed)
+		require.Equal(t, congestion.ECNCounts{ECT0: 1}, e.Delta)
+	})
+
+	t.Run("and by no more", func(t *testing.T) {
+		h, r := setup(t)
+		sendBBRECNAt(h, 6, protocol.ECT0)
+		ackBBRECN(t, h, []wire.AckRange{{Smallest: 1, Largest: 6}}, 5, 0)
+		require.True(t, r.feedback[len(r.feedback)-1].ECN.Failed)
+		require.True(t, h.bbrECN.counterFailed)
+		require.Equal(t, protocol.ECNNon, h.ECNMode(true))
+	})
+
+	t.Run("a deferred receipt is consumed once", func(t *testing.T) {
+		h, r := setup(t)
+		ackBBRECN(t, h, ackRanges(1, 2, 3, 4), 5, 0)
+		e := r.feedback[len(r.feedback)-1].ECN
+		require.True(t, e.Deferred)
+		require.Equal(t, congestion.ECNCounts{ECT0: 4}, e.Accepted)
+		require.Equal(t, []ecnMarkRange{{first: 5, last: 5, ordinal: 6, mark: protocol.ECT0}}, h.bbrECN.ranges)
+		// The next advancing report omits packet 1 but carries its count.
+		ackBBRECN(t, h, ackRanges(5), 6, 0)
+		e = r.feedback[len(r.feedback)-1].ECN
+		require.True(t, e.Eligible)
+		require.Equal(t, congestion.ECNCounts{ECT0: 2}, e.Delta)
+		require.Equal(t, uint64(6), e.Ordinal)
+		ackBBRECN(t, h, ackRanges(5), 6, 0)
+		e = r.feedback[len(r.feedback)-1].ECN
+		require.True(t, e.Deferred)
+		require.Equal(t, congestion.ECNCounts{ECT0: 6}, e.Accepted)
 	})
 }
 

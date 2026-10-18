@@ -29,6 +29,10 @@ func newECNLedgers() (*frozenBBRECNTracker, *bbrECNTracker) {
 // retained, never-delivered records, and acknowledges each batch with a
 // preallocated frame. With reorder, the middle packet of each batch arrives
 // late and is acknowledged by the next frame, so every ACK splits a record.
+// Unless pinned, the frames never report the retained block, so the bounded
+// tracker retires it on the first ACK after validation (#803) while the frozen
+// tracker keeps it. Pinned, a first packet below the block is acknowledged in
+// every frame, so the block stays inside each reported span and is retained.
 type ecnSteadyStream struct {
 	e           ecnLedgerAPI
 	pn          protocol.PacketNumber
@@ -37,13 +41,20 @@ type ecnSteadyStream struct {
 	late        protocol.PacketNumber
 	ect0        uint64
 	reorder     bool
+	pinned      bool
 	frame       wire.AckFrame
-	ranges      [2]wire.AckRange
+	ranges      [3]wire.AckRange
 }
 
-func newECNSteadyStream(e ecnLedgerAPI, retained int, reorder bool) *ecnSteadyStream {
-	s := &ecnSteadyStream{e: e, reorder: reorder, late: protocol.InvalidPacketNumber}
+func newECNSteadyStream(e ecnLedgerAPI, retained int, reorder, pinned bool) *ecnSteadyStream {
+	s := &ecnSteadyStream{e: e, reorder: reorder, pinned: pinned, late: protocol.InvalidPacketNumber}
 	e.mode(true)
+	if pinned {
+		s.ordinal++
+		e.sentPacket(s.pn, s.ordinal, 0, protocol.ECT0)
+		s.pn++
+		s.ect0++
+	}
 	if retained > 0 {
 		// An unresolved hole pins the prefix; distinct marks keep every
 		// retained record separate, and none of them is ever acknowledged.
@@ -79,6 +90,11 @@ func (s *ecnSteadyStream) cycle(tb testing.TB, batch int) {
 		}
 		s.late = mid
 	}
+	if s.pinned {
+		n := len(s.frame.AckRanges)
+		s.ranges[n] = wire.AckRange{Smallest: 0, Largest: 0}
+		s.frame.AckRanges = s.ranges[:n+1]
+	}
 	s.frame.ECT0 = s.ect0
 	res := s.e.feedback(&s.frame)
 	if res.Failed || res.Ordinal == 0 {
@@ -93,6 +109,8 @@ func TestBBRECNFeedbackSteadyStateAllocations(t *testing.T) {
 		reorder  bool
 	}{
 		{name: "in order"},
+		// The peer keeps reporting a packet below the retained records, so they
+		// stay inside every span rather than retiring (#803).
 		{name: "in order behind retained records", retained: 1024},
 		{name: "reordered splits behind retained records", retained: 1024, reorder: true},
 	} {
@@ -100,7 +118,7 @@ func TestBBRECNFeedbackSteadyStateAllocations(t *testing.T) {
 			frozen, bounded := newECNLedgers()
 			allocs := map[string]float64{}
 			for name, e := range map[string]ecnLedgerAPI{"frozen": frozen, "bounded": bounded} {
-				s := newECNSteadyStream(e, tc.retained, tc.reorder)
+				s := newECNSteadyStream(e, tc.retained, tc.reorder, tc.retained > 0)
 				for range 64 {
 					s.cycle(t, 10) // warm up: ledger and scratch capacity
 				}
@@ -108,6 +126,7 @@ func TestBBRECNFeedbackSteadyStateAllocations(t *testing.T) {
 			}
 			t.Logf("%s: allocations per advancing ACK cycle: frozen %.0f, bounded %.0f (ledger %d records)", tc.name, allocs["frozen"], allocs["bounded"], len(bounded.ranges))
 			require.Zero(t, allocs["bounded"])
+			require.GreaterOrEqual(t, len(bounded.ranges), tc.retained, "the retained records stay in the ledger")
 		})
 	}
 }
@@ -249,7 +268,7 @@ func BenchmarkBBRECNFeedback(b *testing.B) {
 				b.Run(fmt.Sprintf("retained=%d/reorder=%t/%s", retained, reorder, impl), func(b *testing.B) {
 					frozen, bounded := newECNLedgers()
 					e := map[string]ecnLedgerAPI{"frozen": frozen, "bounded": bounded}[impl]
-					s := newECNSteadyStream(e, retained, reorder)
+					s := newECNSteadyStream(e, retained, reorder, false)
 					for range 64 {
 						s.cycle(b, 10)
 					}

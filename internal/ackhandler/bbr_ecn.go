@@ -212,14 +212,23 @@ func (e *bbrECNTracker) feedback(ack *wire.AckFrame) congestion.ECNResult {
 		return result
 	}
 	// Charge the budget to the merged post-split ledger before mutating it, so
-	// overflow leaves the ledger exactly as it was.
+	// overflow leaves the ledger exactly as it was. Records this ACK compacts or
+	// retires still count.
 	if len(e.ranges)-(end-start)+len(e.scratch) > maxECNMarkRanges {
 		e.failEvidence()
 		result.Failed = true
 		return result
 	}
 	e.splice(start, end)
-	e.compact()
+	// Once capable, records ending below this ACK's reported span retire with
+	// the accounted prefix (#803): they lie below the new watermark, so no
+	// later anchor needs them. While validation is pending, probe records keep
+	// their marking authority.
+	retireBelow := protocol.InvalidPacketNumber
+	if e.state == ecnStateCapable {
+		retireBelow = ack.LowestAcked()
+	}
+	e.compact(retireBelow)
 	e.accepted, e.watermark = counts, ack.LargestAcked()
 	if (e.state == ecnStateTesting || e.state == ecnStateUnknown) && newly.ECT0+newly.ECT1 > 0 && delta.ECT0+delta.ECT1 > 0 {
 		e.state = ecnStateCapable
@@ -273,17 +282,20 @@ func (e *bbrECNTracker) splice(start, end int) {
 	e.ranges = e.ranges[:n]
 }
 
-// All ACKed marked records were covered by accepted counter increments. Only
-// that fully accounted prefix can be replaced with cumulative ordinal offsets.
-func (e *bbrECNTracker) compact() {
+// compact removes the leading records that need no further individual
+// evidence. All ACKed marked records were covered by accepted counter
+// increments, so only their marks become cumulative offsets. Records ending
+// below retireBelow are retired unaccounted: a later receipt of one adds no
+// newly acknowledged mark (#803). The ordinal boundary passes over both.
+func (e *bbrECNTracker) compact(retireBelow protocol.PacketNumber) {
 	n := 0
-	for n < len(e.ranges) && e.ranges[n].acked {
+	for n < len(e.ranges) && (e.ranges[n].acked || e.ranges[n].last < retireBelow) {
 		r := e.ranges[n]
 		count := uint64(r.last - r.first + 1)
-		if r.mark == protocol.ECT0 {
+		if r.acked && r.mark == protocol.ECT0 {
 			e.compacted.ECT0 += count
 		}
-		if r.mark == protocol.ECT1 {
+		if r.acked && r.mark == protocol.ECT1 {
 			e.compacted.ECT1 += count
 		}
 		e.compactedOrdinal = r.ordinal + count - 1
