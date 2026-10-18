@@ -109,36 +109,74 @@ def cruise_cap(hi, size):
     return max(4 * size, hi - max(size, hi * 15 // 100))
 
 
+def effective_ceiling(t, r, hi):
+    """The Cruise window ceiling an inflight_longterm value gives at row r, with the other caps that bind
+    there (inflight_shortterm and the model target); None for unbounded."""
+    size = t.v(r, 'size')
+    caps = []
+    if hi != dc.INF:
+        caps.append(cruise_cap(int(hi), size))
+    if t.v(r, 'inflight_short') != dc.INF:
+        caps.append(t.v(r, 'inflight_short'))
+    b = dc.bdp(t, r, 2, 1)
+    if b is not None:
+        caps.append(dc.quantize(t, r, b + t.v(r, 'extra')))
+    return min(caps) if caps else None
+
+
+def paired(events, pipe):
+    """Paired event values (counterfactual, actual) over the pipe, and how the property changed the
+    effective ceiling: lowered it (the counterfactual is lower), left it equal, raised it, or changed the
+    bound while another cap masked the change. Descriptive: no causal role follows from these numbers."""
+    rows = [dict(counterfactual=None if cf is None else cf / pipe, actual=None if ac is None else ac / pipe,
+                 masked=masked) for cf, ac, masked in events]
+    counts = dict(property_kept_higher=0, equal=0, property_kept_lower=0, masked=0)
+    for cf, ac, masked in events:
+        if masked:
+            counts['masked'] += 1
+        elif cf == ac:
+            counts['equal'] += 1
+        elif ac is None or (cf is not None and cf < ac):
+            counts['property_kept_higher'] += 1
+        else:
+            counts['property_kept_lower'] += 1
+    return rows, counts
+
+
 def properties(t, check, cross, s0, s1, pipe):
-    """Each port property acting in [s0, s1), with its documented connection to the displacement:
-    the Cruise ceiling the draft-06 assignment would give without it (counterfactual), against the
-    ceiling it left, both over the path's pipe. A counterfactual ceiling at or below the pipe would
-    leave BBRv3 no standing queue in Cruise; above it, the standing queue remains without the property."""
+    """Each port property acting in [s0, s1): its events, and descriptive mechanism evidence for one
+    channel, the inflight_longterm assignment: the effective Cruise ceiling with the property against the
+    one draft-06's assignment would give, per event. The classification needs a documented trace and code
+    argument for a property's connection to the displacement (README, Classification); these figures
+    are evidence for that argument, not a decision."""
     out = {}
+    if not pipe:
+        return out
     app = [r for r in cross if r[t.c['a4']] == 1]
     if app:
-        cf, actual = [], []
+        events = []
         for r in app:
             lost, flight, length = (r[t.c[k]] for k in ('a0', 'a1', 'a2'))
             b = dc.bdp(t, r, 1, 1)
             target = t.v(r, 'window') if b is None else min(b, t.v(r, 'window'))
             draft_hi = max(dc.inflight_at_loss(lost, flight, length, False), 0.7 * target)
-            size = t.v(r, 'size')
-            cf.append(cruise_cap(int(draft_hi), size))
-            if t.v(r, 'inflight_long') != dc.INF:
-                actual.append(cruise_cap(t.v(r, 'inflight_long'), size))
-        out['application_limited_crossings'] = dict(events=len(app),
-            counterfactual_cruise_cap_over_pipe=None if not pipe else median(cf) / pipe,
-            actual_cruise_cap_over_pipe=None if not pipe or not actual else median(actual) / pipe,
-            counterfactual_events=None if not pipe else [x / pipe for x in cf], actual_events=None if not pipe else [x / pipe for x in actual])
+            actual_hi = t.v(r, 'inflight_long')  # unchanged by a limited crossing; INF stays unbounded
+            cf, ac = effective_ceiling(t, r, draft_hi), effective_ceiling(t, r, actual_hi)
+            bound_moved = actual_hi == dc.INF or abs(actual_hi - draft_hi) >= 1
+            events.append((cf, ac, bound_moved and cf == ac))
+        rows, counts = paired(events, pipe)
+        out['application_limited_crossings'] = dict(events=len(app), channel='inflight_longterm assignment only',
+                                                    paired=rows, effect=counts)
     devs = [x for x in check['rules']['C4'].get('deviations', []) if s0 <= x['unix_ns'] < s1]
     if devs:
-        cf = [cruise_cap(int(x['draft']), x['size']) for x in devs]
-        actual = [cruise_cap(x['port'], x['size']) for x in devs]
-        out['clamp'] = dict(events=len(devs), excess_bytes=sum(x['excess_bytes'] for x in devs),
-            counterfactual_cruise_cap_over_pipe=None if not pipe else median(cf) / pipe,
-            actual_cruise_cap_over_pipe=None if not pipe else median(actual) / pipe,
-            counterfactual_events=None if not pipe else [x / pipe for x in cf], actual_events=None if not pipe else [x / pipe for x in actual])
+        events = [(cruise_cap(int(x['draft']), x['size']), cruise_cap(x['port'], x['size']), False) for x in devs]
+        rows, counts = paired(events, pipe)
+        out['clamp'] = dict(events=len(devs), excess_bytes=sum(x['excess_bytes'] for x in devs), channel='inflight_longterm assignment only',
+                            paired=rows, effect=counts)
+    flow = [r for r in cross if r[t.c['a4']] == 2]
+    if flow:
+        # The design's declared choice (flow-control blocking is supply-limited) against draft-06 4.1.1.3.1.
+        out['flow_control_limited_crossings'] = dict(events=len(flow), review='declared deviation; connection unresolved until argued')
     return out
 
 
@@ -261,8 +299,9 @@ def traced(directory, summary, reference):
 
 
 def attribute(traces):
-    """One workload's attribution by the registered rules (README, Classification). Classes it cannot
-    settle mechanically (a reconcile finding's owner, a checker mismatch) come back as 'needs review'."""
+    """One workload's gates under the registered rules (README, Classification). The class itself needs a
+    documented argument, so this never returns (a), (b) or (c): it returns the gates, every acting property
+    with its evidence, and what the argument must settle."""
     if len(traces) < 2 or not all(x['check']['coverage']['complete'] for x in traces):
         return {'class': 'undiagnosed (instrument)', 'reason': 'fewer than two usable traces with complete traces'}
     if not all(x['disturbance']['representative'] for x in traces):
@@ -273,25 +312,28 @@ def attribute(traces):
     for x in traces:
         for per in CLASSIFIED:
             for name, ev in x['mechanism']['periods'][per]['properties'].items():
-                a = acting.setdefault(name, dict(events=0, counterfactual=[], actual=[]))
+                a = acting.setdefault(name, dict(events=0, paired=[], effect={}))
                 a['events'] += ev['events']
-                a['counterfactual'] += ev.get('counterfactual_events') or []  # pooled over events, as registered
-                a['actual'] += ev.get('actual_events') or []
-    connection = {name: dict(events=a['events'], counterfactual_cruise_cap_over_pipe=median(a['counterfactual']),
-                             actual_cruise_cap_over_pipe=median(a['actual']),
-                             role=None if median(a['counterfactual']) is None else 'cause' if median(a['counterfactual']) <= 1 else 'contributor')
-                  for name, a in acting.items()}
-    out = dict(mismatches=mismatches, reconcile_findings=findings, properties=connection)
+                a['paired'] += ev.get('paired') or []  # pooled over events, as registered
+                for k, v in (ev.get('effect') or {}).items():
+                    a['effect'][k] = a['effect'].get(k, 0) + v
+    for a in acting.values():
+        cf = [p['counterfactual'] for p in a['paired']]
+        ac = [p['actual'] for p in a['paired']]
+        a['counterfactual_over_pipe_median'] = median(cf)
+        a['actual_over_pipe_median'] = median(x for x in ac if x is not None)
+        a['actual_unbounded_events'] = sum(1 for x in ac if x is None)
+        del a['paired']
+    out = dict(mismatches=mismatches, reconcile_findings=findings, properties=acting)
     if mismatches or findings:
         out['class'] = 'needs review'
-        out['reason'] = 'checker mismatches or input-check findings: classify by reviewed evidence (README rules 2-4)'
-    elif any(c['role'] is None for c in connection.values()):
-        out['class'] = 'undiagnosed'
-        out['reason'] = 'an acting property without a computable connection'
-    elif any(c['role'] == 'cause' for c in connection.values()):
-        out['class'] = '(b)'
+        out['reason'] = 'checker mismatches or input-check findings: settle by reviewed evidence (README rules 2-5)'
+    elif acting:
+        out['class'] = 'needs an argument'
+        out['reason'] = 'a port property acts: its connection to the displacement needs a documented argument, else unresolved (rule 5)'
     else:
-        out['class'] = '(a)'
+        out['class'] = 'needs an argument'
+        out['reason'] = 'no port property acts: (a) needs the mechanism argument from the figures (rule 4)'
     return out
 
 
@@ -376,8 +418,6 @@ def main():
         pairs[key] = entry
     attribution = {wl: attribute([v['trace'] for k, v in pairs.items() if k.startswith(wl + '/') and v.get('selected')])
                    for wl in ('stream', 'datagram')}
-    classes = {a['class'] for a in attribution.values()}
-    overall = classes.pop() if len(classes) == 1 and next(iter(attribution.values()))['class'] in ('(a)', '(b)') else 'undiagnosed (mixed or unresolved)'
     traces = [v['trace'] for v in pairs.values() if v.get('selected')]
     status = dict(observations=len(traces), representative=all(x['disturbance']['representative'] for x in traces),
                   mismatches_in_measured_window=sum(sum(n for p, n in r['by_period'].items() if p in dc.PERIODS)
@@ -387,7 +427,6 @@ def main():
                   reconcile_ok=all(x['reconcile']['ok'] for x in traces),
                   reconcile_findings=[dict(pair=k, **f) for k, v in pairs.items() if v.get('selected') for f in v['trace']['reconcile']['findings']])
     status['attribution'] = attribution
-    status['overall'] = overall
     OUT.write_text(json.dumps(dict(status='complete', preconditions=status, reference_777=reference, pairs=pairs), indent=1, sort_keys=True) + '\n')
     print(json.dumps(status, indent=1))
 

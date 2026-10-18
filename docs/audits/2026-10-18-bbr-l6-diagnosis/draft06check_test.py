@@ -163,6 +163,14 @@ class InjectedDeviations(unittest.TestCase):
         t.set(post, 'inflight_long', t.get(s, 'inflight_long') - 1200)
         self.assertTrue([m for m in mismatches(t.data, 'C4') if 'after its crossing' in m['what']])
 
+    def test_c4_reset_to_unbounded_after_assignment(self):
+        t = Tr(fixture())
+        _, s, post = self._crossing(t)
+        t.set(post, 'inflight_long', d.INF)  # an unexplained reset after the assignment
+        self.assertTrue([m for m in mismatches(t.data, 'C4') if 'after its crossing' in m['what']])
+        t.set(post, 'flags', t.get(post, 'flags') | t.f['undo_eligible'])  # an undo restoring an unbounded saved bound
+        self.assertFalse([m for m in mismatches(t.data, 'C4') if 'after its crossing' in m['what']])
+
     def test_c4_undo_to_unbounded_is_explained(self):
         t = Tr(fixture())
         p, q = next((p, q) for p, q in t.pairs() if t.get(p, 'inflight_long') != d.INF

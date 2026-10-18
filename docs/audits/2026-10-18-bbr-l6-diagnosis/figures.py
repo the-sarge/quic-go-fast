@@ -93,8 +93,8 @@ def checker(s):
 
 
 def inputs(s):
-    rows = ['| Workload | Period | Declared losses / relay drops | Delivered ratio | `max_bw` / capacity (max) | `min_rtt` (ms) |',
-            '| --- | --- | ---: | ---: | ---: | ---: |']
+    rows = ['| Workload | Period | Declared losses / relay drops | Delivered ratio | `max_bw` / capacity (max) | `min_rtt` (ms) | Checks not `ok` |',
+            '| --- | --- | ---: | ---: | ---: | ---: | --- |']
     for wl in WORKLOADS:
         ts = traces(s, wl)
         for per in CLASSIFIED:
@@ -104,7 +104,8 @@ def inputs(s):
             ratios = [p['r2']['ratio'] for p in ps if p['r2'].get('ratio') is not None]
             caps = [p['r3']['max_over_capacity'] for p in ps if p['r3'].get('max_over_capacity') is not None]
             rtt = [p['r4']['min_ms'] for p in ps if p['r4'].get('min_ms') is not None]
-            rows.append(f"| {wl.upper()} | {per} | {dec} / {dro} | {f(min(ratios), 4) if ratios else '—'}–{f(max(ratios), 4) if ratios else '—'} | {f(max(caps), 3) if caps else '—'} | {f(min(rtt), 1) if rtt else '—'} |")
+            bad = [f"{k.upper()} {p[k]['status']}" for p in ps for k in ('r1', 'r2', 'r3', 'r4') if p[k]['status'] != 'ok']
+            rows.append(f"| {wl.upper()} | {per} | {dec} / {dro} | {f(min(ratios), 4) if ratios else '—'}–{f(max(ratios), 4) if ratios else '—'} | {f(max(caps), 3) if caps else '—'} | {f(min(rtt), 1) if rtt else '—'} | {', '.join(bad) or 'none'} |")
     return '\n'.join(rows)
 
 

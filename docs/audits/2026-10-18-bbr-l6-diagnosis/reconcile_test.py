@@ -98,6 +98,20 @@ class Reconcile(unittest.TestCase):
         # A stale record from before the gap never stands for a boundary: incomplete, not a false failure.
         self.assertEqual(out['status'], 'incomplete')
         self.assertFalse([f for f in out['findings'] if f['status'] == 'fail'])
+        self.assertEqual(out['periods']['short']['r2']['status'], 'incomplete')
+        self.assertEqual(out['periods']['back']['r2']['status'], 'incomplete')
+        self.assertEqual(out['periods']['equal']['r2']['status'], 'ok')
+
+    def test_real_failure_beside_incomplete_evidence(self):
+        trace, relay, c = synthetic()
+        trace['rows'] = [row for row in trace['rows'] if not (START + 100 * 10**9 <= row[c['unix_ns']] < START + 201 * 10**9)]
+        for row in trace['rows']:
+            if row[c['unix_ns']] < START + 100 * 10**9:
+                row[c['a1']] *= 2  # declared losses double the relay's drops in the equal period
+        out = r.reconcile(trace, relay, START)
+        self.assertEqual(out['status'], 'fail')
+        self.assertIn(('R1', 'equal', 'fail'), {(f['rule'], f['period'], f['status']) for f in out['findings']})
+        self.assertIn(('short', 'incomplete'), {(f['period'], f['status']) for f in out['findings']})
 
     def test_missing_relay_boundary_is_incomplete(self):
         trace, relay, _ = synthetic()

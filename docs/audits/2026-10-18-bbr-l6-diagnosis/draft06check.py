@@ -337,10 +337,12 @@ def check_probe_losses(t, rep):
             lowering.add(r[t.c['seq']])
         post = t.end_of_event(r)
         if post is not None and not t.same_seq(r, RESET):
-            # Nothing later in the event lowers the assignment (undo and the sample raise only raise it).
-            rep.check(rule, t.v(post, 'inflight_long') != INF and t.v(post, 'inflight_long') >= got, post,
-                      "inflight_longterm lowered after its crossing's assignment in the same event", assigned=got,
-                      end=t.v(post, 'inflight_long'))
+            # Later in the event only raises are justified: the sample raise, ProbeInflightLongtermUpward,
+            # or an undo restoring the saved bound (5.5.11), which can be unbounded (INF).
+            end = t.v(post, 'inflight_long')
+            ok = end >= got if end != INF else t.flag(post, 'undo_eligible')
+            rep.check(rule, ok, post, "inflight_longterm lowered or reset after its crossing's assignment in the same event",
+                      assigned=got, end=end)
         if got == port_hi and port_hi - draft_hi >= 1:
             # The port's clamp (bbr_probe.go:173-176), demonstrated in code: a deviation event.
             rep.note(rule, 'clamp_cases')

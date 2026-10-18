@@ -36,7 +36,10 @@ The agent presented one plan with six recommended decisions on October 17, 2026,
 ## Known before these decisions
 
 - **#777's result** (adverse; [Answer](https://github.com/the-sarge/quic-go-fast/blob/71e88789/docs/audits/2026-10-17-bbr-l6-coexistence/README.md#answer)): next to BBRv3 the competitor delivers 6.2–17.8 Mbit/s, against 42.7–59.9 next to matched Reno. BBRv3 holds most of the shared queue and causes nearly all overflow drops. While the competitor pauses, BBRv3 alone keeps the queue near full. BBRv3's ECN switched off mid-run in every run (#793 owns that).
-- **The agent's expectation** (stated to the operator in the plan, not a result): (a) is the most likely class. At the points read, the port follows draft-06's loss rules, and Reno at a 100 ms round trip needs very long loss-free periods to hold a large share. After the [development runs](#development-runs-before-this-registration) the agent still expects (a), with a STREAM-only port property reported separately.
+- **The agent's expectation** (stated to the operator in the plan, not a result): (a) is the most likely class. At the points read, the port follows draft-06's loss rules, and Reno at a 100 ms round trip needs very long loss-free periods to hold a large share. After the [development runs](#development-runs-before-this-registration) and both reviews, the agent expects:
+- DATAGRAM (a): no property acts, and draft-06's rules produce the displacement;
+- STREAM unresolved: the same mechanism is present, plus a port property acting through three channels, which a measurement-only record cannot switch off;
+- the path undiagnosed under D5, with both conclusions kept.
 - **Draft-06 states its own coexistence target** ([section 5.3.3.8.1](https://www.ietf.org/archive/id/draft-ietf-ccwg-bbr-06.html#section-5.3.3.8.1)): it aims to let Reno/CUBIC keep working where they work today, at bandwidth-delay products of about 100 packets or fewer, and says that BBR flows with large BDPs deliberately probe more often than Reno/CUBIC would (every 2–3 s at high round-trip times). L6's BDP is about 857 packets. This is context for reading a trace, not evidence of a cause.
 - **The port's controller is r9's code.** `git diff 81e9dc8c abfa5456` has no non-test change in `internal/congestion`; in `internal/ackhandler` the only non-test change is the port contract's declared deviation 4 (the #752 discovery-scratch release in `congestion_dispatch.go`, which changes no ACK, recovery, ECN, bound or Reno behavior). The root-package merge seams (send queue depth, candidate authority, setup admission, receive phase) are outside the controller.
 
@@ -154,7 +157,7 @@ For each traced observation and period, [analyze.py](analyze.py) reports, withou
 - BBRv3's own loss per packet-timed round, and the share of rounds above 2%;
 - which bound set the window ceiling (the model target, `inflight_shortterm`, `inflight_longterm` or the headroom) and how often a round was cwnd-limited;
 - the two-percent checks by limitation reason: how many judged a packet marked supply-limited, how many crossed, how many crossings were limited, and where each crossing left `inflight_longterm` against the path's capacity;
-- each acting port property, with its event count and its counterfactual (the Cruise ceiling without it against the ceiling it left, both over the pipe) — the registered connection to the displacement;
+- each acting port property: its events, the paired effective Cruise ceilings with and without it for the `inflight_longterm` channel (and how often it kept the ceiling higher, equal, lower or masked), and, for supply-limited marks, the other channels (Up round starts on limited samples; the `max_bw` filter's cycle advances and aging). This is evidence for the classification's argument, not a decision;
 - how often `bw_shortterm` was below `max_bw`;
 - `inflight_longterm` and the window against the path's capacity (queue plus pipe);
 - `max_bw` against BBRv3's own delivery;
@@ -204,10 +207,14 @@ Evaluated over the selected counted observations: first for each workload, then 
   - a deviation from draft-06 or r9 demonstrated in code that changes a transition, bound or rate. The demonstration is a unit-level reproduction in the exported tree, driving the port's sender with an event's recorded inputs.
 
   Flow-control and ProbeRTT limitation marks are reported by reason. They are not the application-limited property.
-- **A property's connection to the displacement** is documented by a counterfactual: the Cruise window ceiling that draft-06's assignment would give without the property, against the path's pipe (100 Mbit/s × 100 ms, in QUIC bytes). It is the median over the property's events in the classified periods ([analyze.py](analyze.py) `properties`).
-  - At or below the pipe, BBRv3 could not hold a standing queue in Cruise. The standing queue is how its probes overflow the shared queue, so the property is a **cause**.
-  - Above the pipe, the standing queue remains without the property, so it is a **contributor**.
-  - A demonstrated deviation that has no recorded counterfactual needs its reproduction to supply one. Otherwise its connection is unresolved.
+- **A property's connection to the displacement** is decided by a documented argument in the record, citing the traces and the code: which draft rules the property switches off or changes, in which events, and how that changes the shared queue and the competitor's losses. No ratio decides it.
+  - **The evidence available to the argument:**
+    - the property's events by period;
+    - for the `inflight_longterm` assignment, the paired effective Cruise ceilings with and without the property, other binding caps included, and how often it kept the ceiling higher, equal, lower or masked ([analyze.py](analyze.py) `properties`, descriptive);
+    - for supply-limited marks, the other channels: Up round starts on limited samples, which do not advance the plateau count, and the `max_bw` filter's cycle advances and aging;
+    - DATAGRAM, where the application-limited property does not act, as corroboration only, since a change of workload does not isolate the property.
+  - **The verdict:** a **cause** when the argument shows the displacement depends on the property; a **contributor** when it shows the displacement persists without it; **unresolved** otherwise.
+  - **Review:** the result consideration (D4) reviews the argument.
 - **The owner of an input-check failure** is established by evidence, not by which check failed:
   - **The fixture's** when the calibration or relay2's own counters show the modeled path differing from its declaration (a calibration delay or rate outside its criteria, or per-flow counters that disagree with the model's totals).
   - **The port's** when calibration and relay agree and the sender's view departs from them (declared losses that are not relay drops, a delivery count the relay did not see, a bandwidth estimate above the link, a minimum RTT below propagation).
@@ -229,14 +236,15 @@ If (b) and (c) both hold in one workload, that workload reports both and is undi
 - Otherwise the path is **undiagnosed** (D5: mixed or missing attribution). The record still keeps each workload's supported conclusion and its #792 consequence: a fix ticket for (b), the adoption question for (a), #777's validity for (c).
 - Contributors are always reported, with event counts and counterfactuals, and the operator decides whether to file them.
 
-**The rules walked through** (the review's cases):
+**The rules walked through** (the reviews' cases):
 
 | Case | Workloads | Path |
 | --- | --- | --- |
-| DATAGRAM clean; in STREAM, a property acts and its counterfactual ceiling stays above the pipe | (a), (a) with a contributor | (a); the contributor reported |
-| DATAGRAM clean; in STREAM, a property's counterfactual ceiling falls to the pipe or below | (a), (b) | undiagnosed (mixed); STREAM's (b) and its fix ticket kept, DATAGRAM's (a) kept |
-| A different property is a cause in each workload | (b), (b) | (b), naming both properties |
-| A demonstrated deviation whose counterfactual stays above the pipe | unchanged by it | the deviation reported as a contributor |
+| DATAGRAM: no property acts, the traces conform and reconcile, and the mechanism argument holds. STREAM: a property acts and the argument shows the displacement persists without it | (a), (a) with a contributor | (a); the contributor reported |
+| As above, but in STREAM the argument cannot show what the displacement would be without the property | (a), unresolved | undiagnosed (mixed); DATAGRAM's (a) and its consequence kept, STREAM's property reported for a fix ticket |
+| In STREAM the argument shows the displacement depends on the property | (a), (b) | undiagnosed (mixed); both conclusions and both consequences kept |
+| A different property is shown to be a cause in each workload | (b), (b) | (b), naming both properties |
+| A ceiling ratio that moves (to or across the pipe, or not at all), with no argument | unresolved | undiagnosed |
 | An input-check failure with no established owner | undiagnosed there | undiagnosed |
 | A fixture-owned input-check failure in one workload | (c) there | undiagnosed (mixed), with (c)'s consequence first |
 
@@ -353,7 +361,15 @@ The review protocol treats two such counterexamples as an approach failure, so t
 
 ### Attribution: stopped for a decision
 
-*Pending the operator's decision; recorded after it.*
+The replacement synthesis agreed: the counterfactual rule could not decide a cause, and the ceiling comparison is to stay descriptive, with each cause or contributor disposition resting on an explicit trace and code argument, and unresolved connections ending undiagnosed under D5. Its other queued fixes (F2–F7) were applied and tested, with no further RAS round:
+- effective-change accounting with masking caps and unbounded values (F2);
+- event pooling (F3);
+- C4's same-event accounting (F4): a later reset to unbounded needs an undo;
+- boundary completeness (F5);
+- rendering of incomplete checks (F6);
+- flow-control crossings as review items (F7).
+
+The Classification above now states the evidence-only rule, **proposed to the operator**. The decision and its date are recorded here once made.
 
 ## Time estimate
 
