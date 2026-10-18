@@ -5701,3 +5701,43 @@ Its helpers read the real clock. The first RTT sample is about 1 ms, so time-thr
 ### Next
 
 - The ECN suite no longer depends on scheduling. The operator's BBR/GSO order is unchanged: #743, then the [#808](https://github.com/the-sarge/quic-go-fast/issues/808) campaign, then Q2 #599. GitHub issues are the live view.
+
+---
+
+## Size-0 writes no longer take the GSO-error fallback - 2026-10-18 18:04 EDT
+
+**Main:** `501e80bd43d7`
+**Actor:** Claude
+
+### Summary
+
+[#809](https://github.com/the-sarge/quic-go-fast/issues/809) is closed by [PR #817](https://github.com/the-sarge/quic-go-fast/pull/817) (squash `501e80bd`). `sconn.writeAuthorized` treated any write error that `isGSOError` matches (on Linux, an `*os.SyscallError` wrapping `EIO`) as a failed segmented send, even when the write had segment size 0. It turned GSO off and resent the payload in `gsoSize`-byte pieces, so with size 0 every piece was empty and the write kept submitting empty datagrams until one failed. The kernel is not known to return EIO for an unsegmented send, but a caller-supplied socket can.
+
+### Completed
+
+- The fallback condition gained `gsoSize > 0`. A size-0 write whose submission fails with a GSO-matching error now returns that error after one submission, leaves GSO on, and takes the existing write-error path (the send queue returns it and the connection closes with it). Segmented writes, including a single segment, keep the fallback; per-submission authorization is unchanged.
+- **New tests:** `TestSendConnGSOErrorWithoutSegmentSize` (one submission, error returned, GSO on; the fake fails past a 10-submission cap so a regression cannot hang), `TestSendConnGSOFailureSingleSegment` (submissions `[6, 6]` with segment sizes `[6, 0]`, GSO off), and `TestSendConnWrapperGSOErrorWithoutSegmentSize` in the new `send_conn_linux_test.go` (a client `Transport` over an ordinary `*net.UDPConn` wrapper that injects the kernel's EIO shape once: no empty writes, and the dial fails with `unix.EIO`). Existing `TestSendConn*` tests are unchanged.
+
+### Decisions
+
+- The owner approved the triage brief and, on 2026-10-18, the plan. The [agent brief](https://github.com/the-sarge/quic-go-fast/issues/809#issuecomment-6255263126) holds the contract: one condition at the single enforcement point, an independently reviewable fork patch under ADR 0003, and no upstream PR although upstream has the same loop.
+
+### Validation
+
+- **Red/green in Linux Docker** (`golang:1.27.1`, arm64): at the base, the size-0 `sconn` test ended at the submission cap and the wrapper test saw an empty write, while the one-segment contrast passed. With the guard all `TestSendConn*` tests passed.
+- **Mutation:** narrowing the fallback to multi-segment writes (`len(p) > int(gsoSize)`) failed only the one-segment test.
+- **Other local gates on `e1c81730`:**
+  - a temporary leak probe on the wrapper test, run with `-race -count=5`, then removed;
+  - the new tests with `-race -count=20`: 60 of 60 passed;
+  - the root package on Linux with `-race -shuffle on`, and on Darwin with `-shuffle on`;
+  - `go vet` for linux, darwin and windows;
+  - golangci-lint v2.14.0 on five GOOS values;
+  - `go mod tidy -diff`.
+- **RAS review** `20261018T213633-9e837a0078382e9f6b2de9e0` at `e1c81730`: no findings. Four reviewers completed and approved: agy-argon, codex-astra, codex-sol and grok. Both Claude reviewers failed within 3 s because the nested `claude` CLI had hit its session usage limit. No fixes were needed, so no verify or replacement review ran.
+- All 33 hosted checks passed on `e1c81730`, which was squash-merged with `--match-head-commit`.
+- **Process miss:** main had advanced to `30d823c6` (#816, BBR diagnostics, no shared files) before the merge. The branch was not updated and re-gated first, as planit requires; GitHub's rules allowed the merge. Afterwards, push CI on `501e80bd` passed: unit, integration, lint, cross-compile and interop.
+- The CPU-heavy local steps ran inside yield windows granted by the wiremux `1869-windows-uro` campaign, and each window was released when done.
+
+### Next
+
+- No follow-ups from this PR; no review finding was deferred. GitHub issues are the live view.
