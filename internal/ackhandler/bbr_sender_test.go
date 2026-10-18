@@ -93,8 +93,22 @@ func TestPublicConstructionStillReno(t *testing.T) {
 }
 
 func TestBBRCEIsNotLoss(t *testing.T) {
-	for _, limitation := range []congestion.SendLimitation{congestion.SendUnknown, congestion.SendApplicationLimited, congestion.SendFlowControlLimited} {
-		t.Run(fmt.Sprintf("limitation after registration %d", limitation), func(t *testing.T) {
+	for _, tc := range []struct {
+		limitation congestion.SendLimitation
+		stopOnly   bool // exhaustion observed but not established as supply limitation
+	}{
+		{limitation: congestion.SendUnknown},
+		{limitation: congestion.SendApplicationLimited},
+		{limitation: congestion.SendFlowControlLimited},
+		{limitation: congestion.SendApplicationLimited, stopOnly: true},
+		{limitation: congestion.SendFlowControlLimited, stopOnly: true},
+	} {
+		limitation := tc.limitation
+		name := fmt.Sprintf("limitation after registration %d", limitation)
+		if tc.stopOnly {
+			name = fmt.Sprintf("observed stop after registration %d", limitation)
+		}
+		t.Run(name, func(t *testing.T) {
 			h := newSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger, nil)
 			b := EnableBBR(h, 1200, func() protocol.ByteCount { return 0 })
 			EnableBBRECN(h, func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, true, true })
@@ -112,7 +126,9 @@ func TestBBRCEIsNotLoss(t *testing.T) {
 				for range n {
 					send()
 				}
-				if observe != congestion.SendUnknown {
+				if observe != congestion.SendUnknown && tc.stopOnly {
+					h.ObserveDeliveryStop(observe)
+				} else if observe != congestion.SendUnknown {
 					h.ObserveDeliveryLimitation(observe)
 				}
 				receipts += uint64(n)
@@ -135,6 +151,10 @@ func TestBBRCEIsNotLoss(t *testing.T) {
 			round(2, false, limitation) // Observation follows the final registration.
 			if limitation == congestion.SendUnknown {
 				require.Greater(t, b.PacingRate(), beforeRate, "control proves this is a release boundary")
+				return
+			}
+			if tc.stopOnly {
+				require.Greater(t, b.PacingRate(), beforeRate, "exhaustion that cost no sending time is not a supply-limited round")
 				return
 			}
 			require.Equal(t, beforeRate, b.PacingRate(), "an observed limited round cannot raise the rate cap")

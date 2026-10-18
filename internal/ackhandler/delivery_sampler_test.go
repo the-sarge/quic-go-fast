@@ -57,6 +57,29 @@ func TestDeliverySamplerCompressedAndLimitedAck(t *testing.T) {
 	require.Equal(t, uint64(4), r.feedback[1].Delivery.Ordinal)
 }
 
+// Packet emission establishes supply limitation only once a gap costs sending
+// time; until then it reports the stop alone.
+func TestDeliverySamplerObservedStop(t *testing.T) {
+	for _, reason := range []congestion.SendLimitation{congestion.SendApplicationLimited, congestion.SendFlowControlLimited} {
+		t.Run(map[congestion.SendLimitation]string{congestion.SendApplicationLimited: "application", congestion.SendFlowControlLimited: "flow control"}[reason], func(t *testing.T) {
+			r := &congestionRecorder{}
+			h := newCongestionTestHandler(r)
+			now := monotime.Now()
+			h.ObserveDeliveryStop(reason)
+			require.Equal(t, reason, h.DeliveryStats().Stop)
+			require.Equal(t, reason == congestion.SendApplicationLimited, h.DeliveryIdle(), "observed application exhaustion still qualifies genuine idle")
+			sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1000)
+			require.Equal(t, congestion.SendUnknown, r.sends[0].Packet.Delivery.Limited, "an observed stop sets no delivery boundary")
+			h.ObserveDeliveryLimitation(reason)
+			sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1000)
+			require.Equal(t, reason, r.sends[1].Packet.Delivery.Limited)
+			h.ObserveDeliveryStop(congestion.SendPacingLimited)
+			sendCongestionTestPacket(h, now, protocol.EncryptionInitial, 1000)
+			require.Equal(t, reason, r.sends[2].Packet.Delivery.Limited, "a later stop does not erase an established boundary")
+		})
+	}
+}
+
 func TestDeliverySamplerLateOnlyAck(t *testing.T) {
 	t.Run("compressed late ACK below measured minimum", func(t *testing.T) {
 		r := &congestionRecorder{}

@@ -219,14 +219,25 @@ func (h *sentPacketHandler) DeliveryStats() congestion.DeliveryStats {
 	}
 }
 
+// ObserveDeliveryStop records an opportunity's stop and any application
+// exhaustion, which genuine idle requires, without establishing supply
+// limitation: emission reports that once a supply gap costs sending time.
+func (h *sentPacketHandler) ObserveDeliveryStop(reason congestion.SendLimitation) {
+	d := h.congestionEvents
+	if d == nil {
+		return
+	}
+	d.sampler.stop = reason
+	d.sampler.applicationExhausted = reason == congestion.SendApplicationLimited
+}
+
 func (h *sentPacketHandler) ObserveDeliveryLimitation(reason congestion.SendLimitation) {
 	d := h.congestionEvents
 	if d == nil {
 		return
 	}
+	h.ObserveDeliveryStop(reason)
 	s := &d.sampler
-	s.stop = reason
-	s.applicationExhausted = reason == congestion.SendApplicationLimited
 	if reason == congestion.SendApplicationLimited || reason == congestion.SendFlowControlLimited || reason == congestion.SendProbeRTTLimited {
 		s.markLimited(reason)
 	}

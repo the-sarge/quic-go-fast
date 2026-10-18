@@ -183,10 +183,16 @@ func TestBBRProbeBWAppLimitedFilter(t *testing.T) {
 }
 
 func (x *bbrProbeTrace) lose(flight protocol.ByteCount, limited SendLimitation) {
+	x.loseAfter(flight, 0, limited)
+}
+
+// loseAfter declares the packet lost after earlier bytes, lost since its
+// registration, already entered the cumulative count.
+func (x *bbrProbeTrace) loseAfter(flight protocol.ByteCount, earlier uint64, limited SendLimitation) {
 	x.ordinal++
 	p := PacketInfo{Ordinal: x.ordinal, PathGeneration: x.b.pathGeneration, SampleGeneration: x.b.sampleGeneration, Length: 1200, AckEliciting: true, RegistrationValid: true, Delivery: DeliverySnapshot{Delivered: x.delivered, Lost: x.lost, Valid: true, PriorInFlight: flight - 1200, PostInFlight: flight, Limited: limited}}
 	x.b.Sent(SendEvent{Packet: p, PriorInFlight: flight - 1200, PostInFlight: flight})
-	x.lost += 1200
+	x.lost += earlier + 1200
 	x.now = x.now.Add(time.Millisecond)
 	x.b.Feedback(FeedbackEvent{PathGeneration: p.PathGeneration, SampleGeneration: p.SampleGeneration, Time: x.now, Lost: []PacketInfo{p}, PriorInFlight: flight, PostInFlight: flight - 1200, Delivery: DeliverySample{Delivered: x.delivered, Lost: x.lost}})
 }
@@ -204,6 +210,35 @@ func TestBBRProbeBWLossBoundAttribution(t *testing.T) {
 			} else {
 				require.Greater(t, x.b.GetCongestionWindow(), protocol.ByteCount(19183), "limited loss cannot establish the long-term capacity bound")
 			}
+		})
+	}
+}
+
+// Draft-06 InflightAtLoss: inflight_prev + (0.02*inflight_prev - lost_prev)/0.98,
+// or 50/49 * (inflight_prev - lost_prev). The prefix is negative once the losses
+// before the packet already exceed two percent, so the bound falls below
+// inflight_prev; HandleInflightTooHigh floors it at 0.7 * min(BDP, cwnd).
+func TestBBRProbeBWLossPrefix(t *testing.T) {
+	// The lost packet's registration had 20000 bytes in flight, 18800 before it.
+	for _, tc := range []struct {
+		name    string
+		base    uint64
+		earlier uint64
+		want    protocol.ByteCount
+	}{
+		{name: "no earlier loss", earlier: 0, want: 19183},
+		{name: "earlier loss exactly two percent", earlier: 376, want: 18800},
+		{name: "earlier loss above two percent", earlier: 1000, want: 18163},
+		{name: "earlier loss reaches the prior flight", earlier: 18800, want: 7000},
+		{name: "earlier loss exceeds the prior flight", earlier: 40000, want: 7000},
+		{name: "large cumulative counters", base: 1 << 62, earlier: 1000, want: 18163},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			x := newBBRProbeTrace()
+			x.up(t)
+			x.lost += tc.base
+			x.loseAfter(20000, tc.earlier, SendUnknown)
+			require.Equal(t, tc.want, x.b.inflightLong)
 		})
 	}
 }

@@ -18,10 +18,17 @@ type bbrSendPolicy struct {
 	tokens     int64 // byte-nanoseconds, retaining fractional byte credit
 	updated    monotime.Time
 	lastTrace  monotime.Time
+	// refilledAt is when all credit spent so far will have refilled to the
+	// quantum, at the rate and quantum when it was spent. Only spending moves
+	// it, and only later: a rate cut that clamps the credit is not refill.
+	refilledAt monotime.Time
+	// supplyGap is the application or flow-control exhaustion observed at the
+	// latest opportunity, not yet established as supply limitation.
+	supplyGap congestion.SendLimitation
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
-	p := &bbrSendPolicy{updated: now, credit: newLocalSendCredit()}
+	p := &bbrSendPolicy{updated: now, refilledAt: now, credit: newLocalSendCredit()}
 	p.update(rate, size, now)
 	p.tokens = int64(p.quantum) * 1e9
 	return p
@@ -65,6 +72,12 @@ func (p *bbrSendPolicy) deadline(size protocol.ByteCount, now monotime.Time) mon
 	if p.budget(now) >= size {
 		return 0
 	}
+	return p.fullAt(now)
+}
+
+// fullAt is when credit, refilling at the current rate, reaches the quantum.
+// Call it after budget.
+func (p *bbrSendPolicy) fullAt(now monotime.Time) monotime.Time {
 	return now.Add(time.Duration(ceilSendDelay(uint64(int64(p.quantum)*1e9-p.tokens), p.rate)))
 }
 
@@ -73,6 +86,11 @@ func (p *bbrSendPolicy) sent(size protocol.ByteCount, now monotime.Time) {
 		panic("BBR pacing credit exceeded")
 	}
 	p.tokens -= int64(size) * 1e9
+	// An unpaced send spends nothing; recomputing at a changed rate or quantum
+	// would move the refill time without any spending.
+	if size > 0 {
+		p.refilledAt = max(p.refilledAt, p.fullAt(now))
+	}
 }
 
 // An isolated oversized probe waits for a full quantum, then retains its excess
@@ -82,4 +100,5 @@ func (p *bbrSendPolicy) sentProbe(size protocol.ByteCount, now monotime.Time) {
 		panic("BBR probe pacing credit exceeded")
 	}
 	p.tokens -= int64(size) * 1e9
+	p.refilledAt = max(p.refilledAt, p.fullAt(now))
 }

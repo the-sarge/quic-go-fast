@@ -2,6 +2,7 @@ package quic
 
 import (
 	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 )
@@ -47,7 +48,9 @@ func (e *packetEmission) resetLocalPath(generation uint64, now monotime.Time) {
 	}
 	e.bbr.credit.resetGeneration(generation)
 	e.bbr.tokens = int64(e.bbr.quantum) * 1e9
-	e.bbr.updated = now
+	e.bbr.updated, e.bbr.refilledAt = now, now
+	// An open supply gap belongs to the old path's samples.
+	e.bbr.supplyGap = congestion.SendUnknown
 }
 
 // sendBounded performs at most one owned handoff per opportunity. Continuation
@@ -65,7 +68,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 				result.stop, result.available, result.deadline = emissionQueueFull, available, 0
 				result.blocked, result.retry = blockModeHardBlocked, false
 			}
-			e.observeDeliveryResult(result)
+			e.observeDeliveryResult(result, now)
 		}
 	}()
 	if e.queue.WouldBlock() {
@@ -143,6 +146,7 @@ func (e *packetEmission) sendBounded(now monotime.Time, confirmed bool) (result 
 		progress, err := e.maybeSendAckOnlyPacket(now, confirmed)
 		return emissionResult{progress: progress, err: err, stop: emissionPaced, deadline: deadline}
 	}
+	e.confirmSupplyGap(now)
 	limit := size
 	if confirmed && e.opportunityCapabilities().GSO {
 		limit = min(e.bbr.budget(now), allowance, protocol.MaxLargePacketBufferSize)
