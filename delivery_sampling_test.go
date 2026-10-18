@@ -28,6 +28,139 @@ func (s *deliveryTestSink) Feedback(e congestion.FeedbackEvent) {
 	s.events = append(s.events, e)
 }
 
+// SendStream.Write returns while the last packet of a write is still buffered,
+// so a bulk writer's stream runs dry between writes. That gap is supply
+// limitation only once it costs sending time: the pacing credit is full and no
+// ordinary local work is pending (#800).
+func TestDeliverySupplyGap(t *testing.T) {
+	const record = 16384
+	for _, tc := range []struct {
+		name     string
+		resupply time.Duration
+		hold     bool // keep the last queued entry with the worker
+		reset    bool // replace the local path before resupplying
+		want     congestion.SendLimitation
+	}{
+		{name: "resupplied within the pacing credit", resupply: time.Microsecond, want: congestion.SendUnknown},
+		{name: "gap fills the pacing credit", resupply: 10 * time.Millisecond, want: congestion.SendApplicationLimited},
+		{name: "pending local work", resupply: 10 * time.Millisecond, hold: true, want: congestion.SendUnknown},
+		{name: "path reset discards the gap", resupply: time.Microsecond, reset: true, want: congestion.SendUnknown},
+	} {
+		for _, gso := range []bool{false, true} {
+			t.Run(tc.name+map[bool]string{false: "/ordinary", true: "/GSO"}[gso], func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					c := newEmissionTestConnection(t, gso).conn
+					now := monotime.Now()
+					// One quantum (64 KiB) holds a whole write, so the stream runs dry mid-quantum.
+					c.emission.bbr = newBBRSendPolicy(100_000_000, 1200, now)
+					sink := &deliveryTestSink{}
+					ackhandler.EnableDeliverySampling(c.sentPacketHandler, sink, c.emission.deliveryPendingBytes)
+					c.framer.enableDeliveryObservations()
+					c.peerParams = &wire.TransportParameters{InitialMaxStreamDataUni: 1 << 20}
+					c.connFlowController.UpdateSendWindow(1 << 20)
+					c.streamsMap.HandleMaxStreamsFrame(&wire.MaxStreamsFrame{Type: protocol.StreamTypeUni, MaxStreamNum: 1})
+					s, err := c.OpenUniStream()
+					require.NoError(t, err)
+					next, done := make(chan struct{}), make(chan struct{})
+					go func() {
+						defer close(done)
+						_, _ = s.Write(make([]byte, record))
+						<-next
+						_, _ = s.Write(make([]byte, record))
+					}()
+					synctest.Wait()
+					t.Cleanup(func() { s.CancelWrite(0); synctest.Wait(); <-done })
+					q := c.emission.queue.(*sendQueue).queue
+					var held *queueEntry
+					t.Cleanup(func() {
+						if held != nil {
+							held.release()
+						}
+					})
+					// Release each handed-off entry once the next one arrives, so the
+					// newest stays with the worker for the hold case.
+					take := func() {
+						for {
+							select {
+							case e := <-q:
+								if held != nil {
+									held.release()
+								}
+								held = &e
+							default:
+								return
+							}
+						}
+					}
+					stats := c.sentPacketHandler.(interface {
+						DeliveryStats() congestion.DeliveryStats
+					})
+					for i := 0; stats.DeliveryStats().Stop != congestion.SendApplicationLimited; i++ {
+						require.Less(t, i, 64, "the first write drains")
+						require.NoError(t, c.triggerSending(now).err)
+						take()
+					}
+					require.Less(t, c.emission.bbr.tokens, int64(c.emission.bbr.quantum)*1e9, "the write left the quantum partly spent")
+					first := len(sink.sends)
+					require.NotZero(t, first)
+					for _, e := range sink.sends {
+						require.Equal(t, congestion.SendUnknown, e.Packet.Delivery.Limited)
+					}
+					if !tc.hold {
+						held.release()
+						held = nil
+					}
+					if tc.reset {
+						c.emission.resetLocalPath(c.pathGeneration, now)
+					}
+					close(next)
+					synctest.Wait()
+					require.NoError(t, c.triggerSending(now.Add(tc.resupply)).err)
+					take()
+					require.Greater(t, len(sink.sends), first, "the second write is sent")
+					require.Equal(t, tc.want, sink.sends[first].Packet.Delivery.Limited)
+				})
+			})
+		}
+	}
+	t.Run("flow-control stall fills the pacing credit", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			c := newEmissionTestConnection(t, false).conn
+			now := monotime.Now()
+			c.emission.bbr = newBBRSendPolicy(100_000_000, 1200, now)
+			sink := &deliveryTestSink{}
+			ackhandler.EnableDeliverySampling(c.sentPacketHandler, sink, c.emission.deliveryPendingBytes)
+			c.framer.enableDeliveryObservations()
+			c.peerParams = &wire.TransportParameters{}
+			c.connFlowController.UpdateSendWindow(1 << 20)
+			c.streamsMap.HandleMaxStreamsFrame(&wire.MaxStreamsFrame{Type: protocol.StreamTypeUni, MaxStreamNum: 1})
+			s, err := c.OpenUniStream()
+			require.NoError(t, err)
+			done := make(chan struct{})
+			go func() { _, _ = s.Write([]byte("blocked payload")); close(done) }()
+			synctest.Wait()
+			t.Cleanup(func() { s.CancelWrite(0); synctest.Wait(); <-done })
+			for range 2 { // the first opportunity carries STREAM_DATA_BLOCKED
+				require.NoError(t, c.triggerSending(now).err)
+				for len(c.emission.queue.(*sendQueue).queue) > 0 {
+					e := <-c.emission.queue.(*sendQueue).queue
+					e.release()
+				}
+			}
+			require.Equal(t, congestion.SendFlowControlLimited, c.sentPacketHandler.(interface {
+				DeliveryStats() congestion.DeliveryStats
+			}).DeliveryStats().Stop)
+			first := len(sink.sends)
+			s.updateSendWindow(1 << 20)
+			require.NoError(t, c.triggerSending(now.Add(10*time.Millisecond)).err)
+			require.Greater(t, len(sink.sends), first)
+			require.Equal(t, congestion.SendFlowControlLimited, sink.sends[first].Packet.Delivery.Limited)
+			e := <-c.emission.queue.(*sendQueue).queue
+			e.release()
+		})
+	})
+}
+
 func TestDeliverySamplerNoDataReasons(t *testing.T) {
 	t.Run("pending stream opener is not application idle", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {

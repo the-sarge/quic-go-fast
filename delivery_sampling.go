@@ -29,10 +29,15 @@ func (e *packetEmission) deliveryPendingBytes() protocol.ByteCount {
 	return n
 }
 
+// deliveryObserver is recovery's private sampler surface for emission stops.
+type deliveryObserver interface {
+	ObserveDeliveryStop(congestion.SendLimitation)
+	ObserveDeliveryLimitation(congestion.SendLimitation)
+}
+
+// Only BBR's sendBounded reports opportunities here, so e.bbr is set.
 func (e *packetEmission) observeDeliveryResult(result emissionResult) {
-	h, ok := (*e.recovery).(interface {
-		ObserveDeliveryLimitation(congestion.SendLimitation)
-	})
+	h, ok := (*e.recovery).(deliveryObserver)
 	if !ok {
 		return
 	}
@@ -61,7 +66,37 @@ func (e *packetEmission) observeDeliveryResult(result emissionResult) {
 			reason = congestion.SendFlowControlLimited
 		}
 	}
-	h.ObserveDeliveryLimitation(reason)
+	// Any other stop, or packed data, ends a gap that never cost sending time.
+	e.bbr.supplyGap = congestion.SendUnknown
+	if reason == congestion.SendApplicationLimited || reason == congestion.SendFlowControlLimited {
+		e.bbr.supplyGap = reason
+		if e.supplyGapCostsSending() {
+			h.ObserveDeliveryLimitation(reason)
+			return
+		}
+	}
+	h.ObserveDeliveryStop(reason)
+}
+
+// confirmSupplyGap runs before ordinary packing: draft-06 checks for
+// application limitation when the connection decides to send more data, so a
+// gap that has cost sending time marks the data that ends it.
+func (e *packetEmission) confirmSupplyGap() {
+	if e.bbr.supplyGap == congestion.SendUnknown || !e.supplyGapCostsSending() {
+		return
+	}
+	if h, ok := (*e.recovery).(deliveryObserver); ok {
+		h.ObserveDeliveryLimitation(e.bbr.supplyGap)
+	}
+}
+
+// Exhaustion becomes supply limitation only once the gap costs sending time.
+// Until the pacing credit is full, data that returns is sent within credit
+// still accumulating; SendStream.Write, for one, returns with the last packet
+// of a write still buffered. Pending local work is draft-06's
+// C.pending_transmissions: those bytes still reach the path.
+func (e *packetEmission) supplyGapCostsSending() bool {
+	return e.bbr.creditFull() && e.deliveryPendingBytes() == 0
 }
 
 func (c *Conn) emissionStreamOpenBlocked() bool {

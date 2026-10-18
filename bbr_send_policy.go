@@ -18,6 +18,9 @@ type bbrSendPolicy struct {
 	tokens     int64 // byte-nanoseconds, retaining fractional byte credit
 	updated    monotime.Time
 	lastTrace  monotime.Time
+	// supplyGap is the application or flow-control exhaustion observed at the
+	// latest opportunity, not yet established as supply limitation.
+	supplyGap congestion.SendLimitation
 }
 
 func newBBRSendPolicy(rate uint64, size protocol.ByteCount, now monotime.Time) *bbrSendPolicy {
@@ -49,6 +52,12 @@ func (p *bbrSendPolicy) budget(now monotime.Time) protocol.ByteCount {
 		p.updated = now
 	}
 	return max(0, protocol.ByteCount(p.tokens/1e9))
+}
+
+// creditFull reports that pacing cannot bank more credit, so time without
+// eligible data now loses sending opportunity. Call it after budget.
+func (p *bbrSendPolicy) creditFull() bool {
+	return p.tokens >= int64(p.quantum)*1e9
 }
 
 func ceilSendDelay(deficit, rate uint64) uint64 {
