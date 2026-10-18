@@ -5249,3 +5249,52 @@ Merged [PR #790](https://github.com/the-sarge/quic-go-fast/pull/790) as `814bd48
 - No review finding was deferred, so nothing was filed.
 - [#788](https://github.com/the-sarge/quic-go-fast/issues/788) (README and glossary mention of the second-PTO trigger) is open and labelled `ready-for-agent`.
 - GitHub issues are the live view.
+
+---
+
+## BBRv3 L6 coexistence measured (adverse) - 2026-10-17 22:07 EDT
+
+**Main:** `e5259f29e2b3`
+**Actor:** Claude
+
+### Summary
+
+[#777](https://github.com/the-sarge/quic-go-fast/issues/777) ran the acceptance plan's L6 on `minimax`. It asked whether BBRv3 at `abfa5456`, the revision the port decision advanced, displaces a competing QUIC Reno flow sharing a 100/100 Mbit/s, 100 ms bottleneck. The record is [docs/audits/2026-10-17-bbr-l6-coexistence/README.md](https://github.com/the-sarge/quic-go-fast/blob/71e88789/docs/audits/2026-10-17-bbr-l6-coexistence/README.md) at `71e88789` on `codex/bbr-l6-coexistence`. Like every #666 and #748 record, it stays off `main`; this entry only points to it.
+
+- **Result: adverse.**
+  - All six classified cells are adverse (two workloads × three periods).
+  - All 30 pair ratios (competitor delivery next to BBRv3 ÷ next to matched Reno) are 0.091–0.347, against the operator's 0.70 threshold. The A/A ratios are 0.749–1.328.
+  - Next to Reno, the competitor delivers 42.7–59.9 Mbit/s; next to BBRv3, 6.2–17.8, while BBRv3 delivers 76.2–87.0.
+- **Beside the classification:**
+  - The competitor's control-latency flag is raised only in the reported-only absent period.
+  - The focal flow's control p95 and CPU per useful GiB pass. Its peak RSS cells are raised (1.113–1.795), as in every readiness record of this revision.
+- **ECN.** The BBRv3 flow stopped marking ECT(0) part-way through every counted run; the Reno flows did not.
+- **The fixture.** A new two-flow relay (`relay2`) wraps the frozen Q1 model's L6 schedule. Its runner drives five processes, and the competitor is frozen Reno with Q1's accepted pause. The fixture binaries are byte-identical to slice 6's.
+- **The run.** Unattended, 22:16–01:47 UTC. All 30 counted observations were usable and uncontaminated, with no rerun and no correctness failure.
+
+### Decisions
+
+- The operator approved the plan on 2026-10-17:
+  - revision `abfa5456`;
+  - the fairness criterion fixed before any data, with a 0.70 threshold chosen over the agent's 0.80;
+  - an A/A arm;
+  - no L8;
+  - frozen Reno as competitor and matched reference;
+  - a record branch with this pointer.
+- The operator accepted the registration after being told the development runs' figures, which pointed to adverse.
+- After the result, the operator chose to diagnose the cause, filed, not started, as [#792](https://github.com/the-sarge/quic-go-fast/issues/792), and to file the ECN change as [#793](https://github.com/the-sarge/quic-go-fast/issues/793). No adoption or default-controller decision was made. BBRv3 stays the experimental, unqualified opt-in sender.
+- `minimax` was shared by agreement: wiremux 1865 and quic 780 stayed off it until "minimax free".
+
+### Validation
+
+- The decisions (`50792abf`) and the classification, usability and rerun rules (`93314fd8`) were committed before any calibration or development run. The registration was accepted at `b709a116`, before the counted stage.
+- Two `ras consider` rounds, run `20261017T204953-20752a2689fc1b9ddaa31f4d` and replacement run `20261017T211548-5d8a87cbad5bf59d3cf09887`, queued 15 items. All were fixed; every rule change was stricter, and none moved a D2 threshold, period, arm or estimator.
+- relay2's Go tests caught two injected faults. The 28 Python aid tests pass on the Mac and on `minimax`.
+- The path calibration passed all seven checks, and the delivered rate was 99.98 Mbit/s.
+- `build.py` rebuilt every binary byte-identically. Every figure in the record is generated from `summary.json` by `figures.py`, and `--check` confirms them.
+
+### Next
+
+- [#792](https://github.com/the-sarge/quic-go-fast/issues/792): diagnose why BBRv3 displaces Reno on this path. Measurement only; about 4–8 h, 1–2 h of it on `minimax`.
+- [#793](https://github.com/the-sarge/quic-go-fast/issues/793): find what disables ECN on the BBRv3 connection.
+- Both are filed, not started. GitHub issues are the live view.
