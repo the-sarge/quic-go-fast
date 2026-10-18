@@ -5373,3 +5373,51 @@ Merged [PR #798](https://github.com/the-sarge/quic-go-fast/pull/798) as `3786c42
 ### Next
 
 - Nothing from this PR remains open. Making any other timeout, an earlier PTO or an interface-name signal a trigger would need its own ticket and owner decision; none is filed. GitHub issues are the live view.
+
+---
+
+## BBRv3 L6 displacement diagnosed per workload (path undiagnosed) - 2026-10-18 11:24 EDT
+
+**Main:** `85eceee95297`
+**Actor:** Claude
+
+### Summary
+
+[#792](https://github.com/the-sarge/quic-go-fast/issues/792) asked why BBRv3 at `abfa5456` displaces the frozen-Reno competitor on #777's L6 path. Its three candidate causes were (a) draft-06 behavior on a one-BDP drop-tail queue, (b) a property of the port, or (c) the fixture. The record is [docs/audits/2026-10-18-bbr-l6-diagnosis/README.md](https://github.com/the-sarge/quic-go-fast/blob/89e71a60/docs/audits/2026-10-18-bbr-l6-diagnosis/README.md) at `89e71a60` on `codex/bbr-l6-diagnosis`. Like every #666, #748 and #777 record, it stays off `main`; this entry only points to it.
+
+- **Result: undiagnosed for the path** (D5: mixed attribution), with a conclusion for each workload.
+- **DATAGRAM: (a), draft-06 behavior.**
+  - No mismatch with draft-06 in rules C0–C9, and the sender's inputs reconcile with relay2's counts.
+  - The competitor got 8.5/16.8/6.0 Mbit/s (equal/short/resumed), against 45.5/55.5/45.2 next to Reno in #777.
+  - Each probe, about every 5 s, overflows the shared queue, and 96–100% of the competitor's drops fall in BBRv3's Up phase.
+  - The one recorded deviation, a loss-prefix clamp (two classified events of 174 bytes), is a contributor: the clamp-free periods show the same displacement.
+- **STREAM: unresolved.**
+  - The port marks bulk STREAM sends application-limited at every 16 KB record, so none of 142 two-percent crossings lowered `inflight_longterm`. It stayed at 0.97–1.15 × the path by pair, and `max_bw` never aged.
+  - A measurement-only record cannot switch the mark off, so its connection to the displacement is unresolved.
+- **Ruled out:** a fixture artifact in what the sender saw, an unrepresentative instrument under D3 (every traced observation adverse), and a deviation from r9 in the controller's code.
+- **The ECN switch** shows no consistent change in the displacement (−10% to +23%); #793 owns its cause.
+- **The instrument.** A measurement-only trace overlay (48 columns, written at fixture exit), a draft-06 checker (C0–C9), an input reconciliation against relay2 (R1–R4), and #777's relay2, runner and calibration reused in place.
+- **The run.** 12 counted observations (three pairs × two workloads × traced/plain arms) on `minimax`, unattended, 06:07–07:29 UTC. All were usable and uncontaminated, with no rerun.
+
+### Decisions
+
+- The operator approved the plan with six recommended decisions on 2026-10-17: a record branch with this pointer; 12 observations; a disturbance rule (every traced observation must itself be adverse); bounded reviews; cause rules fixed before data, with mixed or missing evidence ending undiagnosed; revision `abfa5456`.
+- The replacement review found a repeated root in the counterfactual cause attribution. The operator accepted an evidence-only rule (a property's connection to the displacement is decided by a documented trace and code argument, never by a ratio) and accepted the registration before any counted observation.
+- After the result the operator approved four decisions:
+  - the STREAM marking is filed as [#800](https://github.com/the-sarge/quic-go-fast/issues/800), not started;
+  - the clamp is #800's secondary item, not a ticket of its own;
+  - BBRv3 stays the experimental opt-in sender for GridCast's shared paths;
+  - nothing more is spent under #792.
+- #777's classification stands, as #792 requires.
+
+### Validation
+
+- The registration was committed and reviewed before any counted data. `ras consider` run `20261018T035853-1cb9f2f3160e5599a2e5804c` and replacement run `20261018T045000-4354da5542ac8fa9fe336768` were both resolved; the attribution stop went to the operator. Acceptance is recorded at `5228b619`.
+- The result consideration, run `20261018T073351-c137cfe1b4f4c6ef207902a3`, produced 21 findings, none disputing a class. All were fixed as wording or reporting corrections. One analysis correction (the clamp ceilings with every cap) replayed on the archived data and left `summary.json` byte-identical.
+- The 69 Python aid tests pass, including 41 checker tests on the port's own fixture traces and injected deviations. Every result table is generated from `summary.json` by `figures.py`, and `--check` confirms them. The raw data is archived as `raw.tar.gz` with a manifest.
+
+### Next
+
+- [#800](https://github.com/the-sarge/quic-go-fast/issues/800): the STREAM application-limited marking and the clamp. It needs a fix, readiness on the fixed revision, and L6 again.
+- [#793](https://github.com/the-sarge/quic-go-fast/issues/793): find what disables ECN on the BBRv3 connection.
+- Both are filed, not started. GitHub issues are the live view.
