@@ -104,11 +104,46 @@ def binding_cap(t, r):
     return min(caps, key=lambda k: (caps[k], k != 'model'))
 
 
+def cruise_cap(hi, size):
+    """The Cruise window ceiling a given inflight_longterm allows (InflightWithHeadroom)."""
+    return max(4 * size, hi - max(size, hi * 15 // 100))
+
+
+def properties(t, check, cross, s0, s1, pipe):
+    """Each port property acting in [s0, s1), with its documented connection to the displacement:
+    the Cruise ceiling the draft-06 assignment would give without it (counterfactual), against the
+    ceiling it left, both over the path's pipe. A counterfactual ceiling at or below the pipe would
+    leave BBRv3 no standing queue in Cruise; above it, the standing queue remains without the property."""
+    out = {}
+    app = [r for r in cross if r[t.c['a4']] == 1]
+    if app:
+        cf, actual = [], []
+        for r in app:
+            lost, flight, length = (r[t.c[k]] for k in ('a0', 'a1', 'a2'))
+            b = dc.bdp(t, r, 1, 1)
+            target = t.v(r, 'window') if b is None else min(b, t.v(r, 'window'))
+            draft_hi = max(dc.inflight_at_loss(lost, flight, length, False), 0.7 * target)
+            size = t.v(r, 'size')
+            cf.append(cruise_cap(int(draft_hi), size))
+            if t.v(r, 'inflight_long') != dc.INF:
+                actual.append(cruise_cap(t.v(r, 'inflight_long'), size))
+        out['application_limited_crossings'] = dict(events=len(app),
+            counterfactual_cruise_cap_over_pipe=None if not pipe else median(cf) / pipe,
+            actual_cruise_cap_over_pipe=None if not pipe or not actual else median(actual) / pipe)
+    devs = [x for x in check['rules']['C4'].get('deviations', []) if s0 <= x['unix_ns'] < s1]
+    if devs:
+        out['clamp'] = dict(events=len(devs), excess_bytes=sum(x['excess_bytes'] for x in devs),
+            counterfactual_cruise_cap_over_pipe=None if not pipe else median(cruise_cap(int(x['draft']), x['size']) for x in devs) / pipe,
+            actual_cruise_cap_over_pipe=None if not pipe else median(cruise_cap(x['port'], x['size']) for x in devs) / pipe)
+    return out
+
+
 def mechanism(t, check, relay, measured_start, quic_share):
     tl = timeline(t)
     rounds = [r for r in t.rows if r[0] == dc.ROUND]
     samples = relay['Samples']
     capacity = None if quic_share is None else (QUEUE_WIRE_BYTES + PIPE_WIRE_BYTES) * quic_share
+    pipe = None if quic_share is None else PIPE_WIRE_BYTES * quic_share
     out = {}
     for name, (a, b) in dc.PERIODS.items():
         s0, s1 = measured_start + a * 10**9, measured_start + b * 10**9
@@ -127,8 +162,11 @@ def mechanism(t, check, relay, measured_start, quic_share):
         checks = [r for r in t.rows if r[0] == dc.PROBELOSS and s0 <= t.v(r, 'unix_ns') < s1]
         cross = [r for r in checks if dc.crosses(t, r)]
         limited = lambda r: r[t.c['a4']] in dc.LIMITED
+        reasons = lambda rows: {name: sum(1 for r in rows if r[t.c['a4']] == v) for v, name in dc.LIMIT_NAMES.items()}
         p['two_percent_checks'] = dict(checks=len(checks), limited_share=sum(map(limited, checks)) / len(checks) if checks else None,
-                                       crossings=len(cross), crossings_limited=sum(map(limited, cross)))
+                                       crossings=len(cross), crossings_limited=sum(map(limited, cross)),
+                                       checks_by_reason=reasons(checks), crossings_by_reason=reasons(cross))
+        p['properties'] = properties(t, check, cross, s0, s1, pipe)
         after = []
         for r in cross:
             post = t.end_of_event(r)
@@ -207,6 +245,41 @@ def traced(directory, summary, reference):
                                             first=v['mismatches'][:5], notes=v['notes']) for k, v in check['rules'].items()}),
                 reconcile=rec, disturbance=dict(periods=disturbance, representative=all(v['adverse'] for v in disturbance.values())),
                 mechanism=mech)
+
+
+def attribute(traces):
+    """One workload's attribution by the registered rules (README, Classification). Classes it cannot
+    settle mechanically (a reconcile finding's owner, a checker mismatch) come back as 'needs review'."""
+    if len(traces) < 2 or not all(x['check']['coverage']['complete'] for x in traces):
+        return {'class': 'undiagnosed (instrument)', 'reason': 'fewer than two usable traces with complete traces'}
+    if not all(x['disturbance']['representative'] for x in traces):
+        return {'class': 'undiagnosed (instrument)', 'reason': 'D3 fails'}
+    mismatches = sum(sum(n for p, n in r['by_period'].items() if p in dc.PERIODS) for x in traces for r in x['check']['by_rule'].values())
+    findings = [f for x in traces for f in x['reconcile']['findings']]
+    acting = {}
+    for x in traces:
+        for per in CLASSIFIED:
+            for name, ev in x['mechanism']['periods'][per]['properties'].items():
+                a = acting.setdefault(name, dict(events=0, counterfactual=[], actual=[]))
+                a['events'] += ev['events']
+                a['counterfactual'].append(ev['counterfactual_cruise_cap_over_pipe'])
+                a['actual'].append(ev['actual_cruise_cap_over_pipe'])
+    connection = {name: dict(events=a['events'], counterfactual_cruise_cap_over_pipe=median(a['counterfactual']),
+                             actual_cruise_cap_over_pipe=median(a['actual']),
+                             role=None if median(a['counterfactual']) is None else 'cause' if median(a['counterfactual']) <= 1 else 'contributor')
+                  for name, a in acting.items()}
+    out = dict(mismatches=mismatches, reconcile_findings=findings, properties=connection)
+    if mismatches or findings:
+        out['class'] = 'needs review'
+        out['reason'] = 'checker mismatches or input-check findings: classify by reviewed evidence (README rules 2-4)'
+    elif any(c['role'] is None for c in connection.values()):
+        out['class'] = 'undiagnosed'
+        out['reason'] = 'an acting property without a computable connection'
+    elif any(c['role'] == 'cause' for c in connection.values()):
+        out['class'] = '(b)'
+    else:
+        out['class'] = '(a)'
+    return out
 
 
 def flows(summary):
@@ -288,6 +361,10 @@ def main():
         entry['trace_over_cand'] = {who: {k: None if not entry['cand']['flows'][who][k] else entry['trace']['flows'][who][k] / entry['cand']['flows'][who][k]
                                           for k in dc.PERIODS} for who in ('focal', 'competitor')}
         pairs[key] = entry
+    attribution = {wl: attribute([v['trace'] for k, v in pairs.items() if k.startswith(wl + '/') and v.get('selected')])
+                   for wl in ('stream', 'datagram')}
+    classes = {a['class'] for a in attribution.values()}
+    overall = classes.pop() if len(classes) == 1 and next(iter(attribution.values()))['class'] in ('(a)', '(b)') else 'undiagnosed (mixed or unresolved)'
     traces = [v['trace'] for v in pairs.values() if v.get('selected')]
     status = dict(observations=len(traces), representative=all(x['disturbance']['representative'] for x in traces),
                   mismatches_in_measured_window=sum(sum(n for p, n in r['by_period'].items() if p in dc.PERIODS)
@@ -296,6 +373,8 @@ def main():
                   traces_complete=all(x['check']['coverage']['complete'] for x in traces),
                   reconcile_ok=all(x['reconcile']['ok'] for x in traces),
                   reconcile_findings=[dict(pair=k, **f) for k, v in pairs.items() if v.get('selected') for f in v['trace']['reconcile']['findings']])
+    status['attribution'] = attribution
+    status['overall'] = overall
     OUT.write_text(json.dumps(dict(status='complete', preconditions=status, reference_777=reference, pairs=pairs), indent=1, sort_keys=True) + '\n')
     print(json.dumps(status, indent=1))
 

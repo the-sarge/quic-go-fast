@@ -7,16 +7,19 @@ should become, using the design's declared translations (docs/designs/bbrv3.md
 at abfa5456: D02 ProbeRTT cap, D11 packet-equivalent Reno rounds, integer
 floors for the draft's real-valued gains and the 0.7 retention, emission's 1%
 pacing margin). It never imports or restates the port's Go code; where the
-port's arithmetic is a declared translation, the rule says so.
+port's arithmetic is a declared translation, the rule says so. Where the port's
+arithmetic differs from the draft without a declared translation (the clamp of a
+negative loss prefix), the rule records each such event as a deviation, with its
+size, rather than accepting it.
 
 Rules (draft section):
   C0  Startup and Drain exits (5.3.1.2, 5.3.1.3, 5.3.2)
   C1  ProbeBW probe timing: wall clock or Reno-coexistence rounds (5.3.3.8.3)
   C2  ProbeBW_REFILL: short-term reset, one round, then UP (5.3.3.3, 5.3.3.9)
-  C3  ProbeBW_UP exits: loss, precautionary, plateau, CE, ProbeRTT (5.3.3.7)
-  C4  The two-percent check and inflight_longterm (5.5.10.2)
+  C3  ProbeBW_UP exits: loss, precautionary, plateau, CE, ProbeRTT; no Up kept after a plateau (5.3.3.7)
+  C4  The two-percent check and inflight_longterm, against the draft's assignment (5.5.10.2)
   C5  Short-term bounds outside probing (5.5.10.3)
-  C6  cwnd upper bound; a recovery-exit restore by the volume caps (5.6.4.2, 5.6.4.4, 5.6.4.6, 5.6.4.7)
+  C6  cwnd upper bound, the ProbeRTT cap, a recovery-exit restore by the volume caps (5.6.4.2, 5.6.4.4-5.6.4.7)
   C7  Pacing rate by phase (5.6.1, 5.6.2)
   C8  max_bw filter: upper bound and aging only at a cycle advance (5.5.3-5.5.5)
   C9  ProbeRTT entry, hold and exit (5.3.4.3, D02)
@@ -30,12 +33,12 @@ import sys
 
 STARTUP, DRAIN, DOWN, CRUISE, REFILL, UP, PROBERTT = range(7)
 PHASES = ['Startup', 'Drain', 'Down', 'Cruise', 'Refill', 'Up', 'ProbeRTT']
-ROUND, PRE, POST, LOSSPRE, LOSSPOST, PROBELOSS, OUTPRE, OUTPOST, RESET = range(1, 10)
+ROUND, PRE, POST, LOSSPRE, LOSSPOST, PROBELOSS, OUTPRE, OUTPOST, RESET, PROBESET = range(1, 11)
 ACKS_STOPPING = 4
 INF = -1
-PROBERTT_LATE_NS = 500_000_000
 MAX_CWND_PACKETS = 10000      # protocol.MaxCongestionWindowPackets at abfa5456
 LIMITED = {1, 2, 3}           # application, flow control, ProbeRTT (SendLimitation values)
+LIMIT_NAMES = {1: 'application', 2: 'flow_control', 3: 'probe_rtt'}
 PERIODS = {'equal': (0, 100), 'short': (100, 200), 'back': (200, 240), 'absent': (240, 270), 'resumed': (270, 300)}
 
 
@@ -269,6 +272,12 @@ def check_up_exits(t, rep):
             limited = ((t.flag(post, 'window_used_in_round') or t.flag(post, 'window_used_last_round'))
                        and hi != INF and t.v(pre, 'window') >= hi)
             rep.check('C3', not limited, post, 'plateau exit while cwnd-limited at inflight_longterm (ResetFullBW expected)')
+    # The converse for the plateau exit: the plateau count changes only at a round start, in the
+    # event that decides the exit (or resets the count while cwnd-limited at inflight_longterm).
+    # A later ROUND row, written before its own event's update, cannot see Up with a full plateau.
+    for r in t.rows:
+        if r[0] == ROUND and t.v(r, 'phase') == UP:
+            rep.check('C3', t.v(r, 'plateau') < 3, r, 'Up kept after a full-bandwidth plateau (missed IsTimeToGoDown)', plateau=t.v(r, 'plateau'))
 
 
 def inflight_at_loss(lost, flight, length, clamp):
@@ -280,13 +289,23 @@ def inflight_at_loss(lost, flight, length, clamp):
 
 
 def check_probe_losses(t, rep):
+    """5.5.10.2. Each crossing is followed, in its event, by a PROBESET row: the
+    state right after HandleInflightTooHigh's assignment and before any later
+    adjustment in the event. A crossing on a supply-limited packet must leave
+    inflight_longterm unchanged; otherwise the assignment must be the draft's
+    value, max(inflight at loss, 0.7 x min(BDP, cwnd)), within integer
+    rounding (one byte). The port's clamp of a negative prefix is recorded as a
+    deviation event (period, excess bytes), not dismissed."""
     rule = 'C4'
-    for r in t.rows:
+    rows = t.rows
+    lowering = set()  # events whose crossing legitimately lowered or set inflight_longterm
+    for i, r in enumerate(rows):
         if r[0] != PROBELOSS:
             continue
         lost, flight, length, sent_post, limited = (r[t.c[k]] for k in ('a0', 'a1', 'a2', 'a3', 'a4'))
         port, draft = crosses(t, r), lost > 0.02 * flight
         rep.note(rule, 'checks')
+        rep.note(rule, 'checks_' + LIMIT_NAMES.get(limited, 'unlimited'))
         if port != draft:
             rep.note(rule, 'threshold_translation_differs')
             rep.check(rule, port or lost <= 0.02 * flight + 1, r, "draft's loss check crosses where the port's does not",
@@ -294,39 +313,45 @@ def check_probe_losses(t, rep):
         if not port:
             continue
         rep.note(rule, 'crossings')
-        rep.event(rule, r, lost=lost, flight=flight)
-        post = t.end_of_event(r)
-        rep.check(rule, post is not None, r, 'a crossing changed no recorded state')
-        if post is None:
+        rep.note(rule, 'crossings_' + LIMIT_NAMES.get(limited, 'unlimited'))
+        rep.event(rule, r, lost=lost, flight=flight, limited=limited)
+        s = rows[i + 1] if i + 1 < len(rows) else None
+        ok = s is not None and s[0] == PROBESET and s[t.c['seq']] == r[t.c['seq']]
+        rep.check(rule, ok, r, 'a crossing without its assignment row')
+        if not ok:
             continue
-        rep.check(rule, t.flag(post, 'previous_probe_too_high'), post, 'crossing did not set prev_probe_too_high')
+        rep.check(rule, t.flag(s, 'previous_probe_too_high') and not t.flag(s, 'probe_sample'), s,
+                  'crossing did not set prev_probe_too_high and end probe sampling')
         if t.v(r, 'phase') == UP:
-            rep.check(rule, t.v(post, 'phase') in (DOWN, PROBERTT), post, 'crossing in Up did not start ProbeBW_DOWN')
+            post = t.end_of_event(r)
+            rep.check(rule, post is not None and t.v(post, 'phase') in (DOWN, PROBERTT), s, 'crossing in Up did not start ProbeBW_DOWN')
+        before, got = t.v(r, 'inflight_long'), t.v(s, 'inflight_long')
         if limited in LIMITED:
-            rep.note(rule, 'crossing_limited')
+            rep.check(rule, got == before, s, 'a crossing on a supply-limited packet changed inflight_longterm', before=before, got=got)
             continue
         b = bdp(t, r, 1, 1)
         target = t.v(r, 'window') if b is None else min(b, t.v(r, 'window'))
-        floor = target * 7 // 10
-        port_hi = max(inflight_at_loss(lost, flight, length, True), floor)
         draft_hi = max(inflight_at_loss(lost, flight, length, False), 0.7 * target)
-        got = t.v(post, 'inflight_long')
-        has_ack = t.flag(post, 'has_ack')
-        rep.check(rule, got == port_hi or (has_ack and got >= port_hi), post, 'inflight_longterm differs from the crossing',
-                  expected=port_hi, got=got)
-        if got != port_hi:
-            rep.note(rule, 'raised_later_in_event')
-        if port_hi - draft_hi >= 1:
+        port_hi = max(inflight_at_loss(lost, flight, length, True), target * 7 // 10)
+        if got != before:
+            lowering.add(r[t.c['seq']])
+        if got == port_hi and port_hi - draft_hi >= 1:
+            # The port's clamp (bbr_probe.go:173-176), demonstrated in code: a deviation event.
             rep.note(rule, 'clamp_cases')
             rep.note(rule, 'clamp_excess_bytes', round(port_hi - draft_hi))
-    # Every decrease, reset or first setting of inflight_longterm needs a cause.
+            rep.rule(rule).setdefault('deviations', []).append(dict(unix_ns=t.v(s, 'unix_ns'), period=t.period(s), kind='clamp',
+                                                                    excess_bytes=port_hi - draft_hi, draft=draft_hi, port=got,
+                                                                    bdp1=t.v(r, 'bdp1'), window=t.v(r, 'window'), size=t.v(r, 'size')))
+            continue
+        rep.check(rule, abs(got - draft_hi) <= 1, s, "inflight_longterm differs from draft-06's assignment", expected=draft_hi, got=got)
+    # Every decrease, reset or first setting of inflight_longterm needs a cause in its own event.
     for pre, post in t.pairs():
         m = post[t.c['a0']]
         if not m & (1 << 3 | 1 << 4):
             continue
-        cause = (any(crosses(t, r) for r in t.same_seq(pre, PROBELOSS)) or bool(t.same_seq(pre, RESET))
+        cause = (pre[t.c['seq']] in lowering or bool(t.same_seq(pre, RESET))
                  or (t.v(pre, 'phase') == STARTUP and t.v(post, 'phase') == DRAIN and bool(t.same_seq(pre, LOSSPRE))))
-        rep.check(rule, cause, post, 'inflight_longterm lowered, set or reset without a crossing, Startup loss exit or reset',
+        rep.check(rule, cause, post, 'inflight_longterm lowered, set or reset without an unlimited crossing, Startup loss exit or reset',
                   before=t.v(pre, 'inflight_long'), after=t.v(post, 'inflight_long'))
 
 
@@ -388,6 +413,10 @@ def check_window(t, rep):
             cap = lo(cap, headroom(t, r))
         if t.flag(r, 'ce_active'):
             cap = lo(cap, t.v(r, 'ce_flight'))
+        if phase == PROBERTT:
+            # 5.6.4.5 ProbeRTTCwnd: max(4 M, 0.5 x BDP). D02's retained pre-expiration cap can be
+            # tighter; the trace has no column for it, so only this necessary bound is checked.
+            cap = lo(cap, max(4 * size, bdp(t, r, 1, 2)))
         bound = min(size * MAX_CWND_PACKETS, max(4 * size, lo(cap, target)))
         if t.flag(r, 'episode_exited') or t.flag(r, 'undo_eligible'):
             # RestoreCwnd (5.6.4.4): the restored window is bounded by the volume caps
@@ -470,9 +499,10 @@ def check_probertt(t, rep):
     for r in t.rows:
         if r[0] != ROUND or t.v(r, 'phase') == PROBERTT or t.flag(r, 'idle_restart') or t.v(r, 'probe_rtt_min_ns') == 0:
             continue
-        if t.v(r, 'mono_ns') - t.v(r, 'probe_rtt_stamp_mono') > 5_000_000_000 + PROBERTT_LATE_NS:
+        # The ROUND row holds the pre-update stamp; this event's UpdateMinRTT/CheckProbeRTT follow it.
+        if t.v(r, 'mono_ns') - t.v(r, 'probe_rtt_stamp_mono') > 5_000_000_000:
             post = t.end_of_event(r)
-            rep.check('C9', post is not None and t.v(post, 'phase') == PROBERTT, r, 'ProbeRTT overdue by more than 0.5 s')
+            rep.check('C9', post is not None and t.v(post, 'phase') == PROBERTT, r, 'expired 5 s filter without a ProbeRTT entry in the same event')
 
 
 def coverage(t):

@@ -15,7 +15,8 @@ import (
 // Measurement-only #792 overlay: the BBR model's state at every packet-timed
 // round, every loss-round close with loss, every two-percent probe-loss check,
 // and before and after every event that changes the phase, a loss bound, the
-// recovery episode or the CE state. Rows live in a fixed array outside the Go
+// recovery episode or the CE state, and right after each two-percent crossing's
+// inflight_longterm assignment. Rows live in a fixed array outside the Go
 // heap. They are written once, streamed row by row: when the fixture exits
 // (TraceDumpAtExit, after it has recorded its own results), or at the first
 // feedback event at or after BBR_TRACE_UNTIL_UNIX_NS, whichever comes first;
@@ -34,6 +35,7 @@ const (
 	traceKindOutsidePre  = 7
 	traceKindOutsidePost = 8
 	traceKindReset       = 9
+	traceKindProbeSet    = 10
 
 	traceCols     = 48
 	traceCapacity = 1 << 16
@@ -357,6 +359,19 @@ func traceProbeLoss(b *BBRSender, e *FeedbackEvent, p *PacketInfo, lost, flight,
 	traceRow(traceKindProbeLoss, b, int64(e.Time), traceEvent(e), traceEventFlags(e), traceClampU(lost), traceClampU(flight),
 		int64(p.Length), int64(p.Delivery.PostInFlight), int64(p.Delivery.Limited), traceClampU(p.Ordinal),
 		traceClampU(remaining), traceClampU(p.Delivery.Lost))
+}
+
+// traceProbeLossSet records the state right after a crossing's assignment.
+func traceProbeLossSet(b *BBRSender, e *FeedbackEvent) {
+	if !trace.on {
+		return
+	}
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
+	if trace.dumped || trace.target != b {
+		return
+	}
+	traceRow(traceKindProbeSet, b, int64(e.Time), traceEvent(e), traceEventFlags(e))
 }
 
 func traceReset(b *BBRSender, path, sample, delivered uint64) {

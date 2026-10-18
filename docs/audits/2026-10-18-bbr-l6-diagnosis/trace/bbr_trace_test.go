@@ -97,6 +97,12 @@ func TestTraceRecordsProbeCycleAndLoss(t *testing.T) {
 	require.EqualValues(t, 20000, c[41], "flight when it was sent")
 	require.EqualValues(t, bbrUp, c[5])
 	require.NotZero(t, c[17]&1, "probe sample")
+	set := traceRows(traceKindProbeSet)
+	require.Len(t, set, 1)
+	require.Equal(t, c[3], set[0][3])
+	require.EqualValues(t, 19183, set[0][8], "inflight_longterm right after the crossing: 18800 + 18800/49")
+	require.NotZero(t, set[0][17]&2)
+	require.Zero(t, set[0][17]&1, "probe sampling ends at the crossing")
 	last := post[len(post)-1]
 	require.Equal(t, c[3], last[3])
 	require.EqualValues(t, bbrDown, last[5])

@@ -81,6 +81,45 @@ class Reconcile(unittest.TestCase):
         trace['rows'][len(trace['rows']) // 2][c['min_rtt_ns']] = 95_000_000
         self.assertIn('R4', {f['rule'] for f in r.reconcile(trace, relay, START)['findings']})
 
+    def test_frozen_sender_delivery_fails(self):
+        trace, relay, c = synthetic()
+        for row in trace['rows']:
+            row[c['delivered']] = 1000
+        out = r.reconcile(trace, relay, START)
+        self.assertFalse(out['ok'])
+        self.assertIn(('R2', 'fail'), {(f['rule'], f['status']) for f in out['findings']})
+
+    def test_missing_sender_rounds_are_incomplete(self):
+        trace, relay, c = synthetic()
+        trace['rows'] = [row for row in trace['rows'] if not (START + 100 * 10**9 <= row[c['unix_ns']] < START + 201 * 10**9)]
+        out = r.reconcile(trace, relay, START)
+        self.assertFalse(out['ok'])
+        self.assertIn(('short', 'incomplete'), {(f['period'], f['status']) for f in out['findings']})
+
+    def test_missing_relay_boundary_is_incomplete(self):
+        trace, relay, _ = synthetic()
+        relay['Samples'] = [s for s in relay['Samples'] if s[0] >= 0]
+        out = r.reconcile(trace, relay, START)
+        self.assertFalse(out['ok'])
+        self.assertTrue(any(f['period'] == 'equal' and f['status'] == 'incomplete' for f in out['findings']))
+
+    def test_empty_relay_delivery_is_incomplete(self):
+        trace, relay, _ = synthetic()
+        for s in relay['Samples']:
+            s[7] = 0
+        out = r.reconcile(trace, relay, START)
+        self.assertFalse(out['ok'])
+        self.assertIn(('R2', 'incomplete'), {(f['rule'], f['status']) for f in out['findings']})
+
+    def test_missing_bandwidth_and_rtt_are_incomplete(self):
+        trace, relay, c = synthetic()
+        for row in trace['rows']:
+            row[c['bandwidth']] = 0
+            row[c['min_rtt_ns']] = 0
+        out = r.reconcile(trace, relay, START)
+        self.assertEqual(out['status'], 'incomplete')
+        self.assertEqual({('R3', 'incomplete'), ('R4', 'incomplete')}, {(f['rule'], f['status']) for f in out['findings']})
+
     def test_no_drops_in_a_period(self):
         trace, relay, c = synthetic()
         relay = copy.deepcopy(relay)

@@ -9,7 +9,7 @@ the same fixtures and relay. Recorded changes:
 - One more fixture variant, `cand-trace`: the `cand` revision (`abfa5456`) with
   this record's measurement-only overlay (trace/: the recorder, its test file,
   which does not enter the binary, and a two-line exit hook in the root package
-  and the fixture) and eight patch sites: seven in BBR-only controller code and
+  and the fixture) and nine patch sites: eight in BBR-only controller code and
   one in the fixture after it writes its own record, each asserted to occur
   exactly once. `reno`, `cand` and the relay target must stay
   byte-identical to #777's binaries (EXPECTED).
@@ -58,7 +58,7 @@ EXPECTED = {
 }
 # This record's own binary, registered after its first build (None until then).
 REGISTERED = {
-    ('cand-trace', 'fixture'): '6c25a98b35856d096d8b5a021583bfdc1d941691366c1c758aa9776bd66dfbe1',
+    ('cand-trace', 'fixture'): '73555c572a886466b61c47b21621f38e091e7ca3f0ac29ef86c9c2564163a70e',
 }
 LINUX = {'GOOS': 'linux', 'GOARCH': 'amd64'}
 ENV = {**os.environ, 'GOTOOLCHAIN': 'go1.27.0', 'GOFLAGS': '-mod=mod', 'CGO_ENABLED': '0', 'GOWORK': 'off'}
@@ -79,6 +79,8 @@ TRACE_SITES = [
      'func (b *BBRSender) probeLoss(e FeedbackEvent, p PacketInfo, remaining uint64) {\n\ttraceProbeLossEntry(b)\n'),
     ('internal/congestion/bbr_probe.go', '\tif lost <= flight/50 || lost < uint64(p.Length) || p.Delivery.PostInFlight < p.Length {\n',
      '\ttraceProbeLoss(b, &e, &p, lost, flight, remaining)\n\tif lost <= flight/50 || lost < uint64(p.Length) || p.Delivery.PostInFlight < p.Length {\n'),
+    ('internal/congestion/bbr_probe.go', '\t\tb.inflightLong = max(bbrBytes(previousFlight+prefix), bbrBytes(bbrScale(uint64(min(b.bdp(1), b.window)), 7, 10)))\n\t}\n',
+     '\t\tb.inflightLong = max(bbrBytes(previousFlight+prefix), bbrBytes(bbrScale(uint64(min(b.bdp(1), b.window)), 7, 10)))\n\t}\n\ttraceProbeLossSet(b, &e)\n'),
     # The fixture writes the trace once it has written its own record.
     ('campaign/fixture/main.go', "\tif err = os.WriteFile(*output, append(data, '\\n'), 0600); err != nil {\n\t\treturn err\n\t}\n",
      "\tif err = os.WriteFile(*output, append(data, '\\n'), 0600); err != nil {\n\t\treturn err\n\t}\n\tbbrTraceDumpAtExit()\n"),
