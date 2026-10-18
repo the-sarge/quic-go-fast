@@ -5517,3 +5517,49 @@ The operator approved the plan on 2026-10-18 with four decisions, and later decl
 - [#743](https://github.com/the-sarge/quic-go-fast/issues/743): measure equal-size short-packet GSO batching. Its #742 blocker has cleared, and it needs a human keep/reject decision.
 - [#800](https://github.com/the-sarge/quic-go-fast/issues/800) and [#803](https://github.com/the-sarge/quic-go-fast/issues/803) are in progress in other sessions. The shared BBR readiness and L6 campaign follows them and also covers #742's change to the bounded path.
 - GitHub issues are the live view.
+
+---
+
+## BBRv3 ECN ledger retires records below the reported span - 2026-10-18 15:20 EDT
+
+**Main:** `843fde801255`
+**Actor:** Claude
+
+### Summary
+
+[#803](https://github.com/the-sarge/quic-go-fast/issues/803): [#793](https://github.com/the-sarge/quic-go-fast/issues/793) found that the BBR ECN marking ledger never retired the record of a really lost packet. Prefix compaction stopped at the first loss, every later loss event added two records, and after about 2,048 loss events the 4,096-record budget ran out and marking fell back to Not-ECT for the rest of the connection.
+
+[PR #807](https://github.com/the-sarge/quic-go-fast/pull/807) merged as `843fde80` and closed #803:
+- **Rule:** once ECN is capable, compaction after an accepted advancing ACK also retires the leading records that end below that ACK's smallest acknowledged packet number. Capability is read before the ACK's own state transition, so the ACK that establishes it retires nothing. The initial state (including the post-reset drain), testing and unknown compact only the accounted prefix.
+- **Accounting:** only ACKed marks become cumulative offsets. A later receipt of a retired packet adds no newly acknowledged mark; the first accepted advancing report consumes its counter increase once, which loosens the too-few-counts check by that packet in that report only.
+- **Unchanged:** both budget checks (still charged before compaction), `maxECNMarkRanges` at 4,096, D03's no-disabled-ECT choice, T4's actual-marking rule, the migration fence and default Reno. Distinct facts kept inside the receiver's reported span can still exhaust the budget and fail safe.
+- **Design amendment:** `docs/designs/bbrv3.md` (classic ECN response, D03 row) and T4 in `docs/adr/2026-09-24-bbrv3-transport-plan.md`; it amends #612's retain decision for records below the reported span only.
+- **Code:** `bbrECNTracker.compact` takes the retirement bound; `feedback` passes the ACK's smallest acknowledged packet number on a capable path.
+- **Tests:** `TestBBRECNOrdinaryLossExhaustsRangeBudget` became `TestBBRECNOrdinaryLossKeepsECN` (ECT(0) through 4,096 isolated or paired loss events, ledger at two records). New `TestBBRECNRetiresRecordsBelowReportedSpan` and `TestBBRECNLateACKOfRetiredRecord`. #612's fixtures and the steady-state allocation cases now keep their hole or retained block inside every reported span. The frozen-equivalence oracle gained an independent reference retirement step and a retirement-coverage stat; the frozen tracker is unchanged.
+
+### Decisions
+
+- The operator approved the plan on 2026-10-18: retire below the reported span, keep both budget checks as they are, one PR with the design commit gated before any code, and rename the #793 test.
+- The first `ras consider` raised F1: retirement during testing or unknown could drop unresolved probes and block capability. It was resolved inside the approved boundary by retiring only once capable.
+- The operator moved #803's L6-length measurement to the shared campaign [#808](https://github.com/the-sarge/quic-go-fast/issues/808) (2026-10-18, about 14:15 EDT), so #803 closed with its design and code. No measurement was booked or run here.
+
+### Validation
+
+- **Design gate:**
+  - `ras consider` `20261018T173210-11b520b7958a52215c47594c` at `9f3bfa78`: F1–F5 fixed, F6 (mark the evidence pending) rejected because docs and tests landed together.
+  - `ras verify` refused that run because T4, a context file, was part of the amendment, so the one replacement consideration ran instead: `20261018T180604-b6977e060e20dd32f958fc47` at `0971245b`. No new material failure; its capability-timing clarification was fixed in `6e786705` with tests.
+- **PR review:**
+  - `20261018T183133-9d638418d1ffd21186ca9574` at `6e786705`: no Fix First. The allocation-fixture item was fixed in `aa8164ff`, and two comments were reworded.
+  - Verification at `aa8164ff`: blocking projection clear. The informational benchmark's labels were left as they are.
+  - Replacement `20261018T185534-4f2a5512c925920f24ff3260`: no Fix First, no Follow Up.
+- **Guard mutations:** deleting the below-span clause, deleting the capable-state guard, and treating the establishing ACK as capable each failed named tests.
+- **Fuzz:** `FuzzBBRECNFeedbackFrozenEquivalence` ran 120 s, about 2.57 million executions, with no divergence.
+- **Exact-head certification at `b1d722ca`** (main `ff1e03b2` merged in; PR diff byte-identical to the reviewed one): `go test ./internal/ackhandler`, vet, `go mod tidy -diff`, `git diff --check` and `-race` on the BBR ECN tests.
+- All 33 hosted checks passed on `b1d722ca`, which was squash-merged with `--match-head-commit`.
+- `BenchmarkBBRECNFeedback` (bounded, for information only): unchanged without retained records, lower with 256 or 4,000 never-delivered records because they now retire.
+
+### Next
+
+- [#808](https://github.com/the-sarge/quic-go-fast/issues/808): one BBR readiness and L6 campaign on the revision with #742, #800 and #803. It carries #803's measurement, that ECN stays on through an L6-length BBRv3 run. Not started.
+- [#800](https://github.com/the-sarge/quic-go-fast/issues/800) ([PR #806](https://github.com/the-sarge/quic-go-fast/pull/806)) is still open; #743 needs a decision before the campaign.
+- GitHub issues are the live view.
