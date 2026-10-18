@@ -475,8 +475,41 @@ func TestBBRECNRetiresRecordsBelowReportedSpan(t *testing.T) {
 			}
 			require.Equal(t, ecnStateCapable, h.bbrECN.state)
 			require.Equal(t, protocol.ECT0, h.ECNMode(true))
+			ect0, ce := accepted+numECNTestingPackets, uint64(0)
+			if tc.ceFirst {
+				// The establishing ACK is compacted before its own transition,
+				// so the probes below its span stay for one more ACK.
+				require.NotEmpty(t, h.bbrECN.ranges)
+				require.Equal(t, b, h.bbrECN.ranges[0].first)
+				ect0, ce = accepted+1, 1
+			}
+			// The next accepted advancing ACK on the capable path retires them.
+			last := next + 1
+			sendBBRECNAt(h, last, h.ECNMode(true))
+			ackBBRECN(t, h, ackRanges(last), ect0+1, ce)
+			require.Empty(t, h.bbrECN.ranges)
 		})
 	}
+
+	t.Run("the post-reset drain retires nothing", func(t *testing.T) {
+		h, r := newCapableBBRECNHandler(t)
+		drained := false
+		h.bbrECN.path = func(bool) (uint64, bool, bool) { return h.congestionEvents.pathGeneration, drained, true }
+		sendBBRECNAt(h, 1, protocol.ECT0)
+		sendBBRECNAt(h, 2, protocol.ECT0)
+		h.MigratedPath(monotime.Now(), 1200)
+		require.Equal(t, protocol.ECNNon, h.ECNMode(true), "draining the old generation")
+		sendBBRECNAt(h, 3, protocol.ECNNon)
+		// An accepted advancing ACK whose span starts above the old records.
+		ackBBRECN(t, h, ackRanges(3), 1, 0)
+		e := r.feedback[len(r.feedback)-1].ECN
+		require.False(t, e.Deferred)
+		require.False(t, e.Failed)
+		require.Equal(t, protocol.PacketNumber(3), e.Watermark)
+		require.True(t, h.bbrECN.draining)
+		require.NotEmpty(t, h.bbrECN.ranges)
+		require.Equal(t, ect0(1, 2, false), h.bbrECN.ranges[0], "old marking stays through the drain")
+	})
 }
 
 // TestBBRECNLateACKOfRetiredRecord shows what a later receipt of a packet whose
