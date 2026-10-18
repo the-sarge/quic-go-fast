@@ -1,0 +1,112 @@
+2026-10-18T21:55:40+0000 round 1 order D-main D-proto D-kill S-main S-proto M-main M-proto
+2026-10-18T21:55:52+0000 round 1 D-main: 4182 Mbit/s segs/send 1.00 foreign 0.028s softirqd 0.000s
+2026-10-18T21:56:05+0000 round 1 D-proto: 9489 Mbit/s segs/send 14.79 foreign 0.016s softirqd 0.000s
+2026-10-18T21:56:17+0000 round 1 D-kill: 4167 Mbit/s segs/send 1.00 foreign 0.025s softirqd 0.000s
+2026-10-18T21:56:29+0000 round 1 S-main: 15275 Mbit/s segs/send 11.69 foreign 0.012s softirqd 0.000s
+2026-10-18T21:56:41+0000 round 1 S-proto: 14973 Mbit/s segs/send 11.70 foreign 0.009s softirqd 0.000s
+2026-10-18T21:56:53+0000 round 1 M-main: 11209 Mbit/s segs/send 10.99 foreign 0.046s softirqd 0.000s
+2026-10-18T21:57:05+0000 round 1 M-proto: 11372 Mbit/s segs/send 12.60 foreign 0.049s softirqd 0.000s
+2026-10-18T21:57:05+0000 round 2 order D-proto D-kill S-main S-proto M-main M-proto D-main
+2026-10-18T21:57:18+0000 round 2 D-proto: 9517 Mbit/s segs/send 14.78 foreign 0.020s softirqd 0.000s
+2026-10-18T21:57:30+0000 round 2 D-kill: 4142 Mbit/s segs/send 1.00 foreign 0.026s softirqd 0.000s
+2026-10-18T21:57:42+0000 round 2 S-main: 15294 Mbit/s segs/send 11.69 foreign 0.014s softirqd 0.000s
+2026-10-18T21:57:54+0000 round 2 S-proto: 14832 Mbit/s segs/send 11.69 foreign 0.966s softirqd 0.000s
+2026-10-18T21:58:06+0000 round 2 M-main: 11039 Mbit/s segs/send 10.98 foreign 0.630s softirqd 0.000s
+2026-10-18T21:58:08+0000 fixture busy 0.051; waiting
+2026-10-18T21:58:33+0000 round 2 M-proto: 11268 Mbit/s segs/send 12.60 foreign 1.105s softirqd 0.000s
+2026-10-18T21:58:45+0000 round 2 D-main: 4144 Mbit/s segs/send 1.00 foreign 0.199s softirqd 0.000s
+2026-10-18T21:58:45+0000 round 3 order D-kill S-main S-proto M-main M-proto D-main D-proto
+2026-10-18T21:58:58+0000 round 3 D-kill: 3743 Mbit/s segs/send 1.00 foreign 18.521s softirqd 0.000s
+2026-10-18T21:59:00+0000 fixture busy 0.061; waiting
+2026-10-18T21:59:15+0000 fixture busy 0.141; waiting
+2026-10-18T21:59:40+0000 round 3 S-main: 15143 Mbit/s segs/send 11.69 foreign 0.962s softirqd 0.000s
+2026-10-18T21:59:52+0000 round 3 S-proto: 14713 Mbit/s segs/send 11.70 foreign 1.626s softirqd 0.000s
+2026-10-18T22:00:04+0000 round 3 M-main: 10983 Mbit/s segs/send 11.00 foreign 1.641s softirqd 0.000s
+2026-10-18T22:00:16+0000 round 3 M-proto: 11255 Mbit/s segs/send 12.57 foreign 0.126s softirqd 0.000s
+2026-10-18T22:00:28+0000 round 3 D-main: 4126 Mbit/s segs/send 1.00 foreign 1.693s softirqd 0.000s
+2026-10-18T22:00:41+0000 round 3 D-proto: 9367 Mbit/s segs/send 14.77 foreign 1.789s softirqd 0.000s
+2026-10-18T22:00:41+0000 round 4 order S-main S-proto M-main M-proto D-main D-proto D-kill
+2026-10-18T22:00:53+0000 round 4 S-main: 14872 Mbit/s segs/send 11.68 foreign 1.638s softirqd 0.000s
+2026-10-18T22:01:05+0000 round 4 S-proto: 14821 Mbit/s segs/send 11.70 foreign 0.359s softirqd 0.000s
+2026-10-18T22:01:17+0000 round 4 M-main: 10594 Mbit/s segs/send 11.03 foreign 3.936s softirqd 0.000s
+2026-10-18T22:01:19+0000 fixture busy 0.172; waiting
+2026-10-18T22:01:34+0000 fixture busy 0.156; waiting
+2026-10-18T22:01:49+0000 fixture busy 0.120; waiting
+2026-10-18T22:02:04+0000 fixture busy 0.101; waiting
+2026-10-18T22:02:19+0000 fixture busy 0.125; waiting
+2026-10-18T22:02:34+0000 fixture busy 0.197; waiting
+2026-10-18T22:02:49+0000 fixture busy 0.060; waiting
+2026-10-18T22:03:14+0000 round 4 M-proto: 10543 Mbit/s segs/send 12.59 foreign 5.298s softirqd 0.000s
+2026-10-18T22:03:26+0000 round 4 D-main: 3944 Mbit/s segs/send 1.00 foreign 4.281s softirqd 0.000s
+2026-10-18T22:03:28+0000 fixture busy 0.050; waiting
+2026-10-18T22:03:54+0000 round 4 D-proto: 9341 Mbit/s segs/send 14.77 foreign 2.429s softirqd 0.000s
+2026-10-18T22:03:56+0000 fixture busy 0.085; waiting
+2026-10-18T22:04:21+0000 round 4 D-kill: 3854 Mbit/s segs/send 1.00 foreign 6.427s softirqd 0.000s
+2026-10-18T22:04:21+0000 round 5 order S-proto M-main M-proto D-main D-proto D-kill S-main
+2026-10-18T22:04:33+0000 round 5 S-proto: 13362 Mbit/s segs/send 11.68 foreign 9.447s softirqd 0.010s
+2026-10-18T22:04:35+0000 fixture busy 0.222; waiting
+2026-10-18T22:04:50+0000 fixture busy 0.061; waiting
+2026-10-18T22:05:05+0000 fixture busy 0.096; waiting
+2026-10-18T22:05:20+0000 fixture busy 0.137; waiting
+2026-10-18T22:05:45+0000 round 5 M-main: 10234 Mbit/s segs/send 11.00 foreign 6.310s softirqd 0.000s
+2026-10-18T22:05:47+0000 fixture busy 0.055; waiting
+2026-10-18T22:06:02+0000 fixture busy 0.070; waiting
+2026-10-18T22:06:27+0000 round 5 M-proto: 10555 Mbit/s segs/send 12.66 foreign 3.346s softirqd 0.000s
+2026-10-18T22:06:29+0000 fixture busy 0.091; waiting
+2026-10-18T22:06:44+0000 fixture busy 0.065; waiting
+2026-10-18T22:07:09+0000 round 5 D-main: 3763 Mbit/s segs/send 1.00 foreign 6.454s softirqd 0.000s
+2026-10-18T22:07:22+0000 round 5 D-proto: 8527 Mbit/s segs/send 14.76 foreign 10.529s softirqd 0.010s
+2026-10-18T22:07:34+0000 round 5 D-kill: 3856 Mbit/s segs/send 1.00 foreign 4.773s softirqd 0.000s
+2026-10-18T22:07:36+0000 fixture busy 0.147; waiting
+2026-10-18T22:08:01+0000 round 5 S-main: 11961 Mbit/s segs/send 11.68 foreign 11.874s softirqd 0.000s
+2026-10-18T22:08:01+0000 round 6 order M-main M-proto D-main D-proto D-kill S-main S-proto
+2026-10-18T22:08:03+0000 fixture busy 0.131; waiting
+2026-10-18T22:08:18+0000 fixture busy 0.242; waiting
+2026-10-18T22:08:33+0000 fixture busy 0.061; waiting
+2026-10-18T22:08:48+0000 fixture busy 0.157; waiting
+2026-10-18T22:09:03+0000 fixture busy 0.055; waiting
+2026-10-18T22:09:18+0000 fixture busy 0.075; waiting
+2026-10-18T22:09:43+0000 round 6 M-main: 10808 Mbit/s segs/send 11.01 foreign 2.240s softirqd 0.000s
+2026-10-18T22:09:55+0000 round 6 M-proto: 10969 Mbit/s segs/send 12.60 foreign 2.107s softirqd 0.000s
+2026-10-18T22:09:57+0000 fixture busy 0.130; waiting
+2026-10-18T22:10:23+0000 round 6 D-main: 4034 Mbit/s segs/send 1.00 foreign 2.129s softirqd 0.000s
+2026-10-18T22:10:35+0000 round 6 D-proto: 9236 Mbit/s segs/send 14.77 foreign 2.517s softirqd 0.000s
+2026-10-18T22:10:47+0000 round 6 D-kill: 3861 Mbit/s segs/send 1.00 foreign 5.016s softirqd 0.000s
+2026-10-18T22:10:59+0000 round 6 S-main: 14445 Mbit/s segs/send 11.66 foreign 2.495s softirqd 0.000s
+2026-10-18T22:11:01+0000 fixture busy 0.095; waiting
+2026-10-18T22:11:26+0000 round 6 S-proto: 13739 Mbit/s segs/send 11.68 foreign 3.726s softirqd 0.000s
+2026-10-18T22:11:26+0000 round 7 order M-proto D-main D-proto D-kill S-main S-proto M-main
+2026-10-18T22:11:28+0000 fixture busy 0.127; waiting
+2026-10-18T22:11:53+0000 round 7 M-proto: 11283 Mbit/s segs/send 12.62 foreign 0.652s softirqd 0.000s
+2026-10-18T22:12:06+0000 round 7 D-main: 3600 Mbit/s segs/send 1.00 foreign 15.392s softirqd 0.000s
+2026-10-18T22:12:08+0000 fixture busy 0.513; waiting
+2026-10-18T22:12:23+0000 fixture busy 0.060; waiting
+2026-10-18T22:12:38+0000 fixture busy 0.276; waiting
+2026-10-18T22:12:53+0000 fixture busy 0.085; waiting
+2026-10-18T22:13:08+0000 fixture busy 0.237; waiting
+2026-10-18T22:13:23+0000 fixture busy 0.095; waiting
+2026-10-18T22:13:48+0000 round 7 D-proto: 8379 Mbit/s segs/send 14.75 foreign 11.456s softirqd 0.010s
+2026-10-18T22:13:50+0000 fixture busy 0.126; waiting
+2026-10-18T22:14:05+0000 fixture busy 0.066; waiting
+2026-10-18T22:14:20+0000 fixture busy 0.101; waiting
+2026-10-18T22:14:35+0000 fixture busy 0.096; waiting
+2026-10-18T22:14:50+0000 fixture busy 0.101; waiting
+2026-10-18T22:15:05+0000 fixture busy 0.195; waiting
+2026-10-18T22:15:20+0000 fixture busy 0.056; waiting
+2026-10-18T22:15:45+0000 round 7 D-kill: 3580 Mbit/s segs/send 1.00 foreign 10.250s softirqd 0.000s
+2026-10-18T22:15:57+0000 round 7 S-main: 13748 Mbit/s segs/send 11.67 foreign 5.112s softirqd 0.000s
+2026-10-18T22:15:59+0000 fixture busy 0.080; waiting
+2026-10-18T22:16:24+0000 round 7 S-proto: 13139 Mbit/s segs/send 11.70 foreign 5.045s softirqd 0.000s
+2026-10-18T22:16:26+0000 fixture busy 0.085; waiting
+2026-10-18T22:16:51+0000 round 7 M-main: 10708 Mbit/s segs/send 11.00 foreign 2.613s softirqd 0.000s
+2026-10-18T22:16:51+0000 round 8 order D-main D-proto D-kill S-main S-proto M-main M-proto
+2026-10-18T22:17:03+0000 round 8 D-main: 3737 Mbit/s segs/send 1.00 foreign 4.180s softirqd 0.000s
+2026-10-18T22:17:16+0000 round 8 D-proto: 9183 Mbit/s segs/send 14.77 foreign 2.496s softirqd 0.000s
+2026-10-18T22:17:28+0000 round 8 D-kill: 4039 Mbit/s segs/send 1.00 foreign 1.520s softirqd 0.000s
+2026-10-18T22:17:30+0000 fixture busy 0.135; waiting
+2026-10-18T22:17:55+0000 round 8 S-main: 13395 Mbit/s segs/send 11.64 foreign 10.995s softirqd 0.000s
+2026-10-18T22:17:57+0000 fixture busy 0.298; waiting
+2026-10-18T22:18:22+0000 round 8 S-proto: 14299 Mbit/s segs/send 11.69 foreign 1.659s softirqd 0.000s
+2026-10-18T22:18:34+0000 round 8 M-main: 11265 Mbit/s segs/send 11.04 foreign 0.339s softirqd 0.000s
+2026-10-18T22:18:46+0000 round 8 M-proto: 11017 Mbit/s segs/send 12.59 foreign 2.892s softirqd 0.000s
+2026-10-18T22:18:46+0000 done
