@@ -1371,9 +1371,9 @@ func (c *Conn) handleShortHeaderPacket(
 			c.logger,
 		)
 	}
-	destConnID, frames, shouldSwitchPath := c.pathManager.HandlePacket(p.remoteAddr, p.rcvTime, pathChallenge, isNonProbing)
+	destConnID, frames, shouldSwitchPath := c.pathManager.HandlePacket(p.remoteAddr, p.rcvTime, p.Size(), pathChallenge, isNonProbing)
 	if len(frames) > 0 {
-		if err := c.emission.serverProbe(destConnID, frames, p.remoteAddr, p.info, datagramPayloadChecksum, p.rcvTime); err != nil {
+		if err := c.emission.serverProbe(destConnID, frames, c.pathManager.getPath(p.remoteAddr), p.remoteAddr, p.info, datagramPayloadChecksum, p.rcvTime); err != nil {
 			return true, err
 		}
 	}

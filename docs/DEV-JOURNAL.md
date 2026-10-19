@@ -6019,3 +6019,45 @@ The test proxy reports a forwarding `"write"` only after the socket write return
 ### Next
 
 - No review finding was deferred. GitHub issues are the live view.
+
+---
+
+## Migration probe amplification limits landed - 2026-10-19 00:22 EDT
+
+**Main:** `36fd7bc502bf`
+
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #836](https://github.com/the-sarge/quic-go-fast/pull/836) as `36fd7bc502bfb8c1aac1b2702d9b349742f35063`, fixing Security Cloud finding `csf_6e3f40b8a3bcfca622b97b39`. Candidate migration paths now enforce an independent three-times receive-byte allowance before probe registration and direct writes, including repeated challenges and local write failures. Compact probes preserve responses to small packets; an expanded challenge validates the path MTU before migration.
+
+### Validation
+
+- Exact reviewed head: `9f1f41df3e4e5f090a51c450d1aaa5a1e62570fc`. Connection/recovery unit suites, focused race checks, 20 repetitions of the new path regressions, QUIC v1/v2 UDP NAT-rebinding and migration tests, affected-package `go vet`, `go mod tidy -diff`, historical emission-experiment compilation, and whitespace checks passed.
+- All five hosted PR workflows passed on that head, covering 17 successful unit, integration, lint, cross-compilation and interop jobs.
+- RAS review `20261019T040854-a2cfe5101c2abb746853f588` reported no findings or follow-ups. Four reviewers completed successfully; two configured Claude calls failed. No fixes, verification run or replacement review were required. The review was not posted to GitHub.
+
+---
+
+## HTTP/3 response header allocation fix landed - 2026-10-19 00:46 EDT
+
+**Main:** `a14c2eda78ce`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #838](https://github.com/the-sarge/quic-go-fast/pull/838) as `a14c2eda78ceeff86452a63420e7a22ac6f341ea`, addressing Security Cloud finding `csf_192e5852558df51ac57cbe94` at the initial response HEADERS reader. `RequestStream.ReadResponse` now copies the bounded frame into a buffer that grows with received payload, preserving the existing size check, frame boundary, decoding, errors, qlog behavior, and stream cancellation.
+
+The regression reproduced 160 MiB of header-buffer capacity across 16 prefix-only stalled responses before the change and 8 KiB afterward. The partial-payload case retains 32 KiB across 16 responses after receiving 1 KiB each. These are header-buffer measurements, not total process-memory bounds; no connection-wide quota or new header-timeout API was added.
+
+### Validation
+
+- Exact merged PR head `d20c05fb147780485a5b64efa2d9f7c7703a35d4`: HTTP/3 package tests, focused response-header/error-boundary race tests, affected-package `go vet`, `go mod tidy -diff`, HTTP/3 lint, and whitespace checks passed.
+- All 33 hosted checks across the push and PR runs passed on that head, covering the existing unit, integration, lint, cross-compilation, and interop workflows.
+- RAS review `20261019T042537-c45acf2b462f351237529a16` completed with six successful first-pass reviewers, adjudication, and no required fixes. No fix verification or replacement review was needed. The review was not posted to GitHub.
+- A journal-only advance of `main` changed the candidate SHA after review. The product diff and all non-journal tree content were verified identical; local certification and hosted checks were repeated on the refreshed head under the docs-only rerun policy.
+
+### Next
+
+[Issue #840](https://github.com/the-sarge/quic-go-fast/issues/840) tracks the pre-existing server request-header and shared trailer allocations from review clusters C-001/C-005. Both owners were revalidated against the merged SHA before filing. The issue tracker is the live view; optional buffer-growth and small-response allocation optimizations remain outside this fix.

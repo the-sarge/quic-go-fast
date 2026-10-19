@@ -3280,7 +3280,7 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding, disableDiscovery
 		)
 
 		tc.conn.handlePacket(receivedPacket{
-			data:       make([]byte, 10),
+			data:       make([]byte, 400),
 			buffer:     getPacketBuffer(),
 			remoteAddr: newRemoteAddr,
 			rcvTime:    monotime.Now(),
@@ -3642,7 +3642,7 @@ func TestPathChangeInitialPacketSize(t *testing.T) {
 				func(pathID) {},
 				utils.DefaultLogger,
 			)
-			_, frames, _ := c.pathManager.HandlePacket(newRemoteAddr, now, nil, false)
+			_, frames, _ := c.pathManager.HandlePacket(newRemoteAddr, now, protocol.MinInitialPacketSize, nil, false)
 			require.Len(t, frames, 1)
 			challenge := frames[0].Frame.(*wire.PathChallengeFrame)
 			c.pathManager.HandlePathResponseFrame(&wire.PathResponseFrame{Data: challenge.Data})
