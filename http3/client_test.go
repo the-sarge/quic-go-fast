@@ -341,6 +341,13 @@ func TestClientResponseContentLength(t *testing.T) {
 		{name: "unknown", method: http.MethodGet, status: http.StatusOK, contentLength: -1, data: "foo"},
 		{name: "HEAD", method: http.MethodHead, status: http.StatusOK, contentLength: 6},
 		{name: "304", method: http.MethodGet, status: http.StatusNotModified, contentLength: 6},
+		{name: "204", method: http.MethodGet, status: http.StatusNoContent, contentLength: 6},
+		{name: "terminal 1xx", method: http.MethodGet, status: http.StatusSwitchingProtocols, contentLength: 6},
+		{name: "empty CONNECT", method: http.MethodConnect, status: http.StatusOK, contentLength: 6},
+		{name: "short CONNECT", method: http.MethodConnect, status: http.StatusOK, contentLength: 6, data: "foo"},
+		{name: "long CONNECT", method: http.MethodConnect, status: http.StatusOK, contentLength: 6, data: "foobarfoo"},
+		{name: "CONNECT 204", method: http.MethodConnect, status: http.StatusNoContent, contentLength: 6, data: "foo"},
+		{name: "unsuccessful CONNECT", method: http.MethodConnect, status: http.StatusForbidden, contentLength: 6, data: "foo", wantErr: io.ErrUnexpectedEOF},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client, server := newConnPair(t)

@@ -430,19 +430,24 @@ func (s *RequestStream) ReadResponse() (*http.Response, error) {
 		return nil, fmt.Errorf("http3: invalid response: %w", err)
 	}
 
+	isInformational := res.StatusCode >= 100 && res.StatusCode < 200
+	isNoContent := res.StatusCode == http.StatusNoContent
+	isSuccessfulConnect := s.isConnect && res.StatusCode >= 200 && res.StatusCode < 300
+
 	// Check that the DATA frame content matches the Content-Length header (if set).
 	// See section 4.1.2 of RFC 9114.
 	contentLength := res.ContentLength
-	if s.isHead || res.StatusCode == http.StatusNotModified {
-		// These responses carry no content; Content-Length describes the selected representation.
+	switch {
+	case isSuccessfulConnect:
+		// Tunnel data is not constrained by Content-Length (RFC 9110, section 9.3.6).
+		contentLength = -1
+	case s.isHead || isInformational || isNoContent || res.StatusCode == http.StatusNotModified:
+		// These responses carry no content, regardless of Content-Length metadata.
 		contentLength = 0
 	}
 	respBody := newResponseBody(s.str, contentLength, s.reqDone)
 
 	// Rules for when to set Content-Length are defined in https://tools.ietf.org/html/rfc7230#section-3.3.2.
-	isInformational := res.StatusCode >= 100 && res.StatusCode < 200
-	isNoContent := res.StatusCode == http.StatusNoContent
-	isSuccessfulConnect := s.isConnect && res.StatusCode >= 200 && res.StatusCode < 300
 	if (isInformational || isNoContent || isSuccessfulConnect) && res.ContentLength == -1 {
 		res.ContentLength = 0
 	}
