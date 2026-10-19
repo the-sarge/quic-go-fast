@@ -14,7 +14,7 @@ Every change to BBRv3's code makes a new revision, and each new revision needs i
 
 ## Accepted decisions (before any data)
 
-The agent presented one plan with eleven recommended decisions on October 18, 2026, at about 23:40 America/New_York; the operator answered "Approve all (Recommended)". On October 19, at about 00:05, the operator amended D3 (below).
+The agent presented one plan with eleven recommended decisions on October 18, 2026, and the operator answered "Approve all (Recommended)" at about 23:20 America/New_York. At about 23:50 the same evening, after a development pair, the operator amended D3 (below).
 
 | # | Decision |
 | --- | --- |

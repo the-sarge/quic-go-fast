@@ -100,7 +100,7 @@ Slice 6's, unchanged ([Registration: preservation (conditional)](https://github.
 ## Stages not run
 
 - Slice 6's list, unchanged: memory attribution, `recvharness`, a run-loop wake count, a `main`-without-port arm, macOS and Windows.
-- **No arm that switches #743 off.** It was registered in the approved plan (D3) and dropped by the operator on October 19, 2026, before any data, because the fixture never GSO-batches, so the switch could isolate nothing.
+- **No arm that switches #743 off.** It was registered in the approved plan (D3) and dropped by the operator on October 18, 2026 (about 23:50 America/New_York), before any data, because the fixture never GSO-batches, so the switch could isolate nothing.
 - **The GSO send path.** #742's and #743's BBR changes are not exercised by this fixture; the side stage measures #743 on BBRv3.
 
 ## Disclosures made before data
