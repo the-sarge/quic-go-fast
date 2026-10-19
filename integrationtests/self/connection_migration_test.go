@@ -44,7 +44,15 @@ func testConnectionMigration(t *testing.T, inspect func(*quic.Conn)) {
 	defer tr2.Close()
 
 	var packetsPath1, packetsPath2 atomic.Int64
-	var clientPacketsPath1 atomic.Int64
+	// Check the migrated transfer in proxy read order. The proxy reads all
+	// client-to-server datagrams in one goroutine, and loopback delivers them
+	// in send order. Path.Switch only requests the switch, so datagrams the
+	// client sent on path 1 before the connection applied it can still be read
+	// after Switch returns. Applying the switch drains the old send queue
+	// before the new one starts, so none of them is read after the client's
+	// first path-2 datagram.
+	var switchReturned, clientOnPath2 atomic.Bool
+	var clientPath1AfterPath2 atomic.Int64
 
 	const rtt = 5 * time.Millisecond
 	proxy := quicproxy.Proxy{
@@ -61,11 +69,14 @@ func testConnectionMigration(t *testing.T, inspect func(*quic.Conn)) {
 			switch port {
 			case tr1.Conn.LocalAddr().(*net.UDPAddr).Port:
 				packetsPath1.Add(1)
-				if dir == quicproxy.DirectionIncoming {
-					clientPacketsPath1.Add(1)
+				if dir == quicproxy.DirectionIncoming && clientOnPath2.Load() {
+					clientPath1AfterPath2.Add(1)
 				}
 			case tr2.Conn.LocalAddr().(*net.UDPAddr).Port:
 				packetsPath2.Add(1)
+				if dir == quicproxy.DirectionIncoming && switchReturned.Load() {
+					clientOnPath2.Store(true)
+				}
 			default:
 				fmt.Println("address not found", from)
 			}
@@ -166,10 +177,11 @@ func testConnectionMigration(t *testing.T, inspect func(*quic.Conn)) {
 
 	// The server may still send ACKs on the old path. Count client-to-server
 	// packets separately: after switching, the client must send on path 2.
-	c1 := clientPacketsPath1.Load()
 	require.NoError(t, path.Switch())
+	switchReturned.Store(true)
 	sendAndReceiveFile(t) // stream 10; waits for the receiver to observe EOF
-	require.Equal(t, c1, clientPacketsPath1.Load(), "client sent packets on the old path during the migrated transfer")
+	require.True(t, clientOnPath2.Load(), "client sent no packets on the new path during the migrated transfer")
+	require.Zero(t, clientPath1AfterPath2.Load(), "client sent packets on the old path during the migrated transfer")
 	require.Greater(t, packetsPath2.Load(), c2)
 	require.Equal(t, tr2.Conn.LocalAddr(), conn.LocalAddr())
 	require.Equal(t, proxy.LocalAddr(), conn.RemoteAddr())
