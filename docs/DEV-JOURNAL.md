@@ -6220,3 +6220,22 @@ Evidence is retained at `/Users/josh/diagnostics/migration-old-path-434-fix-83ec
 Local certification on `dea93208` (Go 1.27.2 darwin/arm64) passed: focused variants on QUIC v1/v2 ×20 each, race ×5, the full self-integration package on v1 and v2, golangci-lint v2.14.0 on six GOOS, Linux/Windows test build and vet, and `go mod tidy -diff`. Main advanced twice during the gate, through #848 and the docs-only #866. I updated the branch each time. The final head `2e1a5cd5` has a Go tree identical to `dea93208`. All 33 hosted checks passed on every head before the exact-head squash merge, and no rerun was used.
 
 RAS review `20261019T082401-2fe46fe4fad864fca688459e` found nothing. agy-argon, codex-astra, codex-sol and grok approved, and both Claude reviewers failed on the local Claude CLI session limit. No replacement review or deferred finding resulted.
+
+---
+
+## Private default qlog artifacts landed - 2026-10-19 12:16 EDT
+
+**Main:** `235007e374ca`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #846](https://github.com/the-sarge/quic-go-fast/pull/846) as `235007e374caeca333cc38f32152a5bcf43e2a7e`, addressing Codex Security Cloud finding `csf_af4163bf4da230bab2309241`. The shared QUIC and HTTP/3 default qlog writer now requests mode `0700` for new directories and `0600` for new files, before umask on Unix filesystems honoring ordinary mode bits. Exclusive creation rejects existing files and symlinks without overwriting their targets. Existing directory permissions are preserved, and the API comments and README describe sensitive trace contents and the trusted-directory requirement.
+
+### Validation
+
+The permission and existing-path regressions failed against the original writer before passing with the fix. Qlog and writer package tests, targeted qlog/HTTP3 race tests, QUIC v1/v2 tracing integration tests, scoped lint, affected-package vet, module tidiness and whitespace checks passed on Darwin arm64 with Go 1.27.2. The final pushed head was `2651521aaed5065a6ef436dae8e14385ca3156bd`; all 33 hosted checks across nine workflow runs passed on that head before marking the PR ready and squash-merging with a matching-head guard. Unit, integration, lint, cross-compilation and interop workflows succeeded; no same-head CI rerun was requested.
+
+RAS review `20261019T054817-6dc66161d72a52109256fca2` completed with all six reviewers and established no in-scope runtime failure. One low documentation finding was corrected by qualifying the exported permission guarantee for Unix filesystems. Rendered API documentation, a comment-only comparison and exact-head local checks passed; another RAS review/verification cycle was skipped under the documentation-only correction policy. The hypothetical subprocess-selector drift observation and duplicate HTTP/3 documentation observation were rejected.
+
+The nonblocking HTTP/3 wrapper documentation omission and separate interop writer policy were rechecked against merged commit `235007e374caeca333cc38f32152a5bcf43e2a7e` at `http3/qlog/qlog_dir.go:13` and `interop/utils/logging.go:39-44`. They remain outside this default-writer fix; no follow-up issue was created during this session.
