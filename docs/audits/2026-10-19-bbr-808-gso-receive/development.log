@@ -1,0 +1,14 @@
+2026-10-19T03:45:01+0000 round 1 order S-pre S-rev D-reno M-reno D-bbr Dk-bbr S-bbr M-bbr
+2026-10-19T03:45:13+0000 round 1 S-pre [reno/reno]: 14884 Mbit/s segs/send 11.69 loss 1.000000 v1 0 queue 0 unproc 1036 rss 15088 KiB foreign 0.850s softirqd 0.000s
+2026-10-19T03:45:15+0000 fixture busy 0.101; waiting
+2026-10-19T03:45:30+0000 fixture busy 0.111; waiting
+2026-10-19T03:45:55+0000 round 1 S-rev [reno/reno]: 13426 Mbit/s segs/send 11.68 loss 1.000000 v1 0 queue 0 unproc 915 rss 14856 KiB foreign 6.569s softirqd 0.010s
+2026-10-19T03:45:57+0000 fixture busy 0.106; waiting
+2026-10-19T03:46:12+0000 fixture busy 0.055; waiting
+2026-10-19T03:46:37+0000 round 1 D-reno [reno/reno]: 9122 Mbit/s segs/send 14.79 loss 0.000125 v1 0 queue 0 unproc 1195 rss 15996 KiB foreign 3.940s softirqd 0.000s
+2026-10-19T03:46:49+0000 round 1 M-reno [reno/reno]: 11307 Mbit/s segs/send 12.58 loss 0.000183 v1 0 queue 0 unproc 1569 rss 15452 KiB foreign 0.417s softirqd 0.000s
+2026-10-19T03:47:01+0000 round 1 D-bbr [bbrv3/bbrv3]: 8256 Mbit/s segs/send 14.36 loss 0.000067 v1 0 queue 0 unproc 582 rss 17344 KiB foreign 0.843s softirqd 0.000s
+2026-10-19T03:47:14+0000 round 1 Dk-bbr [bbrv3/bbrv3]: 4325 Mbit/s segs/send 1.00 loss 0.000000 v1 0 queue 0 unproc 0 rss 15368 KiB foreign 2.372s softirqd 0.000s
+2026-10-19T03:47:26+0000 round 1 S-bbr [bbrv3/bbrv3]: 10792 Mbit/s segs/send 11.41 loss 1.000000 v1 0 queue 0 unproc 0 rss 15316 KiB foreign 0.153s softirqd 0.000s
+2026-10-19T03:47:38+0000 round 1 M-bbr [bbrv3/bbrv3]: 8501 Mbit/s segs/send 12.53 loss 0.000000 v1 0 queue 0 unproc 0 rss 16232 KiB foreign 1.383s softirqd 0.000s
+2026-10-19T03:47:38+0000 done
