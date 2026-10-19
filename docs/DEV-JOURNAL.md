@@ -6168,3 +6168,24 @@ Merged [PR #845](https://github.com/the-sarge/quic-go-fast/pull/845) as `63fb5e4
 The exact reviewed and certified head was `9da8d533a6387cdaebe62faecfa9b2f552ae649e` on base `0de48f5a0f6594bd7d0bc15ac84e0cd87d3a9cd4`. Uncached root/HTTP3 tests, full shuffled QUIC v1/v2 self-integration suites with TIMESCALE_FACTOR=3, targeted stream/HTTP3 race checks, affected-package vet, module tidiness, scoped lint and formatting/diff checks passed. The listener-close fixture also passed 20 native race repetitions for QUIC v1 and a QUIC v2 check. All 33 hosted checks across nine workflow runs passed before marking ready and squash-merging with an exact-head guard. Failed repository tests were diagnosed and changed; no unchanged-head CI rerun was used.
 
 Initial RAS review and verification resolved the sparse-frame test-cleanup finding. Final renewed review `20261019T074938-96806228614991d94403fe18` completed with both selected reviewers and usable synthesis, with no findings. Optional concurrent identity-test strengthening remains nonblocking: the correct write-lock recheck was revalidated at `streams_map_incoming.go:148-154` in merged commit `63fb5e410bc5524db75aa57b6a21cb09784cd3db`; no product defect or follow-up ticket was established.
+
+---
+
+## HTTP/3 evicted connection retirement landed - 2026-10-19 04:25 EDT
+
+**Main:** `68cc26750883`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #848](https://github.com/the-sarge/quic-go-fast/pull/848) as `68cc2675088309c84b273972b738255c5b312074`, addressing Codex Security Cloud finding `csf_33cbe248e07a87bb0804fddb`. Stream-local HTTP/3 response errors no longer discard the transport's ownership of live QUIC connections: evicted entries remain tracked while exchanges are active, close on final release, and remain reachable by explicit transport shutdown.
+
+### Completed
+
+Preserved active responses and request uploads during retirement, conditional eviction of the expected pool entry, and reuse of replacement connections. Real QUIC regressions cover malformed response headers, response EOF and Close, cancellation, transport shutdown, unfinished uploads, and replacement preservation. The original malformed-response and shutdown regressions failed before the fix.
+
+### Validation
+
+The final reviewed and certified head was `1f003c5056687cfbc2b7109c05d9b1fb5ae39df3` on base `6266b774d1d424fff89ebacf401eb4a58c2e7abf`. Uncached HTTP/3 package and race tests, affected-package vet, `go mod tidy -diff`, scoped lint, formatting, whitespace and clean-tree checks passed. All 33 hosted checks passed before marking ready and squash-merging with the matching-head guard; the five PR workflows covered unit, integration, lint, cross-compilation and interop jobs. No unchanged-head CI retry was requested.
+
+Initial RAS review `20261019T054843-9cfed1155a622dc9e27f6e45` completed with six reviewers and no required fixes. The optional transport-wide completion-latency observation was deferred and its duplicate rejected; the ownership and shutdown invariants remain intact. After main advanced, replacement review `20261019T081807-27a3afe1c14d5f872dea488d` found no issues. Four reviewers completed, meeting the configured quorum of two; two Claude processes failed. No automated fixer or fix verification was needed. The optional latency observation was revalidated at `http3/transport.go:485-494` in merged commit `68cc2675088309c84b273972b738255c5b312074`; no follow-up ticket was warranted by the bounded scope.
