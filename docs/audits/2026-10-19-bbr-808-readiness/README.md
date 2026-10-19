@@ -1,0 +1,143 @@
+# Readiness of the combined BBRv3 revision on Linux (#808)
+
+**Date:** October 19, 2026, America/New_York. **Scope:** step 1 of [#808](https://github.com/the-sarge/quic-go-fast/issues/808), one readiness and L6 campaign on the revision that carries #742, #800, #803, #743 and #824. Measurement only: no code change, qualification, advancement decision, default-controller change, release, paid resource, host-setting change or ledger change. The campaign's decisions, the advancement disposition and the requirements this campaign discharges are in the [campaign record](../2026-10-19-bbr-808-campaign/README.md).
+
+Branch `codex/bbr-808-campaign`, based on `main` at `e7eb3f10`, the candidate itself. Unlike the #666 and #748 records, this record lands on `main` by one docs-only pull request (campaign decision D9); its raw archive stays on a pinned branch off `main`, and `raw-manifest.json` on `main` holds its checksums. [#748 slice 6's readiness record](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md) (`9b38f0ab`, on `codex/bbr-port-readiness`) supplies the stage, the aids and the host layout that this record reruns.
+
+**Status: registration.** The sections from [The candidate](#the-candidate) to [Order](#order) are the registration, written with the aids adapted and the binaries built before any prerequisite, smoke, readiness or attribution observation of this record. Results are added after the stage, below the registration, without changing it.
+
+## Question
+
+On owned Linux hardware, what are the readiness flags of the combined revision (`main` at `e7eb3f10`), what does the S5 timeline show, and does any raised Reno-on-candidate preservation cell reproduce under its registered stage? Beside each cell: what did slice 6 record for the port (`abfa5456`)?
+
+## The candidate
+
+**`main` at `e7eb3f10d467965d59b06c2a23aba28e6c2788ec`**, the `main` commit at this registration (campaign decision D1). Its production code is identical to `42b9b5de`; the later commits change one integration test and the journal. Later `main` commits are not measured.
+
+Production changes since the port head `abfa5456`, and whether each reaches this stage's fixture:
+
+| Change | Merged | Production files | Reaches the readiness fixture? |
+| --- | --- | --- | --- |
+| [#800](https://github.com/the-sarge/quic-go-fast/issues/800): supply limitation only after a pacing-credit refill; draft-06's loss prefix | `1f9ceb6e` | `bbr_send_policy.go`, `delivery_sampling.go`, `packet_emission_bbr.go`, `internal/ackhandler/delivery_sampler.go`, `internal/congestion/bbr_probe.go` | Yes: every BBRv3 arm |
+| [#803](https://github.com/the-sarge/quic-go-fast/issues/803): retire ECN ledger records below an ACK's lowest acknowledged packet | `843fde80` | `internal/ackhandler/bbr_ecn.go` | Yes: every BBRv3 arm |
+| [#812](https://github.com/the-sarge/quic-go-fast/issues/812): diagnostics report the latest stop and the active limitation separately | `30d823c6` | `internal/ackhandler/bbr_diagnostics.go`, `delivery_sampler.go` | Diagnostic text only; the fixture runs with tracing disabled |
+| [#824](https://github.com/the-sarge/quic-go-fast/issues/824): 1,024-entry received-DATAGRAM queue, counted discards, cleared slots | `42b9b5de` | `datagram_queue.go`, `connection.go` | Yes: every DATAGRAM receiver, Reno and BBRv3 |
+| [#742](https://github.com/the-sarge/quic-go-fast/issues/742): a lone GSO packet without a segment size | `592e98cb` | `packet_emission.go`, `packet_emission_bbr.go` | **No**: the fixture never GSO-batches (below) |
+| [#743](https://github.com/the-sarge/quic-go-fast/issues/743): equal-size GSO batches of short DATAGRAM packets | `9b52dca8` | `packet_emission.go`, `packet_emission_bbr.go`, `packet_emission_gso.go`, `packet_packer.go`, `connection.go` | **No**: as above |
+| [#809](https://github.com/the-sarge/quic-go-fast/issues/809): the GSO-error fallback only for writes with a segment size | `501e80bd` | `send_conn.go` | **No**: as above |
+| [#756](https://github.com/the-sarge/quic-go-fast/issues/756), [#786](https://github.com/the-sarge/quic-go-fast/issues/786), [#780](https://github.com/the-sarge/quic-go-fast/issues/780): handshake size fallback | `81a72481`, `57f9df04`, `814bd485` | `config.go`, `connection.go`, `interface.go`, `transport.go`, `internal/ackhandler/` | **No**: each applies only to an unset `InitialPacketSize`; the fixture sets 1,400 |
+
+**Why GSO never engages here.** The frozen fixture sends through the managed packet-I/O lease (`ConfigureManagedPacketIOV1` with no batch callback). In a development pair on `minimax` (below), the candidate's loopback DATAGRAM sender made 8,786,578 `sendmsg` calls for 8,786,534 transmits, and 8,964,248 for 8,964,205 with `QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true`: one packet per call either way. Slice 6's native-I/O prerequisite read 0.999 sends per packet on S5 for the same reason. So this stage measures #800, #803 and #824 on the port; it cannot measure #742 or #743. The campaign's [side stage](../2026-10-19-bbr-808-gso-receive/README.md) is where #743 is measured on BBRv3 (campaign decision D8, and the operator's amendment of D3).
+
+The candidate is a new revision. **No readiness exception granted to the port (slice 7's [D3 and D4](https://github.com/the-sarge/quic-go-fast/blob/ebfd9339/docs/audits/2026-10-16-bbr-port-advancement-decision/README.md#d3--unattributed-readiness-exceptions-the-nine-candidate-cells)) covers it.**
+
+## Baselines
+
+- **Readiness baseline: frozen Reno, `e4f322cbbfd4225a4b714e08ec19c958cccadcb0`.** Every ratio is the arm's value over the same block's frozen Reno value. The frozen Reno fixture rebuilds byte-identical to slice 6's (`cda8feb1…`), so this record's ratios use the same denominator binary as slice 6's, #739's, #736's and #715's.
+- **A/A: frozen Reno run twice per block,** reported beside every ratio; never overrides the rule.
+- **Slice 6's recorded values, as context only.** [portcontext.py](portcontext.py) puts slice 6's value beside every cell (median, raised flag, blocks crossing), its absolute medians and its S5 timeline, read mechanically from `9b38f0ab`'s `summary.json` and `attribution.json`. They come from runs on October 16; the comparison is descriptive, and a difference from slice 6 neither raises nor clears a cell.
+
+## How a Reno-on-candidate difference is reported
+
+Slice 6's section, unchanged ([How a Reno-on-candidate difference is reported](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#how-a-reno-on-candidate-difference-is-reported)). The Reno-on-candidate arm measures `main`'s Reno at `e7eb3f10` against frozen Reno, so it bundles the port's Reno-reachable merge seams, every non-BBR change `main` carries since `e4f322cb`, and code placement. Since slice 6, one more change reaches Reno in this fixture: **#824's received-DATAGRAM queue** (1,024 entries instead of 128, with delivered slots cleared). A raised Reno-on-candidate cell stays a raised preservation flag, **not attributed** to #824, the port or `main`'s other changes; no stage here separates them. The contract's sentence stands: "A raised preservation flag blocks advancement." Presenting it for a decision is the advancement disposition's job, not this record's.
+
+## What stays fixed and what changes
+
+- **Fixed: slice 6's stage, entirely** ([What stays fixed and what changes](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#what-stays-fixed-and-what-changes)): the arms, paths, durations, seeds, rotation, flag limits, median rule, A/A reporting, contamination rule and its cap of ten readiness block reruns, quiet-host gate, core layout, frozen Reno, the fixture with the causal-diagnosis heap patch, the relay, the launcher, the endpoint contract, `GOTOOLCHAIN=go1.27.0` for every build, #715's timeline rule, and #739's preservation stages and outcome rules without D3's mapping (no preservation outcome ends a blocking state here).
+- **Changed, all recorded:**
+  - *Candidate:* `cand` is `e7eb3f10`.
+  - *Context:* slice 6's values replace r9's beside each cell ([portcontext.py](portcontext.py), slice 6's `r9context.py` with the prior record and its key names changed; [portcontext_test.py](portcontext_test.py), 8 tests).
+  - *Builds:* [build.py](build.py) is slice 6's with four recorded changes (its docstring): the candidate; the artifact directory (`.local/bbr-808-readiness`); every copied aid checked byte-identical against slice 6's record instead of the older ones; and `REGISTERED`, this record's new binaries.
+  - *Paths:* [art.py](art.py) and [sync.sh](sync.sh). One sync serves all three #808 stages, which share `~/agents/quic-808` on `minimax`, and protects each stage's retained output and the markers from `--delete`.
+  - *Unattended order:* [driver.sh](driver.sh) is slice 6's with its paths, the `RUNNING` and `STAGE.DONE` markers at the worktree root (agreed with the wiremux sessions that share the host, as #792's driver used them), `stages.py fold` before the side stage (so nothing reads perf data while the side stage measures), and the side stage last.
+  - *New, descriptive:* [dgloss.py](dgloss.py) reports DATAGRAM loss in every readiness DATAGRAM cell from the fixture's own counts (sent messages against distinct messages received, inside and outside the measured window), beside the relay's forward drops on S5 and S6 (campaign decision D8). It sets no flag. The frozen fixture does not read `DatagramReceiveDropsV1`; the side stage reports it.
+- **Copied byte-identical from slice 6** (checked by `build.py`): `run.py`, `analyze.py`, `attribution.py`, `localize.py`, `localize_test.py`, `prereq.py`, `pack.py`, `rules.py`, `rules_test.py`, `stage_run.py`, `stages.py`, `matrix.py`, `follow.py`, `resume.py`, `resume_test.py`, `harness.py`, `harness_test.py`, `receiver.py`, `receiver_test.py`, `go.mod`, and the Go aids and overlays (`calibrate/`, `launch/`, `relay/`, `overlay/`, `timeline/`, `counting/`, `model-overlay/`). `matrix.py` and `follow.py` keep #739's docstrings, and `stages.py` slice 6's.
+- **Binaries** (SHA-256; `build.py` asserts each):
+
+| Binary | SHA-256 | Source |
+| --- | --- | --- |
+| `reno-fixture` | `cda8feb1b2fb004d…` | frozen Reno; byte-identical to slice 6's |
+| `reno-diag-fixture` | `36752495934b2f91…` | frozen Reno with the `-diag` overlay; byte-identical to slice 6's |
+| `relay-v3`, `relay-linux` | `033d467c36157a04…`, `24ee941d2c63c259…` | frozen tree; byte-identical to slice 6's |
+| `calibrate`, `launch` | `4218b433f3d7d04c…`, `a6146d62e16339f2…` | frozen tree; byte-identical to slice 6's |
+| `cand-fixture` | `c9ff3595a7411f73…` | `e7eb3f10` (new) |
+| `cand-diag-fixture` | `e9581af8ee238b5d…` | `e7eb3f10` with the `-diag` overlay, for `presrss` only (new) |
+| `cand-timeline-fixture` | `832abc4de0c56c43…` | `e7eb3f10` with the timeline overlay, for `s5timeline` only (new) |
+
+Every overlay patch site occurs exactly once on `e7eb3f10` (`build.py` asserts it). A second build from a fresh artifact directory reproduced all three candidate binaries byte for byte.
+
+- **Gates.** No transport source changes here. `e7eb3f10`'s production tree equals `42b9b5de`'s, which merged #824 after its hosted checks; `e7eb3f10` itself passed push CI on `main`.
+- **Dry run.** Before any observation of this record, the adapted analysis ran on slice 6's retained raw data (`raw.tar.gz` at `9b38f0ab`): `stages.py readiness` reproduced slice 6's `summary.json` byte for byte, and `stages.py preslat` and `s5timeline` reproduced slice 6's outcomes exactly.
+- **Aid tests pass:** `rules_test.py` (43), `harness_test.py` (10), `receiver_test.py` (11), `localize_test.py` (14), `resume_test.py` (3), `portcontext_test.py` (8).
+
+## Prerequisites
+
+Slice 6's, unchanged ([Prerequisites](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#prerequisites)): ECN calibration, ECN engagement (`smoke`, `perfsmoke`, `ecnsmoke`), native I/O (`perfsmoke`: one send syscall and one transmit per measured-window forward packet), resources, instruments, and the timeline overlay (`xsmoke`), each excluded from every statistic, on a quiet host. A failure ends this record as a reported prerequisite gap. `matrix.py hostfacts` records the host settings at the start and end of every stage.
+
+## Registration: readiness
+
+Slice 6's stage, unchanged except the candidate ([Registration: readiness](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#registration-readiness)):
+
+- **Arms:** Reno, A/A Reno, candidate (BBRv3) and Reno on candidate, on loopback and S5; Reno, A/A and candidate on S6.
+- **Runs:** five blocks per path and workload; seeds 9001–9005 (S5) and 9101–9105 (S6); 110 observations.
+- **Flags:** per path, workload and measure, the median of five per-block ratios against the same block's frozen Reno, against goodput 0.95 (loopback, S5), CPU per useful GiB 1.10, peak RSS 1.10 and control p95 1.20. On S6 the useful benefit is repeatable when the candidate beats Reno in all five pairs.
+- **Preservation check:** Reno on candidate is held to the same limits.
+- **Contamination:** #712's test, #715's handling (a block with a contaminated or unusable observation is rerun once with the same seed; the rerun replaces it only if usable and uncontaminated; at most ten readiness block reruns), `summary.json` under that rule and `summary-original.json` under #712's.
+- **Reporting:** every cell with its median, blocks crossing, A/A range, raised flag, absolute medians and slice 6's value beside it. Every raised cell stays raised, with absolute values; nothing is pre-cleared; an incomplete cell is reported as *incomplete (n of 5)*. Carried open costs: [#738](https://github.com/the-sarge/quic-go-fast/issues/738)'s S5 DATAGRAM sender CPU per useful GiB beside slice 6's 0.948; [#734](https://github.com/the-sarge/quic-go-fast/issues/734)'s wake increase through CPU per useful GiB on every path (the wake count is not measured).
+
+## Registration: S5 timeline and receiver split
+
+Slice 6's, unchanged ([Registration: S5 timeline and receiver split](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#registration-s5-timeline-and-receiver-split)): `s5timeline`, S5, both workloads, four blocks (seeds 9601–9604), #715's rule with the three-of-four majority, one escalation of blocks 5–6 for a workload with exactly two agreeing blocks, decided in the operator's session; the receiver CPU split on the readiness observations.
+
+## Registration: preservation (conditional)
+
+Slice 6's, unchanged ([Registration: preservation (conditional)](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#registration-preservation-conditional)): `presrss` for each (path, workload) pair with a raised Reno-on-candidate RSS cell (at most two), `preslat` for a raised Reno-on-candidate loopback control p95 cell (at most one), the cap of 60 attribution observations, `follow.py`'s selection order, and the outcome rules. The readiness value stays as recorded whatever a stage finds, and **this record ends no cell's blocking state**: the advancement disposition decides.
+
+## Registration: DATAGRAM loss (descriptive)
+
+[dgloss.py](dgloss.py), after `stages.py all`, writes `datagram-loss.json`: per readiness DATAGRAM cell, the median and largest loss over its selected blocks, and on S5 and S6 how much of it the relay dropped. It is reported beside the readiness table and sets no flag (campaign decision D8).
+
+## Stages not run
+
+- Slice 6's list, unchanged: memory attribution, `recvharness`, a run-loop wake count, a `main`-without-port arm, macOS and Windows.
+- **No arm that switches #743 off.** It was registered in the approved plan (D3) and dropped by the operator on October 19, 2026, before any data, because the fixture never GSO-batches, so the switch could isolate nothing.
+- **The GSO send path.** #742's and #743's BBR changes are not exercised by this fixture; the side stage measures #743 on BBRv3.
+
+## Disclosures made before data
+
+- **No counted, prerequisite, smoke or attribution observation of this record existed** when this registration was written.
+- **Development runs on `minimax`** (excluded from every statistic, kept with the raw data), made on October 19, 2026, at about 03:48 UTC while a GridCast GARM Windows VM was running on the host:
+  - loopback DATAGRAM, Reno on candidate (`cand`), 20 s, with `perf stat`: 4,166.4 Mbit/s, sender CPU 5.22 s per GiB, peak RSS 18.14 / 17.81 MiB, control p95 0.532 ms; 8,786,578 `sendmsg` calls;
+  - the same with `QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true`: 4,252.5 Mbit/s, 5.12 s per GiB, 18.06 / 19.52 MiB, 0.413 ms; 8,964,248 `sendmsg` calls.
+  These showed that #743 never engages in this fixture, which led to the operator's D3 amendment. Nothing else in this registration changed after them.
+- **Slice 6's values are known** and are the context named above. Known in advance: slice 6 raised ten cells on the port (nine candidate cells and the Reno-on-candidate loopback DATAGRAM control p95), and slice 7 excepted them for `abfa5456` only.
+- **The agent's expectation** (stated to the operator in the plan, not a result): readiness probably raises the nine memory and latency cells again, so advancing would again need explicit operator exceptions; a Reno-on-candidate loopback DATAGRAM cell may also cross its limit, with #824 a known contributor.
+- **Interpretation known in advance:** loopback STREAM goodput moves about 3% with code placement (#738, #744); small RSS cells cannot be reconciled with `ru_maxrss` within a few hundred KiB (#740); the frozen-Reno A/A arm has raised the loopback DATAGRAM control p95 cell in three of five readiness records on this host.
+
+## Time estimate
+
+All aids exist and every binary is built. On a quiet host (slice 6's measured figures): prerequisites 5–15 minutes; readiness 110 observations about 85 minutes; quiet-host gating at least 15 minutes; `s5timeline` about 10 minutes; `preslat` about 30 minutes and `presrss` about 15 minutes per cell, if triggered; then the side stage, about 30 minutes. **About 2 h 15 min without conditional stages; up to about 3 h 20 min with all of them.** Foreign load extends the gates' waits; each readiness block rerun costs about 5–9 minutes.
+
+## Order
+
+**On the Mac:** `build.py` (done), the aid tests (done), the side stage's `build.sh` (done), then `sync.sh`.
+
+**On `minimax`,** unattended under `taskset -c 1-3`, started by a systemd user timer that runs [driver.sh](driver.sh), with nothing else built or tested there while a stage measures:
+
+1. The check before start: no `observations*`, `prereq`, `hostfacts-*`, `follow-decisions.json`, stage summary or `STAGE.DONE` may exist (`PRESTART-EMPTY`), since `run_case` silently reuses an existing clean observation. Then `RUNNING` is created; it is removed when the driver exits.
+2. `prereq.py` (imported after `art`), `smoke`, `perfsmoke`, `ecnsmoke`, `xsmoke`, `stages.py fold`.
+3. The readiness stages `loopback`, `s5`, `s6`, then `follow.py reruns main`.
+4. `s5timeline`, then `follow.py reruns s5timeline`.
+5. `follow.py conditional` (`presrss`, `preslat` and their reruns, as the flags require).
+6. `stages.py fold`, `DRIVER-DONE`.
+7. The side stage ([stage.sh](../2026-10-19-bbr-808-gso-receive/stage.sh)), then `STAGE.DONE`.
+
+Slice 6's failure handling is unchanged: a failed observation does not stop the order (`resume.py` completes the stage and `resume.py mark` gives a receipt-less attempt a marker); each follow-up step is retried once; more than three failed attempts in one stage stop the order for the operator's session.
+
+**Stays with the operator's session:** the prerequisite review (a failure ends the record as a prerequisite gap); the `s5timeline` escalation; then, anywhere, `stages.py prereq`, `stages.py all`, `portcontext.py` and `dgloss.py`.
+
+**Booking.** Before arming the timer: ListAgents for busy wiremux sessions, `pgrep -af nativerig` and the wiremux yield files; the GridCast GARM CI processes (`Runner.Worker`, `transfer.test`, the `infra-garm` Windows VM) idle for about a minute; then the yield handshake if a wiremux campaign holds the host. The quiet-host gate before every block still applies. Contamination triggers one same-seed rerun and never decides an outcome.
+
+## Registration review
+
+To be added: one `ras consider` of the whole #808 registration (this record, the side stage and L6) before any counted observation, with at most one replacement consideration after fixes (campaign decision D10).
