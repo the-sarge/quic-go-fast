@@ -6302,3 +6302,46 @@ RAS review `20261019T191814-2f730b8031bd6b95a59c304c` completed with all six rev
 ### Next
 
 The consumer measures adoption after the bundle release, when it switches the mode on; that measurement doesn't hold the release. The bundle's remaining holding slices are #853 through #856; the live view is the slice table in #851.
+
+---
+
+## Linux copy-at-read landed - 2026-10-19 17:44 EDT
+
+**Main:** `d0f5b33a45b3`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #874](https://github.com/the-sarge/quic-go-fast/pull/874) as `d0f5b33a45b313cc3415e4f52d9f4c899b86f844`, closing [#853](https://github.com/the-sarge/quic-go-fast/issues/853), slice 3 of the fork bundle [#851](https://github.com/the-sarge/quic-go-fast/issues/851). With GRO on, the Linux reader keeps its eight 64 KiB read slots. A reader-confined cursor (`coalescedReadCursor`) holds the read's metadata and its undelivered payload, and `ReadPacket` copies one datagram per call into an ordinary pooled buffer (the 1,452-byte or 20 KiB tier). `ReadBatch` runs only after the cursor drains, so a slot is never overwritten while datagrams still wait in it. A coalesced read now allocates no slab, view or pending list. Nothing slab-backed reaches a connection, so the retention copy under `receivedPacketMx` no longer runs for these packets. The Windows URO reader, the coalesced slab, `coalescedDelivery` and ADR 0005's atomic exception are unchanged until #860.
+
+### Decisions
+
+The operator approved the plan. Datagrams above the 20 KiB tier are delivered as each reader delivers them without coalescing. Observed on Linux 7.0 loopback with a 30,000-byte datagram, coalescing off and on:
+- **Unmanaged reader:** 1,452 bytes both ways, the prefix its ordinary-tier read keeps. Before this change, the slab path delivered all 30,000 bytes with coalescing on.
+- **Managed reader:** 30,000 bytes both ways, matching `readManagedPacket`. A new `oobConn.managed` flag, set where the Linux managed endpoint installs its reader, selects whole delivery in the 64 KiB tier.
+
+The operator also ruled the "Scheduling with #808" guard met: the readiness run already ran on `d94b3ec2`, and L6 uses pinned binaries. Accepted and noted, not changed: managed GRO reads now make one extra small copy per datagram, because `managedPacketConn.ReadFrom` already copies into the caller's buffer.
+
+### Validation
+
+The new tests failed on `b50dbd81`'s slab path, run as a separate tree with the base's production files. They then passed:
+- copies land in the ordinary or large tier, the slot is kept, and metadata is inherited;
+- `AllocsPerRun` reads 0, and `retainForRetentionQueue` holds the datagram without a copy;
+- the two real-socket oversized tests, one per reader kind;
+- the updated release, sibling, empty-read and managed GRO tests.
+
+Removing the managed whole-delivery branch made the managed oversized test fail.
+
+The first push failed both ubuntu unit lanes at setup: the Linux test imported `integrationtests/tools/israce`, which `unit.yml` deletes before testing. RAS review `20261019T212536-c7a0f35efbb84471698900e1` (all six reviewers) reported the same thing as its only finding (C-001, with duplicates C-002 and C-003). It was fixed with Linux-only `race`/`!race` constants following `internal/ackhandler`. RAS verify at `022826d0` accepted the code fix and left only the hosted jobs. The replacement review `20261019T213657-042bd709cd07dd4d7dada3fc` (all six reviewers) was clean.
+
+The certified head was `022826d0bd8bd23ad25fd403cbf5e0d8a8f6d906` on base `b50dbd812c2b8d5106815ae4d9b8a0d1c16bccae`. The following passed:
+- **Darwin arm64, Go 1.27.2:** full `go test ./...`, `go mod tidy -diff`, `git diff --check`, golangci-lint v2.14.0 for six GOOS values;
+- **Linux, with `integrationtests` removed** (`golang:1.27.1` in Docker): the root package, plain and `-race`;
+- **minimax (Linux 7.0 amd64, Go 1.27.2):** the root package, plain and `-race`, and `integrationtests/self`, both on the first head;
+- **Cross-compilation:** vet for four GOOS values, and Windows, darwin and grobench test binaries.
+
+All 33 hosted checks passed on that head before it was marked ready and squash-merged with the matching-head guard. No CI rerun was requested. No deferred findings remain.
+
+### Next
+
+The consumer runs #853's gate in its namespace pair and posts the result on #853 and #851. The remaining holding slices are #854 through #856; the live view is the slice table in #851. #860 (Windows copy-at-read and slab retirement) is now unblocked.
