@@ -43,8 +43,23 @@ func TestInitialPacketSize(t *testing.T) {
 }
 
 func TestPathMTUDiscovery(t *testing.T) {
+	testPathMTUDiscovery(t, false)
+}
+
+func TestPathMTUDiscoveryLostProbes(t *testing.T) {
+	testPathMTUDiscovery(t, true)
+}
+
+func testPathMTUDiscovery(t *testing.T, loseProbes bool) {
+	t.Helper()
 	rtt := scaleDuration(5 * time.Millisecond)
 	const mtu = 1400
+	payload := PRDataLong
+	if loseProbes {
+		// Keep the initial echo short, so the convergence loop below observes
+		// the smaller successful probes before discovery can advance again.
+		payload = PRData[:64*1024]
+	}
 
 	ln, err := quic.Listen(
 		newUDPConnLocalhost(t),
@@ -80,6 +95,7 @@ func TestPathMTUDiscovery(t *testing.T) {
 	var mx sync.Mutex
 	var maxPacketSizeServer int
 	var clientPacketSizes []int
+	var droppedProbeSizes []int
 	proxy := &quicproxy.Proxy{
 		Conn:        newUDPConnLocalhost(t),
 		ServerAddr:  ln.Addr().(*net.UDPAddr),
@@ -93,6 +109,12 @@ func TestPathMTUDiscovery(t *testing.T) {
 			switch dir {
 			case quicproxy.DirectionIncoming:
 				clientPacketSizes = append(clientPacketSizes, len(packet))
+				if loseProbes && len(packet) > mtu-25 && len(droppedProbeSizes) < 2 {
+					// Lose two near-MTU probes independently of the path limit.
+					// Their PING-only contents and loss are checked below.
+					droppedProbeSizes = append(droppedProbeSizes, len(packet))
+					return true
+				}
 			case quicproxy.DirectionOutgoing:
 				if len(packet) > maxPacketSizeServer {
 					maxPacketSizeServer = len(packet)
@@ -134,13 +156,13 @@ func TestPathMTUDiscovery(t *testing.T) {
 
 	clientErrChan := make(chan error, 1)
 	go func() {
-		data := make([]byte, len(PRDataLong))
+		data := make([]byte, len(payload))
 		_, err := io.ReadFull(str, data)
 		if err != nil {
 			clientErrChan <- err
 			return
 		}
-		if !bytes.Equal(data, PRDataLong) {
+		if !bytes.Equal(data, payload) {
 			clientErrChan <- fmt.Errorf("echoed data doesn't match: %x", data)
 			return
 		}
@@ -148,7 +170,7 @@ func TestPathMTUDiscovery(t *testing.T) {
 	}()
 
 	require.NoError(t, str.SetDeadline(time.Now().Add(20*time.Second)))
-	_, err = str.Write(PRDataLong)
+	_, err = str.Write(payload)
 	require.NoError(t, err)
 
 	select {
@@ -216,14 +238,46 @@ func TestPathMTUDiscovery(t *testing.T) {
 	require.GreaterOrEqual(t, int(finalMaxDatagramSize), maxPacketSizeClient-maxDiff)
 	// MTU discovery was disabled on the server side
 	require.Equal(t, 1234, maxPacketSizeServer)
-
-	var numPacketsLargerThanDiscoveredMTU int
-	for _, s := range clientPacketSizes {
-		if s > maxPacketSizeClient {
-			numPacketsLargerThanDiscoveredMTU++
+	lost := make(map[qlog.PacketNumber]bool)
+	for _, ev := range eventRecorder.Events(qlog.PacketLost{}) {
+		p := ev.(qlog.PacketLost)
+		if p.Header.PacketType == qlog.PacketType1RTT {
+			lost[p.Header.PacketNumber] = true
 		}
 	}
-	// The client shouldn't have sent any packets larger than the MTU it discovered,
-	// except for at most one MTU probe packet.
-	require.LessOrEqual(t, numPacketsLargerThanDiscoveredMTU, 1)
+	probeSizes := make(map[int]int)
+	lostProbeSizes := make(map[int]int)
+	var unresolvedProbes int
+	for _, ev := range eventRecorder.Events(qlog.PacketSent{}) {
+		p := ev.(qlog.PacketSent)
+		if p.Header.PacketType != qlog.PacketType1RTT || p.Raw.Length <= maxPacketSizeClient {
+			continue
+		}
+		// Only padded PING probes may exceed the discovered MTU, never data.
+		require.Len(t, p.Frames, 1, "oversized packet %d", p.Header.PacketNumber)
+		require.IsType(t, &qlog.PingFrame{}, p.Frames[0].Frame, "oversized packet %d", p.Header.PacketNumber)
+		probeSizes[p.Raw.Length]++
+		if lost[p.Header.PacketNumber] {
+			lostProbeSizes[p.Raw.Length]++
+		} else {
+			unresolvedProbes++
+		}
+	}
+	// A lost probe can be followed by another probe above the final estimate.
+	// At most one probe may still be unresolved when the connection closes.
+	require.LessOrEqual(t, unresolvedProbes, 1)
+	for _, size := range clientPacketSizes {
+		if size > maxPacketSizeClient {
+			require.Positive(t, probeSizes[size], "observed oversized datagram must match a PING-only probe")
+			probeSizes[size]--
+		}
+	}
+	if loseProbes {
+		require.Len(t, droppedProbeSizes, 2)
+		for _, size := range droppedProbeSizes {
+			require.Greater(t, size, maxPacketSizeClient, "exercise multiple lost probes above the final estimate")
+			require.Positive(t, lostProbeSizes[size], "controlled loss must be a probe declared lost by recovery")
+			lostProbeSizes[size]--
+		}
+	}
 }

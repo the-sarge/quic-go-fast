@@ -55,6 +55,9 @@ type closePacket struct {
 // for dialing an arbitrary number of outgoing connections.
 // A Transport handles a single [net.PacketConn], and offers a range of configuration options
 // compared to the simple helper functions like [Listen] and [Dial] that this package provides.
+// By default, listeners share a process-wide limit of 1024 pending TLS handshakes,
+// with at most 128 per source IP, and require Retry when either limit is half full.
+// [Transport.ConfigureSetupAdmissionV1] replaces this with a caller-managed budget.
 type Transport struct {
 	// A single [net.PacketConn] can only be handled by one Transport.
 	// Bad things will happen if passed to multiple Transports.
@@ -120,6 +123,8 @@ type Transport struct {
 	// and should therefore only be used if a suspiciously high number of incoming connection is recorded.
 	// For most use cases, wrapping the Allow function of a rate.Limiter will be a reasonable
 	// implementation of this callback (negating its return value).
+	// Without ConfigureSetupAdmissionV1, the default setup budget also requires
+	// Retry under pressure, even when this callback is nil or returns false.
 	VerifySourceAddress func(net.Addr) bool
 
 	// ConnContext is called when the server accepts a new connection. To reject a connection return
@@ -174,8 +179,12 @@ type Transport struct {
 	listening         chan struct{} // is closed when listen returns
 	readRetryCanceled chan struct{} // closed under mutex when temporary reads must stop
 	closeErr          error
-	createdConn       bool
-	isSingleUse       bool // was created for a single server or client, i.e. by calling quic.Listen or quic.Dial
+	transportClosed   bool // actual transport shutdown, distinct from single-use listener closure
+	// closingStates keeps retirement reachable from shutdown even when the
+	// owning clock stops before expiry. Protected by mutex.
+	closingStates map[*time.Timer]closingState
+	createdConn   bool
+	isSingleUse   bool // was created for a single server or client, i.e. by calling quic.Listen or quic.Dial
 
 	readingNonQUICPackets atomic.Bool
 	nonQUICPackets        chan receivedPacket
@@ -586,27 +595,31 @@ func (t *Transport) Close() error {
 
 func (t *Transport) closeServer() {
 	t.mutex.Lock()
-	defer t.mutex.Unlock()
 
 	t.server = nil
-	if t.isSingleUse {
+	if t.isSingleUse && t.closeErr == nil {
 		t.closeErr = ErrServerClosed
 	}
 
 	if len(t.handlers) == 0 {
 		t.maybeStopListening()
 	}
+	t.mutex.Unlock()
+	if t.isSingleUse {
+		t.retireClosedStates(true)
+	}
 }
 
 func (t *Transport) close(e error) {
 	t.mutex.Lock()
 
-	if t.closeErr != nil {
+	if t.transportClosed {
 		t.mutex.Unlock()
 		return
 	}
 
 	e = &errTransportClosed{err: e}
+	t.transportClosed = true
 	t.closeErr = e
 	t.cancelReadRetry()
 	server := t.server
@@ -624,9 +637,33 @@ func (t *Transport) close(e error) {
 	}
 	t.mutex.Unlock() // closing connections requires releasing transport mutex
 	wg.Wait()
+	t.retireClosedStates(false)
 
 	if t.Tracer != nil {
 		t.Tracer.Close()
+	}
+}
+
+type closingState struct {
+	setup  *setupReservation
+	retire func()
+}
+
+func (t *Transport) retireClosedStates(onlySetup bool) {
+	t.mutex.Lock()
+	states := make([]closingState, 0, len(t.closingStates))
+	for _, state := range t.closingStates {
+		states = append(states, state)
+	}
+	t.mutex.Unlock()
+	// A release callback may inspect the transport. Each retirement also waits
+	// for a competing timer's retirement to finish before returning.
+	for _, state := range states {
+		// A listener admission stop must not remove established closing/draining
+		// routes. Only actual transport shutdown retires those before expiry.
+		if !onlySetup || state.setup.unsettled() {
+			state.retire()
+		}
 	}
 }
 
@@ -1050,17 +1087,36 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	}
 	handler = withAuthority(handler, authority)
 
+	// Settlement can call user code, so never take the reservation mutex while
+	// holding the transport mutex. A settled reservation never becomes pending.
+	unsettledSetup := setup.unsettled()
 	h.mutex.Lock()
+	t := (*Transport)(h)
+	if t.transportClosed || (t.closeErr != nil && unsettledSetup) {
+		// A connection can finish closing after shutdown took its handler
+		// snapshot. Listener closure only suppresses unsettled setup retention;
+		// established connections keep ordinary closing/draining behavior.
+		for _, id := range ids {
+			delete(h.handlers, id)
+		}
+		if len(h.handlers) == 0 {
+			(*Transport)(h).maybeStopListening()
+		}
+		h.mutex.Unlock()
+		retired()
+		return
+	}
 	for _, id := range ids {
 		h.handlers[id] = handler
 	}
-	h.mutex.Unlock()
-	h.logger.Debugf("Replacing connection for connection IDs %s with a closed connection.", ids)
-
-	time.AfterFunc(expiry, func() {
+	var timer *time.Timer
+	retire := sync.OnceFunc(func() {
 		h.mutex.Lock()
+		timer.Stop()
 		for _, id := range ids {
-			delete(h.handlers, id)
+			if h.handlers[id] == handler {
+				delete(h.handlers, id)
+			}
 		}
 		if len(h.handlers) == 0 {
 			t := (*Transport)(h)
@@ -1069,5 +1125,19 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 		h.mutex.Unlock()
 		h.logger.Debugf("Removing connection IDs %s for a closed connection after it has been retired.", ids)
 		retired()
+		// Keep this retirement visible until the release finishes, so shutdown
+		// also joins a timer that has already removed the routing entries.
+		h.mutex.Lock()
+		delete(h.closingStates, timer)
+		h.mutex.Unlock()
 	})
+	if h.closingStates == nil {
+		h.closingStates = make(map[*time.Timer]closingState)
+	}
+	// Publication and timer initialization share mutex with retirement. Even
+	// an immediately firing timer observes its registered retirement.
+	timer = time.AfterFunc(expiry, retire)
+	h.closingStates[timer] = closingState{setup: setup, retire: retire}
+	h.mutex.Unlock()
+	h.logger.Debugf("Replacing connection for connection IDs %s with a closed connection.", ids)
 }
