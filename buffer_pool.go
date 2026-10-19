@@ -100,8 +100,9 @@ func getLargePacketBuffer() *packetBuffer {
 }
 
 // getCoalescedPacketBuffer returns a buffer from the coalesced tier.
-// These buffers only back coalesced slabs; they are never handed out as
-// ordinary packet buffers and never retained by the standard tiers.
+// These buffers back coalesced reads: read slots and coalesced slabs. Only
+// managed readers hand one out as a packet, for a datagram above the large
+// tier, and the standard tiers never retain them.
 func getCoalescedPacketBuffer() *packetBuffer {
 	buf := coalescedBufferPool.Get().(*packetBuffer)
 	buf.refCount = 1
