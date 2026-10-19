@@ -312,6 +312,12 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 	context.AfterFunc(str.Context(), cancel)
 
 	r := newResponseWriter(hstr, conn, req.Method == http.MethodHead, c.logger)
+	defer func() {
+		// A hijacked stream transfers request resource ownership to the caller.
+		if !r.wasStreamHijacked() && req.MultipartForm != nil {
+			req.MultipartForm.RemoveAll()
+		}
+	}()
 	handler := c.requestHandler
 	if handler == nil {
 		handler = http.DefaultServeMux

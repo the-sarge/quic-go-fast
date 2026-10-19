@@ -26,12 +26,11 @@ type incomingStreamsMap[T incomingStream] struct {
 	newStreamChan chan struct{}
 
 	streamType protocol.StreamType
-	streams    map[protocol.StreamID]incomingStreamEntry[T]
+	streams    map[protocol.StreamID]incomingStreamEntry[T] // streams with received frames or accepted by the application
 
 	nextStreamToAccept protocol.StreamID // the next stream that will be returned by AcceptStream()
-	nextStreamToOpen   protocol.StreamID // the highest stream that the peer opened
+	nextStreamToOpen   protocol.StreamID // one stream past the highest stream that the peer opened, including implicit streams
 	maxStream          protocol.StreamID // the highest stream that the peer is allowed to open
-	maxNumStreams      uint64            // maximum number of streams
 
 	newStream        func(protocol.StreamID) T
 	queueMaxStreamID func(*wire.MaxStreamsFrame)
@@ -62,7 +61,6 @@ func newIncomingStreamsMap[T incomingStream](
 		streamType:         streamType,
 		streams:            make(map[protocol.StreamID]incomingStreamEntry[T]),
 		maxStream:          protocol.StreamNum(maxStreams).StreamID(streamType, pers.Opposite()),
-		maxNumStreams:      maxStreams,
 		newStream:          newStream,
 		nextStreamToOpen:   nextStreamToAccept,
 		nextStreamToAccept: nextStreamToAccept,
@@ -87,9 +85,15 @@ func (m *incomingStreamsMap[T]) AcceptStream(ctx context.Context) (T, error) {
 			m.mutex.Unlock()
 			return *new(T), m.closeErr
 		}
-		var ok bool
-		entry, ok = m.streams[id]
-		if ok {
+		if id < m.nextStreamToOpen {
+			var ok bool
+			entry, ok = m.streams[id]
+			if !ok {
+				// A higher stream ID implicitly opened this stream. Materialize it
+				// only when it receives a frame or the application accepts it.
+				entry = incomingStreamEntry[T]{stream: m.newStream(id)}
+				m.streams[id] = entry
+			}
 			break
 		}
 		m.mutex.Unlock()
@@ -101,6 +105,13 @@ func (m *incomingStreamsMap[T]) AcceptStream(ctx context.Context) (T, error) {
 		m.mutex.Lock()
 	}
 	m.nextStreamToAccept += 4
+	if m.nextStreamToAccept < m.nextStreamToOpen {
+		// Wake another acceptor for the remaining implicitly opened streams.
+		select {
+		case m.newStreamChan <- struct{}{}:
+		default:
+		}
+	}
 	// If this stream was completed before being accepted, we can delete it now.
 	if entry.shouldDelete {
 		if err := m.deleteStream(id); err != nil {
@@ -121,13 +132,10 @@ func (m *incomingStreamsMap[T]) GetOrOpenStream(id protocol.StreamID) (T, error)
 			ErrorMessage: fmt.Sprintf("peer tried to open stream %d (current limit: %d)", id, m.maxStream),
 		}
 	}
-	// if the num is smaller than the highest we accepted
-	// * this stream exists in the map, and we can return it, or
-	// * this stream was already closed, then we can return the nil
-	if id < m.nextStreamToOpen {
+	if entry, ok := m.streams[id]; ok || id < m.nextStreamToAccept {
 		var s T
 		// If the stream was already queued for deletion, and is just waiting to be accepted, don't return it.
-		if entry, ok := m.streams[id]; ok && !entry.shouldDelete {
+		if ok && !entry.shouldDelete {
 			s = entry.stream
 		}
 		m.mutex.RUnlock()
@@ -136,20 +144,25 @@ func (m *incomingStreamsMap[T]) GetOrOpenStream(id protocol.StreamID) (T, error)
 	m.mutex.RUnlock()
 
 	m.mutex.Lock()
-	// no need to check the two error conditions from above again
-	// * maxStream can only increase, so if the id was valid before, it definitely is valid now
-	// * highestStream is only modified by this function
-	for newNum := m.nextStreamToOpen; newNum <= id; newNum += 4 {
-		m.streams[newNum] = incomingStreamEntry[T]{stream: m.newStream(newNum)}
+	defer m.mutex.Unlock()
+	// AcceptStream may have materialized or deleted this stream while the lock was released.
+	if entry, ok := m.streams[id]; ok || id < m.nextStreamToAccept {
+		if ok && !entry.shouldDelete {
+			return entry.stream, nil
+		}
+		return *new(T), nil
+	}
+	str := m.newStream(id)
+	m.streams[id] = incomingStreamEntry[T]{stream: str}
+	if id >= m.nextStreamToOpen {
+		// Lower stream IDs are implicitly open, without allocating their state.
+		m.nextStreamToOpen = id + 4
 		select {
 		case m.newStreamChan <- struct{}{}:
 		default:
 		}
 	}
-	m.nextStreamToOpen = id + 4
-	entry := m.streams[id]
-	m.mutex.Unlock()
-	return entry.stream, nil
+	return str, nil
 }
 
 func (m *incomingStreamsMap[T]) DeleteStream(id protocol.StreamID) error {
@@ -183,17 +196,14 @@ func (m *incomingStreamsMap[T]) deleteStream(id protocol.StreamID) error {
 	}
 
 	delete(m.streams, id)
-	// queue a MAX_STREAM_ID frame, giving the peer the option to open a new stream
-	if m.maxNumStreams > uint64(len(m.streams)) {
-		maxStream := m.nextStreamToOpen + 4*protocol.StreamID(m.maxNumStreams-uint64(len(m.streams))-1)
-		// never send a value larger than the maximum value for a stream number
-		if maxStream <= protocol.MaxStreamID {
-			m.maxStream = maxStream
-			m.queueMaxStreamID(&wire.MaxStreamsFrame{
-				Type:         m.streamType,
-				MaxStreamNum: m.maxStream.StreamNum(),
-			})
-		}
+	// Return exactly one stream of credit. The sparse map's size doesn't count
+	// implicitly opened streams, which still consume credit until completed.
+	if m.maxStream <= protocol.MaxStreamID-4 {
+		m.maxStream += 4
+		m.queueMaxStreamID(&wire.MaxStreamsFrame{
+			Type:         m.streamType,
+			MaxStreamNum: m.maxStream.StreamNum(),
+		})
 	}
 	return nil
 }

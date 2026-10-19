@@ -904,14 +904,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	}
 
 	if token == nil && s.verifySourceAddress != nil && s.verifySourceAddress(p.remoteAddr) {
-		// Retry invalidates all 0-RTT packets sent.
-		s.retireZeroRTTQueue(hdr.DestConnectionID)
-		select {
-		case s.retryQueue <- rejectedPacket{receivedPacket: p, hdr: hdr}:
-		default:
-			// drop packet if we can't send out Retry packets fast enough
-			p.buffer.Release()
-		}
+		s.enqueueRetry(p, hdr)
 		return nil
 	}
 
@@ -922,7 +915,11 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		return nil
 	}
 	// Admission precedes every per-connection allocation and callback.
-	setup, admitted := s.setupAdmission.acquire(p.remoteAddr)
+	setup, retry, admitted := s.setupAdmission.acquire(p.remoteAddr, clientAddrVerified)
+	if retry {
+		s.enqueueRetry(p, hdr)
+		return nil
+	}
 	if !admitted {
 		s.logger.Debugf("Rejecting new connection due to setup admission")
 		s.refuseNewConn(p, hdr)
@@ -1048,6 +1045,17 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	s.handshakingCount.Go(func() { s.handleNewConn(conn) })
 	go conn.run()
 	return nil
+}
+
+func (s *baseServer) enqueueRetry(p receivedPacket, hdr *wire.Header) {
+	// Retry invalidates all 0-RTT packets sent.
+	s.retireZeroRTTQueue(hdr.DestConnectionID)
+	select {
+	case s.retryQueue <- rejectedPacket{receivedPacket: p, hdr: hdr}:
+	default:
+		// Drop packets if we can't send Retry fast enough.
+		p.buffer.Release()
+	}
 }
 
 // refuseNewConn refuses an attempt before its connection is constructed.

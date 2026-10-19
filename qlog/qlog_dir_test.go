@@ -15,24 +15,25 @@ import (
 )
 
 func TestQLOGDIRSet(t *testing.T) {
-	tmpDir := t.TempDir()
-
 	connID, _ := protocol.GenerateConnectionIDForInitial()
-	qlogDir := filepath.Join(tmpDir, "qlogs")
-	t.Setenv("QLOGDIR", qlogDir)
 
 	t.Run("default connection tracer", func(t *testing.T) {
+		qlogDir := filepath.Join(t.TempDir(), "qlogs")
+		t.Setenv("QLOGDIR", qlogDir)
 		tracer := DefaultConnectionTracer(context.Background(), true, connID)
 		testQLOGDIRSet(t, qlogDir, tracer, []string{EventSchema})
 	})
 
 	t.Run("default connection tracer with schemas", func(t *testing.T) {
+		qlogDir := filepath.Join(t.TempDir(), "qlogs")
+		t.Setenv("QLOGDIR", qlogDir)
 		tracer := DefaultConnectionTracerWithSchemas(context.Background(), true, connID, []string{"urn:ietf:params:qlog:events:foobar"})
 		testQLOGDIRSet(t, qlogDir, tracer, []string{EventSchema, "urn:ietf:params:qlog:events:foobar"})
 	})
 }
 
 func testQLOGDIRSet(t *testing.T, qlogDir string, tracer qlogwriter.Trace, expectedEventSchemas []string) {
+	t.Helper()
 	require.NotNil(t, tracer)
 
 	// adding and closing a producer makes the tracer close the file
@@ -60,6 +61,41 @@ func testQLOGDIRSet(t *testing.T, qlogDir string, tracer qlogwriter.Trace, expec
 		eventSchemas = append(eventSchemas, v.(string))
 	}
 	require.Equal(t, eventSchemas, expectedEventSchemas)
+}
+
+func TestQLOGDIRExistingFile(t *testing.T) {
+	for _, name := range []string{"regular file", "symlink", "dangling symlink"} {
+		t.Run(name, func(t *testing.T) {
+			qlogDir := t.TempDir()
+			t.Setenv("QLOGDIR", qlogDir)
+			connID := protocol.ParseConnectionID([]byte{1, 2, 3, 4})
+			path := filepath.Join(qlogDir, connID.String()+"_client.sqlog")
+			target := path
+			if name != "regular file" {
+				target = filepath.Join(t.TempDir(), "target")
+				if err := os.Symlink(target, path); err != nil {
+					t.Skipf("cannot create symlink: %v", err)
+				}
+			}
+			if name != "dangling symlink" {
+				require.NoError(t, os.WriteFile(target, []byte("existing data"), 0o644))
+			}
+
+			tracer := DefaultConnectionTracer(context.Background(), true, connID)
+			if tracer != nil {
+				require.NoError(t, tracer.AddProducer().Close())
+			}
+			require.Nil(t, tracer)
+			if name == "dangling symlink" {
+				_, err := os.Stat(target)
+				require.True(t, os.IsNotExist(err))
+			} else {
+				data, err := os.ReadFile(target)
+				require.NoError(t, err)
+				require.Equal(t, "existing data", string(data))
+			}
+		})
+	}
 }
 
 func TestQLOGDIRNotSet(t *testing.T) {

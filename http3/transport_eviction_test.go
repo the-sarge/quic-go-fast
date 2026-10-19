@@ -16,7 +16,9 @@ import (
 
 func TestTransportConditionalEviction(t *testing.T) {
 	const hostname = "quic-go.net:443"
-	expected := &roundTripperWithCount{}
+	dialing := make(chan struct{})
+	close(dialing)
+	expected := &roundTripperWithCount{cancel: func() {}, dialing: dialing}
 	replacement := &roundTripperWithCount{}
 	for _, tc := range []struct {
 		name    string
