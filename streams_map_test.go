@@ -338,7 +338,6 @@ func TestStreamsMapSparseIncomingStreamFrames(t *testing.T) {
 						uint64(config.MaxIncomingUniStreams),
 						perspective,
 					)
-					defer m.CloseWithError(assert.AnError)
 					id := protocol.MaxStreamCount.StreamID(streamType, perspective.Opposite())
 					require.NoError(t, tc.handleFrame(m, id))
 					require.Equal(t, []protocol.StreamID{id}, created)
@@ -346,6 +345,7 @@ func TestStreamsMapSparseIncomingStreamFrames(t *testing.T) {
 					require.Equal(t, []protocol.StreamID{id}, created)
 					require.ErrorIs(t, tc.handleFrame(m, id+4), &qerr.TransportError{ErrorCode: qerr.StreamLimitError})
 					require.Equal(t, []protocol.StreamID{id}, created)
+					m.CloseWithError(assert.AnError)
 				})
 			}
 		}
