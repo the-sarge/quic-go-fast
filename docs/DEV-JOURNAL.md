@@ -6109,3 +6109,25 @@ Merged [PR #844](https://github.com/the-sarge/quic-go-fast/pull/844) as `7d05a88
 The certified and reviewed head was `0a67620e70fb662f9d09138ee9311a722986bb54`; the squash merge has the same tree. Root and ACK-handler suites, targeted race checks, repository-wide compilation, affected-package vet, module tidiness, scoped lint, and diff checks passed. All 33 hosted checks passed before the exact-head squash merge. Regressions cover a flood exceeding `MaxTrackedSentPackets`, 10,000-probe retirement and expiry, ACK/timeout ordering, probes whose markers were retired by loss, migration, and skipped packet numbers.
 
 RAS review `20261019T052447-6a58cffb741fb388b4d7ecbc` completed with no required fixes or follow-ups. The only candidate finding, a hypothetical copy of an initialized list, was rejected after confirming construction copies a zero-valued list that initializes in its final storage.
+
+---
+
+## HTTP/3 multipart cleanup landed - 2026-10-19 03:14 EDT
+
+**Main:** `454c4d3b1762`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #849](https://github.com/the-sarge/quic-go-fast/pull/849) as `454c4d3b17626f7193aa531bbc28ea54b41aeacc`, addressing Security Cloud finding `csf_c95d85777f84481a0ff00a30`. HTTP/3 request completion now calls `MultipartForm.RemoveAll` after normal return, response flush failure, ordinary panic, and `http.ErrAbortHandler`. Stream takeover retains documented caller ownership of multipart temporary files.
+
+### Completed
+
+- Merged the separate prerequisite [PR #861](https://github.com/the-sarge/quic-go-fast/pull/861) as `73a239d23ccb90484efc7365adb982a20fabe21a`. Its handshake buffering fixture selects the Initial carrying ServerHello CRYPTO, skips ACK-only Initials, and preserves coalesced Handshake packets. Compact classical, hybrid, and delayed fragmented ClientHello cases exercise the fault selection.
+- Kept the multipart repair limited to request cleanup, ownership documentation, and six real HTTP/3 multipart regression cases. The original four server-owned completion cases reproduced the file leak twice before the fix; the hijack cases retain readable files until caller cleanup.
+
+### Validation
+
+- Final multipart head `59abcd244471a025fd875306bebcced399660eba`: HTTP/3 race tests passed, reusing Go's unchanged-package test cache after the final rebase; affected-package vet, module tidiness, lint, and whitespace checks passed with a clean worktree. RAS review `20261019T070646-9d4c1b355a853f1c0c3c4159` completed with both selected reviewers and no findings or follow-ups.
+- Final fixture head `b5a27d3ee3deee76d364c087efdc175d9adaba3b`: the compact-flight failure reproduced five times and the ACK-only failure three times before their respective corrections. The seeded GSO-disabled QUIC v1 race self suite and 100 focused QUIC v2 race repetitions of all three cases passed, as did vet, module tidiness, lint, and formatting. RAS review `20261019T065858-c74b59f9465dff6c4b4f7fa0` completed with all three selected reviewers and no findings or follow-ups.
+- All 33 hosted checks passed on each exact reviewed head before marking its PR ready and squash-merging with a matching-head guard. The five PR workflows covered unit, integration, lint, cross-compilation, and interop jobs; no same-head retry of the failed repository test was requested.
