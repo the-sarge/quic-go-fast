@@ -1,7 +1,8 @@
 #!/bin/sh
 # Unattended #808 L6 order on minimax: #792's driver.sh (89e71a60, itself #777's with markers) with
 # this record's paths and its own done marker, L6.DONE, because the readiness order already wrote
-# STAGE.DONE in the same worktree. #792's header follows.
+# STAGE.DONE in the same worktree; the clean-start check also covers this record's hostfacts/ directory.
+# #792's header follows.
 # Unattended #792 order on minimax (#777's driver.sh with this record's paths):
 # host facts, the deployed-binary check, the prerequisites, smoke, the counted
 # stage, the #714 reruns, host facts. Every step runs under taskset -c 1. A
@@ -21,7 +22,7 @@ log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*" >> "$LOG"; }
 # run_case reuses an existing clean observation, so a leftover would count as this
 # order's. Each path or glob is checked on its own; an unmatched glob stays literal.
 for p in "$ART"/observations/main-* "$ART"/observations/rerun-* "$ART"/observations/smoke-* "$ART"/prereq \
-	"$ART"/smoke.json "$ART"/follow-decisions.json "$ART"/correctness-failure.json "$ART"/binaries.json "$ROOT"/L6.DONE; do
+	"$ART"/smoke.json "$ART"/follow-decisions.json "$ART"/correctness-failure.json "$ART"/binaries.json "$ART"/hostfacts "$ROOT"/L6.DONE; do
 	if [ -e "$p" ]; then
 		log "PRESTART-NOT-EMPTY $p"
 		exit 1

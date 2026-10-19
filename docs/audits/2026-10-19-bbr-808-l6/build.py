@@ -8,6 +8,8 @@ Copied from #792's build.py (89e71a60) with recorded changes:
   #792's trace overlay files are copied into this record's directory, because
   neither record's directory is in this tree; build.py checks each against its
   file at 71e88789 or 89e71a60 before every export, and reads them from here.
+  It also checks the Python aids and checker fixtures copied unchanged
+  (COPIED_PY), including mechanism792.py against #792's analyze.py.
 - One TRACE_SITES text changes, as #800's hand-over on #808 asks: #806
   (`1f9ceb6e`) replaced `bbrBytes(previousFlight+prefix)` with draft-06's
   `bbrBytes(atLoss)` in the probe-loss assignment; the hook itself (the
@@ -122,11 +124,20 @@ def replace(path, old, new):
     path.write_text(s.replace(old, new))
 
 
+# The Python aids and checker fixtures copied unchanged: (this record's path, prior commit, prior path).
+COPIED_PY = [(rel, L6, f'{L6_DIR}/{rel}') for rel in ['l6rules.py', 'l6rules_test.py', 'prereq.py']] + \
+    [(rel, TRACE, f'{TRACE_DIR}/{rel}') for rel in ['draft06check.py', 'draft06check_test.py', 'reconcile.py', 'reconcile_test.py',
+                                                    'testdata/port-fixture-trace.json', 'testdata/port-fixture-trace-long.json']] + \
+    [('mechanism792.py', TRACE, f'{TRACE_DIR}/analyze.py')]
+
+
 def check_aids():
     for rel in L6_AIDS:
         assert (HERE / rel).read_bytes() == git('show', f'{L6}:{L6_DIR}/{rel}'), rel
     for rel, _ in TRACE_FILES:
         assert (HERE / rel).read_bytes() == git('show', f'{TRACE}:{TRACE_DIR}/{rel}'), rel
+    for rel, rev, prior in COPIED_PY:
+        assert (HERE / rel).read_bytes() == git('show', f'{rev}:{prior}'), rel
 
 
 def export(name, rev):

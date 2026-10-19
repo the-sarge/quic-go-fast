@@ -153,13 +153,14 @@ def displacement():
 
 
 def marking():
-    rows = ['| Workload | Period | Checks on limited packets #808 (#792) | Crossings, limited #808 (#792) | `inflight_longterm` / path #808 (#792) | `max_bw` cycle advances #808 (#792) | Competitor drops in Up #808 (#792) | Clamp events #808 |',
-            '| --- | --- | --- | --- | --- | --- | --- | ---: |']
+    rows = ['| Workload | Period | Checks on application-limited packets #808 (#792) | On any supply-limited packet #808 (#792) | Crossings, limited #808 (#792) | `inflight_longterm` / path #808 (#792) | `max_bw` cycle advances #808 (#792) | Competitor drops in Up #808 (#792) | Clamp events #808 |',
+            '| --- | --- | --- | --- | --- | --- | --- | --- | ---: |']
     pct = lambda x: '–' if x is None else f'{x:.0%}'
     for w in WORKLOADS:
         for p in CLASSIFIED:
             m = R['marking'][w][p]
-            rows.append(f"| {NAMES[w]} | {p} | {pct(m['limited_share_808'])} ({pct(m['limited_share_792'])}) | "
+            rows.append(f"| {NAMES[w]} | {p} | {pct(m['application_share_808'])} ({pct(m['application_share_792'])}) | "
+                        f"{pct(m['supply_limited_share_808'])} ({pct(m['supply_limited_share_792'])}) | "
                         f"{m['crossings_808']}, {m['crossings_limited_808']} ({m['crossings_792']}, {m['crossings_limited_792']}) | "
                         f"{f(m['inflight_longterm_over_path_808'], 2)} ({f(m['inflight_longterm_over_path_792'], 2)}) | "
                         f"{' '.join(str(x) for x in m['cycle_advances_808'])} ({' '.join(str(x) for x in m['cycle_advances_792'])}) | "
@@ -168,11 +169,11 @@ def marking():
 
 
 def ecn_reading():
-    rows = ['| Observation | Focal forward Not-ECT | Share | Relay switch estimate | Trace ECN failure | Competitor Not-ECT |',
+    rows = ['| Observation | Focal forward Not-ECT | Share | Switch estimate (above 0.01% only) | Trace ECN failure | Competitor Not-ECT |',
             '| --- | ---: | ---: | --- | --- | ---: |']
     for k, e in sorted(R['ecn'].items()):
         fl = e['focal']
-        rows.append(f"| {k} | {fl['not_ect']} of {fl['forward_packets']} | {fl['not_ect_share']:.4%} | "
+        rows.append(f"| {k}{' (contaminated)' if e.get('contaminated') else ''} | {fl['not_ect']} of {fl['forward_packets']} | {fl['not_ect_share']:.4%} | "
                     f"{'none' if e['relay_switch_s'] is None else f'{e["relay_switch_s"]:.1f} s'} | "
                     f"{'–' if 'trace_ecn_failed_at_s' not in e else ('none' if e['trace_ecn_failed_at_s'] is None else f'{e["trace_ecn_failed_at_s"]:.1f} s')} | "
                     f"{e['competitor']['not_ect']} |")

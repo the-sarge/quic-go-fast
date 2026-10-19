@@ -30,7 +30,8 @@ for p in "$A"/observations* "$A"/prereq "$A"/hostfacts-* "$A"/follow-decisions.j
 done
 echo "PRESTART-EMPTY $(date -u +%FT%TZ)"
 touch "$W"/RUNNING
-trap 'rm -f "$W"/RUNNING' EXIT
+# On any exit: remove RUNNING, and if the order stopped early, say so in STAGE.DONE (the host is free).
+trap 'rm -f "$W"/RUNNING; [ -e "$W"/STAGE.DONE ] || echo "stopped $(date -u +%FT%TZ)" > "$W"/STAGE.DONE' EXIT
 follow() {
 	$T python3 resume.py mark
 	$T python3 follow.py "$@" || { echo "FOLLOW-FAILED $* $(date -u +%FT%TZ)"; $T python3 resume.py mark;
@@ -51,6 +52,11 @@ echo "S5TIMELINE-DONE $(date -u +%FT%TZ)"
 follow conditional
 $T python3 stages.py fold
 echo "DRIVER-DONE $(date -u +%FT%TZ)"
-sh ../2026-10-19-bbr-808-gso-receive/stage.sh || echo "SIDE-STAGE-FAILED $(date -u +%FT%TZ)"
-echo "SIDE-DONE $(date -u +%FT%TZ)"
-touch "$W"/STAGE.DONE
+if sh ../2026-10-19-bbr-808-gso-receive/stage.sh; then
+	echo "SIDE-DONE $(date -u +%FT%TZ)"
+	echo "complete $(date -u +%FT%TZ)" > "$W"/STAGE.DONE
+else
+	echo "SIDE-STAGE-FAILED $(date -u +%FT%TZ)"
+	echo "readiness complete; side stage failed $(date -u +%FT%TZ)" > "$W"/STAGE.DONE
+	exit 1
+fi

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Apply #808's side-stage registration to counted.jsonl (README, "Registration").
 
-usage: analyze.py counted.jsonl [rerun.jsonl] [perfdiag.jsonl] > summary.json
+usage: analyze.py counted.jsonl rerun.jsonl [perfdiag.jsonl] > summary.json
+       (stage.sh creates rerun.jsonl empty before any rerun, so a missing file is an error)
        analyze.py --contaminated counted.jsonl   (rounds to rerun, one per line)
 
 Adapted from #824's analyze.py (2f550727): the same round rule (a round with
@@ -17,8 +18,10 @@ record's arms. The readings are the registration's:
        drops and the residual (descriptive).
   B743 BBRv3 DATAGRAM with #743 on (D-bbr) and off (Dk-bbr): segments per
        send and the throughput ratio (descriptive).
-A run whose endpoints report a controller other than its arm's makes the
-stage incorrect (`controller_mismatch`), not a contaminated run.
+A run whose endpoints report a controller other than its arm's, in any
+counted or rerun round (used or not), makes the stage incorrect: `status` is
+"incorrect" and no reading is reported. With no usable round, `status` is
+"incomplete" and no reading is reported; otherwise `status` is "complete".
 A verification aid for #808's side stage; not a maintained deliverable.
 """
 import json
@@ -133,19 +136,30 @@ def main(argv):
                 print(n)
         return
     rounds = load(argv[1])
-    reruns = load(argv[2]) if len(argv) > 2 and argv[2] != "-" else {}
+    reruns = load(argv[2])
+    mismatch = sorted(f"{label} round {n} {a}" for label, src in (("counted", rounds), ("rerun", reruns))
+                      for n, runs in src.items() for a, r in runs.items()
+                      if not r["send"].get("controller") == r["recv"].get("controller") == CONTROLLER[a])
     used, notes = choose(rounds, reruns)
+    perf = perfdiag(argv[3]) if len(argv) > 3 else None
+    if mismatch or not used:
+        out = dict(status="incorrect" if mismatch else "incomplete", controller_mismatch=mismatch, notes=notes,
+                   rounds_used=sorted(used), readings=None)
+        if perf is not None:
+            out["perfdiag"] = perf
+        json.dump(out, sys.stdout, indent=1, sort_keys=True)
+        print()
+        return
     per_round = {n: {a: metrics(a, runs[a]) for a in ARMS if a in runs} for n, runs in used.items()}
     present = [a for a in ARMS if all(a in per_round[n] for n in per_round)]
     arms = {a: {k: spread([per_round[n][a][k] for n in per_round]) for k in per_round[next(iter(per_round))][a]
                 if k != "controller_ok"} for a in present}
     ratios = {name: {k: spread([per_round[n][a][k] / per_round[n][b][k] for n in per_round]) for k in RATIO_KEYS}
               for name, (a, b) in RATIOS.items() if a in present and b in present}
-    k3 = ratios["S-rev/S-pre"]["mbps"]["median"]
+    k3 = ratios["S-rev/S-pre"]["mbps"]["median"] if "S-rev/S-pre" in ratios else None
     out = {
-        "rounds_used": sorted(per_round), "notes": notes,
-        "controller_mismatch": sorted(f"{n} {a}" for n in per_round for a in per_round[n] if not per_round[n][a]["controller_ok"]),
-        "readings": {
+        "status": "complete", "rounds_used": sorted(per_round), "notes": notes, "controller_mismatch": [],
+        "readings": None if k3 is None else {
             "K3_rev_over_pre_mbps": k3,
             "K3_reading": "not reproduced" if k3 >= K3_LINE else "persists",
             "K3_guard_0_97_passes": k3 >= K3_GUARD,
@@ -161,8 +175,8 @@ def main(argv):
         "ratios": ratios, "arms": arms,
         "per_round": {str(n): v for n, v in per_round.items()},
     }
-    if len(argv) > 3:
-        out["perfdiag"] = perfdiag(argv[3])
+    if perf is not None:
+        out["perfdiag"] = perf
     json.dump(out, sys.stdout, indent=1, sort_keys=True)
     print()
 

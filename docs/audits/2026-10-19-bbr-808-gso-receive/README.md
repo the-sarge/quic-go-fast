@@ -45,7 +45,7 @@ The receiver is `bench808-recv` in every arm. Each arm sets the controller at bo
 - **Host:** `minimax`, sender on cores 8–11, receiver on 12–15 (under GNU `time`, which forks it, so its peak RSS is its own), runner on 1–3; `GOMAXPROCS=4`. Host settings unchanged.
 - **Quiet gate:** before every run, the fixture cores and their SMT siblings below 5% busy in a 2 s sample (#824's gate), and the runner pauses while `~/agents/quic-808/YIELD-808.request` exists.
 - **Contamination:** #742's foreign-time measure (task running time on the fixture CPUs from `/proc/schedstat`, less the harness's own CPU and `ksoftirqd`), contaminated above 0.3 s per run. A round holding a contaminated run is rerun once, all arms, with the same round number; the rerun replaces it only if every run is clean; otherwise the round is excluded ([analyze.py](analyze.py), #824's rule).
-- **Correctness:** a run whose endpoints report a controller other than its arm's makes the stage incorrect (`controller_mismatch`), never a contaminated run; a failed process stops the stage.
+- **Correctness:** a run whose endpoints report a controller other than its arm's, in any counted or rerun round whether used or not, makes the stage incorrect (`status` "incorrect", no reading reported), never a contaminated run; a failed process stops the stage, and the readiness driver records the failure in `STAGE.DONE`. With no usable round, `status` is "incomplete" and no reading is reported.
 
 ## Readings (fixed before any counted run)
 
@@ -55,7 +55,7 @@ The receiver is `bench808-recv` in every arm. Each arm sets the controller at bo
 - **#743 on BBRv3 (descriptive).** `D-bbr` and `Dk-bbr` segments per `sendmsg`, and their throughput ratio; beside them `S-bbr` against `S-rev` and `M-bbr` against `M-reno`.
 - Throughput, sender and receiver CPU per GiB, receiver peak RSS, and smoothed and minimum RTT for every arm; ratios are taken within a round.
 
-No reading here changes a readiness flag, the advancement disposition or the L6 classification.
+No reading here changes a readiness flag, the advancement disposition or the L6 classification. [analyze_test.py](analyze_test.py) (8 tests) covers the incorrect-stage rule, round selection and the empty cases.
 
 ## Development round (before this registration)
 
@@ -63,7 +63,7 @@ One round of all eight arms on October 19, 2026, 03:45–03:47 UTC (`dev1`, excl
 
 ## Order
 
-[stage.sh](stage.sh), run by the readiness driver after `DRIVER-DONE`, under `taskset -c 1-3`: a check that no counted, rerun or diagnostic output exists; `runner.py` for eight counted rounds; one rerun of each contaminated round; `perfdiag.py` for four pairs. Then, anywhere: `analyze.py counted.jsonl rerun.jsonl perfdiag.jsonl > summary.json`.
+[stage.sh](stage.sh), run by the readiness driver after `DRIVER-DONE`, under `taskset -c 1-3`: a check that no counted, rerun or diagnostic output exists; `runner.py` for eight counted rounds; one rerun of each contaminated round; `perfdiag.py` for four pairs. Then, anywhere: `analyze.py counted.jsonl rerun.jsonl perfdiag.jsonl > summary.json` (`stage.sh` creates `rerun.jsonl` empty before any rerun).
 
 Estimated host time: 64 runs of about 12 s plus quiet gates, about 15 minutes; reruns about 2 minutes per round; the diagnostic about 3 minutes.
 

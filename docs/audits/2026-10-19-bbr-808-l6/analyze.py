@@ -13,17 +13,25 @@ Written before any counted observation (README, "Registration: L6").
 - **#800's reading**: STREAM's displacement beside #777's and #792's (the
   competitor's delivery next to BBRv3 per period, the pair ratios), and from
   the traces the share of two-percent checks that judged a packet marked
-  application-limited (`Delivery.Limited`), the crossings, how many were
+  application-limited (`Delivery.Limited` reason application), beside the
+  share marked with any supply limitation (application, flow control or
+  ProbeRTT, #792's `limited_share`), the crossings, how many were
   limited, `inflight_longterm` against the path, the max_bw filter's cycle
   advances and aging, and where the competitor's drops fall by BBRv3 phase,
   each beside #792's. Descriptive; no rule.
-- **#803's reading**: for every selected BBRv3 focal observation (cand and
-  trace), relay2's forward ECN counts ([Not-ECT, ECT(1), ECT(0), CE]), the
-  relay estimate of a switch (#793's crossrun.py method) and, for traces,
-  the first ECN failure row. ECN **stays on** only when no trace records an
-  ECN failure, no relay switch estimate exists and every flow's forward
-  Not-ECT count is at most 0.01% of its forward packets (frozen-Reno flows
-  send 3 Not-ECT handshake packets in every #777 observation).
+- **#803's reading**: for every usable BBRv3 focal observation in every
+  attempt (cand and trace, counted and rerun, selected or not; a
+  contaminated one is reported but does not decide), relay2's
+  forward ECN counts ([Not-ECT, ECT(1), ECT(0), CE]) and, for traces, the
+  first ECN failure row. ECN **stays on** only when every such flow's forward
+  Not-ECT count is at most 0.01% of its forward packets and no trace records
+  an ECN failure. A flow above that share has stopped marking; for it, #793's
+  crossrun.py estimate gives when (the first 100 ms sample at which its
+  reconstructed arrivals reach its ECT(0) count). That estimate is computed
+  only above the share, because for a flow that never switched it lands at
+  the end of the run. Flows that keep ECN send a handful of Not-ECT handshake
+  packets: 3 for every frozen-Reno flow in #777, 4 for every BBRv3 flow that
+  kept ECN (slice 6's S5 and S6 runs, #792's development run dev2).
 - **DATAGRAM loss**: per DATAGRAM observation, the focal flow's sent messages
   against distinct messages received (inside and outside the measured window),
   beside relay2's forward drops for that flow (the competitor is a reliable
@@ -83,7 +91,9 @@ def trace_figures(mech_periods):
         p = mech_periods[per]
         tpc = p['two_percent_checks']
         drops = p['drops_by_bbr_phase']
-        out[per] = dict(limited_share=tpc['limited_share'], checks=tpc['checks'], crossings=tpc['crossings'],
+        app = (tpc['checks_by_reason'] or {}).get('application', 0)
+        out[per] = dict(application_share=app / tpc['checks'] if tpc['checks'] else None, supply_limited_share=tpc['limited_share'],
+                        checks=tpc['checks'], crossings=tpc['crossings'],
                         crossings_limited=tpc['crossings_limited'], checks_by_reason=tpc['checks_by_reason'],
                         inflight_longterm_over_path=p['inflight_longterm_over_path'], window_over_path=p['window_over_path'],
                         cycle_advances=p['limited_marks']['cycle_advances'], max_bw_aging_events=p['limited_marks']['max_bw_aging_events'],
@@ -132,12 +142,14 @@ def attempted(phase, pair, workload):
 
 
 def relay_switch(relay):
-    """#793's crossrun.py estimate: the first 100 ms sample at which the focal flow's reconstructed arrivals
-    reach its ECT(0) arrival count (None when no switch)."""
+    """#793's crossrun.py estimate of when the focal flow stopped marking: the first 100 ms sample at which its
+    reconstructed arrivals reach its ECT(0) arrival count. Computed only for a flow whose forward Not-ECT share
+    exceeds NOT_ECT_SHARE_LIMIT (a switch); for a flow that kept marking it would land at the end of the run."""
     focal = relay['Forward']['Focal']
-    ect0 = focal['ECNIn'][2]
-    if focal['ECNIn'][0] <= 3:
+    total = sum(focal['ECNIn'])
+    if not total or focal['ECNIn'][0] / total <= NOT_ECT_SHARE_LIMIT:
         return None
+    ect0 = focal['ECNIn'][2]
     size = focal['DeliveredBytes'] / focal['Delivered']
     for sample in relay['Samples']:
         if sample[7] / size + sample[5] >= ect0:
@@ -147,7 +159,7 @@ def relay_switch(relay):
 
 def ecn_row(d, arm):
     relay = json.loads((d / 'relay.json').read_text())
-    out = {}
+    out = dict(observation=d.name)
     for who in ('Focal', 'Competitor'):
         f = relay['Forward'][who]
         total = sum(f['ECNIn'])
@@ -156,6 +168,27 @@ def ecn_row(d, arm):
     out['relay_switch_s'] = relay_switch(relay)
     out['arm'] = arm
     return out
+
+
+def ecn_kept(e):
+    """D7 for one observation: forward Not-ECT within the share limit, and no ECN failure in its trace (if any)."""
+    share = e['focal']['not_ect_share']
+    return share is not None and share <= NOT_ECT_SHARE_LIMIT and e.get('trace_ecn_failed_at_s') is None
+
+
+def ecn_decision(rows):
+    """D7 over every usable BBRv3 observation: contaminated rows are reported but never decide; with no deciding
+    row there is no evidence that ECN stays on."""
+    deciding = [e for e in rows.values() if not e['contaminated']]
+    return bool(deciding) and all(ecn_kept(e) for e in deciding)
+
+
+def ecn_failed_at(d):
+    """Seconds into the measured window of a trace's first ECN-failure row (None when it has none)."""
+    measured_start = json.loads((d / 'focal-config.json').read_text())['start_unix_ns'] + m792.reconcile.WARMUP_NS
+    t = m792.dc.Trace(json.loads((d / 'focal-trace.json').read_text()), measured_start)
+    row = next((r for r in t.rows if t.flag(r, 'ecn_failed')), None)
+    return None if row is None else (t.v(row, 'unix_ns') - measured_start) / 1e9
 
 
 def datagram_loss(d):
@@ -203,9 +236,18 @@ def main():
                 trace_phase = label if label in clean else (clean[0] if clean else None)
             choices.append(dict(pair=pair, workload=workload, chosen=label, status=status, trace=trace_phase,
                                 decision_trace_clean=decisions[(pair, workload)].get('trace_clean')))
+            for a in attempts_out:
+                if (a['pair'], a['workload']) != (pair, workload):
+                    continue
+                for arm in ('cand', 'trace'):
+                    v = a['detail'].get(arm)
+                    if v and v['usable']:
+                        d = run.OBS / f"{a['phase']}-L6-{workload}-p{pair}-{arm}"
+                        row = dict(ecn_row(d, arm), phase=a['phase'], contaminated=v['contaminated'])
+                        if arm == 'trace':
+                            row['trace_ecn_failed_at_s'] = ecn_failed_at(d)
+                        ecn[f"{workload}/p{pair}/{arm}/{a['phase']}"] = row
             if rows:
-                d = run.OBS / f'{label}-L6-{workload}-p{pair}-cand'
-                ecn[f'{workload}/p{pair}/cand'] = ecn_row(d, 'cand')
                 if workload == 'datagram':
                     for arm in matrix.ARMS:
                         loss[f'{workload}/p{pair}/{arm}'] = datagram_loss(run.OBS / f'{label}-L6-{workload}-p{pair}-{arm}')
@@ -216,13 +258,10 @@ def main():
                 t['flows'] = m792.flows(summary)
                 t['figures'] = trace_figures(t['mechanism']['periods'])
                 traces[f'{workload}/p{pair}'] = t
-                ecn[f'{workload}/p{pair}/trace'] = dict(ecn_row(d, 'trace'), trace_ecn_failed_at_s=t['mechanism']['ecn_failed_at_s'])
                 if workload == 'datagram':
                     loss[f'{workload}/p{pair}/trace'] = datagram_loss(d)
     analysis = l6rules.analyze(triples)
-    ecn_on = (all(e['relay_switch_s'] is None and e['focal']['not_ect_share'] is not None
-                  and e['focal']['not_ect_share'] <= NOT_ECT_SHARE_LIMIT and e.get('trace_ecn_failed_at_s') is None
-                  for e in ecn.values()) and bool(ecn))
+    ecn_on = ecn_decision(ecn)
     displacement = {}
     for cell, rows in analysis['periods'].items():
         wl, per = cell.split('/')
@@ -238,8 +277,10 @@ def main():
         displacement[cell]['competitor_next_to_cand_792'] = median(v['competitor_next_to_cand'][per] for k, v in ref792.items() if k.startswith(wl + '/'))
         displacement[cell]['competitor_next_to_trace_792'] = median(v['competitor_next_to_trace'][per] for k, v in ref792.items() if k.startswith(wl + '/'))
     marking = {wl: {per: dict(
-        limited_share_808=median(t['figures'][per]['limited_share'] for k, t in traces.items() if k.startswith(wl + '/')),
-        limited_share_792=median(v['trace'][per]['limited_share'] for k, v in ref792.items() if k.startswith(wl + '/')),
+        application_share_808=median(t['figures'][per]['application_share'] for k, t in traces.items() if k.startswith(wl + '/')),
+        application_share_792=median(v['trace'][per]['application_share'] for k, v in ref792.items() if k.startswith(wl + '/')),
+        supply_limited_share_808=median(t['figures'][per]['supply_limited_share'] for k, t in traces.items() if k.startswith(wl + '/')),
+        supply_limited_share_792=median(v['trace'][per]['supply_limited_share'] for k, v in ref792.items() if k.startswith(wl + '/')),
         crossings_808=sum(t['figures'][per]['crossings'] for k, t in traces.items() if k.startswith(wl + '/')),
         crossings_limited_808=sum(t['figures'][per]['crossings_limited'] for k, t in traces.items() if k.startswith(wl + '/')),
         crossings_792=sum(v['trace'][per]['crossings'] for k, v in ref792.items() if k.startswith(wl + '/')),
@@ -275,7 +316,7 @@ def main():
         print(f"{cell:18} {outcome:12} ratios {fmt([r['ratio'] for r in rows])} | A/A {fmt([r['aa_ratio'] for r in rows])}")
     for wl, per_map in marking.items():
         for per, m in per_map.items():
-            print(wl, per, 'limited share', m['limited_share_808'], '(792:', m['limited_share_792'], ')')
+            print(wl, per, 'application-limited share', m['application_share_808'], '(792:', m['application_share_792'], ')')
 
 
 if __name__ == '__main__':
