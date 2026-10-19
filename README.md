@@ -30,6 +30,8 @@ When `InitialPacketSize` is left unset, eligible local message-size errors reduc
 
 CI actually enables the race detector, integration fixtures honor the selected QUIC version, and tests assert observable transfer and lifecycle outcomes. Deterministic loss/corruption cases and retained failure diagnostics make recovery behavior easier to assess. Qlog reports the selected fork revision and handles optional logging failures without terminating the process. Archived audit data remains accessible in Git but is excluded from Go module downloads.
 
+Qlog traces can contain sensitive HTTP headers and QUIC tokens. The QUIC and HTTP/3 default tracers create missing `QLOGDIR` directories with mode `0700` and new trace files with mode `0600`, subject to umask on Unix. Existing directory permissions are preserved; choose a trusted directory and parent path. An existing trace path, including a symlink, disables tracing for that connection instead of overwriting it. Restrict access to trace archives and review them before sharing.
+
 ## Performance evidence and current limits
 
 Individual measurements establish improvements in specific workloads, rather than an overall speedup for every application:
