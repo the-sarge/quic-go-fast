@@ -3,6 +3,7 @@ package quic
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/utils/ringbuffer"
@@ -11,7 +12,7 @@ import (
 
 const (
 	maxDatagramSendQueueLen = 32
-	maxDatagramRcvQueueLen  = 128
+	maxDatagramRcvQueueLen  = 1024
 )
 
 type datagramQueue struct {
@@ -22,6 +23,7 @@ type datagramQueue struct {
 	rcvMx    sync.Mutex
 	rcvQueue [][]byte
 	rcvd     chan struct{} // used to notify Receive that a new datagram was received
+	rcvDrops atomic.Uint64 // payloads refused because rcvQueue was full
 
 	closeErr error
 	closed   chan struct{}
@@ -104,9 +106,19 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 		}
 	}
 	h.rcvMx.Unlock()
-	if !queued && h.logger.Debug() {
+	if queued {
+		return
+	}
+	h.rcvDrops.Add(1)
+	if h.logger.Debug() {
 		h.logger.Debugf("Discarding received DATAGRAM frame (%d bytes payload)", len(f.Data))
 	}
+}
+
+// receiveDrops returns how many received payloads HandleDatagramFrame has
+// refused because the queue was full. It is safe to call concurrently.
+func (h *datagramQueue) receiveDrops() uint64 {
+	return h.rcvDrops.Load()
 }
 
 // invalidateReceived discards every queued received payload.
@@ -123,6 +135,9 @@ func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 		h.rcvMx.Lock()
 		if len(h.rcvQueue) > 0 {
 			data := h.rcvQueue[0]
+			// Reslicing keeps the backing array; clear the slot so it no
+			// longer pins the delivered payload.
+			h.rcvQueue[0] = nil
 			h.rcvQueue = h.rcvQueue[1:]
 			h.rcvMx.Unlock()
 			return data, nil

@@ -3698,6 +3698,73 @@ func testConnectionDatagrams(t *testing.T, enabled bool) {
 	require.Equal(t, []byte("bar"), d)
 }
 
+// Code compiled against upstream quic-go finds the discard count by interface
+// assertion. It counts full-queue discards and reads the same after close.
+func TestConnectionDatagramReceiveDropsV1(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		tc := newServerTestConnection(t, mockCtrl, &Config{EnableDatagrams: true}, false)
+		tc.connRunner.EXPECT().Remove(gomock.Any()).AnyTimes()
+		drops, ok := any(tc.conn).(interface{ DatagramReceiveDropsV1() uint64 })
+		require.True(t, ok)
+		require.Zero(t, drops.DatagramReceiveDropsV1())
+
+		frame, err := (&wire.DatagramFrame{Data: []byte("x")}).Append(nil, protocol.Version1)
+		require.NoError(t, err)
+		for range maxDatagramRcvQueueLen + 3 {
+			_, _, _, err := tc.conn.handleFrames(frame, protocol.ConnectionID{}, protocol.Encryption1RTT, nil, monotime.Now())
+			require.NoError(t, err)
+		}
+		require.EqualValues(t, 3, drops.DatagramReceiveDropsV1())
+
+		errChan := make(chan error, 1)
+		go func() { errChan <- tc.conn.run() }()
+		tc.conn.destroy(&StatelessResetError{})
+		synctest.Wait()
+		select {
+		case err := <-errChan:
+			require.Error(t, err)
+		default:
+			t.Fatal("connection was not closed")
+		}
+		require.EqualValues(t, 3, drops.DatagramReceiveDropsV1())
+	})
+}
+
+// Payloads withheld before the receive phase opens, and frames rejected as
+// protocol violations, never reach the queue and are not counted.
+func TestConnectionDatagramReceiveDropsExclusions(t *testing.T) {
+	appendDatagram := func(t *testing.T, size int) []byte {
+		t.Helper()
+		b, err := (&wire.DatagramFrame{Data: make([]byte, size)}).Append(nil, protocol.Version1)
+		require.NoError(t, err)
+		return b
+	}
+
+	t.Run("withheld before the receive phase opens", func(t *testing.T) {
+		tc := newServerTestConnection(t, nil, &Config{EnableDatagrams: true}, false)
+		tc.conn.installReceivePhase(true)
+		frame := appendDatagram(t, 1)
+		for range maxDatagramRcvQueueLen + 5 {
+			_, _, _, err := tc.conn.handleFrames(frame, protocol.ConnectionID{}, protocol.Encryption1RTT, nil, monotime.Now())
+			require.NoError(t, err)
+		}
+		require.Zero(t, tc.conn.DatagramReceiveDropsV1())
+	})
+
+	t.Run("protocol violation", func(t *testing.T) {
+		tc := newServerTestConnection(t, nil, &Config{EnableDatagrams: true}, false)
+		for range maxDatagramRcvQueueLen {
+			_, _, _, err := tc.conn.handleFrames(appendDatagram(t, 1), protocol.ConnectionID{}, protocol.Encryption1RTT, nil, monotime.Now())
+			require.NoError(t, err)
+		}
+		// The queue is full, so only validation keeps this frame from counting.
+		_, _, _, err := tc.conn.handleFrames(appendDatagram(t, int(wire.MaxDatagramSize)), protocol.ConnectionID{}, protocol.Encryption1RTT, nil, monotime.Now())
+		require.ErrorIs(t, err, &qerr.TransportError{ErrorCode: qerr.ProtocolViolation})
+		require.Zero(t, tc.conn.DatagramReceiveDropsV1())
+	})
+}
+
 func TestConnectionSkippedStreamFrameMetadata(t *testing.T) {
 	tc := newServerTestConnection(t, nil, nil, false)
 	// Stream 5 is a locally initiated stream that was never opened.
