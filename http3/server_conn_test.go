@@ -145,7 +145,12 @@ func TestRawServerConnHeaderDeadlineWithActiveRequest(t *testing.T) {
 func TestRawServerConnPendingHeaderBudget(t *testing.T) {
 	client, server := newConnPair(t)
 	var calls atomic.Int32
-	s := Server{MaxHeaderBytes: 4096, Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls.Add(1) })}
+	s := Server{MaxHeaderBytes: 4096, Handler: http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		// Consume EOF so handler completion cannot race the client's FIN.
+		_, err := io.Copy(io.Discard, r.Body)
+		require.NoError(t, err)
+		calls.Add(1)
+	})}
 	conn, err := s.NewRawServerConn(server)
 	require.NoError(t, err)
 	startRequest := func(data []byte) (*quic.Stream, <-chan struct{}) {
