@@ -6189,3 +6189,34 @@ Preserved active responses and request uploads during retirement, conditional ev
 The final reviewed and certified head was `1f003c5056687cfbc2b7109c05d9b1fb5ae39df3` on base `6266b774d1d424fff89ebacf401eb4a58c2e7abf`. Uncached HTTP/3 package and race tests, affected-package vet, `go mod tidy -diff`, scoped lint, formatting, whitespace and clean-tree checks passed. All 33 hosted checks passed before marking ready and squash-merging with the matching-head guard; the five PR workflows covered unit, integration, lint, cross-compilation and interop jobs. No unchanged-head CI retry was requested.
 
 Initial RAS review `20261019T054843-9cfed1155a622dc9e27f6e45` completed with six reviewers and no required fixes. The optional transport-wide completion-latency observation was deferred and its duplicate rejected; the ownership and shutdown invariants remain intact. After main advanced, replacement review `20261019T081807-27a3afe1c14d5f872dea488d` found no issues. Four reviewers completed, meeting the configured quorum of two; two Claude processes failed. No automated fixer or fix verification was needed. The optional latency observation was revalidated at `http3/transport.go:485-494` in merged commit `68cc2675088309c84b273972b738255c5b312074`; no follow-up ticket was warranted by the bounded scope.
+
+---
+
+## Migration old-path check moved to proxy read order - 2026-10-19 04:46 EDT
+
+**Main:** `3583a52b690e`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #865](https://github.com/the-sarge/quic-go-fast/pull/865) as `3583a52b690ed2619671a42f838f8154648ea278`, closing [#434](https://github.com/the-sarge/quic-go-fast/issues/434). The shared `testConnectionMigration` helper (`TestConnectionMigration`, `TestConnectionMigrationConcurrentState`, `TestConnectionMigrationConcurrentAddresses`) no longer compares a client old-path counter snapshotted before `Path.Switch()`. The proxy's read goroutine now marks the client's first path-2 datagram after `Switch()` returned and counts client path-1 datagrams read after it. The test fails if that count is nonzero, or if the client never used path 2. The five macOS-only +2 receipts since 2026-09-19 were ACK-only packets the client wrote before the switch, which the proxy read after the snapshot ([receipt](https://github.com/the-sarge/quic-go-fast/issues/434#issuecomment-6261963762)). The change is test-only: no production, timeout, threshold, quarantine or API change.
+
+### Decisions
+
+- A read-order boundary replaces the #434 brief's send-queue mechanism, as the 2026-10-19 receipt recommended. Any failure of the new check is also a failure of the old one, so the change cannot add flakes. The comment beside the check records the two facts it relies on: `replacePath` drains the old send queue before starting the new one, and loopback delivers in send order.
+- The receipt's separate `Path.Switch()` "immediately" doc-comment observation is unchanged and remains recorded only in that receipt.
+
+### Validation
+
+Forced-delay overlay on candidate `83ecd5f5`, reusing the retained triage overlay with knobs inserted into the committed test:
+- 20 ms stall of the next path-1 write: 0/20 failed; the old check would have failed 20/20 (12× +2, 8× +1).
+- 20 ms loop pause: 0/20 failed; the old check would have failed 20/20.
+- Raw `tr1` datagram after the transfer (negative control): 20/20 failed.
+- Server tail +12.8 ms: 0/100 failed, including one natural +1 the new check accepted.
+- No injection: 0/20 failed.
+
+Evidence is retained at `/Users/josh/diagnostics/migration-old-path-434-fix-83ecd5f5`.
+
+Local certification on `dea93208` (Go 1.27.2 darwin/arm64) passed: focused variants on QUIC v1/v2 ×20 each, race ×5, the full self-integration package on v1 and v2, golangci-lint v2.14.0 on six GOOS, Linux/Windows test build and vet, and `go mod tidy -diff`. Main advanced twice during the gate, through #848 and the docs-only #866. I updated the branch each time. The final head `2e1a5cd5` has a Go tree identical to `dea93208`. All 33 hosted checks passed on every head before the exact-head squash merge, and no rerun was used.
+
+RAS review `20261019T082401-2fe46fe4fad864fca688459e` found nothing. agy-argon, codex-astra, codex-sol and grok approved, and both Claude reviewers failed on the local Claude CLI session limit. No replacement review or deferred finding resulted.
