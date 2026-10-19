@@ -1,0 +1,33 @@
+2026-10-19T02:21:43+0000 round 1 order R-main R-cand R-128
+2026-10-19T02:21:55+0000 round 1 R-main: 9567 Mbit/s segs/send 14.83 loss 0.020056 v1 - queue 204581 unproc 1093 rss 15508 KiB foreign 0.029s softirqd 0.000s
+2026-10-19T02:22:07+0000 round 1 R-cand: 9765 Mbit/s segs/send 14.82 loss 0.000106 v1 69 queue 69 unproc 1019 rss 16092 KiB foreign 0.011s softirqd 0.010s
+2026-10-19T02:22:20+0000 round 1 R-128: 9615 Mbit/s segs/send 14.83 loss 0.017172 v1 175421 queue 175421 unproc 1034 rss 17552 KiB foreign 0.016s softirqd 0.000s
+2026-10-19T02:22:20+0000 round 2 order R-cand R-128 R-main
+2026-10-19T02:22:32+0000 round 2 R-cand: 9708 Mbit/s segs/send 14.82 loss 0.000118 v1 0 queue 0 unproc 1205 rss 18224 KiB foreign 0.016s softirqd 0.000s
+2026-10-19T02:22:44+0000 round 2 R-128: 9561 Mbit/s segs/send 14.83 loss 0.017818 v1 180874 queue 180874 unproc 1323 rss 15588 KiB foreign 0.020s softirqd 0.000s
+2026-10-19T02:22:56+0000 round 2 R-main: 9513 Mbit/s segs/send 14.82 loss 0.021050 v1 - queue 213683 unproc 1191 rss 15652 KiB foreign 0.014s softirqd 0.000s
+2026-10-19T02:22:56+0000 round 3 order R-128 R-main R-cand
+2026-10-19T02:23:08+0000 round 3 R-128: 9631 Mbit/s segs/send 14.82 loss 0.016852 v1 172158 queue 172158 unproc 1240 rss 15336 KiB foreign 0.015s softirqd 0.000s
+2026-10-19T02:23:21+0000 round 3 R-main: 9566 Mbit/s segs/send 14.83 loss 0.018339 v1 - queue 186686 unproc 1037 rss 19160 KiB foreign 0.016s softirqd 0.000s
+2026-10-19T02:23:33+0000 round 3 R-cand: 9699 Mbit/s segs/send 14.83 loss 0.000101 v1 0 queue 0 unproc 1029 rss 17464 KiB foreign 0.018s softirqd 0.000s
+2026-10-19T02:23:33+0000 round 4 order R-main R-cand R-128
+2026-10-19T02:23:45+0000 round 4 R-main: 9472 Mbit/s segs/send 14.83 loss 0.019402 v1 - queue 195448 unproc 1420 rss 18900 KiB foreign 0.016s softirqd 0.000s
+2026-10-19T02:23:57+0000 round 4 R-cand: 9705 Mbit/s segs/send 14.82 loss 0.000125 v1 0 queue 0 unproc 1279 rss 18384 KiB foreign 0.028s softirqd 0.000s
+2026-10-19T02:24:10+0000 round 4 R-128: 9645 Mbit/s segs/send 14.83 loss 0.016865 v1 172725 queue 172725 unproc 1055 rss 15728 KiB foreign 0.016s softirqd 0.000s
+2026-10-19T02:24:10+0000 round 5 order R-cand R-128 R-main
+2026-10-19T02:24:22+0000 round 5 R-cand: 9755 Mbit/s segs/send 14.83 loss 0.000217 v1 968 queue 968 unproc 1251 rss 18240 KiB foreign 0.018s softirqd 0.000s
+2026-10-19T02:24:34+0000 round 5 R-128: 9605 Mbit/s segs/send 14.82 loss 0.017403 v1 177762 queue 177762 unproc 925 rss 17608 KiB foreign 0.023s softirqd 0.000s
+2026-10-19T02:24:46+0000 round 5 R-main: 9537 Mbit/s segs/send 14.83 loss 0.017771 v1 - queue 179818 unproc 1427 rss 17388 KiB foreign 0.016s softirqd 0.000s
+2026-10-19T02:24:46+0000 round 6 order R-128 R-main R-cand
+2026-10-19T02:24:59+0000 round 6 R-128: 9606 Mbit/s segs/send 14.82 loss 0.017375 v1 177250 queue 177250 unproc 1169 rss 17084 KiB foreign 0.022s softirqd 0.000s
+2026-10-19T02:25:11+0000 round 6 R-main: 9580 Mbit/s segs/send 14.82 loss 0.018233 v1 - queue 185772 unproc 1116 rss 16560 KiB foreign 0.013s softirqd 0.000s
+2026-10-19T02:25:23+0000 round 6 R-cand: 9732 Mbit/s segs/send 14.82 loss 0.000154 v1 368 queue 368 unproc 1204 rss 18516 KiB foreign 0.022s softirqd 0.000s
+2026-10-19T02:25:23+0000 round 7 order R-main R-cand R-128
+2026-10-19T02:25:35+0000 round 7 R-main: 9542 Mbit/s segs/send 14.82 loss 0.019747 v1 - queue 200816 unproc 1104 rss 15700 KiB foreign 0.018s softirqd 0.000s
+2026-10-19T02:25:47+0000 round 7 R-cand: 9706 Mbit/s segs/send 14.81 loss 0.000158 v1 0 queue 0 unproc 1611 rss 19404 KiB foreign 0.021s softirqd 0.000s
+2026-10-19T02:26:00+0000 round 7 R-128: 9565 Mbit/s segs/send 14.83 loss 0.016844 v1 170926 queue 170926 unproc 1214 rss 16108 KiB foreign 0.020s softirqd 0.000s
+2026-10-19T02:26:00+0000 round 8 order R-cand R-128 R-main
+2026-10-19T02:26:12+0000 round 8 R-cand: 9735 Mbit/s segs/send 14.82 loss 0.000114 v1 0 queue 0 unproc 1171 rss 18924 KiB foreign 0.014s softirqd 0.000s
+2026-10-19T02:26:24+0000 round 8 R-128: 9583 Mbit/s segs/send 14.82 loss 0.017437 v1 177372 queue 177372 unproc 1272 rss 18124 KiB foreign 0.020s softirqd 0.000s
+2026-10-19T02:26:36+0000 round 8 R-main: 9533 Mbit/s segs/send 14.81 loss 0.018503 v1 - queue 187701 unproc 1081 rss 16524 KiB foreign 0.025s softirqd 0.000s
+2026-10-19T02:26:36+0000 done

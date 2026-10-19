@@ -2993,6 +2993,18 @@ func (c *Conn) ReceiveDatagram(ctx context.Context) ([]byte, error) {
 	return c.datagramQueue.Receive(ctx)
 }
 
+// DatagramReceiveDropsV1 returns how many received DATAGRAM payloads this
+// connection discarded because its queue of 1,024 payloads awaiting
+// ReceiveDatagram was full. The packets carrying them were still acknowledged,
+// so the peer's congestion control does not see these losses. The count
+// excludes payloads withheld before the receive phase opens, payloads
+// discarded when it opens, and frames rejected as protocol violations. It
+// never decreases, is safe to call concurrently, and keeps its value after
+// the connection closes. It is zero for a connection without datagram support.
+func (c *Conn) DatagramReceiveDropsV1() uint64 {
+	return c.datagramQueue.receiveDrops()
+}
+
 // LocalAddr returns the local address of the QUIC connection.
 func (c *Conn) LocalAddr() net.Addr { return c.emission.activeConn().LocalAddr() }
 

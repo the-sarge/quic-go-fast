@@ -1,0 +1,1108 @@
+{
+ "arms": {
+  "R-128": {
+   "datagram_loss": {
+    "max": 0.017818343592415187,
+    "median": 0.017273476114725905,
+    "min": 0.016844057337507823,
+    "n": 8
+   },
+   "drops_v1": {
+    "max": 180874,
+    "median": 176335.5,
+    "min": 170926,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.0228189289999996,
+    "median": 0.019620513499999603,
+    "min": 0.0154772079999983,
+    "n": 8
+   },
+   "mbps": {
+    "max": 9644.543164303865,
+    "median": 9605.403643917212,
+    "min": 9561.108355637372,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 18,
+    "median": 15.0,
+    "min": 9,
+    "n": 8
+   },
+   "packets_lost": {
+    "max": 1323,
+    "median": 1191.5,
+    "min": 925,
+    "n": 8
+   },
+   "packets_unreceived": {
+    "max": 1323,
+    "median": 1191.5,
+    "min": 925,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 0.01768895799016728,
+    "median": 0.017166291432840645,
+    "min": 0.01672526632084847,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.316653801809797,
+    "median": 1.3102994257461025,
+    "min": 1.303778627790192,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 18124,
+    "median": 16596.0,
+    "min": 15336,
+    "n": 8
+   },
+   "recv_vm_hwm_kb": {
+    "max": 18124,
+    "median": 16596.0,
+    "min": 15336,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": 0,
+    "median": 0.0,
+    "min": -1,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 14.833274399123637,
+    "median": 14.827028184174653,
+    "min": 14.821352702460876,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.272233080950246,
+    "median": 1.266840506155333,
+    "min": 1.2595554342615387,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 10304327,
+    "median": 10268120.5,
+    "min": 10219628,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 149,
+    "median": 127.5,
+    "min": 87,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 0.0001293856022479257,
+    "median": 0.00011631667412187733,
+    "min": 9.008874764271835e-05,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 1323,
+    "median": 1191.5,
+    "min": 925,
+    "n": 8
+   },
+   "unprocessed_not_lost": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_minus_derived": {
+    "max": 1,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_minus_measurement_counter": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_share": {
+    "max": 0.01768895799016728,
+    "median": 0.017166291432840645,
+    "min": 0.01672526632084847,
+    "n": 8
+   }
+  },
+  "R-cand": {
+   "datagram_loss": {
+    "max": 0.00021651676531564412,
+    "median": 0.00012170405725597799,
+    "min": 0.00010099160209187108,
+    "n": 8
+   },
+   "drops_v1": {
+    "max": 968,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.027737974000002552,
+    "median": 0.017594211999999665,
+    "min": 0.010979965000000433,
+    "n": 8
+   },
+   "mbps": {
+    "max": 9764.949545584452,
+    "median": 9719.681755835638,
+    "min": 9698.988336747341,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 17,
+    "median": 15.0,
+    "min": 13,
+    "n": 8
+   },
+   "packets_lost": {
+    "max": 1611,
+    "median": 1204.5,
+    "min": 1019,
+    "n": 8
+   },
+   "packets_unreceived": {
+    "max": 1611,
+    "median": 1204.5,
+    "min": 1019,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 9.445165787540948e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.3074331082605457,
+    "median": 1.3027352102384244,
+    "min": 1.2968723290909283,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 19404,
+    "median": 18312.0,
+    "min": 16092,
+    "n": 8
+   },
+   "recv_vm_hwm_kb": {
+    "max": 19404,
+    "median": 18312.0,
+    "min": 16092,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": 0,
+    "median": 0.0,
+    "min": -1,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 14.829689376293059,
+    "median": 14.823526317079434,
+    "min": 14.814962551495325,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.2556885974187453,
+    "median": 1.2448614150323793,
+    "min": 1.2358304920434806,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 10258503,
+    "median": 10210952.5,
+    "min": 10188966,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 133,
+    "median": 103.0,
+    "min": 65,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 0.00015798277860228684,
+    "median": 0.00011796181870822223,
+    "min": 9.933223200305151e-05,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 1611,
+    "median": 1204.5,
+    "min": 1019,
+    "n": 8
+   },
+   "unprocessed_not_lost": {
+    "max": 1,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_minus_derived": {
+    "max": 1,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_minus_measurement_counter": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_share": {
+    "max": 9.445165787540948e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   }
+  },
+  "R-main": {
+   "datagram_loss": {
+    "max": 0.02105029379577039,
+    "median": 0.01895279303022418,
+    "min": 0.017770995797398936,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.028631797000000958,
+    "median": 0.016182367499999017,
+    "min": 0.012568597000003123,
+    "n": 8
+   },
+   "mbps": {
+    "max": 9580.242518340085,
+    "median": 9539.647638341525,
+    "min": 9472.315790375662,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 17,
+    "median": 13.5,
+    "min": 12,
+    "n": 8
+   },
+   "packets_lost": {
+    "max": 1427,
+    "median": 1110.0,
+    "min": 1037,
+    "n": 8
+   },
+   "packets_unreceived": {
+    "max": 1427,
+    "median": 1110.0,
+    "min": 1037,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 0.02093371400390748,
+    "median": 0.018829891531812165,
+    "min": 0.017631079049334822,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.3454739082010194,
+    "median": 1.3386729241294428,
+    "min": 1.3316055414512753,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 19160,
+    "median": 16542.0,
+    "min": 15508,
+    "n": 8
+   },
+   "recv_vm_hwm_kb": {
+    "max": 19160,
+    "median": 16542.0,
+    "min": 15508,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": 0,
+    "median": 0.0,
+    "min": -1,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 14.834478355589036,
+    "median": 14.824587726626607,
+    "min": 14.813933264809556,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.2792451730753662,
+    "median": 1.2713826215750852,
+    "min": 1.2636806791669253,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 10254872,
+    "median": 10216436.5,
+    "min": 10146668,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 134,
+    "median": 112.5,
+    "min": 68,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 0.00013994741919219197,
+    "median": 0.00010842251477036228,
+    "min": 0.00010130583910444465,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 1427,
+    "median": 1110.0,
+    "min": 1037,
+    "n": 8
+   },
+   "unprocessed_not_lost": {
+    "max": 1,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   }
+  }
+ },
+ "decisions": {
+  "0_fixture_reproduces": true,
+  "1_d2_applies": true,
+  "1_discard_share_passes": true,
+  "1_loss_passes": false,
+  "1_loss_without_other_queues": -1.5212711732687234e-17,
+  "1_passes": true,
+  "2_counter_exact": false,
+  "2_counter_exact_or_explained": false,
+  "2_r128_v1_minus_derived": [
+   1,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "3_correct": true,
+  "3_residual_max": 1
+ },
+ "notes": [],
+ "outside_rules": {
+  "runs_with_nonzero_residual": [
+   "1 R-128 -1",
+   "2 R-cand -1",
+   "2 R-main -1",
+   "4 R-cand -1",
+   "4 R-main -1"
+  ],
+  "unprocessed_drops_equal_unreceived_packets_all_runs": true,
+  "v1_equals_measurement_counter_all_candidate_runs": true
+ },
+ "per_round": {
+  "1": {
+   "R-128": {
+    "datagram_loss": 0.017171729852236917,
+    "drops_v1": 175421,
+    "foreign_s": 0.016185004000002223,
+    "mbps": 9614.625785103759,
+    "min_rtt_us": 9,
+    "packets_lost": 1034,
+    "packets_unreceived": 1034,
+    "queue_drop_share": 0.01707120282005087,
+    "recv_cpu_s_per_gib": 1.3102307341452282,
+    "recv_maxrss_kb": 17552,
+    "recv_vm_hwm_kb": 17552,
+    "residual_datagrams": -1,
+    "segments_per_send": 14.833274399123637,
+    "send_cpu_s_per_gib": 1.2595554342615387,
+    "sent_datagrams": 10275843,
+    "socket_drops": 0,
+    "srtt_us": 128,
+    "unprocessed_drop_share": 0.00010062434780290046,
+    "unprocessed_drops": 1034,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 1,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.01707120282005087
+   },
+   "R-cand": {
+    "datagram_loss": 0.00010605835958721332,
+    "drops_v1": 69,
+    "foreign_s": 0.010979965000000433,
+    "mbps": 9764.949545584452,
+    "min_rtt_us": 13,
+    "packets_lost": 1019,
+    "packets_unreceived": 1019,
+    "queue_drop_share": 6.726127584112419e-06,
+    "recv_cpu_s_per_gib": 1.2968723290909283,
+    "recv_maxrss_kb": 16092,
+    "recv_vm_hwm_kb": 16092,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.82308120173658,
+    "send_cpu_s_per_gib": 1.2405522556781332,
+    "sent_datagrams": 10258503,
+    "socket_drops": 0,
+    "srtt_us": 121,
+    "unprocessed_drop_share": 9.933223200305151e-05,
+    "unprocessed_drops": 1019,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 6.726127584112419e-06
+   },
+   "R-main": {
+    "datagram_loss": 0.020056223032330345,
+    "foreign_s": 0.028631797000000958,
+    "mbps": 9566.986978008274,
+    "min_rtt_us": 16,
+    "packets_lost": 1093,
+    "packets_unreceived": 1093,
+    "queue_drop_share": 0.01994963954693925,
+    "recv_cpu_s_per_gib": 1.3376289432366126,
+    "recv_maxrss_kb": 15508,
+    "recv_vm_hwm_kb": 15508,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.827780082897569,
+    "send_cpu_s_per_gib": 1.2699287401924502,
+    "sent_datagrams": 10254872,
+    "socket_drops": 0,
+    "srtt_us": 118,
+    "unprocessed_drop_share": 0.00010658348539113896,
+    "unprocessed_drops": 1093,
+    "unprocessed_not_lost": 0
+   }
+  },
+  "2": {
+   "R-128": {
+    "datagram_loss": 0.017818343592415187,
+    "drops_v1": 180874,
+    "foreign_s": 0.020019537000001364,
+    "mbps": 9561.108355637372,
+    "min_rtt_us": 12,
+    "packets_lost": 1323,
+    "packets_unreceived": 1323,
+    "queue_drop_share": 0.01768895799016728,
+    "recv_cpu_s_per_gib": 1.316653801809797,
+    "recv_maxrss_kb": 15588,
+    "recv_vm_hwm_kb": 15588,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.83072565827541,
+    "send_cpu_s_per_gib": 1.267282851033273,
+    "sent_datagrams": 10225249,
+    "socket_drops": 0,
+    "srtt_us": 97,
+    "unprocessed_drop_share": 0.0001293856022479257,
+    "unprocessed_drops": 1323,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.01768895799016728
+   },
+   "R-cand": {
+    "datagram_loss": 0.00011806087175403324,
+    "drops_v1": 0,
+    "foreign_s": 0.01612254600000007,
+    "mbps": 9707.585183719168,
+    "min_rtt_us": 15,
+    "packets_lost": 1205,
+    "packets_unreceived": 1205,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.2972116494437886,
+    "recv_maxrss_kb": 18224,
+    "recv_vm_hwm_kb": 18224,
+    "residual_datagrams": -1,
+    "segments_per_send": 14.819636235775477,
+    "send_cpu_s_per_gib": 1.2426865815446457,
+    "sent_datagrams": 10198129,
+    "socket_drops": 0,
+    "srtt_us": 65,
+    "unprocessed_drop_share": 0.00011815892895647819,
+    "unprocessed_drops": 1205,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 1,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "R-main": {
+    "datagram_loss": 0.02105029379577039,
+    "foreign_s": 0.013929634000000135,
+    "mbps": 9513.14716408934,
+    "min_rtt_us": 13,
+    "packets_lost": 1190,
+    "packets_unreceived": 1191,
+    "queue_drop_share": 0.02093371400390748,
+    "recv_cpu_s_per_gib": 1.3454739082010194,
+    "recv_maxrss_kb": 15652,
+    "recv_vm_hwm_kb": 15652,
+    "residual_datagrams": -1,
+    "segments_per_send": 14.81848557995869,
+    "send_cpu_s_per_gib": 1.2792451730753662,
+    "sent_datagrams": 10207601,
+    "socket_drops": 0,
+    "srtt_us": 82,
+    "unprocessed_drop_share": 0.00011667775807459559,
+    "unprocessed_drops": 1191,
+    "unprocessed_not_lost": 1
+   }
+  },
+  "3": {
+   "R-128": {
+    "datagram_loss": 0.016852200126752592,
+    "drops_v1": 172158,
+    "foreign_s": 0.0154772079999983,
+    "mbps": 9630.549178996058,
+    "min_rtt_us": 18,
+    "packets_lost": 1240,
+    "packets_unreceived": 1240,
+    "queue_drop_share": 0.016731687040343408,
+    "recv_cpu_s_per_gib": 1.303778627790192,
+    "recv_maxrss_kb": 15336,
+    "recv_vm_hwm_kb": 15336,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.822444740837192,
+    "send_cpu_s_per_gib": 1.2630402006013102,
+    "sent_datagrams": 10289339,
+    "socket_drops": 0,
+    "srtt_us": 103,
+    "unprocessed_drop_share": 0.0001205130864091464,
+    "unprocessed_drops": 1240,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.016731687040343408
+   },
+   "R-cand": {
+    "datagram_loss": 0.00010099160209187108,
+    "drops_v1": 0,
+    "foreign_s": 0.017591495000001345,
+    "mbps": 9698.988336747341,
+    "min_rtt_us": 13,
+    "packets_lost": 1029,
+    "packets_unreceived": 1029,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3074331082605457,
+    "recv_maxrss_kb": 17464,
+    "recv_vm_hwm_kb": 17464,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.828056405577698,
+    "send_cpu_s_per_gib": 1.2446075416015918,
+    "sent_datagrams": 10188966,
+    "socket_drops": 0,
+    "srtt_us": 121,
+    "unprocessed_drop_share": 0.00010099160209191002,
+    "unprocessed_drops": 1029,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "R-main": {
+    "datagram_loss": 0.01833889685072676,
+    "foreign_s": 0.016439093999998988,
+    "mbps": 9566.33161307405,
+    "min_rtt_us": 14,
+    "packets_lost": 1037,
+    "packets_unreceived": 1037,
+    "queue_drop_share": 0.01823759101162233,
+    "recv_cpu_s_per_gib": 1.3327624826272564,
+    "recv_maxrss_kb": 19160,
+    "recv_vm_hwm_kb": 19160,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.828515685538946,
+    "send_cpu_s_per_gib": 1.2636806791669253,
+    "sent_datagrams": 10236330,
+    "socket_drops": 0,
+    "srtt_us": 68,
+    "unprocessed_drop_share": 0.00010130583910444465,
+    "unprocessed_drops": 1037,
+    "unprocessed_not_lost": 0
+   }
+  },
+  "4": {
+   "R-128": {
+    "datagram_loss": 0.016864759823712938,
+    "drops_v1": 172725,
+    "foreign_s": 0.015839212000001268,
+    "mbps": 9644.543164303865,
+    "min_rtt_us": 16,
+    "packets_lost": 1055,
+    "packets_unreceived": 1055,
+    "queue_drop_share": 0.016762375650539816,
+    "recv_cpu_s_per_gib": 1.3065629851840048,
+    "recv_maxrss_kb": 15728,
+    "recv_vm_hwm_kb": 15728,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.832786177416684,
+    "send_cpu_s_per_gib": 1.2649928844282237,
+    "sent_datagrams": 10304327,
+    "socket_drops": 0,
+    "srtt_us": 149,
+    "unprocessed_drop_share": 0.00010238417317307573,
+    "unprocessed_drops": 1055,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.016762375650539816
+   },
+   "R-cand": {
+    "datagram_loss": 0.00012534724275792275,
+    "drops_v1": 0,
+    "foreign_s": 0.027737974000002552,
+    "mbps": 9705.145780320616,
+    "min_rtt_us": 16,
+    "packets_lost": 1278,
+    "packets_unreceived": 1279,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3025548562111418,
+    "recv_maxrss_kb": 18384,
+    "recv_vm_hwm_kb": 18384,
+    "residual_datagrams": -1,
+    "segments_per_send": 14.821969080316755,
+    "send_cpu_s_per_gib": 1.2527101287870603,
+    "sent_datagrams": 10195677,
+    "socket_drops": 0,
+    "srtt_us": 101,
+    "unprocessed_drop_share": 0.0001254453235425171,
+    "unprocessed_drops": 1279,
+    "unprocessed_not_lost": 1,
+    "v1_minus_derived": 1,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "R-main": {
+    "datagram_loss": 0.019402132798668537,
+    "foreign_s": 0.015591904999999073,
+    "mbps": 9472.315790375662,
+    "min_rtt_us": 13,
+    "packets_lost": 1419,
+    "packets_unreceived": 1420,
+    "queue_drop_share": 0.019262283933996854,
+    "recv_cpu_s_per_gib": 1.3411388398903887,
+    "recv_maxrss_kb": 18900,
+    "recv_vm_hwm_kb": 18900,
+    "residual_datagrams": -1,
+    "segments_per_send": 14.83300909001881,
+    "send_cpu_s_per_gib": 1.2728365029577204,
+    "sent_datagrams": 10146668,
+    "socket_drops": 0,
+    "srtt_us": 134,
+    "unprocessed_drop_share": 0.00013994741919219197,
+    "unprocessed_drops": 1420,
+    "unprocessed_not_lost": 1
+   }
+  },
+  "5": {
+   "R-128": {
+    "datagram_loss": 0.017402906000037244,
+    "drops_v1": 177762,
+    "foreign_s": 0.0228189289999996,
+    "mbps": 9604.806615540443,
+    "min_rtt_us": 16,
+    "packets_lost": 925,
+    "packets_unreceived": 925,
+    "queue_drop_share": 0.017312817252394485,
+    "recv_cpu_s_per_gib": 1.3090494068260174,
+    "recv_maxrss_kb": 17608,
+    "recv_vm_hwm_kb": 17608,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.822576338219267,
+    "send_cpu_s_per_gib": 1.2708800906355289,
+    "sent_datagrams": 10267653,
+    "socket_drops": 0,
+    "srtt_us": 127,
+    "unprocessed_drop_share": 9.008874764271835e-05,
+    "unprocessed_drops": 925,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.017312817252394485
+   },
+   "R-cand": {
+    "datagram_loss": 0.00021651676531564412,
+    "drops_v1": 968,
+    "foreign_s": 0.017596928999997985,
+    "mbps": 9754.741333989434,
+    "min_rtt_us": 16,
+    "packets_lost": 1251,
+    "packets_unreceived": 1251,
+    "queue_drop_share": 9.445165787540948e-05,
+    "recv_cpu_s_per_gib": 1.3002082700622866,
+    "recv_maxrss_kb": 18240,
+    "recv_vm_hwm_kb": 18240,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.829689376293059,
+    "send_cpu_s_per_gib": 1.2358304920434806,
+    "sent_datagrams": 10248629,
+    "socket_drops": 0,
+    "srtt_us": 105,
+    "unprocessed_drop_share": 0.00012206510744022445,
+    "unprocessed_drops": 1251,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 9.445165787540948e-05
+   },
+   "R-main": {
+    "datagram_loss": 0.017770995797398936,
+    "foreign_s": 0.015925640999999047,
+    "mbps": 9536.934085489875,
+    "min_rtt_us": 12,
+    "packets_lost": 1427,
+    "packets_unreceived": 1427,
+    "queue_drop_share": 0.017631079049334822,
+    "recv_cpu_s_per_gib": 1.3320680919652295,
+    "recv_maxrss_kb": 17388,
+    "recv_vm_hwm_kb": 17388,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.834478355589036,
+    "send_cpu_s_per_gib": 1.2659874560300965,
+    "sent_datagrams": 10198922,
+    "socket_drops": 0,
+    "srtt_us": 107,
+    "unprocessed_drop_share": 0.00013991674806415816,
+    "unprocessed_drops": 1427,
+    "unprocessed_not_lost": 0
+   }
+  },
+  "6": {
+   "R-128": {
+    "datagram_loss": 0.017375222377214894,
+    "drops_v1": 177250,
+    "foreign_s": 0.022453936999998092,
+    "mbps": 9606.000672293982,
+    "min_rtt_us": 16,
+    "packets_lost": 1169,
+    "packets_unreceived": 1169,
+    "queue_drop_share": 0.017261380045630423,
+    "recv_cpu_s_per_gib": 1.3103681173469766,
+    "recv_maxrss_kb": 17084,
+    "recv_vm_hwm_kb": 17084,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.821352702460876,
+    "send_cpu_s_per_gib": 1.2677919727287659,
+    "sent_datagrams": 10268588,
+    "socket_drops": 0,
+    "srtt_us": 87,
+    "unprocessed_drop_share": 0.00011384233158443985,
+    "unprocessed_drops": 1169,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.017261380045630423
+   },
+   "R-cand": {
+    "datagram_loss": 0.00015375923729155083,
+    "drops_v1": 368,
+    "foreign_s": 0.02169211699999707,
+    "mbps": 9731.778327952108,
+    "min_rtt_us": 17,
+    "packets_lost": 1204,
+    "packets_unreceived": 1204,
+    "queue_drop_share": 3.59945288316176e-05,
+    "recv_cpu_s_per_gib": 1.3031580911437772,
+    "recv_maxrss_kb": 18516,
+    "recv_vm_hwm_kb": 18516,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.824700686919533,
+    "send_cpu_s_per_gib": 1.2451152884631669,
+    "sent_datagrams": 10223776,
+    "socket_drops": 0,
+    "srtt_us": 133,
+    "unprocessed_drop_share": 0.00011776470845996626,
+    "unprocessed_drops": 1204,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 3.59945288316176e-05
+   },
+   "R-main": {
+    "datagram_loss": 0.01823284041991491,
+    "foreign_s": 0.012568597000003123,
+    "mbps": 9580.242518340085,
+    "min_rtt_us": 17,
+    "packets_lost": 1116,
+    "packets_unreceived": 1116,
+    "queue_drop_share": 0.01812396317841936,
+    "recv_cpu_s_per_gib": 1.3316055414512753,
+    "recv_maxrss_kb": 16560,
+    "recv_vm_hwm_kb": 16560,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.821395370355646,
+    "send_cpu_s_per_gib": 1.2661845639995637,
+    "sent_datagrams": 10250076,
+    "socket_drops": 0,
+    "srtt_us": 98,
+    "unprocessed_drop_share": 0.00010887724149557525,
+    "unprocessed_drops": 1116,
+    "unprocessed_not_lost": 0
+   }
+  },
+  "7": {
+   "R-128": {
+    "datagram_loss": 0.016844057337507823,
+    "drops_v1": 170926,
+    "foreign_s": 0.019740925000000686,
+    "mbps": 9565.386859506441,
+    "min_rtt_us": 11,
+    "packets_lost": 1214,
+    "packets_unreceived": 1214,
+    "queue_drop_share": 0.01672526632084847,
+    "recv_cpu_s_per_gib": 1.3123274906048845,
+    "recv_maxrss_kb": 16108,
+    "recv_vm_hwm_kb": 16108,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.832990603345063,
+    "send_cpu_s_per_gib": 1.2663981612773931,
+    "sent_datagrams": 10219628,
+    "socket_drops": 0,
+    "srtt_us": 137,
+    "unprocessed_drop_share": 0.0001187910166593148,
+    "unprocessed_drops": 1214,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.01672526632084847
+   },
+   "R-cand": {
+    "datagram_loss": 0.0001579827786022392,
+    "drops_v1": 0,
+    "foreign_s": 0.02073705499999967,
+    "mbps": 9706.350859361053,
+    "min_rtt_us": 15,
+    "packets_lost": 1611,
+    "packets_unreceived": 1611,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3068085846049347,
+    "recv_maxrss_kb": 19404,
+    "recv_vm_hwm_kb": 19404,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.814962551495325,
+    "send_cpu_s_per_gib": 1.2556885974187453,
+    "sent_datagrams": 10197314,
+    "socket_drops": 0,
+    "srtt_us": 80,
+    "unprocessed_drop_share": 0.00015798277860228684,
+    "unprocessed_drops": 1611,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "R-main": {
+    "datagram_loss": 0.01974715195840271,
+    "foreign_s": 0.017998054999999624,
+    "mbps": 9542.361191193175,
+    "min_rtt_us": 12,
+    "packets_lost": 1104,
+    "packets_unreceived": 1104,
+    "queue_drop_share": 0.019639184170357524,
+    "recv_cpu_s_per_gib": 1.34034454994509,
+    "recv_maxrss_kb": 15700,
+    "recv_vm_hwm_kb": 15700,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.820104048923282,
+    "send_cpu_s_per_gib": 1.2760082002300444,
+    "sent_datagrams": 10225272,
+    "socket_drops": 0,
+    "srtt_us": 129,
+    "unprocessed_drop_share": 0.00010796778804514931,
+    "unprocessed_drops": 1104,
+    "unprocessed_not_lost": 0
+   }
+  },
+  "8": {
+   "R-128": {
+    "datagram_loss": 0.01743690464001224,
+    "drops_v1": 177372,
+    "foreign_s": 0.01950010199999852,
+    "mbps": 9583.43206113583,
+    "min_rtt_us": 14,
+    "packets_lost": 1272,
+    "packets_unreceived": 1272,
+    "queue_drop_share": 0.017312748537920367,
+    "recv_cpu_s_per_gib": 1.3140496444936285,
+    "recv_maxrss_kb": 18124,
+    "recv_vm_hwm_kb": 18124,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.823330710073895,
+    "send_cpu_s_per_gib": 1.272233080950246,
+    "sent_datagrams": 10245167,
+    "socket_drops": 0,
+    "srtt_us": 145,
+    "unprocessed_drop_share": 0.00012415610209184487,
+    "unprocessed_drops": 1272,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.017312748537920367
+   },
+   "R-cand": {
+    "datagram_loss": 0.00011449865916302038,
+    "drops_v1": 0,
+    "foreign_s": 0.01357061199999876,
+    "mbps": 9735.209991238085,
+    "min_rtt_us": 15,
+    "packets_lost": 1171,
+    "packets_unreceived": 1171,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.302915564265707,
+    "recv_maxrss_kb": 18924,
+    "recv_vm_hwm_kb": 18924,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.823971432422288,
+    "send_cpu_s_per_gib": 1.2460618895969366,
+    "sent_datagrams": 10227194,
+    "socket_drops": 0,
+    "srtt_us": 92,
+    "unprocessed_drop_share": 0.00011449865916301187,
+    "unprocessed_drops": 1171,
+    "unprocessed_not_lost": 0,
+    "v1_minus_derived": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "R-main": {
+    "datagram_loss": 0.018503453261779823,
+    "foreign_s": 0.024821812000000776,
+    "mbps": 9533.17077315105,
+    "min_rtt_us": 14,
+    "packets_lost": 1081,
+    "packets_unreceived": 1081,
+    "queue_drop_share": 0.01839749912962748,
+    "recv_cpu_s_per_gib": 1.339716905022273,
+    "recv_maxrss_kb": 16524,
+    "recv_vm_hwm_kb": 16524,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.813933264809556,
+    "send_cpu_s_per_gib": 1.2773530840035623,
+    "sent_datagrams": 10202528,
+    "socket_drops": 0,
+    "srtt_us": 131,
+    "unprocessed_drop_share": 0.00010595413215234498,
+    "unprocessed_drops": 1081,
+    "unprocessed_not_lost": 0
+   }
+  }
+ },
+ "ratios": {
+  "R-128/R-main": {
+   "mbps": {
+    "max": 1.0181821824503776,
+    "median": 1.0051569111834362,
+    "min": 1.0024129948397382,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 1.3333333333333333,
+    "median": 0.9705882352941176,
+    "min": 0.5625,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 0.9840512648504356,
+    "median": 0.979307226897906,
+    "min": 0.9742190340940318,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 1.131802940417849,
+    "median": 1.0193198325516244,
+    "min": 0.8004175365344468,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.0038646785812355,
+    "median": 0.9949146972997209,
+    "min": 0.9906489214938093,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 1.5147058823529411,
+    "median": 1.109405263757548,
+    "min": 0.8877551020408163,
+    "n": 8
+   }
+  },
+  "R-cand/R-main": {
+   "mbps": {
+    "max": 1.024580049387872,
+    "median": 1.0205655664266433,
+    "min": 1.0138670421472733,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 1.3333333333333333,
+    "median": 1.1126373626373627,
+    "min": 0.8125,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 0.980994832389955,
+    "median": 0.9737550515701989,
+    "min": 0.9641299184896418,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 1.235923566878981,
+    "median": 1.0835576259489303,
+    "min": 0.911482254697286,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 0.9849066794485555,
+    "median": 0.9801138199968555,
+    "min": 0.9714217475272298,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 1.7794117647058822,
+    "median": 0.8869956690221108,
+    "min": 0.6201550387596899,
+    "n": 8
+   }
+  }
+ },
+ "rounds_used": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ]
+}

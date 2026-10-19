@@ -1,0 +1,5 @@
+2026-10-19T02:19:32+0000 round 1 order R-main R-cand R-128
+2026-10-19T02:19:44+0000 round 1 R-main: 9538 Mbit/s segs/send 14.82 loss 0.020309 v1 - queue 206342 unproc 1343 rss 17932 KiB foreign 0.019s softirqd 0.000s
+2026-10-19T02:19:56+0000 round 1 R-cand: 9763 Mbit/s segs/send 14.82 loss 0.000118 v1 0 queue 0 unproc 1214 rss 15612 KiB foreign 0.033s softirqd 0.000s
+2026-10-19T02:20:09+0000 round 1 R-128: 9599 Mbit/s segs/send 14.82 loss 0.016598 v1 168963 queue 168963 unproc 1223 rss 15572 KiB foreign 0.025s softirqd 0.000s
+2026-10-19T02:20:09+0000 done

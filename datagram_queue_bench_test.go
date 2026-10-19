@@ -37,7 +37,7 @@ func BenchmarkDatagramReceive(b *testing.B) {
 					}
 				}
 			case "BurstDrain":
-				// One operation is a full 128-message burst and drain.
+				// One operation is a full-queue burst and drain.
 				for b.Loop() {
 					for range maxDatagramRcvQueueLen {
 						queue.HandleDatagramFrame(frame)

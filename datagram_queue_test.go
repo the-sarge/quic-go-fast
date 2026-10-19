@@ -3,6 +3,7 @@ package quic
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -121,6 +122,71 @@ func TestDatagramReceiveOverflowFIFO(t *testing.T) {
 	data, err := queue.Receive(ctx)
 	require.NoError(t, err)
 	require.Empty(t, data)
+}
+
+// The queue admits a fixed 1,024 payloads and counts each one it refuses.
+func TestDatagramReceiveOverflowCount(t *testing.T) {
+	const depth, refused = 1024, 37
+	require.Equal(t, depth, maxDatagramRcvQueueLen)
+	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+	for i := range depth + refused {
+		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: binary.BigEndian.AppendUint16(nil, uint16(i))})
+	}
+	require.EqualValues(t, refused, queue.receiveDrops())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // A missing entry fails immediately instead of blocking the test.
+	for i := range depth {
+		data, err := queue.Receive(ctx)
+		require.NoError(t, err)
+		require.Equal(t, binary.BigEndian.AppendUint16(nil, uint16(i)), data)
+	}
+	_, err := queue.Receive(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+	require.EqualValues(t, refused, queue.receiveDrops())
+}
+
+// Payloads discarded when the receive phase opens are not full-queue discards.
+func TestDatagramReceiveDropsExcludeInvalidation(t *testing.T) {
+	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+	for range maxDatagramRcvQueueLen + 2 {
+		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte("x")})
+	}
+	require.EqualValues(t, 2, queue.receiveDrops())
+	queue.invalidateReceived()
+	require.EqualValues(t, 2, queue.receiveDrops())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := queue.Receive(ctx)
+	require.ErrorIs(t, err, context.Canceled, "invalidation empties the queue")
+	// The emptied queue admits a full queue again, and counts only what follows.
+	for range maxDatagramRcvQueueLen + 1 {
+		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte("y")})
+	}
+	require.EqualValues(t, 3, queue.receiveDrops())
+}
+
+// Once delivered, a payload is no longer referenced by the queue's storage, so
+// a drained queue pins no payload memory. The check reads the storage itself
+// rather than waiting on the garbage collector.
+func TestDatagramReceiveReleasesDelivered(t *testing.T) {
+	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+	const n = 5
+	for i := range n {
+		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(i)}})
+	}
+	storage := queue.rcvQueue // shares the backing array the queue reslices
+	require.Len(t, storage, n)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for i := range n {
+		data, err := queue.Receive(ctx)
+		require.NoError(t, err)
+		require.Equal(t, []byte{byte(i)}, data)
+		require.Nil(t, storage[i], "delivered slot %d still references its payload", i)
+		for j := i + 1; j < n; j++ {
+			require.Equal(t, []byte{byte(j)}, storage[j], "undelivered slot %d", j)
+		}
+	}
 }
 
 func TestDatagramReceivePayloadOwnership(t *testing.T) {

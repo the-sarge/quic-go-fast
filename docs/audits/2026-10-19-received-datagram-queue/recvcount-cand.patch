@@ -1,0 +1,36 @@
+--- a/datagram_queue.go
++++ b/datagram_queue.go
+@@ -110,6 +110,7 @@
+ 		return
+ 	}
+ 	h.rcvDrops.Add(1)
++	debugDatagramQueueDrops.Add(1)
+ 	if h.logger.Debug() {
+ 		h.logger.Debugf("Discarding received DATAGRAM frame (%d bytes payload)", len(f.Data))
+ 	}
+--- a/connection.go
++++ b/connection.go
+@@ -2073,6 +2073,7 @@
+ // qlogUnprocessedPacketDropped records the drop of a packet that could not
+ // enter the unprocessed-packet queue. The caller holds receivedPacketMx.
+ func (c *Conn) qlogUnprocessedPacketDropped(p receivedPacket) {
++	debugUnprocessedDrops.Add(1)
+ 	if c.qlogger == nil {
+ 		return
+ 	}
+--- /dev/null
++++ b/debug_drops_824.go
+@@ -0,0 +1,13 @@
++package quic
++
++import "sync/atomic"
++
++// Measurement-only receive drop counters for #824's receiver builds; never
++// merged. The same counters and reader as #743's recvcount.patch.
++var debugDatagramQueueDrops, debugUnprocessedDrops atomic.Uint64
++
++// DebugReceiveDropsV743 reports drops at the received-DATAGRAM queue and the
++// unprocessed-packet queue since process start.
++func DebugReceiveDropsV743() (datagramQueue, unprocessed uint64) {
++	return debugDatagramQueueDrops.Load(), debugUnprocessedDrops.Load()
++}
