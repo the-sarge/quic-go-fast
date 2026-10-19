@@ -390,37 +390,79 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 }
 
 func TestHandshakePacketBuffering(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		curve            tls.CurveID
+		delayClientHello bool
+	}{
+		{name: "hybrid", curve: tls.X25519MLKEM768},
+		{name: "classical", curve: tls.CurveP384},
+		{name: "fragmented ClientHello", curve: tls.X25519MLKEM768, delayClientHello: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testHandshakePacketBuffering(t, tc.curve, tc.delayClientHello)
+		})
+	}
+}
+
+func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID, delayClientHello bool) {
+	t.Helper()
+
 	synctest.Test(t, func(t *testing.T) {
 		const rtt = 20 * time.Millisecond
 
 		clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
 		serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
-		var droppedFirst atomic.Bool
+		var serverEventRecorder events.Recorder
+		var corruptedFirst atomic.Bool
 		n := &simnet.Simnet{
-			Router: &directionAwareDroppingRouter{
-				ClientAddr: clientAddr,
-				ServerAddr: serverAddr,
-				Drop: func(d direction, p simnet.Packet) bool {
-					if droppedFirst.Load() {
-						return false
+			Router: &callbackRouter{
+				Router: &simnet.PerfectRouter{},
+				OnSendPacket: func(p simnet.Packet) {
+					if corruptedFirst.Load() || p.To.String() != clientAddr.String() {
+						return
 					}
-					if d == directionToClient && containsPacketType(p.Data, protocol.PacketTypeInitial) {
-						droppedFirst.Store(true)
-						return true
+					checksum := qlog.CalculateDatagramPayloadChecksum(p.Data)
+					for _, ev := range serverEventRecorder.Events(qlog.PacketSent{}) {
+						packet := ev.(qlog.PacketSent)
+						if packet.Header.PacketType != qlog.PacketTypeInitial || packet.DatagramPayloadChecksum != checksum {
+							continue
+						}
+						// An ACK-only Initial must not consume the fault. Withhold
+						// the start of ServerHello, preserving coalesced Handshakes.
+						if !slices.ContainsFunc(packet.Frames, func(frame qlog.Frame) bool {
+							crypto, ok := frame.Frame.(*qlog.CryptoFrame)
+							return ok && crypto.Offset == 0 && crypto.Length > 0
+						}) {
+							continue
+						}
+						offset, ok := handshakeCorruptionOffset(p.Data, protocol.PacketTypeInitial)
+						if ok && corruptedFirst.CompareAndSwap(false, true) {
+							p.Data[offset] ^= 1
+						}
+						return
 					}
-					return false
 				},
 			},
 		}
 		settings := simnet.NodeBiDiLinkSettings{Latency: rtt / 2}
 		clientConn := n.NewEndpoint(clientAddr, settings)
 		defer clientConn.Close()
-		serverConn := n.NewEndpoint(serverAddr, settings)
+		serverSettings := settings
+		if delayClientHello {
+			var clientInitials atomic.Int32
+			serverSettings.LatencyFunc = func(p simnet.Packet) time.Duration {
+				if containsPacketType(p.Data, protocol.PacketTypeInitial) && clientInitials.Add(1) == 2 {
+					return 3 * rtt
+				}
+				return rtt / 2
+			}
+		}
+		serverConn := n.NewEndpoint(serverAddr, serverSettings)
 		defer serverConn.Close()
 		require.NoError(t, n.Start())
 		defer n.Close()
 
-		var serverEventRecorder events.Recorder
 		ln, err := quic.Listen(
 			serverConn,
 			getTLSConfig(),
@@ -430,15 +472,18 @@ func TestHandshakePacketBuffering(t *testing.T) {
 		defer ln.Close()
 
 		var clientEventRecorder events.Recorder
+		clientTLS := getTLSClientConfig()
+		clientTLS.CurvePreferences = []tls.CurveID{curve}
 		conn, err := quic.Dial(
 			context.Background(),
 			clientConn,
 			ln.Addr(),
-			getTLSClientConfig(),
+			clientTLS,
 			getQuicConfig(&quic.Config{Tracer: newTracer(&clientEventRecorder)}),
 		)
 		require.NoError(t, err)
 		defer conn.CloseWithError(0, "")
+		require.True(t, corruptedFirst.Load(), "must invalidate a server Initial")
 		str, err := conn.OpenUniStream()
 		require.NoError(t, err)
 		data := []byte("foobar")
@@ -446,6 +491,20 @@ func TestHandshakePacketBuffering(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, str.Close())
 
+		if delayClientHello {
+			var initialACKOnly bool
+			for _, ev := range serverEventRecorder.Events(qlog.PacketSent{}) {
+				packet := ev.(qlog.PacketSent)
+				if packet.Header.PacketType == qlog.PacketTypeInitial {
+					initialACKOnly = !slices.ContainsFunc(packet.Frames, func(frame qlog.Frame) bool {
+						_, ok := frame.Frame.(*qlog.CryptoFrame)
+						return ok
+					})
+					break
+				}
+			}
+			require.True(t, initialACKOnly, "must exercise an ACK-only Initial before ServerHello")
+		}
 		require.Empty(t, serverEventRecorder.Events(qlog.PacketBuffered{}))
 		buffered := clientEventRecorder.Events(qlog.PacketBuffered{})
 		t.Logf("buffered packets: %d", len(buffered))
