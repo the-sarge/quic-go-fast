@@ -7,6 +7,7 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+	"unicode/utf8"
 
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
@@ -43,6 +44,7 @@ func testEventEncoding(t *testing.T, ev qlogwriter.Event) (string, map[string]an
 
 func decode(t *testing.T, data string) (string, map[string]any) {
 	t.Helper()
+	require.True(t, utf8.ValidString(data), "qlog contains invalid UTF-8")
 
 	var result map[string]any
 
@@ -54,6 +56,48 @@ func decode(t *testing.T, data string) (string, map[string]any) {
 	require.Equal(t, 42*time.Second, time.Duration(result["time"].(float64)*1e6)*time.Nanosecond)
 
 	return result["name"].(string), result["data"].(map[string]any)
+}
+
+func TestReceivedConnectionCloseInvalidUTF8(t *testing.T) {
+	for _, application := range []bool{false, true} {
+		for _, tt := range []struct {
+			name   string
+			reason string
+			want   string
+		}{
+			{name: "invalid bytes", reason: "\xff\xfe", want: "\ufffd\ufffd"},
+			{name: "truncated sequence", reason: "\xe2\x82", want: "\ufffd\ufffd"},
+			{name: "with Unicode and escapes", reason: "\u20ac\xff\"\n\\\x00", want: "\u20ac\ufffd\"\n\\\x00"},
+		} {
+			name := "transport/" + tt.name
+			if application {
+				name = "application/" + tt.name
+			}
+			t.Run(name, func(t *testing.T) {
+				sent := &wire.ConnectionCloseFrame{IsApplicationError: application, ErrorCode: 1337, ReasonPhrase: tt.reason}
+				data, err := sent.Append(nil, protocol.Version1)
+				require.NoError(t, err)
+				parser := wire.NewFrameParser(false, false, false)
+				typ, n, err := parser.ParseType(data, protocol.Encryption1RTT)
+				require.NoError(t, err)
+				frame, m, err := parser.ParseLessCommonFrame(typ, data[n:], protocol.Version1)
+				require.NoError(t, err)
+				require.Equal(t, len(data), n+m)
+				require.Equal(t, tt.reason, frame.(*wire.ConnectionCloseFrame).ReasonPhrase)
+
+				eventName, ev := testEventEncoding(t, &PacketReceived{
+					Header: PacketHeader{PacketType: PacketType1RTT},
+					Frames: []Frame{{Frame: frame}},
+				})
+				require.Equal(t, "transport:packet_received", eventName)
+				frames := ev["frames"].([]any)
+				require.Len(t, frames, 1)
+				logged := frames[0].(map[string]any)
+				require.Equal(t, "connection_close", logged["frame_type"])
+				require.Equal(t, tt.want, logged["reason"])
+			})
+		}
+	}
 }
 
 func TestStartedConnection(t *testing.T) {

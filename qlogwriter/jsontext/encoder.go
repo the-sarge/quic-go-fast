@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -145,6 +146,10 @@ func (e *Encoder) WriteToken(t Token) error {
 	var err error
 	switch t.kind {
 	case kindString:
+		if !utf8.ValidString(t.str) {
+			// Match encoding/json by replacing each invalid UTF-8 byte with U+FFFD.
+			t.str = string([]rune(t.str))
+		}
 		data := stringToBytes(t.str)
 		needsEscape := false
 		for _, b := range data {

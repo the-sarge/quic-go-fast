@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/quic-go/quic-go/qlogwriter/jsontext"
 
@@ -190,6 +191,69 @@ func testEncoderEscapedStrings(t *testing.T, key, value string) {
 	require.Equal(t, expected, got)
 }
 
+func TestEncoderStringUTF8(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "empty"},
+		{name: "ASCII", input: "closed", want: "closed"},
+		{name: "Unicode", input: "\u00e9\u20ac\U0001f600\ufffd", want: "\u00e9\u20ac\U0001f600\ufffd"},
+		{name: "continuation byte", input: "\x80", want: "\ufffd"},
+		{name: "invalid bytes", input: "\xff\xfe", want: "\ufffd\ufffd"},
+		{name: "truncated sequence", input: "\xe2\x82", want: "\ufffd\ufffd"},
+		{name: "overlong sequence", input: "\xc0\xaf", want: "\ufffd\ufffd"},
+		{name: "surrogate", input: "\xed\xa0\x80", want: "\ufffd\ufffd\ufffd"},
+		{name: "out of range", input: "\xf4\x90\x80\x80", want: "\ufffd\ufffd\ufffd\ufffd"},
+		{name: "mixed Unicode", input: "\u20ac\xff\U0001f600", want: "\u20ac\ufffd\U0001f600"},
+		{name: "with escapes", input: "\"\\\n\x00\xff", want: "\"\\\n\x00\ufffd"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			enc := jsontext.NewEncoder(&buf)
+			for _, token := range []jsontext.Token{
+				jsontext.BeginObject,
+				jsontext.String(tt.input), jsontext.String(tt.input),
+				jsontext.String("after"), jsontext.True,
+				jsontext.EndObject,
+			} {
+				require.NoError(t, enc.WriteToken(token))
+			}
+			require.True(t, utf8.Valid(buf.Bytes()), "invalid UTF-8: %q", buf.Bytes())
+			require.True(t, json.Valid(buf.Bytes()))
+			var got map[string]any
+			require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+			require.Equal(t, map[string]any{tt.want: tt.want, "after": true}, got)
+		})
+	}
+}
+
+func FuzzEncoderString(f *testing.F) {
+	for _, input := range []string{"", "closed", "\u00e9\u20ac\U0001f600\ufffd", "\xff\xfe", "\xe2\x82", "\"\\\n\x00\xff"} {
+		f.Add(input)
+	}
+	f.Fuzz(func(t *testing.T, input string) {
+		var buf bytes.Buffer
+		enc := jsontext.NewEncoder(&buf)
+		require.NoError(t, enc.WriteToken(jsontext.BeginObject))
+		require.NoError(t, enc.WriteToken(jsontext.String(input)))
+		require.NoError(t, enc.WriteToken(jsontext.String(input)))
+		require.NoError(t, enc.WriteToken(jsontext.EndObject))
+		require.True(t, utf8.Valid(buf.Bytes()), "invalid UTF-8: %q", buf.Bytes())
+		require.True(t, json.Valid(buf.Bytes()))
+
+		// Compare decoded strings since equivalent JSON encoders can escape differently.
+		expected, err := json.Marshal(map[string]string{input: input})
+		require.NoError(t, err)
+		var want, got map[string]string
+		require.NoError(t, json.Unmarshal(expected, &want))
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
+		require.Equal(t, want, got)
+	})
+}
+
 func encodeValue(t testing.TB, enc *jsontext.Encoder, v any) (isSupported bool) {
 	t.Helper()
 
@@ -266,6 +330,12 @@ func TestEncoderComprehensive(t *testing.T) {
 			return err
 		}
 		if err := enc.WriteToken(jsontext.String(`"quoted\"string"`)); err != nil {
+			return err
+		}
+		if err := enc.WriteToken(jsontext.String("invalid UTF-8")); err != nil {
+			return err
+		}
+		if err := enc.WriteToken(jsontext.String("\xff\"\n\xe2\x82")); err != nil {
 			return err
 		}
 
