@@ -51,11 +51,26 @@ class ECN(unittest.TestCase):
         self.assertTrue(A.ecn_kept(row(0.000001)))
         self.assertFalse(A.ecn_kept(row(0.002)))
 
-    def test_contaminated_rows_do_not_decide(self):
-        self.assertTrue(A.ecn_decision({'a': row(0.000001), 'b': row(0.4, contaminated=True)}))
+    def test_one_way_rule(self):
+        self.assertTrue(A.ecn_decision({'a': row(0.000001), 'b': row(0.000002, contaminated=True)}))
+        # A contaminated observation that stopped marking still means ECN does not stay on.
+        self.assertFalse(A.ecn_decision({'a': row(0.000001), 'b': row(0.4, contaminated=True)}))
         self.assertFalse(A.ecn_decision({'a': row(0.000001), 'b': row(0.4)}))
-        self.assertFalse(A.ecn_decision({'b': row(0.000001, contaminated=True)}))  # no deciding row
+        # Contaminated observations alone cannot establish that it stays on.
+        self.assertFalse(A.ecn_decision({'b': row(0.000001, contaminated=True)}))
         self.assertFalse(A.ecn_decision({}))
+
+    def test_ecn_failed_at_reads_a_trace(self):
+        import json
+        import shutil
+        import tempfile
+        d = Path(tempfile.mkdtemp())
+        shutil.copy(Path(__file__).resolve().parent / 'testdata/port-fixture-trace.json', d / 'focal-trace.json')
+        data = json.loads((d / 'focal-trace.json').read_text())
+        first = data['rows'][0][data['columns'].index('unix_ns')]
+        (d / 'focal-config.json').write_text(json.dumps(dict(start_unix_ns=first - A.m792.reconcile.WARMUP_NS)))
+        t = A.ecn_failed_at(d)
+        self.assertTrue(t is None or t >= 0)
 
 
 def period(checks, by_reason, limited_share):
@@ -85,6 +100,68 @@ class Marking(unittest.TestCase):
     def test_no_checks(self):
         f = self.figures(0, dict(application=0, flow_control=0, probe_rtt=0), None)
         self.assertIsNone(f['application_share'])
+
+
+class Selection(unittest.TestCase):
+    def test_pick_trace(self):
+        att = [dict(pair=1, workload='stream', phase='main', trace_clean=False), dict(pair=1, workload='stream', phase='rerun', trace_clean=True)]
+        self.assertEqual(A.pick_trace(att, 'main', 1, 'stream'), 'rerun')  # the other attempt's clean trace
+        att[0]['trace_clean'] = True
+        self.assertEqual(A.pick_trace(att, 'main', 1, 'stream'), 'main')   # the classified attempt's own
+        self.assertEqual(A.pick_trace(att, 'rerun', 1, 'stream'), 'rerun')
+        self.assertIsNone(A.pick_trace([dict(pair=1, workload='stream', phase='main', trace_clean=False)], 'main', 1, 'stream'))
+
+    def test_decided(self):
+        clean = dict(usable=True, contaminated=False)
+        self.assertTrue(A.decided(dict(clean)))  # no trace arm
+        self.assertTrue(A.decided(dict(clean, trace_clean=True)))
+        self.assertFalse(A.decided(dict(clean, trace_clean=False)))  # trace pass not done
+        self.assertTrue(A.decided(dict(clean, trace_clean=False, trace_rerun='cap reached')))
+        self.assertTrue(A.decided(dict(clean, trace_clean=False, rerun=dict(trigger='trace'))))
+        self.assertFalse(A.decided(dict(usable=False, contaminated=False, trace_clean=True)))
+        self.assertTrue(A.decided(dict(usable=True, contaminated=True, rerun='cap reached')))
+
+
+class Follow(unittest.TestCase):
+    """matrix.follow's two passes, with judge and triple stubbed: the trace never takes a slot from a triple."""
+
+    def run_follow(self, dirty_triples, dirty_traces):
+        import tempfile
+        M = A.matrix
+        saved = (M.judge, M.triple, A.run.ART)
+        calls = []
+
+        def judge(phase, pair, workload):
+            key = (pair, workload)
+            usable = not (phase == 'main' and key in dirty_triples)
+            detail = {arm: dict(usable=True, contaminated=False) for arm in M.ARMS}
+            if pair in M.TRACE_PAIRS:
+                detail['trace'] = dict(usable=not (phase == 'main' and key in dirty_traces), contaminated=False)
+            return usable, False, detail
+        M.judge, M.triple, A.run.ART = judge, lambda phase, pair, workload: calls.append((pair, workload)), Path(tempfile.mkdtemp())
+        try:
+            decisions = M.follow()
+        finally:
+            M.judge, M.triple, A.run.ART = saved
+        return calls, {(e['pair'], e['workload']): e for e in decisions}
+
+    def test_triples_first_then_traces_with_the_slots_left(self):
+        triples = {(4, 'stream'), (5, 'datagram')}
+        traces = {(1, 'stream'), (1, 'datagram'), (2, 'stream')}
+        calls, d = self.run_follow(triples, traces)
+        self.assertEqual(calls[:2], [(4, 'stream'), (5, 'datagram')])  # #777's pass, in its order
+        self.assertEqual(len(calls), 4)                                  # #777's cap in all
+        self.assertEqual(d[(4, 'stream')]['rerun']['trigger'], 'triple')
+        self.assertEqual([d[k]['rerun']['trigger'] for k in [(1, 'stream'), (1, 'datagram')]], ['trace', 'trace'])
+        self.assertEqual(d[(2, 'stream')]['trace_rerun'], 'cap reached')
+        self.assertTrue(all(A.decided(e) for e in d.values()))
+
+    def test_traces_cannot_exhaust_the_triple_cap(self):
+        traces = {(1, 'stream'), (1, 'datagram'), (2, 'stream'), (2, 'datagram'), (3, 'stream')}
+        calls, d = self.run_follow({(5, 'stream')}, traces)
+        self.assertEqual(calls[0], (5, 'stream'))
+        self.assertEqual(d[(5, 'stream')]['rerun']['trigger'], 'triple')
+        self.assertEqual(sum(1 for e in d.values() if e.get('trace_rerun') == 'cap reached'), 2)
 
 
 if __name__ == '__main__':

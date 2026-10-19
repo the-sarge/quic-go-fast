@@ -153,18 +153,19 @@ def displacement():
 
 
 def marking():
-    rows = ['| Workload | Period | Checks on application-limited packets #808 (#792) | On any supply-limited packet #808 (#792) | Crossings, limited #808 (#792) | `inflight_longterm` / path #808 (#792) | `max_bw` cycle advances #808 (#792) | Competitor drops in Up #808 (#792) | Clamp events #808 |',
-            '| --- | --- | --- | --- | --- | --- | --- | --- | ---: |']
+    rows = ['| Workload | Period | Traces | Checks on application-limited packets #808 (#792) | On any supply-limited packet #808 (#792) | Crossings, limited #808 (#792) | `inflight_longterm` / path #808 (#792) | `max_bw` cycle advances #808 (#792) | Competitor drops in Up #808 (#792) | Clamp events #808 |',
+            '| --- | --- | ---: | --- | --- | --- | --- | --- | --- | ---: |']
+    n = lambda x: '–' if x is None else str(x)
     pct = lambda x: '–' if x is None else f'{x:.0%}'
     for w in WORKLOADS:
         for p in CLASSIFIED:
             m = R['marking'][w][p]
-            rows.append(f"| {NAMES[w]} | {p} | {pct(m['application_share_808'])} ({pct(m['application_share_792'])}) | "
+            rows.append(f"| {NAMES[w]} | {p} | {m['traces_808']} | {pct(m['application_share_808'])} ({pct(m['application_share_792'])}) | "
                         f"{pct(m['supply_limited_share_808'])} ({pct(m['supply_limited_share_792'])}) | "
-                        f"{m['crossings_808']}, {m['crossings_limited_808']} ({m['crossings_792']}, {m['crossings_limited_792']}) | "
+                        f"{n(m['crossings_808'])}, {n(m['crossings_limited_808'])} ({m['crossings_792']}, {m['crossings_limited_792']}) | "
                         f"{f(m['inflight_longterm_over_path_808'], 2)} ({f(m['inflight_longterm_over_path_792'], 2)}) | "
                         f"{' '.join(str(x) for x in m['cycle_advances_808'])} ({' '.join(str(x) for x in m['cycle_advances_792'])}) | "
-                        f"{pct(m['competitor_drops_in_up_808'])} ({pct(m['competitor_drops_in_up_792'])}) | {m['clamp_events_808']} |")
+                        f"{pct(m['competitor_drops_in_up_808'])} ({pct(m['competitor_drops_in_up_792'])}) | {n(m['clamp_events_808'])} |")
     return '\n'.join(rows)
 
 
@@ -184,6 +185,8 @@ def ecn_reading():
 
 def checker():
     c = R['checker']
+    if not c['traces']:
+        return '- No trace observation was clean, so there are no trace figures.'
     return (f"- Traces: {c['traces']}, complete: {'yes' if c['traces_complete'] else 'no'}.\n"
             f"- Draft-06 checker mismatches in the measured window: {c['mismatches_in_measured_window']}.\n"
             f"- Input check: {'every check ok' if c['reconcile_ok'] else 'findings: ' + json.dumps(c['reconcile_findings'])}.\n"

@@ -43,10 +43,13 @@ def rounds(n, overrides=None):
     return rows
 
 
-def analyze(counted, rerun):
+def analyze(counted, rerun, finished=True):
+    path = write(counted)
+    if finished:
+        Path(path).with_suffix('.DONE').write_text('')
     out = io.StringIO()
     with redirect_stdout(out):
-        A.main(['analyze.py', write(counted), write(rerun)])
+        A.main(['analyze.py', path, write(rerun)])
     return json.loads(out.getvalue())
 
 
@@ -93,6 +96,24 @@ class Selection(unittest.TestCase):
         s = analyze(counted, [dict(r, round=2) for r in rounds(1)])
         self.assertEqual(s['rounds_used'], [1, 2])
         self.assertEqual(s['notes'], ['round 2 replaced by its clean rerun'])
+
+    def test_partial_original_replaced_by_full_clean_rerun(self):
+        counted = [r for r in rounds(2) if not (r['round'] == 2 and r['arm'] == 'M-bbr')]
+        s = analyze(counted, [dict(r, round=2) for r in rounds(1)])
+        self.assertEqual((s['status'], s['rounds_used']), ('complete', [1, 2]))
+        self.assertIn('missing arms', s['notes'][0])
+
+    def test_partial_rerun_is_excluded(self):
+        counted = rounds(2, {(2, 'S-pre'): dict(contaminated=True)})
+        rerun = [dict(r, round=2) for r in rounds(1) if r['arm'] != 'Dk-bbr']
+        s = analyze(counted, rerun)
+        self.assertEqual(s['rounds_used'], [1])
+        self.assertIn("missing ['Dk-bbr']", s['notes'][0])
+
+    def test_unfinished_order_is_incomplete(self):
+        s = analyze(rounds(2), [], finished=False)
+        self.assertEqual((s['status'], s['readings']), ('incomplete', None))
+        self.assertIn('did not finish', s['notes'][-1])
 
     def test_missing_rerun_file_is_an_error(self):
         with self.assertRaises(FileNotFoundError):

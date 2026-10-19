@@ -6,14 +6,20 @@ Copied from #777's matrix.py (71e88789) with recorded changes:
   BBRv3) joins pairs 1-3 only, at a seeded position in #777's unchanged
   triple order (`order`); pairs 4-5 run #777's triples; `trace` never enters
   the classification (analyze.py classifies the triple);
-- a pair-workload is rerun once, every arm it has, with the same seed (#714)
-  when its triple is unusable or contaminated, or when its trace observation
-  is unusable, contaminated or has an incomplete trace (#792's
-  `trace_state`), at most four pair-workloads, as #777's cap;
+- reruns run in two passes, every arm a pair-workload has, with the same seed
+  (#714): first #777's pass, unchanged, for each pair-workload whose triple
+  is unusable or contaminated, at most four; then a trace pass for each
+  pair-workload whose triple was clean but whose trace observation is
+  unusable, contaminated or incomplete (#792's `trace_state`), only with the
+  slots the first pass left (so at most four in all, #777's cap, and the
+  trace never takes a slot from a triple; a clean original triple is kept by
+  `choose_triple` whatever its rerun shows);
 - smoke adds #792's full-length `trace` STREAM observation, which must also
   leave a complete trace;
 - while any observation runs, the file RUNNING exists at the worktree root
   (the marker agreed with the wiremux sessions that share minimax, #792's);
+  when the driver already holds RUNNING for the whole order, an observation
+  leaves it in place;
 - the registered binary pins include `cand-trace-fixture`, and `cand-fixture`
   is this record's (build.REGISTERED).
 #777's docstring follows.
@@ -60,11 +66,13 @@ def arms_of(pair):
 
 @contextlib.contextmanager
 def running(label):
+    held = MARKER.exists()  # the driver holds it for the whole order; leave it in place then
     MARKER.write_text(f'{label} {time.time_ns()}\n')
     try:
         yield
     finally:
-        MARKER.unlink(missing_ok=True)
+        if not held:
+            MARKER.unlink(missing_ok=True)
 
 
 def run_case(*args, **kw):
@@ -302,22 +310,33 @@ def trace_clean(detail):
 
 
 def follow():
-    """Rerun each unusable or contaminated pair-workload once (#714), at most MAX_RERUN_TRIPLES, recording every decision;
-    a pair's trace observation counts too (#808)."""
+    """Rerun unusable or contaminated pair-workloads once (#714), recording every decision: first #777's pass over
+    the triples, at most MAX_RERUN_TRIPLES; then a trace pass, with only the slots left, for pairs whose triple
+    was clean but whose trace was not (#808)."""
     decisions, reruns = [], 0
     for pair in range(1, l6rules.PAIRS + 1):
         for workload in workloads(pair):
             usable, contaminated, detail = judge('main', pair, workload)
             entry = dict(pair=pair, workload=workload, usable=usable, contaminated=contaminated, trace_clean=trace_clean(detail), detail=detail)
-            if not usable or contaminated or not entry['trace_clean']:
+            if not usable or contaminated:
                 if reruns < MAX_RERUN_TRIPLES:
                     reruns += 1
                     triple('rerun', pair, workload)
                     again = judge('rerun', pair, workload)
-                    entry['rerun'] = dict(zip(['usable', 'contaminated', 'detail'], again), trace_clean=trace_clean(again[2]))
+                    entry['rerun'] = dict(zip(['usable', 'contaminated', 'detail'], again), trace_clean=trace_clean(again[2]), trigger='triple')
                 else:
                     entry['rerun'] = 'cap reached'
             decisions.append(entry)
+            run.write(run.ART / 'follow-decisions.json', decisions)
+    for entry in decisions:
+        if entry['usable'] and not entry['contaminated'] and not entry['trace_clean']:
+            if reruns < MAX_RERUN_TRIPLES:
+                reruns += 1
+                triple('rerun', entry['pair'], entry['workload'])
+                again = judge('rerun', entry['pair'], entry['workload'])
+                entry['rerun'] = dict(zip(['usable', 'contaminated', 'detail'], again), trace_clean=trace_clean(again[2]), trigger='trace')
+            else:
+                entry['trace_rerun'] = 'cap reached'
             run.write(run.ART / 'follow-decisions.json', decisions)
     return decisions
 

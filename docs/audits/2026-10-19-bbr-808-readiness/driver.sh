@@ -32,6 +32,7 @@ echo "PRESTART-EMPTY $(date -u +%FT%TZ)"
 touch "$W"/RUNNING
 # On any exit: remove RUNNING, and if the order stopped early, say so in STAGE.DONE (the host is free).
 trap 'rm -f "$W"/RUNNING; [ -e "$W"/STAGE.DONE ] || echo "stopped $(date -u +%FT%TZ)" > "$W"/STAGE.DONE' EXIT
+trap 'exit 1' HUP INT TERM
 follow() {
 	$T python3 resume.py mark
 	$T python3 follow.py "$@" || { echo "FOLLOW-FAILED $* $(date -u +%FT%TZ)"; $T python3 resume.py mark;

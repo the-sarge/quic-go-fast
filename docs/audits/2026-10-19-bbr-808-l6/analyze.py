@@ -20,12 +20,12 @@ Written before any counted observation (README, "Registration: L6").
   advances and aging, and where the competitor's drops fall by BBRv3 phase,
   each beside #792's. Descriptive; no rule.
 - **#803's reading**: for every usable BBRv3 focal observation in every
-  attempt (cand and trace, counted and rerun, selected or not; a
-  contaminated one is reported but does not decide), relay2's
+  attempt (cand and trace, counted and rerun, selected or not), relay2's
   forward ECN counts ([Not-ECT, ECT(1), ECT(0), CE]) and, for traces, the
   first ECN failure row. ECN **stays on** only when every such flow's forward
   Not-ECT count is at most 0.01% of its forward packets and no trace records
-  an ECN failure. A flow above that share has stopped marking; for it, #793's
+  an ECN failure (a contaminated observation counts here too: foreign load
+  creates no Not-ECT packets), and at least one of them is uncontaminated. A flow above that share has stopped marking; for it, #793's
   crossrun.py estimate gives when (the first 100 ms sample at which its
   reconstructed arrivals reach its ECT(0) count). That estimate is computed
   only above the share, because for a flow that never switched it lands at
@@ -117,21 +117,30 @@ def reference_792(s):
     return out
 
 
+def decided(e):
+    """Whether follow finished with one pair-workload: #777's rule for its triple, then the trace pass (a trace
+    rerun, or the cap reached in that pass, decides an unclean trace behind a clean triple)."""
+    if not e['usable'] or e['contaminated']:
+        return isinstance(e.get('rerun'), dict) or e.get('rerun') == 'cap reached'
+    if not e.get('trace_clean', True):  # no key: no trace arm
+        return isinstance(e.get('rerun'), dict) or e.get('trace_rerun') == 'cap reached'
+    return True
+
+
 def completion():
-    """(complete, reasons): #777's rule, with a pair-workload needing a decision also when its trace is not clean."""
+    """(complete, reasons): #777's rule, with the trace pass."""
     reasons = []
     if (run.ART / 'correctness-failure.json').exists():
         reasons.append('stopped by a correctness failure (correctness-failure.json)')
     path = run.ART / 'follow-decisions.json'
-    decided = set()
+    decided_pairs = set()
     if path.exists():
         for e in json.loads(path.read_text()):
-            needed = not e['usable'] or e['contaminated'] or not e.get('trace_clean', True)  # no key: no trace arm
-            if not needed or isinstance(e.get('rerun'), dict) or e.get('rerun') == 'cap reached':
-                decided.add((e['pair'], e['workload']))
+            if decided(e):
+                decided_pairs.add((e['pair'], e['workload']))
     else:
         reasons.append('no follow decisions')
-    missing = [(p, w) for p in range(1, l6rules.PAIRS + 1) for w in matrix.workloads(p) if (p, w) not in decided]
+    missing = [(p, w) for p in range(1, l6rules.PAIRS + 1) for w in matrix.workloads(p) if (p, w) not in decided_pairs]
     if missing:
         reasons.append(f'no completed follow decision for {missing}')
     return not reasons, reasons
@@ -177,10 +186,18 @@ def ecn_kept(e):
 
 
 def ecn_decision(rows):
-    """D7 over every usable BBRv3 observation: contaminated rows are reported but never decide; with no deciding
-    row there is no evidence that ECN stays on."""
-    deciding = [e for e in rows.values() if not e['contaminated']]
-    return bool(deciding) and all(ecn_kept(e) for e in deciding)
+    """D7 over every usable BBRv3 observation, one way: any usable observation that stopped marking, contaminated
+    or not, means ECN does not stay on (foreign CPU load creates no Not-ECT packets); contaminated observations
+    alone cannot establish that it stays on, so at least one uncontaminated observation is required."""
+    rows = list(rows.values())
+    return any(not e['contaminated'] for e in rows) and all(ecn_kept(e) for e in rows)
+
+
+def pick_trace(attempts, label, pair, workload):
+    """The trace used for a pair-workload: the clean trace from the attempt whose triple is classified, else the
+    other attempt's clean trace (original first), else none."""
+    clean = [a['phase'] for a in attempts if (a['pair'], a['workload']) == (pair, workload) and a['trace_clean']]
+    return label if label in clean else (clean[0] if clean else None)
 
 
 def ecn_failed_at(d):
@@ -230,12 +247,12 @@ def main():
             triples[(workload, pair)] = rows
             for arm, row in (rows or {}).items():
                 selected[f'{workload}/p{pair}/{arm}'] = row
-            trace_phase = None
-            if pair in matrix.TRACE_PAIRS:
-                clean = [a['phase'] for a in attempts_out if (a['pair'], a['workload']) == (pair, workload) and a['trace_clean']]
-                trace_phase = label if label in clean else (clean[0] if clean else None)
+            trace_phase = pick_trace(attempts_out, label, pair, workload) if pair in matrix.TRACE_PAIRS else None
             choices.append(dict(pair=pair, workload=workload, chosen=label, status=status, trace=trace_phase,
-                                decision_trace_clean=decisions[(pair, workload)].get('trace_clean')))
+                                decision_trace_clean=decisions[(pair, workload)].get('trace_clean'),
+                                rerun_trigger=(decisions[(pair, workload)].get('rerun') or {}).get('trigger')
+                                if isinstance(decisions[(pair, workload)].get('rerun'), dict) else decisions[(pair, workload)].get('rerun'),
+                                trace_rerun=decisions[(pair, workload)].get('trace_rerun')))
             for a in attempts_out:
                 if (a['pair'], a['workload']) != (pair, workload):
                     continue
@@ -276,13 +293,18 @@ def main():
         wl, per = cell.split('/')
         displacement[cell]['competitor_next_to_cand_792'] = median(v['competitor_next_to_cand'][per] for k, v in ref792.items() if k.startswith(wl + '/'))
         displacement[cell]['competitor_next_to_trace_792'] = median(v['competitor_next_to_trace'][per] for k, v in ref792.items() if k.startswith(wl + '/'))
+    def total(xs):
+        xs = list(xs)
+        return sum(xs) if xs else None
+
     marking = {wl: {per: dict(
+        traces_808=sum(1 for k in traces if k.startswith(wl + '/')),
         application_share_808=median(t['figures'][per]['application_share'] for k, t in traces.items() if k.startswith(wl + '/')),
         application_share_792=median(v['trace'][per]['application_share'] for k, v in ref792.items() if k.startswith(wl + '/')),
         supply_limited_share_808=median(t['figures'][per]['supply_limited_share'] for k, t in traces.items() if k.startswith(wl + '/')),
         supply_limited_share_792=median(v['trace'][per]['supply_limited_share'] for k, v in ref792.items() if k.startswith(wl + '/')),
-        crossings_808=sum(t['figures'][per]['crossings'] for k, t in traces.items() if k.startswith(wl + '/')),
-        crossings_limited_808=sum(t['figures'][per]['crossings_limited'] for k, t in traces.items() if k.startswith(wl + '/')),
+        crossings_808=total(t['figures'][per]['crossings'] for k, t in traces.items() if k.startswith(wl + '/')),
+        crossings_limited_808=total(t['figures'][per]['crossings_limited'] for k, t in traces.items() if k.startswith(wl + '/')),
         crossings_792=sum(v['trace'][per]['crossings'] for k, v in ref792.items() if k.startswith(wl + '/')),
         crossings_limited_792=sum(v['trace'][per]['crossings_limited'] for k, v in ref792.items() if k.startswith(wl + '/')),
         inflight_longterm_over_path_808=median(t['figures'][per]['inflight_longterm_over_path'] for k, t in traces.items() if k.startswith(wl + '/')),
@@ -291,14 +313,14 @@ def main():
         cycle_advances_792=[v['trace'][per]['cycle_advances'] for k, v in ref792.items() if k.startswith(wl + '/')],
         competitor_drops_in_up_808=median(t['figures'][per]['competitor_drops_in_up'] for k, t in traces.items() if k.startswith(wl + '/')),
         competitor_drops_in_up_792=median(v['trace'][per]['competitor_drops_in_up'] for k, v in ref792.items() if k.startswith(wl + '/')),
-        clamp_events_808=sum(t['figures'][per]['clamp_events'] for k, t in traces.items() if k.startswith(wl + '/')),
+        clamp_events_808=total(t['figures'][per]['clamp_events'] for k, t in traces.items() if k.startswith(wl + '/')),
     ) for per in CLASSIFIED} for wl in ('stream', 'datagram')}
     checker = dict(
         traces=len(traces),
         mismatches_in_measured_window=sum(sum(n for p, n in r['by_period'].items() if p in m792.dc.PERIODS)
-                                          for t in traces.values() for r in t['check']['by_rule'].values()),
-        traces_complete=all(t['check']['coverage']['complete'] for t in traces.values()),
-        reconcile_ok=all(t['reconcile']['ok'] for t in traces.values()),
+                                          for t in traces.values() for r in t['check']['by_rule'].values()) if traces else None,
+        traces_complete=all(t['check']['coverage']['complete'] for t in traces.values()) if traces else None,
+        reconcile_ok=all(t['reconcile']['ok'] for t in traces.values()) if traces else None,
         reconcile_findings=[dict(pair=k, **f) for k, t in traces.items() for f in t['reconcile']['findings']],
         trace_over_cand_competitor={k: {per: (None if not selected.get(f'{k.split("/")[0]}/{k.split("/")[1]}/cand') else
                                               (t['flows']['competitor'][per] / selected[f'{k.split("/")[0]}/{k.split("/")[1]}/cand']['competitor']['periods'][per]['mbps']

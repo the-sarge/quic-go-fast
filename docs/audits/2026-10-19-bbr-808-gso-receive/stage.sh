@@ -13,7 +13,8 @@ done
 echo "SIDE-START $(date -u +%FT%TZ)"
 : > "$O"/rerun.jsonl  # empty unless a contaminated round is rerun, so the analysis command always has it
 $T python3 runner.py "$O" 8 --tag=counted --duration=10
-for n in $($T python3 analyze.py --contaminated "$O"/counted.jsonl); do
+rounds=$($T python3 analyze.py --contaminated "$O"/counted.jsonl) || { echo "SIDE-RERUN-LIST-FAILED"; exit 1; }
+for n in $rounds; do
 	$T python3 runner.py "$O" 1 --tag=rerun --first="$n" --duration=10
 done
 $T python3 perfdiag.py "$O" 4 --duration=10

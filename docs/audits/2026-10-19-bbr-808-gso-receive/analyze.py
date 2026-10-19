@@ -20,13 +20,16 @@ record's arms. The readings are the registration's:
        send and the throughput ratio (descriptive).
 A run whose endpoints report a controller other than its arm's, in any
 counted or rerun round (used or not), makes the stage incorrect: `status` is
-"incorrect" and no reading is reported. With no usable round, `status` is
-"incomplete" and no reading is reported; otherwise `status` is "complete".
+"incorrect" and no reading is reported. A round counts only when it holds
+every arm (a stopped runner leaves a partial round). When the counted order
+did not finish (no `counted.DONE` beside counted.jsonl) or no round is usable,
+`status` is "incomplete" and no reading is reported; otherwise "complete".
 A verification aid for #808's side stage; not a maintained deliverable.
 """
 import json
 import statistics
 import sys
+from pathlib import Path
 
 GIB = 2**30
 ARMS = ["S-pre", "S-rev", "D-reno", "M-reno", "D-bbr", "Dk-bbr", "S-bbr", "M-bbr"]
@@ -94,15 +97,23 @@ def spread(values):
 
 
 def choose(rounds, reruns):
+    """#824's rule, with a round counting only when it holds every arm: a clean full original is used; otherwise a
+    clean full rerun replaces it; otherwise the round is excluded."""
     used, notes = {}, []
+    full = lambda runs: set(runs) == set(ARMS)
+    clean = lambda runs: full(runs) and not any(r["contaminated"] for r in runs.values())
     for n, runs in sorted(rounds.items()):
-        if not any(r["contaminated"] for r in runs.values()):
+        if clean(runs):
             used[n] = runs
-        elif n in reruns and not any(r["contaminated"] for r in reruns[n].values()):
+            continue
+        if n in reruns and clean(reruns[n]):
             used[n] = reruns[n]
-            notes.append(f"round {n} replaced by its clean rerun")
-        else:
-            notes.append(f"round {n} excluded: contaminated and no clean rerun")
+            notes.append(f"round {n} replaced by its clean rerun" + ("" if full(runs) else " (the original was missing arms)"))
+            continue
+        why = "contaminated" if full(runs) else f"missing {sorted(set(ARMS) - set(runs))}"
+        if n in reruns and not full(reruns[n]):
+            why += f"; its rerun is missing {sorted(set(ARMS) - set(reruns[n]))}"
+        notes.append(f"round {n} excluded: {why}, and no clean full rerun")
     return used, notes
 
 
@@ -142,7 +153,10 @@ def main(argv):
                       if not r["send"].get("controller") == r["recv"].get("controller") == CONTROLLER[a])
     used, notes = choose(rounds, reruns)
     perf = perfdiag(argv[3]) if len(argv) > 3 else None
-    if mismatch or not used:
+    finished = Path(argv[1]).with_suffix(".DONE").exists()
+    if not finished:
+        notes.append("the counted order did not finish (no counted.DONE)")
+    if mismatch or not used or not finished:
         out = dict(status="incorrect" if mismatch else "incomplete", controller_mismatch=mismatch, notes=notes,
                    rounds_used=sorted(used), readings=None)
         if perf is not None:

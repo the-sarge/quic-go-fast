@@ -2,7 +2,8 @@
 """#808 STREAM work diagnostic (descriptive): #743's perfdiag.py (2f550727)
 with recorded changes: the pair is S-pre / S-rev from this record's runner
 (Reno STREAM, pre-#743 sender against the revision's), the binaries are
-bench808's, and the -cc flag is passed. #743's description follows.
+bench808's, the -cc flag is passed, and foreign time subtracts the fixture
+CPUs' ksoftirqd, as the registered measure in runner.py does. #743's description follows.
 
 #743 STREAM work diagnostic (outside the registered rules).
 
@@ -69,11 +70,12 @@ def main():
             order = ["S-pre", "S-rev"] if i % 2 else ["S-rev", "S-pre"]
             for arm in order:
                 waited, quiet = runner.wait_quiet(print)
-                na = runner.run_ns()
+                na, sa = runner.run_ns(), runner.softirqd_ticks()
                 res = run_pair_member(arm, duration, outdir, f"pair{i}-{arm}")
-                nb = runner.run_ns()
+                nb, sb = runner.run_ns(), runner.softirqd_ticks()
                 running = sum(nb[c] - na[c] for c in runner.FIXTURE) / 1e9
-                foreign = running - res["send_process_cpu_s"] - res["recv_process_cpu_s"]
+                # The registered measure (runner.py): less the harness's own CPU and the fixture CPUs' ksoftirqd.
+                foreign = running - res["send_process_cpu_s"] - res["recv_process_cpu_s"] - (sb - sa) / runner.HZ
                 rec = dict(res, pair=i, arm=arm, quiet_wait_s=waited, foreign_s=foreign, contaminated=foreign > runner.FOREIGN_LIMIT_S)
                 out.write(json.dumps(rec) + "\n")
                 out.flush()

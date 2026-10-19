@@ -5,7 +5,7 @@ Reads `summary.json`, `port-context.json`, `attribution.json` and
 `datagram-loss.json` (after `stages.py all`, `portcontext.py` and
 `dgloss.py`) and prints Markdown tables: the readiness flags beside slice 6's
 values, absolute medians, the S5 timeline, the preservation stages and DATAGRAM
-loss. `tables.py --check` confirms that README.md contains every table
+loss. Every ratio cell carries the frozen-Reno A/A per-block range. `tables.py --check` confirms that README.md contains every table
 verbatim, so each reported figure is checked against the JSON. It sets no flag
 and changes no rule. Added after the registration and before any counted
 observation, as a reporting aid.
@@ -28,7 +28,7 @@ def load(name):
 
 
 def cell(m):
-    """Median (blocks crossing when raised) [slice 6's median, bold when raised there]."""
+    """Median (blocks crossing) [slice 6's median, bold when raised there]; the A/A per-block range after it."""
     if m is None:
         return '—'
     v = f"{m['median']:.3f}"
@@ -37,6 +37,9 @@ def cell(m):
     if p:
         pv = f"{p['median']:.3f}"
         v += f" [{'**' + pv + '**' if p['raised'] else pv}]"
+    aa = m.get('aa')
+    if aa:
+        v += f"; A/A {aa['minimum']:.3f}–{aa['maximum']:.3f}"
     return v
 
 
