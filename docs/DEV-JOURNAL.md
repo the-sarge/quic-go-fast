@@ -6086,3 +6086,26 @@ A separate header cancellation timer preserves caller-owned stream read deadline
 ### Next
 
 [Issue #840](https://github.com/the-sarge/quic-go-fast/issues/840) remains the live view for the pre-existing shared trailer allocation. `http3/headers.go:453-454` was revalidated against merged commit `28a01df8fd6b293f878f80046ade7c20faed8f3a`; the existing issue was updated to mark initial server request headers resolved and retain client/server trailer work. No duplicate issue was created.
+
+---
+
+## Path probe recovery limits landed - 2026-10-19 01:52 EDT
+
+**Main:** `7d05a887e151`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #844](https://github.com/the-sarge/quic-go-fast/pull/844) as `7d05a887e15139a7c3467b8323d91d4e8ce49e30`, bounding path-probe recovery history for the Codex Security Cloud finding about unbounded markers and quadratic probe expiry.
+
+### Completed
+
+- Capped outstanding path probes at 32 per connection and checked combined packet-history capacity before client or server probe construction, including a possible skipped packet-number slot.
+- Replaced side-list scans with indexed removal and retired remaining history markers together with their probes on ACK or timeout, retaining linear bulk cleanup.
+- Preserved the per-path amplification policy already on main and kept capacity-blocked server challenges eligible for retry.
+
+### Validation
+
+The certified and reviewed head was `0a67620e70fb662f9d09138ee9311a722986bb54`; the squash merge has the same tree. Root and ACK-handler suites, targeted race checks, repository-wide compilation, affected-package vet, module tidiness, scoped lint, and diff checks passed. All 33 hosted checks passed before the exact-head squash merge. Regressions cover a flood exceeding `MaxTrackedSentPackets`, 10,000-probe retirement and expiry, ACK/timeout ordering, probes whose markers were retired by loss, migration, and skipped packet numbers.
+
+RAS review `20261019T052447-6a58cffb741fb388b4d7ecbc` completed with no required fixes or follow-ups. The only candidate finding, a hypothetical copy of an initialized list, was rejected after confirming construction copies a zero-valued list that initializes in its final storage.
