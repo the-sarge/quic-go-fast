@@ -5854,3 +5854,59 @@ Its helpers read the real clock. The first RTT sample is about 1 ms, so time-thr
 ### Next
 
 - No follow-ups from this PR; no review finding was deferred. GitHub issues are the live view.
+
+---
+
+## The received-DATAGRAM queue holds 1,024 and counts its discards - 2026-10-18 22:38 EDT
+
+**Main:** `42b9b5deed29`
+**Actor:** Claude
+
+### Summary
+
+[#824](https://github.com/the-sarge/quic-go-fast/issues/824) is closed by [PR #829](https://github.com/the-sarge/quic-go-fast/pull/829) (squash `42b9b5de`). The received-DATAGRAM queue now admits a fixed 1,024 payloads instead of 128. Each payload it refuses because it is full is counted and exposed as `(*Conn).DatagramReceiveDropsV1() uint64`. `Receive` clears each slot it delivers. With #743's equal-size GSO batching on by default, the 128-entry queue had discarded about 1.6% of DATAGRAMs on minimax loopback after their packets were acknowledged. The release blocker from #743's decision K2 is lifted.
+
+### Completed
+
+- `datagramQueue` (`datagram_queue.go`): `maxDatagramRcvQueueLen` is 1,024, with no setting. An atomic `rcvDrops` counts refusals in `HandleDatagramFrame`, so the overflow path stays allocation-free. `Receive` sets the delivered slot to nil before reslicing.
+- `Conn.DatagramReceiveDropsV1` (`connection.go`) returns the count. It excludes payloads withheld before the receive phase opens, payloads cleared when it opens, and frames rejected as protocol violations. The count never decreases, is safe to call concurrently, and keeps its value after close. It uses only built-in types, so code compiled against upstream quic-go finds it by interface assertion.
+- New tests:
+  - `TestDatagramReceiveOverflowCount` pins the depth at 1,024.
+  - `TestDatagramReceiveReleasesDelivered` covers slot clearing.
+  - `TestDatagramReceiveDropsExcludeInvalidation` and `TestConnectionDatagramReceiveDropsExclusions` cover the exclusions.
+  - `TestConnectionDatagramReceiveDropsV1` reads the count by interface assertion, before and after close.
+
+  Each failed against a mutation: counting withheld, invalidated or invalid frames, resetting on close, not counting, or not clearing.
+- The [2026-09-06 datagram plan](adr/2026-09-06-datagram-plan.md) has a dated note: #824 supersedes its 128-message limit.
+- Measurement record: [docs/audits/2026-10-19-received-datagram-queue](audits/2026-10-19-received-datagram-queue/README.md).
+
+### Decisions
+
+- The owner set the depth and counter in [GridSwarm/wiremux#1828](https://github.com/GridSwarm/wiremux/issues/1828). The owner narrowed #824 to this queue on 2026-10-18; the unprocessed-packet queue stays with [GridSwarm/wiremux#1871](https://github.com/GridSwarm/wiremux/issues/1871).
+- The operator approved the plan with decision D2. If the candidate's own queue meets the 0.01% line, but total loss exceeds it only through unprocessed-queue drops, record it, merge, and pass the figure to #1871. D2 applied.
+
+### Validation
+
+- **Measurement gate on minimax.** #743's single-connection DATAGRAM harness, with the same post-#743 sender against three receivers. Eight rounds, all clean (foreign time ≤ 0.029 s).
+  - `main` (128 entries): 1.895% DATAGRAM loss, 1.883% of it at the queue.
+  - Candidate (1,024): 0.0122% loss. The queue discarded 0% by median and at most 0.0094% in any run. All of the remaining loss is at the unprocessed-packet queue (0.0118%), which is out of scope, so it passes under D2.
+  - Candidate set back to 128: 1.727% loss, 1.717% at the queue.
+  - Against `main`, the candidate's throughput is 1.021×, receiver CPU per GiB 0.974×, receiver peak RSS 1.084× (16.2 → 17.9 MiB) and smoothed RTT 0.887×.
+- **Registered rule 2 (counter exactness) failed as written in one run, by one DATAGRAM.**
+  - `DatagramReceiveDropsV1` equalled sent − received − unprocessed − socket drops in 7 of 8 runs at 128, and was one higher in round 1.
+  - The record diagnoses this as one packet dropped at the unprocessed queue that carried no DATAGRAM. The same −1 residual appears in five of the 24 counted runs, two of them in `main`'s arm, which has no counter (and in `dev1`).
+  - The counter equalled #743's measurement-only counter in all 16 candidate-tree runs. With the brief's packer-residual term computed as in #743, all eight runs at 128 balance.
+- **Local certification at `50ed2b2c`, Go 1.27.2:**
+  - `go vet` for darwin, windows and linux;
+  - golangci-lint v2.14.0 for the six `lint.yml` GOOS values;
+  - `go mod tidy -diff`;
+  - `-race` for `TestDatagram|TestConnectionDatagram|TestReceivePhase`;
+  - Windows test build;
+  - the full suite at Go-identical `ab193db0`.
+- **RAS review** `20261019T021601-1e965c6649795772afc5d995` at `9a0e2cc8`. All six reviewers and six adjudicators completed. There were no Fix First or Follow Up clusters. The one low cluster, a stale "128-message" benchmark comment, was fixed in `ab193db0`; it was comment-only, so no second round ran.
+- **Hosted checks.** All 33 passed on `50ed2b2c`, which was squash-merged with `--match-head-commit`. The superseded head `ab193db0` failed only Windows integration, in known flake [#828](https://github.com/the-sarge/quic-go-fast/issues/828).
+- minimax was idle for the stage (02:19–02:27 UTC). wiremux 1869, whose campaign had finished, released it, and wiremux 1870 was told.
+
+### Next
+
+- As of this entry, [#808](https://github.com/the-sarge/quic-go-fast/issues/808) has not started, so the shared BBR campaign will measure the 1,024-entry receiver. On this host, 1,024 came within 0.0006 points of the line in one run. GitHub issues are the live view.
