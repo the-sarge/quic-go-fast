@@ -57,7 +57,14 @@ func TestRawServerConnPreservesCallerReadDeadline(t *testing.T) {
 						t.Fatal("caller body-read deadline was lost")
 					}
 				} else {
-					expectStreamReadReset(t, str, quic.StreamErrorCode(ErrCodeRequestIncomplete))
+					// CI scales the caller deadline too; allow a matching margin
+					// instead of the reset helper's fixed one-second deadline.
+					require.NoError(t, str.SetReadDeadline(time.Now().Add(scaleDuration(time.Second))))
+					_, err = str.Read(make([]byte, 1))
+					var streamErr *quic.StreamError
+					require.ErrorAs(t, err, &streamErr)
+					require.True(t, streamErr.Remote)
+					require.Equal(t, quic.StreamErrorCode(ErrCodeRequestIncomplete), streamErr.ErrorCode)
 				}
 			})
 		}
