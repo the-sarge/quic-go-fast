@@ -500,6 +500,15 @@ func (r *setupReservation) holdClosing() func() {
 	}
 }
 
+func (r *setupReservation) unsettled() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return !r.settled
+}
+
 func (r *setupReservation) settleLocked(transferred bool) {
 	if r.settled {
 		return

@@ -179,9 +179,10 @@ type Transport struct {
 	listening         chan struct{} // is closed when listen returns
 	readRetryCanceled chan struct{} // closed under mutex when temporary reads must stop
 	closeErr          error
+	transportClosed   bool // actual transport shutdown, distinct from single-use listener closure
 	// closingStates keeps retirement reachable from shutdown even when the
 	// owning clock stops before expiry. Protected by mutex.
-	closingStates map[*time.Timer]func()
+	closingStates map[*time.Timer]closingState
 	createdConn   bool
 	isSingleUse   bool // was created for a single server or client, i.e. by calling quic.Listen or quic.Dial
 
@@ -596,7 +597,7 @@ func (t *Transport) closeServer() {
 	t.mutex.Lock()
 
 	t.server = nil
-	if t.isSingleUse {
+	if t.isSingleUse && t.closeErr == nil {
 		t.closeErr = ErrServerClosed
 	}
 
@@ -605,19 +606,20 @@ func (t *Transport) closeServer() {
 	}
 	t.mutex.Unlock()
 	if t.isSingleUse {
-		t.retireClosedStates()
+		t.retireClosedStates(true)
 	}
 }
 
 func (t *Transport) close(e error) {
 	t.mutex.Lock()
 
-	if t.closeErr != nil {
+	if t.transportClosed {
 		t.mutex.Unlock()
 		return
 	}
 
 	e = &errTransportClosed{err: e}
+	t.transportClosed = true
 	t.closeErr = e
 	t.cancelReadRetry()
 	server := t.server
@@ -635,24 +637,33 @@ func (t *Transport) close(e error) {
 	}
 	t.mutex.Unlock() // closing connections requires releasing transport mutex
 	wg.Wait()
-	t.retireClosedStates()
+	t.retireClosedStates(false)
 
 	if t.Tracer != nil {
 		t.Tracer.Close()
 	}
 }
 
-func (t *Transport) retireClosedStates() {
+type closingState struct {
+	setup  *setupReservation
+	retire func()
+}
+
+func (t *Transport) retireClosedStates(onlySetup bool) {
 	t.mutex.Lock()
-	retirements := make([]func(), 0, len(t.closingStates))
-	for _, retire := range t.closingStates {
-		retirements = append(retirements, retire)
+	states := make([]closingState, 0, len(t.closingStates))
+	for _, state := range t.closingStates {
+		states = append(states, state)
 	}
 	t.mutex.Unlock()
 	// A release callback may inspect the transport. Each retirement also waits
 	// for a competing timer's retirement to finish before returning.
-	for _, retire := range retirements {
-		retire()
+	for _, state := range states {
+		// A listener admission stop must not remove established closing/draining
+		// routes. Only actual transport shutdown retires those before expiry.
+		if !onlySetup || state.setup.unsettled() {
+			state.retire()
+		}
 	}
 }
 
@@ -1076,10 +1087,15 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	}
 	handler = withAuthority(handler, authority)
 
+	// Settlement can call user code, so never take the reservation mutex while
+	// holding the transport mutex. A settled reservation never becomes pending.
+	unsettledSetup := setup.unsettled()
 	h.mutex.Lock()
-	if (*Transport)(h).closeErr != nil {
+	t := (*Transport)(h)
+	if t.transportClosed || (t.closeErr != nil && unsettledSetup) {
 		// A connection can finish closing after shutdown took its handler
-		// snapshot. No closing state may be published on a closed transport.
+		// snapshot. Listener closure only suppresses unsettled setup retention;
+		// established connections keep ordinary closing/draining behavior.
 		for _, id := range ids {
 			delete(h.handlers, id)
 		}
@@ -1116,12 +1132,12 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 		h.mutex.Unlock()
 	})
 	if h.closingStates == nil {
-		h.closingStates = make(map[*time.Timer]func())
+		h.closingStates = make(map[*time.Timer]closingState)
 	}
 	// Publication and timer initialization share mutex with retirement. Even
 	// an immediately firing timer observes its registered retirement.
 	timer = time.AfterFunc(expiry, retire)
-	h.closingStates[timer] = retire
+	h.closingStates[timer] = closingState{setup: setup, retire: retire}
 	h.mutex.Unlock()
 	h.logger.Debugf("Replacing connection for connection IDs %s with a closed connection.", ids)
 }
