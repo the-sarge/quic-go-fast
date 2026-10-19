@@ -170,8 +170,14 @@ func (c *RawServerConn) openControlStream(settings *settingsFrame) (*quic.SendSt
 }
 
 func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlogWork) {
+	var headerTimer *time.Timer
 	if c.readHeaderTimeout > 0 {
-		str.SetReadDeadline(time.Now().Add(c.readHeaderTimeout))
+		// Keep caller-owned read deadlines intact, including for the body.
+		headerTimer = time.AfterFunc(c.readHeaderTimeout, func() {
+			str.CancelRead(quic.StreamErrorCode(ErrCodeRequestIncomplete))
+			str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestIncomplete))
+		})
+		defer headerTimer.Stop()
 	}
 
 	conn := c.rawConn
@@ -245,6 +251,10 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 		str.CancelWrite(quic.StreamErrorCode(errCode))
 		return
 	}
+	if headerTimer != nil && !headerTimer.Stop() {
+		// The timeout callback owns cancellation; do not activate this request.
+		return
+	}
 	// Incomplete headers do not suspend HTTP inactivity protection. Serialize
 	// activation with stream removal and the post-handshake timer start.
 	conn.streamMx.Lock()
@@ -256,10 +266,6 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 		}
 	}
 	conn.streamMx.Unlock()
-	if c.readHeaderTimeout > 0 {
-		str.SetReadDeadline(time.Time{})
-	}
-
 	connState := conn.ConnectionState().TLS
 	req.TLS = &connState
 	req.RemoteAddr = conn.RemoteAddr().String()

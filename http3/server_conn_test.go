@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +18,51 @@ import (
 	"github.com/quic-go/quic-go/quicvarint"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRawServerConnPreservesCallerReadDeadline(t *testing.T) {
+	for _, timeout := range []time.Duration{0, -1} {
+		for _, completeHeaders := range []bool{false, true} {
+			t.Run(fmt.Sprintf("timeout_%s/complete_headers_%t", timeout, completeHeaders), func(t *testing.T) {
+				client, server := newConnPair(t)
+				bodyResult := make(chan error, 1)
+				s := Server{ReadHeaderTimeout: timeout, Handler: http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+					_, err := io.ReadAll(r.Body)
+					bodyResult <- err
+				})}
+				conn, err := s.NewRawServerConn(server)
+				require.NoError(t, err)
+				str, err := client.OpenStream()
+				require.NoError(t, err)
+				data := []byte{0x1, 0x20, 0}
+				if completeHeaders {
+					data = encodeRequest(t, httptest.NewRequest(http.MethodPost, "https://example.com", nil))
+				}
+				_, err = str.Write(data)
+				require.NoError(t, err)
+				incoming, err := server.AcceptStream(t.Context())
+				require.NoError(t, err)
+				// The caller owns this deadline for both headers and the body.
+				require.NoError(t, incoming.SetReadDeadline(time.Now().Add(scaleDuration(50*time.Millisecond))))
+				done := make(chan struct{})
+				go func() { defer close(done); conn.HandleRequestStream(incoming) }()
+				defer func() {
+					conn.CloseWithError(0, "")
+					<-done
+				}()
+				if completeHeaders {
+					select {
+					case err := <-bodyResult:
+						require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+					case <-time.After(scaleDuration(time.Second)):
+						t.Fatal("caller body-read deadline was lost")
+					}
+				} else {
+					expectStreamReadReset(t, str, quic.StreamErrorCode(ErrCodeRequestIncomplete))
+				}
+			})
+		}
+	}
+}
 
 func TestRawServerConnReadHeaderTimeoutConfig(t *testing.T) {
 	for _, timeout := range []time.Duration{0, -1, 50 * time.Millisecond} {

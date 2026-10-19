@@ -187,8 +187,9 @@ type Server struct {
 
 	// ReadHeaderTimeout is the time allowed to read the initial request headers,
 	// including any frames preceding HEADERS. Zero uses a default of 30 seconds;
-	// a negative value disables the deadline. The deadline is cleared before the
-	// handler runs and does not limit reading the request body.
+	// a negative value disables the timeout. The timer stops before the handler
+	// runs and does not limit reading the request body. It does not change a
+	// caller's stream read deadline.
 	ReadHeaderTimeout time.Duration
 
 	// AdditionalSettings specifies additional HTTP/3 settings.
