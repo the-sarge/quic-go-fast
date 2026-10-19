@@ -180,8 +180,17 @@ type Server struct {
 	// MaxHeaderBytes controls the maximum number of bytes the server will
 	// read parsing the request HEADERS frame. It does not limit the size of
 	// the request body. If zero or negative, [http.DefaultMaxHeaderBytes] is
-	// used.
+	// used. Pending initial HEADERS buffers on each connection also share a
+	// capacity budget of this size; streams exceeding it are rejected with
+	// H3_EXCESSIVE_LOAD.
 	MaxHeaderBytes int
+
+	// ReadHeaderTimeout is the time allowed to read the initial request headers,
+	// including any frames preceding HEADERS. Zero uses a default of 30 seconds;
+	// a negative value disables the timeout. The timer stops before the handler
+	// runs and does not limit reading the request body. It does not change a
+	// caller's stream read deadline.
+	ReadHeaderTimeout time.Duration
 
 	// AdditionalSettings specifies additional HTTP/3 settings.
 	// It is invalid to specify any settings defined by RFC 9114 (HTTP/3) and RFC 9297 (HTTP Datagrams).
@@ -190,7 +199,8 @@ type Server struct {
 	// IdleTimeout specifies how long until idle clients connection should be
 	// closed. Idle refers only to the HTTP/3 layer, activity at the QUIC layer
 	// like PING frames are not considered.
-	// The timeout starts once the QUIC handshake completes, and while no request is active.
+	// The timeout starts once the QUIC handshake completes, and while no request
+	// with complete, valid initial headers is active.
 	// Before handshake completion, the QUIC handshake timeout applies instead.
 	// If zero or negative, there is no timeout.
 	IdleTimeout time.Duration
@@ -553,6 +563,9 @@ func (s *Server) newRawServerConn(conn *quic.Conn) (*RawServerConn, *quic.SendSt
 		s.Handler,
 		s.maxHeaderBytes(),
 	)
+	if s.ReadHeaderTimeout != 0 {
+		hconn.readHeaderTimeout = s.ReadHeaderTimeout
+	}
 
 	// open the control stream and send a SETTINGS frame, it's also used to send a GOAWAY frame later
 	// when the server is gracefully closed

@@ -3,17 +3,189 @@ package http3
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/quic-go/quic-go/quicvarint"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRawServerConnPreservesCallerReadDeadline(t *testing.T) {
+	for _, timeout := range []time.Duration{0, -1} {
+		for _, completeHeaders := range []bool{false, true} {
+			t.Run(fmt.Sprintf("timeout_%s/complete_headers_%t", timeout, completeHeaders), func(t *testing.T) {
+				client, server := newConnPair(t)
+				bodyResult := make(chan error, 1)
+				s := Server{ReadHeaderTimeout: timeout, Handler: http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+					_, err := io.ReadAll(r.Body)
+					bodyResult <- err
+				})}
+				conn, err := s.NewRawServerConn(server)
+				require.NoError(t, err)
+				str, err := client.OpenStream()
+				require.NoError(t, err)
+				data := []byte{0x1, 0x20, 0}
+				if completeHeaders {
+					data = encodeRequest(t, httptest.NewRequest(http.MethodPost, "https://example.com", nil))
+				}
+				_, err = str.Write(data)
+				require.NoError(t, err)
+				incoming, err := server.AcceptStream(t.Context())
+				require.NoError(t, err)
+				// The caller owns this deadline for both headers and the body.
+				require.NoError(t, incoming.SetReadDeadline(time.Now().Add(scaleDuration(50*time.Millisecond))))
+				done := make(chan struct{})
+				go func() { defer close(done); conn.HandleRequestStream(incoming) }()
+				defer func() {
+					conn.CloseWithError(0, "")
+					<-done
+				}()
+				if completeHeaders {
+					select {
+					case err := <-bodyResult:
+						require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+					case <-time.After(scaleDuration(time.Second)):
+						t.Fatal("caller body-read deadline was lost")
+					}
+				} else {
+					// CI scales the caller deadline too; allow a matching margin
+					// instead of the reset helper's fixed one-second deadline.
+					require.NoError(t, str.SetReadDeadline(time.Now().Add(scaleDuration(time.Second))))
+					_, err = str.Read(make([]byte, 1))
+					var streamErr *quic.StreamError
+					require.ErrorAs(t, err, &streamErr)
+					require.True(t, streamErr.Remote)
+					require.Equal(t, quic.StreamErrorCode(ErrCodeRequestIncomplete), streamErr.ErrorCode)
+				}
+			})
+		}
+	}
+}
+
+func TestRawServerConnReadHeaderTimeoutConfig(t *testing.T) {
+	for _, timeout := range []time.Duration{0, -1, 50 * time.Millisecond} {
+		t.Run(timeout.String(), func(t *testing.T) {
+			_, server := newConnPair(t)
+			s := Server{ReadHeaderTimeout: timeout}
+			conn, err := s.NewRawServerConn(server)
+			require.NoError(t, err)
+			if timeout == 0 {
+				require.Equal(t, 30*time.Second, conn.readHeaderTimeout)
+			} else {
+				require.Equal(t, timeout, conn.readHeaderTimeout)
+			}
+		})
+	}
+}
+
+func TestRawServerConnHeaderDeadlineWithActiveRequest(t *testing.T) {
+	for _, prefix := range [][]byte{{0x40}, {0x1, 0x40}, {0x21, 0x40}, {0x1, 0x20, 0}} {
+		t.Run(fmt.Sprintf("prefix_%x", prefix), func(t *testing.T) {
+			client, server := newConnPair(t)
+			entered, release := make(chan struct{}), make(chan struct{})
+			defer close(release)
+			s := Server{
+				IdleTimeout:       time.Second,
+				ReadHeaderTimeout: 50 * time.Millisecond,
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					close(entered)
+					<-release
+					body, err := io.ReadAll(r.Body)
+					require.NoError(t, err)
+					require.Equal(t, "body", string(body))
+				}),
+			}
+			conn, err := s.NewRawServerConn(server)
+			require.NoError(t, err)
+			startRequest := func(data []byte) (*quic.Stream, <-chan struct{}) {
+				t.Helper()
+				str, err := client.OpenStream()
+				require.NoError(t, err)
+				_, err = str.Write(data)
+				require.NoError(t, err)
+				incoming, err := server.AcceptStream(t.Context())
+				require.NoError(t, err)
+				done := make(chan struct{})
+				go func() { defer close(done); conn.HandleRequestStream(incoming) }()
+				return str, done
+			}
+			active, activeDone := startRequest(encodeRequest(t, httptest.NewRequest(http.MethodPost, "https://example.com", nil)))
+			select {
+			case <-entered:
+			case <-time.After(time.Second):
+				t.Fatal("handler did not start")
+			}
+			pending, pendingDone := startRequest(prefix)
+			expectStreamReadReset(t, pending, quic.StreamErrorCode(ErrCodeRequestIncomplete))
+			expectStreamWriteReset(t, pending, quic.StreamErrorCode(ErrCodeRequestIncomplete))
+			<-pendingDone
+			require.Zero(t, conn.pendingHeaderBytes.Load())
+			require.NoError(t, server.Context().Err())
+			// The header deadline must have been cleared for the active body.
+			data := (&dataFrame{Length: 4}).Append(nil)
+			_, err = active.Write(append(data, "body"...))
+			require.NoError(t, err)
+			require.NoError(t, active.Close())
+			release <- struct{}{}
+			<-activeDone
+		})
+	}
+}
+
+func TestRawServerConnPendingHeaderBudget(t *testing.T) {
+	client, server := newConnPair(t)
+	var calls atomic.Int32
+	s := Server{MaxHeaderBytes: 4096, Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls.Add(1) })}
+	conn, err := s.NewRawServerConn(server)
+	require.NoError(t, err)
+	startRequest := func(data []byte) (*quic.Stream, <-chan struct{}) {
+		t.Helper()
+		str, err := client.OpenStream()
+		require.NoError(t, err)
+		_, err = str.Write(data)
+		require.NoError(t, err)
+		incoming, err := server.AcceptStream(t.Context())
+		require.NoError(t, err)
+		done := make(chan struct{})
+		go func() { defer close(done); conn.HandleRequestStream(incoming) }()
+		return str, done
+	}
+	prefix := (&headersFrame{Length: 4096}).Append(nil)
+	first, firstDone := startRequest(append(bytes.Clone(prefix), make([]byte, 1024)...))
+	require.Eventually(t, func() bool { return conn.pendingHeaderBytes.Load() == 2048 }, time.Second, time.Millisecond)
+	second, secondDone := startRequest(append(bytes.Clone(prefix), make([]byte, 1024)...))
+	require.Eventually(t, func() bool { return conn.pendingHeaderBytes.Load() == 4096 }, time.Second, time.Millisecond)
+	third, thirdDone := startRequest(prefix)
+	expectStreamReadReset(t, third, quic.StreamErrorCode(ErrCodeExcessiveLoad))
+	expectStreamWriteReset(t, third, quic.StreamErrorCode(ErrCodeExcessiveLoad))
+	<-thirdDone
+	require.EqualValues(t, 4096, conn.pendingHeaderBytes.Load())
+	first.CancelWrite(0)
+	second.CancelWrite(0)
+	<-firstDone
+	<-secondDone
+	require.Zero(t, conn.pendingHeaderBytes.Load())
+	// Invalid QPACK must release its reservation too.
+	invalid, invalidDone := startRequest([]byte{0x1, 0x1, 0xff})
+	expectStreamReadReset(t, invalid, quic.StreamErrorCode(ErrCodeQPACKDecompressionFailed))
+	<-invalidDone
+	require.Zero(t, conn.pendingHeaderBytes.Load())
+	valid, validDone := startRequest(encodeRequest(t, httptest.NewRequest(http.MethodGet, "https://example.com", nil)))
+	require.NoError(t, valid.Close())
+	<-validDone
+	require.EqualValues(t, 1, calls.Load())
+	require.Zero(t, conn.pendingHeaderBytes.Load())
+	require.NoError(t, server.Context().Err())
+}
 
 // blockingRecorder holds a SETTINGS event in flight across connection shutdown.
 type blockingRecorder struct {
