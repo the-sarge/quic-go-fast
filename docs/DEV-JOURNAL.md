@@ -6345,3 +6345,26 @@ All 33 hosted checks passed on that head before it was marked ready and squash-m
 ### Next
 
 The consumer runs #853's gate in its namespace pair and posts the result on #853 and #851. The remaining holding slices are #854 through #856; the live view is the slice table in #851. #860 (Windows copy-at-read and slab retirement) is now unblocked.
+
+---
+
+## Version Negotiation hardening landed - 2026-10-19 18:21 EDT
+
+**Main:** `e1915619073b`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #879](https://github.com/the-sarge/quic-go-fast/pull/879) as `e1915619073b78474dbff716acb5d67d5e0b0d66`. The client now checks both echoed connection IDs before using an unauthenticated Version Negotiation version list. A mismatch is discarded without closing or recreating the connection, and a later valid response can still negotiate. The fix also corrects the reversed source/destination parser assignments and test-packet helper arguments.
+
+### Validation
+
+The unit and real-UDP regression tests reproduced connection recreation or handshake abortion before the production fix. After the fix, the wrong, empty, oversized and swapped ID cases pass, as do the real-UDP forgery tests for QUIC v1 and v2 and the existing valid-negotiation and MTU-fallback cases.
+
+The certified head was `6b6c98e28bb000a52cd6429b77d59bfd4d093881` on base `8f1c0e1b3350486e8c0b6255ac34f544d2be4897`. Local checks passed on Darwin arm64: the full connection package, wire and version-negotiation packages; focused race checks for Version Negotiation, Retry and receive lifetime; the QUIC v2 forgery cases; `go vet` on changed packages; `go mod tidy -diff`; changed-code lint (0 issues); and whitespace/clean-tree checks. All 33 hosted checks and all nine workflow runs passed on that exact head before marking ready and squash-merging with the matching-head guard.
+
+RAS review `20261019T214604-10df0a154e5144e61dd9291c` completed with six reviewers and 12 adjudications and required no fixes. The reviewed source/test files and product patch ID remained identical after incorporating the upstream journal-only commit. The pre-existing Retry-state gap was deferred; optional debug logging was rejected as a required change. No fix verification or replacement review was needed under the bounded review policy.
+
+### Next
+
+Revalidated the deferred Retry gap against merged commit `e1915619073b78474dbff716acb5d67d5e0b0d66` and filed [issue #880](https://github.com/the-sarge/quic-go-fast/issues/880): discard Version Negotiation after a valid Retry. The issue contains current source links and bounded regression criteria and is the live follow-up tracker.
