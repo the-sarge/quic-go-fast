@@ -6387,3 +6387,22 @@ The certified head was `8c1a9818e57b06eae3785ac2189f5ed49fadfda5` on base `c7b57
 All nine hosted workflow runs and all 33 jobs passed on the exact candidate before marking ready and squash-merging with the matching-head guard. The merged tree matches the certified candidate tree. The original hosted go-fix failure was resolved with the equivalent `errors.AsType[net.Error]` test modernization.
 
 RAS initial review `20261019T214551-39c5aead6adee50e82d9ef38` required no corrections; replacement review `20261019T220301-d945828982572100349aa641` was clean. The final rebase preserved both feature patches, verified with `git range-diff`, and the new base's Version Negotiation integration was inspected and exercised by the HTTP/3 tests. The optional concern that concurrent displayed response bodies can interleave was revalidated against the merged code; output grouping remains outside the bounded security fix recorded in [PR #878](https://github.com/the-sarge/quic-go-fast/pull/878).
+
+---
+
+## qlog UTF-8 normalization landed - 2026-10-19 19:11 EDT
+
+**Main:** `8e727a20733c`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #876](https://github.com/the-sarge/quic-go-fast/pull/876) as `8e727a20733ccbe99736702abbb1e27f2bb5476d`. The shared qlog JSON encoder now replaces each invalid UTF-8 byte in string keys and values with U+FFFD before escaping, matching the decoded replacement semantics of Go's standard JSON encoder. Peer-controlled CONNECTION_CLOSE reasons therefore produce valid UTF-8 qlog records while wire parsing preserves the received bytes.
+
+### Validation
+
+New regressions failed before the fix for invalid and truncated UTF-8, including transport and application close frames parsed from wire bytes and written through the qlog sequence writer. Coverage also includes valid Unicode, overlong sequences, surrogates, out-of-range encodings, mixed escapes, object keys and values, and writer failures. A 30-second string fuzz run passed 424,941 executions on the original fix commit `88ee4bfc90a0228d0220a7ba84e0da9197c85b20`.
+
+The final certified head was `c3185eea7352fe19d8a3cdeb1cfcc5595163606a` on base `5e55876fd304c623c2c944458b88c3b904dafba3`. Affected qlog, qlogwriter, HTTP/3 qlog and wire package tests passed on Darwin arm64 with Go 1.27.2, alongside logging-package race checks, changed-package vet, module tidiness, targeted lint, whitespace checks and clean-tree verification. All 33 hosted checks across nine unit, integration, lint, cross-compilation and interop workflow runs passed on that exact head before squash merging with the matching-head guard. The merged tree matches the certified candidate tree.
+
+Initial RAS review `20261019T214545-fd9f5e91317bbfb09cc57143` and replacement review `20261019T230406-bd73d68666919429aec07f7b` each completed with all six reviewers and zero findings. The replacement reviewed the final candidate after incorporating the newer main branch. No fix verification, automated fixer or deferred finding remained.
