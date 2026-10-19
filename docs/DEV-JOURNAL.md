@@ -6131,3 +6131,18 @@ Merged [PR #849](https://github.com/the-sarge/quic-go-fast/pull/849) as `454c4d3
 - Final multipart head `59abcd244471a025fd875306bebcced399660eba`: HTTP/3 race tests passed, reusing Go's unchanged-package test cache after the final rebase; affected-package vet, module tidiness, lint, and whitespace checks passed with a clean worktree. RAS review `20261019T070646-9d4c1b355a853f1c0c3c4159` completed with both selected reviewers and no findings or follow-ups.
 - Final fixture head `b5a27d3ee3deee76d364c087efdc175d9adaba3b`: the compact-flight failure reproduced five times and the ACK-only failure three times before their respective corrections. The seeded GSO-disabled QUIC v1 race self suite and 100 focused QUIC v2 race repetitions of all three cases passed, as did vet, module tidiness, lint, and formatting. RAS review `20261019T065858-c74b59f9465dff6c4b4f7fa0` completed with all three selected reviewers and no findings or follow-ups.
 - All 33 hosted checks passed on each exact reviewed head before marking its PR ready and squash-merging with a matching-head guard. The five PR workflows covered unit, integration, lint, cross-compilation, and interop jobs; no same-head retry of the failed repository test was requested.
+
+---
+
+## Bound default server handshake admission - 2026-10-19 03:34 EDT
+
+**Main:** `ccd85fa1f2b0`
+**Actor:** Codex
+
+[PR #842](https://github.com/the-sarge/quic-go-fast/pull/842) merged the remediation for Codex Security Cloud finding `csf_07f32b72564ef0d1ad9a1b0f`: default listeners now share a process-wide budget of 1,024 pending TLS handshakes, with 128 per source IP. Unvalidated sources require Retry at half either limit, and validated tokens cannot bypass hard caps. Default capacity returns at actual TLS completion or after failed setup and closing-state cleanup; explicit caller-managed admission retains its existing contract.
+
+The review corrections give transport closing states exactly-once retirement and distinguish listener admission closure from actual transport shutdown. Failed pending setup is cleaned up when its owning listener/transport stops; established connections preserve CONNECTION_CLOSE retransmission and remote draining until expiry or transport shutdown. Real Listen/ListenEarly regressions cover both closure orders, local/remote close, stopped-clock cleanup, and reservation-free late publication.
+
+The separately authorized CI diagnosis resolved [issue #322](https://github.com/the-sarge/quic-go-fast/issues/322). A controlled two-probe-loss real UDP/TLS case reproduced the old `2 > 1` assertion: already-lost PING-only MTU probes were counted as simultaneously outstanding. The fixture now rejects oversized data, accounts for observed datagrams with typed packet/loss events, and retains the limit of one unresolved probe. Production MTU and DATAGRAM behavior is unchanged.
+
+Validation passed at exact product head `ee9d9599522df5b8e60071874d09fc41c78a28db`: affected unit packages, admission/shutdown race tests, the full self-integration package on QUIC v1, normal/snapshot/lost-probe MTU cases with QUIC v2 race detection, vet, module tidiness, lint and clean-tree/diff checks, plus all 33 hosted checks. Source verification resolved the shutdown regression; final RAS review `20261019T072647-9e658ef615dc859078e5946c` found no issues or follow-ups. Two reviewers completed, meeting the configured quorum; one Claude Opus process failed. No automated fixer or same-head CI retry was used.
