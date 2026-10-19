@@ -14,7 +14,6 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/unix"
 
-	"github.com/quic-go/quic-go/integrationtests/tools/israce"
 	"github.com/quic-go/quic-go/internal/protocol"
 
 	"github.com/stretchr/testify/require"
@@ -210,7 +209,7 @@ func (c *repeatingGROBatchConn) ReadBatch(ms []ipv4.Message, _ int) (int, error)
 // copied into pooled ordinary-tier buffers, which a connection's retention
 // queues hold without another copy.
 func TestGROReadAllocatesNothing(t *testing.T) {
-	if israce.Enabled {
+	if raceEnabled {
 		t.Skip("the race detector makes sync.Pool drop buffers at random")
 	}
 	segs := testCoalescedSegments(3, 1200)
