@@ -136,8 +136,7 @@ func TestFetchResponseTimeout(t *testing.T) {
 			elapsed := time.Since(started)
 			require.GreaterOrEqual(t, elapsed, client.Timeout)
 			require.Less(t, elapsed, 5*time.Second)
-			var timeoutErr net.Error
-			if errors.As(err, &timeoutErr) {
+			if timeoutErr, ok := errors.AsType[net.Error](err); ok {
 				require.True(t, timeoutErr.Timeout(), "expected a timeout: %v", err)
 			} else {
 				// HTTP/3 stream cancellation can win the race with the client's timeout error.
