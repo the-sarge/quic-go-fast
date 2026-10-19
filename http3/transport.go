@@ -110,6 +110,9 @@ type Transport struct {
 	newClientConn func(*quic.Conn) clientConn
 
 	clients map[string]*roundTripperWithCount
+	// Retired connections cannot be reused, but remain owned until their last
+	// exchange finishes or the transport is closed. Protected by mutex.
+	retired map[*roundTripperWithCount]struct{}
 	closed  bool
 
 	// Without a custom Dial, one transport per address family is created on first use.
@@ -260,7 +263,7 @@ func (t *Transport) doRoundTripOpt(req *http.Request, opt RoundTripOpt, isRetrie
 		return nil, err
 	}
 
-	lifetime.release = func() { cl.useCount.Add(-1) }
+	lifetime.release = func() { t.releaseClient(cl) }
 
 	select {
 	case <-cl.dialing:
@@ -465,8 +468,29 @@ func (t *Transport) resolveUDPAddr(ctx context.Context, network, addr string) (*
 func (t *Transport) removeClient(hostname string, expected *roundTripperWithCount) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-	if t.clients[hostname] == expected {
-		delete(t.clients, hostname)
+	if t.clients[hostname] != expected {
+		return
+	}
+	delete(t.clients, hostname)
+	if expected.useCount.Load() == 0 {
+		expected.Close()
+		return
+	}
+	if t.retired == nil {
+		t.retired = make(map[*roundTripperWithCount]struct{})
+	}
+	t.retired[expected] = struct{}{}
+}
+
+func (t *Transport) releaseClient(cl *roundTripperWithCount) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	if cl.useCount.Add(-1) != 0 {
+		return
+	}
+	if _, ok := t.retired[cl]; ok {
+		cl.Close()
+		delete(t.retired, cl)
 	}
 }
 
@@ -525,6 +549,12 @@ func (t *Transport) Close() error {
 		}
 	}
 	t.clients = nil
+	for cl := range t.retired {
+		if err := cl.Close(); err != nil {
+			return err
+		}
+	}
+	t.retired = nil
 	t.transportMutex.Lock()
 	defer t.transportMutex.Unlock()
 	for _, tr := range []**quic.Transport{&t.transport4, &t.transport6} {
