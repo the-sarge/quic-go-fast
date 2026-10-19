@@ -11,6 +11,7 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
+	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 )
 
@@ -540,12 +541,25 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 
 // Direct operations borrow the destination and preserve best-effort write errors.
 // Storage belongs to emission until the synchronous write has returned.
-func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
-	p, buf, err := e.packer.PackPathProbePacket(connID, frames, e.version)
+func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
+	p, buf, err := e.packer.packPathProbePacket(connID, frames, path.sendAllowance(), e.version)
 	if err != nil {
 		return err
 	}
+	if buf == nil {
+		// Keep an unsent challenge eligible for the next received packet.
+		for _, f := range frames {
+			if challenge, ok := f.Frame.(*wire.PathChallengeFrame); ok && challenge.Data == path.pathChallenge {
+				path.challengeSent = false
+				path.challengePadded = false
+			}
+		}
+		return nil
+	}
 	defer buf.Release()
+	if !path.reserveProbe(buf.Len()) {
+		return nil
+	}
 	e.policy.logPathProbe(p, addr, buf.Len(), checksum)
 	e.registerPacket(p, protocol.ECNNon, now)
 	return e.queue.SendProbe(buf, addr, info)

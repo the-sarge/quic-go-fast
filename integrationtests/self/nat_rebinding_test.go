@@ -16,30 +16,31 @@ func TestNATRebinding(t *testing.T) {
 	f.conn.CloseWithError(0, "")
 	tr := f.trace
 
-	// check that a PATH_CHALLENGE was sent
-	var pathChallenge [8]byte
-	var foundPathChallenge bool
-	for _, p := range tr.getSentShortHeaderPackets() {
-		for _, f := range p.frames {
+	// A compact probe can be followed by an expanded probe to validate the MTU.
+	pathChallenges := make(map[[8]byte]int)
+	for _, event := range tr.recorder.Events(qlog.PacketSent{}) {
+		p := event.(qlog.PacketSent)
+		for _, f := range p.Frames {
 			switch fr := f.Frame.(type) {
 			case *qlog.PathChallengeFrame:
-				pathChallenge = fr.Data
-				foundPathChallenge = true
+				pathChallenges[fr.Data] = p.Raw.Length
 			}
 		}
 	}
-	require.True(t, foundPathChallenge)
+	require.NotEmpty(t, pathChallenges)
 
 	// check that a PATH_RESPONSE with the correct data was received
-	var foundPathResponse bool
+	var foundExpandedPathResponse bool
 	for _, p := range tr.getRcvdShortHeaderPackets() {
 		for _, f := range p.frames {
 			switch fr := f.Frame.(type) {
 			case *qlog.PathResponseFrame:
-				require.Equal(t, pathChallenge, fr.Data)
-				foundPathResponse = true
+				require.Contains(t, pathChallenges, fr.Data)
+				if pathChallenges[fr.Data] >= 1200 {
+					foundExpandedPathResponse = true
+				}
 			}
 		}
 	}
-	require.True(t, foundPathResponse)
+	require.True(t, foundExpandedPathResponse)
 }

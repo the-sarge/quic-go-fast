@@ -150,6 +150,7 @@ func TestNetworkAdmissionServerResponseRouteLoss(t *testing.T) {
 	conn.emission.queue = newSendQueue(conn.conn, nil)
 	err := conn.emission.serverProbe(protocol.ParseConnectionID([]byte{8, 7, 6, 5}),
 		[]ackhandler.Frame{{Frame: &wire.PathResponseFrame{Data: [8]byte{1, 2, 3, 4}}}},
+		&path{bytesReceived: 400},
 		peer.LocalAddr(), packetInfo{}, 0, monotime.Now())
 	require.ErrorContains(t, err, "network policy denied")
 	require.NoError(t, peer.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
