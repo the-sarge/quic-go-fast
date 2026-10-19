@@ -8,7 +8,8 @@ import (
 )
 
 // A coalescedSlab is the backing storage for the segments of a single
-// coalesced socket read (Linux UDP_GRO, Windows URO). Sibling segments of one
+// coalesced socket read (Windows URO; the Linux UDP_GRO reader copies its
+// datagrams out of its read slots instead, #853). Sibling segments of one
 // read can carry different connection IDs and route to owners that release
 // concurrently, so the slab counts its live views atomically — the one
 // exception to the non-atomic incoming-storage contract, authorized by the
