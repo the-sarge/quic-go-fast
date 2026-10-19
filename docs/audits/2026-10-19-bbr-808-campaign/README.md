@@ -10,7 +10,7 @@
 
 ## Why one campaign
 
-Every change to BBRv3's code makes a new revision, and each new revision needs its own readiness measurement and an operator advancement disposition before L6 or qualification (the [port advancement decision](https://github.com/the-sarge/quic-go-fast/blob/ebfd9339/docs/audits/2026-10-16-bbr-port-advancement-decision/README.md#d5--what-advancement-leads-to-l6-named-and-not-started), D5). On October 18, 2026, the operator chose to measure once, on the revision that has #742, #800 and #803, instead of separately for each; #743 was decided and merged first, and #824 followed. The revision is `main` at `e7eb3f10`, whose production code equals `42b9b5de`.
+Every change to BBRv3's code makes a new revision, and each new revision needs its own readiness measurement and an operator advancement disposition before L6 or qualification (the [port advancement decision](https://github.com/the-sarge/quic-go-fast/blob/ebfd9339/docs/audits/2026-10-16-bbr-port-advancement-decision/README.md#d5--what-advancement-leads-to-l6-named-and-not-started), D5). On October 18, 2026, the operator chose to measure once, on the revision that has #742, #800 and #803, instead of separately for each; #743 was decided and merged first, and #824 followed. The revision is `main` at `d94b3ec2` (re-pinned from `e7eb3f10` before any data; D1).
 
 ## Accepted decisions (before any data)
 
@@ -18,7 +18,7 @@ The agent presented one plan with eleven recommended decisions on October 18, 20
 
 | # | Decision |
 | --- | --- |
-| D1 | **The revision:** `main` as of the registration commit, `e7eb3f10`. Later commits are not measured; a BBR or send/receive-path code change on `main` before the readiness run would have stopped the campaign for a decision. |
+| D1 | **The revision:** `main` as of the registration commit, `e7eb3f10`; a BBR or send/receive-path code change on `main` before the readiness run stops the campaign for a decision. **Applied:** #836 and #844 changed the shared send path before any data, and the operator chose on October 19 at about 02:30 to re-pin the candidate to `main` at `d94b3ec2`. Later commits are not measured. |
 | D2 | **Readiness:** slice 6's stage unchanged except the candidate, with slice 6's values beside each cell as context; nothing pre-cleared; slice 7's exceptions do not carry over. |
 | D3 | **Amended: no extra arm.** The plan pre-registered a conditional Reno-on-candidate arm with #743's batching switched off. A development pair then showed that the frozen fixture's managed packet-I/O lease never GSO-batches (one `sendmsg` per packet with and without the switch), so #742 and #743 cannot reach readiness or L6 and the arm could isolate nothing. The operator chose "Drop the arm (Recommended)": readiness runs slice 6's stage exactly, and a raised Reno-on-candidate cell goes to the disposition with #824 named as a known, unattributed contributor. |
 | D4 | **The disposition stop:** after readiness the agent stops and gives the operator a plain summary with one recommended advancement disposition, checked against every standing rule and the cell's history in every readiness record; if it recommends an exception or override, one `ras consider` reviews it first. L6 runs only after an advancing disposition. |

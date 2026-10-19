@@ -8,7 +8,7 @@
 
 ## Question
 
-When BBRv3 at `e7eb3f10` shares #777's L6 bottleneck with a competing QUIC Reno flow, does it displace that flow beyond #777's criterion? And for the requirements #800 and #803 left to this campaign: how does STREAM's displacement compare with #777's and #792's, is bulk STREAM still marked application-limited, and does ECN stay on through an L6-length run?
+When BBRv3 at `d94b3ec2` shares #777's L6 bottleneck with a competing QUIC Reno flow, does it displace that flow beyond #777's criterion? And for the requirements #800 and #803 left to this campaign: how does STREAM's displacement compare with #777's and #792's, is bulk STREAM still marked application-limited, and does ECN stay on through an L6-length run?
 
 ## Accepted decisions
 
@@ -20,8 +20,8 @@ From the campaign plan the operator approved on October 18, 2026 (campaign recor
 
 ## The candidate and the reference
 
-- **Candidate: `cand`, `main` at `e7eb3f10`, selecting BBRv3.** Its fixture binary is `c9ff3595a7411f73…`, byte-identical to the readiness stage's `cand-fixture`. What the revision changes since `abfa5456`, and which changes reach this fixture, is in the readiness record's [The candidate](../2026-10-19-bbr-808-readiness/README.md#the-candidate): #800 and #803 act on every BBRv3 flow here, #824's queue on every DATAGRAM receiver; #742 and #743 cannot act, because the fixture's managed lease never GSO-batches.
-- **Trace: `cand-trace`,** the same revision with #792's measurement-only overlay (`7730baef1846d58a…`).
+- **Candidate: `cand`, `main` at `d94b3ec2`, selecting BBRv3** (re-pinned from `e7eb3f10` by the operator before any data; readiness record, [The candidate](../2026-10-19-bbr-808-readiness/README.md#the-candidate)). Its fixture binary is `e50b799c0cefa591…`, byte-identical to the readiness stage's `cand-fixture`. What the revision changes since `abfa5456`, and which changes reach this fixture, is in the readiness record's [The candidate](../2026-10-19-bbr-808-readiness/README.md#the-candidate): #800 and #803 act on every BBRv3 flow here, #824's queue on every DATAGRAM receiver; #742 and #743 cannot act, because the fixture's managed lease never GSO-batches.
+- **Trace: `cand-trace`,** the same revision with #792's measurement-only overlay (`09bd3dd85820ed38…`).
 - **Matched Reno, the A/A arm and the competitor: frozen Reno `e4f322cb`** (`cda8feb1b2fb004d…`), byte-identical to #777's.
 - The fixture is the Q1 campaign's frozen `fixture/` with the causal-diagnosis heap patch, as in #777.
 
@@ -32,8 +32,8 @@ From the campaign plan the operator approved on October 18, 2026 (campaign recor
 | Binary | SHA-256 | Source |
 | --- | --- | --- |
 | `reno-fixture` | `cda8feb1b2fb004d…` | frozen Reno; byte-identical to #777's |
-| `cand-fixture` | `c9ff3595a7411f73…` | `e7eb3f10` (new) |
-| `cand-trace-fixture` | `7730baef1846d58a…` | `e7eb3f10` plus #792's overlay (new) |
+| `cand-fixture` | `e50b799c0cefa591…` | `d94b3ec2` (new) |
+| `cand-trace-fixture` | `09bd3dd85820ed38…` | `d94b3ec2` plus #792's overlay (new) |
 | `relay2`, `calibrate2`, `launch` | `bff3ba4f86d4c71c…`, `f4773dc9b53ae600…`, `a6146d62e16339f2…` | frozen tree; byte-identical to #777's |
 
 ## Arms, pairs and order
@@ -60,7 +60,7 @@ For each workload, pair and classified period (equal, short, resumed), the pair 
 
 #792's instrument, unchanged except one hook text ([The instrument](https://github.com/the-sarge/quic-go-fast/blob/89e71a60/docs/audits/2026-10-18-bbr-l6-diagnosis/README.md#the-instrument-a-measurement-only-trace-overlay)): a measurement-only overlay in package `congestion`, rows of the BBR model's state in a fixed array outside the Go heap, written once after the fixture writes its own record, enabled only for the trace arm's focal sender until 2 s after the measured window.
 
-- **The one changed hook.** [#806](https://github.com/the-sarge/quic-go-fast/pull/806) (`1f9ceb6e`) replaced `bbrBytes(previousFlight+prefix)` with draft-06's `bbrBytes(atLoss)` in the probe-loss assignment, so that hook's exact text changes ([build.py](build.py) `TRACE_SITES`), as #800's hand-over on #808 asks. The hook itself, the row right after the assignment, is #792's. The other eight sites are unchanged and each occurs once on `e7eb3f10`.
+- **The one changed hook.** [#806](https://github.com/the-sarge/quic-go-fast/pull/806) (`1f9ceb6e`) replaced `bbrBytes(previousFlight+prefix)` with draft-06's `bbrBytes(atLoss)` in the probe-loss assignment, so that hook's exact text changes ([build.py](build.py) `TRACE_SITES`), as #800's hand-over on #808 asks. The hook itself, the row right after the assignment, is #792's. The other eight sites are unchanged and each occurs once on `d94b3ec2`.
 - **Tests,** in the exported `cand-trace` tree: the overlay's tests and the port's `internal/congestion` tests pass, also under `-race` for the overlay's; `go vet` passes for `internal/congestion`, the root package and the fixture.
 - **The checker** ([draft06check.py](draft06check.py), C0–C9, 40 tests) and **the input check** ([reconcile.py](reconcile.py), R1–R4, 13 tests) are #792's, unchanged. With draft-06's arithmetic, C4 should record no clamp events (#800's hand-over).
 - **Mechanism figures** come from #792's `traced` ([mechanism792.py](mechanism792.py), #792's `analyze.py` verbatim), descriptive. #792's disturbance rule (D3) was a gate for cause attribution; here it is carried as #792 computed it and decides nothing.

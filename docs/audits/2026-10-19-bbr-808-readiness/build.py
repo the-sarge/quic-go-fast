@@ -2,9 +2,10 @@
 """Finite readiness builds for the combined BBRv3 revision (#808); never edits a tracked transport source file.
 
 Copied from slice 6's build.py (9b38f0ab, #748) with recorded changes:
-- `cand` is the combined revision, `main` at e7eb3f10 (production code
-  identical to 42b9b5de: #742, #800, #803, #743, #824, #809, #812, #814 on top
-  of the port), instead of the port head abfa5456.
+- `cand` is the combined revision, `main` at d94b3ec2 (#742, #800, #803,
+  #743, #824, #809, #812, #814 on top of the port, plus #836 and #844 on the
+  path-probe send path and #838 and #839 in http3; the operator re-pinned it
+  from e7eb3f10 before any data), instead of the port head abfa5456.
 - The artifact directory is this record's (.local/bbr-808-readiness).
 - Every aid this record copies unchanged is checked byte-identical against
   slice 6's record (SLICE6_COPIED), which had itself checked each against its
@@ -55,7 +56,7 @@ CAMPAIGN = 'docs/audits/2026-09-25-bbrv3-q1-campaign'
 HEAP_PATCH = ('798f499878290fc70a0df9db1c067c326ec3b3af', 'docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch')
 REVISIONS = {
     'reno': 'e4f322cbbfd4225a4b714e08ec19c958cccadcb0',  # frozen matched reference
-    'cand': 'e7eb3f10d467965d59b06c2a23aba28e6c2788ec',  # combined revision on main (#808): BBRv3 and default Reno
+    'cand': 'd94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7',  # combined revision on main (#808): BBRv3 and default Reno
 }
 # (revision, diag overlay, timeline overlay)
 VARIANTS = {name: (rev, False, False) for name, rev in REVISIONS.items()}
@@ -91,9 +92,9 @@ SLICE6_DIR = 'docs/audits/2026-10-16-bbr-port-readiness'
 SLICE6_COPIED = R9_COPIED + ['stages.py', 'resume.py', 'resume_test.py']
 # This record's own binaries, registered after their first build (None until then).
 REGISTERED = {
-    ('cand', 'fixture'): 'c9ff3595a7411f732dbe0910c0ee3013dc1dbe64399b037b7c8432e4b56d9463',
-    ('cand-diag', 'fixture'): 'e9581af8ee238b5d84e9f2e7b20db8d9e7db6cf76d09db976c86777077393843',
-    ('cand-timeline', 'fixture'): '832abc4de0c56c438f4baa0e5756003d6639378ed7b708ef368d43857c4cf362',
+    ('cand', 'fixture'): 'e50b799c0cefa5918180dc53a7e88c7922ba55fd15907c0992e5d9e4c6d0e83b',
+    ('cand-diag', 'fixture'): '5947fc186427380e5be875084dca02dda9dedda8d56d231d8494d06cd345feea',
+    ('cand-timeline', 'fixture'): 'f1807744d5a9f9ee1af791663836ceeece28b67df8fc36bbdab534f66e5f7b78',
 }
 # Binaries this record rebuilds from a revision and overlays a prior record already built (SHA-256).
 EXPECTED = {

@@ -12,15 +12,15 @@
 
 ## The harness
 
-[bench808.go.src](bench808.go.src) is #824's `rdq824bench` (`rdq824bench.go.src` at `2f550727`) with one recorded change: a `-cc` flag selecting the built-in controller (`reno` or `bbrv3`) at both endpoints through `Config.SetCongestionControlV1`, and each role reports its connection's selected controller. Everything else is as #824 measured it: one process per role, the counting `sendmsg` wrapper that keeps batched receive, 1,190-byte DATAGRAMs, 64 KiB stream writes, the receiver reading `DatagramReceiveDropsV1` by interface assertion after close, and the receive-drop counters of [recvcount-cand.patch](recvcount-cand.patch) (#824's, unchanged, applied cleanly to `e7eb3f10`) behind the `dropcount` tag ([drops_on.go.src](drops_on.go.src), [drops_off.go.src](drops_off.go.src)). The sources stay `.go.src` so the archived-evidence module never compiles them.
+[bench808.go.src](bench808.go.src) is #824's `rdq824bench` (`rdq824bench.go.src` at `2f550727`) with one recorded change: a `-cc` flag selecting the built-in controller (`reno` or `bbrv3`) at both endpoints through `Config.SetCongestionControlV1`, and each role reports its connection's selected controller. Everything else is as #824 measured it: one process per role, the counting `sendmsg` wrapper that keeps batched receive, 1,190-byte DATAGRAMs, 64 KiB stream writes, the receiver reading `DatagramReceiveDropsV1` by interface assertion after close, and the receive-drop counters of [recvcount-cand.patch](recvcount-cand.patch) (#824's, unchanged, applied cleanly to `d94b3ec2`) behind the `dropcount` tag ([drops_on.go.src](drops_on.go.src), [drops_off.go.src](drops_off.go.src)). The sources stay `.go.src` so the archived-evidence module never compiles them.
 
 [build.sh](build.sh) (#824's, adapted) exports three trees and builds one binary from each, `GOTOOLCHAIN=local` (Go 1.27.2), `GOPROXY=off`, linux/amd64:
 
 | Binary | Tree | SHA-256 |
 | --- | --- | --- |
 | `bench808-send-pre` | `main` at `c8dbe35e` (post-#742, #800, #803; before #743), unpatched | `de84214542b62b7a…` |
-| `bench808-send` | the #808 revision, `e7eb3f10`, unpatched | `a24e1b7360499546…` |
-| `bench808-recv` | `e7eb3f10` plus `recvcount-cand.patch`, `dropcount` tag | `66cc542575f05b1c…` |
+| `bench808-send` | the #808 revision, `d94b3ec2`, unpatched | `1d0193bebb4b9d94…` |
+| `bench808-recv` | `d94b3ec2` plus `recvcount-cand.patch`, `dropcount` tag | `f6e75a1f04f3b95e…` |
 
 The binaries embed their build directory through the module `replace`, so these hashes identify the counted binaries; a rebuild elsewhere differs. `build.sh` records them in `build.json`, which is packed with the raw data.
 
@@ -59,7 +59,7 @@ No reading here changes a readiness flag, the advancement disposition or the L6 
 
 ## Development round (before this registration)
 
-One round of all eight arms on October 19, 2026, 03:45–03:47 UTC (`dev1`, excluded from every statistic, kept with the raw data), while a GridCast GARM Windows VM was running on `minimax`. Every run was contaminated (foreign time up to 6.6 s). Seen by the agent: both endpoints reported the arm's controller in every run; BBRv3 DATAGRAM ran at 8,256 Mbit/s with 14.36 segments per send, and 4,325 Mbit/s with 1.00 when the switch was set; `DatagramReceiveDropsV1` read 0 in every DATAGRAM and mixed run; `S-rev` ÷ `S-pre` read 0.902 under the contamination. Nothing in this registration changed after it.
+One round of all eight arms on October 19, 2026, 03:45–03:47 UTC, on `e7eb3f10`'s binaries before the re-pin (`dev1`, excluded from every statistic, kept with the raw data), while a GridCast GARM Windows VM was running on `minimax`. Every run was contaminated (foreign time up to 6.6 s). Seen by the agent: both endpoints reported the arm's controller in every run; BBRv3 DATAGRAM ran at 8,256 Mbit/s with 14.36 segments per send, and 4,325 Mbit/s with 1.00 when the switch was set; `DatagramReceiveDropsV1` read 0 in every DATAGRAM and mixed run; `S-rev` ÷ `S-pre` read 0.902 under the contamination. Nothing in this registration changed after it.
 
 ## Order
 

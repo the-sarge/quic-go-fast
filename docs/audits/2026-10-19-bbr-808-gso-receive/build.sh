@@ -6,14 +6,14 @@
 # Adapted from #824's build.sh (2f550727) with recorded changes: the harness is
 # bench808.go.src (rdq824bench plus -cc), and the three trees are
 #   send-pre  main at c8dbe35e (post-#742, before #743), unpatched: the K3 baseline sender
-#   send      the #808 revision, main at e7eb3f10, unpatched: the sender in every other arm
+#   send      the #808 revision, main at d94b3ec2, unpatched: the sender in every other arm
 #   recv      the #808 revision plus #824's recvcount-cand.patch: the receiver in every arm
 # Only the receiver uses the dropcount tag. Prints sha256 values and writes
 # build.json. GOARCH defaults to amd64 (minimax). A verification aid for #808's
 # side stage; not maintained.
 set -eu
 PRE=c8dbe35eb26fcd69f6f0ebd43b64c15836fcdc80
-REV=e7eb3f10d467965d59b06c2a23aba28e6c2788ec
+REV=d94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7
 rec=$(cd "$(dirname "$0")" && pwd)
 repo=$(git -C "$rec" rev-parse --show-toplevel)
 out=${1:-$repo/.local/bbr-808-gso}

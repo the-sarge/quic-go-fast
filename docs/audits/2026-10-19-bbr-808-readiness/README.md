@@ -2,17 +2,17 @@
 
 **Date:** October 19, 2026, America/New_York. **Scope:** step 1 of [#808](https://github.com/the-sarge/quic-go-fast/issues/808), one readiness and L6 campaign on the revision that carries #742, #800, #803, #743 and #824. Measurement only: no code change, qualification, advancement decision, default-controller change, release, paid resource, host-setting change or ledger change. The campaign's decisions, the advancement disposition and the requirements this campaign discharges are in the [campaign record](../2026-10-19-bbr-808-campaign/README.md).
 
-Branch `codex/bbr-808-campaign`, based on `main` at `e7eb3f10`, the candidate itself. Unlike the #666 and #748 records, this record lands on `main` by one docs-only pull request (campaign decision D9); its raw archive stays on a pinned branch off `main`, and `raw-manifest.json` on `main` holds its checksums. [#748 slice 6's readiness record](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md) (`9b38f0ab`, on `codex/bbr-port-readiness`) supplies the stage, the aids and the host layout that this record reruns.
+Branch `codex/bbr-808-campaign`, based on `main` at `e7eb3f10`; the candidate is `main` at `d94b3ec2` (below). Unlike the #666 and #748 records, this record lands on `main` by one docs-only pull request (campaign decision D9); its raw archive stays on a pinned branch off `main`, and `raw-manifest.json` on `main` holds its checksums. [#748 slice 6's readiness record](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md) (`9b38f0ab`, on `codex/bbr-port-readiness`) supplies the stage, the aids and the host layout that this record reruns.
 
 **Status: registration.** The sections from [The candidate](#the-candidate) to [Order](#order) are the registration, written with the aids adapted and the binaries built before any prerequisite, smoke, readiness or attribution observation of this record. Results are added after the stage, below the registration, without changing it.
 
 ## Question
 
-On owned Linux hardware, what are the readiness flags of the combined revision (`main` at `e7eb3f10`), what does the S5 timeline show, and does any raised Reno-on-candidate preservation cell reproduce under its registered stage? Beside each cell: what did slice 6 record for the port (`abfa5456`)?
+On owned Linux hardware, what are the readiness flags of the combined revision (`main` at `d94b3ec2`), what does the S5 timeline show, and does any raised Reno-on-candidate preservation cell reproduce under its registered stage? Beside each cell: what did slice 6 record for the port (`abfa5456`)?
 
 ## The candidate
 
-**`main` at `e7eb3f10d467965d59b06c2a23aba28e6c2788ec`**, the `main` commit at this registration (campaign decision D1). Its production code is identical to `42b9b5de`; the later commits change one integration test and the journal. Later `main` commits are not measured.
+**`main` at `d94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7`.** The registration first named `e7eb3f10`, the `main` commit when it was written (campaign decision D1). Before any data, four production commits landed on `main`, two of them on the shared send path (#836, #844). As D1 requires, the agent stopped and asked. On October 19, 2026, at about 02:30 America/New_York, the operator chose to re-pin the candidate to `d94b3ec2`, so the advancement would cover the `main` that Q2 would qualify. Its production code is identical to `7d05a887` (the last commit changes the journal only). Later `main` commits are not measured.
 
 Production changes since the port head `abfa5456`, and whether each reaches this stage's fixture:
 
@@ -26,8 +26,11 @@ Production changes since the port head `abfa5456`, and whether each reaches this
 | [#743](https://github.com/the-sarge/quic-go-fast/issues/743): equal-size GSO batches of short DATAGRAM packets | `9b52dca8` | `packet_emission.go`, `packet_emission_bbr.go`, `packet_emission_gso.go`, `packet_packer.go`, `connection.go` | **No**: as above |
 | [#809](https://github.com/the-sarge/quic-go-fast/issues/809): the GSO-error fallback only for writes with a segment size | `501e80bd` | `send_conn.go` | **No**: as above |
 | [#756](https://github.com/the-sarge/quic-go-fast/issues/756), [#786](https://github.com/the-sarge/quic-go-fast/issues/786), [#780](https://github.com/the-sarge/quic-go-fast/issues/780): handshake size fallback | `81a72481`, `57f9df04`, `814bd485` | `config.go`, `connection.go`, `interface.go`, `transport.go`, `internal/ackhandler/` | **No**: each applies only to an unset `InitialPacketSize`; the fixture sets 1,400 |
+| [#844](https://github.com/the-sarge/quic-go-fast/pull/844): bounded path-probe history, probes retired atomically | `7d05a887` | `internal/ackhandler/sent_packet_handler.go`, `sent_packet_history.go`, `interfaces.go`, `packet_emission.go` | Partly: the sent-packet history every connection keeps changed shape; the probe paths themselves do not run (the fixture never migrates) |
+| [#836](https://github.com/the-sarge/quic-go-fast/pull/836): per-path amplification limits on migration probes | `36fd7bc5` | `path_manager.go`, `packet_emission.go`, `packet_packer.go`, `connection.go` | **No** in effect: migration probes only; the fixture never migrates |
+| [#838](https://github.com/the-sarge/quic-go-fast/pull/838), [#839](https://github.com/the-sarge/quic-go-fast/pull/839): HTTP/3 header buffering and bounds | `a14c2eda`, `28a01df8` | `http3/` | **No**: the fixture does not use HTTP/3 |
 
-**Why GSO never engages here.** The frozen fixture sends through the managed packet-I/O lease (`ConfigureManagedPacketIOV1` with no batch callback). In a development pair on `minimax` (below), the candidate's loopback DATAGRAM sender made 8,786,578 `sendmsg` calls for 8,786,534 transmits, and 8,964,248 for 8,964,205 with `QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true`: one packet per call either way. Slice 6's native-I/O prerequisite read 0.999 sends per packet on S5 for the same reason. So this stage measures #800, #803 and #824 on the port; it cannot measure #742 or #743. The campaign's [side stage](../2026-10-19-bbr-808-gso-receive/README.md) is where #743 is measured on BBRv3 (campaign decision D8, and the operator's amendment of D3).
+**Why GSO never engages here.** The frozen fixture sends through the managed packet-I/O lease (`ConfigureManagedPacketIOV1` with no batch callback). In a development pair on `minimax` (below), the candidate's loopback DATAGRAM sender made 8,786,578 `sendmsg` calls for 8,786,534 transmits, and 8,964,248 for 8,964,205 with `QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true`: one packet per call either way. Slice 6's native-I/O prerequisite read 0.999 sends per packet on S5 for the same reason. So this stage measures #800, #803 and #824 on the port (and #844's history change, which every connection carries); it cannot measure #742 or #743. The campaign's [side stage](../2026-10-19-bbr-808-gso-receive/README.md) is where #743 is measured on BBRv3 (campaign decision D8, and the operator's amendment of D3).
 
 The candidate is a new revision. **No readiness exception granted to the port (slice 7's [D3 and D4](https://github.com/the-sarge/quic-go-fast/blob/ebfd9339/docs/audits/2026-10-16-bbr-port-advancement-decision/README.md#d3--unattributed-readiness-exceptions-the-nine-candidate-cells)) covers it.**
 
@@ -39,13 +42,13 @@ The candidate is a new revision. **No readiness exception granted to the port (s
 
 ## How a Reno-on-candidate difference is reported
 
-Slice 6's section, unchanged ([How a Reno-on-candidate difference is reported](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#how-a-reno-on-candidate-difference-is-reported)). The Reno-on-candidate arm measures `main`'s Reno at `e7eb3f10` against frozen Reno, so it bundles the port's Reno-reachable merge seams, every non-BBR change `main` carries since `e4f322cb`, and code placement. Since slice 6, one more change reaches Reno in this fixture: **#824's received-DATAGRAM queue** (1,024 entries instead of 128, with delivered slots cleared). A raised Reno-on-candidate cell stays a raised preservation flag, **not attributed** to #824, the port or `main`'s other changes; no stage here separates them. The contract's sentence stands: "A raised preservation flag blocks advancement." Presenting it for a decision is the advancement disposition's job, not this record's.
+Slice 6's section, unchanged ([How a Reno-on-candidate difference is reported](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#how-a-reno-on-candidate-difference-is-reported)). The Reno-on-candidate arm measures `main`'s Reno at `d94b3ec2` against frozen Reno, so it bundles the port's Reno-reachable merge seams, every non-BBR change `main` carries since `e4f322cb`, and code placement. Since slice 6, one more change reaches Reno in this fixture: **#824's received-DATAGRAM queue** (1,024 entries instead of 128, with delivered slots cleared). A raised Reno-on-candidate cell stays a raised preservation flag, **not attributed** to #824, the port or `main`'s other changes; no stage here separates them. The contract's sentence stands: "A raised preservation flag blocks advancement." Presenting it for a decision is the advancement disposition's job, not this record's.
 
 ## What stays fixed and what changes
 
 - **Fixed: slice 6's stage, entirely** ([What stays fixed and what changes](https://github.com/the-sarge/quic-go-fast/blob/9b38f0ab/docs/audits/2026-10-16-bbr-port-readiness/README.md#what-stays-fixed-and-what-changes)): the arms, paths, durations, seeds, rotation, flag limits, median rule, A/A reporting, contamination rule and its cap of ten readiness block reruns, quiet-host gate, core layout, frozen Reno, the fixture with the causal-diagnosis heap patch, the relay, the launcher, the endpoint contract, `GOTOOLCHAIN=go1.27.0` for every build, #715's timeline rule, and #739's preservation stages and outcome rules without D3's mapping (no preservation outcome ends a blocking state here).
 - **Changed, all recorded:**
-  - *Candidate:* `cand` is `e7eb3f10`.
+  - *Candidate:* `cand` is `d94b3ec2` (re-pinned from `e7eb3f10` by the operator before any data).
   - *Context:* slice 6's values replace r9's beside each cell ([portcontext.py](portcontext.py), slice 6's `r9context.py` with the prior record and its key names changed; [portcontext_test.py](portcontext_test.py), 8 tests).
   - *Builds:* [build.py](build.py) is slice 6's with four recorded changes (its docstring): the candidate; the artifact directory (`.local/bbr-808-readiness`); every copied aid checked byte-identical against slice 6's record instead of the older ones; and `REGISTERED`, this record's new binaries.
   - *Paths:* [art.py](art.py) and [sync.sh](sync.sh). One sync serves all three #808 stages, which share `~/agents/quic-808` on `minimax`. It excludes every host-written path (each stage's observations, calibration, host-fact snapshots, development runs, JSON and logs, the credentials, the markers and the side stage's yield request), so `--delete` never removes one and the Mac never overwrites one; a second sync to a local target that held each of them left all of them in place.
@@ -61,13 +64,13 @@ Slice 6's section, unchanged ([How a Reno-on-candidate difference is reported](h
 | `reno-diag-fixture` | `36752495934b2f91…` | frozen Reno with the `-diag` overlay; byte-identical to slice 6's |
 | `relay-v3`, `relay-linux` | `033d467c36157a04…`, `24ee941d2c63c259…` | frozen tree; byte-identical to slice 6's |
 | `calibrate`, `launch` | `4218b433f3d7d04c…`, `a6146d62e16339f2…` | frozen tree; byte-identical to slice 6's |
-| `cand-fixture` | `c9ff3595a7411f73…` | `e7eb3f10` (new) |
-| `cand-diag-fixture` | `e9581af8ee238b5d…` | `e7eb3f10` with the `-diag` overlay, for `presrss` only (new) |
-| `cand-timeline-fixture` | `832abc4de0c56c43…` | `e7eb3f10` with the timeline overlay, for `s5timeline` only (new) |
+| `cand-fixture` | `e50b799c0cefa591…` | `d94b3ec2` (new) |
+| `cand-diag-fixture` | `5947fc186427380e…` | `d94b3ec2` with the `-diag` overlay, for `presrss` only (new) |
+| `cand-timeline-fixture` | `f1807744d5a9f9ee…` | `d94b3ec2` with the timeline overlay, for `s5timeline` only (new) |
 
-Every overlay patch site occurs exactly once on `e7eb3f10` (`build.py` asserts it). A second build from a fresh artifact directory reproduced all three candidate binaries byte for byte.
+Every overlay patch site occurs exactly once on `d94b3ec2` (`build.py` asserts it). A second build from a fresh artifact directory reproduced all three candidate binaries byte for byte.
 
-- **Gates.** No transport source changes here. `e7eb3f10`'s production tree equals `42b9b5de`'s, which merged #824 after its hosted checks; `e7eb3f10` itself passed push CI on `main`.
+- **Gates.** No transport source changes here. `d94b3ec2`'s production tree equals `7d05a887`'s, #844's merge, whose push CI on `main` passed after its pull request's hosted checks.
 - **Dry run.** Before any observation of this record, the adapted analysis ran on slice 6's retained raw data (`raw.tar.gz` at `9b38f0ab`): `stages.py readiness` reproduced slice 6's `summary.json` byte for byte, and `stages.py preslat` and `s5timeline` reproduced slice 6's outcomes exactly.
 - **Aid tests pass:** `rules_test.py` (43), `harness_test.py` (10), `receiver_test.py` (11), `localize_test.py` (14), `resume_test.py` (3), `portcontext_test.py` (8).
 
@@ -108,7 +111,7 @@ Slice 6's, unchanged ([Registration: preservation (conditional)](https://github.
 
 - **No counted, prerequisite, smoke or attribution observation of this record existed** when this registration was written.
 - **Development runs on `minimax`** (excluded from every statistic, kept with the raw data), made on October 19, 2026, at about 03:48 UTC while a GridCast GARM Windows VM was running on the host:
-  - loopback DATAGRAM, Reno on candidate (`cand`), 20 s, with `perf stat`: 4,166.4 Mbit/s, sender CPU 5.22 s per GiB, peak RSS 18.14 / 17.81 MiB, control p95 0.532 ms; 8,786,578 `sendmsg` calls;
+  - (both on `e7eb3f10`'s binaries, before the re-pin; neither the managed lease nor the fixture changed since) loopback DATAGRAM, Reno on candidate (`cand`), 20 s, with `perf stat`: 4,166.4 Mbit/s, sender CPU 5.22 s per GiB, peak RSS 18.14 / 17.81 MiB, control p95 0.532 ms; 8,786,578 `sendmsg` calls;
   - the same with `QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true`: 4,252.5 Mbit/s, 5.12 s per GiB, 18.06 / 19.52 MiB, 0.413 ms; 8,964,248 `sendmsg` calls.
   These showed that #743 never engages in this fixture, which led to the operator's D3 amendment. Nothing else in this registration changed after them.
 - **Slice 6's values are known** and are the context named above. Known in advance: slice 6 raised ten cells on the port (nine candidate cells and the Reno-on-candidate loopback DATAGRAM control p95), and slice 7 excepted them for `abfa5456` only.

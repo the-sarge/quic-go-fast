@@ -2,8 +2,9 @@
 """Finite BBRv3 L6 builds for the combined-revision campaign (#808); never edits a tracked transport source file.
 
 Copied from #792's build.py (89e71a60) with recorded changes:
-- `cand` and `cand-trace` are the combined revision, `main` at e7eb3f10
-  (production code identical to 42b9b5de), instead of the port head abfa5456.
+- `cand` and `cand-trace` are the combined revision, `main` at d94b3ec2
+  (re-pinned by the operator from e7eb3f10 before any data), instead of the
+  port head abfa5456.
 - #777's aids (relay2, calibrate2, the launcher, both model overlays) and
   #792's trace overlay files are copied into this record's directory, because
   neither record's directory is in this tree; build.py checks each against its
@@ -61,8 +62,8 @@ CAMPAIGN = 'docs/audits/2026-09-25-bbrv3-q1-campaign'
 HEAP_PATCH = ('798f499878290fc70a0df9db1c067c326ec3b3af', 'docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch')
 REVISIONS = {
     'reno': 'e4f322cbbfd4225a4b714e08ec19c958cccadcb0',  # frozen Reno: the competitor
-    'cand': 'e7eb3f10d467965d59b06c2a23aba28e6c2788ec',  # the combined revision on main (#808), BBRv3 selected per run
-    'cand-trace': 'e7eb3f10d467965d59b06c2a23aba28e6c2788ec',  # the same, with #792's overlay
+    'cand': 'd94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7',  # the combined revision on main (#808), BBRv3 selected per run
+    'cand-trace': 'd94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7',  # the same, with #792's overlay
 }
 # #777's aids, copied here and checked against #777's record.
 L6 = '71e88789e8b89dcfec960d4f54d20027ef1f77b9'
@@ -77,8 +78,8 @@ EXPECTED = {
 }
 # This record's own binaries, registered after their first build (None until then).
 REGISTERED = {
-    ('cand', 'fixture'): 'c9ff3595a7411f732dbe0910c0ee3013dc1dbe64399b037b7c8432e4b56d9463',
-    ('cand-trace', 'fixture'): '7730baef1846d58a4ca77448d089a758cfa74941d0da4c9045cfe5bbeaece011',
+    ('cand', 'fixture'): 'e50b799c0cefa5918180dc53a7e88c7922ba55fd15907c0992e5d9e4c6d0e83b',
+    ('cand-trace', 'fixture'): '09bd3dd85820ed38fe0f44ddeb0e05976dc13df6f09e1d3afc4c1e629fe3242d',
 }
 # #792's trace overlay files, copied here and checked against #792's record.
 TRACE = '89e71a60e652d4627cac41ee35b9ed3e718fcfa2'
