@@ -6368,3 +6368,22 @@ RAS review `20261019T214604-10df0a154e5144e61dd9291c` completed with six reviewe
 ### Next
 
 Revalidated the deferred Retry gap against merged commit `e1915619073b78474dbff716acb5d67d5e0b0d66` and filed [issue #880](https://github.com/the-sarge/quic-go-fast/issues/880): discard Version Negotiation after a valid Retry. The issue contains current source links and bounded regression criteria and is the live follow-up tracker.
+
+---
+
+## Example client response limits landed - 2026-10-19 18:39 EDT
+
+**Main:** `7aa5b548f41a`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #878](https://github.com/the-sarge/quic-go-fast/pull/878) as `7aa5b548f41a58c59dfe89d4749d0166fa338914`. The runnable example client now streams response bodies to stdout, or discards them in quiet mode, instead of accumulating them in memory. Positive `-max-response-size` and `-timeout` flags default to 10 MiB and 30 seconds per request. Overflow detection reads one extra byte without emitting it, and response bodies close on success or failure.
+
+### Validation
+
+The certified head was `8c1a9818e57b06eae3785ac2189f5ed49fadfda5` on base `c7b579dd875a37537a70cdbe3fd5fce916bb120c`. Local Darwin arm64 checks passed: affected example and HTTP/3 tests, the focused client race check, vet, module tidiness, the full repository go-fix check, targeted lint, and whitespace/clean-tree checks. Regression coverage includes response-size boundaries, quiet mode, unknown lengths, oversized nonterminating streams, stalled headers and bodies, active slow responses, timeout cancellation, and body closure on read/write/overflow errors. CLI smoke checks rejected nonpositive limits.
+
+All nine hosted workflow runs and all 33 jobs passed on the exact candidate before marking ready and squash-merging with the matching-head guard. The merged tree matches the certified candidate tree. The original hosted go-fix failure was resolved with the equivalent `errors.AsType[net.Error]` test modernization.
+
+RAS initial review `20261019T214551-39c5aead6adee50e82d9ef38` required no corrections; replacement review `20261019T220301-d945828982572100349aa641` was clean. The final rebase preserved both feature patches, verified with `git range-diff`, and the new base's Version Negotiation integration was inspected and exercised by the HTTP/3 tests. The optional concern that concurrent displayed response bodies can interleave was revalidated against the merged code; output grouping remains outside the bounded security fix recorded in [PR #878](https://github.com/the-sarge/quic-go-fast/pull/878).
