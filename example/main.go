@@ -109,7 +109,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	var checksum []byte
 	for parts := 0; ; parts++ {
 		part, err := reader.NextPart()
-		if errors.Is(err, io.EOF) {
+		if err == io.EOF {
 			break
 		}
 		if err != nil {

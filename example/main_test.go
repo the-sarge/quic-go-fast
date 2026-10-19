@@ -248,6 +248,7 @@ func TestUploadRejectsMalformedBody(t *testing.T) {
 		{name: "not multipart", contentType: "text/plain", body: strings.NewReader("abc")},
 		{name: "missing file", contentType: "multipart/form-data; boundary=b", body: strings.NewReader("--b--\r\n")},
 		{name: "truncated file", contentType: "multipart/form-data; boundary=b", body: strings.NewReader("--b\r\nContent-Disposition: form-data; name=\"uploadfile\"; filename=\"file\"\r\n\r\nabc")},
+		{name: "incomplete boundary", contentType: "multipart/form-data; boundary=b", body: strings.NewReader("--b\r\nContent-Disposition: form-data; name=\"uploadfile\"; filename=\"file\"\r\n\r\nabc\r\n--b")},
 		{name: "read error", contentType: "multipart/form-data; boundary=b", body: errorReader{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
