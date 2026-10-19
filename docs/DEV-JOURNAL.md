@@ -6239,3 +6239,24 @@ The permission and existing-path regressions failed against the original writer 
 RAS review `20261019T054817-6dc66161d72a52109256fca2` completed with all six reviewers and established no in-scope runtime failure. One low documentation finding was corrected by qualifying the exported permission guarantee for Unix filesystems. Rendered API documentation, a comment-only comparison and exact-head local checks passed; another RAS review/verification cycle was skipped under the documentation-only correction policy. The hypothetical subprocess-selector drift observation and duplicate HTTP/3 documentation observation were rejected.
 
 The nonblocking HTTP/3 wrapper documentation omission and separate interop writer policy were rechecked against merged commit `235007e374caeca333cc38f32152a5bcf43e2a7e` at `http3/qlog/qlog_dir.go:13` and `interop/utils/logging.go:39-44`. They remain outside this default-writer fix; no follow-up issue was created during this session.
+
+---
+
+## HTTP/3 body length validation landed - 2026-10-19 13:28 EDT
+
+**Main:** `985e83d65ed9`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #847](https://github.com/the-sarge/quic-go-fast/pull/847) as `985e83d65ed994fdae714a6db6adbc134dafd903`, addressing Codex Security Cloud finding `csf_9cec654b7c50f830ac02153d`. HTTP/3 request and response bodies that end before their declared Content-Length now return `io.ErrUnexpectedEOF` and cancel the stream with `H3_MESSAGE_ERROR`; subsequent reads retain the error. Short outbound uploads are rejected too.
+
+Response accounting preserves HEAD, informational, 204 and 304 no-content semantics and their parsed metadata. Successful CONNECT tunnels ignore Content-Length for arbitrary tunnel bytes, with the tunnel rule taking precedence over status-based no-content rules. Unsuccessful CONNECT responses retain normal body-length enforcement.
+
+### Validation
+
+The original body-wrapper and real QUIC client/server regressions failed before the fix. Review regressions for admitted 204 metadata and CONNECT tunnel lengths failed before their accounting correction, then passed. Exact/unknown lengths, excess-body detection, EOF with data, repeat reads, response completion, HEAD/304 metadata, trailers and gzip remain covered.
+
+The final certified head was `7144eea565d8371611ff14aedac508d30b3105b8` on base `4d252b91bc4c9ead123d673872a97e9c2b32c4e8`. Uncached HTTP/3 package tests, the full HTTP/3 race suite, focused HTTP integration tests, affected-package vet, `go mod tidy -diff`, formatting, whitespace and clean-tree checks passed on Darwin arm64 with Go 1.27.2. All 33 hosted checks across nine unit, integration, lint, cross-compilation and interop workflow runs passed on that head before marking ready and squash-merging with the matching-head guard. No unchanged-head CI rerun was requested.
+
+Initial RAS review `20261019T054809-2af098d22d901a3ca574181b` produced two independently accepted response-accounting findings, both fixed and verified. Replacement review `20261019T060519-16ad9e716f14b8045be3f9d4` completed with all six reviewers and no findings. After main advanced, the upstream integration was inspected and RAS verification rechecked both findings on the final certified head with a clear result. No deferred finding or automated fixer remained in this workflow.
