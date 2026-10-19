@@ -2,7 +2,7 @@
 
 **Date:** October 19, 2026, America/New_York. **Scope:** [#808](https://github.com/the-sarge/quic-go-fast/issues/808). Measurement only: no product code change, adoption, default-controller change, release, CHANGELOG change, paid resource, host-setting change or ledger change. Q2 ([#599](https://github.com/the-sarge/quic-go-fast/issues/599)) is not started here.
 
-**Status: registered; no counted observation yet.** This record holds the campaign's decisions and, after each stage, its answer, the operator's advancement disposition and the requirements the campaign discharges. The stage records hold the registrations and results:
+**Status: registered and reviewed (two `ras consider` rounds, every finding fixed); no counted observation yet.** This record holds the campaign's decisions and, after each stage, its answer, the operator's advancement disposition and the requirements the campaign discharges. The stage records hold the registrations and results:
 
 - [Readiness](../2026-10-19-bbr-808-readiness/README.md): slice 6's stage on the combined revision.
 - [Side stage](../2026-10-19-bbr-808-gso-receive/README.md): #743's STREAM cost, the received-DATAGRAM discard counter, and #743 on BBRv3, on loopback.
