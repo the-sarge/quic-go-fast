@@ -65,8 +65,7 @@ func writePRData(w io.Writer, size int64) error {
 
 func writeBodyError(w http.ResponseWriter, err error) {
 	status := http.StatusBadRequest
-	var limitErr *http.MaxBytesError
-	if errors.As(err, &limitErr) {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 		status = http.StatusRequestEntityTooLarge
 	}
 	http.Error(w, http.StatusText(status), status)
