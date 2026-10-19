@@ -24,9 +24,10 @@ Written before any counted observation (README, "Registration: L6").
   ECN failure, no relay switch estimate exists and every flow's forward
   Not-ECT count is at most 0.01% of its forward packets (frozen-Reno flows
   send 3 Not-ECT handshake packets in every #777 observation).
-- **DATAGRAM loss**: per DATAGRAM observation and participant, the fixture's
-  sent messages against unique messages received, beside relay2's forward
-  drops for that flow. DatagramReceiveDropsV1 is not read here (the frozen
+- **DATAGRAM loss**: per DATAGRAM observation, the focal flow's sent messages
+  against distinct messages received (inside and outside the measured window),
+  beside relay2's forward drops for that flow (the competitor is a reliable
+  stream). DatagramReceiveDropsV1 is not read here (the frozen
   fixture does not read it); the side stage reports it.
 summary.json is written only when the order completed (#777's rule, with the
 trace's rerun trigger).
@@ -158,20 +159,15 @@ def ecn_row(d, arm):
 
 
 def datagram_loss(d):
-    out = {}
-    for who in ('focal', 'competitor'):
-        send = json.loads((d / f'{who}-send.json').read_text())
-        recv = json.loads((d / f'{who}-receive.json').read_text())
-        sent = send['result']['sent_messages']
-        got = recv['result']['receiver']['unique_messages']
-        out[who] = dict(sent=sent, unique_received=got, loss=1 - got / sent if sent else None)
-    relay = json.loads((d / 'relay.json').read_text())
-    out['focal']['relay_forward_drops'] = relay['Forward']['Focal']['Dropped']
-    out['competitor']['relay_forward_drops'] = relay['Forward']['Competitor']['Dropped']
-    for who in ('focal', 'competitor'):
-        e = out[who]
-        e['loss_not_relay_drops'] = None if not e['sent'] else (e['sent'] - e['unique_received'] - e['relay_forward_drops']) / e['sent']
-    return out
+    """The focal flow's DATAGRAM loss (the competitor is always a reliable stream, which retransmits)."""
+    send = json.loads((d / 'focal-send.json').read_text())
+    recv = json.loads((d / 'focal-receive.json').read_text())
+    sent = send['result']['sent_messages']
+    rx = recv['result']['receiver']
+    got = rx['unique_messages'] + rx['outside_window']  # every distinct DATAGRAM received, warm-up included
+    drops = json.loads((d / 'relay.json').read_text())['Forward']['Focal']['Dropped']
+    return dict(sent=sent, distinct_received=got, lost=sent - got, loss=(sent - got) / sent if sent else None,
+                relay_forward_drops=drops, lost_minus_relay_drops=sent - got - drops)
 
 
 def main():

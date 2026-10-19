@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""#808 readiness analysis: prerequisites, readiness views, the S5 timeline and the conditional preservation stages.
-
-Copied from slice 6's stages.py (9b38f0ab) with one recorded change for the
-conditional #743-off arm (README, "D3"): for a DATAGRAM cell, `presrss` and
-`preslat` also apply their unchanged outcome rule with the #743-off arm
-(`cand-diag-kill-reno`, `cand-kill-reno`) in place of Reno on candidate,
-against the same frozen-Reno arm and threshold, and report it under
-`kill_arm`. The cell's registered outcome is computed exactly as before.
-Slice 6's docstring follows.
-
-Port readiness analysis (#748 slice 6): prerequisites, readiness views, the S5 timeline and the conditional preservation stages.
+"""Port readiness analysis (#748 slice 6): prerequisites, readiness views, the S5 timeline and the conditional preservation stages.
 
 Copied from #739's stages.py (138223ac) with one recorded change, made after
 this record's registration review and before any observation: an unusable
@@ -649,12 +639,11 @@ def presrss():
             r = summarize(d)
             if r['workload'] == workload:
                 by.setdefault(r['pair'], {})[arm(r)] = (d, r)
-        blocks, kill_blocks, reno_rss = [], [], []
+        blocks, reno_rss = [], []
         for b in sorted(by):
             x = by[b]
-            if 'reno-diag-reno' not in x or ('cand-diag-reno' not in x and 'cand-diag-kill-reno' not in x):
+            if 'cand-diag-reno' not in x or 'reno-diag-reno' not in x:
                 blocks.append(None)
-                kill_blocks.append(None)
                 continue
             vals = {}
             for a, (d, r) in x.items():
@@ -662,33 +651,24 @@ def presrss():
                 idx, _ = min(s['heap_series'], key=lambda p: abs(p[1] - peak_ns))
                 sites = A.sites(ART / 'bin' / f"{r['variant']}-fixture", d / f'{role}-heap' / f'heap-{idx:03d}.pprof')
                 vals[a] = dict(rss=r[role]['peak_rss_mib'], retained=retained, sites=sites)
-            rr = vals['reno-diag-reno']
-            if 'cand-diag-reno' in vals:
-                reno_rss.append(rr['rss'])  # the threshold uses exactly slice 6's blocks
-
-            def cell_block(c):
-                groups = {}
-                for f in set(c['sites']) | set(rr['sites']):
-                    g = A.classify(f)
-                    if g != 'instrument':
-                        groups[g] = groups.get(g, 0) + (c['sites'].get(f, 0) - rr['sites'].get(f, 0)) / 2**20
-                return dict(cand_rss=c['rss'], reno_rss=rr['rss'], cand_retained=c['retained'], reno_retained=rr['retained'],
-                            site_excess=groups)
-            blocks.append(cell_block(vals['cand-diag-reno']) if 'cand-diag-reno' in vals else None)
-            kill_blocks.append(cell_block(vals['cand-diag-kill-reno']) if 'cand-diag-kill-reno' in vals else None)
+            c, rr = vals['cand-diag-reno'], vals['reno-diag-reno']
+            reno_rss.append(rr['rss'])
+            groups = {}
+            for f in set(c['sites']) | set(rr['sites']):
+                g = A.classify(f)
+                if g != 'instrument':
+                    groups[g] = groups.get(g, 0) + (c['sites'].get(f, 0) - rr['sites'].get(f, 0)) / 2**20
+            blocks.append(dict(cand_rss=c['rss'], reno_rss=rr['rss'], cand_retained=c['retained'], reno_retained=rr['retained'],
+                               site_excess=groups))
         threshold = 1.10 * statistics.median(reno_rss) if reno_rss else 0
         outcome, detail = R.rss_preservation(blocks, threshold)
-        kill = None
-        if workload == 'datagram':
-            kill_outcome, kill_detail = R.rss_preservation(kill_blocks, threshold)
-            kill = dict(arm='cand-diag-kill-reno', outcome=kill_outcome, detail=kill_detail)
         # Readiness context: high-memory outcomes per arm in this cell, same threshold rule on readiness frozen Reno.
         rows = [o for o in summ['observations'] if (o['path'], o['workload']) == (path, workload)]
         rr = [o[role]['peak_rss_mib'] for o in rows if o['arm'] == 'reno-reno']
         th = 1.10 * statistics.median(rr) if rr else 0
         freq = {a: sum(o[role]['peak_rss_mib'] > th for o in rows if o['arm'] == a) for a in ['reno-reno', 'reno-reno-aa', 'cand-reno']}
         res[f'{path}/{workload}/{role}'] = dict(outcome=outcome, detail=detail, threshold_mib=threshold, blocks=record,
-                                                readiness_high_outcomes=freq, readiness_threshold_mib=th, kill_arm=kill)
+                                                readiness_high_outcomes=freq, readiness_threshold_mib=th)
         print('presrss', path, workload, role, outcome, {k: v for k, v in detail.items() if not isinstance(v, list)} if isinstance(detail, dict) else detail)
     save('presrss', res)
 
@@ -711,13 +691,7 @@ def preslat():
             by.setdefault(r['pair'], {})[arm(r)] = lat
         blocks = [dict(cand=v['cand-reno'], reno=v['reno-reno']) if 'cand-reno' in v and 'reno-reno' in v else None for _, v in sorted(by.items())]
         outcome, detail = R.latency_preservation(blocks)
-        kill = None
-        if workload == 'datagram':
-            kill_blocks = [dict(cand=v['cand-kill-reno'], reno=v['reno-reno']) if 'cand-kill-reno' in v and 'reno-reno' in v else None
-                           for _, v in sorted(by.items())]
-            kill_outcome, kill_detail = R.latency_preservation(kill_blocks)
-            kill = dict(arm='cand-kill-reno', outcome=kill_outcome, detail=kill_detail)
-        res[f'{path}/{workload}'] = dict(outcome=outcome, detail=detail, blocks=record, kill_arm=kill)
+        res[f'{path}/{workload}'] = dict(outcome=outcome, detail=detail, blocks=record)
         print('preslat', path, workload, outcome, {k: v for k, v in detail.items() if not isinstance(v, list)})
     save('preslat', res)
 

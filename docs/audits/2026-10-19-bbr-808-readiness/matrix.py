@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""Finite #808 readiness order on minimax; observations run sequentially, never concurrently.
-
-Copied from slice 6's matrix.py (9b38f0ab, which is #739's verbatim) with
-recorded changes for the conditional #743-off arm (README, "D3"): the
-DATAGRAM `presrss` stages add `cand-diag-kill` and the DATAGRAM `preslat`
-stage adds `cand-kill`, each with Reno at both endpoints and
-QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true in both endpoints' environment
-(run.py's endpoints inherit this runner's environment); each such observation
-also gets `kill-env.json`. The `cand` binary is still set only by build.py.
-#739's docstring follows.
+"""Finite #739 order on minimax; observations run sequentially, never concurrently.
 
 Adapted from #736's matrix (3bf2245e). Readiness stages (`loopback`, `s5`,
 `s6`) are #712's, #715's and #736's: the same arms, paths, seeds and rotation,
@@ -33,8 +24,6 @@ Usage: matrix.py <stage> [attempt]
        matrix.py rerun <stage> <workload> <block>
        matrix.py escalate <stage> <workload> <block>
 """
-import contextlib
-import os
 import pathlib
 import sys
 import time
@@ -50,10 +39,6 @@ FOUR = [('reno', 'reno', ''), ('reno', 'reno', 'aa'), ('cand', 'bbrv3', ''), ('c
 S6_ARMS = [('reno', 'reno', ''), ('reno', 'reno', 'aa'), ('cand', 'bbrv3', '')]
 PRESRSS = [('reno-diag', 'reno', ''), ('cand-diag', 'reno', '')]
 PRESLAT = [('reno', 'reno', ''), ('cand', 'reno', '')]
-# #808's conditional #743-off arm, in the DATAGRAM preservation stages only.
-KILL_ENV = {'QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS': 'true'}
-PRESRSS_DATAGRAM = PRESRSS + [('cand-diag-kill', 'reno', '')]
-PRESLAT_DATAGRAM = PRESLAT + [('cand-kill', 'reno', '')]
 TIMELINE = [('cand-timeline', 'bbrv3', '')]
 
 def host_facts():
@@ -116,33 +101,11 @@ def block(stage, path, arms, b, seed=None, runner=None, only=None, **kw):
         if only and workload != only:
             continue
         for variant, controller, tag in rotated(arms, b):
-            with kill_env(stage, variant, workload, b, controller, path, tag):
-                if runner is None:
-                    rows.append(run.run_case(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
-                else:
-                    rows.append(runner(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
-    return rows
-
-
-@contextlib.contextmanager
-def kill_env(stage, variant, workload, b, controller, path, tag):
-    """Set #743's kill switch for a `-kill` variant's endpoints and record it beside the observation."""
-    if '-kill' not in variant:
-        yield
-        return
-    saved = {k: os.environ.get(k) for k in KILL_ENV}
-    os.environ.update(KILL_ENV)
-    try:
-        yield
-    finally:
-        for k, v in saved.items():
-            if v is None:
-                os.environ.pop(k, None)
+            if runner is None:
+                rows.append(run.run_case(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
             else:
-                os.environ[k] = v
-        name = f'{stage}-{path}-{workload}-p{b}-{variant}-{controller}' + (f'-{tag}' if tag else '')
-        if (run.OBS / name).is_dir():
-            run.write(run.OBS / name / 'kill-env.json', dict(env=KILL_ENV, endpoints=['send', 'receive']))
+                rows.append(runner(stage, variant, workload, b, controller, path=path, seed=seed, tag=tag, **kw))
+    return rows
 
 
 # stage -> (phase, path, arms, blocks, seed base or None, runner, options, workloads)
@@ -157,11 +120,9 @@ STAGES = {
 # Conditional preservation stages, one per raised cell: presrss-<path>-<workload>, preslat-<workload>.
 for path, base in [('loopback', None), ('S5', 9800), ('S6', 9900)]:
     for workload in ['stream', 'datagram']:
-        arms = PRESRSS_DATAGRAM if workload == 'datagram' else PRESRSS
-        STAGES[f'presrss-{path}-{workload}'] = ('presrss', path, arms, 6, base, None, dict(heap_series=True), workload)
+        STAGES[f'presrss-{path}-{workload}'] = ('presrss', path, PRESRSS, 6, base, None, dict(heap_series=True), workload)
 for workload in ['stream', 'datagram']:
-    arms = PRESLAT_DATAGRAM if workload == 'datagram' else PRESLAT
-    STAGES[f'preslat-{workload}'] = ('preslat', 'loopback-long', arms, 6, None, run_case_x, {}, workload)
+    STAGES[f'preslat-{workload}'] = ('preslat', 'loopback-long', PRESLAT, 6, None, run_case_x, {}, workload)
 
 
 def run_stage(name, blocks=None, phase_suffix=''):

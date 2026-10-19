@@ -9,11 +9,6 @@ Copied from slice 6's build.py (9b38f0ab, #748) with recorded changes:
 - Every aid this record copies unchanged is checked byte-identical against
   slice 6's record (SLICE6_COPIED), which had itself checked each against its
   source record; the older records are no longer read here.
-- Two alias binaries for the conditional #743-off arm (README, "D3"):
-  `cand-kill-fixture` and `cand-diag-kill-fixture` are byte-identical copies
-  of `cand-fixture` and `cand-diag-fixture`. matrix.py runs them with
-  QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true at both endpoints; the copy only
-  gives run.py's binary-per-variant naming a file.
 - REGISTERED holds this record's new candidate binaries once first built.
 Slice 6's docstring follows.
 
@@ -93,9 +88,7 @@ R9_COPIED = COPIED + PRIOR_COPIED + LEADS_COPIED + R8_COPIED + ['matrix.py', 'fo
 # Copied byte-identical from slice 6's record (9b38f0ab): every aid this record does not adapt.
 SLICE6 = '9b38f0ab2f7e7a88ecb45dc66a46f895a8aad0cb'
 SLICE6_DIR = 'docs/audits/2026-10-16-bbr-port-readiness'
-SLICE6_COPIED = [rel for rel in R9_COPIED if rel not in ('matrix.py', 'follow.py')] + ['resume.py', 'resume_test.py']
-# The #743-off arm's alias binaries (alias -> source variant); byte-identical copies.
-KILL_ALIASES = {'cand-kill': 'cand', 'cand-diag-kill': 'cand-diag'}
+SLICE6_COPIED = R9_COPIED + ['stages.py', 'resume.py', 'resume_test.py']
 # This record's own binaries, registered after their first build (None until then).
 REGISTERED = {
     ('cand', 'fixture'): 'c9ff3595a7411f732dbe0910c0ee3013dc1dbe64399b037b7c8432e4b56d9463',
@@ -275,15 +268,6 @@ def build(name):
         if REGISTERED.get((name, key)):
             assert b['sha256'] == REGISTERED[(name, key)], (name, key, b['sha256'])
             b['registered'] = True
-    for alias, source in KILL_ALIASES.items():
-        if source == name:
-            src, dst = ART / 'bin' / f'{source}-fixture', ART / 'bin' / f'{alias}-fixture'
-            assert not dst.exists(), f'{dst} exists; builds never overwrite'
-            shutil.copyfile(src, dst)
-            os.chmod(dst, 0o755)
-            receipt.setdefault('aliases', {})[alias] = dict(binary=str(dst.relative_to(ART)), sha256=hashlib.sha256(dst.read_bytes()).hexdigest(),
-                                                            copy_of=str(src.relative_to(ART)), env={'QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS': 'true'})
-            assert receipt['aliases'][alias]['sha256'] == receipt['builds']['fixture']['sha256'], alias
     receipt['go'] = subprocess.check_output(['go', 'version'], cwd=ART, env=ENV, text=True).strip()
     (ART / 'bin' / f'{name}-build.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(name, 'built')

@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""#808 unattended follow-up steps on minimax, applying registered rules only.
-
-Copied from slice 6's follow.py (9b38f0ab, which is #739's verbatim) with
-recorded changes for the conditional #743-off arm (README, "D3"): a DATAGRAM
-preservation stage has three arms, so its run and each block rerun count
-three observations per block (read from matrix.STAGES, per rerun block, instead
-of the fixed 12 and 2), and the attribution cap is 78 instead of 60 (60 plus the at most 18
-#743-off observations). #739's docstring follows.
+"""#739 unattended follow-up steps on minimax, applying registered rules only.
 
 Written before any observation of this ticket. Each step decides from host
 state or from the registered readiness flags, never from an attribution
@@ -37,10 +30,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import stages as S  # noqa: E402  (imports art first, so run.ART is this ticket's)
-import matrix as M  # noqa: E402  (the registered arms per stage)
 
 READINESS_CAP = 10
-ATTRIBUTION_CAP = 78
+ATTRIBUTION_CAP = 60
 READINESS_STAGE = {'loopback': 'loopback', 'S5': 's5', 'S6': 's6'}
 LOG = S.ART / 'follow-decisions.json'
 
@@ -84,8 +76,7 @@ def reruns(phase, stage_of, cap=None, arms_per_block=None):
         if cap is not None and len(done) >= cap:
             record('reruns_not_run_cap', dict(phase=str(phase), **{k: r[k] for k in ('path', 'workload', 'block', 'status')}))
             continue
-        n = arms_per_block(r) if callable(arms_per_block) else arms_per_block
-        if n and attribution_count() + n > ATTRIBUTION_CAP:
+        if arms_per_block and attribution_count() + arms_per_block > ATTRIBUTION_CAP:
             record('reruns_not_run_cap', dict(phase=str(phase), **{k: r[k] for k in ('path', 'workload', 'block', 'status')}))
             continue
         name = stage_of(r)
@@ -111,28 +102,19 @@ def conditional():
     record('conditional_triggers', dict(rss=rss, p95=p95, presrss_cells=rss_cells[:2], preslat_cells=lat_cells[:1],
                                         not_run=dict(presrss=rss_cells[2:], preslat=lat_cells[1:])))
     for path, workload in rss_cells[:2]:
-        if attribution_count() + observations(f'presrss-{path}-{workload}') > ATTRIBUTION_CAP:
+        if attribution_count() + 12 > ATTRIBUTION_CAP:
             record('not_run_cap', f'presrss-{path}-{workload}')
             continue
         staged(f'presrss-{path}-{workload}')
     for workload in lat_cells[:1]:
-        if attribution_count() + observations(f'preslat-{workload}') > ATTRIBUTION_CAP:
+        if attribution_count() + 12 > ATTRIBUTION_CAP:
             record('not_run_cap', f'preslat-{workload}')
             continue
         staged(f'preslat-{workload}')
     for path, workload in rss_cells[:2]:
-        reruns(('presrss', path), lambda r, p=path: f'presrss-{p}-{r["workload"]}',
-               arms_per_block=lambda r, p=path: arms_of(f'presrss-{p}-{r["workload"]}'))
+        reruns(('presrss', path), lambda r, p=path: f'presrss-{p}-{r["workload"]}', arms_per_block=2)
     if lat_cells[:1]:
-        reruns('preslat', lambda r: f'preslat-{r["workload"]}', arms_per_block=lambda r: arms_of(f'preslat-{r["workload"]}'))
-
-
-def arms_of(stage):
-    return len(M.STAGES[stage][2])
-
-
-def observations(stage):
-    return arms_of(stage) * M.STAGES[stage][3]
+        reruns('preslat', lambda r: f'preslat-{r["workload"]}', arms_per_block=2)
 
 
 def main(argv):
