@@ -6019,3 +6019,21 @@ The test proxy reports a forwarding `"write"` only after the socket write return
 ### Next
 
 - No review finding was deferred. GitHub issues are the live view.
+
+---
+
+## Migration probe amplification limits landed - 2026-10-19 00:22 EDT
+
+**Main:** `36fd7bc502bf`
+
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #836](https://github.com/the-sarge/quic-go-fast/pull/836) as `36fd7bc502bfb8c1aac1b2702d9b349742f35063`, fixing Security Cloud finding `csf_6e3f40b8a3bcfca622b97b39`. Candidate migration paths now enforce an independent three-times receive-byte allowance before probe registration and direct writes, including repeated challenges and local write failures. Compact probes preserve responses to small packets; an expanded challenge validates the path MTU before migration.
+
+### Validation
+
+- Exact reviewed head: `9f1f41df3e4e5f090a51c450d1aaa5a1e62570fc`. Connection/recovery unit suites, focused race checks, 20 repetitions of the new path regressions, QUIC v1/v2 UDP NAT-rebinding and migration tests, affected-package `go vet`, `go mod tidy -diff`, historical emission-experiment compilation, and whitespace checks passed.
+- All five hosted PR workflows passed on that head, covering 17 successful unit, integration, lint, cross-compilation and interop jobs.
+- RAS review `20261019T040854-a2cfe5101c2abb746853f588` reported no findings or follow-ups. Four reviewers completed successfully; two configured Claude calls failed. No fixes, verification run or replacement review were required. The review was not posted to GitHub.
