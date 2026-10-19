@@ -5961,3 +5961,61 @@ Its helpers read the real clock. The first RTT sample is about 1 ms, so time-thr
 - #828 is still open, now with receipts from ubuntu race, Windows and macOS.
 - The local `TestHTTPServerIdleTimeout` failure did not reproduce and was not filed.
 - No review finding was deferred. GitHub issues are the live view.
+
+---
+
+## The admission replay test captures its packet before forwarding - 2026-10-18 23:31 EDT
+
+**Main:** `d9362a2a3993`
+**Actor:** Claude
+
+### Summary
+
+[#828](https://github.com/the-sarge/quic-go-fast/issues/828) is closed by [PR #832](https://github.com/the-sarge/quic-go-fast/pull/832) (squash `d9362a2a`).
+
+`TestNetworkAdmissionEligibleRebindingAndSpoofedTraffic` replays a genuine client short-header packet from a denied endpoint. It failed at `network_admission_test.go:97`, `require.NotEmpty(t, replay)`, on three hosted runners:
+- ubuntu race integration on PR #823;
+- Windows integration on PR #829;
+- macOS integration (QUIC v2 step) on PR #831.
+
+The test proxy reports a forwarding `"write"` only after the socket write returns. The server could process the client's one standalone short-header datagram (stream data + FIN) and the first exchange could return before that callback had recorded it. Tests only; no production code changed.
+
+### Completed
+
+- The client-to-server capture now uses the proxy's `"read"` event. The proxy reports it on its forwarding goroutine before it forwards the datagram, so the server cannot see a client packet before the test has captured it.
+- A new helper, `shortHeaderPacket`, takes the short-header packet that ends a datagram even when long-header packets are coalesced ahead of it. It splits them with `wire.ParsePacket` as the connection does, and returns nil on a parse error, as the connection drops the rest of the datagram. Whichever datagram carries the stream data is therefore captured before the server can process it, on every schedule.
+- The wrong-server capture, the `outgoing` counter and all four later assertions are unchanged. `quicproxy.Proxy` and `SocketEvent` semantics are unchanged.
+
+### Decisions
+
+- The [#828 agent brief](https://github.com/the-sarge/quic-go-fast/issues/828#issuecomment-6258662628) allowed two approaches: read-time capture or a bounded wait. Read-time capture was chosen because it holds by construction. A bounded wait would depend on the client sending another short-header packet, such as an ACK, after the exchange.
+- Coalesced extraction is included because the stream frame could ride behind a long-header packet, such as a Handshake ACK sent while the client still holds Handshake keys. No run observed that.
+- Reporting forwards before they happen in the proxy was rejected. Other tests rely on `"write"` meaning a completed write, and `"read"` already gives a pre-forward hook.
+- The test is fork-only (#665), so there is no upstream counterpart.
+
+### Validation
+
+- **Mutation, through `go test -overlay` from the scratchpad, never committed.** A 5 ms sleep at the start of the observer's write handling, run with `-race`, `GOMAXPROCS=4` and 20 runs. At both `ed45e31d` and `4766fd9c`:
+  - the base test failed 20/20 at the empty-replay assertion;
+  - the fix passed 20/20.
+- **Stress:** `-race -shuffle=on -version=1` at `GOMAXPROCS=4` passed 4,000/4,000 at `ed45e31d` and again at `4766fd9c`, with no data races.
+- **Diagnostic overlays at `ed45e31d`:**
+  - The replay was always the client's 50-byte standalone stream datagram, a fixed-bit short-header packet.
+  - The coalesced branch extracted a 103-byte short-header packet from the client's one 1,280-byte Initial+Handshake+1-RTT datagram.
+  - The test sets no `Versions`, so it negotiates QUIC v1 under both suite flags. RAS C-001 corrected the PR wording to say these runs exercised only v1.
+- **Local certification at `4766fd9c`, Go 1.27.2 darwin/arm64:**
+  - full `./integrationtests/self` with `TIMESCALE_FACTOR=3`, both `-race -version=1` and non-race `-version=2`;
+  - `go vet` for darwin and windows;
+  - `gofmt`, `go mod tidy -diff` and `git diff --check`;
+  - golangci-lint v2.14.0 for the six `lint.yml` GOOS values.
+- **RAS review:**
+  - Round 1: run `20261019T030858-c6a4035246dcbb7a99e313e1` at `ed45e31d`. All six reviewers completed. The only finding was low C-001, metadata only; it was fixed in the PR body.
+  - Round 2, after merging main: run `20261019T031742-8e37e87113598fc83339b238` at `4766fd9c`. Zero findings. `codex-sol` failed in RAS's codex CLI preflight after 2.6 s; the other five completed.
+- **Hosted:**
+  - All 33 checks passed on `4766fd9c`.
+  - `main` then gained the docs-only #827 journal (`e7eb3f10`). The PR merged it as `604e68b7`, whose Go sources are byte-identical to `4766fd9c`.
+  - All 33 checks passed on `604e68b7`, the merge base matched `origin/main`, and it was squash-merged with `--match-head-commit`.
+
+### Next
+
+- No review finding was deferred. GitHub issues are the live view.
