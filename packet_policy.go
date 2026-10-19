@@ -47,7 +47,10 @@ func (c *packetPolicyConn) checkSend(addr net.Addr, oob []byte) error {
 	}
 	if p := c.network; p != nil {
 		remote, ok := packetEndpoint(addr)
-		if !ok || !p.send(remote, p.local, append([]byte(nil), oob...)) {
+		if !ok {
+			return errNetworkAdmissionDenied
+		}
+		if !p.delegated && !p.send(remote, p.local, append([]byte(nil), oob...)) {
 			return errNetworkAdmissionDenied
 		}
 	}
@@ -65,6 +68,9 @@ func (c *packetPolicyConn) allowsReceive(packet receivedPacket) bool {
 	remote, ok := packetEndpoint(packet.remoteAddr)
 	if !ok {
 		return false
+	}
+	if p.delegated {
+		return true
 	}
 	local := p.local
 	if packet.info.addr.IsValid() {
@@ -140,13 +146,16 @@ func (t *Transport) checkPathPolicy(origin sendConn) error {
 	return t.beginPacketIOLocked()
 }
 
-// networkAdmission is immutable after configuration. Callbacks own verified
+// networkAdmission is immutable after initialization. Callbacks own verified
 // route and adapter facts; the transport owns when they are evaluated.
+// delegated means Conn admits every datagram, so the callbacks are never
+// evaluated and their facts are never prepared.
 type networkAdmission struct {
 	conn                   net.PacketConn
 	local                  netip.AddrPort
 	receive, send          func(netip.AddrPort, netip.AddrPort, []byte) bool
 	disableActiveMigration bool
+	delegated              bool
 }
 
 // ConfigureNetworkAdmissionV1 installs connection-independent network admission
@@ -168,6 +177,8 @@ type networkAdmission struct {
 // Rejected input is discarded after datagram extraction, before any QUIC or
 // non-QUIC dispatch. Every ordinary, segmented, probe and batched submission is
 // checked again at the socket boundary; rejection returns an error without I/O.
+// After DelegateNetworkAdmissionV1, neither callback is evaluated: only the
+// structural endpoint checks remain at those boundaries.
 // Receive rejection never closes an existing connection. Listener predicates
 // must not pin the first client's tuple: admitted changes retain standard QUIC
 // authentication and address validation. This does not authenticate a peer.
@@ -194,6 +205,30 @@ func (t *Transport) ConfigureNetworkAdmissionV1(conn net.PacketConn, receive, se
 		return errors.New("quic: network admission requires a numeric UDP binding")
 	}
 	t.policyConn.network = &networkAdmission{conn: conn, local: local, receive: receive, send: send, disableActiveMigration: disableActiveMigration}
+	return nil
+}
+
+// DelegateNetworkAdmissionV1 declares that Conn, as configured by
+// ConfigureNetworkAdmissionV1, already admits every datagram in both directions.
+// Call it once, after ConfigureNetworkAdmissionV1 and before transport
+// initialization. The transport then evaluates neither callback and prepares no
+// callback facts. It still discards input from, and refuses submissions to, a
+// remote that is not a valid numeric UDP endpoint. The restricted profile,
+// disableActiveMigration and any ConfigureFixedPeerV1 filter are unchanged.
+func (t *Transport) DelegateNetworkAdmissionV1() error {
+	t.packetIO.mutex.Lock()
+	defer t.packetIO.mutex.Unlock()
+	if t.packetIO.started {
+		return errors.New("quic: network admission delegation after initialization")
+	}
+	p := t.policyConn.network
+	if p == nil {
+		return errors.New("quic: network admission delegation requires network admission")
+	}
+	if p.delegated {
+		return errors.New("quic: network admission already delegated")
+	}
+	p.delegated = true
 	return nil
 }
 
