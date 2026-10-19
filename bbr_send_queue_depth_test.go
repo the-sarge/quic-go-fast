@@ -21,31 +21,36 @@ func bbrDepthTestConnection(t *testing.T, controller string, gso bool) *testConn
 	return newConfiguredEmissionTestConnection(t, gso, conf)
 }
 
-// A BBR connection's queue holds bbrSendQueueCapacity entries and a Reno
-// connection's sendQueueCapacity, at creation and across path replacement.
-func TestBBRSendQueueDepth(t *testing.T) {
-	for _, tc := range []struct {
-		controller string
-		depth      int
-	}{{"bbrv3", bbrSendQueueCapacity}, {"reno", sendQueueCapacity}} {
-		t.Run(tc.controller, func(t *testing.T) {
-			tc2 := bbrDepthTestConnection(t, tc.controller, false)
-			c := tc2.conn
-			require.Equal(t, tc.controller == "bbrv3", c.emission.bbr != nil)
+// Every connection's queue holds sendQueueCapacity entries, whatever its
+// controller, at creation and across path replacement, and blocks when full.
+func TestSendQueueDepthEveryController(t *testing.T) {
+	for _, controller := range []string{"bbrv3", "reno"} {
+		t.Run(controller, func(t *testing.T) {
+			tc := bbrDepthTestConnection(t, controller, false)
+			c := tc.conn
+			require.Equal(t, controller == "bbrv3", c.emission.bbr != nil)
 			old := c.emission.queue.(*sendQueue)
-			require.Equal(t, tc.depth, cap(old.queue))
+			require.Equal(t, 32, cap(old.queue))
 			go old.Run() // replacePath drains and joins the old worker
-			q := c.emission.replacePath(tc2.sendConn, &c.handshakeSendFeedback).(*sendQueue)
-			require.Equal(t, tc.depth, cap(q.queue), "path replacement keeps the depth")
+			q := c.emission.replacePath(tc.sendConn, &c.handshakeSendFeedback).(*sendQueue)
+			require.Equal(t, 32, cap(q.queue), "path replacement keeps the depth")
+			for range 32 {
+				require.False(t, q.WouldBlock())
+				q.Send(getPacketWithContents([]byte("depth")), 0, protocol.ECNNon, sendMetadata{})
+			}
+			require.True(t, q.WouldBlock())
+			for len(q.queue) > 0 {
+				(<-q.queue).release()
+			}
 			go q.Run()
 			q.Close()
 		})
 	}
 }
 
-// With one-packet entries the deeper queue, not the credit, stops a BBR
+// With one-packet entries the queue, not the credit, stops a BBR
 // connection: behind a busy worker the queue takes exactly
-// bbrSendQueueCapacity entries, the emission then reports a full-queue stop
+// sendQueueCapacity entries, the emission then reports a full-queue stop
 // that waits on the queue's signal, a freed slot signals it, and pending
 // bytes stay within 2Q throughout.
 func TestBBRSendQueueDepthOnePacketEntries(t *testing.T) {
@@ -68,7 +73,7 @@ func TestBBRSendQueueDepthOnePacketEntries(t *testing.T) {
 			q.Close()
 		})
 		// The first entry is dequeued into the blocked submission; then the queue fills.
-		for i := 0; i <= bbrSendQueueCapacity; i++ {
+		for i := 0; i <= sendQueueCapacity; i++ {
 			require.False(t, q.WouldBlock(), "entry %d", i)
 			require.Nil(t, c.emission.capacity())
 			r := credit.reserve(1200, bound, true, false)
@@ -77,7 +82,7 @@ func TestBBRSendQueueDepthOnePacketEntries(t *testing.T) {
 			synctest.Wait()
 		}
 		require.LessOrEqual(t, credit.pending, bound)
-		require.Len(t, q.queue, bbrSendQueueCapacity)
+		require.Len(t, q.queue, sendQueueCapacity)
 		require.True(t, q.WouldBlock())
 		available := c.emission.capacity()
 		require.Equal(t, q.Available(), available, "the full queue stops the connection")
@@ -98,7 +103,7 @@ func TestBBRSendQueueDepthOnePacketEntries(t *testing.T) {
 	})
 }
 
-// With full-size GSO entries the 2Q credit binds before the deeper queue: the
+// With full-size GSO entries the 2Q credit binds before the queue: the
 // connection stops on the credit's wakeup with queue slots free, pending
 // reaches at most 2Q, and completions return every byte.
 func TestBBRSendQueueDepthCreditBindsFirst(t *testing.T) {
@@ -139,21 +144,21 @@ func TestBBRSendQueueDepthCreditBindsFirst(t *testing.T) {
 		}
 		require.Equal(t, (<-chan struct{})(c.emission.bbr.credit.available), stop.available, "byte credit refuses first")
 		require.Equal(t, bound, c.emission.bbr.credit.pending)
-		require.Less(t, len(q.queue), bbrSendQueueCapacity)
+		require.Less(t, len(q.queue), sendQueueCapacity)
 		close(release)
 		synctest.Wait()
 		require.Zero(t, c.emission.bbr.credit.pending)
 	})
 }
 
-// Teardown with a full deep queue: a fatal write stops the worker with
-// bbrSendQueueCapacity entries still queued, and Close releases every buffer
+// Teardown with a full queue: a fatal write stops the worker with
+// sendQueueCapacity entries still queued, and Close releases every buffer
 // and returns every reservation exactly once.
 func TestBBRSendQueueDepthCloseReleasesOnce(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		conn := NewMockSendConn(ctrl)
-		q := newSendQueueWithCapacity(conn, nil, bbrSendQueueCapacity).(*sendQueue)
+		q := newSendQueue(conn, nil).(*sendQueue)
 		credit := newLocalSendCredit()
 		bound := protocol.ByteCount(2 * 65536)
 		finish := make(chan struct{})
@@ -167,11 +172,11 @@ func TestBBRSendQueueDepthCloseReleasesOnce(t *testing.T) {
 		done := make(chan error, 1)
 		go func() { done <- q.Run() }()
 		synctest.Wait()
-		for range bbrSendQueueCapacity {
+		for range sendQueueCapacity {
 			bufs = append(bufs, send())
 		}
 		require.True(t, q.WouldBlock())
-		require.EqualValues(t, 1200*(bbrSendQueueCapacity+1), credit.pending)
+		require.EqualValues(t, 1200*(sendQueueCapacity+1), credit.pending)
 		close(finish)
 		require.ErrorIs(t, <-done, assert.AnError)
 		q.Close()
@@ -180,18 +185,4 @@ func TestBBRSendQueueDepthCloseReleasesOnce(t *testing.T) {
 			require.Zero(t, b.refCount)
 		}
 	})
-}
-
-// Reno's queue is unchanged: full at sendQueueCapacity entries.
-func TestBBRSendQueueDepthRenoUnchanged(t *testing.T) {
-	tc := bbrDepthTestConnection(t, "reno", false)
-	q := tc.conn.emission.queue.(*sendQueue)
-	for range sendQueueCapacity {
-		require.False(t, q.WouldBlock())
-		q.Send(getPacketWithContents([]byte("reno")), 0, protocol.ECNNon, sendMetadata{})
-	}
-	require.True(t, q.WouldBlock())
-	for len(q.queue) > 0 {
-		(<-q.queue).release()
-	}
 }

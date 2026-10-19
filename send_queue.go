@@ -106,18 +106,18 @@ type sendQueue struct {
 
 var _ sender = &sendQueue{}
 
-const sendQueueCapacity = 8
+// sendQueueCapacity is the queue depth of every connection, whatever its
+// congestion controller. The worker signals room only after it has sent a
+// whole batch, so a queue no deeper than one batch lets the connection loop
+// refill it mid-batch and sleep, and the two then take turns on one
+// processor. A deeper queue lets the loop keep packing while a batch is in
+// flight. It bounds entries only: congestion control (and, for BBR, local
+// send credit) still bounds the bytes behind them.
+const sendQueueCapacity = 32
 
-// bbrSendQueueCapacity is the queue depth of a BBR connection. At high rates
-// BBR's pacer releases about one packet per opportunity, so each entry holds
-// one packet and an eight-entry queue makes the connection loop and the
-// worker hand off every packet. A deeper queue lets the loop run ahead of the
-// worker. It bounds entries only: local send credit still bounds pending
-// bytes at 2Q, and Reno's queue is unchanged.
-const bbrSendQueueCapacity = 32
-
-// maxSendBatch caps how many queued packets one batched send coalesces.
-const maxSendBatch = sendQueueCapacity
+// maxSendBatch caps how many queued packets one batched send coalesces. It is
+// independent of the queue's depth.
+const maxSendBatch = 8
 
 // authorizedWriter is a sendConn that can make several socket submissions for
 // one write, and authorizes each of them.
@@ -126,10 +126,6 @@ type authorizedWriter interface {
 }
 
 func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
-	return newSendQueueWithCapacity(conn, feedback, sendQueueCapacity)
-}
-
-func newSendQueueWithCapacity(conn sendConn, feedback *handshakeSendFeedback, capacity int) sender {
 	authorized, _ := conn.(authorizedWriter)
 	return &sendQueue{
 		authorized:  authorized,
@@ -138,7 +134,7 @@ func newSendQueueWithCapacity(conn sendConn, feedback *handshakeSendFeedback, ca
 		runStopped:  make(chan struct{}),
 		closeCalled: make(chan struct{}),
 		available:   make(chan struct{}, 1),
-		queue:       make(chan queueEntry, capacity),
+		queue:       make(chan queueEntry, sendQueueCapacity),
 	}
 }
 
