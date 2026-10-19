@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,20 +31,124 @@ func (b *binds) Set(v string) error {
 	return nil
 }
 
-// Size is needed by the /demo/upload handler to determine the size of the uploaded file
-type Size interface {
-	Size() int64
-}
+const (
+	maxGeneratedResponseSize = 1 << 30
+	maxEchoBodySize          = 1 << 20
+	maxUploadBodySize        = 16 << 20
+	maxUploadPartSize        = 8 << 20
+	maxUploadParts           = 16
+	maxConcurrentRequests    = 8
+	responseChunkSize        = 32 << 10
+)
 
 // See https://en.wikipedia.org/wiki/Lehmer_random_number_generator
-func generatePRData(l int) []byte {
-	res := make([]byte, l)
+func writePRData(w io.Writer, size int64) error {
+	var buf [responseChunkSize]byte
 	seed := uint64(1)
-	for i := range l {
-		seed = seed * 48271 % 2147483647
-		res[i] = byte(seed)
+	for size > 0 {
+		chunk := buf[:min(size, int64(len(buf)))]
+		for i := range chunk {
+			seed = seed * 48271 % 2147483647
+			chunk[i] = byte(seed)
+		}
+		n, err := w.Write(chunk)
+		if err != nil {
+			return err
+		}
+		if n != len(chunk) {
+			return io.ErrShortWrite
+		}
+		size -= int64(n)
 	}
-	return res
+	return nil
+}
+
+func writeBodyError(w http.ResponseWriter, err error) {
+	status := http.StatusBadRequest
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		status = http.StatusRequestEntityTooLarge
+	}
+	http.Error(w, http.StatusText(status), status)
+}
+
+func echo(w http.ResponseWriter, r *http.Request) {
+	if r.ContentLength > maxEchoBodySize {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	// Buffer only this small, bounded body so oversized streaming requests can
+	// receive a 413 before any successful response is committed.
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxEchoBodySize))
+	if err != nil {
+		writeBodyError(w, err)
+		return
+	}
+	w.Write(body)
+}
+
+func upload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		io.WriteString(w, `<html><body><form action="/demo/upload" method="post" enctype="multipart/form-data">
+				<p>Maximum upload: 8 MiB per part, 16 MiB total.</p>
+				<input type="file" name="uploadfile"><br>
+				<input type="submit">
+			</form></body></html>`)
+		return
+	}
+	if r.ContentLength > maxUploadBodySize {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBodySize)
+	reader, err := r.MultipartReader()
+	if err != nil {
+		writeBodyError(w, err)
+		return
+	}
+	var checksum []byte
+	for parts := 0; ; parts++ {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			writeBodyError(w, err)
+			return
+		}
+		if parts >= maxUploadParts {
+			http.Error(w, "too many multipart parts", http.StatusRequestEntityTooLarge)
+			return
+		}
+		hash := md5.New()
+		dst := io.Discard
+		isUpload := checksum == nil && part.FormName() == "uploadfile" && part.FileName() != ""
+		if isUpload {
+			dst = hash
+		}
+		n, err := io.Copy(dst, io.LimitReader(part, maxUploadPartSize+1))
+		if err != nil {
+			writeBodyError(w, err)
+			return
+		}
+		if n > maxUploadPartSize {
+			http.Error(w, "multipart part too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		if isUpload {
+			checksum = hash.Sum(nil)
+		}
+	}
+	// Include any multipart epilogue in the total body budget before returning
+	// success. MultipartReader can stop at the closing boundary before body EOF.
+	if _, err := io.Copy(io.Discard, r.Body); err != nil {
+		writeBodyError(w, err)
+		return
+	}
+	if checksum == nil {
+		http.Error(w, "missing uploadfile", http.StatusBadRequest)
+		return
+	}
+	fmt.Fprintf(w, "%x", checksum)
 }
 
 func setupHandler(www string) http.Handler {
@@ -55,14 +158,15 @@ func setupHandler(www string) http.Handler {
 		mux.Handle("/", http.FileServer(http.Dir(www)))
 	} else {
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Printf("%#v\n", r)
-			const maxSize = 1 << 30 // 1 GB
 			num, err := strconv.ParseInt(strings.ReplaceAll(r.RequestURI, "/", ""), 10, 64)
-			if err != nil || num <= 0 || num > maxSize {
+			if err != nil || num <= 0 || num > maxGeneratedResponseSize {
 				w.WriteHeader(400)
 				return
 			}
-			w.Write(generatePRData(int(num)))
+			w.Header().Set("Content-Length", strconv.FormatInt(num, 10))
+			if err := writePRData(w, num); err != nil {
+				log.Printf("Error sending generated data: %v", err)
+			}
 		})
 	}
 
@@ -87,44 +191,24 @@ func setupHandler(www string) http.Handler {
 		io.WriteString(w, "</body></html>")
 	})
 
-	mux.HandleFunc("/demo/echo", func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			fmt.Printf("error reading body while handling /echo: %s\n", err.Error())
-		}
-		w.Write(body)
-	})
+	mux.HandleFunc("/demo/echo", echo)
 
 	// accept file uploads and return the MD5 of the uploaded file
-	// maximum accepted file size is 1 GB
-	mux.HandleFunc("/demo/upload", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			err := r.ParseMultipartForm(1 << 30) // 1 GB
-			if err == nil {
-				var file multipart.File
-				file, _, err = r.FormFile("uploadfile")
-				if err == nil {
-					var size int64
-					if sizeInterface, ok := file.(Size); ok {
-						size = sizeInterface.Size()
-						b := make([]byte, size)
-						file.Read(b)
-						md5 := md5.Sum(b)
-						fmt.Fprintf(w, "%x", md5)
-						return
-					}
-					err = errors.New("couldn't get uploaded file size")
-				}
-			}
-			log.Printf("Error receiving upload: %#v", err)
-		}
-		io.WriteString(w, `<html><body><form action="/demo/upload" method="post" enctype="multipart/form-data">
-				<input type="file" name="uploadfile"><br>
-				<input type="submit">
-			</form></body></html>`)
-	})
+	// Limit each part to 8 MiB and the entire multipart body to 16 MiB.
+	mux.HandleFunc("/demo/upload", upload)
 
-	return mux
+	// Bound aggregate work without queueing requests and their bodies.
+	active := make(chan struct{}, maxConcurrentRequests)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case active <- struct{}{}:
+			defer func() { <-active }()
+		default:
+			http.Error(w, "server busy", http.StatusServiceUnavailable)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
 }
 
 func main() {
