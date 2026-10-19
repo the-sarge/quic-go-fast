@@ -177,8 +177,9 @@ type networkAdmission struct {
 // Rejected input is discarded after datagram extraction, before any QUIC or
 // non-QUIC dispatch. Every ordinary, segmented, probe and batched submission is
 // checked again at the socket boundary; rejection returns an error without I/O.
-// After DelegateNetworkAdmissionV1, neither callback is evaluated: only the
-// structural endpoint checks remain at those boundaries.
+// After DelegateNetworkAdmissionV1, neither callback is evaluated; the
+// structural endpoint checks and any ConfigureFixedPeerV1 filter still apply
+// at those boundaries.
 // Receive rejection never closes an existing connection. Listener predicates
 // must not pin the first client's tuple: admitted changes retain standard QUIC
 // authentication and address validation. This does not authenticate a peer.
