@@ -6146,3 +6146,25 @@ The review corrections give transport closing states exactly-once retirement and
 The separately authorized CI diagnosis resolved [issue #322](https://github.com/the-sarge/quic-go-fast/issues/322). A controlled two-probe-loss real UDP/TLS case reproduced the old `2 > 1` assertion: already-lost PING-only MTU probes were counted as simultaneously outstanding. The fixture now rejects oversized data, accounts for observed datagrams with typed packet/loss events, and retains the limit of one unresolved probe. Production MTU and DATAGRAM behavior is unchanged.
 
 Validation passed at exact product head `ee9d9599522df5b8e60071874d09fc41c78a28db`: affected unit packages, admission/shutdown race tests, the full self-integration package on QUIC v1, normal/snapshot/lost-probe MTU cases with QUIC v2 race detection, vet, module tidiness, lint and clean-tree/diff checks, plus all 33 hosted checks. Source verification resolved the shutdown regression; final RAS review `20261019T072647-9e658ef615dc859078e5946c` found no issues or follow-ups. Two reviewers completed, meeting the configured quorum; one Claude Opus process failed. No automated fixer or same-head CI retry was used.
+
+---
+
+## Lazy incoming stream allocation landed - 2026-10-19 03:56 EDT
+
+**Main:** `63fb5e410bc5`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #845](https://github.com/the-sarge/quic-go-fast/pull/845) as `63fb5e410bc5524db75aa57b6a21cb09784cd3db`, addressing Codex Security Cloud finding `csf_9de6fd28ef18ae8747b5a3d5`. A high permitted incoming stream ID no longer constructs every intervening stream while holding the map mutex. Skipped streams are represented by the implicit-open watermark and materialized individually when referenced or accepted, preserving ordered acceptance, object identity, closed-stream suppression, configured limits and one returned stream of credit per completed stream.
+
+### Completed
+
+- Added maximum-ID, frame-handler, lazy-acceptance, deletion/credit, concurrent-acceptor and shutdown regressions. The pre-fix allocation guard failed safely on its second constructor call; the sparse-frame regression's cleanup was corrected so the same historical failure terminates promptly instead of deadlocking shutdown.
+- Corrected two certification fixtures without changing production HTTP/3 or socket behavior: the pending-header-budget handler consumes request EOF before returning, avoiding cancellation racing client FIN; listener-close verification uses open/closed UDP rebinding controls and the existing scaled timeout instead of an ICMP error-string proxy. The exact hosted ICMP timeout was not reproduced locally and is not attributed to a proven socket leak or infrastructure fault.
+
+### Validation
+
+The exact reviewed and certified head was `9da8d533a6387cdaebe62faecfa9b2f552ae649e` on base `0de48f5a0f6594bd7d0bc15ac84e0cd87d3a9cd4`. Uncached root/HTTP3 tests, full shuffled QUIC v1/v2 self-integration suites with TIMESCALE_FACTOR=3, targeted stream/HTTP3 race checks, affected-package vet, module tidiness, scoped lint and formatting/diff checks passed. The listener-close fixture also passed 20 native race repetitions for QUIC v1 and a QUIC v2 check. All 33 hosted checks across nine workflow runs passed before marking ready and squash-merging with an exact-head guard. Failed repository tests were diagnosed and changed; no unchanged-head CI rerun was used.
+
+Initial RAS review and verification resolved the sparse-frame test-cleanup finding. Final renewed review `20261019T074938-96806228614991d94403fe18` completed with both selected reviewers and usable synthesis, with no findings. Optional concurrent identity-test strengthening remains nonblocking: the correct write-lock recheck was revalidated at `streams_map_incoming.go:148-154` in merged commit `63fb5e410bc5524db75aa57b6a21cb09784cd3db`; no product defect or follow-up ticket was established.
