@@ -6086,3 +6086,85 @@ A separate header cancellation timer preserves caller-owned stream read deadline
 ### Next
 
 [Issue #840](https://github.com/the-sarge/quic-go-fast/issues/840) remains the live view for the pre-existing shared trailer allocation. `http3/headers.go:453-454` was revalidated against merged commit `28a01df8fd6b293f878f80046ade7c20faed8f3a`; the existing issue was updated to mark initial server request headers resolved and retain client/server trailer work. No duplicate issue was created.
+
+---
+
+## Path probe recovery limits landed - 2026-10-19 01:52 EDT
+
+**Main:** `7d05a887e151`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #844](https://github.com/the-sarge/quic-go-fast/pull/844) as `7d05a887e15139a7c3467b8323d91d4e8ce49e30`, bounding path-probe recovery history for the Codex Security Cloud finding about unbounded markers and quadratic probe expiry.
+
+### Completed
+
+- Capped outstanding path probes at 32 per connection and checked combined packet-history capacity before client or server probe construction, including a possible skipped packet-number slot.
+- Replaced side-list scans with indexed removal and retired remaining history markers together with their probes on ACK or timeout, retaining linear bulk cleanup.
+- Preserved the per-path amplification policy already on main and kept capacity-blocked server challenges eligible for retry.
+
+### Validation
+
+The certified and reviewed head was `0a67620e70fb662f9d09138ee9311a722986bb54`; the squash merge has the same tree. Root and ACK-handler suites, targeted race checks, repository-wide compilation, affected-package vet, module tidiness, scoped lint, and diff checks passed. All 33 hosted checks passed before the exact-head squash merge. Regressions cover a flood exceeding `MaxTrackedSentPackets`, 10,000-probe retirement and expiry, ACK/timeout ordering, probes whose markers were retired by loss, migration, and skipped packet numbers.
+
+RAS review `20261019T052447-6a58cffb741fb388b4d7ecbc` completed with no required fixes or follow-ups. The only candidate finding, a hypothetical copy of an initialized list, was rejected after confirming construction copies a zero-valued list that initializes in its final storage.
+
+---
+
+## HTTP/3 multipart cleanup landed - 2026-10-19 03:14 EDT
+
+**Main:** `454c4d3b1762`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #849](https://github.com/the-sarge/quic-go-fast/pull/849) as `454c4d3b17626f7193aa531bbc28ea54b41aeacc`, addressing Security Cloud finding `csf_c95d85777f84481a0ff00a30`. HTTP/3 request completion now calls `MultipartForm.RemoveAll` after normal return, response flush failure, ordinary panic, and `http.ErrAbortHandler`. Stream takeover retains documented caller ownership of multipart temporary files.
+
+### Completed
+
+- Merged the separate prerequisite [PR #861](https://github.com/the-sarge/quic-go-fast/pull/861) as `73a239d23ccb90484efc7365adb982a20fabe21a`. Its handshake buffering fixture selects the Initial carrying ServerHello CRYPTO, skips ACK-only Initials, and preserves coalesced Handshake packets. Compact classical, hybrid, and delayed fragmented ClientHello cases exercise the fault selection.
+- Kept the multipart repair limited to request cleanup, ownership documentation, and six real HTTP/3 multipart regression cases. The original four server-owned completion cases reproduced the file leak twice before the fix; the hijack cases retain readable files until caller cleanup.
+
+### Validation
+
+- Final multipart head `59abcd244471a025fd875306bebcced399660eba`: HTTP/3 race tests passed, reusing Go's unchanged-package test cache after the final rebase; affected-package vet, module tidiness, lint, and whitespace checks passed with a clean worktree. RAS review `20261019T070646-9d4c1b355a853f1c0c3c4159` completed with both selected reviewers and no findings or follow-ups.
+- Final fixture head `b5a27d3ee3deee76d364c087efdc175d9adaba3b`: the compact-flight failure reproduced five times and the ACK-only failure three times before their respective corrections. The seeded GSO-disabled QUIC v1 race self suite and 100 focused QUIC v2 race repetitions of all three cases passed, as did vet, module tidiness, lint, and formatting. RAS review `20261019T065858-c74b59f9465dff6c4b4f7fa0` completed with all three selected reviewers and no findings or follow-ups.
+- All 33 hosted checks passed on each exact reviewed head before marking its PR ready and squash-merging with a matching-head guard. The five PR workflows covered unit, integration, lint, cross-compilation, and interop jobs; no same-head retry of the failed repository test was requested.
+
+---
+
+## Bound default server handshake admission - 2026-10-19 03:34 EDT
+
+**Main:** `ccd85fa1f2b0`
+**Actor:** Codex
+
+[PR #842](https://github.com/the-sarge/quic-go-fast/pull/842) merged the remediation for Codex Security Cloud finding `csf_07f32b72564ef0d1ad9a1b0f`: default listeners now share a process-wide budget of 1,024 pending TLS handshakes, with 128 per source IP. Unvalidated sources require Retry at half either limit, and validated tokens cannot bypass hard caps. Default capacity returns at actual TLS completion or after failed setup and closing-state cleanup; explicit caller-managed admission retains its existing contract.
+
+The review corrections give transport closing states exactly-once retirement and distinguish listener admission closure from actual transport shutdown. Failed pending setup is cleaned up when its owning listener/transport stops; established connections preserve CONNECTION_CLOSE retransmission and remote draining until expiry or transport shutdown. Real Listen/ListenEarly regressions cover both closure orders, local/remote close, stopped-clock cleanup, and reservation-free late publication.
+
+The separately authorized CI diagnosis resolved [issue #322](https://github.com/the-sarge/quic-go-fast/issues/322). A controlled two-probe-loss real UDP/TLS case reproduced the old `2 > 1` assertion: already-lost PING-only MTU probes were counted as simultaneously outstanding. The fixture now rejects oversized data, accounts for observed datagrams with typed packet/loss events, and retains the limit of one unresolved probe. Production MTU and DATAGRAM behavior is unchanged.
+
+Validation passed at exact product head `ee9d9599522df5b8e60071874d09fc41c78a28db`: affected unit packages, admission/shutdown race tests, the full self-integration package on QUIC v1, normal/snapshot/lost-probe MTU cases with QUIC v2 race detection, vet, module tidiness, lint and clean-tree/diff checks, plus all 33 hosted checks. Source verification resolved the shutdown regression; final RAS review `20261019T072647-9e658ef615dc859078e5946c` found no issues or follow-ups. Two reviewers completed, meeting the configured quorum; one Claude Opus process failed. No automated fixer or same-head CI retry was used.
+
+---
+
+## Lazy incoming stream allocation landed - 2026-10-19 03:56 EDT
+
+**Main:** `63fb5e410bc5`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #845](https://github.com/the-sarge/quic-go-fast/pull/845) as `63fb5e410bc5524db75aa57b6a21cb09784cd3db`, addressing Codex Security Cloud finding `csf_9de6fd28ef18ae8747b5a3d5`. A high permitted incoming stream ID no longer constructs every intervening stream while holding the map mutex. Skipped streams are represented by the implicit-open watermark and materialized individually when referenced or accepted, preserving ordered acceptance, object identity, closed-stream suppression, configured limits and one returned stream of credit per completed stream.
+
+### Completed
+
+- Added maximum-ID, frame-handler, lazy-acceptance, deletion/credit, concurrent-acceptor and shutdown regressions. The pre-fix allocation guard failed safely on its second constructor call; the sparse-frame regression's cleanup was corrected so the same historical failure terminates promptly instead of deadlocking shutdown.
+- Corrected two certification fixtures without changing production HTTP/3 or socket behavior: the pending-header-budget handler consumes request EOF before returning, avoiding cancellation racing client FIN; listener-close verification uses open/closed UDP rebinding controls and the existing scaled timeout instead of an ICMP error-string proxy. The exact hosted ICMP timeout was not reproduced locally and is not attributed to a proven socket leak or infrastructure fault.
+
+### Validation
+
+The exact reviewed and certified head was `9da8d533a6387cdaebe62faecfa9b2f552ae649e` on base `0de48f5a0f6594bd7d0bc15ac84e0cd87d3a9cd4`. Uncached root/HTTP3 tests, full shuffled QUIC v1/v2 self-integration suites with TIMESCALE_FACTOR=3, targeted stream/HTTP3 race checks, affected-package vet, module tidiness, scoped lint and formatting/diff checks passed. The listener-close fixture also passed 20 native race repetitions for QUIC v1 and a QUIC v2 check. All 33 hosted checks across nine workflow runs passed before marking ready and squash-merging with an exact-head guard. Failed repository tests were diagnosed and changed; no unchanged-head CI rerun was used.
+
+Initial RAS review and verification resolved the sparse-frame test-cleanup finding. Final renewed review `20261019T074938-96806228614991d94403fe18` completed with both selected reviewers and usable synthesis, with no findings. Optional concurrent identity-test strengthening remains nonblocking: the correct write-lock recheck was revalidated at `streams_map_incoming.go:148-154` in merged commit `63fb5e410bc5524db75aa57b6a21cb09784cd3db`; no product defect or follow-up ticket was established.

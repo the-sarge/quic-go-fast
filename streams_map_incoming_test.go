@@ -2,6 +2,7 @@ package quic
 
 import (
 	"context"
+	"fmt"
 	"math/rand/v2"
 	"testing"
 	"testing/synctest"
@@ -37,6 +38,162 @@ func (s *mockStream) enableResetStreamAt() {
 	s.supportsResetStreamAt = true
 }
 
+func TestStreamsMapIncomingSparseStreamAllocation(t *testing.T) {
+	for _, perspective := range []protocol.Perspective{protocol.PerspectiveClient, protocol.PerspectiveServer} {
+		for _, streamType := range []protocol.StreamType{protocol.StreamTypeBidi, protocol.StreamTypeUni} {
+			t.Run(fmt.Sprintf("%s/%d", perspective, streamType), func(t *testing.T) {
+				var created int
+				m := newIncomingStreamsMap(
+					streamType,
+					func(id protocol.StreamID) *mockStream {
+						created++
+						// Stop an eager implementation before it exhausts memory.
+						require.LessOrEqual(t, created, 1, "one sparse ID must only allocate one stream")
+						return &mockStream{id: id}
+					},
+					uint64(protocol.MaxStreamCount),
+					func(wire.Frame) {},
+					perspective,
+				)
+				id := protocol.MaxStreamCount.StreamID(streamType, perspective.Opposite())
+				str, err := m.GetOrOpenStream(id)
+				require.NoError(t, err)
+				require.Equal(t, id, str.id)
+				require.Equal(t, 1, created)
+				require.Len(t, m.streams, 1)
+				again, err := m.GetOrOpenStream(id)
+				require.NoError(t, err)
+				require.Same(t, str, again)
+				require.Equal(t, 1, created)
+				m.CloseWithError(assert.AnError)
+				require.True(t, str.closed)
+				_, err = m.AcceptStream(context.Background())
+				require.ErrorIs(t, err, assert.AnError)
+				require.Equal(t, 1, created)
+			})
+		}
+	}
+}
+
+func TestStreamsMapIncomingSparseStreamLifecycle(t *testing.T) {
+	for _, perspective := range []protocol.Perspective{protocol.PerspectiveClient, protocol.PerspectiveServer} {
+		for _, streamType := range []protocol.StreamType{protocol.StreamTypeBidi, protocol.StreamTypeUni} {
+			t.Run(fmt.Sprintf("%s/%d", perspective, streamType), func(t *testing.T) {
+				var created int
+				var frames []wire.Frame
+				m := newIncomingStreamsMap(
+					streamType,
+					func(id protocol.StreamID) *mockStream {
+						created++
+						return &mockStream{id: id}
+					},
+					6,
+					func(f wire.Frame) { frames = append(frames, f) },
+					perspective,
+				)
+				first := protocol.StreamNum(1).StreamID(streamType, perspective.Opposite())
+				last, err := m.GetOrOpenStream(first + 20)
+				require.NoError(t, err)
+				middle, err := m.GetOrOpenStream(first + 8)
+				require.NoError(t, err)
+				require.Equal(t, 2, created)
+
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				str, err := m.AcceptStream(ctx)
+				require.NoError(t, err)
+				require.Equal(t, first, str.id)
+				require.Equal(t, 3, created)
+				again, err := m.GetOrOpenStream(first)
+				require.NoError(t, err)
+				require.Same(t, str, again)
+
+				// An implicit stream still consumes credit: deleting one accepted
+				// stream must not release credit for the rest of the sparse gap.
+				require.NoError(t, m.DeleteStream(first))
+				require.Equal(t, []wire.Frame{&wire.MaxStreamsFrame{Type: streamType, MaxStreamNum: 7}}, frames)
+				str, err = m.GetOrOpenStream(first)
+				require.NoError(t, err)
+				require.Nil(t, str)
+
+				// A completed stream waiting for acceptance must not be recreated.
+				require.NoError(t, m.DeleteStream(first+20))
+				str, err = m.GetOrOpenStream(first + 20)
+				require.NoError(t, err)
+				require.Nil(t, str)
+				require.Len(t, frames, 1)
+
+				str, err = m.AcceptStream(ctx)
+				require.NoError(t, err)
+				require.Equal(t, first+4, str.id)
+				str, err = m.AcceptStream(ctx)
+				require.NoError(t, err)
+				require.Same(t, middle, str)
+				for _, id := range []protocol.StreamID{first + 12, first + 16} {
+					str, err = m.AcceptStream(ctx)
+					require.NoError(t, err)
+					require.Equal(t, id, str.id)
+				}
+				str, err = m.AcceptStream(ctx)
+				require.NoError(t, err)
+				require.Same(t, last, str)
+				require.Equal(t, 6, created)
+				require.Len(t, frames, 2)
+				require.Equal(t, &wire.MaxStreamsFrame{Type: streamType, MaxStreamNum: 8}, frames[1])
+				require.ErrorIs(t, m.DeleteStream(first+20), &qerr.TransportError{ErrorCode: qerr.StreamStateError})
+
+				// Unopened credit is not available to AcceptStream.
+				cancel()
+				_, err = m.AcceptStream(ctx)
+				require.ErrorIs(t, err, context.Canceled)
+				require.Equal(t, 6, created)
+				m.CloseWithError(assert.AnError)
+				require.True(t, middle.closed)
+				require.ErrorIs(t, middle.closeErr, assert.AnError)
+				_, err = m.AcceptStream(context.Background())
+				require.ErrorIs(t, err, assert.AnError)
+			})
+		}
+	}
+}
+
+func TestStreamsMapIncomingSparseStreamConcurrentAccept(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const num = 8
+		m := newIncomingStreamsMap(
+			protocol.StreamTypeUni,
+			func(id protocol.StreamID) *mockStream { return &mockStream{id: id} },
+			num,
+			func(wire.Frame) {},
+			protocol.PerspectiveServer,
+		)
+		type result struct {
+			stream *mockStream
+			err    error
+		}
+		results := make(chan result, num)
+		for range num {
+			go func() {
+				str, err := m.AcceptStream(context.Background())
+				results <- result{stream: str, err: err}
+			}()
+		}
+		synctest.Wait()
+		require.Empty(t, results)
+		_, err := m.GetOrOpenStream(protocol.StreamNum(num).StreamID(protocol.StreamTypeUni, protocol.PerspectiveClient))
+		require.NoError(t, err)
+		synctest.Wait()
+		require.Len(t, results, num)
+		seen := make(map[protocol.StreamID]bool)
+		for range num {
+			r := <-results
+			require.NoError(t, r.err)
+			require.False(t, seen[r.stream.id])
+			seen[r.stream.id] = true
+		}
+	})
+}
+
 func TestStreamsMapIncomingGettingStreams(t *testing.T) {
 	t.Run("client", func(t *testing.T) {
 		testStreamsMapIncomingGettingStreams(t, protocol.PerspectiveClient, protocol.FirstIncomingUniStreamClient)
@@ -60,11 +217,11 @@ func testStreamsMapIncomingGettingStreams(t *testing.T, perspective protocol.Per
 		perspective,
 	)
 
-	// all streams up to the id on GetOrOpenStream are opened
+	// Lower streams are implicitly opened without allocating their state.
 	str, err := m.GetOrOpenStream(firstStream + 4)
 	require.NoError(t, err)
 	require.NotNil(t, str)
-	require.Equal(t, 2, newStreamCounter)
+	require.Equal(t, 1, newStreamCounter)
 	require.Equal(t, firstStream+4, str.id)
 	// accept one of the streams
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -72,10 +229,11 @@ func testStreamsMapIncomingGettingStreams(t *testing.T, perspective protocol.Per
 	str, err = m.AcceptStream(ctx)
 	require.NoError(t, err)
 	require.Equal(t, firstStream, str.id)
+	require.Equal(t, 2, newStreamCounter)
 	// open some more streams
 	str, err = m.GetOrOpenStream(firstStream + 16)
 	require.NoError(t, err)
-	require.Equal(t, 5, newStreamCounter)
+	require.Equal(t, 3, newStreamCounter)
 	require.Equal(t, firstStream+16, str.id)
 	// and accept all of them
 	for i := 1; i < 5; i++ {
@@ -89,7 +247,7 @@ func testStreamsMapIncomingGettingStreams(t *testing.T, perspective protocol.Per
 	_, err = m.GetOrOpenStream(firstStream + 4*maxNumStreams)
 	require.ErrorIs(t, err, &qerr.TransportError{ErrorCode: qerr.StreamLimitError})
 	require.ErrorContains(t, err, "peer tried to open stream")
-	require.Equal(t, maxNumStreams, newStreamCounter)
+	require.Equal(t, 6, newStreamCounter)
 }
 
 func TestStreamsMapIncomingAcceptingStreams(t *testing.T) {

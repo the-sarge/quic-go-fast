@@ -542,9 +542,14 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 // Direct operations borrow the destination and preserve best-effort write errors.
 // Storage belongs to emission until the synchronous write has returned.
 func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
-	p, buf, err := e.packer.packPathProbePacket(connID, frames, path.sendAllowance(), e.version)
-	if err != nil {
-		return err
+	var p shortHeaderPacket
+	var buf *packetBuffer
+	if (*e.recovery).CanSendPathProbe() {
+		var err error
+		p, buf, err = e.packer.packPathProbePacket(connID, frames, path.sendAllowance(), e.version)
+		if err != nil {
+			return err
+		}
 	}
 	if buf == nil {
 		// Keep an unsent challenge eligible for the next received packet.
@@ -566,6 +571,9 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 }
 
 func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {
+	if !(*e.recovery).CanSendPathProbe() {
+		return nil
+	}
 	p, buf, err := e.packer.PackPathProbePacket(connID, []ackhandler.Frame{frame}, e.version)
 	if err != nil {
 		return err

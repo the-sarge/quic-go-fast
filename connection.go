@@ -197,7 +197,7 @@ type Conn struct {
 	closeErr  atomic.Pointer[closeError]
 	// authority is bound before publication on candidate-group transports.
 	authority *connAuthority
-	// setup is bound before publication on servers with setup admission.
+	// setup is bound before publication for server or dial setup admission.
 	setup *setupReservation
 	// receivePhase is installed before publication on transports that start
 	// connections in a closed receive phase.
@@ -1016,6 +1016,7 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 
 func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 	defer close(c.handshakeCompleteChan)
+	c.setup.handshakeFinished()
 	// Once the handshake completes, we have derived 1-RTT keys.
 	// There's no point in queueing undecryptable packets for later decryption anymore.
 	releaseUndecryptablePackets(c.undecryptablePackets)
