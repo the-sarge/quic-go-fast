@@ -6302,3 +6302,88 @@ RAS review `20261019T191814-2f730b8031bd6b95a59c304c` completed with all six rev
 ### Next
 
 The consumer measures adoption after the bundle release, when it switches the mode on; that measurement doesn't hold the release. The bundle's remaining holding slices are #853 through #856; the live view is the slice table in #851.
+
+---
+
+## Linux copy-at-read landed - 2026-10-19 17:44 EDT
+
+**Main:** `d0f5b33a45b3`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #874](https://github.com/the-sarge/quic-go-fast/pull/874) as `d0f5b33a45b313cc3415e4f52d9f4c899b86f844`, closing [#853](https://github.com/the-sarge/quic-go-fast/issues/853), slice 3 of the fork bundle [#851](https://github.com/the-sarge/quic-go-fast/issues/851). With GRO on, the Linux reader keeps its eight 64 KiB read slots. A reader-confined cursor (`coalescedReadCursor`) holds the read's metadata and its undelivered payload, and `ReadPacket` copies one datagram per call into an ordinary pooled buffer (the 1,452-byte or 20 KiB tier). `ReadBatch` runs only after the cursor drains, so a slot is never overwritten while datagrams still wait in it. A coalesced read now allocates no slab, view or pending list. Nothing slab-backed reaches a connection, so the retention copy under `receivedPacketMx` no longer runs for these packets. The Windows URO reader, the coalesced slab, `coalescedDelivery` and ADR 0005's atomic exception are unchanged until #860.
+
+### Decisions
+
+The operator approved the plan. Datagrams above the 20 KiB tier are delivered as each reader delivers them without coalescing. Observed on Linux 7.0 loopback with a 30,000-byte datagram, coalescing off and on:
+- **Unmanaged reader:** 1,452 bytes both ways, the prefix its ordinary-tier read keeps. Before this change, the slab path delivered all 30,000 bytes with coalescing on.
+- **Managed reader:** 30,000 bytes both ways, matching `readManagedPacket`. A new `oobConn.managed` flag, set where the Linux managed endpoint installs its reader, selects whole delivery in the 64 KiB tier.
+
+The operator also ruled the "Scheduling with #808" guard met: the readiness run already ran on `d94b3ec2`, and L6 uses pinned binaries. Accepted and noted, not changed: managed GRO reads now make one extra small copy per datagram, because `managedPacketConn.ReadFrom` already copies into the caller's buffer.
+
+### Validation
+
+The new tests failed on `b50dbd81`'s slab path, run as a separate tree with the base's production files. They then passed:
+- copies land in the ordinary or large tier, the slot is kept, and metadata is inherited;
+- `AllocsPerRun` reads 0, and `retainForRetentionQueue` holds the datagram without a copy;
+- the two real-socket oversized tests, one per reader kind;
+- the updated release, sibling, empty-read and managed GRO tests.
+
+Removing the managed whole-delivery branch made the managed oversized test fail.
+
+The first push failed both ubuntu unit lanes at setup: the Linux test imported `integrationtests/tools/israce`, which `unit.yml` deletes before testing. RAS review `20261019T212536-c7a0f35efbb84471698900e1` (all six reviewers) reported the same thing as its only finding (C-001, with duplicates C-002 and C-003). It was fixed with Linux-only `race`/`!race` constants following `internal/ackhandler`. RAS verify at `022826d0` accepted the code fix and left only the hosted jobs. The replacement review `20261019T213657-042bd709cd07dd4d7dada3fc` (all six reviewers) was clean.
+
+The certified head was `022826d0bd8bd23ad25fd403cbf5e0d8a8f6d906` on base `b50dbd812c2b8d5106815ae4d9b8a0d1c16bccae`. The following passed:
+- **Darwin arm64, Go 1.27.2:** full `go test ./...`, `go mod tidy -diff`, `git diff --check`, golangci-lint v2.14.0 for six GOOS values;
+- **Linux, with `integrationtests` removed** (`golang:1.27.1` in Docker): the root package, plain and `-race`;
+- **minimax (Linux 7.0 amd64, Go 1.27.2):** the root package, plain and `-race`, and `integrationtests/self`, both on the first head;
+- **Cross-compilation:** vet for four GOOS values, and Windows, darwin and grobench test binaries.
+
+All 33 hosted checks passed on that head before it was marked ready and squash-merged with the matching-head guard. No CI rerun was requested. No deferred findings remain.
+
+### Next
+
+The consumer runs #853's gate in its namespace pair and posts the result on #853 and #851. The remaining holding slices are #854 through #856; the live view is the slice table in #851. #860 (Windows copy-at-read and slab retirement) is now unblocked.
+
+---
+
+## Version Negotiation hardening landed - 2026-10-19 18:21 EDT
+
+**Main:** `e1915619073b`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #879](https://github.com/the-sarge/quic-go-fast/pull/879) as `e1915619073b78474dbff716acb5d67d5e0b0d66`. The client now checks both echoed connection IDs before using an unauthenticated Version Negotiation version list. A mismatch is discarded without closing or recreating the connection, and a later valid response can still negotiate. The fix also corrects the reversed source/destination parser assignments and test-packet helper arguments.
+
+### Validation
+
+The unit and real-UDP regression tests reproduced connection recreation or handshake abortion before the production fix. After the fix, the wrong, empty, oversized and swapped ID cases pass, as do the real-UDP forgery tests for QUIC v1 and v2 and the existing valid-negotiation and MTU-fallback cases.
+
+The certified head was `6b6c98e28bb000a52cd6429b77d59bfd4d093881` on base `8f1c0e1b3350486e8c0b6255ac34f544d2be4897`. Local checks passed on Darwin arm64: the full connection package, wire and version-negotiation packages; focused race checks for Version Negotiation, Retry and receive lifetime; the QUIC v2 forgery cases; `go vet` on changed packages; `go mod tidy -diff`; changed-code lint (0 issues); and whitespace/clean-tree checks. All 33 hosted checks and all nine workflow runs passed on that exact head before marking ready and squash-merging with the matching-head guard.
+
+RAS review `20261019T214604-10df0a154e5144e61dd9291c` completed with six reviewers and 12 adjudications and required no fixes. The reviewed source/test files and product patch ID remained identical after incorporating the upstream journal-only commit. The pre-existing Retry-state gap was deferred; optional debug logging was rejected as a required change. No fix verification or replacement review was needed under the bounded review policy.
+
+### Next
+
+Revalidated the deferred Retry gap against merged commit `e1915619073b78474dbff716acb5d67d5e0b0d66` and filed [issue #880](https://github.com/the-sarge/quic-go-fast/issues/880): discard Version Negotiation after a valid Retry. The issue contains current source links and bounded regression criteria and is the live follow-up tracker.
+
+---
+
+## Example client response limits landed - 2026-10-19 18:39 EDT
+
+**Main:** `7aa5b548f41a`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #878](https://github.com/the-sarge/quic-go-fast/pull/878) as `7aa5b548f41a58c59dfe89d4749d0166fa338914`. The runnable example client now streams response bodies to stdout, or discards them in quiet mode, instead of accumulating them in memory. Positive `-max-response-size` and `-timeout` flags default to 10 MiB and 30 seconds per request. Overflow detection reads one extra byte without emitting it, and response bodies close on success or failure.
+
+### Validation
+
+The certified head was `8c1a9818e57b06eae3785ac2189f5ed49fadfda5` on base `c7b579dd875a37537a70cdbe3fd5fce916bb120c`. Local Darwin arm64 checks passed: affected example and HTTP/3 tests, the focused client race check, vet, module tidiness, the full repository go-fix check, targeted lint, and whitespace/clean-tree checks. Regression coverage includes response-size boundaries, quiet mode, unknown lengths, oversized nonterminating streams, stalled headers and bodies, active slow responses, timeout cancellation, and body closure on read/write/overflow errors. CLI smoke checks rejected nonpositive limits.
+
+All nine hosted workflow runs and all 33 jobs passed on the exact candidate before marking ready and squash-merging with the matching-head guard. The merged tree matches the certified candidate tree. The original hosted go-fix failure was resolved with the equivalent `errors.AsType[net.Error]` test modernization.
+
+RAS initial review `20261019T214551-39c5aead6adee50e82d9ef38` required no corrections; replacement review `20261019T220301-d945828982572100349aa641` was clean. The final rebase preserved both feature patches, verified with `git range-diff`, and the new base's Version Negotiation integration was inspected and exercised by the HTTP/3 tests. The optional concern that concurrent displayed response bodies can interleave was revalidated against the merged code; output grouping remains outside the bounded security fix recorded in [PR #878](https://github.com/the-sarge/quic-go-fast/pull/878).

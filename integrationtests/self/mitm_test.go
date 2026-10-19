@@ -320,6 +320,59 @@ func runMITMTest(t *testing.T, serverTr, clientTr *quic.Transport, rtt time.Dura
 	}
 }
 
+func TestMITMVersionNegotiationWrongSourceConnectionID(t *testing.T) {
+	serverTransport, clientTransport := getTransportsForMITMTest(t)
+	ln, err := serverTransport.Listen(getTLSConfig(), getQuicConfig(nil))
+	require.NoError(t, err)
+	defer ln.Close()
+
+	injected := make(chan error, 1)
+	var once sync.Once
+	rtt := scaleDuration(10 * time.Millisecond)
+	proxy := quicproxy.Proxy{
+		Conn:       newUDPConnLocalhost(t),
+		ServerAddr: ln.Addr().(*net.UDPAddr),
+		DelayPacket: func(dir quicproxy.Direction, _, _ net.Addr, raw []byte) time.Duration {
+			if dir == quicproxy.DirectionIncoming {
+				once.Do(func() {
+					hdr, _, _, err := wire.ParsePacket(raw)
+					if err != nil {
+						injected <- err
+						return
+					}
+					wrongSrc := hdr.DestConnectionID.Bytes()
+					wrongSrc[0] ^= 0xff
+					packet := wire.ComposeVersionNegotiation(
+						protocol.ArbitraryLenConnectionID(hdr.SrcConnectionID.Bytes()),
+						protocol.ArbitraryLenConnectionID(wrongSrc),
+						[]protocol.Version{42},
+					)
+					_, err = serverTransport.WriteTo(packet, clientTransport.Conn.LocalAddr())
+					injected <- err
+				})
+			}
+			return rtt / 2
+		},
+	}
+	require.NoError(t, proxy.Start())
+	defer proxy.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
+	defer cancel()
+	conn, err := clientTransport.Dial(ctx, proxy.LocalAddr(), getTLSClientConfig(), getQuicConfig(nil))
+	require.NoError(t, err, "a forged Version Negotiation packet must not abort the handshake")
+	defer conn.CloseWithError(0, "")
+	select {
+	case err := <-injected:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		t.Fatal("Version Negotiation packet was not injected")
+	}
+	peer, err := ln.Accept(ctx)
+	require.NoError(t, err)
+	defer peer.CloseWithError(0, "")
+}
+
 func TestMITMForgedVersionNegotiationPacket(t *testing.T) {
 	serverTransport, clientTransport := getTransportsForMITMTest(t)
 	rtt := scaleDuration(10 * time.Millisecond)
