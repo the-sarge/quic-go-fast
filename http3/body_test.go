@@ -2,6 +2,7 @@ package http3
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"testing"
 	"time"
@@ -13,6 +14,79 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+func TestBodyContentLength(t *testing.T) {
+	for _, response := range []bool{false, true} {
+		name := "request"
+		if response {
+			name = "response"
+		}
+		t.Run(name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name          string
+				contentLength int64
+				data          string
+				wantErr       error
+			}{
+				{name: "short", contentLength: 6, data: "foo", wantErr: io.ErrUnexpectedEOF},
+				{name: "empty short", contentLength: 6, wantErr: io.ErrUnexpectedEOF},
+				{name: "exact", contentLength: 6, data: "foobar"},
+				{name: "unknown", contentLength: -1, data: "foo"},
+				{name: "empty unknown", contentLength: -1},
+				{name: "zero", contentLength: 0},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					for _, eofWithData := range []bool{false, true} {
+						name := "separate EOF"
+						if eofWithData {
+							name = "EOF with data"
+						}
+						t.Run(name, func(t *testing.T) {
+							buf := bytes.NewBuffer(getDataFrame([]byte(tc.data)))
+							str := NewMockDatagramStream(gomock.NewController(t))
+							str.EXPECT().StreamID().Return(quic.StreamID(42)).AnyTimes()
+							str.EXPECT().Read(gomock.Any()).DoAndReturn(func(b []byte) (int, error) {
+								n, err := buf.Read(b)
+								if eofWithData && buf.Len() == 0 {
+									err = io.EOF
+								}
+								return n, err
+							}).AnyTimes()
+							if tc.wantErr != nil {
+								str.EXPECT().CancelRead(quic.StreamErrorCode(ErrCodeMessageError))
+								str.EXPECT().CancelWrite(quic.StreamErrorCode(ErrCodeMessageError))
+							}
+							hstr := newStream(str, nil, nil, nil, nil)
+							done := make(chan struct{})
+							var body io.Reader = newRequestBody(hstr, tc.contentLength, context.Background(), nil, nil)
+							if response {
+								body = newResponseBody(hstr, tc.contentLength, done)
+							}
+							data, err := io.ReadAll(body)
+							require.Equal(t, tc.data, string(data))
+							if tc.wantErr == nil {
+								require.NoError(t, err)
+							} else {
+								require.ErrorIs(t, err, tc.wantErr)
+								// Keep the error stable without canceling the stream again.
+								n, err := body.Read(make([]byte, 1))
+								require.Zero(t, n)
+								require.ErrorIs(t, err, tc.wantErr)
+							}
+							if response {
+								select {
+								case <-done:
+								default:
+									t.Fatal("response body did not finish the request")
+								}
+							}
+						})
+					}
+				})
+			}
+		})
+	}
+}
 
 func TestResponseBodyReading(t *testing.T) {
 	mockCtrl := gomock.NewController(t)

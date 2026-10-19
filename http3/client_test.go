@@ -8,6 +8,7 @@ import (
 	mrand "math/rand/v2"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/quic-go/quic-go/quicvarint"
 	"github.com/quic-go/quic-go/testutils/events"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -286,6 +288,12 @@ func testClientResponseValidation(t *testing.T, tr *Transport, rsp []byte, expec
 }
 
 func TestClientRequestLengthLimit(t *testing.T) {
+	t.Run("too long", func(t *testing.T) { testClientRequestLengthLimit(t, 8) })
+	t.Run("too short", func(t *testing.T) { testClientRequestLengthLimit(t, 16) })
+}
+
+func testClientRequestLengthLimit(t *testing.T, contentLength int64) {
+	t.Helper()
 	clientConn, serverConn := newConnPair(t)
 
 	cc := (&Transport{}).NewClientConn(clientConn)
@@ -293,7 +301,7 @@ func TestClientRequestLengthLimit(t *testing.T) {
 	body := bytes.NewBufferString("request body")
 	go func() {
 		req := httptest.NewRequest(http.MethodPost, "http://quic-go.net", body)
-		req.ContentLength = 8
+		req.ContentLength = contentLength
 		_, err := cc.RoundTrip(req)
 		errChan <- err
 	}()
@@ -316,6 +324,76 @@ func TestClientRequestLengthLimit(t *testing.T) {
 		require.NoError(t, err)
 	case <-time.After(time.Second):
 		t.Fatal("timeout")
+	}
+}
+
+func TestClientResponseContentLength(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		method        string
+		status        int
+		contentLength int64
+		data          string
+		wantErr       error
+	}{
+		{name: "short", method: http.MethodGet, status: http.StatusOK, contentLength: 6, data: "foo", wantErr: io.ErrUnexpectedEOF},
+		{name: "exact", method: http.MethodGet, status: http.StatusOK, contentLength: 3, data: "foo"},
+		{name: "unknown", method: http.MethodGet, status: http.StatusOK, contentLength: -1, data: "foo"},
+		{name: "HEAD", method: http.MethodHead, status: http.StatusOK, contentLength: 6},
+		{name: "304", method: http.MethodGet, status: http.StatusNotModified, contentLength: 6},
+		{name: "204", method: http.MethodGet, status: http.StatusNoContent, contentLength: 6},
+		{name: "terminal 1xx", method: http.MethodGet, status: http.StatusSwitchingProtocols, contentLength: 6},
+		{name: "empty CONNECT", method: http.MethodConnect, status: http.StatusOK, contentLength: 6},
+		{name: "short CONNECT", method: http.MethodConnect, status: http.StatusOK, contentLength: 6, data: "foo"},
+		{name: "long CONNECT", method: http.MethodConnect, status: http.StatusOK, contentLength: 6, data: "foobarfoo"},
+		{name: "CONNECT 204", method: http.MethodConnect, status: http.StatusNoContent, contentLength: 6, data: "foo"},
+		{name: "unsuccessful CONNECT", method: http.MethodConnect, status: http.StatusForbidden, contentLength: 6, data: "foo", wantErr: io.ErrUnexpectedEOF},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client, server := newConnPair(t)
+			cc := (&Transport{}).NewClientConn(client)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				rsp, err := cc.RoundTrip(httptest.NewRequest(tc.method, "https://www.example.com", nil))
+				if !assert.NoError(t, err) {
+					return
+				}
+				defer rsp.Body.Close()
+				assert.Equal(t, tc.contentLength, rsp.ContentLength)
+				data, err := io.ReadAll(rsp.Body)
+				assert.Equal(t, tc.data, string(data))
+				if tc.wantErr != nil {
+					assert.ErrorIs(t, err, tc.wantErr)
+				} else {
+					assert.NoError(t, err)
+				}
+			}()
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			str, err := server.AcceptStream(ctx)
+			require.NoError(t, err)
+			require.NoError(t, str.SetDeadline(time.Now().Add(time.Second)))
+			var headers bytes.Buffer
+			enc := qpack.NewEncoder(&headers)
+			require.NoError(t, enc.WriteField(qpack.HeaderField{Name: ":status", Value: strconv.Itoa(tc.status)}))
+			if tc.contentLength >= 0 {
+				require.NoError(t, enc.WriteField(qpack.HeaderField{Name: "content-length", Value: strconv.FormatInt(tc.contentLength, 10)}))
+			}
+			rsp := (&headersFrame{Length: uint64(headers.Len())}).Append(nil)
+			rsp = append(rsp, headers.Bytes()...)
+			if tc.data != "" {
+				rsp = append(rsp, getDataFrame([]byte(tc.data))...)
+			}
+			_, err = str.Write(rsp)
+			require.NoError(t, err)
+			require.NoError(t, str.Close())
+			select {
+			case <-done:
+			case <-ctx.Done():
+				t.Fatal("response body read did not finish")
+			}
+		})
 	}
 }
 

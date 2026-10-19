@@ -20,6 +20,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRawServerConnTruncatedRequestBody(t *testing.T) {
+	client, server := newConnPair(t)
+	str, err := client.OpenStream()
+	require.NoError(t, err)
+	require.NoError(t, str.SetDeadline(time.Now().Add(time.Second)))
+	req := httptest.NewRequest(http.MethodPost, "https://www.example.com", bytes.NewBufferString("foo"))
+	req.ContentLength = 6
+	_, err = str.Write(encodeRequest(t, req))
+	require.NoError(t, err)
+	require.NoError(t, str.Close())
+
+	called := false
+	s := &Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		require.Equal(t, int64(6), r.ContentLength)
+		data, err := io.ReadAll(r.Body)
+		require.Equal(t, "foo", string(data))
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	})}
+	conn, err := s.NewRawServerConn(server)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	incoming, err := server.AcceptStream(ctx)
+	require.NoError(t, err)
+	conn.HandleRequestStream(incoming)
+	require.True(t, called)
+	expectStreamReadReset(t, str, quic.StreamErrorCode(ErrCodeMessageError))
+}
+
 func TestRawServerConnPreservesCallerReadDeadline(t *testing.T) {
 	for _, timeout := range []time.Duration{0, -1} {
 		for _, completeHeaders := range []bool{false, true} {
