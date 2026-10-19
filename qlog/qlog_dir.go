@@ -18,7 +18,7 @@ const EventSchema = "urn:ietf:params:qlog:events:quic-12"
 
 // DefaultConnectionTracer creates a qlog file in the qlog directory specified by the QLOGDIR environment variable.
 // File names are <odcid>_<perspective>.sqlog.
-// New directories and files are created with owner-only permissions (0700 and 0600, respectively, before umask).
+// On Unix filesystems that honor ordinary mode bits, new directories request mode 0700 and new files request mode 0600, before umask.
 // Existing directory permissions are left unchanged; QLOGDIR and its parents must be trusted.
 // Qlogs can contain sensitive data, including HTTP headers and QUIC tokens.
 // Returns nil if QLOGDIR is not set, the file already exists, or the log directory or file cannot be created.
