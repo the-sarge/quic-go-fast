@@ -6061,3 +6061,28 @@ The regression reproduced 160 MiB of header-buffer capacity across 16 prefix-onl
 ### Next
 
 [Issue #840](https://github.com/the-sarge/quic-go-fast/issues/840) tracks the pre-existing server request-header and shared trailer allocations from review clusters C-001/C-005. Both owners were revalidated against the merged SHA before filing. The issue tracker is the live view; optional buffer-growth and small-response allocation optimizations remain outside this fix.
+
+---
+
+## Incomplete HTTP/3 request headers bounded - 2026-10-19 01:12 EDT
+
+**Main:** `28a01df8fd6b`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #839](https://github.com/the-sarge/quic-go-fast/pull/839) as `28a01df8fd6b293f878f80046ade7c20faed8f3a`, fixing Security Cloud finding `csf_133396471152fed4f533f4a3` for incomplete initial request headers. Buffers grow with received payload under a shared per-connection `MaxHeaderBytes` capacity budget. Incomplete headers no longer suspend HTTP idle enforcement, and `ReadHeaderTimeout` defaults to 30 seconds with a negative-value opt-out. Budget exhaustion deliberately resets the affected stream with `H3_EXCESSIVE_LOAD`, including individually valid requests when aggregate capacity is exhausted.
+
+A separate header cancellation timer preserves caller-owned stream read deadlines and stops before valid request activation. The original 100-stream regression reproduced about 101 MiB of allocation amplification; the new regression bounds total allocations, including test and transport overhead, below 16 MiB.
+
+### Validation
+
+- Exact final head: `55570de26ab748cd4900a158122d3d693cbb2640`. HTTP/3 and HTTP integration race suites, affected-package `go vet`, `go mod tidy -diff`, affected-package lint, whitespace checks and the focused caller-deadline regression with `TIMESCALE_FACTOR=20` passed with a clean worktree.
+- All five hosted PR workflows and every job passed on that exact head: unit tests, integration, lint, cross-compilation and interop Docker build.
+- RAS initial review `20261019T043421-ed5f1cb81c38161d172cfe6d` completed with six successful reviewers and no Fix First items. Independent disposition accepted the caller-deadline compatibility finding; its regression failed before the fix, then passed. Pinned verification at `caf66c40` and `55570de2` resolved that finding with blocking projection clear and coverage of all four source clusters.
+- Replacement review `20261019T045613-ec3c0420d2a4d312d5243b51` completed with three successful reviewers and no required fixes. Aggregate-admission and pre-HEADERS parser-allocation defect claims were rejected against the declared contract. The reviews were not posted by RAS; independent dispositions and verification history are recorded in the PR discussion.
+- Linux race CI exposed an observation-deadline scaling error in the new regression. The exact environment reproduced it locally; a test-only correction passed locally and in the final hosted matrix. No same-head hosted rerun was requested.
+
+### Next
+
+[Issue #840](https://github.com/the-sarge/quic-go-fast/issues/840) remains the live view for the pre-existing shared trailer allocation. `http3/headers.go:453-454` was revalidated against merged commit `28a01df8fd6b293f878f80046ade7c20faed8f3a`; the existing issue was updated to mark initial server request headers resolved and retain client/server trailer work. No duplicate issue was created.
