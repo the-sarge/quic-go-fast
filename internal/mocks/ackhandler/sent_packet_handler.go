@@ -43,6 +43,44 @@ func (m *MockSentPacketHandler) EXPECT() *MockSentPacketHandlerMockRecorder {
 	return m.recorder
 }
 
+// CanSendPathProbe mocks base method.
+func (m *MockSentPacketHandler) CanSendPathProbe() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CanSendPathProbe")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// CanSendPathProbe indicates an expected call of CanSendPathProbe.
+func (mr *MockSentPacketHandlerMockRecorder) CanSendPathProbe() *MockSentPacketHandlerCanSendPathProbeCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanSendPathProbe", reflect.TypeOf((*MockSentPacketHandler)(nil).CanSendPathProbe))
+	return &MockSentPacketHandlerCanSendPathProbeCall{Call: call}
+}
+
+// MockSentPacketHandlerCanSendPathProbeCall wrap *gomock.Call
+type MockSentPacketHandlerCanSendPathProbeCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockSentPacketHandlerCanSendPathProbeCall) Return(arg0 bool) *MockSentPacketHandlerCanSendPathProbeCall {
+	c.Call = c.Call.Return(arg0)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockSentPacketHandlerCanSendPathProbeCall) Do(f func() bool) *MockSentPacketHandlerCanSendPathProbeCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockSentPacketHandlerCanSendPathProbeCall) DoAndReturn(f func() bool) *MockSentPacketHandlerCanSendPathProbeCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // DropPackets mocks base method.
 func (m *MockSentPacketHandler) DropPackets(arg0 protocol.EncryptionLevel, rcvTime monotime.Time) {
 	m.ctrl.T.Helper()

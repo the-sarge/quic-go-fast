@@ -32,6 +32,9 @@ const (
 // Path probe packets are declared lost after this time.
 const pathProbePacketLossTimeout = time.Second
 
+// Bound peer-triggered probe state independently of ordinary packet recovery.
+const maxOutstandingPathProbes = 32
+
 type packetNumberSpace struct {
 	history sentPacketHistory
 	pns     packetNumberGenerator
@@ -663,8 +666,10 @@ func (h *sentPacketHandler) detectAndRemoveAckedPackets(
 				f.Handler.OnAcked(f.Frame)
 			}
 		}
-		if err := pnSpace.history.Remove(p.PacketNumber); err != nil {
-			return nil, false, err
+		if !p.isPathProbePacket {
+			if err := pnSpace.history.Remove(p.PacketNumber); err != nil {
+				return nil, false, err
+			}
 		}
 	}
 	// TODO: add support for the transport:packets_acked qlog event
@@ -825,19 +830,15 @@ func (h *sentPacketHandler) detectLostPathProbes(now monotime.Time) {
 		return
 	}
 	lossTime := now.Add(-pathProbePacketLossTimeout)
-	// RemovePathProbe cannot be called while iterating.
-	var lostPathProbes []packetWithPacketNumber
 	for pn, p := range h.appDataPackets.history.PathProbes() {
-		if !p.SendTime.After(lossTime) {
-			lostPathProbes = append(lostPathProbes, packetWithPacketNumber{PacketNumber: pn, packet: p})
+		if p.SendTime.After(lossTime) {
+			continue
 		}
-	}
-	for _, p := range lostPathProbes {
+		h.appDataPackets.history.RemovePathProbe(pn)
 		for _, f := range p.Frames {
 			f.Handler.OnLost(f.Frame)
 		}
-		h.appDataPackets.history.RemovePathProbe(p.PacketNumber)
-		h.discardCongestionPacket(protocol.Encryption1RTT, p.PacketNumber)
+		h.discardCongestionPacket(protocol.Encryption1RTT, pn)
 	}
 }
 
@@ -1065,7 +1066,7 @@ func (h *sentPacketHandler) SendAllowance(now monotime.Time) (SendMode, protocol
 	return h.sendMode(now, false), allowance
 }
 
-func (h *sentPacketHandler) sendMode(now monotime.Time, paced bool) SendMode {
+func (h *sentPacketHandler) numTrackedPackets() int {
 	numTrackedPackets := h.appDataPackets.history.Len()
 	if h.initialPackets != nil {
 		numTrackedPackets += h.initialPackets.history.Len()
@@ -1073,6 +1074,23 @@ func (h *sentPacketHandler) sendMode(now monotime.Time, paced bool) SendMode {
 	if h.handshakePackets != nil {
 		numTrackedPackets += h.handshakePackets.history.Len()
 	}
+	return numTrackedPackets
+}
+
+func (h *sentPacketHandler) CanSendPathProbe() bool {
+	if h.appDataPackets.history.pathProbePackets.Len() >= maxOutstandingPathProbes {
+		return false
+	}
+	// Popping the next packet number can also insert a skipped-number marker.
+	additional := 1
+	if h.appDataPackets.history.Len() > 0 {
+		additional = int(h.appDataPackets.pns.Peek() - h.appDataPackets.history.highestPacketNumber)
+	}
+	return h.numTrackedPackets()+additional <= protocol.MaxTrackedSentPackets
+}
+
+func (h *sentPacketHandler) sendMode(now monotime.Time, paced bool) SendMode {
+	numTrackedPackets := h.numTrackedPackets()
 
 	if h.isAmplificationLimited() {
 		h.logger.Debugf("Amplification window limited. Received %d bytes, already sent out %d bytes", h.bytesReceived, h.bytesSent)
