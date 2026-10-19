@@ -55,10 +55,14 @@ func TestNetworkAdmissionEligibleRebindingAndSpoofedTraffic(t *testing.T) {
 	var genuine, serverPacket []byte
 	var outgoing atomic.Int64
 	proxy := &quicproxy.Proxy{Conn: newUDPConnLocalhost(t), ServerAddr: ln.Addr().(*net.UDPAddr), ObserveSocket: func(e quicproxy.SocketEvent) {
-		if e.Direction == quicproxy.DirectionIncoming && e.Operation == "write" && e.Err == nil && len(e.Data) > 0 && !wire.IsLongHeaderPacket(e.Data[0]) {
-			captureMutex.Lock()
-			genuine = append([]byte(nil), e.Data...)
-			captureMutex.Unlock()
+		// The proxy reports a read before it forwards the datagram, so the server
+		// cannot process a client packet before it is captured here.
+		if e.Direction == quicproxy.DirectionIncoming && e.Operation == "read" && e.Err == nil {
+			if packet := shortHeaderPacket(e.Data); len(packet) > 0 {
+				captureMutex.Lock()
+				genuine = append([]byte(nil), packet...)
+				captureMutex.Unlock()
+			}
 		}
 		if e.Direction == quicproxy.DirectionOutgoing && e.Operation == "write" && e.Err == nil {
 			outgoing.Add(1)
@@ -135,4 +139,18 @@ func exchangeAdmissionStream(t *testing.T, ctx context.Context, client, server *
 	data, err := io.ReadAll(received)
 	require.NoError(t, err)
 	require.Equal(t, "admitted reliable content", string(data))
+}
+
+// shortHeaderPacket returns the short-header packet that ends a datagram,
+// skipping coalesced long-header packets the way the connection does. quic-go
+// pads inside packets, so the bytes after them form exactly one packet.
+func shortHeaderPacket(datagram []byte) []byte {
+	for len(datagram) > 0 && wire.IsLongHeaderPacket(datagram[0]) {
+		_, _, rest, err := wire.ParsePacket(datagram)
+		if err != nil {
+			return nil
+		}
+		datagram = rest
+	}
+	return datagram
 }
