@@ -1,0 +1,6 @@
+//go:build !dropcount
+
+package main
+
+// receiveDrops reports nothing in sender builds, which are unpatched.
+func receiveDrops() map[string]any { return nil }

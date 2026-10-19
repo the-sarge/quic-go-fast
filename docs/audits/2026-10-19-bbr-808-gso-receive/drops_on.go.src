@@ -1,0 +1,12 @@
+//go:build dropcount
+
+package main
+
+import "github.com/quic-go/quic-go"
+
+// receiveDrops reports the receiver tree's measurement-only drop counters
+// (recvcount-main.patch or recvcount-cand.patch).
+func receiveDrops() map[string]any {
+	datagramQueue, unprocessed := quic.DebugReceiveDropsV743()
+	return map[string]any{"datagram_queue_drops": datagramQueue, "unprocessed_drops": unprocessed}
+}
