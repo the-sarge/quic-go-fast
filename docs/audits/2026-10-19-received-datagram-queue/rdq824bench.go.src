@@ -1,0 +1,476 @@
+// rdq824bench is the #824 measurement harness: #743's gso743bench with three
+// receiver-side additions. The receiver reads the connection's
+// DatagramReceiveDropsV1 by interface assertion after the connection has
+// closed (absent on main), and reports its own peak RSS from VmHWM. One
+// process per role, so each role's CPU time is its own. It uses
+// quic-go-fast's public API and is built once per source tree with a replace
+// directive. Receiver builds add measurement-only drop counters (drops_on.go,
+// build tag dropcount, against a tree patched with recvcount-main.patch or
+// recvcount-cand.patch).
+//
+//	receiver: rdq824bench -role recv -addr 127.0.0.1:47430 -mode datagram
+//	sender:   rdq824bench -role send -addr 127.0.0.1:47430 -mode datagram -payload 1190 -duration 10s
+//
+// Modes: datagram (SendDatagram in a tight loop), stream (64 KiB writes on one
+// unidirectional stream), mixed (both at once on one connection). The sender's
+// socket is wrapped to count sendmsg calls and the segments each carries; the
+// wrapper keeps quic-go's batched receive. Each role prints one JSON line.
+// A verification aid for #824's measurement gate, archived with its record;
+// not a maintained deliverable.
+package main
+
+import (
+	"bufio"
+	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/binary"
+	"encoding/json"
+	"encoding/pem"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"math/big"
+	"net"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+
+	"golang.org/x/net/ipv4"
+	"golang.org/x/sys/unix"
+
+	"github.com/quic-go/quic-go"
+)
+
+const alpn = "rdq824bench"
+
+func main() {
+	role := flag.String("role", "", "send or recv")
+	addr := flag.String("addr", "127.0.0.1:47430", "receiver UDP address")
+	mode := flag.String("mode", "datagram", "datagram, stream or mixed")
+	payload := flag.Int("payload", 1190, "DATAGRAM payload bytes")
+	duration := flag.Duration("duration", 10*time.Second, "send duration")
+	certFile := flag.String("cert", "rdq824bench.pem", "receiver certificate, written by recv and trusted by send")
+	flag.Parse()
+	var out map[string]any
+	var err error
+	switch *role {
+	case "recv":
+		out, err = receive(*addr, *mode, *certFile)
+	case "send":
+		out, err = send(*addr, *mode, *payload, *duration, *certFile)
+	default:
+		err = fmt.Errorf("unknown role %q", *role)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	out["role"], out["mode"] = *role, *mode
+	out["disable_gso_env"] = os.Getenv("QUIC_GO_DISABLE_GSO")
+	out["disable_short_gso_segments_env"] = os.Getenv("QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS")
+	line, _ := json.Marshal(out)
+	fmt.Println(string(line))
+}
+
+func config() *quic.Config {
+	return &quic.Config{
+		EnableDatagrams:                true,
+		InitialStreamReceiveWindow:     4 << 20,
+		MaxStreamReceiveWindow:         16 << 20,
+		InitialConnectionReceiveWindow: 8 << 20,
+		MaxConnectionReceiveWindow:     24 << 20,
+		MaxIdleTimeout:                 30 * time.Second,
+	}
+}
+
+type cpu struct{ user, sys time.Duration }
+
+func now() cpu {
+	var ru syscall.Rusage
+	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &ru)
+	return cpu{time.Duration(ru.Utime.Nano()), time.Duration(ru.Stime.Nano())}
+}
+
+func (c cpu) since(start cpu, out map[string]any) {
+	out["cpu_user_s"] = (c.user - start.user).Seconds()
+	out["cpu_sys_s"] = (c.sys - start.sys).Seconds()
+}
+
+func stats(conn *quic.Conn, out map[string]any) {
+	s := conn.ConnectionStats()
+	out["packets_sent"], out["packets_lost"], out["packets_received"] = s.PacketsSent, s.PacketsLost, s.PacketsReceived
+	out["min_rtt_us"], out["srtt_us"] = s.MinRTT.Microseconds(), s.SmoothedRTT.Microseconds()
+}
+
+// flow records one received flow's bytes and first and last receipt.
+type flow struct {
+	bytes       int64
+	first, last time.Time
+}
+
+func (f *flow) add(n int, t time.Time) {
+	if f.bytes == 0 {
+		f.first = t
+	}
+	f.bytes += int64(n)
+	f.last = t
+}
+
+func (f *flow) report(prefix string, out map[string]any) {
+	elapsed := f.last.Sub(f.first)
+	out[prefix+"bytes"], out[prefix+"elapsed_ns"] = f.bytes, elapsed.Nanoseconds()
+	if elapsed > 0 {
+		out[prefix+"mbps"] = float64(f.bytes) * 8 / elapsed.Seconds() / 1e6
+	}
+}
+
+func receive(addr, mode, certFile string) (map[string]any, error) {
+	udpAddr, err := net.ResolveUDPAddr("udp4", addr)
+	if err != nil {
+		return nil, err
+	}
+	udp, err := net.ListenUDP("udp4", udpAddr)
+	if err != nil {
+		return nil, err
+	}
+	tr := &quic.Transport{Conn: udp}
+	defer tr.Close()
+	tlsConf, err := serverTLS(certFile)
+	if err != nil {
+		return nil, err
+	}
+	ln, err := tr.Listen(tlsConf, config())
+	if err != nil {
+		return nil, err
+	}
+	// The sender waits for this line before dialing.
+	fmt.Fprintln(os.Stderr, "ready")
+	conn, err := ln.Accept(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]any{}
+	var mu sync.Mutex // guards start and the flows' first receipt
+	var start cpu
+	var started bool
+	mark := func(f *flow, n int) {
+		t := time.Now()
+		mu.Lock()
+		if !started {
+			start, started = now(), true
+		}
+		f.add(n, t)
+		mu.Unlock()
+	}
+	var dgrams, streamFlow flow
+	var datagrams, maxSeq int64
+	var wg sync.WaitGroup
+	if mode != "stream" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				b, err := conn.ReceiveDatagram(context.Background())
+				if err != nil {
+					return
+				}
+				mark(&dgrams, len(b))
+				datagrams++
+				if len(b) >= 8 {
+					maxSeq = max(maxSeq, int64(binary.BigEndian.Uint64(b)))
+				}
+			}
+		}()
+	}
+	if mode != "datagram" {
+		str, err := conn.AcceptUniStream(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		buf := make([]byte, 64<<10)
+		for {
+			n, err := str.Read(buf)
+			if n > 0 {
+				mark(&streamFlow, n)
+			}
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+		if mode == "mixed" {
+			// Let DATAGRAMs still in flight arrive before closing.
+			time.Sleep(200 * time.Millisecond)
+		}
+		conn.CloseWithError(0, "done")
+	}
+	wg.Wait()
+	now().since(start, out)
+	// The count must keep its value after close: read it only once the
+	// connection is closed.
+	<-conn.Context().Done()
+	if d, ok := any(conn).(interface{ DatagramReceiveDropsV1() uint64 }); ok {
+		out["drops_v1"] = d.DatagramReceiveDropsV1()
+	}
+	stats(conn, out)
+	if mode != "stream" {
+		dgrams.report("datagram_", out)
+		out["datagrams"], out["max_seq"] = datagrams, maxSeq
+	}
+	if mode != "datagram" {
+		streamFlow.report("stream_", out)
+	}
+	total := flow{bytes: dgrams.bytes + streamFlow.bytes, first: earliest(dgrams.first, streamFlow.first), last: latest(dgrams.last, streamFlow.last)}
+	total.report("", out)
+	out["socket_drops"] = socketDrops(udp)
+	out["vm_hwm_kb"] = vmHWM()
+	for k, v := range receiveDrops() {
+		out[k] = v
+	}
+	return out, nil
+}
+
+func earliest(a, b time.Time) time.Time {
+	if a.IsZero() || (!b.IsZero() && b.Before(a)) {
+		return b
+	}
+	return a
+}
+
+func latest(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
+}
+
+// vmHWM returns this process's peak resident set (VmHWM, KiB) from
+// /proc/self/status; -1 if it cannot be read. Unlike ru_maxrss it starts
+// afresh at execve.
+func vmHWM() int64 {
+	b, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		return -1
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if v, ok := strings.CutPrefix(line, "VmHWM:"); ok {
+			n, err := strconv.ParseInt(strings.TrimSuffix(strings.TrimSpace(v), " kB"), 10, 64)
+			if err != nil {
+				return -1
+			}
+			return n
+		}
+	}
+	return -1
+}
+
+// socketDrops reads the kernel's drop count for the receiver's socket from
+// /proc/self/net/udp; -1 if it cannot be found.
+func socketDrops(udp *net.UDPConn) int64 {
+	port := udp.LocalAddr().(*net.UDPAddr).Port
+	f, err := os.Open("/proc/self/net/udp")
+	if err != nil {
+		return -1
+	}
+	defer f.Close()
+	want := fmt.Sprintf(":%04X", port)
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		fields := strings.Fields(s.Text())
+		if len(fields) < 13 || !strings.HasSuffix(fields[1], want) {
+			continue
+		}
+		drops, err := strconv.ParseInt(fields[len(fields)-1], 10, 64)
+		if err != nil {
+			return -1
+		}
+		return drops
+	}
+	return -1
+}
+
+// countingConn counts sendmsg calls and the UDP segments each carries,
+// without allocating. ReadBatch keeps quic-go's batched receive, which an
+// ordinary wrapper would lose.
+type countingConn struct {
+	*net.UDPConn
+	batch                         *ipv4.PacketConn
+	calls, segments, multi, maxSg atomic.Uint64
+}
+
+func (c *countingConn) ReadBatch(ms []ipv4.Message, flags int) (int, error) {
+	return c.batch.ReadBatch(ms, flags)
+}
+
+func (c *countingConn) WriteMsgUDP(b, oob []byte, addr *net.UDPAddr) (int, int, error) {
+	segments := uint64(1)
+	if size := udpSegmentSize(oob); size > 0 {
+		segments = uint64((len(b) + size - 1) / size)
+	}
+	c.calls.Add(1)
+	c.segments.Add(segments)
+	if segments > 1 {
+		c.multi.Add(1)
+	}
+	for m := c.maxSg.Load(); segments > m && !c.maxSg.CompareAndSwap(m, segments); m = c.maxSg.Load() {
+	}
+	return c.UDPConn.WriteMsgUDP(b, oob, addr)
+}
+
+// udpSegmentSize returns the UDP_SEGMENT size in a Linux control message
+// buffer, or 0. Layout: a 16-byte cmsghdr (len uint64, level, type int32)
+// followed by data, each message aligned to 8 bytes.
+func udpSegmentSize(oob []byte) int {
+	for len(oob) >= unix.SizeofCmsghdr {
+		l := int(binary.NativeEndian.Uint64(oob))
+		if l < unix.SizeofCmsghdr || l > len(oob) {
+			return 0
+		}
+		level := int32(binary.NativeEndian.Uint32(oob[8:]))
+		typ := int32(binary.NativeEndian.Uint32(oob[12:]))
+		if level == unix.IPPROTO_UDP && typ == unix.UDP_SEGMENT && l >= unix.SizeofCmsghdr+2 {
+			return int(binary.NativeEndian.Uint16(oob[unix.SizeofCmsghdr:]))
+		}
+		next := (l + 7) &^ 7
+		if next >= len(oob) {
+			return 0
+		}
+		oob = oob[next:]
+	}
+	return 0
+}
+
+func send(addr, mode string, payload int, duration time.Duration, certFile string) (map[string]any, error) {
+	pemBytes, err := os.ReadFile(certFile)
+	if err != nil {
+		return nil, err
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(pemBytes) {
+		return nil, errors.New("no certificate in " + certFile)
+	}
+	udpAddr, err := net.ResolveUDPAddr("udp4", addr)
+	if err != nil {
+		return nil, err
+	}
+	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		return nil, err
+	}
+	cc := &countingConn{UDPConn: udp, batch: ipv4.NewPacketConn(udp)}
+	tr := &quic.Transport{Conn: cc}
+	defer tr.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := tr.Dial(ctx, udpAddr, &tls.Config{RootCAs: roots, ServerName: "localhost", NextProtos: []string{alpn}}, config())
+	if err != nil {
+		return nil, err
+	}
+	// Count only the measured window, not the handshake.
+	calls0, segments0, multi0 := cc.calls.Load(), cc.segments.Load(), cc.multi.Load()
+	out := map[string]any{}
+	start := now()
+	begin := time.Now()
+	deadline := begin.Add(duration)
+	var wg sync.WaitGroup
+	var streamSent atomic.Int64
+	var streamErr error
+	if mode != "datagram" {
+		str, err := conn.OpenUniStream()
+		if err != nil {
+			return nil, err
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			b := make([]byte, 64<<10)
+			for time.Now().Before(deadline) {
+				n, err := str.Write(b)
+				streamSent.Add(int64(n))
+				if err != nil {
+					streamErr = err
+					return
+				}
+			}
+			streamErr = str.Close()
+		}()
+	}
+	var seq int64
+	var sendErr error
+	if mode != "stream" {
+		b := make([]byte, payload)
+		for time.Now().Before(deadline) {
+			seq++
+			binary.BigEndian.PutUint64(b, uint64(seq))
+			if err := conn.SendDatagram(b); err != nil {
+				sendErr = fmt.Errorf("datagram %d: %w", seq, err)
+				seq--
+				break
+			}
+		}
+		out["sent_datagrams"] = seq
+	}
+	wg.Wait()
+	if sendErr != nil {
+		return nil, sendErr
+	}
+	if streamErr != nil {
+		return nil, streamErr
+	}
+	if mode == "datagram" {
+		// As #742: CPU over the send loop, then let the last queued datagrams
+		// leave before closing.
+		now().since(start, out)
+		out["elapsed_ns"] = time.Since(begin).Nanoseconds()
+		time.Sleep(200 * time.Millisecond)
+	} else {
+		// The receiver closes the connection after reading the whole stream.
+		select {
+		case <-conn.Context().Done():
+		case <-time.After(30 * time.Second):
+			return nil, errors.New("receiver did not close")
+		}
+		now().since(start, out)
+		out["elapsed_ns"] = time.Since(begin).Nanoseconds()
+	}
+	out["sent_datagram_bytes"] = seq * int64(payload)
+	out["sent_stream_bytes"] = streamSent.Load()
+	stats(conn, out)
+	if mode == "datagram" {
+		conn.CloseWithError(0, "done")
+	}
+	out["sendmsg_calls"] = cc.calls.Load() - calls0
+	out["sendmsg_segments"] = cc.segments.Load() - segments0
+	out["sendmsg_multi"] = cc.multi.Load() - multi0
+	out["sendmsg_max_segments"] = cc.maxSg.Load()
+	return out, nil
+}
+
+// serverTLS creates an ephemeral self-signed certificate and writes it to
+// certFile for the sender to trust.
+func serverTLS(certFile string) (*tls.Config, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"localhost"}, IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600); err != nil {
+		return nil, err
+	}
+	return &tls.Config{Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}, NextProtos: []string{alpn}}, nil
+}

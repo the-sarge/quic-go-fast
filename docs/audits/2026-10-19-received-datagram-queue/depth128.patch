@@ -1,0 +1,11 @@
+--- a/datagram_queue.go
++++ b/datagram_queue.go
+@@ -12,7 +12,7 @@
+ 
+ const (
+ 	maxDatagramSendQueueLen = 32
+-	maxDatagramRcvQueueLen  = 1024
++	maxDatagramRcvQueueLen  = 128
+ )
+ 
+ type datagramQueue struct {
