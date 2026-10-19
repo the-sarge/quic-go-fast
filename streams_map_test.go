@@ -288,6 +288,70 @@ func TestStreamsMapHandleReceiveStreamFrames(t *testing.T) {
 	}
 }
 
+func TestStreamsMapSparseIncomingStreamFrames(t *testing.T) {
+	for _, perspective := range []protocol.Perspective{protocol.PerspectiveClient, protocol.PerspectiveServer} {
+		for _, streamType := range []protocol.StreamType{protocol.StreamTypeBidi, protocol.StreamTypeUni} {
+			for _, tc := range []struct {
+				name        string
+				bidiOnly    bool
+				handleFrame func(*streamsMap, protocol.StreamID) error
+			}{
+				{name: "STREAM", handleFrame: func(m *streamsMap, id protocol.StreamID) error {
+					return m.HandleStreamFrame(&wire.StreamFrame{StreamID: id}, monotime.Now())
+				}},
+				{name: "RESET_STREAM", handleFrame: func(m *streamsMap, id protocol.StreamID) error {
+					return m.HandleResetStreamFrame(&wire.ResetStreamFrame{StreamID: id}, monotime.Now())
+				}},
+				{name: "STREAM_DATA_BLOCKED", handleFrame: func(m *streamsMap, id protocol.StreamID) error {
+					return m.HandleStreamDataBlockedFrame(&wire.StreamDataBlockedFrame{StreamID: id})
+				}},
+				{name: "STOP_SENDING", bidiOnly: true, handleFrame: func(m *streamsMap, id protocol.StreamID) error {
+					return m.HandleStopSendingFrame(&wire.StopSendingFrame{StreamID: id})
+				}},
+				{name: "MAX_STREAM_DATA", bidiOnly: true, handleFrame: func(m *streamsMap, id protocol.StreamID) error {
+					return m.HandleMaxStreamDataFrame(&wire.MaxStreamDataFrame{StreamID: id})
+				}},
+			} {
+				if tc.bidiOnly && streamType == protocol.StreamTypeUni {
+					continue
+				}
+				t.Run(fmt.Sprintf("%s/%d/%s", perspective, streamType, tc.name), func(t *testing.T) {
+					config, err := prepareConfig(&Config{
+						MaxIncomingStreams:    int64(protocol.MaxStreamCount),
+						MaxIncomingUniStreams: int64(protocol.MaxStreamCount),
+					})
+					require.NoError(t, err)
+					mockSender := NewMockStreamSender(gomock.NewController(t))
+					mockSender.EXPECT().onHasStreamControlFrame(gomock.Any(), gomock.Any()).AnyTimes()
+					var created []protocol.StreamID
+					m := newStreamsMap(
+						context.Background(),
+						mockSender,
+						func(wire.Frame) {},
+						func(id protocol.StreamID) *streamFlowController {
+							created = append(created, id)
+							// Fail promptly if sparse IDs ever allocate their gaps again.
+							require.Len(t, created, 1)
+							return newTestStreamFlowController(id)
+						},
+						uint64(config.MaxIncomingStreams),
+						uint64(config.MaxIncomingUniStreams),
+						perspective,
+					)
+					defer m.CloseWithError(assert.AnError)
+					id := protocol.MaxStreamCount.StreamID(streamType, perspective.Opposite())
+					require.NoError(t, tc.handleFrame(m, id))
+					require.Equal(t, []protocol.StreamID{id}, created)
+					require.NoError(t, tc.handleFrame(m, id))
+					require.Equal(t, []protocol.StreamID{id}, created)
+					require.ErrorIs(t, tc.handleFrame(m, id+4), &qerr.TransportError{ErrorCode: qerr.StreamLimitError})
+					require.Equal(t, []protocol.StreamID{id}, created)
+				})
+			}
+		}
+	}
+}
+
 func testStreamsMapHandleReceiveStreamFrames(t *testing.T, pers protocol.Perspective, handleFrame func(*streamsMap, protocol.StreamID) error) {
 	mockCtrl := gomock.NewController(t)
 	mockSender := NewMockStreamSender(mockCtrl)
