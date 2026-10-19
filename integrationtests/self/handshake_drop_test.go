@@ -390,25 +390,41 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 }
 
 func TestHandshakePacketBuffering(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		curve tls.CurveID
+	}{
+		{name: "hybrid", curve: tls.X25519MLKEM768},
+		{name: "classical", curve: tls.CurveP384},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testHandshakePacketBuffering(t, tc.curve)
+		})
+	}
+}
+
+func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID) {
+	t.Helper()
+
 	synctest.Test(t, func(t *testing.T) {
 		const rtt = 20 * time.Millisecond
 
 		clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
 		serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
-		var droppedFirst atomic.Bool
+		var corruptedFirst atomic.Bool
 		n := &simnet.Simnet{
-			Router: &directionAwareDroppingRouter{
-				ClientAddr: clientAddr,
-				ServerAddr: serverAddr,
-				Drop: func(d direction, p simnet.Packet) bool {
-					if droppedFirst.Load() {
-						return false
+			Router: &callbackRouter{
+				Router: &simnet.PerfectRouter{},
+				OnSendPacket: func(p simnet.Packet) {
+					if corruptedFirst.Load() || p.To.String() != clientAddr.String() {
+						return
 					}
-					if d == directionToClient && containsPacketType(p.Data, protocol.PacketTypeInitial) {
-						droppedFirst.Store(true)
-						return true
+					// Invalidate only the Initial, preserving coalesced Handshake
+					// packets that the client must buffer until keys are available.
+					offset, ok := handshakeCorruptionOffset(p.Data, protocol.PacketTypeInitial)
+					if ok && corruptedFirst.CompareAndSwap(false, true) {
+						p.Data[offset] ^= 1
 					}
-					return false
 				},
 			},
 		}
@@ -430,15 +446,18 @@ func TestHandshakePacketBuffering(t *testing.T) {
 		defer ln.Close()
 
 		var clientEventRecorder events.Recorder
+		clientTLS := getTLSClientConfig()
+		clientTLS.CurvePreferences = []tls.CurveID{curve}
 		conn, err := quic.Dial(
 			context.Background(),
 			clientConn,
 			ln.Addr(),
-			getTLSClientConfig(),
+			clientTLS,
 			getQuicConfig(&quic.Config{Tracer: newTracer(&clientEventRecorder)}),
 		)
 		require.NoError(t, err)
 		defer conn.CloseWithError(0, "")
+		require.True(t, corruptedFirst.Load(), "must invalidate a server Initial")
 		str, err := conn.OpenUniStream()
 		require.NoError(t, err)
 		data := []byte("foobar")
