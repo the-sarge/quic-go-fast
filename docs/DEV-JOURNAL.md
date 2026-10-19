@@ -5910,3 +5910,54 @@ Its helpers read the real clock. The first RTT sample is about 1 ms, so time-thr
 ### Next
 
 - As of this entry, [#808](https://github.com/the-sarge/quic-go-fast/issues/808) has not started, so the shared BBR campaign will measure the 1,024-entry receiver. On this host, 1,024 came within 0.0006 points of the line in one run. GitHub issues are the live view.
+
+---
+
+## The listener shutdown tests wait for the long request's handler - 2026-10-18 23:08 EDT
+
+**Main:** `e0cf78686fc2`
+**Actor:** Claude
+
+### Summary
+
+[#827](https://github.com/the-sarge/quic-go-fast/issues/827) is closed by [PR #831](https://github.com/the-sarge/quic-go-fast/pull/831) (squash `e0cf7868`). `TestHTTP3ListenerGracefulShutdown/application_listener` failed once on hosted macOS integration ([run 39176234158, job 117819371517](https://github.com/the-sarge/quic-go-fast/actions/runs/39176234158/job/117819371517), QUIC v2 step, journal-only PR #826) with `graceful shutdown should not have returned: <nil>`. The graceful branch of `testHTTP3ListenerClosing` dialed the `/long` request in a goroutine and slept a fixed scaled 10 ms (30 ms on hosted runners) before `Server.Shutdown`. When the request had not reached its handler by then, `Shutdown` had no active request to wait for and returned nil at once. Tests only; no production code changed.
+
+### Completed
+
+- The `/long` handler now closes `handlerStarted` before blocking, and the graceful branch starts `Shutdown` only after that signal, as `TestGracefulShutdownLongLivedRequest` already does.
+  - If the long request returns first, the test fails at once with `long request returned before reaching the handler: <err>`.
+  - If the handler hasn't started after 1 s, it fails with `long request did not reach the handler`. One second is the bound the helper's other waits use and the long request's own context deadline.
+- The assertions after `Shutdown` are unchanged, and so is the non-graceful `TestHTTP3ListenerClosing` path.
+
+### Decisions
+
+- The [#827 agent brief](https://github.com/the-sarge/quic-go-fast/issues/827#issuecomment-6258581812) ruled out a product race. The handler runs synchronously under `Server.handleConn`'s `WaitGroup`, on a connection counted by `admitConn`, so `Shutdown` cannot return nil while it runs. Other fixed sleeps in the HTTP shutdown tests stayed out of scope.
+- Upstream quic-go (`431fe2e3`) has the same sleep. As with #822, this is an independently reviewable fork patch under ADR 0003, with no upstream PR.
+- RAS raised one low observation: when the dial stalls, the 1 s timer and the request's 1 s context can both fire, so either message may print. It was rejected. Both messages are truthful and stop before `Shutdown`, and the contract asks for distinct messages, not a fixed precedence.
+
+### Validation
+
+- **Cause and fix:** a temporary environment-controlled sleep before the long request's dial, not committed. Each cell ran `-run '^TestHTTP3ListenerGracefulShutdown$' -count=20 -version=2` (40 subtest runs) with `TIMESCALE_FACTOR` unset.
+  - At base `2f550727`: no delay passed 40/40; 50 ms failed 40/40, all with the hosted message.
+  - The candidate passed 40/40 both with no delay and with 50 ms.
+  - With the same aid, an injected early return and a 2 s delay produced the two new messages, at once and at 1.00 s.
+- **Race:** `-race -shuffle=on -count=10` over both tests passed with `-version=1` and `-version=2`, 40/40 subtest runs each.
+- **Local certification at `00c0b9f1`, Go 1.27.2:**
+  - full `./integrationtests/self` with `-shuffle on`, v1 and v2;
+  - `go vet` for darwin and windows;
+  - Windows test build;
+  - `go mod tidy -diff` and `git diff --check`;
+  - golangci-lint v2.14.0 on the changed package for the six `lint.yml` GOOS values.
+
+  The v1 run failed once in the unrelated `TestHTTPServerIdleTimeout`: `H3_NO_ERROR: idle timeout`, at its 10 ms unscaled idle timeout with machine load near 12. A same-seed rerun passed, and that test passed 200/200 at both the candidate and the base.
+- **RAS review:** run `20261019T025728-5a77f0caccb79729d1d49228` at `00c0b9f1`. All six reviewers completed. There was no Fix First, only the low observation above, so no replacement round ran.
+- **Hosted:**
+  - The first attempt passed 32 of 33 checks. `Integration (macos, Go 1.27.2)` (pull_request) failed only in `TestNetworkAdmissionEligibleRebindingAndSpoofedTraffic`, the open #828 flake. The changed tests passed in that job, and the push run of the same job passed.
+  - The operator authorized one same-head rerun, and attempt 2 of [run 39192317947](https://github.com/the-sarge/quic-go-fast/actions/runs/39192317947) passed. The receipt is on #828.
+  - All 33 checks then passed on `00c0b9f1`, which was squash-merged with `--match-head-commit`.
+
+### Next
+
+- #828 is still open, now with receipts from ubuntu race, Windows and macOS.
+- The local `TestHTTPServerIdleTimeout` failure did not reproduce and was not filed.
+- No review finding was deferred. GitHub issues are the live view.
