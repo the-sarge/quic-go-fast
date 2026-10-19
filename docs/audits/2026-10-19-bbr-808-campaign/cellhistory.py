@@ -59,7 +59,7 @@ def main(argv):
                    slice7_accepted=None)
         acc = accepted.get(k)
         if acc:
-            row['slice7_accepted'] = {x: acc.get(x) for x in ('ratio', 'blocks_crossing', 'difference_of_arm_medians_ms', 'median_excess_mib') if x in acc}
+            row['slice7_accepted'] = {x: acc.get(x) for x in ('ratio', 'blocks_crossing', 'difference_of_arm_medians_ms', 'excess_median_mib', 'excess_max_mib') if x in acc}
         out.append(row)
     (HERE / 'cell-history.json').write_text(json.dumps(out, indent=1) + '\n')
     fmt = lambda x: '  -  ' if x is None else f'{x:.3f}'
