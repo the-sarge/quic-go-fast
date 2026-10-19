@@ -391,19 +391,21 @@ func TestHandshakeWithPacketLoss(t *testing.T) {
 
 func TestHandshakePacketBuffering(t *testing.T) {
 	for _, tc := range []struct {
-		name  string
-		curve tls.CurveID
+		name             string
+		curve            tls.CurveID
+		delayClientHello bool
 	}{
 		{name: "hybrid", curve: tls.X25519MLKEM768},
 		{name: "classical", curve: tls.CurveP384},
+		{name: "fragmented ClientHello", curve: tls.X25519MLKEM768, delayClientHello: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			testHandshakePacketBuffering(t, tc.curve)
+			testHandshakePacketBuffering(t, tc.curve, tc.delayClientHello)
 		})
 	}
 }
 
-func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID) {
+func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID, delayClientHello bool) {
 	t.Helper()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -411,6 +413,7 @@ func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID) {
 
 		clientAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.1"), Port: 9001}
 		serverAddr := &net.UDPAddr{IP: net.ParseIP("1.0.0.2"), Port: 9002}
+		var serverEventRecorder events.Recorder
 		var corruptedFirst atomic.Bool
 		n := &simnet.Simnet{
 			Router: &callbackRouter{
@@ -419,11 +422,25 @@ func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID) {
 					if corruptedFirst.Load() || p.To.String() != clientAddr.String() {
 						return
 					}
-					// Invalidate only the Initial, preserving coalesced Handshake
-					// packets that the client must buffer until keys are available.
-					offset, ok := handshakeCorruptionOffset(p.Data, protocol.PacketTypeInitial)
-					if ok && corruptedFirst.CompareAndSwap(false, true) {
-						p.Data[offset] ^= 1
+					checksum := qlog.CalculateDatagramPayloadChecksum(p.Data)
+					for _, ev := range serverEventRecorder.Events(qlog.PacketSent{}) {
+						packet := ev.(qlog.PacketSent)
+						if packet.Header.PacketType != qlog.PacketTypeInitial || packet.DatagramPayloadChecksum != checksum {
+							continue
+						}
+						// An ACK-only Initial must not consume the fault. Withhold
+						// the start of ServerHello, preserving coalesced Handshakes.
+						if !slices.ContainsFunc(packet.Frames, func(frame qlog.Frame) bool {
+							crypto, ok := frame.Frame.(*qlog.CryptoFrame)
+							return ok && crypto.Offset == 0 && crypto.Length > 0
+						}) {
+							continue
+						}
+						offset, ok := handshakeCorruptionOffset(p.Data, protocol.PacketTypeInitial)
+						if ok && corruptedFirst.CompareAndSwap(false, true) {
+							p.Data[offset] ^= 1
+						}
+						return
 					}
 				},
 			},
@@ -431,12 +448,21 @@ func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID) {
 		settings := simnet.NodeBiDiLinkSettings{Latency: rtt / 2}
 		clientConn := n.NewEndpoint(clientAddr, settings)
 		defer clientConn.Close()
-		serverConn := n.NewEndpoint(serverAddr, settings)
+		serverSettings := settings
+		if delayClientHello {
+			var clientInitials atomic.Int32
+			serverSettings.LatencyFunc = func(p simnet.Packet) time.Duration {
+				if containsPacketType(p.Data, protocol.PacketTypeInitial) && clientInitials.Add(1) == 2 {
+					return 3 * rtt
+				}
+				return rtt / 2
+			}
+		}
+		serverConn := n.NewEndpoint(serverAddr, serverSettings)
 		defer serverConn.Close()
 		require.NoError(t, n.Start())
 		defer n.Close()
 
-		var serverEventRecorder events.Recorder
 		ln, err := quic.Listen(
 			serverConn,
 			getTLSConfig(),
@@ -465,6 +491,20 @@ func testHandshakePacketBuffering(t *testing.T, curve tls.CurveID) {
 		require.NoError(t, err)
 		require.NoError(t, str.Close())
 
+		if delayClientHello {
+			var initialACKOnly bool
+			for _, ev := range serverEventRecorder.Events(qlog.PacketSent{}) {
+				packet := ev.(qlog.PacketSent)
+				if packet.Header.PacketType == qlog.PacketTypeInitial {
+					initialACKOnly = !slices.ContainsFunc(packet.Frames, func(frame qlog.Frame) bool {
+						_, ok := frame.Frame.(*qlog.CryptoFrame)
+						return ok
+					})
+					break
+				}
+			}
+			require.True(t, initialACKOnly, "must exercise an ACK-only Initial before ServerHello")
+		}
 		require.Empty(t, serverEventRecorder.Events(qlog.PacketBuffered{}))
 		buffered := clientEventRecorder.Events(qlog.PacketBuffered{})
 		t.Logf("buffered packets: %d", len(buffered))
