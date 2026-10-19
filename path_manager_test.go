@@ -34,6 +34,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 	connID, frames, shouldSwitch := pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		&wire.PathChallengeFrame{Data: [8]byte{1, 2, 3, 4, 5, 6, 7, 8}},
 		false,
 	)
@@ -51,6 +52,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 	connID, frames, shouldSwitch = pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		nil,
 		false,
 	)
@@ -60,7 +62,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 
 	// receiving a packet for a different path triggers another PATH_CHALLENGE
 	addr2 := &net.UDPAddr{IP: net.IPv4(5, 6, 7, 8), Port: 1000}
-	connID, frames, shouldSwitch = pm.HandlePacket(addr2, now, nil, false)
+	connID, frames, shouldSwitch = pm.HandlePacket(addr2, now, protocol.MinInitialPacketSize, nil, false)
 	require.Equal(t, connIDs[1], connID)
 	require.Len(t, frames, 1)
 	require.IsType(t, &wire.PathChallengeFrame{}, frames[0].Frame)
@@ -75,6 +77,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 	connID, frames, shouldSwitch = pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		nil,
 		false,
 	)
@@ -84,7 +87,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 
 	// receiving a PATH_RESPONSE for the second path confirms the path
 	pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: pc2.Data})
-	connID, frames, shouldSwitch = pm.HandlePacket(addr2, now, nil, false)
+	connID, frames, shouldSwitch = pm.HandlePacket(addr2, now, protocol.MinInitialPacketSize, nil, false)
 	require.Zero(t, connID)
 	require.Empty(t, frames)
 	require.False(t, shouldSwitch) // no non-probing packet received yet
@@ -94,6 +97,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 	connID, frames, shouldSwitch = pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		nil,
 		false,
 	)
@@ -105,6 +109,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 	connID, frames, shouldSwitch = pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(5, 6, 7, 8), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		nil,
 		true,
 	)
@@ -116,7 +121,7 @@ func TestPathManagerIntentionalMigration(t *testing.T) {
 	pm.SwitchToPath(&net.UDPAddr{IP: net.IPv4(5, 6, 7, 8), Port: 1000})
 
 	// switching to the path removes other paths
-	connID, frames, shouldSwitch = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000}, now, nil, false)
+	connID, frames, shouldSwitch = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000}, now, protocol.MinInitialPacketSize, nil, false)
 	require.Equal(t, connIDs[2], connID)
 	require.NotEmpty(t, frames)
 	require.NotEqual(t, frames[0].Frame.(*wire.PathChallengeFrame).Data, pc1.Data)
@@ -138,6 +143,7 @@ func TestPathManagerMultipleProbes(t *testing.T) {
 	connID, frames, shouldSwitch := pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		nil,
 		false,
 	)
@@ -150,6 +156,7 @@ func TestPathManagerMultipleProbes(t *testing.T) {
 	connID, frames, shouldSwitch = pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		&wire.PathChallengeFrame{Data: [8]byte{1, 2, 3, 4, 5, 6, 7, 8}},
 		false,
 	)
@@ -162,6 +169,7 @@ func TestPathManagerMultipleProbes(t *testing.T) {
 	connID, frames, shouldSwitch = pm.HandlePacket(
 		&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000},
 		now,
+		protocol.MinInitialPacketSize,
 		&wire.PathChallengeFrame{Data: [8]byte{8, 7, 6, 5, 4, 3, 2, 1}},
 		false,
 	)
@@ -189,7 +197,7 @@ func TestPathManagerNATRebinding(t *testing.T) {
 	)
 
 	now := monotime.Now()
-	connID, frames, shouldSwitch := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000}, now, nil, true)
+	connID, frames, shouldSwitch := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000}, now, protocol.MinInitialPacketSize, nil, true)
 	require.Equal(t, connIDs[0], connID)
 	require.Len(t, frames, 1)
 	require.IsType(t, &wire.PathChallengeFrame{}, frames[0].Frame)
@@ -200,7 +208,7 @@ func TestPathManagerNATRebinding(t *testing.T) {
 	// receiving a PATH_RESPONSE for the second path confirms the path
 	pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: pc1.Data})
 	// we now switch to the new path, as soon as the next packet on that path is received
-	connID, frames, shouldSwitch = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000}, now, nil, false)
+	connID, frames, shouldSwitch = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000}, now, protocol.MinInitialPacketSize, nil, false)
 	require.Zero(t, connID)
 	require.Empty(t, frames)
 	require.True(t, shouldSwitch)
@@ -225,7 +233,7 @@ func TestPathManagerLimits(t *testing.T) {
 	var firstPathConnID protocol.ConnectionID
 	require.Greater(t, pathTimeout, maxPaths*time.Second)
 	for i := range maxPaths {
-		connID, frames, _ := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000 + i}, now, nil, true)
+		connID, frames, _ := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000 + i}, now, protocol.MinInitialPacketSize, nil, true)
 		require.NotEmpty(t, frames)
 		require.Equal(t, connIDs[i], connID)
 		if i == 0 {
@@ -235,14 +243,14 @@ func TestPathManagerLimits(t *testing.T) {
 	}
 	// the maximum number of paths is already being probed
 	now = firstPathTime.Add(pathTimeout).Add(-time.Nanosecond)
-	connID, frames, _ := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 2000}, now, nil, true)
+	connID, frames, _ := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 2000}, now, protocol.MinInitialPacketSize, nil, true)
 	require.Zero(t, connID)
 	require.Empty(t, frames)
 
 	// receiving another packet after the pathTimeout of the first path evicts the first path
 	now = firstPathTime.Add(pathTimeout)
 	connIDIndex := maxPaths
-	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000 + maxPaths}, now, nil, true)
+	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000 + maxPaths}, now, protocol.MinInitialPacketSize, nil, true)
 	require.NotEmpty(t, frames)
 	require.Equal(t, connIDs[connIDIndex], connID)
 	require.Equal(t, []protocol.ConnectionID{firstPathConnID}, retiredConnIDs)
@@ -252,7 +260,7 @@ func TestPathManagerLimits(t *testing.T) {
 	var f1 []ackhandler.Frame
 	pm.SwitchToPath(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 1000})
 	for i := range maxPaths {
-		connID, frames, _ := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 3000 + i}, now, nil, true)
+		connID, frames, _ := pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 3000 + i}, now, protocol.MinInitialPacketSize, nil, true)
 		if i == 0 {
 			f1 = frames
 		}
@@ -261,7 +269,7 @@ func TestPathManagerLimits(t *testing.T) {
 		connIDIndex++
 	}
 	// again, the maximum number of paths is already being probed
-	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 2000}, now, nil, true)
+	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 2000}, now, protocol.MinInitialPacketSize, nil, true)
 	require.Zero(t, connID)
 	require.Empty(t, frames)
 
@@ -269,10 +277,10 @@ func TestPathManagerLimits(t *testing.T) {
 	f1[0].Handler.OnLost(f1[0].Frame)
 
 	// we can open exactly one more path
-	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4000}, now, nil, true)
+	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4000}, now, protocol.MinInitialPacketSize, nil, true)
 	require.NotEmpty(t, frames)
 	require.Equal(t, connIDs[connIDIndex], connID)
-	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4001}, now, nil, true)
+	connID, frames, _ = pm.HandlePacket(&net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4001}, now, protocol.MinInitialPacketSize, nil, true)
 	require.Zero(t, connID)
 	require.Empty(t, frames)
 }
