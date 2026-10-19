@@ -397,7 +397,7 @@ func (c *ClientConn) sendRequestBody(str *RequestStream, body io.ReadCloser, con
 		return err
 	}
 
-	// make sure we don't send more bytes than the content length
+	// Make sure the body length matches the declared content length.
 	n, err := io.CopyBuffer(str, io.LimitReader(sr, contentLength), buf)
 	if err != nil {
 		return err
@@ -405,7 +405,7 @@ func (c *ClientConn) sendRequestBody(str *RequestStream, body io.ReadCloser, con
 	var extra int64
 	extra, err = io.CopyBuffer(io.Discard, sr, buf)
 	n += extra
-	if n > contentLength {
+	if n != contentLength {
 		str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestCanceled))
 		return fmt.Errorf("http: ContentLength=%d with Body length %d", contentLength, n)
 	}
