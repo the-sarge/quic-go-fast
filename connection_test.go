@@ -2621,8 +2621,8 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 
 func getVersionNegotiationPacket(src, dest protocol.ConnectionID, versions []protocol.Version) receivedPacket {
 	b := wire.ComposeVersionNegotiation(
-		protocol.ArbitraryLenConnectionID(src.Bytes()),
 		protocol.ArbitraryLenConnectionID(dest.Bytes()),
+		protocol.ArbitraryLenConnectionID(src.Bytes()),
 		versions,
 	)
 	return receivedPacket{
@@ -2756,6 +2756,69 @@ func TestConnectionVersionNegotiationNoMatch(t *testing.T) {
 			t.Fatal("should have received a Version Negotiation packet")
 		}
 	})
+}
+
+func TestConnectionVersionNegotiationInvalidConnectionIDs(t *testing.T) {
+	for _, versions := range []struct {
+		name string
+		list []protocol.Version
+	}{
+		{name: "supported version", list: []protocol.Version{protocol.Version2}},
+		{name: "unsupported version", list: []protocol.Version{42}},
+	} {
+		for _, invalidID := range []string{"wrong source", "empty source", "oversized source", "wrong destination", "empty destination", "oversized destination", "swapped IDs"} {
+			t.Run(versions.name+"/"+invalidID, func(t *testing.T) {
+				var eventRecorder events.Recorder
+				tc := newClientTestConnection(t, nil, nil, false, connectionOptTracer(&eventRecorder))
+				src, dest := tc.destConnID.Bytes(), tc.srcConnID.Bytes()
+				trigger := qlog.PacketDropUnexpectedSourceConnectionID
+				switch invalidID {
+				case "wrong source":
+					src[0] ^= 0xff
+				case "empty source":
+					src = nil
+				case "oversized source":
+					src = append(src, make([]byte, 21-len(src))...)
+				case "wrong destination":
+					dest[0] ^= 0xff
+					trigger = qlog.PacketDropUnknownConnectionID
+				case "empty destination":
+					dest = nil
+					trigger = qlog.PacketDropUnknownConnectionID
+				case "oversized destination":
+					dest = append(dest, make([]byte, 21-len(dest))...)
+					trigger = qlog.PacketDropUnknownConnectionID
+				case "swapped IDs":
+					src, dest = dest, src
+				}
+				p := receivedPacket{
+					data:    wire.ComposeVersionNegotiation(dest, src, versions.list),
+					buffer:  getPacketBuffer(),
+					rcvTime: monotime.Now(),
+				}
+				processed, err := tc.conn.handleOnePacket(p, 0)
+				require.NoError(t, err, "invalid connection IDs must not trigger version recreation")
+				require.False(t, processed)
+				require.Nil(t, tc.conn.closeErr.Load(), "invalid connection IDs must not close the connection")
+				require.False(t, tc.conn.receivedFirstPacket)
+				require.False(t, tc.conn.versionNegotiated)
+				require.Zero(t, p.buffer.refCount)
+				require.Equal(t, []qlogwriter.Event{
+					qlog.PacketDropped{
+						Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
+						Raw:     qlog.RawInfo{Length: int(p.Size())},
+						Trigger: trigger,
+					},
+				}, eventRecorder.Events(qlog.PacketDropped{}, qlog.VersionNegotiationReceived{}, qlog.VersionInformation{}))
+
+				// A discarded forgery must leave the connection able to negotiate a valid response.
+				_, err = tc.conn.handleOnePacket(getVersionNegotiationPacket(tc.destConnID, tc.srcConnID, []protocol.Version{protocol.Version2}), 0)
+				var recreate *errCloseForRecreating
+				require.ErrorAs(t, err, &recreate)
+				require.Equal(t, protocol.Version2, recreate.nextVersion)
+			})
+		}
+	}
 }
 
 func TestConnectionVersionNegotiationInvalidPackets(t *testing.T) {
