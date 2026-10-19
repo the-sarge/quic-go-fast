@@ -6260,3 +6260,45 @@ The original body-wrapper and real QUIC client/server regressions failed before 
 The final certified head was `7144eea565d8371611ff14aedac508d30b3105b8` on base `4d252b91bc4c9ead123d673872a97e9c2b32c4e8`. Uncached HTTP/3 package tests, the full HTTP/3 race suite, focused HTTP integration tests, affected-package vet, `go mod tidy -diff`, formatting, whitespace and clean-tree checks passed on Darwin arm64 with Go 1.27.2. All 33 hosted checks across nine unit, integration, lint, cross-compilation and interop workflow runs passed on that head before marking ready and squash-merging with the matching-head guard. No unchanged-head CI rerun was requested.
 
 Initial RAS review `20261019T054809-2af098d22d901a3ca574181b` produced two independently accepted response-accounting findings, both fixed and verified. Replacement review `20261019T060519-16ad9e716f14b8045be3f9d4` completed with all six reviewers and no findings. After main advanced, the upstream integration was inspected and RAS verification rechecked both findings on the final certified head with a clear result. No deferred finding or automated fixer remained in this workflow.
+
+---
+
+## Delegated network admission landed - 2026-10-19 15:31 EDT
+
+**Main:** `47bf2b6f6e11`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #872](https://github.com/the-sarge/quic-go-fast/pull/872) as `47bf2b6f6e11c9d784af4fdf6d3f282383cb8ff1`, closing [#852](https://github.com/the-sarge/quic-go-fast/issues/852), slice 2 of the fork bundle [#851](https://github.com/the-sarge/quic-go-fast/issues/851). The new method `(*Transport).DelegateNetworkAdmissionV1()` is called once, after `ConfigureNetworkAdmissionV1` and before initialization. It declares that the packet connection already admits every datagram in both directions. `allowsReceive` then skips the receive callback and its `info.OOB()` re-encode, and `checkSend` skips the send callback and its oob copy. Both allocate nothing under the mode.
+
+The structural `packetEndpoint` check, the restricted profile (no `AddPath` either way, no preferred-address adoption, `disableActiveMigration`) and any `ConfigureFixedPeerV1` filter still apply. Without delegation, V1 behaviour is unchanged. Default transports, which have no admission configured, never reach the new branch.
+
+### Decisions
+
+Under #852, the fork chose the shape, the name and the fixed-peer rule, and the operator approved the plan:
+- **Shape:** a separate setter with no arguments, rather than a V2 configuration or nil callbacks; the nil-callback form would have changed V1's "both callbacks are required" contract.
+- **Errors:** delegating without admission configured, after initialization, or a second time.
+- **Fixed peer:** delegation may combine with `ConfigureFixedPeerV1`, whose filter still runs first in both directions.
+
+The decisions are recorded in the PR description and the `DelegateNetworkAdmissionV1` comment. #808's L6 measures `d94b3ec2`'s pinned binaries, so this merge did not affect it.
+
+### Validation
+
+The new tests failed to compile before the implementation existed. They then passed:
+- callbacks skipped, as a table with a V1 control row and a delegated row covering receive, a stateless reset, an ordinary transport write, a connection write, a probe and an external batch;
+- zero allocations;
+- invalid endpoints still rejected;
+- configuration errors;
+- the restricted profile under delegation;
+- the fixed-peer combination.
+
+Deleting either delegated branch made the skips, allocation and fixed-peer tests fail.
+
+The certified head was `3a2ea9da870baeb2913f7148a8e3f1b9c391e747` on base `d0502998490a134ab8e4e3d327c2057e9287fde6`. The following passed on Darwin arm64 with Go 1.27.2: root package `go test -shuffle=on` and `-race`, `go vet`, `go mod tidy -diff`, `git diff --check`, and golangci-lint v2.14.0 for six GOOS. All 33 hosted checks passed on that head before marking ready and squash-merging with the matching-head guard. No CI rerun was requested.
+
+RAS review `20261019T191814-2f730b8031bd6b95a59c304c` completed with all six reviewers and found no behavioural failure. Its one low documentation finding was accepted and fixed: the `ConfigureNetworkAdmissionV1` exception now names the fixed-peer filter alongside the structural checks. The finding's duplicate cluster needed no separate action. The RAS verify and replacement review were skipped under the documentation-only correction policy. No deferred findings remain.
+
+### Next
+
+The consumer measures adoption after the bundle release, when it switches the mode on; that measurement doesn't hold the release. The bundle's remaining holding slices are #853 through #856; the live view is the slice table in #851.
