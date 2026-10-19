@@ -3,6 +3,7 @@
 package quic
 
 import (
+	"bytes"
 	"encoding/binary"
 	"net"
 	"net/netip"
@@ -13,6 +14,7 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/unix"
 
+	"github.com/quic-go/quic-go/integrationtests/tools/israce"
 	"github.com/quic-go/quic-go/internal/protocol"
 
 	"github.com/stretchr/testify/require"
@@ -137,7 +139,7 @@ func newGROConn(t *testing.T, bc batchConn) *oobConn {
 	return oc
 }
 
-func TestGROReadSplitsCoalescedRead(t *testing.T) {
+func TestGROReadCopiesCoalescedRead(t *testing.T) {
 	segs := testCoalescedSegments(3, 1200)
 	segs[2] = segs[2][:500] // short tail
 	payload := append(append(append([]byte{}, segs[0]...), segs[1]...), segs[2]...)
@@ -146,40 +148,138 @@ func TestGROReadSplitsCoalescedRead(t *testing.T) {
 	bc := &groBatchConn{t: t, payloads: [][]byte{payload, []byte("next read")}, oobs: [][]byte{oob, nil}, addr: addr}
 	oc := newGROConn(t, bc)
 
-	var slab *coalescedSlab
-	views := make([]*packetBuffer, 3)
+	var slot *packetBuffer
+	for i, want := range segs {
+		p, err := oc.ReadPacket()
+		require.NoError(t, err)
+		if i == 0 {
+			slot = oc.buffers[0]
+			require.NotNil(t, slot, "the reader keeps its read slot")
+		}
+		require.Equal(t, want, p.data)
+		require.Equal(t, addr, p.remoteAddr)
+		require.Equal(t, protocol.ECT0, p.ecn, "segment %d must inherit the read's ECN marking", i)
+		require.Nil(t, p.buffer.slab, "segment %d must not be slab-backed", i)
+		require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data), "segment %d must be copied into the ordinary tier", i)
+		require.Same(t, unsafe.SliceData(p.buffer.Data), unsafe.SliceData(p.data))
+		require.Same(t, slot, oc.buffers[0], "the read slot must stay with the reader")
+		p.buffer.Release()
+	}
+	require.Equal(t, 1, bc.callCounter, "all segments must come from one socket read")
+
+	// a read without a GRO cmsg is copied out of the same slot too
+	p, err := oc.ReadPacket()
+	require.NoError(t, err)
+	require.Equal(t, []byte("next read"), p.data)
+	require.Nil(t, p.buffer.slab)
+	require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data))
+	require.Same(t, slot, oc.buffers[0])
+	p.buffer.Release()
+	require.Equal(t, 2, bc.callCounter)
+}
+
+func TestGROReadCopiesLargeSegmentsIntoLargeTier(t *testing.T) {
+	segs := testCoalescedSegments(2, 4000)
+	bc := &groBatchConn{t: t, payloads: [][]byte{bytes.Join(segs, nil)}, oobs: [][]byte{appendUDPGROMsg(nil, 4000)}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
+	oc := newGROConn(t, bc)
 	for i, want := range segs {
 		p, err := oc.ReadPacket()
 		require.NoError(t, err)
 		require.Equal(t, want, p.data)
-		require.Equal(t, addr, p.remoteAddr)
-		require.Equal(t, protocol.ECT0, p.ecn, "segment %d must inherit the read's ECN marking", i)
-		require.NotNil(t, p.buffer.slab, "segment %d must be a slab-backed view", i)
-		if i == 0 {
-			slab = p.buffer.slab
-		} else {
-			require.Same(t, slab, p.buffer.slab, "siblings share one slab")
+		require.Nil(t, p.buffer.slab)
+		require.Equal(t, protocol.MaxLargePacketBufferSize, cap(p.buffer.Data), "segment %d must be copied into the large tier", i)
+		p.buffer.Release()
+	}
+}
+
+// repeatingGROBatchConn delivers the same coalesced read on every call.
+type repeatingGROBatchConn struct {
+	payload, oob []byte
+	addr         *net.UDPAddr
+}
+
+func (c *repeatingGROBatchConn) ReadBatch(ms []ipv4.Message, _ int) (int, error) {
+	ms[0].N = copy(ms[0].Buffers[0], c.payload)
+	ms[0].NN = copy(ms[0].OOB, c.oob)
+	ms[0].Flags = 0
+	ms[0].Addr = c.addr
+	return 1, nil
+}
+
+// A coalesced read allocates no slab, view or pending list: its datagrams are
+// copied into pooled ordinary-tier buffers, which a connection's retention
+// queues hold without another copy.
+func TestGROReadAllocatesNothing(t *testing.T) {
+	if israce.Enabled {
+		t.Skip("the race detector makes sync.Pool drop buffers at random")
+	}
+	segs := testCoalescedSegments(3, 1200)
+	segs[2] = segs[2][:500]
+	for _, tt := range []struct {
+		name     string
+		payload  []byte
+		oob      []byte
+		datagram int
+	}{
+		{name: "coalesced", payload: bytes.Join(segs, nil), oob: appendUDPGROMsg(nil, 1200), datagram: 3},
+		{name: "singleton", payload: segs[0], datagram: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			oc := newGROConn(t, &repeatingGROBatchConn{payload: tt.payload, oob: tt.oob, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}})
+			var budget coalescedRetentionBudget
+			readAll := func() {
+				for range tt.datagram {
+					p, err := oc.ReadPacket()
+					if err != nil {
+						t.Fatal(err)
+					}
+					if p.buffer.slab != nil || cap(p.buffer.Data) != protocol.MaxPacketBufferSize {
+						t.Fatalf("datagram not copied into the ordinary tier (slab %p, capacity %d)", p.buffer.slab, cap(p.buffer.Data))
+					}
+					retained, ok := retainForRetentionQueue(p, &budget)
+					if !ok || retained.buffer != p.buffer {
+						t.Fatal("a retention queue must hold the datagram without copying it")
+					}
+					retained.buffer.Release()
+				}
+			}
+			readAll() // fill the read slots and the buffer pool
+			require.Zero(t, testing.AllocsPerRun(100, readAll))
+		})
+	}
+}
+
+// A datagram above the large tier reaches the connection exactly as the
+// reader without coalescing delivers it (#853). That reader reads into the
+// ordinary tier, so the kernel keeps only the prefix that fits.
+func TestGROOversizedDatagramMatchesNonCoalescingReader(t *testing.T) {
+	datagram := make([]byte, 30000)
+	for i := range datagram {
+		datagram[i] = byte(i)
+	}
+	read := func(t *testing.T, allowCoalescing bool) []byte {
+		t.Helper()
+		udp := newUDPConnLocalhost(t)
+		conn, err := newConn(udp, true, allowCoalescing)
+		require.NoError(t, err)
+		if allowCoalescing && !conn.capabilities().GRO {
+			t.Skip("kernel does not support UDP_GRO")
 		}
-		views[i] = p.buffer
+		t.Cleanup(conn.releaseReadBuffers)
+		sender := newUDPConnLocalhost(t)
+		_, err = sender.WriteToUDP(datagram, udp.LocalAddr().(*net.UDPAddr))
+		require.NoError(t, err)
+		require.NoError(t, udp.SetReadDeadline(time.Now().Add(5*time.Second)))
+		p, err := conn.ReadPacket()
+		require.NoError(t, err)
+		require.Nil(t, p.buffer.slab, "nothing slab-backed may reach the connection")
+		defer p.buffer.Release()
+		return bytes.Clone(p.data)
 	}
-	require.Equal(t, 1, bc.callCounter, "all segments must come from one socket read")
-
-	for _, v := range views {
-		require.False(t, slab.released())
-		v.Release()
-	}
-	require.True(t, slab.released(), "slab must recycle after the last view releases")
-
-	// the next ReadPacket reads the next batch; without a GRO cmsg the
-	// datagram is still slab-backed so retention-queue copies stay uniform
-	p, err := oc.ReadPacket()
-	require.NoError(t, err)
-	require.Equal(t, []byte("next read"), p.data)
-	require.NotNil(t, p.buffer.slab)
-	next := p.buffer.slab
-	p.buffer.Release()
-	require.True(t, next.released())
-	require.Equal(t, 2, bc.callCounter)
+	without := read(t, false)
+	with := read(t, true)
+	t.Logf("%d-byte datagram: %d bytes delivered without coalescing, %d with", len(datagram), len(without), len(with))
+	require.Equal(t, without, with)
 }
 
 func TestGROReadEmptyDatagram(t *testing.T) {
@@ -191,6 +291,8 @@ func TestGROReadEmptyDatagram(t *testing.T) {
 	require.Empty(t, p.data)
 	require.NotNil(t, p.buffer)
 	require.Nil(t, p.buffer.slab, "an empty read has no segments to view")
+	require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data), "an empty read is delivered in the ordinary tier")
+	require.NotNil(t, oc.buffers[0], "the reader keeps its read slot")
 	p.buffer.Release()
 }
 
@@ -222,22 +324,37 @@ func TestGROReadPacketInfoInheritance(t *testing.T) {
 	}
 }
 
-func TestGROReleaseReadBuffersReleasesPendingViews(t *testing.T) {
+func TestGROReleaseReadBuffersDropsUndeliveredDatagrams(t *testing.T) {
 	segs := testCoalescedSegments(3, 800)
 	payload := append(append(append([]byte{}, segs[0]...), segs[1]...), segs[2]...)
-	bc := &groBatchConn{t: t, payloads: [][]byte{payload}, oobs: [][]byte{appendUDPGROMsg(nil, 800)}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
+	bc := &groBatchConn{t: t, payloads: [][]byte{payload, []byte("next read")}, oobs: [][]byte{appendUDPGROMsg(nil, 800), nil}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
 	oc := newGROConn(t, bc)
 
 	p, err := oc.ReadPacket()
 	require.NoError(t, err)
-	slab := p.buffer.slab
-	require.NotNil(t, slab)
 
-	// reading stops with two undelivered sibling views pending
+	// reading stops with two undelivered datagrams still in the read slot
 	oc.releaseReadBuffers()
-	require.False(t, slab.released(), "the delivered view still holds the slab")
+	for i, buffer := range oc.buffers {
+		require.Nil(t, buffer, "read slot %d must be released", i)
+	}
+	require.Equal(t, segs[0], p.data, "a delivered datagram owns its storage")
 	p.buffer.Release()
-	require.True(t, slab.released())
+	p, err = oc.ReadPacket()
+	require.NoError(t, err)
+	require.Equal(t, []byte("next read"), p.data, "the undelivered datagrams must be dropped")
+	p.buffer.Release()
+}
+
+// countingGROBatchConn counts socket reads.
+type countingGROBatchConn struct {
+	batchConn
+	reads int
+}
+
+func (c *countingGROBatchConn) ReadBatch(ms []ipv4.Message, flags int) (int, error) {
+	c.reads++
+	return c.batchConn.ReadBatch(ms, flags)
 }
 
 // TestGROEndToEndLoopback sends one GSO batch across loopback into a
@@ -274,20 +391,14 @@ func TestGROEndToEndLoopback(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, recvUDP.SetReadDeadline(time.Now().Add(5*time.Second)))
-	slabs := map[*coalescedSlab]int{}
+	counter := &countingGROBatchConn{batchConn: recvConn.batchConn}
+	recvConn.batchConn = counter
 	for i := range numSegs {
 		p, err := recvConn.ReadPacket()
 		require.NoError(t, err)
 		require.Equal(t, segs[i], p.data, "datagram %d must arrive intact and in order", i)
-		require.NotNil(t, p.buffer.slab)
-		slabs[p.buffer.slab]++
+		require.Nil(t, p.buffer.slab)
 		p.buffer.Release()
 	}
-	coalesced := 0
-	for _, n := range slabs {
-		if n > 1 {
-			coalesced += n
-		}
-	}
-	t.Logf("%d datagrams in %d socket reads (%d arrived coalesced)", numSegs, len(slabs), coalesced)
+	t.Logf("%d datagrams in %d socket reads", numSegs, counter.reads)
 }

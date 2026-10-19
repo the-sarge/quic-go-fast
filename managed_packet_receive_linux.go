@@ -56,6 +56,7 @@ func (e *managedPacketEndpoint) configureReceive() error {
 		return err
 	}
 	// Install the sole interpretation/storage owner before changing the format.
+	reader.managed = true
 	e.receiver = reader
 	reader.cap.GRO, reader.cap.receiveCoalescing.disabledReason = enableGRO(raw)
 	e.receiveState = reader.cap.receiveCoalescing

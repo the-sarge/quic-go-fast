@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -107,9 +108,9 @@ func TestManagedReceiveDiscardsConsumedQUICStorage(t *testing.T) {
 	require.Equal(t, selected.LocalAddr(), addr)
 	require.EqualValues(t, 1, outer.filtered.Load())
 	reader := endpoint.(*managedPacketConn).endpoint.receiver.(*oobConn)
-	require.Len(t, reader.delivery.pending, 2, "native aggregate engagement must be observed")
-	slab := reader.delivery.pending[0].buffer.slab
-	retained := protocol.MaxCoalescedPacketBufferSize // one pending aggregate
+	require.True(t, reader.cursor.active, "native aggregate engagement must be observed")
+	require.Len(t, reader.cursor.packet.data, 2400, "two datagrams wait in the read slot")
+	retained := 0 // the pending aggregate stays in its read slot
 	for _, buffer := range reader.buffers {
 		if buffer != nil {
 			retained += cap(buffer.Data)
@@ -117,7 +118,7 @@ func TestManagedReceiveDiscardsConsumedQUICStorage(t *testing.T) {
 	}
 	require.LessOrEqual(t, retained, batchSize*protocol.MaxCoalescedPacketBufferSize)
 	require.NoError(t, lease.Close())
-	require.True(t, slab.released(), "consumed QUIC tail must be disposed at handback")
+	require.False(t, reader.cursor.active, "consumed QUIC tail must be disposed at handback")
 	for _, buffer := range reader.buffers {
 		require.Nil(t, buffer)
 	}
@@ -163,10 +164,13 @@ func TestManagedReceiveFailedRestoreDisposesStorage(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = lease.ReadFrom(make([]byte, 1500))
 	require.NoError(t, err)
-	slab := reader.delivery.pending[0].buffer.slab
+	require.True(t, reader.cursor.active)
 	socket.deadlineFailure = "read"
 	require.ErrorIs(t, lease.Close(), errManagedTestDeadline)
-	require.True(t, slab.released(), "terminal restoration failure must release normalized storage")
+	require.False(t, reader.cursor.active, "terminal restoration failure must release normalized storage")
+	for _, buffer := range reader.buffers {
+		require.Nil(t, buffer)
+	}
 	_, err = acquire()
 	require.ErrorIs(t, err, net.ErrClosed)
 }
@@ -423,6 +427,50 @@ func TestManagedECNNonGROPreservesDatagramsAcrossRelease(t *testing.T) {
 	n, _, err = next.ReadFrom(buffer)
 	require.NoError(t, err)
 	require.Equal(t, "next generation", string(buffer[:n]))
+}
+
+// A datagram above the large tier reaches a managed lease exactly as the
+// managed reader without coalescing delivers it (#853): readManagedPacket
+// reads whole datagrams into the coalesced tier.
+func TestManagedGROOversizedDatagramMatchesNonCoalescingReader(t *testing.T) {
+	datagram := make([]byte, 30000)
+	for i := range datagram {
+		datagram[i] = byte(i)
+	}
+	read := func(t *testing.T, coalescing bool) []byte {
+		t.Helper()
+		t.Setenv("QUIC_GO_DISABLE_ECN", "false")
+		t.Setenv("QUIC_GO_DISABLE_GRO", strconv.FormatBool(!coalescing))
+		endpoint, acquire := newTestManagedEndpoint(t)
+		require.NoError(t, endpoint.SetDeadline(time.Now().Add(5*time.Second)))
+		lease, err := acquire()
+		require.NoError(t, err)
+		t.Cleanup(func() { lease.Close() })
+		tr := &Transport{Conn: lease}
+		require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+		e := endpoint.(*managedPacketConn).endpoint
+		if coalescing {
+			if !e.receiveCoalescing {
+				t.Skip("kernel does not support UDP_GRO")
+			}
+		} else {
+			if !e.managedECN {
+				t.Skip("managed ECN does not qualify, so readManagedPacket is not the reader")
+			}
+			require.True(t, e.receiver.(*oobConn).managedRead)
+		}
+		peer := listenExternalUDP(t)
+		_, err = peer.WriteTo(datagram, endpoint.LocalAddr())
+		require.NoError(t, err)
+		buffer := make([]byte, protocol.MaxCoalescedPacketBufferSize)
+		n, _, err := lease.ReadFrom(buffer)
+		require.NoError(t, err)
+		return bytes.Clone(buffer[:n])
+	}
+	without := read(t, false)
+	with := read(t, true)
+	t.Logf("%d-byte datagram: %d bytes delivered without coalescing, %d with", len(datagram), len(without), len(with))
+	require.Equal(t, without, with)
 }
 
 func TestManagedECNSendsMarksThroughDirectAndCheckedRoutes(t *testing.T) {
