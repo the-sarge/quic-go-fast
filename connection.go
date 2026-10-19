@@ -131,7 +131,9 @@ type Conn struct {
 	handshakeDestConnID protocol.ConnectionID
 	// Set for the client. Destination connection ID used on the first Initial sent.
 	origDestConnID protocol.ConnectionID
-	retrySrcConnID *protocol.ConnectionID // only set for the client (and if a Retry was performed)
+	// Set for the client. Source connection ID used on the first Initial sent.
+	initialSrcConnID protocol.ConnectionID
+	retrySrcConnID   *protocol.ConnectionID // only set for the client (and if a Retry was performed)
 
 	srcConnIDLen int
 
@@ -424,6 +426,7 @@ var newClientConnection = func(
 		conn:                conn,
 		config:              conf,
 		origDestConnID:      destConnID,
+		initialSrcConnID:    srcConnID,
 		handshakeDestConnID: destConnID,
 		srcConnIDLen:        srcConnID.Len(),
 		perspective:         protocol.PerspectiveClient,
@@ -1663,7 +1666,7 @@ func (c *Conn) handleVersionNegotiationPacket(p receivedPacket) error {
 		return nil
 	}
 
-	src, dest, supportedVersions, err := wire.ParseVersionNegotiationPacket(p.data)
+	dest, src, supportedVersions, err := wire.ParseVersionNegotiationPacket(p.data)
 	if err != nil {
 		if c.qlogger != nil {
 			c.qlogger.RecordEvent(qlog.PacketDropped{
@@ -1673,6 +1676,23 @@ func (c *Conn) handleVersionNegotiationPacket(p receivedPacket) error {
 			})
 		}
 		c.logger.Debugf("Error parsing Version Negotiation packet: %s", err)
+		return nil
+	}
+
+	// RFC 9000, section 17.2.1: Version Negotiation must echo both connection IDs
+	// from the client's Initial before its unauthenticated version list is used.
+	if !bytes.Equal(src, c.origDestConnID.Bytes()) || !bytes.Equal(dest, c.initialSrcConnID.Bytes()) {
+		if c.qlogger != nil {
+			trigger := qlog.PacketDropUnexpectedSourceConnectionID
+			if bytes.Equal(src, c.origDestConnID.Bytes()) {
+				trigger = qlog.PacketDropUnknownConnectionID
+			}
+			c.qlogger.RecordEvent(qlog.PacketDropped{
+				Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
+				Raw:     qlog.RawInfo{Length: int(p.Size())},
+				Trigger: trigger,
+			})
+		}
 		return nil
 	}
 
