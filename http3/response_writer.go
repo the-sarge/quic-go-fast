@@ -19,6 +19,8 @@ import (
 // HTTPStreamer allows an HTTP handler to take over an HTTP/3 stream.
 // It is implemented by the [http.ResponseWriter] passed to HTTP/3 handlers.
 // When a stream is taken over, it's the caller's responsibility to close the stream.
+// The caller is also responsible for removing any multipart temporary files by calling
+// RemoveAll on [http.Request.MultipartForm] when the form is no longer needed.
 type HTTPStreamer interface {
 	HTTPStream() *Stream
 }
