@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -311,6 +312,98 @@ func TestRawServerConnResponseCompletion(t *testing.T) {
 			require.Equal(t, []string{"done"}, decodeHeader(t, str)["result"])
 			_, err = fp.ParseNext(nil)
 			require.ErrorIs(t, err, io.EOF)
+		})
+	}
+}
+
+func TestRawServerConnMultipartFormCleanup(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		panicValue any
+		failFlush  bool
+		hijack     bool
+	}{
+		{name: "normal return"},
+		{name: "response flush failure", failFlush: true},
+		{name: "panic", panicValue: "handler panic"},
+		{name: "abort handler", panicValue: http.ErrAbortHandler},
+		{name: "hijacked stream", hijack: true},
+		{name: "panic after hijack", hijack: true, panicValue: "handler panic"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("TMPDIR", t.TempDir())
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			part, err := writer.CreateFormFile("upload", "upload.txt")
+			require.NoError(t, err)
+			const contents = "multipart upload contents"
+			_, err = io.WriteString(part, contents)
+			require.NoError(t, err)
+			require.NoError(t, writer.Close())
+			req := httptest.NewRequest(http.MethodPost, "https://www.example.com", &body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+
+			client, server := newConnPair(t)
+			str, err := client.OpenStream()
+			require.NoError(t, err)
+			require.NoError(t, str.SetDeadline(time.Now().Add(time.Second)))
+			_, err = str.Write(encodeRequest(t, req))
+			require.NoError(t, err)
+			require.NoError(t, str.Close())
+
+			var tempFile string
+			var form *multipart.Form
+			var hijacked *Stream
+			s := &Server{
+				Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					// A zero memory limit forces even this small file to disk.
+					require.NoError(t, r.ParseMultipartForm(0))
+					form = r.MultipartForm
+					t.Cleanup(func() { require.NoError(t, form.RemoveAll()) })
+					file, err := form.File["upload"][0].Open()
+					require.NoError(t, err)
+					defer file.Close()
+					require.IsType(t, &os.File{}, file)
+					tempFile = file.(*os.File).Name()
+					require.FileExists(t, tempFile)
+					data, err := io.ReadAll(file)
+					require.NoError(t, err)
+					require.Equal(t, contents, string(data))
+
+					if tc.hijack {
+						hijacked = w.(HTTPStreamer).HTTPStream()
+					}
+					if tc.failFlush {
+						require.NoError(t, http.NewResponseController(w).SetWriteDeadline(time.Now().Add(-time.Second)))
+					}
+					if tc.panicValue != nil {
+						panic(tc.panicValue)
+					}
+				}),
+			}
+			conn, err := s.NewRawServerConn(server)
+			require.NoError(t, err)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			incoming, err := server.AcceptStream(ctx)
+			require.NoError(t, err)
+			conn.HandleRequestStream(incoming)
+
+			require.NotEmpty(t, tempFile)
+			if tc.hijack {
+				// Taking over the stream also transfers multipart cleanup to the caller.
+				require.FileExists(t, tempFile)
+				file, err := form.File["upload"][0].Open()
+				require.NoError(t, err)
+				data, err := io.ReadAll(file)
+				require.NoError(t, err)
+				require.NoError(t, file.Close())
+				require.Equal(t, contents, string(data))
+				require.NoError(t, hijacked.Close())
+				require.NoError(t, form.RemoveAll())
+			}
+			require.NoFileExists(t, tempFile)
 		})
 	}
 }
