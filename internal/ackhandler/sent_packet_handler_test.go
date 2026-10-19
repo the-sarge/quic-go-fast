@@ -1454,6 +1454,101 @@ func TestSentPacketHandlerECN(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSentPacketHandlerPathProbeCapacity(t *testing.T) {
+	sph := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger).(*sentPacketHandler)
+	now := monotime.Now()
+	sph.DropPackets(protocol.EncryptionInitial, now)
+	sph.DropPackets(protocol.EncryptionHandshake, now)
+	var packets packetTracker
+	sendProbe := func() protocol.PacketNumber {
+		pn := sph.PopPacketNumber(protocol.Encryption1RTT)
+		sph.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []Frame{packets.NewPingFrame(pn)}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, true)
+		return pn
+	}
+	var firstPN protocol.PacketNumber
+	for i := range maxOutstandingPathProbes {
+		require.True(t, sph.CanSendPathProbe())
+		pn := sendProbe()
+		if i == 0 {
+			firstPN = pn
+		}
+	}
+	require.False(t, sph.CanSendPathProbe())
+	_, err := sph.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(firstPN)}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+	require.NoError(t, err)
+	require.True(t, sph.CanSendPathProbe(), "ACK retirement must reopen capacity")
+	sendProbe()
+	require.False(t, sph.CanSendPathProbe())
+	_, err = sph.OnLossDetectionTimeout(now.Add(pathProbePacketLossTimeout))
+	require.NoError(t, err)
+	require.Len(t, packets.Acked, 1)
+	require.Len(t, packets.Lost, maxOutstandingPathProbes)
+	require.Zero(t, sph.appDataPackets.history.Len())
+	require.Empty(t, sph.appDataPackets.history.pathProbeIndex)
+	require.True(t, sph.CanSendPathProbe(), "timeout retirement must reopen capacity")
+	for range maxOutstandingPathProbes {
+		sendProbe()
+	}
+	// Loss on the active path can retire markers before the probe timeout.
+	for pn := range sph.appDataPackets.history.Packets() {
+		sph.appDataPackets.history.DeclareLost(pn)
+	}
+	require.Zero(t, sph.appDataPackets.history.Len())
+	require.False(t, sph.CanSendPathProbe(), "detached probes must still count toward the cap")
+	sph.MigratedPath(now, 1200)
+	require.False(t, sph.appDataPackets.history.HasOutstandingPathProbes())
+	require.Empty(t, sph.appDataPackets.history.pathProbeIndex)
+	require.True(t, sph.CanSendPathProbe())
+}
+
+func TestSentPacketHandlerPathProbeHistoryLimit(t *testing.T) {
+	for _, space := range []protocol.EncryptionLevel{protocol.EncryptionInitial, protocol.EncryptionHandshake, protocol.Encryption1RTT} {
+		t.Run(space.String(), func(t *testing.T) {
+			sph := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger).(*sentPacketHandler)
+			hist := &sph.getPacketNumberSpace(space).history
+			for pn := range protocol.PacketNumber(protocol.MaxTrackedSentPackets) {
+				hist.SentPacket(pn, &packet{})
+			}
+			if space == protocol.Encryption1RTT {
+				sph.appDataPackets.pns = newSequentialPacketNumberGenerator(protocol.MaxTrackedSentPackets)
+			}
+			require.False(t, sph.CanSendPathProbe())
+			require.NoError(t, hist.Remove(0))
+			if space == protocol.Encryption1RTT {
+				// Reserve room for both the next packet and an intentional PN skip.
+				sph.appDataPackets.pns = &skippingPacketNumberGenerator{next: protocol.MaxTrackedSentPackets, nextToSkip: protocol.MaxTrackedSentPackets, period: 100, maxPeriod: 100}
+				require.False(t, sph.CanSendPathProbe())
+				require.NoError(t, hist.Remove(1))
+			}
+			require.True(t, sph.CanSendPathProbe())
+		})
+	}
+}
+
+func TestSentPacketHandlerPathProbeBulkExpiry(t *testing.T) {
+	sph := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, false, nil, protocol.PerspectiveClient, nil, utils.DefaultLogger).(*sentPacketHandler)
+	now := monotime.Now()
+	sph.DropPackets(protocol.EncryptionInitial, now)
+	sph.DropPackets(protocol.EncryptionHandshake, now)
+	var packets packetTracker
+	const numProbes = 10000
+	for range numProbes {
+		pn := sph.PopPacketNumber(protocol.Encryption1RTT)
+		sph.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []Frame{packets.NewPingFrame(pn)}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, true)
+	}
+	_, err := sph.OnLossDetectionTimeout(now.Add(pathProbePacketLossTimeout))
+	require.NoError(t, err)
+	require.Len(t, packets.Lost, numProbes)
+	require.Zero(t, sph.appDataPackets.history.Len())
+	require.False(t, sph.appDataPackets.history.HasOutstandingPathProbes())
+	require.Empty(t, sph.appDataPackets.history.pathProbeIndex)
+	require.Zero(t, sph.GetLossDetectionTimeout())
+	_, err = sph.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(packets.Lost[0], packets.Lost[len(packets.Lost)-1])}, protocol.Encryption1RTT, now.Add(2*pathProbePacketLossTimeout))
+	require.NoError(t, err)
+	require.Empty(t, packets.Acked, "late ACKs must not deliver retired frames again")
+	require.Len(t, packets.Lost, numProbes)
+}
+
 func TestSentPacketHandlerPathProbe(t *testing.T) {
 	const rtt = 10 * time.Millisecond // RTT of the original path
 	rttStats := utils.NewRTTStats()
