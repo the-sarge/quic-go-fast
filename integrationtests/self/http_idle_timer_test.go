@@ -3,18 +3,172 @@ package self_test
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"runtime"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
+	"github.com/quic-go/quic-go/quicvarint"
 	"github.com/quic-go/quic-go/testutils/simnet"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestHTTPServerIdleTimerWithIncompleteHeaders(t *testing.T) {
+	for _, prefix := range [][]byte{
+		{0x40},      // incomplete frame type
+		{0x1, 0x40}, // incomplete HEADERS length
+		quicvarint.Append([]byte{0x1}, http.DefaultMaxHeaderBytes),
+		append(quicvarint.Append([]byte{0x1}, http.DefaultMaxHeaderBytes), 0),
+		{0x21, 0x40}, // incomplete unknown frame before HEADERS
+	} {
+		t.Run(fmt.Sprintf("prefix_%x", prefix), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				clientPC, serverPC, closeLink := newSimnetLink(t, time.Millisecond)
+				defer closeLink(t)
+				clientTransport := &quic.Transport{Conn: clientPC}
+				defer clientTransport.Close()
+				closeServer := startSimnetHTTPServer(t, serverPC, http.NotFoundHandler(), 100*time.Millisecond)
+				defer closeServer()
+				conn, err := clientTransport.Dial(t.Context(), serverPC.LocalAddr(), http3.ConfigureTLSConfig(getTLSClientConfig()), getQuicConfig(nil))
+				require.NoError(t, err)
+				defer conn.CloseWithError(0, "")
+				str, err := conn.OpenStream()
+				require.NoError(t, err)
+				_, err = str.Write(prefix)
+				require.NoError(t, err)
+				requireHTTPIdleTimeoutClose(t, conn)
+			})
+		})
+	}
+}
+
+func TestHTTPServerIncompleteHeadersMemory(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		clientPC, serverPC, closeLink := newSimnetLink(t, time.Millisecond)
+		defer closeLink(t)
+		clientTransport := &quic.Transport{Conn: clientPC}
+		defer clientTransport.Close()
+		closeServer := startSimnetHTTPServer(t, serverPC, http.NotFoundHandler(), time.Second)
+		defer closeServer()
+		conn, err := clientTransport.Dial(t.Context(), serverPC.LocalAddr(), http3.ConfigureTLSConfig(getTLSClientConfig()), getQuicConfig(nil))
+		require.NoError(t, err)
+		defer conn.CloseWithError(0, "")
+		synctest.Wait()
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		for range 100 {
+			str, err := conn.OpenStreamSync(t.Context())
+			require.NoError(t, err)
+			_, err = str.Write(quicvarint.Append([]byte{0x1}, http.DefaultMaxHeaderBytes))
+			require.NoError(t, err)
+		}
+		// Deliver the declarations and let all request readers block on payload.
+		time.Sleep(10 * time.Millisecond)
+		synctest.Wait()
+		runtime.ReadMemStats(&after)
+		t.Logf("100 incomplete requests allocated %d bytes", after.TotalAlloc-before.TotalAlloc)
+		// Include transport and test allocations, with ample margin below the
+		// 100 MiB previously allocated for the declared header lengths alone.
+		require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(16<<20))
+		requireHTTPIdleTimeoutClose(t, conn)
+	})
+}
+
+func TestHTTPServerHeaderDeadline(t *testing.T) {
+	for _, tc := range []struct {
+		name                string
+		configured, timeout time.Duration
+	}{
+		{name: "default", timeout: 30 * time.Second},
+		{name: "configured", configured: 100 * time.Millisecond, timeout: 100 * time.Millisecond},
+		{name: "disabled", configured: -1, timeout: 30 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				clientPC, serverPC, closeLink := newSimnetLink(t, time.Millisecond)
+				defer closeLink(t)
+				clientTransport := &quic.Transport{Conn: clientPC}
+				defer clientTransport.Close()
+				closeServer := startSimnetHTTPServer(t, serverPC, http.NotFoundHandler(), 0, func(s *http3.Server) {
+					s.ReadHeaderTimeout = tc.configured
+				})
+				defer closeServer()
+				conf := getQuicConfig(&quic.Config{KeepAlivePeriod: time.Second})
+				conn, err := clientTransport.Dial(t.Context(), serverPC.LocalAddr(), http3.ConfigureTLSConfig(getTLSClientConfig()), conf)
+				require.NoError(t, err)
+				defer conn.CloseWithError(0, "")
+				str, err := conn.OpenStream()
+				require.NoError(t, err)
+				_, err = str.Write(quicvarint.Append([]byte{0x1}, http.DefaultMaxHeaderBytes))
+				require.NoError(t, err)
+				// Receiving more payload must not extend the absolute deadline.
+				time.Sleep(tc.timeout / 2)
+				_, err = str.Write([]byte{0})
+				require.NoError(t, err)
+				time.Sleep(tc.timeout/2 + 10*time.Millisecond)
+				require.NoError(t, conn.Context().Err())
+				if tc.configured < 0 {
+					require.NoError(t, str.SetReadDeadline(time.Now()))
+					_, err = str.Read(make([]byte, 1))
+					require.ErrorIs(t, err, os.ErrDeadlineExceeded)
+					return
+				}
+				_, err = str.Read(make([]byte, 1))
+				var streamErr *quic.StreamError
+				require.ErrorAs(t, err, &streamErr)
+				require.True(t, streamErr.Remote)
+				require.Equal(t, quic.StreamErrorCode(http3.ErrCodeRequestIncomplete), streamErr.ErrorCode)
+			})
+		})
+	}
+}
+
+func TestHTTPServerIdleTimerRestartsWithPendingHeaders(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		clientPC, serverPC, closeLink := newSimnetLink(t, time.Millisecond)
+		defer closeLink(t)
+		clientTransport := &quic.Transport{Conn: clientPC}
+		defer clientTransport.Close()
+		entered, release := make(chan struct{}), make(chan struct{})
+		closeServer := startSimnetHTTPServer(t, serverPC, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			close(entered)
+			<-release
+		}), 100*time.Millisecond)
+		defer func() {
+			close(release)
+			closeServer()
+		}()
+		var conn *quic.Conn
+		tr := newSimnetHTTPTransport(clientTransport, serverPC, getTLSClientConfig(), func(c *quic.Conn) { conn = c })
+		defer tr.Close()
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			resp, err := tr.RoundTrip(newRequest(t, http.MethodGet, "https://localhost/"))
+			require.NoError(t, err)
+			_, err = io.Copy(io.Discard, resp.Body)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+		}()
+		<-entered
+		str, err := conn.OpenStream()
+		require.NoError(t, err)
+		_, err = str.Write(quicvarint.Append([]byte{0x1}, http.DefaultMaxHeaderBytes))
+		require.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+		require.NoError(t, conn.Context().Err(), "complete active headers must suspend idle enforcement")
+		release <- struct{}{}
+		<-done
+		requireHTTPIdleTimeoutClose(t, conn)
+	})
+}
 
 // The HTTP/3 server idle timer measures HTTP inactivity. It starts at handshake
 // completion, so a handshake slower than the idle timeout does not consume it.
@@ -139,7 +293,7 @@ func TestHTTPServerIdleTimerAfterEarly0RTTExchange(t *testing.T) {
 	})
 }
 
-func startSimnetHTTPServer(t *testing.T, pc *simnet.SimConn, handler http.Handler, idleTimeout time.Duration) (close func()) {
+func startSimnetHTTPServer(t *testing.T, pc *simnet.SimConn, handler http.Handler, idleTimeout time.Duration, opts ...func(*http3.Server)) (close func()) {
 	t.Helper()
 	ln, err := quic.ListenEarly(
 		pc,
@@ -148,6 +302,9 @@ func startSimnetHTTPServer(t *testing.T, pc *simnet.SimConn, handler http.Handle
 	)
 	require.NoError(t, err)
 	server := &http3.Server{Handler: handler, IdleTimeout: idleTimeout}
+	for _, opt := range opts {
+		opt(server)
+	}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.ServeListener(ln) }()
 	return func() {
