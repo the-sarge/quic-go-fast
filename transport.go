@@ -55,6 +55,9 @@ type closePacket struct {
 // for dialing an arbitrary number of outgoing connections.
 // A Transport handles a single [net.PacketConn], and offers a range of configuration options
 // compared to the simple helper functions like [Listen] and [Dial] that this package provides.
+// By default, listeners share a process-wide limit of 1024 pending TLS handshakes,
+// with at most 128 per source IP, and require Retry when either limit is half full.
+// [Transport.ConfigureSetupAdmissionV1] replaces this with a caller-managed budget.
 type Transport struct {
 	// A single [net.PacketConn] can only be handled by one Transport.
 	// Bad things will happen if passed to multiple Transports.
@@ -120,6 +123,8 @@ type Transport struct {
 	// and should therefore only be used if a suspiciously high number of incoming connection is recorded.
 	// For most use cases, wrapping the Allow function of a rate.Limiter will be a reasonable
 	// implementation of this callback (negating its return value).
+	// Without ConfigureSetupAdmissionV1, the default setup budget also requires
+	// Retry under pressure, even when this callback is nil or returns false.
 	VerifySourceAddress func(net.Addr) bool
 
 	// ConnContext is called when the server accepts a new connection. To reject a connection return

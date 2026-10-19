@@ -51,17 +51,25 @@ type setupReservation struct {
 	release  func(transferred bool)
 	deadline time.Time
 	stage    setupStage
-	expired  bool // the deadline requested teardown
-	ended    bool // the connection's work has ended or never started
-	closing  int  // closing states still retained by transports
-	settled  bool
-	timer    *time.Timer
-	conn     *Conn // severed on settlement and while detached for recreation
+
+	// The built-in budget ends at TLS handshake completion, including when an
+	// EarlyListener accepts first. It uses the connection's handshake timeouts.
+	handshakeOnly bool
+	expired       bool // the deadline requested teardown
+	ended         bool // the connection's work has ended or never started
+	closing       int  // closing states still retained by transports
+	settled       bool
+	timer         *time.Timer
+	conn          *Conn // severed on settlement and while detached for recreation
 }
 
 // ConfigureSetupAdmissionV1 bounds server connection setup with a caller
 // budget. Call it once, before any operation that initializes the transport;
-// acquire must be non-nil. Transports without it keep ordinary behavior.
+// acquire must be non-nil. This replaces the default process-wide budget of
+// 1024 pending server handshakes, at most 128 per source IP. The default requires
+// Retry for unvalidated sources once either limit is half full. Its capacity
+// returns at TLS handshake completion, or after failed setup and closing-state
+// teardown; accepting an early connection does not return it.
 //
 // acquire is called on the server's packet goroutine for each Initial that
 // would create a connection, after Retry and token handling but before any
@@ -212,14 +220,15 @@ func handlerSetup(h packetHandler) *setupReservation {
 	return nil
 }
 
-// acquire admits one new connection before allocation. A nil reservation with
-// ok true is the ordinary, unconfigured profile.
-func (a setupAdmission) acquire(remote net.Addr) (_ *setupReservation, ok bool) {
+// acquire admits one new connection before allocation. Unconfigured transports
+// use the shared default budget and may require source validation with Retry.
+func (a setupAdmission) acquire(remote net.Addr, validated bool) (_ *setupReservation, retry, ok bool) {
 	if a == nil {
-		return nil, true
+		return defaultServerSetupBudget.acquire(remote, validated)
 	}
 	ep, _ := packetEndpoint(remote)
-	return newSetupReservation(a(ep))
+	r, ok := newSetupReservation(a(ep))
+	return r, false, ok
 }
 
 // A refused attempt is remembered for its client's trailing datagrams and early
@@ -324,8 +333,17 @@ func (r *setupReservation) bind(c *Conn) bool {
 	if r == nil {
 		return true
 	}
+	// Server test doubles can have no connection to bind or run.
+	if c == nil {
+		r.teardown()
+		return true
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.handshakeOnly {
+		c.setup = r
+		return true
+	}
 	if r.timer != nil && !r.activeLocked() {
 		return false
 	}
@@ -387,7 +405,7 @@ func (r *setupReservation) activeLocked() bool {
 // completeHandshake moves the reservation to the accept queue stage. False
 // refuses the connection.
 func (r *setupReservation) completeHandshake() bool {
-	if r == nil {
+	if r == nil || r.handshakeOnly {
 		return true
 	}
 	r.mu.Lock()
@@ -402,7 +420,7 @@ func (r *setupReservation) completeHandshake() bool {
 // claimAccepted records that Accept returned the connection. A connection
 // that expired or ended while queued is returned without a claim.
 func (r *setupReservation) claimAccepted() {
-	if r == nil {
+	if r == nil || r.handshakeOnly {
 		return
 	}
 	r.mu.Lock()
@@ -432,7 +450,7 @@ func (r *setupReservation) completeDial() bool {
 }
 
 func (r *setupReservation) transfer() error {
-	if r == nil {
+	if r == nil || r.handshakeOnly {
 		return errNoSetupReservation
 	}
 	r.mu.Lock()
