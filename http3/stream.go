@@ -1,6 +1,7 @@
 package http3
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -394,14 +395,18 @@ func (s *RequestStream) ReadResponse() (*http.Response, error) {
 		s.str.CancelWrite(quic.StreamErrorCode(ErrCodeFrameError))
 		return nil, fmt.Errorf("http3: HEADERS frame too large: %d bytes (max: %d)", hf.Length, s.maxHeaderBytes)
 	}
-	headerBlock := make([]byte, hf.Length)
-	if _, err := io.ReadFull(s.str.datagramStream, headerBlock); err != nil {
+	// Grow the buffer as data arrives so a HEADERS prefix alone can't reserve the full frame length.
+	var headerBlock bytes.Buffer
+	if _, err := io.CopyN(&headerBlock, s.str.datagramStream, int64(hf.Length)); err != nil {
+		if err == io.EOF && headerBlock.Len() > 0 {
+			err = io.ErrUnexpectedEOF
+		}
 		maybeQlogInvalidHeadersFrame(work.recorder, s.str.StreamID(), hf.Length)
 		s.str.CancelRead(quic.StreamErrorCode(ErrCodeRequestIncomplete))
 		s.str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestIncomplete))
 		return nil, fmt.Errorf("http3: failed to read response headers: %w", maybeReplaceError(err))
 	}
-	decodeFn := s.decoder.Decode(headerBlock)
+	decodeFn := s.decoder.Decode(headerBlock.Bytes())
 	var hfs []qpack.HeaderField
 	var headerFields *[]qpack.HeaderField
 	if work.recorder != nil {
