@@ -6793,3 +6793,52 @@ A genuine single datagram longer than 1,452 bytes on a URO socket trips the guar
 ### Next
 
 The consumer gate is owed on #860 and #851: the Windows VM and Arm VM rows. It never holds the release. A pointer is posted on [#808](https://github.com/the-sarge/quic-go-fast/issues/808#issuecomment-6286815561); its L6 uses pinned binaries. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Incremental trailer HEADERS buffering landed - 2026-10-20 11:30 EDT
+
+**Main:** `37c2c87d0858`
+**Actor:** Claude
+
+### Summary
+
+[#840](https://github.com/the-sarge/quic-go-fast/issues/840) is closed by [PR #901](https://github.com/the-sarge/quic-go-fast/pull/901), squash-merged as `37c2c87d`. `decodeTrailers` serves both client response trailers and server request trailers. It used to allocate the full peer-declared trailer HEADERS length before reading any payload. It now grows a buffer as payload arrives, so a stalled trailer prefix holds only what the peer actually sent.
+
+### Completed
+
+- **Fix.** `http3/headers.go`: `make([]byte, hf.Length)` + `io.ReadFull` became `bytes.Buffer` + `io.CopyN`, the pattern #838 uses in `RequestStream.ReadResponse`. A partial EOF maps to `io.ErrUnexpectedEOF`, so error behavior is unchanged:
+  - empty then EOF gives `io.EOF`;
+  - partial then EOF gives `io.ErrUnexpectedEOF`;
+  - other errors pass through `maybeReplaceError` unchanged;
+  - a complete payload that arrives with an error still decodes.
+
+  The size check and its invalid-HEADERS qlog event, the frame boundary, the qlog events, the signature and both caller closures are unchanged.
+- **Tests.** `http3/trailer_buffer_test.go` drives `Stream.Read` through a DATA frame into the trailer. It covers 16 stalled streams at the client (10 MiB) and server (1 MiB) limits, truncation errors, a complete payload with a terminal error, 127-byte chunked reads up to the frame boundary, and the oversized-length rejection with its qlog event.
+- **Retention across 16 stalled streams, before → after:**
+  - client: 167,772,160 B → 8,192 B (0 payload bytes) and 32,768 B (1,024 bytes);
+  - server: 16,777,216 B → 8,192 B and 32,768 B.
+
+  Only the stalled test failed on base `9343a7fe`. The other four pass on both and pin preserved behavior.
+
+### Decisions
+
+These were approved with the plan on 2026-10-20:
+- The fix stays inline rather than in a helper shared with #838's path, which was a non-goal.
+- Trailers are not charged to the server's `pendingHeaderBytes`. Per the issue, that is out of scope.
+- Accepted trade-offs, the same as #838's: a legitimate near-limit trailer block can briefly peak at about 2× its size while the buffer doubles, and an empty trailer frame allocates 512 B.
+
+### Validation
+
+- **RAS review** `20261020T152223-bc3d92f502edacf5811a4b94` at `c4eba5d9`, briefed with the issue contract verbatim. All six reviewers completed (36 s to 3.3 min each) with zero findings. There was no verify pass and no replacement review.
+- **Certification of `c4eba5d9` on base `9343a7fe`** (Go 1.27.2, darwin/arm64), all passing:
+  - `go test ./http3/...` and `go test -race ./http3/`;
+  - `go vet ./http3/...` and `go mod tidy -diff`;
+  - golangci-lint v2.14.0 on `./http3/...` for six GOOS (amd64): 0 issues;
+  - the integration trailer and header-size tests.
+- **Hosted checks:** all 33 passed on `c4eba5d9`. Main had not moved, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** every compile and the RAS run on mbp128 ran after a `tb` rig idle check.
+
+### Next
+
+No follow-ups were filed: the review deferred nothing. Trailer quotas and timeouts remain out of scope unless someone files them separately.
