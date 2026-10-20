@@ -286,3 +286,65 @@ func testMTUDiscovererReset(t *testing.T, ackLastProbe bool) {
 	require.False(t, d.ShouldSendProbe(now.Add(5*rtt).Add(-time.Microsecond)))
 	require.True(t, d.ShouldSendProbe(now.Add(5*rtt)))
 }
+
+// The finder settles a search that concludes on a lost probe, and only that loss.
+// A conclusion on an acknowledgement is left to the connection, which settles once
+// it has raised its estimate.
+func TestMTUDiscovererSettledOnLoss(t *testing.T) {
+	const startMTU protocol.ByteCount = 1000
+	const maxMTU protocol.ByteCount = 1400
+	rttStats := utils.NewRTTStats()
+	rttStats.SetInitialRTT(100 * time.Millisecond)
+	now := monotime.Now()
+	newFinder := func() (*mtuFinder, *pathMTUSettled) {
+		settled := newPathMTUSettled()
+		d := newMTUDiscoverer(rttStats, startMTU, maxMTU, nil)
+		d.settled = &settled
+		d.Start(now)
+		return d, &settled
+	}
+	isSettled := func(s *pathMTUSettled) bool {
+		select {
+		case <-s.ch:
+			return true
+		default:
+			return false
+		}
+	}
+
+	t.Run("lost", func(t *testing.T) {
+		d, settled := newFinder()
+		var losses int
+		for !d.done() {
+			require.Less(t, losses, 25)
+			require.False(t, isSettled(settled))
+			ping, _ := d.GetPing(now)
+			ping.Handler.OnLost(ping.Frame)
+			losses++
+		}
+		require.True(t, isSettled(settled))
+		require.Equal(t, startMTU, d.CurrentSize())
+
+		// A probe from before a reset is ignored, even if its loss would have concluded.
+		d, settled = newFinder()
+		for range losses - 1 {
+			ping, _ := d.GetPing(now)
+			ping.Handler.OnLost(ping.Frame)
+		}
+		ping, _ := d.GetPing(now)
+		d.Reset(startMTU, maxMTU)
+		ping.Handler.OnLost(ping.Frame)
+		require.False(t, d.done())
+		require.False(t, isSettled(settled))
+	})
+
+	t.Run("acknowledged", func(t *testing.T) {
+		d, settled := newFinder()
+		for i := 0; !d.done(); i++ {
+			require.Less(t, i, 25)
+			ping, _ := d.GetPing(now)
+			ping.Handler.OnAcked(ping.Frame)
+		}
+		require.False(t, isSettled(settled))
+	})
+}

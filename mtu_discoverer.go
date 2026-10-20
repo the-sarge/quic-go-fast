@@ -94,6 +94,12 @@ type mtuFinder struct {
 	// We're therefore not concerned about overflows of this counter.
 	generation uint8
 
+	// settled is the connection's PathMTUSettledV1 signal, or nil. The finder settles
+	// a search that concludes on a lost probe: a loss never changes the size, so the
+	// connection's estimate is already final. A conclusion on an acknowledgement is
+	// settled by the connection, once it has raised the estimate.
+	settled *pathMTUSettled
+
 	qlogger qlogwriter.Recorder
 }
 
@@ -243,5 +249,8 @@ func (h *mtuFinderAckHandler) OnLost(wire.Frame) {
 			h.lost[i] = size
 			break
 		}
+	}
+	if h.settled != nil && h.done() {
+		h.settled.settle()
 	}
 }
