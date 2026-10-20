@@ -7106,3 +7106,40 @@ Approved with the plan on 2026-10-20:
   - the focused lifecycle tests at `-race -count=3`.
 - **Hosted checks:** all 33 passed on `6a10c024`. The base equaled `origin/main` at merge.
 - **Shared-rig note:** one focused `-race` run (about 40 s) may have overlapped the first tb A1 run of wiremux 1921. It was disclosed, and wiremux flagged the run. Later builds ran inside parks it granted.
+
+---
+
+## Self-test budget and accept-order flakes fixed - 2026-10-20 17:13 EDT
+
+**Main:** `e340242d80dc`
+**Actor:** Claude
+
+### Summary
+
+[#914](https://github.com/the-sarge/quic-go-fast/issues/914) and [#915](https://github.com/the-sarge/quic-go-fast/issues/915) are closed by [PR #916](https://github.com/the-sarge/quic-go-fast/pull/916), squash-merged as `e340242d`. Both were flaky self tests, and the fix changes test code only. #914: five fixed 1 s budgets ignored `TIMESCALE_FACTOR`, so they failed on slow hosted runners under `-race`; they now use `scaleDuration`. #915: `TestDrainServerAcceptQueue` assumed `Accept` returns connections in dial order, so it could close a client before checking it; it now accepts every queued connection, checks them all, then closes them.
+
+### Completed
+
+- **#914, `integrationtests/self`.** `scaleDuration(time.Second)` now wraps:
+  - the shared result timer in `testStreamCancellation`;
+  - the per-stream cancel timers of the "concurrent" subtests of `TestStreamReadCancellation` and `TestStreamWriteCancellation`;
+  - the dial contexts of `TestDrainServerAcceptQueue` and `TestServerAcceptQueueOverflow`.
+
+  `TIMESCALE_FACTOR` is 3 on every integration lane, so all lanes now allow 3 s.
+- **#915, `close_test.go`.** After `server.Close()`, the test accepts all 32 queued connections, requires every client and every accepted connection to be open, closes the accepted ones, and then expects `ErrServerClosed` as before. Connections join the queue when the *server* side of the handshake completes, so the order isn't guaranteed.
+- No other self test pairs dialed and accepted connections by index (grep of `integrationtests/self`).
+
+### Decisions
+
+- **One PR, two commits** for both issues (owner approved the plan): both touch `TestDrainServerAcceptQueue`, and one PR saved a second review, CI round and journal entry.
+- **Scaling, not per-stream budgets**, and **fix the test, not the server queue order**, as the issue briefs chose. The ~120 other unscaled literals in the self suite stay out of scope.
+
+### Validation
+
+- **#914 injected delay** (`go test -overlay`, not committed): a 1.5 s sleep at the top of the client reader goroutine, with `TIMESCALE_FACTOR=3 -count=5`. All 30 subtest runs failed with "timeout" on main's timers and all 30 passed on the fixed ones.
+- **#915 injected delays** (`go test -overlay` of `server.go`, not committed): queueing of each server's first connection held back 50 ms, and `accept` slowed 2 ms, at `-test.count=20`. Main's loop failed 20/20 on v1 and on v2 with the hosted message (`Application error 0x0 (remote)`, "client connection closed"); the new loop passed 20/20 on each. Without delays, `-count=50` passed 50/50 on v1 and v2.
+- **#914 margin check** on minimax (Linux, Go 1.27.2, `taskset -c 1-3,17`): `GOMAXPROCS=4 TIMESCALE_FACTOR=3 go test -race` of the four tests at `-count=20` passed 20/20 on v1 and v2. That host is much faster than a hosted runner (slowest subtest 0.40 s, against 3.92 s in the hosted failure), so this shows the change is safe; it doesn't measure the hosted margin.
+- **RAS review** `20261020T210708-9e32ec98750b41b1f343e172` at `e686d196`: all six reviewers completed, with no Fix First items. Its two low items both pointed at the margin result still marked pending in the PR body, which it already reported by then; both rejected. No replacement round was needed.
+- **Local certification at `e686d196`** (Go 1.27.2, darwin/arm64): golangci-lint v2.14.0 for six GOOS values, 0 issues; `GOOS=windows go vet` and a cross-compiled self-test binary; full `go test -count=1 ./...` passed.
+- **Hosted checks:** all 33 passed on `e686d196`. The base equaled `origin/main` (`a0ec20f6`) at merge.
+- The tb rig and minimax were idle before each heavy step, and no wiremux session was busy.
