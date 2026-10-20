@@ -78,6 +78,22 @@ func (h *receivedPacketTracker) IsPotentiallyDuplicate(pn protocol.PacketNumber)
 // number of ack-eliciting packets received before sending an ACK
 const packetsBeforeAck = 2
 
+// MinAckThreshold and MaxAckThreshold bound the opt-in acknowledgment
+// threshold. Below 2 the mode would acknowledge more often than
+// packetsBeforeAck. Above 32, the initial congestion window in packets, a new
+// connection's first flight could never reach the threshold, so every early
+// round trip would wait for ackGroupMaxDelay.
+const (
+	MinAckThreshold = 2
+	MaxAckThreshold = 32
+)
+
+// ackGroupMaxDelay bounds how long two or more unacknowledged ack-eliciting
+// packets wait in the opt-in threshold mode. At up to 1,000 packets a second
+// the second packet arrives after this delay, so slower flows are acknowledged
+// as often as with packetsBeforeAck.
+const ackGroupMaxDelay = time.Millisecond
+
 // The appDataReceivedPacketTracker tracks packets received in the Application Data packet number space.
 // It waits until at least 2 packets were received before queueing an ACK, or until the max_ack_delay was reached.
 type appDataReceivedPacketTracker struct {
@@ -93,6 +109,12 @@ type appDataReceivedPacketTracker struct {
 
 	ackElicitingPacketsReceivedSinceLastAck int
 	ackAlarm                                monotime.Time
+
+	// ackThreshold, when nonzero, replaces packetsBeforeAck. The delay alarm
+	// then runs from oldestUnackedRcvdTime, the receive time of the first
+	// ack-eliciting packet since the last ACK, and is never restarted.
+	ackThreshold          int
+	oldestUnackedRcvdTime monotime.Time
 
 	logger utils.Logger
 }
@@ -118,12 +140,19 @@ func (h *appDataReceivedPacketTracker) ReceivedPacket(pn protocol.PacketNumber, 
 		return nil
 	}
 	h.ackElicitingPacketsReceivedSinceLastAck++
+	if h.ackThreshold != 0 && h.ackElicitingPacketsReceivedSinceLastAck == 1 {
+		h.oldestUnackedRcvdTime = rcvTime
+	}
 	isMissing := h.isMissing(pn)
-	if !h.ackQueued && h.shouldQueueACK(pn, ecn, isMissing) {
+	if !h.ackQueued && h.shouldQueueACK(pn, ecn, rcvTime, isMissing) {
 		h.ackQueued = true
 		h.ackAlarm = 0 // cancel the ack alarm
 	}
 	if !h.ackQueued {
+		if h.ackThreshold != 0 {
+			h.setThresholdAlarm()
+			return nil
+		}
 		// No ACK queued, but we'll need to acknowledge the packet after max_ack_delay.
 		h.ackAlarm = rcvTime.Add(h.maxAckDelay)
 		if h.logger.Debug() {
@@ -131,6 +160,20 @@ func (h *appDataReceivedPacketTracker) ReceivedPacket(pn protocol.PacketNumber, 
 		}
 	}
 	return nil
+}
+
+// setThresholdAlarm times the alarm from the oldest unacknowledged
+// ack-eliciting packet: max_ack_delay for a lone packet, ackGroupMaxDelay for
+// two or more. Later packets never push it back.
+func (h *appDataReceivedPacketTracker) setThresholdAlarm() {
+	delay := h.maxAckDelay
+	if h.ackElicitingPacketsReceivedSinceLastAck >= 2 {
+		delay = min(delay, ackGroupMaxDelay)
+	}
+	h.ackAlarm = h.oldestUnackedRcvdTime.Add(delay)
+	if h.logger.Debug() {
+		h.logger.Debugf("\tSetting ACK timer to %s after the oldest unacknowledged packet", delay)
+	}
 }
 
 // IgnoreBelow sets a lower limit for acknowledging packets.
@@ -172,7 +215,7 @@ func (h *appDataReceivedPacketTracker) hasNewMissingPackets() bool {
 	return highestMissing > h.lastAck.LargestAcked()-reorderingThreshold
 }
 
-func (h *appDataReceivedPacketTracker) shouldQueueACK(pn protocol.PacketNumber, ecn protocol.ECN, wasMissing bool) bool {
+func (h *appDataReceivedPacketTracker) shouldQueueACK(pn protocol.PacketNumber, ecn protocol.ECN, rcvTime monotime.Time, wasMissing bool) bool {
 	// Send an ACK if this packet was reported missing in an ACK sent before.
 	// Ack decimation with reordering relies on the timer to send an ACK, but if
 	// missing packets we reported in the previous ACK, send an ACK immediately.
@@ -183,10 +226,22 @@ func (h *appDataReceivedPacketTracker) shouldQueueACK(pn protocol.PacketNumber, 
 		return true
 	}
 
-	// send an ACK every 2 ack-eliciting packets
-	if h.ackElicitingPacketsReceivedSinceLastAck >= packetsBeforeAck {
+	// send an ACK every 2 ack-eliciting packets, or every ackThreshold
+	threshold := packetsBeforeAck
+	if h.ackThreshold != 0 {
+		threshold = h.ackThreshold
+	}
+	if h.ackElicitingPacketsReceivedSinceLastAck >= threshold {
 		if h.logger.Debug() {
-			h.logger.Debugf("\tQueueing ACK because packet %d packets were received after the last ACK (using initial threshold: %d).", h.ackElicitingPacketsReceivedSinceLastAck, packetsBeforeAck)
+			h.logger.Debugf("\tQueueing ACK because packet %d packets were received after the last ACK (using threshold: %d).", h.ackElicitingPacketsReceivedSinceLastAck, threshold)
+		}
+		return true
+	}
+
+	// with the threshold mode, a group of two or more waits at most ackGroupMaxDelay
+	if h.ackThreshold != 0 && h.ackElicitingPacketsReceivedSinceLastAck >= 2 && rcvTime.Sub(h.oldestUnackedRcvdTime) >= ackGroupMaxDelay {
+		if h.logger.Debug() {
+			h.logger.Debugf("\tQueueing ACK because the oldest of %d unacknowledged packets is %s old.", h.ackElicitingPacketsReceivedSinceLastAck, ackGroupMaxDelay)
 		}
 		return true
 	}
@@ -222,6 +277,7 @@ func (h *appDataReceivedPacketTracker) GetAckFrame(now monotime.Time, onlyIfQueu
 	h.ackQueued = false
 	h.ackAlarm = 0
 	h.ackElicitingPacketsReceivedSinceLastAck = 0
+	h.oldestUnackedRcvdTime = 0
 	return ack
 }
 
