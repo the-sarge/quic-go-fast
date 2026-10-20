@@ -6842,3 +6842,44 @@ These were approved with the plan on 2026-10-20:
 ### Next
 
 No follow-ups were filed: the review deferred nothing. Trailer quotas and timeouts remain out of scope unless someone files them separately.
+
+---
+
+## Version Negotiation discard after Retry landed - 2026-10-20 11:55 EDT
+
+**Main:** `bd8de02ed144`
+**Actor:** Claude
+
+### Summary
+
+[#880](https://github.com/the-sarge/quic-go-fast/issues/880) is closed by [PR #904](https://github.com/the-sarge/quic-go-fast/pull/904), squash-merged as `bd8de02e`. After accepting a valid Retry, a client now discards Version Negotiation, as RFC 9000 §6.2 requires. Before, a Version Negotiation packet that echoed the original Initial's connection IDs passed the #879 echo checks. It then either recreated the connection on an alternate version or destroyed it with `VersionNegotiationError`. Upstream quic-go has the same gate, so this is a fork fix, not a regression.
+
+### Completed
+
+- **Fix.** `connection.go`: `handleVersionNegotiationPacket`'s early-discard condition now also checks `c.receivedRetry`. That flag is set only after a Retry's integrity tag validates. The packet is dropped before its version list is parsed, recording `qlog.PacketDropped` (`version_negotiation`, `PacketDropUnexpectedPacket`), just as delayed and duplicate packets are. `receivedFirstPacket` keeps its meaning, because it also gates Retry acceptance and Initial source-ID filtering.
+- **Tests.** `TestConnectionVersionNegotiationAfterRetry` in `connection_test.go` drives `handleOnePacket`.
+  - **Accepted Retry, then Version Negotiation:** one subtest offers an alternate supported version (`[Version2]`), the other no common version (`[1234]`). Both assert: no error, no close, a single drop event with no `VersionNegotiationReceived` or `VersionInformation`, and that the Retry's destination ID, `handshakeDestConnID`, `retrySrcConnID` and token survive.
+  - **Rejected Retry, then Version Negotiation:** one subtest uses a bad integrity tag, the other an unchanged source ID. In both, a later valid Version Negotiation packet still recreates the connection on `Version2`.
+  - **Red step:** without the gate condition, both accepted-Retry subtests failed on base `d5461b98`, with the two outcomes the issue describes. The rejected-Retry subtests passed on both versions.
+
+### Decisions
+
+Approved with the plan on 2026-10-20:
+- The fix stays at the Version Negotiation gate.
+- Setting `receivedFirstPacket` on Retry was rejected: it would change Initial source-ID filtering after Retry, which [#880](https://github.com/the-sarge/quic-go-fast/issues/880) puts out of scope. Contract closure was not triggered: one owner and a finite set of states, covered by focused tests.
+
+### Validation
+
+- **RAS review:** run `20261020T154731-2a6677cd8fefe8fb2dea7d55` reviewed `4ef6c849`, briefed with the issue and triage contract verbatim. All six reviewers completed with zero findings, so there was no verify pass and no replacement review.
+- **Certification of `4ef6c849` on base `d5461b98`** (Go 1.27.2, darwin/arm64), all passing:
+  - the focused `TestConnectionVersionNegotiation*`, `TestConnectionRetry*`, `TestConnectionConnectionIDChanges` and `TestConnectionServerInvalidPackets` tests, run both plain and with `-race`;
+  - `go test ./integrationtests/versionnegotiation/...`;
+  - the full root package `go test`;
+  - `go vet .`;
+  - golangci-lint v2.14.0 for six GOOS values (amd64): 0 issues.
+- **Hosted checks:** all 33 passed on `4ef6c849`. Main had not moved, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** every compile and the RAS run on mbp128 started after a `tb` rig idle check.
+
+### Next
+
+No follow-ups were filed: the review deferred nothing.
