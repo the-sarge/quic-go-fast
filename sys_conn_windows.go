@@ -53,9 +53,11 @@ type windowsConn struct {
 	// The read whose datagrams are still in readBuffer.
 	cursor coalescedReadCursor
 
-	// uroFallback records that the guard turned URO off for the rest of the
-	// socket's life. Only the reader uses it; cap.GRO keeps its value.
-	uroFallback bool
+	// uroGuardTripped records that the guard has tripped, and uroFallback
+	// that it then turned URO off for the rest of the socket's life. Only the
+	// reader uses them; cap.GRO keeps its value.
+	uroGuardTripped bool
+	uroFallback     bool
 	// uroFallbacks counts the guard's trips, at most one per socket. It is
 	// read by ReceiveCoalescingFallbacksV1 from other goroutines.
 	uroFallbacks atomic.Uint64
@@ -203,7 +205,9 @@ func (c *windowsConn) ReadPacket() (receivedPacket, error) {
 			// Without URO, a read is one datagram.
 			segmentSize = 0
 		} else if !c.uroFallback && segmentSize == 0 && n > protocol.MaxPacketBufferSize {
-			c.fallBackFromURO()
+			if !c.uroGuardTripped {
+				c.fallBackFromURO()
+			}
 			continue
 		}
 		c.cursor.start(receivedPacket{
@@ -241,22 +245,29 @@ func (c *windowsConn) readOrdinaryPacket() (receivedPacket, error) {
 	}, nil
 }
 
-// fallBackFromURO handles a read longer than any packet that arrived without
-// its UDP_COALESCED_INFO record. Some Windows hosts deliver coalesced reads
-// that way (quinn-rs/quinn#2041), and every datagram in them would be lost as
-// one undecryptable datagram, read after read. URO is turned off for the rest
-// of the socket's life and the event is counted once; the caller drops the
-// read, which QUIC resends. The socket then reads as it would without URO.
+// fallBackFromURO handles the first read longer than any packet that arrived
+// without its UDP_COALESCED_INFO record while URO is on. Some Windows hosts
+// deliver coalesced reads that way (quinn-rs/quinn#2041), and every datagram
+// in them would be lost as one undecryptable datagram, read after read. A
+// genuine single datagram that long trips the guard too. The trip is counted
+// once and the caller drops the read, which QUIC resends. URO is turned off
+// once for the rest of the socket's life. After that, a read without its
+// record is one datagram, copied whole into the smallest tier that fits as
+// the cursor copies any datagram, and a read with its record is still split.
+// If URO cannot be turned off, it may still be on, so the guard stays armed
+// and keeps dropping such reads rather than deliver one as a datagram.
 func (c *windowsConn) fallBackFromURO() {
-	c.uroFallback = true
+	c.uroGuardTripped = true
 	c.uroFallbacks.Add(1)
 	raw, err := c.SyscallConn()
 	if err == nil {
 		err = disableURO(raw)
 	}
 	if err != nil {
-		utils.DefaultLogger.Debugf("Turning off receive coalescing after a read without its segment size failed: %s", err)
+		utils.DefaultLogger.Debugf("Turning off receive coalescing after a read without its segment size failed; long reads without it stay dropped: %s", err)
+		return
 	}
+	c.uroFallback = true
 }
 
 func disableURO(conn syscall.RawConn) error {

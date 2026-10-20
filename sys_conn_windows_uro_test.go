@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 	"unsafe"
@@ -212,6 +213,18 @@ type uroReadConn struct {
 	addr              *net.UDPAddr
 	callCounter       int
 	socketAfterScript bool
+	// syscallErr, when set, fails SyscallConn, as on a socket whose
+	// descriptor can no longer be reached.
+	syscallErr   error
+	syscallCalls int
+}
+
+func (c *uroReadConn) SyscallConn() (syscall.RawConn, error) {
+	c.syscallCalls++
+	if c.syscallErr != nil {
+		return nil, c.syscallErr
+	}
+	return c.UDPConn.SyscallConn()
 }
 
 func (c *uroReadConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *net.UDPAddr, err error) {
@@ -364,7 +377,9 @@ func newUROSocketConn(t *testing.T, rc *uroReadConn) *windowsConn {
 // A read longer than any packet without its UDP_COALESCED_INFO record is how
 // some Windows hosts deliver coalesced reads (quinn-rs/quinn#2041). The guard
 // turns URO off for the socket's life, counts the event once and drops the
-// read. Later reads are handled as on a socket without URO.
+// read. After that, a long read without its record is one datagram, copied
+// whole into the smallest tier that fits, and a read with its record is still
+// split.
 func TestWindowsUROGuardLongReadWithoutRecord(t *testing.T) {
 	long := bytes.Repeat([]byte{7}, 3*1200)
 	segs := testCoalescedSegments(2, 1200)
@@ -392,7 +407,7 @@ func TestWindowsUROGuardLongReadWithoutRecord(t *testing.T) {
 		p.buffer.Release()
 	}
 	// The guard doesn't trip again: a long read without its record is one
-	// datagram, as on a socket without URO.
+	// datagram.
 	p, err = conn.ReadPacket()
 	require.NoError(t, err)
 	require.Equal(t, long, p.data)
@@ -400,6 +415,32 @@ func TestWindowsUROGuardLongReadWithoutRecord(t *testing.T) {
 	p.buffer.Release()
 	require.EqualValues(t, 1, conn.receiveCoalescingFallbackCount().Load(), "counted once")
 	conn.releaseReadBuffers()
+}
+
+// If URO cannot be turned off, it may still be on: the guard stays armed and
+// keeps dropping long reads without their record instead of delivering one as
+// a datagram. It counts and tries to turn URO off only once.
+func TestWindowsUROGuardTurnOffFails(t *testing.T) {
+	long := bytes.Repeat([]byte{7}, 3*1200)
+	segs := testCoalescedSegments(2, 1200)
+	rc := &uroReadConn{
+		t:          t,
+		payloads:   [][]byte{long, []byte("a"), long, append(append([]byte{}, segs[0]...), segs[1]...), []byte("b")},
+		oobs:       [][]byte{nil, nil, nil, coalescedInfoMsg(t, 1200), nil},
+		addr:       &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1},
+		syscallErr: assert.AnError,
+	}
+	conn := newUROConn(t, rc)
+	t.Cleanup(conn.releaseReadBuffers)
+	for _, want := range [][]byte{[]byte("a"), segs[0], segs[1], []byte("b")} {
+		p, err := conn.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, want, p.data)
+		p.buffer.Release()
+	}
+	require.Equal(t, 5, rc.callCounter, "both long reads are dropped")
+	require.EqualValues(t, 1, conn.receiveCoalescingFallbackCount().Load(), "counted once")
+	require.Equal(t, 1, rc.syscallCalls, "URO is turned off at most once")
 }
 
 // Reads with their record, and reads of at most one packet without it, leave

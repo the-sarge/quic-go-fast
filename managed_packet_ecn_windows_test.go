@@ -322,6 +322,47 @@ func TestWindowsManagedECNLeaseReuse(t *testing.T) {
 	}
 }
 
+// An ordinary lease's read leaves the reader's buffer in place. When a later
+// bind no longer needs the reader, the endpoint returns that buffer before
+// discarding the reader (#860).
+func TestWindowsManagedReceiveDiscardReleasesReadBuffer(t *testing.T) {
+	t.Setenv("QUIC_GO_DISABLE_GRO", "true")
+	t.Setenv("QUIC_GO_DISABLE_ECN", "false")
+	endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer endpoint.Close()
+	lease, err := acquire()
+	require.NoError(t, err)
+	require.NoError(t, (&Transport{Conn: lease}).ConfigureManagedPacketIOV1(lease, lease, nil))
+	e := endpoint.(*managedPacketConn).endpoint
+	reader, ok := e.receiver.(*windowsConn)
+	require.True(t, ok, "managed ECN keeps a reader without URO")
+	require.NoError(t, lease.Close())
+
+	ordinary, err := acquire()
+	require.NoError(t, err)
+	peer, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer peer.Close()
+	_, err = peer.WriteTo([]byte("ordinary"), endpoint.LocalAddr())
+	require.NoError(t, err)
+	require.NoError(t, ordinary.SetReadDeadline(time.Now().Add(5*time.Second)))
+	b := make([]byte, 64)
+	n, _, err := ordinary.ReadFrom(b)
+	require.NoError(t, err)
+	require.Equal(t, "ordinary", string(b[:n]))
+	require.NoError(t, ordinary.Close())
+	require.NotNil(t, reader.readBuffer, "an ordinary lease's close keeps the reader's buffer")
+
+	t.Setenv("QUIC_GO_DISABLE_ECN", "true")
+	next, err := acquire()
+	require.NoError(t, err)
+	defer next.Close()
+	require.NoError(t, (&Transport{Conn: next}).ConfigureManagedPacketIOV1(next, next, nil))
+	require.Nil(t, e.receiver)
+	require.Nil(t, reader.readBuffer, "the discarded reader returned its buffer")
+}
+
 // With URO on, a managed endpoint's single datagram longer than a packet has
 // no segment-size record, so it trips the guard like a defective coalesced
 // read (#860): it is dropped and counted once, URO is turned off for the

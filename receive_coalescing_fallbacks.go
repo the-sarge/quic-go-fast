@@ -9,15 +9,18 @@ type receiveCoalescingFallbackReader interface {
 	receiveCoalescingFallbackCount() *atomic.Uint64
 }
 
-// ReceiveCoalescingFallbacksV1 returns how many times receive coalescing was
-// turned off on the socket this transport reads from, because a read longer
-// than the largest packet arrived without the record of its datagrams' size.
-// Some Windows hosts deliver coalesced reads that way; the read is dropped
-// and the socket reads without coalescing from then on. The count is at most
-// one per socket and is zero where the socket does not coalesce receives on
-// Windows. Transports that share a managed endpoint report the endpoint's
-// socket. It never decreases and is safe to call concurrently. Code compiled
-// against upstream quic-go finds it by interface assertion.
+// ReceiveCoalescingFallbacksV1 returns how many times the socket this
+// transport reads from fell back from receive coalescing on Windows: a read
+// longer than the largest packet (1,452 bytes) arrived without the record of
+// its datagrams' size. Some Windows hosts deliver coalesced reads that way.
+// A genuine single datagram that long trips it too, so a nonzero count does
+// not by itself mean the host is defective. The read is dropped, and
+// coalescing is turned off for the rest of the socket's life; if that fails,
+// such reads keep being dropped. The count is at most one per socket and is
+// zero where the socket does not coalesce receives on Windows. Transports
+// that share a managed endpoint report the endpoint's socket. It never
+// decreases and is safe to call concurrently. Code compiled against upstream
+// quic-go finds it by interface assertion.
 func (t *Transport) ReceiveCoalescingFallbacksV1() uint64 {
 	if e := t.managedPacketEndpoint(); e != nil {
 		e.mutex.Lock()
