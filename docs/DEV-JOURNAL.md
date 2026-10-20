@@ -6728,3 +6728,68 @@ Each raised connection holds one OS thread, which is documented but not capped.
 ### Next
 
 The consumer's adoption gate runs after the bundle release on the Thunderbolt pair, with thresholds on #859. It never holds the release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Windows copy-at-read, missing-record guard and slab retirement landed - 2026-10-20 04:30 EDT
+
+**Main:** `0dae7d44def1`
+**Actor:** Claude
+
+### Summary
+
+[#860](https://github.com/the-sarge/quic-go-fast/issues/860) landed in [PR #899](https://github.com/the-sarge/quic-go-fast/pull/899) as `0dae7d44`. It is slice 11 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)) and never holds the release.
+
+The Windows reader now copies each datagram out at read time, as the Linux GRO reader has since #853. A guard turns URO off when a long read arrives without its segment-size record. With no producer left on any platform, the coalesced slab, its retention budget and ADR 0005's atomic exception are retired.
+
+### Completed
+
+- **Shared cursor.** `coalescedReadCursor` and `copyCoalescedDatagram(datagram, managed)` moved from `sys_conn_oob.go` into `coalesced_read.go` (`darwin || linux || freebsd || windows`). Linux behavior is unchanged.
+- **Windows copy-at-read.**
+  - While URO is on or the reader is managed, `windowsConn` reads into one reader-owned 64 KiB coalesced-tier buffer, taken on first use and returned by `releaseReadBuffers`.
+  - Each datagram is copied into the smallest tier that fits. Above 20 KiB, a managed reader gets it whole in the 64 KiB tier (operator decision D1) and any other reader gets the 1,452-byte prefix.
+  - The unmanaged reader without URO is unchanged.
+- **Guard.** It trips on a valid read longer than 1,452 bytes without `UDP_COALESCED_INFO`, while URO is on.
+  - The trip is counted once, the read is dropped, and `UDP_RECV_MAX_COALESCED_SIZE` is set to 0 once.
+  - Only a successful turn-off ends the guard. If it fails, long reads without their record keep being dropped.
+  - After a successful turn-off, a read without its record is one datagram, and a read with its record is still split.
+  - The state is reader-only, so `cap.GRO` and the reported state keep their values.
+- **Count.** `(*Transport).ReceiveCoalescingFallbacksV1() uint64` exists on every platform and is found by interface assertion (D2). It resolves a managed lease to the endpoint's reader.
+- **Retirement.** These were deleted: `coalescedSlab`, `coalescedDelivery`, `retainForRetentionQueue` and its seven call sites, the three `coalescedRetention` budgets, `MaxConnRetainedCoalescedBytes`, `packetBuffer.slab` and `retentionCharge`, and the slab-only tests.
+  - Tests that used a slab view to observe a release now read a coalesced-tier buffer's refcount. This relies on their transports never taking that tier.
+  - The full list is in the [#860 retirement comment](https://github.com/the-sarge/quic-go-fast/issues/860#issuecomment-6286816009).
+- **CI.** `unit.yml` runs `^TestWindows(URO|USOURO|Managed|External)` under `-race` on the Windows lane (D3).
+
+### Decisions
+
+The operator approved D1–D4 with the plan on 2026-10-20:
+- D1: a managed reader delivers a datagram above 20 KiB whole.
+- D2: the count's name and placement.
+- D3: the Windows race step.
+- D4: the frozen `w3bench` and `grobench` harnesses keep their bytes. They no longer compile on `main` and are built at their recorded commits, as ADR 0005's 2026-10-20 note records.
+
+A genuine single datagram longer than 1,452 bytes on a URO socket trips the guard too, on managed endpoints included. That is the trigger #860 pins, and the plan accepted it. Hosted CI on `311d61b2` surfaced it through `TestWindowsManagedECNLeaseReuse`, and `TestWindowsManagedUROGuardLongSingleDatagram` now pins it.
+
+### Validation
+
+- **RAS review `20261020T075546-2fc135d4b3d893c34d3a8449` at `c8267941`.** All six reviewers completed.
+  - C-002 (with duplicates C-003, C-006 and C-007) was fix-now. A failed turn-off had been treated as a successful fallback. Fixed in `cbc0cb9f`; `TestWindowsUROGuardTurnOffFails` covers it.
+  - C-001 was fix-now: a discarded managed reader kept its buffer. Fixed; `TestWindowsManagedReceiveDiscardReleasesReadBuffer` covers it.
+  - C-004, C-005 and C-008 were fix-now documentation.
+  - Rejected: rewording the upstream truncation comment that moved unchanged.
+  - Verification at `cbc0cb9f` left only the C-004/C-005 wording, fixed in `409e118e` as comments only. Replacement review `20261020T081935-56dbd10bc86a5eb8e44770db` found nothing.
+- **KVM on minimax.** The guest was a Server 2025 overlay of the v4 golden (sha256 verified), with an e1000e NIC and software URO, using the Linux host as peer. Binaries were built at `cbc0cb9f`.
+  - `TestWindowsExternalURONativeEngagement` passed: 1 coalesced read, 32 exact datagrams, zero fallbacks.
+  - 52 `TestWindows*` tests passed; 2 skipped because they need peers outside this run.
+  - With the guard branch deleted (via `go test -overlay`), the four guard tests failed and the short- and recorded-read test still passed.
+  - The guest was then destroyed and undefined.
+- **Certification of `409e118e` on base `17c46097`.**
+  - Darwin: `go vet` for darwin and windows/amd64, and `go test -count=1 -shuffle=on ./...` (27 packages).
+  - minimax, Go 1.27.2: golangci-lint v2.14.0 on six GOOS (amd64) plus windows/arm64, `-race` on the root package and `internal/protocol`, and `go mod tidy -diff`.
+  - Stress earlier in the PR: `-race -count=100` on the rewritten release-observer tests and the GRO reader tests.
+  - All 33 hosted checks passed on `409e118e`, including both Windows lanes' race step. One earlier macOS integration job failed at `go install go-junit-report`; the same head's push job passed. Main had not moved, and the PR was squash-merged with the matching-head guard.
+- **Process miss.** Several of my compiles, the tail of the RAS run and a golangci-lint build ran on mbp128 during wiremux `tb` runs (1924's TB1 and 1919's B1). I disclosed each window, and the owners flagged the overlapping runs. The remaining work ran on minimax or inside a window 1919 parked for it.
+
+### Next
+
+The consumer gate is owed on #860 and #851: the Windows VM and Arm VM rows. It never holds the release. A pointer is posted on [#808](https://github.com/the-sarge/quic-go-fast/issues/808#issuecomment-6286815561); its L6 uses pinned binaries. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
