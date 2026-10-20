@@ -199,11 +199,6 @@ type Transport struct {
 	// this transport reads itself, when that reader has one (#860).
 	receiveCoalescingFallbacks atomic.Pointer[atomic.Uint64]
 
-	// coalescedRetention bounds the coalesced-slab bytes pinned by the
-	// transport's queues (non-QUIC packets, stateless resets) through
-	// oversized segment views.
-	coalescedRetention coalescedRetentionBudget
-
 	logger utils.Logger
 }
 
@@ -862,12 +857,6 @@ func (t *Transport) maybeSendStatelessReset(p receivedPacket) (statelessResetQue
 	if len(t.statelessResetQueue) == cap(t.statelessResetQueue) {
 		return false
 	}
-	// a queued packet must not pin a coalesced slab
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &t.coalescedRetention)
-	if !retained {
-		return false
-	}
 	t.statelessResetQueue <- p
 	return true
 }
@@ -923,14 +912,8 @@ func (t *Transport) handleNonQUICPacket(p receivedPacket) {
 		p.buffer.Release()
 		return
 	}
-	// Check capacity before paying for a retention copy; only the listen
-	// goroutine enqueues, so the check cannot race. A queued packet must not
-	// pin a coalesced slab.
-	var retained bool
-	if len(t.nonQUICPackets) < cap(t.nonQUICPackets) {
-		p, retained = retainForRetentionQueue(p, &t.coalescedRetention)
-	}
-	if !retained {
+	// only the listen goroutine enqueues, so the capacity check cannot race
+	if len(t.nonQUICPackets) == cap(t.nonQUICPackets) {
 		if t.Tracer != nil {
 			t.Tracer.RecordEvent(qlog.PacketDropped{
 				Raw:     qlog.RawInfo{Length: int(p.Size())},

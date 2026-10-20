@@ -310,23 +310,20 @@ func (c *admissionExtractedConn) WritePacket(b []byte, addr net.Addr, _ []byte, 
 func (c *admissionExtractedConn) capabilities() connCapabilities { return connCapabilities{} }
 
 func TestNetworkAdmissionExtractedDatagramsAndReturnFacts(t *testing.T) {
-	// The adapter boundary receives already-extracted datagrams. Exercise real
-	// coalesced splitting, storage release and copied destination/OOB facts here;
-	// native OS binding qualification is a separate program obligation.
+	// The adapter boundary receives already-extracted datagrams: the
+	// datagrams of one coalesced read, each copied into its own buffer and
+	// sharing the read's destination/OOB facts. Native OS binding
+	// qualification is a separate program obligation.
 	conn := &admissionExtractedConn{PacketConn: newUDPConnLocalhost(t), ready: make(chan struct{})}
 	remote := newUDPConnLocalhost(t).LocalAddr()
-	buffer := getCoalescedPacketBuffer()
-	copy(buffer.Data[:6], "\x00a\x00b\x00c")
-	var delivery coalescedDelivery
-	p := delivery.accept(receivedPacket{buffer: buffer, data: buffer.Data[:6], remoteAddr: remote, info: packetInfo{addr: netip.MustParseAddr("10.0.0.9")}}, 2)
-	slab := p.buffer.slab
-	conn.packets = append(conn.packets, p)
-	for {
-		p, ok := delivery.next()
-		if !ok {
-			break
-		}
-		conn.packets = append(conn.packets, p)
+	// The transport's reader never takes a coalesced-tier buffer, so their
+	// release is observable without reading a buffer another goroutine took.
+	var denied []*packetBuffer
+	for _, datagram := range []string{"\x00a", "\x00b", "\x00c"} {
+		buffer := getCoalescedPacketBuffer()
+		buffer.Data = append(buffer.Data, datagram...)
+		denied = append(denied, buffer)
+		conn.packets = append(conn.packets, receivedPacket{buffer: buffer, data: buffer.Data, remoteAddr: remote, info: packetInfo{addr: netip.MustParseAddr("10.0.0.9")}})
 	}
 	good := getPacketBuffer()
 	copy(good.Data[:3], "\x00ok")
@@ -353,7 +350,9 @@ func TestNetworkAdmissionExtractedDatagramsAndReturnFacts(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "\x00ok", string(b[:n]))
 	require.EqualValues(t, 4, evaluated.Load(), "each extracted datagram must be evaluated")
-	require.True(t, slab.released(), "all denied coalesced views must release storage")
+	for i, buffer := range denied {
+		require.Zero(t, buffer.refCount, "denied datagram %d must release its storage", i)
+	}
 }
 
 func TestNetworkAdmissionAlternatePathAndPreferredCIDPreservation(t *testing.T) {

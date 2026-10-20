@@ -49,14 +49,6 @@ const MaxConnUnprocessedPackets = 256
 // (MaxConnUnprocessedPacketsConfirmed - MaxConnUnprocessedPackets) * (MaxPacketBufferSize + 1) bytes per connection.
 const MaxConnUnprocessedPacketsConfirmed = 1024
 
-// MaxConnRetainedCoalescedBytes is the maximum number of coalesced-slab bytes
-// a single connection's retention queues (undecryptable and unprocessed) may
-// pin through oversized segment views. A retained segment is normally copied
-// into an ordinary buffer tier; only a segment too large for the 20 KiB tier
-// keeps its slab and is charged here at full slab size, so oversized retention
-// is byte-bounded (32 full slabs ≈ 2 MiB) rather than only entry-counted.
-const MaxConnRetainedCoalescedBytes = 32 * MaxCoalescedPacketBufferSize
-
 // SkipPacketInitialPeriod is the initial period length used for packet number skipping to prevent an Optimistic ACK attack.
 // Every time a packet number is skipped, the period is doubled, up to SkipPacketMaxPeriod.
 const SkipPacketInitialPeriod PacketNumber = 256
