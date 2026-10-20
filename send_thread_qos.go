@@ -176,12 +176,19 @@ func (c *Conn) installSendThreadQoS(enabled bool) {
 	c.emission.bindSendQoS(&sendThreadQoS{thread: thread, now: monotime.Now})
 }
 
-// bindSendQoS gives the connection's controller to the active queue; a path
-// change gives it to each queue it creates.
+// bindSendQoS installs the connection's controller and gives it to the active
+// queue. It runs once, before the connection is published: SendThreadQoSV1
+// reads the controller without synchronization.
 func (e *packetEmission) bindSendQoS(q *sendThreadQoS) {
 	e.sendQoS = q
-	if sq, ok := e.queue.(*sendQueue); ok {
-		sq.qos = q
+	e.bindQueueSendQoS(e.queue)
+}
+
+// bindQueueSendQoS gives the installed controller to a queue a path change
+// creates, before its worker starts.
+func (e *packetEmission) bindQueueSendQoS(queue sender) {
+	if sq, ok := queue.(*sendQueue); ok {
+		sq.qos = e.sendQoS
 	}
 }
 

@@ -321,6 +321,46 @@ func TestSendQoSBindsReplacementQueue(t *testing.T) {
 	})
 }
 
+// The outcome is safe to read while path changes replace the queue, and a
+// stand-down stays final across them.
+func TestSendQoSOutcomeDuringPathChanges(t *testing.T) {
+	var conn sendConn = &fakeBatchSendConn{available: func() bool { return false }}
+	c := &Conn{}
+	c.emission = packetEmission{queue: newSendQueue(conn, nil), conn: &conn}
+	thread := newFakeSendQoSThread(31)
+	restore := sendQoSThreadSource
+	t.Cleanup(func() { sendQoSThreadSource = restore })
+	sendQoSThreadSource = func() sendQoSThread { return thread }
+	c.installSendThreadQoS(true)
+	qos := c.emission.sendQoS
+
+	stop := make(chan struct{})
+	polled := make(chan struct{})
+	go func() {
+		defer close(polled)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_ = c.SendThreadQoSV1()
+			}
+		}
+	}()
+	queue := c.emission.queue
+	go queue.Run()
+	for range 50 {
+		queue = c.emission.replacePath(&fakeBatchSendConn{available: func() bool { return false }}, nil)
+		require.Same(t, qos, queue.(*sendQueue).qos)
+		go queue.Run()
+	}
+	queue.Close()
+	close(stop)
+	<-polled
+	require.Equal(t, "refused", c.SendThreadQoSV1())
+	require.Equal(t, qosRaiseRefused, thread.recorded(), "only the first worker tried")
+}
+
 // Each outcome reads as its documented string; a connection without a
 // controller reads "off".
 func TestSendQoSOutcomeStrings(t *testing.T) {

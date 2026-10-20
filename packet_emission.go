@@ -623,7 +623,7 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 	queue := newSendQueue(conn, feedback)
 	e.queue = queue
 	e.bindAuthority(e.authority)
-	e.bindSendQoS(e.sendQoS)
+	e.bindQueueSendQoS(queue)
 	return queue
 }
 
