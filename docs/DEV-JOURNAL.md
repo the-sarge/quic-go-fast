@@ -7006,3 +7006,54 @@ Approved with the plan on 2026-10-20:
 - **Consumer gate,** for information, after a release carries this: the consumer waits for the signal, bounded at 250 ms, then runs an A/B on the Thunderbolt pair (see [#884](https://github.com/the-sarge/quic-go-fast/issues/884)).
 - **Note for that consumer:** discovery sends probes only while the connection is sending, which is unchanged behavior. An idle connection can delay the signal, so the consumer should keep sending while it waits.
 - No follow-ups were filed: the review deferred nothing.
+
+---
+
+## Dual-stack ECN test receiver port fix landed - 2026-10-20 14:05 EDT
+
+**Main:** `08f3dc92279b`
+**Actor:** Claude
+
+### Summary
+
+[#528](https://github.com/the-sarge/quic-go-fast/issues/528) is closed by [PR #909](https://github.com/the-sarge/quic-go-fast/pull/909), squash-merged as `08f3dc92`. The change is test-only.
+
+`TestReadECNFlagsDualStack` sometimes timed out on macOS CI waiting for its first IPv4 packet. The cause is the #717 mechanism. A dual-stack receiver bound with port 0 can be given a port that an IPv4 socket already holds on `127.0.0.1` or `0.0.0.0`, and IPv4 datagrams to `127.0.0.1:P` then go to that socket. The owner approved acting on that mechanism without waiting for another natural failure, as #717/#721 did.
+
+### Completed
+
+- **Forced reproduction on main `33ecc809`.**
+  - Setup: a scratch `go test -overlay` test held 1,000 `udp4` sockets (800 on `127.0.0.1`, 200 on `0.0.0.0`), then repeated the test's receiver setup and IPv4 phase with the unchanged helpers. The budget was declared up front: 400 draws, one run, 10-minute cap.
+  - On main: 27 draws collided (23 with `127.0.0.1` holders, 4 with `0.0.0.0` holders). All 27 timed out with no read error, as #544's diagnostics predicted, and each datagram was found at the holder. The other 373 were delivered.
+  - With the fix (`12dc9636`): 400/400 delivered, 0 collisions.
+  - Host: mbp128, macOS 27.0.1 (26A434), Go 1.27.2. The CI build (26.6.2, 25G83) on m4mini was unreachable; #717 had reproduced the mechanism there.
+- **`listenDualStackUDP`** in `sys_conn_oob_receiver_test.go`; `runSysConnServer` routes `"udp"` receivers through it. On darwin:
+  1. A `udp4 0.0.0.0:0` reservation takes the port from the IPv4 allocator.
+  2. While the reservation is open, the receiver binds `[::]:P` explicitly. XNU allows this next to an IPv4 wildcard socket.
+  3. The reservation closes.
+
+  If an IPv6 socket holds the port, the bind fails with `EADDRINUSE`; that reservation is kept open and the next draw differs, for at most 16 draws. Other systems keep the plain bind. Both test phases, their assertions and their timeouts are unchanged; `TestSysConnPacketInfoDualStack` is covered by the same helper.
+- **Regression `TestListenDualStackUDPAvoidsHeldIPv4Ports`** (darwin). It holds 500 IPv4 ports, creates 300 receivers, and requires no held port, a dual-stack socket, and IPv4 delivery to `127.0.0.1`. With a plain port-0 bind it failed with 7 collisions.
+- **Follow-up filed:** [#910](https://github.com/the-sarge/quic-go-fast/issues/910) (`needs-triage`) for three managed-endpoint ECN test cells with the same shape. They bind through the production `NewManagedPacketEndpointV1("udp", nil)`. The PR body lists the full census.
+
+### Decisions
+
+- **Rejected design: detect a holder at setup by binding `127.0.0.1:P`.** XNU always refuses that bind next to the dual-stack receiver (1,882/1,882 with no other holder), so it detects nothing.
+- **Chosen design: reserve-then-bind.** It was tested at 7 × 2,000 draws with 1,000 IPv4 sockets held: 0 draws on held ports, 13,986/13,986 IPv4 datagrams delivered, and explicit IPv4 binds of the port refused afterwards. Experiment sources are in PR #909's body and #528's closing comment.
+- **Scope:** the managed-endpoint cells were left to a follow-up issue, approved with the plan on 2026-10-20.
+- **Experiment trap:** one early run showed 11 "held" ports that were actually free. Holder sockets kept only in a map that was never read again were collected by the GC, and their finalizers closed them mid-run. Holders must stay reachable; `t.Cleanup` closures do that.
+
+### Validation
+
+- **Gates on `12dc9636`, base `33ecc809`** (Go 1.27.2, darwin/arm64), all passing:
+  - `go test -count=1 ./...`;
+  - `go vet .` for darwin, linux, freebsd and windows;
+  - cross-compiled test binaries for windows, freebsd and linux;
+  - golangci-lint v2.14.0 for six GOOS values (amd64): 0 issues;
+  - `-count=50` of the regression, `TestReadECNFlagsDualStack` and `TestSysConnPacketInfoDualStack`.
+- **RAS review** `20261020T175611-a90210ada26653be9f5304de`. All six reviewers and the adjudicators completed, with nothing under Fix First or Follow Up. C-001 (low; a nil `addr` would panic in the new guard) was rejected: all 13 callers pass non-nil addresses, and a panic fails loudly. With no fixes, there was no verify pass or replacement review.
+- **Hosted checks:** all 33 passed on `12dc9636`. The base equaled `origin/main`, and the PR was squash-merged with the matching-head guard.
+
+### Next
+
+- [#910](https://github.com/the-sarge/quic-go-fast/issues/910) awaits triage.
