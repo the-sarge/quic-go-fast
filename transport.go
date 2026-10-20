@@ -175,6 +175,9 @@ type Transport struct {
 	// ackThreshold is configured before initialization and immutable
 	// thereafter. Zero keeps the default acknowledgment rule.
 	ackThreshold int
+	// sendThreadQoS is configured before initialization and immutable
+	// thereafter.
+	sendThreadQoS bool
 
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
@@ -383,6 +386,7 @@ func (t *Transport) doDial(
 	}
 	conn.installReceivePhase(t.receivePhases)
 	conn.installAckThreshold(t.ackThreshold)
+	conn.installSendThreadQoS(t.sendThreadQoS)
 	if err := conn.bindCandidate(t.candidates); err != nil {
 		t.mutex.Unlock()
 		conn.abortUnstarted(err)

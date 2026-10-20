@@ -1017,6 +1017,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	setup.bind(conn.Conn)
 	conn.installReceivePhase(s.tr.receivePhases)
 	conn.installAckThreshold(s.tr.ackThreshold)
+	conn.installSendThreadQoS(s.tr.sendThreadQoS)
 	if err := conn.bindCandidate(s.tr.candidates); err != nil {
 		// A selected or closed group sends no response for a new candidate.
 		conn.abortUnstarted(err)

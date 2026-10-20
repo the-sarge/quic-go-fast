@@ -98,6 +98,8 @@ type sendQueue struct {
 	// authority is checked again before each socket submission of queued
 	// work; nil is ungrouped.
 	authority *connAuthority
+	// qos is the connection's send thread QoS; nil leaves the thread alone.
+	qos *sendThreadQoS
 
 	// Scratch reused across batched sends; the run loop is the only user.
 	batchScratch []queueEntry
@@ -185,6 +187,9 @@ func (h *sendQueue) Available() <-chan struct{} {
 
 func (h *sendQueue) Run() error {
 	defer close(h.runStopped)
+	// Restoring the thread precedes runStopped, so Close returns only after it.
+	qos := h.qos.begin()
+	defer qos.release()
 	var shouldClose bool
 	for {
 		if shouldClose && len(h.queue) == 0 {
@@ -200,6 +205,7 @@ func (h *sendQueue) Run() error {
 				if err := h.runBatched(e, bs); err != nil {
 					return err
 				}
+				qos.check()
 				continue
 			}
 			if err := h.writeEntry(e); err != nil {
@@ -211,6 +217,7 @@ func (h *sendQueue) Run() error {
 			case h.available <- struct{}{}:
 			default:
 			}
+			qos.check()
 		}
 	}
 }
