@@ -6933,3 +6933,76 @@ No follow-ups were filed: the review deferred nothing.
 ### Next
 
 No follow-ups were filed: the review deferred nothing.
+
+---
+
+## Path MTU settled signal landed - 2026-10-20 12:58 EDT
+
+**Main:** `61a77c23235a`
+**Actor:** Claude
+
+### Summary
+
+[#884](https://github.com/the-sarge/quic-go-fast/issues/884) is closed by [PR #907](https://github.com/the-sarge/quic-go-fast/pull/907), squash-merged as `61a77c23`.
+
+`(*Conn).PathMTUSettledV1() <-chan struct{}` returns one channel per connection. It closes once, at the first of these:
+
+- path MTU discovery's search concludes on the first path;
+- discovery will not run there;
+- the connection leaves that path;
+- the connection ends.
+
+A downstream consumer can now wait a bounded time for a settled DATAGRAM limit instead of reading the initial-size limit shortly after the handshake.
+
+### Completed
+
+- **Signal owner.** `path_mtu_settled.go` holds a channel plus a `closed` flag, used only on the connection goroutine. Its idempotent `settle()` is the single guard for exactly-once closing. The doc comment states the path-change caveat: a path change, including one the server follows after NAT rebinding, resets the limit to the initial size without reopening the channel.
+- **Settle sites,** each at an existing event:
+  - **Acknowledged probe:** `handleAckFrame`, inside the existing "estimate rose" branch, after `Store` and `SetMaxDatagramSize`. An acknowledgement concludes the search only by raising the finder's size.
+  - **Lost probe:** `mtuFinderAckHandler.OnLost`, through a finder field attached by the new `newPathMTUFinder`. A loss never changes the size, so the estimate is already final. This covers losses in ACK processing, by the loss timer and in `MigratedPath`.
+  - **Discovery will not run:** `startMTUDiscovery` at confirmation (disabled, no DF, or nothing to search).
+  - **Path abandoned:** `resetPathPacketSize`, after the estimate reset.
+  - **Connection end:** a `run()` defer.
+- **Not on the per-packet path.** Nothing runs per packet. The probing schedule, probe sizes, loss handling, packetization, the handshake fallback and `SendDatagram`'s computation are unchanged. The existing MTU tests are byte-identical.
+- **Glossary.** `CONTEXT.md` gains a **Path MTU settled signal** entry.
+- **Unit tests** (`path_mtu_settled_test.go`, plus `TestMTUDiscovererSettledOnLoss`):
+  - confirmation routes;
+  - acknowledged, ACK-time-loss and loss-timer conclusions, driven through the real sent packet handler;
+  - a path change before and after the close;
+  - the handshake fallback followed by a conclusion;
+  - an idle-timeout end before the handshake.
+- **Integration tests** (`integrationtests/self/path_mtu_settled_test.go`):
+  - loopback settles at 1441 bytes (limit 1404, initial 1243);
+  - a 1400-byte proxy cap ends on lost probes at 1398 (limit 1361);
+  - discovery disabled holds 1243;
+  - local close, peer close and idle timeout behind a ~100 ms RTT proxy.
+
+### Decisions
+
+Approved with the plan on 2026-10-20:
+- The signal belongs to the connection, and it is first-path only, per the triage brief on [#884](https://github.com/the-sarge/quic-go-fast/issues/884).
+- **Rejected:** per-ACK polling (per-packet work), a channel owned by the finder (the fallback replaces finders), updating the estimate inside `OnAcked` (reorders congestion accounting), and reordering `Reset` before `MigratedPath`. Rationale and revisit triggers are in PR #907's body.
+- **Contract closure** was triggered only for "exactly once, no panic", with one guard-deletion mutation.
+
+### Validation
+
+- **Red evidence.** Six `go test -overlay` mutations each turned their target test red: the five settle sites removed in turn, and the `closed` guard removed (which panics with "close of closed channel").
+- **Gates on the committed tree `2033a40d`, base `dea6bf19`** (Go 1.27.2, darwin/arm64), all passing:
+  - `go vet` on the root package and `self`;
+  - `go mod tidy -diff`;
+  - `go test -race .`;
+  - `go test ./integrationtests/self`;
+  - golangci-lint v2.14.0 for six GOOS values (amd64): 0 issues.
+- **Stress,** all clean:
+  - `GOMAXPROCS=4 go test -race -count=20` on the new unit tests;
+  - `GOMAXPROCS=4 go test -count=20` on the new integration tests;
+  - `GOMAXPROCS=4 go test -race -count=5` on the new and existing path MTU integration tests.
+- **RAS review** `20261020T164832-ee3d08f52d898d9d883788db` at `2033a40d`, briefed with the triage contract verbatim. All six reviewers and six adjudicators completed, with nothing under Fix First or Follow Up. C-001 (low, docs, "initial packet size" after the fallback) was rejected: the wording is the brief's, and `Config.InitialPacketSize` already documents the 1200-byte start for later paths. With no fixes, there was no verify pass or replacement review.
+- **Hosted checks:** all 33 passed on `2033a40d`. The base equaled `origin/main`, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** compiles ran in a parked window granted by wiremux 1920. On 2026-10-20 the owner ruled that RAS reviews need not wait for a `tb` window.
+
+### Next
+
+- **Consumer gate,** for information, after a release carries this: the consumer waits for the signal, bounded at 250 ms, then runs an A/B on the Thunderbolt pair (see [#884](https://github.com/the-sarge/quic-go-fast/issues/884)).
+- **Note for that consumer:** discovery sends probes only while the connection is sending, which is unchanged behavior. An idle connection can delay the signal, so the consumer should keep sending while it waits.
+- No follow-ups were filed: the review deferred nothing.
