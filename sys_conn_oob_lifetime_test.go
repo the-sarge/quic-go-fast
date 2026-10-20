@@ -4,6 +4,7 @@ package quic
 
 import (
 	"net"
+	"slices"
 	"testing"
 	"time"
 	"unsafe"
@@ -92,7 +93,7 @@ func TestOOBReaderBatchProgressionAndCleanup(t *testing.T) {
 		require.NoError(t, err)
 		packets = append(packets, p)
 	}
-	owned := c.buffers
+	owned := slices.Clone(c.buffers)
 	c.releaseReadBuffers()
 	c.releaseReadBuffers() // Terminal cleanup is safe after failed-batch cleanup too.
 	require.Equal(t, 3, calls)

@@ -69,6 +69,29 @@ type OOBCapablePacketConn interface {
 
 var _ OOBCapablePacketConn = &net.UDPConn{}
 
+// ReadBatchSlotsV1Conn is implemented by an [OOBCapablePacketConn] wrapper
+// that also implements ReadBatch(ms []ipv4.Message, flags int) (int, error)
+// and fills more than one message per call. On macOS, the transport offers
+// such a wrapper ReadBatchSlotsV1() messages per ReadBatch call, instead of
+// one. It is consulted once, when the transport's reader is created.
+//
+// A result of 1 or less keeps the single message, and a result above 64 fails
+// transport initialization. Each message's buffer is one byte larger than the
+// largest packet quic-go receives, so a wrapper that fills a buffer completely
+// has received a truncated datagram. The transport drops a full buffer, and
+// any message flagged MSG_TRUNC or MSG_CTRUNC, without ending the batch.
+// ReadBatch must return how many messages it filled, at most the number it
+// was offered; any other count fails the read. A failed read discards the
+// whole batch and offers the same buffers again on the next call.
+//
+// Only macOS consults it, and only without the quic_go_no_private_syscalls
+// build tag and with QUIC_GO_DISABLE_RECVMSG_X unset. It is ignored on iOS,
+// on other platforms, which keep their own batch size, and by managed
+// endpoints.
+type ReadBatchSlotsV1Conn interface {
+	ReadBatchSlotsV1() int
+}
+
 // wrapConn prepares a net.PacketConn for use by the transport.
 // allowReceiveCoalescing grants socket-wide receive-format mutation. External
 // permission is resolved by Transport after validating the exact binding.

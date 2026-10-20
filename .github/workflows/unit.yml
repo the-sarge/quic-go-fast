@@ -60,6 +60,10 @@ jobs:
         env:
           TIMESCALE_FACTOR: 20
         run: python3 .github/scripts/http-capture.py --unit-source --label race run -- go test -race -v -shuffle on ./...
+      - name: Run read-slot tests without private syscalls
+        if: ${{ matrix.os == 'macos' }}
+        # The quic_go_no_private_syscalls tag selects the one-slot reader (#857).
+        run: go test -v -tags quic_go_no_private_syscalls -run '^TestReadSlots' .
       - name: Run handshake tests in FIPS140 mode
         env:
           GODEBUG: fips140=only

@@ -80,10 +80,19 @@ func (b *packetBuffer) putBack() {
 		coalescedBufferPool.Put(b)
 		return
 	}
+	if cap(b.Data) == readSlotBufferSize {
+		readSlotBufferPool.Put(b)
+		return
+	}
 	panic("putPacketBuffer called with packet of wrong size!")
 }
 
-var bufferPool, largeBufferPool, coalescedBufferPool sync.Pool
+// readSlotBufferSize is the capacity of a read slot offered to a batch
+// adapter that opted into more than one (#857). It is one byte larger than the
+// packet ceiling, so a full slot means the datagram was truncated.
+const readSlotBufferSize = protocol.MaxPacketBufferSize + 1
+
+var bufferPool, largeBufferPool, coalescedBufferPool, readSlotBufferPool sync.Pool
 
 func getPacketBuffer() *packetBuffer {
 	buf := bufferPool.Get().(*packetBuffer)
@@ -110,6 +119,15 @@ func getCoalescedPacketBuffer() *packetBuffer {
 	return buf
 }
 
+// getReadSlotBuffer returns a buffer from the read-slot tier. A datagram read
+// into it is delivered in it, and its release returns it to this tier.
+func getReadSlotBuffer() *packetBuffer {
+	buf := readSlotBufferPool.Get().(*packetBuffer)
+	buf.refCount = 1
+	buf.Data = buf.Data[:0]
+	return buf
+}
+
 func init() {
 	bufferPool.New = func() any {
 		return &packetBuffer{Data: make([]byte, 0, protocol.MaxPacketBufferSize)}
@@ -119,5 +137,8 @@ func init() {
 	}
 	coalescedBufferPool.New = func() any {
 		return &packetBuffer{Data: make([]byte, 0, protocol.MaxCoalescedPacketBufferSize)}
+	}
+	readSlotBufferPool.New = func() any {
+		return &packetBuffer{Data: make([]byte, 0, readSlotBufferSize)}
 	}
 }

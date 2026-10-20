@@ -5,6 +5,7 @@ package quic
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/netip"
@@ -68,7 +69,11 @@ type oobConn struct {
 	messages []ipv4.Message
 	// A nil slot has transferred ownership; non-nil storage belongs to this reader.
 	// With GRO, slots never transfer: their datagrams are copied out (#853).
-	buffers [batchSize]*packetBuffer
+	buffers []*packetBuffer
+	// readSlots marks slots from the read-slot tier, offered to a batch
+	// adapter that opted into more than one (#857). A failed batch keeps
+	// them, and a full or invalid slot is dropped without ending the batch.
+	readSlots bool
 	// The coalesced (GRO) read whose datagrams are still in its read slot.
 	cursor coalescedReadCursor
 
@@ -166,9 +171,13 @@ func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing
 	// A participating wrapper owns batch receive. Only exact native sockets may
 	// bypass ReadMsgUDP through descriptor-backed batching.
 	receive := receiveCoalescingState{eligible: runtime.GOOS == "linux"}
+	slots, readSlots := batchSize, false
 	var bc batchConn
 	if ibc, ok := c.(batchConn); ok {
 		bc = ibc
+		if slots, readSlots, err = readSlotsFor(c); err != nil {
+			return nil, setup, err
+		}
 	} else {
 		if _, ok := c.(net.Conn); !ok {
 			return nil, setup, errors.New("quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
@@ -183,16 +192,9 @@ func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing
 		}
 	}
 
-	msgs := make([]ipv4.Message, batchSize)
-	for i := range msgs {
-		// preallocate the [][]byte
-		msgs[i].Buffers = make([][]byte, 1)
-	}
 	oobConn := &oobConn{
 		OOBCapablePacketConn: c,
 		batchConn:            bc,
-		messages:             msgs,
-		readPos:              batchSize,
 		cap: connCapabilities{
 			DF:                supportsDF,
 			GSO:               isGSOEnabled(rawConn),
@@ -205,10 +207,22 @@ func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing
 		// Permission and wrapper policy gate the mutating activation attempt.
 		oobConn.cap.GRO, oobConn.cap.receiveCoalescing.disabledReason = enableGRO(rawConn)
 	}
-	for i := range batchSize {
-		oobConn.messages[i].OOB = make([]byte, oobBufferSize)
-	}
+	oobConn.setReadSlots(slots, readSlots)
 	return oobConn, setup, nil
+}
+
+// setReadSlots sizes the reader's batch to n slots, from the read-slot tier
+// if readSlots is set. It runs before the first read.
+func (c *oobConn) setReadSlots(n int, readSlots bool) {
+	c.readSlots = readSlots
+	c.buffers = make([]*packetBuffer, n)
+	c.messages = make([]ipv4.Message, n)
+	for i := range c.messages {
+		// preallocate the [][]byte
+		c.messages[i].Buffers = make([][]byte, 1)
+		c.messages[i].OOB = make([]byte, oobBufferSize)
+	}
+	c.readPos = uint8(n)
 }
 
 var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
@@ -224,15 +238,19 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 			return p, nil
 		}
 		for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
-			c.messages = c.messages[:batchSize]
+			c.messages = c.messages[:len(c.buffers)]
 			for i := range c.buffers {
 				if c.buffers[i] == nil {
 					var buffer *packetBuffer
-					if c.cap.GRO {
+					switch {
+					case c.cap.GRO:
 						// a single GRO read can deliver up to 65535 bytes
 						buffer = getCoalescedPacketBuffer()
 						buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
-					} else {
+					case c.readSlots:
+						buffer = getReadSlotBuffer()
+						buffer.Data = buffer.Data[:readSlotBufferSize]
+					default:
 						buffer = getPacketBuffer()
 						buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
 					}
@@ -243,9 +261,17 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 			c.readPos = 0
 
 			n, err := c.batchConn.ReadBatch(c.messages, 0)
+			if err == nil && (n < 0 || n > len(c.messages)) {
+				err = fmt.Errorf("quic: ReadBatch returned %d messages for %d slots", n, len(c.messages))
+			}
 			if err != nil {
-				// Preserve the existing policy: even a non-empty failed batch is discarded.
-				c.releaseReadBuffers()
+				// Even a non-empty failed batch is discarded. Read slots stay
+				// with the reader for the next read; other slots are released.
+				if c.readSlots {
+					c.messages = c.messages[:0]
+				} else {
+					c.releaseReadBuffers()
+				}
 				return receivedPacket{}, err
 			}
 			c.messages = c.messages[:n]
@@ -280,7 +306,11 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 			return p, nil
 		}
 		buffer.Release()
-		return receivedPacket{}, err
+		if !c.readSlots {
+			return receivedPacket{}, err
+		}
+		// One truncated or invalid datagram doesn't end the batch.
+		utils.DefaultLogger.Debugf("Dropping packet with invalid read slot: %s", err)
 	}
 }
 
@@ -348,7 +378,12 @@ func (c *oobConn) readManagedPacket() (receivedPacket, error) {
 // rejected read. A GRO read passes no storage, since its slot stays with the
 // reader, and also receives the read's UDP_GRO segment size, zero if absent.
 func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *packetBuffer) (receivedPacket, int, error) {
-	if (c.cap.GRO || c.managedRead) && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > len(readBuffer) || msg.NN < 0 || msg.NN > len(msg.OOB)) {
+	maxN := len(readBuffer)
+	if c.readSlots {
+		// A read slot has one spare byte: a full slot was truncated.
+		maxN--
+	}
+	if (c.cap.GRO || c.managedRead || c.readSlots) && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > maxN || msg.NN < 0 || msg.NN > len(msg.OOB)) {
 		return receivedPacket{}, 0, errors.New("quic: truncated or invalid coalesced read")
 	}
 	payload := readBuffer[:msg.N]
@@ -425,7 +460,7 @@ func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *
 // batch. Returned packets belong to their consumers, and the socket stays open.
 func (c *oobConn) releaseReadBuffers() {
 	c.cursor = coalescedReadCursor{}
-	c.messages = c.messages[:batchSize]
+	c.messages = c.messages[:len(c.buffers)]
 	for i, buffer := range c.buffers {
 		if buffer != nil {
 			buffer.Release()
