@@ -67,11 +67,6 @@ type baseServer struct {
 	receivedPacketsMx sync.Mutex
 	receivedPackets   chan receivedPacket
 
-	// coalescedRetention bounds the coalesced-slab bytes pinned by the
-	// server's queues (receive, version negotiation, 0-RTT) through
-	// oversized segment views.
-	coalescedRetention coalescedRetentionBudget
-
 	nextZeroRTTCleanup monotime.Time
 	zeroRTTQueues      map[protocol.ConnectionID]*zeroRTTQueue // only initialized if acceptEarlyConns == true
 
@@ -499,24 +494,12 @@ func (s *baseServer) handlePacket(p receivedPacket) {
 		return
 	default:
 	}
-	// A packet backed by a coalesced slab must not pin the slab while queued:
-	// it is copied into an ordinary tier, or, if oversized, kept on the slab
-	// and charged against the server's retained-bytes budget. Check capacity
-	// first so a doomed packet doesn't pay for a retention copy; the mutex
-	// serializes producers, so the queue cannot fill between check and send.
+	// The mutex serializes producers, so the queue cannot fill between the
+	// capacity check and the send.
 	if len(s.receivedPackets) == cap(s.receivedPackets) {
 		s.receivedPacketsMx.Unlock()
 		defer p.buffer.Release()
 		s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
-		s.qlogPacketDropDOSPrevention(p)
-		return
-	}
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-	if !retained {
-		s.receivedPacketsMx.Unlock()
-		defer p.buffer.Release()
-		s.logger.Debugf("Dropping packet from %s (%d bytes). Coalesced retention budget exhausted.", p.remoteAddr, p.Size())
 		s.qlogPacketDropDOSPrevention(p)
 		return
 	}
@@ -724,12 +707,6 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 			}
 			return false
 		}
-		// a queued 0-RTT packet must not pin a coalesced slab
-		var retained bool
-		p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-		if !retained {
-			return false
-		}
 		q.packets = append(q.packets, p)
 		return true
 	}
@@ -747,12 +724,6 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 				Trigger: qlog.PacketDropDOSPrevention,
 			})
 		}
-		return false
-	}
-	// a queued 0-RTT packet must not pin a coalesced slab
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-	if !retained {
 		return false
 	}
 	queue := &zeroRTTQueue{packets: make([]receivedPacket, 1, 8)}
@@ -1282,12 +1253,6 @@ func (s *baseServer) enqueueVersionNegotiationPacket(p receivedPacket) (bufferIn
 	// it's fine to not send version negotiation packets when we are busy;
 	// only the run goroutine enqueues, so the capacity check cannot race
 	if len(s.versionNegotiationQueue) == cap(s.versionNegotiationQueue) {
-		return false
-	}
-	// a queued packet must not pin a coalesced slab
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-	if !retained {
 		return false
 	}
 	s.versionNegotiationQueue <- p

@@ -158,7 +158,6 @@ func TestGROReadCopiesCoalescedRead(t *testing.T) {
 		require.Equal(t, want, p.data)
 		require.Equal(t, addr, p.remoteAddr)
 		require.Equal(t, protocol.ECT0, p.ecn, "segment %d must inherit the read's ECN marking", i)
-		require.Nil(t, p.buffer.slab, "segment %d must not be slab-backed", i)
 		require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data), "segment %d must be copied into the ordinary tier", i)
 		require.Same(t, unsafe.SliceData(p.buffer.Data), unsafe.SliceData(p.data))
 		require.Same(t, slot, oc.buffers[0], "the read slot must stay with the reader")
@@ -170,7 +169,6 @@ func TestGROReadCopiesCoalescedRead(t *testing.T) {
 	p, err := oc.ReadPacket()
 	require.NoError(t, err)
 	require.Equal(t, []byte("next read"), p.data)
-	require.Nil(t, p.buffer.slab)
 	require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data))
 	require.Same(t, slot, oc.buffers[0])
 	p.buffer.Release()
@@ -185,7 +183,6 @@ func TestGROReadCopiesLargeSegmentsIntoLargeTier(t *testing.T) {
 		p, err := oc.ReadPacket()
 		require.NoError(t, err)
 		require.Equal(t, want, p.data)
-		require.Nil(t, p.buffer.slab)
 		require.Equal(t, protocol.MaxLargePacketBufferSize, cap(p.buffer.Data), "segment %d must be copied into the large tier", i)
 		p.buffer.Release()
 	}
@@ -205,9 +202,8 @@ func (c *repeatingGROBatchConn) ReadBatch(ms []ipv4.Message, _ int) (int, error)
 	return 1, nil
 }
 
-// A coalesced read allocates no slab, view or pending list: its datagrams are
-// copied into pooled ordinary-tier buffers, which a connection's retention
-// queues hold without another copy.
+// A coalesced read allocates nothing: its datagrams are copied into pooled
+// ordinary-tier buffers.
 func TestGROReadAllocatesNothing(t *testing.T) {
 	if raceEnabled {
 		t.Skip("the race detector makes sync.Pool drop buffers at random")
@@ -225,21 +221,16 @@ func TestGROReadAllocatesNothing(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			oc := newGROConn(t, &repeatingGROBatchConn{payload: tt.payload, oob: tt.oob, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}})
-			var budget coalescedRetentionBudget
 			readAll := func() {
 				for range tt.datagram {
 					p, err := oc.ReadPacket()
 					if err != nil {
 						t.Fatal(err)
 					}
-					if p.buffer.slab != nil || cap(p.buffer.Data) != protocol.MaxPacketBufferSize {
-						t.Fatalf("datagram not copied into the ordinary tier (slab %p, capacity %d)", p.buffer.slab, cap(p.buffer.Data))
+					if cap(p.buffer.Data) != protocol.MaxPacketBufferSize {
+						t.Fatalf("datagram not copied into the ordinary tier (capacity %d)", cap(p.buffer.Data))
 					}
-					retained, ok := retainForRetentionQueue(p, &budget)
-					if !ok || retained.buffer != p.buffer {
-						t.Fatal("a retention queue must hold the datagram without copying it")
-					}
-					retained.buffer.Release()
+					p.buffer.Release()
 				}
 			}
 			readAll() // fill the read slots and the buffer pool
@@ -271,7 +262,6 @@ func TestGROOversizedDatagramMatchesNonCoalescingReader(t *testing.T) {
 		require.NoError(t, udp.SetReadDeadline(time.Now().Add(5*time.Second)))
 		p, err := conn.ReadPacket()
 		require.NoError(t, err)
-		require.Nil(t, p.buffer.slab, "nothing slab-backed may reach the connection")
 		defer p.buffer.Release()
 		return bytes.Clone(p.data)
 	}
@@ -289,7 +279,6 @@ func TestGROReadEmptyDatagram(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, p.data)
 	require.NotNil(t, p.buffer)
-	require.Nil(t, p.buffer.slab, "an empty read has no segments to view")
 	require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data), "an empty read is delivered in the ordinary tier")
 	require.NotNil(t, oc.buffers[0], "the reader keeps its read slot")
 	p.buffer.Release()
@@ -396,7 +385,6 @@ func TestGROEndToEndLoopback(t *testing.T) {
 		p, err := recvConn.ReadPacket()
 		require.NoError(t, err)
 		require.Equal(t, segs[i], p.data, "datagram %d must arrive intact and in order", i)
-		require.Nil(t, p.buffer.slab)
 		p.buffer.Release()
 	}
 	t.Logf("%d datagrams in %d socket reads", numSegs, counter.reads)

@@ -197,10 +197,6 @@ type Conn struct {
 	// unprocessedPacketDrops counts the packets the queue refused while open.
 	unprocessedPacketDrops atomic.Uint64
 
-	// coalescedRetention bounds the coalesced-slab bytes pinned by this
-	// connection's retention queues through oversized segment views.
-	coalescedRetention coalescedRetentionBudget
-
 	// closeChan is used to notify the run loop that it should terminate
 	closeChan chan struct{}
 	closeErr  atomic.Pointer[closeError]
@@ -2088,17 +2084,6 @@ func (c *Conn) handlePacket(p receivedPacket) {
 		p.buffer.Release()
 		return
 	}
-	// A packet backed by a coalesced slab must not pin the slab while queued:
-	// it is copied into an ordinary tier, or, if oversized, kept on the slab
-	// and charged against the connection's retained-bytes budget.
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &c.coalescedRetention)
-	if !retained {
-		c.unprocessedPacketDropped(p)
-		c.receivedPacketMx.Unlock()
-		p.buffer.Release()
-		return
-	}
 	if extended {
 		p = inPacketSizedBuffer(p)
 	}
@@ -2118,7 +2103,7 @@ func (c *Conn) handlePacket(p receivedPacket) {
 // the opted-in read path (#857). The caller has checked that p fits.
 func inPacketSizedBuffer(p receivedPacket) receivedPacket {
 	old := p.buffer
-	if old.slab == nil && (cap(old.Data) == protocol.MaxPacketBufferSize || cap(old.Data) == readSlotBufferSize) {
+	if cap(old.Data) == protocol.MaxPacketBufferSize || cap(old.Data) == readSlotBufferSize {
 		return p
 	}
 	buf := getPacketBuffer()
@@ -2941,26 +2926,6 @@ func (c *Conn) tryQueueingUndecryptablePacket(p receivedPacket, pt qlog.PacketTy
 		c.logger.Infof("Dropping undecryptable packet (%d bytes). Undecryptable packet queue full.", p.Size())
 		return false
 	}
-	// A packet backed by a coalesced slab must not pin the slab while queued:
-	// it is copied into an ordinary tier, or, if oversized, kept on the slab
-	// and charged against the connection's retained-bytes budget.
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &c.coalescedRetention)
-	if !retained {
-		if c.qlogger != nil {
-			c.qlogger.RecordEvent(qlog.PacketDropped{
-				Header: qlog.PacketHeader{
-					PacketType:   pt,
-					PacketNumber: protocol.InvalidPacketNumber,
-				},
-				Raw:                     qlog.RawInfo{Length: int(p.Size())},
-				DatagramPayloadChecksum: datagramPayloadChecksum,
-				Trigger:                 qlog.PacketDropDOSPrevention,
-			})
-		}
-		c.logger.Infof("Dropping undecryptable packet (%d bytes). Coalesced retention budget exhausted.", p.Size())
-		return false
-	}
 	c.logger.Infof("Queueing packet (%d bytes) for later decryption", p.Size())
 	if c.qlogger != nil {
 		c.qlogger.RecordEvent(qlog.PacketBuffered{
@@ -3070,10 +3035,8 @@ func (c *Conn) DatagramReceiveDropsV1() uint64 {
 // dropped because its queue of packets awaiting processing could not take
 // them. The queue holds 256 packets until the handshake is confirmed and
 // 1,024 after. Its entries beyond 256 take only packets of at most 1,452
-// bytes, so a larger packet arriving then is dropped and counted. The count
-// includes packets refused by the queue's byte budget for oversized
-// coalesced reads. It excludes packets released because the connection has
-// closed. The dropped packets are never acknowledged, so the peer's loss
+// bytes, so a larger packet arriving then is dropped and counted. It
+// excludes packets released because the connection has closed. The dropped packets are never acknowledged, so the peer's loss
 // detection sees them. The count never decreases, is safe to call
 // concurrently, and keeps its value after the connection closes.
 func (c *Conn) UnprocessedPacketDropsV1() uint64 {

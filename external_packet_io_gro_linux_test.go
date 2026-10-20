@@ -293,7 +293,7 @@ func TestExternalGRORetainedSibling(t *testing.T) {
 	first.buffer.Release()
 	oc.releaseReadBuffers() // cancellation discards only the still-undelivered tail
 	require.Equal(t, segments[1], second.data)
-	require.Nil(t, second.buffer.slab, "a delivered datagram owns its storage")
+	require.Equal(t, protocol.MaxPacketBufferSize, cap(second.buffer.Data), "a delivered datagram owns its storage")
 	second.buffer.Release()
 }
 

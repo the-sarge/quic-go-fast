@@ -12,16 +12,6 @@ type packetBuffer struct {
 	// refCount counts live packet views and active parsing holds on Data.
 	// It doesn't support concurrent use.
 	refCount int
-
-	// slab, when non-nil, marks this buffer as a per-datagram view into a
-	// coalesced slab (ADR 0005, amendment 2026-09-11). Releasing the view
-	// decrements the slab's atomic sibling count instead of returning Data
-	// to a pool. refCount above keeps its non-atomic single-owner contract.
-	slab *coalescedSlab
-	// retentionCharge, when non-nil, is the per-connection budget charged
-	// for holding this oversized slab view in a retention queue. It is
-	// released when the view releases. Only set on slab views.
-	retentionCharge *coalescedRetentionBudget
 }
 
 // Split increases the refCount.
@@ -64,10 +54,6 @@ func (b *packetBuffer) Len() protocol.ByteCount { return protocol.ByteCount(len(
 func (b *packetBuffer) Cap() protocol.ByteCount { return protocol.ByteCount(cap(b.Data)) }
 
 func (b *packetBuffer) putBack() {
-	if b.slab != nil {
-		b.releaseSlabView()
-		return
-	}
 	if cap(b.Data) == protocol.MaxPacketBufferSize {
 		bufferPool.Put(b)
 		return
@@ -109,9 +95,10 @@ func getLargePacketBuffer() *packetBuffer {
 }
 
 // getCoalescedPacketBuffer returns a buffer from the coalesced tier.
-// These buffers back coalesced reads: read slots and coalesced slabs. Only
-// managed readers hand one out as a packet, for a datagram above the large
-// tier, and the standard tiers never retain them.
+// These buffers back coalesced reads, which stay with their reader while the
+// datagrams are copied out. Managed readers also hand one out as a packet:
+// a datagram above the large tier, and, on Darwin, FreeBSD and Linux without
+// GRO, every datagram.
 func getCoalescedPacketBuffer() *packetBuffer {
 	buf := coalescedBufferPool.Get().(*packetBuffer)
 	buf.refCount = 1

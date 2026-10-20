@@ -99,19 +99,6 @@ func TestConnectionUnprocessedPacketDropsExcludeClosed(t *testing.T) {
 	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
 }
 
-// A refusal by the coalesced retained-bytes budget is a drop at this queue
-// and is counted.
-func TestConnectionUnprocessedPacketDropsCountRetentionRefusal(t *testing.T) {
-	tc := newServerTestConnection(t, nil, nil, false)
-	releaseUnprocessedQueueAtCleanup(t, tc)
-	tc.conn.coalescedRetention.retained.Store(protocol.MaxConnRetainedCoalescedBytes - protocol.MaxCoalescedPacketBufferSize + 1)
-	slab, views := newCoalescedReadFixture(t, 30000, testCoalescedSegments(1, 30000)...)
-	tc.conn.handlePacket(receivedPacket{data: views[0].Data, buffer: views[0], rcvTime: monotime.Now()})
-	require.True(t, slab.released(), "a refused view must be released")
-	require.Zero(t, tc.conn.receivedPackets.Len())
-	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
-}
-
 // The slots beyond 256 hold only packet-sized (1,452-byte) buffers, or read
 // slots one byte larger (#857), so they add at most 768 × 1,453 bytes per
 // connection whatever the reader. A packet
@@ -143,23 +130,17 @@ func TestConnectionUnprocessedQueueConfirmedSlotsHoldPacketSizedBuffers(t *testi
 	coalescedAbove := getCoalescedPacketBuffer()
 	tc.conn.handlePacket(packetIn(coalescedAbove, small))
 	require.Zero(t, coalescedAbove.refCount, "the 64 KiB buffer must be released after the copy")
-	// A small slab view is copied down too.
-	smallSlab, smallViews := newCoalescedReadFixture(t, len(small), small)
-	tc.conn.handlePacket(receivedPacket{data: smallViews[0].Data, buffer: smallViews[0], rcvTime: monotime.Now()})
-	require.True(t, smallSlab.released(), "the queue must not pin the slab")
-	require.Equal(t, protocol.MaxConnUnprocessedPackets+2, tc.conn.receivedPackets.Len())
+	require.Equal(t, protocol.MaxConnUnprocessedPackets+1, tc.conn.receivedPackets.Len())
 
 	// A packet larger than the packet-sized tier is dropped, whether it is
-	// in a large-tier buffer or an oversized slab view, which is never
-	// charged against the retained-bytes budget.
+	// in a large-tier buffer or a managed reader's 64 KiB buffer.
 	largeAbove := getLargePacketBuffer()
 	tc.conn.handlePacket(packetIn(largeAbove, large))
 	require.Zero(t, largeAbove.refCount, "a dropped packet must be released")
-	bigSlab, bigViews := newCoalescedReadFixture(t, 30000, testCoalescedSegments(1, 30000)...)
-	tc.conn.handlePacket(receivedPacket{data: bigViews[0].Data, buffer: bigViews[0], rcvTime: monotime.Now()})
-	require.True(t, bigSlab.released(), "a dropped view must be released")
-	require.Zero(t, tc.conn.coalescedRetention.retained.Load())
-	require.Equal(t, protocol.MaxConnUnprocessedPackets+2, tc.conn.receivedPackets.Len())
+	oversized := getCoalescedPacketBuffer()
+	tc.conn.handlePacket(packetIn(oversized, bytes.Repeat([]byte{'o'}, 30000)))
+	require.Zero(t, oversized.refCount, "a dropped packet must be released")
+	require.Equal(t, protocol.MaxConnUnprocessedPackets+1, tc.conn.receivedPackets.Len())
 	require.EqualValues(t, 2, tc.conn.UnprocessedPacketDropsV1())
 
 	var queued []receivedPacket
@@ -174,7 +155,6 @@ func TestConnectionUnprocessedQueueConfirmedSlotsHoldPacketSizedBuffers(t *testi
 	require.Same(t, coalescedBelow, queued[0].buffer)
 	require.Same(t, largeBelow, queued[1].buffer)
 	for _, p := range queued[protocol.MaxConnUnprocessedPackets:] {
-		require.Nil(t, p.buffer.slab)
 		require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data))
 		require.Equal(t, small, p.data)
 	}

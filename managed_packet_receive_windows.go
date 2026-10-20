@@ -53,6 +53,8 @@ func (e *managedPacketEndpoint) configureReceive() error {
 		e.managedNative = reader
 	}
 	if !reader.cap.GRO && !q.qualified {
+		// An ordinary lease may have left the reader's buffer in place.
+		reader.releaseReadBuffers()
 		e.receiver = nil
 	}
 	return nil

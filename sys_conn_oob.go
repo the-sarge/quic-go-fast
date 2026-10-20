@@ -87,16 +87,6 @@ type oobConn struct {
 	managed bool
 }
 
-// coalescedReadCursor tracks one coalesced read while ReadPacket copies its
-// datagrams out of the reader's slot, one per call. Only the reader uses it,
-// and the slot is not read into again until the cursor is inactive.
-type coalescedReadCursor struct {
-	active bool
-	// packet carries the read's metadata; its data is the undelivered payload.
-	packet      receivedPacket
-	segmentSize int
-}
-
 var _ rawConn = &oobConn{}
 
 // Managed endpoints can retain ordinary reads when only ECN setup is denied.
@@ -234,7 +224,7 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 	for {
 		// A coalesced read stays in its slot. Each call copies out one
 		// datagram, preserving ReadPacket's one-datagram contract.
-		if p, ok := c.nextCoalescedDatagram(); ok {
+		if p, ok := c.cursor.next(c.managed); ok {
 			return p, nil
 		}
 		for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
@@ -290,10 +280,7 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 				utils.DefaultLogger.Debugf("Dropping packet with invalid coalesced receive metadata: %s", err)
 				continue
 			}
-			if segmentSize == 0 {
-				segmentSize = len(p.data)
-			}
-			c.cursor = coalescedReadCursor{active: true, packet: p, segmentSize: segmentSize}
+			c.cursor.start(p, segmentSize)
 			continue
 		}
 		buffer := c.buffers[c.readPos]
@@ -312,47 +299,6 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		// One truncated or invalid datagram doesn't end the batch.
 		utils.DefaultLogger.Debugf("Dropping packet with invalid read slot: %s", err)
 	}
-}
-
-// nextCoalescedDatagram copies the next datagram of the cursor's read out of
-// the read slot. The read's datagrams share its metadata.
-func (c *oobConn) nextCoalescedDatagram() (receivedPacket, bool) {
-	if !c.cursor.active {
-		return receivedPacket{}, false
-	}
-	p := c.cursor.packet
-	remaining := p.data
-	n := min(c.cursor.segmentSize, len(remaining))
-	p.buffer = c.copyCoalescedDatagram(remaining[:n])
-	p.data = p.buffer.Data
-	if n == len(remaining) {
-		c.cursor = coalescedReadCursor{}
-	} else {
-		c.cursor.packet.data = remaining[n:]
-	}
-	return p, true
-}
-
-// copyCoalescedDatagram copies one datagram into the smallest buffer tier
-// that fits. A datagram above the large tier is delivered as the reader
-// without coalescing would deliver it (#853): a managed endpoint delivers it
-// whole, and every other reader reads into the ordinary tier, where only its
-// prefix fits.
-func (c *oobConn) copyCoalescedDatagram(datagram []byte) *packetBuffer {
-	var buffer *packetBuffer
-	switch {
-	case len(datagram) <= protocol.MaxPacketBufferSize:
-		buffer = getPacketBuffer()
-	case len(datagram) <= protocol.MaxLargePacketBufferSize:
-		buffer = getLargePacketBuffer()
-	case c.managed:
-		buffer = getCoalescedPacketBuffer()
-	default:
-		buffer = getPacketBuffer()
-		datagram = datagram[:protocol.MaxPacketBufferSize]
-	}
-	buffer.Data = append(buffer.Data, datagram...)
-	return buffer
 }
 
 func (c *oobConn) readManagedPacket() (receivedPacket, error) {
