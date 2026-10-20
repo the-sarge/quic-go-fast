@@ -6454,3 +6454,55 @@ RAS review `20261020T000002-cbf46f24a7937c0eb50edaa8` ran all six reviewers with
 ### Next
 
 The downstream consumer's gate for #854 (namespace pair and Thunderbolt pair, thresholds on #854) is owed and is posted on #854 and #851. #858 (the batch cap follows the depth) is now unblocked. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Deeper unprocessed-packet queue after handshake confirmation landed - 2026-10-19 20:49 EDT
+
+**Main:** `c3fb3c45a694`
+**Actor:** Claude
+
+### Completed
+
+Merged [PR #889](https://github.com/the-sarge/quic-go-fast/pull/889) as `c3fb3c45a694bf0807de2ccefe425338efc6e293`, closing [#855](https://github.com/the-sarge/quic-go-fast/issues/855) (slice 5 of the fork bundle, [#851](https://github.com/the-sarge/quic-go-fast/issues/851)). Each connection's unprocessed-packet queue holds 256 packets until its handshake is confirmed and 1,024 (`protocol.MaxConnUnprocessedPacketsConfirmed`) after, on client and server, with no setting. `handleHandshakeConfirmed` sets `receivedPacketsConfirmed` under `receivedPacketMx`, the mutex under which `handlePacket` already checks the bound. `(*Conn).UnprocessedPacketDropsV1() uint64`, beside `DatagramReceiveDropsV1`, counts every packet the queue refuses while the connection is open: queue full, too large for the entries beyond 256, or refused by the coalesced retained-bytes budget. It excludes packets released after close. Every refusal keeps its DoS-prevention qlog event.
+
+Tests cover:
+
+- the 256 → 1,024 switch for both perspectives, with the count read by interface assertion;
+- the close exclusion;
+- a counted retention-budget refusal;
+- the memory guard below;
+- 31 < 256 < 1,024 for the 0-RTT invariant.
+
+### Decisions
+
+Operator-approved plan decisions, recorded in [PR #889](https://github.com/the-sarge/quic-go-fast/pull/889):
+
+- **Memory guard.** Plan review found that the issue's 1,452-byte figure misses the managed readers without coalescing (Darwin, FreeBSD, Linux without GRO, Windows without URO). They queue each datagram in a 64 KiB buffer, so a flat 1,024 could pin about 64 MiB per connection. Entries beyond 256 therefore take only packets in a 1,452-byte buffer: a fitting packet in a larger buffer or slab view is copied down, and a larger packet is dropped and counted. The deeper queue adds at most 768 × 1,452 bytes per connection whatever the reader, and the first 256 entries keep today's rules. Rejected alternatives:
+  - copying 64 KiB buffers down at any depth, which costs a copy per packet on macOS managed readers with no backlog;
+  - 256 per reader type, which needs reader identity per connection across migration.
+- **Count.** It includes budget and size refusals, since each is receiver-queue loss.
+- **Flag.** It is mutex-guarded, not an atomic.
+- **Accepted blast radius.** A queue that once fills keeps a 1,024 × 96-byte ring for the connection's life.
+- **Scheduling.** #808's L6 run measures pinned `d94b3ec2` binaries, so this merge does not disturb it.
+
+### Validation
+
+Certified head `d5dd40c433b9376bcb205c428653d0ce84d0e44a` on base `14b51c7eab7e967c14f3196907b888102b5e350c`; main did not advance during the PR. Local Darwin arm64 checks with Go 1.27.2:
+
+- full `go test ./...`;
+- `-race` on the root package;
+- a `-race -count=50` queue gate;
+- golangci-lint v2.14.0 on six GOOS values;
+- Linux and Windows vet;
+- a Windows test compile;
+- module tidiness;
+- a Linux `golang:1.27.1` container `-race` run of the root and protocol packages.
+
+Guard mutations each failed a new test: removing the flag set, the size rule, the copy-down, or the counter increment. All 33 hosted checks passed on `d5dd40c4` before it was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T004113-3c194c5c6a0c64fdca0d08d1` ran all six reviewers to completion with no findings, so no replacement review was needed. Nothing was deferred.
+
+### Next
+
+The consumer gate for slices 1 and 5 together (namespace pair and Thunderbolt pair, thresholds on #855) is owed now that #855 has merged. It is posted on #855 and #851. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
