@@ -111,8 +111,8 @@ type appDataReceivedPacketTracker struct {
 	ackAlarm                                monotime.Time
 
 	// ackThreshold, when nonzero, replaces packetsBeforeAck. The delay alarm
-	// then runs from oldestUnackedRcvdTime, the receive time of the first
-	// ack-eliciting packet since the last ACK, and is never restarted.
+	// then runs from oldestUnackedRcvdTime, the earliest receive time of the
+	// ack-eliciting packets since the last ACK, and is never restarted.
 	ackThreshold          int
 	oldestUnackedRcvdTime monotime.Time
 
@@ -140,7 +140,9 @@ func (h *appDataReceivedPacketTracker) ReceivedPacket(pn protocol.PacketNumber, 
 		return nil
 	}
 	h.ackElicitingPacketsReceivedSinceLastAck++
-	if h.ackThreshold != 0 && h.ackElicitingPacketsReceivedSinceLastAck == 1 {
+	// Buffered 0-RTT and undecryptable packets can be processed after packets
+	// received later, so the oldest is the earliest receive time.
+	if h.ackThreshold != 0 && (h.ackElicitingPacketsReceivedSinceLastAck == 1 || rcvTime.Before(h.oldestUnackedRcvdTime)) {
 		h.oldestUnackedRcvdTime = rcvTime
 	}
 	isMissing := h.isMissing(pn)

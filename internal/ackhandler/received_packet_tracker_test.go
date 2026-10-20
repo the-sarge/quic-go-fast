@@ -241,6 +241,26 @@ func TestAppDataReceivedPacketTrackerAckThresholdTimedFromOldest(t *testing.T) {
 	require.Equal(t, t1.Add(time.Millisecond), tr.GetAlarmTimeout())
 }
 
+// Buffered 0-RTT and undecryptable packets are processed after packets
+// received later; the timer still runs from the earliest receive time.
+func TestAppDataReceivedPacketTrackerAckThresholdOldestByReceiveTime(t *testing.T) {
+	tr := newThresholdTracker(t, 16)
+
+	t0 := monotime.Now()
+	require.NoError(t, tr.ReceivedPacket(2, protocol.ECNNon, t0.Add(500*time.Microsecond), true))
+	require.Equal(t, t0.Add(500*time.Microsecond+protocol.MaxAckDelay), tr.GetAlarmTimeout())
+	require.NoError(t, tr.ReceivedPacket(1, protocol.ECNNon, t0, true))
+	require.Equal(t, t0.Add(time.Millisecond), tr.GetAlarmTimeout())
+	require.Nil(t, tr.GetAckFrame(t0.Add(999*time.Microsecond), true))
+	require.NotNil(t, tr.GetAckFrame(t0.Add(time.Millisecond), true))
+
+	// A lone packet received late doesn't make a later packet the oldest.
+	t1 := t0.Add(10 * time.Millisecond)
+	require.NoError(t, tr.ReceivedPacket(3, protocol.ECNNon, t1, true))
+	require.NoError(t, tr.ReceivedPacket(4, protocol.ECNNon, t1.Add(200*time.Microsecond), true))
+	require.Equal(t, t1.Add(time.Millisecond), tr.GetAlarmTimeout())
+}
+
 func TestAppDataReceivedPacketTrackerAckThresholdGroupCap(t *testing.T) {
 	tr := newThresholdTracker(t, 16)
 
