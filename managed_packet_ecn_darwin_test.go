@@ -18,6 +18,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// newDarwinManagedECNEndpoint creates a cell's managed endpoint. A dual-stack
+// endpoint gets a port that no IPv4 socket holds, so that its IPv4 peers'
+// datagrams reach it (#910); see reserveDualStackPort.
+func newDarwinManagedECNEndpoint(t *testing.T, network string) (net.PacketConn, func() (net.PacketConn, error)) {
+	t.Helper()
+	if network != "udp" {
+		endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1(network, nil)
+		require.NoError(t, err)
+		return endpoint, acquire
+	}
+	var endpoint net.PacketConn
+	var acquire func() (net.PacketConn, error)
+	reserveDualStackPort(t, func(port int) (err error) {
+		endpoint, acquire, err = (&Transport{}).NewManagedPacketEndpointV1("udp", &net.UDPAddr{IP: net.IPv4zero, Port: port})
+		return err
+	})
+	return endpoint, acquire
+}
+
+// With 500 IPv4 ports held, about 9 of these 300 endpoints would collide if
+// they were bound with port 0 (#910).
+func TestDarwinManagedECNEndpointAvoidsHeldIPv4Ports(t *testing.T) {
+	requireDualStackAvoidsHeldIPv4Ports(t, func(t *testing.T) net.PacketConn {
+		endpoint, _ := newDarwinManagedECNEndpoint(t, "udp")
+		return endpoint
+	})
+}
+
 func TestDarwinManagedECNReceive(t *testing.T) {
 	for _, tc := range []struct{ name, network, peerNetwork, ip string }{
 		{"ipv4", "udp4", "udp4", "127.0.0.1"},
@@ -26,8 +54,7 @@ func TestDarwinManagedECNReceive(t *testing.T) {
 		{"dual_ipv6", "udp", "udp6", "::1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1(tc.network, nil)
-			require.NoError(t, err)
+			endpoint, acquire := newDarwinManagedECNEndpoint(t, tc.network)
 			defer endpoint.Close()
 			lease, err := acquire()
 			require.NoError(t, err)
@@ -163,8 +190,7 @@ func (c *darwinECNPeerConn) sendBatch(b [][]byte, oob []byte, a *net.UDPAddr) (i
 
 func newDarwinECNTestPath(t *testing.T, network, peerNetwork, ip, route string) (net.PacketConn, *managedPacketConn, rawConn, *net.UDPConn, *darwinECNPeerConn) {
 	t.Helper()
-	endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1(network, nil)
-	require.NoError(t, err)
+	endpoint, acquire := newDarwinManagedECNEndpoint(t, network)
 	t.Cleanup(func() { endpoint.Close() })
 	lease, err := acquire()
 	require.NoError(t, err)

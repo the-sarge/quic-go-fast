@@ -31,21 +31,21 @@ type sysConnTestReceiver struct {
 	received  []*packetBuffer
 }
 
-// listenDualStackUDP binds a dual-stack wildcard socket on a port that no IPv4
-// socket holds. On darwin, a dual-stack bind with port 0 can be given a port
-// that an IPv4 socket holds on 127.0.0.1 or 0.0.0.0, and IPv4 datagrams to
-// 127.0.0.1 then go to that socket (#717, #528). The IPv4 port-0 allocator
-// respects every IPv4 holder, and an explicit dual-stack bind succeeds next to
-// a 0.0.0.0 socket, so an IPv4 reservation picks the port and holds it until
-// the receiver is bound; the receiver then keeps IPv4 sockets off it. An IPv6
-// socket can still hold the reserved port; that reservation stays open until
-// return so that the next one gets a different port.
-func listenDualStackUDP(t *testing.T) *net.UDPConn {
+// reserveDualStackPort calls bind with a port that no IPv4 socket holds, for a
+// dual-stack wildcard bind. On darwin, a dual-stack bind with port 0 can be
+// given a port that an IPv4 socket holds on 127.0.0.1 or 0.0.0.0, and IPv4
+// datagrams to 127.0.0.1 then go to that socket (#717, #528). The IPv4 port-0
+// allocator respects every IPv4 holder, and an explicit dual-stack bind
+// succeeds next to a 0.0.0.0 socket, so an IPv4 reservation picks the port and
+// holds it until bind returns; the bound socket then keeps IPv4 sockets off
+// it. An IPv6 socket can still hold the reserved port, and bind then fails
+// with EADDRINUSE; that reservation stays open until return so that the next
+// one gets a different port. Off darwin, bind gets port 0.
+func reserveDualStackPort(t *testing.T, bind func(port int) error) {
 	t.Helper()
 	if runtime.GOOS != "darwin" {
-		conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero})
-		require.NoError(t, err)
-		return conn
+		require.NoError(t, bind(0))
+		return
 	}
 	var reservations []*net.UDPConn
 	defer func() {
@@ -58,14 +58,25 @@ func listenDualStackUDP(t *testing.T) *net.UDPConn {
 		require.NoError(t, err)
 		reservations = append(reservations, reservation)
 		port := reservation.LocalAddr().(*net.UDPAddr).Port
-		conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: port})
+		err = bind(port)
 		if err == nil {
-			return conn
+			return
 		}
 		require.ErrorIs(t, err, syscall.EADDRINUSE, "dual-stack bind on reserved port %d", port)
 	}
 	t.Fatal("IPv6 sockets held every reserved port")
-	return nil
+}
+
+// listenDualStackUDP binds a dual-stack wildcard socket on a port that no IPv4
+// socket holds; see reserveDualStackPort.
+func listenDualStackUDP(t *testing.T) *net.UDPConn {
+	t.Helper()
+	var conn *net.UDPConn
+	reserveDualStackPort(t, func(port int) (err error) {
+		conn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: port})
+		return err
+	})
+	return conn
 }
 
 func runSysConnServer(t *testing.T, network string, addr *net.UDPAddr) (*net.UDPAddr, *sysConnTestReceiver) {
@@ -254,6 +265,14 @@ func TestListenDualStackUDPAvoidsHeldIPv4Ports(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("the dual-stack port-0 collision is specific to darwin")
 	}
+	requireDualStackAvoidsHeldIPv4Ports(t, func(t *testing.T) net.PacketConn { return listenDualStackUDP(t) })
+}
+
+// requireDualStackAvoidsHeldIPv4Ports holds 500 IPv4 ports, then requires that
+// none of 300 dual-stack receivers from listen lands on one and that each
+// receives an IPv4 datagram sent to 127.0.0.1.
+func requireDualStackAvoidsHeldIPv4Ports(t *testing.T, listen func(*testing.T) net.PacketConn) {
+	t.Helper()
 	held := make(map[int]bool)
 	for i := range 500 {
 		ip := net.IPv4(127, 0, 0, 1)
@@ -270,7 +289,7 @@ func TestListenDualStackUDPAvoidsHeldIPv4Ports(t *testing.T) {
 	var collisions []string
 	b := make([]byte, 16)
 	for range 300 {
-		conn := listenDualStackUDP(t)
+		conn := listen(t)
 		addr := conn.LocalAddr().(*net.UDPAddr)
 		if held[addr.Port] {
 			collisions = append(collisions, addr.String())
@@ -281,11 +300,11 @@ func TestListenDualStackUDPAvoidsHeldIPv4Ports(t *testing.T) {
 		_, err := sender.WriteToUDP([]byte("dual-stack"), &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: addr.Port})
 		require.NoError(t, err)
 		require.NoError(t, conn.SetReadDeadline(time.Now().Add(scaleDuration(time.Second))))
-		n, from, err := conn.ReadFromUDP(b)
+		n, from, err := conn.ReadFrom(b)
 		conn.Close()
 		require.NoError(t, err, "IPv4 datagram to 127.0.0.1:%d", addr.Port)
 		require.Equal(t, "dual-stack", string(b[:n]))
-		require.Equal(t, sender.LocalAddr().(*net.UDPAddr).Port, from.Port)
+		require.Equal(t, sender.LocalAddr().(*net.UDPAddr).Port, from.(*net.UDPAddr).Port)
 	}
 	require.Empty(t, collisions, "dual-stack receivers were given ports held by IPv4 sockets")
 }
