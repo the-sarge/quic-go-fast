@@ -6664,3 +6664,67 @@ C-002 and C-003 were rejected as duplicates of C-001. The fix was comment-only, 
 ### Next
 
 The consumer gate is owed: cap 32 at `0b0f77b0` against #854's `48db9bc6` (cap 8), with thresholds on #858; a failure ships the release with the cap at 8. The next BBR readiness on the bundle candidate measures this revision after #871 and #887. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Opt-in user-initiated send thread on Apple silicon landed - 2026-10-20 02:34 EDT
+
+**Main:** `1231cffa2ba3`
+**Actor:** Claude
+
+### Summary
+
+[#859](https://github.com/the-sarge/quic-go-fast/issues/859) landed in [PR #897](https://github.com/the-sarge/quic-go-fast/pull/897) as `1231cffa`. It is slice 9 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)): opt-in, and it never holds the release.
+
+`(*Transport).ConfigureSendThreadQoSV1() error` makes each connection's send worker (`sendQueue.Run`) on an Apple-silicon Mac lock its goroutine to its thread and raise the thread to user-initiated. `(*Conn).SendThreadQoSV1() string` reports `off`, `pending`, `raised`, `refused` or `stood_down`. The kill switch is `QUIC_GO_DISABLE_SEND_QOS`. Transports that don't call it keep today's `Run`, apart from a nil check.
+
+### Completed
+
+- **Verified raise.** The raise counts only when the thread's base priority (`proc_pidinfo` with `PROC_PIDTHREADID64INFO`, field `pth_priority`) reads 37 or more. Otherwise the worker restores the recorded class, unlocks and records `refused`.
+- **Re-check.** While raised, the worker re-reads its base priority at most once a second, and only after it sends. A drop restores the class, unlocks and records `stood_down`, and sending continues.
+- **Every exit restores before unlocking.** That covers close, per-packet send errors and batched send errors. If restoring fails, the goroutine stays locked, so the runtime ends the thread with it.
+- **Per-connection outcome.** `packetEmission` holds the controller. Install sets it once, before the connection is published, next to `installAckThreshold` at the dial and accept sites. `replacePath` binds only the new queue (`bindQueueSendQoS`), so refused and stood down hold across path changes.
+- **Platforms.** `darwin && arm64 && !ios` calls libSystem through assembly trampolines and `syscall.syscall`/`syscall6`, without cgo. Every other build, Intel, Rosetta and iOS included, compiles a no-op and reports `off`.
+- **[ADR 0010](adr/0010-libsystem-calls-without-cgo.md)** records the mechanism and its borrowed invariant: the runtime keeps `syscall.syscall` reachable by linkname, which `golang.org/x/sys/unix` relies on. These are public SDK APIs, so ADR 0008's private-call rules don't apply.
+
+### Decisions
+
+The operator approved these with the plan on 2026-10-20:
+- A refusal at start is final for the connection, like a stand-down.
+- A failed restore keeps the goroutine locked.
+- Configuring on other platforms succeeds and reports `off`.
+- The re-check follows sends, so an idle worker makes no calls.
+- The slice was not scheduled with #808: it is a no-op on Linux and off by default.
+
+Each raised connection holds one OS thread, which is documented but not capped.
+
+### Validation
+
+**Native probe before planning (M4 Max, Darwin 27.0.0, Go 1.27.2).** Go threads start at the default class (base priority 31).
+- Under the desktop app, the requested class reads user-initiated while the base priority stays at 31, so the raise is refused.
+- Over `ssh localhost`, it reaches 37 and restores to 31.
+- Setting the unspecified class returns EINVAL, so restoring an unspecified prior class falls back to the default class.
+- User-interactive is capped at 37 outside the frontmost app.
+
+**Tests.**
+- Platform-neutral tests drive `Run` through a fake thread seam, so hosted Ubuntu race covers them. They cover each acceptance case and the failure paths: a failed raise, the re-check interval, a failed restore, `replacePath` binding, install with the kill switch, the outcome strings, the configure contract, and an end-to-end loopback.
+- With `QUIC_GO_TEST_SEND_QOS_EXPECT`, the real-libSystem round trip and the end-to-end test asserted `refused` under the desktop app and `raised` over ssh.
+- Each guard deletion, applied with `go test -overlay`, was caught by its named test: exit restore, latch, start verification, re-check, kill switch, keep-lock, and both versions of the replacement binding.
+
+**Certification of `541e7236` on base `174c99a5`.** #858 landed between planning and branching; it doesn't touch `Run`'s structure.
+- golangci-lint v2.14.0 on six GOOS (amd64) plus darwin/arm64, which hosted lint doesn't cover.
+- `go vet` for darwin arm64 and amd64, windows and linux; `go mod tidy -diff`.
+- Linux `go test` and `-race` on the root package, and the unit-shaped `./...` without `integrationtests` (minimax, Go 1.27.2).
+- Darwin root tests and race on `ffcd3b66`, inside a window granted by the `tb` rig owner.
+- All 33 hosted checks passed on `541e7236`. Main had not moved, and the PR was squash-merged with the matching-head guard.
+
+**RAS review `20261020T055506-30014c16ac44d062c8653b85` at `ffcd3b66`** (agy-argon failed, a tool failure; five reviewers completed).
+- C-002, with duplicates C-003, C-004 and C-006, was fix-now. `replacePath` rewrote `packetEmission.sendQoS` while `SendThreadQoSV1` read it concurrently. It was fixed in `541e7236`, and `TestSendQoSOutcomeDuringPathChanges` failed under `-race` before the fix and passes after.
+- Rejected: C-001 (a thread already above 37 is lowered to user-initiated; the contract names that class, and no probe showed the state) and C-005 (`proc_pidinfo` errno is not surfaced; a short read already fails closed).
+- Verification at `541e7236`: blocking projection clear, 6/6 clusters covered.
+- Replacement review `20261020T062155-b3be614aaed99dc6a8182747`: no findings (claude-opus failed, a tool failure).
+- Nothing was deferred.
+
+### Next
+
+The consumer's adoption gate runs after the bundle release on the Thunderbolt pair, with thresholds on #859. It never holds the release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
