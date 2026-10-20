@@ -103,7 +103,7 @@ func TestDrainServerAcceptQueue(t *testing.T) {
 	dialer := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	defer dialer.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
 	defer cancel()
 	// fill up the accept queue
 	conns := make([]*quic.Conn, 0, protocol.MaxAcceptQueueSize)
@@ -115,12 +115,21 @@ func TestDrainServerAcceptQueue(t *testing.T) {
 	time.Sleep(scaleDuration(25 * time.Millisecond)) // wait for connections to be queued
 
 	server.Close()
-	for i := range protocol.MaxAcceptQueueSize {
+	// The accept queue isn't ordered by dial order: accept all connections before closing any of them.
+	accepted := make([]*quic.Conn, 0, protocol.MaxAcceptQueueSize)
+	for range protocol.MaxAcceptQueueSize {
 		c, err := server.Accept(ctx)
 		require.NoError(t, err)
-		// make sure the connection is not closed
-		require.NoError(t, context.Cause(conns[i].Context()), "client connection closed")
+		accepted = append(accepted, c)
+	}
+	// make sure the connections are not closed
+	for _, conn := range conns {
+		require.NoError(t, context.Cause(conn.Context()), "client connection closed")
+	}
+	for _, c := range accepted {
 		require.NoError(t, context.Cause(c.Context()), "server connection closed")
+	}
+	for _, c := range accepted {
 		c.CloseWithError(0, "")
 	}
 	_, err = server.Accept(ctx)
