@@ -450,11 +450,15 @@ func decodeTrailers(r io.Reader, hf *headersFrame, maxHeaderBytes int, decoder *
 		return nil, fmt.Errorf("http3: HEADERS frame too large: %d bytes (max: %d)", hf.Length, maxHeaderBytes)
 	}
 
-	b := make([]byte, hf.Length)
-	if _, err := io.ReadFull(r, b); err != nil {
+	// Grow the buffer as data arrives so a HEADERS prefix alone can't reserve the full frame length.
+	var trailerBlock bytes.Buffer
+	if _, err := io.CopyN(&trailerBlock, r, int64(hf.Length)); err != nil {
+		if err == io.EOF && trailerBlock.Len() > 0 {
+			err = io.ErrUnexpectedEOF
+		}
 		return nil, err
 	}
-	decodeFn := decoder.Decode(b)
+	decodeFn := decoder.Decode(trailerBlock.Bytes())
 	var fields []qpack.HeaderField
 	var headerFields *[]qpack.HeaderField
 	if qlogger != nil {
