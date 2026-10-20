@@ -6427,3 +6427,30 @@ Initial RAS review `20261019T214543-eee7c79b71865b6526b7e783` identified a wrapp
 ### Decisions
 
 The shared admission budget continues to cover all routes. Multipart framing and decoding remain owned by Go's standard parser; its pre-existing EOF ambiguity in a later part's headers is recorded as an upstream limitation, with no demonstrated resource-budget or completed-file checksum failure. The accepted boundary and limitation are recorded in [PR #877](https://github.com/the-sarge/quic-go-fast/pull/877).
+
+---
+
+## 32-entry send queue for every connection landed - 2026-10-19 20:27 EDT
+
+**Main:** `48db9bc6303c`
+**Actor:** Claude
+
+### Completed
+
+Merged [PR #885](https://github.com/the-sarge/quic-go-fast/pull/885) as `48db9bc6303cc1952db7b5a218ed3e8509341f83`, closing [#854](https://github.com/the-sarge/quic-go-fast/issues/854) (slice 4 of the fork bundle, [#851](https://github.com/the-sarge/quic-go-fast/issues/851)). Every connection's packet send queue now holds 32 entries, whatever its congestion controller; it was 8, and only BBR had 32 (#766). `maxSendBatch` is its own constant, 8, so #858's later change is a one-line diff. `bbrSendQueueCapacity`, `sendQueueCapacityFor` and `newSendQueueWithCapacity` are gone: connection setup and `replacePath` both call `newSendQueue`, the only constructor, which owns the `authorizedWriter` capture. The depth is fixed, with no setting, counter or kill switch, on every platform. BBR's behaviour is unchanged.
+
+Tests pin depth 32 and cap 8, show that a full queue of 32 same-ECN packets drains as four batches of 8, and check 32 entries for reno and bbrv3 at creation and after `replacePath`. The Darwin `sendmsg_x` end-to-end test now sizes its batch by `maxSendBatch`; sizing it by the queue would still pass, because `runBatched` caps groups at 8, but would no longer test one full batch.
+
+### Decisions
+
+The owner decided on 2026-10-19 to merge without waiting for #808, whose L6 run measures pinned `d94b3ec2` binaries, and that removing the per-controller depth seam is not a new BBR revision, since BBR's depth and cap are identical before and after. Recorded in [PR #885](https://github.com/the-sarge/quic-go-fast/pull/885). This slice deliberately changes Reno's send path; [#871](https://github.com/the-sarge/quic-go-fast/issues/871) owns what Reno is compared against.
+
+### Validation
+
+Certified head `a95696b1f5bec2a9288c87eb3e2ea7549f8cc41d` on base `b7bee44d24144f2bc9b107ee5dc73540aeac5a50`; the merged tree matches it. Full local certification ran at `28c1f5e7` on base `04fcb987` (Darwin arm64 Go 1.27.2 `go test ./...`, a `-race -count=20` queue gate, golangci-lint v2.14.0 on six GOOS values, Windows vet and test compile, module tidiness, and the Linux `golang:1.27.1` container suite without `integrationtests/` plus a `-race -count=5` queue gate). The final merge of `main` added only a journal entry, checked by build, vet and whitespace checks. All 33 hosted checks passed on `a95696b1` before it was marked ready and squash-merged with the matching-head guard. Main advanced twice during the PR (#877's code, then its journal); each time the branch was updated and re-gated.
+
+RAS review `20261020T000002-cbf46f24a7937c0eb50edaa8` ran all six reviewers with no Fix First. Its one low note was valid: the new depth comment claimed batch-level signalling for every connection, but the per-packet path signals after each entry. The comment was qualified to batch-capable sockets (`47e12798`); under the docs-only policy no RAS rerun followed. No finding was deferred.
+
+### Next
+
+The downstream consumer's gate for #854 (namespace pair and Thunderbolt pair, thresholds on #854) is owed and is posted on #854 and #851. #858 (the batch cap follows the depth) is now unblocked. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
