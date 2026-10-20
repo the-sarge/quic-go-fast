@@ -6553,3 +6553,70 @@ RAS review `20261020T032913-a70a11cb4a2c3c9b90f41d96` (six reviewers) produced C
 ### Next
 
 The consumer's adoption gate for slice 6 (switch off against on, Thunderbolt and namespace pairs, Windows lane) runs after the bundle release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Darwin read slots for opted-in batch adapters landed - 2026-10-20 00:30 EDT
+
+**Main:** `fc941d5a5b42`
+**Actor:** Claude
+
+### Summary
+
+[#857](https://github.com/the-sarge/quic-go-fast/issues/857) landed in [PR #893](https://github.com/the-sarge/quic-go-fast/pull/893) as `fc941d5a`. It is slice 7 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)), opt-in and never holding the release. On macOS, a wrapper that implements `ReadBatch` and the new `ReadBatchSlotsV1Conn` (`ReadBatchSlotsV1() int`) is offered that many messages per `ReadBatch` call instead of one. Every other reader keeps today's slots: one on macOS, the platform batch of 8 on Linux and FreeBSD.
+
+### Completed
+
+- **Slot buffers.** Slots are `protocol.MaxPacketBufferSize + 1` bytes (1,453 today), so a full slot means a truncated datagram.
+- **Own buffer tier.** Slots come from `readSlotBufferPool`. A datagram is delivered in its slot without a copy. `putBack` recognizes the slot capacity and returns it to that tier, never to the 1,452-byte, 20 KiB or 64 KiB pools.
+- **Per-reader slot count.** `oobConn.buffers` is now a slice. `setReadSlots` sizes it and its messages from `readSlotsFor`, which has an active Darwin file, a stub for iOS and `quic_go_no_private_syscalls`, and a Linux/FreeBSD version.
+- **Reading with slots.**
+  - A failed batch keeps its slots for the next read.
+  - A full slot, a `MSG_TRUNC`/`MSG_CTRUNC` message or invalid ancillary data is dropped without ending the batch.
+  - A `ReadBatch` count outside the offered slots fails the read on every platform; Linux used to panic on it.
+- **Unprocessed queue.** Past entry 256, a slot is queued as delivered, not copied down. The #855 bound is now 768 × 1,453 bytes.
+- **Docs and CI.** The README names the opt-in and `QUIC_GO_DISABLE_RECVMSG_X`. `unit.yml` gained a macOS step that runs the read-slot tests with `-tags quic_go_no_private_syscalls`.
+
+### Decisions
+
+Owner-approved plan decisions D1–D11 (2026-10-20) are listed in the [PR #893](https://github.com/the-sarge/quic-go-fast/pull/893) body and review record. The main ones:
+
+- An adapter method rather than a Transport API.
+- Counts of 1 or less keep one slot, 2–64 are honored, and above 64 initialization fails.
+- "Never reaches `putBack`" is read as never reaching its pool tiers, because every release already goes through `putBack`.
+- The fork drops full slots itself, with no counter.
+- iOS keeps one slot, and managed endpoints keep their own read.
+- The kill switch is read when each reader is created.
+- Merged without waiting for #808: the behavior change is macOS-only, and #808 measures pinned Linux binaries.
+
+### Validation
+
+Certified head `fbe837d2cfc72306fa10231ef6ee11e06cf68a5a` on base `597a2254c14748f4208011f6afee825bff217bf7`. Main gained only the #856 journal (`597a2254`) during the work, and the branch was rebased onto it before the PR opened. Local Darwin arm64 checks with Go 1.27.2:
+
+- the full `go test ./...`;
+- `-race` on the root package;
+- the read-slot tests with `-tags quic_go_no_private_syscalls`;
+- `go vet ./...` and `go mod tidy -diff`;
+- golangci-lint v2.14.0 on six GOOS values.
+
+The shared slot-lifetime tests also run on Linux, so the hosted ubuntu race job covers them. An end-to-end Darwin connection runs over an opted-in adapter. Seven guard mutations, applied through `go test -overlay`, each failed a named test:
+- the `putBack` slot branch;
+- failed-batch keep;
+- the count bound;
+- the spare byte;
+- the kill switch;
+- the queue no-copy;
+- drop-and-continue.
+
+The tests were written before running because the `tb` rig held this Mac, so the mutations stand in for the red step. All 33 hosted checks passed on `fbe837d2`, including the new macOS tag step on both Go versions, before it was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T040720-d0d1a395a4b70d24ba4ced16` ran all six reviewers with nothing in Fix First. The dispositions:
+- C-001 (a managed wrapper consulting the declaration) was rejected as unreachable: managed leases expose neither `SyscallConn` nor `ReadMsgUDP`.
+- C-002 and C-003 were rejected.
+- C-004 and C-005/C-006, a README wording point and the stale 768 × 1,452 bound comments, were fixed in `fbe837d2`. Both changes are comment and README only, so RAS wasn't rerun, per the docs-only policy.
+
+Nothing was deferred. The tagged lint reports one `unused` in `send_conn_batch_state_darwin.go`; it predates this PR, and CI doesn't lint with the tag.
+
+### Next
+
+The consumer measures adoption after the bundle release (batched receive off against on, Thunderbolt pair, thresholds on #857). That result never holds the release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
