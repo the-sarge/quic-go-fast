@@ -112,8 +112,9 @@ func TestConnectionUnprocessedPacketDropsCountRetentionRefusal(t *testing.T) {
 	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
 }
 
-// The slots beyond 256 hold only packet-sized (1,452-byte) buffers, so they
-// add at most 768 × 1,452 bytes per connection whatever the reader. A packet
+// The slots beyond 256 hold only packet-sized (1,452-byte) buffers, or read
+// slots one byte larger (#857), so they add at most 768 × 1,453 bytes per
+// connection whatever the reader. A packet
 // in a larger buffer that fits is copied down; one that does not fit is
 // dropped and counted. The first 256 slots keep every packet as delivered.
 func TestConnectionUnprocessedQueueConfirmedSlotsHoldPacketSizedBuffers(t *testing.T) {
