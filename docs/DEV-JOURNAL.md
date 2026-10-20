@@ -7057,3 +7057,52 @@ Approved with the plan on 2026-10-20:
 ### Next
 
 - [#910](https://github.com/the-sarge/quic-go-fast/issues/910) awaits triage.
+
+---
+
+## Combined HTTP/3 server lifecycle repair landed - 2026-10-20 14:44 EDT
+
+**Main:** `213439a68b8d`
+**Actor:** Claude
+
+### Summary
+
+[#424](https://github.com/the-sarge/quic-go-fast/issues/424) is closed by [PR #912](https://github.com/the-sarge/quic-go-fast/pull/912), squash-merged as `213439a6`. The combined `http3.ListenAndServeTLS` helper now owns both of its servers. Before, when QUIC stopped first, the helper returned and the TCP server kept running. Now, whichever server stops first, the helper closes both, waits for both serving goroutines and for every running TCP handler, and returns the error of the server that stopped first. The public signature, Alt-Svc, cert loading and normal serving are unchanged.
+
+### Completed
+
+- **Scope approval recorded on #424** ([comment](https://github.com/the-sarge/quic-go-fast/issues/424#issuecomment-6297519947)): the 2026-09-20 Agent Brief is the repair contract as written, including the internal-only test seam. The label moved from `needs-triage` to `ready-for-agent`.
+- **`http3/server.go`.** `ListenAndServeTLS` calls an unexported `listenAndServeTLS` and passes empty `combinedSocketHooks`.
+  - The TCP listener is opened with `net.Listen("tcp", addr)` after the UDP bind and before serving, so a TCP bind failure releases the UDP socket. Both sockets are closed by defer on every path.
+  - The helper runs its own `http.Server` through `ServeTLS(tcpLn, certFile, keyFile)`. The two serving results go to one channel with room for both; the first result is returned and the second is discarded.
+  - `handlerTracker` counts TCP handler calls inside the existing Alt-Svc wrapper and refuses calls after close with `http.ErrAbortHandler`. On the QUIC side, `Server.Close` already joins HTTP/3 handlers.
+  - A cancellable `BaseContext` is canceled after `Close` and before the handler wait.
+- **`http3/combined_server_test.go`.** Wrapped sockets fail either serving loop on command.
+  - TCP-first: the `Accept` error is injected while an HTTP/3 request is blocked in its handler.
+  - QUIC-first: a permanent `ReadFrom` error closes the transport. It runs three ways: HTTP/2, HTTP/1.1 with an unread body, and hijacked HTTP/1.1.
+  - Startup failure: the TCP port is already held.
+  - Normal serving: both protocols reach the handler, and the TCP response carries the right Alt-Svc.
+  - Each failure test checks the originating error, that the handler finished before return, that the TCP port refuses connections, and that the UDP port rebinds.
+
+### Decisions
+
+- **Seam:** a parameter to an unexported function rather than a package-level variable, so tests share no global state. The socket wrappers fail the real serving loops. QUIC-first uses the terminal read-error path that the [#548 investigation](https://github.com/the-sarge/quic-go-fast/blob/main/docs/audits/issue-424-combined-server/README.md) traced.
+- **Close both servers on every exit**, including the one that already stopped. A serving loop that returned on a listener error can still leave connections open that only its server's `Close` shuts down.
+- **Approved boundary:** two internal background goroutines may exit just after the helper returns, already unblocked by their closed sockets: `quic.Transport`'s packet reader and net/http's per-connection cleanup. Joining them would change the standalone `Server.Close` contract, which the brief keeps out of scope.
+- **Round-1 fix (`fix-now`):** closing a connection doesn't cancel the context of an HTTP/1.1 request with an unread body (net/http starts its background read only at body EOF), or of a hijacked one. A handler waiting on that context hung the new handler wait. Cancelling `BaseContext` covers both.
+
+### Validation
+
+- **RAS round 1** `20261020T180750-07e4d02bdbf011d85c4d81ab` at `c425f4d0`: all six reviewers completed, and the run found the cancellation root above (C-001/2/3). `ras verify` at `8cc303bf` resolved all three.
+- **RAS replacement round** `20261020T182754-fbcb2cb1e48709530e308232` at `8cc303bf`: all six reviewers completed, with no findings.
+- **Guard mutations** via `go test -overlay`, each failing the QUIC-first test:
+  - Removing the handler wait: "handler still running".
+  - Removing `httpServer.Close()`, which brings back the original leak: the helper never returns.
+  - Removing the base-context cancel: both HTTP/1.1 cases hang.
+- **Local certification at `6a10c024`** (main `328cf5bc` merged in, Go 1.27.2, darwin/arm64):
+  - golangci-lint v2.14.0 for six GOOS values: 0 issues;
+  - `go build ./...`;
+  - `go test -shuffle on ./http3/...` and `go test -race ./http3/`;
+  - the focused lifecycle tests at `-race -count=3`.
+- **Hosted checks:** all 33 passed on `6a10c024`. The base equaled `origin/main` at merge.
+- **Shared-rig note:** one focused `-race` run (about 40 s) may have overlapped the first tb A1 run of wiremux 1921. It was disclosed, and wiremux flagged the run. Later builds ran inside parks it granted.
