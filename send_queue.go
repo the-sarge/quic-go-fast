@@ -107,17 +107,19 @@ type sendQueue struct {
 var _ sender = &sendQueue{}
 
 // sendQueueCapacity is the queue depth of every connection, whatever its
-// congestion controller. On a batch-capable socket the worker signals room
-// only after it has sent a whole batch, so a queue no deeper than one batch
-// lets the connection loop refill it mid-batch and sleep, and the two then
-// take turns on one processor. A deeper queue lets the loop keep packing
-// while a batch is in flight. It bounds entries only: congestion control
-// (and, for BBR, local send credit) still bounds the bytes behind them.
+// congestion controller. It bounds how many packets the connection loop can
+// queue ahead of the send worker; on a batch-capable socket the worker
+// signals room only once it has finished with each batched group. It bounds
+// entries only: congestion control (and, for BBR, local send credit) still
+// bounds the bytes behind them.
 const sendQueueCapacity = 32
 
-// maxSendBatch caps how many queued packets one batched send coalesces. It is
-// independent of the queue's depth.
-const maxSendBatch = 8
+// maxSendBatch caps how many queued packets one batched group coalesces. It
+// follows the queue's depth, so a full queue of packets that share their
+// (gsoSize, ecn) forms one group, with one room signal when the worker
+// finishes it, instead of several smaller groups. It also bounds a group that
+// keeps growing while the connection loop refills the queue during the drain.
+const maxSendBatch = sendQueueCapacity
 
 // authorizedWriter is a sendConn that can make several socket submissions for
 // one write, and authorizes each of them.
