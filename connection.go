@@ -178,6 +178,7 @@ type Conn struct {
 	handshakeTimeoutsPath uint64 // the pathGeneration that handshakeTimeouts counts for
 
 	maxPayloadSizeEstimate atomic.Uint32
+	pathMTUSettled         pathMTUSettled // see PathMTUSettledV1
 
 	initialStream       *initialCryptoStream
 	handshakeStream     *cryptoStream
@@ -353,6 +354,7 @@ var newConnection = func(
 		s.logger,
 	)
 	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
+	s.pathMTUSettled = newPathMTUSettled()
 	statelessResetToken := statelessResetter.GetStatelessResetToken(srcConnID)
 	params := &wire.TransportParameters{
 		InitialMaxStreamDataBidiLocal:   protocol.ByteCount(s.config.InitialStreamReceiveWindow),
@@ -486,6 +488,7 @@ var newClientConnection = func(
 		s.logger,
 	)
 	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
+	s.pathMTUSettled = newPathMTUSettled()
 	if initialPacketSizeLowered {
 		// The connection that Version Negotiation replaced had lowered its unset size.
 		// This follows the estimate above, which the lowering replaces.
@@ -605,6 +608,7 @@ func (c *Conn) preSetup() {
 func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
 	defer func() { c.receivePhase.stop(err) }()
+	defer c.pathMTUSettled.settle()
 	defer c.authority.release()
 	// Setup capacity returns only after the connection's workers have ended. A
 	// connection closed for recreation hands its reservation to the dial.
@@ -1018,6 +1022,11 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	}
 	c.mtuDiscoverer.Reset(size, maxPacketSize)
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
+	// The first path's search is over. Settle after the reset, so the limit read
+	// afterwards is the initial size. MigratedPath can declare an in-flight probe
+	// lost and so conclude the old search a moment earlier: a conclusion followed
+	// by a path change, as PathMTUSettledV1 documents.
+	c.pathMTUSettled.settle()
 }
 
 func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
@@ -1090,10 +1099,16 @@ func (c *Conn) handleHandshakeConfirmed(now monotime.Time) error {
 
 // startMTUDiscovery is the only place probing starts: at handshake confirmation and
 // after each path change. Without DF, a probe could be fragmented instead of testing
-// the path.
+// the path. When discovery will not run, or has nothing to search, the first path is
+// settled at confirmation; after a path change it is already settled.
 func (c *Conn) startMTUDiscovery(now monotime.Time) {
-	if !c.config.DisablePathMTUDiscovery && c.conn.capabilities().DF {
-		c.mtuDiscoverer.Start(now)
+	if c.config.DisablePathMTUDiscovery || !c.conn.capabilities().DF {
+		c.pathMTUSettled.settle()
+		return
+	}
+	c.mtuDiscoverer.Start(now)
+	if c.mtuDiscoverer.done() {
+		c.pathMTUSettled.settle()
 	}
 }
 
@@ -2324,6 +2339,12 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 			c.maxPayloadSizeEstimate.Store(uint32(maxPayloadSize))
 			// Handshake fallback lowers packetization, not congestion accounting.
 			c.sentPacketHandler.SetMaxDatagramSize(max(mtu, c.config.initialPacketSize()))
+			// An acknowledged probe concludes the search only by raising the size, so
+			// this branch sees every conclusion on an acknowledgement, after the
+			// estimate is final. The finder settles conclusions on a loss itself.
+			if c.mtuDiscoverer.done() {
+				c.pathMTUSettled.settle()
+			}
 		}
 	}
 	return c.cryptoStreamHandler.SetLargest1RTTAcked(frame.LargestAcked())
@@ -2662,12 +2683,15 @@ func (c *Conn) applyTransportParameters() {
 	if params.MaxUDPPayloadSize > 0 && params.MaxUDPPayloadSize < maxPacketSize {
 		maxPacketSize = params.MaxUDPPayloadSize
 	}
-	c.mtuDiscoverer = newMTUDiscoverer(
-		c.rttStats,
-		c.effectiveInitialPacketSize,
-		maxPacketSize,
-		c.qlogger,
-	)
+	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, maxPacketSize)
+}
+
+// newPathMTUFinder attaches the connection's settled signal to every finder, so a
+// finder replaced by the handshake fallback reports to the same signal.
+func (c *Conn) newPathMTUFinder(start, max protocol.ByteCount) *mtuFinder {
+	f := newMTUDiscoverer(c.rttStats, start, max, c.qlogger)
+	f.settled = &c.pathMTUSettled
+	return f
 }
 
 // applyHandshakeMTUFallback consumes the send worker's message-size feedback for the current path.
@@ -2709,7 +2733,7 @@ func (c *Conn) lowerUnsetInitialPacketSize() {
 	c.effectiveInitialPacketSize = protocol.MinInitialPacketSize
 	if c.mtuDiscoverer != nil {
 		// No probes exist before confirmation, so a fresh finder suffices; confirmation starts it.
-		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, protocol.MinInitialPacketSize, c.mtuDiscoverer.max(), c.qlogger)
+		c.mtuDiscoverer = c.newPathMTUFinder(protocol.MinInitialPacketSize, c.mtuDiscoverer.max())
 	}
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)))
 }

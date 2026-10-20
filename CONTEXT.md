@@ -32,6 +32,8 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Handshake MTU fallback**: Reduction of the handshake packetization budget to 1200 bytes, and the lowered state that follows, whatever triggered it. It applies only when `InitialPacketSize` is unset; an explicit size is a floor that it never lowers. Its two triggers stay distinct. An eligible local message-size failure before handshake confirmation is direct evidence that the local network stack refused the send. A second Initial or Handshake probe timeout before handshake completion, counted per path generation, is an inference that the path might silently drop larger UDP datagrams; ordinary loss can also cause two timeouts. Handshake completion can precede confirmation, so the timeout trigger's window closes first.
 
+**Path MTU settled signal**: The connection's one-time report, through `PathMTUSettledV1`, that path MTU discovery is over on its first path: the search concluded, discovery will not run there, the connection left that path, or the connection ended. It means the search is over, not that the path will keep that size. A later path change resets the DATAGRAM limit to the initial packet size and discovery runs again, without a new signal.
+
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
 
 **Packet emission**: The sequence that turns eligible protocol work into constructed packets, recovery registration and an owned handoff to a network send path. It does not imply rollback of protocol state after a local write failure.
