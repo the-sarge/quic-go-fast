@@ -189,6 +189,13 @@ type Conn struct {
 	receivedPacketMx      sync.Mutex
 	receivedPackets       ringbuffer.RingBuffer[receivedPacket]
 	receivedPacketsClosed bool // guarded by receivedPacketMx
+	// receivedPacketsConfirmed deepens the queue to
+	// protocol.MaxConnUnprocessedPacketsConfirmed once the handshake is
+	// confirmed. Guarded by receivedPacketMx, under which the transport's
+	// reader admits packets.
+	receivedPacketsConfirmed bool
+	// unprocessedPacketDrops counts the packets the queue refused while open.
+	unprocessedPacketDrops atomic.Uint64
 
 	// coalescedRetention bounds the coalesced-slab bytes pinned by this
 	// connection's retention queues through oversized segment views.
@@ -1076,6 +1083,9 @@ func (c *Conn) handleHandshakeConfirmed(now monotime.Time) error {
 	c.dropEncryptionLevel(protocol.EncryptionHandshake, now)
 
 	c.handshakeConfirmed = true
+	c.receivedPacketMx.Lock()
+	c.receivedPacketsConfirmed = true
+	c.receivedPacketMx.Unlock()
 	c.cryptoStreamHandler.SetHandshakeConfirmed()
 
 	c.startMTUDiscovery(now)
@@ -2063,10 +2073,17 @@ func (c *Conn) handlePacket(p receivedPacket) {
 		p.buffer.Release()
 		return
 	}
-	// Discard packets once the amount of queued packets is larger than
-	// the channel size, protocol.MaxConnUnprocessedPackets
-	if c.receivedPackets.Len() >= protocol.MaxConnUnprocessedPackets {
-		c.qlogUnprocessedPacketDropped(p)
+	// Discard packets once the queue is full: protocol.MaxConnUnprocessedPackets
+	// until the handshake is confirmed, protocol.MaxConnUnprocessedPacketsConfirmed
+	// after. The entries beyond protocol.MaxConnUnprocessedPackets take only
+	// packets that fit a packet-sized buffer, so they bound queued memory
+	// whatever buffer the reader delivered in.
+	queued := c.receivedPackets.Len()
+	extended := queued >= protocol.MaxConnUnprocessedPackets
+	if extended && (!c.receivedPacketsConfirmed ||
+		queued >= protocol.MaxConnUnprocessedPacketsConfirmed ||
+		len(p.data) > protocol.MaxPacketBufferSize) {
+		c.unprocessedPacketDropped(p)
 		c.receivedPacketMx.Unlock()
 		p.buffer.Release()
 		return
@@ -2077,10 +2094,13 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	var retained bool
 	p, retained = retainForRetentionQueue(p, &c.coalescedRetention)
 	if !retained {
-		c.qlogUnprocessedPacketDropped(p)
+		c.unprocessedPacketDropped(p)
 		c.receivedPacketMx.Unlock()
 		p.buffer.Release()
 		return
+	}
+	if extended {
+		p = inPacketSizedBuffer(p)
 	}
 	c.receivedPackets.PushBack(p)
 	c.receivedPacketMx.Unlock()
@@ -2091,9 +2111,28 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	}
 }
 
-// qlogUnprocessedPacketDropped records the drop of a packet that could not
-// enter the unprocessed-packet queue. The caller holds receivedPacketMx.
-func (c *Conn) qlogUnprocessedPacketDropped(p receivedPacket) {
+// inPacketSizedBuffer returns p held in a protocol.MaxPacketBufferSize
+// buffer, copying it out of a larger one, such as the 64 KiB buffer a managed
+// reader without coalescing delivers each datagram in. The caller has checked
+// that p fits.
+func inPacketSizedBuffer(p receivedPacket) receivedPacket {
+	old := p.buffer
+	if old.slab == nil && cap(old.Data) == protocol.MaxPacketBufferSize {
+		return p
+	}
+	buf := getPacketBuffer()
+	buf.Data = append(buf.Data, p.data...)
+	p.buffer = buf
+	p.data = buf.Data
+	old.Decrement()
+	old.MaybeRelease()
+	return p
+}
+
+// unprocessedPacketDropped counts and records the drop of a packet that could
+// not enter the unprocessed-packet queue. The caller holds receivedPacketMx.
+func (c *Conn) unprocessedPacketDropped(p receivedPacket) {
+	c.unprocessedPacketDrops.Add(1)
 	if c.qlogger == nil {
 		return
 	}
@@ -3024,6 +3063,20 @@ func (c *Conn) ReceiveDatagram(ctx context.Context) ([]byte, error) {
 // the connection closes. It is zero for a connection without datagram support.
 func (c *Conn) DatagramReceiveDropsV1() uint64 {
 	return c.datagramQueue.receiveDrops()
+}
+
+// UnprocessedPacketDropsV1 returns how many received packets this connection
+// dropped because its queue of packets awaiting processing could not take
+// them. The queue holds 256 packets until the handshake is confirmed and
+// 1,024 after. Its entries beyond 256 take only packets of at most 1,452
+// bytes, so a larger packet arriving then is dropped and counted. The count
+// includes packets refused by the queue's byte budget for oversized
+// coalesced reads. It excludes packets released because the connection has
+// closed. The dropped packets are never acknowledged, so the peer's loss
+// detection sees them. The count never decreases, is safe to call
+// concurrently, and keeps its value after the connection closes.
+func (c *Conn) UnprocessedPacketDropsV1() uint64 {
+	return c.unprocessedPacketDrops.Load()
 }
 
 // LocalAddr returns the local address of the QUIC connection.
