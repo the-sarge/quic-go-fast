@@ -2113,11 +2113,12 @@ func (c *Conn) handlePacket(p receivedPacket) {
 
 // inPacketSizedBuffer returns p held in a protocol.MaxPacketBufferSize
 // buffer, copying it out of a larger one, such as the 64 KiB buffer a managed
-// reader without coalescing delivers each datagram in. The caller has checked
-// that p fits.
+// reader without coalescing delivers each datagram in. A read slot, one byte
+// larger, is kept as delivered: copying it would add a per-datagram copy to
+// the opted-in read path (#857). The caller has checked that p fits.
 func inPacketSizedBuffer(p receivedPacket) receivedPacket {
 	old := p.buffer
-	if old.slab == nil && cap(old.Data) == protocol.MaxPacketBufferSize {
+	if old.slab == nil && (cap(old.Data) == protocol.MaxPacketBufferSize || cap(old.Data) == readSlotBufferSize) {
 		return p
 	}
 	buf := getPacketBuffer()

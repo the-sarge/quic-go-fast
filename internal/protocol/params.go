@@ -45,8 +45,8 @@ const MaxConnUnprocessedPackets = 256
 
 // MaxConnUnprocessedPacketsConfirmed is the max number of packets stored in each connection that are not yet
 // processed, once the connection's handshake is confirmed. The entries beyond MaxConnUnprocessedPackets hold
-// only packets in MaxPacketBufferSize buffers, so they add at most
-// (MaxConnUnprocessedPacketsConfirmed - MaxConnUnprocessedPackets) * MaxPacketBufferSize bytes per connection.
+// only packets in MaxPacketBufferSize buffers, or in a read slot one byte larger, so they add at most
+// (MaxConnUnprocessedPacketsConfirmed - MaxConnUnprocessedPackets) * (MaxPacketBufferSize + 1) bytes per connection.
 const MaxConnUnprocessedPacketsConfirmed = 1024
 
 // MaxConnRetainedCoalescedBytes is the maximum number of coalesced-slab bytes

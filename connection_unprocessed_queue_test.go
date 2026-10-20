@@ -112,8 +112,9 @@ func TestConnectionUnprocessedPacketDropsCountRetentionRefusal(t *testing.T) {
 	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
 }
 
-// The slots beyond 256 hold only packet-sized (1,452-byte) buffers, so they
-// add at most 768 × 1,452 bytes per connection whatever the reader. A packet
+// The slots beyond 256 hold only packet-sized (1,452-byte) buffers, or read
+// slots one byte larger (#857), so they add at most 768 × 1,453 bytes per
+// connection whatever the reader. A packet
 // in a larger buffer that fits is copied down; one that does not fit is
 // dropped and counted. The first 256 slots keep every packet as delivered.
 func TestConnectionUnprocessedQueueConfirmedSlotsHoldPacketSizedBuffers(t *testing.T) {
@@ -177,4 +178,30 @@ func TestConnectionUnprocessedQueueConfirmedSlotsHoldPacketSizedBuffers(t *testi
 		require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data))
 		require.Equal(t, small, p.data)
 	}
+}
+
+// A read slot is one byte larger than a packet-sized buffer. Beyond 256 it is
+// queued as delivered, without a copy (#857).
+func TestConnectionUnprocessedQueueKeepsReadSlotsBeyond256(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cs := mocks.NewMockCryptoSetup(ctrl)
+	tc := newServerTestConnection(t, ctrl, nil, false, connectionOptCryptoSetup(cs))
+	releaseUnprocessedQueueAtCleanup(t, tc)
+	queueTestPacket(t, tc, protocol.MaxConnUnprocessedPackets)
+	confirmHandshakeForQueue(t, cs, tc)
+
+	slot := getReadSlotBuffer()
+	slot.Data = append(slot.Data, bytes.Repeat([]byte{'s'}, 100)...)
+	tc.conn.handlePacket(receivedPacket{buffer: slot, data: slot.Data, remoteAddr: tc.remoteAddr, rcvTime: monotime.Now()})
+	require.Equal(t, protocol.MaxConnUnprocessedPackets+1, tc.conn.receivedPackets.Len())
+	require.Equal(t, 1, slot.refCount, "the queue holds the slot")
+	var last receivedPacket
+	for !tc.conn.receivedPackets.Empty() {
+		last = tc.conn.receivedPackets.PopFront()
+		if last.buffer != slot {
+			last.buffer.Release()
+		}
+	}
+	require.Same(t, slot, last.buffer)
+	last.buffer.Release()
 }
