@@ -69,7 +69,12 @@ func (p *Path) Probe(ctx context.Context) error {
 }
 
 // Switch switches the QUIC connection to this path.
-// It immediately stops sending on the old path, and sends on this new path.
+// It requests the switch and returns without waiting for it to take effect.
+// The connection applies the switch before it next prepares packets to send,
+// and sends the packets it prepares after that on this path.
+// Packets prepared before the switch is applied, including packets already
+// queued for sending, may still be sent on the old path. If the connection
+// closes before applying the switch, it sends its CONNECTION_CLOSE on the old path.
 func (p *Path) Switch() error {
 	if err := p.pathManager.switchToPath(p.id); err != nil {
 		switch {
