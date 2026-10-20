@@ -7143,3 +7143,48 @@ Approved with the plan on 2026-10-20:
 - **Local certification at `e686d196`** (Go 1.27.2, darwin/arm64): golangci-lint v2.14.0 for six GOOS values, 0 issues; `GOOS=windows go vet` and a cross-compiled self-test binary; full `go test -count=1 ./...` passed.
 - **Hosted checks:** all 33 passed on `e686d196`. The base equaled `origin/main` (`a0ec20f6`) at merge.
 - The tb rig and minimax were idle before each heavy step, and no wiremux session was busy.
+
+---
+
+## Managed-endpoint ECN dual-stack port fix landed - 2026-10-20 17:49 EDT
+
+**Main:** `b5a4848b4cf0`
+**Actor:** Claude
+
+### Summary
+
+[#910](https://github.com/the-sarge/quic-go-fast/issues/910) is closed by [PR #918](https://github.com/the-sarge/quic-go-fast/pull/918), squash-merged as `b5a4848b`. The fix changes test code only. On darwin, three managed-endpoint ECN cells created their dual-stack endpoint with `NewManagedPacketEndpointV1("udp", nil)`. Port 0 could then land on a port an IPv4 socket already held, and the cells' `udp4` peers' datagrams went to that socket (#717). These cells now get their port the way #528 ([PR #909](https://github.com/the-sarge/quic-go-fast/pull/909)) fixed the raw dual-stack receiver: an IPv4 reservation picks the port, and the endpoint binds it explicitly.
+
+### Completed
+
+- **`sys_conn_oob_receiver_test.go`.**
+  - #909's loop is now `reserveDualStackPort(t, bind func(port int) error)`. It keeps a `udp4 0.0.0.0:0` reservation open while it calls `bind(P)`, retries up to 16 times on `EADDRINUSE`, and calls `bind(0)` off darwin. `listenDualStackUDP` calls it with a `net.ListenUDP` bind and behaves as before.
+  - The held-ports check is now `requireDualStackAvoidsHeldIPv4Ports(t, listen)`, typed over `net.PacketConn`. It holds 500 IPv4 ports, one in five on `0.0.0.0`, creates 300 receivers, and requires that no receiver lands on a held port and each one receives an IPv4 datagram sent to `127.0.0.1:P`.
+- **`managed_packet_ecn_darwin_test.go`.**
+  - `newDarwinManagedECNEndpoint(t, network)` creates a `"udp"` endpoint with `NewManagedPacketEndpointV1("udp", &net.UDPAddr{IP: net.IPv4zero, Port: P})` through the reservation. `udp4` and `udp6` endpoints still bind with `nil`.
+  - `TestDarwinManagedECNReceive` and `newDarwinECNTestPath` use it. That covers `Receive/mapped`, `SendRoutes/mapped/*`, `LeaseDatagrams/udp/udp4` and the harmless `dual_ipv6` siblings.
+  - New `TestDarwinManagedECNEndpointAvoidsHeldIPv4Ports` runs the shared check through the same helper.
+- `NewManagedPacketEndpointV1` is one `net.ListenUDP(network, laddr)` call followed by setup, and it returns the error unwrapped. An explicit-port bind through it therefore behaves like #909's bind, which answers the question the issue had left open. No production file changed.
+
+### Decisions
+
+- **One owner for the reservation.** The helper takes the bind step as a closure instead of keeping a second managed-only copy, as the issue brief preferred. Closure capture was chosen over a generic helper because the managed constructor returns three values.
+- **Production port-0 selection stays out of scope.** #720 named it a non-goal.
+
+### Validation
+
+- **Guard mutation** (`go test -overlay` from the scratchpad, checkout untouched): with the helper binding `"udp"` through `nil`, the new test failed with 10 of 300 endpoints on held ports (about 9 expected). The real helper had none.
+- **On mbp128** (macOS 27.0.1, Go 1.27.2, darwin/arm64):
+  - The targeted tests passed, and the affected subtests ran.
+  - The targeted set passed `-count=20 -shuffle=on` and `-race -count=3`.
+  - `go vet` passed for darwin, linux, windows and freebsd.
+  - golangci-lint v2.14.0 reported 0 issues for six GOOS values.
+  - Full `go test -count=1 ./...` passed.
+
+  All of these ran on the tree committed as `3ed2bc6d` during a window wiremux 1938 parked for them (21:31–21:34Z). 1938 confirmed none of its tb runs overlapped.
+- **RAS review.** The first run, `20261020T213451-a656c29d3cc28331dc217483`, failed quorum: `/Volumes/worktrees` had hit its 250 GB quota, and five reviewers couldn't create worktrees. That was a tool failure, not a review round. After the owner freed space, `20261020T214452-4399a35b81a965c88a60374c` at `3ed2bc6d` had all six reviewers complete with zero findings, so no replacement round was needed.
+- **Hosted checks:** all 33 passed on `3ed2bc6d`. The base equaled `origin/main` (`97e1fdb8`) at merge.
+
+### Next
+
+- None for this slice. The #528/#910 dual-stack port fixes are complete.
