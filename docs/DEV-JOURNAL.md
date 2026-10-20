@@ -6620,3 +6620,47 @@ Nothing was deferred. The tagged lint reports one `unused` in `send_conn_batch_s
 ### Next
 
 The consumer measures adoption after the bundle release (batched receive off against on, Thunderbolt pair, thresholds on #857). That result never holds the release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Send batch cap following the queue depth landed - 2026-10-20 01:23 EDT
+
+**Main:** `0b0f77b0f66a`
+**Actor:** Claude
+
+### Summary
+
+[#858](https://github.com/the-sarge/quic-go-fast/issues/858) landed in [PR #895](https://github.com/the-sarge/quic-go-fast/pull/895) as `0b0f77b0`. It is slice 8 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)), default-on and never holding the release. `maxSendBatch` is `sendQueueCapacity` again, so one batched group takes up to all 32 queued entries instead of 8. It reaches connections on a batch-capable conn: Darwin's native `sendmsg_x` on qualified kernels, and any platform with an external or managed `sendBatch` callback, which now receives up to 32 buffers per call. Plain Linux and Windows sockets have no batched path and are unchanged.
+
+### Completed
+
+- **The constant.** `const maxSendBatch = sendQueueCapacity` in `send_queue.go`. Its comment says a full queue of packets sharing (gsoSize, ecn) forms one group, with one room signal when the worker finishes it, and that the cap also bounds a group that grows while the connection loop refills the queue during the drain.
+- **The depth comment.** `sendQueueCapacity` no longer argues from "a queue no deeper than one batch", which the new equality would contradict. It says the depth bounds how many packets the loop can queue ahead of the worker, that a batch-capable worker signals room once per finished group, and that it bounds entries, not bytes.
+- **Tests.** `TestSendQueueBatchCapFollowsDepth` pins depth 32 and `maxSendBatch == sendQueueCapacity`, replacing #854's cap-8 pin. `TestSendQueueFullQueueDrainsAsOneBatch` shows a full queue of 32 same-ECN entries drains as one in-order batch with every buffer released once. The Darwin writer's size check and `TestSendmsgXBatchSendEndToEnd` already follow `maxSendBatch`, so that test now offers 32-packet groups to the real kernel.
+
+### Decisions
+
+- **New BBR revision, measured later (owner, 2026-10-20, option A).** The change raises BBR's batch cap from 8 to 32, so `main` is a new BBR revision under #748's rule. #808's readiness had already run, which the issue required. The new revision is measured in the next BBR readiness run on the bundle candidate, whose registration waits on [#887](https://github.com/the-sarge/quic-go-fast/issues/887). #808's L6 uses pinned `d94b3ec2` binaries and is unaffected. On the Linux readiness surface the cap does not run: plain sockets have no batched path, and the fixture's managed packet I/O passes a nil `sendBatch`.
+- **No test seam for the concurrent refill.** The `len(group) < maxSendBatch` guard is reachable only when `Send` refills freed slots during the drain; it stays as that case's bound and is not separately tested.
+
+### Validation
+
+Certified head `d6a29ea47749a9149fa163be00b42357ab2dafca` on base `a6de6c8839ce5f670f2fa511b43e93fbb97af511`. Main gained #857 (`fc941d5a`, `a6de6c88`) between planning and branching; it touches only the receive side, and the branch was cut from `a6de6c88`. Local Darwin 27.0.0 arm64 checks with Go 1.27.2:
+
+- red→green: the new pin and drain tests failed against cap 8 (four batches of 8) and passed after the change;
+- the full `go test -count=1 ./...`, with `TestSendmsgXBatchSendEndToEnd` running natively (Darwin 27 is qualified; `kern.ipc.maxsendmsgx` is 256);
+- `-race -count=3` on the send-queue, sendmsg_x, external/managed and batch tests;
+- `go vet` for darwin, linux and windows, a cross-compiled windows/amd64 test binary, `go mod tidy -diff` and `git diff --check`;
+- golangci-lint v2.14.0 on six GOOS values.
+
+All 33 hosted checks passed on `d6a29ea4`. Main had not moved past the base, and the PR was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T050719-eb13a3263022a3094c527779` at `1f6b97af` ran all six reviewers. Two low findings were fix-now, both false statements in the new comments, fixed in `d6a29ea4`:
+- C-001: "a larger cap would change nothing" was false, because `Send` can refill freed slots while `runBatched` drains.
+- C-004: the room signal fires once when a group is finished (the deferred cleanup in `sendBatchEntries`), not after each submission.
+
+C-002 and C-003 were rejected as duplicates of C-001. The fix was comment-only, so RAS was not rerun, per the docs-only policy. Nothing was deferred.
+
+### Next
+
+The consumer gate is owed: cap 32 at `0b0f77b0` against #854's `48db9bc6` (cap 8), with thresholds on #858; a failure ships the release with the cap at 8. The next BBR readiness on the bundle candidate measures this revision after #871 and #887. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
