@@ -245,13 +245,16 @@ func TestWindowsManagedECNCoalescedMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, protocol.ECNCE, first.ecn)
 	require.Equal(t, protocol.ECNCE, second.ecn)
-	require.Equal(t, first.buffer.slab, second.buffer.slab)
-	slab := first.buffer.slab
+	// Each datagram is its own copy, so the reader's stop leaves both intact
+	// and nothing pending.
 	c.releaseReadBuffers()
-	first.buffer.Release()
-	require.False(t, slab.released())
-	second.buffer.Release()
-	require.True(t, slab.released())
+	require.False(t, c.cursor.active)
+	require.Nil(t, c.readBuffer)
+	for _, p := range []receivedPacket{first, second} {
+		require.Equal(t, bytes.Repeat([]byte{3}, 100), p.data)
+		require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data))
+		p.buffer.Release()
+	}
 	require.Equal(t, 1, rc.callCounter)
 }
 

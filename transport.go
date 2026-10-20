@@ -195,6 +195,10 @@ type Transport struct {
 	readingNonQUICPackets atomic.Bool
 	nonQUICPackets        chan receivedPacket
 
+	// receiveCoalescingFallbacks is the count kept by the reader of a socket
+	// this transport reads itself, when that reader has one (#860).
+	receiveCoalescingFallbacks atomic.Pointer[atomic.Uint64]
+
 	// coalescedRetention bounds the coalesced-slab bytes pinned by the
 	// transport's queues (non-QUIC packets, stateless resets) through
 	// oversized segment views.
@@ -477,6 +481,9 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 			}
 		}
 
+		if reader, ok := conn.(receiveCoalescingFallbackReader); ok {
+			t.receiveCoalescingFallbacks.Store(reader.receiveCoalescingFallbackCount())
+		}
 		conn = t.wrapExternalPacketIO(conn)
 		t.traceManagedBuffers(managed, conn)
 		t.policyConn.rawConn = conn

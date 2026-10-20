@@ -180,8 +180,8 @@ func TestWindowsManagedReceiveHandback(t *testing.T) {
 			require.Equal(t, "one", string(b[:n]))
 			addr.(*net.UDPAddr).IP[0] = 99
 			require.Equal(t, "192.0.2.1", source.IP.String(), "public addresses must not alias retained siblings")
-			require.Len(t, receiver.delivery.pending, 1)
-			require.Equal(t, protocol.MaxCoalescedPacketBufferSize, cap(receiver.delivery.pending[0].buffer.slab.buf.Data))
+			require.True(t, receiver.cursor.active, "the sibling waits in the reader's buffer")
+			require.Equal(t, "two", string(receiver.cursor.packet.data))
 			require.NoError(t, lease.SetReadDeadline(time.Now().Add(-time.Second)))
 			_, _, err = lease.ReadFrom(b)
 			require.ErrorIs(t, err, os.ErrDeadlineExceeded, "buffered siblings obey logical deadlines")
@@ -205,7 +205,8 @@ func TestWindowsManagedReceiveHandback(t *testing.T) {
 			}
 			require.NoError(t, next.Close())
 			require.NoError(t, endpoint.Close())
-			require.Empty(t, receiver.delivery.pending)
+			require.False(t, receiver.cursor.active)
+			require.Nil(t, receiver.readBuffer)
 		})
 	}
 }
@@ -226,7 +227,53 @@ func TestWindowsManagedReceiveRejectsTruncatedMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "ok!", string(b[:n]))
 	require.NoError(t, lease.Close())
-	require.Empty(t, receiver.delivery.pending)
+	require.False(t, receiver.cursor.active)
+}
+
+// Without URO, a managed reader copies each datagram whole into the smallest
+// tier that fits. Only a datagram above the 20 KiB tier is delivered in the
+// coalesced tier, as before (#860).
+func TestWindowsManagedReceiveWithoutUROCopiesByTier(t *testing.T) {
+	sizes := []int{100, protocol.MaxPacketBufferSize, protocol.MaxPacketBufferSize + 1, protocol.MaxLargePacketBufferSize, protocol.MaxLargePacketBufferSize + 1}
+	payloads := make([][]byte, len(sizes))
+	for i, size := range sizes {
+		payloads[i] = bytes.Repeat([]byte{byte(i + 1)}, size)
+	}
+	rc := &uroReadConn{t: t, payloads: payloads, oobs: make([][]byte, len(sizes)), addr: &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 1234}}
+	c := newUROConn(t, rc)
+	c.cap.GRO = false
+	c.managed = true
+	t.Cleanup(c.releaseReadBuffers)
+	want := []int{protocol.MaxPacketBufferSize, protocol.MaxPacketBufferSize, protocol.MaxLargePacketBufferSize, protocol.MaxLargePacketBufferSize, protocol.MaxCoalescedPacketBufferSize}
+	for i := range sizes {
+		p, err := c.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, payloads[i], p.data, "datagram %d is delivered whole", i)
+		require.Equal(t, want[i], cap(p.buffer.Data), "datagram %d of %d bytes", i, sizes[i])
+		p.buffer.Release()
+	}
+	require.Equal(t, len(sizes), rc.callCounter)
+	require.Zero(t, c.receiveCoalescingFallbackCount().Load(), "the guard needs URO on")
+}
+
+// Transports sharing a managed endpoint report the endpoint socket's count.
+func TestWindowsManagedReceiveCoalescingFallbacks(t *testing.T) {
+	script := &uroReadConn{t: t, addr: &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 1234}}
+	receiver := newUROConn(t, script)
+	endpoint, acquire, err := newManagedPacketEndpoint(script)
+	require.NoError(t, err)
+	t.Cleanup(func() { endpoint.Close() })
+	endpoint.(*managedPacketConn).endpoint.receiver = receiver
+	lease, err := acquire()
+	require.NoError(t, err)
+	t.Cleanup(func() { lease.Close() })
+	registered := &Transport{Conn: lease}
+	require.NoError(t, registered.ConfigureManagedPacketIOV1(lease, lease, nil))
+	direct := &Transport{Conn: lease}
+	require.Zero(t, registered.ReceiveCoalescingFallbacksV1())
+	receiver.fallBackFromURO()
+	require.EqualValues(t, 1, registered.ReceiveCoalescingFallbacksV1())
+	require.EqualValues(t, 1, direct.ReceiveCoalescingFallbacksV1())
 }
 
 type windowsManagedNativeObserver struct {

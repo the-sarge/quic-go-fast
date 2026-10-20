@@ -3,6 +3,8 @@
 package quic
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -22,8 +24,9 @@ import (
 
 // Tests for Slice W3 (Windows coalesced receive, URO): the
 // UDP_RECV_MAX_COALESCED_SIZE capability probe on transport-owned sockets,
-// UDP_COALESCED_INFO parsing, and the split of a coalesced read into
-// per-datagram slab views through the shared coalesced-storage contract.
+// UDP_COALESCED_INFO parsing, the copy of each datagram of a coalesced read
+// into its own ordinary buffer (#860), and the guard against long reads
+// without their segment-size record.
 
 // requireUROCapableHost enforces the closure evidence's host posture: on a
 // hosted CI runner (GITHUB_ACTIONS set) the qualified Windows surface is
@@ -198,18 +201,23 @@ func ipv4PktInfoMsg(t *testing.T, addr [4]byte, ifIndex uint32) []byte {
 // Winsock delivers coalesced reads: payload copied into the posted buffer,
 // ancillary data into the posted control buffer. It asserts the conn posts
 // a coalesced-tier buffer, so a kernel-coalesced read is never truncated.
+// With socketAfterScript, reads past the script go to the real socket.
 type uroReadConn struct {
 	*net.UDPConn
-	t           *testing.T
-	payloads    [][]byte
-	oobs        [][]byte
-	flags       []int
-	errs        []error
-	addr        *net.UDPAddr
-	callCounter int
+	t                 *testing.T
+	payloads          [][]byte
+	oobs              [][]byte
+	flags             []int
+	errs              []error
+	addr              *net.UDPAddr
+	callCounter       int
+	socketAfterScript bool
 }
 
 func (c *uroReadConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *net.UDPAddr, err error) {
+	if c.socketAfterScript && c.callCounter >= len(c.payloads) {
+		return c.UDPConn.ReadMsgUDP(b, oob)
+	}
 	c.t.Helper()
 	require.Less(c.t, c.callCounter, len(c.payloads), "unexpected ReadMsgUDP call")
 	require.Len(c.t, b, protocol.MaxCoalescedPacketBufferSize, "a URO-enabled conn must post a coalesced-tier buffer")
@@ -242,6 +250,14 @@ func newUROConn(t *testing.T, rc *uroReadConn) *windowsConn {
 	}
 }
 
+// requireCopiedPacket asserts that p is delivered in a pooled buffer of the
+// given capacity, never in the reader's coalesced-tier buffer.
+func requireCopiedPacket(t *testing.T, p receivedPacket, capacity int) {
+	t.Helper()
+	require.NotNil(t, p.buffer)
+	require.Equal(t, capacity, cap(p.buffer.Data))
+}
+
 func TestWindowsUROReadSplitsCoalescedRead(t *testing.T) {
 	segs := testCoalescedSegments(3, 1200)
 	segs[2] = segs[2][:500] // short tail
@@ -250,40 +266,30 @@ func TestWindowsUROReadSplitsCoalescedRead(t *testing.T) {
 	rc := &uroReadConn{t: t, payloads: [][]byte{payload, []byte("next read")}, oobs: [][]byte{coalescedInfoMsg(t, 1200), nil}, addr: addr}
 	conn := newUROConn(t, rc)
 
-	var slab *coalescedSlab
-	views := make([]*packetBuffer, 3)
+	packets := make([]receivedPacket, 3)
 	for i, want := range segs {
 		p, err := conn.ReadPacket()
 		require.NoError(t, err)
 		require.Equal(t, want, p.data)
 		require.Equal(t, addr, p.remoteAddr)
-		require.NotNil(t, p.buffer.slab, "segment %d must be a slab-backed view", i)
-		if i == 0 {
-			slab = p.buffer.slab
-		} else {
-			require.Same(t, slab, p.buffer.slab, "siblings share one slab")
-		}
-		views[i] = p.buffer
+		requireCopiedPacket(t, p, protocol.MaxPacketBufferSize)
+		packets[i] = p
 	}
-	require.Equal(t, 1, rc.callCounter, "all segments must come from one socket read")
+	require.Equal(t, 1, rc.callCounter, "all datagrams must come from one socket read")
 
-	for _, v := range views {
-		require.False(t, slab.released())
-		v.Release()
-	}
-	require.True(t, slab.released(), "slab must recycle after the last view releases")
-
-	// the next ReadPacket issues the next read; without a coalesced-info
-	// cmsg the datagram is still slab-backed so retention-queue copies stay
-	// uniform
+	// The next read reuses the reader's buffer. The delivered datagrams are
+	// copies, so it doesn't change them, and they release independently.
 	p, err := conn.ReadPacket()
 	require.NoError(t, err)
 	require.Equal(t, []byte("next read"), p.data)
-	require.NotNil(t, p.buffer.slab)
-	next := p.buffer.slab
-	p.buffer.Release()
-	require.True(t, next.released())
+	requireCopiedPacket(t, p, protocol.MaxPacketBufferSize)
 	require.Equal(t, 2, rc.callCounter)
+	for i, packet := range packets {
+		require.Equal(t, segs[i], packet.data, "datagram %d must not alias the reader's buffer", i)
+		packet.buffer.Release()
+	}
+	p.buffer.Release()
+	require.Zero(t, conn.receiveCoalescingFallbackCount().Load())
 }
 
 func TestWindowsUROReadEmptyDatagram(t *testing.T) {
@@ -293,8 +299,7 @@ func TestWindowsUROReadEmptyDatagram(t *testing.T) {
 	p, err := conn.ReadPacket()
 	require.NoError(t, err)
 	require.Empty(t, p.data)
-	require.NotNil(t, p.buffer)
-	require.Nil(t, p.buffer.slab, "an empty read has no segments to view")
+	requireCopiedPacket(t, p, protocol.MaxPacketBufferSize)
 	p.buffer.Release()
 }
 
@@ -315,30 +320,142 @@ func TestWindowsUROReadPacketInfoInheritance(t *testing.T) {
 	}
 }
 
-func TestWindowsUROReleaseReadBuffersReleasesPendingViews(t *testing.T) {
+// A reader stop leaves nothing pending: the undelivered datagrams of the
+// read are discarded with the reader's buffer, and a delivered datagram stays
+// valid because it is a copy.
+func TestWindowsUROReleaseReadBuffersDiscardsUndelivered(t *testing.T) {
 	segs := testCoalescedSegments(3, 800)
 	payload := append(append(append([]byte{}, segs[0]...), segs[1]...), segs[2]...)
-	rc := &uroReadConn{t: t, payloads: [][]byte{payload}, oobs: [][]byte{coalescedInfoMsg(t, 800)}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
+	rc := &uroReadConn{t: t, payloads: [][]byte{payload, []byte("after stop")}, oobs: [][]byte{coalescedInfoMsg(t, 800), nil}, addr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}}
 	conn := newUROConn(t, rc)
 
 	p, err := conn.ReadPacket()
 	require.NoError(t, err)
-	slab := p.buffer.slab
-	require.NotNil(t, slab)
+	require.Equal(t, segs[0], p.data)
 
-	// reading stops with two undelivered sibling views pending
+	// reading stops with two undelivered datagrams in the reader's buffer
 	conn.releaseReadBuffers()
-	require.False(t, slab.released(), "the delivered view still holds the slab")
+	require.Nil(t, conn.readBuffer, "the reader's buffer is returned")
+	require.Equal(t, segs[0], p.data)
 	p.buffer.Release()
-	require.True(t, slab.released())
+
+	next, err := conn.ReadPacket()
+	require.NoError(t, err)
+	require.Equal(t, []byte("after stop"), next.data, "nothing from the stopped read is delivered")
+	require.Equal(t, 2, rc.callCounter)
+	next.buffer.Release()
+	conn.releaseReadBuffers()
+}
+
+// newUROSocketConn is newUROConn on a socket with URO actually enabled, so
+// the guard's socket option change can be read back.
+func newUROSocketConn(t *testing.T, rc *uroReadConn) *windowsConn {
+	t.Helper()
+	conn := newUROConn(t, rc)
+	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
+	raw, err := rc.UDPConn.SyscallConn()
+	require.NoError(t, err)
+	conn.cap.GRO, _ = enableURO(raw)
+	requireUROCapableHost(t, conn)
+	require.Equal(t, protocol.MaxCoalescedPacketBufferSize, uroSocketOption(t, rc.UDPConn))
+	return conn
+}
+
+// A read longer than any packet without its UDP_COALESCED_INFO record is how
+// some Windows hosts deliver coalesced reads (quinn-rs/quinn#2041). The guard
+// turns URO off for the socket's life, counts the event once and drops the
+// read. Later reads are handled as on a socket without URO.
+func TestWindowsUROGuardLongReadWithoutRecord(t *testing.T) {
+	long := bytes.Repeat([]byte{7}, 3*1200)
+	segs := testCoalescedSegments(2, 1200)
+	rc := &uroReadConn{
+		t:        t,
+		payloads: [][]byte{long, []byte("next"), append(append([]byte{}, segs[0]...), segs[1]...), long},
+		oobs:     [][]byte{nil, nil, coalescedInfoMsg(t, 1200), nil},
+		addr:     &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1},
+	}
+	conn := newUROSocketConn(t, rc)
+
+	p, err := conn.ReadPacket()
+	require.NoError(t, err)
+	require.Equal(t, []byte("next"), p.data, "the long read is dropped")
+	require.Equal(t, 2, rc.callCounter)
+	p.buffer.Release()
+	require.EqualValues(t, 1, conn.receiveCoalescingFallbackCount().Load())
+	require.Zero(t, uroSocketOption(t, rc.UDPConn), "URO is turned off on the socket")
+
+	// A read that still carries its record is split.
+	for _, seg := range segs {
+		p, err := conn.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, seg, p.data)
+		p.buffer.Release()
+	}
+	// The guard doesn't trip again: a long read without its record is one
+	// datagram, as on a socket without URO.
+	p, err = conn.ReadPacket()
+	require.NoError(t, err)
+	require.Equal(t, long, p.data)
+	requireCopiedPacket(t, p, protocol.MaxLargePacketBufferSize)
+	p.buffer.Release()
+	require.EqualValues(t, 1, conn.receiveCoalescingFallbackCount().Load(), "counted once")
+	conn.releaseReadBuffers()
+}
+
+// Reads with their record, and reads of at most one packet without it, leave
+// URO on and the count at zero.
+func TestWindowsUROGuardIgnoresRecordedAndShortReads(t *testing.T) {
+	segs := testCoalescedSegments(3, 1200)
+	full := bytes.Repeat([]byte{9}, protocol.MaxPacketBufferSize)
+	rc := &uroReadConn{
+		t:        t,
+		payloads: [][]byte{append(append(append([]byte{}, segs[0]...), segs[1]...), segs[2]...), full, []byte("short")},
+		oobs:     [][]byte{coalescedInfoMsg(t, 1200), nil, nil},
+		addr:     &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1},
+	}
+	conn := newUROSocketConn(t, rc)
+	for _, want := range append(segs, full, []byte("short")) {
+		p, err := conn.ReadPacket()
+		require.NoError(t, err)
+		require.Equal(t, want, p.data)
+		requireCopiedPacket(t, p, protocol.MaxPacketBufferSize)
+		p.buffer.Release()
+	}
+	require.Zero(t, conn.receiveCoalescingFallbackCount().Load())
+	require.Equal(t, protocol.MaxCoalescedPacketBufferSize, uroSocketOption(t, rc.UDPConn), "URO stays on")
+	conn.releaseReadBuffers()
+}
+
+// A transport reports its reader's count, found by interface assertion.
+func TestWindowsUROGuardCountOnTransport(t *testing.T) {
+	rc := &uroReadConn{
+		t:                 t,
+		payloads:          [][]byte{bytes.Repeat([]byte{7}, 3000)},
+		oobs:              [][]byte{nil},
+		addr:              &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1},
+		socketAfterScript: true,
+	}
+	conn := newUROSocketConn(t, rc)
+	tr := &Transport{Conn: conn}
+	t.Cleanup(func() { tr.Close() })
+	var v any = tr
+	counter, ok := v.(interface{ ReceiveCoalescingFallbacksV1() uint64 })
+	require.True(t, ok)
+	require.Zero(t, counter.ReceiveCoalescingFallbacksV1())
+	// initialize the transport, starting its reader
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err := tr.ReadNonQUICPacket(ctx, nil)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Eventually(t, func() bool { return counter.ReceiveCoalescingFallbacksV1() == 1 }, scaleDuration(5*time.Second), time.Millisecond)
 }
 
 // TestWindowsUSOUROInteractionMatrix validates all four USO/URO offload
 // combinations for payload and ancillary metadata (the W track's
 // second-lander obligation): every datagram of a burst arrives intact and in
 // order, packet info reports the correct destination address on a
-// wildcard-bound socket, coalesced reads split into slab-backed views only
-// when URO is on, and ECN stays unsupported on the Windows conn in every
+// wildcard-bound socket, every datagram arrives in its own ordinary buffer
+// whether or not URO is on, and ECN stays unsupported on the Windows conn in every
 // combination (the Server 2022 ancillary policy keeps TTL/DSCP receive
 // features disabled while offloads are active; the conn requests neither).
 func TestWindowsUSOUROInteractionMatrix(t *testing.T) {
@@ -406,17 +523,14 @@ func TestWindowsUSOUROInteractionMatrix(t *testing.T) {
 			}
 
 			require.NoError(t, recvUDP.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
+			t.Cleanup(recvConn.releaseReadBuffers)
 			for i := range numSegs {
 				p, err := recvConn.ReadPacket()
 				require.NoError(t, err)
 				require.Equal(t, segs[i], p.data, "datagram %d must arrive intact and in order", i)
 				require.Equal(t, netip.AddrFrom4([4]byte{127, 0, 0, 1}), p.info.addr, "datagram %d must carry the destination packet info", i)
 				require.Equal(t, protocol.ECNUnsupported, p.ecn, "the Windows conn requests no ECN ancillary data")
-				if tc.uro {
-					require.NotNil(t, p.buffer.slab, "URO-on reads are slab-backed views")
-				} else {
-					require.Nil(t, p.buffer.slab, "URO-off reads keep the W1 foundation storage")
-				}
+				requireCopiedPacket(t, p, protocol.MaxPacketBufferSize)
 				p.buffer.Release()
 			}
 		})
@@ -432,9 +546,11 @@ func TestWindowsUROEndToEndLoopback(t *testing.T) {
 	recvUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
 	require.NoError(t, err)
 	defer recvUDP.Close()
-	recvConn, err := newConn(recvUDP, true, true)
+	reads := &countingReadConn{UDPConn: recvUDP}
+	recvConn, err := newConn(reads, true, true)
 	require.NoError(t, err)
 	requireUROCapableHost(t, recvConn)
+	t.Cleanup(recvConn.releaseReadBuffers)
 
 	sendUDP, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
 	require.NoError(t, err)
@@ -453,20 +569,23 @@ func TestWindowsUROEndToEndLoopback(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, recvUDP.SetReadDeadline(time.Now().Add(scaleDuration(5*time.Second))))
-	slabs := map[*coalescedSlab]int{}
 	for i := range numSegs {
 		p, err := recvConn.ReadPacket()
 		require.NoError(t, err)
 		require.Equal(t, segs[i], p.data, "datagram %d must arrive intact and in order", i)
-		require.NotNil(t, p.buffer.slab)
-		slabs[p.buffer.slab]++
+		requireCopiedPacket(t, p, protocol.MaxPacketBufferSize)
 		p.buffer.Release()
 	}
-	coalesced := 0
-	for _, n := range slabs {
-		if n > 1 {
-			coalesced += n
-		}
-	}
-	t.Logf("%d datagrams in %d socket reads (%d arrived coalesced)", numSegs, len(slabs), coalesced)
+	t.Logf("%d datagrams in %d socket reads", numSegs, reads.reads)
+}
+
+// countingReadConn counts socket reads. Only the reader calls ReadMsgUDP.
+type countingReadConn struct {
+	*net.UDPConn
+	reads int
+}
+
+func (c *countingReadConn) ReadMsgUDP(b, oob []byte) (int, int, int, *net.UDPAddr, error) {
+	c.reads++
+	return c.UDPConn.ReadMsgUDP(b, oob)
 }
