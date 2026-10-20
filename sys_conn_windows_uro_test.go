@@ -378,8 +378,8 @@ func newUROSocketConn(t *testing.T, rc *uroReadConn) *windowsConn {
 // some Windows hosts deliver coalesced reads (quinn-rs/quinn#2041). The guard
 // turns URO off for the socket's life, counts the event once and drops the
 // read. After that, a long read without its record is one datagram, copied
-// whole into the smallest tier that fits, and a read with its record is still
-// split.
+// out as copyCoalescedDatagram copies any datagram (this one, under 20 KiB,
+// whole into the large tier), and a read with its record is still split.
 func TestWindowsUROGuardLongReadWithoutRecord(t *testing.T) {
 	long := bytes.Repeat([]byte{7}, 3*1200)
 	segs := testCoalescedSegments(2, 1200)

@@ -252,8 +252,10 @@ func (c *windowsConn) readOrdinaryPacket() (receivedPacket, error) {
 // genuine single datagram that long trips the guard too. The trip is counted
 // once and the caller drops the read, which QUIC resends. URO is turned off
 // once for the rest of the socket's life. After that, a read without its
-// record is one datagram, copied whole into the smallest tier that fits as
-// the cursor copies any datagram, and a read with its record is still split.
+// record is one datagram, copied out as copyCoalescedDatagram copies any
+// datagram: whole up to the 20 KiB tier, and above it whole for a managed
+// reader and as its 1,452-byte prefix for any other. A read with its record
+// is still split.
 // If URO cannot be turned off, it may still be on, so the guard stays armed
 // and keeps dropping such reads rather than deliver one as a datagram.
 func (c *windowsConn) fallBackFromURO() {
