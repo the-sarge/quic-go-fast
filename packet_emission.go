@@ -39,6 +39,9 @@ type packetEmission struct {
 	shortSegments bool
 	// authority gates queued work and the close submission; nil is ungrouped.
 	authority *connAuthority
+	// sendQoS is the connection's send thread QoS, bound to every queue; nil
+	// is off.
+	sendQoS *sendThreadQoS
 
 	// The connection goroutine is the only writer of *conn. It may read the
 	// slot directly; application inspection must take a snapshot via activeConn.
@@ -620,6 +623,7 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 	queue := newSendQueue(conn, feedback)
 	e.queue = queue
 	e.bindAuthority(e.authority)
+	e.bindQueueSendQoS(queue)
 	return queue
 }
 
