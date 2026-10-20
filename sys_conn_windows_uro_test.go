@@ -353,7 +353,7 @@ func newUROSocketConn(t *testing.T, rc *uroReadConn) *windowsConn {
 	t.Helper()
 	conn := newUROConn(t, rc)
 	t.Setenv("QUIC_GO_DISABLE_GRO", "0")
-	raw, err := rc.UDPConn.SyscallConn()
+	raw, err := rc.SyscallConn()
 	require.NoError(t, err)
 	conn.cap.GRO, _ = enableURO(raw)
 	requireUROCapableHost(t, conn)
