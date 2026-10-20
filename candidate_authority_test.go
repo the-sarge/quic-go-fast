@@ -307,20 +307,19 @@ func (*deniedPathConn) RemoteAddr() net.Addr {
 	return &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4321}
 }
 
-// Every send queue a connection builds, at setup and on path replacement and at
-// Reno's and BBR's depth, captures the authorized writer and carries the
+// Every send queue a connection builds, at setup and on path replacement and
+// for each controller, captures the authorized writer and carries the
 // connection's authority: once the first submission of a full queue is fenced,
 // nothing more reaches the socket, and every entry releases its storage.
-func TestCandidateSendQueueAuthorityAtEachDepth(t *testing.T) {
+func TestCandidateSendQueueAuthorityEachController(t *testing.T) {
 	for _, tc := range []struct {
 		controller string
 		replace    bool
-		depth      int
 	}{
-		{"reno", false, sendQueueCapacity},
-		{"bbrv3", false, bbrSendQueueCapacity},
-		{"reno", true, sendQueueCapacity},
-		{"bbrv3", true, bbrSendQueueCapacity},
+		{"reno", false},
+		{"bbrv3", false},
+		{"reno", true},
+		{"bbrv3", true},
 	} {
 		t.Run(tc.controller+map[bool]string{false: " initial", true: " replacePath"}[tc.replace], func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -348,13 +347,13 @@ func TestCandidateSendQueueAuthorityAtEachDepth(t *testing.T) {
 				require.Equal(t, tc.controller == "bbrv3", c.emission.bbr != nil)
 				q := c.emission.queue.(*sendQueue)
 				var bufs []*packetBuffer
-				for range tc.depth {
+				for range sendQueueCapacity {
 					require.False(t, q.WouldBlock())
 					buf := getPacketWithContents([]byte("queued"))
 					bufs = append(bufs, buf)
 					q.Send(buf, 0, protocol.ECNNon, sendMetadata{})
 				}
-				require.True(t, q.WouldBlock(), "the queue is full at %d entries", tc.depth)
+				require.True(t, q.WouldBlock(), "the queue is full at %d entries", sendQueueCapacity)
 
 				startAndFinishQueue(t, q, nil) // a fenced discard is not a write error
 				require.Empty(t, conn.writes, "no submission after the first one is fenced")

@@ -2724,7 +2724,7 @@ func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 // captured packet-number manager.
 func (c *Conn) initPacketEmission(packer *packetPacker) {
 	bbr := c.config.CongestionControlV1() == "bbrv3"
-	queue := newSendQueueWithCapacity(c.conn, &c.handshakeSendFeedback, sendQueueCapacityFor(bbr))
+	queue := newSendQueue(c.conn, &c.handshakeSendFeedback)
 	c.emission = packetEmission{
 		packer:        packer,
 		recovery:      &c.sentPacketHandler,
