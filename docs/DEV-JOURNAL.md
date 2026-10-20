@@ -6406,3 +6406,24 @@ New regressions failed before the fix for invalid and truncated UTF-8, including
 The final certified head was `c3185eea7352fe19d8a3cdeb1cfcc5595163606a` on base `5e55876fd304c623c2c944458b88c3b904dafba3`. Affected qlog, qlogwriter, HTTP/3 qlog and wire package tests passed on Darwin arm64 with Go 1.27.2, alongside logging-package race checks, changed-package vet, module tidiness, targeted lint, whitespace checks and clean-tree verification. All 33 hosted checks across nine unit, integration, lint, cross-compilation and interop workflow runs passed on that exact head before squash merging with the matching-head guard. The merged tree matches the certified candidate tree.
 
 Initial RAS review `20261019T214545-fd9f5e91317bbfb09cc57143` and replacement review `20261019T230406-bd73d68666919429aec07f7b` each completed with all six reviewers and zero findings. The replacement reviewed the final candidate after incorporating the newer main branch. No fix verification, automated fixer or deferred finding remained.
+
+---
+
+## Example server resource limits landed - 2026-10-19 20:00 EDT
+
+**Main:** `04fcb987869f`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #877](https://github.com/the-sarge/quic-go-fast/pull/877) as `04fcb987869f795e92fab8afdf571920a0ab7ddc`. The runnable example server generates deterministic response data in 32 KiB chunks while preserving its 1 GiB maximum. Echo bodies are capped at 1 MiB. Multipart uploads use streaming parsing and hashing without temporary files, with limits of 16 MiB total, 8 MiB per part, and 16 parts. A shared eight-handler admission budget rejects excess requests with HTTP 503.
+
+### Validation
+
+The certified head was `0b4382dfb6e43fe8fed7de8ca70df1f46ef87fa5` on base `7f63e8227a302e8d24f49f81d57ccd714911aa83`. Incorporating the newer main branch preserved the previously reviewed server source and tests byte-for-byte. Local Darwin arm64 checks with Go 1.27.2 passed: example, HTTP/3, core QUIC, qlog and qlogwriter race tests; affected-package vet; targeted lint; example-package go-fix checks; module tidiness; whitespace checks; and clean-tree verification. All 33 hosted checks passed on that exact head before it was marked ready and squash-merged with the matching-head guard. The merged tree matches the certified candidate tree.
+
+Initial RAS review `20261019T214543-eee7c79b71865b6526b7e783` identified a wrapped-EOF parsing error that the upload loop incorrectly treated as successful completion. The new incomplete-boundary regression failed with HTTP 200 before the fix and passes with HTTP 400 afterward. Replacement review `20261019T215713-7379fc65ac599dee188042d7` found no actionable handler defect. Final exact-head RAS verification was clear, including malformed uploads, valid checksums, resource limits and admission-slot reuse.
+
+### Decisions
+
+The shared admission budget continues to cover all routes. Multipart framing and decoding remain owned by Go's standard parser; its pre-existing EOF ambiguity in a later part's headers is recorded as an upstream limitation, with no demonstrated resource-budget or completed-file checksum failure. The accepted boundary and limitation are recorded in [PR #877](https://github.com/the-sarge/quic-go-fast/pull/877).
