@@ -172,6 +172,9 @@ type Transport struct {
 	// receivePhases is configured before initialization and immutable thereafter.
 	receivePhases           bool
 	receivePhasesConfigured bool
+	// ackThreshold is configured before initialization and immutable
+	// thereafter. Zero keeps the default acknowledgment rule.
+	ackThreshold int
 
 	closeQueue          chan closePacket
 	statelessResetQueue chan receivedPacket
@@ -379,6 +382,7 @@ func (t *Transport) doDial(
 		return nil, err
 	}
 	conn.installReceivePhase(t.receivePhases)
+	conn.installAckThreshold(t.ackThreshold)
 	if err := conn.bindCandidate(t.candidates); err != nil {
 		t.mutex.Unlock()
 		conn.abortUnstarted(err)
