@@ -103,7 +103,7 @@ func TestDrainServerAcceptQueue(t *testing.T) {
 	dialer := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	defer dialer.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
 	defer cancel()
 	// fill up the accept queue
 	conns := make([]*quic.Conn, 0, protocol.MaxAcceptQueueSize)
