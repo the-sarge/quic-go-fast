@@ -767,7 +767,8 @@ func ListenAndServeQUIC(addr, certFile, keyFile string, handler http.Handler) er
 // When either server stops, ListenAndServeTLS closes both, aborting their
 // active requests. It returns once both servers and all of their running
 // handlers have returned, with the error of the server that stopped first.
-// Handlers should return when their request context is canceled.
+// Handlers should return when their request context is canceled. Hijacked
+// connections remain the handler's to close.
 func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) error {
 	return listenAndServeTLS(addr, certFile, keyFile, handler, combinedSocketHooks{})
 }
@@ -834,8 +835,14 @@ func listenAndServeTLS(addr, certFile, keyFile string, handler http.Handler, hoo
 	}
 	// http.Server.Close doesn't wait for handlers, so track them here.
 	var tcpHandlers handlerTracker
+	// Closing a connection doesn't cancel the context of an HTTP/1.1 request
+	// whose body is unread or whose connection was hijacked. Cancel every
+	// request context directly before waiting for the handlers.
+	baseCtx, cancelBaseCtx := context.WithCancel(context.Background())
+	defer cancelBaseCtx()
 	httpServer := &http.Server{
-		Addr: addr,
+		Addr:        addr,
+		BaseContext: func(net.Listener) context.Context { return baseCtx },
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !tcpHandlers.enter() {
 				// The server was closed. Abort, since the response can't be delivered.
@@ -859,6 +866,7 @@ func listenAndServeTLS(addr, certFile, keyFile string, handler http.Handler, hoo
 	// serving loop returned can still have open connections.
 	err = <-serveErrs
 	httpServer.Close()
+	cancelBaseCtx()
 	quicServer.Close()
 	<-serveErrs // the other server's error is a consequence of closing it
 	tcpHandlers.closeAndWait()

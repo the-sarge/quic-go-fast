@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -162,9 +163,9 @@ func combinedTestTLSConfig() *tls.Config {
 	return &tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"}
 }
 
-func newCombinedTCPClient(t *testing.T) *http.Client {
+func newCombinedTCPClient(t *testing.T, http2 bool) *http.Client {
 	t.Helper()
-	tr := &http.Transport{TLSClientConfig: combinedTestTLSConfig(), ForceAttemptHTTP2: true}
+	tr := &http.Transport{TLSClientConfig: combinedTestTLSConfig(), ForceAttemptHTTP2: http2}
 	t.Cleanup(tr.CloseIdleConnections)
 	return &http.Client{Transport: tr, Timeout: 10 * time.Second}
 }
@@ -191,6 +192,8 @@ func getBody(t *testing.T, client *http.Client, url string) *http.Response {
 // blockingRequest is a request held by its handler until the request
 // context is canceled.
 type blockingRequest struct {
+	hijack bool // the handler hijacks the connection and closes it on return
+
 	started    chan struct{}
 	finished   chan struct{}
 	clientDone chan error
@@ -208,18 +211,25 @@ func newBlockingRequest() *blockingRequest {
 	}
 }
 
-func (b *blockingRequest) handle(_ http.ResponseWriter, r *http.Request) {
+func (b *blockingRequest) handle(w http.ResponseWriter, r *http.Request) {
 	defer close(b.finished)
+	if b.hijack {
+		conn, _, err := http.NewResponseController(w).Hijack()
+		if err != nil {
+			panic(err)
+		}
+		defer conn.Close()
+	}
 	close(b.started)
 	<-r.Context().Done()
 	time.Sleep(blockingHandlerLinger)
 }
 
 // send starts the request and waits until its handler is running.
-func (b *blockingRequest) send(t *testing.T, client *http.Client, url string) {
+func (b *blockingRequest) send(t *testing.T, request func() (*http.Response, error)) {
 	t.Helper()
 	go func() {
-		resp, err := client.Get(url)
+		resp, err := request()
 		if err == nil {
 			resp.Body.Close()
 		}
@@ -286,7 +296,7 @@ func TestListenAndServeTLSServesBothProtocols(t *testing.T) {
 	resp := getBody(t, newCombinedQUICClient(t), "https://"+s.udp.LocalAddr().String()+"/")
 	require.Equal(t, 3, resp.ProtoMajor)
 
-	resp = getBody(t, newCombinedTCPClient(t), "https://"+s.tcp.Addr().String()+"/")
+	resp = getBody(t, newCombinedTCPClient(t, true), "https://"+s.tcp.Addr().String()+"/")
 	require.Equal(t, 2, resp.ProtoMajor)
 	require.Equal(t, []string{`h3=":` + strconv.Itoa(udpPort) + `"; ma=2592000`}, resp.Header.Values("Alt-Svc"))
 
@@ -298,7 +308,10 @@ func TestListenAndServeTLSServesBothProtocols(t *testing.T) {
 func TestListenAndServeTLSTCPFailureStopsQUIC(t *testing.T) {
 	blocking := newBlockingRequest()
 	s := startCombinedServer(t, newCombinedMux(blocking))
-	blocking.send(t, newCombinedQUICClient(t), "https://"+s.udp.LocalAddr().String()+"/block")
+	client := newCombinedQUICClient(t)
+	blocking.send(t, func() (*http.Response, error) {
+		return client.Get("https://" + s.udp.LocalAddr().String() + "/block")
+	})
 
 	errTCP := errors.New("tcp accept failed")
 	s.tcp.fail(errTCP)
@@ -310,19 +323,39 @@ func TestListenAndServeTLSTCPFailureStopsQUIC(t *testing.T) {
 }
 
 func TestListenAndServeTLSQUICFailureStopsTCP(t *testing.T) {
-	blocking := newBlockingRequest()
-	s := startCombinedServer(t, newCombinedMux(blocking))
-	tcpClient := newCombinedTCPClient(t)
-	blocking.send(t, tcpClient, "https://"+s.tcp.Addr().String()+"/block")
+	for _, tc := range []struct {
+		name       string
+		http2      bool
+		unreadBody bool // closing the connection doesn't cancel the request context
+		hijack     bool // the connection is the handler's, not the server's
+	}{
+		{name: "HTTP/2", http2: true},
+		{name: "HTTP/1.1 with unread body", unreadBody: true},
+		{name: "hijacked HTTP/1.1", hijack: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			blocking := newBlockingRequest()
+			blocking.hijack = tc.hijack
+			s := startCombinedServer(t, newCombinedMux(blocking))
+			client := newCombinedTCPClient(t, tc.http2)
+			url := "https://" + s.tcp.Addr().String() + "/block"
+			blocking.send(t, func() (*http.Response, error) {
+				if tc.unreadBody {
+					return client.Post(url, "text/plain", strings.NewReader("unread request body"))
+				}
+				return client.Get(url)
+			})
 
-	errUDP := errors.New("udp read failed")
-	s.udp.fail(errUDP)
-	err := s.wait(t)
+			errUDP := errors.New("udp read failed")
+			s.udp.fail(errUDP)
+			err := s.wait(t)
 
-	require.ErrorIs(t, err, errUDP)
-	require.False(t, s.tcp.acceptInProgress(), "TCP serving loop still accepting")
-	blocking.requireInterrupted(t)
-	requireSocketsReleased(t, s.tcp.Addr(), s.udp.LocalAddr())
+			require.ErrorIs(t, err, errUDP)
+			require.False(t, s.tcp.acceptInProgress(), "TCP serving loop still accepting")
+			blocking.requireInterrupted(t)
+			requireSocketsReleased(t, s.tcp.Addr(), s.udp.LocalAddr())
+		})
+	}
 }
 
 func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
