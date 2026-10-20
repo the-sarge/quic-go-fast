@@ -6506,3 +6506,50 @@ RAS review `20261020T004113-3c194c5c6a0c64fdca0d08d1` ran all six reviewers to c
 ### Next
 
 The consumer gate for slices 1 and 5 together (namespace pair and Thunderbolt pair, thresholds on #855) is owed now that #855 has merged. It is posted on #855 and #851. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Opt-in receiver acknowledgment threshold landed - 2026-10-19 23:52 EDT
+
+**Main:** `360f712b27ab`
+**Actor:** Claude
+
+### Summary
+
+[#856](https://github.com/the-sarge/quic-go-fast/issues/856), slice 6 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)), landed in [PR #891](https://github.com/the-sarge/quic-go-fast/pull/891) as `360f712b`. `(*Transport).ConfigureAckThresholdV1(threshold int) error` makes a transport's connections acknowledge Application Data every `threshold` ack-eliciting packets instead of every second one. Transports that don't call it keep today's code path.
+
+### Completed
+
+- With the mode on, the receiver queues an acknowledgment at the earliest of:
+  - `threshold` ack-eliciting packets since the last acknowledgment;
+  - two or more, once the oldest is 1 ms old;
+  - `max_ack_delay` (25 ms) after a lone packet;
+  - at once on the unchanged immediate triggers (a packet previously reported missing, a new gap, ECN-CE).
+- The delay alarm runs from the earliest receive time among unacknowledged ack-eliciting packets and is never restarted.
+- `max_ack_delay`, its transport parameter and the unadvertised `ACK_FREQUENCY` are unchanged.
+- The tracker (`appDataReceivedPacketTracker`) owns the rule. The transport validates and stores the value before initialization, and `Conn.installAckThreshold` installs it next to `installReceivePhase` at the dial and accept sites.
+
+### Decisions
+
+Operator-approved plan decisions (2026-10-19), recorded on [PR #891](https://github.com/the-sarge/quic-go-fast/pull/891):
+
+- **Shape.** A per-transport V1 method found by interface assertion, following `ConfigureReceivePhasesV1`: once, before initialization.
+- **Range 2 to 32.** Below 2 would acknowledge more often than the default rule. Above 32, the initial congestion window in packets, a new connection's first flight could never reach the threshold, so each early round trip would wait for the 1 ms cap.
+- **Scheduling.** Merged without waiting for #808: the mode is off unless a consumer asks, and #808's L6 run measures pinned `d94b3ec2`.
+- **Oldest means earliest receive time.** RAS review found that buffered 0-RTT and undecryptable packets reach the tracker after packets received later, so anchoring to the first packet processed could let the 1 ms deadline slip. The fix lowers the anchor to the earliest receive time.
+
+### Validation
+
+Certified head `31fa9e063eada6b50225826072060d4c57645a5b` on base `fce427e8078b1af36de9752bb0aa35865b359a00`; main did not advance during the PR. Local Darwin arm64 checks with Go 1.27.2:
+
+- `-race` on `internal/ackhandler` and the root package (`-shuffle=on`);
+- `go vet` on both packages and module tidiness;
+- golangci-lint v2.14.0 on six GOOS values.
+
+Tracker tests cover threshold 16, the alarm timed from the oldest packet with no restart, reversed receive times, the 1 ms group cap, the 25 ms lone-packet timer, the immediate triggers and the unchanged default rule. Root-package tests cover the V1 contract and that the threshold reaches dialed and accepted connections. Guard mutations each failed a named test: timing the alarm from the latest packet, overwriting the oldest time, dropping the earliest-time lowering, deleting the cap queue, deleting the cap alarm, and ignoring the threshold. All 33 hosted checks passed on `31fa9e06` before it was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T032913-a70a11cb4a2c3c9b90f41d96` (six reviewers) produced C-001, the receive-order finding above, fixed in `31fa9e06` and verified resolved; C-002, a debug log that prints the cap instead of the measured age, was rejected as log text with no obligation. Replacement review `20261020T034450-7b459190ec1ead817706f5b5` ran all six reviewers with no findings. Nothing was deferred.
+
+### Next
+
+The consumer's adoption gate for slice 6 (switch off against on, Thunderbolt and namespace pairs, Windows lane) runs after the bundle release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
