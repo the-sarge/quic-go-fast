@@ -3015,6 +3015,77 @@ func TestConnectionRetryAfterReceivedPacket(t *testing.T) {
 	eventRecorder.Clear()
 }
 
+// RFC 9000, section 6.2: a client that has successfully processed a Retry
+// must discard Version Negotiation, even one echoing the original Initial's IDs.
+func TestConnectionVersionNegotiationAfterRetry(t *testing.T) {
+	for _, versions := range []struct {
+		name string
+		list []protocol.Version
+	}{
+		{name: "alternate supported version", list: []protocol.Version{protocol.Version2}},
+		{name: "no common version", list: []protocol.Version{1234}},
+	} {
+		t.Run("accepted Retry/"+versions.name, func(t *testing.T) {
+			var eventRecorder events.Recorder
+			tc := newClientTestConnection(t, nil, nil, false, connectionOptTracer(&eventRecorder))
+			retryConnID := protocol.ParseConnectionID([]byte{0xde, 0xad, 0xbe, 0xef})
+
+			processed, err := tc.conn.handleOnePacket(getRetryPacket(t, retryConnID, tc.srcConnID, tc.destConnID, []byte("foobar")), 0)
+			require.NoError(t, err)
+			require.True(t, processed)
+			require.True(t, tc.conn.receivedRetry)
+			eventRecorder.Clear()
+
+			p := getVersionNegotiationPacket(tc.destConnID, tc.srcConnID, versions.list)
+			processed, err = tc.conn.handleOnePacket(p, 0)
+			require.NoError(t, err, "Version Negotiation after Retry must not trigger version recreation")
+			require.False(t, processed)
+			require.Nil(t, tc.conn.closeErr.Load(), "Version Negotiation after Retry must not close the connection")
+			require.False(t, tc.conn.versionNegotiated)
+			require.Zero(t, p.buffer.refCount)
+			require.Equal(t, []qlogwriter.Event{
+				qlog.PacketDropped{
+					Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
+					Raw:     qlog.RawInfo{Length: int(p.Size())},
+					Trigger: qlog.PacketDropUnexpectedPacket,
+				},
+			}, eventRecorder.Events(qlog.PacketDropped{}, qlog.VersionNegotiationReceived{}, qlog.VersionInformation{}))
+
+			// The accepted Retry's state survives the discarded packet.
+			require.Equal(t, retryConnID, tc.conn.connIDManager.Get())
+			require.Equal(t, retryConnID, tc.conn.handshakeDestConnID)
+			require.NotNil(t, tc.conn.retrySrcConnID)
+			require.Equal(t, retryConnID, *tc.conn.retrySrcConnID)
+			require.Equal(t, []byte("foobar"), tc.conn.emission.packer.token)
+		})
+	}
+
+	// A rejected Retry is not a successfully processed packet and must not
+	// suppress a later Version Negotiation.
+	for _, rejection := range []string{"invalid integrity tag", "unchanged source connection ID"} {
+		t.Run("rejected Retry/"+rejection, func(t *testing.T) {
+			tc := newClientTestConnection(t, nil, nil, false)
+			var retry receivedPacket
+			switch rejection {
+			case "invalid integrity tag":
+				retry = getRetryPacket(t, protocol.ParseConnectionID([]byte{0xde, 0xad, 0xbe, 0xef}), tc.srcConnID, tc.destConnID, []byte("foobar"))
+				retry.data[len(retry.data)-1]++
+			case "unchanged source connection ID":
+				retry = getRetryPacket(t, tc.destConnID, tc.srcConnID, tc.destConnID, []byte("foobar"))
+			}
+			processed, err := tc.conn.handleOnePacket(retry, 0)
+			require.NoError(t, err)
+			require.False(t, processed)
+			require.False(t, tc.conn.receivedRetry)
+
+			_, err = tc.conn.handleOnePacket(getVersionNegotiationPacket(tc.destConnID, tc.srcConnID, []protocol.Version{protocol.Version2}), 0)
+			var recreate *errCloseForRecreating
+			require.ErrorAs(t, err, &recreate)
+			require.Equal(t, protocol.Version2, recreate.nextVersion)
+		})
+	}
+}
+
 func TestConnectionConnectionIDChanges(t *testing.T) {
 	t.Run("with retry", func(t *testing.T) {
 		testConnectionConnectionIDChanges(t, true)

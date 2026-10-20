@@ -1661,7 +1661,10 @@ func (c *Conn) handleRetryPacket(hdr *wire.Header, data []byte, rcvTime monotime
 
 func (c *Conn) handleVersionNegotiationPacket(p receivedPacket) error {
 	if c.perspective == protocol.PerspectiveServer || // servers never receive version negotiation packets
-		c.receivedFirstPacket || c.versionNegotiated { // ignore delayed / duplicated version negotiation packets
+		c.receivedFirstPacket || c.versionNegotiated || // ignore delayed / duplicated version negotiation packets
+		// RFC 9000, section 6.2: a successfully processed Retry also ends version negotiation.
+		// receivedRetry is set only for a valid Retry; receivedFirstPacket is not set by it.
+		c.receivedRetry {
 		if c.qlogger != nil {
 			c.qlogger.RecordEvent(qlog.PacketDropped{
 				Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
