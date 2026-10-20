@@ -39,8 +39,15 @@ const DefaultMaxIncomingUniStreams = 100
 // MaxServerUnprocessedPackets is the max number of packets stored in the server that are not yet processed.
 const MaxServerUnprocessedPackets = 1024
 
-// MaxConnUnprocessedPackets is the max number of packets stored in each connection that are not yet processed.
+// MaxConnUnprocessedPackets is the max number of packets stored in each connection that are not yet processed,
+// until the connection's handshake is confirmed. It bounds what a peer can pin before then.
 const MaxConnUnprocessedPackets = 256
+
+// MaxConnUnprocessedPacketsConfirmed is the max number of packets stored in each connection that are not yet
+// processed, once the connection's handshake is confirmed. The entries beyond MaxConnUnprocessedPackets hold
+// only packets in MaxPacketBufferSize buffers, so they add at most
+// (MaxConnUnprocessedPacketsConfirmed - MaxConnUnprocessedPackets) * MaxPacketBufferSize bytes per connection.
+const MaxConnUnprocessedPacketsConfirmed = 1024
 
 // MaxConnRetainedCoalescedBytes is the maximum number of coalesced-slab bytes
 // a single connection's retention queues (undecryptable and unprocessed) may

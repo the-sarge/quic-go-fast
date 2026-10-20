@@ -62,6 +62,7 @@ func connectionOptHandshakeConfirmed() testConnectionOpt {
 	return func(conn *Conn) {
 		conn.handshakeComplete = true
 		conn.handshakeConfirmed = true
+		conn.receivedPacketsConfirmed = true
 	}
 }
 
