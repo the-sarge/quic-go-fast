@@ -6883,3 +6883,53 @@ Approved with the plan on 2026-10-20:
 ### Next
 
 No follow-ups were filed: the review deferred nothing.
+
+---
+
+## Path.Switch doc comment describes when the switch applies - 2026-10-20 12:21 EDT
+
+**Main:** `ec80b23ed5cf`
+**Actor:** Claude
+
+### Summary
+
+[#869](https://github.com/the-sarge/quic-go-fast/issues/869) is closed by [PR #903](https://github.com/the-sarge/quic-go-fast/pull/903), squash-merged as `89c96861`. The `Path.Switch()` doc comment, inherited from upstream, said the switch "immediately" stops sending on the old path. `Switch()` only records the request, and the client run loop applies it later. The comment now describes that. Code, tests and behavior are unchanged.
+
+### Completed
+
+- **Comment.** `path_manager_outgoing.go` keeps the first sentence and now says:
+  - `Switch()` returns without waiting for the switch to take effect;
+  - the connection applies it before its next send attempt, and packets prepared after that go on the new path;
+  - a send attempt already running when `Switch()` is called may still prepare old-path packets, and already-queued packets may still go out on the old path;
+  - if the connection closes before applying the switch, any CONNECTION_CLOSE it sends goes out on the old path.
+- **Code trace (at `bd8de02e`):**
+  - `switchToPath` sets `pathToSwitchTo` under `pm.mx`;
+  - each client run-loop iteration calls `ShouldSwitchPath()` → `switchToNewPath` before `triggerSending`, with no re-check between them;
+  - `replacePath` closes the old queue, and `sendQueue.Run` drains what it already holds onto the old socket;
+  - `handleCloseError` sends on the current `*e.conn`, but sends nothing for immediate (`destroyImpl`, e.g. idle timeout) or remote closes.
+
+### Decisions
+
+- Doc-only fix (option 1 in the issue), as the triage brief on #869 records. Making `Switch()` block was rejected as a caller-visible change under ADR 0001.
+- On 2026-10-20 the owner approved one sentence beyond the brief: the CONNECTION_CLOSE edge, so that "before its next send attempt" doesn't overstate the guarantee when the loop exits first.
+
+### Validation
+
+- **RAS review** `20261020T154421-99a5bcd6b3c3a13f3b1de65e` at `01c2f527`, briefed with the brief's contract verbatim. All six reviewers completed. Two findings were dispositioned `fix-now` and fixed in `dde27254`:
+  - C-001: "before it next prepares packets" missed an in-progress send attempt;
+  - C-002, with duplicates C-003–C-005: a CONNECTION_CLOSE is not always sent.
+
+  Both were cheap, high-confidence comment edits, so the RAS re-review was skipped per the shared review-loop policy.
+- **Main moved during review.** `bd8de02e` (#880) changed only version-negotiation handling, outside the traced sequence. It was merged in as `d631b001`.
+- **Certification of `d631b001` on base `bd8de02e`** (Go 1.27.2, darwin/arm64), all passing:
+  - one-file, comment-only diff;
+  - `gofmt -l .` clean; `go build ./...` and `go vet ./...` pass;
+  - `go doc . Path.Switch` renders the new text;
+  - golangci-lint v2.14.0 for six GOOS (amd64): 0 issues;
+  - `git diff --check` clean.
+- **Hosted checks:** all 33 passed on `d631b001`. The base equaled `origin/main` at merge, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** every compile, lint and the RAS run on mbp128 ran after a `tb` rig idle check.
+
+### Next
+
+No follow-ups were filed: the review deferred nothing.
