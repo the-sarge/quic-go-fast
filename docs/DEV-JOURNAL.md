@@ -7398,3 +7398,33 @@ Keep the existing ledger and `enableBBR` installation as runtime authority. This
 ### Next
 
 Finish M1 journal publication and issue/OmniFocus reconciliation. No implementation frontier remains; the [A20 program tracker](https://github.com/the-sarge/quic-go-fast/issues/936) is the live view. No follow-ups or newly untraced effects were identified.
+
+---
+
+## BBRv3 readiness and L6 campaign (#808) landed - 2026-10-21 11:32 EDT
+
+**Main:** `ce7e4e3d092b`
+**Actor:** Claude
+
+### Summary
+
+Completed [#808](https://github.com/the-sarge/quic-go-fast/issues/808), one readiness and L6 campaign on the combined BBRv3 revision (`main` at `d94b3ec2`), in [PR #835](https://github.com/the-sarge/quic-go-fast/pull/835), merged as `ce7e4e3d092bf3eaddf12167bee6876ca4b6749c`. Measurement only; the record is under `docs/audits/2026-10-19-bbr-808-*` ([campaign record](audits/2026-10-19-bbr-808-campaign/README.md)). Raw archives are on `codex/bbr-808-raw` at `7029b0e8`, with manifests on `main`.
+
+### Completed
+
+- **Readiness** (October 19, `minimax`): ten raised cells, the nine slice 6 candidate cells and one Reno-on-candidate cell (S5 DATAGRAM sender RSS 1.157; `presrss` *not reproduced* on the `-diag` builds). Every goodput and CPU cell passes; S6 benefit 14.14× and 13.74×.
+- **Side stage:** #743's STREAM cost *not reproduced* (0.997×); `DatagramReceiveDropsV1` zero by median; #743 gives BBRv3 DATAGRAM 1.76× its throughput (median of paired ratios).
+- **L6** (attempt 2, October 21; attempt 1 stopped at smoke from GridCast CI load, a registered prerequisite gap): **adverse** in all six cells (pair ratios 0.114–0.391 against 0.70). #800: bulk STREAM no longer marked application-limited (0% against 100% in #792); its competitor's delivery rose to about DATAGRAM's level. #803: ECN stays on in every BBRv3 flow. The draft-06 checker flags three small C8 `max_bw` deviations (0.03–0.37%, one in a measured window) from the port's declared marking of ProbeRTT samples as limited.
+
+### Decisions
+
+- Operator chose option A on October 19: advance `d94b3ec2` on Linux, with nine unattributed candidate exceptions (three D1 departures) and the preservation cell's blocking ended on `presrss` for this revision only. The agent's review-time recommendation was B; the fork bundle (#851) changed it. See the [campaign record's operator decision](audits/2026-10-19-bbr-808-campaign/README.md#operator-decision).
+- PR review (`20261021T113227-f5e0a7c774e2ff1a0f75f935`) rejected a checker change that had dismissed the C8 mismatches; the checker stays #792's, byte-identical, and the deviations are reported. Verification `ras verify` on `90642fb3` was clear (21/21).
+
+### Validation
+
+Every record test, `tables.py --check` and `figures.py --check` passed on the exact head `90642fb3`, and the L6 `summary.json` and `cell-history.json` reproduced byte for byte; all 33 hosted checks passed on that head before the squash merge.
+
+### Next
+
+Default-Reno memory on the fork bundle is [#871](https://github.com/the-sarge/quic-go-fast/issues/871), and the Reno reference for the next BBR readiness is [#887](https://github.com/the-sarge/quic-go-fast/issues/887). Q2 ([#599](https://github.com/the-sarge/quic-go-fast/issues/599)) waits for both, by operator decision; #858 made a new BBR revision on `main`. The [BBRv3 tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live view.
