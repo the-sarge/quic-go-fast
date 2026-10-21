@@ -2,11 +2,13 @@ package quic
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/quic-go/quic-go/internal/mocks"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/quic-go/quic-go/testutils/events"
@@ -184,4 +186,100 @@ func TestConnectionUnprocessedQueueKeepsReadSlotsBeyond256(t *testing.T) {
 	}
 	require.Same(t, slot, last.buffer)
 	last.buffer.Release()
+}
+
+// newConfirmedQueueTestConnection returns a server connection whose handshake
+// is confirmed, with the unprocessed queue holding queued packets.
+func newConfirmedQueueTestConnection(t *testing.T, enableDatagrams bool, queued int, eventRecorder *events.Recorder) *testConnection {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	cs := mocks.NewMockCryptoSetup(ctrl)
+	opts := []testConnectionOpt{connectionOptCryptoSetup(cs)}
+	if eventRecorder != nil {
+		opts = append(opts, connectionOptTracer(eventRecorder))
+	}
+	tc := newServerTestConnection(t, ctrl, &Config{EnableDatagrams: enableDatagrams}, false, opts...)
+	releaseUnprocessedQueueAtCleanup(t, tc)
+	confirmHandshakeForQueue(t, cs, tc)
+	queueTestPacket(t, tc, queued)
+	require.Equal(t, queued, tc.conn.receivedPackets.Len())
+	return tc
+}
+
+// pushReceivedDatagrams hands n DATAGRAM payloads to the received-DATAGRAM
+// queue, as the run loop does when it processes a packet carrying one.
+func pushReceivedDatagrams(t *testing.T, tc *testConnection, n int) {
+	t.Helper()
+	for range n {
+		tc.conn.datagramQueue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte("d")})
+	}
+	require.Equal(t, n, tc.conn.datagramQueue.receiveQueueLen())
+}
+
+// Beyond 256, a packet is admitted only while the unprocessed backlog plus
+// the DATAGRAM payloads still awaiting ReceiveDatagram stay below the
+// received-DATAGRAM queue's 1,024 entries, so a backlog the run loop
+// acknowledges cannot overflow that queue. A refusal is counted like the
+// others. The rule never applies below 256 or without DATAGRAM support.
+func TestConnectionUnprocessedQueueYieldsToDatagramBacklog(t *testing.T) {
+	require.Equal(t, 1024, maxDatagramRcvQueueLen)
+	for _, tt := range []struct {
+		name            string
+		enableDatagrams bool
+		queued, waiting int
+		admitted        bool
+	}{
+		{"at 256, room for the backlog", true, 256, 767, true},
+		{"at 256, no room for the backlog", true, 256, 768, false},
+		{"at 300, room for the backlog", true, 300, 723, true},
+		{"at 300, no room for the backlog", true, 300, 724, false},
+		{"at 256, received-DATAGRAM queue full", true, 256, 1024, false},
+		{"below 256, received-DATAGRAM queue full", true, 255, 1024, true},
+		{"no DATAGRAM support, queue stuffed", false, 256, 1024, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var eventRecorder events.Recorder
+			tc := newConfirmedQueueTestConnection(t, tt.enableDatagrams, tt.queued, &eventRecorder)
+			pushReceivedDatagrams(t, tc, tt.waiting)
+
+			p := lifetimePacket(t, tc, []byte("foobar"))
+			tc.conn.handlePacket(p)
+			if tt.admitted {
+				require.Equal(t, tt.queued+1, tc.conn.receivedPackets.Len())
+				require.Zero(t, tc.conn.UnprocessedPacketDropsV1())
+				require.Empty(t, eventRecorder.Events(qlog.PacketDropped{}))
+				return
+			}
+			require.Equal(t, tt.queued, tc.conn.receivedPackets.Len())
+			require.Zero(t, p.buffer.refCount, "a dropped packet must be released")
+			require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
+			dropped := qlog.PacketDropped{Raw: qlog.RawInfo{Length: 6}, Trigger: qlog.PacketDropDOSPrevention}
+			require.Equal(t, []qlogwriter.Event{dropped}, eventRecorder.Events(qlog.PacketDropped{}))
+		})
+	}
+}
+
+// Reading a DATAGRAM, or discarding the queued payloads, gives the backlog
+// room again.
+func TestConnectionUnprocessedQueueReadmitsAsDatagramsAreRead(t *testing.T) {
+	tc := newConfirmedQueueTestConnection(t, true, 256, nil)
+	pushReceivedDatagrams(t, tc, 768)
+	tc.conn.handlePacket(lifetimePacket(t, tc, []byte("foobar")))
+	require.Equal(t, 256, tc.conn.receivedPackets.Len())
+	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
+
+	_, err := tc.conn.ReceiveDatagram(context.Background())
+	require.NoError(t, err)
+	tc.conn.handlePacket(lifetimePacket(t, tc, []byte("foobar")))
+	require.Equal(t, 257, tc.conn.receivedPackets.Len())
+
+	tc.conn.datagramQueue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte("d")})
+	tc.conn.handlePacket(lifetimePacket(t, tc, []byte("foobar")))
+	require.Equal(t, 257, tc.conn.receivedPackets.Len())
+	require.EqualValues(t, 2, tc.conn.UnprocessedPacketDropsV1())
+
+	tc.conn.datagramQueue.invalidateReceived()
+	tc.conn.handlePacket(lifetimePacket(t, tc, []byte("foobar")))
+	require.Equal(t, 258, tc.conn.receivedPackets.Len())
+	require.EqualValues(t, 2, tc.conn.UnprocessedPacketDropsV1())
 }

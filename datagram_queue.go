@@ -24,6 +24,9 @@ type datagramQueue struct {
 	rcvQueue [][]byte
 	rcvd     chan struct{} // used to notify Receive that a new datagram was received
 	rcvDrops atomic.Uint64 // payloads refused because rcvQueue was full
+	// rcvLen mirrors len(rcvQueue) for readers without rcvMx: every push, pop
+	// and clear of rcvQueue stores it afterwards, still under rcvMx.
+	rcvLen atomic.Int32
 
 	closeErr error
 	closed   chan struct{}
@@ -99,6 +102,7 @@ func (h *datagramQueue) HandleDatagramFrame(f *wire.DatagramFrame) {
 		data := make([]byte, len(f.Data))
 		copy(data, f.Data)
 		h.rcvQueue = append(h.rcvQueue, data)
+		h.rcvLen.Store(int32(len(h.rcvQueue)))
 		queued = true
 		select {
 		case h.rcvd <- struct{}{}:
@@ -121,11 +125,18 @@ func (h *datagramQueue) receiveDrops() uint64 {
 	return h.rcvDrops.Load()
 }
 
+// receiveQueueLen returns how many received payloads await Receive. It is
+// safe to call concurrently and does not take rcvMx.
+func (h *datagramQueue) receiveQueueLen() int {
+	return int(h.rcvLen.Load())
+}
+
 // invalidateReceived discards every queued received payload.
 func (h *datagramQueue) invalidateReceived() {
 	h.rcvMx.Lock()
 	clear(h.rcvQueue)
 	h.rcvQueue = h.rcvQueue[:0]
+	h.rcvLen.Store(0)
 	h.rcvMx.Unlock()
 }
 
@@ -139,6 +150,7 @@ func (h *datagramQueue) Receive(ctx context.Context) ([]byte, error) {
 			// longer pins the delivered payload.
 			h.rcvQueue[0] = nil
 			h.rcvQueue = h.rcvQueue[1:]
+			h.rcvLen.Store(int32(len(h.rcvQueue)))
 			h.rcvMx.Unlock()
 			return data, nil
 		}
