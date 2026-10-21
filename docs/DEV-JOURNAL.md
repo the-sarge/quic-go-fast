@@ -7300,3 +7300,26 @@ RAS source review `20261021T045557-de9cc474361474b3686e3023` required no fixes. 
 ### Next
 
 S1 unlocks no successors. P1, P2, H1 and M1 remain the independent frontier in [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936), the live status view. Issue and OmniFocus reconciliation follows this journal append; no separate frontier PR is needed.
+
+---
+
+## HTTP/3 post-trailer frame disposition landed - 2026-10-21 01:38 EDT
+
+**Main:** `2aed6a44bf5e`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #942](https://github.com/the-sarge/quic-go-fast/pull/942), closing [A20-P1 / #930](https://github.com/the-sarge/quic-go-fast/issues/930). `Stream.Read` now closes the connection with H3_FRAME_UNEXPECTED for parsed DATA or additional HEADERS after successfully decoded trailers, while retaining descriptive errors and qlog conventions. One trailer state distinguishes unseen, failed and parsed trailers, preserving rejection without a new connection close when a caller retries after failed trailer parsing. Legal unknown extensions, valid FIN, parser first-close behavior and existing stream/body ownership remain intact.
+
+The product PR marks P1 complete and retains P2, H1 and M1 as the independent frontier in the [plan](adr/2026-10-20-http3-protocol-errors-plan.md) and [program index](adr/2026-10-20-architecture-deepening-program.md). No separate frontier PR is needed.
+
+### Validation
+
+The DATA/request and HEADERS/response real-peer regressions failed before their guards; the failed-trailer retry regression failed before its preservation fix. Final focused, HTTP/3 package and race tests, vet, tidy, diff and Markdown-link checks passed on reviewed head `c686b4faf6728a59262148a44bc290c4be4cc690` against base `9c1635c338f0402e31138ab027c5568b241f9ab6`. Real peers cover the five planned semantic rows, request/response/public consumers, sibling outcomes and qlog. All 33 hosted checks passed; the [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/942#issuecomment-6308923716) links the five successful PR workflow runs.
+
+Initial RAS review `20261021T051914-2804cbdfaff29d2ec73fa268` found one accepted preservation defect, fixed and verified at the final head. The qlog assertion-strengthening suggestion was rejected within the verification-aid ceiling. Replacement review `20261021T053240-699f80a6b65cea3286262fff` completed with six reviewers and zero findings. No deferred follow-ups or remaining untraced effects.
+
+### Next
+
+At this entry, P2 [#931](https://github.com/the-sarge/quic-go-fast/issues/931), H1 [#933](https://github.com/the-sarge/quic-go-fast/issues/933) and M1 [#935](https://github.com/the-sarge/quic-go-fast/issues/935) remain independently ready and unblocked; P1 unlocks no new slice. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/936) is the live frontier. QPACK correction remains deferred to its upstream typed-error prerequisite.
