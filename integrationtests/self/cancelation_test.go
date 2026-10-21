@@ -323,6 +323,17 @@ func testStreamCancellation(
 }
 
 func TestCancelAcceptStream(t *testing.T) {
+	// Seven cancellations triggered the old probabilistic count assertion.
+	t.Run("seven cancellations", func(t *testing.T) {
+		testCancelAcceptStream(t, 7)
+	})
+	t.Run("balanced", func(t *testing.T) {
+		testCancelAcceptStream(t, 30)
+	})
+}
+
+func testCancelAcceptStream(t *testing.T, numCanceled int) {
+	t.Helper()
 	const numStreams = 30
 
 	server, err := quic.Listen(newUDPConnLocalhost(t), getTLSConfig(), getQuicConfig(nil))
@@ -373,20 +384,17 @@ func TestCancelAcceptStream(t *testing.T) {
 		}
 	}()
 
-	var numToAccept int
 	var counter atomic.Int32
 	var wg sync.WaitGroup
 	var canceledWorkers sync.WaitGroup
 	workerErrs := make(chan error)
-	for numToAccept < numStreams {
+	for i := range numStreams + numCanceled {
 		ctx, cancel := context.WithCancel(workerCtx)
-		// cancel accepting half of the streams
-		preCanceled := rand.Int()%2 == 0
+		preCanceled := i < numCanceled
 		if preCanceled {
 			canceledWorkers.Add(1)
 			cancel()
 		} else {
-			numToAccept++
 			defer cancel()
 		}
 
@@ -395,12 +403,20 @@ func TestCancelAcceptStream(t *testing.T) {
 				defer canceledWorkers.Done()
 			}
 			str, err := conn.AcceptUniStream(ctx)
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					counter.Add(1)
-				} else {
-					workerErrs <- fmt.Errorf("AcceptUniStream failed: %w", err)
+			if preCanceled {
+				if !errors.Is(err, context.Canceled) {
+					workerErrs <- fmt.Errorf("pre-canceled AcceptUniStream returned %v, expected context.Canceled", err)
+					return
 				}
+				if str != nil {
+					workerErrs <- fmt.Errorf("pre-canceled AcceptUniStream returned a stream")
+					return
+				}
+				counter.Add(1)
+				return
+			}
+			if err != nil {
+				workerErrs <- fmt.Errorf("AcceptUniStream failed: %w", err)
 				return
 			}
 			data, err := io.ReadAll(str)
@@ -452,8 +468,8 @@ waitForWorkers:
 	}
 
 	count := counter.Load()
-	t.Logf("canceled AcceptStream %d times", count)
-	require.Greater(t, count, int32(numStreams/4))
+	t.Logf("canceled AcceptUniStream %d times", count)
+	require.Equal(t, int32(numCanceled), count)
 	require.NoError(t, conn.CloseWithError(0, ""))
 	require.NoError(t, server.Close())
 	select {
