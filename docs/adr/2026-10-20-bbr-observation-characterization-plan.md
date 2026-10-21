@@ -1,7 +1,7 @@
 # BBR Pending-Bytes Documentation and Characterization Implementation Plan
 
 **Date:** 2026-10-20
-**Status:** Accepted after independent slice audit; not implemented
+**Status:** M1 complete; no successors unlocked
 **Track:** A20-M — 5 of 5 in A20
 **Depends on:** Nothing; independent slices as stated below
 **Related:** [Program index](2026-10-20-architecture-deepening-program.md), [no-code decisions](2026-10-20-architecture-decisions.md)
@@ -34,7 +34,7 @@ Update the design wording to describe pending local work of any generation after
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| M1 | new | Document and characterize installed all-generation pending bytes | None | n/a |
+| M1 | complete | Document and characterize installed all-generation pending bytes | None | n/a |
 
 ## Implementation Slices
 
@@ -73,9 +73,9 @@ Update the design wording to describe pending local work of any generation after
 
 ## Acceptance Criteria
 
-- [ ] The maintained design describes all-generation pending work and the current packet-construction exclusion without changing runtime semantics.
-- [ ] A focused characterization exercises actual enableBBR installation and distinguishes older-generation debt from a current-only observation via a real consumer result.
-- [ ] The change contains only the precise design text and normal test code; no production accounting rewrite, new maintained harness or measurement campaign is added.
+- [x] The maintained design describes all-generation pending work and the current packet-construction exclusion without changing runtime semantics.
+- [x] A focused characterization exercises actual enableBBR installation and distinguishes older-generation debt from a current-only observation via a real consumer result.
+- [x] The change contains only the precise design text and normal test code; no production accounting rewrite, new maintained harness or measurement campaign is added.
 
 Each universal statement is limited to the slice’s declared domain and owner, with the guarantee and terminating evidence in that slice. No broader protocol, concurrency or platform certification is implied.
 
@@ -91,4 +91,4 @@ Apply representation and artifact gates, independently disposition findings, and
 
 Use a dedicated worktree and feature branch. Certify the exact pushed head using the focused gates below and the repository overlay; require applicable existing hosted checks on that head, then mark ready and squash merge with a matching head. This repository has no `task preflight` or `ci-*` workflow. Diagnose failed checks before reruns; only demonstrated infrastructure failure permits a same-head rerun. After the primary work reaches remote main, run `append-dev-journal` without RAS, revalidate deferred findings against the merge, and reconcile issue and OmniFocus pointers. Plan/mirror state does not substitute for code-head certification.
 
-This document packages future work. The handoff run does not implement or dispatch it. Changes to representation ownership, accepted outcome, topology, adjacent scope, irreversible authority, or the one-PR boundary require a decision or a new scoped architecture handoff.
+M1 is complete. It unlocks no successors. Changes to representation ownership, accepted outcome, topology, adjacent scope, irreversible authority, or the one-PR boundary require a decision or a new scoped architecture handoff.
