@@ -1,0 +1,2291 @@
+{
+ "arms": {
+  "D-bbr": {
+   "datagram_loss": {
+    "max": 0.00017745472091446057,
+    "median": 7.722190175224464e-05,
+    "min": 0.0,
+    "n": 8
+   },
+   "datagram_mbps": {
+    "max": 8458.726395117645,
+    "median": 8201.858769324885,
+    "min": 7844.596512766675,
+    "n": 8
+   },
+   "drops_v1": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.0605205729999998,
+    "median": 0.021013208500000324,
+    "min": 0.013227822999997585,
+    "n": 8
+   },
+   "mbps": {
+    "max": 8458.726395117645,
+    "median": 8201.858769324885,
+    "min": 7844.596512766675,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 19,
+    "median": 11.0,
+    "min": 10,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.3997038262487183,
+    "median": 1.3910794680749734,
+    "min": 1.3793619910956105,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 18740,
+    "median": 17384.0,
+    "min": 16148,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 14.393057163826144,
+    "median": 14.244055747515503,
+    "min": 14.124905466019923,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.5378661633943804,
+    "median": 1.5262678981281876,
+    "min": 1.5063658266693538,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 8886774,
+    "median": 8616063.5,
+    "min": 8240103,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 184,
+    "median": 93.0,
+    "min": 59,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 0.00017745472091447358,
+    "median": 7.722190175224616e-05,
+    "min": 0.0,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 1577,
+    "median": 675.5,
+    "min": 0,
+    "n": 8
+   },
+   "v1_minus_measurement_counter": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_share": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   }
+  },
+  "D-reno": {
+   "datagram_loss": {
+    "max": 0.00015726673940985592,
+    "median": 0.00012969236158205666,
+    "min": 0.00011522294314536552,
+    "n": 8
+   },
+   "datagram_mbps": {
+    "max": 9730.411025346486,
+    "median": 9703.639623465417,
+    "min": 9684.826932191669,
+    "n": 8
+   },
+   "drops_v1": {
+    "max": 192,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.027517337000000808,
+    "median": 0.02273182149999986,
+    "min": 0.01630395399999962,
+    "n": 8
+   },
+   "mbps": {
+    "max": 9730.411025346486,
+    "median": 9703.639623465417,
+    "min": 9684.826932191669,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 17,
+    "median": 16.0,
+    "min": 15,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 1.8830664756792646e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.312765859964596,
+    "median": 1.3100095705404882,
+    "min": 1.3056015442084405,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 18852,
+    "median": 17194.0,
+    "min": 15672,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": 0,
+    "median": 0.0,
+    "min": -1,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 14.82977516681172,
+    "median": 14.822665317897247,
+    "min": 14.816825844208163,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.2634894852070107,
+    "median": 1.2562039322899543,
+    "min": 1.2466470090145778,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 10222113,
+    "median": 10194188.5,
+    "min": 10174228,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 170,
+    "median": 109.0,
+    "min": 74,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 0.00015726673940989633,
+    "median": 0.00012497667245638583,
+    "min": 0.00011435705784593868,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 1602,
+    "median": 1276.0,
+    "min": 1166,
+    "n": 8
+   },
+   "v1_minus_measurement_counter": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_share": {
+    "max": 1.8830664756792646e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   }
+  },
+  "Dk-bbr": {
+   "datagram_loss": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "datagram_mbps": {
+    "max": 4762.471100968122,
+    "median": 4709.513248147533,
+    "min": 4651.223749647792,
+    "n": 8
+   },
+   "drops_v1": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.021685606000000135,
+    "median": 0.016322203000000535,
+    "min": 0.013681695000002492,
+    "n": 8
+   },
+   "mbps": {
+    "max": 4762.471100968122,
+    "median": 4709.513248147533,
+    "min": 4651.223749647792,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 9,
+    "median": 8.5,
+    "min": 8,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 2.2853623406020485,
+    "median": 2.2643599076519623,
+    "min": 2.2417900894694136,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 16344,
+    "median": 15818.0,
+    "min": 15668,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 1.0,
+    "median": 1.0,
+    "min": 1.0,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 3.441537573731006,
+    "median": 3.428737132317049,
+    "min": 3.407892486919438,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 5002572,
+    "median": 4946945.5,
+    "min": 4885719,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 146,
+    "median": 87.5,
+    "min": 56,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_minus_measurement_counter": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_share": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   }
+  },
+  "M-bbr": {
+   "datagram_loss": {
+    "max": 1.0602529374792447e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "datagram_mbps": {
+    "max": 5387.359055213355,
+    "median": 5237.940200490322,
+    "min": 5139.106273874034,
+    "n": 8
+   },
+   "drops_v1": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.0353008999999993,
+    "median": 0.03137895300000082,
+    "min": 0.0255432560000024,
+    "n": 8
+   },
+   "mbps": {
+    "max": 9199.001142753666,
+    "median": 8694.786290611773,
+    "min": 8361.75739812598,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 21,
+    "median": 15.5,
+    "min": 12,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.3723015133793834,
+    "median": 1.357299681747381,
+    "min": 1.342913165967312,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 17924,
+    "median": 16182.0,
+    "min": 16060,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": 0,
+    "median": 0.0,
+    "min": -23,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 12.608463448651223,
+    "median": 12.446959509451865,
+    "min": 12.339541923148818,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.4402934612457186,
+    "median": 1.4189416995300759,
+    "min": 1.3905495952868123,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 5659027,
+    "median": 5502026.0,
+    "min": 5398204,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 110,
+    "median": 59.5,
+    "min": 53,
+    "n": 8
+   },
+   "stream_mbps": {
+    "max": 3812.443096232002,
+    "median": 3457.032059848955,
+    "min": 3222.91581348643,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 1.4083533045656106e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 78,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_minus_measurement_counter": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_share": {
+    "max": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   }
+  },
+  "M-reno": {
+   "datagram_loss": {
+    "max": 0.00020210977078305437,
+    "median": 0.00016572482564736202,
+    "min": 0.0001566118421958418,
+    "n": 8
+   },
+   "datagram_mbps": {
+    "max": 5552.528159353757,
+    "median": 5528.781617402231,
+    "min": 5504.196247483766,
+    "n": 8
+   },
+   "drops_v1": {
+    "max": 73,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "foreign_s": {
+    "max": 0.04696129300000251,
+    "median": 0.039960112999998465,
+    "min": 0.035405687000000796,
+    "n": 8
+   },
+   "mbps": {
+    "max": 11375.61663844208,
+    "median": 11333.389976137922,
+    "min": 11324.324614406121,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 29,
+    "median": 20.5,
+    "min": 14,
+    "n": 8
+   },
+   "queue_drop_share": {
+    "max": 1.2539630816091198e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.2086912484137398,
+    "median": 1.2005842644100775,
+    "min": 1.194748199963708,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 16832,
+    "median": 15432.0,
+    "min": 15380,
+    "n": 8
+   },
+   "residual_datagrams": {
+    "max": -333,
+    "median": -463.0,
+    "min": -525,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 12.599635737019298,
+    "median": 12.571427778185377,
+    "min": 12.564683110493734,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.1726941221963447,
+    "median": 1.1715094537738175,
+    "min": 1.1645185180105204,
+    "n": 8
+   },
+   "sent_datagrams": {
+    "max": 5833419,
+    "median": 5808413.0,
+    "min": 5782675,
+    "n": 8
+   },
+   "socket_drops": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 140,
+    "median": 94.0,
+    "min": 81,
+    "n": 8
+   },
+   "stream_mbps": {
+    "max": 5849.155547507261,
+    "median": 5818.900003212961,
+    "min": 5776.77116334442,
+    "n": 8
+   },
+   "unprocessed_drop_share": {
+    "max": 0.0002826432715984555,
+    "median": 0.00024007937061694596,
+    "min": 0.0002324183876839006,
+    "n": 8
+   },
+   "unprocessed_drops": {
+    "max": 1639,
+    "median": 1396.5,
+    "min": 1344,
+    "n": 8
+   },
+   "v1_minus_measurement_counter": {
+    "max": 0,
+    "median": 0.0,
+    "min": 0,
+    "n": 8
+   },
+   "v1_share": {
+    "max": 1.2539630816091198e-05,
+    "median": 0.0,
+    "min": 0.0,
+    "n": 8
+   }
+  },
+  "S-bbr": {
+   "foreign_s": {
+    "max": 0.01315533799999713,
+    "median": 0.01060031600000233,
+    "min": 0.008498594000000637,
+    "n": 8
+   },
+   "mbps": {
+    "max": 11089.066724964161,
+    "median": 10834.355522808852,
+    "min": 10084.20878789544,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 16,
+    "median": 12.5,
+    "min": 10,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.005527357093465,
+    "median": 0.9902347349099484,
+    "min": 0.9783315346514994,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 15524,
+    "median": 15486.0,
+    "min": 15380,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 11.440470833568298,
+    "median": 11.341762593564663,
+    "min": 11.122713033892007,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.2026719243835104,
+    "median": 1.176240710513047,
+    "min": 1.165717131714686,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 60,
+    "median": 53.0,
+    "min": 40,
+    "n": 8
+   },
+   "stream_mbps": {
+    "max": 11089.066724964161,
+    "median": 10834.355522808852,
+    "min": 10084.20878789544,
+    "n": 8
+   }
+  },
+  "S-pre": {
+   "foreign_s": {
+    "max": 0.017694671999997524,
+    "median": 0.011999117000000226,
+    "min": 0.007165740999997894,
+    "n": 8
+   },
+   "mbps": {
+    "max": 15334.770976719496,
+    "median": 15222.862085613988,
+    "min": 15140.305558803291,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 21,
+    "median": 19.0,
+    "min": 16,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 0.927694618218336,
+    "median": 0.916856332236194,
+    "min": 0.909068068503759,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 15256,
+    "median": 15012.0,
+    "min": 14816,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 11.694595437913266,
+    "median": 11.690060484759606,
+    "min": 11.687919549770786,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 0.9884687478348195,
+    "median": 0.9842153290550203,
+    "min": 0.9815340356808282,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 77,
+    "median": 64.0,
+    "min": 57,
+    "n": 8
+   },
+   "stream_mbps": {
+    "max": 15334.770976719496,
+    "median": 15222.862085613988,
+    "min": 15140.305558803291,
+    "n": 8
+   }
+  },
+  "S-rev": {
+   "foreign_s": {
+    "max": 0.01853072899999475,
+    "median": 0.012646137999995588,
+    "min": 0.006382980000001481,
+    "n": 8
+   },
+   "mbps": {
+    "max": 15267.034028073685,
+    "median": 15202.772678728084,
+    "min": 15156.356174239225,
+    "n": 8
+   },
+   "min_rtt_us": {
+    "max": 22,
+    "median": 19.5,
+    "min": 17,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 0.9258797696261197,
+    "median": 0.9163744905752101,
+    "min": 0.912491246790967,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 15636,
+    "median": 14976.0,
+    "min": 14860,
+    "n": 8
+   },
+   "segments_per_send": {
+    "max": 11.697116842143124,
+    "median": 11.688314238846115,
+    "min": 11.682078275461205,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 0.992501444083976,
+    "median": 0.9850387762243711,
+    "min": 0.9798208160445071,
+    "n": 8
+   },
+   "srtt_us": {
+    "max": 82,
+    "median": 67.0,
+    "min": 60,
+    "n": 8
+   },
+   "stream_mbps": {
+    "max": 15267.034028073685,
+    "median": 15202.772678728084,
+    "min": 15156.356174239225,
+    "n": 8
+   }
+  }
+ },
+ "controller_mismatch": [],
+ "notes": [],
+ "per_round": {
+  "1": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 7844.596512766675,
+    "drops_v1": 0,
+    "foreign_s": 0.027453005999998226,
+    "mbps": 7844.596512766675,
+    "min_rtt_us": 11,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.396560763720381,
+    "recv_maxrss_kb": 16148,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.168903537729362,
+    "send_cpu_s_per_gib": 1.5378661633943804,
+    "sent_datagrams": 8240103,
+    "socket_drops": 0,
+    "srtt_us": 59,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00012619700056137884,
+    "datagram_mbps": 9730.411025346486,
+    "drops_v1": 0,
+    "foreign_s": 0.020280804000002206,
+    "mbps": 9730.411025346486,
+    "min_rtt_us": 17,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3080646159648899,
+    "recv_maxrss_kb": 15672,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.82977516681172,
+    "send_cpu_s_per_gib": 1.2536253682153835,
+    "sent_datagrams": 10222113,
+    "socket_drops": 0,
+    "srtt_us": 170,
+    "unprocessed_drop_share": 0.0001261970005614299,
+    "unprocessed_drops": 1290,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4747.9693542155765,
+    "drops_v1": 0,
+    "foreign_s": 0.02139290899999935,
+    "mbps": 4747.9693542155765,
+    "min_rtt_us": 9,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.2569383742067894,
+    "recv_maxrss_kb": 15848,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.420538102521653,
+    "sent_datagrams": 4987317,
+    "socket_drops": 0,
+    "srtt_us": 63,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 5209.352722233681,
+    "drops_v1": 0,
+    "foreign_s": 0.03084736000000099,
+    "mbps": 8623.676061568012,
+    "min_rtt_us": 16,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3584998173944305,
+    "recv_maxrss_kb": 16096,
+    "residual_datagrams": 0,
+    "segments_per_send": 12.426318102074132,
+    "send_cpu_s_per_gib": 1.4237532501686034,
+    "sent_datagrams": 5472005,
+    "socket_drops": 0,
+    "srtt_us": 62,
+    "stream_mbps": 3414.5612033119714,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00016120470896863193,
+    "datagram_mbps": 5526.753962724572,
+    "drops_v1": 0,
+    "foreign_s": 0.035405687000000796,
+    "mbps": 11375.61663844208,
+    "min_rtt_us": 21,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.194748199963708,
+    "recv_maxrss_kb": 15488,
+    "residual_datagrams": -525,
+    "segments_per_send": 12.57691148298573,
+    "send_cpu_s_per_gib": 1.1645185180105204,
+    "sent_datagrams": 5806282,
+    "socket_drops": 0,
+    "srtt_us": 87,
+    "stream_mbps": 5849.155547507261,
+    "unprocessed_drop_share": 0.00025162401688378207,
+    "unprocessed_drops": 1461,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.011471533000001699,
+    "mbps": 10530.274492117627,
+    "min_rtt_us": 11,
+    "recv_cpu_s_per_gib": 0.9962261470457906,
+    "recv_maxrss_kb": 15380,
+    "segments_per_send": 11.233338648528365,
+    "send_cpu_s_per_gib": 1.1877021812008026,
+    "srtt_us": 49,
+    "stream_mbps": 10530.274492117627
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.007165740999997894,
+    "mbps": 15300.844136671793,
+    "min_rtt_us": 16,
+    "recv_cpu_s_per_gib": 0.909068068503759,
+    "recv_maxrss_kb": 15124,
+    "segments_per_send": 11.694595437913266,
+    "send_cpu_s_per_gib": 0.9818181530301058,
+    "srtt_us": 72,
+    "stream_mbps": 15300.844136671793
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.012732582999998243,
+    "mbps": 15235.37353361352,
+    "min_rtt_us": 19,
+    "recv_cpu_s_per_gib": 0.912491246790967,
+    "recv_maxrss_kb": 14976,
+    "segments_per_send": 11.685330497555768,
+    "send_cpu_s_per_gib": 0.9810694274328426,
+    "srtt_us": 80,
+    "stream_mbps": 15235.37353361352
+   }
+  },
+  "2": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.00011828898958010647,
+    "datagram_mbps": 8248.331317681113,
+    "drops_v1": 0,
+    "foreign_s": 0.02150321599999927,
+    "mbps": 8248.331317681113,
+    "min_rtt_us": 11,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3855981724295656,
+    "recv_maxrss_kb": 17716,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.124905466019923,
+    "send_cpu_s_per_gib": 1.5289765332664007,
+    "sent_datagrams": 8665219,
+    "socket_drops": 0,
+    "srtt_us": 78,
+    "unprocessed_drop_share": 0.00011828898958006716,
+    "unprocessed_drops": 1025,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00011522294314536552,
+    "datagram_mbps": 9698.94834637349,
+    "drops_v1": 0,
+    "foreign_s": 0.025477862000000684,
+    "mbps": 9698.94834637349,
+    "min_rtt_us": 15,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3110994818785044,
+    "recv_maxrss_kb": 18556,
+    "residual_datagrams": -1,
+    "segments_per_send": 14.822527483716316,
+    "send_cpu_s_per_gib": 1.256414967423717,
+    "sent_datagrams": 10188943,
+    "socket_drops": 0,
+    "srtt_us": 74,
+    "unprocessed_drop_share": 0.00011532108875277838,
+    "unprocessed_drops": 1175,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4670.5243325261345,
+    "drops_v1": 0,
+    "foreign_s": 0.01689291200000298,
+    "mbps": 4670.5243325261345,
+    "min_rtt_us": 9,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.2673077767036705,
+    "recv_maxrss_kb": 15668,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.4320262600361806,
+    "sent_datagrams": 4905981,
+    "socket_drops": 0,
+    "srtt_us": 126,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 5329.044776381578,
+    "drops_v1": 0,
+    "foreign_s": 0.03396249700000098,
+    "mbps": 9068.737388687383,
+    "min_rtt_us": 16,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.342913165967312,
+    "recv_maxrss_kb": 17924,
+    "residual_datagrams": 0,
+    "segments_per_send": 12.608463448651223,
+    "send_cpu_s_per_gib": 1.3905495952868123,
+    "sent_datagrams": 5597738,
+    "socket_drops": 0,
+    "srtt_us": 54,
+    "stream_mbps": 3740.1170956301903,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00020210977078305437,
+    "datagram_mbps": 5519.409758450942,
+    "drops_v1": 0,
+    "foreign_s": 0.040870229999997676,
+    "mbps": 11336.368081327859,
+    "min_rtt_us": 14,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.2031457831030163,
+    "recv_maxrss_kb": 15412,
+    "residual_datagrams": -467,
+    "segments_per_send": 12.564683110493734,
+    "send_cpu_s_per_gib": 1.1712133581999307,
+    "sent_datagrams": 5798829,
+    "socket_drops": 0,
+    "srtt_us": 81,
+    "stream_mbps": 5817.350341237331,
+    "unprocessed_drop_share": 0.0002826432715984555,
+    "unprocessed_drops": 1639,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.01315533799999713,
+    "mbps": 10967.502595097243,
+    "min_rtt_us": 15,
+    "recv_cpu_s_per_gib": 0.9804111131188841,
+    "recv_maxrss_kb": 15524,
+    "segments_per_send": 11.419023682624264,
+    "send_cpu_s_per_gib": 1.165717131714686,
+    "srtt_us": 60,
+    "stream_mbps": 10967.502595097243
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.007614092999997268,
+    "mbps": 15228.890175423827,
+    "min_rtt_us": 18,
+    "recv_cpu_s_per_gib": 0.9191741963417027,
+    "recv_maxrss_kb": 15056,
+    "segments_per_send": 11.692221722653992,
+    "send_cpu_s_per_gib": 0.9858023953205746,
+    "srtt_us": 65,
+    "stream_mbps": 15228.890175423827
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.01853072899999475,
+    "mbps": 15156.356174239225,
+    "min_rtt_us": 20,
+    "recv_cpu_s_per_gib": 0.9193369762590848,
+    "recv_maxrss_kb": 15636,
+    "segments_per_send": 11.68274461486609,
+    "send_cpu_s_per_gib": 0.9849626385590098,
+    "srtt_us": 67,
+    "stream_mbps": 15156.356174239225
+   }
+  },
+  "3": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 9.666619485704242e-05,
+    "datagram_mbps": 8399.874121092958,
+    "drops_v1": 0,
+    "foreign_s": 0.02052320100000138,
+    "mbps": 8399.874121092958,
+    "min_rtt_us": 17,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.385074306421599,
+    "recv_maxrss_kb": 18740,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.393057163826144,
+    "send_cpu_s_per_gib": 1.5063658266693538,
+    "sent_datagrams": 8824181,
+    "socket_drops": 0,
+    "srtt_us": 83,
+    "unprocessed_drop_share": 9.666619485706379e-05,
+    "unprocessed_drops": 853,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00015726673940985592,
+    "datagram_mbps": 9695.963857060506,
+    "drops_v1": 0,
+    "foreign_s": 0.018362631000000462,
+    "mbps": 9695.963857060506,
+    "min_rtt_us": 16,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3085840769160892,
+    "recv_maxrss_kb": 17636,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.816825844208163,
+    "send_cpu_s_per_gib": 1.2634894852070107,
+    "sent_datagrams": 10186515,
+    "socket_drops": 0,
+    "srtt_us": 94,
+    "unprocessed_drop_share": 0.00015726673940989633,
+    "unprocessed_drops": 1602,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4723.021805463191,
+    "drops_v1": 0,
+    "foreign_s": 0.016026328999998896,
+    "mbps": 4723.021805463191,
+    "min_rtt_us": 8,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.261412038600254,
+    "recv_maxrss_kb": 15764,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.427894960344875,
+    "sent_datagrams": 4961160,
+    "socket_drops": 0,
+    "srtt_us": 56,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 1.0602529374792447e-05,
+    "datagram_mbps": 5387.359055213355,
+    "drops_v1": 0,
+    "foreign_s": 0.0353008999999993,
+    "mbps": 9199.001142753666,
+    "min_rtt_us": 21,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.344352895173675,
+    "recv_maxrss_kb": 16648,
+    "residual_datagrams": -9,
+    "segments_per_send": 12.581199687918712,
+    "send_cpu_s_per_gib": 1.391310678403173,
+    "sent_datagrams": 5659027,
+    "socket_drops": 0,
+    "srtt_us": 110,
+    "stream_mbps": 3812.443096232002,
+    "unprocessed_drop_share": 1.2192908780961816e-05,
+    "unprocessed_drops": 69,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00017500627120203838,
+    "datagram_mbps": 5509.647319030282,
+    "drops_v1": 0,
+    "foreign_s": 0.040674632999998295,
+    "mbps": 11347.809098906351,
+    "min_rtt_us": 22,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.196312975804016,
+    "recv_maxrss_kb": 16832,
+    "residual_datagrams": -333,
+    "segments_per_send": 12.576808544233531,
+    "send_cpu_s_per_gib": 1.172370659263374,
+    "sent_datagrams": 5788364,
+    "socket_drops": 0,
+    "srtt_us": 92,
+    "stream_mbps": 5838.597222506667,
+    "unprocessed_drop_share": 0.00023253547980051014,
+    "unprocessed_drops": 1346,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.011102920000000793,
+    "mbps": 10846.439285880231,
+    "min_rtt_us": 14,
+    "recv_cpu_s_per_gib": 0.9820086348027842,
+    "recv_maxrss_kb": 15520,
+    "segments_per_send": 11.398133115455895,
+    "send_cpu_s_per_gib": 1.173697633410673,
+    "srtt_us": 57,
+    "stream_mbps": 10846.439285880231
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.010277622999996794,
+    "mbps": 15191.169566079156,
+    "min_rtt_us": 16,
+    "recv_cpu_s_per_gib": 0.9167699677576333,
+    "recv_maxrss_kb": 15172,
+    "segments_per_send": 11.688972008819714,
+    "send_cpu_s_per_gib": 0.9859794086759647,
+    "srtt_us": 77,
+    "stream_mbps": 15191.169566079156
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.008892042999999461,
+    "mbps": 15267.034028073685,
+    "min_rtt_us": 18,
+    "recv_cpu_s_per_gib": 0.9134372300147671,
+    "recv_maxrss_kb": 15064,
+    "segments_per_send": 11.682078275461205,
+    "send_cpu_s_per_gib": 0.9798208160445071,
+    "srtt_us": 82,
+    "stream_mbps": 15267.034028073685
+   }
+  },
+  "4": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 2.2065943422910905e-05,
+    "datagram_mbps": 8067.658019623706,
+    "drops_v1": 0,
+    "foreign_s": 0.049474886000000495,
+    "mbps": 8067.658019623706,
+    "min_rtt_us": 10,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.397662948729237,
+    "recv_maxrss_kb": 17016,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.24044135437389,
+    "send_cpu_s_per_gib": 1.5366311574265523,
+    "sent_datagrams": 8474598,
+    "socket_drops": 0,
+    "srtt_us": 103,
+    "unprocessed_drop_share": 2.2065943422921063e-05,
+    "unprocessed_drops": 187,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00013318772260273448,
+    "datagram_mbps": 9705.640438050506,
+    "drops_v1": 192,
+    "foreign_s": 0.01630395399999962,
+    "mbps": 9705.640438050506,
+    "min_rtt_us": 16,
+    "queue_drop_share": 1.8830664756792646e-05,
+    "recv_cpu_s_per_gib": 1.3056015442084405,
+    "recv_maxrss_kb": 16752,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.82820865529185,
+    "send_cpu_s_per_gib": 1.2466470090145778,
+    "sent_datagrams": 10196135,
+    "socket_drops": 0,
+    "srtt_us": 111,
+    "unprocessed_drop_share": 0.00011435705784593868,
+    "unprocessed_drops": 1166,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 1.8830664756792646e-05
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4762.471100968122,
+    "drops_v1": 0,
+    "foreign_s": 0.021685606000000135,
+    "mbps": 4762.471100968122,
+    "min_rtt_us": 9,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.2417900894694136,
+    "recv_maxrss_kb": 15976,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.407892486919438,
+    "sent_datagrams": 5002572,
+    "socket_drops": 0,
+    "srtt_us": 97,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 5139.688594434744,
+    "drops_v1": 0,
+    "foreign_s": 0.028749096999998613,
+    "mbps": 8377.720180236187,
+    "min_rtt_us": 12,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3723015133793834,
+    "recv_maxrss_kb": 16180,
+    "residual_datagrams": 0,
+    "segments_per_send": 12.339541923148818,
+    "send_cpu_s_per_gib": 1.431197681609663,
+    "sent_datagrams": 5398848,
+    "socket_drops": 0,
+    "srtt_us": 62,
+    "stream_mbps": 3238.3024719436776,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.0001614692187277278,
+    "datagram_mbps": 5541.201760627414,
+    "drops_v1": 73,
+    "foreign_s": 0.04096309200000192,
+    "mbps": 11361.72218099389,
+    "min_rtt_us": 29,
+    "queue_drop_share": 1.2539630816091198e-05,
+    "recv_cpu_s_per_gib": 1.1998114601261198,
+    "recv_maxrss_kb": 15452,
+    "residual_datagrams": -502,
+    "segments_per_send": 12.599635737019298,
+    "send_cpu_s_per_gib": 1.1656269099306085,
+    "sent_datagrams": 5821543,
+    "socket_drops": 0,
+    "srtt_us": 125,
+    "stream_mbps": 5820.635813267471,
+    "unprocessed_drop_share": 0.00023516102174286096,
+    "unprocessed_drops": 1369,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 1.2539630816091198e-05
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.008498594000000637,
+    "mbps": 10822.27175973747,
+    "min_rtt_us": 10,
+    "recv_cpu_s_per_gib": 0.9942015791646076,
+    "recv_maxrss_kb": 15496,
+    "segments_per_send": 11.285392071673432,
+    "send_cpu_s_per_gib": 1.178783787615421,
+    "srtt_us": 44,
+    "stream_mbps": 10822.27175973747
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.0107679669999996,
+    "mbps": 15230.328041609555,
+    "min_rtt_us": 20,
+    "recv_cpu_s_per_gib": 0.9223285067850872,
+    "recv_maxrss_kb": 14928,
+    "segments_per_send": 11.689630935370669,
+    "send_cpu_s_per_gib": 0.9836261782230024,
+    "srtt_us": 58,
+    "stream_mbps": 15230.328041609555
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.006382980000001481,
+    "mbps": 15189.163679071076,
+    "min_rtt_us": 22,
+    "recv_cpu_s_per_gib": 0.9210382663311554,
+    "recv_maxrss_kb": 14976,
+    "segments_per_send": 11.687874706993615,
+    "send_cpu_s_per_gib": 0.9855923811575142,
+    "srtt_us": 61,
+    "stream_mbps": 15189.163679071076
+   }
+  },
+  "5": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 5.7777608647446854e-05,
+    "datagram_mbps": 8205.099043545071,
+    "drops_v1": 0,
+    "foreign_s": 0.01905189400000218,
+    "mbps": 8205.099043545071,
+    "min_rtt_us": 13,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3820946482162408,
+    "recv_maxrss_kb": 17052,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.239918592146322,
+    "send_cpu_s_per_gib": 1.5251102445327505,
+    "sent_datagrams": 8619256,
+    "socket_drops": 0,
+    "srtt_us": 123,
+    "unprocessed_drop_share": 5.7777608647428504e-05,
+    "unprocessed_drops": 498,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00012375634435135563,
+    "datagram_mbps": 9706.806061528148,
+    "drops_v1": 0,
+    "foreign_s": 0.02440617499999931,
+    "mbps": 9706.806061528148,
+    "min_rtt_us": 15,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3095357487080246,
+    "recv_maxrss_kb": 16676,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.82280315207818,
+    "send_cpu_s_per_gib": 1.2522298292748306,
+    "sent_datagrams": 10197457,
+    "socket_drops": 0,
+    "srtt_us": 92,
+    "unprocessed_drop_share": 0.00012375634435134172,
+    "unprocessed_drops": 1262,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4651.223749647792,
+    "drops_v1": 0,
+    "foreign_s": 0.016618077000002174,
+    "mbps": 4651.223749647792,
+    "min_rtt_us": 8,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.2853623406020485,
+    "recv_maxrss_kb": 15736,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.441537573731006,
+    "sent_datagrams": 4885719,
+    "socket_drops": 0,
+    "srtt_us": 78,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 5266.527678746964,
+    "drops_v1": 0,
+    "foreign_s": 0.0255432560000024,
+    "mbps": 8765.896519655535,
+    "min_rtt_us": 17,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.35296362857526,
+    "recv_maxrss_kb": 16120,
+    "residual_datagrams": 0,
+    "segments_per_send": 12.456935389247407,
+    "send_cpu_s_per_gib": 1.4141301488915485,
+    "sent_datagrams": 5532047,
+    "socket_drops": 0,
+    "srtt_us": 57,
+    "stream_mbps": 3499.502916385939,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.000169125880323584,
+    "datagram_mbps": 5504.196247483766,
+    "drops_v1": 0,
+    "foreign_s": 0.039245592999998635,
+    "mbps": 11324.324614406121,
+    "min_rtt_us": 20,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.1973599278384088,
+    "recv_maxrss_kb": 15384,
+    "residual_datagrams": -366,
+    "segments_per_send": 12.57625358777154,
+    "send_cpu_s_per_gib": 1.1652903639191496,
+    "sent_datagrams": 5782675,
+    "socket_drops": 0,
+    "srtt_us": 140,
+    "stream_mbps": 5820.449665188589,
+    "unprocessed_drop_share": 0.0002324183876839006,
+    "unprocessed_drops": 1344,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.009237860999999015,
+    "mbps": 11089.066724964161,
+    "min_rtt_us": 16,
+    "recv_cpu_s_per_gib": 0.9783315346514994,
+    "recv_maxrss_kb": 15476,
+    "segments_per_send": 11.440470833568298,
+    "send_cpu_s_per_gib": 1.167388003063743,
+    "srtt_us": 59,
+    "stream_mbps": 11089.066724964161
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.017694671999997524,
+    "mbps": 15216.833995804149,
+    "min_rtt_us": 21,
+    "recv_cpu_s_per_gib": 0.9127154543399763,
+    "recv_maxrss_kb": 14816,
+    "segments_per_send": 11.68814109704063,
+    "send_cpu_s_per_gib": 0.9840993667962182,
+    "srtt_us": 63,
+    "stream_mbps": 15216.833995804149
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.017085798999996626,
+    "mbps": 15192.257702422352,
+    "min_rtt_us": 18,
+    "recv_cpu_s_per_gib": 0.9165653498246873,
+    "recv_maxrss_kb": 15160,
+    "segments_per_send": 11.688753770698614,
+    "send_cpu_s_per_gib": 0.9851149138897325,
+    "srtt_us": 79,
+    "stream_mbps": 15192.257702422352
+   }
+  },
+  "6": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.00017745472091446057,
+    "datagram_mbps": 8458.726395117645,
+    "drops_v1": 0,
+    "foreign_s": 0.013227822999997585,
+    "mbps": 8458.726395117645,
+    "min_rtt_us": 19,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3793619910956105,
+    "recv_maxrss_kb": 17836,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.311216348298233,
+    "send_cpu_s_per_gib": 1.5148384430437436,
+    "sent_datagrams": 8886774,
+    "socket_drops": 0,
+    "srtt_us": 184,
+    "unprocessed_drop_share": 0.00017745472091447358,
+    "unprocessed_drops": 1577,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.000143135149973328,
+    "datagram_mbps": 9709.389356061523,
+    "drops_v1": 93,
+    "foreign_s": 0.022903398000000408,
+    "mbps": 9709.389356061523,
+    "min_rtt_us": 16,
+    "queue_drop_share": 9.117512977750328e-06,
+    "recv_cpu_s_per_gib": 1.3113217391851744,
+    "recv_maxrss_kb": 18852,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.818686921508132,
+    "send_cpu_s_per_gib": 1.260080387868381,
+    "sent_datagrams": 10200150,
+    "socket_drops": 0,
+    "srtt_us": 152,
+    "unprocessed_drop_share": 0.0001340176369955344,
+    "unprocessed_drops": 1367,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 9.117512977750328e-06
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4720.437965592574,
+    "drops_v1": 0,
+    "foreign_s": 0.015578850000000699,
+    "mbps": 4720.437965592574,
+    "min_rtt_us": 8,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.258956956204687,
+    "recv_maxrss_kb": 16344,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.413278656293958,
+    "sent_datagrams": 4958433,
+    "socket_drops": 0,
+    "srtt_us": 59,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 5192.255236282465,
+    "drops_v1": 0,
+    "foreign_s": 0.03191054600000065,
+    "mbps": 8565.536149557985,
+    "min_rtt_us": 14,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3690760906123478,
+    "recv_maxrss_kb": 16184,
+    "residual_datagrams": 0,
+    "segments_per_send": 12.436983629656321,
+    "send_cpu_s_per_gib": 1.4360057551122005,
+    "sent_datagrams": 5454027,
+    "socket_drops": 0,
+    "srtt_us": 53,
+    "stream_mbps": 3373.494583317727,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.0001664546983509707,
+    "datagram_mbps": 5552.528159353757,
+    "drops_v1": 0,
+    "foreign_s": 0.04696129300000251,
+    "mbps": 11329.166748995933,
+    "min_rtt_us": 22,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.2086912484137398,
+    "recv_maxrss_kb": 15380,
+    "residual_datagrams": -461,
+    "segments_per_send": 12.566601968599214,
+    "send_cpu_s_per_gib": 1.1722719469150735,
+    "sent_datagrams": 5833419,
+    "socket_drops": 0,
+    "srtt_us": 108,
+    "stream_mbps": 5776.77116334442,
+    "unprocessed_drop_share": 0.0002454821092055962,
+    "unprocessed_drops": 1432,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.009559933000000242,
+    "mbps": 10899.694464895907,
+    "min_rtt_us": 14,
+    "recv_cpu_s_per_gib": 0.9862678906552892,
+    "recv_maxrss_kb": 15508,
+    "segments_per_send": 11.408144989737327,
+    "send_cpu_s_per_gib": 1.1724425801349734,
+    "srtt_us": 60,
+    "stream_mbps": 10899.694464895907
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.01323026700000085,
+    "mbps": 15140.305558803291,
+    "min_rtt_us": 21,
+    "recv_cpu_s_per_gib": 0.927694618218336,
+    "recv_maxrss_kb": 15256,
+    "segments_per_send": 11.687919549770786,
+    "send_cpu_s_per_gib": 0.9884687478348195,
+    "srtt_us": 72,
+    "stream_mbps": 15140.305558803291
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.008431043000001637,
+    "mbps": 15235.068991262799,
+    "min_rtt_us": 20,
+    "recv_cpu_s_per_gib": 0.9131093804661663,
+    "recv_maxrss_kb": 14860,
+    "segments_per_send": 11.697116842143124,
+    "send_cpu_s_per_gib": 0.9862641606425702,
+    "srtt_us": 67,
+    "stream_mbps": 15235.068991262799
+   }
+  },
+  "7": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 2.6308149120302105e-05,
+    "datagram_mbps": 8069.571577557335,
+    "drops_v1": 0,
+    "foreign_s": 0.017368236999999453,
+    "mbps": 8069.571577557335,
+    "min_rtt_us": 10,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3997038262487183,
+    "recv_maxrss_kb": 17896,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.247670140657117,
+    "send_cpu_s_per_gib": 1.5274255517236248,
+    "sent_datagrams": 8476461,
+    "socket_drops": 0,
+    "srtt_us": 97,
+    "unprocessed_drop_share": 2.6308149120251953e-05,
+    "unprocessed_drops": 223,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.0001212868435815917,
+    "datagram_mbps": 9684.826932191669,
+    "drops_v1": 0,
+    "foreign_s": 0.027517337000000808,
+    "mbps": 9684.826932191669,
+    "min_rtt_us": 16,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.310483392372952,
+    "recv_maxrss_kb": 18048,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.819900236664846,
+    "send_cpu_s_per_gib": 1.2605124995974097,
+    "sent_datagrams": 10174228,
+    "socket_drops": 0,
+    "srtt_us": 107,
+    "unprocessed_drop_share": 0.0001212868435816457,
+    "unprocessed_drops": 1234,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4698.588530702492,
+    "drops_v1": 0,
+    "foreign_s": 0.013681695000002492,
+    "mbps": 4698.588530702492,
+    "min_rtt_us": 8,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.274076578143559,
+    "recv_maxrss_kb": 16220,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.429579304289223,
+    "sent_datagrams": 4935458,
+    "socket_drops": 0,
+    "srtt_us": 146,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 9.930696378335213e-06,
+    "datagram_mbps": 5272.521626843881,
+    "drops_v1": 0,
+    "foreign_s": 0.033360300000001786,
+    "mbps": 8852.59246502823,
+    "min_rtt_us": 15,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3560995461003313,
+    "recv_maxrss_kb": 16548,
+    "residual_datagrams": -23,
+    "segments_per_send": 12.516255393828077,
+    "send_cpu_s_per_gib": 1.4007422785685104,
+    "sent_datagrams": 5538383,
+    "socket_drops": 0,
+    "srtt_us": 55,
+    "stream_mbps": 3580.261308575438,
+    "unprocessed_drop_share": 1.4083533045656106e-05,
+    "unprocessed_drops": 78,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.0001566118421958418,
+    "datagram_mbps": 5530.8092720798895,
+    "drops_v1": 0,
+    "foreign_s": 0.03728458199999629,
+    "mbps": 11330.411870947986,
+    "min_rtt_us": 16,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.2013570686940351,
+    "recv_maxrss_kb": 15496,
+    "residual_datagrams": -446,
+    "segments_per_send": 12.565656615530463,
+    "send_cpu_s_per_gib": 1.1718055493477044,
+    "sent_datagrams": 5810544,
+    "socket_drops": 0,
+    "srtt_us": 96,
+    "stream_mbps": 5799.802155086476,
+    "unprocessed_drop_share": 0.00023336885496435446,
+    "unprocessed_drops": 1356,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.012859429000000588,
+    "mbps": 10084.20878789544,
+    "min_rtt_us": 10,
+    "recv_cpu_s_per_gib": 1.005527357093465,
+    "recv_maxrss_kb": 15416,
+    "segments_per_send": 11.122713033892007,
+    "send_cpu_s_per_gib": 1.2026719243835104,
+    "srtt_us": 40,
+    "stream_mbps": 10084.20878789544
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.01652107700000016,
+    "mbps": 15205.954537284173,
+    "min_rtt_us": 17,
+    "recv_cpu_s_per_gib": 0.9169426967147546,
+    "recv_maxrss_kb": 14968,
+    "segments_per_send": 11.690490034148542,
+    "send_cpu_s_per_gib": 0.9843312913138224,
+    "srtt_us": 57,
+    "stream_mbps": 15205.954537284173
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.012559692999992933,
+    "mbps": 15158.970771655908,
+    "min_rtt_us": 21,
+    "recv_cpu_s_per_gib": 0.9258797696261197,
+    "recv_maxrss_kb": 14944,
+    "segments_per_send": 11.69508960764707,
+    "send_cpu_s_per_gib": 0.992501444083976,
+    "srtt_us": 60,
+    "stream_mbps": 15158.970771655908
+   }
+  },
+  "8": {
+   "D-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.00010751351088389427,
+    "datagram_mbps": 8198.6184951047,
+    "drops_v1": 0,
+    "foreign_s": 0.0605205729999998,
+    "mbps": 8198.6184951047,
+    "min_rtt_us": 11,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3989282730410566,
+    "recv_maxrss_kb": 16988,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.251838615474979,
+    "send_cpu_s_per_gib": 1.5212003684522235,
+    "sent_datagrams": 8612871,
+    "socket_drops": 0,
+    "srtt_us": 89,
+    "unprocessed_drop_share": 0.0001075135108838853,
+    "unprocessed_drops": 926,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00013686880668650758,
+    "datagram_mbps": 9701.638808880327,
+    "drops_v1": 53,
+    "foreign_s": 0.022560244999999313,
+    "mbps": 9701.638808880327,
+    "min_rtt_us": 15,
+    "queue_drop_share": 5.200033515687716e-06,
+    "recv_cpu_s_per_gib": 1.312765859964596,
+    "recv_maxrss_kb": 16736,
+    "residual_datagrams": 0,
+    "segments_per_send": 14.825212953630865,
+    "send_cpu_s_per_gib": 1.2559928971561918,
+    "sent_datagrams": 10192242,
+    "socket_drops": 0,
+    "srtt_us": 111,
+    "unprocessed_drop_share": 0.00013166877317080972,
+    "unprocessed_drops": 1342,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 5.200033515687716e-06
+   },
+   "Dk-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 4677.324869688179,
+    "drops_v1": 0,
+    "foreign_s": 0.015191846000000453,
+    "mbps": 4677.324869688179,
+    "min_rtt_us": 9,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 2.2710231070519016,
+    "recv_maxrss_kb": 15788,
+    "residual_datagrams": 0,
+    "segments_per_send": 1.0,
+    "send_cpu_s_per_gib": 3.4347854433535008,
+    "sent_datagrams": 4913141,
+    "socket_drops": 0,
+    "srtt_us": 122,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "controller_ok": true,
+    "datagram_loss": 0.0,
+    "datagram_mbps": 5139.106273874034,
+    "drops_v1": 0,
+    "foreign_s": 0.030262409000000545,
+    "mbps": 8361.75739812598,
+    "min_rtt_us": 15,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.3703751868754661,
+    "recv_maxrss_kb": 16060,
+    "residual_datagrams": 0,
+    "segments_per_send": 12.353131172263401,
+    "send_cpu_s_per_gib": 1.4402934612457186,
+    "sent_datagrams": 5398204,
+    "socket_drops": 0,
+    "srtt_us": 72,
+    "stream_mbps": 3222.91581348643,
+    "unprocessed_drop_share": 0.0,
+    "unprocessed_drops": 0,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "controller_ok": true,
+    "datagram_loss": 0.00016499495294375333,
+    "datagram_mbps": 5532.499667203995,
+    "drops_v1": 0,
+    "foreign_s": 0.036289438999999035,
+    "mbps": 11324.709430119176,
+    "min_rtt_us": 19,
+    "queue_drop_share": 0.0,
+    "recv_cpu_s_per_gib": 1.2033874685616142,
+    "recv_maxrss_kb": 15408,
+    "residual_datagrams": -465,
+    "segments_per_send": 12.565572312814611,
+    "send_cpu_s_per_gib": 1.1726941221963447,
+    "sent_datagrams": 5812299,
+    "socket_drops": 0,
+    "srtt_us": 81,
+    "stream_mbps": 5792.723658595027,
+    "unprocessed_drop_share": 0.000244997719491031,
+    "unprocessed_drops": 1424,
+    "v1_minus_measurement_counter": 0,
+    "v1_share": 0.0
+   },
+   "S-bbr": {
+    "controller_ok": true,
+    "foreign_s": 0.010097712000003867,
+    "mbps": 10357.470235582421,
+    "min_rtt_us": 10,
+    "recv_cpu_s_per_gib": 0.9981466202581625,
+    "recv_maxrss_kb": 15420,
+    "segments_per_send": 11.181612689176122,
+    "send_cpu_s_per_gib": 1.1908695678866108,
+    "srtt_us": 49,
+    "stream_mbps": 10357.470235582421
+   },
+   "S-pre": {
+    "controller_ok": true,
+    "foreign_s": 0.016251055999997988,
+    "mbps": 15334.770976719496,
+    "min_rtt_us": 20,
+    "recv_cpu_s_per_gib": 0.9132168975868601,
+    "recv_maxrss_kb": 14932,
+    "segments_per_send": 11.692907525743996,
+    "send_cpu_s_per_gib": 0.9815340356808282,
+    "srtt_us": 57,
+    "stream_mbps": 15334.770976719496
+   },
+   "S-rev": {
+    "controller_ok": true,
+    "foreign_s": 0.014323113000003218,
+    "mbps": 15213.287655033819,
+    "min_rtt_us": 17,
+    "recv_cpu_s_per_gib": 0.916183631325733,
+    "recv_maxrss_kb": 14908,
+    "segments_per_send": 11.689208287801847,
+    "send_cpu_s_per_gib": 0.9846641483299099,
+    "srtt_us": 60,
+    "stream_mbps": 15213.287655033819
+   }
+  }
+ },
+ "perfdiag": {
+  "1": {
+   "arms": {
+    "S-pre": {
+     "contaminated": false,
+     "gcycles_per_gib": 4.844435824204315,
+     "gcycles_u_per_gib": 3.0417110984839355,
+     "ginstr_per_gib": 11.91678838176785,
+     "ginstr_u_per_gib": 8.465289855359492,
+     "mbps": 15339.218649984145,
+     "send_cpu_s_per_gib": 1.0672972993902272,
+     "task_clock_ms": 18996.24
+    },
+    "S-rev": {
+     "contaminated": false,
+     "gcycles_per_gib": 4.846755339599219,
+     "gcycles_u_per_gib": 3.0464600508299986,
+     "ginstr_per_gib": 11.98466450606265,
+     "ginstr_u_per_gib": 8.528747769689101,
+     "mbps": 15225.515471853629,
+     "send_cpu_s_per_gib": 1.067653910241974,
+     "task_clock_ms": 18862.65
+    }
+   },
+   "clean": true,
+   "rev_over_pre": {
+    "gcycles_u_per_gib": 1.0015612765947528,
+    "ginstr_u_per_gib": 1.0074962482577525,
+    "mbps": 0.9925874204726436,
+    "send_cpu_s_per_gib": 1.0003341251326603
+   }
+  },
+  "2": {
+   "arms": {
+    "S-pre": {
+     "contaminated": false,
+     "gcycles_per_gib": 4.858269987542823,
+     "gcycles_u_per_gib": 3.049431295379745,
+     "ginstr_per_gib": 11.919776359525432,
+     "ginstr_u_per_gib": 8.466463201261735,
+     "mbps": 15256.004976919488,
+     "send_cpu_s_per_gib": 1.0699826278503113,
+     "task_clock_ms": 18943.8
+    },
+    "S-rev": {
+     "contaminated": false,
+     "gcycles_per_gib": 4.820964872372274,
+     "gcycles_u_per_gib": 3.0236283662347962,
+     "ginstr_per_gib": 11.983596876771578,
+     "ginstr_u_per_gib": 8.530260906592979,
+     "mbps": 15300.602601787268,
+     "send_cpu_s_per_gib": 1.0623836695039544,
+     "task_clock_ms": 18869.3
+    }
+   },
+   "clean": true,
+   "rev_over_pre": {
+    "gcycles_u_per_gib": 0.9915384454852145,
+    "ginstr_u_per_gib": 1.007535343131443,
+    "mbps": 1.0029232833192734,
+    "send_cpu_s_per_gib": 0.9928980544650301
+   }
+  },
+  "3": {
+   "arms": {
+    "S-pre": {
+     "contaminated": false,
+     "gcycles_per_gib": 4.845208479481269,
+     "gcycles_u_per_gib": 3.043999779100281,
+     "ginstr_per_gib": 11.910146841939628,
+     "ginstr_u_per_gib": 8.459225572459943,
+     "mbps": 15246.481396141655,
+     "send_cpu_s_per_gib": 1.068084882827491,
+     "task_clock_ms": 18890.33
+    },
+    "S-rev": {
+     "contaminated": false,
+     "gcycles_per_gib": 3.844138967435282,
+     "gcycles_u_per_gib": 2.478419253319194,
+     "ginstr_per_gib": 9.57911130324011,
+     "ginstr_u_per_gib": 6.956362899201345,
+     "mbps": 15228.454415068265,
+     "send_cpu_s_per_gib": 1.0517748661022608,
+     "task_clock_ms": 14985.36
+    }
+   },
+   "clean": true,
+   "rev_over_pre": {
+    "gcycles_u_per_gib": 0.8141982369170025,
+    "ginstr_u_per_gib": 0.8223403950650809,
+    "mbps": 0.9988176300744411,
+    "send_cpu_s_per_gib": 0.9847296624196633
+   }
+  },
+  "4": {
+   "arms": {
+    "S-pre": {
+     "contaminated": false,
+     "gcycles_per_gib": 4.84366900867317,
+     "gcycles_u_per_gib": 3.04801140921839,
+     "ginstr_per_gib": 11.91920770002891,
+     "ginstr_u_per_gib": 8.464456263800159,
+     "mbps": 15262.911669319,
+     "send_cpu_s_per_gib": 1.0669570096457721,
+     "task_clock_ms": 18907.05
+    },
+    "S-rev": {
+     "contaminated": false,
+     "gcycles_per_gib": 4.855535195781309,
+     "gcycles_u_per_gib": 3.052042471017798,
+     "ginstr_per_gib": 11.983809188656263,
+     "ginstr_u_per_gib": 8.530196383864084,
+     "mbps": 15244.720179942113,
+     "send_cpu_s_per_gib": 1.069331891555782,
+     "task_clock_ms": 18920.1
+    }
+   },
+   "clean": true,
+   "rev_over_pre": {
+    "gcycles_u_per_gib": 1.001322521886636,
+    "ginstr_u_per_gib": 1.0077666087478148,
+    "mbps": 0.9988081245720988,
+    "send_cpu_s_per_gib": 1.0022258459230688
+   }
+  }
+ },
+ "ratios": {
+  "D-bbr/D-reno": {
+   "mbps": {
+    "max": 0.8711903586230069,
+    "median": 0.845184510430798,
+    "min": 0.8061937458070884,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.0705126345240432,
+    "median": 1.0620434625558643,
+    "min": 1.0518867718556355,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 1.0625992288500794,
+    "median": 1.015408336848795,
+    "min": 0.9461065138977297,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.2326112735321884,
+    "median": 1.214342785235305,
+    "min": 1.1922266424105226,
+    "n": 8
+   }
+  },
+  "Dk-bbr/D-bbr": {
+   "mbps": {
+    "max": 0.6052534819972578,
+    "median": 0.5686857485195769,
+    "min": 0.558055402798842,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.6535498082939422,
+    "median": 1.6286924994893734,
+    "min": 1.6039561551715038,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 0.9814218479068615,
+    "median": 0.9195866296499653,
+    "min": 0.8411953041622199,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 2.2756058984185223,
+    "median": 2.2492813470786235,
+    "min": 2.2177687016490997,
+    "n": 8
+   }
+  },
+  "M-bbr/M-reno": {
+   "mbps": {
+    "max": 0.8106411610008687,
+    "median": 0.7660805167327076,
+    "min": 0.7373635833351568,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.1437642987966894,
+    "median": 1.1313243198402119,
+    "min": 1.1161682855288106,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 1.1629898780171295,
+    "median": 1.0474777779617526,
+    "min": 0.9890684410646388,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.2281919334158389,
+    "median": 1.2180771223736904,
+    "min": 1.1867498281451054,
+    "n": 8
+   }
+  },
+  "S-bbr/S-rev": {
+   "mbps": {
+    "max": 0.7299156545505444,
+    "median": 0.7114739376225244,
+    "min": 0.6652304394405716,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.0917651545144142,
+    "median": 1.0797779486209689,
+    "min": 1.0664328080311951,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 1.043606998654105,
+    "median": 1.0309277134191759,
+    "min": 0.9928370427219237,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.2117583622193218,
+    "median": 1.196942594578457,
+    "min": 1.183514060411589,
+    "n": 8
+   }
+  },
+  "S-rev/S-pre": {
+   "mbps": {
+    "max": 1.0062590171705226,
+    "median": 0.9971036921255985,
+    "min": 0.9920779174419946,
+    "n": 8
+   },
+   "recv_cpu_s_per_gib": {
+    "max": 1.009746599153235,
+    "median": 1.0017128782136617,
+    "min": 0.9842779752455812,
+    "n": 8
+   },
+   "recv_maxrss_kb": {
+    "max": 1.0385228480340063,
+    "median": 0.9983946465022336,
+    "min": 0.9740429994756161,
+    "n": 8
+   },
+   "send_cpu_s_per_gib": {
+    "max": 1.00830020628446,
+    "median": 1.0001346824682125,
+    "min": 0.9937538324053565,
+    "n": 8
+   }
+  }
+ },
+ "readings": {
+  "B743_kill_over_on_mbps": 0.5686857485195769,
+  "B743_segments_per_send": {
+   "D-bbr": 14.244055747515503,
+   "Dk-bbr": 1.0
+  },
+  "K3_guard_0_97_passes": true,
+  "K3_prior_743": 0.9793,
+  "K3_reading": "not reproduced",
+  "K3_rev_over_pre_mbps": 0.9971036921255985,
+  "K3_rev_over_pre_send_cpu_s_per_gib": 1.0001346824682125,
+  "RD": {
+   "D-bbr": {
+    "datagram_loss": 7.722190175224464e-05,
+    "queue_drop_share": 0.0,
+    "residual_max": 0,
+    "unprocessed_drop_share": 7.722190175224616e-05,
+    "v1_minus_measurement_counter_max": 0,
+    "v1_share": 0.0
+   },
+   "D-reno": {
+    "datagram_loss": 0.00012969236158205666,
+    "queue_drop_share": 0.0,
+    "residual_max": 1,
+    "unprocessed_drop_share": 0.00012497667245638583,
+    "v1_minus_measurement_counter_max": 0,
+    "v1_share": 0.0
+   },
+   "Dk-bbr": {
+    "datagram_loss": 0.0,
+    "queue_drop_share": 0.0,
+    "residual_max": 0,
+    "unprocessed_drop_share": 0.0,
+    "v1_minus_measurement_counter_max": 0,
+    "v1_share": 0.0
+   },
+   "M-bbr": {
+    "datagram_loss": 0.0,
+    "queue_drop_share": 0.0,
+    "residual_max": 23,
+    "unprocessed_drop_share": 0.0,
+    "v1_minus_measurement_counter_max": 0,
+    "v1_share": 0.0
+   },
+   "M-reno": {
+    "datagram_loss": 0.00016572482564736202,
+    "queue_drop_share": 0.0,
+    "residual_max": 525,
+    "unprocessed_drop_share": 0.00024007937061694596,
+    "v1_minus_measurement_counter_max": 0,
+    "v1_share": 0.0
+   }
+  }
+ },
+ "rounds_used": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "status": "complete"
+}

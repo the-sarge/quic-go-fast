@@ -1,0 +1,13 @@
+{
+ "revisions": {
+  "send-pre": "c8dbe35eb26fcd69f6f0ebd43b64c15836fcdc80",
+  "send": "d94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7",
+  "recv": "d94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7"
+ },
+ "sha256": {
+  "bench808-recv": "f6e75a1f04f3b95e4086e4f48b232398567a13e798d5a74f84e9d5394a11c49c",
+  "bench808-send": "1d0193bebb4b9d940d80822ab7d0e1d9798db4b3df7b687ce660162906b1a2b1",
+  "bench808-send-pre": "de84214542b62b7a826c6b81f740e110d69b6d896f5c334b959504f17f0b71b4"
+ },
+ "go": "go version go1.27.2 darwin/arm64"
+}
