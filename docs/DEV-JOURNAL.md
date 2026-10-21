@@ -7428,3 +7428,30 @@ Every record test, `tables.py --check` and `figures.py --check` passed on the ex
 ### Next
 
 Default-Reno memory on the fork bundle is [#871](https://github.com/the-sarge/quic-go-fast/issues/871), and the Reno reference for the next BBR readiness is [#887](https://github.com/the-sarge/quic-go-fast/issues/887). Q2 ([#599](https://github.com/the-sarge/quic-go-fast/issues/599)) waits for both, by operator decision; #858 made a new BBR revision on `main`. The [BBRv3 tracker #600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live view.
+
+---
+
+## Deterministic canceled stream acceptance landed - 2026-10-21 12:08 EDT
+
+**Main:** `261d79828297`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #952](https://github.com/the-sarge/quic-go-fast/pull/952), closing [#945](https://github.com/the-sarge/quic-go-fast/issues/945). TestCancelAcceptStream now exercises deterministic seven- and 30-cancellation workloads, each retaining 30 successful uncanceled accepts. Pre-canceled attempts must return context.Canceled without a stream, and the observed count must equal the scheduled count. Successful payload checks, the startup barrier, bounded waits, error draining and client/server joins remain intact. Production transport behavior, HTTP/3 and CI policy are unchanged.
+
+### Validation
+
+The seven-cancellation case failed under the original threshold, then both workloads passed after repair. One uncommitted accounting-suppression control failed at the exact-count assertion with expected seven and actual zero. Go 1.27.3 on darwin/arm64 passed uncached focused QUIC v1/v2 coverage, one focused race run, the full affected package with QUIC v1, package vet, module tidiness, formatting and diff checks. Full code certification was at 7066e745be3a6f161ff3ec216d627a41326b95e2; the later journal-only base update preserved the test source byte for byte and received a new lightweight certification under the shared documentation-only exemption.
+
+Initial RAS review 20261021T153607-7b1522cc227adccbe9ae441d completed with all six reviewers and adjudicators; its three low findings were independently rejected as required edits. Replacement 20261021T154831-e998b920f67af2c0f364e6eb completed with all six reviewers and zero findings. No fix verification or follow-up was required. [Review dispositions](https://github.com/the-sarge/quic-go-fast/pull/952#issuecomment-6320065482) and [certification receipts](https://github.com/the-sarge/quic-go-fast/pull/952#issuecomment-6320300196) retain the evidence.
+
+All 33 hosted checks passed on final merge head 5d4413577ac4a66a02f1a118cc5e8405e806416a: [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/39630741892), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/39630741576), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/39630741765), [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/39630741835), [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/39630741643). The PR was squash-merged as 261d7982829788d3082bbbbeb329890543f7b173.
+
+### Decisions
+
+Use the [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/945#issuecomment-6319508258) as the bounded test-repair contract. Exact scheduled-outcome checks replace the probabilistic lower bound; no generic fixture framework, production change, extra mutation campaign or CI retry was introduced.
+
+### Next
+
+Finish journal publication and complete the matching OmniFocus task. [#945](https://github.com/the-sarge/quic-go-fast/issues/945) is the completion record; no review follow-up survives.
