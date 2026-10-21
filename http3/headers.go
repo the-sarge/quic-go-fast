@@ -25,6 +25,11 @@ type qpackError struct{ err error }
 func (e *qpackError) Error() string { return fmt.Sprintf("qpack: %v", e.err) }
 func (e *qpackError) Unwrap() error { return e.err }
 
+type trailerSemanticError struct{ err error }
+
+func (e *trailerSemanticError) Error() string { return e.err.Error() }
+func (e *trailerSemanticError) Unwrap() error { return e.err }
+
 var errHeaderTooLarge = errors.New("http3: headers too large")
 
 type header struct {
@@ -211,13 +216,13 @@ func parseTrailers(decodeFn qpack.DecodeFunc, sizeLimit int, headerFields *[]qpa
 			return nil, errHeaderTooLarge
 		}
 		if err := validateHeaderFieldNameAndValue(hf); err != nil {
-			return nil, err
+			return nil, &trailerSemanticError{err}
 		}
 		if hf.IsPseudo() {
-			return nil, fmt.Errorf("http3: received pseudo header in trailer: %s", hf.Name)
+			return nil, &trailerSemanticError{fmt.Errorf("http3: received pseudo header in trailer: %s", hf.Name)}
 		}
 		if err := validateTrailerHeaderField(hf); err != nil {
-			return nil, err
+			return nil, &trailerSemanticError{err}
 		}
 		h.Add(hf.Name, hf.Value)
 	}
