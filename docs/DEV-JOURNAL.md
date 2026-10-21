@@ -7188,3 +7188,38 @@ Approved with the plan on 2026-10-20:
 ### Next
 
 - None for this slice. The #528/#910 dual-stack port fixes are complete.
+
+---
+
+## Unprocessed-queue admission yields to the DATAGRAM backlog - 2026-10-20 23:20 EDT
+
+**Main:** `5f73ddc4de39`
+**Actor:** Claude
+
+### Summary
+
+[#855](https://github.com/the-sarge/quic-go-fast/issues/855) (slice 5 of the fork bundle, [#851](https://github.com/the-sarge/quic-go-fast/issues/851)) was reopened on 2026-10-20 after its downstream gate failed on `c3fb3c45`: at the consumer-sized heap the deeper queue let the ordinary DATAGRAM sender's backlog be acknowledged and then discarded at the 1,024-entry received-DATAGRAM queue (`DatagramReceiveDropsV1` 0 → 883), so loss moved behind the acknowledgment. The re-decided behaviour merged as [PR #920](https://github.com/the-sarge/quic-go-fast/pull/920), `5f73ddc4de39268992f0b9ab33eed70c472955b7`, on top of `c3fb3c45`; not a revert.
+
+### Completed
+
+- `handlePacket`: after handshake confirmation the queue still holds 1,024 packets, but on a connection with DATAGRAM support (`config.EnableDatagrams`) the entries beyond 256 take a packet only while the queued packets plus the DATAGRAM payloads still awaiting `ReceiveDatagram` number fewer than `maxDatagramRcvQueueLen` (1,024). A refusal goes through the existing drop path: `UnprocessedPacketDropsV1` and the DoS-prevention qlog event.
+- `datagramQueue.rcvLen` (`atomic.Int32`) mirrors `len(rcvQueue)`, stored under `rcvMx` after every push (`HandleDatagramFrame`), pop (`Receive`) and clear (`invalidateReceived`); `receiveQueueLen()` reads it without the mutex. Cost: one atomic load per admission beyond 256 on a DATAGRAM-enabled connection, one atomic store per DATAGRAM push and pop.
+- Unchanged: the first 256 entries, the pre-confirmation limit, the 1,452-byte rule and memory guard for entries beyond 256 (the rule only admits fewer packets), connections without DATAGRAM support, public API. Doc comments on `UnprocessedPacketDropsV1` and `MaxConnUnprocessedPacketsConfirmed` state the new refusal.
+- Tests: `TestConnectionUnprocessedQueueYieldsToDatagramBacklog` (queued 256 with 767 waiting admitted, 768 refused and counted; queued 300: 723/724; a full received-DATAGRAM queue at 256 refused; below 256 with a full queue admitted; without DATAGRAM support admitted), `TestConnectionUnprocessedQueueReadmitsAsDatagramsAreRead` (`ReceiveDatagram` and `invalidateReceived` give room back), `TestDatagramQueueReceiveLenMirrorsQueue`. `TestConnectionUnprocessedQueueDepth` is unchanged and passes. No diagnostic instrumentation.
+- #855 retitled to the re-decided behaviour; merge, CI result and the owed gate posted on #855 and #851; pointer on [#808](https://github.com/the-sarge/quic-go-fast/issues/808) (its L6 measures pinned `d94b3ec2` binaries and is unaffected).
+
+### Decisions
+
+- D1: the condition is gated on `config.EnableDatagrams`; every connection owns a `datagramQueue`, so the issue's "when the connection has a DATAGRAM queue" is read as the config flag. D2: the mirror is a store of the length after each mutation, not an add/sub pair, so it cannot drift. D3: merge recorded on #808 rather than held. Plan approved by the owner before implementation.
+- The owner waived the one red hosted check for this merge: `lint.yml` govulncheck failed on the Go standard-library advisory [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809) (crypto/x509 at go1.27.2, published 2026-10-21 00:27 UTC, fixed in go1.27.3), whose trace runs through `internal/handshake/crypto_setup.go`, untouched by the PR; every PR lint run before publication passed. The CI pin bump is [#921](https://github.com/the-sarge/quic-go-fast/issues/921) (`go.mod` has no `toolchain` directive, so it is CI-only).
+
+### Validation
+
+- RAS review `20261021T030757-9377e771f09d7d067eacd030` on head `4ab5590d`, briefed with the re-decided contract verbatim: seven reviewer runs complete, zero findings, synthesis clean; no replacement round.
+- Local on the same tree (Go 1.27.2 darwin/arm64): `go vet ./...`, `go mod tidy -diff`, gofmt; `go test -count=1 ./...` (27 packages ok); `go test -race` on the root and `internal/protocol` packages; golangci-lint v2.14.0 for darwin, linux, windows, freebsd, openbsd and solaris (amd64), 0 issues each. Guard mutations: deleting the condition fails the backlog and re-admission tests; deleting the store on pop fails the re-admission and mirror tests; files restored byte-identical.
+- Hosted on `4ab5590d`: 32 checks passed, govulncheck failed as above. Merge-base equalled `origin/main` (`d791891f`) at merge; squash-merged with `--match-head-commit`.
+
+### Next
+
+- The consumer re-gates #855 on `5f73ddc4` in both cells, re-runs #824's two-namespace set, and then measures #858, #860 and the gluing default on a commit carrying this change. #855 holds the bundle release until that gate passes. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+- #921: move the CI Go pins to 1.27.3 and 1.26.10 so govulncheck passes on pull requests.
