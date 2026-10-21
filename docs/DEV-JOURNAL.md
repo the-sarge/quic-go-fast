@@ -7275,3 +7275,28 @@ Observed the qlog, public supplied-context and full Transport regressions fail b
 ### Next
 
 R1 has no successors to unlock. S1, P1, P2, H1 and M1 remain the independent ready frontier; [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live status view. The product PR already committed R1 completion and this frontier, so journal closure needs no separate status PR.
+
+---
+
+## A20-S1 simulated-network shutdown landed - 2026-10-21 01:10 EDT
+
+**Main:** `d9adfb4a1c31`
+**Actor:** Codex
+
+### Summary
+
+Merged [A20-S1 / PR #940](https://github.com/the-sarge/quic-go-fast/pull/940) at `d9adfb4a1c31e911d57efe8db77f580388e3b76b`. Simnet now broadcasts one owned delivery-cancellation signal before joining any link, so a full unread NewEndpoint buffer cannot strand its delivery worker. Callers retain endpoint closure and buffered packets; live backpressure, timing, MTU and receive-attempt accounting remain intact. [Child #928](https://github.com/the-sarge/quic-go-fast/issues/928) is closed. The product PR commits S1 completion and the resulting independent frontier.
+
+### Decisions
+
+The [S1 contract](adr/2026-10-20-simnet-shutdown-plan.md) bounds this maintained simulation aid to started networks and their owned endpoints. Standalone endpoints retain their delivery lifetime. Arbitrary callback interruption, repeated/concurrent Start/Close, endpoint auto-close and production changes remain outside scope.
+
+### Validation
+
+The deterministic saturation regression failed on unchanged code, then passed after cancellation was added. The existing unsaturated control and four new synctest regressions cover the six accepted semantic cases, including multiple blocked links, buffered-data ownership, live backpressure and endpoint-first cleanup. Exact-head certification on `006d6904936002e268aea97bb9fea79853a9795d`, with Go 1.27.3, passed package tests, the package race run, selected root transport/send-stream tests, package vet, module tidiness, whitespace and clean-tree checks. All five final-head pull-request workflows and every job passed, including the [unit run](https://github.com/the-sarge/quic-go-fast/actions/runs/39547377046) and [integration run](https://github.com/the-sarge/quic-go-fast/actions/runs/39547376970).
+
+RAS source review `20261021T045557-de9cc474361474b3686e3023` required no fixes. The one receive-counter concern was independently rejected because the existing convention counts attempts, without a counter-freeze guarantee at network shutdown. Exact-head verification confirmed that disposition after an unrelated journal-only base merge and reran no tests; no replacement review was started. The [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/940#issuecomment-6308501154) records the evidence and disposition. No deferred follow-up remains.
+
+### Next
+
+S1 unlocks no successors. P1, P2, H1 and M1 remain the independent frontier in [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936), the live status view. Issue and OmniFocus reconciliation follows this journal append; no separate frontier PR is needed.
