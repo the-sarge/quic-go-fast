@@ -1,7 +1,7 @@
 # HTTP/3 Request Admission Implementation Plan
 
 **Date:** 2026-10-20
-**Status:** Accepted after independent slice audit; not implemented
+**Status:** R1 implemented; request admission and tracked cleanup complete
 **Track:** A20-R — 1 of 5 in A20
 **Depends on:** Nothing; independent slices as stated below
 **Related:** [Program index](2026-10-20-architecture-deepening-program.md), [no-code decisions](2026-10-20-architecture-decisions.md)
@@ -36,7 +36,7 @@ After TrackStream succeeds, perform one final connection-context lifetime check 
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| R1 | new | Reject an ended client connection after tracking | None | n/a |
+| R1 | Complete | Reject an ended client connection after tracking | None | n/a |
 
 ## Implementation Slices
 
@@ -85,14 +85,14 @@ After TrackStream succeeds, perform one final connection-context lifetime check 
 | Closure after admitted write begins | No new replay permission | Existing request lifetime/retry classifier | Write-phase preservation case |
 | Already admitted recording | Final events finish before recorder closure | rawConn | Existing #345 tests |
 
-Evidence status is planned, not yet run for an implementation. Completion means satisfying this terminating evidence plan, not enumerating arbitrary syntax or schedules.
+Evidence is covered by `TestRequestAdmissionAfterTracking` (both logging modes), `TestRequestAdmissionAfterTrackingTransport` (one redial and peer-observed untouched upload), `TestRequestAdmissionAfterTrackingSuppliedContext` (live control and public raw/client context causes), `TestRequestAdmissionAfterTrackingCanceledRequest`, `TestRequestAdmissionAfterTrackingWriteFailure`, and existing `TestClientConnGoAway` / `TestQlogLifetime` families. Completion means satisfying this terminating evidence plan, not enumerating arbitrary syntax or schedules. R1 has no successors; the remaining independent program slices retain their existing readiness.
 
 ## Acceptance Criteria
 
-- [ ] Within the supported pre-send client-admission domain, a connection whose context is already ended at the final post-tracking check is rejected before request sending in both logging modes; preserve the existing unusable-connection route for untouched input.
-- [ ] Tracked cleanup for that rejected attempt removes its own stream entry and balances its existing work obligation; no new shared qlog state or direct counter mutation is introduced.
-- [ ] A full Transport regression observes one new dial and a successful retried untouched non-rewindable request; cancellation and GOAWAY retain their existing results and later write-phase failures do not gain new replay permission.
-- [ ] Public raw/client request-stream entrypoints preserve their error surface, admitted final events, body ownership and supplied-connection context semantics.
+- [x] Within the supported pre-send client-admission domain, a connection whose context is already ended at the final post-tracking check is rejected before request sending in both logging modes; preserve the existing unusable-connection route for untouched input.
+- [x] Tracked cleanup for that rejected attempt removes its own stream entry and balances its existing work obligation; no new shared qlog state or direct counter mutation is introduced.
+- [x] A full Transport regression observes one new dial and a successful retried untouched non-rewindable request; cancellation and GOAWAY retain their existing results and later write-phase failures do not gain new replay permission.
+- [x] Public raw/client request-stream entrypoints preserve their error surface, admitted final events, body ownership and supplied-connection context semantics.
 
 Each universal statement is limited to the slice’s declared domain and owner, with the guarantee and terminating evidence in that slice. No broader protocol, concurrency or platform certification is implied.
 
@@ -108,4 +108,4 @@ Apply representation and artifact gates, independently disposition findings, and
 
 Use a dedicated worktree and feature branch. Certify the exact pushed head using the focused gates below and the repository overlay; require applicable existing hosted checks on that head, then mark ready and squash merge with a matching head. This repository has no `task preflight` or `ci-*` workflow. Diagnose failed checks before reruns; only demonstrated infrastructure failure permits a same-head rerun. After the primary work reaches remote main, run `append-dev-journal` without RAS, revalidate deferred findings against the merge, and reconcile issue and OmniFocus pointers. Plan/mirror state does not substitute for code-head certification.
 
-This document packages future work. The handoff run does not implement or dispatch it. Changes to representation ownership, accepted outcome, topology, adjacent scope, irreversible authority, or the one-PR boundary require a decision or a new scoped architecture handoff.
+This document records the accepted R1 contract and its completed implementation. Changes to representation ownership, accepted outcome, topology, adjacent scope, irreversible authority, or the one-PR boundary require a decision or a new scoped architecture handoff.
