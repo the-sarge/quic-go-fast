@@ -1,7 +1,7 @@
 # Simulated-Network Delivery Shutdown Implementation Plan
 
 **Date:** 2026-10-20
-**Status:** Accepted after independent slice audit; not implemented
+**Status:** S1 complete; owned endpoint delivery is canceled before link joins
 **Track:** A20-S — 2 of 5 in A20
 **Depends on:** Nothing; independent slices as stated below
 **Related:** [Program index](2026-10-20-architecture-deepening-program.md), [no-code decisions](2026-10-20-architecture-decisions.md)
@@ -36,7 +36,7 @@ Give network-created endpoint delivery a cancellation signal owned by Simnet. Cl
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| S1 | new | Cancel owned endpoint delivery before joining Simnet links | None | n/a |
+| S1 | complete ([#928](https://github.com/the-sarge/quic-go-fast/issues/928)) | Cancel owned endpoint delivery before joining Simnet links | None | n/a |
 
 ## Implementation Slices
 
@@ -75,9 +75,9 @@ Give network-created endpoint delivery a cancellation signal owned by Simnet. Cl
 
 ## Acceptance Criteria
 
-- [ ] Within a started Simnet whose destinations were created by NewEndpoint, Close signals owned delivery cancellation before the first link join, so a full unread endpoint does not prevent its workers from completing.
-- [ ] The endpoint remains caller-owned and previously buffered packets are not consumed by network shutdown; live delivery remains blocking until capacity, endpoint closure or network shutdown.
-- [ ] Standalone/custom receiver behavior and simulation timing, MTU, accounting conventions and existing endpoint-first cleanup remain intact.
+- [x] Within a started Simnet whose destinations were created by NewEndpoint, Close signals owned delivery cancellation before the first link join, so a full unread endpoint does not prevent its workers from completing.
+- [x] The endpoint remains caller-owned and previously buffered packets are not consumed by network shutdown; live delivery remains blocking until capacity, endpoint closure or network shutdown.
+- [x] Standalone/custom receiver behavior and simulation timing, MTU, accounting conventions and existing endpoint-first cleanup remain intact.
 
 Each universal statement is limited to the slice’s declared domain and owner, with the guarantee and terminating evidence in that slice. No broader protocol, concurrency or platform certification is implied.
 
