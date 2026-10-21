@@ -5,6 +5,7 @@ package quic
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/netip"
@@ -67,16 +68,23 @@ type oobConn struct {
 	// Packets received from the kernel, but not yet returned by ReadPacket().
 	messages []ipv4.Message
 	// A nil slot has transferred ownership; non-nil storage belongs to this reader.
-	buffers [batchSize]*packetBuffer
-	// Per-datagram views split from a coalesced (GRO) read, not yet returned
-	// by ReadPacket(). Each holds one reference on the read's shared slab.
-	delivery coalescedDelivery
+	// With GRO, slots never transfer: their datagrams are copied out (#853).
+	buffers []*packetBuffer
+	// readSlots marks slots from the read-slot tier, offered to a batch
+	// adapter that opted into more than one (#857). A failed batch keeps
+	// them, and a full or invalid slot is dropped without ending the batch.
+	readSlots bool
+	// The coalesced (GRO) read whose datagrams are still in its read slot.
+	cursor coalescedReadCursor
 
 	cap connCapabilities
 	// managedRead uses one full-size ReadMsgUDP receive when ECN metadata is
 	// retained without GRO. It never batches ahead across a lease boundary.
 	managedRead bool
 	managedOOB  []byte
+	// managed marks a reader installed by a managed endpoint. Without
+	// coalescing, a managed endpoint delivers datagrams whole.
+	managed bool
 }
 
 var _ rawConn = &oobConn{}
@@ -153,9 +161,13 @@ func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing
 	// A participating wrapper owns batch receive. Only exact native sockets may
 	// bypass ReadMsgUDP through descriptor-backed batching.
 	receive := receiveCoalescingState{eligible: runtime.GOOS == "linux"}
+	slots, readSlots := batchSize, false
 	var bc batchConn
 	if ibc, ok := c.(batchConn); ok {
 		bc = ibc
+		if slots, readSlots, err = readSlotsFor(c); err != nil {
+			return nil, setup, err
+		}
 	} else {
 		if _, ok := c.(net.Conn); !ok {
 			return nil, setup, errors.New("quic: OOBCapablePacketConn must implement net.Conn or ReadBatch")
@@ -170,16 +182,9 @@ func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing
 		}
 	}
 
-	msgs := make([]ipv4.Message, batchSize)
-	for i := range msgs {
-		// preallocate the [][]byte
-		msgs[i].Buffers = make([][]byte, 1)
-	}
 	oobConn := &oobConn{
 		OOBCapablePacketConn: c,
 		batchConn:            bc,
-		messages:             msgs,
-		readPos:              batchSize,
 		cap: connCapabilities{
 			DF:                supportsDF,
 			GSO:               isGSOEnabled(rawConn),
@@ -192,10 +197,22 @@ func newConnWithSetup(c OOBCapablePacketConn, supportsDF, allowReceiveCoalescing
 		// Permission and wrapper policy gate the mutating activation attempt.
 		oobConn.cap.GRO, oobConn.cap.receiveCoalescing.disabledReason = enableGRO(rawConn)
 	}
-	for i := range batchSize {
-		oobConn.messages[i].OOB = make([]byte, oobBufferSize)
-	}
+	oobConn.setReadSlots(slots, readSlots)
 	return oobConn, setup, nil
+}
+
+// setReadSlots sizes the reader's batch to n slots, from the read-slot tier
+// if readSlots is set. It runs before the first read.
+func (c *oobConn) setReadSlots(n int, readSlots bool) {
+	c.readSlots = readSlots
+	c.buffers = make([]*packetBuffer, n)
+	c.messages = make([]ipv4.Message, n)
+	for i := range c.messages {
+		// preallocate the [][]byte
+		c.messages[i].Buffers = make([][]byte, 1)
+		c.messages[i].OOB = make([]byte, oobBufferSize)
+	}
+	c.readPos = uint8(n)
 }
 
 var invalidCmsgOnceV4, invalidCmsgOnceV6 sync.Once
@@ -205,21 +222,25 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		return c.readManagedPacket()
 	}
 	for {
-		// A coalesced read is split into per-datagram views, returned one per
-		// call to preserve ReadPacket's one-datagram contract.
-		if p, ok := c.delivery.next(); ok {
+		// A coalesced read stays in its slot. Each call copies out one
+		// datagram, preserving ReadPacket's one-datagram contract.
+		if p, ok := c.cursor.next(c.managed); ok {
 			return p, nil
 		}
 		for len(c.messages) == int(c.readPos) { // all messages read. Read the next batch of messages.
-			c.messages = c.messages[:batchSize]
+			c.messages = c.messages[:len(c.buffers)]
 			for i := range c.buffers {
 				if c.buffers[i] == nil {
 					var buffer *packetBuffer
-					if c.cap.GRO {
+					switch {
+					case c.cap.GRO:
 						// a single GRO read can deliver up to 65535 bytes
 						buffer = getCoalescedPacketBuffer()
 						buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
-					} else {
+					case c.readSlots:
+						buffer = getReadSlotBuffer()
+						buffer.Data = buffer.Data[:readSlotBufferSize]
+					default:
 						buffer = getPacketBuffer()
 						buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
 					}
@@ -230,33 +251,53 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 			c.readPos = 0
 
 			n, err := c.batchConn.ReadBatch(c.messages, 0)
+			if err == nil && (n < 0 || n > len(c.messages)) {
+				err = fmt.Errorf("quic: ReadBatch returned %d messages for %d slots", n, len(c.messages))
+			}
 			if err != nil {
-				// Preserve the existing policy: even a non-empty failed batch is discarded.
-				c.releaseReadBuffers()
+				// Even a non-empty failed batch is discarded. Read slots stay
+				// with the reader for the next read; other slots are released.
+				if c.readSlots {
+					c.messages = c.messages[:0]
+				} else {
+					c.releaseReadBuffers()
+				}
 				return receivedPacket{}, err
 			}
 			c.messages = c.messages[:n]
 		}
 
 		msg := c.messages[c.readPos]
-		buffer := c.buffers[c.readPos]
 		readBuffer := msg.Buffers[0]
+		if c.cap.GRO {
+			// The slot stays with the reader; the cursor copies its datagrams.
+			c.readPos++
+			p, segmentSize, err := c.decodeReadPacket(msg, readBuffer, nil)
+			if err != nil {
+				// Ancillary truncation can result from caller-enabled socket options.
+				// Reject this read, not every connection sharing the transport. Actual
+				// socket errors still terminate through the ReadBatch branch above.
+				utils.DefaultLogger.Debugf("Dropping packet with invalid coalesced receive metadata: %s", err)
+				continue
+			}
+			c.cursor.start(p, segmentSize)
+			continue
+		}
+		buffer := c.buffers[c.readPos]
 		c.buffers[c.readPos] = nil
 		c.messages[c.readPos].Buffers[0] = nil
 		c.readPos++
 
-		p, err := c.decodeReadPacket(msg, readBuffer, buffer)
+		p, _, err := c.decodeReadPacket(msg, readBuffer, buffer)
 		if err == nil {
 			return p, nil
 		}
 		buffer.Release()
-		if !c.cap.GRO {
+		if !c.readSlots {
 			return receivedPacket{}, err
 		}
-		// Ancillary truncation can result from caller-enabled socket options.
-		// Reject this read, not every connection sharing the transport. Actual
-		// socket errors still terminate through the ReadBatch branch above.
-		utils.DefaultLogger.Debugf("Dropping packet with invalid coalesced receive metadata: %s", err)
+		// One truncated or invalid datagram doesn't end the batch.
+		utils.DefaultLogger.Debugf("Dropping packet with invalid read slot: %s", err)
 	}
 }
 
@@ -270,7 +311,7 @@ func (c *oobConn) readManagedPacket() (receivedPacket, error) {
 			return receivedPacket{}, err
 		}
 		msg := ipv4.Message{Buffers: [][]byte{buffer.Data}, OOB: c.managedOOB, N: n, NN: oobn, Flags: flags, Addr: addr}
-		packet, err := c.decodeReadPacket(msg, buffer.Data, buffer)
+		packet, _, err := c.decodeReadPacket(msg, buffer.Data, buffer)
 		if err == nil {
 			return packet, nil
 		}
@@ -280,10 +321,16 @@ func (c *oobConn) readManagedPacket() (receivedPacket, error) {
 }
 
 // decodeReadPacket transfers storage only on success. The reader releases a
-// rejected read; parsing metadata never publishes a partial set of siblings.
-func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *packetBuffer) (receivedPacket, error) {
-	if (c.cap.GRO || c.managedRead) && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > len(readBuffer) || msg.NN < 0 || msg.NN > len(msg.OOB)) {
-		return receivedPacket{}, errors.New("quic: truncated or invalid coalesced read")
+// rejected read. A GRO read passes no storage, since its slot stays with the
+// reader, and also receives the read's UDP_GRO segment size, zero if absent.
+func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *packetBuffer) (receivedPacket, int, error) {
+	maxN := len(readBuffer)
+	if c.readSlots {
+		// A read slot has one spare byte: a full slot was truncated.
+		maxN--
+	}
+	if (c.cap.GRO || c.managedRead || c.readSlots) && (msg.Flags&(unix.MSG_TRUNC|unix.MSG_CTRUNC) != 0 || msg.N < 0 || msg.N > maxN || msg.NN < 0 || msg.NN > len(msg.OOB)) {
+		return receivedPacket{}, 0, errors.New("quic: truncated or invalid coalesced read")
 	}
 	payload := readBuffer[:msg.N]
 
@@ -298,11 +345,11 @@ func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *
 	for len(data) > 0 {
 		hdr, body, remainder, err := unix.ParseOneSocketControlMessage(data)
 		if err != nil {
-			return receivedPacket{}, err
+			return receivedPacket{}, 0, err
 		}
 		if size, ok := parseUDPGROSegmentSize(&hdr, body); ok {
 			if c.cap.GRO && (groSegmentSize != 0 || size <= 0 || size > len(payload)) {
-				return receivedPacket{}, errors.New("quic: invalid UDP_GRO segment size")
+				return receivedPacket{}, 0, errors.New("quic: invalid UDP_GRO segment size")
 			}
 			groSegmentSize = size
 		}
@@ -310,7 +357,7 @@ func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *
 			switch hdr.Type {
 			case msgTypeIPTOS:
 				if len(body) != 1 {
-					return receivedPacket{}, errors.New("invalid IPTOS size")
+					return receivedPacket{}, 0, errors.New("invalid IPTOS size")
 				}
 				p.ecn = protocol.ParseECNHeaderBits(body[0] & ecnMask)
 			case ipv4PKTINFO:
@@ -330,7 +377,7 @@ func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *
 			switch hdr.Type {
 			case unix.IPV6_TCLASS:
 				if len(body) != 4 {
-					return receivedPacket{}, errors.New("invalid IPV6_TCLASS size")
+					return receivedPacket{}, 0, errors.New("invalid IPV6_TCLASS size")
 				}
 				bits := uint8(binary.NativeEndian.Uint32(body)) & ecnMask
 				p.ecn = protocol.ParseECNHeaderBits(bits)
@@ -352,17 +399,14 @@ func (c *oobConn) decodeReadPacket(msg ipv4.Message, readBuffer []byte, buffer *
 		}
 		data = remainder
 	}
-	if !c.cap.GRO || len(payload) == 0 {
-		return p, nil
-	}
-	return c.delivery.accept(p, groSegmentSize), nil
+	return p, groSegmentSize, nil
 }
 
 // releaseReadBuffers runs only after reading stops, or while discarding a failed
 // batch. Returned packets belong to their consumers, and the socket stays open.
 func (c *oobConn) releaseReadBuffers() {
-	c.delivery.discard()
-	c.messages = c.messages[:batchSize]
+	c.cursor = coalescedReadCursor{}
+	c.messages = c.messages[:len(c.buffers)]
 	for i, buffer := range c.buffers {
 		if buffer != nil {
 			buffer.Release()

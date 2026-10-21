@@ -271,5 +271,6 @@ func TestWindowsExternalURONativeEngagement(t *testing.T) {
 		require.Equal(t, bytes.Repeat([]byte{byte(i)}, size), b[:n])
 	}
 	require.Positive(t, wrapper.aggregates.Load(), "separate-endpoint kernel coalescing must actually engage")
+	require.Zero(t, tr.ReceiveCoalescingFallbacksV1(), "every coalesced read carried its segment-size record")
 	t.Logf("external Windows wrapper: %d coalesced read(s); 32 exact datagrams delivered", wrapper.aggregates.Load())
 }

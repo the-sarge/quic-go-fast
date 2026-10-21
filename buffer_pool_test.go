@@ -32,6 +32,17 @@ func TestBufferPoolRelease(t *testing.T) {
 	require.Panics(t, func() { buf2.Release() })
 }
 
+// A read slot is one byte larger than the packet ceiling, so a full slot means
+// the datagram was truncated (#857). Its size follows the ceiling.
+func TestBufferPoolReadSlotTier(t *testing.T) {
+	slot := getReadSlotBuffer()
+	require.Equal(t, protocol.MaxPacketBufferSize+1, cap(slot.Data))
+	require.Zero(t, slot.Len())
+	// A slot returns to its own tier. The packet-buffer tiers panic on it.
+	require.NotPanics(t, slot.Release)
+	require.Panics(t, slot.Release, "a slot released twice")
+}
+
 func TestBufferPoolSplitting(t *testing.T) {
 	buf := getPacketBuffer()
 	buf.Split()

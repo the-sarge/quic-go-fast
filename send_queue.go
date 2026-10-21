@@ -98,6 +98,8 @@ type sendQueue struct {
 	// authority is checked again before each socket submission of queued
 	// work; nil is ungrouped.
 	authority *connAuthority
+	// qos is the connection's send thread QoS; nil leaves the thread alone.
+	qos *sendThreadQoS
 
 	// Scratch reused across batched sends; the run loop is the only user.
 	batchScratch []queueEntry
@@ -106,17 +108,19 @@ type sendQueue struct {
 
 var _ sender = &sendQueue{}
 
-const sendQueueCapacity = 8
+// sendQueueCapacity is the queue depth of every connection, whatever its
+// congestion controller. It bounds how many packets the connection loop can
+// queue ahead of the send worker; on a batch-capable socket the worker
+// signals room only once it has finished with each batched group. It bounds
+// entries only: congestion control (and, for BBR, local send credit) still
+// bounds the bytes behind them.
+const sendQueueCapacity = 32
 
-// bbrSendQueueCapacity is the queue depth of a BBR connection. At high rates
-// BBR's pacer releases about one packet per opportunity, so each entry holds
-// one packet and an eight-entry queue makes the connection loop and the
-// worker hand off every packet. A deeper queue lets the loop run ahead of the
-// worker. It bounds entries only: local send credit still bounds pending
-// bytes at 2Q, and Reno's queue is unchanged.
-const bbrSendQueueCapacity = 32
-
-// maxSendBatch caps how many queued packets one batched send coalesces.
+// maxSendBatch caps how many queued packets one batched group coalesces. It
+// follows the queue's depth, so a full queue of packets that share their
+// (gsoSize, ecn) forms one group, with one room signal when the worker
+// finishes it, instead of several smaller groups. It also bounds a group that
+// keeps growing while the connection loop refills the queue during the drain.
 const maxSendBatch = sendQueueCapacity
 
 // authorizedWriter is a sendConn that can make several socket submissions for
@@ -126,10 +130,6 @@ type authorizedWriter interface {
 }
 
 func newSendQueue(conn sendConn, feedback *handshakeSendFeedback) sender {
-	return newSendQueueWithCapacity(conn, feedback, sendQueueCapacity)
-}
-
-func newSendQueueWithCapacity(conn sendConn, feedback *handshakeSendFeedback, capacity int) sender {
 	authorized, _ := conn.(authorizedWriter)
 	return &sendQueue{
 		authorized:  authorized,
@@ -138,7 +138,7 @@ func newSendQueueWithCapacity(conn sendConn, feedback *handshakeSendFeedback, ca
 		runStopped:  make(chan struct{}),
 		closeCalled: make(chan struct{}),
 		available:   make(chan struct{}, 1),
-		queue:       make(chan queueEntry, capacity),
+		queue:       make(chan queueEntry, sendQueueCapacity),
 	}
 }
 
@@ -187,6 +187,9 @@ func (h *sendQueue) Available() <-chan struct{} {
 
 func (h *sendQueue) Run() error {
 	defer close(h.runStopped)
+	// Restoring the thread precedes runStopped, so Close returns only after it.
+	qos := h.qos.begin()
+	defer qos.release()
 	var shouldClose bool
 	for {
 		if shouldClose && len(h.queue) == 0 {
@@ -202,6 +205,7 @@ func (h *sendQueue) Run() error {
 				if err := h.runBatched(e, bs); err != nil {
 					return err
 				}
+				qos.check()
 				continue
 			}
 			if err := h.writeEntry(e); err != nil {
@@ -213,6 +217,7 @@ func (h *sendQueue) Run() error {
 			case h.available <- struct{}{}:
 			default:
 			}
+			qos.check()
 		}
 	}
 }

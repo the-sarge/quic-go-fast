@@ -131,7 +131,9 @@ type Conn struct {
 	handshakeDestConnID protocol.ConnectionID
 	// Set for the client. Destination connection ID used on the first Initial sent.
 	origDestConnID protocol.ConnectionID
-	retrySrcConnID *protocol.ConnectionID // only set for the client (and if a Retry was performed)
+	// Set for the client. Source connection ID used on the first Initial sent.
+	initialSrcConnID protocol.ConnectionID
+	retrySrcConnID   *protocol.ConnectionID // only set for the client (and if a Retry was performed)
 
 	srcConnIDLen int
 
@@ -176,6 +178,7 @@ type Conn struct {
 	handshakeTimeoutsPath uint64 // the pathGeneration that handshakeTimeouts counts for
 
 	maxPayloadSizeEstimate atomic.Uint32
+	pathMTUSettled         pathMTUSettled // see PathMTUSettledV1
 
 	initialStream       *initialCryptoStream
 	handshakeStream     *cryptoStream
@@ -187,17 +190,20 @@ type Conn struct {
 	receivedPacketMx      sync.Mutex
 	receivedPackets       ringbuffer.RingBuffer[receivedPacket]
 	receivedPacketsClosed bool // guarded by receivedPacketMx
-
-	// coalescedRetention bounds the coalesced-slab bytes pinned by this
-	// connection's retention queues through oversized segment views.
-	coalescedRetention coalescedRetentionBudget
+	// receivedPacketsConfirmed deepens the queue to
+	// protocol.MaxConnUnprocessedPacketsConfirmed once the handshake is
+	// confirmed. Guarded by receivedPacketMx, under which the transport's
+	// reader admits packets.
+	receivedPacketsConfirmed bool
+	// unprocessedPacketDrops counts the packets the queue refused while open.
+	unprocessedPacketDrops atomic.Uint64
 
 	// closeChan is used to notify the run loop that it should terminate
 	closeChan chan struct{}
 	closeErr  atomic.Pointer[closeError]
 	// authority is bound before publication on candidate-group transports.
 	authority *connAuthority
-	// setup is bound before publication on servers with setup admission.
+	// setup is bound before publication for server or dial setup admission.
 	setup *setupReservation
 	// receivePhase is installed before publication on transports that start
 	// connections in a closed receive phase.
@@ -348,6 +354,7 @@ var newConnection = func(
 		s.logger,
 	)
 	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
+	s.pathMTUSettled = newPathMTUSettled()
 	statelessResetToken := statelessResetter.GetStatelessResetToken(srcConnID)
 	params := &wire.TransportParameters{
 		InitialMaxStreamDataBidiLocal:   protocol.ByteCount(s.config.InitialStreamReceiveWindow),
@@ -424,6 +431,7 @@ var newClientConnection = func(
 		conn:                conn,
 		config:              conf,
 		origDestConnID:      destConnID,
+		initialSrcConnID:    srcConnID,
 		handshakeDestConnID: destConnID,
 		srcConnIDLen:        srcConnID.Len(),
 		perspective:         protocol.PerspectiveClient,
@@ -480,6 +488,7 @@ var newClientConnection = func(
 		s.logger,
 	)
 	s.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(s.config.initialPacketSize())))
+	s.pathMTUSettled = newPathMTUSettled()
 	if initialPacketSizeLowered {
 		// The connection that Version Negotiation replaced had lowered its unset size.
 		// This follows the estimate above, which the lowering replaces.
@@ -599,6 +608,7 @@ func (c *Conn) preSetup() {
 func (c *Conn) run() (err error) {
 	defer func() { c.ctxCancel(err) }()
 	defer func() { c.receivePhase.stop(err) }()
+	defer c.pathMTUSettled.settle()
 	defer c.authority.release()
 	// Setup capacity returns only after the connection's workers have ended. A
 	// connection closed for recreation hands its reservation to the dial.
@@ -1012,10 +1022,16 @@ func (c *Conn) resetPathPacketSize(now monotime.Time) {
 	}
 	c.mtuDiscoverer.Reset(size, maxPacketSize)
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(size)))
+	// The first path's search is over. Settle after the reset, so the limit read
+	// afterwards is the initial size. MigratedPath can declare an in-flight probe
+	// lost and so conclude the old search a moment earlier: a conclusion followed
+	// by a path change, as PathMTUSettledV1 documents.
+	c.pathMTUSettled.settle()
 }
 
 func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 	defer close(c.handshakeCompleteChan)
+	c.setup.handshakeFinished()
 	// Once the handshake completes, we have derived 1-RTT keys.
 	// There's no point in queueing undecryptable packets for later decryption anymore.
 	releaseUndecryptablePackets(c.undecryptablePackets)
@@ -1072,6 +1088,9 @@ func (c *Conn) handleHandshakeConfirmed(now monotime.Time) error {
 	c.dropEncryptionLevel(protocol.EncryptionHandshake, now)
 
 	c.handshakeConfirmed = true
+	c.receivedPacketMx.Lock()
+	c.receivedPacketsConfirmed = true
+	c.receivedPacketMx.Unlock()
 	c.cryptoStreamHandler.SetHandshakeConfirmed()
 
 	c.startMTUDiscovery(now)
@@ -1080,10 +1099,16 @@ func (c *Conn) handleHandshakeConfirmed(now monotime.Time) error {
 
 // startMTUDiscovery is the only place probing starts: at handshake confirmation and
 // after each path change. Without DF, a probe could be fragmented instead of testing
-// the path.
+// the path. When discovery will not run, or has nothing to search, the first path is
+// settled at confirmation; after a path change it is already settled.
 func (c *Conn) startMTUDiscovery(now monotime.Time) {
-	if !c.config.DisablePathMTUDiscovery && c.conn.capabilities().DF {
-		c.mtuDiscoverer.Start(now)
+	if c.config.DisablePathMTUDiscovery || !c.conn.capabilities().DF {
+		c.pathMTUSettled.settle()
+		return
+	}
+	c.mtuDiscoverer.Start(now)
+	if c.mtuDiscoverer.done() {
+		c.pathMTUSettled.settle()
 	}
 }
 
@@ -1370,9 +1395,9 @@ func (c *Conn) handleShortHeaderPacket(
 			c.logger,
 		)
 	}
-	destConnID, frames, shouldSwitchPath := c.pathManager.HandlePacket(p.remoteAddr, p.rcvTime, pathChallenge, isNonProbing)
+	destConnID, frames, shouldSwitchPath := c.pathManager.HandlePacket(p.remoteAddr, p.rcvTime, p.Size(), pathChallenge, isNonProbing)
 	if len(frames) > 0 {
-		if err := c.emission.serverProbe(destConnID, frames, p.remoteAddr, p.info, datagramPayloadChecksum, p.rcvTime); err != nil {
+		if err := c.emission.serverProbe(destConnID, frames, c.pathManager.getPath(p.remoteAddr), p.remoteAddr, p.info, datagramPayloadChecksum, p.rcvTime); err != nil {
 			return true, err
 		}
 	}
@@ -1651,7 +1676,10 @@ func (c *Conn) handleRetryPacket(hdr *wire.Header, data []byte, rcvTime monotime
 
 func (c *Conn) handleVersionNegotiationPacket(p receivedPacket) error {
 	if c.perspective == protocol.PerspectiveServer || // servers never receive version negotiation packets
-		c.receivedFirstPacket || c.versionNegotiated { // ignore delayed / duplicated version negotiation packets
+		c.receivedFirstPacket || c.versionNegotiated || // ignore delayed / duplicated version negotiation packets
+		// RFC 9000, section 6.2: a successfully processed Retry also ends version negotiation.
+		// receivedRetry is set only for a valid Retry; receivedFirstPacket is not set by it.
+		c.receivedRetry {
 		if c.qlogger != nil {
 			c.qlogger.RecordEvent(qlog.PacketDropped{
 				Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
@@ -1662,7 +1690,7 @@ func (c *Conn) handleVersionNegotiationPacket(p receivedPacket) error {
 		return nil
 	}
 
-	src, dest, supportedVersions, err := wire.ParseVersionNegotiationPacket(p.data)
+	dest, src, supportedVersions, err := wire.ParseVersionNegotiationPacket(p.data)
 	if err != nil {
 		if c.qlogger != nil {
 			c.qlogger.RecordEvent(qlog.PacketDropped{
@@ -1672,6 +1700,23 @@ func (c *Conn) handleVersionNegotiationPacket(p receivedPacket) error {
 			})
 		}
 		c.logger.Debugf("Error parsing Version Negotiation packet: %s", err)
+		return nil
+	}
+
+	// RFC 9000, section 17.2.1: Version Negotiation must echo both connection IDs
+	// from the client's Initial before its unauthenticated version list is used.
+	if !bytes.Equal(src, c.origDestConnID.Bytes()) || !bytes.Equal(dest, c.initialSrcConnID.Bytes()) {
+		if c.qlogger != nil {
+			trigger := qlog.PacketDropUnexpectedSourceConnectionID
+			if bytes.Equal(src, c.origDestConnID.Bytes()) {
+				trigger = qlog.PacketDropUnknownConnectionID
+			}
+			c.qlogger.RecordEvent(qlog.PacketDropped{
+				Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
+				Raw:     qlog.RawInfo{Length: int(p.Size())},
+				Trigger: trigger,
+			})
+		}
 		return nil
 	}
 
@@ -2042,24 +2087,28 @@ func (c *Conn) handlePacket(p receivedPacket) {
 		p.buffer.Release()
 		return
 	}
-	// Discard packets once the amount of queued packets is larger than
-	// the channel size, protocol.MaxConnUnprocessedPackets
-	if c.receivedPackets.Len() >= protocol.MaxConnUnprocessedPackets {
-		c.qlogUnprocessedPacketDropped(p)
+	// Discard packets once the queue is full: protocol.MaxConnUnprocessedPackets
+	// until the handshake is confirmed, protocol.MaxConnUnprocessedPacketsConfirmed
+	// after. The entries beyond protocol.MaxConnUnprocessedPackets take only
+	// packets that fit a packet-sized buffer, so they bound queued memory
+	// whatever buffer the reader delivered in. With DATAGRAM support, those
+	// entries also take a packet only while the backlog plus the payloads
+	// still awaiting ReceiveDatagram fit the received-DATAGRAM queue: the run
+	// loop acknowledges the backlog as it processes it, so a payload that
+	// queue then discards is a loss the peer never sees (#855).
+	queued := c.receivedPackets.Len()
+	extended := queued >= protocol.MaxConnUnprocessedPackets
+	if extended && (!c.receivedPacketsConfirmed ||
+		queued >= protocol.MaxConnUnprocessedPacketsConfirmed ||
+		len(p.data) > protocol.MaxPacketBufferSize ||
+		(c.config.EnableDatagrams && queued+c.datagramQueue.receiveQueueLen() >= maxDatagramRcvQueueLen)) {
+		c.unprocessedPacketDropped(p)
 		c.receivedPacketMx.Unlock()
 		p.buffer.Release()
 		return
 	}
-	// A packet backed by a coalesced slab must not pin the slab while queued:
-	// it is copied into an ordinary tier, or, if oversized, kept on the slab
-	// and charged against the connection's retained-bytes budget.
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &c.coalescedRetention)
-	if !retained {
-		c.qlogUnprocessedPacketDropped(p)
-		c.receivedPacketMx.Unlock()
-		p.buffer.Release()
-		return
+	if extended {
+		p = inPacketSizedBuffer(p)
 	}
 	c.receivedPackets.PushBack(p)
 	c.receivedPacketMx.Unlock()
@@ -2070,9 +2119,29 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	}
 }
 
-// qlogUnprocessedPacketDropped records the drop of a packet that could not
-// enter the unprocessed-packet queue. The caller holds receivedPacketMx.
-func (c *Conn) qlogUnprocessedPacketDropped(p receivedPacket) {
+// inPacketSizedBuffer returns p held in a protocol.MaxPacketBufferSize
+// buffer, copying it out of a larger one, such as the 64 KiB buffer a managed
+// reader without coalescing delivers each datagram in. A read slot, one byte
+// larger, is kept as delivered: copying it would add a per-datagram copy to
+// the opted-in read path (#857). The caller has checked that p fits.
+func inPacketSizedBuffer(p receivedPacket) receivedPacket {
+	old := p.buffer
+	if cap(old.Data) == protocol.MaxPacketBufferSize || cap(old.Data) == readSlotBufferSize {
+		return p
+	}
+	buf := getPacketBuffer()
+	buf.Data = append(buf.Data, p.data...)
+	p.buffer = buf
+	p.data = buf.Data
+	old.Decrement()
+	old.MaybeRelease()
+	return p
+}
+
+// unprocessedPacketDropped counts and records the drop of a packet that could
+// not enter the unprocessed-packet queue. The caller holds receivedPacketMx.
+func (c *Conn) unprocessedPacketDropped(p receivedPacket) {
+	c.unprocessedPacketDrops.Add(1)
 	if c.qlogger == nil {
 		return
 	}
@@ -2275,6 +2344,12 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 			c.maxPayloadSizeEstimate.Store(uint32(maxPayloadSize))
 			// Handshake fallback lowers packetization, not congestion accounting.
 			c.sentPacketHandler.SetMaxDatagramSize(max(mtu, c.config.initialPacketSize()))
+			// An acknowledged probe concludes the search only by raising the size, so
+			// this branch sees every conclusion on an acknowledgement, after the
+			// estimate is final. The finder settles conclusions on a loss itself.
+			if c.mtuDiscoverer.done() {
+				c.pathMTUSettled.settle()
+			}
 		}
 	}
 	return c.cryptoStreamHandler.SetLargest1RTTAcked(frame.LargestAcked())
@@ -2613,12 +2688,15 @@ func (c *Conn) applyTransportParameters() {
 	if params.MaxUDPPayloadSize > 0 && params.MaxUDPPayloadSize < maxPacketSize {
 		maxPacketSize = params.MaxUDPPayloadSize
 	}
-	c.mtuDiscoverer = newMTUDiscoverer(
-		c.rttStats,
-		c.effectiveInitialPacketSize,
-		maxPacketSize,
-		c.qlogger,
-	)
+	c.mtuDiscoverer = c.newPathMTUFinder(c.effectiveInitialPacketSize, maxPacketSize)
+}
+
+// newPathMTUFinder attaches the connection's settled signal to every finder, so a
+// finder replaced by the handshake fallback reports to the same signal.
+func (c *Conn) newPathMTUFinder(start, max protocol.ByteCount) *mtuFinder {
+	f := newMTUDiscoverer(c.rttStats, start, max, c.qlogger)
+	f.settled = &c.pathMTUSettled
+	return f
 }
 
 // applyHandshakeMTUFallback consumes the send worker's message-size feedback for the current path.
@@ -2660,7 +2738,7 @@ func (c *Conn) lowerUnsetInitialPacketSize() {
 	c.effectiveInitialPacketSize = protocol.MinInitialPacketSize
 	if c.mtuDiscoverer != nil {
 		// No probes exist before confirmation, so a fresh finder suffices; confirmation starts it.
-		c.mtuDiscoverer = newMTUDiscoverer(c.rttStats, protocol.MinInitialPacketSize, c.mtuDiscoverer.max(), c.qlogger)
+		c.mtuDiscoverer = c.newPathMTUFinder(protocol.MinInitialPacketSize, c.mtuDiscoverer.max())
 	}
 	c.maxPayloadSizeEstimate.Store(uint32(estimateMaxPayloadSize(protocol.MinInitialPacketSize)))
 }
@@ -2703,7 +2781,7 @@ func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 // captured packet-number manager.
 func (c *Conn) initPacketEmission(packer *packetPacker) {
 	bbr := c.config.CongestionControlV1() == "bbrv3"
-	queue := newSendQueueWithCapacity(c.conn, &c.handshakeSendFeedback, sendQueueCapacityFor(bbr))
+	queue := newSendQueue(c.conn, &c.handshakeSendFeedback)
 	c.emission = packetEmission{
 		packer:        packer,
 		recovery:      &c.sentPacketHandler,
@@ -2880,26 +2958,6 @@ func (c *Conn) tryQueueingUndecryptablePacket(p receivedPacket, pt qlog.PacketTy
 		c.logger.Infof("Dropping undecryptable packet (%d bytes). Undecryptable packet queue full.", p.Size())
 		return false
 	}
-	// A packet backed by a coalesced slab must not pin the slab while queued:
-	// it is copied into an ordinary tier, or, if oversized, kept on the slab
-	// and charged against the connection's retained-bytes budget.
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &c.coalescedRetention)
-	if !retained {
-		if c.qlogger != nil {
-			c.qlogger.RecordEvent(qlog.PacketDropped{
-				Header: qlog.PacketHeader{
-					PacketType:   pt,
-					PacketNumber: protocol.InvalidPacketNumber,
-				},
-				Raw:                     qlog.RawInfo{Length: int(p.Size())},
-				DatagramPayloadChecksum: datagramPayloadChecksum,
-				Trigger:                 qlog.PacketDropDOSPrevention,
-			})
-		}
-		c.logger.Infof("Dropping undecryptable packet (%d bytes). Coalesced retention budget exhausted.", p.Size())
-		return false
-	}
 	c.logger.Infof("Queueing packet (%d bytes) for later decryption", p.Size())
 	if c.qlogger != nil {
 		c.qlogger.RecordEvent(qlog.PacketBuffered{
@@ -3003,6 +3061,22 @@ func (c *Conn) ReceiveDatagram(ctx context.Context) ([]byte, error) {
 // the connection closes. It is zero for a connection without datagram support.
 func (c *Conn) DatagramReceiveDropsV1() uint64 {
 	return c.datagramQueue.receiveDrops()
+}
+
+// UnprocessedPacketDropsV1 returns how many received packets this connection
+// dropped because its queue of packets awaiting processing could not take
+// them. The queue holds 256 packets until the handshake is confirmed and
+// 1,024 after. Its entries beyond 256 take only packets of at most 1,452
+// bytes, so a larger packet arriving then is dropped and counted. On a
+// connection with DATAGRAM support, those entries also take a packet only
+// while the queued packets plus the DATAGRAM payloads still awaiting
+// ReceiveDatagram number fewer than 1,024, so a packet arriving beyond that
+// is dropped and counted. It excludes packets released because the
+// connection has closed. The dropped packets are never acknowledged, so the
+// peer's loss detection sees them. The count never decreases, is safe to call
+// concurrently, and keeps its value after the connection closes.
+func (c *Conn) UnprocessedPacketDropsV1() uint64 {
+	return c.unprocessedPacketDrops.Load()
 }
 
 // LocalAddr returns the local address of the QUIC connection.

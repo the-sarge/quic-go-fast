@@ -293,9 +293,8 @@ func TestExternalGRORetainedSibling(t *testing.T) {
 	first.buffer.Release()
 	oc.releaseReadBuffers() // cancellation discards only the still-undelivered tail
 	require.Equal(t, segments[1], second.data)
-	slab := second.buffer.slab
+	require.Equal(t, protocol.MaxPacketBufferSize, cap(second.buffer.Data), "a delivered datagram owns its storage")
 	second.buffer.Release()
-	require.True(t, slab.released())
 }
 
 // Ancillary options on a caller-owned dual-stack socket can exceed the fixed

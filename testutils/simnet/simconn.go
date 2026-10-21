@@ -54,6 +54,10 @@ type SimConn struct {
 	// If false, drops packets.
 	recvBackPressure bool
 
+	// Only network-created endpoints observe network shutdown. Standalone
+	// endpoints retain their existing delivery lifetime through a nil channel.
+	deliveryCanceled <-chan struct{}
+
 	readDeadline  time.Time
 	writeDeadline time.Time
 }
@@ -126,6 +130,8 @@ func (c *SimConn) RecvPacket(p Packet) {
 		case c.packetsToRead <- p:
 		case <-c.closedChan:
 			// if the connection is closed, drop the packet
+			return
+		case <-c.deliveryCanceled:
 			return
 		}
 	} else {

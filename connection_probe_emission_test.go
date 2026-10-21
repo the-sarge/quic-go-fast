@@ -74,8 +74,10 @@ func TestEmissionDirectProbe(t *testing.T) {
 					raw.EXPECT().WritePacket(gomock.Any(), addr, []byte(nil), uint16(0), protocol.ECNUnsupported).DoAndReturn(func(b []byte, _ net.Addr, _ []byte, _ uint16, _ protocol.ECN) (int, error) { return len(b), check(b) })
 					require.NoError(t, c.emission.clientProbe(connID, frames[0], tr, addr, now))
 				} else {
+					candidate := &path{bytesReceived: 400}
 					tc.sendConn.EXPECT().WriteTo(gomock.Any(), addr, info).DoAndReturn(func(b []byte, _ net.Addr, _ packetInfo) error { return check(b) })
-					require.NoError(t, c.emission.serverProbe(connID, frames, addr, info, 42, now))
+					require.NoError(t, c.emission.serverProbe(connID, frames, candidate, addr, info, 42, now))
+					require.EqualValues(t, 1200, candidate.bytesSent, "local errors must not refund the path budget")
 				}
 				require.Equal(t, 1, writes)
 				require.Zero(t, (*observed).refCount)
@@ -87,6 +89,92 @@ func TestEmissionDirectProbe(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestEmissionServerProbeExhaustedPathBudget(t *testing.T) {
+	tc := newEmissionTestConnection(t, false)
+	c := tc.conn
+	recorder := &events.Recorder{}
+	c.qlogger = recorder
+	addr := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 4242}
+	candidate := &path{bytesReceived: 100, bytesSent: 300, pathChallenge: [8]byte{1}, challengeSent: true}
+	frames := []ackhandler.Frame{{Frame: &wire.PathChallengeFrame{Data: candidate.pathChallenge}}}
+	observed := observeConstructionBuffer(t)
+	pn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+	require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), frames, candidate, addr, packetInfo{}, 0, monotime.Now()))
+	require.False(t, candidate.challengeSent, "unsent challenge remains eligible when more credit arrives")
+	require.EqualValues(t, 300, candidate.bytesSent)
+	nextPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+	require.Equal(t, pn, nextPN, "a blocked probe must not consume a packet number")
+	require.NotNil(t, *observed)
+	require.Zero(t, (*observed).refCount)
+	require.Empty(t, recorder.Events(qlog.PacketSent{}))
+	require.Empty(t, c.emission.queue.(*sendQueue).queue)
+}
+
+func TestEmissionDirectProbeFlood(t *testing.T) {
+	for _, client := range []bool{false, true} {
+		t.Run(map[bool]string{false: "server", true: "client"}[client], func(t *testing.T) {
+			tc := newEmissionTestConnection(t, false)
+			c := tc.conn
+			now := monotime.Now()
+			addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}
+			frame := ackhandler.Frame{Frame: &wire.PathResponseFrame{}, Handler: &pathManagerAckHandler{}}
+			candidate := &path{validated: true}
+			writes := 0
+			var tr *Transport
+			if client {
+				raw := NewMockRawConn(gomock.NewController(t))
+				tr = &Transport{conn: raw}
+				tr.initOnce.Do(func() {})
+				raw.EXPECT().WritePacket(gomock.Any(), addr, []byte(nil), uint16(0), protocol.ECNUnsupported).DoAndReturn(func(b []byte, _ net.Addr, _ []byte, _ uint16, _ protocol.ECN) (int, error) {
+					writes++
+					return len(b), nil
+				}).AnyTimes()
+			} else {
+				tc.sendConn.EXPECT().WriteTo(gomock.Any(), addr, packetInfo{}).DoAndReturn(func([]byte, net.Addr, packetInfo) error {
+					writes++
+					return nil
+				}).AnyTimes()
+			}
+			probe := func() {
+				t.Helper()
+				if client {
+					require.NoError(t, c.emission.clientProbe(c.connIDManager.Get(), frame, tr, addr, now))
+				} else {
+					require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), []ackhandler.Frame{frame}, candidate, addr, packetInfo{}, 0, now))
+				}
+			}
+			for range protocol.MaxTrackedSentPackets + 100 {
+				probe()
+			}
+			require.Positive(t, writes)
+			require.Less(t, writes, protocol.MaxTrackedSentPackets)
+			require.False(t, c.sentPacketHandler.CanSendPathProbe())
+			nextPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+			before := writes
+			probe()
+			afterPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+			require.Equal(t, nextPN, afterPN, "a refused probe must not consume packet numbers")
+			require.Equal(t, before, writes)
+			if !client {
+				candidate.pathChallenge = [8]byte{1}
+				candidate.challengeSent = true
+				candidate.challengePadded = true
+				challenge := ackhandler.Frame{Frame: &wire.PathChallengeFrame{Data: candidate.pathChallenge}}
+				require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), []ackhandler.Frame{challenge}, candidate, addr, packetInfo{}, 0, now))
+				require.False(t, candidate.challengeSent, "a capacity-blocked challenge must remain eligible for retry")
+				require.False(t, candidate.challengePadded)
+				require.Equal(t, before, writes)
+			}
+			_, err := c.sentPacketHandler.OnLossDetectionTimeout(now.Add(time.Second))
+			require.NoError(t, err)
+			require.True(t, c.sentPacketHandler.CanSendPathProbe())
+			now = now.Add(time.Second)
+			probe()
+			require.Equal(t, before+1, writes)
+		})
 	}
 }
 

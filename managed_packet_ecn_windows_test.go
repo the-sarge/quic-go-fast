@@ -245,13 +245,16 @@ func TestWindowsManagedECNCoalescedMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, protocol.ECNCE, first.ecn)
 	require.Equal(t, protocol.ECNCE, second.ecn)
-	require.Equal(t, first.buffer.slab, second.buffer.slab)
-	slab := first.buffer.slab
+	// Each datagram is its own copy, so the reader's stop leaves both intact
+	// and nothing pending.
 	c.releaseReadBuffers()
-	first.buffer.Release()
-	require.False(t, slab.released())
-	second.buffer.Release()
-	require.True(t, slab.released())
+	require.False(t, c.cursor.active)
+	require.Nil(t, c.readBuffer)
+	for _, p := range []receivedPacket{first, second} {
+		require.Equal(t, bytes.Repeat([]byte{3}, 100), p.data)
+		require.Equal(t, protocol.MaxPacketBufferSize, cap(p.buffer.Data))
+		p.buffer.Release()
+	}
 	require.Equal(t, 1, rc.callCounter)
 }
 
@@ -272,7 +275,13 @@ func TestWindowsManagedECNLeaseReuse(t *testing.T) {
 			peer, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 			require.NoError(t, err)
 			defer peer.Close()
+			// With URO on, a single datagram longer than a packet arrives
+			// without a segment-size record and trips the guard (#860), so
+			// that arm sends one that fits.
 			payload := bytes.Repeat([]byte{5}, 4000)
+			if uro == "false" {
+				payload = payload[:protocol.MaxPacketBufferSize]
+			}
 			_, err = peer.WriteTo(payload, endpoint.LocalAddr())
 			require.NoError(t, err)
 			_, err = peer.WriteTo([]byte("queued"), endpoint.LocalAddr())
@@ -311,6 +320,81 @@ func TestWindowsManagedECNLeaseReuse(t *testing.T) {
 			}
 		})
 	}
+}
+
+// An ordinary lease's read leaves the reader's buffer in place. When a later
+// bind no longer needs the reader, the endpoint returns that buffer before
+// discarding the reader (#860).
+func TestWindowsManagedReceiveDiscardReleasesReadBuffer(t *testing.T) {
+	t.Setenv("QUIC_GO_DISABLE_GRO", "true")
+	t.Setenv("QUIC_GO_DISABLE_ECN", "false")
+	endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer endpoint.Close()
+	lease, err := acquire()
+	require.NoError(t, err)
+	require.NoError(t, (&Transport{Conn: lease}).ConfigureManagedPacketIOV1(lease, lease, nil))
+	e := endpoint.(*managedPacketConn).endpoint
+	reader, ok := e.receiver.(*windowsConn)
+	require.True(t, ok, "managed ECN keeps a reader without URO")
+	require.NoError(t, lease.Close())
+
+	ordinary, err := acquire()
+	require.NoError(t, err)
+	peer, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer peer.Close()
+	_, err = peer.WriteTo([]byte("ordinary"), endpoint.LocalAddr())
+	require.NoError(t, err)
+	require.NoError(t, ordinary.SetReadDeadline(time.Now().Add(5*time.Second)))
+	b := make([]byte, 64)
+	n, _, err := ordinary.ReadFrom(b)
+	require.NoError(t, err)
+	require.Equal(t, "ordinary", string(b[:n]))
+	require.NoError(t, ordinary.Close())
+	require.NotNil(t, reader.readBuffer, "an ordinary lease's close keeps the reader's buffer")
+
+	t.Setenv("QUIC_GO_DISABLE_ECN", "true")
+	next, err := acquire()
+	require.NoError(t, err)
+	defer next.Close()
+	require.NoError(t, (&Transport{Conn: next}).ConfigureManagedPacketIOV1(next, next, nil))
+	require.Nil(t, e.receiver)
+	require.Nil(t, reader.readBuffer, "the discarded reader returned its buffer")
+}
+
+// With URO on, a managed endpoint's single datagram longer than a packet has
+// no segment-size record, so it trips the guard like a defective coalesced
+// read (#860): it is dropped and counted once, URO is turned off for the
+// socket's life, and the endpoint keeps receiving.
+func TestWindowsManagedUROGuardLongSingleDatagram(t *testing.T) {
+	t.Setenv("QUIC_GO_DISABLE_GRO", "false")
+	requireManagedReceiveCoalescingHost(t)
+	endpoint, acquire, err := (&Transport{}).NewManagedPacketEndpointV1("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer endpoint.Close()
+	lease, err := acquire()
+	require.NoError(t, err)
+	defer lease.Close()
+	tr := &Transport{Conn: lease}
+	require.NoError(t, tr.ConfigureManagedPacketIOV1(lease, lease, nil))
+	require.True(t, endpoint.(*managedPacketConn).endpoint.receiveCoalescing)
+	peer, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	defer peer.Close()
+	for _, datagram := range [][]byte{bytes.Repeat([]byte{5}, 4000), []byte("after"), bytes.Repeat([]byte{6}, 4000)} {
+		_, err = peer.WriteTo(datagram, endpoint.LocalAddr())
+		require.NoError(t, err)
+	}
+	require.NoError(t, lease.SetReadDeadline(time.Now().Add(5*time.Second)))
+	b := make([]byte, 5000)
+	n, _, err := lease.ReadFrom(b)
+	require.NoError(t, err)
+	require.Equal(t, "after", string(b[:n]), "the long datagram is dropped")
+	n, _, err = lease.ReadFrom(b)
+	require.NoError(t, err)
+	require.Equal(t, bytes.Repeat([]byte{6}, 4000), b[:n], "after the guard trips, a long datagram is delivered whole")
+	require.EqualValues(t, 1, tr.ReceiveCoalescingFallbacksV1())
 }
 
 // The independent Linux peer observes outgoing IP marks and originates CE.

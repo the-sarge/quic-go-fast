@@ -307,20 +307,19 @@ func (*deniedPathConn) RemoteAddr() net.Addr {
 	return &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 4321}
 }
 
-// Every send queue a connection builds, at setup and on path replacement and at
-// Reno's and BBR's depth, captures the authorized writer and carries the
+// Every send queue a connection builds, at setup and on path replacement and
+// for each controller, captures the authorized writer and carries the
 // connection's authority: once the first submission of a full queue is fenced,
 // nothing more reaches the socket, and every entry releases its storage.
-func TestCandidateSendQueueAuthorityAtEachDepth(t *testing.T) {
+func TestCandidateSendQueueAuthorityEachController(t *testing.T) {
 	for _, tc := range []struct {
 		controller string
 		replace    bool
-		depth      int
 	}{
-		{"reno", false, sendQueueCapacity},
-		{"bbrv3", false, bbrSendQueueCapacity},
-		{"reno", true, sendQueueCapacity},
-		{"bbrv3", true, bbrSendQueueCapacity},
+		{"reno", false},
+		{"bbrv3", false},
+		{"reno", true},
+		{"bbrv3", true},
 	} {
 		t.Run(tc.controller+map[bool]string{false: " initial", true: " replacePath"}[tc.replace], func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -348,13 +347,13 @@ func TestCandidateSendQueueAuthorityAtEachDepth(t *testing.T) {
 				require.Equal(t, tc.controller == "bbrv3", c.emission.bbr != nil)
 				q := c.emission.queue.(*sendQueue)
 				var bufs []*packetBuffer
-				for range tc.depth {
+				for range sendQueueCapacity {
 					require.False(t, q.WouldBlock())
 					buf := getPacketWithContents([]byte("queued"))
 					bufs = append(bufs, buf)
 					q.Send(buf, 0, protocol.ECNNon, sendMetadata{})
 				}
-				require.True(t, q.WouldBlock(), "the queue is full at %d entries", tc.depth)
+				require.True(t, q.WouldBlock(), "the queue is full at %d entries", sendQueueCapacity)
 
 				startAndFinishQueue(t, q, nil) // a fenced discard is not a write error
 				require.Empty(t, conn.writes, "no submission after the first one is fenced")
@@ -902,18 +901,19 @@ func get0RTTPacket(t *testing.T, raddr net.Addr, connID protocol.ConnectionID) r
 	)
 }
 
-// slabBackedPacket moves p onto a coalesced slab with one view, so the
-// caller observes the view's release through slab.released().
-func slabBackedPacket(t *testing.T, p receivedPacket) (receivedPacket, *coalescedSlab) {
+// observedPacket moves p into a coalesced-tier buffer, so the caller can
+// observe its release through released() without reading a buffer that
+// another goroutine may take from the pool. This relies on these tests'
+// transports reading without coalescing and unmanaged: their readers never
+// take a coalesced-tier buffer.
+func observedPacket(t *testing.T, p receivedPacket) (receivedPacket, func() bool) {
 	t.Helper()
-	slab := getCoalescedSlab()
-	slab.buf.Data = append(slab.buf.Data[:0], p.data...)
-	views := slab.split(len(p.data))
-	require.Len(t, views, 1)
+	buffer := getCoalescedPacketBuffer()
+	buffer.Data = append(buffer.Data, p.data...)
 	p.buffer.Release()
-	p.buffer = views[0]
-	p.data = views[0].Data
-	return p, slab
+	p.buffer = buffer
+	p.data = buffer.Data
+	return p, func() bool { return buffer.refCount == 0 }
 }
 
 // retainedEntries returns the closed connection-ID entries left for ids.
@@ -972,11 +972,9 @@ func TestCandidateFencedServerQueue(t *testing.T) {
 		require.Contains(t, s.zeroRTTQueues, connID)
 
 		require.NoError(t, group.closeGroup(ctx))
-		// A slab-backed view records its release on the slab, so the test
-		// never reads a pooled buffer that another goroutine may reuse.
-		initial, slab := slabBackedPacket(t, getValidInitialPacket(t, raw.LocalAddr(), randConnID(5), connID))
+		initial, released := observedPacket(t, getValidInitialPacket(t, raw.LocalAddr(), randConnID(5), connID))
 		require.True(t, s.handlePacketImpl(initial), "the Initial path owns its buffer")
-		require.True(t, slab.released(), "the Initial's buffer is released")
+		require.True(t, released(), "the Initial's buffer is released")
 		require.NotContains(t, s.zeroRTTQueues, connID, "the 0-RTT queue is retired with the Initial")
 		_, registered := s.tr.Get(connID)
 		require.False(t, registered)
@@ -1001,11 +999,11 @@ func TestCandidateFencedServerQueue(t *testing.T) {
 		require.NoError(t, group.closeGroup(ctx))
 
 		connID := randConnID(8)
-		zeroRTT, slab := slabBackedPacket(t, get0RTTPacket(t, newUDPConnLocalhost(t).LocalAddr(), connID))
+		zeroRTT, released := observedPacket(t, get0RTTPacket(t, newUDPConnLocalhost(t).LocalAddr(), connID))
 		require.False(t, s.handlePacketImpl(zeroRTT), "the caller releases a fenced 0-RTT packet")
 		require.NotContains(t, s.zeroRTTQueues, connID, "no 0-RTT queue is created after the fence")
 		zeroRTT.buffer.Release() // as the server's receive loop does
-		require.True(t, slab.released(), "the server kept no hold on the fenced packet")
+		require.True(t, released(), "the server kept no hold on the fenced packet")
 	})
 
 	t.Run("queued 0-RTT retires an existing queue", func(t *testing.T) {
@@ -1019,22 +1017,18 @@ func TestCandidateFencedServerQueue(t *testing.T) {
 		s := ln.baseServer
 		raddr := newUDPConnLocalhost(t).LocalAddr()
 		connID := randConnID(8)
-		// An oversized view stays on its slab while queued, so the queue's
-		// release is observable without reading a pooled buffer.
-		oversized := get0RTTPacket(t, raddr, connID)
-		oversized.data = append(oversized.data, make([]byte, protocol.MaxLargePacketBufferSize)...)
-		queued, queuedSlab := slabBackedPacket(t, oversized)
+		queued, queuedReleased := observedPacket(t, get0RTTPacket(t, raddr, connID))
 		require.True(t, s.handlePacketImpl(queued), "0-RTT is queued before the fence")
 		require.Contains(t, s.zeroRTTQueues, connID)
-		require.False(t, queuedSlab.released(), "the queue holds the oversized view")
+		require.False(t, queuedReleased(), "the queue holds the packet")
 
 		require.NoError(t, group.closeGroup(ctx))
-		zeroRTT, slab := slabBackedPacket(t, get0RTTPacket(t, raddr, connID))
+		zeroRTT, released := observedPacket(t, get0RTTPacket(t, raddr, connID))
 		require.False(t, s.handlePacketImpl(zeroRTT), "the caller releases a fenced 0-RTT packet")
 		require.NotContains(t, s.zeroRTTQueues, connID, "the existing 0-RTT queue is retired")
-		require.True(t, queuedSlab.released(), "the retired queue released its packets")
+		require.True(t, queuedReleased(), "the retired queue released its packets")
 		zeroRTT.buffer.Release() // as the server's receive loop does
-		require.True(t, slab.released(), "the server kept no hold on the fenced packet")
+		require.True(t, released(), "the server kept no hold on the fenced packet")
 	})
 
 	t.Run("registered winner still receives", func(t *testing.T) {

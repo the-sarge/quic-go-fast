@@ -26,6 +26,25 @@ func NewReceivedPacketHandler(logger utils.Logger) *ReceivedPacketHandler {
 	}
 }
 
+// SetAppDataAckThreshold acknowledges Application Data every threshold
+// ack-eliciting packets, between MinAckThreshold and MaxAckThreshold, instead
+// of every second one. Two or more unacknowledged packets then wait at most
+// 1 ms, a lone packet waits max_ack_delay, and both delays run from the oldest
+// unacknowledged packet. The immediate triggers are unchanged. Call it before
+// the first packet is received.
+func (h *ReceivedPacketHandler) SetAppDataAckThreshold(threshold int) {
+	if threshold < MinAckThreshold || threshold > MaxAckThreshold {
+		panic(fmt.Sprintf("ackhandler: acknowledgment threshold %d outside [%d, %d]", threshold, MinAckThreshold, MaxAckThreshold))
+	}
+	h.appDataPackets.ackThreshold = threshold
+}
+
+// AppDataAckThreshold returns the threshold set by SetAppDataAckThreshold, or
+// 0 for the default rule.
+func (h *ReceivedPacketHandler) AppDataAckThreshold() int {
+	return h.appDataPackets.ackThreshold
+}
+
 func (h *ReceivedPacketHandler) ReceivedPacket(
 	pn protocol.PacketNumber,
 	ecn protocol.ECN,

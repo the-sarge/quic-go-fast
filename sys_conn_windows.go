@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 
@@ -33,9 +34,9 @@ const oobBufferSize = 128
 // per-send UDP_SEND_MSG_SIZE segment-size message that hands a batched send
 // to USO the way UDP_SEGMENT hands one to Linux GSO (W2); and, on
 // explicitly permitted sockets, the UDP_RECV_MAX_COALESCED_SIZE receive-coalescing
-// (URO) capability with UDP_COALESCED_INFO parsing, splitting each coalesced
-// read into per-datagram views over G1's shared coalescedSlab and returning
-// them one per ReadPacket call through the coalesced delivery holder (W3).
+// (URO) capability with UDP_COALESCED_INFO parsing (W3). A coalesced read stays
+// in the reader's buffer, and ReadPacket copies one datagram per call into an
+// ordinary pooled buffer (#860), as the Linux GRO reader does (#853).
 type windowsConn struct {
 	OOBCapablePacketConn
 
@@ -44,9 +45,22 @@ type windowsConn struct {
 	// (parsed into the receivedPacket) before the next read overwrites it.
 	oobBuffer []byte
 
-	// Per-datagram views split from a coalesced (URO) read, not yet returned
-	// by ReadPacket(). Each holds one reference on the read's shared slab.
-	delivery coalescedDelivery
+	// readBuffer receives every read while URO is on or the reader is
+	// managed. It never leaves the reader: datagrams are copied out of it.
+	// It is taken from the coalesced tier on first use and returned by
+	// releaseReadBuffers.
+	readBuffer *packetBuffer
+	// The read whose datagrams are still in readBuffer.
+	cursor coalescedReadCursor
+
+	// uroGuardTripped records that the guard has tripped, and uroFallback
+	// that it then turned URO off for the rest of the socket's life. Only the
+	// reader uses them; cap.GRO keeps its value.
+	uroGuardTripped bool
+	uroFallback     bool
+	// uroFallbacks counts the guard's trips, at most one per socket. It is
+	// read by ReceiveCoalescingFallbacksV1 from other goroutines.
+	uroFallbacks atomic.Uint64
 
 	// managed confines full-datagram metadata and native send normalization to the endpoint.
 	managed bool
@@ -155,64 +169,130 @@ func enableUROWith(conn syscall.RawConn, setRecvCoalescing func(fd uintptr) erro
 }
 
 func (c *windowsConn) ReadPacket() (receivedPacket, error) {
-	// A coalesced read is split into per-datagram views, returned one per
-	// call to preserve ReadPacket's one-datagram contract.
-	if p, ok := c.delivery.next(); ok {
+	// A coalesced read stays in the reader's buffer. Each call copies out one
+	// datagram, preserving ReadPacket's one-datagram contract.
+	if p, ok := c.cursor.next(c.managed); ok {
 		return p, nil
 	}
-	// A rejected read publishes no sibling views. Keep reading after malformed
+	if !c.cap.GRO && !c.managed {
+		return c.readOrdinaryPacket()
+	}
+	if c.readBuffer == nil {
+		// a single coalesced read can deliver up to 65535 bytes
+		c.readBuffer = getCoalescedPacketBuffer()
+		c.readBuffer.Data = c.readBuffer.Data[:protocol.MaxCoalescedPacketBufferSize]
+	}
+	// A rejected read yields no datagrams. Keep reading after malformed
 	// metadata or truncation, while real socket errors retain their identity.
 	for {
-		var buffer *packetBuffer
-		if c.cap.GRO || c.managed {
-			// a single coalesced read can deliver up to 65535 bytes
-			buffer = getCoalescedPacketBuffer()
-			buffer.Data = buffer.Data[:protocol.MaxCoalescedPacketBufferSize]
-		} else {
-			// The packet size should not exceed protocol.MaxPacketBufferSize bytes
-			// If it does, we only read a truncated packet, which will then end up undecryptable
-			buffer = getPacketBuffer()
-			buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
-		}
-		n, oobn, flags, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
+		n, oobn, flags, addr, err := c.ReadMsgUDP(c.readBuffer.Data, c.oobBuffer)
 		if err != nil {
-			buffer.Release()
 			// Winsock reports truncated payload or control data as WSAEMSGSIZE.
 			// That datagram has been consumed; it must not terminate the reader.
-			if (c.cap.GRO || c.managed) && errors.Is(err, windows.WSAEMSGSIZE) {
+			if errors.Is(err, windows.WSAEMSGSIZE) {
 				continue
 			}
 			return receivedPacket{}, err
 		}
-		if (c.cap.GRO || c.managed) && (flags&(windows.MSG_TRUNC|windows.MSG_CTRUNC) != 0 || n < 0 || n > len(buffer.Data) || oobn < 0 || oobn > len(c.oobBuffer)) {
-			buffer.Release()
+		if flags&(windows.MSG_TRUNC|windows.MSG_CTRUNC) != 0 || n < 0 || n > len(c.readBuffer.Data) || oobn < 0 || oobn > len(c.oobBuffer) {
 			continue
 		}
 		info, segmentSize, ecn, valid := parseWindowsControlMessages(c.oobBuffer[:oobn], c.managed)
-		if (c.cap.GRO || c.managed) && (!valid || segmentSize < 0 || segmentSize > n) {
-			buffer.Release()
+		if !valid || segmentSize < 0 || segmentSize > n {
 			continue
 		}
-		p := receivedPacket{
+		if !c.cap.GRO {
+			// Without URO, a read is one datagram.
+			segmentSize = 0
+		} else if !c.uroFallback && segmentSize == 0 && n > protocol.MaxPacketBufferSize {
+			if !c.uroGuardTripped {
+				c.fallBackFromURO()
+			}
+			continue
+		}
+		c.cursor.start(receivedPacket{
 			remoteAddr: addr,
 			rcvTime:    monotime.Now(),
-			data:       buffer.Data[:n],
-			buffer:     buffer,
+			data:       c.readBuffer.Data[:n],
 			info:       info,
 			ecn:        ecn,
-		}
-		if !c.cap.GRO || n == 0 {
-			return p, nil
-		}
-		return c.delivery.accept(p, segmentSize), nil
+		}, segmentSize)
+		p, _ := c.cursor.next(c.managed)
+		return p, nil
 	}
 }
 
+// readOrdinaryPacket reads one datagram into an ordinary pooled buffer, for
+// an unmanaged reader without URO.
+func (c *windowsConn) readOrdinaryPacket() (receivedPacket, error) {
+	// The packet size should not exceed protocol.MaxPacketBufferSize bytes
+	// If it does, we only read a truncated packet, which will then end up undecryptable
+	buffer := getPacketBuffer()
+	buffer.Data = buffer.Data[:protocol.MaxPacketBufferSize]
+	n, oobn, _, addr, err := c.ReadMsgUDP(buffer.Data, c.oobBuffer)
+	if err != nil {
+		buffer.Release()
+		return receivedPacket{}, err
+	}
+	info, _, ecn, _ := parseWindowsControlMessages(c.oobBuffer[:oobn], c.managed)
+	return receivedPacket{
+		remoteAddr: addr,
+		rcvTime:    monotime.Now(),
+		data:       buffer.Data[:n],
+		buffer:     buffer,
+		info:       info,
+		ecn:        ecn,
+	}, nil
+}
+
+// fallBackFromURO handles the first read longer than any packet that arrived
+// without its UDP_COALESCED_INFO record while URO is on. Some Windows hosts
+// deliver coalesced reads that way (quinn-rs/quinn#2041), and every datagram
+// in them would be lost as one undecryptable datagram, read after read. A
+// genuine single datagram that long trips the guard too. The trip is counted
+// once and the caller drops the read, which QUIC resends. URO is turned off
+// once for the rest of the socket's life. After that, a read without its
+// record is one datagram, copied out as copyCoalescedDatagram copies any
+// datagram: whole up to the 20 KiB tier, and above it whole for a managed
+// reader and as its 1,452-byte prefix for any other. A read with its record
+// is still split.
+// If URO cannot be turned off, it may still be on, so the guard stays armed
+// and keeps dropping such reads rather than deliver one as a datagram.
+func (c *windowsConn) fallBackFromURO() {
+	c.uroGuardTripped = true
+	c.uroFallbacks.Add(1)
+	raw, err := c.SyscallConn()
+	if err == nil {
+		err = disableURO(raw)
+	}
+	if err != nil {
+		utils.DefaultLogger.Debugf("Turning off receive coalescing after a read without its segment size failed; long reads without it stay dropped: %s", err)
+		return
+	}
+	c.uroFallback = true
+}
+
+func disableURO(conn syscall.RawConn) error {
+	var serr error
+	if err := conn.Control(func(fd uintptr) {
+		serr = windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_UDP, windows.UDP_RECV_MAX_COALESCED_SIZE, 0)
+	}); err != nil {
+		return err
+	}
+	return serr
+}
+
+func (c *windowsConn) receiveCoalescingFallbackCount() *atomic.Uint64 { return &c.uroFallbacks }
+
 // releaseReadBuffers runs only after reading stops (the transport's read
-// loop releases the conn's undelivered segment views once it exits).
-// Returned packets belong to their consumers, and the socket stays open.
+// loop releases the conn's read buffer once it exits). Returned packets
+// belong to their consumers, and the socket stays open.
 func (c *windowsConn) releaseReadBuffers() {
-	c.delivery.discard()
+	c.cursor = coalescedReadCursor{}
+	if c.readBuffer != nil {
+		c.readBuffer.Release()
+		c.readBuffer = nil
+	}
 }
 
 func (c *windowsConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte, gsoSize uint16, ecn protocol.ECN) (int, error) {

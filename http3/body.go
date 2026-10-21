@@ -26,7 +26,7 @@ type body struct {
 	str *Stream
 
 	remainingContentLength int64
-	violatedContentLength  bool
+	contentLengthErr       error
 	hasContentLength       bool
 }
 
@@ -41,23 +41,28 @@ func newBody(str *Stream, contentLength int64) *body {
 
 func (r *body) StreamID() quic.StreamID { return r.str.StreamID() }
 
-func (r *body) checkContentLengthViolation() error {
+func (r *body) checkContentLengthViolation(readErr error) error {
+	if r.contentLengthErr != nil {
+		return r.contentLengthErr
+	}
 	if !r.hasContentLength {
-		return nil
+		return readErr
 	}
-	if r.remainingContentLength < 0 || r.remainingContentLength == 0 && r.str.hasMoreData() {
-		if !r.violatedContentLength {
-			r.str.CancelRead(quic.StreamErrorCode(ErrCodeMessageError))
-			r.str.CancelWrite(quic.StreamErrorCode(ErrCodeMessageError))
-			r.violatedContentLength = true
-		}
-		return errTooMuchData
+	switch {
+	case r.remainingContentLength < 0 || r.remainingContentLength == 0 && r.str.hasMoreData():
+		r.contentLengthErr = errTooMuchData
+	case readErr == io.EOF && r.remainingContentLength > 0:
+		r.contentLengthErr = io.ErrUnexpectedEOF
+	default:
+		return readErr
 	}
-	return nil
+	r.str.CancelRead(quic.StreamErrorCode(ErrCodeMessageError))
+	r.str.CancelWrite(quic.StreamErrorCode(ErrCodeMessageError))
+	return r.contentLengthErr
 }
 
 func (r *body) Read(b []byte) (int, error) {
-	if err := r.checkContentLengthViolation(); err != nil {
+	if err := r.checkContentLengthViolation(nil); err != nil {
 		return 0, err
 	}
 	if r.hasContentLength {
@@ -65,10 +70,7 @@ func (r *body) Read(b []byte) (int, error) {
 	}
 	n, err := r.str.Read(b)
 	r.remainingContentLength -= int64(n)
-	if err := r.checkContentLengthViolation(); err != nil {
-		return n, err
-	}
-	return n, err
+	return n, r.checkContentLengthViolation(err)
 }
 
 func (r *body) Close() error {

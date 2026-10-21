@@ -4,11 +4,51 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBBRInstalledPendingObservation(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		olderDebt    bool
+		construction bool
+		idle         bool
+	}{
+		{name: "no pending debt", idle: true},
+		{name: "older generation debt", olderDebt: true, idle: false},
+		{name: "current construction excluded", construction: true, idle: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newEmissionTestConnection(t, false).conn
+			now := monotime.Now()
+			c.emission.enableBBR(now)
+			if tt.olderDebt {
+				reservation := c.emission.bbr.credit.reserve(1200, 2400, true, false)
+				require.NotNil(t, reservation)
+				defer reservation.complete()
+				c.pathGeneration++
+				c.emission.resetLocalPath(c.pathGeneration, now)
+			}
+			if tt.construction {
+				require.True(t, c.emission.reserveLocal(1200, true, false, now))
+				defer func() {
+					c.emission.reservation.completeLocal()
+					c.emission.reservation = nil
+				}()
+			}
+			observer := c.sentPacketHandler.(interface {
+				ObserveDeliveryStop(congestion.SendLimitation)
+				DeliveryStats() congestion.DeliveryStats
+			})
+			observer.ObserveDeliveryStop(congestion.SendApplicationLimited)
+			require.Equal(t, tt.idle, observer.DeliveryStats().Idle)
+		})
+	}
+}
 
 func TestBBRTransportFeedbackToAllowance(t *testing.T) {
 	c := newEmissionTestConnection(t, false).conn

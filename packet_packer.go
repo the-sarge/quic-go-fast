@@ -843,6 +843,11 @@ func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.B
 }
 
 func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
+	return p.packPathProbePacket(connID, frames, protocol.MinInitialPacketSize, v)
+}
+
+// packPathProbePacket returns no packet if the path's allowance cannot fit the frames.
+func (p *packetPacker) packPathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, maxPacketSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
 	pn, pnLen := p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
 	buf := getPacketBuffer()
 	s, err := p.cryptoSetup.Get1RTTSealer()
@@ -858,8 +863,14 @@ func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames 
 		frames: frames,
 		length: l,
 	}
-	padding := protocol.MinInitialPacketSize - p.shortHeaderPacketLength(connID, pnLen, payload) - protocol.ByteCount(s.Overhead())
-	packet, err := p.appendShortHeaderPacket(buf, connID, pn, pnLen, s.KeyPhase(), payload, padding, protocol.MinInitialPacketSize, s, false, v)
+	size := min(protocol.MinInitialPacketSize, maxPacketSize)
+	packetLen := p.shortHeaderPacketLength(connID, pnLen, payload) + protocol.ByteCount(s.Overhead())
+	if packetLen > size {
+		buf.Release()
+		return shortHeaderPacket{}, nil, nil
+	}
+	padding := size - packetLen
+	packet, err := p.appendShortHeaderPacket(buf, connID, pn, pnLen, s.KeyPhase(), payload, padding, size, s, false, v)
 	if err != nil {
 		buf.Release()
 		return shortHeaderPacket{}, nil, err

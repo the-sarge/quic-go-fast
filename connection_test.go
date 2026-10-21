@@ -62,6 +62,7 @@ func connectionOptHandshakeConfirmed() testConnectionOpt {
 	return func(conn *Conn) {
 		conn.handshakeComplete = true
 		conn.handshakeConfirmed = true
+		conn.receivedPacketsConfirmed = true
 	}
 }
 
@@ -2621,8 +2622,8 @@ func testConnectionSendQueue(t *testing.T, enableGSO bool) {
 
 func getVersionNegotiationPacket(src, dest protocol.ConnectionID, versions []protocol.Version) receivedPacket {
 	b := wire.ComposeVersionNegotiation(
-		protocol.ArbitraryLenConnectionID(src.Bytes()),
 		protocol.ArbitraryLenConnectionID(dest.Bytes()),
+		protocol.ArbitraryLenConnectionID(src.Bytes()),
 		versions,
 	)
 	return receivedPacket{
@@ -2756,6 +2757,69 @@ func TestConnectionVersionNegotiationNoMatch(t *testing.T) {
 			t.Fatal("should have received a Version Negotiation packet")
 		}
 	})
+}
+
+func TestConnectionVersionNegotiationInvalidConnectionIDs(t *testing.T) {
+	for _, versions := range []struct {
+		name string
+		list []protocol.Version
+	}{
+		{name: "supported version", list: []protocol.Version{protocol.Version2}},
+		{name: "unsupported version", list: []protocol.Version{42}},
+	} {
+		for _, invalidID := range []string{"wrong source", "empty source", "oversized source", "wrong destination", "empty destination", "oversized destination", "swapped IDs"} {
+			t.Run(versions.name+"/"+invalidID, func(t *testing.T) {
+				var eventRecorder events.Recorder
+				tc := newClientTestConnection(t, nil, nil, false, connectionOptTracer(&eventRecorder))
+				src, dest := tc.destConnID.Bytes(), tc.srcConnID.Bytes()
+				trigger := qlog.PacketDropUnexpectedSourceConnectionID
+				switch invalidID {
+				case "wrong source":
+					src[0] ^= 0xff
+				case "empty source":
+					src = nil
+				case "oversized source":
+					src = append(src, make([]byte, 21-len(src))...)
+				case "wrong destination":
+					dest[0] ^= 0xff
+					trigger = qlog.PacketDropUnknownConnectionID
+				case "empty destination":
+					dest = nil
+					trigger = qlog.PacketDropUnknownConnectionID
+				case "oversized destination":
+					dest = append(dest, make([]byte, 21-len(dest))...)
+					trigger = qlog.PacketDropUnknownConnectionID
+				case "swapped IDs":
+					src, dest = dest, src
+				}
+				p := receivedPacket{
+					data:    wire.ComposeVersionNegotiation(dest, src, versions.list),
+					buffer:  getPacketBuffer(),
+					rcvTime: monotime.Now(),
+				}
+				processed, err := tc.conn.handleOnePacket(p, 0)
+				require.NoError(t, err, "invalid connection IDs must not trigger version recreation")
+				require.False(t, processed)
+				require.Nil(t, tc.conn.closeErr.Load(), "invalid connection IDs must not close the connection")
+				require.False(t, tc.conn.receivedFirstPacket)
+				require.False(t, tc.conn.versionNegotiated)
+				require.Zero(t, p.buffer.refCount)
+				require.Equal(t, []qlogwriter.Event{
+					qlog.PacketDropped{
+						Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
+						Raw:     qlog.RawInfo{Length: int(p.Size())},
+						Trigger: trigger,
+					},
+				}, eventRecorder.Events(qlog.PacketDropped{}, qlog.VersionNegotiationReceived{}, qlog.VersionInformation{}))
+
+				// A discarded forgery must leave the connection able to negotiate a valid response.
+				_, err = tc.conn.handleOnePacket(getVersionNegotiationPacket(tc.destConnID, tc.srcConnID, []protocol.Version{protocol.Version2}), 0)
+				var recreate *errCloseForRecreating
+				require.ErrorAs(t, err, &recreate)
+				require.Equal(t, protocol.Version2, recreate.nextVersion)
+			})
+		}
+	}
 }
 
 func TestConnectionVersionNegotiationInvalidPackets(t *testing.T) {
@@ -2949,6 +3013,77 @@ func TestConnectionRetryAfterReceivedPacket(t *testing.T) {
 		eventRecorder.Events(qlog.PacketDropped{}),
 	)
 	eventRecorder.Clear()
+}
+
+// RFC 9000, section 6.2: a client that has successfully processed a Retry
+// must discard Version Negotiation, even one echoing the original Initial's IDs.
+func TestConnectionVersionNegotiationAfterRetry(t *testing.T) {
+	for _, versions := range []struct {
+		name string
+		list []protocol.Version
+	}{
+		{name: "alternate supported version", list: []protocol.Version{protocol.Version2}},
+		{name: "no common version", list: []protocol.Version{1234}},
+	} {
+		t.Run("accepted Retry/"+versions.name, func(t *testing.T) {
+			var eventRecorder events.Recorder
+			tc := newClientTestConnection(t, nil, nil, false, connectionOptTracer(&eventRecorder))
+			retryConnID := protocol.ParseConnectionID([]byte{0xde, 0xad, 0xbe, 0xef})
+
+			processed, err := tc.conn.handleOnePacket(getRetryPacket(t, retryConnID, tc.srcConnID, tc.destConnID, []byte("foobar")), 0)
+			require.NoError(t, err)
+			require.True(t, processed)
+			require.True(t, tc.conn.receivedRetry)
+			eventRecorder.Clear()
+
+			p := getVersionNegotiationPacket(tc.destConnID, tc.srcConnID, versions.list)
+			processed, err = tc.conn.handleOnePacket(p, 0)
+			require.NoError(t, err, "Version Negotiation after Retry must not trigger version recreation")
+			require.False(t, processed)
+			require.Nil(t, tc.conn.closeErr.Load(), "Version Negotiation after Retry must not close the connection")
+			require.False(t, tc.conn.versionNegotiated)
+			require.Zero(t, p.buffer.refCount)
+			require.Equal(t, []qlogwriter.Event{
+				qlog.PacketDropped{
+					Header:  qlog.PacketHeader{PacketType: qlog.PacketTypeVersionNegotiation},
+					Raw:     qlog.RawInfo{Length: int(p.Size())},
+					Trigger: qlog.PacketDropUnexpectedPacket,
+				},
+			}, eventRecorder.Events(qlog.PacketDropped{}, qlog.VersionNegotiationReceived{}, qlog.VersionInformation{}))
+
+			// The accepted Retry's state survives the discarded packet.
+			require.Equal(t, retryConnID, tc.conn.connIDManager.Get())
+			require.Equal(t, retryConnID, tc.conn.handshakeDestConnID)
+			require.NotNil(t, tc.conn.retrySrcConnID)
+			require.Equal(t, retryConnID, *tc.conn.retrySrcConnID)
+			require.Equal(t, []byte("foobar"), tc.conn.emission.packer.token)
+		})
+	}
+
+	// A rejected Retry is not a successfully processed packet and must not
+	// suppress a later Version Negotiation.
+	for _, rejection := range []string{"invalid integrity tag", "unchanged source connection ID"} {
+		t.Run("rejected Retry/"+rejection, func(t *testing.T) {
+			tc := newClientTestConnection(t, nil, nil, false)
+			var retry receivedPacket
+			switch rejection {
+			case "invalid integrity tag":
+				retry = getRetryPacket(t, protocol.ParseConnectionID([]byte{0xde, 0xad, 0xbe, 0xef}), tc.srcConnID, tc.destConnID, []byte("foobar"))
+				retry.data[len(retry.data)-1]++
+			case "unchanged source connection ID":
+				retry = getRetryPacket(t, tc.destConnID, tc.srcConnID, tc.destConnID, []byte("foobar"))
+			}
+			processed, err := tc.conn.handleOnePacket(retry, 0)
+			require.NoError(t, err)
+			require.False(t, processed)
+			require.False(t, tc.conn.receivedRetry)
+
+			_, err = tc.conn.handleOnePacket(getVersionNegotiationPacket(tc.destConnID, tc.srcConnID, []protocol.Version{protocol.Version2}), 0)
+			var recreate *errCloseForRecreating
+			require.ErrorAs(t, err, &recreate)
+			require.Equal(t, protocol.Version2, recreate.nextVersion)
+		})
+	}
 }
 
 func TestConnectionConnectionIDChanges(t *testing.T) {
@@ -3280,7 +3415,7 @@ func testConnectionPathValidation(t *testing.T, isNATRebinding, disableDiscovery
 		)
 
 		tc.conn.handlePacket(receivedPacket{
-			data:       make([]byte, 10),
+			data:       make([]byte, 400),
 			buffer:     getPacketBuffer(),
 			remoteAddr: newRemoteAddr,
 			rcvTime:    monotime.Now(),
@@ -3642,7 +3777,7 @@ func TestPathChangeInitialPacketSize(t *testing.T) {
 				func(pathID) {},
 				utils.DefaultLogger,
 			)
-			_, frames, _ := c.pathManager.HandlePacket(newRemoteAddr, now, nil, false)
+			_, frames, _ := c.pathManager.HandlePacket(newRemoteAddr, now, protocol.MinInitialPacketSize, nil, false)
 			require.Len(t, frames, 1)
 			challenge := frames[0].Frame.(*wire.PathChallengeFrame)
 			c.pathManager.HandlePathResponseFrame(&wire.PathResponseFrame{Data: challenge.Data})

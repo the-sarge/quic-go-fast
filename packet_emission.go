@@ -11,6 +11,7 @@ import (
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
+	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 )
 
@@ -38,6 +39,9 @@ type packetEmission struct {
 	shortSegments bool
 	// authority gates queued work and the close submission; nil is ungrouped.
 	authority *connAuthority
+	// sendQoS is the connection's send thread QoS, bound to every queue; nil
+	// is off.
+	sendQoS *sendThreadQoS
 
 	// The connection goroutine is the only writer of *conn. It may read the
 	// slot directly; application inspection must take a snapshot via activeConn.
@@ -540,18 +544,39 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 
 // Direct operations borrow the destination and preserve best-effort write errors.
 // Storage belongs to emission until the synchronous write has returned.
-func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
-	p, buf, err := e.packer.PackPathProbePacket(connID, frames, e.version)
-	if err != nil {
-		return err
+func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
+	var p shortHeaderPacket
+	var buf *packetBuffer
+	if (*e.recovery).CanSendPathProbe() {
+		var err error
+		p, buf, err = e.packer.packPathProbePacket(connID, frames, path.sendAllowance(), e.version)
+		if err != nil {
+			return err
+		}
+	}
+	if buf == nil {
+		// Keep an unsent challenge eligible for the next received packet.
+		for _, f := range frames {
+			if challenge, ok := f.Frame.(*wire.PathChallengeFrame); ok && challenge.Data == path.pathChallenge {
+				path.challengeSent = false
+				path.challengePadded = false
+			}
+		}
+		return nil
 	}
 	defer buf.Release()
+	if !path.reserveProbe(buf.Len()) {
+		return nil
+	}
 	e.policy.logPathProbe(p, addr, buf.Len(), checksum)
 	e.registerPacket(p, protocol.ECNNon, now)
 	return e.queue.SendProbe(buf, addr, info)
 }
 
 func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {
+	if !(*e.recovery).CanSendPathProbe() {
+		return nil
+	}
 	p, buf, err := e.packer.PackPathProbePacket(connID, []ackhandler.Frame{frame}, e.version)
 	if err != nil {
 		return err
@@ -595,18 +620,11 @@ func (e *packetEmission) replacePath(conn sendConn, feedback *handshakeSendFeedb
 	*e.conn = conn
 	e.connMutex.Unlock()
 	e.queue.Close()
-	queue := newSendQueueWithCapacity(conn, feedback, sendQueueCapacityFor(e.bbr != nil))
+	queue := newSendQueue(conn, feedback)
 	e.queue = queue
 	e.bindAuthority(e.authority)
+	e.bindQueueSendQoS(queue)
 	return queue
-}
-
-// sendQueueCapacityFor keeps a connection's queue depth across path replacement.
-func sendQueueCapacityFor(bbr bool) int {
-	if bbr {
-		return bbrSendQueueCapacity
-	}
-	return sendQueueCapacity
 }
 
 // In-place rebinding deliberately retains the active queue: pending writes use

@@ -12,16 +12,6 @@ type packetBuffer struct {
 	// refCount counts live packet views and active parsing holds on Data.
 	// It doesn't support concurrent use.
 	refCount int
-
-	// slab, when non-nil, marks this buffer as a per-datagram view into a
-	// coalesced slab (ADR 0005, amendment 2026-09-11). Releasing the view
-	// decrements the slab's atomic sibling count instead of returning Data
-	// to a pool. refCount above keeps its non-atomic single-owner contract.
-	slab *coalescedSlab
-	// retentionCharge, when non-nil, is the per-connection budget charged
-	// for holding this oversized slab view in a retention queue. It is
-	// released when the view releases. Only set on slab views.
-	retentionCharge *coalescedRetentionBudget
 }
 
 // Split increases the refCount.
@@ -64,10 +54,6 @@ func (b *packetBuffer) Len() protocol.ByteCount { return protocol.ByteCount(len(
 func (b *packetBuffer) Cap() protocol.ByteCount { return protocol.ByteCount(cap(b.Data)) }
 
 func (b *packetBuffer) putBack() {
-	if b.slab != nil {
-		b.releaseSlabView()
-		return
-	}
 	if cap(b.Data) == protocol.MaxPacketBufferSize {
 		bufferPool.Put(b)
 		return
@@ -80,10 +66,19 @@ func (b *packetBuffer) putBack() {
 		coalescedBufferPool.Put(b)
 		return
 	}
+	if cap(b.Data) == readSlotBufferSize {
+		readSlotBufferPool.Put(b)
+		return
+	}
 	panic("putPacketBuffer called with packet of wrong size!")
 }
 
-var bufferPool, largeBufferPool, coalescedBufferPool sync.Pool
+// readSlotBufferSize is the capacity of a read slot offered to a batch
+// adapter that opted into more than one (#857). It is one byte larger than the
+// packet ceiling, so a full slot means the datagram was truncated.
+const readSlotBufferSize = protocol.MaxPacketBufferSize + 1
+
+var bufferPool, largeBufferPool, coalescedBufferPool, readSlotBufferPool sync.Pool
 
 func getPacketBuffer() *packetBuffer {
 	buf := bufferPool.Get().(*packetBuffer)
@@ -100,10 +95,21 @@ func getLargePacketBuffer() *packetBuffer {
 }
 
 // getCoalescedPacketBuffer returns a buffer from the coalesced tier.
-// These buffers only back coalesced slabs; they are never handed out as
-// ordinary packet buffers and never retained by the standard tiers.
+// These buffers back coalesced reads, which stay with their reader while the
+// datagrams are copied out. Managed readers also hand one out as a packet:
+// a datagram above the large tier, and, on Darwin, FreeBSD and Linux without
+// GRO, every datagram.
 func getCoalescedPacketBuffer() *packetBuffer {
 	buf := coalescedBufferPool.Get().(*packetBuffer)
+	buf.refCount = 1
+	buf.Data = buf.Data[:0]
+	return buf
+}
+
+// getReadSlotBuffer returns a buffer from the read-slot tier. A datagram read
+// into it is delivered in it, and its release returns it to this tier.
+func getReadSlotBuffer() *packetBuffer {
+	buf := readSlotBufferPool.Get().(*packetBuffer)
 	buf.refCount = 1
 	buf.Data = buf.Data[:0]
 	return buf
@@ -118,5 +124,8 @@ func init() {
 	}
 	coalescedBufferPool.New = func() any {
 		return &packetBuffer{Data: make([]byte, 0, protocol.MaxCoalescedPacketBufferSize)}
+	}
+	readSlotBufferPool.New = func() any {
+		return &packetBuffer{Data: make([]byte, 0, readSlotBufferSize)}
 	}
 }

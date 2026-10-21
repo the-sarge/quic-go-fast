@@ -50,8 +50,8 @@ func TestSendmsgXBatchSendEndToEnd(t *testing.T) {
 
 	subsBefore, batchedBefore, _ := sendmsgXCountersSnapshot()
 
-	payloads := make([][]byte, sendQueueCapacity)
-	bufs := make([]*packetBuffer, sendQueueCapacity)
+	payloads := make([][]byte, maxSendBatch)
+	bufs := make([]*packetBuffer, maxSendBatch)
 	for i := range payloads {
 		payloads[i] = []byte{'d', '1', '-', byte('a' + i)}
 		bufs[i] = getPacketWithContents(payloads[i])

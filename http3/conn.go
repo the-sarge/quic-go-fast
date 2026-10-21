@@ -41,6 +41,7 @@ type rawConn struct {
 	controlStrHandler   func(*quic.ReceiveStream, *frameParser) // is called *after* the SETTINGS frame was parsed
 
 	onStreamsEmpty func()
+	onStreamClosed func(quic.StreamID) // called with streamMx held
 
 	settings         *Settings
 	receivedSettings chan struct{}
@@ -154,8 +155,11 @@ func (c *rawConn) clearStream(id quic.StreamID) {
 	if _, ok := c.streams[id]; ok {
 		delete(c.streams, id)
 		c.qloggerWG.Done()
+		if c.onStreamClosed != nil {
+			c.onStreamClosed(id)
+		}
 	}
-	if len(c.streams) == 0 {
+	if len(c.streams) == 0 && c.onStreamsEmpty != nil {
 		c.onStreamsEmpty()
 	}
 }
@@ -165,17 +169,6 @@ func (c *rawConn) hasActiveStreams() bool {
 	defer c.streamMx.Unlock()
 
 	return len(c.streams) > 0
-}
-
-// ifNoActiveStreams calls f if no streams are active.
-// f is serialized with stream tracking and onStreamsEmpty.
-func (c *rawConn) ifNoActiveStreams(f func()) {
-	c.streamMx.Lock()
-	defer c.streamMx.Unlock()
-
-	if len(c.streams) == 0 {
-		f()
-	}
 }
 
 func (c *rawConn) CloseWithError(code quic.ApplicationErrorCode, msg string) error {

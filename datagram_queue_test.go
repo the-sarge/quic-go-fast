@@ -347,3 +347,29 @@ func TestDatagramQueueClose(t *testing.T) {
 		}
 	})
 }
+
+// receiveQueueLen mirrors the number of received payloads awaiting Receive
+// after every push, pop and clear, so handlePacket can read it without the
+// queue's mutex.
+func TestDatagramQueueReceiveLenMirrorsQueue(t *testing.T) {
+	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
+	require.Zero(t, queue.receiveQueueLen())
+
+	for i := range 3 {
+		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(i)}})
+		require.Equal(t, i+1, queue.receiveQueueLen())
+	}
+	// A payload refused by a full queue is not mirrored.
+	for range maxDatagramRcvQueueLen - 3 {
+		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte("x")})
+	}
+	queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte("overflow")})
+	require.Equal(t, maxDatagramRcvQueueLen, queue.receiveQueueLen())
+
+	_, err := queue.Receive(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, maxDatagramRcvQueueLen-1, queue.receiveQueueLen())
+
+	queue.invalidateReceived()
+	require.Zero(t, queue.receiveQueueLen())
+}

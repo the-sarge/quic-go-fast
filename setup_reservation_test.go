@@ -587,7 +587,8 @@ func TestSetupAdmissionStageRace(t *testing.T) {
 	newReservation := func(t *testing.T) (*setupBudget, *setupReservation) {
 		t.Helper()
 		budget := newSetupBudget(1, 1, time.Minute)
-		r, ok := setupAdmission(budget.acquire).acquire(nil)
+		r, retry, ok := setupAdmission(budget.acquire).acquire(nil, false)
+		require.False(t, retry)
 		require.True(t, ok)
 		r.bind(&Conn{closeChan: make(chan struct{}, 1)})
 		return budget, r

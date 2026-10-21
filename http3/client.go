@@ -177,6 +177,14 @@ func (c *ClientConn) openRequestStream(
 	if err != nil {
 		return nil, maybeReplaceError(err)
 	}
+	// Tracking can race connection-context cancellation independently of qlog
+	// admission. Reject before exposing the stream to request sending, and let
+	// the tracked wrapper discharge both halves of its existing obligation.
+	if cause := context.Cause(c.conn.Context()); cause != nil {
+		hstr.CancelRead(quic.StreamErrorCode(ErrCodeRequestCanceled))
+		hstr.CancelWrite(quic.StreamErrorCode(ErrCodeRequestCanceled))
+		return nil, maybeReplaceError(cause)
+	}
 	rsp := &http.Response{}
 	trace := httptrace.ContextClientTrace(ctx)
 	return newRequestStream(
@@ -397,7 +405,7 @@ func (c *ClientConn) sendRequestBody(str *RequestStream, body io.ReadCloser, con
 		return err
 	}
 
-	// make sure we don't send more bytes than the content length
+	// Make sure the body length matches the declared content length.
 	n, err := io.CopyBuffer(str, io.LimitReader(sr, contentLength), buf)
 	if err != nil {
 		return err
@@ -405,7 +413,7 @@ func (c *ClientConn) sendRequestBody(str *RequestStream, body io.ReadCloser, con
 	var extra int64
 	extra, err = io.CopyBuffer(io.Discard, sr, buf)
 	n += extra
-	if n > contentLength {
+	if n != contentLength {
 		str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestCanceled))
 		return fmt.Errorf("http: ContentLength=%d with Body length %d", contentLength, n)
 	}

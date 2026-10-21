@@ -348,3 +348,35 @@ func TestSendQueueBatchSkipsGSO(t *testing.T) {
 		}
 	})
 }
+
+// The batch cap follows the queue's depth: the queue holds 32 entries and one
+// batched submission takes up to all of them.
+func TestSendQueueBatchCapFollowsDepth(t *testing.T) {
+	require.Equal(t, 32, sendQueueCapacity)
+	require.Equal(t, sendQueueCapacity, maxSendBatch)
+}
+
+// A full queue of entries that share (gsoSize 0, ecn) drains as one batch, in
+// order, each buffer released once.
+func TestSendQueueFullQueueDrainsAsOneBatch(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		conn := &fakeBatchSendConn{accept: func(_ int, bufs [][]byte) (int, error) { return len(bufs), nil }}
+		q := newSendQueue(conn, nil)
+
+		payloads := make([][]byte, sendQueueCapacity)
+		bufs := make([]*packetBuffer, sendQueueCapacity)
+		for i := range payloads {
+			payloads[i] = []byte{'p', byte(i)}
+			bufs[i] = getPacketWithContents(payloads[i])
+			q.Send(bufs[i], 0, protocol.ECT0, sendMetadata{})
+		}
+		require.True(t, q.WouldBlock())
+		startAndFinishQueue(t, q, nil)
+
+		require.Empty(t, conn.writes, "full acceptance must not fall back to per-packet sends")
+		require.Equal(t, [][][]byte{payloads}, conn.batches)
+		for _, buf := range bufs {
+			require.Zero(t, buf.refCount)
+		}
+	})
+}

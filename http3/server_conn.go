@@ -24,10 +24,14 @@ type RawServerConn struct {
 
 	idleTimeout time.Duration
 	idleTimer   *time.Timer
+	// Protected by rawConn.streamMx, like stream removal and idle timer resets.
+	activeRequests map[quic.StreamID]struct{}
 
-	serverContext  context.Context
-	requestHandler http.Handler
-	maxHeaderBytes int
+	serverContext      context.Context
+	requestHandler     http.Handler
+	maxHeaderBytes     int
+	readHeaderTimeout  time.Duration
+	pendingHeaderBytes atomic.Int64
 
 	decoder       *qpack.Decoder
 	priorityAware atomic.Bool // whether the client sent an RFC 9218 priority signal
@@ -47,16 +51,19 @@ func newRawServerConn(
 	maxHeaderBytes int,
 ) *RawServerConn {
 	c := &RawServerConn{
-		idleTimeout:    idleTimeout,
-		serverContext:  serverContext,
-		requestHandler: requestHandler,
-		maxHeaderBytes: maxHeaderBytes,
-		decoder:        qpack.NewDecoder(),
-		qlogger:        qlogger,
-		logger:         logger,
+		idleTimeout:       idleTimeout,
+		serverContext:     serverContext,
+		requestHandler:    requestHandler,
+		maxHeaderBytes:    maxHeaderBytes,
+		readHeaderTimeout: 30 * time.Second,
+		activeRequests:    make(map[quic.StreamID]struct{}),
+		decoder:           qpack.NewDecoder(),
+		qlogger:           qlogger,
+		logger:            logger,
 	}
 	// Keep the identity captured by newRawConn's qlogger shutdown callback.
-	c.rawConn = newRawConn(conn, enableDatagrams, c.onStreamsEmpty, c.handleControlStream, qlogger, logger)
+	c.rawConn = newRawConn(conn, enableDatagrams, nil, c.handleControlStream, qlogger, logger)
+	c.rawConn.onStreamClosed = c.onStreamClosed
 	if idleTimeout > 0 {
 		// Created stopped; only Reset starts it.
 		c.idleTimer = time.AfterFunc(math.MaxInt64, func() {
@@ -86,10 +93,12 @@ func (c *RawServerConn) startIdleTimerAfterHandshake() {
 
 // startIdleTimerIfIdle starts the idle timer unless a request stream is active.
 func (c *RawServerConn) startIdleTimerIfIdle() {
-	c.rawConn.ifNoActiveStreams(func() {
+	c.rawConn.streamMx.Lock()
+	defer c.rawConn.streamMx.Unlock()
+	if len(c.activeRequests) == 0 {
 		c.idleTimer.Reset(c.idleTimeout)
 		c.logIdleTimer("start")
-	})
+	}
 }
 
 func (c *RawServerConn) handshakeComplete() bool {
@@ -113,10 +122,14 @@ func (c *RawServerConn) logIdleTimer(action string) {
 		"timeout", c.idleTimeout, "handshake_complete", c.handshakeComplete())
 }
 
-// onStreamsEmpty is called with the stream map locked.
+// onStreamClosed is called with the stream map locked.
 // Before handshake completion, startIdleTimerAfterHandshake starts the timer.
-func (c *RawServerConn) onStreamsEmpty() {
-	if c.idleTimeout > 0 && c.handshakeComplete() {
+func (c *RawServerConn) onStreamClosed(id quic.StreamID) {
+	if _, ok := c.activeRequests[id]; !ok {
+		return
+	}
+	delete(c.activeRequests, id)
+	if len(c.activeRequests) == 0 && c.idleTimeout > 0 && c.handshakeComplete() {
 		c.idleTimer.Reset(c.idleTimeout)
 		c.logIdleTimer("reset")
 	}
@@ -157,11 +170,14 @@ func (c *RawServerConn) openControlStream(settings *settingsFrame) (*quic.SendSt
 }
 
 func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlogWork) {
-	if c.idleTimeout > 0 {
-		// This only applies if the stream is the first active stream,
-		// but it's ok to stop a stopped timer.
-		c.idleTimer.Stop()
-		c.logIdleTimer("stop")
+	var headerTimer *time.Timer
+	if c.readHeaderTimeout > 0 {
+		// Keep caller-owned read deadlines intact, including for the body.
+		headerTimer = time.AfterFunc(c.readHeaderTimeout, func() {
+			str.CancelRead(quic.StreamErrorCode(ErrCodeRequestIncomplete))
+			str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestIncomplete))
+		})
+		defer headerTimer.Stop()
 	}
 
 	conn := c.rawConn
@@ -186,55 +202,30 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 		conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeFrameUnexpected), "expected first frame to be a HEADERS frame")
 		return
 	}
-	if hf.Length > uint64(maxHeaderBytes) {
-		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
-		// stop the client from sending more data
-		str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
-		// send a 431 Response (Request Header Fields Too Large)
-		c.rejectWithHeaderFieldsTooLarge(str, work)
+	req := c.handleRequestHeaders(str, hf, maxHeaderBytes, work)
+	if req == nil {
 		return
 	}
-	headerBlock := make([]byte, hf.Length)
-	if _, err := io.ReadFull(str, headerBlock); err != nil {
-		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
-		str.CancelRead(quic.StreamErrorCode(ErrCodeRequestIncomplete))
-		str.CancelWrite(quic.StreamErrorCode(ErrCodeRequestIncomplete))
+	if headerTimer != nil && !headerTimer.Stop() {
+		// The timeout callback owns cancellation; do not activate this request.
 		return
 	}
-	decodeFn := decoder.Decode(headerBlock)
-	var hfs []qpack.HeaderField
-	var headerFields *[]qpack.HeaderField
-	if qlogger != nil {
-		hfs = make([]qpack.HeaderField, 0, 16)
-		headerFields = &hfs
-	}
-	req, err := requestFromHeaders(decodeFn, maxHeaderBytes, headerFields)
-	if qlogger != nil {
-		qlogParsedHeadersFrame(qlogger, str.StreamID(), hf, hfs)
-	}
-	if err != nil {
-		if errors.Is(err, errHeaderTooLarge) {
-			// stop the client from sending more data
-			str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
-			// send a 431 Response (Request Header Fields Too Large)
-			c.rejectWithHeaderFieldsTooLarge(str, work)
-			return
+	// Incomplete headers do not suspend HTTP inactivity protection. Serialize
+	// activation with stream removal and the post-handshake timer start.
+	conn.streamMx.Lock()
+	if _, tracked := conn.streams[str.StreamID()]; tracked {
+		c.activeRequests[str.StreamID()] = struct{}{}
+		if c.idleTimeout > 0 {
+			c.idleTimer.Stop()
+			c.logIdleTimer("stop")
 		}
-
-		errCode := ErrCodeMessageError
-		if _, ok := errors.AsType[*qpackError](err); ok {
-			errCode = ErrCodeQPACKDecompressionFailed
-		}
-		str.CancelRead(quic.StreamErrorCode(errCode))
-		str.CancelWrite(quic.StreamErrorCode(errCode))
-		return
 	}
-
+	conn.streamMx.Unlock()
 	connState := conn.ConnectionState().TLS
 	req.TLS = &connState
 	req.RemoteAddr = conn.RemoteAddr().String()
 
-	// Check that the client doesn't send more data in DATA frames than indicated by the Content-Length header (if set).
+	// Check that the DATA frame content matches the Content-Length header (if set).
 	// See section 4.1.2 of RFC 9114.
 	contentLength := int64(-1)
 	if _, ok := req.Header["Content-Length"]; ok && req.ContentLength >= 0 {
@@ -276,6 +267,12 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 	context.AfterFunc(str.Context(), cancel)
 
 	r := newResponseWriter(hstr, conn, req.Method == http.MethodHead, c.logger)
+	defer func() {
+		// A hijacked stream transfers request resource ownership to the caller.
+		if !r.wasStreamHijacked() && req.MultipartForm != nil {
+			req.MultipartForm.RemoveAll()
+		}
+	}()
 	handler := c.requestHandler
 	if handler == nil {
 		handler = http.DefaultServeMux
@@ -320,6 +317,106 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 	// If the EOF was read by the handler, CancelRead() is a no-op.
 	str.CancelRead(quic.StreamErrorCode(ErrCodeNoError))
 	str.Close()
+}
+
+// handleRequestHeaders owns the initial HEADERS role through decoding and
+// disposition. Release charged capacity before logging or refusal I/O can block.
+func (c *RawServerConn) handleRequestHeaders(str *stateTrackingStream, hf *headersFrame, maxHeaderBytes int, work *qlogWork) *http.Request {
+	qlogger := work.recorder
+	if hf.Length > uint64(maxHeaderBytes) {
+		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
+		// stop the client from sending more data
+		str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
+		// send a 431 Response (Request Header Fields Too Large)
+		c.rejectWithHeaderFieldsTooLarge(str, work)
+		return nil
+	}
+	var hfs []qpack.HeaderField
+	var readErr error
+	req, err := func() (*http.Request, error) {
+		headerBlock, err := c.readHeaderBlock(str, int(hf.Length))
+		defer c.pendingHeaderBytes.Add(-int64(cap(headerBlock)))
+		if err != nil {
+			readErr = err
+			return nil, err
+		}
+		var headerFields *[]qpack.HeaderField
+		if qlogger != nil {
+			hfs = make([]qpack.HeaderField, 0, 16)
+			headerFields = &hfs
+		}
+		return requestFromHeaders(c.decoder.Decode(headerBlock), maxHeaderBytes, headerFields)
+	}()
+	if readErr != nil {
+		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
+		code := ErrCodeRequestIncomplete
+		if errors.Is(readErr, errPendingHeadersTooLarge) {
+			code = ErrCodeExcessiveLoad
+		}
+		str.CancelRead(quic.StreamErrorCode(code))
+		str.CancelWrite(quic.StreamErrorCode(code))
+		return nil
+	}
+	if qlogger != nil {
+		qlogParsedHeadersFrame(qlogger, str.StreamID(), hf, hfs)
+	}
+	if err != nil {
+		if errors.Is(err, errHeaderTooLarge) {
+			// stop the client from sending more data
+			str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
+			// send a 431 Response (Request Header Fields Too Large)
+			c.rejectWithHeaderFieldsTooLarge(str, work)
+			return nil
+		}
+
+		errCode := ErrCodeMessageError
+		if _, ok := errors.AsType[*qpackError](err); ok {
+			errCode = ErrCodeQPACKDecompressionFailed
+		}
+		str.CancelRead(quic.StreamErrorCode(errCode))
+		str.CancelWrite(quic.StreamErrorCode(errCode))
+		return nil
+	}
+	return req
+}
+
+var errPendingHeadersTooLarge = errors.New("http3: pending request headers exceed connection limit")
+
+// readHeaderBlock grows with received data instead of reserving a peer-declared
+// length. Buffer capacity, including space for the next read, is charged against
+// one MaxHeaderBytes budget shared by all pending requests on the connection.
+// The caller releases cap(b) after decoding, including on read failure.
+func (c *RawServerConn) readHeaderBlock(r io.Reader, length int) (b []byte, err error) {
+	for len(b) < length {
+		if len(b) == cap(b) {
+			next := min(length, 1024)
+			if cap(b) > 0 {
+				next = cap(b) + min(cap(b), length-cap(b))
+			}
+			delta := int64(next - cap(b))
+			for {
+				used := c.pendingHeaderBytes.Load()
+				if delta > int64(c.requestMaxHeaderBytes())-used {
+					return b, errPendingHeadersTooLarge
+				}
+				if c.pendingHeaderBytes.CompareAndSwap(used, used+delta) {
+					break
+				}
+			}
+			grown := make([]byte, len(b), next)
+			copy(grown, b)
+			b = grown
+		}
+		n, err := r.Read(b[len(b):cap(b)])
+		b = b[:len(b)+n]
+		if len(b) == length {
+			return b, nil
+		}
+		if err != nil {
+			return b, err
+		}
+	}
+	return b, nil
 }
 
 func (c *RawServerConn) handleControlStream(_ *quic.ReceiveStream, fp *frameParser) {

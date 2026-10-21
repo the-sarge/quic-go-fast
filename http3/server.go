@@ -180,8 +180,17 @@ type Server struct {
 	// MaxHeaderBytes controls the maximum number of bytes the server will
 	// read parsing the request HEADERS frame. It does not limit the size of
 	// the request body. If zero or negative, [http.DefaultMaxHeaderBytes] is
-	// used.
+	// used. Pending initial HEADERS buffers on each connection also share a
+	// capacity budget of this size; streams exceeding it are rejected with
+	// H3_EXCESSIVE_LOAD.
 	MaxHeaderBytes int
+
+	// ReadHeaderTimeout is the time allowed to read the initial request headers,
+	// including any frames preceding HEADERS. Zero uses a default of 30 seconds;
+	// a negative value disables the timeout. The timer stops before the handler
+	// runs and does not limit reading the request body. It does not change a
+	// caller's stream read deadline.
+	ReadHeaderTimeout time.Duration
 
 	// AdditionalSettings specifies additional HTTP/3 settings.
 	// It is invalid to specify any settings defined by RFC 9114 (HTTP/3) and RFC 9297 (HTTP Datagrams).
@@ -190,7 +199,8 @@ type Server struct {
 	// IdleTimeout specifies how long until idle clients connection should be
 	// closed. Idle refers only to the HTTP/3 layer, activity at the QUIC layer
 	// like PING frames are not considered.
-	// The timeout starts once the QUIC handshake completes, and while no request is active.
+	// The timeout starts once the QUIC handshake completes, and while no request
+	// with complete, valid initial headers is active.
 	// Before handshake completion, the QUIC handshake timeout applies instead.
 	// If zero or negative, there is no timeout.
 	IdleTimeout time.Duration
@@ -553,6 +563,9 @@ func (s *Server) newRawServerConn(conn *quic.Conn) (*RawServerConn, *quic.SendSt
 		s.Handler,
 		s.maxHeaderBytes(),
 	)
+	if s.ReadHeaderTimeout != 0 {
+		hconn.readHeaderTimeout = s.ReadHeaderTimeout
+	}
 
 	// open the control stream and send a SETTINGS frame, it's also used to send a GOAWAY frame later
 	// when the server is gracefully closed
@@ -748,10 +761,27 @@ func ListenAndServeQUIC(addr, certFile, keyFile string, handler http.Handler) er
 }
 
 // ListenAndServeTLS listens on the given network address for both TLS/TCP and QUIC
-// connections in parallel. It returns if one of the two returns an error.
-// [http.DefaultServeMux] is used when handler is nil.
+// connections in parallel. [http.DefaultServeMux] is used when handler is nil.
 // The correct Alt-Svc headers for QUIC are set.
+//
+// When either server stops, ListenAndServeTLS closes both, aborting their
+// active requests. It returns once both servers and all of their running
+// handlers have returned, with the error of the server that stopped first.
+// Handlers should return when their request context is canceled. Hijacked
+// connections remain the handler's to close.
 func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) error {
+	return listenAndServeTLS(addr, certFile, keyFile, handler, combinedSocketHooks{})
+}
+
+// combinedSocketHooks lets tests wrap the sockets that [ListenAndServeTLS]
+// opens, to make either serving loop fail on demand. The helper still owns and
+// closes the sockets it opened.
+type combinedSocketHooks struct {
+	wrapTCP func(net.Listener) net.Listener
+	wrapUDP func(net.PacketConn) net.PacketConn
+}
+
+func listenAndServeTLS(addr, certFile, keyFile string, handler http.Handler, hooks combinedSocketHooks) error {
 	// Load certs
 	var err error
 	certs := make([]tls.Certificate, 1)
@@ -779,6 +809,21 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) err
 		return err
 	}
 	defer udpConn.Close()
+	tcpLn, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	// The HTTP server closes the listener when serving ends, but not if
+	// ServeTLS fails before it starts serving.
+	defer tcpLn.Close()
+
+	var packetConn net.PacketConn = udpConn
+	if hooks.wrapUDP != nil {
+		packetConn = hooks.wrapUDP(packetConn)
+	}
+	if hooks.wrapTCP != nil {
+		tcpLn = hooks.wrapTCP(tcpLn)
+	}
 
 	if handler == nil {
 		handler = http.DefaultServeMux
@@ -788,25 +833,83 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) err
 		TLSConfig: config,
 		Handler:   handler,
 	}
-
-	hErr := make(chan error, 1)
-	qErr := make(chan error, 1)
-	go func() {
-		hErr <- http.ListenAndServeTLS(addr, certFile, keyFile, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// http.Server.Close doesn't wait for handlers, so track them here.
+	var tcpHandlers handlerTracker
+	// Closing a connection doesn't cancel the context of an HTTP/1.1 request
+	// whose body is unread or whose connection was hijacked. Cancel every
+	// request context directly before waiting for the handlers.
+	baseCtx, cancelBaseCtx := context.WithCancel(context.Background())
+	defer cancelBaseCtx()
+	httpServer := &http.Server{
+		Addr:        addr,
+		BaseContext: func(net.Listener) context.Context { return baseCtx },
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !tcpHandlers.enter() {
+				// The server was closed. Abort, since the response can't be delivered.
+				panic(http.ErrAbortHandler)
+			}
+			defer tcpHandlers.exit()
 			quicServer.SetQUICHeaders(w.Header())
 			handler.ServeHTTP(w, r)
-		}))
+		}),
+	}
+
+	serveErrs := make(chan error, 2)
+	go func() {
+		serveErrs <- httpServer.ServeTLS(tcpLn, certFile, keyFile)
 	}()
 	go func() {
-		qErr <- quicServer.Serve(udpConn)
+		serveErrs <- quicServer.Serve(packetConn)
 	}()
 
-	select {
-	case err := <-hErr:
-		quicServer.Close()
-		return err
-	case err := <-qErr:
-		// Cannot close the HTTP server or wait for requests to complete properly :/
-		return err
+	// The server that stops first reports the error. Close both: a server whose
+	// serving loop returned can still have open connections.
+	err = <-serveErrs
+	httpServer.Close()
+	cancelBaseCtx()
+	quicServer.Close()
+	<-serveErrs // the other server's error is a consequence of closing it
+	tcpHandlers.closeAndWait()
+	return err
+}
+
+// handlerTracker counts running handlers until it is closed.
+type handlerTracker struct {
+	mu      sync.Mutex
+	running int
+	closed  bool
+	done    chan struct{} // closed once the tracker is closed and no handler runs
+}
+
+// enter registers a handler. It returns false once the tracker is closed.
+func (t *handlerTracker) enter() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return false
 	}
+	t.running++
+	return true
+}
+
+func (t *handlerTracker) exit() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.running--
+	if t.closed && t.running == 0 {
+		close(t.done)
+	}
+}
+
+// closeAndWait stops admitting handlers and waits for the running ones to return.
+func (t *handlerTracker) closeAndWait() {
+	t.mu.Lock()
+	t.closed = true
+	t.done = make(chan struct{})
+	if t.running == 0 {
+		close(t.done)
+	}
+	done := t.done
+	t.mu.Unlock()
+	<-done
 }

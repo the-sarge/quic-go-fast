@@ -67,11 +67,6 @@ type baseServer struct {
 	receivedPacketsMx sync.Mutex
 	receivedPackets   chan receivedPacket
 
-	// coalescedRetention bounds the coalesced-slab bytes pinned by the
-	// server's queues (receive, version negotiation, 0-RTT) through
-	// oversized segment views.
-	coalescedRetention coalescedRetentionBudget
-
 	nextZeroRTTCleanup monotime.Time
 	zeroRTTQueues      map[protocol.ConnectionID]*zeroRTTQueue // only initialized if acceptEarlyConns == true
 
@@ -499,24 +494,12 @@ func (s *baseServer) handlePacket(p receivedPacket) {
 		return
 	default:
 	}
-	// A packet backed by a coalesced slab must not pin the slab while queued:
-	// it is copied into an ordinary tier, or, if oversized, kept on the slab
-	// and charged against the server's retained-bytes budget. Check capacity
-	// first so a doomed packet doesn't pay for a retention copy; the mutex
-	// serializes producers, so the queue cannot fill between check and send.
+	// The mutex serializes producers, so the queue cannot fill between the
+	// capacity check and the send.
 	if len(s.receivedPackets) == cap(s.receivedPackets) {
 		s.receivedPacketsMx.Unlock()
 		defer p.buffer.Release()
 		s.logger.Debugf("Dropping packet from %s (%d bytes). Server receive queue full.", p.remoteAddr, p.Size())
-		s.qlogPacketDropDOSPrevention(p)
-		return
-	}
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-	if !retained {
-		s.receivedPacketsMx.Unlock()
-		defer p.buffer.Release()
-		s.logger.Debugf("Dropping packet from %s (%d bytes). Coalesced retention budget exhausted.", p.remoteAddr, p.Size())
 		s.qlogPacketDropDOSPrevention(p)
 		return
 	}
@@ -724,12 +707,6 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 			}
 			return false
 		}
-		// a queued 0-RTT packet must not pin a coalesced slab
-		var retained bool
-		p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-		if !retained {
-			return false
-		}
 		q.packets = append(q.packets, p)
 		return true
 	}
@@ -747,12 +724,6 @@ func (s *baseServer) handle0RTTPacket(p receivedPacket) bool {
 				Trigger: qlog.PacketDropDOSPrevention,
 			})
 		}
-		return false
-	}
-	// a queued 0-RTT packet must not pin a coalesced slab
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-	if !retained {
 		return false
 	}
 	queue := &zeroRTTQueue{packets: make([]receivedPacket, 1, 8)}
@@ -904,14 +875,7 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	}
 
 	if token == nil && s.verifySourceAddress != nil && s.verifySourceAddress(p.remoteAddr) {
-		// Retry invalidates all 0-RTT packets sent.
-		s.retireZeroRTTQueue(hdr.DestConnectionID)
-		select {
-		case s.retryQueue <- rejectedPacket{receivedPacket: p, hdr: hdr}:
-		default:
-			// drop packet if we can't send out Retry packets fast enough
-			p.buffer.Release()
-		}
+		s.enqueueRetry(p, hdr)
 		return nil
 	}
 
@@ -922,7 +886,11 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 		return nil
 	}
 	// Admission precedes every per-connection allocation and callback.
-	setup, admitted := s.setupAdmission.acquire(p.remoteAddr)
+	setup, retry, admitted := s.setupAdmission.acquire(p.remoteAddr, clientAddrVerified)
+	if retry {
+		s.enqueueRetry(p, hdr)
+		return nil
+	}
 	if !admitted {
 		s.logger.Debugf("Rejecting new connection due to setup admission")
 		s.refuseNewConn(p, hdr)
@@ -1019,6 +987,8 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	)
 	setup.bind(conn.Conn)
 	conn.installReceivePhase(s.tr.receivePhases)
+	conn.installAckThreshold(s.tr.ackThreshold)
+	conn.installSendThreadQoS(s.tr.sendThreadQoS)
 	if err := conn.bindCandidate(s.tr.candidates); err != nil {
 		// A selected or closed group sends no response for a new candidate.
 		conn.abortUnstarted(err)
@@ -1048,6 +1018,17 @@ func (s *baseServer) handleInitialImpl(p receivedPacket, hdr *wire.Header) error
 	s.handshakingCount.Go(func() { s.handleNewConn(conn) })
 	go conn.run()
 	return nil
+}
+
+func (s *baseServer) enqueueRetry(p receivedPacket, hdr *wire.Header) {
+	// Retry invalidates all 0-RTT packets sent.
+	s.retireZeroRTTQueue(hdr.DestConnectionID)
+	select {
+	case s.retryQueue <- rejectedPacket{receivedPacket: p, hdr: hdr}:
+	default:
+		// Drop packets if we can't send Retry fast enough.
+		p.buffer.Release()
+	}
 }
 
 // refuseNewConn refuses an attempt before its connection is constructed.
@@ -1272,12 +1253,6 @@ func (s *baseServer) enqueueVersionNegotiationPacket(p receivedPacket) (bufferIn
 	// it's fine to not send version negotiation packets when we are busy;
 	// only the run goroutine enqueues, so the capacity check cannot race
 	if len(s.versionNegotiationQueue) == cap(s.versionNegotiationQueue) {
-		return false
-	}
-	// a queued packet must not pin a coalesced slab
-	var retained bool
-	p, retained = retainForRetentionQueue(p, &s.coalescedRetention)
-	if !retained {
 		return false
 	}
 	s.versionNegotiationQueue <- p

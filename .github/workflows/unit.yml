@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu", "windows", "macos" ]
-        go: [ "1.26.9", "1.27.2" ]
+        go: [ "1.26.10", "1.27.3" ]
     runs-on: ${{ fromJSON(vars[format('UNIT_RUNNER_{0}', matrix.os)] || format('"{0}-latest"', matrix.os)) }}
     name: Unit tests (${{ matrix.os}}, Go ${{ matrix.go }})
     timeout-minutes: 30
@@ -42,7 +42,7 @@ jobs:
         env:
           TIMESCALE_FACTOR: 10
           # Temporary opt-in for #241, automatically rejected after its RFC3339 expiry.
-          QUIC_GO_DIAL_OWNER_UNTIL: ${{ matrix.os == 'macos' && matrix.go == '1.27.2' && vars.QUIC_GO_DIAL_OWNER_UNTIL || '' }}
+          QUIC_GO_DIAL_OWNER_UNTIL: ${{ matrix.os == 'macos' && matrix.go == '1.27.3' && vars.QUIC_GO_DIAL_OWNER_UNTIL || '' }}
         run: python3 .github/scripts/http-capture.py --unit-source --label unit run -- go test -v -shuffle on -cover -coverprofile coverage.txt ./... 2>&1 | go-junit-report -set-exit-code -iocopy -out report.xml
       - name: Run tests as root
         if: ${{ matrix.os == 'ubuntu' }}
@@ -60,6 +60,17 @@ jobs:
         env:
           TIMESCALE_FACTOR: 20
         run: python3 .github/scripts/http-capture.py --unit-source --label race run -- go test -race -v -shuffle on ./...
+      - name: Run Windows reader tests with race detector
+        if: ${{ matrix.os == 'windows' }}
+        # The full suite skips race on Windows for speed; the coalesced-receive
+        # reader, its guard and the managed and external readers run it (#860).
+        env:
+          TIMESCALE_FACTOR: 20
+        run: go test -race -v -run '^TestWindows(URO|USOURO|Managed|External)' .
+      - name: Run read-slot tests without private syscalls
+        if: ${{ matrix.os == 'macos' }}
+        # The quic_go_no_private_syscalls tag selects the one-slot reader (#857).
+        run: go test -v -tags quic_go_no_private_syscalls -run '^TestReadSlots' .
       - name: Run handshake tests in FIPS140 mode
         env:
           GODEBUG: fips140=only

@@ -359,7 +359,7 @@ func TestServerAcceptQueueOverflow(t *testing.T) {
 	dialer := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	defer dialer.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
 	defer cancel()
 	// fill up the accept queue
 	for range protocol.MaxAcceptQueueSize {
@@ -438,22 +438,27 @@ func TestHandshakeCloseListener(t *testing.T) {
 			ln, err := quic.ListenAddr("127.0.0.1:0", tlsConf, getQuicConfig(nil))
 			require.NoError(t, err)
 			lnAddr = ln.Addr().(*net.UDPAddr)
+			if runtime.GOOS != "windows" {
+				probe, err := net.ListenUDP("udp", lnAddr)
+				if probe != nil {
+					probe.Close()
+				}
+				require.Error(t, err, "listener must hold its port before closure")
+			}
 			return ln
 		})
 
 		// make sure that the Transport closed the underlying connection
-		if runtime.GOOS != "windows" { // this check doesn't work on Windows
+		if runtime.GOOS != "windows" {
 			require.Eventually(t, func() bool {
-				conn, err := net.DialUDP("udp", nil, lnAddr)
-				require.NoError(t, err)
-				defer conn.Close()
-				_, err = conn.Write([]byte("test"))
-				require.NoError(t, err)
-				conn.SetReadDeadline(time.Now().Add(scaleDuration(10 * time.Millisecond)))
-				_, err = conn.Read(make([]byte, 1000))
-				require.Error(t, err)
-				return strings.Contains(err.Error(), "read: connection refused")
-			}, time.Second, 50*time.Millisecond)
+				// Rebinding observes socket ownership without depending on ICMP delivery.
+				conn, err := net.ListenUDP("udp", lnAddr)
+				if err != nil {
+					return false
+				}
+				require.NoError(t, conn.Close())
+				return true
+			}, scaleDuration(time.Second), 50*time.Millisecond)
 		}
 	})
 }

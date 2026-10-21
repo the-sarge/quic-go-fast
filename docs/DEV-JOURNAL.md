@@ -5961,3 +5961,1440 @@ Its helpers read the real clock. The first RTT sample is about 1 ms, so time-thr
 - #828 is still open, now with receipts from ubuntu race, Windows and macOS.
 - The local `TestHTTPServerIdleTimeout` failure did not reproduce and was not filed.
 - No review finding was deferred. GitHub issues are the live view.
+
+---
+
+## The admission replay test captures its packet before forwarding - 2026-10-18 23:31 EDT
+
+**Main:** `d9362a2a3993`
+**Actor:** Claude
+
+### Summary
+
+[#828](https://github.com/the-sarge/quic-go-fast/issues/828) is closed by [PR #832](https://github.com/the-sarge/quic-go-fast/pull/832) (squash `d9362a2a`).
+
+`TestNetworkAdmissionEligibleRebindingAndSpoofedTraffic` replays a genuine client short-header packet from a denied endpoint. It failed at `network_admission_test.go:97`, `require.NotEmpty(t, replay)`, on three hosted runners:
+- ubuntu race integration on PR #823;
+- Windows integration on PR #829;
+- macOS integration (QUIC v2 step) on PR #831.
+
+The test proxy reports a forwarding `"write"` only after the socket write returns. The server could process the client's one standalone short-header datagram (stream data + FIN) and the first exchange could return before that callback had recorded it. Tests only; no production code changed.
+
+### Completed
+
+- The client-to-server capture now uses the proxy's `"read"` event. The proxy reports it on its forwarding goroutine before it forwards the datagram, so the server cannot see a client packet before the test has captured it.
+- A new helper, `shortHeaderPacket`, takes the short-header packet that ends a datagram even when long-header packets are coalesced ahead of it. It splits them with `wire.ParsePacket` as the connection does, and returns nil on a parse error, as the connection drops the rest of the datagram. Whichever datagram carries the stream data is therefore captured before the server can process it, on every schedule.
+- The wrong-server capture, the `outgoing` counter and all four later assertions are unchanged. `quicproxy.Proxy` and `SocketEvent` semantics are unchanged.
+
+### Decisions
+
+- The [#828 agent brief](https://github.com/the-sarge/quic-go-fast/issues/828#issuecomment-6258662628) allowed two approaches: read-time capture or a bounded wait. Read-time capture was chosen because it holds by construction. A bounded wait would depend on the client sending another short-header packet, such as an ACK, after the exchange.
+- Coalesced extraction is included because the stream frame could ride behind a long-header packet, such as a Handshake ACK sent while the client still holds Handshake keys. No run observed that.
+- Reporting forwards before they happen in the proxy was rejected. Other tests rely on `"write"` meaning a completed write, and `"read"` already gives a pre-forward hook.
+- The test is fork-only (#665), so there is no upstream counterpart.
+
+### Validation
+
+- **Mutation, through `go test -overlay` from the scratchpad, never committed.** A 5 ms sleep at the start of the observer's write handling, run with `-race`, `GOMAXPROCS=4` and 20 runs. At both `ed45e31d` and `4766fd9c`:
+  - the base test failed 20/20 at the empty-replay assertion;
+  - the fix passed 20/20.
+- **Stress:** `-race -shuffle=on -version=1` at `GOMAXPROCS=4` passed 4,000/4,000 at `ed45e31d` and again at `4766fd9c`, with no data races.
+- **Diagnostic overlays at `ed45e31d`:**
+  - The replay was always the client's 50-byte standalone stream datagram, a fixed-bit short-header packet.
+  - The coalesced branch extracted a 103-byte short-header packet from the client's one 1,280-byte Initial+Handshake+1-RTT datagram.
+  - The test sets no `Versions`, so it negotiates QUIC v1 under both suite flags. RAS C-001 corrected the PR wording to say these runs exercised only v1.
+- **Local certification at `4766fd9c`, Go 1.27.2 darwin/arm64:**
+  - full `./integrationtests/self` with `TIMESCALE_FACTOR=3`, both `-race -version=1` and non-race `-version=2`;
+  - `go vet` for darwin and windows;
+  - `gofmt`, `go mod tidy -diff` and `git diff --check`;
+  - golangci-lint v2.14.0 for the six `lint.yml` GOOS values.
+- **RAS review:**
+  - Round 1: run `20261019T030858-c6a4035246dcbb7a99e313e1` at `ed45e31d`. All six reviewers completed. The only finding was low C-001, metadata only; it was fixed in the PR body.
+  - Round 2, after merging main: run `20261019T031742-8e37e87113598fc83339b238` at `4766fd9c`. Zero findings. `codex-sol` failed in RAS's codex CLI preflight after 2.6 s; the other five completed.
+- **Hosted:**
+  - All 33 checks passed on `4766fd9c`.
+  - `main` then gained the docs-only #827 journal (`e7eb3f10`). The PR merged it as `604e68b7`, whose Go sources are byte-identical to `4766fd9c`.
+  - All 33 checks passed on `604e68b7`, the merge base matched `origin/main`, and it was squash-merged with `--match-head-commit`.
+
+### Next
+
+- No review finding was deferred. GitHub issues are the live view.
+
+---
+
+## Migration probe amplification limits landed - 2026-10-19 00:22 EDT
+
+**Main:** `36fd7bc502bf`
+
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #836](https://github.com/the-sarge/quic-go-fast/pull/836) as `36fd7bc502bfb8c1aac1b2702d9b349742f35063`, fixing Security Cloud finding `csf_6e3f40b8a3bcfca622b97b39`. Candidate migration paths now enforce an independent three-times receive-byte allowance before probe registration and direct writes, including repeated challenges and local write failures. Compact probes preserve responses to small packets; an expanded challenge validates the path MTU before migration.
+
+### Validation
+
+- Exact reviewed head: `9f1f41df3e4e5f090a51c450d1aaa5a1e62570fc`. Connection/recovery unit suites, focused race checks, 20 repetitions of the new path regressions, QUIC v1/v2 UDP NAT-rebinding and migration tests, affected-package `go vet`, `go mod tidy -diff`, historical emission-experiment compilation, and whitespace checks passed.
+- All five hosted PR workflows passed on that head, covering 17 successful unit, integration, lint, cross-compilation and interop jobs.
+- RAS review `20261019T040854-a2cfe5101c2abb746853f588` reported no findings or follow-ups. Four reviewers completed successfully; two configured Claude calls failed. No fixes, verification run or replacement review were required. The review was not posted to GitHub.
+
+---
+
+## HTTP/3 response header allocation fix landed - 2026-10-19 00:46 EDT
+
+**Main:** `a14c2eda78ce`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #838](https://github.com/the-sarge/quic-go-fast/pull/838) as `a14c2eda78ceeff86452a63420e7a22ac6f341ea`, addressing Security Cloud finding `csf_192e5852558df51ac57cbe94` at the initial response HEADERS reader. `RequestStream.ReadResponse` now copies the bounded frame into a buffer that grows with received payload, preserving the existing size check, frame boundary, decoding, errors, qlog behavior, and stream cancellation.
+
+The regression reproduced 160 MiB of header-buffer capacity across 16 prefix-only stalled responses before the change and 8 KiB afterward. The partial-payload case retains 32 KiB across 16 responses after receiving 1 KiB each. These are header-buffer measurements, not total process-memory bounds; no connection-wide quota or new header-timeout API was added.
+
+### Validation
+
+- Exact merged PR head `d20c05fb147780485a5b64efa2d9f7c7703a35d4`: HTTP/3 package tests, focused response-header/error-boundary race tests, affected-package `go vet`, `go mod tidy -diff`, HTTP/3 lint, and whitespace checks passed.
+- All 33 hosted checks across the push and PR runs passed on that head, covering the existing unit, integration, lint, cross-compilation, and interop workflows.
+- RAS review `20261019T042537-c45acf2b462f351237529a16` completed with six successful first-pass reviewers, adjudication, and no required fixes. No fix verification or replacement review was needed. The review was not posted to GitHub.
+- A journal-only advance of `main` changed the candidate SHA after review. The product diff and all non-journal tree content were verified identical; local certification and hosted checks were repeated on the refreshed head under the docs-only rerun policy.
+
+### Next
+
+[Issue #840](https://github.com/the-sarge/quic-go-fast/issues/840) tracks the pre-existing server request-header and shared trailer allocations from review clusters C-001/C-005. Both owners were revalidated against the merged SHA before filing. The issue tracker is the live view; optional buffer-growth and small-response allocation optimizations remain outside this fix.
+
+---
+
+## Incomplete HTTP/3 request headers bounded - 2026-10-19 01:12 EDT
+
+**Main:** `28a01df8fd6b`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #839](https://github.com/the-sarge/quic-go-fast/pull/839) as `28a01df8fd6b293f878f80046ade7c20faed8f3a`, fixing Security Cloud finding `csf_133396471152fed4f533f4a3` for incomplete initial request headers. Buffers grow with received payload under a shared per-connection `MaxHeaderBytes` capacity budget. Incomplete headers no longer suspend HTTP idle enforcement, and `ReadHeaderTimeout` defaults to 30 seconds with a negative-value opt-out. Budget exhaustion deliberately resets the affected stream with `H3_EXCESSIVE_LOAD`, including individually valid requests when aggregate capacity is exhausted.
+
+A separate header cancellation timer preserves caller-owned stream read deadlines and stops before valid request activation. The original 100-stream regression reproduced about 101 MiB of allocation amplification; the new regression bounds total allocations, including test and transport overhead, below 16 MiB.
+
+### Validation
+
+- Exact final head: `55570de26ab748cd4900a158122d3d693cbb2640`. HTTP/3 and HTTP integration race suites, affected-package `go vet`, `go mod tidy -diff`, affected-package lint, whitespace checks and the focused caller-deadline regression with `TIMESCALE_FACTOR=20` passed with a clean worktree.
+- All five hosted PR workflows and every job passed on that exact head: unit tests, integration, lint, cross-compilation and interop Docker build.
+- RAS initial review `20261019T043421-ed5f1cb81c38161d172cfe6d` completed with six successful reviewers and no Fix First items. Independent disposition accepted the caller-deadline compatibility finding; its regression failed before the fix, then passed. Pinned verification at `caf66c40` and `55570de2` resolved that finding with blocking projection clear and coverage of all four source clusters.
+- Replacement review `20261019T045613-ec3c0420d2a4d312d5243b51` completed with three successful reviewers and no required fixes. Aggregate-admission and pre-HEADERS parser-allocation defect claims were rejected against the declared contract. The reviews were not posted by RAS; independent dispositions and verification history are recorded in the PR discussion.
+- Linux race CI exposed an observation-deadline scaling error in the new regression. The exact environment reproduced it locally; a test-only correction passed locally and in the final hosted matrix. No same-head hosted rerun was requested.
+
+### Next
+
+[Issue #840](https://github.com/the-sarge/quic-go-fast/issues/840) remains the live view for the pre-existing shared trailer allocation. `http3/headers.go:453-454` was revalidated against merged commit `28a01df8fd6b293f878f80046ade7c20faed8f3a`; the existing issue was updated to mark initial server request headers resolved and retain client/server trailer work. No duplicate issue was created.
+
+---
+
+## Path probe recovery limits landed - 2026-10-19 01:52 EDT
+
+**Main:** `7d05a887e151`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #844](https://github.com/the-sarge/quic-go-fast/pull/844) as `7d05a887e15139a7c3467b8323d91d4e8ce49e30`, bounding path-probe recovery history for the Codex Security Cloud finding about unbounded markers and quadratic probe expiry.
+
+### Completed
+
+- Capped outstanding path probes at 32 per connection and checked combined packet-history capacity before client or server probe construction, including a possible skipped packet-number slot.
+- Replaced side-list scans with indexed removal and retired remaining history markers together with their probes on ACK or timeout, retaining linear bulk cleanup.
+- Preserved the per-path amplification policy already on main and kept capacity-blocked server challenges eligible for retry.
+
+### Validation
+
+The certified and reviewed head was `0a67620e70fb662f9d09138ee9311a722986bb54`; the squash merge has the same tree. Root and ACK-handler suites, targeted race checks, repository-wide compilation, affected-package vet, module tidiness, scoped lint, and diff checks passed. All 33 hosted checks passed before the exact-head squash merge. Regressions cover a flood exceeding `MaxTrackedSentPackets`, 10,000-probe retirement and expiry, ACK/timeout ordering, probes whose markers were retired by loss, migration, and skipped packet numbers.
+
+RAS review `20261019T052447-6a58cffb741fb388b4d7ecbc` completed with no required fixes or follow-ups. The only candidate finding, a hypothetical copy of an initialized list, was rejected after confirming construction copies a zero-valued list that initializes in its final storage.
+
+---
+
+## HTTP/3 multipart cleanup landed - 2026-10-19 03:14 EDT
+
+**Main:** `454c4d3b1762`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #849](https://github.com/the-sarge/quic-go-fast/pull/849) as `454c4d3b17626f7193aa531bbc28ea54b41aeacc`, addressing Security Cloud finding `csf_c95d85777f84481a0ff00a30`. HTTP/3 request completion now calls `MultipartForm.RemoveAll` after normal return, response flush failure, ordinary panic, and `http.ErrAbortHandler`. Stream takeover retains documented caller ownership of multipart temporary files.
+
+### Completed
+
+- Merged the separate prerequisite [PR #861](https://github.com/the-sarge/quic-go-fast/pull/861) as `73a239d23ccb90484efc7365adb982a20fabe21a`. Its handshake buffering fixture selects the Initial carrying ServerHello CRYPTO, skips ACK-only Initials, and preserves coalesced Handshake packets. Compact classical, hybrid, and delayed fragmented ClientHello cases exercise the fault selection.
+- Kept the multipart repair limited to request cleanup, ownership documentation, and six real HTTP/3 multipart regression cases. The original four server-owned completion cases reproduced the file leak twice before the fix; the hijack cases retain readable files until caller cleanup.
+
+### Validation
+
+- Final multipart head `59abcd244471a025fd875306bebcced399660eba`: HTTP/3 race tests passed, reusing Go's unchanged-package test cache after the final rebase; affected-package vet, module tidiness, lint, and whitespace checks passed with a clean worktree. RAS review `20261019T070646-9d4c1b355a853f1c0c3c4159` completed with both selected reviewers and no findings or follow-ups.
+- Final fixture head `b5a27d3ee3deee76d364c087efdc175d9adaba3b`: the compact-flight failure reproduced five times and the ACK-only failure three times before their respective corrections. The seeded GSO-disabled QUIC v1 race self suite and 100 focused QUIC v2 race repetitions of all three cases passed, as did vet, module tidiness, lint, and formatting. RAS review `20261019T065858-c74b59f9465dff6c4b4f7fa0` completed with all three selected reviewers and no findings or follow-ups.
+- All 33 hosted checks passed on each exact reviewed head before marking its PR ready and squash-merging with a matching-head guard. The five PR workflows covered unit, integration, lint, cross-compilation, and interop jobs; no same-head retry of the failed repository test was requested.
+
+---
+
+## Bound default server handshake admission - 2026-10-19 03:34 EDT
+
+**Main:** `ccd85fa1f2b0`
+**Actor:** Codex
+
+[PR #842](https://github.com/the-sarge/quic-go-fast/pull/842) merged the remediation for Codex Security Cloud finding `csf_07f32b72564ef0d1ad9a1b0f`: default listeners now share a process-wide budget of 1,024 pending TLS handshakes, with 128 per source IP. Unvalidated sources require Retry at half either limit, and validated tokens cannot bypass hard caps. Default capacity returns at actual TLS completion or after failed setup and closing-state cleanup; explicit caller-managed admission retains its existing contract.
+
+The review corrections give transport closing states exactly-once retirement and distinguish listener admission closure from actual transport shutdown. Failed pending setup is cleaned up when its owning listener/transport stops; established connections preserve CONNECTION_CLOSE retransmission and remote draining until expiry or transport shutdown. Real Listen/ListenEarly regressions cover both closure orders, local/remote close, stopped-clock cleanup, and reservation-free late publication.
+
+The separately authorized CI diagnosis resolved [issue #322](https://github.com/the-sarge/quic-go-fast/issues/322). A controlled two-probe-loss real UDP/TLS case reproduced the old `2 > 1` assertion: already-lost PING-only MTU probes were counted as simultaneously outstanding. The fixture now rejects oversized data, accounts for observed datagrams with typed packet/loss events, and retains the limit of one unresolved probe. Production MTU and DATAGRAM behavior is unchanged.
+
+Validation passed at exact product head `ee9d9599522df5b8e60071874d09fc41c78a28db`: affected unit packages, admission/shutdown race tests, the full self-integration package on QUIC v1, normal/snapshot/lost-probe MTU cases with QUIC v2 race detection, vet, module tidiness, lint and clean-tree/diff checks, plus all 33 hosted checks. Source verification resolved the shutdown regression; final RAS review `20261019T072647-9e658ef615dc859078e5946c` found no issues or follow-ups. Two reviewers completed, meeting the configured quorum; one Claude Opus process failed. No automated fixer or same-head CI retry was used.
+
+---
+
+## Lazy incoming stream allocation landed - 2026-10-19 03:56 EDT
+
+**Main:** `63fb5e410bc5`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #845](https://github.com/the-sarge/quic-go-fast/pull/845) as `63fb5e410bc5524db75aa57b6a21cb09784cd3db`, addressing Codex Security Cloud finding `csf_9de6fd28ef18ae8747b5a3d5`. A high permitted incoming stream ID no longer constructs every intervening stream while holding the map mutex. Skipped streams are represented by the implicit-open watermark and materialized individually when referenced or accepted, preserving ordered acceptance, object identity, closed-stream suppression, configured limits and one returned stream of credit per completed stream.
+
+### Completed
+
+- Added maximum-ID, frame-handler, lazy-acceptance, deletion/credit, concurrent-acceptor and shutdown regressions. The pre-fix allocation guard failed safely on its second constructor call; the sparse-frame regression's cleanup was corrected so the same historical failure terminates promptly instead of deadlocking shutdown.
+- Corrected two certification fixtures without changing production HTTP/3 or socket behavior: the pending-header-budget handler consumes request EOF before returning, avoiding cancellation racing client FIN; listener-close verification uses open/closed UDP rebinding controls and the existing scaled timeout instead of an ICMP error-string proxy. The exact hosted ICMP timeout was not reproduced locally and is not attributed to a proven socket leak or infrastructure fault.
+
+### Validation
+
+The exact reviewed and certified head was `9da8d533a6387cdaebe62faecfa9b2f552ae649e` on base `0de48f5a0f6594bd7d0bc15ac84e0cd87d3a9cd4`. Uncached root/HTTP3 tests, full shuffled QUIC v1/v2 self-integration suites with TIMESCALE_FACTOR=3, targeted stream/HTTP3 race checks, affected-package vet, module tidiness, scoped lint and formatting/diff checks passed. The listener-close fixture also passed 20 native race repetitions for QUIC v1 and a QUIC v2 check. All 33 hosted checks across nine workflow runs passed before marking ready and squash-merging with an exact-head guard. Failed repository tests were diagnosed and changed; no unchanged-head CI rerun was used.
+
+Initial RAS review and verification resolved the sparse-frame test-cleanup finding. Final renewed review `20261019T074938-96806228614991d94403fe18` completed with both selected reviewers and usable synthesis, with no findings. Optional concurrent identity-test strengthening remains nonblocking: the correct write-lock recheck was revalidated at `streams_map_incoming.go:148-154` in merged commit `63fb5e410bc5524db75aa57b6a21cb09784cd3db`; no product defect or follow-up ticket was established.
+
+---
+
+## HTTP/3 evicted connection retirement landed - 2026-10-19 04:25 EDT
+
+**Main:** `68cc26750883`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #848](https://github.com/the-sarge/quic-go-fast/pull/848) as `68cc2675088309c84b273972b738255c5b312074`, addressing Codex Security Cloud finding `csf_33cbe248e07a87bb0804fddb`. Stream-local HTTP/3 response errors no longer discard the transport's ownership of live QUIC connections: evicted entries remain tracked while exchanges are active, close on final release, and remain reachable by explicit transport shutdown.
+
+### Completed
+
+Preserved active responses and request uploads during retirement, conditional eviction of the expected pool entry, and reuse of replacement connections. Real QUIC regressions cover malformed response headers, response EOF and Close, cancellation, transport shutdown, unfinished uploads, and replacement preservation. The original malformed-response and shutdown regressions failed before the fix.
+
+### Validation
+
+The final reviewed and certified head was `1f003c5056687cfbc2b7109c05d9b1fb5ae39df3` on base `6266b774d1d424fff89ebacf401eb4a58c2e7abf`. Uncached HTTP/3 package and race tests, affected-package vet, `go mod tidy -diff`, scoped lint, formatting, whitespace and clean-tree checks passed. All 33 hosted checks passed before marking ready and squash-merging with the matching-head guard; the five PR workflows covered unit, integration, lint, cross-compilation and interop jobs. No unchanged-head CI retry was requested.
+
+Initial RAS review `20261019T054843-9cfed1155a622dc9e27f6e45` completed with six reviewers and no required fixes. The optional transport-wide completion-latency observation was deferred and its duplicate rejected; the ownership and shutdown invariants remain intact. After main advanced, replacement review `20261019T081807-27a3afe1c14d5f872dea488d` found no issues. Four reviewers completed, meeting the configured quorum of two; two Claude processes failed. No automated fixer or fix verification was needed. The optional latency observation was revalidated at `http3/transport.go:485-494` in merged commit `68cc2675088309c84b273972b738255c5b312074`; no follow-up ticket was warranted by the bounded scope.
+
+---
+
+## Migration old-path check moved to proxy read order - 2026-10-19 04:46 EDT
+
+**Main:** `3583a52b690e`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #865](https://github.com/the-sarge/quic-go-fast/pull/865) as `3583a52b690ed2619671a42f838f8154648ea278`, closing [#434](https://github.com/the-sarge/quic-go-fast/issues/434). The shared `testConnectionMigration` helper (`TestConnectionMigration`, `TestConnectionMigrationConcurrentState`, `TestConnectionMigrationConcurrentAddresses`) no longer compares a client old-path counter snapshotted before `Path.Switch()`. The proxy's read goroutine now marks the client's first path-2 datagram after `Switch()` returned and counts client path-1 datagrams read after it. The test fails if that count is nonzero, or if the client never used path 2. The five macOS-only +2 receipts since 2026-09-19 were ACK-only packets the client wrote before the switch, which the proxy read after the snapshot ([receipt](https://github.com/the-sarge/quic-go-fast/issues/434#issuecomment-6261963762)). The change is test-only: no production, timeout, threshold, quarantine or API change.
+
+### Decisions
+
+- A read-order boundary replaces the #434 brief's send-queue mechanism, as the 2026-10-19 receipt recommended. Any failure of the new check is also a failure of the old one, so the change cannot add flakes. The comment beside the check records the two facts it relies on: `replacePath` drains the old send queue before starting the new one, and loopback delivers in send order.
+- The receipt's separate `Path.Switch()` "immediately" doc-comment observation is unchanged and remains recorded only in that receipt.
+
+### Validation
+
+Forced-delay overlay on candidate `83ecd5f5`, reusing the retained triage overlay with knobs inserted into the committed test:
+- 20 ms stall of the next path-1 write: 0/20 failed; the old check would have failed 20/20 (12× +2, 8× +1).
+- 20 ms loop pause: 0/20 failed; the old check would have failed 20/20.
+- Raw `tr1` datagram after the transfer (negative control): 20/20 failed.
+- Server tail +12.8 ms: 0/100 failed, including one natural +1 the new check accepted.
+- No injection: 0/20 failed.
+
+Evidence is retained at `/Users/josh/diagnostics/migration-old-path-434-fix-83ecd5f5`.
+
+Local certification on `dea93208` (Go 1.27.2 darwin/arm64) passed: focused variants on QUIC v1/v2 ×20 each, race ×5, the full self-integration package on v1 and v2, golangci-lint v2.14.0 on six GOOS, Linux/Windows test build and vet, and `go mod tidy -diff`. Main advanced twice during the gate, through #848 and the docs-only #866. I updated the branch each time. The final head `2e1a5cd5` has a Go tree identical to `dea93208`. All 33 hosted checks passed on every head before the exact-head squash merge, and no rerun was used.
+
+RAS review `20261019T082401-2fe46fe4fad864fca688459e` found nothing. agy-argon, codex-astra, codex-sol and grok approved, and both Claude reviewers failed on the local Claude CLI session limit. No replacement review or deferred finding resulted.
+
+---
+
+## Private default qlog artifacts landed - 2026-10-19 12:16 EDT
+
+**Main:** `235007e374ca`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #846](https://github.com/the-sarge/quic-go-fast/pull/846) as `235007e374caeca333cc38f32152a5bcf43e2a7e`, addressing Codex Security Cloud finding `csf_af4163bf4da230bab2309241`. The shared QUIC and HTTP/3 default qlog writer now requests mode `0700` for new directories and `0600` for new files, before umask on Unix filesystems honoring ordinary mode bits. Exclusive creation rejects existing files and symlinks without overwriting their targets. Existing directory permissions are preserved, and the API comments and README describe sensitive trace contents and the trusted-directory requirement.
+
+### Validation
+
+The permission and existing-path regressions failed against the original writer before passing with the fix. Qlog and writer package tests, targeted qlog/HTTP3 race tests, QUIC v1/v2 tracing integration tests, scoped lint, affected-package vet, module tidiness and whitespace checks passed on Darwin arm64 with Go 1.27.2. The final pushed head was `2651521aaed5065a6ef436dae8e14385ca3156bd`; all 33 hosted checks across nine workflow runs passed on that head before marking the PR ready and squash-merging with a matching-head guard. Unit, integration, lint, cross-compilation and interop workflows succeeded; no same-head CI rerun was requested.
+
+RAS review `20261019T054817-6dc66161d72a52109256fca2` completed with all six reviewers and established no in-scope runtime failure. One low documentation finding was corrected by qualifying the exported permission guarantee for Unix filesystems. Rendered API documentation, a comment-only comparison and exact-head local checks passed; another RAS review/verification cycle was skipped under the documentation-only correction policy. The hypothetical subprocess-selector drift observation and duplicate HTTP/3 documentation observation were rejected.
+
+The nonblocking HTTP/3 wrapper documentation omission and separate interop writer policy were rechecked against merged commit `235007e374caeca333cc38f32152a5bcf43e2a7e` at `http3/qlog/qlog_dir.go:13` and `interop/utils/logging.go:39-44`. They remain outside this default-writer fix; no follow-up issue was created during this session.
+
+---
+
+## HTTP/3 body length validation landed - 2026-10-19 13:28 EDT
+
+**Main:** `985e83d65ed9`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #847](https://github.com/the-sarge/quic-go-fast/pull/847) as `985e83d65ed994fdae714a6db6adbc134dafd903`, addressing Codex Security Cloud finding `csf_9cec654b7c50f830ac02153d`. HTTP/3 request and response bodies that end before their declared Content-Length now return `io.ErrUnexpectedEOF` and cancel the stream with `H3_MESSAGE_ERROR`; subsequent reads retain the error. Short outbound uploads are rejected too.
+
+Response accounting preserves HEAD, informational, 204 and 304 no-content semantics and their parsed metadata. Successful CONNECT tunnels ignore Content-Length for arbitrary tunnel bytes, with the tunnel rule taking precedence over status-based no-content rules. Unsuccessful CONNECT responses retain normal body-length enforcement.
+
+### Validation
+
+The original body-wrapper and real QUIC client/server regressions failed before the fix. Review regressions for admitted 204 metadata and CONNECT tunnel lengths failed before their accounting correction, then passed. Exact/unknown lengths, excess-body detection, EOF with data, repeat reads, response completion, HEAD/304 metadata, trailers and gzip remain covered.
+
+The final certified head was `7144eea565d8371611ff14aedac508d30b3105b8` on base `4d252b91bc4c9ead123d673872a97e9c2b32c4e8`. Uncached HTTP/3 package tests, the full HTTP/3 race suite, focused HTTP integration tests, affected-package vet, `go mod tidy -diff`, formatting, whitespace and clean-tree checks passed on Darwin arm64 with Go 1.27.2. All 33 hosted checks across nine unit, integration, lint, cross-compilation and interop workflow runs passed on that head before marking ready and squash-merging with the matching-head guard. No unchanged-head CI rerun was requested.
+
+Initial RAS review `20261019T054809-2af098d22d901a3ca574181b` produced two independently accepted response-accounting findings, both fixed and verified. Replacement review `20261019T060519-16ad9e716f14b8045be3f9d4` completed with all six reviewers and no findings. After main advanced, the upstream integration was inspected and RAS verification rechecked both findings on the final certified head with a clear result. No deferred finding or automated fixer remained in this workflow.
+
+---
+
+## Delegated network admission landed - 2026-10-19 15:31 EDT
+
+**Main:** `47bf2b6f6e11`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #872](https://github.com/the-sarge/quic-go-fast/pull/872) as `47bf2b6f6e11c9d784af4fdf6d3f282383cb8ff1`, closing [#852](https://github.com/the-sarge/quic-go-fast/issues/852), slice 2 of the fork bundle [#851](https://github.com/the-sarge/quic-go-fast/issues/851). The new method `(*Transport).DelegateNetworkAdmissionV1()` is called once, after `ConfigureNetworkAdmissionV1` and before initialization. It declares that the packet connection already admits every datagram in both directions. `allowsReceive` then skips the receive callback and its `info.OOB()` re-encode, and `checkSend` skips the send callback and its oob copy. Both allocate nothing under the mode.
+
+The structural `packetEndpoint` check, the restricted profile (no `AddPath` either way, no preferred-address adoption, `disableActiveMigration`) and any `ConfigureFixedPeerV1` filter still apply. Without delegation, V1 behaviour is unchanged. Default transports, which have no admission configured, never reach the new branch.
+
+### Decisions
+
+Under #852, the fork chose the shape, the name and the fixed-peer rule, and the operator approved the plan:
+- **Shape:** a separate setter with no arguments, rather than a V2 configuration or nil callbacks; the nil-callback form would have changed V1's "both callbacks are required" contract.
+- **Errors:** delegating without admission configured, after initialization, or a second time.
+- **Fixed peer:** delegation may combine with `ConfigureFixedPeerV1`, whose filter still runs first in both directions.
+
+The decisions are recorded in the PR description and the `DelegateNetworkAdmissionV1` comment. #808's L6 measures `d94b3ec2`'s pinned binaries, so this merge did not affect it.
+
+### Validation
+
+The new tests failed to compile before the implementation existed. They then passed:
+- callbacks skipped, as a table with a V1 control row and a delegated row covering receive, a stateless reset, an ordinary transport write, a connection write, a probe and an external batch;
+- zero allocations;
+- invalid endpoints still rejected;
+- configuration errors;
+- the restricted profile under delegation;
+- the fixed-peer combination.
+
+Deleting either delegated branch made the skips, allocation and fixed-peer tests fail.
+
+The certified head was `3a2ea9da870baeb2913f7148a8e3f1b9c391e747` on base `d0502998490a134ab8e4e3d327c2057e9287fde6`. The following passed on Darwin arm64 with Go 1.27.2: root package `go test -shuffle=on` and `-race`, `go vet`, `go mod tidy -diff`, `git diff --check`, and golangci-lint v2.14.0 for six GOOS. All 33 hosted checks passed on that head before marking ready and squash-merging with the matching-head guard. No CI rerun was requested.
+
+RAS review `20261019T191814-2f730b8031bd6b95a59c304c` completed with all six reviewers and found no behavioural failure. Its one low documentation finding was accepted and fixed: the `ConfigureNetworkAdmissionV1` exception now names the fixed-peer filter alongside the structural checks. The finding's duplicate cluster needed no separate action. The RAS verify and replacement review were skipped under the documentation-only correction policy. No deferred findings remain.
+
+### Next
+
+The consumer measures adoption after the bundle release, when it switches the mode on; that measurement doesn't hold the release. The bundle's remaining holding slices are #853 through #856; the live view is the slice table in #851.
+
+---
+
+## Linux copy-at-read landed - 2026-10-19 17:44 EDT
+
+**Main:** `d0f5b33a45b3`
+**Actor:** Claude
+
+### Summary
+
+Merged [PR #874](https://github.com/the-sarge/quic-go-fast/pull/874) as `d0f5b33a45b313cc3415e4f52d9f4c899b86f844`, closing [#853](https://github.com/the-sarge/quic-go-fast/issues/853), slice 3 of the fork bundle [#851](https://github.com/the-sarge/quic-go-fast/issues/851). With GRO on, the Linux reader keeps its eight 64 KiB read slots. A reader-confined cursor (`coalescedReadCursor`) holds the read's metadata and its undelivered payload, and `ReadPacket` copies one datagram per call into an ordinary pooled buffer (the 1,452-byte or 20 KiB tier). `ReadBatch` runs only after the cursor drains, so a slot is never overwritten while datagrams still wait in it. A coalesced read now allocates no slab, view or pending list. Nothing slab-backed reaches a connection, so the retention copy under `receivedPacketMx` no longer runs for these packets. The Windows URO reader, the coalesced slab, `coalescedDelivery` and ADR 0005's atomic exception are unchanged until #860.
+
+### Decisions
+
+The operator approved the plan. Datagrams above the 20 KiB tier are delivered as each reader delivers them without coalescing. Observed on Linux 7.0 loopback with a 30,000-byte datagram, coalescing off and on:
+- **Unmanaged reader:** 1,452 bytes both ways, the prefix its ordinary-tier read keeps. Before this change, the slab path delivered all 30,000 bytes with coalescing on.
+- **Managed reader:** 30,000 bytes both ways, matching `readManagedPacket`. A new `oobConn.managed` flag, set where the Linux managed endpoint installs its reader, selects whole delivery in the 64 KiB tier.
+
+The operator also ruled the "Scheduling with #808" guard met: the readiness run already ran on `d94b3ec2`, and L6 uses pinned binaries. Accepted and noted, not changed: managed GRO reads now make one extra small copy per datagram, because `managedPacketConn.ReadFrom` already copies into the caller's buffer.
+
+### Validation
+
+The new tests failed on `b50dbd81`'s slab path, run as a separate tree with the base's production files. They then passed:
+- copies land in the ordinary or large tier, the slot is kept, and metadata is inherited;
+- `AllocsPerRun` reads 0, and `retainForRetentionQueue` holds the datagram without a copy;
+- the two real-socket oversized tests, one per reader kind;
+- the updated release, sibling, empty-read and managed GRO tests.
+
+Removing the managed whole-delivery branch made the managed oversized test fail.
+
+The first push failed both ubuntu unit lanes at setup: the Linux test imported `integrationtests/tools/israce`, which `unit.yml` deletes before testing. RAS review `20261019T212536-c7a0f35efbb84471698900e1` (all six reviewers) reported the same thing as its only finding (C-001, with duplicates C-002 and C-003). It was fixed with Linux-only `race`/`!race` constants following `internal/ackhandler`. RAS verify at `022826d0` accepted the code fix and left only the hosted jobs. The replacement review `20261019T213657-042bd709cd07dd4d7dada3fc` (all six reviewers) was clean.
+
+The certified head was `022826d0bd8bd23ad25fd403cbf5e0d8a8f6d906` on base `b50dbd812c2b8d5106815ae4d9b8a0d1c16bccae`. The following passed:
+- **Darwin arm64, Go 1.27.2:** full `go test ./...`, `go mod tidy -diff`, `git diff --check`, golangci-lint v2.14.0 for six GOOS values;
+- **Linux, with `integrationtests` removed** (`golang:1.27.1` in Docker): the root package, plain and `-race`;
+- **minimax (Linux 7.0 amd64, Go 1.27.2):** the root package, plain and `-race`, and `integrationtests/self`, both on the first head;
+- **Cross-compilation:** vet for four GOOS values, and Windows, darwin and grobench test binaries.
+
+All 33 hosted checks passed on that head before it was marked ready and squash-merged with the matching-head guard. No CI rerun was requested. No deferred findings remain.
+
+### Next
+
+The consumer runs #853's gate in its namespace pair and posts the result on #853 and #851. The remaining holding slices are #854 through #856; the live view is the slice table in #851. #860 (Windows copy-at-read and slab retirement) is now unblocked.
+
+---
+
+## Version Negotiation hardening landed - 2026-10-19 18:21 EDT
+
+**Main:** `e1915619073b`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #879](https://github.com/the-sarge/quic-go-fast/pull/879) as `e1915619073b78474dbff716acb5d67d5e0b0d66`. The client now checks both echoed connection IDs before using an unauthenticated Version Negotiation version list. A mismatch is discarded without closing or recreating the connection, and a later valid response can still negotiate. The fix also corrects the reversed source/destination parser assignments and test-packet helper arguments.
+
+### Validation
+
+The unit and real-UDP regression tests reproduced connection recreation or handshake abortion before the production fix. After the fix, the wrong, empty, oversized and swapped ID cases pass, as do the real-UDP forgery tests for QUIC v1 and v2 and the existing valid-negotiation and MTU-fallback cases.
+
+The certified head was `6b6c98e28bb000a52cd6429b77d59bfd4d093881` on base `8f1c0e1b3350486e8c0b6255ac34f544d2be4897`. Local checks passed on Darwin arm64: the full connection package, wire and version-negotiation packages; focused race checks for Version Negotiation, Retry and receive lifetime; the QUIC v2 forgery cases; `go vet` on changed packages; `go mod tidy -diff`; changed-code lint (0 issues); and whitespace/clean-tree checks. All 33 hosted checks and all nine workflow runs passed on that exact head before marking ready and squash-merging with the matching-head guard.
+
+RAS review `20261019T214604-10df0a154e5144e61dd9291c` completed with six reviewers and 12 adjudications and required no fixes. The reviewed source/test files and product patch ID remained identical after incorporating the upstream journal-only commit. The pre-existing Retry-state gap was deferred; optional debug logging was rejected as a required change. No fix verification or replacement review was needed under the bounded review policy.
+
+### Next
+
+Revalidated the deferred Retry gap against merged commit `e1915619073b78474dbff716acb5d67d5e0b0d66` and filed [issue #880](https://github.com/the-sarge/quic-go-fast/issues/880): discard Version Negotiation after a valid Retry. The issue contains current source links and bounded regression criteria and is the live follow-up tracker.
+
+---
+
+## Example client response limits landed - 2026-10-19 18:39 EDT
+
+**Main:** `7aa5b548f41a`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #878](https://github.com/the-sarge/quic-go-fast/pull/878) as `7aa5b548f41a58c59dfe89d4749d0166fa338914`. The runnable example client now streams response bodies to stdout, or discards them in quiet mode, instead of accumulating them in memory. Positive `-max-response-size` and `-timeout` flags default to 10 MiB and 30 seconds per request. Overflow detection reads one extra byte without emitting it, and response bodies close on success or failure.
+
+### Validation
+
+The certified head was `8c1a9818e57b06eae3785ac2189f5ed49fadfda5` on base `c7b579dd875a37537a70cdbe3fd5fce916bb120c`. Local Darwin arm64 checks passed: affected example and HTTP/3 tests, the focused client race check, vet, module tidiness, the full repository go-fix check, targeted lint, and whitespace/clean-tree checks. Regression coverage includes response-size boundaries, quiet mode, unknown lengths, oversized nonterminating streams, stalled headers and bodies, active slow responses, timeout cancellation, and body closure on read/write/overflow errors. CLI smoke checks rejected nonpositive limits.
+
+All nine hosted workflow runs and all 33 jobs passed on the exact candidate before marking ready and squash-merging with the matching-head guard. The merged tree matches the certified candidate tree. The original hosted go-fix failure was resolved with the equivalent `errors.AsType[net.Error]` test modernization.
+
+RAS initial review `20261019T214551-39c5aead6adee50e82d9ef38` required no corrections; replacement review `20261019T220301-d945828982572100349aa641` was clean. The final rebase preserved both feature patches, verified with `git range-diff`, and the new base's Version Negotiation integration was inspected and exercised by the HTTP/3 tests. The optional concern that concurrent displayed response bodies can interleave was revalidated against the merged code; output grouping remains outside the bounded security fix recorded in [PR #878](https://github.com/the-sarge/quic-go-fast/pull/878).
+
+---
+
+## qlog UTF-8 normalization landed - 2026-10-19 19:11 EDT
+
+**Main:** `8e727a20733c`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #876](https://github.com/the-sarge/quic-go-fast/pull/876) as `8e727a20733ccbe99736702abbb1e27f2bb5476d`. The shared qlog JSON encoder now replaces each invalid UTF-8 byte in string keys and values with U+FFFD before escaping, matching the decoded replacement semantics of Go's standard JSON encoder. Peer-controlled CONNECTION_CLOSE reasons therefore produce valid UTF-8 qlog records while wire parsing preserves the received bytes.
+
+### Validation
+
+New regressions failed before the fix for invalid and truncated UTF-8, including transport and application close frames parsed from wire bytes and written through the qlog sequence writer. Coverage also includes valid Unicode, overlong sequences, surrogates, out-of-range encodings, mixed escapes, object keys and values, and writer failures. A 30-second string fuzz run passed 424,941 executions on the original fix commit `88ee4bfc90a0228d0220a7ba84e0da9197c85b20`.
+
+The final certified head was `c3185eea7352fe19d8a3cdeb1cfcc5595163606a` on base `5e55876fd304c623c2c944458b88c3b904dafba3`. Affected qlog, qlogwriter, HTTP/3 qlog and wire package tests passed on Darwin arm64 with Go 1.27.2, alongside logging-package race checks, changed-package vet, module tidiness, targeted lint, whitespace checks and clean-tree verification. All 33 hosted checks across nine unit, integration, lint, cross-compilation and interop workflow runs passed on that exact head before squash merging with the matching-head guard. The merged tree matches the certified candidate tree.
+
+Initial RAS review `20261019T214545-fd9f5e91317bbfb09cc57143` and replacement review `20261019T230406-bd73d68666919429aec07f7b` each completed with all six reviewers and zero findings. The replacement reviewed the final candidate after incorporating the newer main branch. No fix verification, automated fixer or deferred finding remained.
+
+---
+
+## Example server resource limits landed - 2026-10-19 20:00 EDT
+
+**Main:** `04fcb987869f`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #877](https://github.com/the-sarge/quic-go-fast/pull/877) as `04fcb987869f795e92fab8afdf571920a0ab7ddc`. The runnable example server generates deterministic response data in 32 KiB chunks while preserving its 1 GiB maximum. Echo bodies are capped at 1 MiB. Multipart uploads use streaming parsing and hashing without temporary files, with limits of 16 MiB total, 8 MiB per part, and 16 parts. A shared eight-handler admission budget rejects excess requests with HTTP 503.
+
+### Validation
+
+The certified head was `0b4382dfb6e43fe8fed7de8ca70df1f46ef87fa5` on base `7f63e8227a302e8d24f49f81d57ccd714911aa83`. Incorporating the newer main branch preserved the previously reviewed server source and tests byte-for-byte. Local Darwin arm64 checks with Go 1.27.2 passed: example, HTTP/3, core QUIC, qlog and qlogwriter race tests; affected-package vet; targeted lint; example-package go-fix checks; module tidiness; whitespace checks; and clean-tree verification. All 33 hosted checks passed on that exact head before it was marked ready and squash-merged with the matching-head guard. The merged tree matches the certified candidate tree.
+
+Initial RAS review `20261019T214543-eee7c79b71865b6526b7e783` identified a wrapped-EOF parsing error that the upload loop incorrectly treated as successful completion. The new incomplete-boundary regression failed with HTTP 200 before the fix and passes with HTTP 400 afterward. Replacement review `20261019T215713-7379fc65ac599dee188042d7` found no actionable handler defect. Final exact-head RAS verification was clear, including malformed uploads, valid checksums, resource limits and admission-slot reuse.
+
+### Decisions
+
+The shared admission budget continues to cover all routes. Multipart framing and decoding remain owned by Go's standard parser; its pre-existing EOF ambiguity in a later part's headers is recorded as an upstream limitation, with no demonstrated resource-budget or completed-file checksum failure. The accepted boundary and limitation are recorded in [PR #877](https://github.com/the-sarge/quic-go-fast/pull/877).
+
+---
+
+## 32-entry send queue for every connection landed - 2026-10-19 20:27 EDT
+
+**Main:** `48db9bc6303c`
+**Actor:** Claude
+
+### Completed
+
+Merged [PR #885](https://github.com/the-sarge/quic-go-fast/pull/885) as `48db9bc6303cc1952db7b5a218ed3e8509341f83`, closing [#854](https://github.com/the-sarge/quic-go-fast/issues/854) (slice 4 of the fork bundle, [#851](https://github.com/the-sarge/quic-go-fast/issues/851)). Every connection's packet send queue now holds 32 entries, whatever its congestion controller; it was 8, and only BBR had 32 (#766). `maxSendBatch` is its own constant, 8, so #858's later change is a one-line diff. `bbrSendQueueCapacity`, `sendQueueCapacityFor` and `newSendQueueWithCapacity` are gone: connection setup and `replacePath` both call `newSendQueue`, the only constructor, which owns the `authorizedWriter` capture. The depth is fixed, with no setting, counter or kill switch, on every platform. BBR's behaviour is unchanged.
+
+Tests pin depth 32 and cap 8, show that a full queue of 32 same-ECN packets drains as four batches of 8, and check 32 entries for reno and bbrv3 at creation and after `replacePath`. The Darwin `sendmsg_x` end-to-end test now sizes its batch by `maxSendBatch`; sizing it by the queue would still pass, because `runBatched` caps groups at 8, but would no longer test one full batch.
+
+### Decisions
+
+The owner decided on 2026-10-19 to merge without waiting for #808, whose L6 run measures pinned `d94b3ec2` binaries, and that removing the per-controller depth seam is not a new BBR revision, since BBR's depth and cap are identical before and after. Recorded in [PR #885](https://github.com/the-sarge/quic-go-fast/pull/885). This slice deliberately changes Reno's send path; [#871](https://github.com/the-sarge/quic-go-fast/issues/871) owns what Reno is compared against.
+
+### Validation
+
+Certified head `a95696b1f5bec2a9288c87eb3e2ea7549f8cc41d` on base `b7bee44d24144f2bc9b107ee5dc73540aeac5a50`; the merged tree matches it. Full local certification ran at `28c1f5e7` on base `04fcb987` (Darwin arm64 Go 1.27.2 `go test ./...`, a `-race -count=20` queue gate, golangci-lint v2.14.0 on six GOOS values, Windows vet and test compile, module tidiness, and the Linux `golang:1.27.1` container suite without `integrationtests/` plus a `-race -count=5` queue gate). The final merge of `main` added only a journal entry, checked by build, vet and whitespace checks. All 33 hosted checks passed on `a95696b1` before it was marked ready and squash-merged with the matching-head guard. Main advanced twice during the PR (#877's code, then its journal); each time the branch was updated and re-gated.
+
+RAS review `20261020T000002-cbf46f24a7937c0eb50edaa8` ran all six reviewers with no Fix First. Its one low note was valid: the new depth comment claimed batch-level signalling for every connection, but the per-packet path signals after each entry. The comment was qualified to batch-capable sockets (`47e12798`); under the docs-only policy no RAS rerun followed. No finding was deferred.
+
+### Next
+
+The downstream consumer's gate for #854 (namespace pair and Thunderbolt pair, thresholds on #854) is owed and is posted on #854 and #851. #858 (the batch cap follows the depth) is now unblocked. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Deeper unprocessed-packet queue after handshake confirmation landed - 2026-10-19 20:49 EDT
+
+**Main:** `c3fb3c45a694`
+**Actor:** Claude
+
+### Completed
+
+Merged [PR #889](https://github.com/the-sarge/quic-go-fast/pull/889) as `c3fb3c45a694bf0807de2ccefe425338efc6e293`, closing [#855](https://github.com/the-sarge/quic-go-fast/issues/855) (slice 5 of the fork bundle, [#851](https://github.com/the-sarge/quic-go-fast/issues/851)). Each connection's unprocessed-packet queue holds 256 packets until its handshake is confirmed and 1,024 (`protocol.MaxConnUnprocessedPacketsConfirmed`) after, on client and server, with no setting. `handleHandshakeConfirmed` sets `receivedPacketsConfirmed` under `receivedPacketMx`, the mutex under which `handlePacket` already checks the bound. `(*Conn).UnprocessedPacketDropsV1() uint64`, beside `DatagramReceiveDropsV1`, counts every packet the queue refuses while the connection is open: queue full, too large for the entries beyond 256, or refused by the coalesced retained-bytes budget. It excludes packets released after close. Every refusal keeps its DoS-prevention qlog event.
+
+Tests cover:
+
+- the 256 → 1,024 switch for both perspectives, with the count read by interface assertion;
+- the close exclusion;
+- a counted retention-budget refusal;
+- the memory guard below;
+- 31 < 256 < 1,024 for the 0-RTT invariant.
+
+### Decisions
+
+Operator-approved plan decisions, recorded in [PR #889](https://github.com/the-sarge/quic-go-fast/pull/889):
+
+- **Memory guard.** Plan review found that the issue's 1,452-byte figure misses the managed readers without coalescing (Darwin, FreeBSD, Linux without GRO, Windows without URO). They queue each datagram in a 64 KiB buffer, so a flat 1,024 could pin about 64 MiB per connection. Entries beyond 256 therefore take only packets in a 1,452-byte buffer: a fitting packet in a larger buffer or slab view is copied down, and a larger packet is dropped and counted. The deeper queue adds at most 768 × 1,452 bytes per connection whatever the reader, and the first 256 entries keep today's rules. Rejected alternatives:
+  - copying 64 KiB buffers down at any depth, which costs a copy per packet on macOS managed readers with no backlog;
+  - 256 per reader type, which needs reader identity per connection across migration.
+- **Count.** It includes budget and size refusals, since each is receiver-queue loss.
+- **Flag.** It is mutex-guarded, not an atomic.
+- **Accepted blast radius.** A queue that once fills keeps a 1,024 × 96-byte ring for the connection's life.
+- **Scheduling.** #808's L6 run measures pinned `d94b3ec2` binaries, so this merge does not disturb it.
+
+### Validation
+
+Certified head `d5dd40c433b9376bcb205c428653d0ce84d0e44a` on base `14b51c7eab7e967c14f3196907b888102b5e350c`; main did not advance during the PR. Local Darwin arm64 checks with Go 1.27.2:
+
+- full `go test ./...`;
+- `-race` on the root package;
+- a `-race -count=50` queue gate;
+- golangci-lint v2.14.0 on six GOOS values;
+- Linux and Windows vet;
+- a Windows test compile;
+- module tidiness;
+- a Linux `golang:1.27.1` container `-race` run of the root and protocol packages.
+
+Guard mutations each failed a new test: removing the flag set, the size rule, the copy-down, or the counter increment. All 33 hosted checks passed on `d5dd40c4` before it was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T004113-3c194c5c6a0c64fdca0d08d1` ran all six reviewers to completion with no findings, so no replacement review was needed. Nothing was deferred.
+
+### Next
+
+The consumer gate for slices 1 and 5 together (namespace pair and Thunderbolt pair, thresholds on #855) is owed now that #855 has merged. It is posted on #855 and #851. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Opt-in receiver acknowledgment threshold landed - 2026-10-19 23:52 EDT
+
+**Main:** `360f712b27ab`
+**Actor:** Claude
+
+### Summary
+
+[#856](https://github.com/the-sarge/quic-go-fast/issues/856), slice 6 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)), landed in [PR #891](https://github.com/the-sarge/quic-go-fast/pull/891) as `360f712b`. `(*Transport).ConfigureAckThresholdV1(threshold int) error` makes a transport's connections acknowledge Application Data every `threshold` ack-eliciting packets instead of every second one. Transports that don't call it keep today's code path.
+
+### Completed
+
+- With the mode on, the receiver queues an acknowledgment at the earliest of:
+  - `threshold` ack-eliciting packets since the last acknowledgment;
+  - two or more, once the oldest is 1 ms old;
+  - `max_ack_delay` (25 ms) after a lone packet;
+  - at once on the unchanged immediate triggers (a packet previously reported missing, a new gap, ECN-CE).
+- The delay alarm runs from the earliest receive time among unacknowledged ack-eliciting packets and is never restarted.
+- `max_ack_delay`, its transport parameter and the unadvertised `ACK_FREQUENCY` are unchanged.
+- The tracker (`appDataReceivedPacketTracker`) owns the rule. The transport validates and stores the value before initialization, and `Conn.installAckThreshold` installs it next to `installReceivePhase` at the dial and accept sites.
+
+### Decisions
+
+Operator-approved plan decisions (2026-10-19), recorded on [PR #891](https://github.com/the-sarge/quic-go-fast/pull/891):
+
+- **Shape.** A per-transport V1 method found by interface assertion, following `ConfigureReceivePhasesV1`: once, before initialization.
+- **Range 2 to 32.** Below 2 would acknowledge more often than the default rule. Above 32, the initial congestion window in packets, a new connection's first flight could never reach the threshold, so each early round trip would wait for the 1 ms cap.
+- **Scheduling.** Merged without waiting for #808: the mode is off unless a consumer asks, and #808's L6 run measures pinned `d94b3ec2`.
+- **Oldest means earliest receive time.** RAS review found that buffered 0-RTT and undecryptable packets reach the tracker after packets received later, so anchoring to the first packet processed could let the 1 ms deadline slip. The fix lowers the anchor to the earliest receive time.
+
+### Validation
+
+Certified head `31fa9e063eada6b50225826072060d4c57645a5b` on base `fce427e8078b1af36de9752bb0aa35865b359a00`; main did not advance during the PR. Local Darwin arm64 checks with Go 1.27.2:
+
+- `-race` on `internal/ackhandler` and the root package (`-shuffle=on`);
+- `go vet` on both packages and module tidiness;
+- golangci-lint v2.14.0 on six GOOS values.
+
+Tracker tests cover threshold 16, the alarm timed from the oldest packet with no restart, reversed receive times, the 1 ms group cap, the 25 ms lone-packet timer, the immediate triggers and the unchanged default rule. Root-package tests cover the V1 contract and that the threshold reaches dialed and accepted connections. Guard mutations each failed a named test: timing the alarm from the latest packet, overwriting the oldest time, dropping the earliest-time lowering, deleting the cap queue, deleting the cap alarm, and ignoring the threshold. All 33 hosted checks passed on `31fa9e06` before it was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T032913-a70a11cb4a2c3c9b90f41d96` (six reviewers) produced C-001, the receive-order finding above, fixed in `31fa9e06` and verified resolved; C-002, a debug log that prints the cap instead of the measured age, was rejected as log text with no obligation. Replacement review `20261020T034450-7b459190ec1ead817706f5b5` ran all six reviewers with no findings. Nothing was deferred.
+
+### Next
+
+The consumer's adoption gate for slice 6 (switch off against on, Thunderbolt and namespace pairs, Windows lane) runs after the bundle release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Darwin read slots for opted-in batch adapters landed - 2026-10-20 00:30 EDT
+
+**Main:** `fc941d5a5b42`
+**Actor:** Claude
+
+### Summary
+
+[#857](https://github.com/the-sarge/quic-go-fast/issues/857) landed in [PR #893](https://github.com/the-sarge/quic-go-fast/pull/893) as `fc941d5a`. It is slice 7 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)), opt-in and never holding the release. On macOS, a wrapper that implements `ReadBatch` and the new `ReadBatchSlotsV1Conn` (`ReadBatchSlotsV1() int`) is offered that many messages per `ReadBatch` call instead of one. Every other reader keeps today's slots: one on macOS, the platform batch of 8 on Linux and FreeBSD.
+
+### Completed
+
+- **Slot buffers.** Slots are `protocol.MaxPacketBufferSize + 1` bytes (1,453 today), so a full slot means a truncated datagram.
+- **Own buffer tier.** Slots come from `readSlotBufferPool`. A datagram is delivered in its slot without a copy. `putBack` recognizes the slot capacity and returns it to that tier, never to the 1,452-byte, 20 KiB or 64 KiB pools.
+- **Per-reader slot count.** `oobConn.buffers` is now a slice. `setReadSlots` sizes it and its messages from `readSlotsFor`, which has an active Darwin file, a stub for iOS and `quic_go_no_private_syscalls`, and a Linux/FreeBSD version.
+- **Reading with slots.**
+  - A failed batch keeps its slots for the next read.
+  - A full slot, a `MSG_TRUNC`/`MSG_CTRUNC` message or invalid ancillary data is dropped without ending the batch.
+  - A `ReadBatch` count outside the offered slots fails the read on every platform; Linux used to panic on it.
+- **Unprocessed queue.** Past entry 256, a slot is queued as delivered, not copied down. The #855 bound is now 768 × 1,453 bytes.
+- **Docs and CI.** The README names the opt-in and `QUIC_GO_DISABLE_RECVMSG_X`. `unit.yml` gained a macOS step that runs the read-slot tests with `-tags quic_go_no_private_syscalls`.
+
+### Decisions
+
+Owner-approved plan decisions D1–D11 (2026-10-20) are listed in the [PR #893](https://github.com/the-sarge/quic-go-fast/pull/893) body and review record. The main ones:
+
+- An adapter method rather than a Transport API.
+- Counts of 1 or less keep one slot, 2–64 are honored, and above 64 initialization fails.
+- "Never reaches `putBack`" is read as never reaching its pool tiers, because every release already goes through `putBack`.
+- The fork drops full slots itself, with no counter.
+- iOS keeps one slot, and managed endpoints keep their own read.
+- The kill switch is read when each reader is created.
+- Merged without waiting for #808: the behavior change is macOS-only, and #808 measures pinned Linux binaries.
+
+### Validation
+
+Certified head `fbe837d2cfc72306fa10231ef6ee11e06cf68a5a` on base `597a2254c14748f4208011f6afee825bff217bf7`. Main gained only the #856 journal (`597a2254`) during the work, and the branch was rebased onto it before the PR opened. Local Darwin arm64 checks with Go 1.27.2:
+
+- the full `go test ./...`;
+- `-race` on the root package;
+- the read-slot tests with `-tags quic_go_no_private_syscalls`;
+- `go vet ./...` and `go mod tidy -diff`;
+- golangci-lint v2.14.0 on six GOOS values.
+
+The shared slot-lifetime tests also run on Linux, so the hosted ubuntu race job covers them. An end-to-end Darwin connection runs over an opted-in adapter. Seven guard mutations, applied through `go test -overlay`, each failed a named test:
+- the `putBack` slot branch;
+- failed-batch keep;
+- the count bound;
+- the spare byte;
+- the kill switch;
+- the queue no-copy;
+- drop-and-continue.
+
+The tests were written before running because the `tb` rig held this Mac, so the mutations stand in for the red step. All 33 hosted checks passed on `fbe837d2`, including the new macOS tag step on both Go versions, before it was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T040720-d0d1a395a4b70d24ba4ced16` ran all six reviewers with nothing in Fix First. The dispositions:
+- C-001 (a managed wrapper consulting the declaration) was rejected as unreachable: managed leases expose neither `SyscallConn` nor `ReadMsgUDP`.
+- C-002 and C-003 were rejected.
+- C-004 and C-005/C-006, a README wording point and the stale 768 × 1,452 bound comments, were fixed in `fbe837d2`. Both changes are comment and README only, so RAS wasn't rerun, per the docs-only policy.
+
+Nothing was deferred. The tagged lint reports one `unused` in `send_conn_batch_state_darwin.go`; it predates this PR, and CI doesn't lint with the tag.
+
+### Next
+
+The consumer measures adoption after the bundle release (batched receive off against on, Thunderbolt pair, thresholds on #857). That result never holds the release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Send batch cap following the queue depth landed - 2026-10-20 01:23 EDT
+
+**Main:** `0b0f77b0f66a`
+**Actor:** Claude
+
+### Summary
+
+[#858](https://github.com/the-sarge/quic-go-fast/issues/858) landed in [PR #895](https://github.com/the-sarge/quic-go-fast/pull/895) as `0b0f77b0`. It is slice 8 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)), default-on and never holding the release. `maxSendBatch` is `sendQueueCapacity` again, so one batched group takes up to all 32 queued entries instead of 8. It reaches connections on a batch-capable conn: Darwin's native `sendmsg_x` on qualified kernels, and any platform with an external or managed `sendBatch` callback, which now receives up to 32 buffers per call. Plain Linux and Windows sockets have no batched path and are unchanged.
+
+### Completed
+
+- **The constant.** `const maxSendBatch = sendQueueCapacity` in `send_queue.go`. Its comment says a full queue of packets sharing (gsoSize, ecn) forms one group, with one room signal when the worker finishes it, and that the cap also bounds a group that grows while the connection loop refills the queue during the drain.
+- **The depth comment.** `sendQueueCapacity` no longer argues from "a queue no deeper than one batch", which the new equality would contradict. It says the depth bounds how many packets the loop can queue ahead of the worker, that a batch-capable worker signals room once per finished group, and that it bounds entries, not bytes.
+- **Tests.** `TestSendQueueBatchCapFollowsDepth` pins depth 32 and `maxSendBatch == sendQueueCapacity`, replacing #854's cap-8 pin. `TestSendQueueFullQueueDrainsAsOneBatch` shows a full queue of 32 same-ECN entries drains as one in-order batch with every buffer released once. The Darwin writer's size check and `TestSendmsgXBatchSendEndToEnd` already follow `maxSendBatch`, so that test now offers 32-packet groups to the real kernel.
+
+### Decisions
+
+- **New BBR revision, measured later (owner, 2026-10-20, option A).** The change raises BBR's batch cap from 8 to 32, so `main` is a new BBR revision under #748's rule. #808's readiness had already run, which the issue required. The new revision is measured in the next BBR readiness run on the bundle candidate, whose registration waits on [#887](https://github.com/the-sarge/quic-go-fast/issues/887). #808's L6 uses pinned `d94b3ec2` binaries and is unaffected. On the Linux readiness surface the cap does not run: plain sockets have no batched path, and the fixture's managed packet I/O passes a nil `sendBatch`.
+- **No test seam for the concurrent refill.** The `len(group) < maxSendBatch` guard is reachable only when `Send` refills freed slots during the drain; it stays as that case's bound and is not separately tested.
+
+### Validation
+
+Certified head `d6a29ea47749a9149fa163be00b42357ab2dafca` on base `a6de6c8839ce5f670f2fa511b43e93fbb97af511`. Main gained #857 (`fc941d5a`, `a6de6c88`) between planning and branching; it touches only the receive side, and the branch was cut from `a6de6c88`. Local Darwin 27.0.0 arm64 checks with Go 1.27.2:
+
+- red→green: the new pin and drain tests failed against cap 8 (four batches of 8) and passed after the change;
+- the full `go test -count=1 ./...`, with `TestSendmsgXBatchSendEndToEnd` running natively (Darwin 27 is qualified; `kern.ipc.maxsendmsgx` is 256);
+- `-race -count=3` on the send-queue, sendmsg_x, external/managed and batch tests;
+- `go vet` for darwin, linux and windows, a cross-compiled windows/amd64 test binary, `go mod tidy -diff` and `git diff --check`;
+- golangci-lint v2.14.0 on six GOOS values.
+
+All 33 hosted checks passed on `d6a29ea4`. Main had not moved past the base, and the PR was marked ready and squash-merged with the matching-head guard.
+
+RAS review `20261020T050719-eb13a3263022a3094c527779` at `1f6b97af` ran all six reviewers. Two low findings were fix-now, both false statements in the new comments, fixed in `d6a29ea4`:
+- C-001: "a larger cap would change nothing" was false, because `Send` can refill freed slots while `runBatched` drains.
+- C-004: the room signal fires once when a group is finished (the deferred cleanup in `sendBatchEntries`), not after each submission.
+
+C-002 and C-003 were rejected as duplicates of C-001. The fix was comment-only, so RAS was not rerun, per the docs-only policy. Nothing was deferred.
+
+### Next
+
+The consumer gate is owed: cap 32 at `0b0f77b0` against #854's `48db9bc6` (cap 8), with thresholds on #858; a failure ships the release with the cap at 8. The next BBR readiness on the bundle candidate measures this revision after #871 and #887. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Opt-in user-initiated send thread on Apple silicon landed - 2026-10-20 02:34 EDT
+
+**Main:** `1231cffa2ba3`
+**Actor:** Claude
+
+### Summary
+
+[#859](https://github.com/the-sarge/quic-go-fast/issues/859) landed in [PR #897](https://github.com/the-sarge/quic-go-fast/pull/897) as `1231cffa`. It is slice 9 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)): opt-in, and it never holds the release.
+
+`(*Transport).ConfigureSendThreadQoSV1() error` makes each connection's send worker (`sendQueue.Run`) on an Apple-silicon Mac lock its goroutine to its thread and raise the thread to user-initiated. `(*Conn).SendThreadQoSV1() string` reports `off`, `pending`, `raised`, `refused` or `stood_down`. The kill switch is `QUIC_GO_DISABLE_SEND_QOS`. Transports that don't call it keep today's `Run`, apart from a nil check.
+
+### Completed
+
+- **Verified raise.** The raise counts only when the thread's base priority (`proc_pidinfo` with `PROC_PIDTHREADID64INFO`, field `pth_priority`) reads 37 or more. Otherwise the worker restores the recorded class, unlocks and records `refused`.
+- **Re-check.** While raised, the worker re-reads its base priority at most once a second, and only after it sends. A drop restores the class, unlocks and records `stood_down`, and sending continues.
+- **Every exit restores before unlocking.** That covers close, per-packet send errors and batched send errors. If restoring fails, the goroutine stays locked, so the runtime ends the thread with it.
+- **Per-connection outcome.** `packetEmission` holds the controller. Install sets it once, before the connection is published, next to `installAckThreshold` at the dial and accept sites. `replacePath` binds only the new queue (`bindQueueSendQoS`), so refused and stood down hold across path changes.
+- **Platforms.** `darwin && arm64 && !ios` calls libSystem through assembly trampolines and `syscall.syscall`/`syscall6`, without cgo. Every other build, Intel, Rosetta and iOS included, compiles a no-op and reports `off`.
+- **[ADR 0010](adr/0010-libsystem-calls-without-cgo.md)** records the mechanism and its borrowed invariant: the runtime keeps `syscall.syscall` reachable by linkname, which `golang.org/x/sys/unix` relies on. These are public SDK APIs, so ADR 0008's private-call rules don't apply.
+
+### Decisions
+
+The operator approved these with the plan on 2026-10-20:
+- A refusal at start is final for the connection, like a stand-down.
+- A failed restore keeps the goroutine locked.
+- Configuring on other platforms succeeds and reports `off`.
+- The re-check follows sends, so an idle worker makes no calls.
+- The slice was not scheduled with #808: it is a no-op on Linux and off by default.
+
+Each raised connection holds one OS thread, which is documented but not capped.
+
+### Validation
+
+**Native probe before planning (M4 Max, Darwin 27.0.0, Go 1.27.2).** Go threads start at the default class (base priority 31).
+- Under the desktop app, the requested class reads user-initiated while the base priority stays at 31, so the raise is refused.
+- Over `ssh localhost`, it reaches 37 and restores to 31.
+- Setting the unspecified class returns EINVAL, so restoring an unspecified prior class falls back to the default class.
+- User-interactive is capped at 37 outside the frontmost app.
+
+**Tests.**
+- Platform-neutral tests drive `Run` through a fake thread seam, so hosted Ubuntu race covers them. They cover each acceptance case and the failure paths: a failed raise, the re-check interval, a failed restore, `replacePath` binding, install with the kill switch, the outcome strings, the configure contract, and an end-to-end loopback.
+- With `QUIC_GO_TEST_SEND_QOS_EXPECT`, the real-libSystem round trip and the end-to-end test asserted `refused` under the desktop app and `raised` over ssh.
+- Each guard deletion, applied with `go test -overlay`, was caught by its named test: exit restore, latch, start verification, re-check, kill switch, keep-lock, and both versions of the replacement binding.
+
+**Certification of `541e7236` on base `174c99a5`.** #858 landed between planning and branching; it doesn't touch `Run`'s structure.
+- golangci-lint v2.14.0 on six GOOS (amd64) plus darwin/arm64, which hosted lint doesn't cover.
+- `go vet` for darwin arm64 and amd64, windows and linux; `go mod tidy -diff`.
+- Linux `go test` and `-race` on the root package, and the unit-shaped `./...` without `integrationtests` (minimax, Go 1.27.2).
+- Darwin root tests and race on `ffcd3b66`, inside a window granted by the `tb` rig owner.
+- All 33 hosted checks passed on `541e7236`. Main had not moved, and the PR was squash-merged with the matching-head guard.
+
+**RAS review `20261020T055506-30014c16ac44d062c8653b85` at `ffcd3b66`** (agy-argon failed, a tool failure; five reviewers completed).
+- C-002, with duplicates C-003, C-004 and C-006, was fix-now. `replacePath` rewrote `packetEmission.sendQoS` while `SendThreadQoSV1` read it concurrently. It was fixed in `541e7236`, and `TestSendQoSOutcomeDuringPathChanges` failed under `-race` before the fix and passes after.
+- Rejected: C-001 (a thread already above 37 is lowered to user-initiated; the contract names that class, and no probe showed the state) and C-005 (`proc_pidinfo` errno is not surfaced; a short read already fails closed).
+- Verification at `541e7236`: blocking projection clear, 6/6 clusters covered.
+- Replacement review `20261020T062155-b3be614aaed99dc6a8182747`: no findings (claude-opus failed, a tool failure).
+- Nothing was deferred.
+
+### Next
+
+The consumer's adoption gate runs after the bundle release on the Thunderbolt pair, with thresholds on #859. It never holds the release. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Windows copy-at-read, missing-record guard and slab retirement landed - 2026-10-20 04:30 EDT
+
+**Main:** `0dae7d44def1`
+**Actor:** Claude
+
+### Summary
+
+[#860](https://github.com/the-sarge/quic-go-fast/issues/860) landed in [PR #899](https://github.com/the-sarge/quic-go-fast/pull/899) as `0dae7d44`. It is slice 11 of the fork bundle ([#851](https://github.com/the-sarge/quic-go-fast/issues/851)) and never holds the release.
+
+The Windows reader now copies each datagram out at read time, as the Linux GRO reader has since #853. A guard turns URO off when a long read arrives without its segment-size record. With no producer left on any platform, the coalesced slab, its retention budget and ADR 0005's atomic exception are retired.
+
+### Completed
+
+- **Shared cursor.** `coalescedReadCursor` and `copyCoalescedDatagram(datagram, managed)` moved from `sys_conn_oob.go` into `coalesced_read.go` (`darwin || linux || freebsd || windows`). Linux behavior is unchanged.
+- **Windows copy-at-read.**
+  - While URO is on or the reader is managed, `windowsConn` reads into one reader-owned 64 KiB coalesced-tier buffer, taken on first use and returned by `releaseReadBuffers`.
+  - Each datagram is copied into the smallest tier that fits. Above 20 KiB, a managed reader gets it whole in the 64 KiB tier (operator decision D1) and any other reader gets the 1,452-byte prefix.
+  - The unmanaged reader without URO is unchanged.
+- **Guard.** It trips on a valid read longer than 1,452 bytes without `UDP_COALESCED_INFO`, while URO is on.
+  - The trip is counted once, the read is dropped, and `UDP_RECV_MAX_COALESCED_SIZE` is set to 0 once.
+  - Only a successful turn-off ends the guard. If it fails, long reads without their record keep being dropped.
+  - After a successful turn-off, a read without its record is one datagram, and a read with its record is still split.
+  - The state is reader-only, so `cap.GRO` and the reported state keep their values.
+- **Count.** `(*Transport).ReceiveCoalescingFallbacksV1() uint64` exists on every platform and is found by interface assertion (D2). It resolves a managed lease to the endpoint's reader.
+- **Retirement.** These were deleted: `coalescedSlab`, `coalescedDelivery`, `retainForRetentionQueue` and its seven call sites, the three `coalescedRetention` budgets, `MaxConnRetainedCoalescedBytes`, `packetBuffer.slab` and `retentionCharge`, and the slab-only tests.
+  - Tests that used a slab view to observe a release now read a coalesced-tier buffer's refcount. This relies on their transports never taking that tier.
+  - The full list is in the [#860 retirement comment](https://github.com/the-sarge/quic-go-fast/issues/860#issuecomment-6286816009).
+- **CI.** `unit.yml` runs `^TestWindows(URO|USOURO|Managed|External)` under `-race` on the Windows lane (D3).
+
+### Decisions
+
+The operator approved D1–D4 with the plan on 2026-10-20:
+- D1: a managed reader delivers a datagram above 20 KiB whole.
+- D2: the count's name and placement.
+- D3: the Windows race step.
+- D4: the frozen `w3bench` and `grobench` harnesses keep their bytes. They no longer compile on `main` and are built at their recorded commits, as ADR 0005's 2026-10-20 note records.
+
+A genuine single datagram longer than 1,452 bytes on a URO socket trips the guard too, on managed endpoints included. That is the trigger #860 pins, and the plan accepted it. Hosted CI on `311d61b2` surfaced it through `TestWindowsManagedECNLeaseReuse`, and `TestWindowsManagedUROGuardLongSingleDatagram` now pins it.
+
+### Validation
+
+- **RAS review `20261020T075546-2fc135d4b3d893c34d3a8449` at `c8267941`.** All six reviewers completed.
+  - C-002 (with duplicates C-003, C-006 and C-007) was fix-now. A failed turn-off had been treated as a successful fallback. Fixed in `cbc0cb9f`; `TestWindowsUROGuardTurnOffFails` covers it.
+  - C-001 was fix-now: a discarded managed reader kept its buffer. Fixed; `TestWindowsManagedReceiveDiscardReleasesReadBuffer` covers it.
+  - C-004, C-005 and C-008 were fix-now documentation.
+  - Rejected: rewording the upstream truncation comment that moved unchanged.
+  - Verification at `cbc0cb9f` left only the C-004/C-005 wording, fixed in `409e118e` as comments only. Replacement review `20261020T081935-56dbd10bc86a5eb8e44770db` found nothing.
+- **KVM on minimax.** The guest was a Server 2025 overlay of the v4 golden (sha256 verified), with an e1000e NIC and software URO, using the Linux host as peer. Binaries were built at `cbc0cb9f`.
+  - `TestWindowsExternalURONativeEngagement` passed: 1 coalesced read, 32 exact datagrams, zero fallbacks.
+  - 52 `TestWindows*` tests passed; 2 skipped because they need peers outside this run.
+  - With the guard branch deleted (via `go test -overlay`), the four guard tests failed and the short- and recorded-read test still passed.
+  - The guest was then destroyed and undefined.
+- **Certification of `409e118e` on base `17c46097`.**
+  - Darwin: `go vet` for darwin and windows/amd64, and `go test -count=1 -shuffle=on ./...` (27 packages).
+  - minimax, Go 1.27.2: golangci-lint v2.14.0 on six GOOS (amd64) plus windows/arm64, `-race` on the root package and `internal/protocol`, and `go mod tidy -diff`.
+  - Stress earlier in the PR: `-race -count=100` on the rewritten release-observer tests and the GRO reader tests.
+  - All 33 hosted checks passed on `409e118e`, including both Windows lanes' race step. One earlier macOS integration job failed at `go install go-junit-report`; the same head's push job passed. Main had not moved, and the PR was squash-merged with the matching-head guard.
+- **Process miss.** Several of my compiles, the tail of the RAS run and a golangci-lint build ran on mbp128 during wiremux `tb` runs (1924's TB1 and 1919's B1). I disclosed each window, and the owners flagged the overlapping runs. The remaining work ran on minimax or inside a window 1919 parked for it.
+
+### Next
+
+The consumer gate is owed on #860 and #851: the Windows VM and Arm VM rows. It never holds the release. A pointer is posted on [#808](https://github.com/the-sarge/quic-go-fast/issues/808#issuecomment-6286815561); its L6 uses pinned binaries. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+
+---
+
+## Incremental trailer HEADERS buffering landed - 2026-10-20 11:30 EDT
+
+**Main:** `37c2c87d0858`
+**Actor:** Claude
+
+### Summary
+
+[#840](https://github.com/the-sarge/quic-go-fast/issues/840) is closed by [PR #901](https://github.com/the-sarge/quic-go-fast/pull/901), squash-merged as `37c2c87d`. `decodeTrailers` serves both client response trailers and server request trailers. It used to allocate the full peer-declared trailer HEADERS length before reading any payload. It now grows a buffer as payload arrives, so a stalled trailer prefix holds only what the peer actually sent.
+
+### Completed
+
+- **Fix.** `http3/headers.go`: `make([]byte, hf.Length)` + `io.ReadFull` became `bytes.Buffer` + `io.CopyN`, the pattern #838 uses in `RequestStream.ReadResponse`. A partial EOF maps to `io.ErrUnexpectedEOF`, so error behavior is unchanged:
+  - empty then EOF gives `io.EOF`;
+  - partial then EOF gives `io.ErrUnexpectedEOF`;
+  - other errors pass through `maybeReplaceError` unchanged;
+  - a complete payload that arrives with an error still decodes.
+
+  The size check and its invalid-HEADERS qlog event, the frame boundary, the qlog events, the signature and both caller closures are unchanged.
+- **Tests.** `http3/trailer_buffer_test.go` drives `Stream.Read` through a DATA frame into the trailer. It covers 16 stalled streams at the client (10 MiB) and server (1 MiB) limits, truncation errors, a complete payload with a terminal error, 127-byte chunked reads up to the frame boundary, and the oversized-length rejection with its qlog event.
+- **Retention across 16 stalled streams, before → after:**
+  - client: 167,772,160 B → 8,192 B (0 payload bytes) and 32,768 B (1,024 bytes);
+  - server: 16,777,216 B → 8,192 B and 32,768 B.
+
+  Only the stalled test failed on base `9343a7fe`. The other four pass on both and pin preserved behavior.
+
+### Decisions
+
+These were approved with the plan on 2026-10-20:
+- The fix stays inline rather than in a helper shared with #838's path, which was a non-goal.
+- Trailers are not charged to the server's `pendingHeaderBytes`. Per the issue, that is out of scope.
+- Accepted trade-offs, the same as #838's: a legitimate near-limit trailer block can briefly peak at about 2× its size while the buffer doubles, and an empty trailer frame allocates 512 B.
+
+### Validation
+
+- **RAS review** `20261020T152223-bc3d92f502edacf5811a4b94` at `c4eba5d9`, briefed with the issue contract verbatim. All six reviewers completed (36 s to 3.3 min each) with zero findings. There was no verify pass and no replacement review.
+- **Certification of `c4eba5d9` on base `9343a7fe`** (Go 1.27.2, darwin/arm64), all passing:
+  - `go test ./http3/...` and `go test -race ./http3/`;
+  - `go vet ./http3/...` and `go mod tidy -diff`;
+  - golangci-lint v2.14.0 on `./http3/...` for six GOOS (amd64): 0 issues;
+  - the integration trailer and header-size tests.
+- **Hosted checks:** all 33 passed on `c4eba5d9`. Main had not moved, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** every compile and the RAS run on mbp128 ran after a `tb` rig idle check.
+
+### Next
+
+No follow-ups were filed: the review deferred nothing. Trailer quotas and timeouts remain out of scope unless someone files them separately.
+
+---
+
+## Version Negotiation discard after Retry landed - 2026-10-20 11:55 EDT
+
+**Main:** `bd8de02ed144`
+**Actor:** Claude
+
+### Summary
+
+[#880](https://github.com/the-sarge/quic-go-fast/issues/880) is closed by [PR #904](https://github.com/the-sarge/quic-go-fast/pull/904), squash-merged as `bd8de02e`. After accepting a valid Retry, a client now discards Version Negotiation, as RFC 9000 §6.2 requires. Before, a Version Negotiation packet that echoed the original Initial's connection IDs passed the #879 echo checks. It then either recreated the connection on an alternate version or destroyed it with `VersionNegotiationError`. Upstream quic-go has the same gate, so this is a fork fix, not a regression.
+
+### Completed
+
+- **Fix.** `connection.go`: `handleVersionNegotiationPacket`'s early-discard condition now also checks `c.receivedRetry`. That flag is set only after a Retry's integrity tag validates. The packet is dropped before its version list is parsed, recording `qlog.PacketDropped` (`version_negotiation`, `PacketDropUnexpectedPacket`), just as delayed and duplicate packets are. `receivedFirstPacket` keeps its meaning, because it also gates Retry acceptance and Initial source-ID filtering.
+- **Tests.** `TestConnectionVersionNegotiationAfterRetry` in `connection_test.go` drives `handleOnePacket`.
+  - **Accepted Retry, then Version Negotiation:** one subtest offers an alternate supported version (`[Version2]`), the other no common version (`[1234]`). Both assert: no error, no close, a single drop event with no `VersionNegotiationReceived` or `VersionInformation`, and that the Retry's destination ID, `handshakeDestConnID`, `retrySrcConnID` and token survive.
+  - **Rejected Retry, then Version Negotiation:** one subtest uses a bad integrity tag, the other an unchanged source ID. In both, a later valid Version Negotiation packet still recreates the connection on `Version2`.
+  - **Red step:** without the gate condition, both accepted-Retry subtests failed on base `d5461b98`, with the two outcomes the issue describes. The rejected-Retry subtests passed on both versions.
+
+### Decisions
+
+Approved with the plan on 2026-10-20:
+- The fix stays at the Version Negotiation gate.
+- Setting `receivedFirstPacket` on Retry was rejected: it would change Initial source-ID filtering after Retry, which [#880](https://github.com/the-sarge/quic-go-fast/issues/880) puts out of scope. Contract closure was not triggered: one owner and a finite set of states, covered by focused tests.
+
+### Validation
+
+- **RAS review:** run `20261020T154731-2a6677cd8fefe8fb2dea7d55` reviewed `4ef6c849`, briefed with the issue and triage contract verbatim. All six reviewers completed with zero findings, so there was no verify pass and no replacement review.
+- **Certification of `4ef6c849` on base `d5461b98`** (Go 1.27.2, darwin/arm64), all passing:
+  - the focused `TestConnectionVersionNegotiation*`, `TestConnectionRetry*`, `TestConnectionConnectionIDChanges` and `TestConnectionServerInvalidPackets` tests, run both plain and with `-race`;
+  - `go test ./integrationtests/versionnegotiation/...`;
+  - the full root package `go test`;
+  - `go vet .`;
+  - golangci-lint v2.14.0 for six GOOS values (amd64): 0 issues.
+- **Hosted checks:** all 33 passed on `4ef6c849`. Main had not moved, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** every compile and the RAS run on mbp128 started after a `tb` rig idle check.
+
+### Next
+
+No follow-ups were filed: the review deferred nothing.
+
+---
+
+## Path.Switch doc comment describes when the switch applies - 2026-10-20 12:21 EDT
+
+**Main:** `ec80b23ed5cf`
+**Actor:** Claude
+
+### Summary
+
+[#869](https://github.com/the-sarge/quic-go-fast/issues/869) is closed by [PR #903](https://github.com/the-sarge/quic-go-fast/pull/903), squash-merged as `89c96861`. The `Path.Switch()` doc comment, inherited from upstream, said the switch "immediately" stops sending on the old path. `Switch()` only records the request, and the client run loop applies it later. The comment now describes that. Code, tests and behavior are unchanged.
+
+### Completed
+
+- **Comment.** `path_manager_outgoing.go` keeps the first sentence and now says:
+  - `Switch()` returns without waiting for the switch to take effect;
+  - the connection applies it before its next send attempt, and packets prepared after that go on the new path;
+  - a send attempt already running when `Switch()` is called may still prepare old-path packets, and already-queued packets may still go out on the old path;
+  - if the connection closes before applying the switch, any CONNECTION_CLOSE it sends goes out on the old path.
+- **Code trace (at `bd8de02e`):**
+  - `switchToPath` sets `pathToSwitchTo` under `pm.mx`;
+  - each client run-loop iteration calls `ShouldSwitchPath()` → `switchToNewPath` before `triggerSending`, with no re-check between them;
+  - `replacePath` closes the old queue, and `sendQueue.Run` drains what it already holds onto the old socket;
+  - `handleCloseError` sends on the current `*e.conn`, but sends nothing for immediate (`destroyImpl`, e.g. idle timeout) or remote closes.
+
+### Decisions
+
+- Doc-only fix (option 1 in the issue), as the triage brief on #869 records. Making `Switch()` block was rejected as a caller-visible change under ADR 0001.
+- On 2026-10-20 the owner approved one sentence beyond the brief: the CONNECTION_CLOSE edge, so that "before its next send attempt" doesn't overstate the guarantee when the loop exits first.
+
+### Validation
+
+- **RAS review** `20261020T154421-99a5bcd6b3c3a13f3b1de65e` at `01c2f527`, briefed with the brief's contract verbatim. All six reviewers completed. Two findings were dispositioned `fix-now` and fixed in `dde27254`:
+  - C-001: "before it next prepares packets" missed an in-progress send attempt;
+  - C-002, with duplicates C-003–C-005: a CONNECTION_CLOSE is not always sent.
+
+  Both were cheap, high-confidence comment edits, so the RAS re-review was skipped per the shared review-loop policy.
+- **Main moved during review.** `bd8de02e` (#880) changed only version-negotiation handling, outside the traced sequence. It was merged in as `d631b001`.
+- **Certification of `d631b001` on base `bd8de02e`** (Go 1.27.2, darwin/arm64), all passing:
+  - one-file, comment-only diff;
+  - `gofmt -l .` clean; `go build ./...` and `go vet ./...` pass;
+  - `go doc . Path.Switch` renders the new text;
+  - golangci-lint v2.14.0 for six GOOS (amd64): 0 issues;
+  - `git diff --check` clean.
+- **Hosted checks:** all 33 passed on `d631b001`. The base equaled `origin/main` at merge, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** every compile, lint and the RAS run on mbp128 ran after a `tb` rig idle check.
+
+### Next
+
+No follow-ups were filed: the review deferred nothing.
+
+---
+
+## Path MTU settled signal landed - 2026-10-20 12:58 EDT
+
+**Main:** `61a77c23235a`
+**Actor:** Claude
+
+### Summary
+
+[#884](https://github.com/the-sarge/quic-go-fast/issues/884) is closed by [PR #907](https://github.com/the-sarge/quic-go-fast/pull/907), squash-merged as `61a77c23`.
+
+`(*Conn).PathMTUSettledV1() <-chan struct{}` returns one channel per connection. It closes once, at the first of these:
+
+- path MTU discovery's search concludes on the first path;
+- discovery will not run there;
+- the connection leaves that path;
+- the connection ends.
+
+A downstream consumer can now wait a bounded time for a settled DATAGRAM limit instead of reading the initial-size limit shortly after the handshake.
+
+### Completed
+
+- **Signal owner.** `path_mtu_settled.go` holds a channel plus a `closed` flag, used only on the connection goroutine. Its idempotent `settle()` is the single guard for exactly-once closing. The doc comment states the path-change caveat: a path change, including one the server follows after NAT rebinding, resets the limit to the initial size without reopening the channel.
+- **Settle sites,** each at an existing event:
+  - **Acknowledged probe:** `handleAckFrame`, inside the existing "estimate rose" branch, after `Store` and `SetMaxDatagramSize`. An acknowledgement concludes the search only by raising the finder's size.
+  - **Lost probe:** `mtuFinderAckHandler.OnLost`, through a finder field attached by the new `newPathMTUFinder`. A loss never changes the size, so the estimate is already final. This covers losses in ACK processing, by the loss timer and in `MigratedPath`.
+  - **Discovery will not run:** `startMTUDiscovery` at confirmation (disabled, no DF, or nothing to search).
+  - **Path abandoned:** `resetPathPacketSize`, after the estimate reset.
+  - **Connection end:** a `run()` defer.
+- **Not on the per-packet path.** Nothing runs per packet. The probing schedule, probe sizes, loss handling, packetization, the handshake fallback and `SendDatagram`'s computation are unchanged. The existing MTU tests are byte-identical.
+- **Glossary.** `CONTEXT.md` gains a **Path MTU settled signal** entry.
+- **Unit tests** (`path_mtu_settled_test.go`, plus `TestMTUDiscovererSettledOnLoss`):
+  - confirmation routes;
+  - acknowledged, ACK-time-loss and loss-timer conclusions, driven through the real sent packet handler;
+  - a path change before and after the close;
+  - the handshake fallback followed by a conclusion;
+  - an idle-timeout end before the handshake.
+- **Integration tests** (`integrationtests/self/path_mtu_settled_test.go`):
+  - loopback settles at 1441 bytes (limit 1404, initial 1243);
+  - a 1400-byte proxy cap ends on lost probes at 1398 (limit 1361);
+  - discovery disabled holds 1243;
+  - local close, peer close and idle timeout behind a ~100 ms RTT proxy.
+
+### Decisions
+
+Approved with the plan on 2026-10-20:
+- The signal belongs to the connection, and it is first-path only, per the triage brief on [#884](https://github.com/the-sarge/quic-go-fast/issues/884).
+- **Rejected:** per-ACK polling (per-packet work), a channel owned by the finder (the fallback replaces finders), updating the estimate inside `OnAcked` (reorders congestion accounting), and reordering `Reset` before `MigratedPath`. Rationale and revisit triggers are in PR #907's body.
+- **Contract closure** was triggered only for "exactly once, no panic", with one guard-deletion mutation.
+
+### Validation
+
+- **Red evidence.** Six `go test -overlay` mutations each turned their target test red: the five settle sites removed in turn, and the `closed` guard removed (which panics with "close of closed channel").
+- **Gates on the committed tree `2033a40d`, base `dea6bf19`** (Go 1.27.2, darwin/arm64), all passing:
+  - `go vet` on the root package and `self`;
+  - `go mod tidy -diff`;
+  - `go test -race .`;
+  - `go test ./integrationtests/self`;
+  - golangci-lint v2.14.0 for six GOOS values (amd64): 0 issues.
+- **Stress,** all clean:
+  - `GOMAXPROCS=4 go test -race -count=20` on the new unit tests;
+  - `GOMAXPROCS=4 go test -count=20` on the new integration tests;
+  - `GOMAXPROCS=4 go test -race -count=5` on the new and existing path MTU integration tests.
+- **RAS review** `20261020T164832-ee3d08f52d898d9d883788db` at `2033a40d`, briefed with the triage contract verbatim. All six reviewers and six adjudicators completed, with nothing under Fix First or Follow Up. C-001 (low, docs, "initial packet size" after the fallback) was rejected: the wording is the brief's, and `Config.InitialPacketSize` already documents the 1200-byte start for later paths. With no fixes, there was no verify pass or replacement review.
+- **Hosted checks:** all 33 passed on `2033a40d`. The base equaled `origin/main`, and the PR was squash-merged with the matching-head guard.
+- **Shared rig:** compiles ran in a parked window granted by wiremux 1920. On 2026-10-20 the owner ruled that RAS reviews need not wait for a `tb` window.
+
+### Next
+
+- **Consumer gate,** for information, after a release carries this: the consumer waits for the signal, bounded at 250 ms, then runs an A/B on the Thunderbolt pair (see [#884](https://github.com/the-sarge/quic-go-fast/issues/884)).
+- **Note for that consumer:** discovery sends probes only while the connection is sending, which is unchanged behavior. An idle connection can delay the signal, so the consumer should keep sending while it waits.
+- No follow-ups were filed: the review deferred nothing.
+
+---
+
+## Dual-stack ECN test receiver port fix landed - 2026-10-20 14:05 EDT
+
+**Main:** `08f3dc92279b`
+**Actor:** Claude
+
+### Summary
+
+[#528](https://github.com/the-sarge/quic-go-fast/issues/528) is closed by [PR #909](https://github.com/the-sarge/quic-go-fast/pull/909), squash-merged as `08f3dc92`. The change is test-only.
+
+`TestReadECNFlagsDualStack` sometimes timed out on macOS CI waiting for its first IPv4 packet. The cause is the #717 mechanism. A dual-stack receiver bound with port 0 can be given a port that an IPv4 socket already holds on `127.0.0.1` or `0.0.0.0`, and IPv4 datagrams to `127.0.0.1:P` then go to that socket. The owner approved acting on that mechanism without waiting for another natural failure, as #717/#721 did.
+
+### Completed
+
+- **Forced reproduction on main `33ecc809`.**
+  - Setup: a scratch `go test -overlay` test held 1,000 `udp4` sockets (800 on `127.0.0.1`, 200 on `0.0.0.0`), then repeated the test's receiver setup and IPv4 phase with the unchanged helpers. The budget was declared up front: 400 draws, one run, 10-minute cap.
+  - On main: 27 draws collided (23 with `127.0.0.1` holders, 4 with `0.0.0.0` holders). All 27 timed out with no read error, as #544's diagnostics predicted, and each datagram was found at the holder. The other 373 were delivered.
+  - With the fix (`12dc9636`): 400/400 delivered, 0 collisions.
+  - Host: mbp128, macOS 27.0.1 (26A434), Go 1.27.2. The CI build (26.6.2, 25G83) on m4mini was unreachable; #717 had reproduced the mechanism there.
+- **`listenDualStackUDP`** in `sys_conn_oob_receiver_test.go`; `runSysConnServer` routes `"udp"` receivers through it. On darwin:
+  1. A `udp4 0.0.0.0:0` reservation takes the port from the IPv4 allocator.
+  2. While the reservation is open, the receiver binds `[::]:P` explicitly. XNU allows this next to an IPv4 wildcard socket.
+  3. The reservation closes.
+
+  If an IPv6 socket holds the port, the bind fails with `EADDRINUSE`; that reservation is kept open and the next draw differs, for at most 16 draws. Other systems keep the plain bind. Both test phases, their assertions and their timeouts are unchanged; `TestSysConnPacketInfoDualStack` is covered by the same helper.
+- **Regression `TestListenDualStackUDPAvoidsHeldIPv4Ports`** (darwin). It holds 500 IPv4 ports, creates 300 receivers, and requires no held port, a dual-stack socket, and IPv4 delivery to `127.0.0.1`. With a plain port-0 bind it failed with 7 collisions.
+- **Follow-up filed:** [#910](https://github.com/the-sarge/quic-go-fast/issues/910) (`needs-triage`) for three managed-endpoint ECN test cells with the same shape. They bind through the production `NewManagedPacketEndpointV1("udp", nil)`. The PR body lists the full census.
+
+### Decisions
+
+- **Rejected design: detect a holder at setup by binding `127.0.0.1:P`.** XNU always refuses that bind next to the dual-stack receiver (1,882/1,882 with no other holder), so it detects nothing.
+- **Chosen design: reserve-then-bind.** It was tested at 7 × 2,000 draws with 1,000 IPv4 sockets held: 0 draws on held ports, 13,986/13,986 IPv4 datagrams delivered, and explicit IPv4 binds of the port refused afterwards. Experiment sources are in PR #909's body and #528's closing comment.
+- **Scope:** the managed-endpoint cells were left to a follow-up issue, approved with the plan on 2026-10-20.
+- **Experiment trap:** one early run showed 11 "held" ports that were actually free. Holder sockets kept only in a map that was never read again were collected by the GC, and their finalizers closed them mid-run. Holders must stay reachable; `t.Cleanup` closures do that.
+
+### Validation
+
+- **Gates on `12dc9636`, base `33ecc809`** (Go 1.27.2, darwin/arm64), all passing:
+  - `go test -count=1 ./...`;
+  - `go vet .` for darwin, linux, freebsd and windows;
+  - cross-compiled test binaries for windows, freebsd and linux;
+  - golangci-lint v2.14.0 for six GOOS values (amd64): 0 issues;
+  - `-count=50` of the regression, `TestReadECNFlagsDualStack` and `TestSysConnPacketInfoDualStack`.
+- **RAS review** `20261020T175611-a90210ada26653be9f5304de`. All six reviewers and the adjudicators completed, with nothing under Fix First or Follow Up. C-001 (low; a nil `addr` would panic in the new guard) was rejected: all 13 callers pass non-nil addresses, and a panic fails loudly. With no fixes, there was no verify pass or replacement review.
+- **Hosted checks:** all 33 passed on `12dc9636`. The base equaled `origin/main`, and the PR was squash-merged with the matching-head guard.
+
+### Next
+
+- [#910](https://github.com/the-sarge/quic-go-fast/issues/910) awaits triage.
+
+---
+
+## Combined HTTP/3 server lifecycle repair landed - 2026-10-20 14:44 EDT
+
+**Main:** `213439a68b8d`
+**Actor:** Claude
+
+### Summary
+
+[#424](https://github.com/the-sarge/quic-go-fast/issues/424) is closed by [PR #912](https://github.com/the-sarge/quic-go-fast/pull/912), squash-merged as `213439a6`. The combined `http3.ListenAndServeTLS` helper now owns both of its servers. Before, when QUIC stopped first, the helper returned and the TCP server kept running. Now, whichever server stops first, the helper closes both, waits for both serving goroutines and for every running TCP handler, and returns the error of the server that stopped first. The public signature, Alt-Svc, cert loading and normal serving are unchanged.
+
+### Completed
+
+- **Scope approval recorded on #424** ([comment](https://github.com/the-sarge/quic-go-fast/issues/424#issuecomment-6297519947)): the 2026-09-20 Agent Brief is the repair contract as written, including the internal-only test seam. The label moved from `needs-triage` to `ready-for-agent`.
+- **`http3/server.go`.** `ListenAndServeTLS` calls an unexported `listenAndServeTLS` and passes empty `combinedSocketHooks`.
+  - The TCP listener is opened with `net.Listen("tcp", addr)` after the UDP bind and before serving, so a TCP bind failure releases the UDP socket. Both sockets are closed by defer on every path.
+  - The helper runs its own `http.Server` through `ServeTLS(tcpLn, certFile, keyFile)`. The two serving results go to one channel with room for both; the first result is returned and the second is discarded.
+  - `handlerTracker` counts TCP handler calls inside the existing Alt-Svc wrapper and refuses calls after close with `http.ErrAbortHandler`. On the QUIC side, `Server.Close` already joins HTTP/3 handlers.
+  - A cancellable `BaseContext` is canceled after `Close` and before the handler wait.
+- **`http3/combined_server_test.go`.** Wrapped sockets fail either serving loop on command.
+  - TCP-first: the `Accept` error is injected while an HTTP/3 request is blocked in its handler.
+  - QUIC-first: a permanent `ReadFrom` error closes the transport. It runs three ways: HTTP/2, HTTP/1.1 with an unread body, and hijacked HTTP/1.1.
+  - Startup failure: the TCP port is already held.
+  - Normal serving: both protocols reach the handler, and the TCP response carries the right Alt-Svc.
+  - Each failure test checks the originating error, that the handler finished before return, that the TCP port refuses connections, and that the UDP port rebinds.
+
+### Decisions
+
+- **Seam:** a parameter to an unexported function rather than a package-level variable, so tests share no global state. The socket wrappers fail the real serving loops. QUIC-first uses the terminal read-error path that the [#548 investigation](https://github.com/the-sarge/quic-go-fast/blob/main/docs/audits/issue-424-combined-server/README.md) traced.
+- **Close both servers on every exit**, including the one that already stopped. A serving loop that returned on a listener error can still leave connections open that only its server's `Close` shuts down.
+- **Approved boundary:** two internal background goroutines may exit just after the helper returns, already unblocked by their closed sockets: `quic.Transport`'s packet reader and net/http's per-connection cleanup. Joining them would change the standalone `Server.Close` contract, which the brief keeps out of scope.
+- **Round-1 fix (`fix-now`):** closing a connection doesn't cancel the context of an HTTP/1.1 request with an unread body (net/http starts its background read only at body EOF), or of a hijacked one. A handler waiting on that context hung the new handler wait. Cancelling `BaseContext` covers both.
+
+### Validation
+
+- **RAS round 1** `20261020T180750-07e4d02bdbf011d85c4d81ab` at `c425f4d0`: all six reviewers completed, and the run found the cancellation root above (C-001/2/3). `ras verify` at `8cc303bf` resolved all three.
+- **RAS replacement round** `20261020T182754-fbcb2cb1e48709530e308232` at `8cc303bf`: all six reviewers completed, with no findings.
+- **Guard mutations** via `go test -overlay`, each failing the QUIC-first test:
+  - Removing the handler wait: "handler still running".
+  - Removing `httpServer.Close()`, which brings back the original leak: the helper never returns.
+  - Removing the base-context cancel: both HTTP/1.1 cases hang.
+- **Local certification at `6a10c024`** (main `328cf5bc` merged in, Go 1.27.2, darwin/arm64):
+  - golangci-lint v2.14.0 for six GOOS values: 0 issues;
+  - `go build ./...`;
+  - `go test -shuffle on ./http3/...` and `go test -race ./http3/`;
+  - the focused lifecycle tests at `-race -count=3`.
+- **Hosted checks:** all 33 passed on `6a10c024`. The base equaled `origin/main` at merge.
+- **Shared-rig note:** one focused `-race` run (about 40 s) may have overlapped the first tb A1 run of wiremux 1921. It was disclosed, and wiremux flagged the run. Later builds ran inside parks it granted.
+
+---
+
+## Self-test budget and accept-order flakes fixed - 2026-10-20 17:13 EDT
+
+**Main:** `e340242d80dc`
+**Actor:** Claude
+
+### Summary
+
+[#914](https://github.com/the-sarge/quic-go-fast/issues/914) and [#915](https://github.com/the-sarge/quic-go-fast/issues/915) are closed by [PR #916](https://github.com/the-sarge/quic-go-fast/pull/916), squash-merged as `e340242d`. Both were flaky self tests, and the fix changes test code only. #914: five fixed 1 s budgets ignored `TIMESCALE_FACTOR`, so they failed on slow hosted runners under `-race`; they now use `scaleDuration`. #915: `TestDrainServerAcceptQueue` assumed `Accept` returns connections in dial order, so it could close a client before checking it; it now accepts every queued connection, checks them all, then closes them.
+
+### Completed
+
+- **#914, `integrationtests/self`.** `scaleDuration(time.Second)` now wraps:
+  - the shared result timer in `testStreamCancellation`;
+  - the per-stream cancel timers of the "concurrent" subtests of `TestStreamReadCancellation` and `TestStreamWriteCancellation`;
+  - the dial contexts of `TestDrainServerAcceptQueue` and `TestServerAcceptQueueOverflow`.
+
+  `TIMESCALE_FACTOR` is 3 on every integration lane, so all lanes now allow 3 s.
+- **#915, `close_test.go`.** After `server.Close()`, the test accepts all 32 queued connections, requires every client and every accepted connection to be open, closes the accepted ones, and then expects `ErrServerClosed` as before. Connections join the queue when the *server* side of the handshake completes, so the order isn't guaranteed.
+- No other self test pairs dialed and accepted connections by index (grep of `integrationtests/self`).
+
+### Decisions
+
+- **One PR, two commits** for both issues (owner approved the plan): both touch `TestDrainServerAcceptQueue`, and one PR saved a second review, CI round and journal entry.
+- **Scaling, not per-stream budgets**, and **fix the test, not the server queue order**, as the issue briefs chose. The ~120 other unscaled literals in the self suite stay out of scope.
+
+### Validation
+
+- **#914 injected delay** (`go test -overlay`, not committed): a 1.5 s sleep at the top of the client reader goroutine, with `TIMESCALE_FACTOR=3 -count=5`. All 30 subtest runs failed with "timeout" on main's timers and all 30 passed on the fixed ones.
+- **#915 injected delays** (`go test -overlay` of `server.go`, not committed): queueing of each server's first connection held back 50 ms, and `accept` slowed 2 ms, at `-test.count=20`. Main's loop failed 20/20 on v1 and on v2 with the hosted message (`Application error 0x0 (remote)`, "client connection closed"); the new loop passed 20/20 on each. Without delays, `-count=50` passed 50/50 on v1 and v2.
+- **#914 margin check** on minimax (Linux, Go 1.27.2, `taskset -c 1-3,17`): `GOMAXPROCS=4 TIMESCALE_FACTOR=3 go test -race` of the four tests at `-count=20` passed 20/20 on v1 and v2. That host is much faster than a hosted runner (slowest subtest 0.40 s, against 3.92 s in the hosted failure), so this shows the change is safe; it doesn't measure the hosted margin.
+- **RAS review** `20261020T210708-9e32ec98750b41b1f343e172` at `e686d196`: all six reviewers completed, with no Fix First items. Its two low items both pointed at the margin result still marked pending in the PR body, which it already reported by then; both rejected. No replacement round was needed.
+- **Local certification at `e686d196`** (Go 1.27.2, darwin/arm64): golangci-lint v2.14.0 for six GOOS values, 0 issues; `GOOS=windows go vet` and a cross-compiled self-test binary; full `go test -count=1 ./...` passed.
+- **Hosted checks:** all 33 passed on `e686d196`. The base equaled `origin/main` (`a0ec20f6`) at merge.
+- The tb rig and minimax were idle before each heavy step, and no wiremux session was busy.
+
+---
+
+## Managed-endpoint ECN dual-stack port fix landed - 2026-10-20 17:49 EDT
+
+**Main:** `b5a4848b4cf0`
+**Actor:** Claude
+
+### Summary
+
+[#910](https://github.com/the-sarge/quic-go-fast/issues/910) is closed by [PR #918](https://github.com/the-sarge/quic-go-fast/pull/918), squash-merged as `b5a4848b`. The fix changes test code only. On darwin, three managed-endpoint ECN cells created their dual-stack endpoint with `NewManagedPacketEndpointV1("udp", nil)`. Port 0 could then land on a port an IPv4 socket already held, and the cells' `udp4` peers' datagrams went to that socket (#717). These cells now get their port the way #528 ([PR #909](https://github.com/the-sarge/quic-go-fast/pull/909)) fixed the raw dual-stack receiver: an IPv4 reservation picks the port, and the endpoint binds it explicitly.
+
+### Completed
+
+- **`sys_conn_oob_receiver_test.go`.**
+  - #909's loop is now `reserveDualStackPort(t, bind func(port int) error)`. It keeps a `udp4 0.0.0.0:0` reservation open while it calls `bind(P)`, retries up to 16 times on `EADDRINUSE`, and calls `bind(0)` off darwin. `listenDualStackUDP` calls it with a `net.ListenUDP` bind and behaves as before.
+  - The held-ports check is now `requireDualStackAvoidsHeldIPv4Ports(t, listen)`, typed over `net.PacketConn`. It holds 500 IPv4 ports, one in five on `0.0.0.0`, creates 300 receivers, and requires that no receiver lands on a held port and each one receives an IPv4 datagram sent to `127.0.0.1:P`.
+- **`managed_packet_ecn_darwin_test.go`.**
+  - `newDarwinManagedECNEndpoint(t, network)` creates a `"udp"` endpoint with `NewManagedPacketEndpointV1("udp", &net.UDPAddr{IP: net.IPv4zero, Port: P})` through the reservation. `udp4` and `udp6` endpoints still bind with `nil`.
+  - `TestDarwinManagedECNReceive` and `newDarwinECNTestPath` use it. That covers `Receive/mapped`, `SendRoutes/mapped/*`, `LeaseDatagrams/udp/udp4` and the harmless `dual_ipv6` siblings.
+  - New `TestDarwinManagedECNEndpointAvoidsHeldIPv4Ports` runs the shared check through the same helper.
+- `NewManagedPacketEndpointV1` is one `net.ListenUDP(network, laddr)` call followed by setup, and it returns the error unwrapped. An explicit-port bind through it therefore behaves like #909's bind, which answers the question the issue had left open. No production file changed.
+
+### Decisions
+
+- **One owner for the reservation.** The helper takes the bind step as a closure instead of keeping a second managed-only copy, as the issue brief preferred. Closure capture was chosen over a generic helper because the managed constructor returns three values.
+- **Production port-0 selection stays out of scope.** #720 named it a non-goal.
+
+### Validation
+
+- **Guard mutation** (`go test -overlay` from the scratchpad, checkout untouched): with the helper binding `"udp"` through `nil`, the new test failed with 10 of 300 endpoints on held ports (about 9 expected). The real helper had none.
+- **On mbp128** (macOS 27.0.1, Go 1.27.2, darwin/arm64):
+  - The targeted tests passed, and the affected subtests ran.
+  - The targeted set passed `-count=20 -shuffle=on` and `-race -count=3`.
+  - `go vet` passed for darwin, linux, windows and freebsd.
+  - golangci-lint v2.14.0 reported 0 issues for six GOOS values.
+  - Full `go test -count=1 ./...` passed.
+
+  All of these ran on the tree committed as `3ed2bc6d` during a window wiremux 1938 parked for them (21:31–21:34Z). 1938 confirmed none of its tb runs overlapped.
+- **RAS review.** The first run, `20261020T213451-a656c29d3cc28331dc217483`, failed quorum: `/Volumes/worktrees` had hit its 250 GB quota, and five reviewers couldn't create worktrees. That was a tool failure, not a review round. After the owner freed space, `20261020T214452-4399a35b81a965c88a60374c` at `3ed2bc6d` had all six reviewers complete with zero findings, so no replacement round was needed.
+- **Hosted checks:** all 33 passed on `3ed2bc6d`. The base equaled `origin/main` (`97e1fdb8`) at merge.
+
+### Next
+
+- None for this slice. The #528/#910 dual-stack port fixes are complete.
+
+---
+
+## Unprocessed-queue admission yields to the DATAGRAM backlog - 2026-10-20 23:20 EDT
+
+**Main:** `5f73ddc4de39`
+**Actor:** Claude
+
+### Summary
+
+[#855](https://github.com/the-sarge/quic-go-fast/issues/855) (slice 5 of the fork bundle, [#851](https://github.com/the-sarge/quic-go-fast/issues/851)) was reopened on 2026-10-20 after its downstream gate failed on `c3fb3c45`: at the consumer-sized heap the deeper queue let the ordinary DATAGRAM sender's backlog be acknowledged and then discarded at the 1,024-entry received-DATAGRAM queue (`DatagramReceiveDropsV1` 0 → 883), so loss moved behind the acknowledgment. The re-decided behaviour merged as [PR #920](https://github.com/the-sarge/quic-go-fast/pull/920), `5f73ddc4de39268992f0b9ab33eed70c472955b7`, on top of `c3fb3c45`; not a revert.
+
+### Completed
+
+- `handlePacket`: after handshake confirmation the queue still holds 1,024 packets, but on a connection with DATAGRAM support (`config.EnableDatagrams`) the entries beyond 256 take a packet only while the queued packets plus the DATAGRAM payloads still awaiting `ReceiveDatagram` number fewer than `maxDatagramRcvQueueLen` (1,024). A refusal goes through the existing drop path: `UnprocessedPacketDropsV1` and the DoS-prevention qlog event.
+- `datagramQueue.rcvLen` (`atomic.Int32`) mirrors `len(rcvQueue)`, stored under `rcvMx` after every push (`HandleDatagramFrame`), pop (`Receive`) and clear (`invalidateReceived`); `receiveQueueLen()` reads it without the mutex. Cost: one atomic load per admission beyond 256 on a DATAGRAM-enabled connection, one atomic store per DATAGRAM push and pop.
+- Unchanged: the first 256 entries, the pre-confirmation limit, the 1,452-byte rule and memory guard for entries beyond 256 (the rule only admits fewer packets), connections without DATAGRAM support, public API. Doc comments on `UnprocessedPacketDropsV1` and `MaxConnUnprocessedPacketsConfirmed` state the new refusal.
+- Tests: `TestConnectionUnprocessedQueueYieldsToDatagramBacklog` (queued 256 with 767 waiting admitted, 768 refused and counted; queued 300: 723/724; a full received-DATAGRAM queue at 256 refused; below 256 with a full queue admitted; without DATAGRAM support admitted), `TestConnectionUnprocessedQueueReadmitsAsDatagramsAreRead` (`ReceiveDatagram` and `invalidateReceived` give room back), `TestDatagramQueueReceiveLenMirrorsQueue`. `TestConnectionUnprocessedQueueDepth` is unchanged and passes. No diagnostic instrumentation.
+- #855 retitled to the re-decided behaviour; merge, CI result and the owed gate posted on #855 and #851; pointer on [#808](https://github.com/the-sarge/quic-go-fast/issues/808) (its L6 measures pinned `d94b3ec2` binaries and is unaffected).
+
+### Decisions
+
+- D1: the condition is gated on `config.EnableDatagrams`; every connection owns a `datagramQueue`, so the issue's "when the connection has a DATAGRAM queue" is read as the config flag. D2: the mirror is a store of the length after each mutation, not an add/sub pair, so it cannot drift. D3: merge recorded on #808 rather than held. Plan approved by the owner before implementation.
+- The owner waived the one red hosted check for this merge: `lint.yml` govulncheck failed on the Go standard-library advisory [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809) (crypto/x509 at go1.27.2, published 2026-10-21 00:27 UTC, fixed in go1.27.3), whose trace runs through `internal/handshake/crypto_setup.go`, untouched by the PR; every PR lint run before publication passed. The CI pin bump is [#921](https://github.com/the-sarge/quic-go-fast/issues/921) (`go.mod` has no `toolchain` directive, so it is CI-only).
+
+### Validation
+
+- RAS review `20261021T030757-9377e771f09d7d067eacd030` on head `4ab5590d`, briefed with the re-decided contract verbatim: seven reviewer runs complete, zero findings, synthesis clean; no replacement round.
+- Local on the same tree (Go 1.27.2 darwin/arm64): `go vet ./...`, `go mod tidy -diff`, gofmt; `go test -count=1 ./...` (27 packages ok); `go test -race` on the root and `internal/protocol` packages; golangci-lint v2.14.0 for darwin, linux, windows, freebsd, openbsd and solaris (amd64), 0 issues each. Guard mutations: deleting the condition fails the backlog and re-admission tests; deleting the store on pop fails the re-admission and mirror tests; files restored byte-identical.
+- Hosted on `4ab5590d`: 32 checks passed, govulncheck failed as above. Merge-base equalled `origin/main` (`d791891f`) at merge; squash-merged with `--match-head-commit`.
+
+### Next
+
+- The consumer re-gates #855 on `5f73ddc4` in both cells, re-runs #824's two-namespace set, and then measures #858, #860 and the gluing default on a commit carrying this change. #855 holds the bundle release until that gate passes. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
+- #921: move the CI Go pins to 1.27.3 and 1.26.10 so govulncheck passes on pull requests.
+
+---
+
+## A20 architecture handoff published - 2026-10-20 23:55 EDT
+
+**Main:** `d4a4cd9c9b19`
+**Actor:** Codex
+
+### Summary
+
+Published the accepted A20 architecture review as five implementation plans and six independently shippable slices in [PR #924](https://github.com/the-sarge/quic-go-fast/pull/924), merged at `d4a4cd9c9b198d0588531f397b67ba73ae2f090c`. The [program index](adr/2026-10-20-architecture-deepening-program.md) and track plans own the contracts; no implementation or dispatch occurred.
+
+### Completed
+
+Created five parent track issues, six child slice issues and the [live program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936). Every child records the verified default-branch plan commit and `$implement-architecture-slice`; all six have no blocking edges and carry `ready-for-agent`. Native GitHub parent/child relationships and the OmniFocus tree under `omnifocus:///task/lLz8Ew7Vzvj` mirror the program, with one task per track and slice.
+
+### Decisions
+
+The selected sequence and parallel-safe work are in the [program index](adr/2026-10-20-architecture-deepening-program.md); priorities are not dependency edges. The QPACK scope correction remains deferred until its authoritative decoder exposes a supported typed-error contract, with no speculative implementation child. The [decision register](adr/2026-10-20-architecture-decisions.md) preserves rejected directions and revisit triggers.
+
+### Validation
+
+Three independent read-only source audits passed after bounded plan corrections, recorded in the [audit history](audits/2026-10-20-architecture-handoff/README.md). Local documentation certification on `58bcd02125bc99bea537213ee4387a9a235c0fd4` passed: clean pushed tree, whitespace, 41 relative links, 24 pinned source anchors and the six-slice graph. After squash merge, all eight audited documentation files matched the merged tree and the plan commit was verified reachable from remote main.
+
+Hosted CI on that head completed with 32 successes and one failure: the PR-only `govulncheck` found GO-2026-6809 in the pinned Go 1.27.2 standard library. The owner explicitly waived this known failure for the handoff; the waiver and [failure receipt](https://github.com/the-sarge/quic-go-fast/actions/runs/39540174469/job/119025863229) are recorded in PR #924. No CI check was disabled or unrelated code changed. The existing fix is tracked by [#921](https://github.com/the-sarge/quic-go-fast/issues/921) and separate [PR #923](https://github.com/the-sarge/quic-go-fast/pull/923).
+
+### Next
+
+The six verified frontier children are ready for an operator to dispatch to fresh agents with `$implement-architecture-slice`; none has been dispatched. [Tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live status view. Each implementation slice follows review, merge, journal and task completion under its accepted plan.
+
+---
+
+## A20-R1 request admission landed - 2026-10-21 00:51 EDT
+
+**Main:** `963a088b1601`
+**Actor:** Codex
+
+### Summary
+
+Merged [A20-R1 / PR #938](https://github.com/the-sarge/quic-go-fast/pull/938) at `963a088b1601b3446ec152456676dd9d3a1705d2`. Client request admission now rejects an ended connection context after successful stream tracking, cancels both directions through the tracked wrapper, and returns the normalized cause before request sending. [Child #926](https://github.com/the-sarge/quic-go-fast/issues/926) is closed.
+
+### Decisions
+
+Kept ClientConn as the final admission owner and retained the existing stream-map, work-accounting and recorder owners. Untouched non-rewindable input remains eligible for the existing Transport retry; public opening errors, supplied-parent context semantics, cancellation/GOAWAY precedence and later write-phase replay refusal remain intact. The [R1 contract](adr/2026-10-20-request-admission-plan.md) records the accepted boundary and evidence; no shared qlog state, retry policy, parser or public API changed.
+
+### Validation
+
+Observed the qlog, public supplied-context and full Transport regressions fail before the guard. Exact-head certification on `25f20ae6fb07fbc646e92639ee0c997a7a5cb1dc` with Go 1.27.3 passed the focused admission/GOAWAY/qlog cases, HTTP/3 package and race suites, vet, tidy, affected-package lint and clean-tree checks. All 33 hosted checks passed before the matching-head squash merge; the [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/938#issuecomment-6308205110) records the bounded RAS review, minor comment correction, adapter limitations and the operator's request not to repeat review after the patch-identical toolchain rebase. No review follow-up issue is warranted.
+
+### Next
+
+R1 has no successors to unlock. S1, P1, P2, H1 and M1 remain the independent ready frontier; [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live status view. The product PR already committed R1 completion and this frontier, so journal closure needs no separate status PR.
+
+---
+
+## A20-S1 simulated-network shutdown landed - 2026-10-21 01:10 EDT
+
+**Main:** `d9adfb4a1c31`
+**Actor:** Codex
+
+### Summary
+
+Merged [A20-S1 / PR #940](https://github.com/the-sarge/quic-go-fast/pull/940) at `d9adfb4a1c31e911d57efe8db77f580388e3b76b`. Simnet now broadcasts one owned delivery-cancellation signal before joining any link, so a full unread NewEndpoint buffer cannot strand its delivery worker. Callers retain endpoint closure and buffered packets; live backpressure, timing, MTU and receive-attempt accounting remain intact. [Child #928](https://github.com/the-sarge/quic-go-fast/issues/928) is closed. The product PR commits S1 completion and the resulting independent frontier.
+
+### Decisions
+
+The [S1 contract](adr/2026-10-20-simnet-shutdown-plan.md) bounds this maintained simulation aid to started networks and their owned endpoints. Standalone endpoints retain their delivery lifetime. Arbitrary callback interruption, repeated/concurrent Start/Close, endpoint auto-close and production changes remain outside scope.
+
+### Validation
+
+The deterministic saturation regression failed on unchanged code, then passed after cancellation was added. The existing unsaturated control and four new synctest regressions cover the six accepted semantic cases, including multiple blocked links, buffered-data ownership, live backpressure and endpoint-first cleanup. Exact-head certification on `006d6904936002e268aea97bb9fea79853a9795d`, with Go 1.27.3, passed package tests, the package race run, selected root transport/send-stream tests, package vet, module tidiness, whitespace and clean-tree checks. All five final-head pull-request workflows and every job passed, including the [unit run](https://github.com/the-sarge/quic-go-fast/actions/runs/39547377046) and [integration run](https://github.com/the-sarge/quic-go-fast/actions/runs/39547376970).
+
+RAS source review `20261021T045557-de9cc474361474b3686e3023` required no fixes. The one receive-counter concern was independently rejected because the existing convention counts attempts, without a counter-freeze guarantee at network shutdown. Exact-head verification confirmed that disposition after an unrelated journal-only base merge and reran no tests; no replacement review was started. The [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/940#issuecomment-6308501154) records the evidence and disposition. No deferred follow-up remains.
+
+### Next
+
+S1 unlocks no successors. P1, P2, H1 and M1 remain the independent frontier in [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936), the live status view. Issue and OmniFocus reconciliation follows this journal append; no separate frontier PR is needed.
+
+---
+
+## HTTP/3 post-trailer frame disposition landed - 2026-10-21 01:38 EDT
+
+**Main:** `2aed6a44bf5e`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #942](https://github.com/the-sarge/quic-go-fast/pull/942), closing [A20-P1 / #930](https://github.com/the-sarge/quic-go-fast/issues/930). `Stream.Read` now closes the connection with H3_FRAME_UNEXPECTED for parsed DATA or additional HEADERS after successfully decoded trailers, while retaining descriptive errors and qlog conventions. One trailer state distinguishes unseen, failed and parsed trailers, preserving rejection without a new connection close when a caller retries after failed trailer parsing. Legal unknown extensions, valid FIN, parser first-close behavior and existing stream/body ownership remain intact.
+
+The product PR marks P1 complete and retains P2, H1 and M1 as the independent frontier in the [plan](adr/2026-10-20-http3-protocol-errors-plan.md) and [program index](adr/2026-10-20-architecture-deepening-program.md). No separate frontier PR is needed.
+
+### Validation
+
+The DATA/request and HEADERS/response real-peer regressions failed before their guards; the failed-trailer retry regression failed before its preservation fix. Final focused, HTTP/3 package and race tests, vet, tidy, diff and Markdown-link checks passed on reviewed head `c686b4faf6728a59262148a44bc290c4be4cc690` against base `9c1635c338f0402e31138ab027c5568b241f9ab6`. Real peers cover the five planned semantic rows, request/response/public consumers, sibling outcomes and qlog. All 33 hosted checks passed; the [validation receipt](https://github.com/the-sarge/quic-go-fast/pull/942#issuecomment-6308923716) links the five successful PR workflow runs.
+
+Initial RAS review `20261021T051914-2804cbdfaff29d2ec73fa268` found one accepted preservation defect, fixed and verified at the final head. The qlog assertion-strengthening suggestion was rejected within the verification-aid ceiling. Replacement review `20261021T053240-699f80a6b65cea3286262fff` completed with six reviewers and zero findings. No deferred follow-ups or remaining untraced effects.
+
+### Next
+
+At this entry, P2 [#931](https://github.com/the-sarge/quic-go-fast/issues/931), H1 [#933](https://github.com/the-sarge/quic-go-fast/issues/933) and M1 [#935](https://github.com/the-sarge/quic-go-fast/issues/935) remain independently ready and unblocked; P1 unlocks no new slice. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/936) is the live frontier. QPACK correction remains deferred to its upstream typed-error prerequisite.
+
+---
+
+## HTTP/3 malformed-trailer stream resets landed - 2026-10-21 02:00 EDT
+
+**Main:** `c9ef9fac605e`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #944](https://github.com/the-sarge/quic-go-fast/pull/944), closing [A20-P2 / #931](https://github.com/the-sarge/quic-go-fast/issues/931). The existing trailer semantic validator now creates a private typed error, and `Stream.Read` cancels the tracked stream halves with H3_MESSAGE_ERROR. Request, response and public stream reads share that owner; independent streams remain usable. Existing error text, read/cancellation failures, header-size policy, QPACK failures, qlog conventions and completed-half behavior remain intact.
+
+The product PR marks P2 and the protocol track complete in the [plan](adr/2026-10-20-http3-protocol-errors-plan.md) and leaves H1/M1 as the independent frontier in the [program index](adr/2026-10-20-architecture-deepening-program.md). QPACK correction remains deferred to the authoritative decoder’s upstream typed-error prerequisite. No new untraced effects were found.
+
+### Validation
+
+The first real-peer regression returned the descriptive semantic failure but timed out waiting for a reset before the fix. Eight bounded semantic cases now cover real-peer request/response/public dispositions, sibling survival, qlog, valid FIN, a peer-observed completed upload and transport-boundary preservation of read, size and QPACK failures. Exact-head certification at `dce28753d58694f3bd1e2f9c7d4683da0ad9e243` against base `372e06add8011e5434b3d66ed45bcdb686f15248` passed focused, HTTP/3 package and race tests, vet, module tidiness, Go fixer, whitespace and clean-tree checks. Initial RAS review `20261021T054423-82ceec7180b5027b727c62ca` and final replacement `20261021T055008-40696f7303983b1582c8cb12` completed with all six reviewers and no findings; no verification run was required.
+
+All 33 hosted checks passed, including the [unit run](https://github.com/the-sarge/quic-go-fast/actions/runs/39551479232) and [integration run](https://github.com/the-sarge/quic-go-fast/actions/runs/39551479188). The latter passed after one explicitly operator-authorized same-head rerun: an unchanged raw-QUIC test randomly chose 7 cancellations but asserted more than 7. The [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/944#issuecomment-6309143477) records the failure and override. Its surviving test flaw was revalidated at merged `c9ef9fac605e1a937dca18ad4aa515edbad981de`, `integrationtests/self/cancelation_test.go:384` and `:456`, and filed separately as [#945](https://github.com/the-sarge/quic-go-fast/issues/945).
+
+### Next
+
+At this entry, H1 [#933](https://github.com/the-sarge/quic-go-fast/issues/933) and M1 [#935](https://github.com/the-sarge/quic-go-fast/issues/935) remain independently ready; P2 unlocks no new slice. The [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live frontier. Reconcile the issue and OmniFocus pointers after this journal publication.
+
+---
+
+## A20-H1 initial request-header ownership landed - 2026-10-21 02:22 EDT
+
+**Main:** `53b084096fa0`
+**Actor:** Codex
+
+### Summary
+
+Completed A20-H / H1 in [PR #947](https://github.com/the-sarge/quic-go-fast/pull/947), closing [issue #933](https://github.com/the-sarge/quic-go-fast/issues/933). The concrete initial-request-header operation now owns declared-size checks, charged reading, lazy decode and existing role dispositions. Its inner read/decode scope releases capacity before qlog or refusal I/O; the outer handler retains timeout/activation, caller deadlines and application lifetime.
+
+### Validation
+
+The new real-stream `TestRawServerConnHeaderTimeoutDuringQlog` passed before and after extraction: valid headers decode, qlog blocks with zero pending charge, timeout resets both stream directions, and resuming qlog never activates the handler. Existing budget recovery, cancellation, invalid decode, size, logging and allocation cases remain intact. Package and race tests, vet, module tidiness and diff checks passed on exact final head `76270e2d2935b38b811e1ee08b197ed6679697f6` (Go 1.27.3, darwin/arm64). All 33 hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/39554274114), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/39554274074), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/39554274080) and [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/39554273995).
+
+RAS review `20261021T060544-bff630df565b3283205485b5` required no fixes or follow-ups. After the base advanced through P2's journal, the product files were verified byte-identical across rebase and all local/hosted gates were refreshed. The operator requested no new RAS review; the already-started replacement was interrupted and its partial output was not used. [Independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/947#issuecomment-6309423186) and the [final certification receipt](https://github.com/the-sarge/quic-go-fast/pull/947#issuecomment-6309518966) record the bounded evidence and exact head.
+
+### Decisions
+
+Preserve initial-header protocol dispositions, QPACK ownership, response/trailer quotas and public interfaces. The accepted [H1 contract](adr/2026-10-20-request-header-ownership-plan.md#slice-h1--own-the-initial-request-header-charge-through-lazy-decode) remains the design authority; no new verification harness or generalized lifetime abstraction was introduced.
+
+### Next
+
+The product PR committed H1 completion and the program frontier. M1 is the remaining independent frontier slice, already in progress in [PR #948](https://github.com/the-sarge/quic-go-fast/pull/948); H1 unlocks no successors. [Program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live view for dispatch and task reconciliation. Broader scheduler/platform certification and the separate QPACK policy correction remain outside this slice.
+
+---
+
+## A20-M1 installed BBR pending bytes - 2026-10-21 02:39 EDT
+
+**Main:** `c46ef504c5cf`
+**Actor:** Codex
+
+### Summary
+
+Completed [A20-M1 / #935](https://github.com/the-sarge/quic-go-fast/issues/935) in [PR #948](https://github.com/the-sarge/quic-go-fast/pull/948), merged as `c46ef504c5cf402a2cbfced587814922b0cdb000`. Corrected the BBR design to describe pending local work across all generations with the current construction reservation excluded. Added `TestBBRInstalledPendingObservation`, which exercises the production `enableBBR` installation through `DeliveryStats().Idle` for no debt, retained older-generation debt, and excluded construction credit. Runtime accounting and existing fixtures are unchanged.
+
+The product PR owns M1 completion and the A20 frontier transition. All six A20 implementation slices are now complete; M1 unlocks no successors.
+
+### Validation
+
+- Exact candidate `88417f6270702da086da7d1a28cbdd2dc5f35ac4` passed the focused case, `go test . -count=1`, the focused case with `-race`, `go vet .`, `go mod tidy -diff`, and `git diff --check` on Go 1.27.3 darwin/arm64. The bounded temporary total-to-current-pending mutation failed the older-debt assertion and was reverted before commit.
+- Initial RAS review `20261021T062056-27f71f5ec0506df697cb7a1c` and post-rebase replacement `20261021T062734-0356f31d8dde92c6b94a5020` completed with six reviewers each and zero findings; no verification or deferred follow-up was required. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/948#issuecomment-6309662526).
+- All 33 hosted checks passed on the matched merge head, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497034), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497043), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497085), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497007), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497009). The concurrent H1 journal merged immediately before M1; the merged tree differs from the certified head only in that append to this journal.
+
+### Decisions
+
+Keep the existing ledger and `enableBBR` installation as runtime authority. This is bounded example-level characterization and corrected design wording, with no runtime refactor or qualification campaign; see the [accepted M1 contract](adr/2026-10-20-bbr-observation-characterization-plan.md#slice-m1--document-and-characterize-installed-all-generation-pending-bytes).
+
+### Next
+
+Finish M1 journal publication and issue/OmniFocus reconciliation. No implementation frontier remains; the [A20 program tracker](https://github.com/the-sarge/quic-go-fast/issues/936) is the live view. No follow-ups or newly untraced effects were identified.

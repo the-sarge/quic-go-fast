@@ -281,7 +281,7 @@ func TestSentPacketHistoryPathProbes(t *testing.T) {
 	require.Equal(t, protocol.PacketNumber(5), pn)
 
 	hist.RemovePathProbe(5)
-	require.Equal(t, []protocol.PacketNumber{4, 5}, getPacketsInHistory(t))
+	require.Equal(t, []protocol.PacketNumber{4}, getPacketsInHistory(t))
 	require.Empty(t, getPacketsInPathProbeHistory(t))
 	require.True(t, hist.HasOutstandingPackets())
 	require.False(t, hist.HasOutstandingPathProbes())
@@ -290,7 +290,6 @@ func TestSentPacketHistoryPathProbes(t *testing.T) {
 	require.Nil(t, p)
 
 	require.NoError(t, hist.Remove(4))
-	require.NoError(t, hist.Remove(5))
 	require.Empty(t, getPacketsInHistory(t))
 	require.False(t, hist.HasOutstandingPackets())
 	pn, p = hist.FirstOutstanding()
@@ -314,6 +313,40 @@ func TestSentPacketHistoryPathProbes(t *testing.T) {
 	pn, p = hist.FirstOutstandingPathProbe()
 	require.Equal(t, protocol.InvalidPacketNumber, pn)
 	require.Nil(t, p)
+}
+
+func TestSentPacketHistoryRetirePathProbes(t *testing.T) {
+	hist := newSentPacketHistory(true)
+	const numProbes = 10000
+	for pn := range protocol.PacketNumber(numProbes) {
+		hist.SentPathProbePacket(pn, ackElicitingPacket())
+	}
+	// Retire in reverse order, including probes whose markers aren't at the head.
+	for pn := protocol.PacketNumber(numProbes - 1); pn >= 0; pn-- {
+		require.NotNil(t, hist.RemovePathProbe(pn))
+		require.Nil(t, hist.RemovePathProbe(pn), "retirement must be idempotent")
+	}
+	require.False(t, hist.HasOutstandingPathProbes())
+	require.Len(t, hist.getPacketNumbers(), 0, "retirement must also remove history markers")
+	require.Zero(t, hist.Len())
+	require.Equal(t, protocol.InvalidPacketNumber, hist.LowestPacketNumber())
+	hist.SentPathProbePacket(numProbes, ackElicitingPacket())
+	require.Equal(t, []protocol.PacketNumber{numProbes}, hist.getPacketNumbers())
+}
+
+func TestSentPacketHistoryRemovePathProbesWhileIterating(t *testing.T) {
+	hist := newSentPacketHistory(true)
+	for pn := range protocol.PacketNumber(10) {
+		hist.SentPathProbePacket(pn, ackElicitingPacket())
+	}
+	var removed []protocol.PacketNumber
+	for pn, p := range hist.PathProbes() {
+		require.Same(t, p, hist.RemovePathProbe(pn))
+		removed = append(removed, pn)
+	}
+	require.Equal(t, []protocol.PacketNumber{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, removed)
+	require.Zero(t, hist.Len())
+	require.Empty(t, hist.pathProbeIndex)
 }
 
 func TestSentPacketHistoryDifference(t *testing.T) {

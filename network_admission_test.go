@@ -150,6 +150,7 @@ func TestNetworkAdmissionServerResponseRouteLoss(t *testing.T) {
 	conn.emission.queue = newSendQueue(conn.conn, nil)
 	err := conn.emission.serverProbe(protocol.ParseConnectionID([]byte{8, 7, 6, 5}),
 		[]ackhandler.Frame{{Frame: &wire.PathResponseFrame{Data: [8]byte{1, 2, 3, 4}}}},
+		&path{bytesReceived: 400},
 		peer.LocalAddr(), packetInfo{}, 0, monotime.Now())
 	require.ErrorContains(t, err, "network policy denied")
 	require.NoError(t, peer.SetReadDeadline(time.Now().Add(20*time.Millisecond)))
@@ -309,23 +310,20 @@ func (c *admissionExtractedConn) WritePacket(b []byte, addr net.Addr, _ []byte, 
 func (c *admissionExtractedConn) capabilities() connCapabilities { return connCapabilities{} }
 
 func TestNetworkAdmissionExtractedDatagramsAndReturnFacts(t *testing.T) {
-	// The adapter boundary receives already-extracted datagrams. Exercise real
-	// coalesced splitting, storage release and copied destination/OOB facts here;
-	// native OS binding qualification is a separate program obligation.
+	// The adapter boundary receives already-extracted datagrams: the
+	// datagrams of one coalesced read, each copied into its own buffer and
+	// sharing the read's destination/OOB facts. Native OS binding
+	// qualification is a separate program obligation.
 	conn := &admissionExtractedConn{PacketConn: newUDPConnLocalhost(t), ready: make(chan struct{})}
 	remote := newUDPConnLocalhost(t).LocalAddr()
-	buffer := getCoalescedPacketBuffer()
-	copy(buffer.Data[:6], "\x00a\x00b\x00c")
-	var delivery coalescedDelivery
-	p := delivery.accept(receivedPacket{buffer: buffer, data: buffer.Data[:6], remoteAddr: remote, info: packetInfo{addr: netip.MustParseAddr("10.0.0.9")}}, 2)
-	slab := p.buffer.slab
-	conn.packets = append(conn.packets, p)
-	for {
-		p, ok := delivery.next()
-		if !ok {
-			break
-		}
-		conn.packets = append(conn.packets, p)
+	// The transport's reader never takes a coalesced-tier buffer, so their
+	// release is observable without reading a buffer another goroutine took.
+	var denied []*packetBuffer
+	for _, datagram := range []string{"\x00a", "\x00b", "\x00c"} {
+		buffer := getCoalescedPacketBuffer()
+		buffer.Data = append(buffer.Data, datagram...)
+		denied = append(denied, buffer)
+		conn.packets = append(conn.packets, receivedPacket{buffer: buffer, data: buffer.Data, remoteAddr: remote, info: packetInfo{addr: netip.MustParseAddr("10.0.0.9")}})
 	}
 	good := getPacketBuffer()
 	copy(good.Data[:3], "\x00ok")
@@ -352,7 +350,9 @@ func TestNetworkAdmissionExtractedDatagramsAndReturnFacts(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "\x00ok", string(b[:n]))
 	require.EqualValues(t, 4, evaluated.Load(), "each extracted datagram must be evaluated")
-	require.True(t, slab.released(), "all denied coalesced views must release storage")
+	for i, buffer := range denied {
+		require.Zero(t, buffer.refCount, "denied datagram %d must release its storage", i)
+	}
 }
 
 func TestNetworkAdmissionAlternatePathAndPreferredCIDPreservation(t *testing.T) {
@@ -399,4 +399,214 @@ func TestNetworkAdmissionBeforeNonQUICDelivery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, allowed.LocalAddr(), addr)
 	require.Equal(t, "\x00allowed", string(b[:n]))
+}
+
+type networkAdmissionDelegationV1 interface {
+	DelegateNetworkAdmissionV1() error
+}
+
+func delegateNetworkAdmission(t *testing.T, tr *Transport) error {
+	t.Helper()
+	api, ok := any(tr).(networkAdmissionDelegationV1)
+	require.True(t, ok, "transport must expose the delegated admission capability")
+	return api.DelegateNetworkAdmissionV1()
+}
+
+func TestNetworkAdmissionDelegatedSkipsCallbacks(t *testing.T) {
+	// Without delegation the same traffic reaches both callbacks: V1 is unchanged.
+	for _, tc := range []struct {
+		name      string
+		delegated bool
+	}{{"v1", false}, {"delegated", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			peer := newUDPConnLocalhost(t)
+			tr := &Transport{Conn: newUDPConnLocalhost(t), ConnectionIDLength: 8, StatelessResetKey: &StatelessResetKey{1}}
+			writer, err := tr.UDPBatchWriterV1(tr.Conn.(*net.UDPConn))
+			require.NoError(t, err)
+			var batchCalls atomic.Int64
+			require.NoError(t, tr.ConfigureExternalPacketIOV1(tr.Conn, false, func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
+				batchCalls.Add(1)
+				return writer(bufs, oob, addr)
+			}))
+			var receives, sends atomic.Int64
+			require.NoError(t, configureNetworkAdmission(t, tr,
+				func(netip.AddrPort, netip.AddrPort, []byte) bool { receives.Add(1); return true },
+				func(netip.AddrPort, netip.AddrPort, []byte) bool { sends.Add(1); return true }, false))
+			if tc.delegated {
+				require.NoError(t, delegateNetworkAdmission(t, tr))
+			}
+			_, err = tr.Listen(testdata.GetTLSConfig(), nil)
+			require.NoError(t, err)
+			defer tr.Close()
+			// A timed read initializes the public non-QUIC delivery seam.
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			_, _, err = tr.ReadNonQUICPacket(ctx, nil)
+			require.ErrorIs(t, err, context.Canceled)
+
+			// Receive: a non-QUIC datagram, and an unknown short header that is
+			// answered by a stateless reset.
+			_, err = peer.WriteTo([]byte("\x00non-quic"), tr.Conn.LocalAddr())
+			require.NoError(t, err)
+			ctx, cancel = context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			b := make([]byte, 64)
+			n, _, err := tr.ReadNonQUICPacket(ctx, b)
+			require.NoError(t, err)
+			require.Equal(t, "\x00non-quic", string(b[:n]))
+			short := append([]byte{0x40}, 1, 2, 3, 4, 5, 6, 7, 8)
+			short = append(short, make([]byte, 64)...)
+			_, err = peer.WriteTo(short, tr.Conn.LocalAddr())
+			require.NoError(t, err)
+			require.NoError(t, peer.SetReadDeadline(time.Now().Add(time.Second)))
+			b = make([]byte, 1500)
+			n, _, err = peer.ReadFrom(b)
+			require.NoError(t, err)
+			require.Equal(t, protocol.MinStatelessResetSize, n, "stateless submission")
+
+			// Send: ordinary transport and connection writes, a probe, and a batch.
+			_, err = tr.WriteTo([]byte("ordinary"), peer.LocalAddr())
+			require.NoError(t, err)
+			sc := newSendConn(tr.conn, peer.LocalAddr(), packetInfo{}, utils.DefaultLogger)
+			require.NoError(t, sc.Write([]byte("connection"), 0, protocol.ECNUnsupported))
+			require.NoError(t, sc.WriteTo([]byte("probe"), peer.LocalAddr(), packetInfo{}))
+			n, err = sc.sendBatch([][]byte{[]byte("one"), []byte("two")}, protocol.ECT0)
+			require.NoError(t, err)
+			require.Equal(t, 2, n)
+			require.EqualValues(t, 1, batchCalls.Load())
+			for _, want := range []string{"ordinary", "connection", "probe", "one", "two"} {
+				n, _, err = peer.ReadFrom(b)
+				require.NoError(t, err)
+				require.Equal(t, want, string(b[:n]))
+			}
+			if tc.delegated {
+				require.Zero(t, receives.Load(), "delegated receive must not evaluate the callback")
+				require.Zero(t, sends.Load(), "delegated submissions must not evaluate the callback")
+			} else {
+				require.GreaterOrEqual(t, receives.Load(), int64(2))
+				require.GreaterOrEqual(t, sends.Load(), int64(5))
+			}
+		})
+	}
+}
+
+func delegatedTestAdmission(t *testing.T) *packetPolicyConn {
+	t.Helper()
+	never := func(netip.AddrPort, netip.AddrPort, []byte) bool {
+		t.Error("delegated admission must not evaluate a callback")
+		return false
+	}
+	return &packetPolicyConn{network: &networkAdmission{
+		local:     netip.MustParseAddrPort("192.0.2.2:443"),
+		receive:   never,
+		send:      never,
+		delegated: true,
+	}}
+}
+
+func TestNetworkAdmissionDelegatedAllocations(t *testing.T) {
+	c := delegatedTestAdmission(t)
+	remote := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 4433}
+	// An extracted destination is exactly the case in which V1 re-encodes facts.
+	packet := receivedPacket{remoteAddr: remote, info: packetInfo{addr: netip.MustParseAddr("192.0.2.2")}}
+	oob := []byte{1, 2, 3, 4}
+	require.Zero(t, testing.AllocsPerRun(100, func() {
+		if !c.allowsReceive(packet) {
+			t.Fatal("delegated receive rejected a valid endpoint")
+		}
+	}))
+	require.Zero(t, testing.AllocsPerRun(100, func() {
+		if err := c.checkSend(remote, oob); err != nil {
+			t.Fatal(err)
+		}
+	}))
+}
+
+func TestNetworkAdmissionDelegatedEndpointChecks(t *testing.T) {
+	c := delegatedTestAdmission(t)
+	for _, addr := range []net.Addr{
+		&net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 4433},
+		(*net.UDPAddr)(nil),
+		&net.UDPAddr{IP: net.IPv4(192, 0, 2, 1)},
+		&net.UDPAddr{Port: 4433},
+	} {
+		require.ErrorIs(t, c.checkSend(addr, nil), errNetworkAdmissionDenied, "%#v", addr)
+		require.False(t, c.allowsReceive(receivedPacket{remoteAddr: addr}), "%#v", addr)
+	}
+}
+
+func TestNetworkAdmissionDelegationConfiguration(t *testing.T) {
+	allow := func(netip.AddrPort, netip.AddrPort, []byte) bool { return true }
+	unconfigured := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.ErrorContains(t, delegateNetworkAdmission(t, unconfigured), "requires network admission")
+
+	tr := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, configureNetworkAdmission(t, tr, allow, allow, false))
+	require.NoError(t, delegateNetworkAdmission(t, tr))
+	require.ErrorContains(t, delegateNetworkAdmission(t, tr), "already delegated")
+	require.ErrorContains(t, configureNetworkAdmission(t, tr, allow, allow, false), "already configured")
+
+	late := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, configureNetworkAdmission(t, late, allow, allow, false))
+	_, err := late.WriteTo([]byte("ordinary"), newUDPConnLocalhost(t).LocalAddr())
+	require.NoError(t, err)
+	defer late.Close()
+	require.ErrorContains(t, delegateNetworkAdmission(t, late), "after initialization")
+}
+
+func TestNetworkAdmissionDelegatedRestrictedProfile(t *testing.T) {
+	allow := func(netip.AddrPort, netip.AddrPort, []byte) bool { return true }
+	origin := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, configureNetworkAdmission(t, origin, allow, allow, true))
+	require.NoError(t, delegateNetworkAdmission(t, origin))
+	require.NoError(t, origin.init(false))
+	defer origin.Close()
+	target := &Transport{Conn: newUDPConnLocalhost(t)}
+	defer target.Close()
+	conn := &Conn{conn: newSendConn(origin.conn, newUDPConnLocalhost(t).LocalAddr(), packetInfo{}, utils.DefaultLogger), peerParams: &wire.TransportParameters{}}
+	conn.emission.conn = &conn.conn
+	require.True(t, networkDisablesActiveMigration(conn.conn))
+	path, err := conn.AddPath(target)
+	require.ErrorContains(t, err, "network restricted connection cannot add a path")
+	require.Nil(t, path)
+	require.Nil(t, target.conn, "rejected path must not initialize the target")
+
+	plain := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, plain.init(false))
+	defer plain.Close()
+	restricted := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, configureNetworkAdmission(t, restricted, allow, allow, false))
+	require.NoError(t, delegateNetworkAdmission(t, restricted))
+	defer restricted.Close()
+	conn = &Conn{conn: newSendConn(plain.conn, newUDPConnLocalhost(t).LocalAddr(), packetInfo{}, utils.DefaultLogger), peerParams: &wire.TransportParameters{}}
+	conn.emission.conn = &conn.conn
+	path, err = conn.AddPath(restricted)
+	require.ErrorContains(t, err, "network restricted transport cannot accept a path")
+	require.Nil(t, path)
+	require.Nil(t, restricted.conn, "rejected path must not initialize the target")
+}
+
+// Delegation replaces only the network-admission callbacks; a fixed peer
+// remains an independent filter in both directions.
+func TestNetworkAdmissionDelegatedWithFixedPeer(t *testing.T) {
+	peer, foreign := newUDPConnLocalhost(t), newUDPConnLocalhost(t)
+	tr := &Transport{Conn: newUDPConnLocalhost(t)}
+	require.NoError(t, tr.ConfigureFixedPeerV1(peer.LocalAddr().(*net.UDPAddr)))
+	var calls atomic.Int64
+	count := func(netip.AddrPort, netip.AddrPort, []byte) bool { calls.Add(1); return true }
+	require.NoError(t, configureNetworkAdmission(t, tr, count, count, false))
+	require.NoError(t, delegateNetworkAdmission(t, tr))
+	_, err := tr.WriteTo([]byte("foreign"), foreign.LocalAddr())
+	require.ErrorContains(t, err, "does not match fixed peer")
+	defer tr.Close()
+	_, err = tr.WriteTo([]byte("peer"), peer.LocalAddr())
+	require.NoError(t, err)
+	require.NoError(t, peer.SetReadDeadline(time.Now().Add(time.Second)))
+	b := make([]byte, 64)
+	n, _, err := peer.ReadFrom(b)
+	require.NoError(t, err)
+	require.Equal(t, "peer", string(b[:n]))
+	require.False(t, tr.policyConn.allowsReceive(receivedPacket{remoteAddr: foreign.LocalAddr()}))
+	require.True(t, tr.policyConn.allowsReceive(receivedPacket{remoteAddr: peer.LocalAddr()}))
+	require.Zero(t, calls.Load())
 }
