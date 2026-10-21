@@ -12,7 +12,8 @@ import (
 type Simnet struct {
 	Router Router
 
-	links []*SimulatedLink
+	links            []*SimulatedLink
+	deliveryCanceled chan struct{}
 }
 
 // NodeBiDiLinkSettings defines the bidirectional link settings for a network node.
@@ -42,6 +43,10 @@ func (n *Simnet) Start() error {
 }
 
 func (n *Simnet) Close() error {
+	// Release owned endpoint delivery before waiting for any link's workers.
+	if n.deliveryCanceled != nil {
+		close(n.deliveryCanceled)
+	}
 	var errs error
 	for _, link := range n.links {
 		err := link.Close()
@@ -56,6 +61,9 @@ func (n *Simnet) Close() error {
 }
 
 func (n *Simnet) NewEndpoint(addr *net.UDPAddr, linkSettings NodeBiDiLinkSettings) *SimConn {
+	if n.deliveryCanceled == nil {
+		n.deliveryCanceled = make(chan struct{})
+	}
 	link := &SimulatedLink{
 		DownlinkSettings: linkSettings.Downlink,
 		UplinkSettings:   linkSettings.Uplink,
@@ -64,6 +72,7 @@ func (n *Simnet) NewEndpoint(addr *net.UDPAddr, linkSettings NodeBiDiLinkSetting
 		UploadPacket:     n.Router,
 	}
 	c := NewBlockingSimConn(addr, link)
+	c.deliveryCanceled = n.deliveryCanceled
 
 	n.links = append(n.links, link)
 	n.Router.AddNode(addr, link)
