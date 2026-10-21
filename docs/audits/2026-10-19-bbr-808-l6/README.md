@@ -4,7 +4,7 @@
 
 **This stage runs only after an advancing disposition** of the revision's readiness (the operator's #748 rule: no qualification runs on a new revision before its advancement disposition). If the revision is not advanced, it does not run, and the record says so.
 
-**Status: registration.** The sections from [Question](#question) to [Order](#order) were written, with the aids adapted and the binaries built, before any observation of this stage, and before the readiness stage ran. Results are added below them afterwards.
+**Status: complete.** The sections from [Question](#question) to [Order](#order) were written, with the aids adapted and the binaries built, before any observation of this stage, and before the readiness stage ran. The operator advanced `d94b3ec2` on Linux on October 19 ([campaign record](../2026-10-19-bbr-808-campaign/README.md#operator-decision)); the stage ran on October 21, and its [Results](#results) follow the registration.
 
 ## Question
 
@@ -106,3 +106,192 @@ Only after an advancing disposition. **On the Mac:** `build.py all` (done; every
 ## Registration review
 
 Reviewed with the whole #808 registration; see the [readiness record](../2026-10-19-bbr-808-readiness/README.md#registration-review).
+
+## Results
+
+**Answer.** BBRv3 at `d94b3ec2` still displaces the competing Reno flow far beyond #777's criterion: **adverse** in all six classified cells, with every pair ratio between 0.114 and 0.391 against the 0.70 threshold (A/A 0.802–1.302). For #800: bulk STREAM is no longer marked application-limited (0% of checks, against 100% in #792), its `max_bw` filter now cycles (19 advances per equal period, none in #792) and `inflight_longterm` sits below the path (0.91–0.98, against 1.04–1.07), so STREAM now shows DATAGRAM's trace signature; its displacement moved up to DATAGRAM's level (competitor next to BBRv3 in the short period 19.2 Mbit/s, against 11.9 in #777; DATAGRAM 17.5) and stays far below the criterion. For #803: **ECN stays on**: every BBRv3 flow in every attempt sent exactly its 4 Not-ECT handshake packets and no trace recorded an ECN failure. The draft-06 checker reports no mismatch in the measured window, after one checker fix disclosed [below](#the-checkers-c8-fix).
+
+### The run
+
+- **Attempt 1** (October 20, from 09:00 UTC) stopped at smoke: GridCast's GARM CI (a Windows VM and Linux containers) loaded the host after the quiet-host gate passed, and the DATAGRAM smoke observation recorded 1,266 host-wide UDP receive-buffer errors, so it was unusable and smoke failed as registered ("a reported prerequisite gap"). No counted observation ran. Its files are kept with the raw archive (`observations-attempt1/`).
+- **Attempt 2** (October 21, 06:13–11:19 UTC, 5 h 06 min against the registered 4 h 20 min to about 6 h), from a clean start: binary check, calibration (seven checks), smoke (all three usable; the DATAGRAM one contaminated but without UDP errors, reported as registered), the counted stage, and the follow stage. Two pair-workloads (DATAGRAM pairs 2 and 3) were contaminated and rerun once each, as registered; both reruns were clean and selected.
+
+- 12 pair-workload attempts, 10 with a usable and uncontaminated triple, 2 reruns; 30 observations selected.
+- Relay: largest arrival lag 3.004 ms; largest lateness 3.895 ms (limit 5 ms).
+- Competitor pause observed at 240.000–240.017 s and 270.000–270.001 s (tolerance 0.5 s).
+- Largest endpoint CPU load: 0.020 of its allotted cores (limit 0.80).
+- Per-period control assignments: exact in every observation; host UDP error deltas: [0].
+
+### Classification (#777's D2, unchanged)
+
+| Workload | Period | Outcome | Pair ratios (pairs 1–5) | A/A ratios |
+| --- | --- | --- | --- | --- |
+| STREAM | equal | **adverse** | 0.161 0.163 0.148 0.190 0.152 | 1.025 0.975 1.000 1.194 0.852 |
+| STREAM | short | **adverse** | 0.329 0.301 0.297 0.368 0.286 | 1.151 1.132 0.940 1.047 0.902 |
+| STREAM | resumed | **adverse** | 0.168 0.137 0.181 0.211 0.177 | 1.187 1.015 0.962 1.064 0.866 |
+| DATAGRAM | equal | **adverse** | 0.187 0.196 0.172 0.130 0.136 | 0.965 1.038 0.866 0.802 0.930 |
+| DATAGRAM | short | **adverse** | 0.259 0.391 0.309 0.264 0.297 | 0.993 1.126 0.885 0.958 0.973 |
+| DATAGRAM | resumed | **adverse** | 0.158 0.207 0.157 0.191 0.114 | 1.302 1.112 0.979 1.068 0.844 |
+
+Delivery per period, medians across pairs (Mbit/s):
+
+| Workload | Period | Competitor next to Reno | Competitor next to BBRv3 | Competitor, A/A | Focal Reno | Focal BBRv3 | Combined, BBRv3 arm |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| STREAM | equal | 52.9 | 8.6 | 54.1 | 43.0 | 84.8 | 93.4 |
+| STREAM | short | 58.4 | 19.2 | 60.8 | 37.2 | 76.0 | 95.1 |
+| STREAM | back | 48.4 | 7.5 | 49.0 | 47.2 | 85.7 | 93.1 |
+| STREAM | absent | 0.2 | 0.0 | 0.2 | 94.9 | 93.4 | 93.4 |
+| STREAM | resumed | 43.7 | 8.3 | 44.2 | 51.9 | 85.3 | 93.4 |
+| DATAGRAM | equal | 49.9 | 8.6 | 45.6 | 45.3 | 83.7 | 92.2 |
+| DATAGRAM | short | 61.6 | 17.5 | 61.1 | 33.6 | 76.5 | 94.0 |
+| DATAGRAM | back | 45.3 | 7.2 | 49.2 | 49.7 | 84.8 | 92.0 |
+| DATAGRAM | absent | 0.2 | 0.0 | 0.2 | 94.2 | 92.2 | 92.2 |
+| DATAGRAM | resumed | 41.5 | 6.5 | 44.0 | 53.5 | 85.8 | 92.3 |
+
+### #800: STREAM displacement and marking
+
+| Workload | Period | Competitor next to BBRv3 (#808) | (#777) | (#792, plain) | (#792, traced) | Next to Reno (#808) | (#777) | Pair ratios #808 | Pair ratios #777 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| STREAM | equal | 8.6 | 7.6 | 7.4 | 7.2 | 52.9 | 50.6 | 0.161 0.163 0.148 0.190 0.152 | 0.091 0.139 0.162 0.182 0.159 |
+| STREAM | short | 19.2 | 11.9 | 10.6 | 10.8 | 58.4 | 59.9 | 0.329 0.301 0.297 0.368 0.286 | 0.142 0.189 0.198 0.211 0.217 |
+| STREAM | resumed | 8.3 | 6.7 | 5.9 | 5.9 | 43.7 | 45.2 | 0.168 0.137 0.181 0.211 0.177 | 0.108 0.130 0.149 0.131 0.163 |
+| DATAGRAM | equal | 8.6 | 8.3 | 8.4 | 8.5 | 49.9 | 45.5 | 0.187 0.196 0.172 0.130 0.136 | 0.169 0.201 0.178 0.194 0.173 |
+| DATAGRAM | short | 17.5 | 17.8 | 17.3 | 16.8 | 61.6 | 55.5 | 0.259 0.391 0.309 0.264 0.297 | 0.347 0.339 0.325 0.334 0.281 |
+| DATAGRAM | resumed | 6.5 | 7.1 | 6.4 | 6.0 | 41.5 | 45.2 | 0.158 0.207 0.157 0.191 0.114 | 0.119 0.184 0.128 0.219 0.208 |
+
+| Workload | Period | Traces | Checks on application-limited packets #808 (#792) | On any supply-limited packet #808 (#792) | Crossings, limited #808 (#792) | `inflight_longterm` / path #808 (#792) | `max_bw` cycle advances #808 (#792) | Competitor drops in Up #808 (#792) | Clamp events #808 |
+| --- | --- | ---: | --- | --- | --- | --- | --- | --- | ---: |
+| STREAM | equal | 3 | 0% (100%) | 0% (100%) | 57, 0 (60, 60) | 0.96 (1.04) | 19 19 19 (0 0 0) | 98% (97%) | 0 |
+| STREAM | short | 3 | 0% (100%) | 0% (100%) | 59, 0 (63, 63) | 0.91 (1.05) | 19 19 19 (0 0 0) | 98% (65%) | 0 |
+| STREAM | resumed | 3 | 0% (100%) | 0% (100%) | 18, 0 (19, 19) | 0.98 (1.07) | 6 6 6 (0 0 0) | 97% (93%) | 0 |
+| DATAGRAM | equal | 3 | 0% (0%) | 0% (0%) | 57, 0 (57, 0) | 0.96 (0.96) | 19 19 19 (19 19 19) | 98% (99%) | 0 |
+| DATAGRAM | short | 3 | 0% (0%) | 0% (0%) | 59, 0 (59, 0) | 0.90 (0.90) | 19 19 19 (18 19 19) | 98% (97%) | 0 |
+| DATAGRAM | resumed | 3 | 0% (0%) | 0% (0%) | 19, 0 (19, 0) | 0.97 (0.98) | 7 6 6 (7 6 6) | 98% (98%) | 0 |
+
+- **Marking.** In #792, every two-percent check in bulk STREAM judged a packet marked application-limited, so no crossing could lower `inflight_longterm` and the `max_bw` filter never advanced a cycle. With #800's fix (#806), bulk STREAM is marked with no supply limitation at all, crossings are unlimited, the filter cycles, and `inflight_longterm` sits below the path, as in DATAGRAM, whose figures are unchanged from #792's. No clamp event occurred (C4).
+- **Displacement.** STREAM's competitor gets slightly more than in #777 in every period (equal 8.6 against 7.6 Mbit/s, short 19.2 against 11.9, resumed 8.3 against 6.7), so STREAM's pair ratios now match DATAGRAM's. #792 attributed DATAGRAM's displacement on this path to draft-06's own behavior; STREAM now shows the same trace signature and conforms to the checker, but this record does not repeat #792's attribution.
+
+### #803: ECN
+
+| Observation | Focal forward Not-ECT | Share | Switch estimate (above 0.01% only) | Trace ECN failure | Competitor Not-ECT |
+| --- | ---: | ---: | --- | --- | ---: |
+| datagram/p1/cand/main | 4 of 3096636 | 0.0001% | none | – | 3 |
+| datagram/p1/trace/main | 4 of 3106652 | 0.0001% | none | none | 3 |
+| datagram/p2/cand/main | 4 of 3109159 | 0.0001% | none | – | 3 |
+| datagram/p2/cand/rerun | 4 of 3067117 | 0.0001% | none | – | 3 |
+| datagram/p2/trace/main | 4 of 3092922 | 0.0001% | none | none | 3 |
+| datagram/p2/trace/rerun | 4 of 3093898 | 0.0001% | none | none | 3 |
+| datagram/p3/cand/main (contaminated) | 4 of 3083153 | 0.0001% | none | – | 3 |
+| datagram/p3/cand/rerun | 4 of 3105103 | 0.0001% | none | – | 3 |
+| datagram/p3/trace/main | 4 of 3099139 | 0.0001% | none | none | 3 |
+| datagram/p3/trace/rerun | 4 of 3109647 | 0.0001% | none | none | 3 |
+| datagram/p4/cand/main | 4 of 3106964 | 0.0001% | none | – | 3 |
+| datagram/p5/cand/main | 4 of 3108315 | 0.0001% | none | – | 3 |
+| stream/p1/cand/main | 4 of 2685348 | 0.0001% | none | – | 3 |
+| stream/p1/trace/main | 4 of 2734048 | 0.0001% | none | none | 3 |
+| stream/p2/cand/main | 4 of 2705259 | 0.0001% | none | – | 3 |
+| stream/p2/trace/main | 4 of 2726646 | 0.0001% | none | none | 3 |
+| stream/p3/cand/main | 4 of 2694180 | 0.0001% | none | – | 3 |
+| stream/p3/trace/main | 4 of 2716964 | 0.0001% | none | none | 3 |
+| stream/p4/cand/main | 4 of 2692039 | 0.0001% | none | – | 3 |
+| stream/p5/cand/main | 4 of 2693186 | 0.0001% | none | – | 4 |
+
+**ECN stays on: yes.**
+
+| Workload | Arm | Focal forward packets sent Not-ECT, per pair | Competitor Not-ECT, largest |
+| --- | --- | --- | ---: |
+| STREAM | Reno | 0% 0% 0% 0% 0% | 0.000% |
+| STREAM | BBRv3 | 0% 0% 0% 0% 0% | 0.001% |
+| STREAM | Reno (A/A) | 0% 0% 0% 0% 0% | 0.000% |
+| DATAGRAM | Reno | 0% 0% 0% 0% 0% | 0.000% |
+| DATAGRAM | BBRv3 | 0% 0% 0% 0% 0% | 0.001% |
+| DATAGRAM | Reno (A/A) | 0% 0% 0% 0% 0% | 0.000% |
+
+### Trace checks
+
+- Traces: 6, complete: yes.
+- Draft-06 checker mismatches in the measured window: 0.
+- Input check: every check ok.
+- Competitor next to the trace ÷ next to the plain candidate, same pair: datagram/p1 0.99 1.02 1.23; datagram/p2 0.90 0.90 0.85; datagram/p3 1.00 0.90 0.84; stream/p1 1.01 0.86 0.76; stream/p2 1.01 0.88 1.01; stream/p3 1.02 0.93 0.87.
+
+#### The checker's C8 fix
+
+The first analysis reported one C8 mismatch in the measured window (DATAGRAM pair 3, short period) and one in a warm-up (STREAM pair 3), and the same pattern in DATAGRAM pair 2's first-pass trace, which its rerun replaced: "`max_bw` dropped below a sample of the current or previous cycle". In each case the sample was taken in ProbeRTT, was supply-limited and was below `max_bw`. Draft-06 5.5.5 updates the filter only "if (rs.delivery_rate >= BBR.max_bw || !rs.is_app_limited)", so such a sample never enters it, and the port's `updateMaxBandwidth` skips it the same way; the checker had counted it. Under #792's rule (a mismatch is dismissed only when a test built from that event's rows shows the checker misreading it; the checker is then fixed and rerun on every trace, and the record discloses the change):
+
+- **Test.** [testdata/l6-808-limited-sample.json](testdata/l6-808-limited-sample.json) holds the trace rows of cycles 43–46 from `rerun-L6-datagram-p3-trace`. #792's checker reports the mismatch on it; the fixed checker does not; with the sample's limited flag cleared, the fixed checker reports it again ([draft06check_test.py](draft06check_test.py), `test_c8_limited_sample_below_max_bw_stays_out`; 41 tests pass).
+- **Fix.** `check_bandwidth_filter` leaves a supply-limited sample below `max_bw` out of the window. The checker and its test differ from #792's by exactly [draft06check-c8.patch](draft06check-c8.patch), which [build.py](build.py) checks.
+- **Rerun on every trace.** All 23 traces (this record's nine, attempt 1's smoke included; #792's eleven, its development traces included; the two port fixtures): the only changes are the three C8 readings above, and every rule checks the same number of events as before. The selected traces now report no mismatch.
+
+### Other L6 flags (descriptive, #777's rules)
+
+| Workload | Period | Competitor p95, next to Reno (ms) | Next to BBRv3 (ms) | Ratio, median | Pairs above 1.20 | Flag |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| STREAM | equal | 198.3 | 200.2 | 1.008 | 0 of 5 | not raised |
+| STREAM | short | 122.4 | 123.9 | 1.014 | 0 of 5 | not raised |
+| STREAM | back | 193.3 | 202.1 | 1.037 | 0 of 5 | not raised |
+| STREAM | absent | 119.3 | 192.2 | 1.616 | 5 of 5 | raised |
+| STREAM | resumed | 186.3 | 204.1 | 1.150 | 1 of 5 | not raised |
+| DATAGRAM | equal | 198.6 | 188.8 | 0.951 | 0 of 5 | not raised |
+| DATAGRAM | short | 123.2 | 125.4 | 1.020 | 0 of 5 | not raised |
+| DATAGRAM | back | 191.9 | 211.9 | 1.100 | 1 of 5 | not raised |
+| DATAGRAM | absent | 123.9 | 191.9 | 1.573 | 5 of 5 | raised |
+| DATAGRAM | resumed | 186.9 | 203.8 | 1.085 | 0 of 5 | not raised |
+
+| Workload | Measure | Matched Reno | BBRv3 | Ratio, median (limit) | Pairs crossing | A/A ratios | Flag |
+| --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| STREAM | control p95 | 197.69 ms | 199.11 ms | 1.005 (1.20) | 0 of 5 | 1.002 1.000 1.001 1.001 1.000 | not raised |
+| STREAM | sender CPU per useful GiB | 15.85 s | 8.97 s | 0.564 (1.10) | 0 of 5 | 1.230 1.062 0.939 1.070 0.879 | not raised |
+| STREAM | receiver CPU per useful GiB | 13.08 s | 9.07 s | 0.689 (1.10) | 0 of 5 | 1.280 1.068 0.937 1.085 0.854 | not raised |
+| STREAM | sender peak RSS | 16.02 MiB | 23.81 MiB | 1.517 (1.10) | 5 of 5 | 0.944 0.985 0.996 0.969 1.067 | raised |
+| STREAM | receiver peak RSS | 14.84 MiB | 26.53 MiB | 1.787 (1.10) | 5 of 5 | 0.971 0.978 1.017 0.979 1.057 | raised |
+| DATAGRAM | control p95 | 198.08 ms | 198.59 ms | 1.002 (1.20) | 0 of 5 | 1.004 0.999 0.996 0.996 0.997 | not raised |
+| DATAGRAM | sender CPU per useful GiB | 16.07 s | 9.93 s | 0.612 (1.10) | 0 of 5 | 1.096 1.060 0.950 0.935 0.953 | not raised |
+| DATAGRAM | receiver CPU per useful GiB | 13.10 s | 8.90 s | 0.673 (1.10) | 0 of 5 | 1.101 1.045 0.948 0.909 0.943 | not raised |
+| DATAGRAM | sender peak RSS | 16.12 MiB | 22.96 MiB | 1.424 (1.10) | 5 of 5 | 0.957 0.987 0.967 0.986 0.991 | raised |
+| DATAGRAM | receiver peak RSS | 14.69 MiB | 16.91 MiB | 1.152 (1.10) | 5 of 5 | 0.958 1.005 0.980 0.975 1.006 | raised |
+
+| Workload | Period | Arm | Focal drops | Competitor drops | Focal mean queue (KB) | Competitor mean queue (KB) |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| STREAM | equal | Reno | 5 | 2 | 425 | 520 |
+| STREAM | equal | BBRv3 | 1175 | 285 | 432 | 38 |
+| STREAM | short | Reno | 7 | 6 | 392 | 613 |
+| STREAM | short | BBRv3 | 1005 | 1061 | 679 | 148 |
+| STREAM | resumed | Reno | 154 | 11 | 473 | 401 |
+| STREAM | resumed | BBRv3 | 456 | 91 | 493 | 42 |
+| DATAGRAM | equal | Reno | 4 | 2 | 480 | 524 |
+| DATAGRAM | equal | BBRv3 | 1353 | 302 | 433 | 38 |
+| DATAGRAM | short | Reno | 12 | 7 | 361 | 651 |
+| DATAGRAM | short | BBRv3 | 1395 | 1006 | 677 | 132 |
+| DATAGRAM | resumed | Reno | 167 | 2 | 491 | 372 |
+| DATAGRAM | resumed | BBRv3 | 688 | 104 | 473 | 35 |
+
+### DATAGRAM loss (campaign decision D8)
+
+| Observation | Sent | Lost | Loss | Relay forward drops | Lost minus relay drops |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| datagram/p1/aa | 1762627 | 830 | 0.0471% | 830 | 0 |
+| datagram/p1/cand | 3085940 | 5848 | 0.1895% | 5853 | -5 |
+| datagram/p1/reno | 1906305 | 738 | 0.0387% | 738 | 0 |
+| datagram/p1/trace | 3096028 | 5886 | 0.1901% | 5891 | -5 |
+| datagram/p2/aa | 1913285 | 874 | 0.0457% | 874 | 0 |
+| datagram/p2/cand | 3056749 | 4944 | 0.1617% | 4945 | -1 |
+| datagram/p2/reno | 2043079 | 868 | 0.0425% | 868 | 0 |
+| datagram/p2/trace | 3084049 | 6100 | 0.1978% | 6103 | -3 |
+| datagram/p3/aa | 2029205 | 606 | 0.0299% | 606 | 0 |
+| datagram/p3/cand | 3095084 | 5729 | 0.1851% | 5730 | -1 |
+| datagram/p3/reno | 1900980 | 846 | 0.0445% | 846 | 0 |
+| datagram/p3/trace | 3098316 | 5583 | 0.1802% | 5584 | -1 |
+| datagram/p4/aa | 1784118 | 752 | 0.0421% | 752 | 0 |
+| datagram/p4/cand | 3097145 | 5633 | 0.1819% | 5634 | -1 |
+| datagram/p4/reno | 1679143 | 689 | 0.0410% | 689 | 0 |
+| datagram/p5/aa | 1756997 | 729 | 0.0415% | 729 | 0 |
+| datagram/p5/cand | 3099047 | 5821 | 0.1878% | 5827 | -6 |
+| datagram/p5/reno | 1672547 | 637 | 0.0381% | 637 | 0 |
+
+BBRv3's focal DATAGRAM loss is 0.16–0.20% against Reno's 0.03–0.05%, and every lost message is one of relay2's forward drops: the difference is never positive, and its small negative values are dropped packets that carried no DATAGRAM. `DatagramReceiveDropsV1` is reported by the [side stage](../2026-10-19-bbr-808-gso-receive/README.md), where it is zero by median.
+
+### Deviations
+
+1. **Attempt 1's prerequisite gap and the restart.** The stage ended at smoke as registered; the operator restarted it, and attempt 2 ran from a clean start. Attempt 1's files are kept, and none enters any statistic.
+2. **The checker's C8 fix** ([above](#the-checkers-c8-fix)), after the counted run, under #792's dismissal rule.
+3. **Start times.** The operator moved the start twice before attempt 1 (from 22:00 EDT to 03:30 and then 05:00 EDT on October 20) and asked for attempt 2 to start at 02:13 EDT on October 21.

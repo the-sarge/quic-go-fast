@@ -2,7 +2,7 @@
 
 **Date:** October 19, 2026, America/New_York. **Scope:** [#808](https://github.com/the-sarge/quic-go-fast/issues/808). Measurement only: no product code change, adoption, default-controller change, release, CHANGELOG change, paid resource, host-setting change or ledger change. Q2 ([#599](https://github.com/the-sarge/quic-go-fast/issues/599)) is not started here.
 
-**Status: readiness and the side stage complete; the operator advanced `d94b3ec2` on Linux (option A, October 19); L6 runs next.** This record holds the campaign's decisions and, after each stage, its answer, the operator's advancement disposition and the requirements the campaign discharges. The stage records hold the registrations and results:
+**Status: complete.** Readiness and the side stage ran on October 19; the operator advanced `d94b3ec2` on Linux (option A); L6 ran on October 21. This record holds the campaign's decisions and, after each stage, its answer, the operator's advancement disposition and the requirements the campaign discharges. The stage records hold the registrations and results:
 
 - [Readiness](../2026-10-19-bbr-808-readiness/README.md): slice 6's stage on the combined revision.
 - [Side stage](../2026-10-19-bbr-808-gso-receive/README.md): #743's STREAM cost, the received-DATAGRAM discard counter, and #743 on BBRv3, on loopback.
@@ -56,7 +56,7 @@ The agent presented one plan with eleven recommended decisions on October 18, 20
 
 **Advancement (decided).** The operator chose option A on October 19 at about 14:45 EDT: `d94b3ec2` advances on Linux, with nine unattributed candidate exceptions and the preservation cell's blocking ended on its `presrss` outcome for this revision only; the default-Reno memory reading is tracked as #871. [Advancement disposition](#advancement-disposition).
 
-**L6:** runs next on `d94b3ec2`.
+**L6 (complete): adverse.** BBRv3 still displaces the competing Reno flow far beyond #777's criterion in all six cells (pair ratios 0.114–0.391 against 0.70). #800's fix worked as designed: bulk STREAM is no longer marked application-limited (0% of checks, against 100% in #792), so its model now cycles like DATAGRAM's, and its displacement moved up to DATAGRAM's level without approaching the criterion. ECN stays on in every BBRv3 flow (#803). [L6 record](../2026-10-19-bbr-808-l6/README.md).
 
 ## Advancement disposition
 
@@ -162,4 +162,12 @@ So `main` at **`d94b3ec2` is advanced: it deserves further qualification, on Lin
 
 ## Discharges
 
-To be added after L6.
+| Requirement | Source | Result | Discharged? |
+| --- | --- | --- | --- |
+| Readiness on the fixed revision and its advancement disposition | #800, #803, the port advancement rule | Ten raised cells; the operator advanced `d94b3ec2` on Linux (option A, October 19) | Yes |
+| L6 again, with STREAM's displacement compared against #777 and #792 | #800 | Adverse in all six cells. Bulk STREAM is no longer marked application-limited (0%, against 100% in #792); its `max_bw` filter cycles and `inflight_longterm` sits below the path, as in DATAGRAM. STREAM's competitor gets slightly more than in #777 (short period 19.2 against 11.9 Mbit/s), now at DATAGRAM's level | Yes: the marking is fixed; the displacement stays adverse |
+| ECN stays on through an L6-length BBRv3 run | #803 | Every BBRv3 flow in every attempt (20) sent only its 4 Not-ECT handshake packets; no trace recorded an ECN failure | Yes: ECN stays on |
+| Re-check #743's open STREAM cost (0.979×) | #743's K3 | 0.997×, *not reproduced* | Yes |
+| `DatagramReceiveDropsV1` beside DATAGRAM loss in DATAGRAM and mixed arms | #824's comment on #808 | Zero by median in every DATAGRAM and mixed arm (nonzero in four Reno runs, at most 0.0019%); L6 DATAGRAM loss is all relay drops (BBRv3 0.16–0.20%, Reno 0.03–0.05%) | Yes |
+
+**What this does not settle.** L6 stays adverse: BBRv3 is not yet a fair neighbor to Reno on this path, for both workloads, and nothing merged since #792 changes the draft-06 behavior #792 found behind DATAGRAM's displacement. L6 measured `d94b3ec2`; `main` has since gained #858's batch-cap change, a new BBR revision, and the fork bundle's deliberate default-Reno changes (#871, #887). Q2 (#599) is not started here.
