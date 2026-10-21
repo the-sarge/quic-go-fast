@@ -7346,3 +7346,28 @@ All 33 hosted checks passed, including the [unit run](https://github.com/the-sar
 ### Next
 
 At this entry, H1 [#933](https://github.com/the-sarge/quic-go-fast/issues/933) and M1 [#935](https://github.com/the-sarge/quic-go-fast/issues/935) remain independently ready; P2 unlocks no new slice. The [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live frontier. Reconcile the issue and OmniFocus pointers after this journal publication.
+
+---
+
+## A20-H1 initial request-header ownership landed - 2026-10-21 02:22 EDT
+
+**Main:** `53b084096fa0`
+**Actor:** Codex
+
+### Summary
+
+Completed A20-H / H1 in [PR #947](https://github.com/the-sarge/quic-go-fast/pull/947), closing [issue #933](https://github.com/the-sarge/quic-go-fast/issues/933). The concrete initial-request-header operation now owns declared-size checks, charged reading, lazy decode and existing role dispositions. Its inner read/decode scope releases capacity before qlog or refusal I/O; the outer handler retains timeout/activation, caller deadlines and application lifetime.
+
+### Validation
+
+The new real-stream `TestRawServerConnHeaderTimeoutDuringQlog` passed before and after extraction: valid headers decode, qlog blocks with zero pending charge, timeout resets both stream directions, and resuming qlog never activates the handler. Existing budget recovery, cancellation, invalid decode, size, logging and allocation cases remain intact. Package and race tests, vet, module tidiness and diff checks passed on exact final head `76270e2d2935b38b811e1ee08b197ed6679697f6` (Go 1.27.3, darwin/arm64). All 33 hosted checks passed, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/39554274114), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/39554274074), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/39554274080) and [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/39554273995).
+
+RAS review `20261021T060544-bff630df565b3283205485b5` required no fixes or follow-ups. After the base advanced through P2's journal, the product files were verified byte-identical across rebase and all local/hosted gates were refreshed. The operator requested no new RAS review; the already-started replacement was interrupted and its partial output was not used. [Independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/947#issuecomment-6309423186) and the [final certification receipt](https://github.com/the-sarge/quic-go-fast/pull/947#issuecomment-6309518966) record the bounded evidence and exact head.
+
+### Decisions
+
+Preserve initial-header protocol dispositions, QPACK ownership, response/trailer quotas and public interfaces. The accepted [H1 contract](adr/2026-10-20-request-header-ownership-plan.md#slice-h1--own-the-initial-request-header-charge-through-lazy-decode) remains the design authority; no new verification harness or generalized lifetime abstraction was introduced.
+
+### Next
+
+The product PR committed H1 completion and the program frontier. M1 is the remaining independent frontier slice, already in progress in [PR #948](https://github.com/the-sarge/quic-go-fast/pull/948); H1 unlocks no successors. [Program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live view for dispatch and task reconciliation. Broader scheduler/platform certification and the separate QPACK policy correction remain outside this slice.
