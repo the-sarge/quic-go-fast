@@ -18,9 +18,6 @@ Copied from #792's build.py (89e71a60) with recorded changes:
 - `cand`'s fixture is a new binary (REGISTERED, filled in at first build);
   `reno`, `relay2`, `calibrate2` and `launch` must stay byte-identical to #777's.
 - The artifact directory is this record's (.local/bbr-808-l6).
-- After L6's counted run, the checker's C8 rule was fixed (a supply-limited
-  sample below max_bw is not a filter entry, draft-06 5.5.5) and a test added;
-  both files are checked as #792's plus draft06check-c8.patch (CHANGED_PY).
 #792's docstring follows.
 
 Finite BBRv3 L6 diagnosis builds (#792); never edits a tracked transport source file.
@@ -130,12 +127,9 @@ def replace(path, old, new):
 
 # The Python aids and checker fixtures copied unchanged: (this record's path, prior commit, prior path).
 COPIED_PY = [(rel, L6, f'{L6_DIR}/{rel}') for rel in ['l6rules.py', 'l6rules_test.py', 'prereq.py']] + \
-    [(rel, TRACE, f'{TRACE_DIR}/{rel}') for rel in ['reconcile.py', 'reconcile_test.py',
+    [(rel, TRACE, f'{TRACE_DIR}/{rel}') for rel in ['draft06check.py', 'draft06check_test.py', 'reconcile.py', 'reconcile_test.py',
                                                     'testdata/port-fixture-trace.json', 'testdata/port-fixture-trace-long.json']] + \
     [('mechanism792.py', TRACE, f'{TRACE_DIR}/analyze.py')]
-# Changed after L6's counted run (README, "The checker's C8 fix"): the checker and its test differ from
-# #792's by exactly draft06check-c8.patch, a unified diff against 89e71a60.
-CHANGED_PY = ['draft06check.py', 'draft06check_test.py']
 
 
 def check_aids():
@@ -145,12 +139,6 @@ def check_aids():
         assert (HERE / rel).read_bytes() == git('show', f'{TRACE}:{TRACE_DIR}/{rel}'), rel
     for rel, rev, prior in COPIED_PY:
         assert (HERE / rel).read_bytes() == git('show', f'{rev}:{prior}'), rel
-    import difflib
-    diff = []
-    for rel in CHANGED_PY:
-        before = git('show', f'{TRACE}:{TRACE_DIR}/{rel}', text=True).splitlines(keepends=True)
-        diff += difflib.unified_diff(before, (HERE / rel).read_text().splitlines(keepends=True), f'a/{rel}', f'b/{rel}')
-    assert ''.join(diff) == (HERE / 'draft06check-c8.patch').read_text(), 'checker differs from #792 by more than the recorded C8 fix'
 
 
 def export(name, rev):

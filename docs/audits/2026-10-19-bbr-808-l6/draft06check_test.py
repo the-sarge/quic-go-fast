@@ -327,17 +327,6 @@ class InjectedDeviations(unittest.TestCase):
         t.set(q, 'bandwidth', 1)
         self.assertTrue([m for m in mismatches(t.data, 'C8') if 'dropped below' in m['what']])
 
-    def test_c8_limited_sample_below_max_bw_stays_out(self):
-        # #808: rows from an L6 trace where cycle 45's largest sample (seq 466248) was
-        # taken in ProbeRTT, limited and below max_bw, so draft-06 leaves it out of the
-        # filter and the cycle-46 aging (seq 473470) correctly keeps 11292921.
-        data = json.loads((HERE / 'testdata' / 'l6-808-limited-sample.json').read_text())
-        self.assertFalse([m for m in mismatches(copy.deepcopy(data), 'C8') if 'dropped below' in m['what']])
-        t = Tr(data)
-        r = next(r for r in t.rows(d.ROUND) if t.get(r, 'seq') == 466248)
-        t.set(r, 'flags', t.get(r, 'flags') & ~t.f['sample_limited'])
-        self.assertTrue([m for m in mismatches(t.data, 'C8') if 'dropped below' in m['what']])
-
     def test_c9_short_hold(self):
         t = Tr(fixture())
         holds = [(p, q) for p, q in t.pairs() if t.get(q, 'phase') == d.PROBERTT and t.get(q, 'flags') & t.f['probe_rtt_holding']

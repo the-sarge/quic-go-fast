@@ -459,10 +459,7 @@ def check_pacing(t, rep):
 def check_bandwidth_filter(t, rep):
     """The filter keeps the largest sample of the current and previous cycle.
     A cycle advance takes effect at the next sample, as in the draft, so a ROUND
-    row (written before its event's sample) may show a value the event drops.
-    A supply-limited sample below max_bw never enters the filter (5.5.5:
-    "if (rs.delivery_rate >= BBR.max_bw || !rs.is_app_limited)"), so it is left
-    out of the window (#808: two ProbeRTT samples were read as filter entries)."""
+    row (written before its event's sample) may show a value the event drops."""
     history = []  # (cycle, max sample rate) per finished round, in order
 
     def window(c, extra=0):
@@ -472,11 +469,8 @@ def check_bandwidth_filter(t, rep):
     for r in t.rows:
         if r[0] == ROUND:
             c = t.v(r, 'cycle')
-            sample = r[t.c['a4']]
-            if t.flag(r, 'sample_limited') and sample < t.v(r, 'bandwidth'):
-                sample = 0  # not a filter entry
-            bound = window(c, sample)  # includes this event's own sample
-            history.append((c, sample))
+            bound = window(c, r[t.c['a4']])  # includes this event's own sample
+            history.append((c, r[t.c['a4']]))
             if t.v(r, 'bandwidth') > bound:
                 post = t.end_of_event(r)
                 ok = post is not None and t.v(post, 'bandwidth') <= bound

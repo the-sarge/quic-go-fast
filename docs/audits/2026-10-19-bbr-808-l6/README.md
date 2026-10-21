@@ -109,12 +109,14 @@ Reviewed with the whole #808 registration; see the [readiness record](../2026-10
 
 ## Results
 
-**Answer.** BBRv3 at `d94b3ec2` still displaces the competing Reno flow far beyond #777's criterion: **adverse** in all six classified cells, with every pair ratio between 0.114 and 0.391 against the 0.70 threshold (A/A 0.802–1.302). For #800: bulk STREAM is no longer marked application-limited (0% of checks, against 100% in #792), its `max_bw` filter now cycles (19 advances per equal period, none in #792) and `inflight_longterm` sits below the path (0.91–0.98, against 1.04–1.07), so STREAM now shows DATAGRAM's trace signature; its displacement moved up to DATAGRAM's level (competitor next to BBRv3 in the short period 19.2 Mbit/s, against 11.9 in #777; DATAGRAM 17.5) and stays far below the criterion. For #803: **ECN stays on**: every BBRv3 flow in every attempt sent exactly its 4 Not-ECT handshake packets and no trace recorded an ECN failure. The draft-06 checker reports no mismatch in the measured window, after one checker fix disclosed [below](#the-checkers-c8-fix).
+**Answer.** BBRv3 at `d94b3ec2` still displaces the competing Reno flow beyond #777's criterion: **adverse** in all six classified cells, with every pair ratio (the competitor's delivery next to BBRv3 over its delivery next to matched Reno) between 0.114 and 0.391 against the 0.70 threshold (A/A 0.802–1.302). For #800: bulk STREAM is no longer marked application-limited (0% of checks, against 100% in #792), its `max_bw` filter now cycles (19 advances per equal period, none in #792) and `inflight_longterm` sits below the path (0.91–0.98, against 1.04–1.07), a trace signature like DATAGRAM's. STREAM's competitor gets more than in #777 (short period 19.2 against 11.9 Mbit/s, about 61% more), so STREAM's displacement eased to about DATAGRAM's level, but its pair ratios stay far below 0.70. For #803: **ECN stays on**: every BBRv3 flow in every attempt sent exactly its 4 Not-ECT handshake packets and no trace recorded an ECN failure. The draft-06 checker (#792's, unchanged) reports one C8 mismatch in the measured window, which comes from the port's declared marking of ProbeRTT samples ([below](#trace-checks)).
 
 ### The run
 
 - **Attempt 1** (October 20, from 09:00 UTC) stopped at smoke: GridCast's GARM CI (a Windows VM and Linux containers) loaded the host after the quiet-host gate passed, and the DATAGRAM smoke observation recorded 1,266 host-wide UDP receive-buffer errors, so it was unusable and smoke failed as registered ("a reported prerequisite gap"). No counted observation ran. Its files are kept with the raw archive (`observations-attempt1/`).
-- **Attempt 2** (October 21, 06:13–11:19 UTC, 5 h 06 min against the registered 4 h 20 min to about 6 h), from a clean start: binary check, calibration (seven checks), smoke (all three usable; the DATAGRAM one contaminated but without UDP errors, reported as registered), the counted stage, and the follow stage. Two pair-workloads (DATAGRAM pairs 2 and 3) were contaminated and rerun once each, as registered; both reruns were clean and selected.
+- **Attempt 2** (October 21, 06:13–11:19 UTC, 5 h 06 min against the registered 4 h 20 min to about 6 h), from a clean start: binary check, calibration (seven checks), smoke (all three usable; the DATAGRAM one contaminated but without UDP errors, reported as registered), the counted stage, and the follow stage. Two pair-workloads were rerun once each, as registered, and both reruns were clean and selected: DATAGRAM pair 2, whose A/A observation was unusable (relay lateness 7.011 ms forward and 6.996 ms reverse, against the 5 ms limit) and contaminated; and DATAGRAM pair 3, whose candidate and Reno observations were contaminated.
+
+The health lines cover the 30 selected observations:
 
 - 12 pair-workload attempts, 10 with a usable and uncontaminated triple, 2 reruns; 30 observations selected.
 - Relay: largest arrival lag 3.004 ms; largest lateness 3.895 ms (limit 5 ms).
@@ -168,8 +170,8 @@ Delivery per period, medians across pairs (Mbit/s):
 | DATAGRAM | short | 3 | 0% (0%) | 0% (0%) | 59, 0 (59, 0) | 0.90 (0.90) | 19 19 19 (18 19 19) | 98% (97%) | 0 |
 | DATAGRAM | resumed | 3 | 0% (0%) | 0% (0%) | 19, 0 (19, 0) | 0.97 (0.98) | 7 6 6 (7 6 6) | 98% (98%) | 0 |
 
-- **Marking.** In #792, every two-percent check in bulk STREAM judged a packet marked application-limited, so no crossing could lower `inflight_longterm` and the `max_bw` filter never advanced a cycle. With #800's fix (#806), bulk STREAM is marked with no supply limitation at all, crossings are unlimited, the filter cycles, and `inflight_longterm` sits below the path, as in DATAGRAM, whose figures are unchanged from #792's. No clamp event occurred (C4).
-- **Displacement.** STREAM's competitor gets slightly more than in #777 in every period (equal 8.6 against 7.6 Mbit/s, short 19.2 against 11.9, resumed 8.3 against 6.7), so STREAM's pair ratios now match DATAGRAM's. #792 attributed DATAGRAM's displacement on this path to draft-06's own behavior; STREAM now shows the same trace signature and conforms to the checker, but this record does not repeat #792's attribution.
+- **Marking.** In #792, every two-percent check in bulk STREAM judged a packet marked application-limited, so no crossing could lower `inflight_longterm` and the `max_bw` filter never advanced a cycle. With #800's fix (#806), bulk STREAM is marked with no supply limitation at all, crossings are unlimited, the filter cycles, and `inflight_longterm` sits below the path. That signature is like DATAGRAM's, whose figures are close to #792's (for example, short-period cycle advances 19 19 19 against 18 19 19). No clamp event occurred (C4).
+- **Displacement.** STREAM's competitor gets more than in #777 in every classified period (equal 8.6 against 7.6 Mbit/s, short 19.2 against 11.9, resumed 8.3 against 6.7), so STREAM's pair ratios rose to about DATAGRAM's, still far below 0.70. #792 attributed DATAGRAM's displacement on this path to draft-06's own behavior; this record does not repeat that attribution for either workload.
 
 ### #803: ECN
 
@@ -207,20 +209,18 @@ Delivery per period, medians across pairs (Mbit/s):
 | DATAGRAM | BBRv3 | 0% 0% 0% 0% 0% | 0.001% |
 | DATAGRAM | Reno (A/A) | 0% 0% 0% 0% 0% | 0.000% |
 
+The table covers every counted and rerun observation. The two smoke observations of each attempt read the same (4 Not-ECT focal packets each; no ECN failure in either smoke trace); smoke enters no statistic.
+
 ### Trace checks
 
 - Traces: 6, complete: yes.
-- Draft-06 checker mismatches in the measured window: 0.
+- Draft-06 checker mismatches in the measured window: 1.
 - Input check: every check ok.
 - Competitor next to the trace ÷ next to the plain candidate, same pair: datagram/p1 0.99 1.02 1.23; datagram/p2 0.90 0.90 0.85; datagram/p3 1.00 0.90 0.84; stream/p1 1.01 0.86 0.76; stream/p2 1.01 0.88 1.01; stream/p3 1.02 0.93 0.87.
 
-#### The checker's C8 fix
-
-The first analysis reported one C8 mismatch in the measured window (DATAGRAM pair 3, short period) and one in a warm-up (STREAM pair 3), and the same pattern in DATAGRAM pair 2's first-pass trace, which its rerun replaced: "`max_bw` dropped below a sample of the current or previous cycle". In each case the sample was taken in ProbeRTT, was supply-limited and was below `max_bw`. Draft-06 5.5.5 updates the filter only "if (rs.delivery_rate >= BBR.max_bw || !rs.is_app_limited)", so such a sample never enters it, and the port's `updateMaxBandwidth` skips it the same way; the checker had counted it. Under #792's rule (a mismatch is dismissed only when a test built from that event's rows shows the checker misreading it; the checker is then fixed and rerun on every trace, and the record discloses the change):
-
-- **Test.** [testdata/l6-808-limited-sample.json](testdata/l6-808-limited-sample.json) holds the trace rows of cycles 43–46 from `rerun-L6-datagram-p3-trace`. #792's checker reports the mismatch on it; the fixed checker does not; with the sample's limited flag cleared, the fixed checker reports it again ([draft06check_test.py](draft06check_test.py), `test_c8_limited_sample_below_max_bw_stays_out`; 41 tests pass).
-- **Fix.** `check_bandwidth_filter` leaves a supply-limited sample below `max_bw` out of the window. The checker and its test differ from #792's by exactly [draft06check-c8.patch](draft06check-c8.patch), which [build.py](build.py) checks.
-- **Rerun on every trace.** All 23 traces (this record's nine, attempt 1's smoke included; #792's eleven, its development traces included; the two port fixtures): the only changes are the three C8 readings above, and every rule checks the same number of events as before. The selected traces now report no mismatch.
+- **The one mismatch in the measured window** is C8, "`max_bw` dropped below a sample of the current or previous cycle", in the selected DATAGRAM pair 3 trace (`rerun-L6-datagram-p3-trace`, event 473470, short period): at a cycle advance BBRv3 aged `max_bw` to 11,292,921 bytes/s, while the previous cycle's largest sample was 11,335,321 (0.37% higher). Two more traces show the same pattern outside the selected measured windows: STREAM pair 3 in its warm-up (event 68403, 0.03%), and DATAGRAM pair 2's first-pass trace, which its rerun replaced (event 255116, 0.03%).
+- **Where it comes from.** In each case the round holding that sample starts in Up and enters ProbeRTT partway through, and the sample is below `max_bw`. The port marks every sample it processes in ProbeRTT as limited (`Feedback` sets `SendProbeRTTLimited` while `InProbeRTT()`), and a limited sample below `max_bw` never enters its filter. That is a declared port choice ([docs/designs/bbrv3.md](../../designs/bbrv3.md): "Mark ProbeRTT samples limited intentionally"). Draft-06 marks the connection application-limited on entering ProbeRTT, which marks packets sent afterwards (sections 4.1.2 and 5.5.5); a sample for a packet sent before entry, acknowledged during ProbeRTT, is not limited and does enter the filter. The trace records each round's largest sample but not which event carried it, so the record cannot show that event directly. A sample taken before ProbeRTT entry would have entered the port's filter too and kept `max_bw` at least as high, so these samples were most probably taken after entry. The checker reads draft-06 and is right to flag this.
+- **Classification.** These are **port-versus-draft deviations from a declared port choice**, not checker misreadings, so #792's dismissal rule does not dismiss them; the trace does not conform at those events. The effect is a `max_bw` 0.03–0.37% lower for at most one cycle. It changes no classification and no discharge, and draft-06's own ProbeRTT behavior is not what #808 measures. Whether to keep the port's choice is a question for a later BBR change, not for this record.
 
 ### Other L6 flags (descriptive, #777's rules)
 
@@ -288,10 +288,27 @@ The first analysis reported one C8 mismatch in the measured window (DATAGRAM pai
 | datagram/p5/cand | 3099047 | 5821 | 0.1878% | 5827 | -6 |
 | datagram/p5/reno | 1672547 | 637 | 0.0381% | 637 | 0 |
 
-BBRv3's focal DATAGRAM loss is 0.16–0.20% against Reno's 0.03–0.05%, and every lost message is one of relay2's forward drops: the difference is never positive, and its small negative values are dropped packets that carried no DATAGRAM. `DatagramReceiveDropsV1` is reported by the [side stage](../2026-10-19-bbr-808-gso-receive/README.md), where it is zero by median.
+BBRv3's focal DATAGRAM loss is 0.16–0.20% against Reno's 0.03–0.05%. In every observation the lost messages are at most relay2's forward drops for the focal flow, and host UDP error deltas are zero. That is consistent with all of the loss being relay drops, but it does not prove it: relay drops of packets that carried no DATAGRAM can offset losses elsewhere, and this frozen fixture does not read `DatagramReceiveDropsV1`. The [side stage](../2026-10-19-bbr-808-gso-receive/README.md) reports that counter; it is zero by median there.
 
 ### Deviations
 
 1. **Attempt 1's prerequisite gap and the restart.** The stage ended at smoke as registered; the operator restarted it, and attempt 2 ran from a clean start. Attempt 1's files are kept, and none enters any statistic.
-2. **The checker's C8 fix** ([above](#the-checkers-c8-fix)), after the counted run, under #792's dismissal rule.
-3. **Start times.** The operator moved the start twice before attempt 1 (from 22:00 EDT to 03:30 and then 05:00 EDT on October 20) and asked for attempt 2 to start at 02:13 EDT on October 21.
+2. **Start times.** The operator moved the start twice before attempt 1 (from 22:00 EDT to 03:30 and then 05:00 EDT on October 20) and asked for attempt 2 to start at 02:13 EDT on October 21.
+
+### Review
+
+PR review (RAS run `20261021T113227-f5e0a7c774e2ff1a0f75f935`) found that the first write-up dismissed the C8 mismatches as a checker misreading after changing the checker. The change counted the port's ACK-time ProbeRTT marking as if it were draft-06's send-time marking, and it would also have hidden a genuine deviation in a round whose largest sample was eligible. The change was reverted; the checker is #792's, byte-identical, and the mismatches are reported above.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| C-006 (high): the dismissal rested on the port's ACK-time ProbeRTT marking, not draft-06's | Fixed | Checker change reverted; the three C8 mismatches reported as deviations from a declared port choice ([Trace checks](#trace-checks)); Answer and campaign record aligned |
+| C-005 (high): the changed checker would hide an eligible sample in a mixed round | Fixed by the revert | #792's checker keeps the round maximum as a floor |
+| C-020 (medium): one test supported three dismissals | Moot | No dismissal is claimed |
+| C-004 (low): trace inventory | Moot | The rerun inventory was part of the reverted disclosure |
+| C-014 (medium): direction of the displacement change | Fixed | The competitor's delivery rose (displacement eased); the pair-ratio threshold is named |
+| C-003 (low): DATAGRAM figures called unchanged | Fixed | "Close to #792's", with an example |
+| C-002 (low): causal claim about draft-06 behavior | Fixed | The campaign record no longer repeats #792's attribution |
+| C-001 (medium): loss called all relay drops | Fixed | Stated as consistent with relay drops, with the limits |
+| C-019 (medium): the replaced observation's relay-lateness failure | Fixed | Both rerun reasons named; health lines scoped to the selected observations |
+| C-008 (low): the side stage's 1.76× aggregation | Fixed | Labelled as the median of paired ratios beside the arm medians |
+| C-011, C-015 (low) | Rejected as registered by the synthesis; C-015's smoke ECN reading added for completeness | — |

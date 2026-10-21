@@ -5430,7 +5430,7 @@
   "classification": "adverse",
   "readings": {
     "checker": {
-      "mismatches_in_measured_window": 0,
+      "mismatches_in_measured_window": 1,
       "reconcile_findings": [],
       "reconcile_ok": true,
       "trace_over_cand_competitor": {
@@ -39999,10 +39999,22 @@
             "notes": {}
           },
           "C8": {
-            "by_period": {},
+            "by_period": {
+              "short": 1
+            },
             "checked": 2474,
-            "first": [],
-            "mismatches": 0,
+            "first": [
+              {
+                "bandwidth": 11292921,
+                "period": "short",
+                "phase": "Down",
+                "samples_max": 11335321,
+                "seq": 473470,
+                "unix_ns": 1792580715991820020,
+                "what": "max_bw dropped below a sample of the current or previous cycle"
+              }
+            ],
+            "mismatches": 1,
             "notes": {
               "aging_events": 43
             }
@@ -40033,7 +40045,7 @@
           "probe_loss_rows": 2755,
           "rows": 7128
         },
-        "mismatches": 0
+        "mismatches": 1
       },
       "disturbance": {
         "periods": {
@@ -42817,10 +42829,22 @@
             "notes": {}
           },
           "C8": {
-            "by_period": {},
+            "by_period": {
+              "warmup": 1
+            },
             "checked": 2499,
-            "first": [],
-            "mismatches": 0,
+            "first": [
+              {
+                "bandwidth": 11709711,
+                "period": "warmup",
+                "phase": "Down",
+                "samples_max": 11712866,
+                "seq": 68403,
+                "unix_ns": 1792571543761009693,
+                "what": "max_bw dropped below a sample of the current or previous cycle"
+              }
+            ],
+            "mismatches": 1,
             "notes": {
               "aging_events": 45
             }
@@ -42851,7 +42875,7 @@
           "probe_loss_rows": 2288,
           "rows": 6635
         },
-        "mismatches": 0
+        "mismatches": 1
       },
       "disturbance": {
         "periods": {
