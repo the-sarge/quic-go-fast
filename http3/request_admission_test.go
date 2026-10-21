@@ -20,9 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Hold the existing map lock to pause admission after tracking has acquired its
-// work obligation. Stack observation only establishes this test-owned schedule;
-// neither a sleep nor a production hook decides when to close the connection.
+// Hold the existing map lock so successful tracking cannot return until resumed.
+// Stack observation establishes that stream opening has reached TrackStream;
+// qlog sealing can still reject admission before it acquires the map lock.
 func pauseRequestAdmission(t *testing.T, cc *ClientConn) (wait, resume func()) {
 	t.Helper()
 	cc.rawConn.streamMx.Lock()
