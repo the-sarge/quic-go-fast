@@ -1,6 +1,6 @@
 # Architecture Deepening Program — 2026-10-20 (A20)
 
-**Status:** Slice audit passed; publication and dispatch state belong to the live tracker; no implementation dispatched by this handoff
+**Status:** R1 complete; S1, P1, P2, H1 and M1 remain independent frontier slices; live dispatch state belongs to the program tracker
 **Stable identity:** A20
 **Normative plans:** The track documents below; live mapping belongs to the program issue
 **Audit history:** [Capture, scope decisions and audit receipts](../audits/2026-10-20-architecture-handoff/README.md)
@@ -19,7 +19,7 @@ The QPACK error-scope correction is held for an upstream typed-error classificat
 
 | # | Track | Plan | Parent issue | Blocked by | Slices | State |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | A20-R: HTTP/3 Request Admission | [A20-R](2026-10-20-request-admission-plan.md) | pending | None | 1 | Audit passed |
+| 1 | A20-R: HTTP/3 Request Admission | [A20-R](2026-10-20-request-admission-plan.md) | [#925](https://github.com/the-sarge/quic-go-fast/issues/925) | None | 1 | R1 complete |
 | 2 | A20-S: Simulated-Network Delivery Shutdown | [A20-S](2026-10-20-simnet-shutdown-plan.md) | pending | None | 1 | Audit passed |
 | 3 | A20-P: HTTP/3 Detected Protocol Error Dispositions | [A20-P](2026-10-20-http3-protocol-errors-plan.md) | pending | None | 2 | Audit passed |
 | 4 | A20-H: Initial Request-Header Ownership | [A20-H](2026-10-20-request-header-ownership-plan.md) | pending | None | 1 | Audit passed |
@@ -29,7 +29,7 @@ There are six audited implementation slices: R1, S1, P1, P2, H1 and M1. The inde
 
 Recommended order is R1 → S1 → P1/P2 → H1, with M1 as independent maintenance. These arrows express priority only. S1 and M1 are parallel-safe with HTTP/3 work; P1 and P2 share Stream.Read, while R1/H1 share the HTTP/3 package and tests, so serialize or carefully rebase their changes for review clarity. Do not encode file overlap or preferred sequencing as a false dependency. H1 preserves the behavior at its implementation baseline, and the deferred QPACK change does not block that resource-lifetime refactor.
 
-After the audited docs are merged and their default-branch commit verified, R1, S1, P1, P2, H1 and M1 can be the frontier. Before that publication gate, none is dispatchable. Parent issues are never implementation dispatch targets. Publication and current frontier belong in the live tracker after it exists; pending links do not require another authoritative plan commit merely for backfill.
+The audited plans are published and R1 is complete. S1, P1, P2, H1 and M1 remain the independent frontier; R1 unlocks no new slices. Parent issues are never implementation dispatch targets. Current dispatch state belongs in the [live program tracker](https://github.com/the-sarge/quic-go-fast/issues/936); pending links do not require another authoritative plan commit merely for backfill.
 
 ## Rules that bind every track
 
