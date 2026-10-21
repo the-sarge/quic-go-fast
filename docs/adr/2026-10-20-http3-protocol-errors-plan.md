@@ -1,7 +1,7 @@
 # HTTP/3 Detected Protocol Error Dispositions Implementation Plan
 
 **Date:** 2026-10-20
-**Status:** Accepted after independent slice audit; not implemented
+**Status:** P1 complete; P2 remains an independent frontier slice
 **Track:** A20-P — 3 of 5 in A20
 **Depends on:** Nothing; independent slices as stated below
 **Related:** [Program index](2026-10-20-architecture-deepening-program.md), [no-code decisions](2026-10-20-architecture-decisions.md)
@@ -38,7 +38,7 @@ P1 handles detected HEADERS/DATA-after-trailers at Stream.Read by closing the co
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| P1 | new | Close on detected HEADERS or DATA after trailers | None | n/a |
+| P1 | complete | Close on detected HEADERS or DATA after trailers | None | n/a |
 | P2 | new | Reset streams for detected malformed trailer fields | None | n/a |
 
 ## Implementation Slices
@@ -119,7 +119,7 @@ P1 handles detected HEADERS/DATA-after-trailers at Stream.Read by closing the co
 | QPACK decoder failures | Current behavior retained; new correction deferred | Existing QPACK/role path | No blanket connection/reset rule; dependency disposition below |
 | Valid trailers and completed halves | Existing normal completion and documented cancellation semantics: CancelWrite after Close can abort outstanding delivery, while an already-observed FIN can precede a later reset | Existing stream lifetime owners | Valid FIN and body completion coverage |
 
-Evidence status is planned, not yet run for an implementation. Completion means satisfying this terminating plan, not enumerating arbitrary syntax or schedules.
+P1 evidence is complete: real-peer request, response and public-stream reads cover its five semantic rows, including qlog and sibling-stream outcomes. P2 evidence remains planned. Completion means satisfying this terminating plan, not enumerating arbitrary syntax or schedules.
 
 ## QPACK dependency disposition — not a dispatchable slice
 
@@ -131,7 +131,7 @@ The RFC sources are [HTTP/3 framing](https://www.rfc-editor.org/rfc/rfc9114.html
 
 ## Acceptance Criteria
 
-- [ ] P1: detected HEADERS or DATA following a successfully parsed trailing HEADERS causes H3_FRAME_UNEXPECTED at connection scope through Stream.Read; legal unknown extension frames retain parser-owned behavior.
+- [x] P1: detected HEADERS or DATA following a successfully parsed trailing HEADERS causes H3_FRAME_UNEXPECTED at connection scope through Stream.Read; legal unknown extension frames retain parser-owned behavior.
 - [ ] P2: trailer fields rejected by the current semantic trailer validator cause H3_MESSAGE_ERROR on the affected stream through Stream.Read, while an independent stream on that connection remains usable. Peer-visible reset assertions use directions whose completion has not already been observed; completed halves retain the existing cancellation behavior.
 - [ ] P1/P2 preserve qlog event conventions, existing transport read/cancellation errors, header-size policy and the response/body/public-stream ownership on their changed paths.
 - [ ] No broad QPACK conformance claim, handwritten representation classifier or silent dependency fork is introduced. Initial/QPACK-only dispositions remain explicitly deferred to the upstream typed-error prerequisite.

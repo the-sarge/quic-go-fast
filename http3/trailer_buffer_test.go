@@ -181,6 +181,8 @@ func TestTrailerBufferingFrameBoundary(t *testing.T) {
 		return buf.Read(p[:min(len(p), 127)])
 	}).AnyTimes()
 	str, trailers := newTrailerTestStream(t, qstr, http.DefaultMaxHeaderBytes, nil)
+	client, _ := newConnPair(t)
+	str.conn = newRawConn(client, false, nil, nopControlStrHandler, nil, nil)
 	require.NoError(t, readBodyThenTrailer(t, str))
 	require.Equal(t, value, trailers.Get("X-Large"))
 	// Nothing past the trailer frame was consumed.

@@ -34,6 +34,14 @@ type datagramStream interface {
 	QUICStream() *quic.Stream
 }
 
+type trailerState uint8
+
+const (
+	trailerNotSeen trailerState = iota
+	trailerFailed
+	trailerParsed
+)
+
 // A Stream is an HTTP/3 stream.
 //
 // When writing to and reading from the stream, data is framed in HTTP/3 DATA frames.
@@ -51,8 +59,8 @@ type Stream struct {
 	qlogger    qlogwriter.Recorder
 	qlogParent *qlogWork
 
-	parseTrailer  func(io.Reader, *headersFrame, qlogwriter.Recorder) error
-	parsedTrailer bool
+	parseTrailer func(io.Reader, *headersFrame, qlogwriter.Recorder) error
+	trailerState trailerState
 }
 
 func newStream(
@@ -91,18 +99,28 @@ func (s *Stream) Read(b []byte) (int, error) {
 			}
 			switch f := frame.(type) {
 			case *dataFrame:
-				if s.parsedTrailer {
+				if s.trailerState != trailerNotSeen {
+					if s.trailerState == trailerParsed {
+						s.conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeFrameUnexpected), "")
+					}
 					return 0, errors.New("DATA frame received after trailers")
 				}
 				s.bytesRemainingInFrame = f.Length
 				break parseLoop
 			case *headersFrame:
-				if s.parsedTrailer {
+				if s.trailerState != trailerNotSeen {
 					maybeQlogInvalidHeadersFrame(work.recorder, s.StreamID(), f.Length)
+					if s.trailerState == trailerParsed {
+						s.conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeFrameUnexpected), "")
+					}
 					return 0, errors.New("additional HEADERS frame received after trailers")
 				}
-				s.parsedTrailer = true
-				return 0, maybeReplaceError(s.parseTrailer(s.datagramStream, f, work.recorder))
+				s.trailerState = trailerFailed
+				err := s.parseTrailer(s.datagramStream, f, work.recorder)
+				if err == nil {
+					s.trailerState = trailerParsed
+				}
+				return 0, maybeReplaceError(err)
 			default:
 				s.conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeFrameUnexpected), "")
 				// parseNextFrame skips over unknown frame types
