@@ -7223,3 +7223,32 @@ Approved with the plan on 2026-10-20:
 
 - The consumer re-gates #855 on `5f73ddc4` in both cells, re-runs #824's two-namespace set, and then measures #858, #860 and the gluing default on a commit carrying this change. #855 holds the bundle release until that gate passes. See [#851](https://github.com/the-sarge/quic-go-fast/issues/851) for the live bundle view.
 - #921: move the CI Go pins to 1.27.3 and 1.26.10 so govulncheck passes on pull requests.
+
+---
+
+## A20 architecture handoff published - 2026-10-20 23:55 EDT
+
+**Main:** `d4a4cd9c9b19`
+**Actor:** Codex
+
+### Summary
+
+Published the accepted A20 architecture review as five implementation plans and six independently shippable slices in [PR #924](https://github.com/the-sarge/quic-go-fast/pull/924), merged at `d4a4cd9c9b198d0588531f397b67ba73ae2f090c`. The [program index](adr/2026-10-20-architecture-deepening-program.md) and track plans own the contracts; no implementation or dispatch occurred.
+
+### Completed
+
+Created five parent track issues, six child slice issues and the [live program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936). Every child records the verified default-branch plan commit and `$implement-architecture-slice`; all six have no blocking edges and carry `ready-for-agent`. Native GitHub parent/child relationships and the OmniFocus tree under `omnifocus:///task/lLz8Ew7Vzvj` mirror the program, with one task per track and slice.
+
+### Decisions
+
+The selected sequence and parallel-safe work are in the [program index](adr/2026-10-20-architecture-deepening-program.md); priorities are not dependency edges. The QPACK scope correction remains deferred until its authoritative decoder exposes a supported typed-error contract, with no speculative implementation child. The [decision register](adr/2026-10-20-architecture-decisions.md) preserves rejected directions and revisit triggers.
+
+### Validation
+
+Three independent read-only source audits passed after bounded plan corrections, recorded in the [audit history](audits/2026-10-20-architecture-handoff/README.md). Local documentation certification on `58bcd02125bc99bea537213ee4387a9a235c0fd4` passed: clean pushed tree, whitespace, 41 relative links, 24 pinned source anchors and the six-slice graph. After squash merge, all eight audited documentation files matched the merged tree and the plan commit was verified reachable from remote main.
+
+Hosted CI on that head completed with 32 successes and one failure: the PR-only `govulncheck` found GO-2026-6809 in the pinned Go 1.27.2 standard library. The owner explicitly waived this known failure for the handoff; the waiver and [failure receipt](https://github.com/the-sarge/quic-go-fast/actions/runs/39540174469/job/119025863229) are recorded in PR #924. No CI check was disabled or unrelated code changed. The existing fix is tracked by [#921](https://github.com/the-sarge/quic-go-fast/issues/921) and separate [PR #923](https://github.com/the-sarge/quic-go-fast/pull/923).
+
+### Next
+
+The six verified frontier children are ready for an operator to dispatch to fresh agents with `$implement-architecture-slice`; none has been dispatched. [Tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live status view. Each implementation slice follows review, merge, journal and task completion under its accepted plan.
