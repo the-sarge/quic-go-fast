@@ -10,6 +10,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/quic-go/quic-go/testutils/events"
 
 	"github.com/quic-go/qpack"
@@ -173,4 +174,43 @@ func TestHTTP3PostTrailerFrameDisposition(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHTTP3PostTrailerFrameDispositionAfterTrailerFailure(t *testing.T) {
+	client, server := newConnPair(t)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	peer, err := client.OpenStream()
+	require.NoError(t, err)
+	// The oversized trailer is rejected before consuming this DATA prefix.
+	wire := (&headersFrame{Length: 2}).Append(nil)
+	_, err = peer.Write(append(wire, 0, 0))
+	require.NoError(t, err)
+	incoming, err := server.AcceptStream(ctx)
+	require.NoError(t, err)
+	conn := newRawConn(server, false, nil, nopControlStrHandler, nil, nil)
+	tracked, err := conn.TrackStream(incoming)
+	require.NoError(t, err)
+	str := newStream(tracked, conn, nil, func(r io.Reader, hf *headersFrame, recorder qlogwriter.Recorder) error {
+		_, err := decodeTrailers(r, hf, 1, qpack.NewDecoder(), recorder, incoming.StreamID())
+		return err
+	}, nil)
+	_, err = str.Read(make([]byte, 1))
+	require.EqualError(t, err, "http3: HEADERS frame too large: 2 bytes (max: 1)")
+	_, err = str.Read(make([]byte, 1))
+	require.EqualError(t, err, "DATA frame received after trailers")
+	require.NoError(t, server.Context().Err())
+
+	// A sibling remains usable after the failed-trailer retry.
+	sibling, err := client.OpenStream()
+	require.NoError(t, err)
+	_, err = sibling.Write([]byte("ok"))
+	require.NoError(t, err)
+	other, err := server.AcceptStream(ctx)
+	require.NoError(t, err)
+	require.NoError(t, other.SetReadDeadline(time.Now().Add(time.Second)))
+	b := make([]byte, 2)
+	_, err = io.ReadFull(other, b)
+	require.NoError(t, err)
+	require.Equal(t, "ok", string(b))
 }
