@@ -7323,3 +7323,26 @@ Initial RAS review `20261021T051914-2804cbdfaff29d2ec73fa268` found one accepted
 ### Next
 
 At this entry, P2 [#931](https://github.com/the-sarge/quic-go-fast/issues/931), H1 [#933](https://github.com/the-sarge/quic-go-fast/issues/933) and M1 [#935](https://github.com/the-sarge/quic-go-fast/issues/935) remain independently ready and unblocked; P1 unlocks no new slice. The [program tracker](https://github.com/the-sarge/quic-go-fast/issues/936) is the live frontier. QPACK correction remains deferred to its upstream typed-error prerequisite.
+
+---
+
+## HTTP/3 malformed-trailer stream resets landed - 2026-10-21 02:00 EDT
+
+**Main:** `c9ef9fac605e`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #944](https://github.com/the-sarge/quic-go-fast/pull/944), closing [A20-P2 / #931](https://github.com/the-sarge/quic-go-fast/issues/931). The existing trailer semantic validator now creates a private typed error, and `Stream.Read` cancels the tracked stream halves with H3_MESSAGE_ERROR. Request, response and public stream reads share that owner; independent streams remain usable. Existing error text, read/cancellation failures, header-size policy, QPACK failures, qlog conventions and completed-half behavior remain intact.
+
+The product PR marks P2 and the protocol track complete in the [plan](adr/2026-10-20-http3-protocol-errors-plan.md) and leaves H1/M1 as the independent frontier in the [program index](adr/2026-10-20-architecture-deepening-program.md). QPACK correction remains deferred to the authoritative decoder’s upstream typed-error prerequisite. No new untraced effects were found.
+
+### Validation
+
+The first real-peer regression returned the descriptive semantic failure but timed out waiting for a reset before the fix. Eight bounded semantic cases now cover real-peer request/response/public dispositions, sibling survival, qlog, valid FIN, a peer-observed completed upload and transport-boundary preservation of read, size and QPACK failures. Exact-head certification at `dce28753d58694f3bd1e2f9c7d4683da0ad9e243` against base `372e06add8011e5434b3d66ed45bcdb686f15248` passed focused, HTTP/3 package and race tests, vet, module tidiness, Go fixer, whitespace and clean-tree checks. Initial RAS review `20261021T054423-82ceec7180b5027b727c62ca` and final replacement `20261021T055008-40696f7303983b1582c8cb12` completed with all six reviewers and no findings; no verification run was required.
+
+All 33 hosted checks passed, including the [unit run](https://github.com/the-sarge/quic-go-fast/actions/runs/39551479232) and [integration run](https://github.com/the-sarge/quic-go-fast/actions/runs/39551479188). The latter passed after one explicitly operator-authorized same-head rerun: an unchanged raw-QUIC test randomly chose 7 cancellations but asserted more than 7. The [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/944#issuecomment-6309143477) records the failure and override. Its surviving test flaw was revalidated at merged `c9ef9fac605e1a937dca18ad4aa515edbad981de`, `integrationtests/self/cancelation_test.go:384` and `:456`, and filed separately as [#945](https://github.com/the-sarge/quic-go-fast/issues/945).
+
+### Next
+
+At this entry, H1 [#933](https://github.com/the-sarge/quic-go-fast/issues/933) and M1 [#935](https://github.com/the-sarge/quic-go-fast/issues/935) remain independently ready; P2 unlocks no new slice. The [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live frontier. Reconcile the issue and OmniFocus pointers after this journal publication.
