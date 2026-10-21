@@ -202,53 +202,8 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 		conn.CloseWithError(quic.ApplicationErrorCode(ErrCodeFrameUnexpected), "expected first frame to be a HEADERS frame")
 		return
 	}
-	if hf.Length > uint64(maxHeaderBytes) {
-		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
-		// stop the client from sending more data
-		str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
-		// send a 431 Response (Request Header Fields Too Large)
-		c.rejectWithHeaderFieldsTooLarge(str, work)
-		return
-	}
-	headerBlock, err := c.readHeaderBlock(str, int(hf.Length))
-	if err != nil {
-		c.pendingHeaderBytes.Add(-int64(cap(headerBlock)))
-		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
-		code := ErrCodeRequestIncomplete
-		if errors.Is(err, errPendingHeadersTooLarge) {
-			code = ErrCodeExcessiveLoad
-		}
-		str.CancelRead(quic.StreamErrorCode(code))
-		str.CancelWrite(quic.StreamErrorCode(code))
-		return
-	}
-	decodeFn := decoder.Decode(headerBlock)
-	var hfs []qpack.HeaderField
-	var headerFields *[]qpack.HeaderField
-	if qlogger != nil {
-		hfs = make([]qpack.HeaderField, 0, 16)
-		headerFields = &hfs
-	}
-	req, err := requestFromHeaders(decodeFn, maxHeaderBytes, headerFields)
-	c.pendingHeaderBytes.Add(-int64(cap(headerBlock)))
-	if qlogger != nil {
-		qlogParsedHeadersFrame(qlogger, str.StreamID(), hf, hfs)
-	}
-	if err != nil {
-		if errors.Is(err, errHeaderTooLarge) {
-			// stop the client from sending more data
-			str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
-			// send a 431 Response (Request Header Fields Too Large)
-			c.rejectWithHeaderFieldsTooLarge(str, work)
-			return
-		}
-
-		errCode := ErrCodeMessageError
-		if _, ok := errors.AsType[*qpackError](err); ok {
-			errCode = ErrCodeQPACKDecompressionFailed
-		}
-		str.CancelRead(quic.StreamErrorCode(errCode))
-		str.CancelWrite(quic.StreamErrorCode(errCode))
+	req := c.handleRequestHeaders(str, hf, maxHeaderBytes, work)
+	if req == nil {
 		return
 	}
 	if headerTimer != nil && !headerTimer.Stop() {
@@ -362,6 +317,67 @@ func (c *RawServerConn) handleRequestStream(str *stateTrackingStream, work *qlog
 	// If the EOF was read by the handler, CancelRead() is a no-op.
 	str.CancelRead(quic.StreamErrorCode(ErrCodeNoError))
 	str.Close()
+}
+
+// handleRequestHeaders owns the initial HEADERS role through decoding and
+// disposition. Release charged capacity before logging or refusal I/O can block.
+func (c *RawServerConn) handleRequestHeaders(str *stateTrackingStream, hf *headersFrame, maxHeaderBytes int, work *qlogWork) *http.Request {
+	qlogger := work.recorder
+	if hf.Length > uint64(maxHeaderBytes) {
+		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
+		// stop the client from sending more data
+		str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
+		// send a 431 Response (Request Header Fields Too Large)
+		c.rejectWithHeaderFieldsTooLarge(str, work)
+		return nil
+	}
+	var hfs []qpack.HeaderField
+	var readErr error
+	req, err := func() (*http.Request, error) {
+		headerBlock, err := c.readHeaderBlock(str, int(hf.Length))
+		defer c.pendingHeaderBytes.Add(-int64(cap(headerBlock)))
+		if err != nil {
+			readErr = err
+			return nil, err
+		}
+		var headerFields *[]qpack.HeaderField
+		if qlogger != nil {
+			hfs = make([]qpack.HeaderField, 0, 16)
+			headerFields = &hfs
+		}
+		return requestFromHeaders(c.decoder.Decode(headerBlock), maxHeaderBytes, headerFields)
+	}()
+	if readErr != nil {
+		maybeQlogInvalidHeadersFrame(qlogger, str.StreamID(), hf.Length)
+		code := ErrCodeRequestIncomplete
+		if errors.Is(readErr, errPendingHeadersTooLarge) {
+			code = ErrCodeExcessiveLoad
+		}
+		str.CancelRead(quic.StreamErrorCode(code))
+		str.CancelWrite(quic.StreamErrorCode(code))
+		return nil
+	}
+	if qlogger != nil {
+		qlogParsedHeadersFrame(qlogger, str.StreamID(), hf, hfs)
+	}
+	if err != nil {
+		if errors.Is(err, errHeaderTooLarge) {
+			// stop the client from sending more data
+			str.CancelRead(quic.StreamErrorCode(ErrCodeExcessiveLoad))
+			// send a 431 Response (Request Header Fields Too Large)
+			c.rejectWithHeaderFieldsTooLarge(str, work)
+			return nil
+		}
+
+		errCode := ErrCodeMessageError
+		if _, ok := errors.AsType[*qpackError](err); ok {
+			errCode = ErrCodeQPACKDecompressionFailed
+		}
+		str.CancelRead(quic.StreamErrorCode(errCode))
+		str.CancelWrite(quic.StreamErrorCode(errCode))
+		return nil
+	}
+	return req
 }
 
 var errPendingHeadersTooLarge = errors.New("http3: pending request headers exceed connection limit")

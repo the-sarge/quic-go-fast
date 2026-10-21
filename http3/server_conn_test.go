@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -221,6 +222,48 @@ func TestRawServerConnPendingHeaderBudget(t *testing.T) {
 	require.EqualValues(t, 1, calls.Load())
 	require.Zero(t, conn.pendingHeaderBytes.Load())
 	require.NoError(t, server.Context().Err())
+}
+
+func TestRawServerConnHeaderTimeoutDuringQlog(t *testing.T) {
+	client, server := newConnPair(t)
+	recorder := &streamLifetimeRecorder{
+		closed: make(chan struct{}), entered: make(chan struct{}),
+		release: make(chan struct{}), block: isParsedHeaderEvent,
+	}
+	var calls atomic.Int32
+	conn := newRawServerConn(server, false, 0, recorder, nil, context.Background(),
+		http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls.Add(1) }), 4096)
+	conn.readHeaderTimeout = scaleDuration(100 * time.Millisecond)
+	str, err := client.OpenStream()
+	require.NoError(t, err)
+	_, err = str.Write(encodeRequest(t, httptest.NewRequest(http.MethodGet, "https://example.com", nil)))
+	require.NoError(t, err)
+	incoming, err := server.AcceptStream(t.Context())
+	require.NoError(t, err)
+	done := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(recorder.release) }) }
+	go func() { defer close(done); conn.HandleRequestStream(incoming) }()
+	defer func() {
+		release()
+		conn.CloseWithError(0, "test cleanup")
+		waitQlogBoundary(t, done)
+	}()
+
+	// Valid headers have decoded, but their parsed event has not returned.
+	waitQlogBoundary(t, recorder.entered)
+	require.Zero(t, conn.pendingHeaderBytes.Load())
+	select {
+	case <-str.Context().Done():
+	case <-time.After(scaleDuration(time.Second)):
+		t.Fatal("header timeout did not cancel the stream while qlog was blocked")
+	}
+	expectStreamReadReset(t, str, quic.StreamErrorCode(ErrCodeRequestIncomplete))
+	expectStreamWriteReset(t, str, quic.StreamErrorCode(ErrCodeRequestIncomplete))
+	release()
+	waitQlogBoundary(t, done)
+	require.Zero(t, calls.Load(), "timeout must prevent activation after successful decoding")
+	require.Empty(t, conn.activeRequests)
 }
 
 // blockingRecorder holds a SETTINGS event in flight across connection shutdown.

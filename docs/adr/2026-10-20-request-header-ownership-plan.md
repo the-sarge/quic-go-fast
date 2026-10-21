@@ -1,7 +1,7 @@
 # Initial Request-Header Ownership Implementation Plan
 
 **Date:** 2026-10-20
-**Status:** Accepted after independent slice audit; not implemented
+**Status:** H1 complete; initial request-header ownership implemented
 **Track:** A20-H — 4 of 5 in A20
 **Depends on:** Nothing; independent slices as stated below
 **Related:** [Program index](2026-10-20-architecture-deepening-program.md), [no-code decisions](2026-10-20-architecture-decisions.md)
@@ -36,7 +36,7 @@ Enter a private request-role operation after first-frame HEADERS validation. It 
 
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
-| H1 | new | Own the initial request header charge through lazy decode | None | n/a |
+| H1 | complete | Own the initial request header charge through lazy decode | None | n/a |
 
 ## Implementation Slices
 
@@ -84,14 +84,14 @@ Enter a private request-role operation after first-frame HEADERS validation. It 
 | Timeout has won despite successful decode | Outer timer gate forbids activation | New valid-header blocked-qlog case: timeout/reset before recorder release, then no handler activation |
 | Response and trailer roles | Explicit non-goal; existing behavior retained | Affected package regression suite |
 
-Evidence status is planned, not yet run for an implementation. Completion means satisfying this terminating evidence plan, not enumerating arbitrary syntax or schedules.
+H1 evidence is complete: existing budget, failure, size, logging and allocation cases preserve role behavior; the valid-header blocked-qlog regression covers early charge release and no activation after timeout wins following successful decode. Completion means satisfying this terminating evidence plan, not enumerating arbitrary syntax or schedules.
 
 ## Acceptance Criteria
 
-- [ ] For the existing initial request HEADERS role, the outer handler receives only a decoded request or handled failure; no buffer charge, lazy decoder or cleanup token crosses that seam.
-- [ ] Capacity acquired on success, partial read failure, aggregate refusal or decode/semantic failure is released at the existing point after decode/read termination and before qlog or refusal I/O.
-- [ ] Encoded/decoded limits, partial-field logging, qlog-disabled allocation behavior, caller deadlines, initial-header inactivity and timeout-stop-before-activation remain intact.
-- [ ] No protocol disposition, response/trailer quota, public interface or application lifetime is changed by this refactor.
+- [x] For the existing initial request HEADERS role, the outer handler receives only a decoded request or handled failure; no buffer charge, lazy decoder or cleanup token crosses that seam.
+- [x] Capacity acquired on success, partial read failure, aggregate refusal or decode/semantic failure is released at the existing point after decode/read termination and before qlog or refusal I/O.
+- [x] Encoded/decoded limits, partial-field logging, qlog-disabled allocation behavior, caller deadlines, initial-header inactivity and timeout-stop-before-activation remain intact.
+- [x] No protocol disposition, response/trailer quota, public interface or application lifetime is changed by this refactor.
 
 Each universal statement is limited to the slice’s declared domain and owner, with the guarantee and terminating evidence in that slice. No broader protocol, concurrency or platform certification is implied.
 
