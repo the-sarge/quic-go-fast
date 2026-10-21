@@ -7371,3 +7371,30 @@ Preserve initial-header protocol dispositions, QPACK ownership, response/trailer
 ### Next
 
 The product PR committed H1 completion and the program frontier. M1 is the remaining independent frontier slice, already in progress in [PR #948](https://github.com/the-sarge/quic-go-fast/pull/948); H1 unlocks no successors. [Program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live view for dispatch and task reconciliation. Broader scheduler/platform certification and the separate QPACK policy correction remain outside this slice.
+
+---
+
+## A20-M1 installed BBR pending bytes - 2026-10-21 02:39 EDT
+
+**Main:** `c46ef504c5cf`
+**Actor:** Codex
+
+### Summary
+
+Completed [A20-M1 / #935](https://github.com/the-sarge/quic-go-fast/issues/935) in [PR #948](https://github.com/the-sarge/quic-go-fast/pull/948), merged as `c46ef504c5cf402a2cbfced587814922b0cdb000`. Corrected the BBR design to describe pending local work across all generations with the current construction reservation excluded. Added `TestBBRInstalledPendingObservation`, which exercises the production `enableBBR` installation through `DeliveryStats().Idle` for no debt, retained older-generation debt, and excluded construction credit. Runtime accounting and existing fixtures are unchanged.
+
+The product PR owns M1 completion and the A20 frontier transition. All six A20 implementation slices are now complete; M1 unlocks no successors.
+
+### Validation
+
+- Exact candidate `88417f6270702da086da7d1a28cbdd2dc5f35ac4` passed the focused case, `go test . -count=1`, the focused case with `-race`, `go vet .`, `go mod tidy -diff`, and `git diff --check` on Go 1.27.3 darwin/arm64. The bounded temporary total-to-current-pending mutation failed the older-debt assertion and was reverted before commit.
+- Initial RAS review `20261021T062056-27f71f5ec0506df697cb7a1c` and post-rebase replacement `20261021T062734-0356f31d8dde92c6b94a5020` completed with six reviewers each and zero findings; no verification or deferred follow-up was required. [Review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/948#issuecomment-6309662526).
+- All 33 hosted checks passed on the matched merge head, including [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497034), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497043), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497085), [cross-compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497007), and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/39555497009). The concurrent H1 journal merged immediately before M1; the merged tree differs from the certified head only in that append to this journal.
+
+### Decisions
+
+Keep the existing ledger and `enableBBR` installation as runtime authority. This is bounded example-level characterization and corrected design wording, with no runtime refactor or qualification campaign; see the [accepted M1 contract](adr/2026-10-20-bbr-observation-characterization-plan.md#slice-m1--document-and-characterize-installed-all-generation-pending-bytes).
+
+### Next
+
+Finish M1 journal publication and issue/OmniFocus reconciliation. No implementation frontier remains; the [A20 program tracker](https://github.com/the-sarge/quic-go-fast/issues/936) is the live view. No follow-ups or newly untraced effects were identified.
