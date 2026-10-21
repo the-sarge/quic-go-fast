@@ -310,5 +310,5 @@ PR review (RAS run `20261021T113227-f5e0a7c774e2ff1a0f75f935`) found that the fi
 | C-002 (low): causal claim about draft-06 behavior | Fixed | The campaign record no longer repeats #792's attribution |
 | C-001 (medium): loss called all relay drops | Fixed | Stated as consistent with relay drops, with the limits |
 | C-019 (medium): the replaced observation's relay-lateness failure | Fixed | Both rerun reasons named; health lines scoped to the selected observations |
-| C-008 (low): the side stage's 1.76× aggregation | Fixed | Labelled as the median of paired ratios beside the arm medians |
+| C-008 (low): the side stage's 1.76× aggregation | Fixed | Labeled as the median of paired ratios beside the arm medians |
 | C-011, C-015 (low) | Rejected as registered by the synthesis; C-015's smoke ECN reading added for completeness | — |
