@@ -2091,17 +2091,17 @@ func (c *Conn) handlePacket(p receivedPacket) {
 	// until the handshake is confirmed, protocol.MaxConnUnprocessedPacketsConfirmed
 	// after. The entries beyond protocol.MaxConnUnprocessedPackets take only
 	// packets that fit a packet-sized buffer, so they bound queued memory
-	// whatever buffer the reader delivered in. With DATAGRAM support, those
-	// entries also take a packet only while the backlog plus the payloads
-	// still awaiting ReceiveDatagram fit the received-DATAGRAM queue: the run
+	// whatever buffer the reader delivered in. With DATAGRAM support, every
+	// admission also requires room for the backlog plus the payloads still
+	// awaiting ReceiveDatagram in the received-DATAGRAM queue: the run
 	// loop acknowledges the backlog as it processes it, so a payload that
 	// queue then discards is a loss the peer never sees (#855).
 	queued := c.receivedPackets.Len()
 	extended := queued >= protocol.MaxConnUnprocessedPackets
-	if extended && (!c.receivedPacketsConfirmed ||
+	if (extended && (!c.receivedPacketsConfirmed ||
 		queued >= protocol.MaxConnUnprocessedPacketsConfirmed ||
-		len(p.data) > protocol.MaxPacketBufferSize ||
-		(c.config.EnableDatagrams && queued+c.datagramQueue.receiveQueueLen() >= maxDatagramRcvQueueLen)) {
+		len(p.data) > protocol.MaxPacketBufferSize)) ||
+		(c.config.EnableDatagrams && queued+c.datagramQueue.receiveQueueLen() >= maxDatagramRcvQueueLen) {
 		c.unprocessedPacketDropped(p)
 		c.receivedPacketMx.Unlock()
 		p.buffer.Release()
@@ -3068,10 +3068,10 @@ func (c *Conn) DatagramReceiveDropsV1() uint64 {
 // them. The queue holds 256 packets until the handshake is confirmed and
 // 1,024 after. Its entries beyond 256 take only packets of at most 1,452
 // bytes, so a larger packet arriving then is dropped and counted. On a
-// connection with DATAGRAM support, those entries also take a packet only
-// while the queued packets plus the DATAGRAM payloads still awaiting
-// ReceiveDatagram number fewer than 1,024, so a packet arriving beyond that
-// is dropped and counted. It excludes packets released because the
+// connection with DATAGRAM support, every admission also requires the queued
+// packets plus the DATAGRAM payloads still awaiting ReceiveDatagram to
+// number fewer than 1,024. A packet refused by that condition is also dropped
+// and counted. The count excludes packets released because the
 // connection has closed. The dropped packets are never acknowledged, so the
 // peer's loss detection sees them. The count never decreases, is safe to call
 // concurrently, and keeps its value after the connection closes.

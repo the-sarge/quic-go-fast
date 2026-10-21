@@ -216,11 +216,10 @@ func pushReceivedDatagrams(t *testing.T, tc *testConnection, n int) {
 	require.Equal(t, n, tc.conn.datagramQueue.receiveQueueLen())
 }
 
-// Beyond 256, a packet is admitted only while the unprocessed backlog plus
-// the DATAGRAM payloads still awaiting ReceiveDatagram stay below the
-// received-DATAGRAM queue's 1,024 entries, so a backlog the run loop
-// acknowledges cannot overflow that queue. A refusal is counted like the
-// others. The rule never applies below 256 or without DATAGRAM support.
+// With DATAGRAM support, a packet is admitted only while the unprocessed
+// backlog plus the payloads still awaiting ReceiveDatagram number fewer than
+// 1,024. A refusal is counted like the others, including below 256 queued
+// packets. The rule never applies without DATAGRAM support.
 func TestConnectionUnprocessedQueueYieldsToDatagramBacklog(t *testing.T) {
 	require.Equal(t, 1024, maxDatagramRcvQueueLen)
 	for _, tt := range []struct {
@@ -234,7 +233,9 @@ func TestConnectionUnprocessedQueueYieldsToDatagramBacklog(t *testing.T) {
 		{"at 300, room for the backlog", true, 300, 723, true},
 		{"at 300, no room for the backlog", true, 300, 724, false},
 		{"at 256, received-DATAGRAM queue full", true, 256, 1024, false},
-		{"below 256, received-DATAGRAM queue full", true, 255, 1024, true},
+		{"below 256, received-DATAGRAM queue full", true, 255, 1024, false},
+		{"at 100, room for the backlog", true, 100, 923, true},
+		{"at 100, no room for the backlog", true, 100, 924, false},
 		{"no DATAGRAM support, queue stuffed", false, 256, 1024, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -257,6 +258,44 @@ func TestConnectionUnprocessedQueueYieldsToDatagramBacklog(t *testing.T) {
 			require.Equal(t, []qlogwriter.Event{dropped}, eventRecorder.Events(qlog.PacketDropped{}))
 		})
 	}
+}
+
+func TestConnectionUnprocessedQueueYieldsToDatagramBacklogBeforeConfirmation(t *testing.T) {
+	tc := newServerTestConnection(t, nil, &Config{EnableDatagrams: true}, false)
+	releaseUnprocessedQueueAtCleanup(t, tc)
+	queueTestPacket(t, tc, 100)
+	pushReceivedDatagrams(t, tc, 924)
+
+	p := lifetimePacket(t, tc, []byte("foobar"))
+	tc.conn.handlePacket(p)
+	require.Equal(t, 100, tc.conn.receivedPackets.Len())
+	require.Zero(t, p.buffer.refCount, "a dropped packet must be released")
+	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
+}
+
+// Handing the last queued packet's DATAGRAM to a full receive backlog must
+// not reopen packet admission until the application makes room.
+func TestConnectionUnprocessedQueueYieldsAfterDatagramHandover(t *testing.T) {
+	tc := newConfirmedQueueTestConnection(t, true, 1, nil)
+	pushReceivedDatagrams(t, tc, 1023)
+
+	p := tc.conn.receivedPackets.PopFront()
+	tc.conn.datagramQueue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte("d")})
+	p.buffer.Release()
+	require.Equal(t, 1024, tc.conn.datagramQueue.receiveQueueLen())
+
+	p = lifetimePacket(t, tc, []byte("foobar"))
+	tc.conn.handlePacket(p)
+	require.True(t, tc.conn.receivedPackets.Empty())
+	require.Zero(t, p.buffer.refCount, "a dropped packet must be released")
+	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
+
+	_, err := tc.conn.ReceiveDatagram(context.Background())
+	require.NoError(t, err)
+	tc.conn.handlePacket(lifetimePacket(t, tc, []byte("foobar")))
+	require.Equal(t, 1, tc.conn.receivedPackets.Len())
+	require.EqualValues(t, 1, tc.conn.UnprocessedPacketDropsV1())
+	require.Zero(t, tc.conn.DatagramReceiveDropsV1())
 }
 
 // Reading a DATAGRAM, or discarding the queued payloads, gives the backlog

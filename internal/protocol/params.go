@@ -47,7 +47,7 @@ const MaxConnUnprocessedPackets = 256
 // processed, once the connection's handshake is confirmed. The entries beyond MaxConnUnprocessedPackets hold
 // only packets in MaxPacketBufferSize buffers, or in a read slot one byte larger, so they add at most
 // (MaxConnUnprocessedPacketsConfirmed - MaxConnUnprocessedPackets) * (MaxPacketBufferSize + 1) bytes per connection.
-// With DATAGRAM support they are also admitted only while the queued packets plus the received DATAGRAM
+// With DATAGRAM support, packets at every depth are admitted only while the queued packets plus the received DATAGRAM
 // payloads not yet read by the application stay below the received-DATAGRAM queue's length.
 const MaxConnUnprocessedPacketsConfirmed = 1024
 
