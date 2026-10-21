@@ -119,6 +119,9 @@ func (s *Stream) Read(b []byte) (int, error) {
 				err := s.parseTrailer(s.datagramStream, f, work.recorder)
 				if err == nil {
 					s.trailerState = trailerParsed
+				} else if _, ok := errors.AsType[*trailerSemanticError](err); ok {
+					s.CancelRead(quic.StreamErrorCode(ErrCodeMessageError))
+					s.CancelWrite(quic.StreamErrorCode(ErrCodeMessageError))
 				}
 				return 0, maybeReplaceError(err)
 			default:
