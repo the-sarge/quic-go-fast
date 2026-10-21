@@ -7455,3 +7455,30 @@ Use the [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/
 ### Next
 
 Finish journal publication and complete the matching OmniFocus task. [#945](https://github.com/the-sarge/quic-go-fast/issues/945) is the completion record; no review follow-up survives.
+
+---
+
+## DATAGRAM room check at every packet admission - 2026-10-21 12:29 EDT
+
+**Main:** `2a83ed297fde`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #954](https://github.com/the-sarge/quic-go-fast/pull/954) as `2a83ed297fdebe1b2ae7b033620d66c4de8b3798`. On a DATAGRAM-enabled connection, the combined unprocessed-packet and unread-DATAGRAM backlog check now applies at every packet-admission depth, including the first 256 entries. Refusals retain `UnprocessedPacketDropsV1`, the DoS-prevention qlog event and buffer release. The pre-confirmation 256 limit, confirmed 1,024 limit, packet-size and buffer rules beyond 256, closed-admission behavior and connections without DATAGRAM support are preserved. The three maintained comments describe the new scope.
+
+### Decisions
+
+Implement the [second maintainer decision on #855](https://github.com/the-sarge/quic-go-fast/issues/855#issuecomment-6320679574) in the existing admission guard, using #920's atomic receive-queue mirror. No new synchronization, state mirror, API, dependency or diagnostic instrumentation was introduced. Saturation can refuse ACK-carrying packets at any depth, as requested. The residual dequeue-to-push window and stronger guarantees for multiple DATAGRAM frames per packet remain outside the accepted scope.
+
+### Validation
+
+The below-256 full-queue and 100-queued/924-waiting regressions failed with the old guard and passed after the change; 100 queued/923 waiting remains admitted. New pre-confirmation and deterministic final-packet hand-over cases pass, including readmission after `ReceiveDatagram` frees room. Existing depth and readmission tests remain unchanged. Rejected packets are counted, logged and released; the disabled-DATAGRAM negative case still passes.
+
+Exact pushed head `556225e52270b7f9f3255def4db9da832a8fabfe`, based on `33af518e84482512db8e438ee785bb9c913edf03`, passed uncached root and `internal/protocol` package tests, one focused queue race run, affected-package `go vet`, `go mod tidy -diff`, formatting and `git diff --check`, with a clean tree before and after certification. RAS review `20261021T162056-213e9f2aabe640215d2aaf76` completed with six successful reviewers and zero findings; no fix verification, replacement review or deferred follow-up was required. The review was local and was not posted by RAS.
+
+All 33 hosted checks passed on that exact head, including all 17 jobs in the five PR workflows: [unit](https://github.com/the-sarge/quic-go-fast/actions/runs/39633927237), [integration](https://github.com/the-sarge/quic-go-fast/actions/runs/39633927044), [lint](https://github.com/the-sarge/quic-go-fast/actions/runs/39633926927), [cross compilation](https://github.com/the-sarge/quic-go-fast/actions/runs/39633927159) and [interop](https://github.com/the-sarge/quic-go-fast/actions/runs/39633927265). The PR was marked ready and squash-merged with an exact-head match.
+
+### Next
+
+The consumer reruns [#855's gates](https://github.com/the-sarge/quic-go-fast/issues/855) in both cells and [#824's namespace set](https://github.com/the-sarge/quic-go-fast/issues/824) on `2a83ed29`, then posts the results. [Bundle tracker #851](https://github.com/the-sarge/quic-go-fast/issues/851) remains held pending those results and is the live release-status view.
