@@ -7252,3 +7252,26 @@ Hosted CI on that head completed with 32 successes and one failure: the PR-only 
 ### Next
 
 The six verified frontier children are ready for an operator to dispatch to fresh agents with `$implement-architecture-slice`; none has been dispatched. [Tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live status view. Each implementation slice follows review, merge, journal and task completion under its accepted plan.
+
+---
+
+## A20-R1 request admission landed - 2026-10-21 00:51 EDT
+
+**Main:** `963a088b1601`
+**Actor:** Codex
+
+### Summary
+
+Merged [A20-R1 / PR #938](https://github.com/the-sarge/quic-go-fast/pull/938) at `963a088b1601b3446ec152456676dd9d3a1705d2`. Client request admission now rejects an ended connection context after successful stream tracking, cancels both directions through the tracked wrapper, and returns the normalized cause before request sending. [Child #926](https://github.com/the-sarge/quic-go-fast/issues/926) is closed.
+
+### Decisions
+
+Kept ClientConn as the final admission owner and retained the existing stream-map, work-accounting and recorder owners. Untouched non-rewindable input remains eligible for the existing Transport retry; public opening errors, supplied-parent context semantics, cancellation/GOAWAY precedence and later write-phase replay refusal remain intact. The [R1 contract](adr/2026-10-20-request-admission-plan.md) records the accepted boundary and evidence; no shared qlog state, retry policy, parser or public API changed.
+
+### Validation
+
+Observed the qlog, public supplied-context and full Transport regressions fail before the guard. Exact-head certification on `25f20ae6fb07fbc646e92639ee0c997a7a5cb1dc` with Go 1.27.3 passed the focused admission/GOAWAY/qlog cases, HTTP/3 package and race suites, vet, tidy, affected-package lint and clean-tree checks. All 33 hosted checks passed before the matching-head squash merge; the [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/938#issuecomment-6308205110) records the bounded RAS review, minor comment correction, adapter limitations and the operator's request not to repeat review after the patch-identical toolchain rebase. No review follow-up issue is warranted.
+
+### Next
+
+R1 has no successors to unlock. S1, P1, P2, H1 and M1 remain the independent ready frontier; [program tracker #936](https://github.com/the-sarge/quic-go-fast/issues/936) is the live status view. The product PR already committed R1 completion and this frontier, so journal closure needs no separate status PR.
