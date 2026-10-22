@@ -60,6 +60,14 @@ func (c *connection) GetServerConn() *net.UDPConn {
 	return c.ServerConn
 }
 
+// admitPacket orders a successful read with switching. Once admitted, a packet
+// can finish processing even if its socket is subsequently retired.
+func (c *connection) admitPacket(socket *net.UDPConn) bool {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+	return c.ServerConn == socket
+}
+
 // Direction is the direction a packet is sent.
 type Direction int
 
@@ -239,6 +247,9 @@ func (p *Proxy) Start() error {
 // identified by the address that the client is sending from.
 // A rejected switch leaves conn owned by the caller. An accepted active socket
 // is closed at shutdown; retired caller-supplied sockets remain caller-owned.
+// Reads from retired sockets are discarded before packet processing. Packets
+// admitted before switching may finish afterward, including delayed delivery
+// and packets whose callbacks call SwitchConn. Switching does not wait for them.
 func (p *Proxy) SwitchConn(clientAddr *net.UDPAddr, conn *net.UDPConn) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -430,6 +441,9 @@ func (p *Proxy) runOutgoingConnection(conn *connection) error {
 					continue
 				}
 				return
+			}
+			if !conn.admitPacket(socket) {
+				continue
 			}
 			raw := buffer[0:n]
 
