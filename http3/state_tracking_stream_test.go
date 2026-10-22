@@ -49,11 +49,11 @@ func liveDatagramReceiveContext(t *testing.T) context.Context {
 
 func checkDatagramReceive(t *testing.T, str *stateTrackingStream) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Millisecond))
-	defer cancel()
-	data, err := str.ReceiveDatagram(ctx)
-	require.Nil(t, data)
-	require.ErrorIs(t, err, context.DeadlineExceeded, "receive side should remain open and empty")
+	str.mx.Lock()
+	recvErr, queued := str.recvErr, len(str.queue)
+	str.mx.Unlock()
+	require.NoError(t, recvErr, "receive side should remain open")
+	require.Zero(t, queued, "receive side should remain empty")
 }
 
 func checkDatagramSend(t *testing.T, str *stateTrackingStream) {
@@ -295,11 +295,13 @@ func TestDatagramReceiving(t *testing.T) {
 	for i := range streamDatagramQueueLen + 1 {
 		str.enqueueDatagram([]byte{uint8(i)})
 	}
+	ctx := liveDatagramReceiveContext(t)
 	for i := range streamDatagramQueueLen {
-		data, err := str.ReceiveDatagram(context.Background())
+		data, err := str.ReceiveDatagram(ctx)
 		require.NoError(t, err)
 		require.Equal(t, []byte{uint8(i)}, data)
 	}
+	require.Empty(t, str.queue)
 
 	// Receive respects the context
 	ctx, cancel := context.WithCancel(context.Background())
