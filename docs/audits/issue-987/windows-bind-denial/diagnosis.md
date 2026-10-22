@@ -12,7 +12,7 @@ The fixture owns its socket preconditions synchronously. The alternative of chan
 
 ## Evidence and limits
 
-The job ran journal head `f530bd9195a8c64a6b841f566819419223f4aa45` through GitHub's synthetic PR merge `dac36617e6ab45dd7259a9980ff77a38bd079aad` (tree `9b20b69408d42afc0f54d3e139f154d4496c81b7`) on Windows Server 2025, build 26100, AMD64, Go 1.27.3. Command: `go test -v -shuffle on -cover -coverprofile coverage.txt ./...`; `GOTOOLCHAIN=local`, `TIMESCALE_FACTOR=10`, HTTP/3 shuffle seed `1792692485838992000`. The only fixture change from main is none: the journal head adds documentation.
+The job ran journal head `f530bd9195a8c64a6b841f566819419223f4aa45` through GitHub's synthetic PR merge `dac36617e6ab45dd7259a9980ff77a38bd079aad` (tree `9b20b69408d42afc0f54d3e139f154d4496c81b7`) on Windows Server 2025, build 26100, AMD64, Go 1.27.3. Command: `go test -v -shuffle on -cover -coverprofile coverage.txt ./...`; `GOTOOLCHAIN=local`, `TIMESCALE_FACTOR=10`, HTTP/3 shuffle seed `1792692485838992000`. The fixture is identical to main; the journal head adds documentation only.
 
 All four retained wrapper checksums validated. `result.json` records exit 1, 667242 observed/retained output bytes, no truncation and no capture errors. `source.patch` is empty; provenance is unit-scoped with `integrationtests` excluded and `source_complete=false` because `report.xml` was untracked. Do not call this a complete source archive. The [failure archive](failure-evidence.tar.gz) preserves exact wrapper metadata/logs/checksums and the full job log; its [checksum](SHA256SUMS) binds retained bytes.
 
@@ -21,3 +21,18 @@ Protocol-specific excluded/reserved TCP ranges are a plausible underlying cause:
 ## Terminating validation
 
 Use only the already allocated remaining native validation job, at most 30 minutes including setup: 100 focused executions with fail-fast and a 60-second Go timeout; combined lifecycle tests once; HTTP/3 with the recurrence's captured seed once (five-minute stage cap); unit scope once (ten-minute stage cap). Retain actual source, image/build, commands, error evidence and checksums. Local focused/lifecycle race/package tests, vet, module tidiness, lint and final exact-head PR CI remain required. No second reproduction campaign or unchanged failing-head rerun is allocated. Validation results will be recorded before the correction candidate is reviewed.
+
+## Native correction validation result
+
+The one remaining allocated [validation job](https://github.com/the-sarge/quic-go-fast/actions/runs/39829839596), attempt 1, passed on pinned correction revision `8278b7ad9ca1dd1a68bc7c5c64ee685b74f3f446`, native Windows Server 2025/build 26100/AMD64, Go 1.27.3, `GOTOOLCHAIN=local`, `TIMESCALE_FACTOR=10`. All four stages exited zero:
+
+| Stage | Exact command | Startup-fixture passes | Retained output bytes |
+| --- | --- | --- | --- |
+| focused | `go test -v -count=100 -failfast -timeout=60s -run ^TestListenAndServeTLSStartupFailureReleasesUDP$ ./http3` | 100 | 30450 |
+| combined | `go test -v -count=1 -timeout=2m -run ^TestListenAndServeTLS ./http3` | 1 | 1300 |
+| shuffle | `go test -v -count=1 -shuffle=1792692485838992000 -cover -coverprofile=coverage-http3.txt -timeout=5m ./http3` | 1 | 93142 |
+| unit | `go test -v -count=1 -shuffle=on -cover -coverprofile=coverage.txt -timeout=10m ./...` | 1 | 661969 |
+
+The focused, combined lifecycle, captured-order and full unit-scope checks retain the actual sockets and all original helper-startup assertions. This native evidence validates the selected correction within the approved example-level domain; it does not identify the expired failing runner's exact host policy or establish a statistical flake rate. The initial diagnostic and conditional validation jobs exhaust the declared two-job investigation budget. No unchanged failing-head rerun was requested.
+
+All sixteen wrapper file checksums validated; all outputs are untruncated with no capture errors. The [validation archive](validation-evidence.tar.gz) retains exact metadata, output, source patches, manifests and the complete job log, bound by [validation checksums](validation-SHA256SUMS). Whole-checkout provenance applies to focused/combined/order stages; unit-scope provenance excludes `integrationtests`. Each stage reports `source_complete=true` within its declared scope. This is not a complete source archive. The temporary validation workflow is removed from the final candidate; the fixture itself is unchanged from this pinned validated revision.
