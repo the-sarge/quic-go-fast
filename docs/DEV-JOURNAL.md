@@ -7608,3 +7608,32 @@ The new ordinary/ACK-only, close and Initial PTO regressions failed before their
 Final clean pushed head `b08ab54f000cb6535a494ec413a4fbde2daf929c`, based on `a60a45ab1e180e2202e244be9728dc9b0dc7bcb2`, passed focused regressions, `go test -count=1 .`, `go test -race -count=1 .`, `go vet .`, `go mod tidy -diff`, changed-file configured formatting, `golangci-lint run .` with zero issues, and diff checks on Go 1.27.3 darwin/arm64. All 33 hosted checks passed on the exact head before the matched-head squash merge. A repository-wide formatting probe reported existing differences in unrelated/frozen files; the changed files passed, and frozen evidence was preserved. No unchanged-head CI rerun or new performance/platform campaign was used.
 
 RAS run `20261022T051529-b3fb988af0fc3ca2506e4a1d` completed with all six reviewers, five successful adjudicators and a synthesis; one adjudicator failed its structured-delivery plan check, with quorum still met. The only accepted fix corrected two test comments about native packet-number width and sample padding. Assertions and executable code were unchanged, so the documentation-polish exemption skipped RAS verify/replacement and required new local certification. The unchanged empty-selection behavior and optional fixture-strengthening observations were independently rejected as current-work obligations. The [review dispositions and exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/979#issuecomment-6333518389) retain the details. No deferred finding remains, and no matching OmniFocus task was found by issue URL in the project. This post-merge journal update uses no RAS.
+
+---
+
+## Cross-space recovery ordering landed - 2026-10-22 02:44 EDT
+
+**Main:** `a88663c10b06`
+**Actor:** Codex
+
+### Summary
+
+Merged the [#961 recovery ordering correction](https://github.com/the-sarge/quic-go-fast/pull/981) as `a88663c10b06b6397d743f8d68fc1546f08f7139`; [issue #961](https://github.com/the-sarge/quic-go-fast/issues/961) is closed. Required private callbacks now carry normalized packet identity, and Reno/Cubic and HybridSlowStart use complete registration-prefix snapshots. The controller owns accepted cutbacks; HybridSlowStart owns receive rounds. Validated CE feedback works after the anchor's packet record is retired.
+
+### Decisions
+
+[ADR 0011](adr/0011-recovery-registration-prefix.md) records the accepted latest eligible-send frontier, including earlier excluded registrations across spaces. This narrowly updates ADR 0009/D04's default-Reno wording while preserving selection, parameters, independent wire numbering, packet histories, ownership and BBR rich feedback. The [maintained acceptance contract](agents/recovery-send-order-961.md) owns the finite evidence; frozen assessment/prototype artifacts remain unchanged. No per-packet metadata or retained mapping ledger was added.
+
+### Validation
+
+The four original cross-space failures reproduce before the fix, with four passing single-space controls; all pass after the correction. Maintained real-handler tests cover present/PTO-retired ECN anchors, mixed CE/loss, eligibility, Handshake/application overlap and lifecycle transitions with active cutbacks. Controller and HybridSlowStart tests cover complete prefixes, initialization, suppressed callbacks, old ACKs after exit and eight interleaved RTT samples. Stronger discard/Retry/0-RTT exit assertions fail against pinned raw-ordering code and pass on the candidate; migration remains a preservation control starting from recovery.
+
+Exact-head local certification passed at `f6cf68839b8804be32eb96a9473d70805f871681` against base `fd9c932533271dec887dc5ea316bb1d2cc9cc062`: affected/root suites, affected race suites, vet, lint, module tidiness, generated output, selected 0-RTT/TLS/handshake/migration integration, diff and clean-tree checks. Initial RAS review `20261022T054801-84a11f665766c950dd96f488`, its exact-head verification, and clean replacement review `20261022T060635-7b3224a8a9a5756db925f15b` completed with no outstanding accepted findings or deferred tickets. The helper-consolidation suggestion was rejected as a required change; distinct fixture numbering policies remain explicit. Review history and certification are linked from the [PR discussion](https://github.com/the-sarge/quic-go-fast/pull/981#issuecomment-6334110337).
+
+All 33 hosted checks passed on PR head `f6cf68839b8804be32eb96a9473d70805f871681` before the matched-head squash merge. [Interop run 39731626375](https://github.com/the-sarge/quic-go-fast/actions/runs/39731626375) passed on attempt 2 after a diagnosed Ubuntu amd64 package-index stall timed out attempt 1 before project compilation; the arm64 build had completed in that failed attempt. The unchanged-head retry was limited to this demonstrated external failure. An earlier layout-diagnostic staticcheck failure was fixed on a new head and recertified.
+
+On Go 1.27.3 darwin/arm64, packet metadata remains 80 bytes and the sender is 328 bytes versus baseline 208 (+120 constant bytes), including HybridSlowStart 88 versus 40 (+48 already included). The frozen prototype measured sender 352 (+144 total). Initial construction still creates Reno when BBR is selected; this layout evidence makes no CPU, throughput, allocator or total-connection-memory claim.
+
+### Next
+
+[#962](https://github.com/the-sarge/quic-go-fast/issues/962) remains the live assessment for reordering/history hygiene and default-Reno undo. Undo should use this typed identity and single controller-owned prefix boundary after its separate scope acceptance. No #626 lookup optimization, #887 readiness rebaseline or broad platform/performance campaign was included. No matching OmniFocus task was found by issue URL/title, and no deferred follow-up task is needed.
