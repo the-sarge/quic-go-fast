@@ -142,12 +142,18 @@ func TestSendStreamLargeTryWriteAllCancellationLifetime(t *testing.T) {
 			first, _, _ := str.popStreamFrame(expectedFrameHeaderLen(streamID, 0)+20, protocol.Version1)
 			pending := str.nextFrame.Data
 			str.CancelWrite(42)
+			str.SetReliableBoundary()
+			str.SetReliableBoundary()
+			require.Equal(t, protocol.ByteCount(reliableSize), str.reliableSize)
+			require.Equal(t, protocol.ByteCount(reliableSize), str.reliableOffset())
 			if reliableSize > 0 {
 				require.LessOrEqual(t, cap(str.nextFrame.Data), max(int(protocol.MaxPacketBufferSize), reliableSize))
 				require.True(t, &pending[0] != &str.nextFrame.Data[0], "cancellation must release discarded suffix storage")
 			}
 			control, ok, _ := str.getControlFrame(monotime.Now())
 			require.True(t, ok)
+			str.SetReliableBoundary()
+			require.Equal(t, protocol.ByteCount(reliableSize), str.reliableSize)
 			reset := control.Frame.(*wire.ResetStreamFrame)
 			if reliableSize > 0 {
 				require.Equal(t, protocol.ByteCount(size+reliableSize), reset.FinalSize)
@@ -176,6 +182,10 @@ func TestSendStreamLargeTryWriteAllCancellationLifetime(t *testing.T) {
 			f, _, more := str.popStreamFrame(1024, protocol.Version1)
 			require.Nil(t, f.Frame)
 			require.False(t, more)
+			sender.EXPECT().onStreamCompleted(streamID)
+			control.Handler.OnAcked(control.Frame)
+			require.True(t, str.completed)
+			require.Zero(t, str.numOutstandingFrames)
 		})
 	}
 }

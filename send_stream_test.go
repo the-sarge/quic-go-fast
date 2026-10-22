@@ -450,10 +450,22 @@ func TestSendStreamResetFinalSizeIncludesReservedData(t *testing.T) {
 
 			mockSender.EXPECT().onHasStreamControlFrame(streamID, str)
 			tc.reset(str)
+			str.SetReliableBoundary()
+			str.SetReliableBoundary()
+			require.Zero(t, str.reliableSize)
+			require.Zero(t, str.reliableOffset())
 			cf, ok, hasMore := str.getControlFrame(monotime.Now())
 			require.True(t, ok)
 			require.False(t, hasMore)
 			require.Equal(t, &wire.ResetStreamFrame{StreamID: streamID, FinalSize: 100, ErrorCode: 42}, cf.Frame)
+			str.SetReliableBoundary()
+			require.Zero(t, str.reliableSize)
+			require.Zero(t, str.reliableOffset())
+			frame.Handler.OnAcked(frame.Frame)
+			str.CancelWrite(42)
+			mockSender.EXPECT().onStreamCompleted(streamID)
+			cf.Handler.OnAcked(cf.Frame)
+			require.Zero(t, str.numOutstandingFrames)
 		})
 	}
 }
@@ -1586,6 +1598,175 @@ func TestSendStreamRetransmissionWriterLifecycle(t *testing.T) {
 			require.NotContains(t, string(output), "stream should have completed")
 			require.NotContains(t, string(output), "missing call(s)")
 			require.NotContains(t, string(output), "DATA RACE")
+		})
+	}
+}
+
+func TestSendStreamSetReliableBoundaryAfterCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		reliableBefore protocol.ByteCount
+		reliableAfter  protocol.ByteCount
+		remote         bool
+		cancelFirst    bool
+	}{
+		{name: "local_zero"},
+		{name: "local_prefix", reliableBefore: 6, reliableAfter: 6},
+		{name: "peer_zero", remote: true},
+		{name: "peer_prefix", reliableBefore: 6, remote: true},
+		{name: "peer_after_local_prefix", reliableBefore: 6, remote: true, cancelFirst: true},
+	} {
+		for _, resetInRecovery := range []bool{false, true} {
+			for _, loseStream := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/reset_in_recovery=%t/stream_lost=%t", tc.name, resetInRecovery, loseStream), func(t *testing.T) {
+					const streamID protocol.StreamID = 1337
+					sender := NewMockStreamSender(gomock.NewController(t))
+					str := newSendStream(context.Background(), streamID, sender, newTestStreamFlowControllerWithSendWindow(streamID, protocol.MaxByteCount), true)
+
+					sender.EXPECT().onHasStreamData(streamID, str).Times(2)
+					_, err := str.Write([]byte("foobar"))
+					require.NoError(t, err)
+					if tc.reliableBefore > 0 {
+						str.SetReliableBoundary()
+					}
+					_, err = str.Write([]byte("baz"))
+					require.NoError(t, err)
+					frame, _, more := str.popStreamFrame(protocol.MaxByteCount, protocol.Version1)
+					require.False(t, more)
+					require.Equal(t, []byte("foobarbaz"), frame.Frame.Data)
+
+					var previousReset ackhandler.Frame
+					if tc.cancelFirst {
+						sender.EXPECT().onHasStreamControlFrame(streamID, str)
+						str.CancelWrite(42)
+						var ok bool
+						previousReset, ok, _ = str.getControlFrame(monotime.Now())
+						require.True(t, ok)
+						require.Equal(t, &wire.ResetStreamFrame{StreamID: streamID, FinalSize: 9, ErrorCode: 42, ReliableSize: 6}, previousReset.Frame)
+					}
+					sender.EXPECT().onHasStreamControlFrame(streamID, str)
+					if tc.remote {
+						str.handleStopSendingFrame(&wire.StopSendingFrame{StreamID: streamID, ErrorCode: 42})
+					} else {
+						str.CancelWrite(42)
+					}
+
+					setLateBoundary := func() {
+						t.Helper()
+						str.SetReliableBoundary()
+						str.SetReliableBoundary()
+						require.Equal(t, tc.reliableAfter, str.reliableSize)
+						require.Equal(t, tc.reliableAfter, str.reliableOffset())
+					}
+					takeReset := func() ackhandler.Frame {
+						t.Helper()
+						reset, ok, more := str.getControlFrame(monotime.Now())
+						require.True(t, ok)
+						require.False(t, more)
+						require.Equal(t, &wire.ResetStreamFrame{StreamID: streamID, FinalSize: 9, ErrorCode: 42, ReliableSize: tc.reliableAfter}, reset.Frame)
+						return reset
+					}
+					if !resetInRecovery {
+						setLateBoundary()
+					}
+					reset := takeReset()
+					if resetInRecovery {
+						setLateBoundary()
+					}
+
+					if previousReset.Frame != nil {
+						// STOP_SENDING supersedes the earlier partial reset in recovery.
+						if loseStream {
+							previousReset.Handler.OnLost(previousReset.Frame)
+						} else {
+							previousReset.Handler.OnAcked(previousReset.Frame)
+						}
+					}
+					if loseStream {
+						if tc.reliableAfter > 0 {
+							sender.EXPECT().onHasStreamRetransmission(streamID, str)
+						}
+						frame.Handler.OnLost(frame.Frame)
+						if tc.reliableAfter > 0 {
+							retransmission, more := str.popRetransmissionFrame(protocol.MaxByteCount, protocol.Version1)
+							require.False(t, more)
+							require.Equal(t, []byte("foobar"), retransmission.Frame.Data)
+							require.Zero(t, retransmission.Frame.Offset)
+							retransmission.Handler.OnAcked(retransmission.Frame)
+						}
+					} else {
+						frame.Handler.OnAcked(frame.Frame)
+					}
+					require.Empty(t, str.retransmissionQueue)
+					require.EqualValues(t, 1, str.numOutstandingFrames)
+
+					sender.EXPECT().onHasStreamControlFrame(streamID, str)
+					reset.Handler.OnLost(reset.Frame)
+					setLateBoundary()
+					retransmittedReset := takeReset()
+					require.Equal(t, reset.Frame, retransmittedReset.Frame)
+					if !tc.remote || tc.cancelFirst {
+						sender.EXPECT().onStreamCompleted(streamID)
+					}
+					retransmittedReset.Handler.OnAcked(retransmittedReset.Frame)
+					if tc.remote && !tc.cancelFirst {
+						// Remote cancellation is only complete once the application consumes it.
+						require.False(t, str.completed)
+						sender.EXPECT().onStreamCompleted(streamID)
+						_, err := str.Write([]byte("later"))
+						require.ErrorIs(t, err, &StreamError{StreamID: streamID, ErrorCode: 42, Remote: true})
+					}
+					require.True(t, str.completed)
+					require.Zero(t, str.numOutstandingFrames)
+					require.Nil(t, str.nextFrame)
+					_, ok, _ := str.getControlFrame(monotime.Now())
+					require.False(t, ok)
+				})
+			}
+		}
+	}
+}
+
+func TestSendStreamSetReliableBoundaryBeforeCancellation(t *testing.T) {
+	for _, supportsResetStreamAt := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reset_stream_at=%t", supportsResetStreamAt), func(t *testing.T) {
+			const streamID protocol.StreamID = 1337
+			sender := NewMockStreamSender(gomock.NewController(t))
+			str := newSendStream(context.Background(), streamID, sender, newTestStreamFlowControllerWithSendWindow(streamID, protocol.MaxByteCount), supportsResetStreamAt)
+			sender.EXPECT().onHasStreamData(streamID, str).Times(2)
+			_, err := str.Write([]byte("foobar"))
+			require.NoError(t, err)
+			str.SetReliableBoundary()
+			str.SetReliableBoundary()
+			if supportsResetStreamAt {
+				require.EqualValues(t, 6, str.reliableOffset())
+			} else {
+				require.Zero(t, str.reliableOffset())
+			}
+			_, err = str.Write([]byte("baz"))
+			require.NoError(t, err)
+			str.SetReliableBoundary()
+			if supportsResetStreamAt {
+				require.EqualValues(t, 9, str.reliableOffset())
+			} else {
+				require.Zero(t, str.reliableOffset())
+			}
+			frame, _, more := str.popStreamFrame(protocol.MaxByteCount, protocol.Version1)
+			require.False(t, more)
+			require.Equal(t, []byte("foobarbaz"), frame.Frame.Data)
+			sender.EXPECT().onHasStreamControlFrame(streamID, str)
+			str.CancelWrite(42)
+			str.SetReliableBoundary()
+			reset, ok, _ := str.getControlFrame(monotime.Now())
+			require.True(t, ok)
+			expected := &wire.ResetStreamFrame{StreamID: streamID, FinalSize: 9, ErrorCode: 42}
+			if supportsResetStreamAt {
+				expected.ReliableSize = 9
+			}
+			require.Equal(t, expected, reset.Frame)
+			frame.Handler.OnAcked(frame.Frame)
+			sender.EXPECT().onStreamCompleted(streamID)
+			reset.Handler.OnAcked(reset.Frame)
 		})
 	}
 }
