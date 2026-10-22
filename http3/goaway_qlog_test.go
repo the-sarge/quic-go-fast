@@ -70,7 +70,12 @@ func TestServerGOAWAYRecorderShutdown(t *testing.T) {
 	// next producer, acquired synchronously by HTTP/3 server setup below.
 	conn.QlogTrace().(*qlogTrace).recorder = recorder
 	connections := make(chan *rawConn, 1)
-	server := &Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := &Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Consume EOF before returning so normal response completion cannot send
+		// STOP_SENDING while the client is still closing its request stream.
+		if _, err := io.Copy(io.Discard, r.Body); err != nil {
+			t.Errorf("reading setup request body: %v", err)
+		}
 		connections <- w.(*responseWriter).conn
 	})}
 	serveDone := make(chan struct{})

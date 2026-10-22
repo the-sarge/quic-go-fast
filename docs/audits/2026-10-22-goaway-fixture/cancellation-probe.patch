@@ -1,0 +1,17 @@
+diff --git i/http3/goaway_qlog_test.go w/http3/goaway_qlog_test.go
+index 669111b9..233760e3 100644
+--- i/http3/goaway_qlog_test.go
++++ w/http3/goaway_qlog_test.go
+@@ -118,6 +118,12 @@ func TestServerGOAWAYRecorderShutdown(t *testing.T) {
+ 	require.NoError(t, request.SetDeadline(time.Now().Add(3*time.Second)))
+ 	_, err = request.Write(encodeRequest(t, httptest.NewRequest(http.MethodGet, "https://example.com/", nil)))
+ 	require.NoError(t, err)
++	select {
++	case <-request.Context().Done():
++		t.Logf("[DEBUG-goaway] request cause before Close: %v", context.Cause(request.Context()))
++	case <-ctx.Done():
++		t.Fatal("[DEBUG-goaway] request cancellation not observed")
++	}
+ 	require.NoError(t, request.Close())
+ 	_, err = io.ReadAll(request)
+ 	require.NoError(t, err)
