@@ -1,0 +1,12 @@
+...............................................kept failed attempt: AssertionError('retain failed attempt; use a fresh phase')
+.marked incomplete attempts: ['observations/cut']
+marked incomplete attempts: []
+.kept failed attempt: AssertionError('retain failed attempt; use a fresh phase')
+kept failed attempt: AssertionError('retain failed attempt; use a fresh phase')
+kept failed attempt: AssertionError('retain failed attempt; use a fresh phase')
+kept failed attempt: AssertionError('retain failed attempt; use a fresh phase')
+............................................
+----------------------------------------------------------------------
+Ran 93 tests in 0.510s
+
+OK

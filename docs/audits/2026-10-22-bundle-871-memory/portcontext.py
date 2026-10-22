@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Descriptive context for the combined-revision readiness record (#808).
+
+Copied from slice 6's r9context.py (9b38f0ab) with recorded changes only: the
+prior record is slice 6 itself (`9b38f0ab`, the port at `abfa5456`) instead of
+#739's r9 record, so every `r9` name and key is `prior`; the output file is
+`port-context.json`. The logic is unchanged. Written before any observation of
+this record. It reads this record's `summary.json` and `attribution.json`
+(after `stages.py all`) and slice 6's at 9b38f0ab (through `git show`), and
+writes `port-context.json`. It sets no flag, changes no registered rule and
+reads no observation directly.
+
+- `readiness`: for every cell (path, workload, arm, measure) in this record,
+  this record's median, raised flag, blocks crossing and A/A range, and beside
+  it slice 6's median, raised flag and blocks crossing for the same cell; the
+  S6 useful benefit likewise. Slice 6's values come from different runs on a
+  different day, so the comparison is descriptive, not paired.
+- `absolute`: each arm's medians (goodput, CPU seconds per GiB, peak RSS,
+  measured-window heap peak, control p95 and p50, relay overflow rate) beside
+  slice 6's.
+- `s5timeline`: the stage and workload verdicts, and per workload the ranges
+  over blocks of the decomposition, the lateness figures, the phase shares and
+  the connection-goroutine state shares, beside slice 6's.
+- `cand_over_reno_on_cand`: only for a raised Reno-on-candidate cell, the
+  median (minimum, maximum) over blocks of the per-block ratio candidate ÷
+  Reno on candidate for the same measure (frozen Reno cancels).
+
+Usage: portcontext.py
+"""
+import hashlib
+import json
+import statistics
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+PRIOR = '9b38f0ab'
+PRIOR_DIR = 'docs/audits/2026-10-16-bbr-port-readiness'
+MEASURES = ['goodput', 'send_cpu', 'receive_cpu', 'send_rss', 'receive_rss', 'control_p95']
+DECOMPOSITION = ['deficit', 'idle', 'model', 'timing', 'unexplained']
+LATENESS = ['late_count', 'late_ms_total', 'late_max_ms']
+SHARES = ['phase_share', 'state_share']
+
+
+def stats(v):
+    v = [x for x in v if x is not None]
+    return dict(median=statistics.median(v), minimum=min(v), maximum=max(v), n=len(v)) if v else None
+
+
+def cell_key(e):
+    return (e['path'], e['workload'], e['arm'])
+
+
+def readiness(this, prior):
+    """Every cell of this record beside prior's value for the same cell (None where prior has no such cell)."""
+    prior_cells = {cell_key(e): e for e in prior['readiness']}
+    out = []
+    for e in this['readiness']:
+        old = prior_cells.get(cell_key(e))
+        row = dict(path=e['path'], workload=e['workload'], arm=e['arm'], blocks=e['blocks'], measures={})
+        for k, f in e['flags'].items():
+            r = old['flags'].get(k) if old else None
+            row['measures'][k] = dict(median=f['median'], raised=f['raised'], blocks_crossing=f['blocks_crossing'], aa=f.get('aa'),
+                                      prior=dict(median=r['median'], raised=r['raised'], blocks_crossing=r['blocks_crossing']) if r else None)
+        if 'useful_benefit' in e:
+            ub = old.get('useful_benefit') if old else None
+            row['useful_benefit'] = dict(e['useful_benefit'], prior=ub)
+        out.append(row)
+    return out
+
+
+def group_medians(g):
+    m = lambda s: s['median'] if s else None
+    out = dict(goodput_mbps=m(g['goodput_mbps']), control_p95_ms=m(g['control_p95_ms']), control_p50_ms=m(g['control_p50_ms']))
+    for role in ['send', 'receive']:
+        out[role] = {k: m(g[role][k]) for k in ['cpu_seconds_per_gib', 'peak_rss_mib', 'heap_peak_measured_mib']}
+    if g.get('relay'):
+        out['overflow_rate'] = m(g['relay']['overflow_rate'])
+    return out
+
+
+def absolute(this, prior):
+    prior_groups = {cell_key(g): g for g in prior['groups']}
+    return [dict(path=g['path'], workload=g['workload'], arm=g['arm'], n=g['n'], medians=group_medians(g),
+                 prior=group_medians(prior_groups[cell_key(g)]) if cell_key(g) in prior_groups else None)
+            for g in this['groups']]
+
+
+def raised_reno_on_cand(summary):
+    return [(e['path'], e['workload'], k) for e in summary['readiness'] if e['arm'] == 'cand-reno'
+            for k, f in e['flags'].items() if f['raised']]
+
+
+def cand_over_reno_on_cand(paired, cells):
+    """Per-block candidate ÷ Reno-on-candidate for each raised Reno-on-candidate cell."""
+    out = []
+    for path, workload, measure in cells:
+        vals = [p['vs_reno']['cand-bbrv3'][measure] / p['vs_reno']['cand-reno'][measure] for p in paired
+                if (p['path'], p['workload']) == (path, workload) and 'cand-bbrv3' in p['vs_reno'] and 'cand-reno' in p['vs_reno']]
+        out.append(dict(path=path, workload=workload, measure=measure, ratio=stats(vals)))
+    return out
+
+
+def timeline_ranges(t):
+    if not t or not t.get('observations'):
+        return None
+    out = {}
+    for w in ['stream', 'datagram']:
+        obs = [o for o in t['observations'] if o['workload'] == w and o.get('decomposition')]
+        out[w] = dict(verdicts=[o.get('verdict') for o in obs],
+                      **{k: stats([o['decomposition'][k] for o in obs]) for k in DECOMPOSITION},
+                      **{k: stats([o.get(k) for o in obs]) for k in LATENESS})
+        for k in SHARES:
+            keys = sorted({x for o in obs for x in (o.get(k) or {})})
+            out[w][k] = {x: stats([(o.get(k) or {}).get(x) for o in obs]) for x in keys}
+    return dict(verdict=t.get('verdict'), workloads=t.get('workloads'), blocks=out,
+                instrumented_over_readiness_goodput=t.get('instrumented_over_readiness_goodput'))
+
+
+def git_json(rel):
+    raw = subprocess.check_output(['git', 'show', f'{PRIOR}:{PRIOR_DIR}/{rel}'], cwd=ROOT)
+    return json.loads(raw), hashlib.sha256(raw).hexdigest()
+
+
+def main():
+    this = json.loads((HERE / 'summary.json').read_text())
+    attribution = json.loads((HERE / 'attribution.json').read_text())
+    prior, prior_summary_sha = git_json('summary.json')
+    prior_attr, prior_attr_sha = git_json('attribution.json')
+    cells = raised_reno_on_cand(this)
+    out = dict(sources=dict(prior_record=PRIOR, prior_summary_sha256=prior_summary_sha, prior_attribution_sha256=prior_attr_sha),
+               readiness=readiness(this, prior), absolute=absolute(this, prior),
+               s5timeline=dict(this=timeline_ranges(attribution.get('s5timeline')), prior=timeline_ranges(prior_attr.get('s5timeline'))),
+               raised_reno_on_cand=cells, cand_over_reno_on_cand=cand_over_reno_on_cand(this['paired'], cells))
+    (HERE / 'port-context.json').write_text(json.dumps(out, indent=1) + '\n')
+    for row in out['readiness']:
+        cells_txt = ' '.join(f"{k}={m['median']:.3f}{'*' if m['raised'] else ''}"
+                             + (f"[prior {m['prior']['median']:.3f}{'*' if m['prior']['raised'] else ''}]" if m['prior'] else '[prior -]')
+                             for k, m in row['measures'].items())
+        print(f"{row['path']:8} {row['workload']:8} {row['arm']:13} {cells_txt}")
+    for c in out['cand_over_reno_on_cand']:
+        print('cand/reno-on-cand', c)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
