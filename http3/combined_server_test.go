@@ -359,22 +359,36 @@ func TestListenAndServeTLSQUICFailureStopsTCP(t *testing.T) {
 }
 
 func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
-	// Find a port that is free for UDP and hold it for TCP, so that the helper
-	// opens its UDP socket and then fails to listen on TCP.
-	var tcpLn net.Listener
-	var addr string
-	for range 10 {
-		udpConn, err := net.ListenPacket("udp", "127.0.0.1:0")
-		require.NoError(t, err)
-		addr = udpConn.LocalAddr().String()
-		tcpLn, err = net.Listen("tcp", addr)
-		require.NoError(t, udpConn.Close())
-		if err == nil {
-			break
+	// Let TCP select its own port: Windows can deny TCP binds to UDP-selected
+	// ephemeral ports. Check UDP availability while holding the TCP reservation,
+	// so that the helper opens UDP and then fails to listen on TCP.
+	logBind := func(attempt int, network, addr string, err error) {
+		t.Helper()
+		t.Logf("port selection attempt %d: %s listen %s: %v", attempt, network, addr, err)
+		for cause := errors.Unwrap(err); cause != nil; cause = errors.Unwrap(cause) {
+			t.Logf("port selection attempt %d: cause %T: %v (%#v)", attempt, cause, cause, cause)
 		}
 	}
-	require.NotNil(t, tcpLn, "no port free for both TCP and UDP")
-	defer tcpLn.Close()
+	var tcpLn net.Listener
+	var addr string
+	for attempt := range 10 {
+		candidate, err := net.Listen("tcp", "127.0.0.1:0")
+		logBind(attempt+1, "TCP", "127.0.0.1:0", err)
+		require.NoError(t, err)
+		t.Cleanup(func() { candidate.Close() })
+		addr = candidate.Addr().String()
+		udpConn, err := net.ListenPacket("udp", addr)
+		logBind(attempt+1, "UDP", addr, err)
+		if err != nil {
+			require.NoError(t, candidate.Close())
+			continue
+		}
+		t.Cleanup(func() { udpConn.Close() })
+		require.NoError(t, udpConn.Close())
+		tcpLn = candidate
+		break
+	}
+	require.NotNil(t, tcpLn, "no port free for both TCP and UDP after 10 attempts; see per-attempt bind errors")
 
 	// The hooks only run once both sockets are open.
 	hooks := combinedSocketHooks{
@@ -397,5 +411,6 @@ func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
 	require.Equal(t, "tcp", opErr.Net)
 	udpConn, err := net.ListenPacket("udp", addr)
 	require.NoError(t, err, "UDP socket still bound after startup failure")
+	t.Cleanup(func() { udpConn.Close() })
 	require.NoError(t, udpConn.Close())
 }
