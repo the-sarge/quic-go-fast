@@ -107,15 +107,19 @@ func TestDatagramReceiveOverflowFIFO(t *testing.T) {
 	for i := range maxDatagramRcvQueueLen + 1 {
 		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(i)}})
 	}
-	// Queued data takes precedence over cancellation, and overflow drops new data.
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	// Overflow drops new data; admitted payloads retain FIFO order.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	for i := range maxDatagramRcvQueueLen {
 		data, err := queue.Receive(ctx)
 		require.NoError(t, err)
 		require.Equal(t, []byte{byte(i)}, data)
 	}
-	_, err := queue.Receive(ctx)
+	require.Empty(t, queue.rcvQueue)
+	require.Zero(t, queue.receiveQueueLen())
+	canceled, stop := context.WithCancel(ctx)
+	stop()
+	_, err := queue.Receive(canceled)
 	require.ErrorIs(t, err, context.Canceled)
 	// Admission resumes after draining, including an empty datagram.
 	queue.HandleDatagramFrame(&wire.DatagramFrame{})
@@ -133,13 +137,16 @@ func TestDatagramReceiveOverflowCount(t *testing.T) {
 		queue.HandleDatagramFrame(&wire.DatagramFrame{Data: binary.BigEndian.AppendUint16(nil, uint16(i))})
 	}
 	require.EqualValues(t, refused, queue.receiveDrops())
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // A missing entry fails immediately instead of blocking the test.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	for i := range depth {
 		data, err := queue.Receive(ctx)
 		require.NoError(t, err)
 		require.Equal(t, binary.BigEndian.AppendUint16(nil, uint16(i)), data)
 	}
+	require.Empty(t, queue.rcvQueue)
+	require.Zero(t, queue.receiveQueueLen())
+	cancel()
 	_, err := queue.Receive(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 	require.EqualValues(t, refused, queue.receiveDrops())
@@ -154,6 +161,8 @@ func TestDatagramReceiveDropsExcludeInvalidation(t *testing.T) {
 	require.EqualValues(t, 2, queue.receiveDrops())
 	queue.invalidateReceived()
 	require.EqualValues(t, 2, queue.receiveDrops())
+	require.Empty(t, queue.rcvQueue)
+	require.Zero(t, queue.receiveQueueLen())
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err := queue.Receive(ctx)
@@ -176,8 +185,8 @@ func TestDatagramReceiveReleasesDelivered(t *testing.T) {
 	}
 	storage := queue.rcvQueue // shares the backing array the queue reslices
 	require.Len(t, storage, n)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	for i := range n {
 		data, err := queue.Receive(ctx)
 		require.NoError(t, err)
@@ -229,8 +238,8 @@ func TestDatagramReceiveConcurrentProducerDrainer(t *testing.T) {
 
 func TestDatagramReceiveRefillDrain(t *testing.T) {
 	queue := newDatagramQueue(func() {}, utils.DefaultLogger)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // A missing entry fails immediately instead of blocking the test.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	for cycle := range 16 {
 		for i := range maxDatagramRcvQueueLen {
 			queue.HandleDatagramFrame(&wire.DatagramFrame{Data: []byte{byte(cycle), byte(i)}})
@@ -250,8 +259,8 @@ func TestDatagramReceiveRefillDrain(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, []byte{byte(cycle), byte(i)}, data)
 		}
-		_, err := queue.Receive(ctx)
-		require.ErrorIs(t, err, context.Canceled)
+		require.Empty(t, queue.rcvQueue)
+		require.Zero(t, queue.receiveQueueLen())
 	}
 }
 

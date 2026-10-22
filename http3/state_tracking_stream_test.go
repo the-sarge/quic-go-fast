@@ -40,10 +40,20 @@ func canceledCtx() context.Context {
 	return ctx
 }
 
+func liveDatagramReceiveContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Second))
+	t.Cleanup(cancel)
+	return ctx
+}
+
 func checkDatagramReceive(t *testing.T, str *stateTrackingStream) {
 	t.Helper()
-	_, err := str.ReceiveDatagram(canceledCtx())
-	require.ErrorIs(t, err, context.Canceled)
+	ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(time.Millisecond))
+	defer cancel()
+	data, err := str.ReceiveDatagram(ctx)
+	require.Nil(t, data)
+	require.ErrorIs(t, err, context.DeadlineExceeded, "receive side should remain open and empty")
 }
 
 func checkDatagramSend(t *testing.T, str *stateTrackingStream) {
@@ -108,7 +118,7 @@ func testStateTrackingStreamRead(t *testing.T, reset bool) {
 	}
 	require.Nil(t, clearer.cleared)
 	// the receive side registered the error
-	_, err = str.ReceiveDatagram(canceledCtx())
+	_, err = str.ReceiveDatagram(liveDatagramReceiveContext(t))
 	require.ErrorIs(t, err, expectedErr)
 	// the send side is still open
 	require.NoError(t, str.SendDatagram([]byte("foo")))
@@ -205,7 +215,7 @@ func TestStateTrackingStreamReceiveThenSend(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Nil(t, clearer.cleared)
-	_, err = str.ReceiveDatagram(canceledCtx())
+	_, err = str.ReceiveDatagram(liveDatagramReceiveContext(t))
 	require.ErrorIs(t, err, io.EOF)
 
 	client.CancelWrite(123)
@@ -243,7 +253,7 @@ func TestStateTrackingStreamSendThenReceive(t *testing.T) {
 
 	_, err = io.ReadAll(str)
 	require.NoError(t, err)
-	_, err = str.ReceiveDatagram(canceledCtx())
+	_, err = str.ReceiveDatagram(liveDatagramReceiveContext(t))
 	require.ErrorIs(t, err, io.EOF)
 
 	require.Equal(t, &id, clearer.cleared)
@@ -315,23 +325,26 @@ func TestDatagramReceivingReleasesConsumedReferences(t *testing.T) {
 				str.closeReceive(io.EOF)
 			}
 
-			data, err := str.ReceiveDatagram(canceledCtx())
+			ctx := liveDatagramReceiveContext(t)
+			data, err := str.ReceiveDatagram(ctx)
 			require.NoError(t, err)
 			require.Equal(t, []byte("first"), data)
 			require.Same(t, &first[0], &data[0])
 			require.Nil(t, storage[0])
 			require.Equal(t, []byte("second"), storage[1])
 
-			data, err = str.ReceiveDatagram(canceledCtx())
+			data, err = str.ReceiveDatagram(ctx)
 			require.NoError(t, err)
 			require.Equal(t, []byte("second"), data)
 			require.Same(t, &second[0], &data[0])
 			require.Nil(t, storage[1])
 
-			_, err = str.ReceiveDatagram(canceledCtx())
+			require.Empty(t, str.queue)
 			if closed {
+				_, err = str.ReceiveDatagram(ctx)
 				require.ErrorIs(t, err, io.EOF)
 			} else {
+				_, err = str.ReceiveDatagram(canceledCtx())
 				require.ErrorIs(t, err, context.Canceled)
 			}
 		})
