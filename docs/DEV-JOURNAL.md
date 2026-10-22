@@ -7585,3 +7585,26 @@ A disposable channel-controlled scheduling probe on base `d57eb42239b80bdbcc885a
 Final clean pushed head `63aeb62f0d9d8020096aa2b17f37cda205e734d8` passed affected qlogwriter/qlog/HTTP3 package tests, focused writer and HTTP/3 lifetime race tests, affected-package vet, module tidiness, formatting, whitespace and focused lint on Go 1.27.3 darwin/arm64. All 33 hosted checks passed before the matched-head squash merge.
 
 RAS review `20261022T044805-0fafc96e7f99faf40e94460c` completed with all six reviewers and adjudicators, zero Fix First items and zero follow-ups. The test-precision observation that the close-start signal does not prove mutex arrival was independently rejected as required work: no contention-specific behavioral failure or missing approved observable obligation was established. No verification or replacement review was needed. No deferred finding remains, and no matching OmniFocus task was found by issue URL. This post-merge journal update uses no RAS.
+
+---
+
+## Oversized packet construction bounds landed - 2026-10-22 01:31 EDT
+
+**Main:** `d9b8f613b9dc`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #979](https://github.com/the-sarge/quic-go-fast/pull/979) as `d9b8f613b9dc25fa53f3392a425adfad24f0ec23`, closing [issue #960](https://github.com/the-sarge/quic-go-fast/issues/960). Coalesced CONNECTION_CLOSE, ordinary/ACK-only coalesced output and long-header PTO construction now reject a calculated aggregate size above the caller's packetization budget before acquiring output storage or serializing any component. Errors contain actual and allowed sizes. Equal-sized constructions retain existing padding, packet-number ordering, recovery registration and emission ownership.
+
+### Decisions
+
+Adapted upstream [quic-go/quic-go#5937](https://github.com/quic-go/quic-go/pull/5937) within the [approved implementation contract](adr/2026-10-22-oversized-packet-bounds-plan.md), preserving the fork's append-time packet-number consumption, explicit InitialPacketSize floor, fallback policy and close conversion/outcome rules. The production change is three owner-local size guards; no emission, recovery, handshake-write or public-API redesign was needed.
+
+### Validation
+
+The new ordinary/ACK-only, close and Initial PTO regressions failed before their respective guards: budget overflow emitted oversized datagrams and backing-buffer overflow panicked. Final coverage checks 1199/1200/1201-byte boundaries with native Initial protection, decryption and frame parsing; oversized tokens and transport-close reasons; aggregate close overflow with individually fitting components; application-close conversion/suppression; rejection before construction-buffer acquisition, registration or handoff; pooled STREAM/DATAGRAM preservation followed by successful emission and duplicate-ACK cleanup; and preservation of recovery retirement before rejected PTO packing. Existing root tests retain Handshake/1-RTT PTO, coalescing, constructor-error lifetimes, retained-close storage and handshake-fallback behavior.
+
+Final clean pushed head `b08ab54f000cb6535a494ec413a4fbde2daf929c`, based on `a60a45ab1e180e2202e244be9728dc9b0dc7bcb2`, passed focused regressions, `go test -count=1 .`, `go test -race -count=1 .`, `go vet .`, `go mod tidy -diff`, changed-file configured formatting, `golangci-lint run .` with zero issues, and diff checks on Go 1.27.3 darwin/arm64. All 33 hosted checks passed on the exact head before the matched-head squash merge. A repository-wide formatting probe reported existing differences in unrelated/frozen files; the changed files passed, and frozen evidence was preserved. No unchanged-head CI rerun or new performance/platform campaign was used.
+
+RAS run `20261022T051529-b3fb988af0fc3ca2506e4a1d` completed with all six reviewers, five successful adjudicators and a synthesis; one adjudicator failed its structured-delivery plan check, with quorum still met. The only accepted fix corrected two test comments about native packet-number width and sample padding. Assertions and executable code were unchanged, so the documentation-polish exemption skipped RAS verify/replacement and required new local certification. The unchanged empty-selection behavior and optional fixture-strengthening observations were independently rejected as current-work obligations. The [review dispositions and exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/979#issuecomment-6333518389) retain the details. No deferred finding remains, and no matching OmniFocus task was found by issue URL in the project. This post-merge journal update uses no RAS.
