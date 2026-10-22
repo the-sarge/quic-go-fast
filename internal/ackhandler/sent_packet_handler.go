@@ -195,6 +195,7 @@ func (h *sentPacketHandler) removeFromBytesInFlight(p *packet) {
 }
 
 func (h *sentPacketHandler) DropPackets(encLevel protocol.EncryptionLevel, now monotime.Time) {
+	h.congestion.OnPacketsDiscarded()
 	h.discardCongestionSpace(encLevel)
 	// The server won't await address validation after the handshake is confirmed.
 	// This applies even if we didn't receive an ACK for a Handshake packet.
@@ -227,6 +228,7 @@ func (h *sentPacketHandler) DropPackets(encLevel protocol.EncryptionLevel, now m
 		// and not when the client drops 0-RTT keys when the handshake completes.
 		// When 0-RTT is rejected, all application data sent so far becomes invalid.
 		// Delete the packets from the history and remove them from bytes_in_flight.
+		h.lostPackets.Reset()
 		for pn, p := range h.appDataPackets.history.Packets() {
 			if p.EncryptionLevel != protocol.Encryption0RTT {
 				break
@@ -436,6 +438,9 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 		// Admission above must precede both histories' retained receipt processing.
 		if encLevel == protocol.Encryption1RTT {
 			h.detectSpuriousLosses(ack, rcvTime)
+			if h.qlogger != nil {
+				h.qlogMetricsUpdated()
+			}
 		}
 		if h.congestionEvents != nil {
 			h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, nil, largestAcked)
@@ -545,6 +550,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 // Keep cleanup here so late-only and reordered ACKs also age the bounded history.
 func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime monotime.Time) {
 	ackTime := rcvTime.Add(-min(ack.DelayTime, h.rttStats.MaxAckDelay()))
+	cutoff := rcvTime.Add(-3 * h.rttStats.PTO(false))
 	var maxPacketReordering protocol.PacketNumber
 	var maxTimeReordering time.Duration
 	ackRangeIdx := len(ack.AckRanges) - 1
@@ -573,12 +579,17 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 				})
 			}
 			spuriousLosses = append(spuriousLosses, pn)
+			// Diagnostics keep their consumption-before-cleanup order. Only
+			// surviving evidence may authorize restoration of congestion state.
+			if !sendTime.Before(cutoff) {
+				h.congestion.OnSpuriousLoss(congestion.NewPacketKey(protocol.Encryption1RTT, pn))
+			}
 		}
 	}
 	for _, pn := range spuriousLosses {
 		h.lostPackets.Delete(pn)
 	}
-	h.lostPackets.DeleteBefore(rcvTime.Add(-3 * h.rttStats.PTO(false)))
+	h.lostPackets.DeleteBefore(cutoff)
 }
 
 // Packets are returned in ascending packet number order.
@@ -1185,6 +1196,8 @@ func (h *sentPacketHandler) queueFramesForRetransmission(p *packet) {
 }
 
 func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
+	h.congestion.OnPacketsDiscarded()
+	h.lostPackets.Reset()
 	h.resetCongestionCapture(false)
 	h.bytesInFlight = 0
 	var firstPacketSendTime monotime.Time

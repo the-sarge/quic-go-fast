@@ -376,6 +376,42 @@ func (c *MockSendAlgorithmWithDebugInfosOnPacketSentCall) DoAndReturn(f func(mon
 	return c
 }
 
+// OnPacketsDiscarded mocks base method.
+func (m *MockSendAlgorithmWithDebugInfos) OnPacketsDiscarded() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "OnPacketsDiscarded")
+}
+
+// OnPacketsDiscarded indicates an expected call of OnPacketsDiscarded.
+func (mr *MockSendAlgorithmWithDebugInfosMockRecorder) OnPacketsDiscarded() *MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnPacketsDiscarded", reflect.TypeOf((*MockSendAlgorithmWithDebugInfos)(nil).OnPacketsDiscarded))
+	return &MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall{Call: call}
+}
+
+// MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall wrap *gomock.Call
+type MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall) Return() *MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall {
+	c.Call = c.Call.Return()
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall) Do(f func()) *MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall) DoAndReturn(f func()) *MockSendAlgorithmWithDebugInfosOnPacketsDiscardedCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // OnRetransmissionTimeout mocks base method.
 func (m *MockSendAlgorithmWithDebugInfos) OnRetransmissionTimeout(packetsRetransmitted bool) {
 	m.ctrl.T.Helper()
@@ -408,6 +444,42 @@ func (c *MockSendAlgorithmWithDebugInfosOnRetransmissionTimeoutCall) Do(f func(b
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockSendAlgorithmWithDebugInfosOnRetransmissionTimeoutCall) DoAndReturn(f func(bool)) *MockSendAlgorithmWithDebugInfosOnRetransmissionTimeoutCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// OnSpuriousLoss mocks base method.
+func (m *MockSendAlgorithmWithDebugInfos) OnSpuriousLoss(packet congestion.PacketKey) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "OnSpuriousLoss", packet)
+}
+
+// OnSpuriousLoss indicates an expected call of OnSpuriousLoss.
+func (mr *MockSendAlgorithmWithDebugInfosMockRecorder) OnSpuriousLoss(packet any) *MockSendAlgorithmWithDebugInfosOnSpuriousLossCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnSpuriousLoss", reflect.TypeOf((*MockSendAlgorithmWithDebugInfos)(nil).OnSpuriousLoss), packet)
+	return &MockSendAlgorithmWithDebugInfosOnSpuriousLossCall{Call: call}
+}
+
+// MockSendAlgorithmWithDebugInfosOnSpuriousLossCall wrap *gomock.Call
+type MockSendAlgorithmWithDebugInfosOnSpuriousLossCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockSendAlgorithmWithDebugInfosOnSpuriousLossCall) Return() *MockSendAlgorithmWithDebugInfosOnSpuriousLossCall {
+	c.Call = c.Call.Return()
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockSendAlgorithmWithDebugInfosOnSpuriousLossCall) Do(f func(congestion.PacketKey)) *MockSendAlgorithmWithDebugInfosOnSpuriousLossCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockSendAlgorithmWithDebugInfosOnSpuriousLossCall) DoAndReturn(f func(congestion.PacketKey)) *MockSendAlgorithmWithDebugInfosOnSpuriousLossCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

@@ -20,6 +20,16 @@ const (
 	initialCongestionWindow    = 32
 )
 
+// renoUndoState is a snapshot, not another independently advanced frontier.
+// Missing retained receipts leave outstanding losses unresolved.
+type renoUndoState struct {
+	congestionWindow, slowStartThreshold protocol.ByteCount
+	numAckedPackets                      uint64
+	cutback                              packetPrefix
+	hasCutback, recovering               bool
+	outstanding                          uint64
+}
+
 type cubicSender struct {
 	hybridSlowStart HybridSlowStart
 	rttStats        *utils.RTTStats
@@ -47,6 +57,7 @@ type cubicSender struct {
 
 	// ACK counter for the Reno implementation.
 	numAckedPackets uint64
+	undoState       renoUndoState
 
 	initialCongestionWindow    protocol.ByteCount
 	initialMaxCongestionWindow protocol.ByteCount
@@ -184,6 +195,11 @@ func (c *cubicSender) OnPacketAcked(
 	eventTime monotime.Time,
 ) {
 	c.hasAck = true
+	// An ACK can cross the prior boundary without crossing the latest one.
+	// Remember that exit so restoring the snapshot cannot reactivate recovery.
+	if c.undoState.outstanding > 0 && c.undoState.hasCutback && c.undoState.cutback.after(packet) {
+		c.undoState.recovering = false
+	}
 	if c.hasCutback && c.cutback.after(packet) {
 		c.recovering = false
 	}
@@ -199,11 +215,26 @@ func (c *cubicSender) OnPacketAcked(
 func (c *cubicSender) OnCongestionEvent(packet PacketKey, lostBytes, priorInFlight protocol.ByteCount) {
 	c.connStats.PacketsLost.Add(1)
 	c.connStats.BytesLost.Add(uint64(lostBytes))
+	// Recovery uses zero lost bytes only for validated CE. It cannot be
+	// canceled by packet receipts, including when the cut below is suppressed.
+	if lostBytes == 0 {
+		c.OnPacketsDiscarded()
+	}
 
 	// TCP NewReno (RFC6582) says that once a loss occurs, any losses in packets
 	// already sent should be treated as a single loss event, since it's expected.
 	if c.hasCutback && !c.cutback.after(packet) {
+		if c.undoState.outstanding > 0 && (!c.undoState.hasCutback || c.undoState.cutback.after(packet)) {
+			c.undoState.outstanding++
+		}
 		return
+	}
+	if c.reno && lostBytes > 0 {
+		c.undoState = renoUndoState{
+			congestionWindow: c.congestionWindow, slowStartThreshold: c.slowStartThreshold,
+			numAckedPackets: c.numAckedPackets, cutback: c.cutback,
+			hasCutback: c.hasCutback, recovering: c.recovering, outstanding: 1,
+		}
 	}
 	c.lastCutbackExitedSlowstart = c.InSlowStart()
 	c.maybeQlogStateChange(qlog.CongestionStateRecovery)
@@ -223,6 +254,35 @@ func (c *cubicSender) OnCongestionEvent(packet PacketKey, lostBytes, priorInFlig
 	// counting again when we're out of recovery.
 	c.numAckedPackets = 0
 }
+
+func (c *cubicSender) OnSpuriousLoss(packet PacketKey) {
+	s := &c.undoState
+	if s.outstanding == 0 || (s.hasCutback && !s.cutback.after(packet)) || c.cutback.after(packet) {
+		return
+	}
+	s.outstanding--
+	if s.outstanding != 0 {
+		return
+	}
+	state := *s
+	c.undoState = renoUndoState{}
+	if c.congestionWindow > state.congestionWindow {
+		return
+	}
+	c.congestionWindow, c.slowStartThreshold = state.congestionWindow, state.slowStartThreshold
+	c.numAckedPackets = state.numAckedPackets
+	c.cutback, c.hasCutback, c.recovering = state.cutback, state.hasCutback, state.recovering
+	switch {
+	case c.InRecovery():
+		c.maybeQlogStateChange(qlog.CongestionStateRecovery)
+	case c.InSlowStart():
+		c.maybeQlogStateChange(qlog.CongestionStateSlowStart)
+	default:
+		c.maybeQlogStateChange(qlog.CongestionStateCongestionAvoidance)
+	}
+}
+
+func (c *cubicSender) OnPacketsDiscarded() { c.undoState = renoUndoState{} }
 
 // Called when we receive an ack. Normal TCP tracks how many packets one ack
 // represents, but quic has a separate ack for each packet.
@@ -286,6 +346,7 @@ func (c *cubicSender) BandwidthEstimate() Bandwidth {
 
 // OnRetransmissionTimeout is called on an retransmission timeout
 func (c *cubicSender) OnRetransmissionTimeout(packetsRetransmitted bool) {
+	c.OnPacketsDiscarded()
 	c.cutback = packetPrefix{}
 	c.hasCutback, c.recovering = false, false
 	if !packetsRetransmitted {
@@ -299,6 +360,7 @@ func (c *cubicSender) OnRetransmissionTimeout(packetsRetransmitted bool) {
 
 // OnConnectionMigration is called when the connection is migrated (?)
 func (c *cubicSender) OnConnectionMigration() {
+	c.OnPacketsDiscarded()
 	c.hybridSlowStart.Restart()
 	c.registered, c.eligible = packetPrefix{}, packetPrefix{}
 	c.hasAck = false
