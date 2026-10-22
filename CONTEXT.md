@@ -22,6 +22,12 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Eligible-send frontier**: The latest ACK-eliciting non-path transmission defining Reno's recovery frontier, including all registrations preceding it. MTU probes participate; trailing excluded registrations are beyond the frontier.
 
+**Reno cutback**: A congestion-window reduction accepted for a flight of transmissions. Further congestion feedback from that flight can support the same cutback without causing another reduction.
+
+**Spurious-loss receipt**: An admitted acknowledgment of a transmission previously declared lost. It confirms the transmission arrived, without reversing its historical loss or retransmission actions.
+
+**Reno undo candidate**: The saved state of the latest Reno cutback, eligible for restoration only when surviving receipts resolve every supporting loss and congestion or lifecycle changes have not invalidated it.
+
 **Transport delivery**: Receipt of transmitted data confirmed by the peer transport's acknowledgment. It does not establish that the receiving application has consumed, verified or published useful content.
 
 **Application-limited delivery sample**: A delivery-rate observation covering a period when the sender lacked enough eligible data to fully exercise the path. A low observed rate during that period does not establish a low path capacity.

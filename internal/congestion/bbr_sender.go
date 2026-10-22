@@ -557,6 +557,8 @@ func (b *BBRSender) OnPacketAcked(PacketKey, protocol.ByteCount, protocol.ByteCo
 func (b *BBRSender) OnCongestionEvent(PacketKey, protocol.ByteCount, protocol.ByteCount) {
 }
 func (b *BBRSender) OnRetransmissionTimeout(bool) {}
+func (b *BBRSender) OnSpuriousLoss(PacketKey)     {}
+func (b *BBRSender) OnPacketsDiscarded()          {}
 func (b *BBRSender) InRecovery() bool             { return b.recoveryStarted && !b.closed }
 
 var _ SendAlgorithmWithDebugInfos = (*BBRSender)(nil)
