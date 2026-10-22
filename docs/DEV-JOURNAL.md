@@ -7518,3 +7518,24 @@ The selected adoption of upstream [#5947](https://github.com/quic-go/quic-go/pul
 Final local certification passed on head `25f068d8ea661bd9a35c831261dc109e1a0dcff4` against base `dcec1eb73630cddcc6c4789e8edd5f159ab8bccc`, using Go 1.27.3 on darwin/arm64: `go test . ./http3 -count=1 -timeout=5m`; `go test -race . ./http3 -run '^Test(Datagram|ConnectionDatagram|HTTP3DatagramReceive|StateTrackingStream)' -count=1 -timeout=2m`; `go vet . ./http3`; `go mod tidy -diff`; affected-package golangci-lint; formatting, documentation links and diff checks. The new regressions demonstrated the QUIC lost-cause and both queued-entry failures before their fixes. All 33 existing hosted checks passed on the certified head before the matched-head squash merge.
 
 Initial RAS review `20261022T014626-ef20504159824a010836d334` identified two test-preservation gaps, repaired manually: explicit HTTP/3 overflow detection and deterministic open/empty state inspection. Exact-head verification resolved the accepted findings. One initial adjudicator process failed after its terminal result; the other five adjudicators and all six reviewers completed, meeting quorum. Replacement review `20261022T015825-77ab593d4992a01db210e13c` completed with all six reviewers, no findings and no follow-ups. The remaining cosmetic diagnostic was independently rejected as required work; no deferred behavior finding remains. This post-merge journal update uses no RAS.
+
+---
+
+## Bounded server path validation retries landed - 2026-10-21 23:35 EDT
+
+**Main:** `8b2e73bc5561`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #969](https://github.com/the-sarge/quic-go-fast/pull/969) as `8b2e73bc5561712d5a2f75ca798e192d8d04e3a5`, closing [issue #963](https://github.com/the-sarge/quic-go-fast/issues/963). Server candidate paths retry unanswered challenges as accepted traffic arrives, retain earlier emitted tokens across loss and expire incomplete reachability/MTU stages through the existing connection timer, including silence and send blocking. Validation uses each token’s actual datagram padding; compact responses cannot authorize migration before minimum-MTU validation. Candidate/token storage, stage lifetime and retry backoff are bounded.
+
+### Decisions
+
+The [accepted implementation plan](adr/2026-10-21-server-path-retries-plan.md) and [issue brief](https://github.com/the-sarge/quic-go-fast/issues/963#issuecomment-6330988101) own the behavior and finite evidence contract. Keep protocol state in the connection goroutine and preparation/commitment in the private emission owner. Abandonable preparation remains plaintext; final expiry and exact byte reservation precede encryption, packet-number consumption, token recording and recovery registration. This preserves both sequential recovery history and production FIPS nonce state. Public API, client probing, per-path amplification/replay rules and migration/reset ownership remain intact.
+
+### Validation
+
+Final clean pushed head `d1af064b834b1d10c1a0a8f8eae8f3c44b320d41`, based on `1c4a28b7bc000bbc521332f5d7145e6493b42709`, passed full root tests, QUIC v1 self-integration tests, focused path/emission race tests, QUIC v2 NAT tests, NAT race tests, the production AES-GCM expiry regression with FIPS enabled, vet, module tidiness, lint, links and diff checks on Go 1.27.3 darwin/arm64. The controlled UDP/TLS case withholds the first actual response, requires a distinct retry on the same candidate connection ID and checks migration plus complete delivery. All 33 hosted checks passed before the matched-head squash merge.
+
+Initial RAS review `20261022T023911-341655d71cbc0d7a919a8b7e` found packet-number commitment, late stage-transition timing and retry-response test gaps; manual fixes were verified resolved. Replacement review `20261022T030610-c7fc4d0f0650cc3ae1e947e2` found the production FIPS nonce-state constraint. The maintainer approved one narrow extra fix/verification cycle. The new regression reproduced the repeated-counter panic before the repair and passes afterward, covering peer-response repacking and challenge-only discard followed by ordinary sending, with buffer release. Final source verification was clear, with 1/1 cluster resolved. The [certification and independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/969#issuecomment-6331982585) retain the evidence. No deferred follow-up remains, and no matching OmniFocus task was found by issue URL; this journal follow-up uses no RAS.
