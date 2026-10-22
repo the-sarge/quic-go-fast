@@ -128,6 +128,10 @@ func (s *stateTrackingStream) SendDatagram(b []byte) error {
 	if sendErr != nil {
 		return sendErr
 	}
+	// The context can close before the asynchronous closeSend callback runs.
+	if err := context.Cause(s.Context()); err != nil {
+		return err
+	}
 
 	return s.sendDatagram(b)
 }
