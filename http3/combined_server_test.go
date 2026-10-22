@@ -363,18 +363,25 @@ func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
 	// opens its UDP socket and then fails to listen on TCP.
 	var tcpLn net.Listener
 	var addr string
-	for range 10 {
+	for attempt := range 10 {
 		udpConn, err := net.ListenPacket("udp", "127.0.0.1:0")
 		require.NoError(t, err)
+		t.Cleanup(func() { udpConn.Close() })
 		addr = udpConn.LocalAddr().String()
 		tcpLn, err = net.Listen("tcp", addr)
+		t.Logf("port selection attempt %d: TCP listen %s: %v", attempt+1, addr, err)
+		for cause := errors.Unwrap(err); cause != nil; cause = errors.Unwrap(cause) {
+			t.Logf("port selection attempt %d: cause %T: %v (%#v)", attempt+1, cause, cause, cause)
+		}
+		if err == nil {
+			t.Cleanup(func() { tcpLn.Close() })
+		}
 		require.NoError(t, udpConn.Close())
 		if err == nil {
 			break
 		}
 	}
-	require.NotNil(t, tcpLn, "no port free for both TCP and UDP")
-	defer tcpLn.Close()
+	require.NotNil(t, tcpLn, "no port free for both TCP and UDP after 10 attempts; see per-attempt bind errors")
 
 	// The hooks only run once both sockets are open.
 	hooks := combinedSocketHooks{
@@ -397,5 +404,6 @@ func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
 	require.Equal(t, "tcp", opErr.Net)
 	udpConn, err := net.ListenPacket("udp", addr)
 	require.NoError(t, err, "UDP socket still bound after startup failure")
+	t.Cleanup(func() { udpConn.Close() })
 	require.NoError(t, udpConn.Close())
 }
