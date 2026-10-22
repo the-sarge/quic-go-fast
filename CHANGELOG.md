@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.62.1-fast.8 — prepared, not published
+
+Selected for the eleven-slice [bundle #851](https://github.com/the-sarge/quic-go-fast/issues/851), based on upstream quic-go v0.62.0 and covering changes since `v0.62.1-fast.7`. The [release preparation](docs/releases/v0.62.1-fast.8.md) records defaults, consumer decisions, accepted costs, capabilities, scope and the publication gates. Candidate selection follows this preparation PR's merge; preparation does not authorize tagging before the memory, baseline and fresh readiness decisions.
+
+- Ship all eleven consumer slices: deeper received-DATAGRAM and unprocessed-packet queues with drop counters; delegated admission; Linux and Windows copy-at-read; a 32-entry send queue and batch cap; opt-in acknowledgment threshold, Darwin read slots and Apple-silicon send-thread QoS; and equal-size DATAGRAM gluing on by default, capped at 64 segments.
+- Ship the corrected BBR draft-06 port and subsequent supply-limitation, ECN-history and diagnostic corrections. BBRv3 remains experimental, opt-in and unqualified; Reno remains the default. Historical readiness exceptions do not cover this release candidate. Full Q2 qualification is later work.
+- Fix DATAGRAM close/cancel precedence, packet construction bounds, path validation/retry and handshake sizing, HTTP/3 resource/lifecycle/header/trailer handling, and qlog correctness and privacy. The release preparation groups the full rollup and links the commit comparison.
+- Keep the module's declared Go minimum at `1.26.0`; pin the development toolchain to `go1.27.3`, with patched Go `1.26.10` compatibility CI. Refresh the network dependencies as recorded in the release preparation. Applications continue to own their explicit module replacement; the README retains a real published version until publication.
+- Exclude deferred adaptive loss thresholds (#971), leaving #962 open. Include the completed history-hygiene and Reno-undo corrections below.
+
 - Restore default Reno's latest cutback after all supporting losses have surviving spurious-loss receipts, including saved slow-start state and ACK credit. Preserve genuine-loss and validated-CE reductions, bounded history, lifecycle disposal and independent BBR evidence. See [#972](https://github.com/the-sarge/quic-go-fast/issues/972) and [ADR 0012](docs/adr/0012-reno-spurious-loss-undo.md).
 
 - Correct application spurious-loss reporting for late-only and reordered ACKs, exclude MTU/path probes and ACK-only records from retained loss history, and clear that history on migration. Preserve RTT/ECN eligibility, packet and frame ownership, existing loss thresholds, Reno policy and independent BBR recovery evidence. See [#970](https://github.com/the-sarge/quic-go-fast/issues/970) and the [recovery contract](docs/agents/spurious-loss-history-970.md).
