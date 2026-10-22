@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Correct application spurious-loss reporting for late-only and reordered ACKs, exclude MTU/path probes and ACK-only records from retained loss history, and clear that history on migration. Preserve RTT/ECN eligibility, packet and frame ownership, existing loss thresholds, Reno policy and independent BBR recovery evidence. See [#970](https://github.com/the-sarge/quic-go-fast/issues/970) and the [recovery contract](docs/agents/spurious-loss-history-970.md).
+
 - Correct default Reno recovery and HybridSlowStart ordering across overlapping Initial, Handshake and application packet numbers, including validated CE feedback after packet retirement. Preserve independent wire-number spaces, Reno selection and parameters, BBR accounting and existing public APIs. See [ADR 0011](docs/adr/0011-recovery-registration-prefix.md) and [#961](https://github.com/the-sarge/quic-go-fast/issues/961).
 
 ## v0.62.1-fast.7 — 2026-10-05
