@@ -14,7 +14,9 @@
 
 ## Decision
 
-Clear the consumed queue slot before advancing the existing slice. Preserve FIFO, capacity, blocking/cancellation and draining already queued data before recvErr, including after closeReceive.
+Clear the consumed queue slot before advancing the existing slice. Preserve FIFO, capacity, blocking and draining already queued data before recvErr with a live context, including after closeReceive.
+
+**Cancellation precedence update (2026-10-21):** [#957](https://github.com/the-sarge/quic-go-fast/issues/957) adopts [upstream #5948](https://github.com/quic-go/quic-go/pull/5948): `stateTrackingStream.ReceiveDatagram` checks `context.Cause(ctx)` once on entry, before queued data or recvErr, and returns no message and that cause when already canceled. Queue bytes, references and length remain untouched until a later live receive delivers the payload and clears its slot. HTTP/3 `Stream` and `RequestStream` keep their existing error translation, and established waits keep returning the context cause. This is an entry-precedence guarantee; it adds no priority for cancellation racing arrival or closure after a live-context call begins. With a live context, queued data still drains before recvErr, empty terminal receives return recvErr and terminal receive rejects new enqueues. ADRs [0001](0001-upstream-compatibility.md) and [0003](0003-follow-stable-upstream-releases.md), queue ownership and frozen evidence remain unchanged.
 
 **Rejected alternatives — do not do this:** Do not drain the queue at terminal receive, change queue ordering, add a ring/cursor, or claim an allocation/throughput improvement.
 

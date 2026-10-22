@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -34,8 +35,8 @@ func TestConnectionDatagramPacketReuse(t *testing.T) {
 			_, _, _, err := tc.conn.handleFrames(packet, protocol.ConnectionID{}, protocol.Encryption1RTT, log, monotime.Now())
 			require.NoError(t, err)
 			clear(packet) // packet storage can be reused before the application drains
-			ctx, cancel := context.WithCancel(context.Background())
-			cancel() // a missing queue entry fails immediately
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
 			var received [][]byte
 			for _, payload := range want {
 				data, err := tc.conn.ReceiveDatagram(ctx)
@@ -77,13 +78,16 @@ func TestConnectionDatagramOverflowPacketReuse(t *testing.T) {
 	_, _, _, err = tc.conn.handleFrames(packet, protocol.ConnectionID{}, protocol.Encryption1RTT, nil, monotime.Now())
 	require.NoError(t, err)
 	clear(packet)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	for i := range maxDatagramRcvQueueLen {
 		data, err := tc.conn.ReceiveDatagram(ctx)
 		require.NoError(t, err)
 		require.Equal(t, []byte{byte(i)}, data)
 	}
+	require.Empty(t, tc.conn.datagramQueue.rcvQueue)
+	require.Zero(t, tc.conn.datagramQueue.receiveQueueLen())
+	cancel()
 	_, err = tc.conn.ReceiveDatagram(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 }
