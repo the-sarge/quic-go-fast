@@ -7658,3 +7658,20 @@ The [accepted switch contract](https://github.com/the-sarge/quic-go-fast/issues/
 The deterministic real-UDP retired-read regression failed against old behavior with expected `replacement`, actual `retired`, then passed after the repair. Focused coverage preserves outgoing drop/delay callback switching and an admitted delayed handoff queued before retirement. On final pushed head `5da112f669988f9bf5788aa8a0be6e71b8c1e586`, based on `68e62a38703675479ff2ca8bd892289e75588e41`, Go 1.27.3 darwin/arm64 passed the proxy package normally and with the race detector, existing NAT-rebinding and affected network-admission coverage, proxy vet, module-tidiness, formatting, relative-link and diff checks. The existing retired-payload, read-observation, shutdown and socket-ownership assertions were preserved. All 33 hosted checks passed on that exact head before the matched-head squash merge; no failed hosted run was retried.
 
 RAS review `20261022T073950-ff3e3f8b6cabb6cb7a398f1e` completed with all six reviewers and no required fixes or follow-ups. Optional discarded-read debug logging was independently rejected as a current-work obligation; read observation is preserved. No fix verification or replacement review was required, and no deferred finding remains. The earlier review attempt failed before dispatch because its task-specific worktree directory did not exist; creating the directory resolved the setup error. [Review dispositions and exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/983#issuecomment-6335571025) retain the receipts. This post-merge journal update uses no RAS.
+
+---
+
+## Spurious-loss discovery and history corrected - 2026-10-22 11:37 EDT
+
+**Main:** `5b12210ce6ee`
+**Actor:** Codex
+
+**Summary:** [PR #985](https://github.com/the-sarge/quic-go-fast/pull/985) merged the [#970](https://github.com/the-sarge/quic-go-fast/issues/970) detection/history correction as `5b12210ce6eea5a22a55116d0f16540ab9b47ba5`; the issue is closed. Valid late-only and reordered application ACKs now discover retained ordinary losses once. MTU/path probes and ACK-only records are excluded from legacy history, which is cleared on migration.
+
+**Decisions:** The [approved recovery contract](agents/spurious-loss-history-970.md) keeps the existing RTT/legacy ECN gates, frame and flight ownership, fixed loss thresholds, Reno policy, shared 0/1-RTT identity, 64-record/three-PTO history, and independent bounded BBR evidence. Frozen assessment artifacts remain unchanged.
+
+**Validation:** Candidate `c3d533caf2138ddbb69da698f69fb6f7beb604c9` passed maintained regressions, recovery/congestion/wire suites, recovery/congestion race tests, targeted root DATAGRAM and Retry controls, golangci-lint 2.14.0, vet, module tidiness, formatting, diff and relative-link checks. All applicable pull-request unit, integration, lint, cross-compilation and interop workflows passed on that head. [Exact candidate receipt](https://github.com/the-sarge/quic-go-fast/pull/985#issuecomment-6344710227).
+
+**Review:** RAS `20261022T152213-30734be44a80520b04b86045` completed with no required fixes or follow-ups; the implementing agent rejected the sole finding because its disposal order is unreachable through the supported lifecycle. Five initial reviewers succeeded and one failed to execute. The [disposition ledger](https://github.com/the-sarge/quic-go-fast/pull/985#issuecomment-6344670224) also preserves the adjacent push-event Windows HTTP/3 fixture port-allocation failure; no unchanged-head rerun was requested, and the corresponding PR matrix passed.
+
+**Next:** This merge satisfies the hygiene prerequisite for [#971](https://github.com/the-sarge/quic-go-fast/issues/971) and [#972](https://github.com/the-sarge/quic-go-fast/issues/972). [Parent #962](https://github.com/the-sarge/quic-go-fast/issues/962) remains the live implementation tracker. Revalidate and file the surviving HTTP/3 fixture observation after journal completion.
