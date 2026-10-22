@@ -359,27 +359,34 @@ func TestListenAndServeTLSQUICFailureStopsTCP(t *testing.T) {
 }
 
 func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
-	// Find a port that is free for UDP and hold it for TCP, so that the helper
-	// opens its UDP socket and then fails to listen on TCP.
+	// Let TCP select its own port: Windows can deny TCP binds to UDP-selected
+	// ephemeral ports. Check UDP availability while holding the TCP reservation,
+	// so that the helper opens UDP and then fails to listen on TCP.
+	logBind := func(attempt int, network, addr string, err error) {
+		t.Helper()
+		t.Logf("port selection attempt %d: %s listen %s: %v", attempt, network, addr, err)
+		for cause := errors.Unwrap(err); cause != nil; cause = errors.Unwrap(cause) {
+			t.Logf("port selection attempt %d: cause %T: %v (%#v)", attempt, cause, cause, cause)
+		}
+	}
 	var tcpLn net.Listener
 	var addr string
 	for attempt := range 10 {
-		udpConn, err := net.ListenPacket("udp", "127.0.0.1:0")
+		candidate, err := net.Listen("tcp", "127.0.0.1:0")
+		logBind(attempt+1, "TCP", "127.0.0.1:0", err)
 		require.NoError(t, err)
+		t.Cleanup(func() { candidate.Close() })
+		addr = candidate.Addr().String()
+		udpConn, err := net.ListenPacket("udp", addr)
+		logBind(attempt+1, "UDP", addr, err)
+		if err != nil {
+			require.NoError(t, candidate.Close())
+			continue
+		}
 		t.Cleanup(func() { udpConn.Close() })
-		addr = udpConn.LocalAddr().String()
-		tcpLn, err = net.Listen("tcp", addr)
-		t.Logf("port selection attempt %d: TCP listen %s: %v", attempt+1, addr, err)
-		for cause := errors.Unwrap(err); cause != nil; cause = errors.Unwrap(cause) {
-			t.Logf("port selection attempt %d: cause %T: %v (%#v)", attempt+1, cause, cause, cause)
-		}
-		if err == nil {
-			t.Cleanup(func() { tcpLn.Close() })
-		}
 		require.NoError(t, udpConn.Close())
-		if err == nil {
-			break
-		}
+		tcpLn = candidate
+		break
 	}
 	require.NotNil(t, tcpLn, "no port free for both TCP and UDP after 10 attempts; see per-attempt bind errors")
 
