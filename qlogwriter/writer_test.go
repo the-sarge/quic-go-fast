@@ -85,7 +85,7 @@ func (w *blockingWriter) Write(b []byte) (int, error) {
 	return w.Buffer.Write(b)
 }
 
-// TestRecordCloseRace triggers a race between record and Close.
+// TestRecordCloseRace exercises recording blocked on a full queue before close.
 func TestRecordCloseRace(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w := &blockingWriter{unblock: make(chan struct{})}
@@ -102,10 +102,15 @@ func TestRecordCloseRace(t *testing.T) {
 			producer.RecordEvent(testEvent{message: fmt.Sprintf("event %d", i)})
 		}
 
-		go producer.RecordEvent(testEvent{message: "last event"})
+		recorded := make(chan struct{})
+		go func() {
+			producer.RecordEvent(testEvent{message: "last event"})
+			close(recorded)
+		}()
 		synctest.Wait() // goroutine is blocked on full channel
 
 		close(w.unblock) // let Run() finish
+		<-recorded       // Close must not overlap RecordEvent on the same producer
 		producer.Close()
 
 		for i := range numEvents {
