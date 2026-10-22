@@ -7702,3 +7702,18 @@ Go 1.27.3 darwin/arm64 layout: packet 80 → 80 bytes, Reno sender 328 → 400 b
 ### Next
 
 #972 is closed. The [live parent #962](https://github.com/the-sarge/quic-go-fast/issues/962) remains open for the independently scoped [adaptive-threshold sibling #971](https://github.com/the-sarge/quic-go-fast/issues/971); undo is correct with fixed thresholds. No matching OmniFocus task was found for #972.
+
+---
+
+## Windows startup-fixture diagnostics landed - 2026-10-22 14:04 EDT
+
+**Main:** `1124dc758227`
+**Actor:** Codex
+
+**Summary:** Merged [PR #991](https://github.com/the-sarge/quic-go-fast/pull/991), adding bounded attempt/address/TCP-error-chain diagnostics and immediate socket cleanup registration to `TestListenAndServeTLSStartupFailureReleasesUDP`. The real UDP-first startup/TCP-conflict regression and ten-attempt selection sequence remain intact. The temporary diagnosis workflow was removed before merge.
+
+**Validation:** One bounded native Windows Server 2025, Go 1.27.3 [investigation](https://github.com/the-sarge/quic-go-fast/actions/runs/39826377537) passed 100 focused executions, the captured HTTP/3 shuffle order and one full unit-scope run. Every setup succeeded on its first attempt. A single controlled real-socket exhaustion probe verified actionable errors; it does not reproduce the original Windows failure. Local focused/lifecycle race/package tests, vet, module tidiness, lint, formatting and evidence checks passed. All 17 applicable hosted PR jobs passed on reviewed head `cd3c90fb3ba90b2b1d9f9a75446c8d4ff5272ce0`. RAS run `20261022T175622-a80234e3b2bca1ba69e8c21f` produced no findings; five reviewers succeeded, one Claude adapter failed, and quorum was met. See the [review and certification receipt](https://github.com/the-sarge/quic-go-fast/pull/991#issuecomment-6347663536).
+
+**Decisions:** The historical cause remains unknown, so no port-selection remedy or fixed-flake claim is supported. The [diagnosis and retained evidence](https://github.com/the-sarge/quic-go-fast/blob/1124dc7582271cda6997296c3a57a0c520421f57/docs/audits/issue-987/diagnosis.md) record the bounded inconclusive result.
+
+**Next:** [Issue #987](https://github.com/the-sarge/quic-go-fast/issues/987), the live tracking view, remains open pending an actionable native Windows setup failure with addresses, typed bind errors/OS code and pinned environment/provenance. No additional reproduction campaign is allocated.
