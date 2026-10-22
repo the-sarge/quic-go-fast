@@ -44,7 +44,7 @@ func TestEmissionOversizedInitialPTO(t *testing.T) {
 			require.NotPanics(t, func() {
 				err = c.emission.sendProbePacket(ackhandler.SendPTOInitial, monotime.Now())
 			})
-			// The empty probe adds a PING and two sample-padding bytes.
+			// The empty probe adds a PING and one sample-padding byte.
 			require.EqualError(t, err, fmt.Sprintf("packet too large (%d bytes, allowed 1200 bytes)", tokenLen+43))
 			require.Nil(t, *observed)
 			require.Empty(t, c.emission.queue.(*sendQueue).queue)
@@ -108,7 +108,7 @@ func TestEmissionOversizedInitialCoalesced(t *testing.T) {
 					}
 				})
 				// Six-byte connection IDs, a two-byte token length and length
-				// field, one packet-number byte, a five-byte ACK and a 16-byte tag.
+				// field, two packet-number bytes, a five-byte ACK and a 16-byte tag.
 				require.EqualError(t, err, fmt.Sprintf("packet too large (%d bytes, allowed 1200 bytes)", tokenLen+46))
 				require.False(t, isSendMsgSizeErr(err))
 				require.EqualValues(t, 1200, c.maxPacketSize())
