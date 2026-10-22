@@ -1,0 +1,129 @@
+package quic
+
+import (
+	"bytes"
+	"net"
+	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+)
+
+// Triage reproduction: this intentionally fails while an acknowledged challenge
+// with no PATH_RESPONSE prevents further server challenges indefinitely.
+func TestTriage963ServerAcknowledgedChallengeStalls(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		firstSize   int
+		answerFirst bool
+	}{
+		{name: "compact reachability challenge", firstSize: 100},
+		{name: "padded reachability challenge", firstSize: 1200},
+		{name: "padded MTU challenge after compact response", firstSize: 100, answerFirst: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			unpacker := NewMockUnpacker(ctrl)
+			tc := newServerTestConnection(t, ctrl, &Config{DisablePathMTUDiscovery: true}, false, connectionOptUnpacker(unpacker), connectionOptHandshakeConfirmed())
+			useSchedulingPacketPacker(t, ctrl, tc, nil)
+			c := tc.conn
+			require.NoError(t, c.handleTransportParameters(&wire.TransportParameters{MaxUDPPayloadSize: 1456}))
+			addr := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 4242}
+			var writes [][]byte
+			tc.sendConn.EXPECT().WriteTo(gomock.Any(), addr, gomock.Any()).DoAndReturn(func(data []byte, _ net.Addr, _ packetInfo) error {
+				writes = append(writes, bytes.Clone(data))
+				return nil
+			}).AnyTimes()
+			now := monotime.Now()
+			pn := protocol.PacketNumber(10)
+			receive := func(at time.Duration, size int, frame wire.Frame) {
+				t.Helper()
+				payload := []byte{1} // PING makes this a non-probing packet.
+				if frame != nil {
+					var err error
+					payload, err = frame.Append(payload, c.version)
+					require.NoError(t, err)
+				}
+				unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
+				packet := getShortHeaderPacket(t, addr, tc.srcConnID, pn, nil)
+				packet.data = append(packet.data, make([]byte, size-len(packet.data))...)
+				packet.rcvTime = now.Add(at)
+				pn++
+				processed, err := c.handleShortHeaderPacket(packet, false, 0)
+				require.NoError(t, err)
+				require.True(t, processed)
+			}
+			receive(0, test.firstSize, nil)
+			require.Len(t, writes, 1)
+			challenge, err := decodeSchedulingProbe(writes[0], c.connIDManager.Get())
+			require.NoError(t, err)
+			if test.answerFirst {
+				receive(time.Millisecond, 100, &wire.PathResponseFrame{Data: challenge.Data})
+				require.Len(t, writes, 2)
+				require.Len(t, writes[1], 1200)
+				challenge, err = decodeSchedulingProbe(writes[1], c.connIDManager.Get())
+				require.NoError(t, err)
+			}
+			_, challengePN, _, _, err := wire.ParseShortHeader(writes[len(writes)-1], c.connIDManager.Get().Len())
+			require.NoError(t, err)
+			// Feed the packet acknowledgment through real recovery, without a response.
+			acked, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: challengePN, Largest: challengePN}}}, protocol.Encryption1RTT, now.Add(2*time.Millisecond))
+			require.NoError(t, err)
+			require.True(t, acked)
+			before := len(writes)
+			for _, at := range []time.Duration{100 * time.Millisecond, time.Second, 5 * time.Second, 60 * time.Second} {
+				receive(at, 1200, nil)
+			}
+			retried := len(writes) > before
+			t.Logf("after ACK and traffic through 60s: writes before=%d after=%d, reachability=%t MTU=%t, original path retained=%t", before, len(writes), c.pathManager.getPath(addr).validated, c.pathManager.getPath(addr).mtuValidated, addrsEqual(c.RemoteAddr(), tc.remoteAddr))
+			// Positive control: the matching response still progresses validation.
+			if test.firstSize == 1200 || test.answerFirst {
+				tc.sendConn.EXPECT().ChangeRemoteAddr(addr, gomock.Any())
+			}
+			receive(61*time.Second, 1200, &wire.PathResponseFrame{Data: challenge.Data})
+			if test.firstSize == 1200 || test.answerFirst {
+				require.EqualValues(t, 1, c.pathGeneration, "matching response switches to the validated path")
+			} else {
+				require.Len(t, writes, before+1, "compact response starts expanded validation")
+				require.Len(t, writes[len(writes)-1], 1200)
+			}
+			if !retried {
+				t.Error("acknowledged challenge without PATH_RESPONSE never retried despite subsequent candidate traffic")
+			}
+		})
+	}
+}
+
+func TestTriage963LossRetiresCandidateAndRejectsLateResponse(t *testing.T) {
+	var retired []pathID
+	pm := newPathManager(
+		func(id pathID) (protocol.ConnectionID, bool) {
+			return protocol.ParseConnectionID([]byte{byte(id + 1)}), true
+		},
+		func(id pathID) { retired = append(retired, id) },
+		utils.DefaultLogger,
+	)
+	addr := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 4242}
+	now := monotime.Now()
+	_, frames, _ := pm.HandlePacket(addr, now, 100, nil, true)
+	require.Len(t, frames, 1)
+	challenge := frames[0].Frame.(*wire.PathChallengeFrame).Data
+	first := pm.getPath(addr)
+	require.True(t, first.reserveProbe(300))
+	frames[0].Handler.OnLost(frames[0].Frame)
+	require.Nil(t, pm.getPath(addr))
+	require.Equal(t, []pathID{first.id}, retired)
+	_, frames, _ = pm.HandlePacket(addr, now.Add(time.Millisecond), 100, nil, true)
+	require.Len(t, frames, 1)
+	second := pm.getPath(addr)
+	require.NotEqual(t, first.id, second.id)
+	require.NotEqual(t, challenge, frames[0].Frame.(*wire.PathChallengeFrame).Data)
+	pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: challenge})
+	require.False(t, second.validated)
+	t.Logf("one lost challenge retires candidate %d; next packet creates %d; prior response is ignored", first.id, second.id)
+}
