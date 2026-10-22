@@ -31,6 +31,11 @@ type natRebindingFixture struct {
 
 func newNATRebindingFixture(t *testing.T) *natRebindingFixture {
 	t.Helper()
+	return newNATRebindingFixtureWithResponseFilter(t, nil)
+}
+
+func newNATRebindingFixtureWithResponseFilter(t *testing.T, filter *natResponseFilter) *natRebindingFixture {
+	t.Helper()
 	tr, tracer := newPacketTracer()
 	tlsConf := getTLSConfig()
 	f, err := os.Create("keylog.txt")
@@ -84,7 +89,15 @@ func newNATRebindingFixture(t *testing.T) *natRebindingFixture {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	t.Cleanup(cancel)
-	conn, err := quic.Dial(ctx, clientUDPConn, proxy.LocalAddr(), getTLSClientConfig(), getQuicConfig(nil))
+	var clientSocket net.PacketConn = clientUDPConn
+	clientConfig := getQuicConfig(nil)
+	if filter != nil {
+		// A basic PacketConn disables batching/GSO, giving the fixture one
+		// traced short-header packet per FIFO socket write.
+		clientSocket = &natFilteredPacketConn{PacketConn: clientUDPConn, filter: filter}
+		clientConfig.Tracer = filter.trace
+	}
+	conn, err := quic.Dial(ctx, clientSocket, proxy.LocalAddr(), getTLSClientConfig(), clientConfig)
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.CloseWithError(0, "") })
 

@@ -52,6 +52,15 @@ type shortHeaderPacket struct {
 	KeyPhase        protocol.KeyPhaseBit
 }
 
+// Length includes the authentication tag; buffer storage remains plaintext until
+// commitment. Abandoning this value consumes no packet number or AEAD nonce.
+type preparedShortHeaderPacket struct {
+	shortHeaderPacket
+	bufferStart   int
+	payloadOffset protocol.ByteCount
+	sealer        sealer
+}
+
 func (p *shortHeaderPacket) IsAckEliciting() bool { return ackhandler.HasAckElicitingFrames(p.Frames) }
 
 type coalescedPacket struct {
@@ -843,17 +852,27 @@ func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.B
 }
 
 func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-	return p.packPathProbePacket(connID, frames, protocol.MinInitialPacketSize, v)
+	prepared, buffer, err := p.preparePathProbePacket(connID, frames, protocol.MinInitialPacketSize, v)
+	if err != nil || buffer == nil {
+		return shortHeaderPacket{}, buffer, err
+	}
+	packet, err := p.commitShortHeaderPacket(buffer, prepared)
+	if err != nil {
+		buffer.Release()
+		return shortHeaderPacket{}, nil, err
+	}
+	return packet, buffer, nil
 }
 
-// packPathProbePacket returns no packet if the path's allowance cannot fit the frames.
-func (p *packetPacker) packPathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, maxPacketSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
+// preparePathProbePacket leaves bytes unsealed. Emission commits encryption and
+// the packet number after final policy checks and exact byte reservation.
+func (p *packetPacker) preparePathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, maxPacketSize protocol.ByteCount, v protocol.Version) (preparedShortHeaderPacket, *packetBuffer, error) {
 	pn, pnLen := p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
 	buf := getPacketBuffer()
 	s, err := p.cryptoSetup.Get1RTTSealer()
 	if err != nil {
 		buf.Release()
-		return shortHeaderPacket{}, nil, err
+		return preparedShortHeaderPacket{}, nil, err
 	}
 	var l protocol.ByteCount
 	for _, f := range frames {
@@ -867,13 +886,13 @@ func (p *packetPacker) packPathProbePacket(connID protocol.ConnectionID, frames 
 	packetLen := p.shortHeaderPacketLength(connID, pnLen, payload) + protocol.ByteCount(s.Overhead())
 	if packetLen > size {
 		buf.Release()
-		return shortHeaderPacket{}, nil, nil
+		return preparedShortHeaderPacket{}, nil, nil
 	}
 	padding := size - packetLen
-	packet, err := p.appendShortHeaderPacket(buf, connID, pn, pnLen, s.KeyPhase(), payload, padding, size, s, false, v)
+	packet, err := p.prepareShortHeaderPacket(buf, connID, pn, pnLen, s.KeyPhase(), payload, padding, size, s, false, v)
 	if err != nil {
 		buf.Release()
-		return shortHeaderPacket{}, nil, err
+		return preparedShortHeaderPacket{}, nil, err
 	}
 	packet.IsPathProbePacket = true
 	return packet, buf, err
@@ -950,6 +969,27 @@ func (p *packetPacker) appendShortHeaderPacket(
 	isMTUProbePacket bool,
 	v protocol.Version,
 ) (shortHeaderPacket, error) {
+	prepared, err := p.prepareShortHeaderPacket(buffer, connID, pn, pnLen, kp, pl, padding, maxPacketSize, sealer, isMTUProbePacket, v)
+	if err != nil {
+		return shortHeaderPacket{}, err
+	}
+	return p.commitShortHeaderPacket(buffer, prepared)
+}
+
+// Probe preparation can be abandoned before the emission commitment boundary.
+// Other short-header construction retains its existing immediate commitment.
+func (p *packetPacker) prepareShortHeaderPacket(
+	buffer *packetBuffer,
+	connID protocol.ConnectionID,
+	pn protocol.PacketNumber,
+	pnLen protocol.PacketNumberLen,
+	kp protocol.KeyPhaseBit,
+	pl payload,
+	padding, maxPacketSize protocol.ByteCount,
+	sealer sealer,
+	isMTUProbePacket bool,
+	v protocol.Version,
+) (preparedShortHeaderPacket, error) {
 	var paddingLen protocol.ByteCount
 	if pl.length < 4-protocol.ByteCount(pnLen) {
 		paddingLen = 4 - protocol.ByteCount(pnLen) - pl.length
@@ -960,36 +1000,46 @@ func (p *packetPacker) appendShortHeaderPacket(
 	raw := buffer.Data[startLen:]
 	raw, err := wire.AppendShortHeader(raw, connID, pn, pnLen, kp)
 	if err != nil {
-		return shortHeaderPacket{}, err
+		return preparedShortHeaderPacket{}, err
 	}
 	payloadOffset := protocol.ByteCount(len(raw))
 
 	raw, err = p.appendPacketPayload(raw, pl, paddingLen, v)
 	if err != nil {
-		return shortHeaderPacket{}, err
+		return preparedShortHeaderPacket{}, err
 	}
-	if !isMTUProbePacket {
-		if size := protocol.ByteCount(len(raw) + sealer.Overhead()); size > maxPacketSize {
-			return shortHeaderPacket{}, fmt.Errorf("PacketPacker BUG: packet too large (%d bytes, allowed %d bytes)", size, maxPacketSize)
-		}
+	length := protocol.ByteCount(len(raw) + sealer.Overhead())
+	if !isMTUProbePacket && length > maxPacketSize {
+		return preparedShortHeaderPacket{}, fmt.Errorf("PacketPacker BUG: packet too large (%d bytes, allowed %d bytes)", length, maxPacketSize)
 	}
-	raw = p.encryptPacket(raw, sealer, pn, payloadOffset, protocol.ByteCount(pnLen))
 	buffer.Data = buffer.Data[:len(buffer.Data)+len(raw)]
 
-	if newPN := p.pnManager.PopPacketNumber(protocol.Encryption1RTT); newPN != pn {
-		return shortHeaderPacket{}, fmt.Errorf("packetPacker BUG: Peeked and Popped packet numbers do not match: expected %d, got %d", pn, newPN)
-	}
-	return shortHeaderPacket{
-		PacketNumber:         pn,
-		PacketNumberLen:      pnLen,
-		KeyPhase:             kp,
-		StreamFrames:         pl.streamFrames,
-		Frames:               pl.frames,
-		Ack:                  pl.ack,
-		Length:               protocol.ByteCount(len(raw)),
-		DestConnID:           connID,
-		IsPathMTUProbePacket: isMTUProbePacket,
+	return preparedShortHeaderPacket{
+		shortHeaderPacket: shortHeaderPacket{
+			PacketNumber:         pn,
+			PacketNumberLen:      pnLen,
+			KeyPhase:             kp,
+			StreamFrames:         pl.streamFrames,
+			Frames:               pl.frames,
+			Ack:                  pl.ack,
+			Length:               length,
+			DestConnID:           connID,
+			IsPathMTUProbePacket: isMTUProbePacket,
+		},
+		bufferStart: startLen, payloadOffset: payloadOffset, sealer: sealer,
 	}, nil
+}
+
+// This is the irreversible commitment boundary. No caller may abandon the
+// prepared datagram after sealing without consuming its number and registering it.
+func (p *packetPacker) commitShortHeaderPacket(buffer *packetBuffer, prepared preparedShortHeaderPacket) (shortHeaderPacket, error) {
+	packet := prepared.shortHeaderPacket
+	raw := p.encryptPacket(buffer.Data[prepared.bufferStart:], prepared.sealer, packet.PacketNumber, prepared.payloadOffset, protocol.ByteCount(packet.PacketNumberLen))
+	buffer.Data = buffer.Data[:prepared.bufferStart+len(raw)]
+	if newPN := p.pnManager.PopPacketNumber(protocol.Encryption1RTT); newPN != packet.PacketNumber {
+		return shortHeaderPacket{}, fmt.Errorf("packetPacker BUG: Peeked and Popped packet numbers do not match: expected %d, got %d", packet.PacketNumber, newPN)
+	}
+	return packet, nil
 }
 
 // appendPacketPayload serializes the payload of a packet into the raw byte slice.

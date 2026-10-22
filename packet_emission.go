@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"sync"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
@@ -545,32 +546,55 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 // Direct operations borrow the destination and preserve best-effort write errors.
 // Storage belongs to emission until the synchronous write has returned.
 func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackhandler.Frame, path *path, addr net.Addr, info packetInfo, checksum qlog.DatagramPayloadChecksum, now monotime.Time) error {
-	var p shortHeaderPacket
-	var buf *packetBuffer
-	if (*e.recovery).CanSendPathProbe() {
-		var err error
-		p, buf, err = e.packer.packPathProbePacket(connID, frames, path.sendAllowance(), e.version)
+	isChallenge := func(f ackhandler.Frame) bool {
+		_, ok := f.Frame.(*wire.PathChallengeFrame)
+		return ok
+	}
+	for len(frames) > 0 && (*e.recovery).CanSendPathProbe() {
+		if !path.canProbe(monotime.Now()) {
+			frames = slices.DeleteFunc(frames, isChallenge)
+			if len(frames) == 0 {
+				return nil
+			}
+		}
+		prepared, buf, err := e.packer.preparePathProbePacket(connID, frames, path.sendAllowance(), e.version)
 		if err != nil {
 			return err
 		}
-	}
-	if buf == nil {
-		// Keep an unsent challenge eligible for the next received packet.
+		if buf == nil {
+			if len(frames) == 2 {
+				// Prefer the peer response when both frames cannot fit the allowance.
+				frames = slices.DeleteFunc(frames, isChallenge)
+				continue
+			}
+			return nil
+		}
+		// The packer shuffles control frames. Select by type, never by position.
+		// Policy time is current processing time, not a queued receive timestamp.
+		policyNow := monotime.Now()
+		if slices.ContainsFunc(frames, isChallenge) && !path.canProbe(policyNow) {
+			buf.Release()
+			frames = slices.DeleteFunc(frames, isChallenge)
+			continue
+		}
+		defer buf.Release()
+		if !path.reserveProbe(prepared.Length) {
+			return nil
+		}
+		p, err := e.packer.commitShortHeaderPacket(buf, prepared)
+		if err != nil {
+			return err
+		}
 		for _, f := range frames {
-			if challenge, ok := f.Frame.(*wire.PathChallengeFrame); ok && challenge.Data == path.pathChallenge {
-				path.challengeSent = false
-				path.challengePadded = false
+			if challenge, ok := f.Frame.(*wire.PathChallengeFrame); ok {
+				path.commitChallenge(challenge.Data, buf.Len(), policyNow)
 			}
 		}
-		return nil
+		e.policy.logPathProbe(p, addr, buf.Len(), checksum)
+		e.registerPacket(p, protocol.ECNNon, now)
+		return e.queue.SendProbe(buf, addr, info)
 	}
-	defer buf.Release()
-	if !path.reserveProbe(buf.Len()) {
-		return nil
-	}
-	e.policy.logPathProbe(p, addr, buf.Len(), checksum)
-	e.registerPacket(p, protocol.ECNNon, now)
-	return e.queue.SendProbe(buf, addr, info)
+	return nil
 }
 
 func (e *packetEmission) clientProbe(connID protocol.ConnectionID, frame ackhandler.Frame, tr *Transport, addr net.Addr, now monotime.Time) error {

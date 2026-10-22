@@ -3775,12 +3775,13 @@ func TestPathChangeInitialPacketSize(t *testing.T) {
 					return protocol.ParseConnectionID([]byte{1, 2, 3, 4}), true
 				},
 				func(pathID) {},
+				func() time.Duration { return 200 * time.Millisecond },
 				utils.DefaultLogger,
 			)
-			_, frames, _ := c.pathManager.HandlePacket(newRemoteAddr, now, protocol.MinInitialPacketSize, nil, false)
+			_, frames, _ := handlePathPacket(t, c.pathManager, newRemoteAddr, now, protocol.MinInitialPacketSize, nil, false)
 			require.Len(t, frames, 1)
 			challenge := frames[0].Frame.(*wire.PathChallengeFrame)
-			c.pathManager.HandlePathResponseFrame(&wire.PathResponseFrame{Data: challenge.Data})
+			c.pathManager.HandlePathResponseFrame(&wire.PathResponseFrame{Data: challenge.Data}, now)
 
 			unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(
 				protocol.PacketNumber(10), protocol.PacketNumberLen2, protocol.KeyPhaseZero, []byte{1}, nil, // PING

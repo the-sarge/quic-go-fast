@@ -94,7 +94,7 @@ func TestBBRECNCoalescedAndPathProbeMarking(t *testing.T) {
 		entry.release()
 		addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}
 		tc.sendConn.EXPECT().WriteTo(gomock.Any(), addr, packetInfo{}).Return(nil)
-		require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), []ackhandler.Frame{{Frame: &wire.PathChallengeFrame{}}}, &path{bytesReceived: 400}, addr, packetInfo{}, 0, monotime.Now()))
+		require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), []ackhandler.Frame{{Frame: &wire.PathChallengeFrame{}}}, &path{bytesReceived: 400, probeInterval: 200 * time.Millisecond, validationDeadline: monotime.Now().Add(5 * time.Second)}, addr, packetInfo{}, 0, monotime.Now()))
 		require.Len(t, sink.sends, 2)
 		require.Equal(t, protocol.ECNNon, sink.sends[1].Packet.ECN)
 		first, last := sink.sends[0].Packet.PacketNumber, sink.sends[1].Packet.PacketNumber

@@ -36,6 +36,14 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Path generation**: An identity for the connection's current path epoch that distinguishes current feedback from feedback belonging to an earlier path. It does not create a new packet-number space.
 
+**Candidate path**: A local and remote address pair being considered for use before it becomes the connection's active path.
+
+**Path validation attempt**: A bounded effort to establish that a candidate path can carry QUIC traffic. Establishing peer reachability and establishing the minimum usable datagram size can require separate stages within that effort.
+
+**Reachability validation**: Evidence, from a response to an unpredictable challenge, that the peer received traffic sent on the challenged path. It does not by itself establish support for QUIC's minimum datagram size.
+
+**Minimum path MTU validation**: Evidence from a response to a challenge carried in a UDP datagram of at least 1200 bytes that the path supports QUIC's minimum datagram size. It is distinct from discovering the largest usable path MTU.
+
 **Packet emission**: The sequence that turns eligible protocol work into constructed packets, recovery registration and an owned handoff to a network send path. It does not imply rollback of protocol state after a local write failure.
 
 **Incoming datagram storage**: The bytes backing a received UDP datagram. Several QUIC packet views can share those bytes while processing or awaiting decryption.

@@ -1,6 +1,9 @@
 package quic
 
 import (
+	"bytes"
+	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/netip"
@@ -9,8 +12,12 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go/internal/ackhandler"
+	"github.com/quic-go/quic-go/internal/handshake"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/qtls"
+	"github.com/quic-go/quic-go/internal/testdata"
+	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/internal/wire"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/testutils/events"
@@ -74,10 +81,12 @@ func TestEmissionDirectProbe(t *testing.T) {
 					raw.EXPECT().WritePacket(gomock.Any(), addr, []byte(nil), uint16(0), protocol.ECNUnsupported).DoAndReturn(func(b []byte, _ net.Addr, _ []byte, _ uint16, _ protocol.ECN) (int, error) { return len(b), check(b) })
 					require.NoError(t, c.emission.clientProbe(connID, frames[0], tr, addr, now))
 				} else {
-					candidate := &path{bytesReceived: 400}
+					candidate := &path{bytesReceived: 400, probeInterval: 200 * time.Millisecond, validationDeadline: now.Add(5 * time.Second)}
 					tc.sendConn.EXPECT().WriteTo(gomock.Any(), addr, info).DoAndReturn(func(b []byte, _ net.Addr, _ packetInfo) error { return check(b) })
 					require.NoError(t, c.emission.serverProbe(connID, frames, candidate, addr, info, 42, now))
 					require.EqualValues(t, 1200, candidate.bytesSent, "local errors must not refund the path budget")
+					require.Equal(t, 1, candidate.numChallenges)
+					require.True(t, candidate.challenges[0].padded)
 				}
 				require.Equal(t, 1, writes)
 				require.Zero(t, (*observed).refCount)
@@ -98,12 +107,12 @@ func TestEmissionServerProbeExhaustedPathBudget(t *testing.T) {
 	recorder := &events.Recorder{}
 	c.qlogger = recorder
 	addr := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 4242}
-	candidate := &path{bytesReceived: 100, bytesSent: 300, pathChallenge: [8]byte{1}, challengeSent: true}
-	frames := []ackhandler.Frame{{Frame: &wire.PathChallengeFrame{Data: candidate.pathChallenge}}}
+	candidate := &path{bytesReceived: 100, bytesSent: 300, validationDeadline: monotime.Now().Add(5 * time.Second)}
+	frames := []ackhandler.Frame{{Frame: &wire.PathChallengeFrame{Data: [8]byte{1}}}}
 	observed := observeConstructionBuffer(t)
 	pn, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 	require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), frames, candidate, addr, packetInfo{}, 0, monotime.Now()))
-	require.False(t, candidate.challengeSent, "unsent challenge remains eligible when more credit arrives")
+	require.Zero(t, candidate.numChallenges, "unsent challenge remains eligible when more credit arrives")
 	require.EqualValues(t, 300, candidate.bytesSent)
 	nextPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
 	require.Equal(t, pn, nextPN, "a blocked probe must not consume a packet number")
@@ -120,7 +129,7 @@ func TestEmissionDirectProbeFlood(t *testing.T) {
 			c := tc.conn
 			now := monotime.Now()
 			addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4242}
-			frame := ackhandler.Frame{Frame: &wire.PathResponseFrame{}, Handler: &pathManagerAckHandler{}}
+			frame := ackhandler.Frame{Frame: &wire.PathResponseFrame{}, Handler: emptyHandler{}}
 			candidate := &path{validated: true}
 			writes := 0
 			var tr *Transport
@@ -159,13 +168,11 @@ func TestEmissionDirectProbeFlood(t *testing.T) {
 			require.Equal(t, nextPN, afterPN, "a refused probe must not consume packet numbers")
 			require.Equal(t, before, writes)
 			if !client {
-				candidate.pathChallenge = [8]byte{1}
-				candidate.challengeSent = true
-				candidate.challengePadded = true
-				challenge := ackhandler.Frame{Frame: &wire.PathChallengeFrame{Data: candidate.pathChallenge}}
+				candidate.validationDeadline = now.Add(5 * time.Second)
+				challenge := ackhandler.Frame{Frame: &wire.PathChallengeFrame{Data: [8]byte{1}}}
 				require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), []ackhandler.Frame{challenge}, candidate, addr, packetInfo{}, 0, now))
-				require.False(t, candidate.challengeSent, "a capacity-blocked challenge must remain eligible for retry")
-				require.False(t, candidate.challengePadded)
+				require.Zero(t, candidate.numChallenges, "a capacity-blocked challenge must remain eligible for retry")
+				require.Zero(t, candidate.nextProbeTime)
 				require.Equal(t, before, writes)
 			}
 			_, err := c.sentPacketHandler.OnLossDetectionTimeout(now.Add(time.Second))
@@ -323,4 +330,187 @@ func TestConnectionStatePathCapabilities(t *testing.T) {
 	require.NoError(t, <-worker)
 	require.Zero(t, buf.refCount)
 	require.False(t, c.ConnectionState().GSO, "later GSO fallback must remain visible on the active path")
+}
+
+func TestEmissionServerProbeResponsePriority(t *testing.T) {
+	for _, expiresDuringPacking := range []bool{false, true} {
+		t.Run(map[bool]string{false: "only response fits", true: "attempt expires during packing"}[expiresDuringPacking], func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				tc := newEmissionTestConnection(t, false)
+				c := tc.conn
+				now := monotime.Now()
+				// Keep recovery's sequential-number invariant live before packing
+				// an attempt that may be discarded at its deadline.
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("prior packet")}))
+				require.True(t, c.triggerSending(now).progress)
+				(<-c.emission.queue.(*sendQueue).queue).release()
+				nextPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				observed := observeConstructionBuffer(t)
+				var allocations []*packetBuffer
+				candidate := &path{bytesReceived: 8, probeInterval: 200 * time.Millisecond, nextProbeTime: now, validationDeadline: now.Add(5 * time.Second)}
+				if expiresDuringPacking {
+					candidate.bytesReceived = 400
+				}
+				ctrl := gomock.NewController(t)
+				sealing := NewMockSealingManager(ctrl)
+				sealer := newMockShortHeaderSealer(ctrl)
+				first := true
+				sealing.EXPECT().Get1RTTSealer().DoAndReturn(func() (handshake.ShortHeaderSealer, error) {
+					allocations = append(allocations, *observed)
+					if first && expiresDuringPacking {
+						time.Sleep(5 * time.Second)
+					}
+					first = false
+					return sealer, nil
+				}).AnyTimes()
+				c.emission.packer.cryptoSetup = sealing
+				challenge := &wire.PathChallengeFrame{Data: [8]byte{1}}
+				response := &wire.PathResponseFrame{Data: [8]byte{2}}
+				frames := []ackhandler.Frame{{Frame: challenge, Handler: emptyHandler{}}, {Frame: response, Handler: emptyHandler{}}}
+				addr := &net.UDPAddr{Port: 4242}
+				var output []wire.Frame
+				tc.sendConn.EXPECT().WriteTo(gomock.Any(), addr, packetInfo{}).DoAndReturn(func(b []byte, _ net.Addr, _ packetInfo) error {
+					var err error
+					output, err = decodeSchedulingFrames(b, c.connIDManager.Get().Len())
+					require.NoError(t, err)
+					return nil
+				})
+				require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), frames, candidate, addr, packetInfo{}, 0, now))
+				require.Equal(t, []wire.Frame{response}, output)
+				require.Zero(t, candidate.numChallenges)
+				require.Equal(t, now, candidate.nextProbeTime)
+				afterPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				require.Equal(t, nextPN+1, afterPN, "only the transmitted response consumes a number")
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("subsequent packet")}))
+				require.True(t, c.triggerSending(monotime.Now()).progress)
+				(<-c.emission.queue.(*sendQueue).queue).release()
+				for _, buffer := range allocations {
+					require.Zero(t, buffer.refCount, "discarded and transmitted storage is released")
+				}
+			})
+		})
+	}
+}
+
+// Use the production 1-RTT AEAD rather than transparent protection: FIPS AES-GCM
+// consumes nonce state even when its ciphertext is never handed to the socket.
+func newProbeAESGCMProtection(t *testing.T) (handshake.ShortHeaderSealer, handshake.ShortHeaderOpener) {
+	t.Helper()
+	defer qtls.SetCipherSuite(tls.TLS_AES_128_GCM_SHA256)()
+	client := handshake.NewCryptoSetupClient(protocol.ConnectionID{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2}, &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"probe-expiry"}}, false, utils.NewRTTStats(), nil, utils.DefaultLogger, protocol.Version1)
+	serverConfig := testdata.GetTLSConfig()
+	serverConfig.NextProtos = []string{"probe-expiry"}
+	server := handshake.NewCryptoSetupServer(protocol.ConnectionID{}, &net.UDPAddr{}, &net.UDPAddr{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2}, serverConfig, false, utils.NewRTTStats(), nil, utils.DefaultLogger, protocol.Version1)
+	t.Cleanup(func() {
+		clientErr, serverErr := client.Close(), server.Close()
+		require.NoError(t, clientErr)
+		require.NoError(t, serverErr)
+	})
+	require.NoError(t, client.StartHandshake(context.Background()))
+	require.NoError(t, server.StartHandshake(context.Background()))
+	complete := make(map[handshake.CryptoSetup]bool)
+	for round := 0; len(complete) < 2 && round < 8; round++ {
+		for _, pair := range [][2]handshake.CryptoSetup{{client, server}, {server, client}} {
+			for event := pair[0].NextEvent(); event.Kind != handshake.EventNoEvent; event = pair[0].NextEvent() {
+				switch event.Kind {
+				case handshake.EventWriteInitialData:
+					require.NoError(t, pair[1].HandleMessage(event.Data, protocol.EncryptionInitial))
+				case handshake.EventWriteHandshakeData:
+					require.NoError(t, pair[1].HandleMessage(event.Data, protocol.EncryptionHandshake))
+				case handshake.EventHandshakeComplete:
+					complete[pair[0]] = true
+				}
+			}
+		}
+	}
+	require.Len(t, complete, 2)
+	require.Equal(t, tls.TLS_AES_128_GCM_SHA256, server.ConnectionState().CipherSuite)
+	server.SetHandshakeConfirmed()
+	client.SetHandshakeConfirmed()
+	sealer, err := server.Get1RTTSealer()
+	require.NoError(t, err)
+	opener, err := client.Get1RTTOpener()
+	require.NoError(t, err)
+	return sealer, opener
+}
+
+type probeSealRecorder struct {
+	handshake.ShortHeaderSealer
+	numbers []protocol.PacketNumber
+}
+
+func (s *probeSealRecorder) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) []byte {
+	s.numbers = append(s.numbers, pn)
+	return s.ShortHeaderSealer.Seal(dst, src, pn, ad)
+}
+
+func TestEmissionServerProbeExpiryWithAESGCM(t *testing.T) {
+	for _, peerResponse := range []bool{true, false} {
+		t.Run(map[bool]string{true: "reply to peer", false: "challenge only"}[peerResponse], func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				tc := newEmissionTestConnection(t, false)
+				c := tc.conn
+				protection, opener := newProbeAESGCMProtection(t)
+				sealer := &probeSealRecorder{ShortHeaderSealer: protection}
+				observed := observeConstructionBuffer(t)
+				var allocations []*packetBuffer
+				expireNext := false
+				sealing := NewMockSealingManager(gomock.NewController(t))
+				sealing.EXPECT().Get1RTTSealer().DoAndReturn(func() (handshake.ShortHeaderSealer, error) {
+					allocations = append(allocations, *observed)
+					if expireNext {
+						expireNext = false
+						time.Sleep(5 * time.Second)
+					}
+					return sealer, nil
+				}).AnyTimes()
+				c.emission.packer.cryptoSetup = sealing
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("prior packet")}))
+				require.True(t, c.triggerSending(monotime.Now()).progress)
+				(<-c.emission.queue.(*sendQueue).queue).release()
+				now := monotime.Now()
+				candidate := &path{bytesReceived: 400, probeInterval: 200 * time.Millisecond, nextProbeTime: now, validationDeadline: now.Add(5 * time.Second)}
+				challenge := &wire.PathChallengeFrame{Data: [8]byte{1}}
+				response := &wire.PathResponseFrame{Data: [8]byte{2}}
+				frames := []ackhandler.Frame{{Frame: challenge, Handler: emptyHandler{}}}
+				if peerResponse {
+					frames = append(frames, ackhandler.Frame{Frame: response, Handler: emptyHandler{}})
+				}
+				addr := &net.UDPAddr{Port: 4242}
+				if peerResponse {
+					tc.sendConn.EXPECT().WriteTo(gomock.Any(), addr, packetInfo{}).DoAndReturn(func(b []byte, _ net.Addr, _ packetInfo) error {
+						unpacker := &packetUnpacker{shortHdrConnIDLen: c.connIDManager.Get().Len()}
+						_, _, _, plaintext, err := unpacker.unpackShortHeaderPacket(opener, monotime.Now(), bytes.Clone(b))
+						require.NoError(t, err)
+						parser := wire.NewFrameParser(true, false, false)
+						typ, n, err := parser.ParseType(plaintext, protocol.Encryption1RTT)
+						require.NoError(t, err)
+						frame, m, err := parser.ParseLessCommonFrame(typ, plaintext[n:], c.version)
+						require.NoError(t, err)
+						require.Equal(t, response, frame)
+						require.Equal(t, len(plaintext), n+m, "only the peer response is emitted")
+						return nil
+					})
+				}
+				expireNext = true
+				require.NoError(t, c.emission.serverProbe(c.connIDManager.Get(), frames, candidate, addr, packetInfo{}, 0, now))
+				require.Zero(t, candidate.numChallenges)
+				require.Equal(t, now, candidate.nextProbeTime)
+				expectedNumbers := []protocol.PacketNumber{0, 1}
+				if peerResponse {
+					require.EqualValues(t, 1200, candidate.bytesSent)
+					expectedNumbers = append(expectedNumbers, 2)
+				} else {
+					require.Zero(t, candidate.bytesSent)
+				}
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("subsequent packet")}))
+				require.True(t, c.triggerSending(monotime.Now()).progress)
+				(<-c.emission.queue.(*sendQueue).queue).release()
+				require.Equal(t, expectedNumbers, sealer.numbers, "only committed packets consume AEAD nonce state")
+				for _, buffer := range allocations {
+					require.Zero(t, buffer.refCount)
+				}
+			})
+		})
+	}
 }
