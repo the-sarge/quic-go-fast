@@ -7539,3 +7539,26 @@ The [accepted implementation plan](adr/2026-10-21-server-path-retries-plan.md) a
 Final clean pushed head `d1af064b834b1d10c1a0a8f8eae8f3c44b320d41`, based on `1c4a28b7bc000bbc521332f5d7145e6493b42709`, passed full root tests, QUIC v1 self-integration tests, focused path/emission race tests, QUIC v2 NAT tests, NAT race tests, the production AES-GCM expiry regression with FIPS enabled, vet, module tidiness, lint, links and diff checks on Go 1.27.3 darwin/arm64. The controlled UDP/TLS case withholds the first actual response, requires a distinct retry on the same candidate connection ID and checks migration plus complete delivery. All 33 hosted checks passed before the matched-head squash merge.
 
 Initial RAS review `20261022T023911-341655d71cbc0d7a919a8b7e` found packet-number commitment, late stage-transition timing and retry-response test gaps; manual fixes were verified resolved. Replacement review `20261022T030610-c7fc4d0f0650cc3ae1e947e2` found the production FIPS nonce-state constraint. The maintainer approved one narrow extra fix/verification cycle. The new regression reproduced the repeated-counter panic before the repair and passes afterward, covering peer-response repacking and challenge-only discard followed by ordinary sending, with buffer release. Final source verification was clear, with 1/1 cluster resolved. The [certification and independent dispositions](https://github.com/the-sarge/quic-go-fast/pull/969#issuecomment-6331982585) retain the evidence. No deferred follow-up remains, and no matching OmniFocus task was found by issue URL; this journal follow-up uses no RAS.
+
+---
+
+## Reliable stream boundary cancellation guard landed - 2026-10-22 00:13 EDT
+
+**Main:** `2f9d7c4298ea`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #974](https://github.com/the-sarge/quic-go-fast/pull/974) as `2f9d7c4298ea02980c3613d1620c7fb0510673bd`, closing [issue #958](https://github.com/the-sarge/quic-go-fast/issues/958). `SendStream.SetReliableBoundary` now returns under the existing mutex once cancellation has established `resetErr`. Local cancellation retains the accepted reliable prefix; peer `STOP_SENDING` can still reduce it to zero. Late application calls cannot revive discarded data or invalidate reset/recovery accounting.
+
+### Decisions
+
+Adopted the guard from upstream [quic-go/quic-go#5950](https://github.com/quic-go/quic-go/pull/5950), with regression coverage adapted to the fork's reserved frames, partial resets and large-buffer lifetimes. The [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/958#issuecomment-6329492836) records the bounded scope. Existing final-size accounting, flow-control reservations, completion/error semantics, frame ownership, API shapes and wire encoding are preserved.
+
+### Validation
+
+The first maintained regression failed without the guard because reliable size increased from zero to nine, then passed with it. Coverage exercises local and peer cancellation with zero/existing prefixes, peer cancellation after local partial reset, repeated boundary calls while reset is queued and in recovery, STREAM acknowledgment/loss, stale partial-reset callbacks, reset retransmission/acknowledgment, and application error consumption. Reserved-final-size and large-write tests retain their storage and ownership assertions; controls cover successive pre-cancellation boundaries and peers without extension support.
+
+Final clean head `befbb78dc3571203366eb908090deff5c1378acb`, based on `f2a3c3a83a1d19b7d898dbf1d976d4321992c58e`, passed full root-package tests including all send streams, focused cancellation/recovery/reservation/lifetime race tests, `go vet .`, `go mod tidy -diff`, changed-file formatting, golangci-lint with zero issues, and diff checks on Go 1.27.3 darwin/arm64. All 33 hosted checks passed on that head before the matched-head squash merge.
+
+Initial RAS review `20261022T035909-8243bf202d7f804384715c06` found one narrow test gap: extension-disabled effective offsets masked raw reliable-state mutation in the reserved-final-size test. Two direct state assertions repaired it; exact-head verification resolved the accepted finding and its duplicate with blocking projection clear. The optional documentation clarification remained visible and was independently rejected as a merge obligation. Replacement review `20261022T040642-84cd6e822a728c26029a81dc` completed with no findings or follow-ups. All reviewer phases completed. A mistyped verification head was rejected before execution; the successful invocation matched the Git-derived live head. No deferred finding remains, and no matching OmniFocus task was found by issue URL. This post-merge journal update uses no RAS.
