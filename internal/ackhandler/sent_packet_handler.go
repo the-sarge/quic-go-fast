@@ -433,6 +433,10 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 		h.ExpireDelivery(rcvTime)
 	}
 	if len(ackedPackets) == 0 {
+		// Admission above must precede both histories' retained receipt processing.
+		if encLevel == protocol.Encryption1RTT {
+			h.detectSpuriousLosses(ack, rcvTime)
+		}
 		if h.congestionEvents != nil {
 			h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, nil, largestAcked)
 			witness := h.appendRetainedAck(ack, encLevel)
@@ -508,14 +512,9 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 		}
 	}
 
-	// detect spurious losses for application data packets, if the ACK was not reordered
-	if encLevel == protocol.Encryption1RTT && largestAcked == pnSpace.largestAcked {
-		h.detectSpuriousLosses(
-			ack,
-			rcvTime.Add(-min(ack.DelayTime, h.rttStats.MaxAckDelay())),
-		)
-		// clean up lost packet history
-		h.lostPackets.DeleteBefore(rcvTime.Add(-3 * h.rttStats.PTO(false)))
+	// Retained losses are discoverable even when this ACK was reordered.
+	if encLevel == protocol.Encryption1RTT {
+		h.detectSpuriousLosses(ack, rcvTime)
 	}
 
 	// After this point, we must not use ackedPackets any longer!
@@ -542,18 +541,17 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	return acked1RTTPacket, nil
 }
 
-func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, ackTime monotime.Time) {
+// detectSpuriousLosses consumes metadata only, after application ACK admission.
+// Keep cleanup here so late-only and reordered ACKs also age the bounded history.
+func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime monotime.Time) {
+	ackTime := rcvTime.Add(-min(ack.DelayTime, h.rttStats.MaxAckDelay()))
 	var maxPacketReordering protocol.PacketNumber
 	var maxTimeReordering time.Duration
 	ackRangeIdx := len(ack.AckRanges) - 1
 	var spuriousLosses []protocol.PacketNumber
 	for pn, sendTime := range h.lostPackets.All() {
 		ackRange := ack.AckRanges[ackRangeIdx]
-		for pn > ackRange.Largest {
-			// this should never happen, since detectSpuriousLosses is only called for ACKs that increase the largest acked
-			if ackRangeIdx == 0 {
-				break
-			}
+		for pn > ackRange.Largest && ackRangeIdx > 0 {
 			ackRangeIdx--
 			ackRange = ack.AckRanges[ackRangeIdx]
 		}
@@ -580,6 +578,7 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, ackTime mon
 	for _, pn := range spuriousLosses {
 		h.lostPackets.Delete(pn)
 	}
+	h.lostPackets.DeleteBefore(rcvTime.Add(-3 * h.rttStats.PTO(false)))
 }
 
 // Packets are returned in ascending packet number order.
@@ -908,7 +907,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 		}
 		if packetLost {
 			h.captureCongestionLoss(encLevel, pn, p)
-			if encLevel == protocol.Encryption0RTT || encLevel == protocol.Encryption1RTT {
+			if p.Outstanding() && (encLevel == protocol.Encryption0RTT || encLevel == protocol.Encryption1RTT) {
 				h.lostPackets.Add(pn, p.SendTime)
 			}
 			pnSpace.history.DeclareLost(pn)
@@ -1235,6 +1234,7 @@ func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
 func (h *sentPacketHandler) MigratedPath(now monotime.Time, initialMaxDatagramSize protocol.ByteCount) {
 	h.resetCongestionCapture(true)
 	h.rttStats.ResetForPathMigration()
+	h.lostPackets.Reset()
 	for pn, p := range h.appDataPackets.history.Packets() {
 		h.appDataPackets.history.DeclareLost(pn)
 		if !p.isPathProbePacket {
