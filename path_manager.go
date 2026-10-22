@@ -69,7 +69,9 @@ func (p *path) canProbe(now monotime.Time) bool {
 func (p *path) commitChallenge(data [8]byte, size protocol.ByteCount, now monotime.Time) {
 	p.challenges[p.numChallenges] = pathChallengeRecord{data: data, padded: size >= protocol.MinInitialPacketSize}
 	p.numChallenges++
-	p.nextProbeTime = min(p.validationDeadline, pathDeadline(now, p.probeInterval))
+	// Keep the retry schedule independent of the current stage deadline: a
+	// compact response may extend the stage while a padded probe is outstanding.
+	p.nextProbeTime = pathDeadline(now, p.probeInterval)
 	p.probeInterval = min(time.Duration(math.MaxInt64/2), p.probeInterval) * 2
 }
 

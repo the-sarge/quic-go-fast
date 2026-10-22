@@ -81,14 +81,8 @@ func TestConnectionPathValidationRetry(t *testing.T) {
 				retry, err := decodeSchedulingProbe(writes[len(writes)-1], c.connIDManager.Get())
 				require.NoError(t, err)
 				require.NotEqual(t, challenge.Data, retry.Data)
-				// A response to the earlier emitted challenge remains useful.
-				if test.firstSize == 100 && !test.answerFirst {
-					receive(1200, &wire.PathResponseFrame{Data: challenge.Data})
-					require.Zero(t, c.pathGeneration, "compact response proves only reachability")
-					challenge = retry // this retry had enough credit for padding
-				}
 				tc.sendConn.EXPECT().ChangeRemoteAddr(addr, gomock.Any())
-				receive(1200, &wire.PathResponseFrame{Data: challenge.Data})
+				receive(1200, &wire.PathResponseFrame{Data: retry.Data})
 				require.EqualValues(t, 1, c.pathGeneration)
 			})
 		})

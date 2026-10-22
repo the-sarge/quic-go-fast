@@ -843,11 +843,20 @@ func (p *packetPacker) PackMTUProbePacket(ping ackhandler.Frame, size protocol.B
 }
 
 func (p *packetPacker) PackPathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
-	return p.packPathProbePacket(connID, frames, protocol.MinInitialPacketSize, v)
+	packet, buffer, err := p.preparePathProbePacket(connID, frames, protocol.MinInitialPacketSize, v)
+	if err != nil || buffer == nil {
+		return packet, buffer, err
+	}
+	if err := p.commitPacketNumber(packet.PacketNumber); err != nil {
+		buffer.Release()
+		return shortHeaderPacket{}, nil, err
+	}
+	return packet, buffer, nil
 }
 
-// packPathProbePacket returns no packet if the path's allowance cannot fit the frames.
-func (p *packetPacker) packPathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, maxPacketSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
+// preparePathProbePacket does not consume a number. Emission commits it after
+// the actual datagram has passed policy and byte reservation.
+func (p *packetPacker) preparePathProbePacket(connID protocol.ConnectionID, frames []ackhandler.Frame, maxPacketSize protocol.ByteCount, v protocol.Version) (shortHeaderPacket, *packetBuffer, error) {
 	pn, pnLen := p.pnManager.PeekPacketNumber(protocol.Encryption1RTT)
 	buf := getPacketBuffer()
 	s, err := p.cryptoSetup.Get1RTTSealer()
@@ -870,7 +879,7 @@ func (p *packetPacker) packPathProbePacket(connID protocol.ConnectionID, frames 
 		return shortHeaderPacket{}, nil, nil
 	}
 	padding := size - packetLen
-	packet, err := p.appendShortHeaderPacket(buf, connID, pn, pnLen, s.KeyPhase(), payload, padding, size, s, false, v)
+	packet, err := p.prepareShortHeaderPacket(buf, connID, pn, pnLen, s.KeyPhase(), payload, padding, size, s, false, v)
 	if err != nil {
 		buf.Release()
 		return shortHeaderPacket{}, nil, err
@@ -950,6 +959,30 @@ func (p *packetPacker) appendShortHeaderPacket(
 	isMTUProbePacket bool,
 	v protocol.Version,
 ) (shortHeaderPacket, error) {
+	packet, err := p.prepareShortHeaderPacket(buffer, connID, pn, pnLen, kp, pl, padding, maxPacketSize, sealer, isMTUProbePacket, v)
+	if err != nil {
+		return shortHeaderPacket{}, err
+	}
+	if err := p.commitPacketNumber(pn); err != nil {
+		return shortHeaderPacket{}, err
+	}
+	return packet, nil
+}
+
+// Probe preparation can be abandoned before the emission commitment boundary.
+// Other short-header construction retains its existing immediate commitment.
+func (p *packetPacker) prepareShortHeaderPacket(
+	buffer *packetBuffer,
+	connID protocol.ConnectionID,
+	pn protocol.PacketNumber,
+	pnLen protocol.PacketNumberLen,
+	kp protocol.KeyPhaseBit,
+	pl payload,
+	padding, maxPacketSize protocol.ByteCount,
+	sealer sealer,
+	isMTUProbePacket bool,
+	v protocol.Version,
+) (shortHeaderPacket, error) {
 	var paddingLen protocol.ByteCount
 	if pl.length < 4-protocol.ByteCount(pnLen) {
 		paddingLen = 4 - protocol.ByteCount(pnLen) - pl.length
@@ -976,9 +1009,6 @@ func (p *packetPacker) appendShortHeaderPacket(
 	raw = p.encryptPacket(raw, sealer, pn, payloadOffset, protocol.ByteCount(pnLen))
 	buffer.Data = buffer.Data[:len(buffer.Data)+len(raw)]
 
-	if newPN := p.pnManager.PopPacketNumber(protocol.Encryption1RTT); newPN != pn {
-		return shortHeaderPacket{}, fmt.Errorf("packetPacker BUG: Peeked and Popped packet numbers do not match: expected %d, got %d", pn, newPN)
-	}
 	return shortHeaderPacket{
 		PacketNumber:         pn,
 		PacketNumberLen:      pnLen,
@@ -990,6 +1020,13 @@ func (p *packetPacker) appendShortHeaderPacket(
 		DestConnID:           connID,
 		IsPathMTUProbePacket: isMTUProbePacket,
 	}, nil
+}
+
+func (p *packetPacker) commitPacketNumber(pn protocol.PacketNumber) error {
+	if newPN := p.pnManager.PopPacketNumber(protocol.Encryption1RTT); newPN != pn {
+		return fmt.Errorf("packetPacker BUG: Peeked and Popped packet numbers do not match: expected %d, got %d", pn, newPN)
+	}
+	return nil
 }
 
 // appendPacketPayload serializes the payload of a packet into the raw byte slice.

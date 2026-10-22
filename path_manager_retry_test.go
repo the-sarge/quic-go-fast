@@ -154,6 +154,31 @@ func TestPathManagerSlowPathAndCapacity(t *testing.T) {
 	require.Empty(t, pm.paths)
 }
 
+func TestPathManagerLateCompactResponsePreservesBackoff(t *testing.T) {
+	pm, _ := newRetryPathManager(t, 200*time.Millisecond)
+	addr := &net.UDPAddr{Port: 4242}
+	now := monotime.Now()
+	_, frames, _ := pm.HandlePacket(addr, now, 100, nil, true)
+	compact := frames[0].Frame.(*wire.PathChallengeFrame).Data
+	p := pm.getPath(addr)
+	require.True(t, p.reserveProbe(300))
+	p.commitChallenge(compact, 300, now)
+	for _, at := range []time.Duration{200 * time.Millisecond, 600 * time.Millisecond, 1400 * time.Millisecond, 3 * time.Second} {
+		_, frames, _ = handlePathPacket(t, pm, addr, now.Add(at), 1200, nil, true)
+		require.Len(t, frames, 1)
+	}
+	pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: compact}, now.Add(4*time.Second))
+	require.Equal(t, now.Add(9*time.Second), pm.NextExpiry())
+	_, frames, _ = pm.HandlePacket(addr, now.Add(5*time.Second), 1200, nil, true)
+	require.Empty(t, frames, "extending the stage must not shorten the outstanding padded backoff")
+	_, frames, _ = pm.HandlePacket(addr, now.Add(6200*time.Millisecond-time.Nanosecond), 1200, nil, true)
+	require.Empty(t, frames)
+	_, frames, _ = handlePathPacket(t, pm, addr, now.Add(6200*time.Millisecond), 1200, nil, true)
+	require.Len(t, frames, 1)
+	pm.HandlePathResponseFrame(&wire.PathResponseFrame{Data: frames[0].Frame.(*wire.PathChallengeFrame).Data}, now.Add(7*time.Second))
+	require.True(t, p.mtuValidated)
+}
+
 func TestPathManagerTokenCapAndOverflow(t *testing.T) {
 	pm, _ := newRetryPathManager(t, time.Duration(math.MaxInt64))
 	addr := &net.UDPAddr{Port: 4242}

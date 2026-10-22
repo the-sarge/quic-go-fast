@@ -333,22 +333,31 @@ func TestEmissionServerProbeResponsePriority(t *testing.T) {
 				tc := newEmissionTestConnection(t, false)
 				c := tc.conn
 				now := monotime.Now()
+				// Keep recovery's sequential-number invariant live before packing
+				// an attempt that may be discarded at its deadline.
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("prior packet")}))
+				require.True(t, c.triggerSending(now).progress)
+				(<-c.emission.queue.(*sendQueue).queue).release()
+				nextPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				observed := observeConstructionBuffer(t)
+				var allocations []*packetBuffer
 				candidate := &path{bytesReceived: 8, probeInterval: 200 * time.Millisecond, nextProbeTime: now, validationDeadline: now.Add(5 * time.Second)}
 				if expiresDuringPacking {
 					candidate.bytesReceived = 400
-					ctrl := gomock.NewController(t)
-					sealing := NewMockSealingManager(ctrl)
-					sealer := newMockShortHeaderSealer(ctrl)
-					first := true
-					sealing.EXPECT().Get1RTTSealer().DoAndReturn(func() (handshake.ShortHeaderSealer, error) {
-						if first {
-							first = false
-							time.Sleep(5 * time.Second)
-						}
-						return sealer, nil
-					}).AnyTimes()
-					c.emission.packer.cryptoSetup = sealing
 				}
+				ctrl := gomock.NewController(t)
+				sealing := NewMockSealingManager(ctrl)
+				sealer := newMockShortHeaderSealer(ctrl)
+				first := true
+				sealing.EXPECT().Get1RTTSealer().DoAndReturn(func() (handshake.ShortHeaderSealer, error) {
+					allocations = append(allocations, *observed)
+					if first && expiresDuringPacking {
+						time.Sleep(5 * time.Second)
+					}
+					first = false
+					return sealer, nil
+				}).AnyTimes()
+				c.emission.packer.cryptoSetup = sealing
 				challenge := &wire.PathChallengeFrame{Data: [8]byte{1}}
 				response := &wire.PathResponseFrame{Data: [8]byte{2}}
 				frames := []ackhandler.Frame{{Frame: challenge, Handler: emptyHandler{}}, {Frame: response, Handler: emptyHandler{}}}
@@ -364,6 +373,14 @@ func TestEmissionServerProbeResponsePriority(t *testing.T) {
 				require.Equal(t, []wire.Frame{response}, output)
 				require.Zero(t, candidate.numChallenges)
 				require.Equal(t, now, candidate.nextProbeTime)
+				afterPN, _ := c.sentPacketHandler.PeekPacketNumber(protocol.Encryption1RTT)
+				require.Equal(t, nextPN+1, afterPN, "only the transmitted response consumes a number")
+				require.NoError(t, c.datagramQueue.Add(&wire.DatagramFrame{DataLenPresent: true, Data: []byte("subsequent packet")}))
+				require.True(t, c.triggerSending(monotime.Now()).progress)
+				(<-c.emission.queue.(*sendQueue).queue).release()
+				for _, buffer := range allocations {
+					require.Zero(t, buffer.refCount, "discarded and transmitted storage is released")
+				}
 			})
 		})
 	}

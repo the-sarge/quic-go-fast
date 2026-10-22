@@ -557,7 +557,7 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 				return nil
 			}
 		}
-		p, buf, err := e.packer.packPathProbePacket(connID, frames, path.sendAllowance(), e.version)
+		p, buf, err := e.packer.preparePathProbePacket(connID, frames, path.sendAllowance(), e.version)
 		if err != nil {
 			return err
 		}
@@ -580,6 +580,9 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 		defer buf.Release()
 		if !path.reserveProbe(buf.Len()) {
 			return nil
+		}
+		if err := e.packer.commitPacketNumber(p.PacketNumber); err != nil {
+			return err
 		}
 		for _, f := range frames {
 			if challenge, ok := f.Frame.(*wire.PathChallengeFrame); ok {
