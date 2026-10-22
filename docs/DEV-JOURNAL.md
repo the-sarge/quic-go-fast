@@ -7675,3 +7675,30 @@ RAS review `20261022T073950-ff3e3f8b6cabb6cb7a398f1e` completed with all six rev
 **Review:** RAS `20261022T152213-30734be44a80520b04b86045` completed with no required fixes or follow-ups; the implementing agent rejected the sole finding because its disposal order is unreachable through the supported lifecycle. Five initial reviewers succeeded and one failed to execute. The [disposition ledger](https://github.com/the-sarge/quic-go-fast/pull/985#issuecomment-6344670224) also preserves the adjacent push-event Windows HTTP/3 fixture port-allocation failure; no unchanged-head rerun was requested, and the corresponding PR matrix passed.
 
 **Next:** This merge satisfies the hygiene prerequisite for [#971](https://github.com/the-sarge/quic-go-fast/issues/971) and [#972](https://github.com/the-sarge/quic-go-fast/issues/972). [Parent #962](https://github.com/the-sarge/quic-go-fast/issues/962) remains the live implementation tracker. Revalidate and file the surviving HTTP/3 fixture observation after journal completion.
+
+---
+
+## Default Reno spurious-loss undo landed - 2026-10-22 13:08 EDT
+
+**Main:** `b3e46cbbb37f`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #988](https://github.com/the-sarge/quic-go-fast/pull/988) for [#972](https://github.com/the-sarge/quic-go-fast/issues/972) as `b3e46cbbb37f233831c86174ff29ce1dd1f73a7b`. Default Reno now restores its latest fully spurious cutback, including saved slow-start threshold, ACK credit and prior typed prefix. Missing/expired/evicted evidence, genuine losses, validated CE and lifecycle disposal retain conservative protection. BBR keeps its independent evidence and reset contracts.
+
+### Decisions
+
+[ADR 0012](https://github.com/the-sarge/quic-go-fast/blob/b3e46cbbb37f233831c86174ff29ce1dd1f73a7b/docs/adr/0012-reno-spurious-loss-undo.md) records the separately accepted default-Reno undo and narrow ADR 0009/D04 amendment beyond #961's ordering correction. A constant sender snapshot and unresolved-loss count reuse the sole controller-owned boundary and the existing 64-record/three-PTO receipt history.
+
+### Validation
+
+Fresh real-handler/controller regressions cover one/all/partial proof, suppressed and superseding losses, 77 losses versus 64 receipts, strict expiry, recovery exit and an already-grown window, real ECN with present/retired anchors, disposal and saved Reno state. Recovery/congestion/wire suites, recovery/congestion race, targeted emission/coalescing/packing/GSO/DATAGRAM/controller checks, targeted 0-RTT/TLS/Retry/migration integration, vet, module tidy, pinned lint, generation and documentation checks passed. All 33 hosted checks passed on certified head `e1b4a4ca9e403ab223c881705f1eebdc17bf87b6`; the merged tree matches it.
+
+RAS review `20261022T165346-8f4f1f4de69d351a4e8aecf2` completed with five successful initial reviewers and one failed reviewer process, with quorum and synthesis satisfied. No required fixes or verification remained. The cosmetic ADR capitalization nit was revalidated at merged `b3e46cbb`, remains nonblocking, and does not warrant a follow-up ticket. [Review dispositions and certification](https://github.com/the-sarge/quic-go-fast/pull/988#issuecomment-6346586603) record the evidence. No RAS was run for this journal.
+
+Go 1.27.3 darwin/arm64 layout: packet 80 → 80 bytes, Reno sender 328 → 400 bytes (+72 constant bytes), embedded HybridSlowStart unchanged at 88 bytes. Initial Reno construction occurs even before BBR selection; these sizes establish no performance improvement.
+
+### Next
+
+#972 is closed. The [live parent #962](https://github.com/the-sarge/quic-go-fast/issues/962) remains open for the independently scoped [adaptive-threshold sibling #971](https://github.com/the-sarge/quic-go-fast/issues/971); undo is correct with fixed thresholds. No matching OmniFocus task was found for #972.
