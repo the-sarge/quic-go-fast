@@ -2,6 +2,7 @@ package ackhandler
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 	"unsafe"
@@ -235,5 +236,5 @@ func TestRecoveryOrderingLifecycle(t *testing.T) {
 
 func TestRecoveryOrderingLayout(t *testing.T) {
 	c := congestion.NewCubicSender(congestion.DefaultClock{}, utils.NewRTTStats(), &utils.ConnectionStats{}, 1200, true, nil)
-	t.Logf("packet=%d cubicSender=%d HybridSlowStart=%d bytes", unsafe.Sizeof(packet{}), unsafe.Sizeof(*c), unsafe.Sizeof(congestion.HybridSlowStart{}))
+	t.Logf("packet=%d cubicSender=%d HybridSlowStart=%d bytes", unsafe.Sizeof(packet{}), reflect.TypeOf(c).Elem().Size(), unsafe.Sizeof(congestion.HybridSlowStart{}))
 }
