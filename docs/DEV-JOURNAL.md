@@ -7732,3 +7732,26 @@ Go 1.27.3 darwin/arm64 layout: packet 80 → 80 bytes, Reno sender 328 → 400 b
 **Validation:** The single remaining allocated native Windows Server 2025 / Go 1.27.3 [validation job](https://github.com/the-sarge/quic-go-fast/actions/runs/39829839596) passed 100 focused executions, combined lifecycle tests, HTTP/3 with the failure seed, and full unit scope. All sixteen wrapper checksums validated. The temporary workflow was removed before review. Local focused/lifecycle race/package tests, vet, module tidiness, lint, formatting and evidence checks passed. RAS run `20261022T181955-642cb0c8b4b77cf9d8669fc5` produced no findings; five reviewers succeeded, one Claude adapter failed, and quorum was met. All 17 applicable hosted PR jobs passed on exact head `87f217bc93ca4a294c939673daee7049eb12a79b`; see the [review/local receipt](https://github.com/the-sarge/quic-go-fast/pull/994#issuecomment-6348102905) and [hosted receipt](https://github.com/the-sarge/quic-go-fast/pull/994#issuecomment-6348251619). No unchanged failing-head rerun was requested.
 
 **Next:** [Issue #987](https://github.com/the-sarge/quic-go-fast/issues/987), the live tracking view, closed with this bounded fixture correction. No review follow-up findings remain. The example-level evidence does not claim a measured flake rate or universal port-allocation success.
+
+---
+
+## Bundle source preparation and GOAWAY fixture repair - 2026-10-22 15:16 EDT
+
+**Main:** `8095c7224475`
+**Actor:** Codex
+
+### Summary
+
+Merged [the GOAWAY recorder fixture repair (#995)](https://github.com/the-sarge/quic-go-fast/pull/995) as `a8013b22c623330ce166c5135c3b5966f8b1fcb2`, then [fast.8 source preparation (#992)](https://github.com/the-sarge/quic-go-fast/pull/992) as `8095c72244755f0c1e24f4158253bf09cfbe6e17`. The fixture now reads request EOF before normal handler completion can cancel unread input; production behavior is unchanged. The preparation records all eleven slices, consumer decisions and accepted costs, corrected BBR/recovery work, capabilities/defaults, adoption and required publication gates.
+
+### Validation
+
+The causal scheduling probe reproduced the original canceled-stream failure in all three runs before the correction. The repaired recorder tests passed 100 race repetitions and the full HTTP/3 package passed race with the captured seed. PR #995 review had no findings; all 33 exact-head checks succeeded after an explicitly authorized retry corrected GitHub's stuck lint-check finalization. Original evidence is preserved. PR #992's final review corrected only a stale inventory count in its description; its complete 20-commit preparation-base inventory, local links and whitespace checks passed, followed by all 33 exact-head checks. [Repair receipt](https://github.com/the-sarge/quic-go-fast/pull/995#issuecomment-6348936785); [preparation receipt](https://github.com/the-sarge/quic-go-fast/pull/992#issuecomment-6349135313).
+
+### Decisions
+
+Selected `v0.62.1-fast.8` deliberately and [pinned the intended release candidate](https://github.com/the-sarge/quic-go-fast/issues/851#issuecomment-6349159688) to `8095c72244755f0c1e24f4158253bf09cfbe6e17` after preparation merged. All slice ordering requirements hold; #971 remains excluded and #962 remains open. Reno is default; BBRv3 remains experimental, opt-in and unqualified. A fresh govulncheck v1.7.0 scan using Go1.27.3 for linux/amd64 found no reachable or imported-package vulnerabilities, with GO-2026-5932 reported only in the unused OpenPGP module surface. A separate application-owned replacement built QUIC and HTTP/3 at the candidate's Go-generated pseudo-version.
+
+### Next
+
+As of this entry, exact-candidate hosted workflows are running and #871's registration is being finalized; no counted measurements, operator memory/baseline/advancement decisions, release tag or publication are claimed. [Bundle #851](https://github.com/the-sarge/quic-go-fast/issues/851) is the live view for the remaining #871 → #887 → #990 → publication gates. This journal-only follow-up does not move the pinned release candidate.
