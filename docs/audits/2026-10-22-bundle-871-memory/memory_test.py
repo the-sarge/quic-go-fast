@@ -7,13 +7,14 @@ from pathlib import Path
 import unittest
 
 import memory
+import localize
 
 
 def blocks(port=1, prior=1, cand=1, aa=1):
     out = []
     ratios = dict(zip(memory.ARM_NAMES, [1, aa, port, prior, cand]))
     for b in range(1, 6):
-        rows = [dict(arm=a, pair=b, seed=9000+b, send={m: (10+b)*ratio for m in memory.METRICS})
+        rows = [dict(arm=a, pair=b, seed=9000+b, contamination=dict(contaminated=False), send={m: (10+b)*ratio for m in memory.METRICS})
                 for a, ratio in ratios.items()]
         out.append(dict(block=b, contaminated=False, observations=rows))
     return out
@@ -64,6 +65,47 @@ class MemoryTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 memory.summarize_blocks(case)
 
+
+    def test_unknown_contamination_retains_fatal_evidence(self):
+        gate = dict(window_end='2099-01-01T00:00:00+00:00')
+        unknown = localize.contamination([], [1, 2])
+        self.assertIsNone(unknown['contaminated'])
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(memory, 'preflight', return_value=gate), \
+                mock.patch.object(memory.run, 'ART', Path(tmp)), mock.patch.object(memory.run, 'ensure_credentials'):
+            rows = [dict(id=a, arm=a, contamination=dict(contaminated=False)) for a in memory.ARM_NAMES]
+            rows[0]['contamination'] = unknown
+            def measured_block(*args, **kwargs):
+                evidence = memory.run.OBS/'main-S5-datagram-p1-reno-reno'
+                evidence.mkdir(parents=True)
+                (evidence/'host-cpu.json').write_text('[]')
+                return rows
+            with mock.patch.object(memory.matrix, 'block', side_effect=measured_block), \
+                    mock.patch.object(memory.memory_load, 'load', side_effect=rows), mock.patch.object(memory, 'validate_identity'):
+                with self.assertRaisesRegex(AssertionError, 'missing contamination evidence'):
+                    memory.run_block(1, False)
+            folder = Path(tmp)/'memory-block-1'
+            original = json.loads((folder/'original.json').read_text())
+            self.assertFalse(original['usable']); self.assertTrue(original['fatal'])
+            (folder/'failure-disposition.json').write_text(json.dumps(dict(decision_url='https://example.test/decision', explanation='cannot override missing evidence')))
+            with self.assertRaises(AssertionError): memory.run_block(1, True)
+            self.assertEqual((Path(tmp)/'observations/main-S5-datagram-p1-reno-reno/host-cpu.json').read_text(), '[]')
+
+    def test_selected_observations_require_explicit_clean_evidence(self):
+        for evidence in [localize.contamination([], [1, 2]), {}, dict(contaminated=True), dict(contaminated=0)]:
+            selected = blocks()
+            selected[0]['observations'][0]['contamination'] = evidence
+            self.assertIs(selected[0]['contaminated'], False)
+            with self.subTest(evidence=evidence), self.assertRaises((AssertionError, KeyError)):
+                memory.summarize_blocks(selected)
+        self.assertIsNotNone(memory.summarize_blocks(blocks()))
+
+    def test_explicit_contamination_keeps_existing_selection_rule(self):
+        rows = [dict(contamination=dict(contaminated=False))]
+        self.assertIs(memory.validate_contamination(rows), False)
+        rows.append(dict(contamination=dict(contaminated=True)))
+        self.assertIs(memory.validate_contamination(rows), True)
+        self.assertEqual(memory.choose_block([('original', True, True), ('rerun', True, False)]), ('rerun', 'clean'))
+        self.assertEqual(memory.choose_block([('original', True, True), ('rerun', True, True)]), ('original', 'contaminated'))
 
     def test_calibration_expected_controls_and_rejections(self):
         facts = {'calibration': []}

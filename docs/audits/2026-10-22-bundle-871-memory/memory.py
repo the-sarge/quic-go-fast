@@ -178,14 +178,22 @@ def run_block(block, rerun):
         loaded = [memory_load.load(root / row['id']) for row in rows]
         assert {r['arm'] for r in loaded} == set(ARM_NAMES)
         validate_identity(root, loaded, gate)
+        contaminated = validate_contamination(loaded)
     except Exception as exc:
         run.write(receipt_path, dict(block=block, seed=9000 + block, pre_data_gates=gate,
                                     usable=False, fatal=not isinstance(exc, UnusableObservation),
                                     error=f'{type(exc).__name__}: {exc}', observations=[]))
         raise
     run.write(receipt_path, dict(block=block, seed=9000 + block, pre_data_gates=gate, usable=True,
-                                contaminated=any(r['contamination']['contaminated'] for r in loaded),
+                                contaminated=contaminated,
                                 observations=loaded))
+
+
+def validate_contamination(rows):
+    """Unknown sampling evidence cannot establish either clean or disturbed."""
+    flags = [row['contamination']['contaminated'] for row in rows]
+    assert all(type(flag) is bool for flag in flags), 'missing contamination evidence'
+    return any(flags)
 
 
 def validate_identity(root, loaded, gate):
@@ -231,7 +239,8 @@ def summarize_blocks(blocks):
     assert [b['block'] for b in blocks] == list(range(1, 6))
     indexed = []
     for block in blocks:
-        assert not block['contaminated'], 'incomplete campaign: unresolved contamination'
+        assert block['contaminated'] is False, 'incomplete campaign: unresolved contamination'
+        assert not validate_contamination(block['observations']), 'selected observation is contaminated'
         rows = {r['arm']: r for r in block['observations']}
         assert len(block['observations']) == 5 and set(rows) == set(ARM_NAMES)
         assert all(r['pair'] == block['block'] and r['seed'] == 9000 + block['block'] for r in rows.values())
