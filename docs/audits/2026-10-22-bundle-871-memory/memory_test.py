@@ -1,5 +1,8 @@
 """Prospective outcome and completeness tests; no host measurements."""
 import copy
+import json
+import tempfile
+from unittest import mock
 from pathlib import Path
 import unittest
 
@@ -40,6 +43,98 @@ class MemoryTests(unittest.TestCase):
         for case in cases:
             with self.assertRaises(AssertionError):
                 memory.summarize_blocks(case)
+
+
+    def test_calibration_expected_controls_and_rejections(self):
+        facts = {'calibration': []}
+        for name in ['relay-v3', 'relay-linux']:
+            positive = name == 'relay-linux'
+            direction = dict(sent=[200]*4, unparsed=0,
+                             received=[[200 if j == (i if positive else 0) else 0 for j in range(4)] for i in range(4)])
+            facts['calibration'].append(dict(relay=name, exit=0 if positive else 1,
+                report=dict(errors=False, **{'pass': positive}, forward=direction, reverse=copy.deepcopy(direction))))
+        memory.validate_calibration(facts)
+        for arm in range(2):
+            for defect in ['exit', 'pass', 'errors', 'count', 'matrix', 'unparsed']:
+                bad = copy.deepcopy(facts)
+                c = bad['calibration'][arm]
+                if defect == 'exit': c['exit'] = 1-c['exit']
+                elif defect == 'pass': c['report']['pass'] = not c['report']['pass']
+                elif defect == 'errors': c['report']['errors'] = True
+                elif defect == 'count': c['report']['forward']['sent'][0] = 199
+                elif defect == 'matrix': c['report']['reverse']['received'][3][2] += 1
+                else: c['report']['reverse']['unparsed'] = 1
+                with self.subTest(arm=arm, defect=defect), self.assertRaises(AssertionError):
+                    memory.validate_calibration(bad)
+
+    def test_operational_exit_requires_disposition_and_only_one_rerun(self):
+        gate = dict(window_end='2099-01-01T00:00:00+00:00')
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(memory, 'preflight', return_value=gate), \
+                mock.patch.object(memory.run, 'ART', Path(tmp)), mock.patch.object(memory.run, 'ensure_credentials'):
+            def failed_case(*args, **kwargs):
+                d = memory.run.OBS / 'main-S5-datagram-p1-reno-reno'
+                d.mkdir(parents=True)
+                (d/'receipt.json').write_text(json.dumps(dict(exit_codes=[0, 1], relay_exit=0,
+                    binary_sha256=memory.build.EXPECTED[('reno', 'fixture')])))
+                raise AssertionError('main-S5-datagram-p1-reno-reno')
+            def failed_block(*args, **kwargs):
+                return kwargs['runner']('main', 'reno', 'datagram', 1, 'reno', path='S5', seed=9001, tag='')
+            with mock.patch.object(memory.run, 'run_case', side_effect=failed_case), \
+                    mock.patch.object(memory.matrix, 'block', side_effect=failed_block):
+                with self.assertRaises(memory.UnusableObservation): memory.run_block(1, False)
+            folder = Path(tmp)/'memory-block-1'
+            original = json.loads((folder/'original.json').read_text())
+            self.assertFalse(original['usable']); self.assertFalse(original['fatal'])
+            with self.assertRaises(FileNotFoundError): memory.run_block(1, True)
+            (folder/'failure-disposition.json').write_text(json.dumps(dict(decision_url='https://example.test/decision', explanation='resolved process failure')))
+            rows = [dict(id=a, arm=a, contamination=dict(contaminated=False)) for a in memory.ARM_NAMES]
+            with mock.patch.object(memory.matrix, 'block', return_value=rows) as block, \
+                    mock.patch.object(memory.memory_load, 'load', side_effect=rows), mock.patch.object(memory, 'validate_identity'):
+                memory.run_block(1, True)
+                self.assertEqual(block.call_args.kwargs['seed'], 9001)
+            self.assertTrue(json.loads((folder/'rerun.json').read_text())['usable'])
+            with self.assertRaises(AssertionError): memory.run_block(1, True)
+            self.assertTrue((Path(tmp)/'observations/main-S5-datagram-p1-reno-reno/receipt.json').exists())
+            clean = Path(tmp)/'memory-block-2'; clean.mkdir()
+            (clean/'original.json').write_text(json.dumps(dict(usable=True, contaminated=False)))
+            with self.assertRaises(AssertionError): memory.run_block(2, True)
+
+    def test_nonzero_exit_cannot_mask_identity_or_receiver_integrity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            receipt = dict(exit_codes=[0, 1], relay_exit=0, binary_sha256=memory.build.EXPECTED[('reno', 'fixture')])
+            (d/'receipt.json').write_text(json.dumps(receipt))
+            for defect in ['binary', 'source', 'receiver']:
+                bad = dict(receipt)
+                endpoint = dict(source=memory.build.REVISIONS['reno'], go_version='go1.27.0', platform='linux/amd64',
+                    gomaxprocs=4, managed_direct=True, trace_enabled=False, result=dict(controller='reno',
+                    receiver=dict(corrupt=0, duplicates=0, per_second_bytes=[1], useful_bytes=1)))
+                if defect == 'binary': bad['binary_sha256'] = 'wrong'
+                if defect == 'source': endpoint['source'] = 'wrong'
+                if defect == 'receiver': endpoint['result']['receiver']['corrupt'] = 1
+                (d/'receipt.json').write_text(json.dumps(bad)); (d/'send.json').write_text(json.dumps(endpoint))
+                with self.subTest(defect=defect), self.assertRaises(AssertionError):
+                    memory.retained_operational_exit(d, 'reno', 'reno')
+
+    def test_integrity_and_booking_stops_keep_evidence_and_forbid_rerun(self):
+        gate = dict(window_end='2099-01-01T00:00:00+00:00')
+        for reason in ['integrity', 'booking']:
+            with self.subTest(reason=reason), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(memory.run, 'ART', Path(tmp)), mock.patch.object(memory.run, 'ensure_credentials'):
+                def block(*args, **kwargs):
+                    d = Path(tmp)/'observations/partial-p1-receipt'
+                    d.mkdir(parents=True); (d/'retained.txt').write_text('partial evidence')
+                    if reason == 'integrity': raise AssertionError('receiver integrity')
+                    return kwargs['runner']('main', 'reno', 'datagram', 1, 'reno', path='S5', seed=9001)
+                with mock.patch.object(memory, 'preflight', side_effect=[gate, dict(window_end='2000-01-01T00:00:00+00:00')]), \
+                        mock.patch.object(memory.matrix, 'block', side_effect=block):
+                    with self.assertRaises(AssertionError): memory.run_block(1, False)
+                folder = Path(tmp)/'memory-block-1'
+                self.assertTrue(json.loads((folder/'original.json').read_text())['fatal'])
+                (folder/'failure-disposition.json').write_text(json.dumps(dict(decision_url='https://example.test/decision', explanation='cannot override integrity or booking')))
+                with mock.patch.object(memory, 'preflight', return_value=gate):
+                    with self.assertRaises(AssertionError): memory.run_block(1, True)
+                self.assertTrue((Path(tmp)/'observations/partial-p1-receipt/retained.txt').exists())
 
     def test_historical_formulas_are_verbatim(self):
         here = Path(__file__).parent

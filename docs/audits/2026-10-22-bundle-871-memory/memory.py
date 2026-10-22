@@ -56,16 +56,78 @@ def preflight():
         assert item['sha256'] == build.EXPECTED[('relay', name)]
         assert hashlib.sha256((run.ART / item['binary']).read_bytes()).hexdigest() == item['sha256']
     facts = json.loads((run.ART / 'prereq' / 'host-facts.json').read_text())
+    validate_calibration(facts)
+    return gate
+
+
+def validate_calibration(facts):
     calibrations = {c['relay']: c for c in facts['calibration']}
     for name in ['relay-v3', 'relay-linux']:
         c = calibrations[name]
-        assert c['exit'] == 0 and not c['report']['errors'], ('calibration error', name)
+        positive = name == 'relay-linux'
+        assert c['exit'] == (0 if positive else 1) and c['report']['pass'] is positive and not c['report']['errors'], ('calibration error', name)
         for direction in ['forward', 'reverse']:
             report = c['report'][direction]
             assert report['sent'] == [200] * 4 and report['unparsed'] == 0
             expected = [[200 if j == (i if name == 'relay-linux' else 0) else 0 for j in range(4)] for i in range(4)]
             assert report['received'] == expected, ('calibration codepoints', name, direction)
-    return gate
+
+
+class UnusableObservation(RuntimeError):
+    """An operational exit established by retained runner evidence."""
+
+
+def retained_operational_exit(directory, variant, controller):
+    receipt_path = directory / 'receipt.json'
+    if not receipt_path.exists():
+        return False
+    try:
+        receipt = json.loads(receipt_path.read_text())
+        if receipt['exit_codes'] == [0, 0] and receipt.get('relay_exit') in (None, 0):
+            return False
+        expected = build.REGISTERED.get((variant, 'fixture'), build.EXPECTED.get((variant, 'fixture')))
+        assert expected and receipt['binary_sha256'] == expected, 'failed observation binary identity'
+        if receipt.get('relay_sha256'):
+            assert receipt['relay_sha256'] == build.EXPECTED[('relay', 'relay-linux')]
+        deliveries = []
+        for role in ['send', 'receive']:
+            path = directory / f'{role}.json'
+            if not path.exists():
+                continue  # A crashed process may not produce its final report.
+            endpoint = json.loads(path.read_text())
+            assert endpoint['source'] == build.REVISIONS[variant], 'failed observation source identity'
+            assert endpoint['go_version'] == 'go1.27.0' and endpoint['platform'] == 'linux/amd64'
+            assert endpoint['gomaxprocs'] == 4 and endpoint['managed_direct'] and endpoint['trace_enabled'] is False
+            result = endpoint.get('result', {})
+            if 'controller' in result:
+                assert result['controller'] == controller
+            if 'receiver' in result:
+                delivery = result['receiver']
+                assert delivery['corrupt'] == 0 and delivery['duplicates'] == 0, 'receiver integrity'
+                assert sum(delivery['per_second_bytes']) == delivery['useful_bytes'], 'receiver accounting'
+                deliveries.append(delivery)
+        if len(deliveries) == 2:
+            assert deliveries[0] == deliveries[1], 'receiver report differs'
+        relay_path = directory / 'relay.json'
+        if relay_path.exists():
+            relay = json.loads(relay_path.read_text())
+            for direction in ['Forward', 'Reverse']:
+                assert relay[direction]['SendErrors'] == 0 and relay[direction]['TruncatedRead'] == 0, 'relay integrity'
+                assert relay[direction]['Stats']['PropagationOverflow'] == 0, 'relay propagation integrity'
+        return True
+    except (KeyError, ValueError, TypeError) as exc:
+        raise AssertionError('malformed failure evidence') from exc
+
+
+def run_case_preserving_failure(stage, variant, workload, block, controller, **kwargs):
+    try:
+        return run.run_case(stage, variant, workload, block, controller, **kwargs)
+    except AssertionError as exc:
+        path, tag = kwargs.get('path', 'loopback'), kwargs.get('tag', '')
+        name = f'{stage}-{path}-{workload}-p{block}-{variant}-{controller}' + (f'-{tag}' if tag else '')
+        if retained_operational_exit(run.OBS / name, variant, controller):
+            raise UnusableObservation(f'nonzero process exit retained in {name}/receipt.json') from exc
+        raise  # Identity/integrity assertions remain non-rerunnable.
 
 
 def run_block(block, rerun):
@@ -91,7 +153,7 @@ def run_block(block, rerun):
         current = preflight()
         remaining = (datetime.fromisoformat(current['window_end']) - datetime.now(timezone.utc)).total_seconds()
         assert remaining >= 180, 'insufficient booked time for another observation'
-        return run.run_case(*args, **kwargs)
+        return run_case_preserving_failure(*args, **kwargs)
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         rows = matrix.block('main', 'S5', ARMS, block, seed=9000 + block, only='datagram', runner=guarded_case)
