@@ -1,0 +1,650 @@
+diff --git i/internal/ackhandler/sent_packet_handler.go w/internal/ackhandler/sent_packet_handler.go
+index 1e34784a..4dfdf0b1 100644
+--- i/internal/ackhandler/sent_packet_handler.go
++++ w/internal/ackhandler/sent_packet_handler.go
+@@ -311,6 +311,9 @@ func (h *sentPacketHandler) SentPacket(
+ 	isAckEliciting := p.IsAckEliciting()
+ 
+ 	if isPathProbePacket {
++		if c, ok := h.congestion.(congestion.PrototypeSpaceSender); ok {
++			c.PrototypeSent(t, h.bytesInFlight, congestion.PrototypePacketKey{Space: encLevel, Number: pn}, size, isAckEliciting, true)
++		}
+ 		h.captureCongestionSend(pn, p, ecn, priorInFlight)
+ 		pnSpace.history.SentPathProbePacket(pn, p)
+ 		h.setLossDetectionTimer(t)
+@@ -324,7 +327,11 @@ func (h *sentPacketHandler) SentPacket(
+ 			h.numProbesToSend--
+ 		}
+ 	}
+-	h.congestion.OnPacketSent(t, h.bytesInFlight, pn, size, isAckEliciting)
++	if c, ok := h.congestion.(congestion.PrototypeSpaceSender); ok {
++		c.PrototypeSent(t, h.bytesInFlight, congestion.PrototypePacketKey{Space: encLevel, Number: pn}, size, isAckEliciting, false)
++	} else {
++		h.congestion.OnPacketSent(t, h.bytesInFlight, pn, size, isAckEliciting)
++	}
+ 	h.captureCongestionSend(pn, p, ecn, priorInFlight)
+ 
+ 	if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil {
+@@ -482,7 +489,11 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
+ 			h.congestionEvents.event.Congested = congested
+ 		}
+ 		if congested {
+-			h.congestion.OnCongestionEvent(largestAcked, 0, priorInFlight)
++			if c, ok := h.congestion.(congestion.PrototypeSpaceSender); ok {
++				c.PrototypeCongestion(congestion.PrototypePacketKey{Space: encLevel, Number: largestAcked}, 0, priorInFlight)
++			} else {
++				h.congestion.OnCongestionEvent(largestAcked, 0, priorInFlight)
++			}
+ 		}
+ 	}
+ 
+@@ -496,7 +507,11 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
+ 	var acked1RTTPacket bool
+ 	for _, p := range ackedPackets {
+ 		if p.includedInBytesInFlight {
+-			h.congestion.OnPacketAcked(p.PacketNumber, p.Length, priorInFlight, rcvTime)
++			if c, ok := h.congestion.(congestion.PrototypeSpaceSender); ok {
++				c.PrototypeAcked(congestion.PrototypePacketKey{Space: p.EncryptionLevel, Number: p.PacketNumber}, p.Length, priorInFlight, rcvTime)
++			} else {
++				h.congestion.OnPacketAcked(p.PacketNumber, p.Length, priorInFlight, rcvTime)
++			}
+ 		}
+ 		if p.EncryptionLevel == protocol.Encryption1RTT {
+ 			acked1RTTPacket = true
+@@ -916,7 +931,11 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
+ 				h.removeFromBytesInFlight(p)
+ 				h.queueFramesForRetransmission(p)
+ 				if !p.IsPathMTUProbePacket {
+-					h.congestion.OnCongestionEvent(pn, p.Length, priorInFlight)
++					if c, ok := h.congestion.(congestion.PrototypeSpaceSender); ok {
++						c.PrototypeCongestion(congestion.PrototypePacketKey{Space: p.EncryptionLevel, Number: pn}, p.Length, priorInFlight)
++					} else {
++						h.congestion.OnCongestionEvent(pn, p.Length, priorInFlight)
++					}
+ 				}
+ 				if encLevel == protocol.Encryption1RTT && h.bbrECN != nil {
+ 					h.bbrECN.lostPacket(pn)
+diff --git i/internal/ackhandler/snapshot_prototype_test.go w/internal/ackhandler/snapshot_prototype_test.go
+new file mode 100644
+index 00000000..79892d2c
+--- /dev/null
++++ w/internal/ackhandler/snapshot_prototype_test.go
+@@ -0,0 +1,223 @@
++package ackhandler
++
++// THROWAWAY handler traces. The ECN path uses the real tracker throughout.
++
++import (
++	"fmt"
++	"testing"
++	"time"
++	"unsafe"
++
++	"github.com/quic-go/quic-go/internal/congestion"
++	"github.com/quic-go/quic-go/internal/monotime"
++	"github.com/quic-go/quic-go/internal/protocol"
++	"github.com/quic-go/quic-go/internal/utils"
++	"github.com/quic-go/quic-go/internal/wire"
++	"github.com/stretchr/testify/require"
++)
++
++func newPrototypeHandler(ecn bool, perspective protocol.Perspective) *sentPacketHandler {
++	h := NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, ecn, nil, perspective, nil, utils.DefaultLogger).(*sentPacketHandler)
++	// Fix only this fixture's application skip schedule. A separate trace tests skipping.
++	h.appDataPackets.pns = newSequentialPacketNumberGenerator(0)
++	return h
++}
++
++func prototypeSend(t *testing.T, h *sentPacketHandler, at monotime.Time, level protocol.EncryptionLevel, ack, mtu, path bool) protocol.PacketNumber {
++	t.Helper()
++	pn := h.PopPacketNumber(level)
++	var frames []Frame
++	if ack {
++		frames = []Frame{{Frame: &wire.PingFrame{}}}
++	}
++	mark := protocol.ECNNon
++	if h.enableECN && level == protocol.Encryption1RTT && !path {
++		mark = h.ECNMode(true)
++	}
++	h.SentPacket(at, pn, protocol.InvalidPacketNumber, nil, frames, level, mark, 1200, mtu, path)
++	t.Logf("send %s/%d ack=%t mtu=%t path=%t: %s", level, pn, ack, mtu, path, h.congestion.(interface{ PrototypeSnapshot() string }).PrototypeSnapshot())
++	return pn
++}
++
++func prototypeACK(t *testing.T, h *sentPacketHandler, at monotime.Time, level protocol.EncryptionLevel, first, last protocol.PacketNumber, ect, ce uint64) {
++	t.Helper()
++	_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: first, Largest: last}}, ECT0: ect, ECNCE: ce}, level, at)
++	require.NoError(t, err)
++	t.Logf("ACK %s/%d-%d ECT0=%d CE=%d: %s", level, first, last, ect, ce, h.congestion.(interface{ PrototypeSnapshot() string }).PrototypeSnapshot())
++}
++
++func prototypeHandshakeCut(t *testing.T, h *sentPacketHandler, at monotime.Time) {
++	t.Helper()
++	for range 4 {
++		prototypeSend(t, h, at, protocol.EncryptionHandshake, true, false, false)
++	}
++	prototypeACK(t, h, at.Add(20*time.Millisecond), protocol.EncryptionHandshake, 1, 3, 0, 0)
++}
++
++func prototypeCapable(t *testing.T) (*sentPacketHandler, monotime.Time) {
++	t.Helper()
++	h := newPrototypeHandler(true, protocol.PerspectiveServer)
++	at := monotime.Time(time.Second)
++	for range 10 {
++		prototypeSend(t, h, at, protocol.Encryption1RTT, true, false, false)
++	}
++	prototypeACK(t, h, at.Add(20*time.Millisecond), protocol.Encryption1RTT, 0, 9, 10, 0)
++	require.Equal(t, ecnStateCapable, h.ecnTracker.(*ecnTracker).state)
++	return h, at.Add(30 * time.Millisecond)
++}
++
++func TestIssue961PrototypeECNMissingAnchor(t *testing.T) {
++	for _, before := range []bool{false, true} {
++		for _, retired := range []bool{false, true} {
++			t.Run(fmt.Sprintf("before=%t/retired=%t", before, retired), func(t *testing.T) {
++				h, at := prototypeCapable(t)
++				if !before {
++					prototypeHandshakeCut(t, h, at)
++					at = at.Add(30 * time.Millisecond)
++				}
++				lower := prototypeSend(t, h, at, protocol.Encryption1RTT, false, false, false)
++				anchor := prototypeSend(t, h, at, protocol.Encryption1RTT, true, false, false)
++				require.Equal(t, protocol.PacketNumber(10), lower)
++				require.Equal(t, protocol.PacketNumber(11), anchor)
++				if before {
++					prototypeHandshakeCut(t, h, at)
++					at = at.Add(30 * time.Millisecond)
++				}
++				if retired {
++					require.True(t, h.QueueProbePacketAt(protocol.Encryption1RTT, at))
++				}
++				var foundLower, foundAnchor bool
++				for pn := range h.appDataPackets.history.Packets() {
++					foundLower = foundLower || pn == lower
++					foundAnchor = foundAnchor || pn == anchor
++				}
++				require.True(t, foundLower)
++				require.Equal(t, !retired, foundAnchor)
++				require.Equal(t, protocol.PacketNumber(9), h.appDataPackets.largestAcked)
++				window := h.congestion.GetCongestionWindow()
++				prototypeACK(t, h, at.Add(20*time.Millisecond), protocol.Encryption1RTT, lower, anchor, 11, 1)
++				want := window
++				if !before {
++					want = window * 7 / 10
++				}
++				require.Equal(t, want, h.congestion.GetCongestionWindow())
++				tracker := h.ecnTracker.(*ecnTracker)
++				require.Equal(t, ecnStateCapable, tracker.state)
++				require.Equal(t, int64(1), tracker.numAckedECNCE)
++				require.Equal(t, int64(11), tracker.numAckedECT0)
++				prototypeACK(t, h, at.Add(21*time.Millisecond), protocol.Encryption1RTT, lower, anchor, 11, 1)
++				prototypeACK(t, h, at.Add(22*time.Millisecond), protocol.Encryption1RTT, 0, 8, 8, 0)
++				require.Equal(t, want, h.congestion.GetCongestionWindow(), "duplicate/reordered ACK cannot cut again")
++			})
++		}
++	}
++}
++
++func TestIssue961PrototypeMixedCEAndLoss(t *testing.T) {
++	h, at := prototypeCapable(t)
++	for range 4 {
++		prototypeSend(t, h, at, protocol.Encryption1RTT, true, false, false)
++	}
++	before := h.congestion.GetCongestionWindow()
++	prototypeACK(t, h, at.Add(20*time.Millisecond), protocol.Encryption1RTT, 13, 13, 10, 1)
++	require.Equal(t, before*7/10, h.congestion.GetCongestionWindow())
++	require.Equal(t, ecnStateCapable, h.ecnTracker.(*ecnTracker).state)
++}
++
++func TestIssue961PrototypeHandshakeApplication(t *testing.T) {
++	h := newPrototypeHandler(false, protocol.PerspectiveServer)
++	at := monotime.Time(time.Second)
++	for range 7 {
++		prototypeSend(t, h, at, protocol.EncryptionHandshake, true, false, false)
++	}
++	prototypeSend(t, h, at, protocol.Encryption1RTT, true, false, false)
++	prototypeACK(t, h, at.Add(20*time.Millisecond), protocol.EncryptionHandshake, 6, 6, 0, 0)
++	require.Equal(t, protocol.ByteCount(26880), h.congestion.GetCongestionWindow())
++	require.True(t, h.congestion.InRecovery())
++	prototypeSend(t, h, at.Add(30*time.Millisecond), protocol.Encryption1RTT, true, false, false)
++	prototypeACK(t, h, at.Add(50*time.Millisecond), protocol.Encryption1RTT, 1, 1, 0, 0)
++	require.False(t, h.congestion.InRecovery())
++	for range 4 {
++		prototypeSend(t, h, at.Add(60*time.Millisecond), protocol.Encryption1RTT, true, false, false)
++	}
++	prototypeACK(t, h, at.Add(80*time.Millisecond), protocol.Encryption1RTT, 3, 5, 0, 0)
++	require.Equal(t, protocol.ByteCount(18816), h.congestion.GetCongestionWindow())
++}
++
++func TestIssue961PrototypeLifecycle(t *testing.T) {
++	t.Run("Retry_and_zero_to_one_rtt", func(t *testing.T) {
++		h := newPrototypeHandler(false, protocol.PerspectiveClient)
++		at := monotime.Time(time.Second)
++		prototypeSend(t, h, at, protocol.EncryptionInitial, true, false, false)
++		prototypeSend(t, h, at, protocol.Encryption0RTT, true, false, false)
++		h.ResetForRetry(at.Add(20 * time.Millisecond))
++		require.Equal(t, protocol.PacketNumber(1), prototypeSend(t, h, at.Add(30*time.Millisecond), protocol.EncryptionInitial, true, false, false))
++		require.Equal(t, protocol.PacketNumber(1), prototypeSend(t, h, at.Add(30*time.Millisecond), protocol.Encryption0RTT, true, false, false))
++		h.DropPackets(protocol.Encryption0RTT, at.Add(40*time.Millisecond))
++		h.DropPackets(protocol.EncryptionInitial, at.Add(40*time.Millisecond))
++		require.Equal(t, protocol.PacketNumber(2), prototypeSend(t, h, at.Add(50*time.Millisecond), protocol.Encryption1RTT, true, false, false))
++		prototypeACK(t, h, at.Add(70*time.Millisecond), protocol.Encryption1RTT, 2, 2, 0, 0)
++		require.False(t, h.congestion.InRecovery())
++	})
++	t.Run("migration_keeps_wire_numbers_resets_controller", func(t *testing.T) {
++		h := newPrototypeHandler(false, protocol.PerspectiveClient)
++		at := monotime.Time(time.Second)
++		prototypeSend(t, h, at, protocol.Encryption1RTT, true, false, false)
++		h.MigratedPath(at.Add(20*time.Millisecond), 1200)
++		require.Equal(t, protocol.ByteCount(38400), h.congestion.GetCongestionWindow())
++		require.Equal(t, protocol.PacketNumber(1), prototypeSend(t, h, at.Add(30*time.Millisecond), protocol.Encryption1RTT, true, false, false))
++		prototypeACK(t, h, at.Add(50*time.Millisecond), protocol.Encryption1RTT, 1, 1, 0, 0)
++		require.False(t, h.congestion.InRecovery())
++	})
++	t.Run("intentional_skip_remains_validated", func(t *testing.T) {
++		h := newPrototypeHandler(false, protocol.PerspectiveServer)
++		h.appDataPackets.pns = newSkippingPacketNumberGenerator(0, 256, 1024)
++		h.appDataPackets.pns.(*skippingPacketNumberGenerator).nextToSkip = 2
++		at := monotime.Time(time.Second)
++		for _, want := range []protocol.PacketNumber{0, 1, 3} {
++			require.Equal(t, want, prototypeSend(t, h, at, protocol.Encryption1RTT, true, false, false))
++		}
++		_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 0, Largest: 3}}}, protocol.Encryption1RTT, at.Add(20*time.Millisecond))
++		require.ErrorContains(t, err, "skipped packet number")
++		prototypeACK(t, h, at.Add(20*time.Millisecond), protocol.Encryption1RTT, 3, 3, 0, 0)
++		require.Zero(t, h.connStats.PacketsLost.Load(), "skipped number cannot count toward threshold")
++	})
++	t.Run("MTU_loss_excluded", func(t *testing.T) {
++		h := newPrototypeHandler(false, protocol.PerspectiveServer)
++		at := monotime.Time(time.Second)
++		window := h.congestion.GetCongestionWindow()
++		prototypeSend(t, h, at, protocol.Encryption1RTT, true, true, false)
++		for range 3 {
++			prototypeSend(t, h, at, protocol.Encryption1RTT, true, false, false)
++		}
++		prototypeACK(t, h, at.Add(20*time.Millisecond), protocol.Encryption1RTT, 3, 3, 0, 0)
++		require.Equal(t, window, h.congestion.GetCongestionWindow())
++		require.Zero(t, h.connStats.PacketsLost.Load())
++		require.False(t, h.congestion.InRecovery())
++	})
++	t.Run("MTU_ACK_crosses", func(t *testing.T) {
++		h := newPrototypeHandler(false, protocol.PerspectiveServer)
++		at := monotime.Time(time.Second)
++		prototypeHandshakeCut(t, h, at)
++		window := h.congestion.GetCongestionWindow()
++		pn := prototypeSend(t, h, at.Add(30*time.Millisecond), protocol.Encryption1RTT, true, true, false)
++		prototypeACK(t, h, at.Add(50*time.Millisecond), protocol.Encryption1RTT, pn, pn, 0, 0)
++		require.False(t, h.congestion.InRecovery())
++		require.Equal(t, window, h.congestion.GetCongestionWindow())
++	})
++	t.Run("path_probe_and_ACK_only_do_not_exit_recovery", func(t *testing.T) {
++		h := newPrototypeHandler(false, protocol.PerspectiveServer)
++		at := monotime.Time(time.Second)
++		prototypeHandshakeCut(t, h, at)
++		lower := prototypeSend(t, h, at.Add(30*time.Millisecond), protocol.Encryption1RTT, false, false, false)
++		upper := prototypeSend(t, h, at.Add(30*time.Millisecond), protocol.Encryption1RTT, true, false, true)
++		prototypeACK(t, h, at.Add(50*time.Millisecond), protocol.Encryption1RTT, lower, upper, 0, 0)
++		require.True(t, h.congestion.InRecovery())
++	})
++}
++
++func TestIssue961PrototypeLayout(t *testing.T) {
++	c := congestion.NewCubicSender(congestion.DefaultClock{}, utils.NewRTTStats(), &utils.ConnectionStats{}, 1200, true, nil)
++	t.Logf("packet=%d cubicSender=%d HybridSlowStart=%d bytes", unsafe.Sizeof(packet{}), unsafe.Sizeof(*c), unsafe.Sizeof(congestion.HybridSlowStart{}))
++	require.Equal(t, uintptr(80), unsafe.Sizeof(packet{}))
++}
+diff --git i/internal/congestion/cubic_sender.go w/internal/congestion/cubic_sender.go
+index e5457ddb..6e539d4d 100644
+--- i/internal/congestion/cubic_sender.go
++++ w/internal/congestion/cubic_sender.go
+@@ -30,14 +30,9 @@ type cubicSender struct {
+ 
+ 	reno bool
+ 
+-	// Track the largest packet that has been sent.
+-	largestSentPacketNumber protocol.PacketNumber
+-
+-	// Track the largest packet that has been acked.
+-	largestAckedPacketNumber protocol.PacketNumber
+-
+-	// Track the largest packet number outstanding when a CWND cutback occurs.
+-	largestSentAtLastCutback protocol.PacketNumber
++	// THROWAWAY: complete registration prefixes for issue 961.
++	prototypeRegistered, prototypeEligible, prototypeCutback  prototypePrefix
++	prototypeHasACK, prototypeHasCutback, prototypeRecovering bool
+ 
+ 	// Whether the last loss event caused us to exit slowstart.
+ 	// Used for stats collection of slowstartPacketsLost
+@@ -100,9 +95,6 @@ func newCubicSender(
+ 	c := &cubicSender{
+ 		rttStats:                   rttStats,
+ 		connStats:                  connStats,
+-		largestSentPacketNumber:    protocol.InvalidPacketNumber,
+-		largestAckedPacketNumber:   protocol.InvalidPacketNumber,
+-		largestSentAtLastCutback:   protocol.InvalidPacketNumber,
+ 		initialCongestionWindow:    initialCongestionWindow,
+ 		initialMaxCongestionWindow: initialMaxCongestionWindow,
+ 		congestionWindow:           initialCongestionWindow,
+@@ -147,12 +139,7 @@ func (c *cubicSender) OnPacketSent(
+ 	bytes protocol.ByteCount,
+ 	isRetransmittable bool,
+ ) {
+-	c.pacer.SentPacket(sentTime, bytes)
+-	if !isRetransmittable {
+-		return
+-	}
+-	c.largestSentPacketNumber = packetNumber
+-	c.hybridSlowStart.OnPacketSent(packetNumber)
++	c.PrototypeSent(sentTime, 0, PrototypePacketKey{Space: protocol.Encryption1RTT, Number: packetNumber}, bytes, isRetransmittable, false)
+ }
+ 
+ func (c *cubicSender) CanSend(bytesInFlight protocol.ByteCount) bool {
+@@ -160,7 +147,7 @@ func (c *cubicSender) CanSend(bytesInFlight protocol.ByteCount) bool {
+ }
+ 
+ func (c *cubicSender) InRecovery() bool {
+-	return c.largestAckedPacketNumber != protocol.InvalidPacketNumber && c.largestAckedPacketNumber <= c.largestSentAtLastCutback
++	return c.prototypeHasACK && c.prototypeRecovering
+ }
+ 
+ func (c *cubicSender) InSlowStart() bool {
+@@ -186,23 +173,20 @@ func (c *cubicSender) OnPacketAcked(
+ 	priorInFlight protocol.ByteCount,
+ 	eventTime monotime.Time,
+ ) {
+-	c.largestAckedPacketNumber = max(ackedPacketNumber, c.largestAckedPacketNumber)
+-	if c.InRecovery() {
+-		return
+-	}
+-	c.maybeIncreaseCwnd(ackedPacketNumber, ackedBytes, priorInFlight, eventTime)
+-	if c.InSlowStart() {
+-		c.hybridSlowStart.OnPacketAcked(ackedPacketNumber)
+-	}
++	c.PrototypeAcked(PrototypePacketKey{Space: protocol.Encryption1RTT, Number: ackedPacketNumber}, ackedBytes, priorInFlight, eventTime)
+ }
+ 
+ func (c *cubicSender) OnCongestionEvent(packetNumber protocol.PacketNumber, lostBytes, priorInFlight protocol.ByteCount) {
++	c.PrototypeCongestion(PrototypePacketKey{Space: protocol.Encryption1RTT, Number: packetNumber}, lostBytes, priorInFlight)
++}
++
++func (c *cubicSender) PrototypeCongestion(key PrototypePacketKey, lostBytes, priorInFlight protocol.ByteCount) {
+ 	c.connStats.PacketsLost.Add(1)
+ 	c.connStats.BytesLost.Add(uint64(lostBytes))
+ 
+ 	// TCP NewReno (RFC6582) says that once a loss occurs, any losses in packets
+ 	// already sent should be treated as a single loss event, since it's expected.
+-	if packetNumber <= c.largestSentAtLastCutback {
++	if c.prototypeHasCutback && !c.prototypeCutback.after(key) {
+ 		return
+ 	}
+ 	c.lastCutbackExitedSlowstart = c.InSlowStart()
+@@ -217,7 +201,8 @@ func (c *cubicSender) OnCongestionEvent(packetNumber protocol.PacketNumber, lost
+ 		c.congestionWindow = minCwnd
+ 	}
+ 	c.slowStartThreshold = c.congestionWindow
+-	c.largestSentAtLastCutback = c.largestSentPacketNumber
++	c.prototypeCutback = c.prototypeEligible
++	c.prototypeHasCutback, c.prototypeRecovering = true, true
+ 	// reset packet count from congestion avoidance mode. We start
+ 	// counting again when we're out of recovery.
+ 	c.numAckedPackets = 0
+@@ -286,7 +271,8 @@ func (c *cubicSender) BandwidthEstimate() Bandwidth {
+ 
+ // OnRetransmissionTimeout is called on an retransmission timeout
+ func (c *cubicSender) OnRetransmissionTimeout(packetsRetransmitted bool) {
+-	c.largestSentAtLastCutback = protocol.InvalidPacketNumber
++	c.prototypeCutback = prototypePrefix{}
++	c.prototypeHasCutback, c.prototypeRecovering = false, false
+ 	if !packetsRetransmitted {
+ 		return
+ 	}
+@@ -299,9 +285,10 @@ func (c *cubicSender) OnRetransmissionTimeout(packetsRetransmitted bool) {
+ // OnConnectionMigration is called when the connection is migrated (?)
+ func (c *cubicSender) OnConnectionMigration() {
+ 	c.hybridSlowStart.Restart()
+-	c.largestSentPacketNumber = protocol.InvalidPacketNumber
+-	c.largestAckedPacketNumber = protocol.InvalidPacketNumber
+-	c.largestSentAtLastCutback = protocol.InvalidPacketNumber
++	c.prototypeRegistered, c.prototypeEligible = prototypePrefix{}, prototypePrefix{}
++	c.prototypeHasACK = false
++	c.prototypeCutback = prototypePrefix{}
++	c.prototypeHasCutback, c.prototypeRecovering = false, false
+ 	c.lastCutbackExitedSlowstart = false
+ 	c.cubic.Reset()
+ 	c.numAckedPackets = 0
+diff --git i/internal/congestion/hybrid_slow_start.go w/internal/congestion/hybrid_slow_start.go
+index 554a9300..dc4855a0 100644
+--- i/internal/congestion/hybrid_slow_start.go
++++ w/internal/congestion/hybrid_slow_start.go
+@@ -24,17 +24,23 @@ const (
+ 
+ // HybridSlowStart implements the TCP hybrid slow start algorithm
+ type HybridSlowStart struct {
+-	endPacketNumber      protocol.PacketNumber
+-	lastSentPacketNumber protocol.PacketNumber
+-	started              bool
+-	currentMinRTT        time.Duration
+-	rttSampleCount       uint32
+-	hystartFound         bool
++	// THROWAWAY: receive-round prefix owned by HybridSlowStart.
++	prototypeAware                  bool
++	prototypeLatest, prototypeRound prototypePrefix
++	endPacketNumber                 protocol.PacketNumber
++	lastSentPacketNumber            protocol.PacketNumber
++	started                         bool
++	currentMinRTT                   time.Duration
++	rttSampleCount                  uint32
++	hystartFound                    bool
+ }
+ 
+ // StartReceiveRound is called for the start of each receive round (burst) in the slow start phase.
+ func (s *HybridSlowStart) StartReceiveRound(lastSent protocol.PacketNumber) {
+ 	s.endPacketNumber = lastSent
++	if s.prototypeAware {
++		s.prototypeRound = s.prototypeLatest
++	}
+ 	s.currentMinRTT = 0
+ 	s.rttSampleCount = 0
+ 	s.started = true
+diff --git i/internal/congestion/snapshot_prototype.go w/internal/congestion/snapshot_prototype.go
+new file mode 100644
+index 00000000..39fb4ac8
+--- /dev/null
++++ w/internal/congestion/snapshot_prototype.go
+@@ -0,0 +1,89 @@
++package congestion
++
++// THROWAWAY issue-961 experiment. This capability seam is not a production proposal.
++
++import (
++	"fmt"
++
++	"github.com/quic-go/quic-go/internal/monotime"
++	"github.com/quic-go/quic-go/internal/protocol"
++)
++
++type PrototypePacketKey struct {
++	Space  protocol.EncryptionLevel
++	Number protocol.PacketNumber
++}
++
++type PrototypeSpaceSender interface {
++	PrototypeSent(monotime.Time, protocol.ByteCount, PrototypePacketKey, protocol.ByteCount, bool, bool)
++	PrototypeAcked(PrototypePacketKey, protocol.ByteCount, protocol.ByteCount, monotime.Time)
++	PrototypeCongestion(PrototypePacketKey, protocol.ByteCount, protocol.ByteCount)
++}
++
++// A prefix contains all registrations up to one instant, not three independently
++// chosen eligible sends. An absent space has no registrations in that prefix.
++type prototypePrefix struct {
++	numbers [3]protocol.PacketNumber
++	present uint8
++}
++
++func prototypeSpace(level protocol.EncryptionLevel) int {
++	switch level {
++	case protocol.EncryptionInitial:
++		return 0
++	case protocol.EncryptionHandshake:
++		return 1
++	case protocol.Encryption0RTT, protocol.Encryption1RTT:
++		return 2
++	default:
++		panic("invalid prototype space")
++	}
++}
++
++func (p *prototypePrefix) note(key PrototypePacketKey) {
++	i := prototypeSpace(key.Space)
++	p.numbers[i] = key.Number
++	p.present |= 1 << i
++}
++
++func (p prototypePrefix) after(key PrototypePacketKey) bool {
++	i := prototypeSpace(key.Space)
++	return p.present&(1<<i) == 0 || key.Number > p.numbers[i]
++}
++
++func (p prototypePrefix) String() string {
++	return fmt.Sprintf("%v/mask=%03b", p.numbers, p.present)
++}
++
++func (c *cubicSender) PrototypeSent(now monotime.Time, flight protocol.ByteCount, key PrototypePacketKey, size protocol.ByteCount, ackEliciting, pathProbe bool) {
++	c.prototypeRegistered.note(key)
++	if pathProbe {
++		return // no pacing, flight, or eligible-frontier change for this path
++	}
++	c.pacer.SentPacket(now, size)
++	if !ackEliciting {
++		return
++	}
++	c.prototypeEligible = c.prototypeRegistered
++	c.hybridSlowStart.prototypeAware = true
++	c.hybridSlowStart.prototypeLatest = c.prototypeEligible
++	c.hybridSlowStart.OnPacketSent(key.Number)
++}
++
++func (c *cubicSender) PrototypeAcked(key PrototypePacketKey, bytes, flight protocol.ByteCount, now monotime.Time) {
++	c.prototypeHasACK = true
++	if c.prototypeHasCutback && c.prototypeCutback.after(key) {
++		c.prototypeRecovering = false
++	}
++	if c.InRecovery() {
++		return
++	}
++	c.maybeIncreaseCwnd(key.Number, bytes, flight, now)
++	if c.InSlowStart() && c.hybridSlowStart.prototypeRound.after(key) {
++		c.hybridSlowStart.started = false
++	}
++}
++
++func (c *cubicSender) PrototypeSnapshot() string {
++	return fmt.Sprintf("registered=%s eligible=%s cutback=%s hasCutback=%t hasACK=%t active=%t recovery=%t cwnd=%d hystartRound=%s samples=%d", c.prototypeRegistered, c.prototypeEligible, c.prototypeCutback, c.prototypeHasCutback, c.prototypeHasACK, c.prototypeRecovering, c.InRecovery(), c.congestionWindow, c.hybridSlowStart.prototypeRound, c.hybridSlowStart.rttSampleCount)
++}
+diff --git i/internal/congestion/snapshot_prototype_test.go w/internal/congestion/snapshot_prototype_test.go
+new file mode 100644
+index 00000000..d1b23f4d
+--- /dev/null
++++ w/internal/congestion/snapshot_prototype_test.go
+@@ -0,0 +1,101 @@
++package congestion
++
++// THROWAWAY finite experiment traces, not maintained regression coverage.
++
++import (
++	"testing"
++	"time"
++
++	"github.com/quic-go/quic-go/internal/monotime"
++	"github.com/quic-go/quic-go/internal/protocol"
++	"github.com/stretchr/testify/require"
++)
++
++func prototypeKey(level protocol.EncryptionLevel, pn protocol.PacketNumber) PrototypePacketKey {
++	return PrototypePacketKey{Space: level, Number: pn}
++}
++
++func TestIssue961PrototypePrefixes(t *testing.T) {
++	for _, path := range []bool{false, true} {
++		for _, before := range []bool{false, true} {
++			name := "ack_only"
++			if path {
++				name = "path_probe"
++			}
++			if before {
++				name += "_before_frontier"
++			} else {
++				name += "_after_frontier"
++			}
++			t.Run(name, func(t *testing.T) {
++				c := newTestCubicSender(false).sender
++				now := monotime.Time(time.Second)
++				excluded := prototypeKey(protocol.Encryption1RTT, 0)
++				eligible := prototypeKey(protocol.EncryptionHandshake, 0)
++				sendExcluded := func() {
++					c.PrototypeSent(now, 0, excluded, 1200, path, path)
++					t.Log("excluded registration:", c.PrototypeSnapshot())
++				}
++				if before {
++					sendExcluded()
++				}
++				c.PrototypeSent(now, 0, eligible, 1200, true, false)
++				t.Log("eligible registration:", c.PrototypeSnapshot())
++				if !before {
++					sendExcluded()
++				}
++				c.PrototypeCongestion(eligible, 1200, 1200)
++				t.Log("accepted cutback:", c.PrototypeSnapshot())
++				require.False(t, c.InRecovery(), "preserve no-prior-ACK reporting")
++				require.Equal(t, !before, c.prototypeCutback.after(excluded))
++				cut := c.prototypeCutback
++				window := c.GetCongestionWindow()
++				c.PrototypeCongestion(eligible, 1200, 1200)
++				t.Log("suppressed old loss:", c.PrototypeSnapshot())
++				require.Equal(t, cut, c.prototypeCutback)
++				require.Equal(t, window, c.GetCongestionWindow())
++				c.PrototypeAcked(eligible, 1200, 0, now)
++				require.True(t, c.InRecovery())
++				c.PrototypeSent(now, 0, prototypeKey(protocol.EncryptionInitial, 0), 1200, true, false)
++				c.PrototypeAcked(prototypeKey(protocol.EncryptionInitial, 0), 1200, 0, now)
++				t.Log("new-space post-cutback ACK:", c.PrototypeSnapshot())
++				require.False(t, c.InRecovery())
++				c.PrototypeAcked(eligible, 1200, 0, now)
++				require.False(t, c.InRecovery(), "old ACK cannot reactivate recovery")
++			})
++		}
++	}
++	t.Run("zero_and_one_rtt_share_identity", func(t *testing.T) {
++		var p prototypePrefix
++		p.note(prototypeKey(protocol.Encryption0RTT, 3))
++		require.False(t, p.after(prototypeKey(protocol.Encryption1RTT, 3)))
++		require.True(t, p.after(prototypeKey(protocol.Encryption1RTT, 4)))
++		t.Log("shared application prefix:", p)
++	})
++}
++
++func TestIssue961PrototypeSlowStart(t *testing.T) {
++	c := newTestCubicSender(false).sender
++	now := monotime.Time(time.Second)
++	for i := range 8 {
++		c.PrototypeSent(now, 0, prototypeKey(protocol.EncryptionHandshake, protocol.PacketNumber(i)), 1200, true, false)
++		if i == 3 {
++			c.PrototypeSent(now, 0, prototypeKey(protocol.Encryption1RTT, 0), 1200, true, false)
++		}
++	}
++	c.PrototypeSent(now, 0, prototypeKey(protocol.Encryption1RTT, 1), 1200, true, false)
++	s := &c.hybridSlowStart
++	for i := range 8 {
++		require.False(t, s.ShouldExitSlowStart(66*time.Millisecond, 60*time.Millisecond, 32))
++		c.PrototypeAcked(prototypeKey(protocol.EncryptionHandshake, protocol.PacketNumber(i)), 1200, 0, now)
++		t.Logf("pre-frontier Handshake/%d: %s", i, c.PrototypeSnapshot())
++		require.True(t, s.Started())
++		require.Equal(t, uint32(i+1), s.rttSampleCount)
++	}
++	c.PrototypeSent(now, 0, prototypeKey(protocol.Encryption1RTT, 2), 1200, true, false)
++	c.PrototypeAcked(prototypeKey(protocol.Encryption1RTT, 2), 1200, 0, now)
++	t.Log("strictly post-frontier application ACK:", c.PrototypeSnapshot())
++	require.False(t, s.Started())
++	require.False(t, s.ShouldExitSlowStart(66*time.Millisecond, 60*time.Millisecond, 32))
++	require.Equal(t, uint32(1), s.rttSampleCount)
++}

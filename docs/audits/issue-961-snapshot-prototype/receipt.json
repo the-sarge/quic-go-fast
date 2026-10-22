@@ -1,0 +1,42 @@
+{
+  "source_commit": "78096061e13bdac5cbfad66ce40db9289ca92959",
+  "policy": "latest eligible send; complete registration prefix at that frontier; strict greater-than crossing",
+  "modified": [
+    "internal/ackhandler/sent_packet_handler.go",
+    "internal/congestion/cubic_sender.go",
+    "internal/congestion/hybrid_slow_start.go"
+  ],
+  "added": [
+    "internal/ackhandler/snapshot_prototype_test.go",
+    "internal/congestion/snapshot_prototype.go",
+    "internal/congestion/snapshot_prototype_test.go"
+  ],
+  "candidate_sha256": {
+    "internal/ackhandler/sent_packet_handler.go": "449cc9cc923ed657e7eaa45abc4f51f653c7d50fddc2895f32da15f4da351583",
+    "internal/congestion/cubic_sender.go": "ad7431162fcecb7eaa8ec752e7b09e6b8bacd236290887544a0e2b41c65ce057",
+    "internal/congestion/hybrid_slow_start.go": "7b75686512e73910517af34956c7b0721951fca7de816aeef3e0114da30a329f",
+    "internal/ackhandler/snapshot_prototype_test.go": "87fb20a04742f7a2162b246e54de5f8ca1f812a053fb5d4c10f3aae6aeccea46",
+    "internal/congestion/snapshot_prototype.go": "b77df332121f1351be0d1a758dcfe66a18598a4b35646093f1c873180da52a0f",
+    "internal/congestion/snapshot_prototype_test.go": "85a22e64c3ba6fe6a049c15e1038fcc9639be7f92837bb09fe6975bc860c8db1"
+  },
+  "checks": {
+    "paired_regressions": "pass: all 8 leaf cases",
+    "focused_traces": "pass",
+    "affected_packages": "pass",
+    "race_packages": "pass",
+    "go_vet": "pass"
+  },
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "packet_bytes": {
+    "baseline": 80,
+    "candidate": 80
+  },
+  "cubic_sender_bytes": {
+    "baseline": 208,
+    "candidate": 352
+  },
+  "hybrid_slow_start_bytes_included_in_sender": {
+    "baseline": 40,
+    "candidate": 112
+  }
+}
