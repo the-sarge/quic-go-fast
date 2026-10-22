@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/congestion"
 	"github.com/quic-go/quic-go/internal/mocks"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -1185,7 +1186,7 @@ func TestSentPacketHandlerCongestion(t *testing.T) {
 		require.Equal(t, SendAny, sph.SendMode(now))
 		pn := sph.PopPacketNumber(protocol.EncryptionInitial)
 		bytesInFlight += 1000
-		cong.EXPECT().OnPacketSent(now, bytesInFlight, pn, protocol.ByteCount(1000), true)
+		cong.EXPECT().OnPacketSent(now, bytesInFlight, congestion.NewPacketKey(protocol.EncryptionInitial, pn), protocol.ByteCount(1000), true, false)
 		sph.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []Frame{packets.NewPingFrame(pn)}, protocol.EncryptionInitial, protocol.ECNNon, 1000, i == 1, false)
 		pns = append(pns, pn)
 		sendTimes = append(sendTimes, now)
@@ -1215,9 +1216,9 @@ func TestSentPacketHandlerCongestion(t *testing.T) {
 	ackTime := sendTimes[3].Add(time.Second)
 	gomock.InOrder(
 		cong.EXPECT().MaybeExitSlowStart(),
-		cong.EXPECT().OnCongestionEvent(pns[0], protocol.ByteCount(1000), protocol.ByteCount(5000)),
-		cong.EXPECT().OnPacketAcked(pns[2], protocol.ByteCount(1000), protocol.ByteCount(5000), ackTime),
-		cong.EXPECT().OnPacketAcked(pns[3], protocol.ByteCount(1000), protocol.ByteCount(5000), ackTime),
+		cong.EXPECT().OnCongestionEvent(congestion.NewPacketKey(protocol.EncryptionInitial, pns[0]), protocol.ByteCount(1000), protocol.ByteCount(5000)),
+		cong.EXPECT().OnPacketAcked(congestion.NewPacketKey(protocol.EncryptionInitial, pns[2]), protocol.ByteCount(1000), protocol.ByteCount(5000), ackTime),
+		cong.EXPECT().OnPacketAcked(congestion.NewPacketKey(protocol.EncryptionInitial, pns[3]), protocol.ByteCount(1000), protocol.ByteCount(5000), ackTime),
 	)
 	_, err := sph.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns[2], pns[3])}, protocol.EncryptionInitial, ackTime)
 	require.NoError(t, err)
@@ -1238,7 +1239,7 @@ func TestSentPacketHandlerCongestion(t *testing.T) {
 	// send another packet to check that bytes_in_flight was correctly adjusted
 	now = timeout.Add(100 * time.Millisecond)
 	pn := sph.PopPacketNumber(protocol.EncryptionInitial)
-	cong.EXPECT().OnPacketSent(now, protocol.ByteCount(2000), pn, protocol.ByteCount(1000), true)
+	cong.EXPECT().OnPacketSent(now, protocol.ByteCount(2000), congestion.NewPacketKey(protocol.EncryptionInitial, pn), protocol.ByteCount(1000), true, false)
 	sph.SentPacket(now, pn, protocol.InvalidPacketNumber, nil, []Frame{packets.NewPingFrame(pn)}, protocol.EncryptionInitial, protocol.ECNNon, 1000, false, false)
 }
 
@@ -1350,7 +1351,7 @@ func TestSentPacketHandlerRetryAfterPTO(t *testing.T) {
 func TestSentPacketHandlerECN(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	cong := mocks.NewMockSendAlgorithmWithDebugInfos(mockCtrl)
-	cong.EXPECT().OnPacketSent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	cong.EXPECT().OnPacketSent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	cong.EXPECT().OnPacketAcked(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	cong.EXPECT().MaybeExitSlowStart().AnyTimes()
 	ecnHandler := NewMockECNHandler(mockCtrl)
@@ -1448,7 +1449,7 @@ func TestSentPacketHandlerECN(t *testing.T) {
 
 	gomock.InOrder(
 		ecnHandler.EXPECT().HandleNewlyAcked(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(true),
-		cong.EXPECT().OnCongestionEvent(pns[0], protocol.ByteCount(0), gomock.Any()),
+		cong.EXPECT().OnCongestionEvent(congestion.NewPacketKey(protocol.Encryption1RTT, pns[0]), protocol.ByteCount(0), gomock.Any()),
 	)
 	_, err = sph.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns[0])}, protocol.Encryption1RTT, now.Add(100*time.Millisecond))
 	require.NoError(t, err)

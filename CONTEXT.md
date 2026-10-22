@@ -18,6 +18,10 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Packet registration**: Recording a constructed outgoing QUIC packet in the transport's recovery accounting. Registration, socket-write completion, and acknowledgment by the peer are distinct events.
 
+**Registration prefix**: The set of packet registrations up to one point in a connection's send order, spanning its packet-number spaces.
+
+**Eligible-send frontier**: The latest ACK-eliciting non-path transmission defining Reno's recovery frontier, including all registrations preceding it. MTU probes participate; trailing excluded registrations are beyond the frontier.
+
 **Transport delivery**: Receipt of transmitted data confirmed by the peer transport's acknowledgment. It does not establish that the receiving application has consumed, verified or published useful content.
 
 **Application-limited delivery sample**: A delivery-rate observation covering a period when the sender lacked enough eligible data to fully exercise the path. A low observed rate during that period does not establish a low path capacity.
