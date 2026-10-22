@@ -348,6 +348,68 @@ func TestDatagramQueueClose(t *testing.T) {
 	})
 }
 
+func TestDatagramQueueAddAfterClose(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		depth int
+	}{
+		{name: "empty", depth: 0},
+		{name: "partly occupied", depth: 31},
+		{name: "full", depth: 32},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var notifications int
+			queue := newDatagramQueue(func() { notifications++ }, utils.DefaultLogger)
+			for range tc.depth {
+				require.NoError(t, queue.Add(&wire.DatagramFrame{Data: []byte("queued")}))
+			}
+			queue.CloseWithError(assert.AnError)
+
+			err := queue.Add(&wire.DatagramFrame{Data: []byte("late")})
+			require.Error(t, err)
+			require.Same(t, assert.AnError, err)
+			require.Equal(t, tc.depth, notifications)
+			for range tc.depth {
+				require.Equal(t, []byte("queued"), queue.Peek().Data)
+				queue.Pop()
+			}
+			require.Nil(t, queue.Peek())
+		})
+	}
+}
+
+func TestDatagramQueueBlockedAddAroundClose(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var notifications int
+		queue := newDatagramQueue(func() { notifications++ }, utils.DefaultLogger)
+		for range maxDatagramSendQueueLen {
+			require.NoError(t, queue.Add(&wire.DatagramFrame{Data: []byte("queued")}))
+		}
+		result := make(chan error, 1)
+		go func() { result <- queue.Add(&wire.DatagramFrame{Data: []byte("late")}) }()
+		synctest.Wait()
+
+		// Publish capacity and closure before Add can retry admission. Either
+		// wakeup may win its select; both must reject the new frame.
+		queue.sendMx.Lock()
+		_ = queue.sendQueue.PopFront()
+		queue.sent <- struct{}{}
+		queue.CloseWithError(assert.AnError)
+		queue.sendMx.Unlock()
+		synctest.Wait()
+
+		err := <-result
+		require.Error(t, err)
+		require.Same(t, assert.AnError, err)
+		require.Equal(t, 32, notifications)
+		for range maxDatagramSendQueueLen - 1 {
+			require.Equal(t, []byte("queued"), queue.Peek().Data)
+			queue.Pop()
+		}
+		require.Nil(t, queue.Peek())
+	})
+}
+
 // receiveQueueLen mirrors the number of received payloads awaiting Receive
 // after every push, pop and clear, so handlePacket can read it without the
 // queue's mutex.

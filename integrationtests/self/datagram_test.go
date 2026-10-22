@@ -131,6 +131,38 @@ func TestDatagramSizeLimit(t *testing.T) {
 	require.Equal(t, bytes.Repeat([]byte("b"), int(sizeErr.MaxDatagramPayloadSize)), datagram)
 }
 
+func TestDatagramSendAfterClose(t *testing.T) {
+	server, err := quic.Listen(
+		newUDPConnLocalhost(t),
+		getTLSConfig(),
+		getQuicConfig(&quic.Config{EnableDatagrams: true}),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { server.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	client, err := quic.Dial(ctx, newUDPConnLocalhost(t), server.Addr(), getTLSClientConfig(), getQuicConfig(&quic.Config{EnableDatagrams: true}))
+	require.NoError(t, err)
+	t.Cleanup(func() { client.CloseWithError(0, "") })
+	peer, err := server.Accept(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { peer.CloseWithError(0, "") })
+	require.True(t, client.ConnectionState().SupportsDatagrams.Remote)
+	require.NoError(t, client.SendDatagram([]byte("open")))
+
+	require.NoError(t, client.CloseWithError(42, "closed datagram sender"))
+	err = client.SendDatagram([]byte("late"))
+	require.ErrorIs(t, err, context.Cause(client.Context()))
+	var appErr *quic.ApplicationError
+	require.ErrorAs(t, err, &appErr)
+	require.Equal(t, &quic.ApplicationError{ErrorCode: 42, ErrorMessage: "closed datagram sender"}, appErr)
+
+	// Size validation still precedes queue admission, including after close.
+	err = client.SendDatagram(make([]byte, 1<<16))
+	var sizeErr *quic.DatagramTooLargeError
+	require.ErrorAs(t, err, &sizeErr)
+}
+
 func TestDatagramSizeLimitWithMTUDiscovery(t *testing.T) {
 	server, err := quic.Listen(
 		newUDPConnLocalhost(t),
