@@ -7482,3 +7482,24 @@ All 33 hosted checks passed on that exact head, including all 17 jobs in the fiv
 ### Next
 
 The consumer reruns [#855's gates](https://github.com/the-sarge/quic-go-fast/issues/855) in both cells and [#824's namespace set](https://github.com/the-sarge/quic-go-fast/issues/824) on `2a83ed29`, then posts the results. [Bundle tracker #851](https://github.com/the-sarge/quic-go-fast/issues/851) remains held pending those results and is the live release-status view.
+
+---
+
+## Reject DATAGRAM sends after closure - 2026-10-21 21:31 EDT
+
+**Main:** `71d034a7f752`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #965](https://github.com/the-sarge/quic-go-fast/pull/965) as `71d034a7f75257484769aea494e6a67ab854fdcc`, closing [issue #956](https://github.com/the-sarge/quic-go-fast/issues/956). QUIC DATAGRAM queue admission now observes closure before checking capacity, including after a blocked sender wakes. HTTP/3 observes an already-canceled send-stream context synchronously when no wrapper send error has been recorded.
+
+### Decisions
+
+Adopted upstream #5880's queue check and adapted #5884's context observation, preserving the fork's existing error identities, recorded-error precedence, public HTTP/3 conversion and asynchronous cleanup ownership. The [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/956#issuecomment-6329462422) records the boundary: #5885, receive-policy changes and stronger concurrent-close guarantees remain excluded. Success still means local admission of an unreliable application DATAGRAM message.
+
+### Validation
+
+New regressions failed before the corresponding fixes and passed afterward: queue admission at depths 0 and 31 and around blocked-sender shutdown, a real post-close QUIC send, and HTTP/3 ordinary closure, local cancellation, STOP_SENDING and local/remote connection shutdown with an explicitly gated callback. Controls cover full-queue closure, both public HTTP/3 wrappers, wrapper-close/cancel errors, continued receive-side use and exactly-once cleanup in both completion orders.
+
+At reviewed head `037aac6b76076acd2a9304926e26dcf1e581f16b`, root and HTTP/3 package tests, DATAGRAM integration tests, one focused race pass, vet, module tidiness, changed-file formatting and diff checks passed. All 33 applicable hosted checks succeeded before the exact-head squash merge. RAS review `20261022T012423-51e9b84b230293666348efe9` completed with six reviewers, zero findings and zero follow-ups; no verification or replacement review was required. No matching OmniFocus task was found by issue URL or send-after-close title.
