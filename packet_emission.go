@@ -557,7 +557,7 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 				return nil
 			}
 		}
-		p, buf, err := e.packer.preparePathProbePacket(connID, frames, path.sendAllowance(), e.version)
+		prepared, buf, err := e.packer.preparePathProbePacket(connID, frames, path.sendAllowance(), e.version)
 		if err != nil {
 			return err
 		}
@@ -578,10 +578,11 @@ func (e *packetEmission) serverProbe(connID protocol.ConnectionID, frames []ackh
 			continue
 		}
 		defer buf.Release()
-		if !path.reserveProbe(buf.Len()) {
+		if !path.reserveProbe(prepared.Length) {
 			return nil
 		}
-		if err := e.packer.commitPacketNumber(p.PacketNumber); err != nil {
+		p, err := e.packer.commitShortHeaderPacket(buf, prepared)
+		if err != nil {
 			return err
 		}
 		for _, f := range frames {
