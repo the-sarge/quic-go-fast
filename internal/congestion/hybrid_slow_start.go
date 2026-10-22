@@ -24,25 +24,24 @@ const (
 
 // HybridSlowStart implements the TCP hybrid slow start algorithm
 type HybridSlowStart struct {
-	endPacketNumber      protocol.PacketNumber
-	lastSentPacketNumber protocol.PacketNumber
-	started              bool
-	currentMinRTT        time.Duration
-	rttSampleCount       uint32
-	hystartFound         bool
+	round, latest  packetPrefix
+	started        bool
+	currentMinRTT  time.Duration
+	rttSampleCount uint32
+	hystartFound   bool
 }
 
 // StartReceiveRound is called for the start of each receive round (burst) in the slow start phase.
-func (s *HybridSlowStart) StartReceiveRound(lastSent protocol.PacketNumber) {
-	s.endPacketNumber = lastSent
+func (s *HybridSlowStart) StartReceiveRound(lastSent packetPrefix) {
+	s.round = lastSent
 	s.currentMinRTT = 0
 	s.rttSampleCount = 0
 	s.started = true
 }
 
-// IsEndOfRound returns true if this ack is the last packet number of our current slow start round.
-func (s *HybridSlowStart) IsEndOfRound(ack protocol.PacketNumber) bool {
-	return s.endPacketNumber < ack
+// IsEndOfRound reports whether the ACK is strictly after this receive round's registration prefix.
+func (s *HybridSlowStart) IsEndOfRound(ack PacketKey) bool {
+	return s.round.after(ack)
 }
 
 // ShouldExitSlowStart should be called on every new ack frame, since a new
@@ -53,7 +52,7 @@ func (s *HybridSlowStart) IsEndOfRound(ack protocol.PacketNumber) bool {
 func (s *HybridSlowStart) ShouldExitSlowStart(latestRTT time.Duration, minRTT time.Duration, congestionWindow protocol.ByteCount) bool {
 	if !s.started {
 		// Time to start the hybrid slow start.
-		s.StartReceiveRound(s.lastSentPacketNumber)
+		s.StartReceiveRound(s.latest)
 	}
 	if s.hystartFound {
 		return true
@@ -87,15 +86,15 @@ func (s *HybridSlowStart) ShouldExitSlowStart(latestRTT time.Duration, minRTT ti
 	return congestionWindow >= hybridStartLowWindow && s.hystartFound
 }
 
-// OnPacketSent is called when a packet was sent
-func (s *HybridSlowStart) OnPacketSent(packetNumber protocol.PacketNumber) {
-	s.lastSentPacketNumber = packetNumber
+// OnPacketSent records the complete prefix at the latest eligible send.
+func (s *HybridSlowStart) OnPacketSent(prefix packetPrefix) {
+	s.latest = prefix
 }
 
 // OnPacketAcked gets invoked after ShouldExitSlowStart, so it's best to end
 // the round when the final packet of the burst is received and start it on
 // the next incoming ack.
-func (s *HybridSlowStart) OnPacketAcked(ackedPacketNumber protocol.PacketNumber) {
+func (s *HybridSlowStart) OnPacketAcked(ackedPacketNumber PacketKey) {
 	if s.IsEndOfRound(ackedPacketNumber) {
 		s.started = false
 	}

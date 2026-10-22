@@ -240,9 +240,9 @@ type congestionLegacyTap struct {
 	order *[]string
 }
 
-func (c *congestionLegacyTap) OnPacketSent(now monotime.Time, flight protocol.ByteCount, pn protocol.PacketNumber, size protocol.ByteCount, eliciting bool) {
-	*c.order = append(*c.order, fmt.Sprintf("sent %d flight %d", pn, flight))
-	c.SendAlgorithmWithDebugInfos.OnPacketSent(now, flight, pn, size, eliciting)
+func (c *congestionLegacyTap) OnPacketSent(now monotime.Time, flight protocol.ByteCount, pn congestion.PacketKey, size protocol.ByteCount, eliciting, pathProbe bool) {
+	*c.order = append(*c.order, fmt.Sprintf("sent %d flight %d", pn.Number, flight))
+	c.SendAlgorithmWithDebugInfos.OnPacketSent(now, flight, pn, size, eliciting, pathProbe)
 }
 
 func (c *congestionLegacyTap) MaybeExitSlowStart() {
@@ -250,13 +250,13 @@ func (c *congestionLegacyTap) MaybeExitSlowStart() {
 	c.SendAlgorithmWithDebugInfos.MaybeExitSlowStart()
 }
 
-func (c *congestionLegacyTap) OnCongestionEvent(pn protocol.PacketNumber, size, flight protocol.ByteCount) {
-	*c.order = append(*c.order, fmt.Sprintf("congestion %d bytes %d flight %d", pn, size, flight))
+func (c *congestionLegacyTap) OnCongestionEvent(pn congestion.PacketKey, size, flight protocol.ByteCount) {
+	*c.order = append(*c.order, fmt.Sprintf("congestion %d bytes %d flight %d", pn.Number, size, flight))
 	c.SendAlgorithmWithDebugInfos.OnCongestionEvent(pn, size, flight)
 }
 
-func (c *congestionLegacyTap) OnPacketAcked(pn protocol.PacketNumber, size, flight protocol.ByteCount, now monotime.Time) {
-	*c.order = append(*c.order, fmt.Sprintf("acked %d flight %d", pn, flight))
+func (c *congestionLegacyTap) OnPacketAcked(pn congestion.PacketKey, size, flight protocol.ByteCount, now monotime.Time) {
+	*c.order = append(*c.order, fmt.Sprintf("acked %d flight %d", pn.Number, flight))
 	c.SendAlgorithmWithDebugInfos.OnPacketAcked(pn, size, flight, now)
 }
 

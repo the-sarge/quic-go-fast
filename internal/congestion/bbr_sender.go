@@ -548,13 +548,13 @@ func (b *BBRSender) SetMaxDatagramSize(size protocol.ByteCount) {
 // sole model update; emission's private bounded pacer owns every pacing debit.
 func (b *BBRSender) TimeUntilSend(protocol.ByteCount) monotime.Time { return 0 }
 func (b *BBRSender) HasPacingBudget(monotime.Time) bool             { return !b.closed }
-func (b *BBRSender) OnPacketSent(monotime.Time, protocol.ByteCount, protocol.PacketNumber, protocol.ByteCount, bool) {
+func (b *BBRSender) OnPacketSent(monotime.Time, protocol.ByteCount, PacketKey, protocol.ByteCount, bool, bool) {
 }
 func (b *BBRSender) MaybeExitSlowStart() {}
-func (b *BBRSender) OnPacketAcked(protocol.PacketNumber, protocol.ByteCount, protocol.ByteCount, monotime.Time) {
+func (b *BBRSender) OnPacketAcked(PacketKey, protocol.ByteCount, protocol.ByteCount, monotime.Time) {
 }
 
-func (b *BBRSender) OnCongestionEvent(protocol.PacketNumber, protocol.ByteCount, protocol.ByteCount) {
+func (b *BBRSender) OnCongestionEvent(PacketKey, protocol.ByteCount, protocol.ByteCount) {
 }
 func (b *BBRSender) OnRetransmissionTimeout(bool) {}
 func (b *BBRSender) InRecovery() bool             { return b.recoveryStarted && !b.closed }

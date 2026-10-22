@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Correct default Reno recovery and HybridSlowStart ordering across overlapping Initial, Handshake and application packet numbers, including validated CE feedback after packet retirement. Preserve independent wire-number spaces, Reno selection and parameters, BBR accounting and existing public APIs. See [ADR 0011](docs/adr/0011-recovery-registration-prefix.md) and [#961](https://github.com/the-sarge/quic-go-fast/issues/961).
+
 ## v0.62.1-fast.7 — 2026-10-05
 
 Opt-in BBRv3 and connection-admission rollup based on upstream quic-go v0.62.0. Go 1.26.0 remains the minimum; module identity and dependency versions are unchanged from fast.6. Public API changes are additive `V1` methods, except that positional `Config` literals no longer compile. The [release record](docs/releases/v0.62.1-fast.7.md) and [GitHub release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.7) describe compatibility, limitations and publication receipts. The release source is `55ea687d68c9c6f33785a1875374ec6a0d7570e8`; later `main` changes, including [#726](https://github.com/the-sarge/quic-go-fast/pull/726) and [#730](https://github.com/the-sarge/quic-go-fast/pull/730), are not included.

@@ -311,6 +311,7 @@ func (h *sentPacketHandler) SentPacket(
 	isAckEliciting := p.IsAckEliciting()
 
 	if isPathProbePacket {
+		h.congestion.OnPacketSent(t, h.bytesInFlight, congestion.NewPacketKey(encLevel, pn), size, isAckEliciting, true)
 		h.captureCongestionSend(pn, p, ecn, priorInFlight)
 		pnSpace.history.SentPathProbePacket(pn, p)
 		h.setLossDetectionTimer(t)
@@ -324,7 +325,7 @@ func (h *sentPacketHandler) SentPacket(
 			h.numProbesToSend--
 		}
 	}
-	h.congestion.OnPacketSent(t, h.bytesInFlight, pn, size, isAckEliciting)
+	h.congestion.OnPacketSent(t, h.bytesInFlight, congestion.NewPacketKey(encLevel, pn), size, isAckEliciting, false)
 	h.captureCongestionSend(pn, p, ecn, priorInFlight)
 
 	if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil {
@@ -482,7 +483,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 			h.congestionEvents.event.Congested = congested
 		}
 		if congested {
-			h.congestion.OnCongestionEvent(largestAcked, 0, priorInFlight)
+			h.congestion.OnCongestionEvent(congestion.NewPacketKey(encLevel, largestAcked), 0, priorInFlight)
 		}
 	}
 
@@ -496,7 +497,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	var acked1RTTPacket bool
 	for _, p := range ackedPackets {
 		if p.includedInBytesInFlight {
-			h.congestion.OnPacketAcked(p.PacketNumber, p.Length, priorInFlight, rcvTime)
+			h.congestion.OnPacketAcked(congestion.NewPacketKey(p.EncryptionLevel, p.PacketNumber), p.Length, priorInFlight, rcvTime)
 		}
 		if p.EncryptionLevel == protocol.Encryption1RTT {
 			acked1RTTPacket = true
@@ -916,7 +917,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 				h.removeFromBytesInFlight(p)
 				h.queueFramesForRetransmission(p)
 				if !p.IsPathMTUProbePacket {
-					h.congestion.OnCongestionEvent(pn, p.Length, priorInFlight)
+					h.congestion.OnCongestionEvent(congestion.NewPacketKey(p.EncryptionLevel, pn), p.Length, priorInFlight)
 				}
 				if encLevel == protocol.Encryption1RTT && h.bbrECN != nil {
 					h.bbrECN.lostPacket(pn)

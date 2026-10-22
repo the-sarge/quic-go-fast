@@ -61,7 +61,7 @@ func newTestCubicSender(cubic bool) *testCubicSender {
 func (s *testCubicSender) SendAvailableSendWindowLen(packetLength protocol.ByteCount) int {
 	var packetsSent int
 	for s.sender.CanSend(s.bytesInFlight) {
-		s.sender.OnPacketSent(s.clock.Now(), s.bytesInFlight, s.packetNumber, packetLength, true)
+		s.sender.OnPacketSent(s.clock.Now(), s.bytesInFlight, NewPacketKey(protocol.Encryption1RTT, s.packetNumber), packetLength, true, false)
 		s.packetNumber++
 		packetsSent++
 		s.bytesInFlight += packetLength
@@ -74,7 +74,7 @@ func (s *testCubicSender) AckNPackets(n int) {
 	s.sender.MaybeExitSlowStart()
 	for range n {
 		s.ackedPacketNumber++
-		s.sender.OnPacketAcked(s.ackedPacketNumber, maxDatagramSize, s.bytesInFlight, s.clock.Now())
+		s.sender.OnPacketAcked(NewPacketKey(protocol.Encryption1RTT, s.ackedPacketNumber), maxDatagramSize, s.bytesInFlight, s.clock.Now())
 	}
 	s.bytesInFlight -= protocol.ByteCount(n) * maxDatagramSize
 	s.clock.Advance(time.Millisecond)
@@ -83,13 +83,13 @@ func (s *testCubicSender) AckNPackets(n int) {
 func (s *testCubicSender) LoseNPacketsLen(n int, packetLength protocol.ByteCount) {
 	for range n {
 		s.ackedPacketNumber++
-		s.sender.OnCongestionEvent(s.ackedPacketNumber, packetLength, s.bytesInFlight)
+		s.sender.OnCongestionEvent(NewPacketKey(protocol.Encryption1RTT, s.ackedPacketNumber), packetLength, s.bytesInFlight)
 	}
 	s.bytesInFlight -= protocol.ByteCount(n) * packetLength
 }
 
 func (s *testCubicSender) LosePacket(number protocol.PacketNumber) {
-	s.sender.OnCongestionEvent(number, maxDatagramSize, s.bytesInFlight)
+	s.sender.OnCongestionEvent(NewPacketKey(protocol.Encryption1RTT, number), maxDatagramSize, s.bytesInFlight)
 	s.bytesInFlight -= maxDatagramSize
 }
 
@@ -505,7 +505,7 @@ func TestCubicSenderSlowStartsUpToMaximumCongestionWindow(t *testing.T) {
 
 	for i := 1; i < protocol.MaxCongestionWindowPackets; i++ {
 		sender.MaybeExitSlowStart()
-		sender.OnPacketAcked(protocol.PacketNumber(i), 1350, sender.GetCongestionWindow(), clock.Now())
+		sender.OnPacketAcked(NewPacketKey(protocol.Encryption1RTT, protocol.PacketNumber(i)), 1350, sender.GetCongestionWindow(), clock.Now())
 	}
 	require.Equal(t, initialMaxCongestionWindow, sender.GetCongestionWindow())
 }
@@ -532,7 +532,7 @@ func TestCubicSenderSlowStartsPacketSizeIncrease(t *testing.T) {
 	const packetSize = initialMaxDatagramSize + 100
 	sender.SetMaxDatagramSize(packetSize)
 	for i := 1; i < protocol.MaxCongestionWindowPackets; i++ {
-		sender.OnPacketAcked(protocol.PacketNumber(i), packetSize, sender.GetCongestionWindow(), clock.Now())
+		sender.OnPacketAcked(NewPacketKey(protocol.Encryption1RTT, protocol.PacketNumber(i)), packetSize, sender.GetCongestionWindow(), clock.Now())
 	}
 	const maxCwnd = protocol.MaxCongestionWindowPackets * packetSize
 	require.True(t, sender.GetCongestionWindow() > maxCwnd)
