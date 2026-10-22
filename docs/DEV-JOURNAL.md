@@ -7562,3 +7562,26 @@ The first maintained regression failed without the guard because reliable size i
 Final clean head `befbb78dc3571203366eb908090deff5c1378acb`, based on `f2a3c3a83a1d19b7d898dbf1d976d4321992c58e`, passed full root-package tests including all send streams, focused cancellation/recovery/reservation/lifetime race tests, `go vet .`, `go mod tidy -diff`, changed-file formatting, golangci-lint with zero issues, and diff checks on Go 1.27.3 darwin/arm64. All 33 hosted checks passed on that head before the matched-head squash merge.
 
 Initial RAS review `20261022T035909-8243bf202d7f804384715c06` found one narrow test gap: extension-disabled effective offsets masked raw reliable-state mutation in the reserved-final-size test. Two direct state assertions repaired it; exact-head verification resolved the accepted finding and its duplicate with blocking projection clear. The optional documentation clarification remained visible and was independently rejected as a merge obligation. Replacement review `20261022T040642-84cd6e822a728c26029a81dc` completed with no findings or follow-ups. All reviewer phases completed. A mistyped verification head was rejected before execution; the successful invocation matched the Git-derived live head. No deferred finding remains, and no matching OmniFocus task was found by issue URL. This post-merge journal update uses no RAS.
+
+---
+
+## Concurrent qlog ordering fix landed - 2026-10-22 00:56 EDT
+
+**Main:** `c62bd4cd0942`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #976](https://github.com/the-sarge/quic-go-fast/pull/976) as `c62bd4cd0942799b0d6ee24ae48896e3206a7348`, closing [issue #959](https://github.com/the-sarge/quic-go-fast/issues/959). Concurrent producers sharing a `FileSeq` now capture timestamps, check admission and enqueue under one mutex. Serialized timestamps remain nondecreasing, and `Event.Encode` receives the event's recorded timestamp. Focused regressions preserve bounded backpressure, error draining, final sink closure and late-producer rejection.
+
+### Decisions
+
+Selectively adopted the exact private implementation patch from upstream [quic-go/quic-go#5956](https://github.com/quic-go/quic-go/pull/5956). The [accepted issue brief](https://github.com/the-sarge/quic-go-fast/issues/959#issuecomment-6329506221) and [approved PR contract](https://github.com/the-sarge/quic-go-fast/pull/976) record the scope and ADR 0003 rationale for taking this reproduced, validated fix before a stable upstream release. A full queue intentionally retains the shared mutex, so producer admission and another producer's close can wait for consumer progress; no deadline is promised for a permanently stalled sink.
+
+### Validation
+
+A disposable channel-controlled scheduling probe on base `d57eb42239b80bdbcc885a60c31778b577ae8f81` reproduced `other@1ms, delayed@0ms`; the fixed probe produced `other@1ms, delayed@1ms`, normally and under the race detector. Instrumentation was removed before committing. Maintained cases cover equal/consecutive timestamps and encoding-time fidelity, a gated 52-event queue with another producer closing, encoding/write errors, final draining and producer rejection during and after closure. The existing fixture now joins outstanding recording before closing the same recorder.
+
+Final clean pushed head `63aeb62f0d9d8020096aa2b17f37cda205e734d8` passed affected qlogwriter/qlog/HTTP3 package tests, focused writer and HTTP/3 lifetime race tests, affected-package vet, module tidiness, formatting, whitespace and focused lint on Go 1.27.3 darwin/arm64. All 33 hosted checks passed before the matched-head squash merge.
+
+RAS review `20261022T044805-0fafc96e7f99faf40e94460c` completed with all six reviewers and adjudicators, zero Fix First items and zero follow-ups. The test-precision observation that the close-start signal does not prove mutex arrival was independently rejected as required work: no contention-specific behavioral failure or missing approved observable obligation was established. No verification or replacement review was needed. No deferred finding remains, and no matching OmniFocus task was found by issue URL. This post-merge journal update uses no RAS.
