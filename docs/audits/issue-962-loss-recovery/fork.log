@@ -1,0 +1,93 @@
+issue962 source=fork pin=1c4a28b7bc000bbc521332f5d7145e6493b42709
+go version go1.27.3 darwin/arm64
+=== RUN   TestIssue962Detection
+=== RUN   TestIssue962Detection/only-lost
+    issue962_reproduction_test.go:97: spurious events=0, flight before=2400 after=2400
+    issue962_reproduction_test.go:99: want one spurious-loss event, got 0
+=== RUN   TestIssue962Detection/reordered-with-live
+    issue962_reproduction_test.go:97: spurious events=0, flight before=2400 after=1200
+    issue962_reproduction_test.go:99: want one spurious-loss event, got 0
+=== RUN   TestIssue962Detection/non-reordered-control
+    issue962_reproduction_test.go:97: spurious events=1, flight before=2400 after=1200
+--- FAIL: TestIssue962Detection (0.00s)
+    --- FAIL: TestIssue962Detection/only-lost (0.00s)
+    --- FAIL: TestIssue962Detection/reordered-with-live (0.00s)
+    --- PASS: TestIssue962Detection/non-reordered-control (0.00s)
+=== RUN   TestIssue962HistoryHygiene
+=== RUN   TestIssue962HistoryHygiene/mtu
+    issue962_reproduction_test.go:126: mtu spurious events=1
+    issue962_reproduction_test.go:127: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/triage-962/internal/ackhandler/issue962_reproduction_test.go:127
+        	Error:      	Should be zero, but was 1
+        	Test:       	TestIssue962HistoryHygiene/mtu
+        	Messages:   	non-congestion probe/ACK-only loss must not train reordering or undo
+=== RUN   TestIssue962HistoryHygiene/path
+    issue962_reproduction_test.go:126: path spurious events=0
+=== RUN   TestIssue962HistoryHygiene/ack-only
+    issue962_reproduction_test.go:126: ack-only spurious events=1
+    issue962_reproduction_test.go:127: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/triage-962/internal/ackhandler/issue962_reproduction_test.go:127
+        	Error:      	Should be zero, but was 1
+        	Test:       	TestIssue962HistoryHygiene/ack-only
+        	Messages:   	non-congestion probe/ACK-only loss must not train reordering or undo
+=== RUN   TestIssue962HistoryHygiene/migration
+    issue962_reproduction_test.go:138: old-path spurious events=1, new-path window=38400
+    issue962_reproduction_test.go:139: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/triage-962/internal/ackhandler/issue962_reproduction_test.go:139
+        	Error:      	Should be zero, but was 1
+        	Test:       	TestIssue962HistoryHygiene/migration
+        	Messages:   	old path history must not train the new path
+=== RUN   TestIssue962HistoryHygiene/retry-control
+--- FAIL: TestIssue962HistoryHygiene (0.00s)
+    --- FAIL: TestIssue962HistoryHygiene/mtu (0.00s)
+    --- PASS: TestIssue962HistoryHygiene/path (0.00s)
+    --- FAIL: TestIssue962HistoryHygiene/ack-only (0.00s)
+    --- FAIL: TestIssue962HistoryHygiene/migration (0.00s)
+    --- PASS: TestIssue962HistoryHygiene/retry-control (0.00s)
+=== RUN   TestIssue962PacketThreshold
+=== RUN   TestIssue962PacketThreshold/application-after-proof
+    issue962_reproduction_test.go:188: new-flight immediate loss callbacks=2, want=0
+    issue962_reproduction_test.go:190: packet threshold: got 2 new losses, want 0
+    issue962_reproduction_test.go:203: timer eventually declared all four unacknowledged packets lost once
+=== RUN   TestIssue962PacketThreshold/application-no-proof
+    issue962_reproduction_test.go:188: new-flight immediate loss callbacks=2, want=2
+=== RUN   TestIssue962PacketThreshold/initial-control
+    issue962_reproduction_test.go:188: new-flight immediate loss callbacks=2, want=2
+=== RUN   TestIssue962PacketThreshold/handshake-control
+    issue962_reproduction_test.go:188: new-flight immediate loss callbacks=2, want=2
+=== RUN   TestIssue962PacketThreshold/migration-reset-control
+    issue962_reproduction_test.go:188: new-flight immediate loss callbacks=2, want=2
+--- FAIL: TestIssue962PacketThreshold (0.00s)
+    --- FAIL: TestIssue962PacketThreshold/application-after-proof (0.00s)
+    --- PASS: TestIssue962PacketThreshold/application-no-proof (0.00s)
+    --- PASS: TestIssue962PacketThreshold/initial-control (0.00s)
+    --- PASS: TestIssue962PacketThreshold/handshake-control (0.00s)
+    --- PASS: TestIssue962PacketThreshold/migration-reset-control (0.00s)
+=== RUN   TestIssue962TimeThreshold
+    issue962_reproduction_test.go:219: late-only ACK moves loss deadline from 1.625s to 1.625s (want 1.75s)
+    issue962_reproduction_test.go:221: time threshold was not increased to 1.25 RTT
+    issue962_reproduction_test.go:228: old deadline declared 2 packets lost after proof
+--- FAIL: TestIssue962TimeThreshold (0.00s)
+=== RUN   TestIssue962RenoUndo
+=== RUN   TestIssue962RenoUndo/all-spurious
+    issue962_reproduction_test.go:269: window=26880, want=38400, slow-start=false
+    issue962_reproduction_test.go:271: Reno window: got 26880, want 38400
+    issue962_reproduction_test.go:274: all-spurious undo must restore pre-cutback slow-start state
+=== RUN   TestIssue962RenoUndo/genuine-loss-control
+    issue962_reproduction_test.go:269: window=26880, want=26880, slow-start=false
+=== RUN   TestIssue962RenoUndo/history-eviction-control
+    issue962_reproduction_test.go:248: loss callbacks=77, retained loss records=64
+    issue962_reproduction_test.go:269: window=26880, want=26880, slow-start=false
+=== RUN   TestIssue962RenoUndo/new-loss-control
+    issue962_reproduction_test.go:269: window=18816, want=18816, slow-start=false
+--- FAIL: TestIssue962RenoUndo (0.00s)
+    --- FAIL: TestIssue962RenoUndo/all-spurious (0.00s)
+    --- PASS: TestIssue962RenoUndo/genuine-loss-control (0.00s)
+    --- PASS: TestIssue962RenoUndo/history-eviction-control (0.00s)
+    --- PASS: TestIssue962RenoUndo/new-loss-control (0.00s)
+=== RUN   TestIssue962ECNBlocksUndo
+    issue962_reproduction_test.go:291: validated CE plus old spurious reports: window=18816
+--- PASS: TestIssue962ECNBlocksUndo (0.00s)
+FAIL
+FAIL	github.com/quic-go/quic-go/internal/ackhandler	0.113s
+FAIL

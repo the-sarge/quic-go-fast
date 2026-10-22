@@ -1,0 +1,295 @@
+package ackhandler
+
+import (
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/quic-go/quic-go/internal/monotime"
+	"github.com/quic-go/quic-go/internal/protocol"
+	"github.com/quic-go/quic-go/internal/utils"
+	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/testutils/events"
+	"github.com/stretchr/testify/require"
+)
+
+// Frozen assessment fixture. Assertions describe the candidate upstream behavior.
+// run.py adapts only PopPacketNumber's argument type and the timeout return arity.
+type issue962Fixture struct {
+	h       *sentPacketHandler
+	packets packetTracker
+	events  events.Recorder
+	start   monotime.Time
+}
+
+func newIssue962Fixture(ecn bool) *issue962Fixture {
+	f := &issue962Fixture{start: monotime.Time(time.Hour)}
+	f.h = NewSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, ecn, nil, protocol.PerspectiveServer, &f.events, utils.DefaultLogger).(*sentPacketHandler)
+	return f
+}
+
+func (f *issue962Fixture) send(at time.Duration, level protocol.EncryptionLevel, kind string) protocol.PacketNumber {
+	h := f.h
+	pn := h.PopPacketNumber(level)
+	frames := []Frame{f.packets.NewPingFrame(pn)}
+	if kind == "ack-only" {
+		frames = nil
+	}
+	ecn := protocol.ECNNon
+	if level == protocol.Encryption1RTT {
+		ecn = h.ECNMode(true)
+	}
+	h.SentPacket(f.start.Add(at), pn, protocol.InvalidPacketNumber, nil, frames, level, ecn, 1200, kind == "mtu", kind == "path")
+	return pn
+}
+
+func (f *issue962Fixture) batch(at time.Duration, level protocol.EncryptionLevel, n int) []protocol.PacketNumber {
+	pns := make([]protocol.PacketNumber, n)
+	for i := range pns {
+		pns[i] = f.send(at, level, "ordinary")
+	}
+	return pns
+}
+
+func (f *issue962Fixture) ack(t *testing.T, at time.Duration, pns ...protocol.PacketNumber) {
+	t.Helper()
+	f.ackFrame(t, at, protocol.Encryption1RTT, &wire.AckFrame{AckRanges: ackRanges(pns...)})
+}
+
+func (f *issue962Fixture) ackFrame(t *testing.T, at time.Duration, level protocol.EncryptionLevel, ack *wire.AckFrame) {
+	t.Helper()
+	_, err := f.h.ReceivedAck(ack, level, f.start.Add(at))
+	require.NoError(t, err)
+}
+
+func (f *issue962Fixture) timeout(t *testing.T, at monotime.Time) {
+	t.Helper()
+	_, err := f.h.OnLossDetectionTimeout(at)
+	require.NoError(t, err)
+}
+
+func (f *issue962Fixture) seedLoss(t *testing.T) []protocol.PacketNumber {
+	t.Helper()
+	pns := f.batch(0, protocol.Encryption1RTT, 5)
+	f.ack(t, 100*time.Millisecond, pns[4])
+	require.Equal(t, pns[:2], f.packets.Lost)
+	require.EqualValues(t, 26880, f.h.congestion.GetCongestionWindow())
+	f.events.Clear()
+	return pns
+}
+
+func TestIssue962Detection(t *testing.T) {
+	for _, scenario := range []string{"only-lost", "reordered-with-live", "non-reordered-control"} {
+		t.Run(scenario, func(t *testing.T) {
+			f := newIssue962Fixture(false)
+			pns := f.seedLoss(t)
+			before := f.h.bytesInFlight
+			ack := []protocol.PacketNumber{pns[0]}
+			if scenario != "only-lost" {
+				ack = append(ack, pns[2])
+			}
+			if scenario != "reordered-with-live" {
+				ack = append(ack, pns[4])
+			}
+			f.ack(t, 105*time.Millisecond, ack...)
+			got := len(f.events.Events(qlog.SpuriousLoss{}))
+			t.Logf("spurious events=%d, flight before=%d after=%d", got, before, f.h.bytesInFlight)
+			if got != 1 {
+				t.Errorf("want one spurious-loss event, got %d", got)
+			}
+			wantFlight := before
+			if scenario != "only-lost" {
+				wantFlight -= 1200
+			}
+			require.Equal(t, wantFlight, f.h.bytesInFlight)
+			require.Equal(t, pns[:2], f.packets.Lost, "late ACK must not repeat a loss callback")
+			require.NotContains(t, f.packets.Acked, pns[0], "late ACK must not repeat frame ownership callbacks")
+			f.events.Clear()
+			f.ack(t, 106*time.Millisecond, ack...)
+			require.Empty(t, f.events.Events(qlog.SpuriousLoss{}), "duplicate receipt is consumed once")
+			require.Equal(t, wantFlight, f.h.bytesInFlight)
+		})
+	}
+}
+
+func TestIssue962HistoryHygiene(t *testing.T) {
+	for _, kind := range []string{"mtu", "path", "ack-only"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newIssue962Fixture(false)
+			probe := f.send(0, protocol.Encryption1RTT, kind)
+			pns := f.batch(0, protocol.Encryption1RTT, 4)
+			f.ack(t, 100*time.Millisecond, pns[3])
+			f.events.Clear()
+			f.ack(t, 105*time.Millisecond, probe, pns[1], pns[3])
+			got := len(f.events.Events(qlog.SpuriousLoss{}))
+			t.Logf("%s spurious events=%d", kind, got)
+			require.Zero(t, got, "non-congestion probe/ACK-only loss must not train reordering or undo")
+		})
+	}
+	t.Run("migration", func(t *testing.T) {
+		f := newIssue962Fixture(false)
+		pns := f.seedLoss(t)
+		f.h.MigratedPath(f.start.Add(110*time.Millisecond), 1200)
+		fresh := f.send(120*time.Millisecond, protocol.Encryption1RTT, "ordinary")
+		f.events.Clear()
+		f.ack(t, 220*time.Millisecond, pns[0], fresh)
+		got := len(f.events.Events(qlog.SpuriousLoss{}))
+		t.Logf("old-path spurious events=%d, new-path window=%d", got, f.h.congestion.GetCongestionWindow())
+		require.Zero(t, got, "old path history must not train the new path")
+	})
+	t.Run("retry-control", func(t *testing.T) {
+		f := newIssue962Fixture(false)
+		f.send(0, protocol.EncryptionInitial, "ordinary")
+		old := f.batch(0, protocol.Encryption0RTT, 2)
+		f.h.ResetForRetry(f.start.Add(100 * time.Millisecond))
+		fresh := f.send(200*time.Millisecond, protocol.Encryption1RTT, "ordinary")
+		f.ack(t, 300*time.Millisecond, fresh)
+		window, flight := f.h.congestion.GetCongestionWindow(), f.h.bytesInFlight
+		f.events.Clear()
+		f.ack(t, 301*time.Millisecond, append(old, fresh)...)
+		require.Empty(t, f.events.Events(qlog.SpuriousLoss{}))
+		require.Equal(t, window, f.h.congestion.GetCongestionWindow())
+		require.Equal(t, flight, f.h.bytesInFlight)
+	})
+}
+
+func TestIssue962PacketThreshold(t *testing.T) {
+	for _, scenario := range []string{"application-after-proof", "application-no-proof", "initial-control", "handshake-control", "migration-reset-control"} {
+		t.Run(scenario, func(t *testing.T) {
+			f := newIssue962Fixture(false)
+			pns := f.seedLoss(t)
+			if scenario != "application-no-proof" {
+				f.ack(t, 105*time.Millisecond, pns...)
+			}
+			if scenario == "migration-reset-control" {
+				f.h.MigratedPath(f.start.Add(106*time.Millisecond), 1200)
+			}
+			level := protocol.Encryption1RTT
+			if scenario == "initial-control" {
+				level = protocol.EncryptionInitial
+			}
+			if scenario == "handshake-control" {
+				level = protocol.EncryptionHandshake
+			}
+			f.packets.Reset()
+			next := f.batch(110*time.Millisecond, level, 5)
+			f.ackFrame(t, 111*time.Millisecond, level, &wire.AckFrame{AckRanges: ackRanges(next[4])})
+			lost := 0
+			for _, pn := range next[:4] {
+				if slices.Contains(f.packets.Lost, pn) {
+					lost++
+				}
+			}
+			want := 2
+			if scenario == "application-after-proof" {
+				want = 0
+			}
+			t.Logf("new-flight immediate loss callbacks=%d, want=%d", lost, want)
+			if lost != want {
+				t.Errorf("packet threshold: got %d new losses, want %d", lost, want)
+			}
+			if scenario == "application-after-proof" {
+				f.timeout(t, f.h.GetLossDetectionTimeout())
+				for _, pn := range next[:4] {
+					count := 0
+					for _, got := range f.packets.Lost {
+						if got == pn {
+							count++
+						}
+					}
+					require.Equal(t, 1, count, "genuine loss must still be declared once")
+				}
+				t.Logf("timer eventually declared all four unacknowledged packets lost once")
+			}
+		})
+	}
+}
+
+func TestIssue962TimeThreshold(t *testing.T) {
+	f := newIssue962Fixture(false)
+	first := f.batch(0, protocol.Encryption1RTT, 3)
+	later := f.batch(500*time.Millisecond, protocol.Encryption1RTT, 3)
+	f.ack(t, 1500*time.Millisecond, later[2])
+	require.Equal(t, first, f.packets.Lost)
+	oldDeadline := f.start.Add(1625 * time.Millisecond)
+	require.Equal(t, oldDeadline, f.h.GetLossDetectionTimeout())
+	f.ack(t, 1562500*time.Microsecond, first[0], first[1])
+	deadline := f.h.GetLossDetectionTimeout()
+	t.Logf("late-only ACK moves loss deadline from 1.625s to %s (want 1.75s)", deadline.Sub(f.start))
+	if deadline != f.start.Add(1750*time.Millisecond) {
+		t.Errorf("time threshold was not increased to 1.25 RTT")
+	}
+	f.ack(t, 1563*time.Millisecond, first[2])
+	require.Equal(t, deadline, f.h.GetLossDetectionTimeout(), "no new send means no second adjustment")
+	f.packets.Reset()
+	f.timeout(t, oldDeadline)
+	if len(f.packets.Lost) != 0 {
+		t.Errorf("old deadline declared %d packets lost after proof", len(f.packets.Lost))
+	}
+	f.timeout(t, f.start.Add(1750*time.Millisecond))
+	require.Equal(t, later[:2], f.packets.Lost, "genuine losses are eventually declared exactly once")
+}
+
+func TestIssue962RenoUndo(t *testing.T) {
+	for _, scenario := range []string{"all-spurious", "genuine-loss-control", "history-eviction-control", "new-loss-control"} {
+		t.Run(scenario, func(t *testing.T) {
+			f := newIssue962Fixture(false)
+			var pns []protocol.PacketNumber
+			if scenario == "history-eviction-control" {
+				pns = f.batch(0, protocol.Encryption1RTT, 80)
+				f.ack(t, 100*time.Millisecond, pns[len(pns)-1])
+				require.Greater(t, len(f.packets.Lost), 64)
+				retained := 0
+				for range f.h.lostPackets.All() {
+					retained++
+				}
+				require.Equal(t, 64, retained)
+				t.Logf("loss callbacks=%d, retained loss records=%d", len(f.packets.Lost), retained)
+			} else {
+				pns = f.seedLoss(t)
+			}
+			want := protocol.ByteCount(26880)
+			switch scenario {
+			case "all-spurious":
+				want = 38400
+				f.ack(t, 105*time.Millisecond, pns...)
+			case "genuine-loss-control":
+				f.ack(t, 105*time.Millisecond, pns[0], pns[2], pns[3], pns[4])
+			case "history-eviction-control":
+				f.ack(t, 105*time.Millisecond, pns...)
+			case "new-loss-control":
+				f.batch(110*time.Millisecond, protocol.Encryption1RTT, 2)
+				// Age this flight beyond both the fixed and newly relaxed thresholds.
+				newest := f.send(310*time.Millisecond, protocol.Encryption1RTT, "ordinary")
+				f.ack(t, 320*time.Millisecond, pns[0], pns[1], pns[2], pns[3], newest)
+				want = 18816
+			}
+			got := f.h.congestion.GetCongestionWindow()
+			t.Logf("window=%d, want=%d, slow-start=%t", got, want, f.h.congestion.InSlowStart())
+			if got != want {
+				t.Errorf("Reno window: got %d, want %d", got, want)
+			}
+			if scenario == "all-spurious" && !f.h.congestion.InSlowStart() {
+				t.Error("all-spurious undo must restore pre-cutback slow-start state")
+			}
+		})
+	}
+}
+
+func TestIssue962ECNBlocksUndo(t *testing.T) {
+	f := newIssue962Fixture(true)
+	validation := f.batch(0, protocol.Encryption1RTT, 10)
+	f.ackFrame(t, 100*time.Millisecond, protocol.Encryption1RTT, &wire.AckFrame{AckRanges: ackRanges(validation...), ECT0: 10})
+	require.Equal(t, ecnStateCapable, f.h.ecnTracker.(*ecnTracker).state)
+	pns := f.batch(200*time.Millisecond, protocol.Encryption1RTT, 5)
+	f.ackFrame(t, 300*time.Millisecond, protocol.Encryption1RTT, &wire.AckFrame{AckRanges: ackRanges(pns[4]), ECT0: 11})
+	require.EqualValues(t, 26880, f.h.congestion.GetCongestionWindow())
+	carrier := f.send(310*time.Millisecond, protocol.Encryption1RTT, "ordinary")
+	f.ackFrame(t, 410*time.Millisecond, protocol.Encryption1RTT, &wire.AckFrame{AckRanges: ackRanges(append(pns, carrier)...), ECT0: 15, ECNCE: 1})
+	require.Equal(t, ecnStateCapable, f.h.ecnTracker.(*ecnTracker).state)
+	t.Logf("validated CE plus old spurious reports: window=%d", f.h.congestion.GetCongestionWindow())
+	require.EqualValues(t, 18816, f.h.congestion.GetCongestionWindow(), "new validated CE cannot be undone by old spurious loss")
+	f.ackFrame(t, 411*time.Millisecond, protocol.Encryption1RTT, &wire.AckFrame{AckRanges: ackRanges(append(pns, carrier)...), ECT0: 15, ECNCE: 1})
+	require.EqualValues(t, 18816, f.h.congestion.GetCongestionWindow(), "duplicate ACK cannot undo or cut again")
+}
