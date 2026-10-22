@@ -256,6 +256,9 @@ func (p *packetPacker) packConnectionClose(
 		}
 		payloads[i] = pl
 	}
+	if size > maxPacketSize {
+		return nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxPacketSize)
+	}
 	buffer := getPacketBuffer()
 	packet := &coalescedPacket{
 		buffer:         buffer,
@@ -416,6 +419,9 @@ func (p *packetPacker) PackCoalescedPacket(onlyAck bool, maxSize protocol.ByteCo
 		return nil, nil
 	}
 
+	if size > maxSize {
+		return nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxSize)
+	}
 	buffer := getPacketBuffer()
 	packet := &coalescedPacket{
 		buffer:         buffer,
@@ -782,9 +788,12 @@ func (p *packetPacker) PackPTOProbePacket(
 	if pl.length == 0 {
 		return nil, nil
 	}
+	size := p.longHeaderPacketLength(hdr, pl, v) + protocol.ByteCount(sealer.Overhead())
+	if size > maxPacketSize {
+		return nil, fmt.Errorf("packet too large (%d bytes, allowed %d bytes)", size, maxPacketSize)
+	}
 	buffer := getPacketBuffer()
 	packet := &coalescedPacket{buffer: buffer}
-	size := p.longHeaderPacketLength(hdr, pl, v) + protocol.ByteCount(sealer.Overhead())
 	var padding protocol.ByteCount
 	if encLevel == protocol.EncryptionInitial {
 		padding = p.initialPaddingLen(pl.frames, size, maxPacketSize)
