@@ -7637,3 +7637,24 @@ On Go 1.27.3 darwin/arm64, packet metadata remains 80 bytes and the sender is 32
 ### Next
 
 [#962](https://github.com/the-sarge/quic-go-fast/issues/962) remains the live assessment for reordering/history hygiene and default-Reno undo. Undo should use this typed identity and single controller-owned prefix boundary after its separate scope acceptance. No #626 lookup optimization, #887 readiness rebaseline or broad platform/performance campaign was included. No matching OmniFocus task was found by issue URL/title, and no deferred follow-up task is needed.
+
+---
+
+## Proxy socket-switch admission landed - 2026-10-22 03:48 EDT
+
+**Main:** `14fd15102eef`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #983](https://github.com/the-sarge/quic-go-fast/pull/983) as `14fd15102eefc9ae8e58426dbd26ffa9d5a6da2f`, closing [issue #978](https://github.com/the-sarge/quic-go-fast/issues/978). The real-UDP proxy now orders successful outgoing-read admission with socket switching under the existing connection mutex. Retired reads remain observable but cannot enter drop, delay, or forwarding processing. Already-admitted callback and delayed work may finish after switching.
+
+### Decisions
+
+The [accepted switch contract](https://github.com/the-sarge/quic-go-fast/issues/978#issuecomment-6333727344) and [maintained implementation boundary](agents/proxy-switch-admission-978.md) define admission rather than draining as the switch boundary. The repair adds no worker, queue, generation state, public API, or transport change and preserves the existing shutdown/socket-ownership contract. Deadline restoration, socket reactivation, and #425 remain outside this work.
+
+### Validation
+
+The deterministic real-UDP retired-read regression failed against old behavior with expected `replacement`, actual `retired`, then passed after the repair. Focused coverage preserves outgoing drop/delay callback switching and an admitted delayed handoff queued before retirement. On final pushed head `5da112f669988f9bf5788aa8a0be6e71b8c1e586`, based on `68e62a38703675479ff2ca8bd892289e75588e41`, Go 1.27.3 darwin/arm64 passed the proxy package normally and with the race detector, existing NAT-rebinding and affected network-admission coverage, proxy vet, module-tidiness, formatting, relative-link and diff checks. The existing retired-payload, read-observation, shutdown and socket-ownership assertions were preserved. All 33 hosted checks passed on that exact head before the matched-head squash merge; no failed hosted run was retried.
+
+RAS review `20261022T073950-ff3e3f8b6cabb6cb7a398f1e` completed with all six reviewers and no required fixes or follow-ups. Optional discarded-read debug logging was independently rejected as a current-work obligation; read observation is preserved. No fix verification or replacement review was required, and no deferred finding remains. The earlier review attempt failed before dispatch because its task-specific worktree directory did not exist; creating the directory resolved the setup error. [Review dispositions and exact-head certification](https://github.com/the-sarge/quic-go-fast/pull/983#issuecomment-6335571025) retain the receipts. This post-merge journal update uses no RAS.
