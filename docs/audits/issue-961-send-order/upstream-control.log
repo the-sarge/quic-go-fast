@@ -1,0 +1,35 @@
+root=/Volumes/worktrees/quic-go-fast/triage-961-upstream-control
+revision=d05f943bff0e8421f06b17e2fba1ec13dba80a2f
+upstream_api=True
+=== RUN   TestIssue961RecoverySendOrder
+=== RUN   TestIssue961RecoverySendOrder/single_space_control
+=== RUN   TestIssue961RecoverySendOrder/single_space_control/interleaved_send_order
+    issue961_reproduction_test.go:54: interleaved last sent=Initial/11; ACK Initial/10; lost=8; cwnd=38400 -> 26880; recovery=true
+=== RUN   TestIssue961RecoverySendOrder/single_space_control/one_cutback_per_flight
+    issue961_reproduction_test.go:75: last sent=Initial/7; ACK Initial/6; lost=4; cwnd=38400 -> 26880; recovery=true
+=== RUN   TestIssue961RecoverySendOrder/single_space_control/new_flight_loss_cuts_again
+    issue961_reproduction_test.go:100: last sent=Initial/7; lost=2; second-flight cwnd=26880 -> 18816
+=== RUN   TestIssue961RecoverySendOrder/single_space_control/post_cutback_ack_ends_recovery
+    issue961_reproduction_test.go:120: ACK post-cutback Initial/4; recovery=false
+=== RUN   TestIssue961RecoverySendOrder/overlapping_spaces
+=== RUN   TestIssue961RecoverySendOrder/overlapping_spaces/interleaved_send_order
+    issue961_reproduction_test.go:54: interleaved last sent=Handshake/11; ACK Initial/10; lost=6; cwnd=38400 -> 26880; recovery=true
+=== RUN   TestIssue961RecoverySendOrder/overlapping_spaces/one_cutback_per_flight
+    issue961_reproduction_test.go:75: last sent=Handshake/7; ACK Initial/6; lost=4; cwnd=38400 -> 26880; recovery=true
+=== RUN   TestIssue961RecoverySendOrder/overlapping_spaces/new_flight_loss_cuts_again
+    issue961_reproduction_test.go:100: last sent=Handshake/7; lost=2; second-flight cwnd=26880 -> 18816
+=== RUN   TestIssue961RecoverySendOrder/overlapping_spaces/post_cutback_ack_ends_recovery
+    issue961_reproduction_test.go:120: ACK post-cutback Handshake/4; recovery=false
+--- PASS: TestIssue961RecoverySendOrder (0.00s)
+    --- PASS: TestIssue961RecoverySendOrder/single_space_control (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/single_space_control/interleaved_send_order (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/single_space_control/one_cutback_per_flight (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/single_space_control/new_flight_loss_cuts_again (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/single_space_control/post_cutback_ack_ends_recovery (0.00s)
+    --- PASS: TestIssue961RecoverySendOrder/overlapping_spaces (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/overlapping_spaces/interleaved_send_order (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/overlapping_spaces/one_cutback_per_flight (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/overlapping_spaces/new_flight_loss_cuts_again (0.00s)
+        --- PASS: TestIssue961RecoverySendOrder/overlapping_spaces/post_cutback_ack_ends_recovery (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go/internal/ackhandler	0.118s
