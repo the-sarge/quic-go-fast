@@ -2,6 +2,7 @@ package quic
 
 import (
 	"crypto/rand"
+	"math"
 	"net"
 	"slices"
 	"time"
@@ -17,29 +18,66 @@ type pathID int64
 
 const invalidPathID pathID = -1
 
-// Maximum number of paths to keep track of.
-// If the peer probes another path (before the pathTimeout of an existing path expires),
-// this probing attempt is ignored.
+// Maximum number of candidate paths. At capacity, existing candidates still
+// receive traffic, while a new candidate needs an expired or idle slot.
 const maxPaths = 3
 
-// If no packet is received for a path for pathTimeout,
-// the path can be evicted when the peer probes another path.
-// This prevents an attacker from churning through paths by duplicating packets and
-// sending them with spoofed source addresses.
+// Idle eviction interval for successful candidates and the minimum lifetime of
+// each incomplete validation stage. Ordinary traffic cannot renew a stage.
 const pathTimeout = 5 * time.Second
 
+// Challenge records exist only after emission reserves an actual datagram.
+const maxPathChallenges = 16
+
+type pathChallengeRecord struct {
+	data   [8]byte
+	padded bool
+}
+
 type path struct {
-	id              pathID
-	addr            net.Addr
-	lastPacketTime  monotime.Time
-	pathChallenge   [8]byte
-	validated       bool
-	mtuValidated    bool
-	challengeSent   bool
-	challengePadded bool
-	bytesReceived   protocol.ByteCount
-	bytesSent       protocol.ByteCount
-	rcvdNonProbing  bool
+	id                 pathID
+	addr               net.Addr
+	lastPacketTime     monotime.Time
+	validated          bool
+	mtuValidated       bool
+	bytesReceived      protocol.ByteCount
+	bytesSent          protocol.ByteCount
+	rcvdNonProbing     bool
+	challenges         [maxPathChallenges]pathChallengeRecord
+	numChallenges      int
+	baseProbeInterval  time.Duration
+	probeInterval      time.Duration
+	validationTimeout  time.Duration
+	nextProbeTime      monotime.Time
+	validationDeadline monotime.Time
+}
+
+// Saturate policy times instead of wrapping a duration or monotonic deadline.
+func pathDeadline(now monotime.Time, delay time.Duration) monotime.Time {
+	if int64(now) > math.MaxInt64-int64(delay) {
+		return monotime.Time(math.MaxInt64)
+	}
+	return now.Add(delay)
+}
+
+func (p *path) canProbe(now monotime.Time) bool {
+	return !p.mtuValidated && now.Before(p.validationDeadline) && !now.Before(p.nextProbeTime) && p.numChallenges < maxPathChallenges
+}
+
+// Called by emission after reservation, before registration and socket I/O.
+// Neither loss nor a local write failure rolls back this commitment.
+func (p *path) commitChallenge(data [8]byte, size protocol.ByteCount, now monotime.Time) {
+	p.challenges[p.numChallenges] = pathChallengeRecord{data: data, padded: size >= protocol.MinInitialPacketSize}
+	p.numChallenges++
+	p.nextProbeTime = min(p.validationDeadline, pathDeadline(now, p.probeInterval))
+	p.probeInterval = min(time.Duration(math.MaxInt64/2), p.probeInterval) * 2
+}
+
+func (p *path) clearChallenges() {
+	clear(p.challenges[:])
+	p.numChallenges = 0
+	p.nextProbeTime = 0
+	p.validationDeadline = 0
 }
 
 func (p *path) sendAllowance() protocol.ByteCount {
@@ -66,6 +104,7 @@ type pathManager struct {
 
 	getConnID    func(pathID) (_ protocol.ConnectionID, ok bool)
 	retireConnID func(pathID)
+	pto          func() time.Duration
 
 	logger utils.Logger
 }
@@ -73,12 +112,14 @@ type pathManager struct {
 func newPathManager(
 	getConnID func(pathID) (_ protocol.ConnectionID, ok bool),
 	retireConnID func(pathID),
+	pto func() time.Duration,
 	logger utils.Logger,
 ) *pathManager {
 	return &pathManager{
 		paths:        make([]*path, 0, maxPaths+1),
 		getConnID:    getConnID,
 		retireConnID: retireConnID,
+		pto:          pto,
 		logger:       logger,
 	}
 }
@@ -92,13 +133,13 @@ func (pm *pathManager) HandlePacket(
 	pathChallenge *wire.PathChallengeFrame, // may be nil if the packet didn't contain a PATH_CHALLENGE
 	isNonProbing bool,
 ) (_ protocol.ConnectionID, _ []ackhandler.Frame, shouldSwitch bool) {
+	pm.Expire(t)
 	var p *path
 	for i, path := range pm.paths {
 		if addrsEqual(path.addr, remoteAddr) {
 			p = path
 			p.lastPacketTime = t
 			p.bytesReceived += size
-			// already sent a PATH_CHALLENGE for this path
 			if isNonProbing {
 				path.rcvdNonProbing = true
 			}
@@ -111,7 +152,7 @@ func (pm *pathManager) HandlePacket(
 				pm.paths = slices.Delete(pm.paths, i, i+1)
 				pm.paths = append(pm.paths, p)
 			}
-			if pathChallenge == nil && path.challengeSent && (!path.validated || path.challengePadded) {
+			if pathChallenge == nil && !path.canProbe(t) {
 				return protocol.ConnectionID{}, nil, shouldSwitch
 			}
 			break
@@ -119,15 +160,20 @@ func (pm *pathManager) HandlePacket(
 	}
 
 	if p == nil && len(pm.paths) >= maxPaths {
-		if pm.paths[0].lastPacketTime.Add(pathTimeout).After(t) {
-			if pm.logger.Debug() {
-				pm.logger.Debugf("received packet for previously unseen path %s, but already have %d paths", remoteAddr, len(pm.paths))
+		// Incomplete attempts have their own absolute deadline. Only successful,
+		// idle candidates are eligible for the historical idle eviction rule.
+		evict := -1
+		for i, candidate := range pm.paths {
+			if candidate.mtuValidated && !candidate.lastPacketTime.Add(pathTimeout).After(t) {
+				evict = i
+				break
 			}
-			return protocol.ConnectionID{}, nil, shouldSwitch
 		}
-		// evict the oldest path, if the last packet was received more than pathTimeout ago
-		pm.retireConnID(pm.paths[0].id)
-		pm.paths = pm.paths[1:]
+		if evict < 0 {
+			return protocol.ConnectionID{}, nil, false
+		}
+		pm.retireConnID(pm.paths[evict].id)
+		pm.paths = slices.Delete(pm.paths, evict, evict+1)
 	}
 
 	var pathID pathID
@@ -146,53 +192,93 @@ func (pm *pathManager) HandlePacket(
 
 	frames := make([]ackhandler.Frame, 0, 2)
 	if p == nil {
-		var pathChallengeData [8]byte
-		rand.Read(pathChallengeData[:])
+		base := max(2*utils.DefaultInitialRTT, pm.pto())
+		timeout := time.Duration(math.MaxInt64)
+		if base <= math.MaxInt64/3 {
+			timeout = max(pathTimeout, 3*base)
+		}
 		p = &path{
-			id:             pm.nextPathID,
-			addr:           remoteAddr,
-			lastPacketTime: t,
-			bytesReceived:  size,
-			rcvdNonProbing: isNonProbing,
-			pathChallenge:  pathChallengeData,
+			id: pm.nextPathID, addr: remoteAddr, lastPacketTime: t,
+			bytesReceived: size, rcvdNonProbing: isNonProbing,
+			baseProbeInterval: base, probeInterval: base, validationTimeout: timeout,
+			nextProbeTime: t, validationDeadline: pathDeadline(t, timeout),
 		}
 		pm.nextPathID++
 		pm.paths = append(pm.paths, p)
 	}
-	// A compact challenge validates reachability, but RFC 9000 section 8.2.3
-	// requires another, expanded challenge before the path MTU is validated.
-	if p.validated && !p.challengePadded && p.challengeSent {
-		rand.Read(p.pathChallenge[:])
-		p.challengeSent = false
-	}
-	if !p.challengeSent {
+	if p.canProbe(t) {
+		var data [8]byte
+		rand.Read(data[:])
 		frames = append(frames, ackhandler.Frame{
-			Frame:   &wire.PathChallengeFrame{Data: p.pathChallenge},
-			Handler: (*pathManagerAckHandler)(pm),
+			Frame: &wire.PathChallengeFrame{Data: data}, Handler: emptyHandler{},
 		})
-		p.challengeSent = true
-		p.challengePadded = p.sendAllowance() >= protocol.MinInitialPacketSize
-		pm.logger.Debugf("enqueueing PATH_CHALLENGE for new path %s", remoteAddr)
 	}
+
 	if pathChallenge != nil {
 		frames = append(frames, ackhandler.Frame{
 			Frame:   &wire.PathResponseFrame{Data: pathChallenge.Data},
-			Handler: (*pathManagerAckHandler)(pm),
+			Handler: emptyHandler{},
 		})
 	}
 	return connID, frames, shouldSwitch
 }
 
-func (pm *pathManager) HandlePathResponseFrame(f *wire.PathResponseFrame) {
+func (pm *pathManager) HandlePathResponseFrame(f *wire.PathResponseFrame, now monotime.Time) {
+	pm.Expire(now)
 	for _, p := range pm.paths {
-		if p.challengeSent && f.Data == p.pathChallenge {
-			// path validated
-			p.validated = true
-			p.mtuValidated = p.challengePadded
-			pm.logger.Debugf("path %s validated", p.addr)
-			break
+		for _, challenge := range p.challenges[:p.numChallenges] {
+			if challenge.data != f.Data {
+				continue
+			}
+			if challenge.padded {
+				p.validated = true
+				p.mtuValidated = true
+				p.clearChallenges()
+			} else if !p.validated {
+				p.validated = true
+				p.validationDeadline = pathDeadline(now, p.validationTimeout)
+				hasPadded := slices.ContainsFunc(p.challenges[:p.numChallenges], func(c pathChallengeRecord) bool { return c.padded })
+				if !hasPadded {
+					p.nextProbeTime = now
+					p.probeInterval = p.baseProbeInterval
+				}
+			}
+			return
 		}
 	}
+}
+
+// Expiry is independent of received traffic and send eligibility.
+func (pm *pathManager) Expire(now monotime.Time) {
+	for i := 0; i < len(pm.paths); {
+		p := pm.paths[i]
+		if !p.mtuValidated && !now.Before(p.validationDeadline) {
+			pm.retireConnID(p.id)
+			p.clearChallenges()
+			pm.paths = slices.Delete(pm.paths, i, i+1)
+		} else {
+			i++
+		}
+	}
+}
+
+func (pm *pathManager) NextExpiry() monotime.Time {
+	var expiry monotime.Time
+	for _, p := range pm.paths {
+		if !p.mtuValidated && (expiry.IsZero() || p.validationDeadline.Before(expiry)) {
+			expiry = p.validationDeadline
+		}
+	}
+	return expiry
+}
+
+// The connection-ID owner handles retirement on terminal connection cleanup.
+func (pm *pathManager) Close() {
+	for _, p := range pm.paths {
+		p.clearChallenges()
+	}
+	clear(pm.paths)
+	pm.paths = pm.paths[:0]
 }
 
 func (pm *pathManager) getPath(addr net.Addr) *path {
@@ -208,6 +294,7 @@ func (pm *pathManager) getPath(addr net.Addr) *path {
 func (pm *pathManager) SwitchToPath(addr net.Addr) {
 	// retire all other paths
 	for _, path := range pm.paths {
+		path.clearChallenges()
 		if addrsEqual(path.addr, addr) {
 			pm.logger.Debugf("switching to path %d (%s)", path.id, addr)
 			continue
@@ -216,27 +303,6 @@ func (pm *pathManager) SwitchToPath(addr net.Addr) {
 	}
 	clear(pm.paths)
 	pm.paths = pm.paths[:0]
-}
-
-type pathManagerAckHandler pathManager
-
-var _ ackhandler.FrameHandler = &pathManagerAckHandler{}
-
-// Acknowledging the frame doesn't validate the path, only receiving the PATH_RESPONSE does.
-func (pm *pathManagerAckHandler) OnAcked(f wire.Frame) {}
-
-func (pm *pathManagerAckHandler) OnLost(f wire.Frame) {
-	pc, ok := f.(*wire.PathChallengeFrame)
-	if !ok {
-		return
-	}
-	for i, path := range pm.paths {
-		if path.pathChallenge == pc.Data {
-			pm.paths = slices.Delete(pm.paths, i, i+1)
-			pm.retireConnID(path.id)
-			break
-		}
-	}
 }
 
 func addrsEqual(addr1, addr2 net.Addr) bool {

@@ -777,6 +777,9 @@ runLoop:
 		}
 
 		c.connIDGenerator.RemoveRetiredConnIDs(now)
+		if c.pathManager != nil {
+			c.pathManager.Expire(now)
+		}
 
 		if c.perspective == protocol.PerspectiveClient {
 			pm := c.pathManagerOutgoing.Load()
@@ -818,6 +821,9 @@ runLoop:
 	}
 
 	closeErr := c.closeErr.Load()
+	if c.pathManager != nil {
+		c.pathManager.Close()
+	}
 	c.cryptoStreamHandler.Close()
 	c.emission.drain() // close the send queue before sending the CONNECTION_CLOSE
 	c.handleCloseError(closeErr)
@@ -953,6 +959,12 @@ func (c *Conn) maybeResetTimer() {
 			} else {
 				deadline = c.nextIdleTimeoutTime()
 			}
+		}
+	}
+	// Path attempts expire even while local capacity blocks all sending.
+	if c.pathManager != nil {
+		if t := c.pathManager.NextExpiry(); !t.IsZero() && t.Before(deadline) {
+			deadline = t
 		}
 	}
 	// Delivery evidence expires even while local capacity blocks all sending.
@@ -1392,10 +1404,12 @@ func (c *Conn) handleShortHeaderPacket(
 		c.pathManager = newPathManager(
 			c.connIDManager.GetConnIDForPath,
 			c.connIDManager.RetireConnIDForPath,
+			func() time.Duration { return c.rttStats.PTO(true) },
 			c.logger,
 		)
 	}
-	destConnID, frames, shouldSwitchPath := c.pathManager.HandlePacket(p.remoteAddr, p.rcvTime, p.Size(), pathChallenge, isNonProbing)
+	now := monotime.Now()
+	destConnID, frames, shouldSwitchPath := c.pathManager.HandlePacket(p.remoteAddr, now, p.Size(), pathChallenge, isNonProbing)
 	if len(frames) > 0 {
 		if err := c.emission.serverProbe(destConnID, frames, c.pathManager.getPath(p.remoteAddr), p.remoteAddr, p.info, datagramPayloadChecksum, p.rcvTime); err != nil {
 			return true, err
@@ -2290,7 +2304,7 @@ func (c *Conn) handlePathResponseFrameServer(f *wire.PathResponseFrame) error {
 			ErrorMessage: "unexpected PATH_RESPONSE frame",
 		}
 	}
-	c.pathManager.HandlePathResponseFrame(f)
+	c.pathManager.HandlePathResponseFrame(f, monotime.Now())
 	return nil
 }
 
