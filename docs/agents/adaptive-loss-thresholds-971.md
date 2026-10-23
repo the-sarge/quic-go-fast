@@ -1,6 +1,6 @@
 # Adaptive application loss thresholds
 
-Status: approved by the operator through Planit on 2026-10-23 for [#971](https://github.com/the-sarge/quic-go-fast/issues/971). The #851 publication hold is satisfied by published v0.62.1-fast.8; prerequisite #970 is merged. This is the current implementation and review contract. Review chronology, dispositions and exact-head receipts belong in the PR discussion.
+Status: approved by the operator through Planit on 2026-10-23 for [#971](https://github.com/the-sarge/quic-go-fast/issues/971). The #851 publication hold is satisfied by published v0.62.1-fast.8; prerequisite #970 is merged. The separately approved [#1002 fixture prerequisite](windows-startup-port-selection-1002.md) and its journal are merged. This is the current implementation and review contract. Review chronology, dispositions and exact-head receipts belong in the PR discussion.
 
 ## Outcome and invariants
 
