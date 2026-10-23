@@ -1,0 +1,18 @@
+{
+  "archive": "raw.tar.gz",
+  "sha256": "bf0a75eb1ad5d334b58f8072c34f48d830910fbc061c52be5a6e484986ed07f9",
+  "bytes": 8306390,
+  "verified_files": 2853,
+  "matching_preexisting_files": 7,
+  "observations": {
+    "main": 140,
+    "preslat": 12,
+    "perfsmoke": 2,
+    "smoke": 2,
+    "s5timeline": 8,
+    "ecnsmoke": 2,
+    "xsmoke": 1
+  },
+  "total_observations": 167,
+  "all_result_hashes_match": true
+}

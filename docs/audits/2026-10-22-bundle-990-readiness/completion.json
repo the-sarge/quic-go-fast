@@ -1,0 +1,38 @@
+{
+  "time": "2026-10-23T04:59:12.183184+00:00",
+  "candidate": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+  "registration": "05879c86bbbccd67a4eb2147d29e2f74a74fe8da",
+  "observations": {
+    "main": 140,
+    "s5timeline": 8,
+    "preslat": 12
+  },
+  "clean_original_blocks": 44,
+  "failures": 0,
+  "reruns": 0,
+  "timeline_escalations": 0,
+  "attribution_observations": 20,
+  "reply_counts": {
+    "preslat-loopback-long-datagram-p1-reno-reno": 120,
+    "preslat-loopback-long-datagram-p1-cand-reno": 120,
+    "preslat-loopback-long-datagram-p2-reno-reno": 120,
+    "preslat-loopback-long-datagram-p2-cand-reno": 120,
+    "preslat-loopback-long-datagram-p3-reno-reno": 120,
+    "preslat-loopback-long-datagram-p3-cand-reno": 120,
+    "preslat-loopback-long-datagram-p4-reno-reno": 120,
+    "preslat-loopback-long-datagram-p4-cand-reno": 120,
+    "preslat-loopback-long-datagram-p5-reno-reno": 120,
+    "preslat-loopback-long-datagram-p5-cand-reno": 120,
+    "preslat-loopback-long-datagram-p6-reno-reno": 120,
+    "preslat-loopback-long-datagram-p6-cand-reno": 120
+  },
+  "result_hashes": {
+    "summary.json": "ede13a51918aa762f8ba114112acc9acf3651b21d1d41fd2cdbe92e317808197",
+    "summary-original.json": "ede13a51918aa762f8ba114112acc9acf3651b21d1d41fd2cdbe92e317808197",
+    "attribution.json": "6ea1eb2fb02f2c669a95adbcd76bae47e0573dd6c026fb89f66956fd9a44488c",
+    "datagram-loss.json": "558ed1c5d67f8fbe7cce2cbe517b0bc4aa2194015357f1a64987ddf4b39f08a5",
+    "result.md": "67a47cec51dcabdfcd4c79fd0ea8ae80eeb4711829c9614ef681fbfc3a3a602d"
+  },
+  "report_check": "passed raw reload/cache correspondence and exact prose comparison",
+  "publication": "blocked pending fresh explicit operator advancement"
+}

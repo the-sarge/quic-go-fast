@@ -1,0 +1,16 @@
+{
+  "command": "scp explicit paths",
+  "files": [
+    "raw.tar.gz",
+    "raw-manifest.json",
+    "summary.json",
+    "summary-original.json",
+    "attribution.json",
+    "datagram-loss.json",
+    "result.md"
+  ],
+  "exit": 0,
+  "stdout": "",
+  "stderr": "",
+  "prior_attempt": "SFTP rejected literal brace-expanded filename; no files transferred; corrected to explicit path arguments"
+}

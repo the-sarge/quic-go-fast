@@ -1,0 +1,24 @@
+{
+  "r9": {
+    "record_commit": "138223ac21da7503a9fb342b70c18d2f892cbeac",
+    "source_hashes": {
+      "docs/audits/2026-10-08-bbr-r9-linux-redemonstration/summary.json": "9c9916ac217afc60fc6cb26922e6fb1715659303176cd3b8ce8ed5517be34bc9",
+      "docs/audits/2026-10-08-bbr-r9-linux-redemonstration/attribution.json": "9597f125222f3da92d2b0f933f7842c982585d3e0167bcf559a87a2ea3678280"
+    }
+  },
+  "port": {
+    "record_commit": "9b38f0ab2f7e7a88ecb45dc66a46f895a8aad0cb",
+    "source_hashes": {
+      "docs/audits/2026-10-16-bbr-port-readiness/summary.json": "8b513ce574f2218933c49f9de363961b86298cfbdf8a5ff0a67a238aa65cbf7a",
+      "docs/audits/2026-10-16-bbr-port-readiness/attribution.json": "ac25780725b5539e48d6315bfa26e800bdf88cd4961a3841479ed80bdcd1a7ea"
+    }
+  },
+  "prior808": {
+    "record_commit": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+    "source_hashes": {
+      "docs/audits/2026-10-19-bbr-808-readiness/summary.json": "836e7ad5759fa714f8712115dbcd59c198e4c974256fe31cfdc04788e1bcf2ee",
+      "docs/audits/2026-10-19-bbr-808-readiness/attribution.json": "2f503cbc29506798d635bda1fb5104eccef14838b2c3f8c1ec2541bbd3f336dc"
+    }
+  },
+  "decompressed_sha256": "ac75968cb93b85d7eee1e23c0e83e67e10ce96c33789713dc4d367ab9451e667"
+}
