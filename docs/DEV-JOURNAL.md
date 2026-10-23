@@ -7774,3 +7774,26 @@ Preserve the registered screen’s reject label: the clean 100 ms / 10 Mbit/s / 
 ### Validation
 
 RAS review completed with quorum; four documentation findings were corrected and one optional finding rejected. The docs-only exemption skipped another RAS cycle. Exact-head local certification, offline reproduction, checksum reconciliation and all five hosted PR workflows passed before the matching squash merge. No deferred findings survived. The [review receipt](https://github.com/the-sarge/quic-go-fast/pull/1000#issuecomment-6360275883) records the provider failures, provenance limitations and frozen-data whitespace exclusions. No linked OmniFocus task was found.
+
+---
+
+## Distributed startup fixture ports landed - 2026-10-23 05:01 EDT
+
+**Main:** `9885a857e3d9`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1003](https://github.com/the-sarge/quic-go-fast/pull/1003) as `9885a857e3d911f10a6836f58385f59e43377db5`, completing [#1002](https://github.com/the-sarge/quic-go-fast/issues/1002). The combined-server startup fixture now samples up to ten independent unprivileged port candidates and requires both TCP and UDP binds, preserving real startup-failure and cleanup assertions. Production behavior is unchanged.
+
+### Decisions
+
+The [execution contract](agents/windows-startup-port-selection-1002.md) replaces protocol port-zero allocation after opposite TCP/UDP denial recurrences. Keep bounded attempts and diagnostics; do not increase retries, skip Windows or infer universal port availability. [Retained native evidence](audits/issue-1002-startup-ports/README.md) records the cause, correction and limits.
+
+### Validation
+
+One bounded [native Windows Go 1.26.10 run](https://github.com/the-sarge/quic-go-fast/actions/runs/39927044458) passed 100 focused executions, combined lifecycle tests and the captured HTTP/3 shuffle replay, including a real denied TCP candidate followed by a successful second candidate. Exact-head local package/race/vet/lint/tidiness checks passed. All nine final hosted workflows / 33 jobs passed. Five RAS reviewers and synthesis completed; one reviewer process failed. The sole documentation finding was independently rejected as unsupported; no fixes or verification were required. Frozen receipts retain commands and checksums; no flake-rate guarantee follows.
+
+### Next
+
+Resume the independent adaptive-loss policy in [PR #999](https://github.com/the-sarge/quic-go-fast/pull/999) after this journal merges: update to main and renew review, exact-head certification and hosted checks. [#971](https://github.com/the-sarge/quic-go-fast/issues/971) is the live implementation tracker; no performance campaign is authorized.
