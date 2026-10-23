@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """#990 analysis: preserved #808 formulas with guarded complete-block selection.
 
-Adapted chosen() delegates to campaign.selection. Readiness is rendered by the
+Adapted chosen() delegates to campaign.reporting_inventory; only strict selected blocks enter its data view. Readiness is rendered by the
 option-C analyze.py; timeline, preservation and receiver formulas are unchanged.
 The historical unregistered memory/D2 helpers are retained but not exposed as
 steps. This module does not grant acceptance or advancement.
@@ -81,9 +81,9 @@ def blocks_of(phase, path=None):
 
 
 def chosen(phase, path=None):
-    """Only complete, identity-checked clean blocks from #990 receipts."""
-    from campaign import selection
-    return selection(phase, path)
+    """Clean complete data plus explicit missing/unresolved block statuses."""
+    from campaign import reporting_inventory
+    return reporting_inventory(phase, path)
 
 
 def load_rows(dirs):
@@ -358,8 +358,8 @@ def s5timeline():
     try:
         summ = readiness_summary()
         ref = {g['workload']: g['goodput_mbps']['median'] for g in summ['groups'] if g['path'] == 'S5' and g['arm'] == 'cand-bbrv3'}
-        res['instrumented_over_readiness_goodput'] = {w: statistics.median(o['goodput_mbps'] for o in obs if o['workload'] == w) / ref[w]
-                                                      for w in ref}
+        res['instrumented_over_readiness_goodput'] = {w: (statistics.median(o['goodput_mbps'] for o in obs if o['workload'] == w) / ref[w]
+                                                   if any(o['workload'] == w for o in obs) else None) for w in ref}
         res['readiness_relay'] = {(g['workload'] + '/' + g['arm']): dict(goodput=g['goodput_mbps']['median'],
                                   overflow_rate=g['relay']['overflow_rate']['median'])
                                   for g in summ['groups'] if g['path'] == 'S5'}

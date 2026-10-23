@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 
 import art  # noqa: F401
@@ -24,6 +25,36 @@ DECISION = 'https://github.com/the-sarge/quic-go-fast/issues/887#issuecomment-63
 MEMORY = 'https://github.com/the-sarge/quic-go-fast/issues/871#issuecomment-6354210729'
 
 
+class CoordinationStop(RuntimeError):
+    """A recognized window boundary; never itself grants another observation."""
+
+
+def benefit_outcome(blocks, pairs_above):
+    if blocks != 5:
+        return 'evidence gap'
+    return 'met' if pairs_above == 5 else 'not met'
+
+
+def blocking_outcomes(entries):
+    out = []
+    for e in entries:
+        if not e['role'].endswith(' blocking'):
+            continue
+        cell = dict(path=e['path'], workload=e['workload'], arm=e['arm'])
+        if not e['complete']:
+            out.append(dict(cell, criterion='complete readiness', outcome='evidence gap', blocks=e['blocks']))
+        for key, value in e['flags'].items():
+            if value['raised']:
+                out.append(dict(cell, criterion=key, outcome='raised', median=value['median']))
+        if e.get('benefit_outcome') in ('not met', 'evidence gap'):
+            out.append(dict(cell, criterion='S6 repeatable benefit', outcome=e['benefit_outcome'],
+                            pairs_above=e['useful_benefit']['pairs_above_reno'], blocks=e['blocks']))
+    for workload in ['stream', 'datagram']:
+        if not any((e['path'], e['workload'], e['arm']) == ('S6', workload, 'cand-bbrv3') for e in entries):
+            out.append(dict(path='S6', workload=workload, arm='cand-bbrv3', criterion='S6 repeatable benefit', outcome='evidence gap', blocks=0))
+    return out
+
+
 def source(variant):
     rev, diag, timeline = build.VARIANTS[variant]
     return rev + ('+diag' if diag else '') + ('+timeline' if timeline else '')
@@ -35,7 +66,8 @@ def preflight(calibration=True, ready=False):
     assert gate['baseline_decision'] == DECISION and gate['memory_disposition'] == MEMORY
     assert len(gate['registration_commit']) == 40 and gate['review_url'] and gate['resource_authorization']
     now = datetime.now(timezone.utc)
-    assert datetime.fromisoformat(gate['window_start']) <= now < datetime.fromisoformat(gate['window_end']), 'outside registered window'
+    if not datetime.fromisoformat(gate['window_start']) <= now < datetime.fromisoformat(gate['window_end']):
+        raise CoordinationStop('outside registered window')
     assert os.sched_getaffinity(0) == {1, 2, 3}, 'launch under taskset -c 1-3'
     assert not {k for k in os.environ if k in ['GOGC', 'GOMEMLIMIT', 'GODEBUG'] or k.startswith('QUIC_GO_')}
     assert {'campaign.py', 'guards.py', 'build.py', 'matrix.py', 'stages.py', 'README.md'} <= set(gate['registration_files'])
@@ -163,14 +195,20 @@ def execute(stage, workload, block, rerun=False, escalation=False):
             assert sum(r['phase'] == 'main' and r['attempt'] == 'rerun' for r in receipts) < 10
     if phase != 'main':
         count = sum(1 for root2 in [run.ART / 'observations', run.ART / 'observations-rerun'] for p in root2.glob('*/meta.json') if json.loads(p.read_text())['phase'] in ('s5timeline', 'presrss', 'preslat'))
-        assert count + len(arms) <= 60, 'attribution cap'
+        if count + len(arms) > 60:
+            stop = run.ART / 'stage-stops' / f'{block_key(stage, workload, block)}.json'
+            stop.parent.mkdir(parents=True, exist_ok=True)
+            if not stop.exists():
+                run.write(stop, dict(status='not run (cap)', stage=stage, workload=workload, block=block, attempted=count, additional=len(arms), cap=60))
+            raise AssertionError('attribution cap')
     run.OBS = root
     run.ensure_credentials()
     directory.mkdir(parents=True, exist_ok=True)
     dirs = []
     def guarded(*args, **kwargs):
         current = preflight(ready=True)
-        assert (datetime.fromisoformat(current['window_end']) - datetime.now(timezone.utc)).total_seconds() >= 180
+        if (datetime.fromisoformat(current['window_end']) - datetime.now(timezone.utc)).total_seconds() < 180:
+            raise CoordinationStop('fewer than 180 seconds remain')
         phase_, variant, workload_, block_, controller = args
         name = f'{phase_}-{path}-{workload_}-p{block_}-{variant}-{controller}' + (f"-{kwargs['tag']}" if kwargs.get('tag') else '')
         d = root / name
@@ -188,6 +226,14 @@ def execute(stage, workload, block, rerun=False, escalation=False):
         rows = matrix.block(phase, path, arms, block, seed=seed, runner=guarded, only=workload, **opts)
         dirty = validate_block(rows, stage, workload, block, escalation)
     except BaseException as exc:
+        recognized_stop = isinstance(exc, CoordinationStop) or (isinstance(exc, SystemExit) and str(exc) == 'host never quiet; stage not continued')
+        # Successfully appended rows are insufficient: a failed runner may
+        # already have created evidence before returning a row.
+        started = list(root.glob(f'{phase}-{path}-{workload}-p{block}-*'))
+        if recognized_stop and not started:
+            stop = directory / f'not-started-{time.time_ns()}.json'
+            run.write(stop, dict(receipt, status='not started (coordination stop)', error=f'{type(exc).__name__}: {exc}'))
+            raise
         run.write(output, dict(receipt, usable=False, fatal=not isinstance(exc, guards.UnusableObservation), error=f'{type(exc).__name__}: {exc}', directories=dirs))
         raise
     run.write(output, dict(receipt, usable=True, fatal=False, contaminated=dirty, directories=dirs))
@@ -210,6 +256,41 @@ def selection(phase, path=None):
                     ds, record = selected(stage, workload, block, True)
                     dirs += ds
                     records.append(record)
+    return dirs, records
+
+
+def reporting_inventory(phase, path=None):
+    """Describe every expected block; only strict selected() admits data.
+
+    Reporting an evidence gap does not permit continuation or admit a partial,
+    disturbed or corrupt block. Original and rerun artifacts remain untouched.
+    """
+    dirs, records = [], []
+    plan_path = run.ART / 'conditional-plan.json'
+    plan = json.loads(plan_path.read_text()) if plan_path.exists() else {'selected': []}
+    for stage, (ph, pa, arms, n, base, runner, opts, only) in matrix.STAGES.items():
+        if ph != phase or (path and pa != path):
+            continue
+        if phase in ('presrss', 'preslat') and stage not in plan['selected']:
+            continue
+        for workload in [only] if only else ['stream', 'datagram']:
+            blocks = list(range(1, n + 1))
+            if stage == 's5timeline' and (run.ART / f'timeline-escalation-{workload}.json').exists():
+                blocks += [5, 6]
+            for block in blocks:
+                try:
+                    ds, record = selected(stage, workload, block, block > n)
+                    dirs += ds
+                except (AssertionError, OSError, ValueError, KeyError, TypeError) as exc:
+                    directory = run.ART / 'blocks' / block_key(stage, workload, block)
+                    attempts = [str(p.relative_to(run.ART)) for p in sorted(directory.glob('*.json'))]
+                    status = 'incomplete (retained unresolved evidence)' if attempts else 'not run'
+                    stop = run.ART / 'stage-stops' / f'{block_key(stage, workload, block)}.json'
+                    if stop.exists():
+                        status = json.loads(stop.read_text())['status']
+                    record = dict(stage=stage, workload=workload, block=block, status=status,
+                                  counted=None, attempts=attempts, error=f'{type(exc).__name__}: {exc}')
+                records.append(record)
     return dirs, records
 
 
