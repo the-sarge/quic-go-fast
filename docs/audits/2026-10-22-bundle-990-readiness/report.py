@@ -8,6 +8,7 @@ import json
 import gzip
 from pathlib import Path
 import sys
+import subprocess
 import stages as S
 import campaign as C
 
@@ -86,7 +87,7 @@ def attribution_digest(a):
     if 'calculation_error' in timeline:
         t=timeline
     else:
-        t={k:timeline[k] for k in ['workloads','verdict','instrumented_over_readiness_goodput'] if k in timeline}
+        t={k:timeline[k] for k in ['workloads','workload_counts','verdict','instrumented_over_readiness_goodput'] if k in timeline}
         t['observations']=[{k:o[k] for k in ['id','workload','block','goodput_mbps','decomposition','verdict'] if k in o} for o in timeline['observations']]
     cpu=a['cpu_split']
     if 'calculation_error' not in cpu:
@@ -101,10 +102,13 @@ def derive_outputs():
     for key,fn in [('receiver',S.receiver),('s5timeline',S.s5timeline),('presrss',S.presrss),('preslat',S.preslat)]:
         try:
             fn()
-        except (AssertionError, OSError, ValueError, KeyError, TypeError, ZeroDivisionError) as exc:
+        except (AssertionError, OSError, ValueError, KeyError, TypeError, ZeroDivisionError, subprocess.CalledProcessError) as exc:
             # A missing diagnostic instrument is a reported gap, never a stale
             # classification. It does not make any measurement rerunnable.
-            S.save('cpu_split' if key=='receiver' else key, dict(outcome='evidence gap',calculation_error=f'{type(exc).__name__}: {exc}'))
+            detail = dict(outcome='evidence gap',calculation_error=f'{type(exc).__name__}: {exc}')
+            if isinstance(exc, subprocess.CalledProcessError):
+                detail['diagnostic_failure'] = dict(command=exc.cmd, exit_code=exc.returncode, stdout=exc.stdout, stderr=exc.stderr)
+            S.save('cpu_split' if key=='receiver' else key, detail)
     dgloss.main()
 
 

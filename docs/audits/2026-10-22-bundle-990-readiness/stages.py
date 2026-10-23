@@ -6,6 +6,7 @@ option-C analyze.py; timeline, preservation and receiver formulas are unchanged.
 The historical unregistered memory/D2 helpers are retained but not exposed as
 steps. This module does not grant acceptance or advancement.
 """
+from collections import Counter
 import json
 import os
 import re
@@ -343,18 +344,28 @@ def timeline_obs(d):
     return o
 
 
+def timeline_verdict(verdicts):
+    # A permitted six-block escalation can have two labels at the historical
+    # threshold of three. Neither label owns that tie; retain it as unresolved.
+    counts = Counter(v for v in verdicts if v != 'unusable')
+    if sum(n >= 3 for n in counts.values()) > 1:
+        return 'inconclusive'
+    return R.workload_verdict(verdicts)
+
+
 def timeline_stage(dirs):
     obs = [timeline_obs(d) for d in dirs]
     per = {}
     for workload in ['stream', 'datagram']:
-        per[workload] = R.workload_verdict([o['verdict'] for o in obs if o['workload'] == workload])
+        per[workload] = timeline_verdict([o['verdict'] for o in obs if o['workload'] == workload])
     return obs, per
 
 
 def s5timeline():
     dirs, record = chosen('s5timeline')
     obs, per = timeline_stage(dirs)
-    res = dict(blocks=record, observations=obs, workloads=per, verdict=R.stage_verdict(per))
+    res = dict(blocks=record, observations=obs, workloads=per, verdict=R.stage_verdict(per),
+               workload_counts={w: dict(Counter(o['verdict'] for o in obs if o['workload'] == w)) for w in per})
     # Instrument perturbation, descriptive: instrumented goodput against the readiness candidate's S5 median.
     try:
         summ = readiness_summary()
