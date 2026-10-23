@@ -2,3 +2,4 @@ build/
 __pycache__/
 fixture/__pycache__/
 raw/attempts/
+summary.json

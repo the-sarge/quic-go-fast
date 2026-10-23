@@ -1,0 +1,3374 @@
+{
+  "recommendation": "reject",
+  "complete": true,
+  "attempts": 292,
+  "network": {
+    "finished_utc": "2026-10-23T07:30:05.649363+00:00",
+    "elapsed_seconds": 191.67645650007762,
+    "attempts": 292,
+    "reason": "complete",
+    "unrun": [],
+    "unused_smoke": 4,
+    "unused_replacements": 8
+  },
+  "problems": [
+    "insufficient comparison d1 latency_ns",
+    "insufficient comparison d1 wait_ns",
+    "noisy calibration dial_ns",
+    "noisy calibration request_ns"
+  ],
+  "qualifying_clean_100ms": [],
+  "benefit_gate": false,
+  "regressions": [
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 10,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "flags": [
+        "d0 overflow_rate regression",
+        "d0 transport_loss_rate regression"
+      ],
+      "usable": true
+    }
+  ],
+  "cells": [
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 10,
+        "rtt": 10,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.000310042774712,
+        "calibration_dial_ns_ratio": 1.0010093186380302,
+        "request_ratio": {
+          "median": 1.0001077541607999,
+          "min": 0.9994716303116168,
+          "max": 1.0007733263827454,
+          "all": [
+            1.0001077541607999,
+            1.0007733263827454,
+            1.0005357210833412,
+            0.9994716303116168,
+            1.0000656916840913
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9999968539418267,
+          "min": 0.9992155252262105,
+          "max": 1.0020963980283215,
+          "all": [
+            0.9999968539418267,
+            1.0020963980283215,
+            1.0017137229692534,
+            0.9992155252262105,
+            0.9998896368251748
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 50805483,
+              "candidate_median_p95": 50739775,
+              "median_paired_increase": 4791,
+              "allowed": 5080548.300000001
+            },
+            "latency_ns": {
+              "control_median_p95": 56954875,
+              "candidate_median_p95": 57028625,
+              "median_paired_increase": 73750,
+              "allowed": 5695487.5
+            },
+            "overflow_rate": {
+              "control_median": 0.028735632183908046,
+              "candidate_median": 0.028768699654775604,
+              "median_paired_increase": 3.189131440052215e-05,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.02870264064293915,
+              "candidate_median": 0.028735632183908046,
+              "median_paired_increase": 3.181791666887965e-05,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5246500,
+              "candidate_median_p95": 5186542,
+              "median_paired_increase": -22834,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-05",
+          "control_id": "061",
+          "candidate_id": "062",
+          "request_ratio": 1.0001077541607999,
+          "dial_ratio": 0.9999968539418267,
+          "request_difference_ns": 93917,
+          "dial_difference_ns": -2792
+        },
+        {
+          "pair": "2-05",
+          "control_id": "108",
+          "candidate_id": "107",
+          "request_ratio": 1.0007733263827454,
+          "dial_ratio": 1.0020963980283215,
+          "request_difference_ns": 674334,
+          "dial_difference_ns": 1858625
+        },
+        {
+          "pair": "3-05",
+          "control_id": "153",
+          "candidate_id": "154",
+          "request_ratio": 1.0005357210833412,
+          "dial_ratio": 1.0017137229692534,
+          "request_difference_ns": 466499,
+          "dial_difference_ns": 1517208
+        },
+        {
+          "pair": "4-05",
+          "control_id": "200",
+          "candidate_id": "199",
+          "request_ratio": 0.9994716303116168,
+          "dial_ratio": 0.9992155252262105,
+          "request_difference_ns": -460541,
+          "dial_difference_ns": -696083
+        },
+        {
+          "pair": "5-05",
+          "control_id": "245",
+          "candidate_id": "246",
+          "request_ratio": 1.0000656916840913,
+          "dial_ratio": 0.9998896368251748,
+          "request_difference_ns": 57208,
+          "dial_difference_ns": -97751
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 10,
+        "rtt": 10,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0141157232267173,
+        "calibration_dial_ns_ratio": 1.0233721414049826,
+        "request_ratio": {
+          "median": 1.0000411113060068,
+          "min": 0.9970101178806162,
+          "max": 1.0150618020872142,
+          "all": [
+            1.000546544417518,
+            0.9970101178806162,
+            1.0000411113060068,
+            1.0150618020872142,
+            0.9973117649673695
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.993172173118746,
+          "min": 0.9876840760029617,
+          "max": 1.0567985039220793,
+          "all": [
+            1.0004581243306658,
+            0.9923689483677678,
+            0.993172173118746,
+            1.0567985039220793,
+            0.9876840760029617
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 30485708,
+              "candidate_median_p95": 31186317,
+              "median_paired_increase": 21167,
+              "allowed": 3048570.8000000003
+            },
+            "latency_ns": {
+              "control_median_p95": 36183000,
+              "candidate_median_p95": 36639750,
+              "median_paired_increase": 22208,
+              "allowed": 3618300.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 88317,
+              "candidate_median_p95": 86566,
+              "median_paired_increase": -833,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 6452292,
+              "candidate_median_p95": 6417250,
+              "median_paired_increase": -31500,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-14",
+          "control_id": "079",
+          "candidate_id": "080",
+          "request_ratio": 1.000546544417518,
+          "dial_ratio": 1.0004581243306658,
+          "request_difference_ns": 35958,
+          "dial_difference_ns": 37293
+        },
+        {
+          "pair": "2-14",
+          "control_id": "126",
+          "candidate_id": "125",
+          "request_ratio": 0.9970101178806162,
+          "dial_ratio": 0.9923689483677678,
+          "request_difference_ns": -196917,
+          "dial_difference_ns": -618250
+        },
+        {
+          "pair": "3-14",
+          "control_id": "171",
+          "candidate_id": "172",
+          "request_ratio": 1.0000411113060068,
+          "dial_ratio": 0.993172173118746,
+          "request_difference_ns": 2708,
+          "dial_difference_ns": -556875
+        },
+        {
+          "pair": "4-14",
+          "control_id": "218",
+          "candidate_id": "217",
+          "request_ratio": 1.0150618020872142,
+          "dial_ratio": 1.0567985039220793,
+          "request_difference_ns": 975209,
+          "dial_difference_ns": 4450584
+        },
+        {
+          "pair": "5-14",
+          "control_id": "263",
+          "candidate_id": "264",
+          "request_ratio": 0.9973117649673695,
+          "dial_ratio": 0.9876840760029617,
+          "request_difference_ns": -177249,
+          "dial_difference_ns": -1005042
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 10,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [
+        "d0 overflow_rate regression",
+        "d0 transport_loss_rate regression"
+      ],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0013083888699317,
+        "calibration_dial_ns_ratio": 1.002504045773246,
+        "request_ratio": {
+          "median": 1.0006432950616098,
+          "min": 0.9922462568544582,
+          "max": 1.0368686581305,
+          "all": [
+            0.9922462568544582,
+            1.0006432950616098,
+            1.0082147467732856,
+            1.0368686581305,
+            0.9997178204110443
+          ]
+        },
+        "dial_ratio": {
+          "median": 1.0004176315000228,
+          "min": 0.9920792606437376,
+          "max": 1.0319051394915513,
+          "all": [
+            0.9920792606437376,
+            1.0004176315000228,
+            1.0070445446346155,
+            1.0319051394915513,
+            0.9999767114519301
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 97963417,
+              "candidate_median_p95": 98058041,
+              "median_paired_increase": 94624,
+              "allowed": 9796341.700000001
+            },
+            "latency_ns": {
+              "control_median_p95": 149213666,
+              "candidate_median_p95": 149308208,
+              "median_paired_increase": 81209,
+              "allowed": 14921366.600000001
+            },
+            "overflow_rate": {
+              "control_median": 0.11401673640167365,
+              "candidate_median": 0.11850311850311851,
+              "median_paired_increase": 0.0044863821014448635,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.11389759665621735,
+              "candidate_median": 0.11838006230529595,
+              "median_paired_increase": 0.004482465649078601,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50529250,
+              "candidate_median_p95": 50508375,
+              "median_paired_increase": 11959,
+              "allowed": 5052925.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-15",
+          "control_id": "081",
+          "candidate_id": "082",
+          "request_ratio": 0.9922462568544582,
+          "dial_ratio": 0.9920792606437376,
+          "request_difference_ns": -8419958,
+          "dial_difference_ns": -9433458
+        },
+        {
+          "pair": "2-15",
+          "control_id": "128",
+          "candidate_id": "127",
+          "request_ratio": 1.0006432950616098,
+          "dial_ratio": 1.0004176315000228,
+          "request_difference_ns": 695459,
+          "dial_difference_ns": 495291
+        },
+        {
+          "pair": "3-15",
+          "control_id": "173",
+          "candidate_id": "174",
+          "request_ratio": 1.0082147467732856,
+          "dial_ratio": 1.0070445446346155,
+          "request_difference_ns": 8854374,
+          "dial_difference_ns": 8332917
+        },
+        {
+          "pair": "4-15",
+          "control_id": "220",
+          "candidate_id": "219",
+          "request_ratio": 1.0368686581305,
+          "dial_ratio": 1.0319051394915513,
+          "request_difference_ns": 39848125,
+          "dial_difference_ns": 37885500
+        },
+        {
+          "pair": "5-15",
+          "control_id": "265",
+          "candidate_id": "266",
+          "request_ratio": 0.9997178204110443,
+          "dial_ratio": 0.9999767114519301,
+          "request_difference_ns": -304625,
+          "dial_difference_ns": -27583
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 10,
+        "rtt": 100,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9984567459575376,
+        "calibration_dial_ns_ratio": 0.9995339630904729,
+        "request_ratio": {
+          "median": 0.9961963324513671,
+          "min": 0.9880577588810413,
+          "max": 0.9977896795159743,
+          "all": [
+            0.9968137799457707,
+            0.9961963324513671,
+            0.9880577588810413,
+            0.9918649928130602,
+            0.9977896795159743
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9985822820542126,
+          "min": 0.9933611481075693,
+          "max": 1.0010662228666556,
+          "all": [
+            1.0010662228666556,
+            0.9992135804032983,
+            0.9933611481075693,
+            0.993814461030895,
+            0.9985822820542126
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 7119042,
+              "candidate_median_p95": 8044492,
+              "median_paired_increase": 903866,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 58358750,
+              "candidate_median_p95": 59340583,
+              "median_paired_increase": 968916,
+              "allowed": 5835875.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 84942,
+              "candidate_median_p95": 85234,
+              "median_paired_increase": 292,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 51199000,
+              "candidate_median_p95": 51231125,
+              "median_paired_increase": 23041,
+              "allowed": 5119900.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-02",
+          "control_id": "055",
+          "candidate_id": "056",
+          "request_ratio": 0.9968137799457707,
+          "dial_ratio": 1.0010662228666556,
+          "request_difference_ns": -720625,
+          "dial_difference_ns": 352417
+        },
+        {
+          "pair": "2-02",
+          "control_id": "102",
+          "candidate_id": "101",
+          "request_ratio": 0.9961963324513671,
+          "dial_ratio": 0.9992135804032983,
+          "request_difference_ns": -861499,
+          "dial_difference_ns": -260750
+        },
+        {
+          "pair": "3-02",
+          "control_id": "195",
+          "candidate_id": "196",
+          "request_ratio": 0.9880577588810413,
+          "dial_ratio": 0.9933611481075693,
+          "request_difference_ns": -2713625,
+          "dial_difference_ns": -2205875
+        },
+        {
+          "pair": "4-02",
+          "control_id": "242",
+          "candidate_id": "241",
+          "request_ratio": 0.9918649928130602,
+          "dial_ratio": 0.993814461030895,
+          "request_difference_ns": -1843375,
+          "dial_difference_ns": -2049417
+        },
+        {
+          "pair": "5-02",
+          "control_id": "287",
+          "candidate_id": "288",
+          "request_ratio": 0.9977896795159743,
+          "dial_ratio": 0.9985822820542126,
+          "request_difference_ns": -498209,
+          "dial_difference_ns": -469126
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 100,
+        "rtt": 10,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9975065992777852,
+        "calibration_dial_ns_ratio": 1.0088349433933208,
+        "request_ratio": {
+          "median": 1.0032390694596542,
+          "min": 0.9538256043465105,
+          "max": 1.03197509445451,
+          "all": [
+            1.0032390694596542,
+            1.0271516321377172,
+            0.9538256043465105,
+            0.9770494756402363,
+            1.03197509445451
+          ]
+        },
+        "dial_ratio": {
+          "median": 1.0062219967416028,
+          "min": 0.9606576654586827,
+          "max": 1.0315371965014304,
+          "all": [
+            1.0062219967416028,
+            1.0315371965014304,
+            0.9606576654586827,
+            0.9673459597722223,
+            1.0257702680721097
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 9813294,
+              "candidate_median_p95": 9813641,
+              "median_paired_increase": -1427,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 14934458,
+              "candidate_median_p95": 14939042,
+              "median_paired_increase": 4584,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.12409513960703206,
+              "candidate_median": 0.12422360248447205,
+              "median_paired_increase": -0.009959013952581794,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.12396694214876033,
+              "candidate_median": 0.12409513960703206,
+              "median_paired_increase": -0.009950205747086688,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5056875,
+              "candidate_median_p95": 5056125,
+              "median_paired_increase": -1125,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-12",
+          "control_id": "075",
+          "candidate_id": "076",
+          "request_ratio": 1.0032390694596542,
+          "dial_ratio": 1.0062219967416028,
+          "request_difference_ns": 349916,
+          "dial_difference_ns": 753167
+        },
+        {
+          "pair": "2-12",
+          "control_id": "122",
+          "candidate_id": "121",
+          "request_ratio": 1.0271516321377172,
+          "dial_ratio": 1.0315371965014304,
+          "request_difference_ns": 2972417,
+          "dial_difference_ns": 3887083
+        },
+        {
+          "pair": "3-12",
+          "control_id": "167",
+          "candidate_id": "168",
+          "request_ratio": 0.9538256043465105,
+          "dial_ratio": 0.9606576654586827,
+          "request_difference_ns": -5284042,
+          "dial_difference_ns": -5051041
+        },
+        {
+          "pair": "4-12",
+          "control_id": "214",
+          "candidate_id": "213",
+          "request_ratio": 0.9770494756402363,
+          "dial_ratio": 0.9673459597722223,
+          "request_difference_ns": -2595208,
+          "dial_difference_ns": -4221166
+        },
+        {
+          "pair": "5-12",
+          "control_id": "259",
+          "candidate_id": "260",
+          "request_ratio": 1.03197509445451,
+          "dial_ratio": 1.0257702680721097,
+          "request_difference_ns": 3492084,
+          "dial_difference_ns": 3188333
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 100,
+        "rtt": 10,
+        "size": 65536
+      },
+      "problems": [
+        "noisy calibration dial_ns"
+      ],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0071741852899496,
+        "calibration_dial_ns_ratio": 0.9491289670646424,
+        "request_ratio": {
+          "median": 0.9805670104596712,
+          "min": 0.935873896521199,
+          "max": 1.0042170412027034,
+          "all": [
+            1.0042170412027034,
+            0.9901301603765277,
+            0.935873896521199,
+            0.9805670104596712,
+            0.9599974465091157
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9940252108741386,
+          "min": 0.971378747131815,
+          "max": 1.018130816207522,
+          "all": [
+            1.0012438867221565,
+            0.9940252108741386,
+            0.971378747131815,
+            1.018130816207522,
+            0.9717817900067797
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 682625,
+              "candidate_median_p95": 752450,
+              "median_paired_increase": 87801,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5926334,
+              "candidate_median_p95": 5999500,
+              "median_paired_increase": 66250,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 88025,
+              "candidate_median_p95": 86775,
+              "median_paired_increase": -832,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 6438459,
+              "candidate_median_p95": 6428959,
+              "median_paired_increase": 2041,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-17",
+          "control_id": "085",
+          "candidate_id": "086",
+          "request_ratio": 1.0042170412027034,
+          "dial_ratio": 1.0012438867221565,
+          "request_difference_ns": 103000,
+          "dial_difference_ns": 48291
+        },
+        {
+          "pair": "2-17",
+          "control_id": "132",
+          "candidate_id": "131",
+          "request_ratio": 0.9901301603765277,
+          "dial_ratio": 0.9940252108741386,
+          "request_difference_ns": -252167,
+          "dial_difference_ns": -239125
+        },
+        {
+          "pair": "3-17",
+          "control_id": "177",
+          "candidate_id": "178",
+          "request_ratio": 0.935873896521199,
+          "dial_ratio": 0.971378747131815,
+          "request_difference_ns": -1638959,
+          "dial_difference_ns": -1135708
+        },
+        {
+          "pair": "4-17",
+          "control_id": "224",
+          "candidate_id": "223",
+          "request_ratio": 0.9805670104596712,
+          "dial_ratio": 1.018130816207522,
+          "request_difference_ns": -499542,
+          "dial_difference_ns": 707333
+        },
+        {
+          "pair": "5-17",
+          "control_id": "269",
+          "candidate_id": "270",
+          "request_ratio": 0.9599974465091157,
+          "dial_ratio": 0.9717817900067797,
+          "request_difference_ns": -1023292,
+          "dial_difference_ns": -1129000
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 100,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9978547804354934,
+        "calibration_dial_ns_ratio": 0.9989141080338205,
+        "request_ratio": {
+          "median": 0.9507741829364349,
+          "min": 0.9499419205062658,
+          "max": 0.9516417049897545,
+          "all": [
+            0.9499419205062658,
+            0.9507741829364349,
+            0.9499955173397766,
+            0.9516417049897545,
+            0.9513640820176903
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9573863856530206,
+          "min": 0.9563304138690504,
+          "max": 0.9585206710101534,
+          "all": [
+            0.9573863856530206,
+            0.9569308741326277,
+            0.9563304138690504,
+            0.9585206710101534,
+            0.9585164863863085
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 434750,
+              "candidate_median_p95": 652867,
+              "median_paired_increase": 191525,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50638959,
+              "candidate_median_p95": 50856334,
+              "median_paired_increase": 238625,
+              "allowed": 5063895.9
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50346500,
+              "candidate_median_p95": 50379792,
+              "median_paired_increase": -15334,
+              "allowed": 5034650.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-20",
+          "control_id": "091",
+          "candidate_id": "092",
+          "request_ratio": 0.9499419205062658,
+          "dial_ratio": 0.9573863856530206,
+          "request_difference_ns": -29532542,
+          "dial_difference_ns": -29555125
+        },
+        {
+          "pair": "2-20",
+          "control_id": "138",
+          "candidate_id": "137",
+          "request_ratio": 0.9507741829364349,
+          "dial_ratio": 0.9569308741326277,
+          "request_difference_ns": -29029375,
+          "dial_difference_ns": -29877250
+        },
+        {
+          "pair": "3-20",
+          "control_id": "183",
+          "candidate_id": "184",
+          "request_ratio": 0.9499955173397766,
+          "dial_ratio": 0.9563304138690504,
+          "request_difference_ns": -29577166,
+          "dial_difference_ns": -30383624
+        },
+        {
+          "pair": "4-20",
+          "control_id": "230",
+          "candidate_id": "229",
+          "request_ratio": 0.9516417049897545,
+          "dial_ratio": 0.9585206710101534,
+          "request_difference_ns": -28340542,
+          "dial_difference_ns": -28618625
+        },
+        {
+          "pair": "5-20",
+          "control_id": "275",
+          "candidate_id": "276",
+          "request_ratio": 0.9513640820176903,
+          "dial_ratio": 0.9585164863863085,
+          "request_difference_ns": -28678625,
+          "dial_difference_ns": -28791000
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 100,
+        "rtt": 100,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0096858080933728,
+        "calibration_dial_ns_ratio": 1.0064306577633684,
+        "request_ratio": {
+          "median": 0.9756085014990934,
+          "min": 0.9712519356148673,
+          "max": 1.019200497026693,
+          "all": [
+            0.9756085014990934,
+            0.9712519356148673,
+            0.9753923663988322,
+            0.9761684460677069,
+            1.019200497026693
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9849733316870201,
+          "min": 0.9809445648885655,
+          "max": 1.0157289309338953,
+          "all": [
+            1.0028320599877634,
+            0.9809445648885655,
+            0.984758189376709,
+            0.9849733316870201,
+            1.0157289309338953
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 606684,
+              "candidate_median_p95": 611762,
+              "median_paired_increase": 19079,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 51010125,
+              "candidate_median_p95": 51791584,
+              "median_paired_increase": 555542,
+              "allowed": 5101012.5
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 81525,
+              "candidate_median_p95": 81150,
+              "median_paired_increase": -1375,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 51943000,
+              "candidate_median_p95": 51441667,
+              "median_paired_increase": -150458,
+              "allowed": 5194300.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-01",
+          "control_id": "053",
+          "candidate_id": "054",
+          "request_ratio": 0.9756085014990934,
+          "dial_ratio": 1.0028320599877634,
+          "request_difference_ns": -5459792,
+          "dial_difference_ns": 927500
+        },
+        {
+          "pair": "2-01",
+          "control_id": "148",
+          "candidate_id": "147",
+          "request_ratio": 0.9712519356148673,
+          "dial_ratio": 0.9809445648885655,
+          "request_difference_ns": -6442125,
+          "dial_difference_ns": -6243792
+        },
+        {
+          "pair": "3-01",
+          "control_id": "193",
+          "candidate_id": "194",
+          "request_ratio": 0.9753923663988322,
+          "dial_ratio": 0.984758189376709,
+          "request_difference_ns": -5491500,
+          "dial_difference_ns": -4980167
+        },
+        {
+          "pair": "4-01",
+          "control_id": "240",
+          "candidate_id": "239",
+          "request_ratio": 0.9761684460677069,
+          "dial_ratio": 0.9849733316870201,
+          "request_difference_ns": -5285792,
+          "dial_difference_ns": -4893417
+        },
+        {
+          "pair": "5-01",
+          "control_id": "285",
+          "candidate_id": "286",
+          "request_ratio": 1.019200497026693,
+          "dial_ratio": 1.0157289309338953,
+          "request_difference_ns": 4303709,
+          "dial_difference_ns": 5146750
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 10,
+        "rtt": 10,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0018540458694731,
+        "calibration_dial_ns_ratio": 1.0016870344366884,
+        "request_ratio": {
+          "median": 0.9999946426967062,
+          "min": 0.9990630397638561,
+          "max": 1.002026863143491,
+          "all": [
+            1.0004429984656271,
+            0.9998155182794294,
+            1.002026863143491,
+            0.9990630397638561,
+            0.9999946426967062
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9998812231228569,
+          "min": 0.9985537165174512,
+          "max": 1.0026011351662338,
+          "all": [
+            1.0007776914357323,
+            0.9998812231228569,
+            1.0026011351662338,
+            0.9985537165174512,
+            0.9995694459206599
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 50622484,
+              "candidate_median_p95": 50522192,
+              "median_paired_increase": -1625,
+              "allowed": 5062248.4
+            },
+            "latency_ns": {
+              "control_median_p95": 56894417,
+              "candidate_median_p95": 56788584,
+              "median_paired_increase": -4625,
+              "allowed": 5689441.7
+            },
+            "overflow_rate": {
+              "control_median": 0.028735632183908046,
+              "candidate_median": 0.02761795166858458,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.028735632183908046,
+              "candidate_median": 0.02761795166858458,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5232542,
+              "candidate_median_p95": 5204208,
+              "median_paired_increase": -31584,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-06",
+          "control_id": "063",
+          "candidate_id": "064",
+          "request_ratio": 1.0004429984656271,
+          "dial_ratio": 1.0007776914357323,
+          "request_difference_ns": 386333,
+          "dial_difference_ns": 690125
+        },
+        {
+          "pair": "2-06",
+          "control_id": "110",
+          "candidate_id": "109",
+          "request_ratio": 0.9998155182794294,
+          "dial_ratio": 0.9998812231228569,
+          "request_difference_ns": -160792,
+          "dial_difference_ns": -105375
+        },
+        {
+          "pair": "3-06",
+          "control_id": "155",
+          "candidate_id": "156",
+          "request_ratio": 1.002026863143491,
+          "dial_ratio": 1.0026011351662338,
+          "request_difference_ns": 1765916,
+          "dial_difference_ns": 2305584
+        },
+        {
+          "pair": "4-06",
+          "control_id": "202",
+          "candidate_id": "201",
+          "request_ratio": 0.9990630397638561,
+          "dial_ratio": 0.9985537165174512,
+          "request_difference_ns": -816374,
+          "dial_difference_ns": -1283542
+        },
+        {
+          "pair": "5-06",
+          "control_id": "247",
+          "candidate_id": "248",
+          "request_ratio": 0.9999946426967062,
+          "dial_ratio": 0.9995694459206599,
+          "request_difference_ns": -4666,
+          "dial_difference_ns": -381792
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 10,
+        "rtt": 10,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0021502840735537,
+        "calibration_dial_ns_ratio": 1.0021576139678752,
+        "request_ratio": {
+          "median": 1.000835549277042,
+          "min": 0.9991988488983636,
+          "max": 1.0122797596387043,
+          "all": [
+            1.000835549277042,
+            0.9991988488983636,
+            1.0004653441209184,
+            1.0122797596387043,
+            1.0032708296035013
+          ]
+        },
+        "dial_ratio": {
+          "median": 1.002374500542299,
+          "min": 0.9853046760202804,
+          "max": 1.0485021941161858,
+          "all": [
+            1.002374500542299,
+            0.9946175172935952,
+            0.9853046760202804,
+            1.0485021941161858,
+            1.0052457108893509
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 31556192,
+              "candidate_median_p95": 30542333,
+              "median_paired_increase": -44292,
+              "allowed": 3155619.2
+            },
+            "latency_ns": {
+              "control_median_p95": 37014250,
+              "candidate_median_p95": 36337459,
+              "median_paired_increase": -42293,
+              "allowed": 3701425.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 75983,
+              "candidate_median_p95": 76316,
+              "median_paired_increase": 1833,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 6388125,
+              "candidate_median_p95": 6389208,
+              "median_paired_increase": -8750,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-13",
+          "control_id": "077",
+          "candidate_id": "078",
+          "request_ratio": 1.000835549277042,
+          "dial_ratio": 1.002374500542299,
+          "request_difference_ns": 54834,
+          "dial_difference_ns": 192292
+        },
+        {
+          "pair": "2-13",
+          "control_id": "124",
+          "candidate_id": "123",
+          "request_ratio": 0.9991988488983636,
+          "dial_ratio": 0.9946175172935952,
+          "request_difference_ns": -52709,
+          "dial_difference_ns": -438501
+        },
+        {
+          "pair": "3-13",
+          "control_id": "169",
+          "candidate_id": "170",
+          "request_ratio": 1.0004653441209184,
+          "dial_ratio": 0.9853046760202804,
+          "request_difference_ns": 30541,
+          "dial_difference_ns": -1191334
+        },
+        {
+          "pair": "4-13",
+          "control_id": "216",
+          "candidate_id": "215",
+          "request_ratio": 1.0122797596387043,
+          "dial_ratio": 1.0485021941161858,
+          "request_difference_ns": 793625,
+          "dial_difference_ns": 3913250
+        },
+        {
+          "pair": "5-13",
+          "control_id": "261",
+          "candidate_id": "262",
+          "request_ratio": 1.0032708296035013,
+          "dial_ratio": 1.0052457108893509,
+          "request_difference_ns": 214667,
+          "dial_difference_ns": 424625
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 10,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9989672605144732,
+        "calibration_dial_ns_ratio": 0.9982202494017579,
+        "request_ratio": {
+          "median": 0.9991307122729651,
+          "min": 0.9929625719720232,
+          "max": 1.0087301959756934,
+          "all": [
+            0.9986476438155721,
+            1.000841397816651,
+            1.0087301959756934,
+            0.9929625719720232,
+            0.9991307122729651
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9993841529402095,
+          "min": 0.9942354176271821,
+          "max": 1.0069120183029574,
+          "all": [
+            0.9984528519306427,
+            1.0002803317929476,
+            1.0069120183029574,
+            0.9942354176271821,
+            0.9993841529402095
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 96961500,
+              "candidate_median_p95": 96845583,
+              "median_paired_increase": -115834,
+              "allowed": 9696150.0
+            },
+            "latency_ns": {
+              "control_median_p95": 148193541,
+              "candidate_median_p95": 148176042,
+              "median_paired_increase": -17499,
+              "allowed": 14819354.100000001
+            },
+            "overflow_rate": {
+              "control_median": 0.06900328587075576,
+              "candidate_median": 0.06900328587075576,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0700218818380744,
+              "candidate_median": 0.0700218818380744,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50500542,
+              "candidate_median_p95": 50487291,
+              "median_paired_increase": -13251,
+              "allowed": 5050054.2
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-23",
+          "control_id": "097",
+          "candidate_id": "098",
+          "request_ratio": 0.9986476438155721,
+          "dial_ratio": 0.9984528519306427,
+          "request_difference_ns": -1444959,
+          "dial_difference_ns": -1815500
+        },
+        {
+          "pair": "2-23",
+          "control_id": "144",
+          "candidate_id": "143",
+          "request_ratio": 1.000841397816651,
+          "dial_ratio": 1.0002803317929476,
+          "request_difference_ns": 899041,
+          "dial_difference_ns": 329042
+        },
+        {
+          "pair": "3-23",
+          "control_id": "189",
+          "candidate_id": "190",
+          "request_ratio": 1.0087301959756934,
+          "dial_ratio": 1.0069120183029574,
+          "request_difference_ns": 9388667,
+          "dial_difference_ns": 8164042
+        },
+        {
+          "pair": "4-23",
+          "control_id": "236",
+          "candidate_id": "235",
+          "request_ratio": 0.9929625719720232,
+          "dial_ratio": 0.9942354176271821,
+          "request_difference_ns": -7664708,
+          "dial_difference_ns": -6881916
+        },
+        {
+          "pair": "5-23",
+          "control_id": "281",
+          "candidate_id": "282",
+          "request_ratio": 0.9991307122729651,
+          "dial_ratio": 0.9993841529402095,
+          "request_difference_ns": -929291,
+          "dial_difference_ns": -723500
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 10,
+        "rtt": 100,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.004190103730574,
+        "calibration_dial_ns_ratio": 1.0023187983639268,
+        "request_ratio": {
+          "median": 0.995460529477831,
+          "min": 0.9908683368752668,
+          "max": 1.0070728603479728,
+          "all": [
+            0.995460529477831,
+            0.9908683368752668,
+            1.0070728603479728,
+            0.9972884222979357,
+            0.9946918111561932
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9975682875941012,
+          "min": 0.994533883646415,
+          "max": 1.0108707440237121,
+          "all": [
+            1.0075051677576432,
+            0.994533883646415,
+            1.0108707440237121,
+            0.9975682875941012,
+            0.9975638020532482
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 7274283,
+              "candidate_median_p95": 8094575,
+              "median_paired_increase": 795417,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 58424875,
+              "candidate_median_p95": 59349042,
+              "median_paired_increase": 920500,
+              "allowed": 5842487.5
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 74941,
+              "candidate_median_p95": 69275,
+              "median_paired_increase": -6875,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 51289500,
+              "candidate_median_p95": 51591375,
+              "median_paired_increase": 301875,
+              "allowed": 5128950.0
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-22",
+          "control_id": "095",
+          "candidate_id": "096",
+          "request_ratio": 0.995460529477831,
+          "dial_ratio": 1.0075051677576432,
+          "request_difference_ns": -1027125,
+          "dial_difference_ns": 2482166
+        },
+        {
+          "pair": "2-22",
+          "control_id": "142",
+          "candidate_id": "141",
+          "request_ratio": 0.9908683368752668,
+          "dial_ratio": 0.994533883646415,
+          "request_difference_ns": -2075417,
+          "dial_difference_ns": -1814583
+        },
+        {
+          "pair": "3-22",
+          "control_id": "187",
+          "candidate_id": "188",
+          "request_ratio": 1.0070728603479728,
+          "dial_ratio": 1.0108707440237121,
+          "request_difference_ns": 1592583,
+          "dial_difference_ns": 3584583
+        },
+        {
+          "pair": "4-22",
+          "control_id": "234",
+          "candidate_id": "233",
+          "request_ratio": 0.9972884222979357,
+          "dial_ratio": 0.9975682875941012,
+          "request_difference_ns": -614708,
+          "dial_difference_ns": -808416
+        },
+        {
+          "pair": "5-22",
+          "control_id": "279",
+          "candidate_id": "280",
+          "request_ratio": 0.9946918111561932,
+          "dial_ratio": 0.9975638020532482,
+          "request_difference_ns": -1206291,
+          "dial_difference_ns": -808083
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 100,
+        "rtt": 10,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.000291449396835,
+        "calibration_dial_ns_ratio": 0.9991425195013255,
+        "request_ratio": {
+          "median": 1.002091899175959,
+          "min": 0.9557635797696724,
+          "max": 1.0683259935500036,
+          "all": [
+            0.9919150384740805,
+            1.002091899175959,
+            0.9557635797696724,
+            1.0683259935500036,
+            1.0023372504869166
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9986903668062347,
+          "min": 0.9589989169341953,
+          "max": 1.0886122226820207,
+          "all": [
+            0.9857761949119233,
+            1.0047820963795207,
+            0.9589989169341953,
+            1.0886122226820207,
+            0.9986903668062347
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 9718075,
+              "candidate_median_p95": 9729342,
+              "median_paired_increase": 11267,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 14838792,
+              "candidate_median_p95": 14840708,
+              "median_paired_increase": 31500,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0671067106710671,
+              "candidate_median": 0.06828193832599119,
+              "median_paired_increase": -0.0021147930648769547,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.06813186813186813,
+              "candidate_median": 0.06930693069306931,
+              "median_paired_increase": -0.0021100751729850598,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5053333,
+              "candidate_median_p95": 5053375,
+              "median_paired_increase": 2667,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-08",
+          "control_id": "067",
+          "candidate_id": "068",
+          "request_ratio": 0.9919150384740805,
+          "dial_ratio": 0.9857761949119233,
+          "request_difference_ns": -891874,
+          "dial_difference_ns": -1779625
+        },
+        {
+          "pair": "2-08",
+          "control_id": "114",
+          "candidate_id": "113",
+          "request_ratio": 1.002091899175959,
+          "dial_ratio": 1.0047820963795207,
+          "request_difference_ns": 229375,
+          "dial_difference_ns": 592166
+        },
+        {
+          "pair": "3-08",
+          "control_id": "159",
+          "candidate_id": "160",
+          "request_ratio": 0.9557635797696724,
+          "dial_ratio": 0.9589989169341953,
+          "request_difference_ns": -5054916,
+          "dial_difference_ns": -5276250
+        },
+        {
+          "pair": "4-08",
+          "control_id": "206",
+          "candidate_id": "205",
+          "request_ratio": 1.0683259935500036,
+          "dial_ratio": 1.0886122226820207,
+          "request_difference_ns": 7831625,
+          "dial_difference_ns": 11581167
+        },
+        {
+          "pair": "5-08",
+          "control_id": "251",
+          "candidate_id": "252",
+          "request_ratio": 1.0023372504869166,
+          "dial_ratio": 0.9986903668062347,
+          "request_difference_ns": 255416,
+          "dial_difference_ns": -162291
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 100,
+        "rtt": 10,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0225020168721484,
+        "calibration_dial_ns_ratio": 1.0025659031080374,
+        "request_ratio": {
+          "median": 0.9671071878940731,
+          "min": 0.9602460164895944,
+          "max": 0.9750967767466708,
+          "all": [
+            0.9750967767466708,
+            0.970746297078949,
+            0.9671071878940731,
+            0.9618044705630291,
+            0.9602460164895944
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9722332585539808,
+          "min": 0.9544486960423139,
+          "max": 0.983457591512599,
+          "all": [
+            0.9544486960423139,
+            0.9808659825591103,
+            0.983457591512599,
+            0.9722332585539808,
+            0.9622540515137701
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 680390,
+              "candidate_median_p95": 735925,
+              "median_paired_increase": 75452,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 6015958,
+              "candidate_median_p95": 5992666,
+              "median_paired_increase": -23292,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 72192,
+              "candidate_median_p95": 70983,
+              "median_paired_increase": -1374,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 6391750,
+              "candidate_median_p95": 6398333,
+              "median_paired_increase": 333,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-18",
+          "control_id": "087",
+          "candidate_id": "088",
+          "request_ratio": 0.9750967767466708,
+          "dial_ratio": 0.9544486960423139,
+          "request_difference_ns": -629292,
+          "dial_difference_ns": -1801499
+        },
+        {
+          "pair": "2-18",
+          "control_id": "134",
+          "candidate_id": "133",
+          "request_ratio": 0.970746297078949,
+          "dial_ratio": 0.9808659825591103,
+          "request_difference_ns": -742292,
+          "dial_difference_ns": -744916
+        },
+        {
+          "pair": "3-18",
+          "control_id": "179",
+          "candidate_id": "180",
+          "request_ratio": 0.9671071878940731,
+          "dial_ratio": 0.983457591512599,
+          "request_difference_ns": -841209,
+          "dial_difference_ns": -661584
+        },
+        {
+          "pair": "4-18",
+          "control_id": "226",
+          "candidate_id": "225",
+          "request_ratio": 0.9618044705630291,
+          "dial_ratio": 0.9722332585539808,
+          "request_difference_ns": -961251,
+          "dial_difference_ns": -1078709
+        },
+        {
+          "pair": "5-18",
+          "control_id": "271",
+          "candidate_id": "272",
+          "request_ratio": 0.9602460164895944,
+          "dial_ratio": 0.9622540515137701,
+          "request_difference_ns": -1010750,
+          "dial_difference_ns": -1503083
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 100,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9997041182163714,
+        "calibration_dial_ns_ratio": 1.0001949958189693,
+        "request_ratio": {
+          "median": 0.9826508003650248,
+          "min": 0.9511028462780364,
+          "max": 1.0085956686445132,
+          "all": [
+            1.0085956686445132,
+            0.9885728289464866,
+            0.9511028462780364,
+            0.9516685346423627,
+            0.9826508003650248
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9862129977463452,
+          "min": 0.9552925690534604,
+          "max": 1.0084936968270255,
+          "all": [
+            1.0084936968270255,
+            0.9891741756851937,
+            0.9588939267673315,
+            0.9552925690534604,
+            0.9862129977463452
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 315125,
+              "candidate_median_p95": 369600,
+              "median_paired_increase": 113776,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50990208,
+              "candidate_median_p95": 50721209,
+              "median_paired_increase": -98708,
+              "allowed": 5099020.800000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0011806375442739079,
+              "candidate_median": 0.0011792452830188679,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50652917,
+              "candidate_median_p95": 50737209,
+              "median_paired_increase": -53667,
+              "allowed": 5065291.7
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-09",
+          "control_id": "069",
+          "candidate_id": "070",
+          "request_ratio": 1.0085956686445132,
+          "dial_ratio": 1.0084936968270255,
+          "request_difference_ns": 7182083,
+          "dial_difference_ns": 7974750
+        },
+        {
+          "pair": "2-09",
+          "control_id": "116",
+          "candidate_id": "115",
+          "request_ratio": 0.9885728289464866,
+          "dial_ratio": 0.9891741756851937,
+          "request_difference_ns": -8615458,
+          "dial_difference_ns": -9283083
+        },
+        {
+          "pair": "3-09",
+          "control_id": "161",
+          "candidate_id": "162",
+          "request_ratio": 0.9511028462780364,
+          "dial_ratio": 0.9588939267673315,
+          "request_difference_ns": -28932291,
+          "dial_difference_ns": -28589709
+        },
+        {
+          "pair": "4-09",
+          "control_id": "208",
+          "candidate_id": "207",
+          "request_ratio": 0.9516685346423627,
+          "dial_ratio": 0.9552925690534604,
+          "request_difference_ns": -28683166,
+          "dial_difference_ns": -31335375
+        },
+        {
+          "pair": "5-09",
+          "control_id": "253",
+          "candidate_id": "254",
+          "request_ratio": 0.9826508003650248,
+          "dial_ratio": 0.9862129977463452,
+          "request_difference_ns": -12482666,
+          "dial_difference_ns": -11339876
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "loss",
+        "rate": 100,
+        "rtt": 100,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9981046755338393,
+        "calibration_dial_ns_ratio": 0.995089000962246,
+        "request_ratio": {
+          "median": 0.9719447751028755,
+          "min": 0.9657758115103269,
+          "max": 0.9831127858025126,
+          "all": [
+            0.9711235654907069,
+            0.9657758115103269,
+            0.9831127858025126,
+            0.977152734195449,
+            0.9719447751028755
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9805511692486584,
+          "min": 0.9765367573273902,
+          "max": 0.9902896911532717,
+          "all": [
+            0.9805511692486584,
+            0.9765367573273902,
+            0.9902896911532717,
+            0.9869559371233897,
+            0.9787984380153686
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 604675,
+              "candidate_median_p95": 546992,
+              "median_paired_increase": -32358,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50948291,
+              "candidate_median_p95": 51214834,
+              "median_paired_increase": 331751,
+              "allowed": 5094829.100000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 69733,
+              "candidate_median_p95": 72650,
+              "median_paired_increase": -999,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 51759708,
+              "candidate_median_p95": 51057958,
+              "median_paired_increase": -670750,
+              "allowed": 5175970.800000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-07",
+          "control_id": "065",
+          "candidate_id": "066",
+          "request_ratio": 0.9711235654907069,
+          "dial_ratio": 0.9805511692486584,
+          "request_difference_ns": -6518292,
+          "dial_difference_ns": -6437251
+        },
+        {
+          "pair": "2-07",
+          "control_id": "112",
+          "candidate_id": "111",
+          "request_ratio": 0.9657758115103269,
+          "dial_ratio": 0.9765367573273902,
+          "request_difference_ns": -7705750,
+          "dial_difference_ns": -7701958
+        },
+        {
+          "pair": "3-07",
+          "control_id": "157",
+          "candidate_id": "158",
+          "request_ratio": 0.9831127858025126,
+          "dial_ratio": 0.9902896911532717,
+          "request_difference_ns": -3767541,
+          "dial_difference_ns": -3169374
+        },
+        {
+          "pair": "4-07",
+          "control_id": "204",
+          "candidate_id": "203",
+          "request_ratio": 0.977152734195449,
+          "dial_ratio": 0.9869559371233897,
+          "request_difference_ns": -5071875,
+          "dial_difference_ns": -4250959
+        },
+        {
+          "pair": "5-07",
+          "control_id": "249",
+          "candidate_id": "250",
+          "request_ratio": 0.9719447751028755,
+          "dial_ratio": 0.9787984380153686,
+          "request_difference_ns": -6264291,
+          "dial_difference_ns": -6940667
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 10,
+        "rtt": 10,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9734524540257762,
+        "calibration_dial_ns_ratio": 0.9688337820318419,
+        "request_ratio": {
+          "median": 0.9994360637167945,
+          "min": 0.9908676272153942,
+          "max": 0.9998673746095905,
+          "all": [
+            0.9996181375076203,
+            0.9994360637167945,
+            0.9998673746095905,
+            0.9908676272153942,
+            0.9974432958009023
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9989826369208099,
+          "min": 0.9909881577157125,
+          "max": 1.0003432152051532,
+          "all": [
+            0.9995141386110397,
+            0.9989826369208099,
+            1.0003432152051532,
+            0.9909881577157125,
+            0.9976452184784478
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 50015792,
+              "candidate_median_p95": 49964108,
+              "median_paired_increase": -6567,
+              "allowed": 5001579.2
+            },
+            "latency_ns": {
+              "control_median_p95": 56242959,
+              "candidate_median_p95": 56191416,
+              "median_paired_increase": -27209,
+              "allowed": 5624295.9
+            },
+            "overflow_rate": {
+              "control_median": 0.026345933562428408,
+              "candidate_median": 0.026285714285714287,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.036613272311212815,
+              "candidate_median": 0.0365296803652968,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5315625,
+              "candidate_median_p95": 5327708,
+              "median_paired_increase": 39209,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-04",
+          "control_id": "059",
+          "candidate_id": "060",
+          "request_ratio": 0.9996181375076203,
+          "dial_ratio": 0.9995141386110397,
+          "request_difference_ns": -342249,
+          "dial_difference_ns": -443168
+        },
+        {
+          "pair": "2-04",
+          "control_id": "106",
+          "candidate_id": "105",
+          "request_ratio": 0.9994360637167945,
+          "dial_ratio": 0.9989826369208099,
+          "request_difference_ns": -496626,
+          "dial_difference_ns": -911834
+        },
+        {
+          "pair": "3-04",
+          "control_id": "151",
+          "candidate_id": "152",
+          "request_ratio": 0.9998673746095905,
+          "dial_ratio": 1.0003432152051532,
+          "request_difference_ns": -116374,
+          "dial_difference_ns": 306416
+        },
+        {
+          "pair": "4-04",
+          "control_id": "198",
+          "candidate_id": "197",
+          "request_ratio": 0.9908676272153942,
+          "dial_ratio": 0.9909881577157125,
+          "request_difference_ns": -8649166,
+          "dial_difference_ns": -8676791
+        },
+        {
+          "pair": "5-04",
+          "control_id": "291",
+          "candidate_id": "292",
+          "request_ratio": 0.9974432958009023,
+          "dial_ratio": 0.9976452184784478,
+          "request_difference_ns": -2259459,
+          "dial_difference_ns": -2117500
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 10,
+        "rtt": 10,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9910597218641287,
+        "calibration_dial_ns_ratio": 0.9898744349327384,
+        "request_ratio": {
+          "median": 1.0003000668533757,
+          "min": 0.9894260594384782,
+          "max": 1.0047995108381202,
+          "all": [
+            1.0047995108381202,
+            1.0003000668533757,
+            0.9894260594384782,
+            0.9898493038674376,
+            1.0012683782765393
+          ]
+        },
+        "dial_ratio": {
+          "median": 1.000148426485795,
+          "min": 0.9795706315802466,
+          "max": 1.015774655530961,
+          "all": [
+            1.015774655530961,
+            1.000148426485795,
+            0.979984469036809,
+            0.9795706315802466,
+            1.0041765515315628
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 31533317,
+              "candidate_median_p95": 31482775,
+              "median_paired_increase": -33791,
+              "allowed": 3153331.7
+            },
+            "latency_ns": {
+              "control_median_p95": 36995667,
+              "candidate_median_p95": 36942209,
+              "median_paired_increase": -29833,
+              "allowed": 3699566.7
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 78150,
+              "candidate_median_p95": 70650,
+              "median_paired_increase": -583,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 6398958,
+              "candidate_median_p95": 6414875,
+              "median_paired_increase": 9875,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-19",
+          "control_id": "089",
+          "candidate_id": "090",
+          "request_ratio": 1.0047995108381202,
+          "dial_ratio": 1.015774655530961,
+          "request_difference_ns": 382625,
+          "dial_difference_ns": 1483584
+        },
+        {
+          "pair": "2-19",
+          "control_id": "136",
+          "candidate_id": "135",
+          "request_ratio": 1.0003000668533757,
+          "dial_ratio": 1.000148426485795,
+          "request_difference_ns": 19750,
+          "dial_difference_ns": 12084
+        },
+        {
+          "pair": "3-19",
+          "control_id": "181",
+          "candidate_id": "182",
+          "request_ratio": 0.9894260594384782,
+          "dial_ratio": 0.979984469036809,
+          "request_difference_ns": -695000,
+          "dial_difference_ns": -1628542
+        },
+        {
+          "pair": "4-19",
+          "control_id": "228",
+          "candidate_id": "227",
+          "request_ratio": 0.9898493038674376,
+          "dial_ratio": 0.9795706315802466,
+          "request_difference_ns": -665667,
+          "dial_difference_ns": -1655167
+        },
+        {
+          "pair": "5-19",
+          "control_id": "273",
+          "candidate_id": "274",
+          "request_ratio": 1.0012683782765393,
+          "dial_ratio": 1.0041765515315628,
+          "request_difference_ns": 83376,
+          "dial_difference_ns": 338750
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 10,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0016782857033493,
+        "calibration_dial_ns_ratio": 1.0024269453824903,
+        "request_ratio": {
+          "median": 0.998314066957415,
+          "min": 0.9943450744231879,
+          "max": 1.001213547709493,
+          "all": [
+            0.9991948264543811,
+            0.998314066957415,
+            0.9943450744231879,
+            1.001213547709493,
+            0.9974960331466702
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9984449461255503,
+          "min": 0.994908484526994,
+          "max": 1.0004214677927918,
+          "all": [
+            0.9991035807139216,
+            0.9984449461255503,
+            0.994908484526994,
+            1.0004214677927918,
+            0.9976878099683721
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 69324875,
+              "candidate_median_p95": 69184125,
+              "median_paired_increase": 122167,
+              "allowed": 6932487.5
+            },
+            "latency_ns": {
+              "control_median_p95": 126501333,
+              "candidate_median_p95": 126483916,
+              "median_paired_increase": -17417,
+              "allowed": 12650133.3
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.015169194865810968,
+              "candidate_median": 0.015133876600698487,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50658167,
+              "candidate_median_p95": 50651708,
+              "median_paired_increase": -26459,
+              "allowed": 5065816.7
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-21",
+          "control_id": "093",
+          "candidate_id": "094",
+          "request_ratio": 0.9991948264543811,
+          "dial_ratio": 0.9991035807139216,
+          "request_difference_ns": -3045667,
+          "dial_difference_ns": -3485168
+        },
+        {
+          "pair": "2-21",
+          "control_id": "140",
+          "candidate_id": "139",
+          "request_ratio": 0.998314066957415,
+          "dial_ratio": 0.9984449461255503,
+          "request_difference_ns": -2613999,
+          "dial_difference_ns": -2574750
+        },
+        {
+          "pair": "3-21",
+          "control_id": "185",
+          "candidate_id": "186",
+          "request_ratio": 0.9943450744231879,
+          "dial_ratio": 0.994908484526994,
+          "request_difference_ns": -6318209,
+          "dial_difference_ns": -6220583
+        },
+        {
+          "pair": "4-21",
+          "control_id": "232",
+          "candidate_id": "231",
+          "request_ratio": 1.001213547709493,
+          "dial_ratio": 1.0004214677927918,
+          "request_difference_ns": 1548583,
+          "dial_difference_ns": 582292
+        },
+        {
+          "pair": "5-21",
+          "control_id": "277",
+          "candidate_id": "278",
+          "request_ratio": 0.9974960331466702,
+          "dial_ratio": 0.9976878099683721,
+          "request_difference_ns": -2827916,
+          "dial_difference_ns": -2854667
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 10,
+        "rtt": 100,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9957437285743532,
+        "calibration_dial_ns_ratio": 0.99637621284798,
+        "request_ratio": {
+          "median": 0.9929300960490729,
+          "min": 0.9828918863229303,
+          "max": 0.995342042070676,
+          "all": [
+            0.9937538230570121,
+            0.99073621615754,
+            0.9929300960490729,
+            0.9828918863229303,
+            0.995342042070676
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9946964664987484,
+          "min": 0.9818012849937874,
+          "max": 1.000260361230902,
+          "all": [
+            0.9966240400019947,
+            0.993471573507756,
+            0.9946964664987484,
+            0.9818012849937874,
+            1.000260361230902
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 7108291,
+              "candidate_median_p95": 8060125,
+              "median_paired_increase": 911450,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 58442708,
+              "candidate_median_p95": 59344042,
+              "median_paired_increase": 862292,
+              "allowed": 5844270.800000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 71775,
+              "candidate_median_p95": 71109,
+              "median_paired_increase": 3292,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 52004917,
+              "candidate_median_p95": 50993375,
+              "median_paired_increase": -187917,
+              "allowed": 5200491.7
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-11",
+          "control_id": "073",
+          "candidate_id": "074",
+          "request_ratio": 0.9937538230570121,
+          "dial_ratio": 0.9966240400019947,
+          "request_difference_ns": -2649000,
+          "dial_difference_ns": -1785625
+        },
+        {
+          "pair": "2-11",
+          "control_id": "120",
+          "candidate_id": "119",
+          "request_ratio": 0.99073621615754,
+          "dial_ratio": 0.993471573507756,
+          "request_difference_ns": -2108250,
+          "dial_difference_ns": -2167875
+        },
+        {
+          "pair": "3-11",
+          "control_id": "165",
+          "candidate_id": "166",
+          "request_ratio": 0.9929300960490729,
+          "dial_ratio": 0.9946964664987484,
+          "request_difference_ns": -1605792,
+          "dial_difference_ns": -1758916
+        },
+        {
+          "pair": "4-11",
+          "control_id": "212",
+          "candidate_id": "211",
+          "request_ratio": 0.9828918863229303,
+          "dial_ratio": 0.9818012849937874,
+          "request_difference_ns": -3912709,
+          "dial_difference_ns": -6096041
+        },
+        {
+          "pair": "5-11",
+          "control_id": "257",
+          "candidate_id": "258",
+          "request_ratio": 0.995342042070676,
+          "dial_ratio": 1.000260361230902,
+          "request_difference_ns": -1058250,
+          "dial_difference_ns": 86292
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 100,
+        "rtt": 10,
+        "size": 1048576
+      },
+      "problems": [
+        "noisy calibration request_ns",
+        "noisy calibration dial_ns"
+      ],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.1984018030565953,
+        "calibration_dial_ns_ratio": 1.1706392574131361,
+        "request_ratio": {
+          "median": 1.0018542021554426,
+          "min": 0.983766870176653,
+          "max": 1.0118012259248503,
+          "all": [
+            0.983766870176653,
+            1.0118012259248503,
+            1.0018542021554426,
+            0.9932445081818323,
+            1.0077279568854725
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9982450401483061,
+          "min": 0.9870455948552694,
+          "max": 1.0079973192340141,
+          "all": [
+            0.9870455948552694,
+            1.0079973192340141,
+            0.9982450401483061,
+            0.9924826431378381,
+            1.005329059374483
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 6581108,
+              "candidate_median_p95": 6736158,
+              "median_paired_increase": 80942,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 12342792,
+              "candidate_median_p95": 12440083,
+              "median_paired_increase": 90541,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.015151515151515152,
+              "candidate_median": 0.015169194865810968,
+              "median_paired_increase": -3.2450016833445935e-05,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5088917,
+              "candidate_median_p95": 5106542,
+              "median_paired_increase": 36834,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-03",
+          "control_id": "057",
+          "candidate_id": "058",
+          "request_ratio": 0.983766870176653,
+          "dial_ratio": 0.9870455948552694,
+          "request_difference_ns": -7023708,
+          "dial_difference_ns": -5777791
+        },
+        {
+          "pair": "2-03",
+          "control_id": "104",
+          "candidate_id": "103",
+          "request_ratio": 1.0118012259248503,
+          "dial_ratio": 1.0079973192340141,
+          "request_difference_ns": 1909875,
+          "dial_difference_ns": 1409083
+        },
+        {
+          "pair": "3-03",
+          "control_id": "149",
+          "candidate_id": "150",
+          "request_ratio": 1.0018542021554426,
+          "dial_ratio": 0.9982450401483061,
+          "request_difference_ns": 210500,
+          "dial_difference_ns": -224459
+        },
+        {
+          "pair": "4-03",
+          "control_id": "244",
+          "candidate_id": "243",
+          "request_ratio": 0.9932445081818323,
+          "dial_ratio": 0.9924826431378381,
+          "request_difference_ns": -883792,
+          "dial_difference_ns": -1092375
+        },
+        {
+          "pair": "5-03",
+          "control_id": "289",
+          "candidate_id": "290",
+          "request_ratio": 1.0077279568854725,
+          "dial_ratio": 1.005329059374483,
+          "request_difference_ns": 887457,
+          "dial_difference_ns": 688959
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 100,
+        "rtt": 10,
+        "size": 65536
+      },
+      "problems": [
+        "insufficient comparison d1 wait_ns",
+        "insufficient comparison d1 latency_ns"
+      ],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9994124746365778,
+        "calibration_dial_ns_ratio": 0.9860501146389535,
+        "request_ratio": {
+          "median": 0.9680105436364628,
+          "min": 0.788831174464701,
+          "max": 0.9912191794172108,
+          "all": [
+            0.9770421943586697,
+            0.9680105436364628,
+            0.9912191794172108,
+            0.788831174464701,
+            0.9624417420468079
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9807338549203107,
+          "min": 0.7564937071546352,
+          "max": 0.9924833384873251,
+          "all": [
+            0.9807338549203107,
+            0.982330938741082,
+            0.9924833384873251,
+            0.7564937071546352,
+            0.9668827912619071
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 698850,
+              "candidate_median_p95": 732842,
+              "median_paired_increase": 33992,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 5979083,
+              "candidate_median_p95": 5987792,
+              "median_paired_increase": 38959,
+              "allowed": 2000000
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-10",
+          "control_id": "071",
+          "candidate_id": "072",
+          "request_ratio": 0.9770421943586697,
+          "dial_ratio": 0.9807338549203107,
+          "request_difference_ns": -1039583,
+          "dial_difference_ns": -1153375
+        },
+        {
+          "pair": "2-10",
+          "control_id": "118",
+          "candidate_id": "117",
+          "request_ratio": 0.9680105436364628,
+          "dial_ratio": 0.982330938741082,
+          "request_difference_ns": -812167,
+          "dial_difference_ns": -703250
+        },
+        {
+          "pair": "3-10",
+          "control_id": "163",
+          "candidate_id": "164",
+          "request_ratio": 0.9912191794172108,
+          "dial_ratio": 0.9924833384873251,
+          "request_difference_ns": -225250,
+          "dial_difference_ns": -302208
+        },
+        {
+          "pair": "4-10",
+          "control_id": "210",
+          "candidate_id": "209",
+          "request_ratio": 0.788831174464701,
+          "dial_ratio": 0.7564937071546352,
+          "request_difference_ns": -6571917,
+          "dial_difference_ns": -12312500
+        },
+        {
+          "pair": "5-10",
+          "control_id": "255",
+          "candidate_id": "256",
+          "request_ratio": 0.9624417420468079,
+          "dial_ratio": 0.9668827912619071,
+          "request_difference_ns": -951166,
+          "dial_difference_ns": -1317208
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 100,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 0.9966657290546751,
+        "calibration_dial_ns_ratio": 0.9974454477476661,
+        "request_ratio": {
+          "median": 0.9996255060917808,
+          "min": 0.991212689301493,
+          "max": 1.004271001699903,
+          "all": [
+            0.9996255060917808,
+            1.004271001699903,
+            0.9986675654333521,
+            1.0013296447355473,
+            0.991212689301493
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9998272046035493,
+          "min": 0.991496726006058,
+          "max": 1.0052532672103491,
+          "all": [
+            0.9998272046035493,
+            1.0045222530425308,
+            0.999434098914409,
+            1.0052532672103491,
+            0.991496726006058
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 284992,
+              "candidate_median_p95": 440000,
+              "median_paired_increase": 140592,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50867583,
+              "candidate_median_p95": 51426292,
+              "median_paired_increase": 158125,
+              "allowed": 5086758.300000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.011668611435239206,
+              "candidate_median": 0.011668611435239206,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 0,
+              "candidate_median_p95": 0,
+              "median_paired_increase": 0,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50824833,
+              "candidate_median_p95": 51321042,
+              "median_paired_increase": 180833,
+              "allowed": 5082483.300000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-16",
+          "control_id": "083",
+          "candidate_id": "084",
+          "request_ratio": 0.9996255060917808,
+          "dial_ratio": 0.9998272046035493,
+          "request_difference_ns": -1417625,
+          "dial_difference_ns": -671999
+        },
+        {
+          "pair": "2-16",
+          "control_id": "130",
+          "candidate_id": "129",
+          "request_ratio": 1.004271001699903,
+          "dial_ratio": 1.0045222530425308,
+          "request_difference_ns": 8011708,
+          "dial_difference_ns": 8951834
+        },
+        {
+          "pair": "3-16",
+          "control_id": "175",
+          "candidate_id": "176",
+          "request_ratio": 0.9986675654333521,
+          "dial_ratio": 0.999434098914409,
+          "request_difference_ns": -985625,
+          "dial_difference_ns": -477376
+        },
+        {
+          "pair": "4-16",
+          "control_id": "222",
+          "candidate_id": "221",
+          "request_ratio": 1.0013296447355473,
+          "dial_ratio": 1.0052532672103491,
+          "request_difference_ns": 1520000,
+          "dial_difference_ns": 6549125
+        },
+        {
+          "pair": "5-16",
+          "control_id": "267",
+          "candidate_id": "268",
+          "request_ratio": 0.991212689301493,
+          "dial_ratio": 0.991496726006058,
+          "request_difference_ns": -7499791,
+          "dial_difference_ns": -8148167
+        }
+      ]
+    },
+    {
+      "cell": {
+        "impairment": "reorder",
+        "rate": 100,
+        "rtt": 100,
+        "size": 65536
+      },
+      "problems": [],
+      "regression_flags": [],
+      "stats": {
+        "calibration_request_ns_ratio": 1.0123963124207112,
+        "calibration_dial_ns_ratio": 1.0099669569356426,
+        "request_ratio": {
+          "median": 0.9702813561421452,
+          "min": 0.9661998353352858,
+          "max": 0.996540585663707,
+          "all": [
+            0.996540585663707,
+            0.9661998353352858,
+            0.978371710617162,
+            0.9689634264492168,
+            0.9702813561421452
+          ]
+        },
+        "dial_ratio": {
+          "median": 0.9804857096693802,
+          "min": 0.9753971226886801,
+          "max": 0.9958523150454204,
+          "all": [
+            0.9958523150454204,
+            0.9755488959754799,
+            0.9830854402586289,
+            0.9753971226886801,
+            0.9804857096693802
+          ]
+        },
+        "directions": [
+          {
+            "wait_ns": {
+              "control_median_p95": 618925,
+              "candidate_median_p95": 577534,
+              "median_paired_increase": -31330,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 50918291,
+              "candidate_median_p95": 51172458,
+              "median_paired_increase": 187875,
+              "allowed": 5091829.100000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          },
+          {
+            "wait_ns": {
+              "control_median_p95": 73566,
+              "candidate_median_p95": 74275,
+              "median_paired_increase": 709,
+              "allowed": 2000000
+            },
+            "latency_ns": {
+              "control_median_p95": 51420208,
+              "candidate_median_p95": 51146625,
+              "median_paired_increase": -237459,
+              "allowed": 5142020.800000001
+            },
+            "overflow_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            },
+            "transport_loss_rate": {
+              "control_median": 0.0,
+              "candidate_median": 0.0,
+              "median_paired_increase": 0.0,
+              "allowed": 0.001
+            }
+          }
+        ]
+      },
+      "pairs": [
+        {
+          "pair": "1-00",
+          "control_id": "099",
+          "candidate_id": "100",
+          "request_ratio": 0.996540585663707,
+          "dial_ratio": 0.9958523150454204,
+          "request_difference_ns": -1433083,
+          "dial_difference_ns": -2150416
+        },
+        {
+          "pair": "2-00",
+          "control_id": "146",
+          "candidate_id": "145",
+          "request_ratio": 0.9661998353352858,
+          "dial_ratio": 0.9755488959754799,
+          "request_difference_ns": -7585709,
+          "dial_difference_ns": -8032584
+        },
+        {
+          "pair": "3-00",
+          "control_id": "191",
+          "candidate_id": "192",
+          "request_ratio": 0.978371710617162,
+          "dial_ratio": 0.9830854402586289,
+          "request_difference_ns": -4835917,
+          "dial_difference_ns": -5546750
+        },
+        {
+          "pair": "4-00",
+          "control_id": "238",
+          "candidate_id": "237",
+          "request_ratio": 0.9689634264492168,
+          "dial_ratio": 0.9753971226886801,
+          "request_difference_ns": -6919542,
+          "dial_difference_ns": -8048084
+        },
+        {
+          "pair": "5-00",
+          "control_id": "283",
+          "candidate_id": "284",
+          "request_ratio": 0.9702813561421452,
+          "dial_ratio": 0.9804857096693802,
+          "request_difference_ns": -6615250,
+          "dial_difference_ns": -6363667
+        }
+      ]
+    }
+  ]
+}

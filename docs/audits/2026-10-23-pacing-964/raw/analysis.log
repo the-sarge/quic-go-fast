@@ -1,0 +1,27 @@
+{
+  "recommendation": "reject",
+  "complete": true,
+  "attempts": 292,
+  "problems": [
+    "insufficient comparison d1 latency_ns",
+    "insufficient comparison d1 wait_ns",
+    "noisy calibration dial_ns",
+    "noisy calibration request_ns"
+  ],
+  "qualifying_clean_100ms": [],
+  "regressions": [
+    {
+      "cell": {
+        "impairment": "clean",
+        "rate": 10,
+        "rtt": 100,
+        "size": 1048576
+      },
+      "flags": [
+        "d0 overflow_rate regression",
+        "d0 transport_loss_rate regression"
+      ],
+      "usable": true
+    }
+  ]
+}
