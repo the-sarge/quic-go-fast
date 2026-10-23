@@ -1,0 +1,115 @@
+diff --git a/internal/congestion/assessment964.go b/internal/congestion/assessment964.go
+index a24e8af9..6cfd9925 100644
+--- a/internal/congestion/assessment964.go
++++ b/internal/congestion/assessment964.go
+@@ -20,5 +20,8 @@ func (assessment964Pacing) Encode(enc *jsontext.Encoder, _ time.Time) error {
+ 
+ func (c *cubicSender) pacingRate964() uint64 {
+ 	bw := uint64(c.BandwidthEstimate() / BytesPerSecond)
++	if c.InSlowStart() {
++		return bw * 2
++	}
+ 	return bw * 5 / 4
+ }
+diff --git a/internal/congestion/assessment964_test.go b/internal/congestion/assessment964_test.go
+new file mode 100644
+index 00000000..8fd06579
+--- /dev/null
++++ b/internal/congestion/assessment964_test.go
+@@ -0,0 +1,96 @@
++package congestion
++
++import (
++	"github.com/quic-go/quic-go/internal/protocol"
++	"github.com/quic-go/quic-go/internal/utils"
++	"github.com/stretchr/testify/require"
++	"testing"
++	"time"
++)
++
++func TestAssessment964SlowStartDeadline(t *testing.T) {
++	for _, reno := range []bool{true, false} {
++		var clock mockClock
++		clock.Advance(time.Second)
++		rtt := utils.NewRTTStats()
++		rtt.UpdateRTT(100*time.Millisecond, 0)
++		sender := NewCubicSender(&clock, rtt, &utils.ConnectionStats{}, protocol.InitialPacketSize, reno, nil)
++		for pn := protocol.PacketNumber(1); sender.HasPacingBudget(clock.Now()); pn++ {
++			sender.OnPacketSent(clock.Now(), 0, pn, protocol.InitialPacketSize, true)
++		}
++		require.Equal(t, 1562500*time.Nanosecond, sender.TimeUntilSend(0).Sub(clock.Now()))
++	}
++}
++
++func TestAssessment964TimerAndBurst(t *testing.T) {
++	for _, tc := range []struct {
++		name  string
++		rtt   time.Duration
++		burst protocol.ByteCount
++		delay time.Duration
++	}{
++		{"above floor", 100 * time.Millisecond, 12800, 1562500 * time.Nanosecond},
++		{"floor boundary", 64 * time.Millisecond, 12800, time.Millisecond},
++		{"just above floor", 65 * time.Millisecond, 12800, 1015627 * time.Nanosecond},
++		{"high rate", time.Millisecond, 163840, time.Millisecond},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			var clock mockClock
++			clock.Advance(time.Second)
++			rtt := utils.NewRTTStats()
++			rtt.UpdateRTT(tc.rtt, 0)
++			sender := NewCubicSender(&clock, rtt, &utils.ConnectionStats{}, 1280, true, nil)
++			require.Equal(t, tc.burst, sender.pacer.Budget(clock.Now()))
++			require.False(t, sender.CanSend(sender.GetCongestionWindow()))
++			for pn := protocol.PacketNumber(1); sender.HasPacingBudget(clock.Now()); pn++ {
++				sender.OnPacketSent(clock.Now(), 0, pn, 1280, true)
++			}
++			require.Equal(t, tc.delay, sender.TimeUntilSend(0).Sub(clock.Now()))
++			require.True(t, sender.HasPacingBudget(sender.TimeUntilSend(0)))
++			sender.SetMaxDatagramSize(2560)
++			require.GreaterOrEqual(t, sender.TimeUntilSend(0).Sub(clock.Now()), tc.delay)
++		})
++	}
++}
++
++func TestAssessment964PhaseTransitions(t *testing.T) {
++	for _, reno := range []bool{true, false} {
++		var clock mockClock
++		clock.Advance(time.Second)
++		rtt := utils.NewRTTStats()
++		rtt.UpdateRTT(100*time.Millisecond, 0)
++		sender := NewCubicSender(&clock, rtt, &utils.ConnectionStats{}, 1280, reno, nil)
++		require.Equal(t, uint64(819200), sender.pacingRate964())
++		sender.OnPacketSent(clock.Now(), 0, 1, 1280, true)
++		sender.OnCongestionEvent(1, 1280, sender.GetCongestionWindow())
++		require.False(t, sender.InSlowStart())
++		require.Equal(t, uint64(sender.BandwidthEstimate()/BytesPerSecond)*5/4, sender.pacingRate964())
++		sender.OnRetransmissionTimeout(false)
++		require.False(t, sender.InSlowStart())
++		sender.OnRetransmissionTimeout(true)
++		require.True(t, sender.InSlowStart())
++		require.Equal(t, uint64(51200), sender.pacingRate964())
++		sender.OnConnectionMigration()
++		require.True(t, sender.InSlowStart())
++		require.Equal(t, uint64(819200), sender.pacingRate964())
++		// HyStart's real eight-sample delay increase exit, without editing sender phase.
++		sender.OnPacketSent(clock.Now(), 0, 2, 1280, true)
++		for range 8 {
++			rtt.UpdateRTT(200*time.Millisecond, 0)
++			sender.MaybeExitSlowStart()
++		}
++		require.False(t, sender.InSlowStart())
++		require.Equal(t, uint64(sender.BandwidthEstimate()/BytesPerSecond)*5/4, sender.pacingRate964())
++	}
++}
++
++func TestAssessment964ConstructorStates(t *testing.T) {
++	var clock mockClock
++	clock.Advance(time.Second)
++	for _, rtt := range []*utils.RTTStats{utils.NewRTTStats(), new(utils.RTTStats)} {
++		sender := newCubicSender(&clock, rtt, &utils.ConnectionStats{}, true, 1280, 40960, 1000000, nil)
++		require.True(t, sender.InSlowStart())
++		require.Positive(t, sender.pacingRate964())
++		require.Zero(t, sender.TimeUntilSend(0))
++	}
++}

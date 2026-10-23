@@ -1,0 +1,7 @@
+{
+  "started_utc": "2026-10-23T07:14:01.887811+00:00",
+  "limit_seconds": 7200,
+  "network_limit_seconds": 3600,
+  "attempt_limit": 304,
+  "base": "1c4a28b7bc000bbc521332f5d7145e6493b42709"
+}
