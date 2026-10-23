@@ -8,13 +8,12 @@ import json
 from pathlib import Path
 import analysis_load as A
 from run import OBS
-from campaign import validate_observation, benefit_outcome, blocking_outcomes
+from campaign import readiness_observation, benefit_outcome, blocking_outcomes
 
 HERE = Path(__file__).resolve().parent
 A.rows = []
 for receipt in sorted(OBS.glob('*/receipt.json')):
-    validate_observation(receipt.parent)
-    A.rows.append(A.load(receipt.parent))
+    A.rows.append(readiness_observation(receipt.parent))
 groups, paired, flags = A.readiness('main')
 aa = {(e['path'], e['workload']): e for e in flags if e['arm'] == 'reno-reno-aa'}
 for e in flags:

@@ -254,8 +254,8 @@ def readiness():
         if pick == 'rule':
             dirs, record = chosen('main')
         else:
-            dirs = [d for att in blocks_of('main').values() for d in att.get('original', []) if usable(d)]
-            record = None
+            from campaign import original_inventory
+            dirs, record = original_inventory()
         for d in dirs:
             os.symlink(d, view / d.name)
         run.OBS = view
@@ -266,6 +266,7 @@ def readiness():
         out[pick] = record
     run.OBS = ART / 'observations'
     save('readiness_blocks', out['rule'])
+    save('readiness_original_inventory', out['original'])
 
 
 def readiness_summary(name='summary.json'):

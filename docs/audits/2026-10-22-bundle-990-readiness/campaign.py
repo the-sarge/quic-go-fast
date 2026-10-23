@@ -9,6 +9,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -132,6 +133,49 @@ def validate_observation(directory, gate=None):
     return row
 
 
+def readiness_observation(directory, gate=None):
+    """One validation boundary for both readiness views and admission."""
+    import analysis_load
+    validate_observation(directory, gate)
+    row = analysis_load.load(directory)
+    values = [row['goodput_mbps'], row['control_p95_ms'], row['control_p50_ms']]
+    for role in ['send', 'receive']:
+        values += [row[role][k] for k in ['cpu_seconds_per_gib', 'peak_rss_mib',
+                   'heap_peak_warmup_mib', 'heap_peak_measured_mib']]
+    assert all(isinstance(v, (int, float)) and math.isfinite(v) and v > 0 for v in values), 'missing or invalid readiness metric'
+    return row
+
+
+def original_inventory():
+    """Complete original blocks, including known disturbance, plus retained gaps.
+
+    Failed or partial originals stay in raw evidence; neither view can interpret
+    unknown contamination or incomplete analysis inputs as valid measurements.
+    """
+    dirs, records = [], []
+    for stage, (phase, path, arms, n, base, runner, opts, only) in matrix.STAGES.items():
+        if phase != 'main':
+            continue
+        for workload in ['stream', 'datagram']:
+            for block in range(1, n + 1):
+                receipt_path = run.ART / 'blocks' / block_key(stage, workload, block) / 'original.json'
+                ds = sorted((run.ART / 'observations').glob(f'main-{path}-{workload}-p{block}-*'))
+                record = dict(stage=stage, workload=workload, block=block, directories=[str(d.relative_to(run.ART)) for d in ds])
+                try:
+                    original = json.loads(receipt_path.read_text())
+                    assert original['usable'] and not original.get('fatal'), 'failed original'
+                    assert set(original['directories']) == set(record['directories']), 'original directory inventory'
+                    rows = [readiness_observation(d, original['pre_data_gates']) for d in ds]
+                    dirty = validate_block(rows, stage, workload, block)
+                    assert original['contaminated'] is dirty, 'original contamination receipt'
+                    record['status'] = 'known contaminated' if dirty else 'clean'
+                    dirs += ds
+                except (AssertionError, OSError, ValueError, KeyError, TypeError, IndexError, ZeroDivisionError) as exc:
+                    record.update(status='incomplete (retained original evidence)' if ds or receipt_path.exists() else 'not run', error=f'{type(exc).__name__}: {exc}')
+                records.append(record)
+    return dirs, records
+
+
 def spec(stage, workload, block, escalation=False):
     phase, path, arms, n, base, runner, opts, only = matrix.STAGES[stage]
     assert workload in ('stream', 'datagram') and (only is None or only == workload)
@@ -162,7 +206,8 @@ def selected(stage, workload, block, escalation=False):
         chosen = json.loads((directory / 'rerun.json').read_text())
     assert chosen['usable'] and chosen['contaminated'] is False and not chosen.get('fatal'), 'unresolved block'
     dirs = [run.ART / d for d in chosen['directories']]
-    rows = [validate_observation(d, chosen['pre_data_gates']) for d in dirs]
+    loader = readiness_observation if spec(stage, workload, block, escalation)[0] == 'main' else validate_observation
+    rows = [loader(d, chosen['pre_data_gates']) for d in dirs]
     assert not validate_block(rows, stage, workload, block, escalation), 'selected contamination'
     return dirs, dict(stage=stage, workload=workload, block=block, counted=chosen['attempt'], status='clean')
 
@@ -214,7 +259,7 @@ def execute(stage, workload, block, rerun=False, escalation=False):
         d = root / name
         try:
             runner(*args, **kwargs)
-            row = validate_observation(d, gate)
+            row = (readiness_observation if phase == 'main' else validate_observation)(d, gate)
         except AssertionError as exc:
             if variant in build.REVISIONS and not path.startswith('loopback') and guards.retained_operational_exit(d, variant, controller):
                 raise guards.UnusableObservation(str(d)) from exc
@@ -281,7 +326,7 @@ def reporting_inventory(phase, path=None):
                 try:
                     ds, record = selected(stage, workload, block, block > n)
                     dirs += ds
-                except (AssertionError, OSError, ValueError, KeyError, TypeError) as exc:
+                except (AssertionError, OSError, ValueError, KeyError, TypeError, IndexError, ZeroDivisionError) as exc:
                     directory = run.ART / 'blocks' / block_key(stage, workload, block)
                     attempts = [str(p.relative_to(run.ART)) for p in sorted(directory.glob('*.json'))]
                     status = 'incomplete (retained unresolved evidence)' if attempts else 'not run'

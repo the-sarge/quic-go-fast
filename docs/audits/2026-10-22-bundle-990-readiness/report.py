@@ -56,6 +56,7 @@ def render(s,a,loss,history,inventory,plan):
             for arm in arms:
                 if not any((e['path'],e['workload'],e['arm'])==(path,workload,arm) for e in s['readiness']):
                     lines.append(f'{path}/{workload}/{arm}: incomplete (0 of 5); all readiness metrics are evidence gaps.')
+    lines += ['', 'Original-only block inventory (known contaminated complete blocks remain descriptive; invalid or partial originals remain gaps):', '', '```json', json.dumps(a.get('readiness_original_inventory', []), indent=2), '```']
     lines+=['','## Absolute medians','','| Path/workload | Arm | Goodput Mbit/s | CPU s/GiB send/receive | RSS MiB send/receive | Control p95/p50 ms |','| --- | --- | --- | --- | --- | --- |']
     for g in s['groups']:
         lines.append(f"| {g['path']}/{g['workload']} | {g['arm']} | {g['goodput_mbps']['median']:.3f} | {g['send']['cpu_seconds_per_gib']['median']:.3f}/{g['receive']['cpu_seconds_per_gib']['median']:.3f} | {g['send']['peak_rss_mib']['median']:.3f}/{g['receive']['peak_rss_mib']['median']:.3f} | {g['control_p95_ms']['median']:.3f}/{g['control_p50_ms']['median']:.3f} |")

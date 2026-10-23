@@ -101,6 +101,54 @@ class ReportingTests(unittest.TestCase):
             self.assertIn('do not establish preservation against old frozen Reno',result)
 
 
+    def test_original_validation_boundary_and_checked_fatal_gap(self):
+        # Canonical loopback block: exercise real loaders without host activity.
+        import hashlib
+        for state in ['clean', 'contaminated', 'unknown', 'unknown_receipt', 'missing_heap']:
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as tmp:
+                dest=Path(tmp)/'docs/audits/record'
+                shutil.copytree(R.HERE,dest,ignore=shutil.ignore_patterns('__pycache__','result.md','raw*','summary*.json','attribution.json','datagram-loss.json'))
+                art=Path(tmp)/'.local/bundle-990-readiness'
+                directories=[]
+                for variant,controller,tag in C.matrix.FOUR:
+                    name=f'main-loopback-stream-p1-{variant}-{controller}'+(f'-{tag}' if tag else '')
+                    d=art/'observations'/name;d.mkdir(parents=True)
+                    cfg=dict(C.matrix.run_case_x.__globals__['PATHS']['loopback'],id=name,controller=controller,workload='stream',payload_bytes=16384,start_unix_ns=1_000_000_000)
+                    start=cfg['start_unix_ns']+cfg['warmup_ms']*1_000_000
+                    meta=dict(phase='main',variant=variant,path='loopback',pair=1,seed=None,tag=tag,affinity=C.run.AFFINITY)
+                    delivery=dict(corrupt=0,duplicates=0,per_second_bytes=[1000000],useful_bytes=1000000)
+                    endpoint=dict(source=C.source(variant),go_version='go1.27.0',platform='linux/amd64',gomaxprocs=4,managed_direct=True,trace_enabled=False,
+                        result=dict(run=cfg,controller=controller,receiver=delivery,control=dict(latency_ns=[1000000],replies=1,skipped=0,unresolved=0,missed_opportunities=0)),
+                        resources=dict(cpu_seconds=1,peak_rss_bytes=20*2**20,total_alloc_bytes=2**20),
+                        resource_samples=[dict(unix_ns=start-1,heap_bytes=2**20),dict(unix_ns=start+1,heap_bytes=2**20)])
+                    if state=='missing_heap':endpoint['resource_samples']=[]
+                    receipt=dict(exit_codes=[0,0],binary_sha256=C.build.REGISTERED.get((variant,'fixture'),C.build.EXPECTED.get((variant,'fixture'))))
+                    counters=dict(RcvbufErrors=0,SndbufErrors=0,InErrors=0,MemErrors=0)
+                    facts=dict(measure_window_unix_ns=[start,start+cfg['measure_ms']*1_000_000],udp_before=counters,udp_after=counters)
+                    samples=[dict(unix_ns=start+i*1_000_000_000,cpus={str(c):dict(busy=i*(100 if state=='contaminated' else 0)) for c in C.run.FIXTURE_CPUS+C.run.SIBLING_CPUS},fixture_ticks=dict(send=i,receive=i)) for i in range(cfg['measure_ms']//1000+1)]
+                    if state in ['unknown','unknown_receipt']:samples=[]
+                    for file,value in [('meta',meta),('config',cfg),('receipt',receipt),('send',endpoint),('receive',endpoint),('host-facts',facts),('host-cpu',samples)]:
+                        (d/f'{file}.json').write_text(json.dumps(value))
+                    directories.append(str(d.relative_to(art)))
+                original=art/'blocks/loopback-stream-p1/original.json';original.parent.mkdir(parents=True)
+                original.write_text(json.dumps(dict(fatal=state=='unknown',usable=state!='unknown',contaminated=state=='contaminated',directories=directories,pre_data_gates={},attempt='original')))
+                raw={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in art.rglob('*.json')}
+                for command in [('stages.py','all'),('dgloss.py',),('report.py',),('report.py','--check')]:
+                    result=subprocess.run([sys.executable,*command],cwd=dest,capture_output=True,text=True)
+                    self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                selected=json.loads((dest/'summary.json').read_text())
+                originals=json.loads((dest/'summary-original.json').read_text())
+                self.assertEqual(len(selected['observations']),5 if state=='clean' else 0)
+                self.assertEqual(len(originals['observations']),5 if state in ['clean','contaminated'] else 0)
+                self.assertEqual(raw,{p:hashlib.sha256(p.read_bytes()).hexdigest() for p in raw})
+                prose=(dest/'result.md').read_text()
+                self.assertIn('incomplete; evidence gap',prose)
+                self.assertIn('Original-only block inventory',prose)
+                if state in ['unknown','unknown_receipt','missing_heap']:
+                    self.assertIn('incomplete (retained original evidence)',prose)
+                if state=='contaminated':self.assertIn('known contaminated',prose)
+
+
 class CoordinationTests(unittest.TestCase):
     def test_unstarted_stops_and_started_interrupt(self):
         gate={'window_end':(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat()}
