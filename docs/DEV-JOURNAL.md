@@ -7797,3 +7797,26 @@ One bounded [native Windows Go 1.26.10 run](https://github.com/the-sarge/quic-go
 ### Next
 
 Resume the independent adaptive-loss policy in [PR #999](https://github.com/the-sarge/quic-go-fast/pull/999) after this journal merges: update to main and renew review, exact-head certification and hosted checks. [#971](https://github.com/the-sarge/quic-go-fast/issues/971) is the live implementation tracker; no performance campaign is authorized.
+
+---
+
+## Adaptive application loss thresholds landed - 2026-10-23 05:28 EDT
+
+**Main:** `64bfb05349e8`
+**Actor:** Codex
+
+### Summary
+
+[PR #999](https://github.com/the-sarge/quic-go-fast/pull/999) completed [#971](https://github.com/the-sarge/quic-go-fast/issues/971): admitted spurious application-loss proof disables packet-distance loss and permits fresh-send-gated time-threshold growth through 9/8, 5/4, 3/2 and 2 RTT. Initial/Handshake defaults, shared 0/1-RTT identity and migration reset remain explicit. Adaptation precedes ordinary and PTO-retired classification; genuine losses still retire once by time.
+
+### Decisions
+
+[ADR 0013](adr/0013-adaptive-loss-thresholds.md) and the [maintained contract](agents/adaptive-loss-thresholds-971.md) record the accepted policy and its genuine-loss-delay cost. The implementation preserves controller selection, Reno undo ordering, BBR evidence ownership and bounds, public/wire contracts, and frame/payload ownership. No throughput claim or consumer qualification was made. The separately approved Windows startup-fixture prerequisite landed in [PR #1003](https://github.com/the-sarge/quic-go-fast/pull/1003), with its journal in [PR #1004](https://github.com/the-sarge/quic-go-fast/pull/1004).
+
+### Validation
+
+The [final certification receipt](https://github.com/the-sarge/quic-go-fast/pull/999#issuecomment-6361798624) pins candidate `6dbcfdfe682fdad92c2721db00b4d4eb84bd1fbd` and base `a6a68cbee941560ecca810aa4949fbed9be0fed3`. Recovery/congestion/wire tests, recovery/congestion race tests, relevant controller/DATAGRAM/emission and 0-RTT/Retry/migration tests, vet, pinned lint, generation/compiler assertions, tidy/fix, formatting, links and clean-tree checks passed. All 9 hosted workflows and 33 jobs passed on that candidate. Initial and replacement RAS reviews had zero findings; each met quorum with five successful reviewers and synthesis, while Claude-fable failed with a process error. No automated fixer was used.
+
+### Next
+
+The proposed 36-run performance comparison remains deferred until a candidate and exact measurement contract are separately accepted. [Parent #962](https://github.com/the-sarge/quic-go-fast/issues/962) is the live tracking view for the completed three-slice adoption and its deferred comparison context.
