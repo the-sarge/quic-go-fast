@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"strconv"
@@ -359,9 +360,9 @@ func TestListenAndServeTLSQUICFailureStopsTCP(t *testing.T) {
 }
 
 func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
-	// Let TCP select its own port: Windows can deny TCP binds to UDP-selected
-	// ephemeral ports. Check UDP availability while holding the TCP reservation,
-	// so that the helper opens UDP and then fails to listen on TCP.
+	// Windows can deny UDP binds to TCP-allocated ports and vice versa. Spread
+	// candidates across unprivileged ports so a restricted ephemeral range does
+	// not consume every attempt, and require both protocols to bind the address.
 	logBind := func(attempt int, network, addr string, err error) {
 		t.Helper()
 		t.Logf("port selection attempt %d: %s listen %s: %v", attempt, network, addr, err)
@@ -372,9 +373,12 @@ func TestListenAndServeTLSStartupFailureReleasesUDP(t *testing.T) {
 	var tcpLn net.Listener
 	var addr string
 	for attempt := range 10 {
-		candidate, err := net.Listen("tcp", "127.0.0.1:0")
-		logBind(attempt+1, "TCP", "127.0.0.1:0", err)
-		require.NoError(t, err)
+		addr = net.JoinHostPort("127.0.0.1", strconv.Itoa(1024+rand.IntN(65536-1024)))
+		candidate, err := net.Listen("tcp", addr)
+		logBind(attempt+1, "TCP", addr, err)
+		if err != nil {
+			continue
+		}
 		t.Cleanup(func() { candidate.Close() })
 		addr = candidate.Addr().String()
 		udpConn, err := net.ListenPacket("udp", addr)
