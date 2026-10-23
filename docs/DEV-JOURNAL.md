@@ -7755,3 +7755,22 @@ Selected `v0.62.1-fast.8` deliberately and [pinned the intended release candidat
 ### Next
 
 As of this entry, exact-candidate hosted workflows are running and #871's registration is being finalized; no counted measurements, operator memory/baseline/advancement decisions, release tag or publication are claimed. [Bundle #851](https://github.com/the-sarge/quic-go-fast/issues/851) is the live view for the remaining #871 → #887 → #990 → publication gates. This journal-only follow-up does not move the pinned release candidate.
+
+---
+
+## Bounded slow-start pacing assessment completed - 2026-10-23 04:03 EDT
+
+**Main:** `a29d594b2ce4`
+**Actor:** Codex
+
+### Summary
+
+Completed [#964](https://github.com/the-sarge/quic-go-fast/issues/964) in [PR #1000](https://github.com/the-sarge/quic-go-fast/pull/1000). The bounded native STREAM startup assessment completed all 292 scheduled attempts within 771.9 seconds of preparation and 191.676 seconds of network time; every payload verified and no replacement or second campaign occurred. Registration, source patches, raw records, hashes, analysis and limitations are archived in the [assessment report](audits/2026-10-23-pacing-964/README.md).
+
+### Decisions
+
+Preserve the registered screen’s reject label: the clean 100 ms / 10 Mbit/s / 1 MiB cell exceeded overflow and transport-loss screening limits, and no clean 100 ms cell met the startup-benefit rule. Loss-rate variability was not independently noise-gated, so the report limits causal/materiality interpretation. Production pacing and BBR reference policy remain unchanged; adoption or another campaign requires separate approval. The [issue closeout](https://github.com/the-sarge/quic-go-fast/issues/964) is the decision pointer.
+
+### Validation
+
+RAS review completed with quorum; four documentation findings were corrected and one optional finding rejected. The docs-only exemption skipped another RAS cycle. Exact-head local certification, offline reproduction, checksum reconciliation and all five hosted PR workflows passed before the matching squash merge. No deferred findings survived. The [review receipt](https://github.com/the-sarge/quic-go-fast/pull/1000#issuecomment-6360275883) records the provider failures, provenance limitations and frozen-data whitespace exclusions. No linked OmniFocus task was found.
