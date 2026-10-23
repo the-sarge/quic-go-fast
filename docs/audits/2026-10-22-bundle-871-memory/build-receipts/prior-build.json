@@ -1,0 +1,54 @@
+{
+  "variant": "prior",
+  "revision": "d94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7",
+  "heap_fixture": "798f499878290fc70a0df9db1c067c326ec3b3af:docs/audits/2026-09-30-bbr-causal-diagnosis/fixture-heap-diagnostics.patch",
+  "overlays": [],
+  "c4_hooks": false,
+  "builds": {
+    "fixture": {
+      "binary": "bin/prior-fixture",
+      "sha256": "e50b799c0cefa5918180dc53a7e88c7922ba55fd15907c0992e5d9e4c6d0e83b",
+      "command": [
+        "go",
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-ldflags",
+        "-X main.sourceRevision=d94b3ec21e7d58e0ebcc5ff2dca012f856dd2cd7",
+        "-o",
+        "/Volumes/worktrees/quic-go-fast/bundle-memory-871/.local/bundle-871-memory/bin/prior-fixture",
+        "./fixture"
+      ],
+      "platform": "linux/amd64",
+      "modules": [
+        [
+          "dep",
+          "github.com/quic-go/quic-go",
+          "v0.0.0"
+        ],
+        [
+          "=>",
+          "..",
+          "(devel)"
+        ],
+        [
+          "dep",
+          "golang.org/x/crypto",
+          "v0.58.0"
+        ],
+        [
+          "dep",
+          "golang.org/x/net",
+          "v0.61.0"
+        ],
+        [
+          "dep",
+          "golang.org/x/sys",
+          "v0.49.0"
+        ]
+      ],
+      "byte_identical_to_prior_record": true
+    }
+  },
+  "go": "go version go1.27.0 darwin/arm64"
+}

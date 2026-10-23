@@ -1,0 +1,107 @@
+{
+  "candidate": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+  "archive": "candidate-validation-evidence.tar.gz",
+  "archive_sha256": "a3c292fa9fecc66d949fb9a1f8c4e61bc55d839fb44c56da7e09837cadaa4492",
+  "entries": [
+    {
+      "path": "candidate-validation/govulncheck-receipt.json",
+      "bytes": 430,
+      "sha256": "9f0b65f602c8f28fff2f3eb08816c265d1dd9afdbae43ebbd78e8ff565aa54e0"
+    },
+    {
+      "path": "candidate-validation/govulncheck.log",
+      "bytes": 2749,
+      "sha256": "9a69796631ddb6c29f7e4268cef27a446e139a6597f6c260c1ed06333106cb66"
+    },
+    {
+      "path": "candidate-validation/job-120032063980-inspection.json",
+      "bytes": 73608,
+      "sha256": "6f49093e70be35ebd7f9aaba3c007f76a441bd69e88eba5f5c2bf9a216cd04de"
+    },
+    {
+      "path": "candidate-validation/job-120032063980.log.gz",
+      "bytes": 156454,
+      "sha256": "ec1150bfa4729d674e69ec6fe039e1fca43132231cdfcebd418706cff9f6fd28"
+    },
+    {
+      "path": "candidate-validation/job-120032064049-inspection.json",
+      "bytes": 48072,
+      "sha256": "d12e834d1d339f824ea7400d309e1365c20f731f77b45da5fadd01a17331bc39"
+    },
+    {
+      "path": "candidate-validation/job-120032064049.log.gz",
+      "bytes": 150251,
+      "sha256": "c5ef7b233ae62e36db681e717f0e46768371dae7dcda5009a94b94dd60ade36e"
+    },
+    {
+      "path": "candidate-validation/job-120032064278-inspection.json",
+      "bytes": 89020,
+      "sha256": "0c14925ce2db5a47d94d70a38b5061cab9aea45f4e32871ddd1d4864fa2091b7"
+    },
+    {
+      "path": "candidate-validation/job-120032064278.log.gz",
+      "bytes": 295257,
+      "sha256": "8abaa2cac366aedbe7e39fa5adab7f505594c358d546b9b8e1fd2a2e7adce51b"
+    },
+    {
+      "path": "candidate-validation/jobs-39838225885.json",
+      "bytes": 40907,
+      "sha256": "233c19aaba12444a256ee7a7da7034b16680020e439d6898fac4dd5ba2d21361"
+    },
+    {
+      "path": "candidate-validation/jobs-39838225905.json",
+      "bytes": 17208,
+      "sha256": "922397dc00925f757655ce523724a105cccce7fc3431ef917a6fed769ba65034"
+    },
+    {
+      "path": "candidate-validation/jobs-39838225906.json",
+      "bytes": 4011,
+      "sha256": "74c2f6f61fd95151908685246134667636feff202233c691178fcb496383fb2c"
+    },
+    {
+      "path": "candidate-validation/jobs-39838225917.json",
+      "bytes": 37790,
+      "sha256": "c9d1ddaa2912fe06a4c0ea837cb30d51ed0542257956774ac3c4ab69e6937ece"
+    },
+    {
+      "path": "candidate-validation/jobs-39838226050.json",
+      "bytes": 6461,
+      "sha256": "ce05211c7044dd01a6a3d6e88c9aaac306463afad5b56af4d52b94d97cf689c5"
+    },
+    {
+      "path": "candidate-validation/receipt.md",
+      "bytes": 3641,
+      "sha256": "c60dcb33468484a034b49e80dd4445fb60c28306d15f094397d1e068f5a290b4"
+    },
+    {
+      "path": "candidate-validation/workflow-receipt.json",
+      "bytes": 99433,
+      "sha256": "38f081752427eb52c6f0409c1a010372bcca6bfee871976b3f0e4ae96bf556d8"
+    },
+    {
+      "path": "candidate-consumer/commands.json",
+      "bytes": 4291,
+      "sha256": "8257fdfd39cb87eb5a4b4dd426a905e1454e0ce8eaeefc5c0862c4f9a903427c"
+    },
+    {
+      "path": "candidate-consumer/go.mod",
+      "bytes": 429,
+      "sha256": "326dfaf352ec69b9236dae3470cfc2a2d40618b4b5ddcd0502cbd3938bccf218"
+    },
+    {
+      "path": "candidate-consumer/go.sum",
+      "bytes": 1718,
+      "sha256": "a163f477bc8147f0f405e9f4db8018329fa1ce4b61807bc6b065c2eb99b10a75"
+    },
+    {
+      "path": "candidate-consumer/main.go",
+      "bytes": 400,
+      "sha256": "bfa15975d84f9b46fab72c84644d9fee118b2beb8d228705a8189a339482fb55"
+    },
+    {
+      "path": "candidate-consumer/receipt.json",
+      "bytes": 2204,
+      "sha256": "39af44c4bdc1c2b70cec0cf7bba1576274640f163d4b6eceec35e0fd8e13f50f"
+    }
+  ]
+}
