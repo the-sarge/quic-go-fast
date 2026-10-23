@@ -38,7 +38,7 @@ def render(s,a,loss,history,inventory,plan):
             raised=str(f['raised']) if f else f"S6 benefit {e.get('benefit_outcome', 'descriptive')} ({e['useful_benefit']['pairs_above_reno']}/5)"
             if not e['complete']: raised='incomplete evidence gap; observed '+raised
             lines.append(f"| {e['path']}/{e['workload']} | {e['arm']} ({e['role']}; {e['blocks']}/5) | {k} | {r['median']:.3f} ({r['minimum']:.3f}–{r['maximum']:.3f}) | {f['blocks_crossing'] if f else '—'} | {raised} | {f'{aa["minimum"]:.3f}–{aa["maximum"]:.3f}' if aa else '—'} |")
-    lines+=['','Blocking outcomes (including unmet S6 benefit and evidence gaps):','','```json',json.dumps(s['blocking_outcomes'],indent=2),'```']
+    lines+=['','Blocking outcomes (including unmet S6 benefit and evidence gaps):','','```json',json.dumps(s['blocking_outcomes'],indent=2,sort_keys=True),'```']
     lines+=['','## Coverage and retained gaps','','Only complete, usable, clean blocks enter selected statistics. Missing, fatal and unresolved attempts remain below and in the raw archive. An incomplete row is not a pass.','', '| Stage/workload | Clean blocks / expected | Status |','| --- | --- | --- |']
     groups={}
     for record in inventory:
@@ -48,15 +48,15 @@ def render(s,a,loss,history,inventory,plan):
         status='complete observations' if clean==len(records) else 'incomplete; evidence gap'
         lines.append(f'| {stage}/{workload} | {clean}/{len(records)} | {status} |')
     gaps=[r for r in inventory if r['status']!='clean']
-    lines+=['', 'Retained gaps:', '', '```json',json.dumps(gaps,indent=2),'```', '',
-            'Conditional selection and omissions: pairs in `not_run_presrss` and workloads in `not_run_preslat` are **not run (selection limit), evidence gap**. Their raised preservation values remain blocking.', '', '```json',json.dumps(plan,indent=2),'```','']
+    lines+=['', 'Retained gaps:', '', '```json',json.dumps(gaps,indent=2,sort_keys=True),'```', '',
+            'Conditional selection and omissions: pairs in `not_run_presrss` and workloads in `not_run_preslat` are **not run (selection limit), evidence gap**. Their raised preservation values remain blocking.', '', '```json',json.dumps(plan,indent=2,sort_keys=True),'```','']
     for path in ['loopback','S5','S6']:
         for workload in ['stream','datagram']:
             arms=['cand-bbrv3']+(['cand-reno'] if path!='S6' else [])
             for arm in arms:
                 if not any((e['path'],e['workload'],e['arm'])==(path,workload,arm) for e in s['readiness']):
                     lines.append(f'{path}/{workload}/{arm}: incomplete (0 of 5); all readiness metrics are evidence gaps.')
-    lines += ['', 'Original-only block inventory (known contaminated complete blocks remain descriptive; invalid or partial originals remain gaps):', '', '```json', json.dumps(a.get('readiness_original_inventory', []), indent=2), '```']
+    lines += ['', 'Original-only block inventory (known contaminated complete blocks remain descriptive; invalid or partial originals remain gaps):', '', '```json', json.dumps(a.get('readiness_original_inventory', []), indent=2,sort_keys=True), '```']
     lines+=['','## Absolute medians','','| Path/workload | Arm | Goodput Mbit/s | CPU s/GiB send/receive | RSS MiB send/receive | Control p95/p50 ms |','| --- | --- | --- | --- | --- | --- |']
     for g in s['groups']:
         lines.append(f"| {g['path']}/{g['workload']} | {g['arm']} | {g['goodput_mbps']['median']:.3f} | {g['send']['cpu_seconds_per_gib']['median']:.3f}/{g['receive']['cpu_seconds_per_gib']['median']:.3f} | {g['send']['peak_rss_mib']['median']:.3f}/{g['receive']['peak_rss_mib']['median']:.3f} | {g['control_p95_ms']['median']:.3f}/{g['control_p50_ms']['median']:.3f} |")
@@ -75,7 +75,7 @@ def render(s,a,loss,history,inventory,plan):
                 value=old['ratios'][k]['median'] if old else None
                 cells.append(f'{value:.3f}' if value is not None else '—')
             lines.append(f"| {e['path']}/{e['workload']} | {e['arm']}/{k} | {e['ratios'][k]['median']:.3f} | "+' | '.join(cells)+' |')
-    lines+=['','## Timeline, preservation and loss','','These raw-derived structures retain the registered classifications and their supporting values. Follow-up outcomes never automatically clear a raised readiness cell.','', '```json',json.dumps(attribution_digest(a),indent=2),'```','', 'DATAGRAM loss is descriptive:','', '```json',json.dumps(loss['cells'],indent=2),'```','']
+    lines+=['','## Timeline, preservation and loss','','These raw-derived structures retain the registered classifications and their supporting values. Follow-up outcomes never automatically clear a raised readiness cell.','', '```json',json.dumps(attribution_digest(a),indent=2,sort_keys=True),'```','', 'DATAGRAM loss is descriptive:','', '```json',json.dumps(loss['cells'],indent=2,sort_keys=True),'```','']
     return '\n'.join(lines)
 
 

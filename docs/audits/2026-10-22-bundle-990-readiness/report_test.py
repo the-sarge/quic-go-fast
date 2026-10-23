@@ -2,6 +2,7 @@
 import copy
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -147,6 +148,32 @@ class ReportingTests(unittest.TestCase):
                 if state in ['unknown','unknown_receipt','missing_heap']:
                     self.assertIn('incomplete (retained original evidence)',prose)
                 if state=='contaminated':self.assertIn('known contaminated',prose)
+
+
+    def test_retention_prose_is_stable_across_hash_seeds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest=Path(tmp)/'docs/audits/record'
+            shutil.copytree(R.HERE,dest,ignore=shutil.ignore_patterns('__pycache__','result.md','raw*','summary*.json','attribution.json','datagram-loss.json'))
+            code = """
+import json, sys
+from unittest.mock import patch
+import report as R
+s=dict(blocking_reference=R.C.build.REVISIONS['cand'],descriptive_reference=R.C.build.REVISIONS['old'],readiness=[],groups=[],paired=[],historical_readiness=[],blocking_outcomes=[])
+# Real retention classification with the same set-derived insertion order
+# used by presrss; unique weights keep the classification itself unchanged.
+weights={'queues':3,'transport':2,'runtime':1}
+groups={k:weights[k] for k in set(weights)}
+blocks=[dict(cand_rss=24,reno_rss=20,cand_retained=12,reno_retained=10,site_excess=groups) for _ in range(6)]
+outcome,detail=R.S.R.rss_preservation(blocks,22)
+assert outcome=='retention excess'
+a=dict(s5timeline=dict(observations=[]),presrss={'S5/datagram/send':dict(outcome=outcome,detail=detail)},preslat={},cpu_split={})
+caches={'summary.json':s,'attribution.json':a,'datagram-loss.json':dict(cells={})}
+with patch.object(R.S,'readiness_summary',return_value=s),patch.object(R,'verify_raw_correspondence',return_value=caches),patch.object(R.C,'reporting_inventory',return_value=([],[dict(stage='s5',workload='datagram',block=1,status='not run')])):
+    R.main()
+"""
+            for seed,args in [('1',[]),('2',['--check'])]:
+                p=subprocess.run([sys.executable,'-c',code,*args],cwd=dest,env={**os.environ,'PYTHONHASHSEED':seed},capture_output=True,text=True)
+                self.assertEqual(p.returncode,0,p.stdout+p.stderr)
 
 
 class CoordinationTests(unittest.TestCase):
