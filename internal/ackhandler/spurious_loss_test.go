@@ -146,6 +146,17 @@ func TestSpuriousLossPacketEligibility(t *testing.T) {
 			f.ack(t, 106*time.Millisecond, pn, pns[1], pns[3])
 			require.Empty(t, f.events.Events(qlog.SpuriousLoss{}))
 			require.Equal(t, flight-1200, f.h.bytesInFlight)
+			var fresh []protocol.PacketNumber
+			for range 5 {
+				fresh = append(fresh, f.send(110*time.Millisecond, protocol.Encryption1RTT))
+			}
+			f.ack(t, 210*time.Millisecond, fresh[4])
+			if kind == "ordinary" {
+				require.NotContains(t, f.packets.Lost, fresh[0])
+			} else {
+				require.Contains(t, f.packets.Lost, fresh[0], "excluded receipts cannot train loss policy")
+				require.Contains(t, f.packets.Lost, fresh[1])
+			}
 		})
 	}
 }
@@ -236,6 +247,7 @@ func TestSpuriousLossHistoryBound(t *testing.T) {
 func TestSpuriousLossHistoryExpiry(t *testing.T) {
 	f := newSpuriousLossFixture(false)
 	pns := f.loseFirstTwo(t)
+	f.ack(t, 105*time.Millisecond, pns[2:]...)
 	lifetime := 3 * f.h.rttStats.PTO(false)
 	// Cleanup is strict: a send exactly at the cutoff remains discoverable.
 	f.ack(t, lifetime, pns[4])
@@ -247,7 +259,7 @@ func TestSpuriousLossHistoryExpiry(t *testing.T) {
 	f.ack(t, lifetime+3*time.Millisecond, pns[1], pns[4])
 	require.Empty(t, f.events.Events(qlog.SpuriousLoss{}))
 	require.Equal(t, pns[:2], f.packets.Lost)
-	require.Equal(t, []protocol.PacketNumber{pns[4]}, f.packets.Acked)
+	require.Equal(t, []protocol.PacketNumber{pns[4], pns[2], pns[3]}, f.packets.Acked)
 }
 
 func TestSpuriousLossLegacyECNEligibility(t *testing.T) {

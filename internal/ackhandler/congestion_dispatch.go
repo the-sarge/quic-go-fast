@@ -293,7 +293,7 @@ func (h *sentPacketHandler) appendRetainedAck(ack *wire.AckFrame, level protocol
 
 func (h *sentPacketHandler) confirmPTOOutcomes(level protocol.EncryptionLevel, witness protocol.PacketNumber, now monotime.Time) {
 	if d := h.congestionEvents; d != nil {
-		d.recovery.confirmPTO(congestionKey(level, 0).space, witness, now.Add(-h.lossDelay()))
+		d.recovery.confirmPTO(congestionKey(level, 0).space, witness, now.Add(-h.lossDelay(level)))
 	}
 }
 

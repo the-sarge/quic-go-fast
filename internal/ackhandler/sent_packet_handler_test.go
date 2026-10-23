@@ -1837,7 +1837,7 @@ func TestSentPacketHandlerSpuriousLoss(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, []protocol.PacketNumber{pns[4], pns[5], pns[12], pns[16]}, packets.Acked)
-	require.Equal(t, []protocol.PacketNumber{pns[7], pns[8], pns[9], pns[10], pns[11], pns[13]}, packets.Lost)
+	require.Empty(t, packets.Lost, "current-ACK proof suppresses packet-distance loss")
 	require.Equal(t,
 		[]qlogwriter.Event{
 			qlog.SpuriousLoss{
@@ -1863,6 +1863,11 @@ func TestSentPacketHandlerSpuriousLoss(t *testing.T) {
 	)
 	eventRecorder.Clear()
 
+	// Establish real time-based losses before testing their later diagnostics.
+	now = sph.GetLossDetectionTimeout().Add(100 * time.Millisecond)
+	_, err = sph.OnLossDetectionTimeout(now)
+	require.NoError(t, err)
+	require.Equal(t, []protocol.PacketNumber{pns[7], pns[8], pns[9], pns[10], pns[11], pns[13], pns[14], pns[15]}, packets.Lost)
 	now = now.Add(secondAckDelay)
 	_, err = sph.ReceivedAck(
 		&wire.AckFrame{AckRanges: ackRanges(pns[0], pns[1], pns[2], pns[3], pns[4], pns[5], pns[6], pns[7], pns[8], pns[9], pns[10], pns[16], pns[17], pns[18])},
@@ -1879,25 +1884,25 @@ func TestSentPacketHandlerSpuriousLoss(t *testing.T) {
 				EncryptionLevel:  protocol.Encryption1RTT,
 				PacketNumber:     pns[7],
 				PacketReordering: 18 - 7,
-				TimeReordering:   rtt + 2*secondAckDelay - 70*time.Millisecond,
+				TimeReordering:   now.Sub(start) - 70*time.Millisecond,
 			},
 			qlog.SpuriousLoss{
 				EncryptionLevel:  protocol.Encryption1RTT,
 				PacketNumber:     pns[8],
 				PacketReordering: 18 - 8,
-				TimeReordering:   rtt + 2*secondAckDelay - 80*time.Millisecond,
+				TimeReordering:   now.Sub(start) - 80*time.Millisecond,
 			},
 			qlog.SpuriousLoss{
 				EncryptionLevel:  protocol.Encryption1RTT,
 				PacketNumber:     pns[9],
 				PacketReordering: 18 - 9,
-				TimeReordering:   rtt + 2*secondAckDelay - 90*time.Millisecond,
+				TimeReordering:   now.Sub(start) - 90*time.Millisecond,
 			},
 			qlog.SpuriousLoss{
 				EncryptionLevel:  protocol.Encryption1RTT,
 				PacketNumber:     pns[10],
 				PacketReordering: 18 - 10,
-				TimeReordering:   rtt + 2*secondAckDelay - 100*time.Millisecond,
+				TimeReordering:   now.Sub(start) - 100*time.Millisecond,
 			},
 		},
 		eventRecorder.Events(qlog.SpuriousLoss{}),
