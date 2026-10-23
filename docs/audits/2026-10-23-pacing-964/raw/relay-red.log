@@ -1,0 +1,20 @@
+E
+======================================================================
+ERROR: test_relay (unittest.loader._FailedTest.test_relay)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_relay
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.15/3.15.0_1/Frameworks/Python.framework/Versions/3.15/lib/python3.15/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.15/3.15.0_1/Frameworks/Python.framework/Versions/3.15/lib/python3.15/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/Volumes/worktrees/quic-go-fast/pacing-964-assessment/docs/audits/2026-10-23-pacing-964/fixture/test_relay.py", line 2, in <module>
+    from relay import Direction, selected
+ModuleNotFoundError: No module named 'relay'
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)

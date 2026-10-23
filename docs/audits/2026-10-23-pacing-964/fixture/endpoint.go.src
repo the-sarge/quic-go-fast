@@ -1,0 +1,270 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/json"
+	"flag"
+	"fmt"
+	quic "github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/qlogwriter"
+	"io"
+	"net"
+	"os"
+	"os/signal"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+)
+
+type writeRecord struct {
+	StartNS, EndNS int64
+	Size           int
+	Error          string `json:",omitempty"`
+}
+type eventRecord struct {
+	NS   int64
+	Name string
+	Data json.RawMessage
+}
+type recorder struct {
+	mu       sync.Mutex
+	Events   []eventRecord
+	Overflow bool
+}
+
+func (r *recorder) RecordEvent(e qlogwriter.Event) {
+	name := e.Name()
+	if !strings.HasPrefix(name, "recovery:") && name != "assessment964:pacing" && name != "transport:packet_sent" {
+		return
+	}
+	var value any = e
+	if sent, ok := e.(qlog.PacketSent); ok {
+		frames := []qlog.StreamFrame{}
+		for _, f := range sent.Frames {
+			if sf, ok := f.Frame.(*qlog.StreamFrame); ok {
+				frames = append(frames, *sf)
+			}
+		}
+		value = struct {
+			Packet  qlog.PacketSent
+			Streams []qlog.StreamFrame
+		}{sent, frames}
+	}
+	data, err := json.Marshal(value)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err != nil || len(r.Events) >= 32768 {
+		r.Overflow = true
+		return
+	}
+	r.Events = append(r.Events, eventRecord{time.Now().UnixNano(), name, data})
+}
+func (*recorder) Close() error { return nil }
+
+type packetIO struct {
+	net.PacketConn
+	mu       sync.Mutex
+	Writes   []writeRecord
+	Overflow bool
+}
+
+func (p *packetIO) WriteTo(b []byte, a net.Addr) (int, error) {
+	start := time.Now().UnixNano()
+	n, err := p.PacketConn.WriteTo(b, a)
+	end := time.Now().UnixNano()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.Writes) >= 32768 {
+		p.Overflow = true
+	} else {
+		row := writeRecord{StartNS: start, EndNS: end, Size: n}
+		if err != nil {
+			row.Error = err.Error()
+		}
+		p.Writes = append(p.Writes, row)
+	}
+	return n, err
+}
+
+type result struct {
+	Mode                                 string
+	Error                                string `json:",omitempty"`
+	Verified                             bool
+	Bytes                                int
+	SHA256                               string
+	HandshakeNS, RequestEOFNS, DialEOFNS int64
+	Goodput                              float64
+	Stats                                quic.ConnectionStats
+	Version                              quic.Version
+	TLSResumed                           bool
+	Config                               map[string]any
+	Writes                               []writeRecord
+	Events                               []eventRecord
+	Overflow                             bool
+}
+
+func payload(n int) []byte {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = byte((i*31 + i/251) % 256)
+	}
+	return b
+}
+func execute(mode, remote, ready, cert, key string, size int, out *result) error {
+	parent, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
+	defer cancel()
+	rec := &recorder{}
+	cfg := &quic.Config{InitialPacketSize: 1280, DisablePathMTUDiscovery: true, InitialStreamReceiveWindow: 4 << 20, MaxStreamReceiveWindow: 4 << 20, InitialConnectionReceiveWindow: 4 << 20, MaxConnectionReceiveWindow: 4 << 20, HandshakeIdleTimeout: 5 * time.Second, MaxIdleTimeout: 8 * time.Second, Tracer: func(context.Context, bool, quic.ConnectionID) qlogwriter.Trace { return &trace{rec} }}
+	out.Config = map[string]any{"packet_size": 1280, "pmtud": false, "stream_initial": 4 << 20, "stream_max": 4 << 20, "connection_initial": 4 << 20, "connection_max": 4 << 20, "gomaxprocs": os.Getenv("GOMAXPROCS"), "packet_io": "ordinary PacketConn WriteTo; no OOB/GSO", "fresh_connection": true, "early_data": false, "tls": "1.3", "alpn": "assessment964"}
+	sock, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	pio := &packetIO{PacketConn: sock}
+	tr := &quic.Transport{Conn: pio}
+	defer func() {
+		tr.Close()
+		sock.Close()
+		pio.mu.Lock()
+		out.Writes = pio.Writes
+		out.Overflow = pio.Overflow
+		pio.mu.Unlock()
+		rec.mu.Lock()
+		out.Events = rec.Events
+		out.Overflow = out.Overflow || rec.Overflow
+		rec.mu.Unlock()
+	}()
+	var conn *quic.Conn
+	if mode == "server" {
+		pair, e := tls.LoadX509KeyPair(cert, key)
+		if e != nil {
+			return e
+		}
+		ln, e := tr.Listen(&tls.Config{Certificates: []tls.Certificate{pair}, NextProtos: []string{"assessment964"}, MinVersion: tls.VersionTLS13}, cfg)
+		if e != nil {
+			return e
+		}
+		defer ln.Close()
+		data := payload(size)
+		if e = os.WriteFile(ready, []byte(fmt.Sprintf("{\"port\":%d}", sock.LocalAddr().(*net.UDPAddr).Port)), 0600); e != nil {
+			return e
+		}
+		conn, e = ln.Accept(ctx)
+		if e != nil {
+			return e
+		}
+		stream, e := conn.AcceptStream(ctx)
+		if e != nil {
+			return e
+		}
+		var request [1]byte
+		if _, e = io.ReadFull(stream, request[:]); e != nil {
+			return e
+		}
+		if request[0] != 1 {
+			return fmt.Errorf("bad request")
+		}
+		if _, e = stream.Write(data); e != nil {
+			return e
+		}
+		if e = stream.Close(); e != nil {
+			return e
+		}
+		select {
+		case <-conn.Context().Done():
+		case <-ctx.Done():
+			conn.CloseWithError(0, "assessment teardown")
+		}
+	} else {
+		certPEM, e := os.ReadFile(cert)
+		if e != nil {
+			return e
+		}
+		roots := x509.NewCertPool()
+		if !roots.AppendCertsFromPEM(certPEM) {
+			return fmt.Errorf("bad cert")
+		}
+		addr, e := net.ResolveUDPAddr("udp4", remote)
+		if e != nil {
+			return e
+		}
+		expected := sha256.Sum256(payload(size))
+		start := time.Now()
+		conn, e = tr.Dial(ctx, addr, &tls.Config{RootCAs: roots, ServerName: "localhost", NextProtos: []string{"assessment964"}, MinVersion: tls.VersionTLS13}, cfg)
+		if e != nil {
+			return e
+		}
+		out.HandshakeNS = time.Since(start).Nanoseconds()
+		stream, e := conn.OpenStreamSync(ctx)
+		if e != nil {
+			return e
+		}
+		requestStart := time.Now()
+		if _, e = stream.Write([]byte{1}); e != nil {
+			return e
+		}
+		if e = stream.Close(); e != nil {
+			return e
+		}
+		got, e := io.ReadAll(io.LimitReader(stream, int64(size+1)))
+		if e != nil {
+			return e
+		}
+		digest := sha256.Sum256(got)
+		if len(got) != size || digest != expected {
+			return fmt.Errorf("payload verification failed: %d", len(got))
+		}
+		out.RequestEOFNS = time.Since(requestStart).Nanoseconds()
+		out.DialEOFNS = time.Since(start).Nanoseconds()
+		out.Bytes = len(got)
+		out.SHA256 = hex.EncodeToString(digest[:])
+		out.Verified = true
+		out.Goodput = float64(len(got)) * 1e9 / float64(out.RequestEOFNS)
+		conn.CloseWithError(0, "")
+	}
+	out.Stats = conn.ConnectionStats()
+	out.Version = conn.ConnectionState().Version
+	out.TLSResumed = conn.ConnectionState().TLS.DidResume
+	return nil
+}
+
+type trace struct{ *recorder }
+
+func (t *trace) AddProducer() qlogwriter.Recorder { return t.recorder }
+func (*trace) SupportsSchemas(string) bool        { return false }
+func main() {
+	mode := flag.String("mode", "client", "")
+	remote := flag.String("remote", "", "")
+	ready := flag.String("ready", "", "")
+	output := flag.String("output", "", "")
+	size := flag.Int("size", 65536, "")
+	cert := flag.String("cert", "", "")
+	key := flag.String("key", "", "")
+	flag.Parse()
+	out := result{Mode: *mode}
+	err := execute(*mode, *remote, *ready, *cert, *key, *size, &out)
+	if err != nil {
+		out.Error = err.Error()
+	}
+	if out.Overflow && out.Error == "" {
+		out.Error = "trace cap"
+	}
+	data, e := json.Marshal(out)
+	if e != nil {
+		panic(e)
+	}
+	if e = os.WriteFile(*output, append(data, '\n'), 0600); e != nil {
+		panic(e)
+	}
+	if out.Error != "" {
+		os.Exit(1)
+	}
+}

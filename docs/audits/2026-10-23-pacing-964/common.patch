@@ -1,0 +1,90 @@
+diff --git a/internal/congestion/assessment964.go b/internal/congestion/assessment964.go
+new file mode 100644
+index 00000000..a24e8af9
+--- /dev/null
++++ b/internal/congestion/assessment964.go
+@@ -0,0 +1,24 @@
++package congestion
++
++import (
++	"github.com/quic-go/quic-go/qlogwriter/jsontext"
++	"time"
++)
++
++// Assessment-only instrumentation, identical in both measured arms.
++type assessment964Pacing struct {
++	Rate      uint64
++	Window    int64
++	SlowStart bool
++	Budget    int64
++}
++
++func (assessment964Pacing) Name() string { return "assessment964:pacing" }
++func (assessment964Pacing) Encode(enc *jsontext.Encoder, _ time.Time) error {
++	return enc.WriteToken(jsontext.Null)
++}
++
++func (c *cubicSender) pacingRate964() uint64 {
++	bw := uint64(c.BandwidthEstimate() / BytesPerSecond)
++	return bw * 5 / 4
++}
+diff --git a/internal/congestion/cubic_sender.go b/internal/congestion/cubic_sender.go
+index e5457ddb..8c0e82dc 100644
+--- a/internal/congestion/cubic_sender.go
++++ b/internal/congestion/cubic_sender.go
+@@ -113,7 +113,7 @@ func newCubicSender(
+ 		qlogger:                    qlogger,
+ 		maxDatagramSize:            initialMaxDatagramSize,
+ 	}
+-	c.pacer = newPacer(c.BandwidthEstimate)
++	c.pacer = newPacerWithRate(c.pacingRate964)
+ 	if c.qlogger != nil {
+ 		c.lastState = qlog.CongestionStateSlowStart
+ 		c.qlogger.RecordEvent(qlog.CongestionStateUpdated{
+@@ -148,6 +148,9 @@ func (c *cubicSender) OnPacketSent(
+ 	isRetransmittable bool,
+ ) {
+ 	c.pacer.SentPacket(sentTime, bytes)
++	if c.qlogger != nil {
++		c.qlogger.RecordEvent(assessment964Pacing{Rate: c.pacer.adjustedBandwidth(), Window: int64(c.GetCongestionWindow()), SlowStart: c.InSlowStart(), Budget: int64(c.pacer.Budget(sentTime))})
++	}
+ 	if !isRetransmittable {
+ 		return
+ 	}
+diff --git a/internal/congestion/pacer.go b/internal/congestion/pacer.go
+index 7656f529..417fefdf 100644
+--- a/internal/congestion/pacer.go
++++ b/internal/congestion/pacer.go
+@@ -19,18 +19,20 @@ type pacer struct {
+ }
+ 
+ func newPacer(getBandwidth func() Bandwidth) *pacer {
+-	p := &pacer{
+-		maxDatagramSize: initialMaxDatagramSize,
+-		adjustedBandwidth: func() uint64 {
+-			// Bandwidth is in bits/s. We need the value in bytes/s.
+-			bw := uint64(getBandwidth() / BytesPerSecond)
+-			// Use a slightly higher value than the actual measured bandwidth.
+-			// RTT variations then won't result in under-utilization of the congestion window.
+-			// Ultimately, this will result in sending packets as acknowledgments are received rather than when timers fire,
+-			// provided the congestion window is fully utilized and acknowledgments arrive at regular intervals.
+-			return bw * 5 / 4
+-		},
+-	}
++	return newPacerWithRate(func() uint64 {
++		// Bandwidth is in bits/s. We need the value in bytes/s.
++		bw := uint64(getBandwidth() / BytesPerSecond)
++		// Use a slightly higher value than the actual measured bandwidth.
++		// RTT variations then won't result in under-utilization of the congestion window.
++		// Ultimately, this will result in sending packets as acknowledgments are received rather than when timers fire,
++		// provided the congestion window is fully utilized and acknowledgments arrive at regular intervals.
++		return bw * 5 / 4
++	})
++}
++
++// newPacerWithRate keeps token accounting independent of sender rate policy.
++func newPacerWithRate(rate func() uint64) *pacer {
++	p := &pacer{maxDatagramSize: initialMaxDatagramSize, adjustedBandwidth: rate}
+ 	p.budgetAtLastSent = p.maxBurstSize()
+ 	return p
+ }
