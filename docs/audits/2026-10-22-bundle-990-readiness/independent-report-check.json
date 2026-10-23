@@ -1,0 +1,11 @@
+{
+  "command": [
+    "python3",
+    "report.py",
+    "--check"
+  ],
+  "cwd": "/Volumes/worktrees/quic-go-fast/bundle-readiness-990/docs/audits/2026-10-22-bundle-990-readiness",
+  "exit": 0,
+  "log_sha256": "0909f141ee9778eaca0e8f76431fc52bf618f895256d9e0ffef2bcb318c7209f",
+  "source_registration": "05879c86bbbccd67a4eb2147d29e2f74a74fe8da"
+}

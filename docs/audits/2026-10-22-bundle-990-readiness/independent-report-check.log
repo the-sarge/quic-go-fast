@@ -1,0 +1,40 @@
+observations 140 blocking raised [('loopback', 'stream', 'cand-bbrv3', 'goodput'), ('loopback', 'stream', 'cand-bbrv3', 'send_cpu'), ('loopback', 'datagram', 'cand-bbrv3', 'goodput'), ('loopback', 'datagram', 'cand-reno', 'control_p95'), ('S5', 'stream', 'cand-bbrv3', 'send_rss'), ('S5', 'stream', 'cand-bbrv3', 'receive_rss'), ('S5', 'datagram', 'cand-bbrv3', 'send_rss'), ('S6', 'stream', 'cand-bbrv3', 'send_rss'), ('S6', 'stream', 'cand-bbrv3', 'receive_rss'), ('S6', 'stream', 'cand-bbrv3', 'control_p95'), ('S6', 'datagram', 'cand-bbrv3', 'send_rss'), ('S6', 'datagram', 'cand-bbrv3', 'control_p95')]
+S6 benefit [('stream', 'met'), ('datagram', 'met')]
+observations 140 blocking raised [('loopback', 'stream', 'cand-bbrv3', 'goodput'), ('loopback', 'stream', 'cand-bbrv3', 'send_cpu'), ('loopback', 'datagram', 'cand-bbrv3', 'goodput'), ('loopback', 'datagram', 'cand-reno', 'control_p95'), ('S5', 'stream', 'cand-bbrv3', 'send_rss'), ('S5', 'stream', 'cand-bbrv3', 'receive_rss'), ('S5', 'datagram', 'cand-bbrv3', 'send_rss'), ('S6', 'stream', 'cand-bbrv3', 'send_rss'), ('S6', 'stream', 'cand-bbrv3', 'receive_rss'), ('S6', 'stream', 'cand-bbrv3', 'control_p95'), ('S6', 'datagram', 'cand-bbrv3', 'send_rss'), ('S6', 'datagram', 'cand-bbrv3', 'control_p95')]
+S6 benefit [('stream', 'met'), ('datagram', 'met')]
+cpu split loopback stream send raised inside window 1.114 0.22
+cpu split loopback stream receive - mixed 1.079 0.23
+cpu split loopback datagram send - mixed 1.093 0.22
+cpu split loopback datagram receive - mixed 1.015 0.47
+cpu split S5 stream send - mixed 0.946 0.0
+cpu split S5 stream receive - mixed 1.053 0.27
+cpu split S5 datagram send - mixed 1.001 0.0
+cpu split S5 datagram receive - mixed 1.006 0.2
+cpu split S6 stream send - mixed 0.089 0.0
+cpu split S6 stream receive - mixed 0.074 0.0
+cpu split S6 datagram send - mixed 0.1 0.0
+cpu split S6 datagram receive - mixed 0.082 0.0
+s5timeline s5timeline-S5-stream-p1-cand-timeline-bbrv3 model {'deficit': 0.0273, 'idle': 0.0297, 'model': 0.0181, 'timing': 0.0001, 'unexplained': 0.0115, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'refill': 0.03, 'up': 0.115, 'down': 0.228, 'cruise': 0.595, 'probertt': 0.032}
+s5timeline s5timeline-S5-stream-p2-cand-timeline-bbrv3 model {'deficit': 0.0292, 'idle': 0.0318, 'model': 0.0193, 'timing': 0.0001, 'unexplained': 0.0124, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'cruise': 0.627, 'refill': 0.028, 'up': 0.102, 'down': 0.208, 'probertt': 0.035}
+s5timeline s5timeline-S5-stream-p3-cand-timeline-bbrv3 model {'deficit': 0.0247, 'idle': 0.0283, 'model': 0.0149, 'timing': 0.0001, 'unexplained': 0.0133, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'cruise': 0.632, 'refill': 0.027, 'up': 0.102, 'down': 0.213, 'probertt': 0.026}
+s5timeline s5timeline-S5-stream-p4-cand-timeline-bbrv3 model {'deficit': 0.0276, 'idle': 0.0266, 'model': 0.0146, 'timing': 0.0001, 'unexplained': 0.012, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'down': 0.215, 'cruise': 0.624, 'refill': 0.031, 'up': 0.103, 'probertt': 0.028}
+s5timeline s5timeline-S5-datagram-p1-cand-timeline-bbrv3 model {'deficit': 0.021, 'idle': 0.0184, 'model': 0.0097, 'timing': 0.0002, 'unexplained': 0.0085, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'up': 0.118, 'down': 0.245, 'cruise': 0.587, 'probertt': 0.019, 'refill': 0.031}
+s5timeline s5timeline-S5-datagram-p2-cand-timeline-bbrv3 model {'deficit': 0.0266, 'idle': 0.0235, 'model': 0.015, 'timing': 0.0001, 'unexplained': 0.0084, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'down': 0.236, 'cruise': 0.59, 'refill': 0.031, 'up': 0.115, 'probertt': 0.029}
+s5timeline s5timeline-S5-datagram-p3-cand-timeline-bbrv3 no deficit {'deficit': 0.0199, 'idle': 0.0193, 'model': 0.01, 'timing': 0.0001, 'unexplained': 0.0092, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'cruise': 0.613, 'refill': 0.031, 'up': 0.115, 'down': 0.223, 'probertt': 0.019}
+s5timeline s5timeline-S5-datagram-p4-cand-timeline-bbrv3 model {'deficit': 0.0293, 'idle': 0.0283, 'model': 0.0189, 'timing': 0.0001, 'unexplained': 0.0093, 'loss': 0.0, 'coverage_s': 30.0, 'queue_missing': 0.0} phases {'cruise': 0.612, 'refill': 0.031, 'up': 0.114, 'down': 0.206, 'probertt': 0.038}
+s5timeline verdict {'stream': 'model', 'datagram': 'model'} model behaviour None
+preslat loopback datagram not reproduced {'ratio': 0.8337232896234695, 'blocks': 6, 'cand_p95_ms': 0.767539, 'reno_p95_ms': 0.920616, 'cand_p50_ms': 0.15765, 'reno_p50_ms': 0.1562325}
+S5/cand-bbrv3                loss median 0.0254% max 0.0275%  lost 98  beyond relay drops 0
+S5/cand-reno                 loss median 0.4087% max 0.4405%  lost 1624  beyond relay drops 0
+S5/old-reno                  loss median 0.4215% max 0.4392%  lost 1675  beyond relay drops 0
+S5/reno-reno                 loss median 0.3939% max 0.4012%  lost 1565  beyond relay drops 0
+S5/reno-reno-aa              loss median 0.4035% max 0.4345%  lost 1603  beyond relay drops 0
+S6/cand-bbrv3                loss median 0.1334% max 0.2290%  lost 477  beyond relay drops -1
+S6/old-reno                  loss median 0.0921% max 0.1124%  lost 30  beyond relay drops 0
+S6/reno-reno                 loss median 0.0956% max 0.1128%  lost 30  beyond relay drops -1
+S6/reno-reno-aa              loss median 0.0956% max 0.1121%  lost 30  beyond relay drops 0
+loopback/cand-bbrv3          loss median 0.0000% max 0.0000%  lost 0
+loopback/cand-reno           loss median 0.0000% max 0.0070%  lost 0
+loopback/old-reno            loss median 0.0494% max 0.0607%  lost 6055
+loopback/reno-reno           loss median 0.0001% max 0.0004%  lost 11
+loopback/reno-reno-aa        loss median 0.0001% max 0.0053%  lost 9
