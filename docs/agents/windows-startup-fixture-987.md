@@ -1,5 +1,7 @@
 # Windows startup fixture investigation #987
 
+The later [#1002 contract](windows-startup-port-selection-1002.md) supersedes this investigation's TCP port-zero selection strategy after a native recurrence showed TCP-allocated ports denied for UDP. This document retains the original bounded investigation and decision; frozen evidence remains unchanged.
+
 ## Accepted outcome
 
 Deliver bounded diagnosis, fixture cleanup and the evidence-supported correction for [issue #987](https://github.com/the-sarge/quic-go-fast/issues/987). Apply a port-selection correction only if native Windows evidence supports it. The initial inconclusive diagnostic PR #991 is merged. A natural recurrence during journal CI now triggers the originally approved conditional correction in a separate fixture-only PR; keep the journal documentation-only and hold its merge until the correction lands. This additional PR is an execution consequence of when native evidence arrived, with no expanded production boundary or investigation budget. Leave #987 open until native validation and merge establish the supported fixture correction. The user approved this contract in the planit chat on October 22, 2026.

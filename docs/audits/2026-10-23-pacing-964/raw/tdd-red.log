@@ -1,0 +1,10 @@
+--- FAIL: TestAssessment964SlowStartDeadline (0.00s)
+    assessment964_test.go:21: 
+        	Error Trace:	/Volumes/worktrees/quic-go-fast/pacing-964-candidate/internal/congestion/assessment964_test.go:21
+        	Error:      	Not equal: 
+        	            	expected: 1.5625ms
+        	            	actual  : 2.5ms
+        	Test:       	TestAssessment964SlowStartDeadline
+FAIL
+FAIL	github.com/quic-go/quic-go/internal/congestion	0.177s
+FAIL

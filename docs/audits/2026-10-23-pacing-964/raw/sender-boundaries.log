@@ -1,0 +1,18 @@
+=== RUN   TestAssessment964SlowStartDeadline
+--- PASS: TestAssessment964SlowStartDeadline (0.00s)
+=== RUN   TestAssessment964TimerAndBurst
+=== RUN   TestAssessment964TimerAndBurst/above_floor
+=== RUN   TestAssessment964TimerAndBurst/floor_boundary
+=== RUN   TestAssessment964TimerAndBurst/just_above_floor
+=== RUN   TestAssessment964TimerAndBurst/high_rate
+--- PASS: TestAssessment964TimerAndBurst (0.00s)
+    --- PASS: TestAssessment964TimerAndBurst/above_floor (0.00s)
+    --- PASS: TestAssessment964TimerAndBurst/floor_boundary (0.00s)
+    --- PASS: TestAssessment964TimerAndBurst/just_above_floor (0.00s)
+    --- PASS: TestAssessment964TimerAndBurst/high_rate (0.00s)
+=== RUN   TestAssessment964PhaseTransitions
+--- PASS: TestAssessment964PhaseTransitions (0.00s)
+=== RUN   TestAssessment964ConstructorStates
+--- PASS: TestAssessment964ConstructorStates (0.00s)
+PASS
+ok  	github.com/quic-go/quic-go/internal/congestion	0.114s

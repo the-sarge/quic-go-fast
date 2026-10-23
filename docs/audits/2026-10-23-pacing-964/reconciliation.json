@@ -1,0 +1,12 @@
+{
+  "started": 292,
+  "finished": 292,
+  "failed": 0,
+  "replaced": 0,
+  "unrun": [],
+  "max_attempt_seconds": 4.036453583976254,
+  "all_registration_hashes_match": true,
+  "raw_files": 2628,
+  "all_payloads_verified": true,
+  "no_reported_relay_or_trace_error": true
+}

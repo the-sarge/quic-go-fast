@@ -7755,3 +7755,45 @@ Selected `v0.62.1-fast.8` deliberately and [pinned the intended release candidat
 ### Next
 
 As of this entry, exact-candidate hosted workflows are running and #871's registration is being finalized; no counted measurements, operator memory/baseline/advancement decisions, release tag or publication are claimed. [Bundle #851](https://github.com/the-sarge/quic-go-fast/issues/851) is the live view for the remaining #871 → #887 → #990 → publication gates. This journal-only follow-up does not move the pinned release candidate.
+
+---
+
+## Bounded slow-start pacing assessment completed - 2026-10-23 04:03 EDT
+
+**Main:** `a29d594b2ce4`
+**Actor:** Codex
+
+### Summary
+
+Completed [#964](https://github.com/the-sarge/quic-go-fast/issues/964) in [PR #1000](https://github.com/the-sarge/quic-go-fast/pull/1000). The bounded native STREAM startup assessment completed all 292 scheduled attempts within 771.9 seconds of preparation and 191.676 seconds of network time; every payload verified and no replacement or second campaign occurred. Registration, source patches, raw records, hashes, analysis and limitations are archived in the [assessment report](audits/2026-10-23-pacing-964/README.md).
+
+### Decisions
+
+Preserve the registered screen’s reject label: the clean 100 ms / 10 Mbit/s / 1 MiB cell exceeded overflow and transport-loss screening limits, and no clean 100 ms cell met the startup-benefit rule. Loss-rate variability was not independently noise-gated, so the report limits causal/materiality interpretation. Production pacing and BBR reference policy remain unchanged; adoption or another campaign requires separate approval. The [issue closeout](https://github.com/the-sarge/quic-go-fast/issues/964) is the decision pointer.
+
+### Validation
+
+RAS review completed with quorum; four documentation findings were corrected and one optional finding rejected. The docs-only exemption skipped another RAS cycle. Exact-head local certification, offline reproduction, checksum reconciliation and all five hosted PR workflows passed before the matching squash merge. No deferred findings survived. The [review receipt](https://github.com/the-sarge/quic-go-fast/pull/1000#issuecomment-6360275883) records the provider failures, provenance limitations and frozen-data whitespace exclusions. No linked OmniFocus task was found.
+
+---
+
+## Distributed startup fixture ports landed - 2026-10-23 05:01 EDT
+
+**Main:** `9885a857e3d9`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1003](https://github.com/the-sarge/quic-go-fast/pull/1003) as `9885a857e3d911f10a6836f58385f59e43377db5`, completing [#1002](https://github.com/the-sarge/quic-go-fast/issues/1002). The combined-server startup fixture now samples up to ten independent unprivileged port candidates and requires both TCP and UDP binds, preserving real startup-failure and cleanup assertions. Production behavior is unchanged.
+
+### Decisions
+
+The [execution contract](agents/windows-startup-port-selection-1002.md) replaces protocol port-zero allocation after opposite TCP/UDP denial recurrences. Keep bounded attempts and diagnostics; do not increase retries, skip Windows or infer universal port availability. [Retained native evidence](audits/issue-1002-startup-ports/README.md) records the cause, correction and limits.
+
+### Validation
+
+One bounded [native Windows Go 1.26.10 run](https://github.com/the-sarge/quic-go-fast/actions/runs/39927044458) passed 100 focused executions, combined lifecycle tests and the captured HTTP/3 shuffle replay, including a real denied TCP candidate followed by a successful second candidate. Exact-head local package/race/vet/lint/tidiness checks passed. All nine final hosted workflows / 33 jobs passed. Five RAS reviewers and synthesis completed; one reviewer process failed. The sole documentation finding was independently rejected as unsupported; no fixes or verification were required. Frozen receipts retain commands and checksums; no flake-rate guarantee follows.
+
+### Next
+
+Resume the independent adaptive-loss policy in [PR #999](https://github.com/the-sarge/quic-go-fast/pull/999) after this journal merges: update to main and renew review, exact-head certification and hosted checks. [#971](https://github.com/the-sarge/quic-go-fast/issues/971) is the live implementation tracker; no performance campaign is authorized.
