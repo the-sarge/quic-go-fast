@@ -26,6 +26,8 @@ Language for QUIC transport behavior and the fork's transmission work.
 
 **Spurious-loss receipt**: An admitted acknowledgment of a transmission previously declared lost. It confirms the transmission arrived, without reversing its historical loss or retransmission actions.
 
+**Adaptive application loss policy**: Path-local recovery classification trained only by surviving ordinary application-loss receipts. It suppresses application packet-distance loss and permits one fresh-send-gated time-threshold increase per ACK, capped at 2 RTT; Initial and Handshake keep their defaults. Greater reordering tolerance can delay genuine loss. See [ADR 0013](docs/adr/0013-adaptive-loss-thresholds.md).
+
 **Reno undo candidate**: The saved state of the latest Reno cutback, eligible for restoration only when surviving receipts resolve every supporting loss and congestion or lifecycle changes have not invalidated it.
 
 **Transport delivery**: Receipt of transmitted data confirmed by the peer transport's acknowledgment. It does not establish that the receiving application has consumed, verified or published useful content.

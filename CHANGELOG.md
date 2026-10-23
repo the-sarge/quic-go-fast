@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Adapt application loss classification after validated, surviving spurious-loss proof: suppress packet-distance loss and grow the time threshold through 9/8, 5/4, 3/2 and 2 RTT with fresh-send gating and migration reset. Apply the same effective per-space delay to ordinary and PTO-retired classification for Reno and BBR, including late-only timer rescheduling. Greater reordering tolerance can delay genuine loss; no performance benefit or qualification is claimed. See [#971](https://github.com/the-sarge/quic-go-fast/issues/971) and [ADR 0013](docs/adr/0013-adaptive-loss-thresholds.md).
+
 ## v0.62.1-fast.8 — prepared, not published
 
 Selected for the eleven-slice [bundle #851](https://github.com/the-sarge/quic-go-fast/issues/851), based on upstream quic-go v0.62.0 and covering changes since `v0.62.1-fast.7`. The [release preparation](docs/releases/v0.62.1-fast.8.md) records defaults, consumer decisions, accepted costs, capabilities, scope and the publication gates. Candidate selection follows this preparation PR's merge; preparation does not authorize tagging before the memory, baseline and fresh readiness decisions.

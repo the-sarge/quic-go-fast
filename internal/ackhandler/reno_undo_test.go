@@ -46,6 +46,8 @@ func TestRenoUndoExpiredReceipt(t *testing.T) {
 		t.Run(extra.String(), func(t *testing.T) {
 			f := newSpuriousLossFixture(false)
 			pns := f.loseFirstTwo(t)
+			// Isolate receipt age from the adaptive scan's genuine-loss checks.
+			f.ack(t, 105*time.Millisecond, pns[2:]...)
 			// No intervening ACK has cleaned the history; age still fences undo.
 			lifetime := 3 * f.h.rttStats.PTO(false)
 			f.ack(t, lifetime+extra, pns[0], pns[1])
@@ -119,11 +121,14 @@ func TestRenoUndoNewLossBeforeOldProof(t *testing.T) {
 	}
 	// ACK all surviving old packets, prove the old losses, and declare a
 	// genuine new loss in the same admitted ACK.
-	f.ack(t, 210*time.Millisecond, append(slices.Clone(pns), newer[1:]...)...)
+	// A newer receipt keeps the RTT sample short; the missing flight is old
+	// enough to remain genuine loss after this ACK adapts the threshold.
+	witness := f.send(310*time.Millisecond, protocol.Encryption1RTT)
+	f.ack(t, 320*time.Millisecond, append(append(slices.Clone(pns), newer[1:]...), witness)...)
 	require.EqualValues(t, 18816, f.h.congestion.GetCongestionWindow())
-	f.ack(t, 211*time.Millisecond, pns...)
+	f.ack(t, 321*time.Millisecond, pns...)
 	require.EqualValues(t, 18816, f.h.congestion.GetCongestionWindow())
-	f.ack(t, 212*time.Millisecond, newer[0])
+	f.ack(t, 322*time.Millisecond, newer[0])
 	require.EqualValues(t, 26880, f.h.congestion.GetCongestionWindow(), "only the latest cutback can be undone")
 }
 
