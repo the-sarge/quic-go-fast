@@ -2,6 +2,8 @@
 
 **Status:** design exploration, 2026-10-24. This note answers the sizing questions in [#646](https://github.com/the-sarge/quic-go-fast/issues/646). The owner has directed bounded native send completion, narrower initial I/O support and local queue/write timeouts treated as backpressure rather than path failure. That direction does not authorize implementation, change an existing public interface, accept the remaining D0 choices or authorize a qualification campaign. The issue stays open for a separately accepted and audited implementation handoff.
 
+**Current D0 decisions:** [the D0 contract](quic-multipath-d0.md) selects concrete API, resource, timeout, scheduling, evidence and sequencing choices for both milestones. Its technical selections, accepted product tolerances and qualification budget supersede the corresponding open choices below. This exploration preserves the rationale and sizing; neither document is an audited dispatch plan.
+
 **Source baseline:** `f35df9d7b016a06174288901f3337ccc2fd7347c`. Production code is unchanged from `f1c5e2dfc0637c2c425a6ed30340adadb92098c6`; the intervening commits reconcile Q2 documentation and its journal. Protocol target: [draft-ietf-quic-multipath-21](https://datatracker.ietf.org/doc/html/draft-ietf-quic-multipath-21). Current publication status, implementation pins, and external source checks are in the [research note](../audits/2026-10-24-multipath-646-research.md). Reproducible inventory and historical counts are in the [sizing data](../audits/2026-10-24-multipath-646-sizing.json).
 
 ## Recommendation and confidence

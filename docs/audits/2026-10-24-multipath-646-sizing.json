@@ -1396,6 +1396,23 @@
         }
       ],
       "F9_accounting": "Documentation-only allocation review; no implementation allowance. F8 introduces an evidence gate and reuses fixture/support allowances; campaign execution is excluded."
+    },
+    "d0_evidence_boundary": {
+      "contract": "docs/designs/quic-multipath-d0.md",
+      "scope": "Both Reno-first and later BBR/aggregation; native support initially Linux amd64, other platforms require later qualification.",
+      "production_forecast_change": [
+        0,
+        0
+      ],
+      "test_support_forecast_change": [
+        0,
+        0
+      ],
+      "future_campaign_max_run_instances": 180,
+      "future_campaign_max_host_hours": 8,
+      "planned_regular_run_instances": 118,
+      "campaign_accounting": "Owner-accepted future operational ceiling, separate from line-edit and candidate-slice forecasts; execution not dispatched. Failed attempts count; no reset or unbounded repetition.",
+      "sizing_status": "Unchanged low-confidence planning ranges; the subsequent slice audit must reconcile its actual graph rather than treating candidate counts as accepted PR boundaries."
     }
   }
 }
