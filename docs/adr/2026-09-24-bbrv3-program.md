@@ -1,7 +1,7 @@
 # BBRv3 implementation program
 
 **Program:** `QGF-BBR3-20260924`
-**Status:** T1/T2/T3/T4/T5 and B1/B2/B3/B4/B5/B6 and Q1 complete; current frontier Q2
+**Status:** T1/T2/T3/T4/T5 and B1/B2/B3/B4/B5/B6 and Q1 complete; Q2 outstanding pending execution-preflight reconciliation
 **OmniFocus parent:** `omnifocus:///task/aaS2XrzGGmp`
 **Tracking issue:** [#600](https://github.com/the-sarge/quic-go-fast/issues/600)
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
@@ -20,13 +20,13 @@ Keep Reno as default, pinned algorithm authority, receiver-defined goodput, exis
 | --- | --- | --- | --- | --- |
 | T: Transport feedback and send ownership | [Transport feedback and send ownership](2026-09-24-bbrv3-transport-plan.md) | [#584](https://github.com/the-sarge/quic-go-fast/issues/584) | 5 | T1/T2/T3/T4/T5 complete |
 | B: Complete opt-in BBRv3 sender | [Complete opt-in BBRv3 sender](2026-09-24-bbrv3-controller-plan.md) | [#585](https://github.com/the-sarge/quic-go-fast/issues/585) | 6 | B1/B2/B3/B4/B5/B6 complete |
-| Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 complete; Q2 ready |
+| Q: Qualification readiness and evidence | [Qualification readiness and evidence](2026-09-24-bbrv3-qualification-plan.md) | [#586](https://github.com/the-sarge/quic-go-fast/issues/586) | 2 | Q1 complete; Q2 pending execution-preflight reconciliation |
 
-Current frontier: **Q2**. All T and B slices and Q1 are complete. Q1
-[PR #642](https://github.com/the-sarge/quic-go-fast/pull/642) freezes native
-prerequisites and a bounded 520-case manifest. B6 supplies opt-in BBR selection.
-Q2 is ready for separate dispatch; fresh host/resource/clock preflight remains
-required and no comparative qualification result is asserted by preparation.
+Current frontier: **Q2**, pending the [qualification plan's execution gates](2026-09-24-bbrv3-qualification-plan.md#current-dispatch-status-and-evidence-gates) and separate operator dispatch. All T/B slices and Q1 are complete (12/13 historical audited slices). Q1 [PR #642](https://github.com/the-sarge/quic-go-fast/pull/642) froze preparation and the 520-case inventory; B6 supplied opt-in selection. Their completion does not certify current hosts, remaining budget or a later candidate.
+
+Comparative campaigns #808 and #990 and fast.8 release gates #871/#887 are complete; full Q2 qualification is outstanding. BBRv3 remains experimental, opt-in and unqualified, with Reno default. Candidate-specific release evidence and exceptions do not transfer to later main or other platforms. The qualification plan owns the active cumulative budget and pending candidate/reference, readiness, inventory, resource and accounting reconciliation; this program index grants no launch authority.
+
+After Q2 and this program complete, #619 supplies separate GridCast asymmetric-link evidence for the #645 decision. Neither issue expands or blocks this qualification campaign.
 
 | Slice | Exact blockers |
 | --- | --- |
