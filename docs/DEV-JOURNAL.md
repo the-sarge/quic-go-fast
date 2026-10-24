@@ -7839,3 +7839,28 @@ BBRv3's highlight cites 14.06× STREAM and 14.27× DATAGRAM useful throughput ve
 RAS review `20261024T041800-c757b7c00e345d6a99a0d18d` completed with five successful reviewers and synthesis; one reviewer process failed, with quorum met. Restored the moved read-slot buffer/truncation detail and API-contract link. Rejected restoration of fast.1 timeout warnings as current guidance after checking the cited issues were closed before fast.8. The bounded, high-confidence docs-only correction policy skipped a RAS rerun; no deferred or decision-blocking findings remained.
 
 Final head `2eb1a3f586aadc159e752222c59faa82c72f8224`, base `27ed7d3693124d540394a1c78c5a73748db40354`: clean-tree/head checks, whitespace validation, 23 local Markdown destinations/anchors, and comparisons against source, release/tag metadata and recorded measurement evidence passed. All nine hosted workflows and 33 checks passed before the exact-head squash merge. No local Go tests or benchmark runs were added for this documentation-only change.
+
+---
+
+## BBR Q2 plan and tracker reconciliation - 2026-10-24 14:49 EDT
+
+**Main:** `f6ad5ea70c42`
+**Actor:** Codex
+
+### Summary
+
+[PR #1008](https://github.com/the-sarge/quic-go-fast/pull/1008) reconciled Q2's governing qualification plan, program frontier and design budget references. The original Q1/B6 dependencies are complete, while Q2 remains outstanding pending an accepted execution preflight and separate operator dispatch. [#599](https://github.com/the-sarge/quic-go-fast/issues/599) now pins the merged plan and uses `needs-triage`; [#586](https://github.com/the-sarge/quic-go-fast/issues/586) and [#600](https://github.com/the-sarge/quic-go-fast/issues/600) carry matching state.
+
+### Decisions
+
+The [September 26 amendment](https://github.com/the-sarge/quic-go-fast/issues/599#issuecomment-5846546900) remains $150 cumulative cloud cost, 96 cumulative experiment-hours and a separate 72 cumulative preparation-hour ceiling, retaining prior charges and all 520 cases. The [current plan](https://github.com/the-sarge/quic-go-fast/blob/f6ad5ea70c421db6e4c75250d7383f77628c3977/docs/adr/2026-09-24-bbrv3-qualification-plan.md#current-dispatch-status-and-evidence-gates) preserves candidate/reference, readiness, native-resource, accounting and correctness gates. Fast.8's bounded release decisions establish neither Q2 qualification nor transferable exceptions. The separate post-program #619 measurement remains #645's evidence gate. No campaign, resource provisioning or live ledger/guard change was performed.
+
+### Validation
+
+Certified product head `46b3a01f1b143add2e206d6c7bb3b616b4311f1a` on base `f1c5e2dfc0637c2c425a6ed30340adadb92098c6`: clean worktree, diff whitespace checks, 42 relative file links plus new anchors, slice identity/inventory/context checks, and no frozen-evidence changes. All nine hosted workflows / 33 jobs passed; job and step results were inspected.
+
+RAS review `20261024T183622-3c4ea2636bc33a1985011053` used codex-sol and claude-opus, with codex-astra synthesis. One obsolete budget paragraph was corrected; the second report duplicated that finding. Additional RAS review/verification was skipped under the shared policy for a cheap, high-confidence documentation correction, with local checks repeated and hosted CI run on the corrected head. No deferred or stop-for-decision finding remained. A native-only delivery configuration failed before reviewer launch; the completed review used prompt-only delivery in a temporary configuration without changing global settings.
+
+### Next
+
+Q2 needs its bounded candidate/reference, readiness, inventory, resource and accounting preflight before restoring execution readiness. [#599](https://github.com/the-sarge/quic-go-fast/issues/599) is the live resume point; [#600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live program view.
