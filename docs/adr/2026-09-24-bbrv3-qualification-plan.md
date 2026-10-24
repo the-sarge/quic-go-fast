@@ -1,25 +1,47 @@
 # Qualification readiness and evidence implementation plan
 
 **Date:** 2026-09-24
-**Status:** Accepted; not implemented
+**Status:** Q1 complete; Q2 outstanding, pending execution-preflight reconciliation and separate operator dispatch
 **Track:** Q in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
 **Normative scope:** Current outcome, boundaries, invariants, evidence, blockers and stop conditions
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
-**Parent issue:** pending
+**Parent issue:** [#586](https://github.com/the-sarge/quic-go-fast/issues/586); execution child [#599](https://github.com/the-sarge/quic-go-fast/issues/599)
 
 ## Goal
 
 A bounded native campaign with honest prerequisites, unchanged accounting and a human adoption decision; no consumer edits or rollout.
 
-## Current shape (verified 2026-09-24)
+## Historical preparation baseline (verified 2026-09-24)
 
 The existing benchmark is a loopback transfer fixture (`integrationtests/self/benchmark_test.go:1`), not proof of a calibrated native impairment topology. The accepted campaign file and counted JSON inventory specify 460 core runs/36 hours, 60 completion runs and the 48-hour ceiling; they explicitly leave actual hosts, emulator/tool choice and runnable commands to preparation. No available-host or successful-campaign claim is made by this handoff. Source anchors use the inspected code tree named in the audit; verify semantic seams at dispatch rather than treating moving line numbers as authority.
 
+The paragraph above records original preparation inputs. Q1 completed in [#642](https://github.com/the-sarge/quic-go-fast/pull/642); its frozen artifacts retain their original limits and observations. The active budget below supersedes earlier ceilings without rewriting those records.
+
+## Current dispatch status and evidence gates
+
+Q1 (#598) and B6 (#597) are complete; the original slice dependencies are satisfied. Full Q2 qualification remains outstanding. Comparative readiness/coexistence evidence exists from [#808](https://github.com/the-sarge/quic-go-fast/issues/808), and fast.8 gates [#871](https://github.com/the-sarge/quic-go-fast/issues/871), [#887](https://github.com/the-sarge/quic-go-fast/issues/887) and [#990](https://github.com/the-sarge/quic-go-fast/issues/990) are complete. These revision-specific records do not complete the accepted 520-case Q2 campaign or establish native qualification across platforms. Reno remains the default; BBRv3 remains experimental, opt-in and unqualified.
+
+The [October 18 sequencing decision](https://github.com/the-sarge/quic-go-fast/issues/599#issuecomment-6253457972) and [October 21 readiness requirement](https://github.com/the-sarge/quic-go-fast/issues/599#issuecomment-6319172869) remain governing constraints. Closed prerequisite issues do not select a Q2 candidate or certify current `main`. Before restoring execution readiness, publish and review a bounded execution preflight resolving:
+
+1. **Candidate and references.** Pin the candidate, controller identities, fixture/tool versions and blocking versus descriptive comparison references. [#887's decision](https://github.com/the-sarge/quic-go-fast/issues/887#issuecomment-6354232820) names bundle Reno `8095c72244755f0c1e24f4158253bf09cfbe6e17` as blocking and old Reno `e4f322cbbfd4225a4b714e08ec19c958cccadcb0` as descriptive for bundle readiness. Preserve that scope; a different Q2 reference needs an explicit decision. This reconciliation selects neither fast.8 nor later `main` as the Q2 candidate. [#971](https://github.com/the-sarge/quic-go-fast/issues/971) changed shared recovery after fast.8 and was not measured by #990.
+2. **Applicable readiness and advancement.** Map the selected revision and each native platform to required readiness evidence and its advancement disposition, retaining the adverse L6 coexistence result and all raised flags. [#990's decision](https://github.com/the-sarge/quic-go-fast/issues/990#issuecomment-6357898036) permits publication of the exact fast.8 candidate on its Linux evidence; it grants no Q2 qualification, macOS/Windows advancement or transfer to a different revision or later measurement. Its fixture did not exercise the native batch cap or gluing. Exceptions remain confined to their recorded cells, magnitudes, revision and platform. Resolve missing requirements with bounded evidence and the applicable decision before execution; this document waives no gate and launches no readiness work.
+3. **Inventory and fixture coverage.** Reconcile the accepted 460 core and 60 completion cases against the selected sender, default Reno, shared recovery and packet-I/O paths. Retain required platforms, workloads, seeds, pair ordering, timing, competing-flow regimes, ECN distinctions and useful-delivery accounting. Record each endpoint's ACK mode/threshold and affected peer controller; fast.8's local ACK API does not authorize a BBR opt-in or an ACK-mode sweep. Do not count historical readiness observations as Q2 cases or silently add, remove or replace cases. If the inventory cannot execute as specified within the remaining budget, return a scoped decision instead of weakening the contract.
+4. **Resources, clocks and accounting.** Refresh native hosts, isolation/contention, capabilities, tools, emulator calibration, clock validity, cleanup ownership and runnable commands. Reconcile cumulative charges against authoritative receipts and the ledger, then verify the effective controller guard before paid launch. Report actual remaining allowances separately from forecasts; old receipts do not establish current availability or credit.
+5. **Authority and dispatch.** Retain this slice's one-owner, one-PR outcome, evidence/context ceilings and hard correctness gates. Link the accepted preflight, applicable operator decisions and exact merged plan revision from #599 before restoring execution readiness. Unresolved candidate/reference choices or missing authority remain pending. The operator separately chooses dispatch. This reconciliation launches no campaign, provisions no resource, changes no live ledger/guard and authorizes no additional spending or cases.
+
+[#619](https://github.com/the-sarge/quic-go-fast/issues/619) remains supplemental work after Q2 and program #600 complete, not a qualification blocker or a draw on this budget. It remains the evidence gate for [#645](https://github.com/the-sarge/quic-go-fast/issues/645), subject to the explicit owner override recorded there. Shipping #856's local receiver mode discharges neither issue.
+
+## Active budget authority
+
+The [September 26 amendment](https://github.com/the-sarge/quic-go-fast/issues/599#issuecomment-5846546900) authorizes **$150 cumulative cloud cost and 96 cumulative experiment-hours**. The separate **72 cumulative preparation-hour** ceiling is unchanged. These are total ceilings, not fresh allowances. All prior usage, failures, failed starts, unused reservations, launch and teardown remain charged under the existing accounting contract. This reconciliation resets no budget, transfers no credit from another campaign and expands no allowance.
+
+The inventory remains **460 core plus 60 completion cases**, with the existing repetitions and timing. Q1's frozen forecast of 69.984667 experiment-hours and $96.083333 yields arithmetic contingency of 26.015333 hours and $53.916667 under the amended ceilings; those figures are not reconciled remaining credit. Preserve frozen receipts and their original limits. Before launch, reconcile the current ledger and remaining forecast and verify that the merged, staged infrastructure controller enforces the approved ceilings while retaining prior charges. This documentation does not claim the live guard is updated. Missing accounting, an incompatible guard or insufficient remaining budget prevents launch pending resolution; correctness and evidence requirements are not reduced to fit.
+
 ## Decision and existing-work disposition
 
-The [design specification](../designs/bbrv3.md) is normative for algorithm/interface details; this plan is normative for slice boundaries, ownership, evidence and dispatch. Their contracts compose, with no implied permission to weaken either. All D01–D13 decisions remain selected; the actual-marking-ledger correction closes a source-proven representation hole. There is no prior implementation slice to retain. The open design-only PR is reworked into this publication and superseded after this package merges; it is never treated as a shipped dependency.
+The [design specification](../designs/bbrv3.md) is normative for algorithm/interface details; this plan is normative for slice boundaries, ownership, evidence and dispatch. Their contracts compose, with no implied permission to weaken either. Retain the accepted design decisions, completed T/B and Q1 slices, and their historical evidence. Reconcile subsequent production changes and operator decisions through the current execution gates; do not treat the original handoff's candidate assumptions as current certification.
 
 **Rejected alternatives (do not do this):** Do not expose incomplete BBR under a public selector, copy a TCP/QUICHE controller wholesale, move registration/model ownership to workers, infer marking from packet-number interval alone, or alter Reno to simplify a BBR adapter. Do not create a global controller switch, new wire parameter, raw ECN authority, unbounded evidence store, fleet purchase, cross-repository implementation or rollout plan.
 
@@ -30,7 +52,7 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | [Q1](#q1) | complete | Establish the bounded native campaign prerequisites | None | None; see slice budget |
-| [Q2](#q2) | ready | Run the accepted qualification campaign and publish evidence | Q1, B6 | None; see slice budget |
+| [Q2](#q2) | pending execution-preflight reconciliation; not dispatched | Run the accepted qualification campaign and publish evidence | Q1, B6 | None; see slice budget |
 
 ## Operating discipline
 
@@ -40,7 +62,7 @@ For each slice, use one fresh fully briefed review and at most one replacement u
 
 Test functions are an upper budget for new focused functions, not a demand to duplicate existing coverage. Each named table has one representative positive per behavior and one negative per materially distinct failure; no full Cartesian product. A guard mutation is optional only where explicitly named and must be one discriminating bypass per central owner, reverted before commit. All other mutation budgets are zero. No extra fuzz/security/platform/timing/repetition expansion is implicit. Verification aids receive proportional review and no recursive closure obligation. Repository-provided hosted matrix remains mandatory; it is not replaced by these local budgets.
 
-The operator extended Q1 preparation from eight to 16 cumulative hours on 2026-09-25 ([authorization](https://github.com/the-sarge/quic-go-fast/issues/598#issuecomment-5837538642)). The operator subsequently instructed “stop worrying about the time budget … Just make it 72.” That later extension applies to preparation and the independent total experiment-hour ceiling (after an intermediate 56-hour experiment approval), retaining the $100 cloud ceiling and all usage. [Infra PR #643](https://github.com/the-sarge/infra/pull/643) aligns the preparation guard. Paid launches must use the merged, staged guard. The [approved current forecast](../audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.md) replaces the historical allocation. For Mac endpoints, the operator pauses available user/sync workloads and accepts remaining macOS media analysis/indexing with recorded CPU contention (clarified 2026-09-26). GOMAXPROCS=4, identical Reno/BBRv3 settings and separate gateway resources remain required. Neither physical-core isolation nor efficiency-core placement is established.
+The [Q1 budget proposal](../audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.md) and [Infra PR #643](https://github.com/the-sarge/infra/pull/643) record historical preparation and guard decisions. Apply the active budget authority above to future execution; older ceilings and forecasts are not current credit. For Mac endpoints, the operator pauses available user/sync workloads and accepts remaining macOS media analysis/indexing with recorded CPU contention (clarified 2026-09-26). GOMAXPROCS=4, identical Reno/BBRv3 settings and separate gateway resources remain required. Neither physical-core isolation nor efficiency-core placement is established; recheck availability and contention at execution.
 
 ## Common representation, artifacts and context rules
 
@@ -50,7 +72,7 @@ Runtime behavior is shipped behavior; generation, bounds, validation and lifetim
 
 Every slice receives only its current contract, this plan's common sections, named design sections, required ADR paragraphs, named source ranges, relevant existing test declarations and any bounded governing diff. The [audit input inventory](../audits/2026-09-24-bbrv3-handoff/slice-inputs.json) records the initial source ranges and proposed tests. At dispatch resolve named predecessor-owned functions in the merged tree; use a semantic symbol map after line drift, never entire historical plan versions. Limit initial input to 35,000 estimated tokens (`max(bytes/4, whitespace_words*2)`) and relevant unresolved review/history to 3,000 within that ceiling, leaving at least 65,000 of a 100,000-token fresh context for implementation, review fixes and verification. Stop before coding and re-slice if a measured bounded manifest exceeds the ceiling. A predecessor's whole diff is not automatically dispatch input. New tests are implementation output, not initial context.
 
-Public BBR selection remains absent until B6. T/B predecessor slices are independently green private behaviors through real module entrypoints, with constructors selectable only by package-private test plumbing. Ordinary client/server constructors retain Reno. The private controller is not a partially shipped public feature, no temporary algorithm may be labeled qualified, and B6 removes the activation restriction only after all safety behavior is merged. Freeze release/adoption claims until qualification; this does not forbid independently merging private implementation slices.
+B6 completed the public opt-in selector after the original private T/B slices; ordinary client/server constructors retain Reno. Public availability and fast.8's explicitly scoped experimental release do not establish qualification or consumer adoption. Q2 must identify and assess the complete selected production controller, including changes after the original handoff, without treating earlier private-slice or release checks as its comparative evidence.
 
 ## Implementation slices
 
@@ -58,7 +80,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 ### Q1 — Establish the bounded native campaign prerequisites
 
-**Completion:** [PR #642](https://github.com/the-sarge/quic-go-fast/pull/642); [native readiness receipt](../audits/2026-09-25-bbrv3-q1-campaign/readiness-receipt.json). Q2 is the dispatchable successor after this PR merges; no comparative campaign was run by Q1.
+**Completion:** [PR #642](https://github.com/the-sarge/quic-go-fast/pull/642); [native readiness receipt](../audits/2026-09-25-bbrv3-q1-campaign/readiness-receipt.json). Q1 satisfied the original preparation dependency; no comparative campaign was run by Q1. Its receipt does not discharge the current Q2 execution gates above.
 
 **What it delivers:** Within the operator-extended 72 preparation hours, inventory usable native platform pairs/resources and existing fixture/emulator capabilities; pin a runnable campaign manifest with source/host/tool versions, calibrated command choices, ownership and expected runtime. Select the L3 fixed queue basis and final packet-rounded capacities. Publish one readiness receipt and finite missing-prerequisite list if not ready; do not pretend unavailable hosts, calibration or missing tooling exist. This slice completes only when the core campaign is runnable inside its accepted budget.
 
@@ -80,7 +102,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **Contract closure:** Not triggered for this slice: this is finite readiness/measurement evidence, not shipped safety authority; do not recursively impose closure on campaign aids.
 
-**Evidence budget:** The existing accepted campaign budget applies verbatim: Q1 has at most 72 cumulative preparation hours; the shared Q1/Q2 ledger permits at most 72 experiment-hours including failed runs, launch and teardown. The linked finite lease candidate accounts for the accepted 520 cases, retained reservations, remaining native checks, setup/teardown and rounded lease time; its current forecast is 69.985 hours, leaving approximately 2.015 hours of contingency. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
+**Evidence budget:** Apply the active budget authority above: 96 cumulative experiment-hours including failed runs, launch and teardown, $150 cumulative cloud cost, and the separate 72 cumulative preparation-hour ceiling. Retain prior charges and the accepted 460 core plus 60 completion cases. Q1 completed under its recorded historical ceilings; preserve its frozen evidence. Reconcile actual usage, remaining forecast and the enforced guard before launch; historical forecasts are not available credit. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 
 **TDD and preservation evidence:** First write characterization/failing cases for: `Receiver counter integrity/duplicate fixture check`; `Directional rate/RTT/finite-queue/CE calibration`; `Native pair and CPU-isolation inventory`; `Experiment ledger arithmetic and command-cost check`. Use existing real-packer and recovery fixtures rather than mocks of production decision logic. Preserve default Reno, protocol parsing, payload/buffer ownership and existing platform capability boundaries on every changed surface.
 
@@ -94,11 +116,13 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 ### Q2 — Run the accepted qualification campaign and publish evidence
 
+**Current state:** Outstanding; pending the current dispatch gates and active-budget reconciliation above, followed by separate operator dispatch. This reconciliation is documentation only and does not execute Q2.
+
 **What it delivers:** Run the accepted 460 core and 60 completion cases with the complete candidate, native platform pairs and receiver-defined useful delivery, respecting one experiment ledger and hard correctness gates. Publish immutable raw records, per-scenario comparisons, advisory flags, limitations and an adoption decision packet. Produce evidence only: no default switch, consumer rollout or automatic adoption decision.
 
-**Existing-work disposition:** New slice. The unmerged design is reworked documentation only; no implementation is assumed.
+**Existing-work disposition:** Retain the accepted Q2 outcome, inventory and frozen Q1 preparation as provenance. Account for the shipped BBR port, later recovery/default-Reno changes and revision-specific readiness decisions through the execution preflight. Prior readiness records are evidence to assess, not substitute Q2 runs or implicit qualification.
 
-**Blocked by:** Q1, B6.
+**Blocked by:** Q1 and B6 are complete. The current execution gates above and separate operator dispatch remain; closed native dependency edges do not certify those conditions.
 
 **Single owner after merge:** The campaign runner/agent owns the ledger and immutable receipt; native endpoints own observed useful delivery, with the declared clock contract. The owner retains adoption authority.
 
@@ -106,7 +130,7 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **Transitional-seam budget:** None. Frozen experiment aids/results are retained evidence, not shipped runtime or a recursively certified benchmark product.
 
-**Blast radius:** 72 experiment-hour ceiling, five paired repetitions, native platform/offload/ECN distinctions, host contention, control latency and resource cost. No extra statistical/platform cross-product or unbudgeted sensitivity. No untraced effect is accepted; newly discovered effects outside this boundary invoke the stop conditions.
+**Blast radius:** 96 cumulative experiment-hour and $150 cumulative cloud ceilings, the separate 72 cumulative preparation-hour ceiling, five paired repetitions, native platform/offload/ECN distinctions, host contention, control latency and resource cost. No extra statistical/platform cross-product or unbudgeted sensitivity. No untraced effect is accepted; newly discovered effects outside this boundary invoke the stop conditions.
 
 **Artifact classification:** This slice changes process/traceability records and uses campaign verification aids only; it ships no controller behavior. Common aid restrictions apply; no maintained-aid exception is granted.
 
@@ -114,15 +138,15 @@ Public BBR selection remains absent until B6. T/B predecessor slices are indepen
 
 **Contract closure:** Not triggered for this slice: this is finite readiness/measurement evidence, not shipped safety authority; do not recursively impose closure on campaign aids.
 
-**Evidence budget:** The existing accepted campaign budget applies verbatim: Q1 has at most 72 cumulative preparation hours; the shared Q1/Q2 ledger permits at most 72 experiment-hours including failed runs, launch and teardown. The linked finite lease candidate accounts for the accepted 520 cases, retained reservations, remaining native checks, setup/teardown and rounded lease time; its current forecast is 69.985 hours, leaving approximately 2.015 hours of contingency. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
+**Evidence budget:** Apply the active budget authority above: 96 cumulative experiment-hours including failed runs, launch and teardown, $150 cumulative cloud cost, and the separate 72 cumulative preparation-hour ceiling. Retain prior charges and the accepted 460 core plus 60 completion cases. Q1 completed under its recorded historical ceilings; preserve its frozen evidence. Reconcile actual usage, remaining forecast and the enforced guard before launch; historical forecasts are not available credit. No additional cases are authorized here. Required safety validation cannot be demoted on budget exhaustion. One fresh review and at most one replacement. Terminate when the named evidence, scope-specific local gates and same-head hosted CI pass with no unresolved stop-for-decision.
 
 **TDD and preservation evidence:** First write characterization/failing cases for: `Pinned required correctness/calibration commands before comparative runs`; `460 core runs with original pair/seed/timing contract`; `60 completion observations including timeouts`; `Per-run integrity/controller/ECN/resource record and global ledger`. Use existing real-packer and recovery fixtures rather than mocks of production decision logic. Preserve default Reno, protocol parsing, payload/buffer ownership and existing platform capability boundaries on every changed surface.
 
 **Dispatch context budget:** This slice plus common sections; design sections “Qualification and budget”, “Consumer adoption and diagnostics”; the source ranges and test inventory keyed `Q2` in the audit input inventory; only relevant predecessor-owned declarations and focused test declarations; zero unresolved implementation review history at publication. Initial input ceiling 35,000 tokens with 3,000 maximum for relevant history inside it. No whole historical reports. The bounded producer/consumer set and one owner leave the remaining context for implementation and review.
 
-**Slice decision audit:** Further split: The accepted 72-hour ledger and matched comparisons span platforms; splitting execution would require a new budget/ledger ownership contract. Data gathering can use isolated resources in one campaign while analysis remains one bounded context. Adjacent merge: Merging implementation would prevent candidate pinning and combine algorithm fixes with measured results; B6 must be merged first. Dependency evidence: Q1 proves runnable native prerequisites; B6 provides the complete opt-in candidate. Both are factual prerequisites, not scheduling preferences.
+**Slice decision audit:** Further split: The accepted cumulative ledger and matched comparisons span platforms; splitting execution would require a new budget/ledger ownership contract. Data gathering can use isolated resources in one campaign while analysis remains one bounded context. Adjacent merge: Merging implementation would prevent candidate pinning and combine algorithm fixes with measured results; B6 must be merged first. Dependency evidence: Q1 supplies historical preparation provenance and B6 supplied complete selection; the current execution preflight establishes applicability to the selected candidate and resources.
 
-**Stop conditions:** Stop on correctness/calibration failure, exhausted budget, lost host isolation or missing required native cell. Preserve invalid/incomplete runs. Do not repair product code inside this evidence slice, substitute cross-compilation or declare adoption on the owner's behalf. Apply shared representation and precise-root approach stops; an evidence/context overrun is a re-slice decision, not permission to expand this PR.
+**Stop conditions:** Do not launch with unresolved current execution gates. Stop on correctness/calibration failure, exhausted budget, lost host isolation or missing required native cell. Preserve invalid/incomplete runs. Do not repair product code inside this evidence slice, substitute cross-compilation or declare adoption on the owner's behalf. Apply shared representation and precise-root approach stops; an evidence/context overrun is a re-slice decision, not permission to expand this PR.
 
 ## Acceptance criteria
 
