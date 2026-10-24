@@ -1,85 +1,51 @@
 # quic-go-fast
 
-A fork of [quic-go](https://github.com/quic-go/quic-go) focused on lower allocation and copying costs, efficient platform I/O, and reliable transport lifetimes. The upstream baseline is **quic-go v0.62.0**. Existing public APIs, import paths, and QUIC/HTTP/3 wire compatibility are preserved; Go **1.26.0 or newer** is required.
+A fork of [quic-go](https://github.com/quic-go/quic-go) for efficient bulk DATAGRAM and stream transfers, with lower allocation and copying costs, platform I/O optimizations, and transport/HTTP/3 reliability fixes. Based on **quic-go v0.62.0**, retaining its module path and QUIC/HTTP/3 wire compatibility. Requires **Go 1.26.0+**.
 
-The fork began with bulk DATAGRAM transfer and now includes stream, handshake, HTTP/3, and shutdown improvements. The themes below summarize what ships here. See the [detailed changelog](CHANGELOG.md) and [GitHub Releases](https://github.com/the-sarge/quic-go-fast/releases) for individual changes, validation boundaries, and known limitations. General protocol and API usage is covered by the [upstream documentation](https://quic-go.net/docs/).
+**Latest fork release: [v0.62.1-fast.8](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8)**, published October 23, 2026. The highlights below ship in this prerelease; [Unreleased](CHANGELOG.md#unreleased) tracks subsequent work.
 
 ## Improvements over upstream
 
-### Less allocation, copying, and retained memory
+- **Less copying and allocation.** DATAGRAM overflow is rejected before allocation, the parser avoids an intermediate payload copy, and large stream writes use linear copying. HTTP/3 tracing and receive cleanup reduce unnecessary allocation and retained memory.
+- **More data per socket call.** Linux coalesced receive (GRO), Windows segmented send/coalesced receive (USO/URO), and qualified macOS batch sends. Equal-size short DATAGRAM packets can share a segmented send. Host capability checks and ordinary socket fallbacks govern activation.
+- **Better handling of bursts and connection lifetimes.** Deeper bounded receive queues expose drop counters. Fixes cover handshake packet sizing, path validation, cancellation, socket/buffer cleanup and HTTP/3 connection reuse and shutdown. Reno can undo a cutback when all supporting losses are proved spurious.
+- **Integration with application-owned transports.** Opt-in APIs provide external packet I/O, managed socket leases, fixed-peer filtering, bounded connection setup, candidate selection and receive-phase control. See the [integration guide](docs/usage.md) for ownership requirements and platform controls.
 
-DATAGRAM receive overflow is rejected before allocating, and the parser no longer makes an intermediate payload copy. Large stream writes use linear copying rather than repeatedly copying the remaining payload. Consumed HTTP/3 datagrams and abandoned receive-stream data release their references promptly. Optional HTTP/3 tracing avoids building header collections when no recorder exists. Existing APIs keep their caller-buffer ownership contracts.
+**Experimental BBRv3 for sustained transfers over lossy WAN paths.** BBR models bandwidth and RTT to pace traffic; the measurement below shows its potential when random packet loss limits Reno's throughput. Opt in with `Config.SetCongestionControlV1("bbrv3")`. Fast.8's corrected sender remains **unqualified**: higher memory use and control-message latency, plus adverse coexistence with Reno, remain limitations. **Reno remains the default.** See the [release's BBR status](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8#corrected-bbr-and-subsequent-recovery).
 
-### More efficient platform I/O
+## Performance evidence
 
-Linux gains UDP coalesced receive (GRO). Windows gains message I/O with packet metadata, segmented send (USO), and coalesced receive (URO). Qualified macOS hosts can batch sends with `sendmsg_x`. Capability checks, runtime controls, and ordinary socket fallbacks constrain activation; availability depends on the host.
+Selected measurements from individual changes:
 
-macOS batching uses a private syscall guarded by kernel qualification and a startup self-check. Set `QUIC_GO_DISABLE_SENDMSG_X=true` or build with `-tags quic_go_no_private_syscalls` to disable it. On macOS, a wrapper that implements `ReadBatch` and `ReadBatchSlotsV1Conn` is offered more than one datagram per read, in buffers one byte larger than the largest packet; `QUIC_GO_DISABLE_RECVMSG_X=true` or the same build tag keeps one. `QUIC_GO_DISABLE_GSO=true` disables segmented send and `QUIC_GO_DISABLE_GRO=true` disables coalesced receive. Segmented send also batches runs of equal-size DATAGRAM packets shorter than the maximum packet size; `QUIC_GO_DISABLE_SHORT_GSO_SEGMENTS=true` limits it to full-size packets. Receive coalescing is enabled on transport-created sockets and on supported external Linux and Windows sockets explicitly registered through `ConfigureExternalPacketIOV1`. External permission requires exclusive packet I/O and terminal socket disposal by the existing owner; `Transport.Close` does not restore ordinary raw reads, so borrowed sockets intended for reuse must not grant it. Managed Linux and Windows endpoints instead retain a normalizing receiver across leases: `ConfigureManagedPacketIOV1` enables coalescing after establishing that owner, and endpoint/lease `ReadFrom` continues returning one UDP datagram. Lease return discards already consumed QUIC storage without draining kernel-queued traffic. The fork's own macOS `recvmsg_x` receive-batching experiment and alternative DATAGRAM receive-queue representations were evaluated and retired; they do not ship.
-
-### Explicit packet and stream lifetimes
-
-A private emission component owns packet construction, recovery registration, and handoff to socket I/O. Receive processing and coalesced reads track storage ownership through delivery and cleanup. The associated repairs release buffers on errors, cancellation, connection shutdown, and rejected admission, close internally owned sockets after setup failures, and wake readers canceled after partial stream resets. Invalid batch-send progress stops the send path instead of risking an ambiguous retry.
-
-### More reliable handshakes and HTTP/3 lifecycles
-
-When `InitialPacketSize` is left unset, eligible local message-size errors reduce oversized handshake flights to 1200 bytes and enter the existing recovery path. A second Initial or Handshake probe timeout before the handshake completes also lowers the size to 1200 bytes, since the path might silently drop larger packets, though ordinary loss can cause the same timeouts. Either way the connection keeps 1200 bytes unless path MTU discovery grows it after the handshake; an explicit size is kept as a floor. Repeated successful path probes complete their waiters, and send-path publication is synchronized. HTTP/3 keeps pooled connections busy through complete uploads and response consumption, preserves replacement connections during stale failure cleanup, honors cancellation while waiting for SETTINGS, and makes server admission atomic with shutdown. Response completion has one owner for buffered output, lengths, and trailers.
-
-`ConfigureFixedPeerV1` fixes a transport's permitted UDP peer before initialization, guarding receive, ordinary/batched/stateless output and alternate paths. It does not authenticate identity or enable migration. Wiremux retains its selected-peer wrapper.
-
-### Stronger validation and useful diagnostics
-
-CI actually enables the race detector, integration fixtures honor the selected QUIC version, and tests assert observable transfer and lifecycle outcomes. Deterministic loss/corruption cases and retained failure diagnostics make recovery behavior easier to assess. Qlog reports the selected fork revision and handles optional logging failures without terminating the process. Archived audit data remains accessible in Git but is excluded from Go module downloads.
-
-Qlog traces can contain sensitive HTTP headers and QUIC tokens. The QUIC and HTTP/3 default tracers create missing `QLOGDIR` directories with mode `0700` and new trace files with mode `0600`, subject to umask on Unix. Existing directory permissions are preserved; choose a trusted directory and parent path. An existing trace path, including a symlink, disables tracing for that connection instead of overwriting it. Restrict access to trace archives and review them before sharing.
-
-## Performance evidence and current limits
-
-Individual measurements establish improvements in specific workloads, rather than an overall speedup for every application:
-
-| Change | Recorded result | Measurement scope |
+| Change | Recorded result | Workload and reference |
 | --- | --- | --- |
-| DATAGRAM overflow admission | One allocation per rejected record → zero | Queue microbenchmark with 1071-byte records |
-| DATAGRAM parser copy removal | About 47% less receiver allocation per delivered record | Native Linux QUIC loopback workload |
-| Linux GRO | Receive syscalls ×0.263; throughput ×1.26 | Paired loopback bulk transfers |
-| Windows USO | Send submissions ×0.0815; throughput ×3.01 | Paired hosted Windows loopback transfers |
-| Windows URO | Receive syscalls ×0.098; throughput ×1.34 | Two-endpoint KVM virtual-NIC transfers |
-| macOS batch send | Send syscalls ×0.126; throughput ×1.17 | Paired Darwin 25 arm64 loopback transfers |
+| Short DATAGRAM batching | **2.48× throughput**, sender/receiver CPU per GiB **−57%/−53%** | Downstream Linux network namespaces; batching enabled versus disabled |
+| Linux GRO | **1.26× throughput**, receive syscalls/datagram **×0.263** | Paired Linux loopback bulk transfers at GRO adoption |
+| Windows USO | **3.01× throughput**, send submissions/packet **×0.0815** | Paired hosted Windows loopback transfers at USO adoption |
+| macOS batch send | **1.17× throughput**, send syscalls/packet **×0.126** | Paired Darwin 25 arm64 loopback transfers at batch-send adoption |
+| Experimental BBRv3 | **14.06× STREAM / 14.27× DATAGRAM useful throughput** versus fast.8 Reno | Linux emulated path: 100 Mbps each way, 100 ms base RTT, 0.1% random forward loss; median of five paired ratios per traffic type ([results](https://github.com/the-sarge/quic-go-fast/blob/563785cf44a6be8b36f360bdf0e80acdf59df8ae/docs/audits/2026-10-22-bundle-990-readiness/result.md)) |
 
-These results were recorded at individual adoption commits, not remeasured as an aggregate comparison of the current fork. The DATAGRAM parser change saves allocation, but its original tail-latency noninferiority bound was not established. The [changelog](CHANGELOG.md#recorded-measurements) and [evidence index](docs/audit-evidence.md) provide context and links.
-
-The [assembled support decision](https://github.com/GridSwarm/wiremux/blob/main/docs/research/e02-support.md) records native external packet-I/O and managed-reuse correctness on its specific Linux, Windows and Darwin hosts. Its final performance comparisons were unavailable; it retains ordinary upstream defaults and makes no assembled-Wire speedup or resource-preservation claim.
-
-Unit CI exercises Linux, macOS, and Windows on Go 1.26.10 and 1.27.3. Integration CI covers Linux on both versions and macOS/Windows on Go 1.27.3, with additional Linux race coverage. Other cross-compiled targets are build-only. Intermittent macOS dial/HTTP timeouts remain unresolved; see the [known limitations](CHANGELOG.md#known-limitations). The [path-MTU convergence fixture](https://github.com/the-sarge/quic-go-fast/blob/9e8cec69d76a80812737750709289d4925a927c1/docs/audits/issue-178-convergence/README.md) now keeps traffic active until its existing tolerance is reached; the historical hosted probe-loss source remains unknown. Evaluate the prerelease against your application's workloads.
-
-## Maintainer Go toolchain
-
-Use Go 1.27.3 for repository maintenance; [`.go-version`](.go-version) records that choice for version managers that support it. The Go command itself does not read this file. With a recent Go installation, select the exact maintainer toolchain with `GOTOOLCHAIN=go1.27.3 go test ./...`, or select the compatibility toolchain explicitly with `GOTOOLCHAIN=go1.26.10 go test ./...`. These commands may download the named toolchain but do not permit automatic upgrades beyond it; see [Go toolchain selection](https://go.dev/doc/toolchain#select).
-
-CI installs the exact version for each lane, sets `GOTOOLCHAIN=local` to prevent automatic toolchain switching, and verifies the effective version before running Go tools. Integration CI also verifies the FIPS and vendor fixture modules. The root and nested integration modules retain their `go 1.26.0` language minimum; the maintainer pin does not raise the consumer requirement. When reproducing a compatibility lane with a version manager, select Go 1.26.10 explicitly and use `GOTOOLCHAIN=local`.
+These are historical, workload-specific results; they do not establish an aggregate speedup for the current fork against current upstream. The short-DATAGRAM result also raised mean RTT by 22.7 µs and lifetime minimum RTT by 9.8 µs, accepted under the [recorded decision](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6331925155). The [full measurement table](CHANGELOG.md#recorded-measurements) and [release notes](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) retain the baselines, accepted costs and limitations.
 
 ## Use the fork
 
-Keep existing `github.com/quic-go/quic-go` imports and select the fork through a `replace` directive in your application's main module. The published `v0.62.1-fast.7` tag includes the external packet-I/O, managed-endpoint and fixed-peer extensions described above, managed ECN, Linux/Darwin managed path-MTU discovery and Darwin 27 arm64 batch admission, plus the opt-in network, setup, candidate and receive-phase admission extensions and an experimental opt-in BBRv3 sender described in the changelog. BBRv3 is unqualified and has known performance regressions; Reno remains the default. Positional (unkeyed) `Config` literals must be converted to keyed form:
+Keep `github.com/quic-go/quic-go` imports. Select the fork in your application's main module:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.7
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.8
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
 
-For another version, select an exact published tag from [GitHub Releases](https://github.com/the-sarge/quic-go-fast/releases). Avoid `@latest`: inherited upstream release tags can take precedence over fork prereleases. In `go list` output, the version after `=>` identifies the selected fork. Commit the resulting `go.mod` and `go.sum` changes.
+The version after `=>` identifies the selected fork. Commit the resulting `go.mod` and `go.sum`. Each application needs its own replacement; dependency replacements do not propagate. Use an exact published fork tag: `@latest` can select inherited upstream tags.
 
-A dependency's replacement does not propagate to its consumers: each application must select the fork explicitly. The replacement applies to every selected version of `github.com/quic-go/quic-go`; verify compatibility if another dependency expects APIs newer than the upstream v0.62.0 baseline.
+Use keyed `Config` literals; positional literals no longer compile. Applications inspecting HTTP/3 errors should follow the [error-handling migration guide](http3/README.md#error-handling). Check compatibility when another dependency expects APIs newer than the v0.62.0 baseline. [Integration and rollback instructions](docs/usage.md) cover fork-only APIs and socket ownership.
 
-To return to upstream, first remove or adapt fork-only factory, registration, fixed-peer, admission and congestion-control selection calls, including any required managed-endpoint option. Then remove the replacement and tidy:
+## Support and development
 
-```sh
-go mod edit -dropreplace=github.com/quic-go/quic-go
-go mod tidy
-```
+Unit and integration CI run on Linux, macOS and Windows, with additional Linux race coverage. Other cross-compiled targets are build-only; native offload support depends on the host and packet-I/O path. Review the [release limitations](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) and evaluate this prerelease against your workloads.
 
-## Development and attribution
+- [Upstream usage documentation](https://quic-go.net/docs/) · [Fork changelog](CHANGELOG.md) · [Report a fork issue](https://github.com/the-sarge/quic-go-fast/issues)
+- [Development toolchains](docs/usage.md#development-toolchains) · [Development journal](docs/DEV-JOURNAL.md) · [Evidence index](docs/audit-evidence.md) · [Release runbook](docs/runbooks/release.md)
 
-Report fork-specific issues in [the-sarge/quic-go-fast](https://github.com/the-sarge/quic-go-fast/issues). The [development journal](docs/DEV-JOURNAL.md) records merged work and validation evidence; [CONTEXT.md](CONTEXT.md) defines domain terminology; the [release runbook](docs/runbooks/release.md) describes publication. Fork releases follow [validated stable upstream releases](docs/adr/0003-follow-stable-upstream-releases.md).
-
-quic-go-fast builds on the work of the quic-go authors and contributors. Code is licensed under the [MIT license](LICENSE). Upstream logo and brand assets have a [separate usage policy](assets/LICENSE.md).
+Built on the work of the quic-go authors and contributors. [MIT license](LICENSE); upstream logo and brand assets have a [separate usage policy](assets/LICENSE.md).
