@@ -14,7 +14,7 @@ For reusable sockets, `NewManagedPacketEndpointV1` creates an endpoint with excl
 
 Offload availability depends on the host, packet-I/O path and explicit permissions. Generic platform CI does not prove native offload engagement. Qualified macOS batching uses the private `sendmsg_x` syscall with kernel qualification and a startup self-check. Build with `-tags quic_go_no_private_syscalls` to disable private-syscall paths.
 
-On macOS, a participating wrapper implementing `ReadBatch` and `ReadBatchSlotsV1Conn` can opt into multiple datagrams per read; the default is one slot. The adapter owns its receive call. This is distinct from the fork's retired standalone `recvmsg_x` receive-batching experiment. Apple-silicon macOS also offers opt-in send-thread QoS through `ConfigureSendThreadQoSV1`; see its [contract and per-connection status](../send_thread_qos.go).
+On macOS, a participating wrapper implementing `ReadBatch` and `ReadBatchSlotsV1Conn` can opt into multiple datagrams per read; the default is one slot. Each buffer is one byte larger than the largest packet; a completely filled buffer is treated as truncated and dropped. The adapter owns its receive call; see the [read-slot API contract](../sys_conn.go) for bounds and platform exclusions. This is distinct from the fork's retired standalone `recvmsg_x` receive-batching experiment. Apple-silicon macOS also offers opt-in send-thread QoS through `ConfigureSendThreadQoSV1`; see its [contract and per-connection status](../send_thread_qos.go).
 
 Set these environment variables to `true` to disable the named behavior:
 
