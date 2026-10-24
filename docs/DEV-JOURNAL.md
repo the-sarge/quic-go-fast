@@ -7842,7 +7842,7 @@ Final head `2eb1a3f586aadc159e752222c59faa82c72f8224`, base `27ed7d3693124d54039
 
 ---
 
-## BBR Q2 plan and tracker reconciliation - 2026-10-24 14:49 EDT
+## BBR Q2 plan and tracker reconciliation - 2026-10-24 15:07 EDT
 
 **Main:** `f6ad5ea70c42`
 **Actor:** Codex
@@ -7859,7 +7859,9 @@ The [September 26 amendment](https://github.com/the-sarge/quic-go-fast/issues/59
 
 Certified product head `46b3a01f1b143add2e206d6c7bb3b616b4311f1a` on base `f1c5e2dfc0637c2c425a6ed30340adadb92098c6`: clean worktree, diff whitespace checks, 42 relative file links plus new anchors, slice identity/inventory/context checks, and no frozen-evidence changes. All nine hosted workflows / 33 jobs passed; job and step results were inspected.
 
-RAS review `20261024T183622-3c4ea2636bc33a1985011053` used codex-sol and claude-opus, with codex-astra synthesis. One obsolete budget paragraph was corrected; the second report duplicated that finding. Additional RAS review/verification was skipped under the shared policy for a cheap, high-confidence documentation correction, with local checks repeated and hosted CI run on the corrected head. No deferred or stop-for-decision finding remained. A native-only delivery configuration failed before reviewer launch; the completed review used prompt-only delivery in a temporary configuration without changing global settings.
+Initial RAS run `20261024T183622-3c4ea2636bc33a1985011053` used an unauthorized two-reviewer override and changed structured delivery to prompt-only through a temporary configuration. It did not satisfy the user's configured review requirement. Its obsolete-budget finding was corrected before merge, but PR #1008 merged before the required full-panel review was completed.
+
+The user-directed replacement run `20261024T190116-10ec24e7429b622c8f786e4e` reviewed final head `46b3a01f1b143add2e206d6c7bb3b616b4311f1a` after merge. All six configured reviewers (codex-astra, codex-sol, claude-fable, claude-opus, agy-argon and grok) completed R1 and R2; codex-astra completed synthesis. The run used the configured defaults without overrides, preserving native-only delivery, models, reasoning settings, timeouts, quorum and adjudication. Synthesis reported zero required fixes and zero follow-ups. The sole low-priority Q1 wording suggestion was rejected because the plan explicitly preserves Q1's historical ceilings and frozen evidence; it establishes no changed budget or gate. No fix verification or additional campaign work was required.
 
 ### Next
 
