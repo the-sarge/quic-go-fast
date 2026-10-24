@@ -1,0 +1,829 @@
+{
+  "baseline": "f35df9d7b016a06174288901f3337ccc2fd7347c",
+  "measured_on": "2026-10-24",
+  "scope": "Design-only inventory. Existing physical lines include blank lines and comments; each source file assigned once. Forecasts are manual engineering ranges for a first multipath implementation with BBR integration, not measured diff or a delivery commitment. Tests, new files and per-platform follow-on are separate.",
+  "yardstick_method": "Sum git diff --numstat COMMIT^ COMMIT for listed first-parent product commits. Count .go, excluding docs/, benchmarks/, interop/, and mock_ generated files. Production excludes _test.go. Unique filenames per campaign; cumulative added/deleted churn counts repeated edits. Emission excludes E1 feasibility and includes #60 repair. Original BBR excludes Q1 and includes #622 repair. Correction-port is the five #748 port commits only, not all subsequent BBR work.",
+  "groups": [
+    {
+      "id": "wire",
+      "title": "Transport parameters and frames",
+      "existing_files": [
+        {
+          "path": "internal/wire/transport_parameters.go",
+          "physical_lines": 595,
+          "blob": "8a32c1cdb94ca61c24a9c0ebe2c6d23c33147daf"
+        },
+        {
+          "path": "internal/wire/frame_parser.go",
+          "physical_lines": 194,
+          "blob": "5cafe5e7a6942690cbcc41009dbab7ecd657f52c"
+        },
+        {
+          "path": "internal/wire/frame_type.go",
+          "physical_lines": 81,
+          "blob": "597523f6d5b104027f51883dc7f06830873afc0c"
+        },
+        {
+          "path": "internal/wire/frame.go",
+          "physical_lines": 33,
+          "blob": "09ea92f754180a2e453c19cdae78406a6603edde"
+        },
+        {
+          "path": "internal/wire/ack_frame.go",
+          "physical_lines": 298,
+          "blob": "191e15307cb706144996c434f4d6e9afb9210963"
+        },
+        {
+          "path": "internal/wire/new_connection_id_frame.go",
+          "physical_lines": 80,
+          "blob": "058319266f5a12d86bdf8e743466b57c44ecbad8"
+        },
+        {
+          "path": "internal/wire/retire_connection_id_frame.go",
+          "physical_lines": 30,
+          "blob": "1927f9dc07b4818683540ccc135e07ce9ff62f0d"
+        },
+        {
+          "path": "internal/wire/path_challenge_frame.go",
+          "physical_lines": 32,
+          "blob": "7a4a767e5180792cf3001c2686f1436720b30c9a"
+        },
+        {
+          "path": "internal/wire/path_response_frame.go",
+          "physical_lines": 32,
+          "blob": "e76d037b15100a95538a5ba393c06295a129fec1"
+        },
+        {
+          "path": "internal/wire/log.go",
+          "physical_lines": 74,
+          "blob": "c8b28d924c2103407a9c9b76fa113f93e9405f46"
+        }
+      ],
+      "existing_file_count": 10,
+      "existing_physical_lines": 1449,
+      "estimated_production_added_plus_deleted_lines": [
+        450,
+        900
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        6
+      ],
+      "estimated_new_production_files": [
+        6,
+        9
+      ]
+    },
+    {
+      "id": "packet-spaces",
+      "title": "Packet-number spaces and ACKs",
+      "existing_files": [
+        {
+          "path": "internal/ackhandler/sent_packet_handler.go",
+          "physical_lines": 1326,
+          "blob": "6cb97f6052f2397129e14a842e59eb67d3921a7d"
+        },
+        {
+          "path": "internal/ackhandler/received_packet_handler.go",
+          "physical_lines": 138,
+          "blob": "0837ab597ac460c899fb7e7230cfe90ae1178340"
+        },
+        {
+          "path": "internal/ackhandler/packet_number_generator.go",
+          "physical_lines": 84,
+          "blob": "4a9db86356b3ff4bdffb688c297bd2011cd34fde"
+        },
+        {
+          "path": "internal/ackhandler/sent_packet_history.go",
+          "physical_lines": 281,
+          "blob": "cab971de02edbe47e08dfa94c22859a295e3892f"
+        },
+        {
+          "path": "internal/ackhandler/received_packet_history.go",
+          "physical_lines": 159,
+          "blob": "d065b6e65996644608919042c7a0655cc32cce63"
+        },
+        {
+          "path": "internal/ackhandler/received_packet_tracker.go",
+          "physical_lines": 286,
+          "blob": "0c809b9cfef8b409b53e2b66b1096c9e170de483"
+        },
+        {
+          "path": "internal/ackhandler/interfaces.go",
+          "physical_lines": 52,
+          "blob": "56155bb8ce70665367fe23a60318d7b4090d5c35"
+        },
+        {
+          "path": "internal/ackhandler/packet.go",
+          "physical_lines": 60,
+          "blob": "7d9863000a1d8cad0b71fcaff6552756627f456e"
+        }
+      ],
+      "existing_file_count": 8,
+      "existing_physical_lines": 2386,
+      "estimated_production_added_plus_deleted_lines": [
+        900,
+        1700
+      ],
+      "estimated_existing_production_files_modified": [
+        5,
+        8
+      ],
+      "estimated_new_production_files": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "recovery",
+      "title": "Loss, PTO, sampling and ECN",
+      "existing_files": [
+        {
+          "path": "internal/ackhandler/lost_packet_tracker.go",
+          "physical_lines": 77,
+          "blob": "019575f3dfacb419824100c33379c13b21cb4dd0"
+        },
+        {
+          "path": "internal/ackhandler/congestion_dispatch.go",
+          "physical_lines": 341,
+          "blob": "16feead942ed0984e885ef56ab3342eb52e8bef1"
+        },
+        {
+          "path": "internal/ackhandler/delivery_sampler.go",
+          "physical_lines": 345,
+          "blob": "fb8a0ae5ab2f63f4cacef38964fae6a713336cc1"
+        },
+        {
+          "path": "internal/ackhandler/delivery_records.go",
+          "physical_lines": 161,
+          "blob": "8fb5da94f9b2f7dcfb5502e7581e0cdc043b6e73"
+        },
+        {
+          "path": "internal/ackhandler/bbr_recovery.go",
+          "physical_lines": 612,
+          "blob": "aaea7199474626c5d133c1406c727a7c1d744970"
+        },
+        {
+          "path": "internal/ackhandler/recovery_index.go",
+          "physical_lines": 260,
+          "blob": "1821ae39a3cfb2643eb46cb51a626f77d21fe426"
+        },
+        {
+          "path": "internal/ackhandler/retained_index.go",
+          "physical_lines": 205,
+          "blob": "113a116ecbac3ed1b5f49d86fed8c4087f29fdd3"
+        },
+        {
+          "path": "internal/ackhandler/ecn.go",
+          "physical_lines": 340,
+          "blob": "123d3a341d3001cdd8ef41a6f4a2784dfa911e9d"
+        },
+        {
+          "path": "internal/ackhandler/bbr_ecn.go",
+          "physical_lines": 382,
+          "blob": "436facf70c5e098bcc771cd37dfc39854c80cbb6"
+        },
+        {
+          "path": "internal/ackhandler/bbr_diagnostics.go",
+          "physical_lines": 42,
+          "blob": "6a4d7c775aff6f5bdb4b75b2f38a585dc3fa395b"
+        }
+      ],
+      "existing_file_count": 10,
+      "existing_physical_lines": 2765,
+      "estimated_production_added_plus_deleted_lines": [
+        900,
+        1800
+      ],
+      "estimated_existing_production_files_modified": [
+        6,
+        9
+      ],
+      "estimated_new_production_files": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "controllers",
+      "title": "Congestion controllers and pacers",
+      "existing_files": [
+        {
+          "path": "internal/congestion/bbr_sender.go",
+          "physical_lines": 564,
+          "blob": "5bfdf109dc6daa1f0be65687acf7c595c54920f9"
+        },
+        {
+          "path": "internal/congestion/bbr_probe.go",
+          "physical_lines": 227,
+          "blob": "19d9de938d450872f004403cb1d54dee1a015053"
+        },
+        {
+          "path": "internal/congestion/bbr_probe_rtt.go",
+          "physical_lines": 121,
+          "blob": "d2d6de571e4e3d23bbe69f1dd4b0a455285e8c6e"
+        },
+        {
+          "path": "internal/congestion/bbr_recovery.go",
+          "physical_lines": 106,
+          "blob": "26bb832f8ed5e5a191618a767efe7100ebad2bfa"
+        },
+        {
+          "path": "internal/congestion/bbr_ecn.go",
+          "physical_lines": 175,
+          "blob": "b2e8173f92ae9b9f4209625f51848b2399134c8a"
+        },
+        {
+          "path": "internal/congestion/cubic_sender.go",
+          "physical_lines": 394,
+          "blob": "ee6ace8e56d2a81e425f986ff07722b9ad75259a"
+        },
+        {
+          "path": "internal/congestion/pacer.go",
+          "physical_lines": 110,
+          "blob": "7656f52968d29bba3c7db27733de6af6163cb02f"
+        },
+        {
+          "path": "internal/congestion/interface.go",
+          "physical_lines": 31,
+          "blob": "4f2567cbf96775a8d77b85f419a4074efae53774"
+        },
+        {
+          "path": "internal/congestion/feedback.go",
+          "physical_lines": 154,
+          "blob": "11779a02a11d73c53f657d8e4fbd028f49cb4709"
+        },
+        {
+          "path": "internal/congestion/packet_order.go",
+          "physical_lines": 43,
+          "blob": "bc61adab6495c39a7b78f6c94d8b934a08c46847"
+        }
+      ],
+      "existing_file_count": 10,
+      "existing_physical_lines": 1925,
+      "estimated_production_added_plus_deleted_lines": [
+        300,
+        750
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        6
+      ],
+      "estimated_new_production_files": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "cids",
+      "title": "Connection-ID ownership",
+      "existing_files": [
+        {
+          "path": "conn_id_generator.go",
+          "physical_lines": 212,
+          "blob": "133932a6a5ab9b00436ed7a2eec0dd17b311b4e8"
+        },
+        {
+          "path": "conn_id_manager.go",
+          "physical_lines": 331,
+          "blob": "8d08e07c6497b9fd1e7748b09ad3d6bc25182b7b"
+        }
+      ],
+      "existing_file_count": 2,
+      "existing_physical_lines": 543,
+      "estimated_production_added_plus_deleted_lines": [
+        500,
+        1000
+      ],
+      "estimated_existing_production_files_modified": [
+        2,
+        2
+      ],
+      "estimated_new_production_files": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "protection",
+      "title": "Packet protection and decoding",
+      "existing_files": [
+        {
+          "path": "internal/handshake/updatable_aead.go",
+          "physical_lines": 372,
+          "blob": "f88f76ad8b0985907606f4d880ae9d88a7fa9398"
+        },
+        {
+          "path": "internal/handshake/aead.go",
+          "physical_lines": 91,
+          "blob": "f12c932a507fb964e6c07fcbd4d16ed57401e6d7"
+        },
+        {
+          "path": "internal/handshake/interface.go",
+          "physical_lines": 147,
+          "blob": "177859d14d78b204b6a3731a8032c27dd2e7dca7"
+        },
+        {
+          "path": "internal/handshake/crypto_setup.go",
+          "physical_lines": 722,
+          "blob": "7ba715b9a4f3fc67f071b8aa140d5a09feae6fd3"
+        },
+        {
+          "path": "packet_unpacker.go",
+          "physical_lines": 222,
+          "blob": "0729636e2a3283825bb7525c2dd785eee29ee375"
+        }
+      ],
+      "existing_file_count": 5,
+      "existing_physical_lines": 1554,
+      "estimated_production_added_plus_deleted_lines": [
+        600,
+        1100
+      ],
+      "estimated_existing_production_files_modified": [
+        4,
+        5
+      ],
+      "estimated_new_production_files": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "lifecycle",
+      "title": "Connection/path lifecycle and MTU",
+      "existing_files": [
+        {
+          "path": "connection.go",
+          "physical_lines": 3196,
+          "blob": "c250c8b3a10930db711a84dafbe36be73701758a"
+        },
+        {
+          "path": "path_manager.go",
+          "physical_lines": 320,
+          "blob": "f0144d39edc1d1eb6e4aab84b948de27f07d0c2a"
+        },
+        {
+          "path": "path_manager_outgoing.go",
+          "physical_lines": 347,
+          "blob": "62d82fbb3396b528b4debfb8ff231578635d99bb"
+        },
+        {
+          "path": "mtu_discoverer.go",
+          "physical_lines": 256,
+          "blob": "a12dce7ef8c576ec16afaffa46542148dcc1ac66"
+        },
+        {
+          "path": "path_mtu_settled.go",
+          "physical_lines": 51,
+          "blob": "b68b5ed238edb8fd981bc109a28efc3551ebb554"
+        }
+      ],
+      "existing_file_count": 5,
+      "existing_physical_lines": 4170,
+      "estimated_production_added_plus_deleted_lines": [
+        1400,
+        2600
+      ],
+      "estimated_existing_production_files_modified": [
+        4,
+        5
+      ],
+      "estimated_new_production_files": [
+        2,
+        4
+      ]
+    },
+    {
+      "id": "emission",
+      "title": "Emission, socket routing and local credit",
+      "existing_files": [
+        {
+          "path": "packet_emission.go",
+          "physical_lines": 690,
+          "blob": "b4af6e5bd54d8d22d6410678f13b4fb0f9d7ac98"
+        },
+        {
+          "path": "packet_emission_bbr.go",
+          "physical_lines": 242,
+          "blob": "7507cba7a7fc76e2c8f8d89665d542ac8d71e896"
+        },
+        {
+          "path": "packet_emission_gso.go",
+          "physical_lines": 94,
+          "blob": "4eeada5686eaab24ef4e4d43c507550c074e1905"
+        },
+        {
+          "path": "packet_packer.go",
+          "physical_lines": 1112,
+          "blob": "6a9964636abea0495f7e301fc8f8fa3e2c261d7d"
+        },
+        {
+          "path": "send_conn.go",
+          "physical_lines": 185,
+          "blob": "02e0e3358cbf0705ca3ec65707f724cb51d8eabd"
+        },
+        {
+          "path": "send_queue.go",
+          "physical_lines": 344,
+          "blob": "c85711d84e09b4c0dd91abf0ad3fc7c5ae1c53bb"
+        },
+        {
+          "path": "bbr_send_policy.go",
+          "physical_lines": 104,
+          "blob": "0721d987e6826ac6858f95bb3f6ebe3de6f77aa7"
+        },
+        {
+          "path": "local_send_credit.go",
+          "physical_lines": 134,
+          "blob": "080a96a97ea691a5f9f8763bf7c96d9bb1c75c79"
+        },
+        {
+          "path": "delivery_sampling.go",
+          "physical_lines": 186,
+          "blob": "c7dff1483f080e68bd0f5d51f152f7e15a829343"
+        },
+        {
+          "path": "candidate_authority.go",
+          "physical_lines": 417,
+          "blob": "10cc8f6d85ab5b8ea3bebbfd4df1600400e36b6d"
+        },
+        {
+          "path": "transport.go",
+          "physical_lines": 1141,
+          "blob": "0bbfce1bc3e0292c0e75fcfce1b090563e544e2f"
+        }
+      ],
+      "existing_file_count": 11,
+      "existing_physical_lines": 4649,
+      "estimated_production_added_plus_deleted_lines": [
+        1200,
+        2300
+      ],
+      "estimated_existing_production_files_modified": [
+        7,
+        10
+      ],
+      "estimated_new_production_files": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": "fixed-peer",
+      "title": "Fixed-peer policy",
+      "existing_files": [
+        {
+          "path": "packet_policy.go",
+          "physical_lines": 284,
+          "blob": "f6e077d58fe9a6619c094ae43e864804fe1c670e"
+        }
+      ],
+      "existing_file_count": 1,
+      "existing_physical_lines": 284,
+      "estimated_production_added_plus_deleted_lines": [
+        60,
+        200
+      ],
+      "estimated_existing_production_files_modified": [
+        1,
+        1
+      ],
+      "estimated_new_production_files": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "qlog",
+      "title": "Observability",
+      "existing_files": [
+        {
+          "path": "qlog/frame.go",
+          "physical_lines": 481,
+          "blob": "b66fedc954a49387298c4ad8878487f11e2b447d"
+        },
+        {
+          "path": "qlog/event.go",
+          "physical_lines": 874,
+          "blob": "bbd1db647c8da5dd2994adb69a66e1376f641e4e"
+        },
+        {
+          "path": "qlog/packet_header.go",
+          "physical_lines": 96,
+          "blob": "149ebcb6a939a8cc62314e203b29323e6df5c62c"
+        },
+        {
+          "path": "qlog/types.go",
+          "physical_lines": 305,
+          "blob": "97c7febef3d5bb8b0038ddb40d658d9df111ebfc"
+        }
+      ],
+      "existing_file_count": 4,
+      "existing_physical_lines": 1756,
+      "estimated_production_added_plus_deleted_lines": [
+        200,
+        500
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        4
+      ],
+      "estimated_new_production_files": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "public",
+      "title": "Configuration and public capability",
+      "existing_files": [
+        {
+          "path": "interface.go",
+          "physical_lines": 229,
+          "blob": "727afa3243b8b773df600109cd86a9f972e3bdba"
+        },
+        {
+          "path": "config.go",
+          "physical_lines": 178,
+          "blob": "cb5887d9e6d54cd14bc7f3fb9b482808d3bbc5ec"
+        },
+        {
+          "path": "congestion_control.go",
+          "physical_lines": 34,
+          "blob": "e7bc6d6c2d0cdd06e639038abbd9d1e90e17545b"
+        }
+      ],
+      "existing_file_count": 3,
+      "existing_physical_lines": 441,
+      "estimated_production_added_plus_deleted_lines": [
+        400,
+        900
+      ],
+      "estimated_existing_production_files_modified": [
+        2,
+        3
+      ],
+      "estimated_new_production_files": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "payload",
+      "title": "Payload scheduling and retransmission",
+      "existing_files": [
+        {
+          "path": "framer.go",
+          "physical_lines": 490,
+          "blob": "643a7c1d43b12cf6c413345180c79a65ababaed4"
+        },
+        {
+          "path": "retransmission_queue.go",
+          "physical_lines": 158,
+          "blob": "323af5b0c43c0acf9ebcce184eaff9106335ec32"
+        },
+        {
+          "path": "datagram_queue.go",
+          "physical_lines": 182,
+          "blob": "349b383eef6b6e6bc0d74816330502a30bb12fcb"
+        },
+        {
+          "path": "send_stream.go",
+          "physical_lines": 1026,
+          "blob": "5686cbf497d79b0a352e3b46c7ff82bb87ce6f70"
+        }
+      ],
+      "existing_file_count": 4,
+      "existing_physical_lines": 1856,
+      "estimated_production_added_plus_deleted_lines": [
+        600,
+        1300
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        4
+      ],
+      "estimated_new_production_files": [
+        2,
+        3
+      ]
+    }
+  ],
+  "yardsticks": [
+    {
+      "id": "emission",
+      "commits": [
+        "21b45f4615c7630b8c19a57121cc1d180e14211d",
+        "f271602adabd73520e5f92c04066970a3e7bb1e3",
+        "67771b9fca25138db6b4657ae69b869aa297b987",
+        "52c5321db04cdbf1671249878dde9db633866ab6",
+        "a62dc4eee670eac558c1babebe2377f0f8ff484d",
+        "eb9b3ed8f5625630a33932f27f0d1943d1032d8e",
+        "4e99c672548303aaaca496e8e86977fe5cb13db5",
+        "d7d2b295f50b6c7ff78a47c2c78c57136c541846",
+        "86bba30bb7b6b2ccb96566ce3aafa799fbe53037"
+      ],
+      "counts": {
+        "production": {
+          "added": 808,
+          "deleted": 575,
+          "files": [
+            "connection.go",
+            "mockgen.go",
+            "packet_emission.go",
+            "packet_packer.go",
+            "send_queue.go"
+          ],
+          "file_count": 5
+        },
+        "tests": {
+          "added": 1931,
+          "deleted": 822,
+          "files": [
+            "connection_emission_close_test.go",
+            "connection_emission_experiment_test.go",
+            "connection_emission_handshake_test.go",
+            "connection_emission_test.go",
+            "connection_handshake_mtu_test.go",
+            "connection_probe_emission_test.go",
+            "connection_probe_experiment_test.go",
+            "connection_scheduling_test.go",
+            "connection_test.go",
+            "packet_emission_test.go",
+            "packet_packer_lifetime_test.go",
+            "send_queue_lifetime_bench_test.go",
+            "send_queue_test.go"
+          ],
+          "file_count": 13
+        }
+      }
+    },
+    {
+      "id": "bbr-original",
+      "commits": [
+        "33de58dde7b1610818af06d55fc109efb52e4cc7",
+        "b9d388b4f6293f01f3ce3cb38d1a3d8217b7c46c",
+        "b52339af26931a8d90b21c2ee4e0ec1676cf906f",
+        "f2cb19f01853f6a461b76edd9c495f4b7000f92f",
+        "e1ce634d9d3fcd2a4873ff865f0264ab52b6ec31",
+        "672f8cd48db2dbe612a33e001997e26446b078e4",
+        "6c91b4b50ff5124ddcc7a257eddfea4ff83cb718",
+        "c0fcd4fd9a38b2eaeaac3eb62d91798d2eed8dd9",
+        "ad85863447b65b26a4595dd575eae304cc918c36",
+        "20f596e2b5f7ee88cdaeaf00fbde146bf18e3fa6",
+        "a50c89a38623302931b30ed4369966c168a16162",
+        "13fea227c3ea001bfec7c04e88d9b1fe3841ac3e"
+      ],
+      "counts": {
+        "production": {
+          "added": 3647,
+          "deleted": 173,
+          "files": [
+            "bbr_controller.go",
+            "bbr_diagnostics.go",
+            "bbr_ecn.go",
+            "bbr_send_policy.go",
+            "config.go",
+            "congestion_control.go",
+            "connection.go",
+            "delivery_sampling.go",
+            "framer.go",
+            "interface.go",
+            "internal/ackhandler/bbr_diagnostics.go",
+            "internal/ackhandler/bbr_ecn.go",
+            "internal/ackhandler/bbr_recovery.go",
+            "internal/ackhandler/congestion_dispatch.go",
+            "internal/ackhandler/delivery_sampler.go",
+            "internal/ackhandler/sent_packet_handler.go",
+            "internal/congestion/bbr_diagnostics.go",
+            "internal/congestion/bbr_ecn.go",
+            "internal/congestion/bbr_probe.go",
+            "internal/congestion/bbr_probe_rtt.go",
+            "internal/congestion/bbr_recovery.go",
+            "internal/congestion/bbr_sender.go",
+            "internal/congestion/feedback.go",
+            "local_send_credit.go",
+            "mtu_discoverer.go",
+            "packet_emission.go",
+            "packet_emission_bbr.go",
+            "send_queue.go",
+            "testdata/congestioncontrol/main.go"
+          ],
+          "file_count": 29
+        },
+        "tests": {
+          "added": 5090,
+          "deleted": 32,
+          "files": [
+            "bbr_controller_test.go",
+            "bbr_ecn_test.go",
+            "bbr_probe_rtt_test.go",
+            "bbr_send_policy_test.go",
+            "congestion_control_loopback_test.go",
+            "congestion_control_migration_test.go",
+            "congestion_control_test.go",
+            "connection_emission_test.go",
+            "delivery_sampling_test.go",
+            "internal/ackhandler/bbr_ecn_test.go",
+            "internal/ackhandler/bbr_pto_test.go",
+            "internal/ackhandler/bbr_recovery_test.go",
+            "internal/ackhandler/bbr_sender_test.go",
+            "internal/ackhandler/congestion_dispatch_test.go",
+            "internal/ackhandler/delivery_sampler_test.go",
+            "internal/congestion/bbr_ecn_test.go",
+            "internal/congestion/bbr_probe_rtt_test.go",
+            "internal/congestion/bbr_probe_test.go",
+            "internal/congestion/bbr_recovery_test.go",
+            "internal/congestion/bbr_sender_test.go",
+            "internal/congestion/pacer_test.go"
+          ],
+          "file_count": 21
+        }
+      }
+    },
+    {
+      "id": "bbr-correction-port",
+      "commits": [
+        "c6c3e9c3330f8073e74e83a16c44423fe82736bf",
+        "ec28ca58140f67599c10e57345bb3940b369b3cb",
+        "db64d20fe05ffe080c63ab49e712fb145a23e1d3",
+        "d716cc4f80637ca70e32f83c9dad7815f48c67fc",
+        "4b3f3a5aefe4ce274c435e2b72f6cd638a783c09"
+      ],
+      "counts": {
+        "production": {
+          "added": 1601,
+          "deleted": 242,
+          "files": [
+            "bbr_ecn.go",
+            "bbr_send_policy.go",
+            "connection.go",
+            "internal/ackhandler/bbr_diagnostics.go",
+            "internal/ackhandler/bbr_ecn.go",
+            "internal/ackhandler/bbr_recovery.go",
+            "internal/ackhandler/congestion_dispatch.go",
+            "internal/ackhandler/delivery_records.go",
+            "internal/ackhandler/delivery_sampler.go",
+            "internal/ackhandler/recovery_index.go",
+            "internal/ackhandler/retained_index.go",
+            "internal/ackhandler/sent_packet_handler.go",
+            "internal/ackhandler/service_work.go",
+            "internal/ackhandler/service_work_off.go",
+            "internal/ackhandler/service_work_on.go",
+            "internal/congestion/bbr_probe.go",
+            "internal/congestion/bbr_probe_rtt.go",
+            "internal/congestion/bbr_recovery.go",
+            "internal/congestion/bbr_sender.go",
+            "local_send_credit.go",
+            "pacing_kick_linux.go",
+            "pacing_kick_other.go",
+            "packet_emission.go",
+            "packet_emission_bbr.go",
+            "send_queue.go"
+          ],
+          "file_count": 25
+        },
+        "tests": {
+          "added": 5747,
+          "deleted": 43,
+          "files": [
+            "bbr_capability_test.go",
+            "bbr_continuation_test.go",
+            "bbr_send_policy_test.go",
+            "bbr_send_queue_depth_test.go",
+            "candidate_authority_test.go",
+            "internal/ackhandler/bbr_ecn_equivalence_test.go",
+            "internal/ackhandler/bbr_ecn_test.go",
+            "internal/ackhandler/bbr_ecn_work_test.go",
+            "internal/ackhandler/bbr_sender_test.go",
+            "internal/ackhandler/congestion_dispatch_test.go",
+            "internal/ackhandler/delivery_records_test.go",
+            "internal/ackhandler/equivalence_budget_test.go",
+            "internal/ackhandler/race_off_test.go",
+            "internal/ackhandler/race_on_test.go",
+            "internal/ackhandler/recovery_bracket_test.go",
+            "internal/ackhandler/recovery_bracket_work_test.go",
+            "internal/ackhandler/recovery_equivalence_test.go",
+            "internal/ackhandler/recovery_helpers_test.go",
+            "internal/ackhandler/recovery_memory_test.go",
+            "internal/ackhandler/recovery_reference_test.go",
+            "internal/ackhandler/recovery_twin_test.go",
+            "internal/ackhandler/recovery_work_test.go",
+            "internal/congestion/bbr_conformance_test.go",
+            "internal/congestion/bbr_ecn_test.go",
+            "local_send_credit_equivalence_test.go",
+            "local_send_credit_frozen_test.go",
+            "pacing_kick_linux_test.go"
+          ],
+          "file_count": 27
+        }
+      }
+    }
+  ],
+  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope.",
+  "estimated_test_added_plus_deleted_lines": [
+    12000,
+    26000
+  ]
+}
