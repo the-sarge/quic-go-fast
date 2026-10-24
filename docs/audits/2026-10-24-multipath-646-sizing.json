@@ -1,7 +1,7 @@
 {
   "baseline": "f35df9d7b016a06174288901f3337ccc2fd7347c",
   "measured_on": "2026-10-24",
-  "scope": "Design-only inventory. Existing physical lines include blank lines and comments; each source file assigned once. Forecasts are manual engineering ranges for a first multipath implementation with BBR integration, not measured diff or a delivery commitment. Tests, new files and per-platform follow-on are separate.",
+  "scope": "Design-only principal-file inventory at the unchanged production baseline. Physical lines include comments and blanks; each principal file is assigned once. Forecasts are manual cumulative additions plus deletions, not measured diffs or delivery commitments. The full scenario includes path-scoped local-socket migration, Reno-first core, later BBR/aggregation and ordinary transports; restricted transports are excluded. Secondary sites are listed separately without pretending their eventual touched-file count is known.",
   "yardstick_method": "Sum git diff --numstat COMMIT^ COMMIT for listed first-parent product commits. Count .go, excluding docs/, benchmarks/, interop/, and mock_ generated files. Production excludes _test.go. Unique filenames per campaign; cumulative added/deleted churn counts repeated edits. Emission excludes E1 feasibility and includes #60 repair. Original BBR excludes Q1 and includes #622 repair. Correction-port is the five #748 port commits only, not all subsequent BBR work.",
   "groups": [
     {
@@ -72,6 +72,14 @@
       "estimated_new_production_files": [
         6,
         9
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        450,
+        900
       ]
     },
     {
@@ -122,8 +130,8 @@
       "existing_file_count": 8,
       "existing_physical_lines": 2386,
       "estimated_production_added_plus_deleted_lines": [
-        900,
-        1700
+        950,
+        1800
       ],
       "estimated_existing_production_files_modified": [
         5,
@@ -132,6 +140,14 @@
       "estimated_new_production_files": [
         1,
         2
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        100,
+        200
+      ],
+      "estimated_reno_first_line_edits": [
+        850,
+        1600
       ]
     },
     {
@@ -202,6 +218,14 @@
       "estimated_new_production_files": [
         1,
         3
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        450,
+        950
+      ],
+      "estimated_reno_first_line_edits": [
+        450,
+        850
       ]
     },
     {
@@ -272,6 +296,14 @@
       "estimated_new_production_files": [
         0,
         1
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        200,
+        500
+      ],
+      "estimated_reno_first_line_edits": [
+        100,
+        250
       ]
     },
     {
@@ -292,8 +324,8 @@
       "existing_file_count": 2,
       "existing_physical_lines": 543,
       "estimated_production_added_plus_deleted_lines": [
-        500,
-        1000
+        600,
+        1200
       ],
       "estimated_existing_production_files_modified": [
         2,
@@ -302,6 +334,14 @@
       "estimated_new_production_files": [
         1,
         1
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        600,
+        1200
       ]
     },
     {
@@ -347,6 +387,14 @@
       "estimated_new_production_files": [
         0,
         2
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        600,
+        1100
       ]
     },
     {
@@ -377,21 +425,34 @@
           "path": "path_mtu_settled.go",
           "physical_lines": 51,
           "blob": "b68b5ed238edb8fd981bc109a28efc3551ebb554"
+        },
+        {
+          "path": "closed_conn.go",
+          "physical_lines": 62,
+          "blob": "8e4cfcf412a194312def21b910bfe1bc25349f96"
         }
       ],
-      "existing_file_count": 5,
-      "existing_physical_lines": 4170,
+      "existing_file_count": 6,
+      "existing_physical_lines": 4232,
       "estimated_production_added_plus_deleted_lines": [
-        1400,
-        2600
+        1600,
+        3100
       ],
       "estimated_existing_production_files_modified": [
-        4,
-        5
+        5,
+        6
       ],
       "estimated_new_production_files": [
         2,
         4
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        100,
+        200
+      ],
+      "estimated_reno_first_line_edits": [
+        1500,
+        2900
       ]
     },
     {
@@ -457,21 +518,29 @@
       "existing_file_count": 11,
       "existing_physical_lines": 4649,
       "estimated_production_added_plus_deleted_lines": [
-        1200,
-        2300
+        1400,
+        2600
       ],
       "estimated_existing_production_files_modified": [
-        7,
-        10
+        8,
+        11
       ],
       "estimated_new_production_files": [
         2,
         3
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        350,
+        750
+      ],
+      "estimated_reno_first_line_edits": [
+        1050,
+        1850
       ]
     },
     {
       "id": "fixed-peer",
-      "title": "Fixed-peer policy",
+      "title": "Restricted-transport policy",
       "existing_files": [
         {
           "path": "packet_policy.go",
@@ -482,8 +551,8 @@
       "existing_file_count": 1,
       "existing_physical_lines": 284,
       "estimated_production_added_plus_deleted_lines": [
-        60,
-        200
+        120,
+        280
       ],
       "estimated_existing_production_files_modified": [
         1,
@@ -492,6 +561,14 @@
       "estimated_new_production_files": [
         0,
         0
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        120,
+        280
       ]
     },
     {
@@ -532,6 +609,14 @@
       "estimated_new_production_files": [
         0,
         1
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        50,
+        150
+      ],
+      "estimated_reno_first_line_edits": [
+        150,
+        350
       ]
     },
     {
@@ -557,8 +642,8 @@
       "existing_file_count": 3,
       "existing_physical_lines": 441,
       "estimated_production_added_plus_deleted_lines": [
-        400,
-        900
+        550,
+        1100
       ],
       "estimated_existing_production_files_modified": [
         2,
@@ -567,6 +652,14 @@
       "estimated_new_production_files": [
         1,
         2
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        50,
+        100
+      ],
+      "estimated_reno_first_line_edits": [
+        500,
+        1000
       ]
     },
     {
@@ -607,6 +700,14 @@
       "estimated_new_production_files": [
         2,
         3
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        200,
+        450
+      ],
+      "estimated_reno_first_line_edits": [
+        400,
+        850
       ]
     }
   ],
@@ -821,9 +922,117 @@
       }
     }
   ],
-  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope.",
+  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn.",
   "estimated_test_added_plus_deleted_lines": [
-    12000,
-    26000
+    13500,
+    29500
+  ],
+  "milestone_forecasts": {
+    "method": "Endpoint-paired scenario accounting: each row full low equals Reno low plus deferred low, and likewise for high. These are correlated planning scenarios, not independent uncertainty intervals. Deferred edits are additional cumulative churn, including later edits to files already touched by Reno; file counts are not additive across milestones.",
+    "reno_first": {
+      "production_line_edits": [
+        6770,
+        13130
+      ],
+      "test_line_edits": [
+        9500,
+        20000
+      ]
+    },
+    "deferred_bbr_aggregation": {
+      "production_line_edits": [
+        1500,
+        3300
+      ],
+      "test_line_edits": [
+        4000,
+        9500
+      ]
+    },
+    "full": {
+      "production_line_edits": [
+        8270,
+        16430
+      ],
+      "test_line_edits": [
+        13500,
+        29500
+      ]
+    }
+  },
+  "candidate_slice_forecasts": {
+    "kind": "Unaudited review-unit planning ranges; no elapsed-time implication or upper-bound guarantee. M7 is scoped for each supported milestone; full range includes later BBR closure.",
+    "stages": {
+      "M1": [
+        2,
+        4
+      ],
+      "M2": [
+        3,
+        6
+      ],
+      "M3": [
+        5,
+        11
+      ],
+      "M4": [
+        4,
+        9
+      ],
+      "M5": [
+        3,
+        7
+      ],
+      "M6": [
+        4,
+        11
+      ],
+      "M7": [
+        1,
+        4
+      ]
+    },
+    "full": [
+      22,
+      52
+    ],
+    "reno_first_excluding_M6": [
+      18,
+      41
+    ],
+    "supersedes": [
+      16,
+      22
+    ],
+    "calibration": "Full production churn divided by mean original-BBR or correction-port churn per listed product commit gives approximately 22\u201352 units. Commits are not audited PR slices and complexity differs; this is a sensitivity check, not proof of the decomposition."
+  },
+  "secondary_integration_sites": [
+    {
+      "paths": [
+        "client.go",
+        "server.go",
+        "stateless_reset.go",
+        "connection_logging.go",
+        "internal/utils/rtt_stats.go"
+      ],
+      "concern": "Convenience-dial configuration, server negotiation, close/reset routing, statistics and timer callers; allowance belongs to the relevant row, but principal-file count is not a full-file forecast."
+    },
+    {
+      "paths": [
+        "ack_threshold.go",
+        "receive_phase.go",
+        "setup_reservation.go",
+        "send_thread_qos.go"
+      ],
+      "concern": "Audit documented option inheritance and unsupported combinations; not all audited files necessarily require edits."
+    },
+    {
+      "paths": [
+        "send_conn_batch_state_darwin.go",
+        "send_conn_batch_state_other.go",
+        "sys_conn_*.go"
+      ],
+      "concern": "Heterogeneous per-socket capability qualification. Existing per-instance state may already suffice; no platform adapter redesign is assumed."
+    }
   ]
 }
