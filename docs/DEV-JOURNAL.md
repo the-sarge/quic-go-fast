@@ -7820,3 +7820,22 @@ The [final certification receipt](https://github.com/the-sarge/quic-go-fast/pull
 ### Next
 
 The proposed 36-run performance comparison remains deferred until a candidate and exact measurement contract are separately accepted. [Parent #962](https://github.com/the-sarge/quic-go-fast/issues/962) is the live tracking view for the completed three-slice adoption and its deferred comparison context.
+
+---
+
+## Focused fast.8 README and measured BBR highlights landed - 2026-10-24 00:35 EDT
+
+**Main:** `3f6178e5ac07`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1006](https://github.com/the-sarge/quic-go-fast/pull/1006) as `3f6178e5ac07eb4a570a4fe5d99632dfb9685186`. The README now installs published fast.8, is more than half shorter, and highlights shipped improvements with scoped measurements. Detailed ownership, platform controls, trace privacy, rollback and toolchain guidance moved to [the integration guide](usage.md). The changelog records fast.8's actual publication while preserving historical evidence.
+
+BBRv3's highlight cites 14.06× STREAM and 14.27× DATAGRAM useful throughput versus fast.8 Reno on the measured Linux emulation (100 Mbps each way, 100 ms base RTT, 0.1% random forward loss; median of five paired ratios per traffic type). It retains memory, control-latency and coexistence limitations: BBR remains experimental, opt-in and unqualified; Reno remains default. These figures do not establish an aggregate fork-versus-upstream speedup or a benefit from post-release #971.
+
+### Validation
+
+RAS review `20261024T041800-c757b7c00e345d6a99a0d18d` completed with five successful reviewers and synthesis; one reviewer process failed, with quorum met. Restored the moved read-slot buffer/truncation detail and API-contract link. Rejected restoration of fast.1 timeout warnings as current guidance after checking the cited issues were closed before fast.8. The bounded, high-confidence docs-only correction policy skipped a RAS rerun; no deferred or decision-blocking findings remained.
+
+Final head `2eb1a3f586aadc159e752222c59faa82c72f8224`, base `27ed7d3693124d540394a1c78c5a73748db40354`: clean-tree/head checks, whitespace validation, 23 local Markdown destinations/anchors, and comparisons against source, release/tag metadata and recorded measurement evidence passed. All nine hosted workflows and 33 checks passed before the exact-head squash merge. No local Go tests or benchmark runs were added for this documentation-only change.
