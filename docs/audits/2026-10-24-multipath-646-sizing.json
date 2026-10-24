@@ -1,7 +1,7 @@
 {
   "baseline": "f35df9d7b016a06174288901f3337ccc2fd7347c",
   "measured_on": "2026-10-24",
-  "scope": "Design-only principal-file inventory at the unchanged production baseline. Physical lines include comments and blanks; each principal file is assigned once. Forecasts are manual cumulative additions plus deletions, not measured diffs or delivery commitments. The full scenario includes path-scoped local-socket migration, Reno-first core, later BBR/aggregation and ordinary transports; restricted transports are excluded. Secondary sites are listed separately without pretending their eventual touched-file count is known.",
+  "scope": "Design-only principal-file inventory at the unchanged production baseline. Physical lines include comments and blanks; each principal file is assigned once. Forecasts are manual cumulative additions plus deletions, not measured diffs or delivery commitments. The full scenario includes path-scoped local-socket migration, Reno-first core, later BBR/aggregation and ordinary transports; restricted transports are excluded. Secondary sites are listed separately without pretending their eventual touched-file count is known. Test/support forecasts include interop adapter, container/dependency pins, CI workflow and case-accounting code/configuration; historical yardsticks keep their original narrower exclusions.",
   "yardstick_method": "Sum git diff --numstat COMMIT^ COMMIT for listed first-parent product commits. Count .go, excluding docs/, benchmarks/, interop/, and mock_ generated files. Production excludes _test.go. Unique filenames per campaign; cumulative added/deleted churn counts repeated edits. Emission excludes E1 feasibility and includes #60 repair. Original BBR excludes Q1 and includes #622 repair. Correction-port is the five #748 port commits only, not all subsequent BBR work.",
   "groups": [
     {
@@ -922,13 +922,13 @@
       }
     }
   ],
-  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn.",
+  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn. Third design pass classifies interop support and locates CID compatibility, detachment, stalled-submission accounting and bounded per-path validation within existing allowances. No numeric forecast or historical measurement changes.",
   "estimated_test_added_plus_deleted_lines": [
     13500,
     29500
   ],
   "milestone_forecasts": {
-    "method": "Endpoint-paired scenario accounting: each row full low equals Reno low plus deferred low, and likewise for high. These are correlated planning scenarios, not independent uncertainty intervals. Deferred edits are additional cumulative churn, including later edits to files already touched by Reno; file counts are not additive across milestones.",
+    "method": "Endpoint-paired scenario accounting: each row full low equals Reno low plus deferred low, and likewise for high. These are correlated planning scenarios, not independent uncertainty intervals. Deferred edits are additional cumulative churn, including later edits to files already touched by Reno; file counts are not additive across milestones. Existing test_line_edits fields denote test/support churn, including non-Go harness and CI configuration; they are not restricted to the historical *_test.go classifier.",
     "reno_first": {
       "production_line_edits": [
         6770,
@@ -1034,5 +1034,75 @@
       ],
       "concern": "Heterogeneous per-socket capability qualification. Existing per-instance state may already suffice; no platform adapter redesign is assumed."
     }
-  ]
+  ],
+  "forecast_accounting": {
+    "contract_refinements": [
+      {
+        "recommendation": "F1",
+        "work": "Target effective CID-length compatibility before attachment",
+        "production_rows": [
+          "cids",
+          "emission",
+          "public"
+        ]
+      },
+      {
+        "recommendation": "F2",
+        "work": "Observable per-connection transport detachment including shared users and close races",
+        "production_rows": [
+          "lifecycle",
+          "emission",
+          "public"
+        ]
+      },
+      {
+        "recommendation": "F3",
+        "work": "Submission-pending retirement and explicit progress limitation under existing I/O contracts",
+        "production_rows": [
+          "lifecycle",
+          "emission"
+        ]
+      },
+      {
+        "recommendation": "F4",
+        "work": "One validation candidate per protocol path, two total, with at most one local open/migrate operation; no additional full path contexts",
+        "production_rows": [
+          "lifecycle"
+        ]
+      }
+    ],
+    "interop_support": [
+      {
+        "deliverable": "Private adapter, smoke fixture and full matrix result checks",
+        "forecast": "reno_first.test_line_edits",
+        "stages": [
+          "M4",
+          "M5"
+        ]
+      },
+      {
+        "deliverable": "Pinned picoquic/PicoTLS image, base-image digest and build/run support",
+        "forecast": "reno_first.test_line_edits",
+        "stages": [
+          "M4",
+          "M5"
+        ]
+      },
+      {
+        "deliverable": "Required Linux workflow, preflight, executed-case/skip accounting and qlog/hash capture",
+        "forecast": "reno_first.test_line_edits",
+        "stages": [
+          "M5"
+        ]
+      },
+      {
+        "deliverable": "BBR/aggregation matrix extensions",
+        "forecast": "deferred_bbr_aggregation.test_line_edits",
+        "stages": [
+          "M6"
+        ]
+      }
+    ],
+    "method": "These are mappings into existing manual allowances, not extra line or slice budgets. Production feature code used by a test adapter remains in its production row. M7 full allowance already includes later closure. Native campaign execution, bookings and qualification operations remain excluded. Numeric ranges and historical evidence are unchanged."
+  }
 }
