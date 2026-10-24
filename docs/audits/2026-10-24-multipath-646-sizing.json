@@ -1,7 +1,7 @@
 {
   "baseline": "f35df9d7b016a06174288901f3337ccc2fd7347c",
   "measured_on": "2026-10-24",
-  "scope": "Design-only principal-file inventory at the unchanged production baseline. Physical lines include comments and blanks; each principal file is assigned once. Forecasts are manual cumulative additions plus deletions, not measured diffs or delivery commitments. The full scenario includes path-scoped local-socket migration, Reno-first core, later BBR/aggregation and ordinary transports; restricted transports are excluded. Secondary sites are listed separately without pretending their eventual touched-file count is known. Test/support forecasts include interop adapter, container/dependency pins, CI workflow and case-accounting code/configuration; historical yardsticks keep their original narrower exclusions.",
+  "scope": "Design-only principal-file inventory at the unchanged production baseline. Physical lines include comments and blanks; each principal file is assigned once. Forecasts are manual cumulative additions plus deletions, not measured diffs or delivery commitments. The full scenario includes path-scoped local-socket migration, Reno-first core, later BBR/aggregation and qualified exact native UDP transports with explicit bounded-write authority; restricted transports, managed wrappers and external I/O callbacks are excluded. Secondary sites are listed separately without pretending their eventual touched-file count is known. Test/support forecasts include interop adapter, container/dependency pins, CI workflow and case-accounting code/configuration; historical yardsticks keep their original narrower exclusions.",
   "yardstick_method": "Sum git diff --numstat COMMIT^ COMMIT for listed first-parent product commits. Count .go, excluding docs/, benchmarks/, interop/, and mock_ generated files. Production excludes _test.go. Unique filenames per campaign; cumulative added/deleted churn counts repeated edits. Emission excludes E1 feasibility and includes #60 repair. Original BBR excludes Q1 and includes #622 repair. Correction-port is the five #748 port commits only, not all subsequent BBR work.",
   "groups": [
     {
@@ -435,8 +435,8 @@
       "existing_file_count": 6,
       "existing_physical_lines": 4232,
       "estimated_production_added_plus_deleted_lines": [
-        1600,
-        3100
+        1800,
+        3500
       ],
       "estimated_existing_production_files_modified": [
         5,
@@ -451,8 +451,8 @@
         200
       ],
       "estimated_reno_first_line_edits": [
-        1500,
-        2900
+        1700,
+        3300
       ]
     },
     {
@@ -518,24 +518,24 @@
       "existing_file_count": 11,
       "existing_physical_lines": 4649,
       "estimated_production_added_plus_deleted_lines": [
-        1400,
-        2600
+        2050,
+        3900
       ],
       "estimated_existing_production_files_modified": [
         8,
         11
       ],
       "estimated_new_production_files": [
-        2,
-        3
+        3,
+        5
       ],
       "estimated_deferred_bbr_aggregation_line_edits": [
         350,
         750
       ],
       "estimated_reno_first_line_edits": [
-        1050,
-        1850
+        1700,
+        3150
       ]
     },
     {
@@ -642,8 +642,8 @@
       "existing_file_count": 3,
       "existing_physical_lines": 441,
       "estimated_production_added_plus_deleted_lines": [
-        550,
-        1100
+        700,
+        1400
       ],
       "estimated_existing_production_files_modified": [
         2,
@@ -658,8 +658,8 @@
         100
       ],
       "estimated_reno_first_line_edits": [
-        500,
-        1000
+        650,
+        1300
       ]
     },
     {
@@ -922,21 +922,21 @@
       }
     }
   ],
-  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn. Third design pass classifies interop support and locates CID compatibility, detachment, stalled-submission accounting and bounded per-path validation within existing allowances. No numeric forecast or historical measurement changes.",
+  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn. Third design pass classifies interop support and locates CID compatibility, detachment, stalled-submission accounting and bounded per-path validation within existing allowances. No numeric forecast or historical measurement changes. Fourth design pass adopts bounded native send completion and adds 1,000\u20132,000 production edits, 2,000\u20134,000 test/support edits and 3\u20136 candidate slices to Reno-first. This is a new low-confidence manual allowance, not measured churn; inventory and historical measurements remain unchanged.",
   "estimated_test_added_plus_deleted_lines": [
-    13500,
-    29500
+    15500,
+    33500
   ],
   "milestone_forecasts": {
     "method": "Endpoint-paired scenario accounting: each row full low equals Reno low plus deferred low, and likewise for high. These are correlated planning scenarios, not independent uncertainty intervals. Deferred edits are additional cumulative churn, including later edits to files already touched by Reno; file counts are not additive across milestones. Existing test_line_edits fields denote test/support churn, including non-Go harness and CI configuration; they are not restricted to the historical *_test.go classifier.",
     "reno_first": {
       "production_line_edits": [
-        6770,
-        13130
+        7770,
+        15130
       ],
       "test_line_edits": [
-        9500,
-        20000
+        11500,
+        24000
       ]
     },
     "deferred_bbr_aggregation": {
@@ -951,12 +951,12 @@
     },
     "full": {
       "production_line_edits": [
-        8270,
-        16430
+        9270,
+        18430
       ],
       "test_line_edits": [
-        13500,
-        29500
+        15500,
+        33500
       ]
     }
   },
@@ -972,12 +972,12 @@
         6
       ],
       "M3": [
-        5,
-        11
+        6,
+        13
       ],
       "M4": [
-        4,
-        9
+        6,
+        13
       ],
       "M5": [
         3,
@@ -993,18 +993,18 @@
       ]
     },
     "full": [
-      22,
-      52
+      25,
+      58
     ],
     "reno_first_excluding_M6": [
-      18,
-      41
+      21,
+      47
     ],
     "supersedes": [
       16,
       22
     ],
-    "calibration": "Full production churn divided by mean original-BBR or correction-port churn per listed product commit gives approximately 22\u201352 units. Commits are not audited PR slices and complexity differs; this is a sensitivity check, not proof of the decomposition."
+    "calibration": "The former full production forecast divided by mean original-BBR or correction-port churn per listed product commit gave approximately 22\u201352 units. Commits are not audited PR slices and complexity differs; this was a sensitivity check, not proof of the decomposition. The former 22\u201352 full / 18\u201341 Reno-first range is now increased by a separately estimated 3\u20136 bounded-I/O slices to 25\u201358 full / 21\u201347 Reno-first; that increment is not derived from historical commit density."
   },
   "secondary_integration_sites": [
     {
@@ -1030,9 +1030,12 @@
       "paths": [
         "send_conn_batch_state_darwin.go",
         "send_conn_batch_state_other.go",
-        "sys_conn_*.go"
+        "sys_conn_*.go",
+        "send_conn_sendmsg_x_darwin.go",
+        "external_packet_io.go",
+        "managed_packet_endpoint.go"
       ],
-      "concern": "Heterogeneous per-socket capability qualification. Existing per-instance state may already suffice; no platform adapter redesign is assumed."
+      "concern": "Bounded native submission and all retry/fallback routes; disabled acceleration fallback; exact native socket admission and explicit rejection of external callbacks/managed leases. Native adapters are within the emission increment; wrapper/provider redesign is excluded."
     }
   ],
   "forecast_accounting": {
@@ -1057,7 +1060,7 @@
       },
       {
         "recommendation": "F3",
-        "work": "Submission-pending retirement and explicit progress limitation under existing I/O contracts",
+        "work": "Historical indefinite-progress proposal superseded: bounded native submission completion, path-qualified retirement and endpoint error ownership; see bounded_native_io_increment.",
         "production_rows": [
           "lifecycle",
           "emission"
@@ -1103,6 +1106,60 @@
         ]
       }
     ],
-    "method": "These are mappings into existing manual allowances, not extra line or slice budgets. Production feature code used by a test adapter remains in its production row. M7 full allowance already includes later closure. Native campaign execution, bookings and qualification operations remain excluded. Numeric ranges and historical evidence are unchanged."
+    "method": "Contract-refinement and interop mappings refer to existing allowances. bounded_native_io_increment is the only new fourth-pass allowance and is already included in group, milestone and slice totals. Production feature code remains in production rows. Historical inventory/churn and deferred BBR amounts are unchanged. Native campaign execution, bookings and qualification operations remain excluded.",
+    "bounded_native_io_increment": {
+      "confidence": "low; manual planning allowance, no prototype or native qualification",
+      "production_line_edits": [
+        1000,
+        2000
+      ],
+      "test_support_line_edits": [
+        2000,
+        4000
+      ],
+      "candidate_slices": [
+        3,
+        6
+      ],
+      "production_rows": {
+        "lifecycle": [
+          200,
+          400
+        ],
+        "emission": [
+          650,
+          1300
+        ],
+        "public": [
+          150,
+          300
+        ]
+      },
+      "stage_increments": {
+        "M3": [
+          1,
+          2
+        ],
+        "M4": [
+          2,
+          4
+        ]
+      },
+      "new_production_files_in_emission": [
+        1,
+        2
+      ],
+      "included": [
+        "Transport-wide native writer and deadline ownership, including ordinary peers and non-QUIC/stateless/control sends",
+        "Bounded retirement completion and timeout/partial-send error attribution",
+        "Configuration and exact-socket capability gating",
+        "Shared-socket, retry, completion-race and platform qualification fixtures"
+      ],
+      "excluded": [
+        "Custom cancellable provider API and wrapper/managed-lease support",
+        "Native qualification campaign execution",
+        "Previously budgeted submission fences, detachment and interop scaffolding"
+      ]
+    }
   }
 }
