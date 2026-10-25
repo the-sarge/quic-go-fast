@@ -7889,3 +7889,14 @@ The [final RAS consideration response](audits/2026-10-24-multipath-646-final-con
 ### Next
 
 At this entry's timestamp, publish the merged-plan child issues and OmniFocus pointers, then leave dispatch to the operator. E1/R1/R2 are the initial parallel-safe frontier; shared recovery changes remain blocked by Q2 #599. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view of publication and later progress.
+
+---
+
+## Idle MTU discovery timer fix - 2026-10-25 13:51 EDT
+
+**Main:** `f97e0c94cbad`
+**Actor:** Codex
+
+Merged [PR #1047](https://github.com/the-sarge/quic-go-fast/pull/1047), which adds the MTU finder's next eligible probe time to the connection timer after handshake confirmation. Idle path discovery now progresses without waiting for keepalive or incoming traffic. Pacing and blocked-send behavior are preserved; public API and wire format are unchanged.
+
+Validation on the reviewed head `e6a37ea76e2ab2509708179a8713094d4f31e6f6`: the eight-state virtual-time regression and existing MTU, keepalive, ACK-timer and migration tests passed under race; the complete root package, `go vet .`, `go mod tidy -diff` and whitespace checks passed. All applicable hosted checks passed. RAS review `20261025T173523-1762d067c71bae338c9018de` completed with no required fixes or follow-ups; the independent disposition is recorded in the PR. This merge has not been published in a release.
