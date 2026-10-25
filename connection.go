@@ -995,6 +995,18 @@ func (c *Conn) maybeResetTimer() {
 		deadline = c.pacingDeadline
 		c.pacingKick.arm(deadline)
 	}
+	// An idle connection still needs to advance path MTU discovery. Respect
+	// pacing here; blocked connections returned above and must not busy-wake.
+	if c.handshakeConfirmed && c.mtuDiscoverer != nil {
+		if next := c.mtuDiscoverer.NextProbeTime(); !next.IsZero() {
+			if !c.pacingDeadline.IsZero() && c.pacingDeadline.After(next) {
+				next = c.pacingDeadline
+			}
+			if next.Before(deadline) {
+				deadline = next
+			}
+		}
+	}
 	c.timer.Reset(monotime.Until(deadline))
 }
 
