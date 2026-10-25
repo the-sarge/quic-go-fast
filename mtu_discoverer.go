@@ -145,14 +145,16 @@ func (f *mtuFinder) Start(now monotime.Time) {
 	f.lastProbeTime = now // makes sure the first probe packet is not sent immediately
 }
 
+func (f *mtuFinder) NextProbeTime() monotime.Time {
+	if f.lastProbeTime.IsZero() || f.inFlight != protocol.InvalidByteCount || f.done() {
+		return 0
+	}
+	return f.lastProbeTime.Add(mtuProbeDelay * f.rttStats.SmoothedRTT())
+}
+
 func (f *mtuFinder) ShouldSendProbe(now monotime.Time) bool {
-	if f.lastProbeTime.IsZero() {
-		return false
-	}
-	if f.inFlight != protocol.InvalidByteCount || f.done() {
-		return false
-	}
-	return !now.Before(f.lastProbeTime.Add(mtuProbeDelay * f.rttStats.SmoothedRTT()))
+	next := f.NextProbeTime()
+	return !next.IsZero() && !now.Before(next)
 }
 
 func (f *mtuFinder) probeSize() protocol.ByteCount {
