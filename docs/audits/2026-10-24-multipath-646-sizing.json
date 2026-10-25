@@ -1,0 +1,1447 @@
+{
+  "baseline": "f35df9d7b016a06174288901f3337ccc2fd7347c",
+  "measured_on": "2026-10-24",
+  "scope": "Design-only principal-file inventory at the unchanged production baseline. Physical lines include comments and blanks; each principal file is assigned once. Forecasts are manual cumulative additions plus deletions, not measured diffs or delivery commitments. The full scenario includes path-scoped local-socket migration, Reno-first core, later BBR/aggregation and qualified exact native UDP transports with explicit bounded-write authority; restricted transports, managed wrappers and external I/O callbacks are excluded. Secondary sites are listed separately without pretending their eventual touched-file count is known. Test/support forecasts include interop adapter, container/dependency pins, CI workflow and case-accounting code/configuration; historical yardsticks keep their original narrower exclusions. Local queue/write timeouts are nonfatal backpressure for ordinary and multipath peers on opted-in endpoints; they do not themselves constitute path failure.",
+  "yardstick_method": "Sum git diff --numstat COMMIT^ COMMIT for listed first-parent product commits. Count .go, excluding docs/, benchmarks/, interop/, and mock_ generated files. Production excludes _test.go. Unique filenames per campaign; cumulative added/deleted churn counts repeated edits. Emission excludes E1 feasibility and includes #60 repair. Original BBR excludes Q1 and includes #622 repair. Correction-port is the five #748 port commits only, not all subsequent BBR work.",
+  "groups": [
+    {
+      "id": "wire",
+      "title": "Transport parameters and frames",
+      "existing_files": [
+        {
+          "path": "internal/wire/transport_parameters.go",
+          "physical_lines": 595,
+          "blob": "8a32c1cdb94ca61c24a9c0ebe2c6d23c33147daf"
+        },
+        {
+          "path": "internal/wire/frame_parser.go",
+          "physical_lines": 194,
+          "blob": "5cafe5e7a6942690cbcc41009dbab7ecd657f52c"
+        },
+        {
+          "path": "internal/wire/frame_type.go",
+          "physical_lines": 81,
+          "blob": "597523f6d5b104027f51883dc7f06830873afc0c"
+        },
+        {
+          "path": "internal/wire/frame.go",
+          "physical_lines": 33,
+          "blob": "09ea92f754180a2e453c19cdae78406a6603edde"
+        },
+        {
+          "path": "internal/wire/ack_frame.go",
+          "physical_lines": 298,
+          "blob": "191e15307cb706144996c434f4d6e9afb9210963"
+        },
+        {
+          "path": "internal/wire/new_connection_id_frame.go",
+          "physical_lines": 80,
+          "blob": "058319266f5a12d86bdf8e743466b57c44ecbad8"
+        },
+        {
+          "path": "internal/wire/retire_connection_id_frame.go",
+          "physical_lines": 30,
+          "blob": "1927f9dc07b4818683540ccc135e07ce9ff62f0d"
+        },
+        {
+          "path": "internal/wire/path_challenge_frame.go",
+          "physical_lines": 32,
+          "blob": "7a4a767e5180792cf3001c2686f1436720b30c9a"
+        },
+        {
+          "path": "internal/wire/path_response_frame.go",
+          "physical_lines": 32,
+          "blob": "e76d037b15100a95538a5ba393c06295a129fec1"
+        },
+        {
+          "path": "internal/wire/log.go",
+          "physical_lines": 74,
+          "blob": "c8b28d924c2103407a9c9b76fa113f93e9405f46"
+        }
+      ],
+      "existing_file_count": 10,
+      "existing_physical_lines": 1449,
+      "estimated_production_added_plus_deleted_lines": [
+        450,
+        900
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        6
+      ],
+      "estimated_new_production_files": [
+        6,
+        9
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        450,
+        900
+      ]
+    },
+    {
+      "id": "packet-spaces",
+      "title": "Packet-number spaces and ACKs",
+      "existing_files": [
+        {
+          "path": "internal/ackhandler/sent_packet_handler.go",
+          "physical_lines": 1326,
+          "blob": "6cb97f6052f2397129e14a842e59eb67d3921a7d"
+        },
+        {
+          "path": "internal/ackhandler/received_packet_handler.go",
+          "physical_lines": 138,
+          "blob": "0837ab597ac460c899fb7e7230cfe90ae1178340"
+        },
+        {
+          "path": "internal/ackhandler/packet_number_generator.go",
+          "physical_lines": 84,
+          "blob": "4a9db86356b3ff4bdffb688c297bd2011cd34fde"
+        },
+        {
+          "path": "internal/ackhandler/sent_packet_history.go",
+          "physical_lines": 281,
+          "blob": "cab971de02edbe47e08dfa94c22859a295e3892f"
+        },
+        {
+          "path": "internal/ackhandler/received_packet_history.go",
+          "physical_lines": 159,
+          "blob": "d065b6e65996644608919042c7a0655cc32cce63"
+        },
+        {
+          "path": "internal/ackhandler/received_packet_tracker.go",
+          "physical_lines": 286,
+          "blob": "0c809b9cfef8b409b53e2b66b1096c9e170de483"
+        },
+        {
+          "path": "internal/ackhandler/interfaces.go",
+          "physical_lines": 52,
+          "blob": "56155bb8ce70665367fe23a60318d7b4090d5c35"
+        },
+        {
+          "path": "internal/ackhandler/packet.go",
+          "physical_lines": 60,
+          "blob": "7d9863000a1d8cad0b71fcaff6552756627f456e"
+        }
+      ],
+      "existing_file_count": 8,
+      "existing_physical_lines": 2386,
+      "estimated_production_added_plus_deleted_lines": [
+        950,
+        1800
+      ],
+      "estimated_existing_production_files_modified": [
+        5,
+        8
+      ],
+      "estimated_new_production_files": [
+        1,
+        2
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        100,
+        200
+      ],
+      "estimated_reno_first_line_edits": [
+        850,
+        1600
+      ]
+    },
+    {
+      "id": "recovery",
+      "title": "Loss, PTO, sampling and ECN",
+      "existing_files": [
+        {
+          "path": "internal/ackhandler/lost_packet_tracker.go",
+          "physical_lines": 77,
+          "blob": "019575f3dfacb419824100c33379c13b21cb4dd0"
+        },
+        {
+          "path": "internal/ackhandler/congestion_dispatch.go",
+          "physical_lines": 341,
+          "blob": "16feead942ed0984e885ef56ab3342eb52e8bef1"
+        },
+        {
+          "path": "internal/ackhandler/delivery_sampler.go",
+          "physical_lines": 345,
+          "blob": "fb8a0ae5ab2f63f4cacef38964fae6a713336cc1"
+        },
+        {
+          "path": "internal/ackhandler/delivery_records.go",
+          "physical_lines": 161,
+          "blob": "8fb5da94f9b2f7dcfb5502e7581e0cdc043b6e73"
+        },
+        {
+          "path": "internal/ackhandler/bbr_recovery.go",
+          "physical_lines": 612,
+          "blob": "aaea7199474626c5d133c1406c727a7c1d744970"
+        },
+        {
+          "path": "internal/ackhandler/recovery_index.go",
+          "physical_lines": 260,
+          "blob": "1821ae39a3cfb2643eb46cb51a626f77d21fe426"
+        },
+        {
+          "path": "internal/ackhandler/retained_index.go",
+          "physical_lines": 205,
+          "blob": "113a116ecbac3ed1b5f49d86fed8c4087f29fdd3"
+        },
+        {
+          "path": "internal/ackhandler/ecn.go",
+          "physical_lines": 340,
+          "blob": "123d3a341d3001cdd8ef41a6f4a2784dfa911e9d"
+        },
+        {
+          "path": "internal/ackhandler/bbr_ecn.go",
+          "physical_lines": 382,
+          "blob": "436facf70c5e098bcc771cd37dfc39854c80cbb6"
+        },
+        {
+          "path": "internal/ackhandler/bbr_diagnostics.go",
+          "physical_lines": 42,
+          "blob": "6a4d7c775aff6f5bdb4b75b2f38a585dc3fa395b"
+        }
+      ],
+      "existing_file_count": 10,
+      "existing_physical_lines": 2765,
+      "estimated_production_added_plus_deleted_lines": [
+        900,
+        1800
+      ],
+      "estimated_existing_production_files_modified": [
+        6,
+        9
+      ],
+      "estimated_new_production_files": [
+        1,
+        3
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        450,
+        950
+      ],
+      "estimated_reno_first_line_edits": [
+        450,
+        850
+      ]
+    },
+    {
+      "id": "controllers",
+      "title": "Congestion controllers and pacers",
+      "existing_files": [
+        {
+          "path": "internal/congestion/bbr_sender.go",
+          "physical_lines": 564,
+          "blob": "5bfdf109dc6daa1f0be65687acf7c595c54920f9"
+        },
+        {
+          "path": "internal/congestion/bbr_probe.go",
+          "physical_lines": 227,
+          "blob": "19d9de938d450872f004403cb1d54dee1a015053"
+        },
+        {
+          "path": "internal/congestion/bbr_probe_rtt.go",
+          "physical_lines": 121,
+          "blob": "d2d6de571e4e3d23bbe69f1dd4b0a455285e8c6e"
+        },
+        {
+          "path": "internal/congestion/bbr_recovery.go",
+          "physical_lines": 106,
+          "blob": "26bb832f8ed5e5a191618a767efe7100ebad2bfa"
+        },
+        {
+          "path": "internal/congestion/bbr_ecn.go",
+          "physical_lines": 175,
+          "blob": "b2e8173f92ae9b9f4209625f51848b2399134c8a"
+        },
+        {
+          "path": "internal/congestion/cubic_sender.go",
+          "physical_lines": 394,
+          "blob": "ee6ace8e56d2a81e425f986ff07722b9ad75259a"
+        },
+        {
+          "path": "internal/congestion/pacer.go",
+          "physical_lines": 110,
+          "blob": "7656f52968d29bba3c7db27733de6af6163cb02f"
+        },
+        {
+          "path": "internal/congestion/interface.go",
+          "physical_lines": 31,
+          "blob": "4f2567cbf96775a8d77b85f419a4074efae53774"
+        },
+        {
+          "path": "internal/congestion/feedback.go",
+          "physical_lines": 154,
+          "blob": "11779a02a11d73c53f657d8e4fbd028f49cb4709"
+        },
+        {
+          "path": "internal/congestion/packet_order.go",
+          "physical_lines": 43,
+          "blob": "bc61adab6495c39a7b78f6c94d8b934a08c46847"
+        }
+      ],
+      "existing_file_count": 10,
+      "existing_physical_lines": 1925,
+      "estimated_production_added_plus_deleted_lines": [
+        300,
+        750
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        6
+      ],
+      "estimated_new_production_files": [
+        0,
+        1
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        200,
+        500
+      ],
+      "estimated_reno_first_line_edits": [
+        100,
+        250
+      ]
+    },
+    {
+      "id": "cids",
+      "title": "Connection-ID ownership",
+      "existing_files": [
+        {
+          "path": "conn_id_generator.go",
+          "physical_lines": 212,
+          "blob": "133932a6a5ab9b00436ed7a2eec0dd17b311b4e8"
+        },
+        {
+          "path": "conn_id_manager.go",
+          "physical_lines": 331,
+          "blob": "8d08e07c6497b9fd1e7748b09ad3d6bc25182b7b"
+        }
+      ],
+      "existing_file_count": 2,
+      "existing_physical_lines": 543,
+      "estimated_production_added_plus_deleted_lines": [
+        600,
+        1200
+      ],
+      "estimated_existing_production_files_modified": [
+        2,
+        2
+      ],
+      "estimated_new_production_files": [
+        1,
+        1
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        600,
+        1200
+      ]
+    },
+    {
+      "id": "protection",
+      "title": "Packet protection and decoding",
+      "existing_files": [
+        {
+          "path": "internal/handshake/updatable_aead.go",
+          "physical_lines": 372,
+          "blob": "f88f76ad8b0985907606f4d880ae9d88a7fa9398"
+        },
+        {
+          "path": "internal/handshake/aead.go",
+          "physical_lines": 91,
+          "blob": "f12c932a507fb964e6c07fcbd4d16ed57401e6d7"
+        },
+        {
+          "path": "internal/handshake/interface.go",
+          "physical_lines": 147,
+          "blob": "177859d14d78b204b6a3731a8032c27dd2e7dca7"
+        },
+        {
+          "path": "internal/handshake/crypto_setup.go",
+          "physical_lines": 722,
+          "blob": "7ba715b9a4f3fc67f071b8aa140d5a09feae6fd3"
+        },
+        {
+          "path": "packet_unpacker.go",
+          "physical_lines": 222,
+          "blob": "0729636e2a3283825bb7525c2dd785eee29ee375"
+        }
+      ],
+      "existing_file_count": 5,
+      "existing_physical_lines": 1554,
+      "estimated_production_added_plus_deleted_lines": [
+        600,
+        1100
+      ],
+      "estimated_existing_production_files_modified": [
+        4,
+        5
+      ],
+      "estimated_new_production_files": [
+        0,
+        2
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        600,
+        1100
+      ]
+    },
+    {
+      "id": "lifecycle",
+      "title": "Connection/path lifecycle and MTU",
+      "existing_files": [
+        {
+          "path": "connection.go",
+          "physical_lines": 3196,
+          "blob": "c250c8b3a10930db711a84dafbe36be73701758a"
+        },
+        {
+          "path": "path_manager.go",
+          "physical_lines": 320,
+          "blob": "f0144d39edc1d1eb6e4aab84b948de27f07d0c2a"
+        },
+        {
+          "path": "path_manager_outgoing.go",
+          "physical_lines": 347,
+          "blob": "62d82fbb3396b528b4debfb8ff231578635d99bb"
+        },
+        {
+          "path": "mtu_discoverer.go",
+          "physical_lines": 256,
+          "blob": "a12dce7ef8c576ec16afaffa46542148dcc1ac66"
+        },
+        {
+          "path": "path_mtu_settled.go",
+          "physical_lines": 51,
+          "blob": "b68b5ed238edb8fd981bc109a28efc3551ebb554"
+        },
+        {
+          "path": "closed_conn.go",
+          "physical_lines": 62,
+          "blob": "8e4cfcf412a194312def21b910bfe1bc25349f96"
+        }
+      ],
+      "existing_file_count": 6,
+      "existing_physical_lines": 4232,
+      "estimated_production_added_plus_deleted_lines": [
+        1800,
+        3500
+      ],
+      "estimated_existing_production_files_modified": [
+        5,
+        6
+      ],
+      "estimated_new_production_files": [
+        2,
+        4
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        100,
+        200
+      ],
+      "estimated_reno_first_line_edits": [
+        1700,
+        3300
+      ]
+    },
+    {
+      "id": "emission",
+      "title": "Emission, socket routing and local credit",
+      "existing_files": [
+        {
+          "path": "packet_emission.go",
+          "physical_lines": 690,
+          "blob": "b4af6e5bd54d8d22d6410678f13b4fb0f9d7ac98"
+        },
+        {
+          "path": "packet_emission_bbr.go",
+          "physical_lines": 242,
+          "blob": "7507cba7a7fc76e2c8f8d89665d542ac8d71e896"
+        },
+        {
+          "path": "packet_emission_gso.go",
+          "physical_lines": 94,
+          "blob": "4eeada5686eaab24ef4e4d43c507550c074e1905"
+        },
+        {
+          "path": "packet_packer.go",
+          "physical_lines": 1112,
+          "blob": "6a9964636abea0495f7e301fc8f8fa3e2c261d7d"
+        },
+        {
+          "path": "send_conn.go",
+          "physical_lines": 185,
+          "blob": "02e0e3358cbf0705ca3ec65707f724cb51d8eabd"
+        },
+        {
+          "path": "send_queue.go",
+          "physical_lines": 344,
+          "blob": "c85711d84e09b4c0dd91abf0ad3fc7c5ae1c53bb"
+        },
+        {
+          "path": "bbr_send_policy.go",
+          "physical_lines": 104,
+          "blob": "0721d987e6826ac6858f95bb3f6ebe3de6f77aa7"
+        },
+        {
+          "path": "local_send_credit.go",
+          "physical_lines": 134,
+          "blob": "080a96a97ea691a5f9f8763bf7c96d9bb1c75c79"
+        },
+        {
+          "path": "delivery_sampling.go",
+          "physical_lines": 186,
+          "blob": "c7dff1483f080e68bd0f5d51f152f7e15a829343"
+        },
+        {
+          "path": "candidate_authority.go",
+          "physical_lines": 417,
+          "blob": "10cc8f6d85ab5b8ea3bebbfd4df1600400e36b6d"
+        },
+        {
+          "path": "transport.go",
+          "physical_lines": 1141,
+          "blob": "0bbfce1bc3e0292c0e75fcfce1b090563e544e2f"
+        }
+      ],
+      "existing_file_count": 11,
+      "existing_physical_lines": 4649,
+      "estimated_production_added_plus_deleted_lines": [
+        2050,
+        3900
+      ],
+      "estimated_existing_production_files_modified": [
+        8,
+        11
+      ],
+      "estimated_new_production_files": [
+        3,
+        5
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        350,
+        750
+      ],
+      "estimated_reno_first_line_edits": [
+        1700,
+        3150
+      ]
+    },
+    {
+      "id": "fixed-peer",
+      "title": "Restricted-transport policy",
+      "existing_files": [
+        {
+          "path": "packet_policy.go",
+          "physical_lines": 284,
+          "blob": "f6e077d58fe9a6619c094ae43e864804fe1c670e"
+        }
+      ],
+      "existing_file_count": 1,
+      "existing_physical_lines": 284,
+      "estimated_production_added_plus_deleted_lines": [
+        120,
+        280
+      ],
+      "estimated_existing_production_files_modified": [
+        1,
+        1
+      ],
+      "estimated_new_production_files": [
+        0,
+        0
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        0,
+        0
+      ],
+      "estimated_reno_first_line_edits": [
+        120,
+        280
+      ]
+    },
+    {
+      "id": "qlog",
+      "title": "Observability",
+      "existing_files": [
+        {
+          "path": "qlog/frame.go",
+          "physical_lines": 481,
+          "blob": "b66fedc954a49387298c4ad8878487f11e2b447d"
+        },
+        {
+          "path": "qlog/event.go",
+          "physical_lines": 874,
+          "blob": "bbd1db647c8da5dd2994adb69a66e1376f641e4e"
+        },
+        {
+          "path": "qlog/packet_header.go",
+          "physical_lines": 96,
+          "blob": "149ebcb6a939a8cc62314e203b29323e6df5c62c"
+        },
+        {
+          "path": "qlog/types.go",
+          "physical_lines": 305,
+          "blob": "97c7febef3d5bb8b0038ddb40d658d9df111ebfc"
+        }
+      ],
+      "existing_file_count": 4,
+      "existing_physical_lines": 1756,
+      "estimated_production_added_plus_deleted_lines": [
+        200,
+        500
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        4
+      ],
+      "estimated_new_production_files": [
+        0,
+        1
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        50,
+        150
+      ],
+      "estimated_reno_first_line_edits": [
+        150,
+        350
+      ]
+    },
+    {
+      "id": "public",
+      "title": "Configuration and public capability",
+      "existing_files": [
+        {
+          "path": "interface.go",
+          "physical_lines": 229,
+          "blob": "727afa3243b8b773df600109cd86a9f972e3bdba"
+        },
+        {
+          "path": "config.go",
+          "physical_lines": 178,
+          "blob": "cb5887d9e6d54cd14bc7f3fb9b482808d3bbc5ec"
+        },
+        {
+          "path": "congestion_control.go",
+          "physical_lines": 34,
+          "blob": "e7bc6d6c2d0cdd06e639038abbd9d1e90e17545b"
+        }
+      ],
+      "existing_file_count": 3,
+      "existing_physical_lines": 441,
+      "estimated_production_added_plus_deleted_lines": [
+        700,
+        1400
+      ],
+      "estimated_existing_production_files_modified": [
+        2,
+        3
+      ],
+      "estimated_new_production_files": [
+        1,
+        2
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        50,
+        100
+      ],
+      "estimated_reno_first_line_edits": [
+        650,
+        1300
+      ]
+    },
+    {
+      "id": "payload",
+      "title": "Payload scheduling and retransmission",
+      "existing_files": [
+        {
+          "path": "framer.go",
+          "physical_lines": 490,
+          "blob": "643a7c1d43b12cf6c413345180c79a65ababaed4"
+        },
+        {
+          "path": "retransmission_queue.go",
+          "physical_lines": 158,
+          "blob": "323af5b0c43c0acf9ebcce184eaff9106335ec32"
+        },
+        {
+          "path": "datagram_queue.go",
+          "physical_lines": 182,
+          "blob": "349b383eef6b6e6bc0d74816330502a30bb12fcb"
+        },
+        {
+          "path": "send_stream.go",
+          "physical_lines": 1026,
+          "blob": "5686cbf497d79b0a352e3b46c7ff82bb87ce6f70"
+        }
+      ],
+      "existing_file_count": 4,
+      "existing_physical_lines": 1856,
+      "estimated_production_added_plus_deleted_lines": [
+        600,
+        1300
+      ],
+      "estimated_existing_production_files_modified": [
+        3,
+        4
+      ],
+      "estimated_new_production_files": [
+        2,
+        3
+      ],
+      "estimated_deferred_bbr_aggregation_line_edits": [
+        200,
+        450
+      ],
+      "estimated_reno_first_line_edits": [
+        400,
+        850
+      ]
+    }
+  ],
+  "yardsticks": [
+    {
+      "id": "emission",
+      "commits": [
+        "21b45f4615c7630b8c19a57121cc1d180e14211d",
+        "f271602adabd73520e5f92c04066970a3e7bb1e3",
+        "67771b9fca25138db6b4657ae69b869aa297b987",
+        "52c5321db04cdbf1671249878dde9db633866ab6",
+        "a62dc4eee670eac558c1babebe2377f0f8ff484d",
+        "eb9b3ed8f5625630a33932f27f0d1943d1032d8e",
+        "4e99c672548303aaaca496e8e86977fe5cb13db5",
+        "d7d2b295f50b6c7ff78a47c2c78c57136c541846",
+        "86bba30bb7b6b2ccb96566ce3aafa799fbe53037"
+      ],
+      "counts": {
+        "production": {
+          "added": 808,
+          "deleted": 575,
+          "files": [
+            "connection.go",
+            "mockgen.go",
+            "packet_emission.go",
+            "packet_packer.go",
+            "send_queue.go"
+          ],
+          "file_count": 5
+        },
+        "tests": {
+          "added": 1931,
+          "deleted": 822,
+          "files": [
+            "connection_emission_close_test.go",
+            "connection_emission_experiment_test.go",
+            "connection_emission_handshake_test.go",
+            "connection_emission_test.go",
+            "connection_handshake_mtu_test.go",
+            "connection_probe_emission_test.go",
+            "connection_probe_experiment_test.go",
+            "connection_scheduling_test.go",
+            "connection_test.go",
+            "packet_emission_test.go",
+            "packet_packer_lifetime_test.go",
+            "send_queue_lifetime_bench_test.go",
+            "send_queue_test.go"
+          ],
+          "file_count": 13
+        }
+      }
+    },
+    {
+      "id": "bbr-original",
+      "commits": [
+        "33de58dde7b1610818af06d55fc109efb52e4cc7",
+        "b9d388b4f6293f01f3ce3cb38d1a3d8217b7c46c",
+        "b52339af26931a8d90b21c2ee4e0ec1676cf906f",
+        "f2cb19f01853f6a461b76edd9c495f4b7000f92f",
+        "e1ce634d9d3fcd2a4873ff865f0264ab52b6ec31",
+        "672f8cd48db2dbe612a33e001997e26446b078e4",
+        "6c91b4b50ff5124ddcc7a257eddfea4ff83cb718",
+        "c0fcd4fd9a38b2eaeaac3eb62d91798d2eed8dd9",
+        "ad85863447b65b26a4595dd575eae304cc918c36",
+        "20f596e2b5f7ee88cdaeaf00fbde146bf18e3fa6",
+        "a50c89a38623302931b30ed4369966c168a16162",
+        "13fea227c3ea001bfec7c04e88d9b1fe3841ac3e"
+      ],
+      "counts": {
+        "production": {
+          "added": 3647,
+          "deleted": 173,
+          "files": [
+            "bbr_controller.go",
+            "bbr_diagnostics.go",
+            "bbr_ecn.go",
+            "bbr_send_policy.go",
+            "config.go",
+            "congestion_control.go",
+            "connection.go",
+            "delivery_sampling.go",
+            "framer.go",
+            "interface.go",
+            "internal/ackhandler/bbr_diagnostics.go",
+            "internal/ackhandler/bbr_ecn.go",
+            "internal/ackhandler/bbr_recovery.go",
+            "internal/ackhandler/congestion_dispatch.go",
+            "internal/ackhandler/delivery_sampler.go",
+            "internal/ackhandler/sent_packet_handler.go",
+            "internal/congestion/bbr_diagnostics.go",
+            "internal/congestion/bbr_ecn.go",
+            "internal/congestion/bbr_probe.go",
+            "internal/congestion/bbr_probe_rtt.go",
+            "internal/congestion/bbr_recovery.go",
+            "internal/congestion/bbr_sender.go",
+            "internal/congestion/feedback.go",
+            "local_send_credit.go",
+            "mtu_discoverer.go",
+            "packet_emission.go",
+            "packet_emission_bbr.go",
+            "send_queue.go",
+            "testdata/congestioncontrol/main.go"
+          ],
+          "file_count": 29
+        },
+        "tests": {
+          "added": 5090,
+          "deleted": 32,
+          "files": [
+            "bbr_controller_test.go",
+            "bbr_ecn_test.go",
+            "bbr_probe_rtt_test.go",
+            "bbr_send_policy_test.go",
+            "congestion_control_loopback_test.go",
+            "congestion_control_migration_test.go",
+            "congestion_control_test.go",
+            "connection_emission_test.go",
+            "delivery_sampling_test.go",
+            "internal/ackhandler/bbr_ecn_test.go",
+            "internal/ackhandler/bbr_pto_test.go",
+            "internal/ackhandler/bbr_recovery_test.go",
+            "internal/ackhandler/bbr_sender_test.go",
+            "internal/ackhandler/congestion_dispatch_test.go",
+            "internal/ackhandler/delivery_sampler_test.go",
+            "internal/congestion/bbr_ecn_test.go",
+            "internal/congestion/bbr_probe_rtt_test.go",
+            "internal/congestion/bbr_probe_test.go",
+            "internal/congestion/bbr_recovery_test.go",
+            "internal/congestion/bbr_sender_test.go",
+            "internal/congestion/pacer_test.go"
+          ],
+          "file_count": 21
+        }
+      }
+    },
+    {
+      "id": "bbr-correction-port",
+      "commits": [
+        "c6c3e9c3330f8073e74e83a16c44423fe82736bf",
+        "ec28ca58140f67599c10e57345bb3940b369b3cb",
+        "db64d20fe05ffe080c63ab49e712fb145a23e1d3",
+        "d716cc4f80637ca70e32f83c9dad7815f48c67fc",
+        "4b3f3a5aefe4ce274c435e2b72f6cd638a783c09"
+      ],
+      "counts": {
+        "production": {
+          "added": 1601,
+          "deleted": 242,
+          "files": [
+            "bbr_ecn.go",
+            "bbr_send_policy.go",
+            "connection.go",
+            "internal/ackhandler/bbr_diagnostics.go",
+            "internal/ackhandler/bbr_ecn.go",
+            "internal/ackhandler/bbr_recovery.go",
+            "internal/ackhandler/congestion_dispatch.go",
+            "internal/ackhandler/delivery_records.go",
+            "internal/ackhandler/delivery_sampler.go",
+            "internal/ackhandler/recovery_index.go",
+            "internal/ackhandler/retained_index.go",
+            "internal/ackhandler/sent_packet_handler.go",
+            "internal/ackhandler/service_work.go",
+            "internal/ackhandler/service_work_off.go",
+            "internal/ackhandler/service_work_on.go",
+            "internal/congestion/bbr_probe.go",
+            "internal/congestion/bbr_probe_rtt.go",
+            "internal/congestion/bbr_recovery.go",
+            "internal/congestion/bbr_sender.go",
+            "local_send_credit.go",
+            "pacing_kick_linux.go",
+            "pacing_kick_other.go",
+            "packet_emission.go",
+            "packet_emission_bbr.go",
+            "send_queue.go"
+          ],
+          "file_count": 25
+        },
+        "tests": {
+          "added": 5747,
+          "deleted": 43,
+          "files": [
+            "bbr_capability_test.go",
+            "bbr_continuation_test.go",
+            "bbr_send_policy_test.go",
+            "bbr_send_queue_depth_test.go",
+            "candidate_authority_test.go",
+            "internal/ackhandler/bbr_ecn_equivalence_test.go",
+            "internal/ackhandler/bbr_ecn_test.go",
+            "internal/ackhandler/bbr_ecn_work_test.go",
+            "internal/ackhandler/bbr_sender_test.go",
+            "internal/ackhandler/congestion_dispatch_test.go",
+            "internal/ackhandler/delivery_records_test.go",
+            "internal/ackhandler/equivalence_budget_test.go",
+            "internal/ackhandler/race_off_test.go",
+            "internal/ackhandler/race_on_test.go",
+            "internal/ackhandler/recovery_bracket_test.go",
+            "internal/ackhandler/recovery_bracket_work_test.go",
+            "internal/ackhandler/recovery_equivalence_test.go",
+            "internal/ackhandler/recovery_helpers_test.go",
+            "internal/ackhandler/recovery_memory_test.go",
+            "internal/ackhandler/recovery_reference_test.go",
+            "internal/ackhandler/recovery_twin_test.go",
+            "internal/ackhandler/recovery_work_test.go",
+            "internal/congestion/bbr_conformance_test.go",
+            "internal/congestion/bbr_ecn_test.go",
+            "local_send_credit_equivalence_test.go",
+            "local_send_credit_frozen_test.go",
+            "pacing_kick_linux_test.go"
+          ],
+          "file_count": 27
+        }
+      }
+    }
+  ],
+  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn. Third design pass classifies interop support and locates CID compatibility, detachment, stalled-submission accounting and bounded per-path validation within existing allowances. No numeric forecast or historical measurement changes. Fourth design pass adopts bounded native send completion and adds 1,000\u20132,000 production edits, 2,000\u20134,000 test/support edits and 3\u20136 candidate slices to Reno-first. This is a new low-confidence manual allowance, not measured churn; inventory and historical measurements remain unchanged. Fifth design pass addresses the nine third-consideration recommendations and the owner-selected local-backpressure policy. Reassessed lifecycle/emission/public allocation remains 200\u2013400 / 650\u20131,300 / 150\u2013300 within the existing bounded-I/O increment, with additive component and test/support mappings below. No numeric forecast, principal inventory or historical measurement changes; no implementation or new review run. D0 and final consideration make pending-local recovery eligibility, destination-error policy and migration history/attachment limits explicit. These refine the already included lifecycle/recovery/emission work; no runtime measurement supports narrowing the range. The audited handoff decomposes 27 construction/support slices plus four qualification-delivery slices, not 31 additional production slices.",
+  "estimated_test_added_plus_deleted_lines": [
+    15500,
+    33500
+  ],
+  "milestone_forecasts": {
+    "method": "Endpoint-paired scenario accounting: each row full low equals Reno low plus deferred low, and likewise for high. These are correlated planning scenarios, not independent uncertainty intervals. Deferred edits are additional cumulative churn, including later edits to files already touched by Reno; file counts are not additive across milestones. Existing test_line_edits fields denote test/support churn, including non-Go harness and CI configuration; they are not restricted to the historical *_test.go classifier.",
+    "reno_first": {
+      "production_line_edits": [
+        7770,
+        15130
+      ],
+      "test_line_edits": [
+        11500,
+        24000
+      ]
+    },
+    "deferred_bbr_aggregation": {
+      "production_line_edits": [
+        1500,
+        3300
+      ],
+      "test_line_edits": [
+        4000,
+        9500
+      ]
+    },
+    "full": {
+      "production_line_edits": [
+        9270,
+        18430
+      ],
+      "test_line_edits": [
+        15500,
+        33500
+      ]
+    }
+  },
+  "candidate_slice_forecasts": {
+    "kind": "Unaudited review-unit planning ranges; no elapsed-time implication or upper-bound guarantee. M7 is scoped for each supported milestone; full range includes later BBR closure.",
+    "stages": {
+      "M1": [
+        2,
+        4
+      ],
+      "M2": [
+        3,
+        6
+      ],
+      "M3": [
+        6,
+        13
+      ],
+      "M4": [
+        6,
+        13
+      ],
+      "M5": [
+        3,
+        7
+      ],
+      "M6": [
+        4,
+        11
+      ],
+      "M7": [
+        1,
+        4
+      ]
+    },
+    "full": [
+      25,
+      58
+    ],
+    "reno_first_excluding_M6": [
+      21,
+      47
+    ],
+    "supersedes": [
+      16,
+      22
+    ],
+    "calibration": "The former full production forecast divided by mean original-BBR or correction-port churn per listed product commit gave approximately 22\u201352 units. Commits are not audited PR slices and complexity differs; this was a sensitivity check, not proof of the decomposition. The former 22\u201352 full / 18\u201341 Reno-first range is now increased by a separately estimated 3\u20136 bounded-I/O slices to 25\u201358 full / 21\u201347 Reno-first; that increment is not derived from historical commit density."
+  },
+  "secondary_integration_sites": [
+    {
+      "paths": [
+        "client.go",
+        "server.go",
+        "stateless_reset.go",
+        "connection_logging.go",
+        "internal/utils/rtt_stats.go",
+        "http3/transport.go",
+        "http3/server.go",
+        "internal/utils/log.go"
+      ],
+      "concern": "Caller-socket versus socket-owning constructors, HTTP/3 private transport lifecycle, server-selected configuration gates, close/reset routing, statistics/timer callers and synchronous logging reached from bounded sends. Relevant production components own these allowances; the principal-file count is not a full-file forecast."
+    },
+    {
+      "paths": [
+        "ack_threshold.go",
+        "receive_phase.go",
+        "setup_reservation.go",
+        "send_thread_qos.go"
+      ],
+      "concern": "Audit documented option inheritance and unsupported combinations; not all audited files necessarily require edits."
+    },
+    {
+      "paths": [
+        "send_conn_batch_state_darwin.go",
+        "send_conn_batch_state_other.go",
+        "sys_conn_*.go",
+        "send_conn_sendmsg_x_darwin.go",
+        "external_packet_io.go",
+        "managed_packet_endpoint.go"
+      ],
+      "concern": "Bounded native submission and all retry/fallback routes; disabled acceleration fallback; exact native socket admission and explicit rejection of external callbacks/managed leases. Native adapters are within the emission increment; wrapper/provider redesign is excluded."
+    }
+  ],
+  "forecast_accounting": {
+    "contract_refinements": [
+      {
+        "recommendation": "F1",
+        "work": "Target effective CID-length compatibility before attachment",
+        "production_rows": [
+          "cids",
+          "emission",
+          "public"
+        ]
+      },
+      {
+        "recommendation": "F2",
+        "work": "Observable per-connection transport detachment including shared users and close races",
+        "production_rows": [
+          "lifecycle",
+          "emission",
+          "public"
+        ]
+      },
+      {
+        "recommendation": "F3",
+        "work": "Historical indefinite-progress proposal superseded: bounded native submission completion, path-qualified retirement and endpoint error ownership; see bounded_native_io_increment.",
+        "production_rows": [
+          "lifecycle",
+          "emission"
+        ]
+      },
+      {
+        "recommendation": "F4",
+        "work": "One validation candidate per protocol path, two total, with at most one local open/migrate operation; no additional full path contexts",
+        "production_rows": [
+          "lifecycle"
+        ]
+      }
+    ],
+    "interop_support": [
+      {
+        "deliverable": "Private adapter, smoke fixture and full matrix result checks",
+        "forecast": "reno_first.test_line_edits",
+        "stages": [
+          "M4",
+          "M5"
+        ]
+      },
+      {
+        "deliverable": "Pinned picoquic/PicoTLS image, base-image digest and build/run support",
+        "forecast": "reno_first.test_line_edits",
+        "stages": [
+          "M4",
+          "M5"
+        ]
+      },
+      {
+        "deliverable": "Required Linux workflow, preflight, executed-case/skip accounting and qlog/hash capture",
+        "forecast": "reno_first.test_line_edits",
+        "stages": [
+          "M5"
+        ]
+      },
+      {
+        "deliverable": "BBR/aggregation matrix extensions",
+        "forecast": "deferred_bbr_aggregation.test_line_edits",
+        "stages": [
+          "M6"
+        ]
+      }
+    ],
+    "method": "Contract-refinement and interop mappings refer to existing allowances. bounded_native_io_increment is the only new fourth-pass allowance and is already included in group, milestone and slice totals. Production feature code remains in production rows. Historical inventory/churn and deferred BBR amounts are unchanged. Native campaign execution, bookings and qualification operations remain excluded. Fifth-pass component allocations subdivide that same increment, not a second allowance. Recommendation references can share a component; sum components once, never sum their recommendation mappings. M5 public integration and M7 evidence closure stay within their existing stage ranges; M3/M4 retain the fourth-pass 3\u20136 extra slices.",
+    "bounded_native_io_increment": {
+      "confidence": "low; manual planning allowance, no prototype or native qualification",
+      "production_line_edits": [
+        1000,
+        2000
+      ],
+      "test_support_line_edits": [
+        2000,
+        4000
+      ],
+      "candidate_slices": [
+        3,
+        6
+      ],
+      "production_rows": {
+        "lifecycle": [
+          200,
+          400
+        ],
+        "emission": [
+          650,
+          1300
+        ],
+        "public": [
+          150,
+          300
+        ]
+      },
+      "stage_increments": {
+        "M3": [
+          1,
+          2
+        ],
+        "M4": [
+          2,
+          4
+        ]
+      },
+      "new_production_files_in_emission": [
+        1,
+        2
+      ],
+      "included": [
+        "Independent endpoint control/expiry and native writer, atomic request claim/completion, bounded fair admission and lost-wakeup-free capacity notification",
+        "All send-route adapters, asynchronous probe buffer ownership with conservative amplification/challenge charging, partial/uncertain native results and synchronous public WriteTo",
+        "Nonfatal local-backpressure completion for ordinary and multipath peers; exact-once registered-packet disposal without false ACK/loss evidence",
+        "Nonblocking capped diagnostics across fallback, completion, fence and subsequent endpoint progress",
+        "Independently observed overdue tokens, endpoint quarantine, explicit Close/transport-wide join and write-authority return",
+        "Explicit grants, exact-socket admission, caller-socket rejection and socket-owning constructor/HTTP3 initialization and teardown gates",
+        "State/race, route/probe, constructor and mixed ordinary/multipath fixtures; ordinary-peer opted-in overhead/fairness and native qualification support"
+      ],
+      "excluded": [
+        "Custom cancellable provider API and wrapper/managed-lease support",
+        "Native qualification campaign execution",
+        "Previously budgeted submission fences, detachment and interop scaffolding"
+      ],
+      "reassessment": "Retain the original split after making previously implicit obligations explicit: lifecycle covers completion and shutdown observations, emission covers the independently progressing mechanism and adapters, public covers grant/join and all entry points. These are low-confidence planning subdivisions, not estimates measured per function. No source or runtime measurement justifies either tightening or increasing the numeric range. D0 must resize or narrow scope if feasibility work cannot satisfy the mapped obligations.",
+      "production_components": [
+        {
+          "id": "L1",
+          "production_row": "lifecycle",
+          "line_edits": [
+            100,
+            200
+          ],
+          "stages": [
+            "M3"
+          ],
+          "work": "Transport shutdown/join, overdue endpoint faults, quarantine and late-return observations"
+        },
+        {
+          "id": "L2",
+          "production_row": "lifecycle",
+          "line_edits": [
+            100,
+            200
+          ],
+          "stages": [
+            "M3"
+          ],
+          "work": "Nonfatal protocol completion/local disposal, probe accounting and generation-safe early feedback"
+        },
+        {
+          "id": "E1",
+          "production_row": "emission",
+          "line_edits": [
+            250,
+            500
+          ],
+          "stages": [
+            "M4"
+          ],
+          "work": "Independent expiry/control and native writer, atomic claim/completion, participant/readiness bounds and fair capacity admission/wakeup"
+        },
+        {
+          "id": "E2",
+          "production_row": "emission",
+          "line_edits": [
+            300,
+            600
+          ],
+          "stages": [
+            "M4"
+          ],
+          "work": "All send-route adapters, asynchronous probe ownership, partial/fallback results and synchronous public WriteTo borrow"
+        },
+        {
+          "id": "E3",
+          "production_row": "emission",
+          "line_edits": [
+            100,
+            200
+          ],
+          "stages": [
+            "M4"
+          ],
+          "work": "Isolated diagnostic publication with capped copied metadata and drop/coalescing"
+        },
+        {
+          "id": "P1",
+          "production_row": "public",
+          "line_edits": [
+            100,
+            200
+          ],
+          "stages": [
+            "M5"
+          ],
+          "work": "Explicit grant/join surface and constructor/HTTP3 setup/teardown matrix"
+        },
+        {
+          "id": "P2",
+          "production_row": "public",
+          "line_edits": [
+            50,
+            100
+          ],
+          "stages": [
+            "M5"
+          ],
+          "work": "Exact native capability/platform, origin/target and server-selected configuration admission gates"
+        }
+      ],
+      "test_support_components": [
+        {
+          "id": "T1",
+          "line_edits": [
+            650,
+            1300
+          ],
+          "stages": [
+            "M3",
+            "M4"
+          ],
+          "work": "Independent expiry, claim/revoke/overdue/late-return races, fairness/readiness and bounded metadata"
+        },
+        {
+          "id": "T2",
+          "line_edits": [
+            750,
+            1500
+          ],
+          "stages": [
+            "M3",
+            "M4"
+          ],
+          "work": "Send routes, probe accounting/early response, WriteTo borrow, partial/uncertain results and logical recovery"
+        },
+        {
+          "id": "T3",
+          "line_edits": [
+            350,
+            700
+          ],
+          "stages": [
+            "M5",
+            "M7"
+          ],
+          "work": "Constructor grants, Close/join, caller-socket ownership, ordinary-peer compatibility and affected default-off regressions"
+        },
+        {
+          "id": "T4",
+          "line_edits": [
+            250,
+            500
+          ],
+          "stages": [
+            "M4",
+            "M7"
+          ],
+          "work": "Blocked diagnostics, opted-in ordinary-peer performance/fairness fixtures and native qualification support"
+        }
+      ]
+    },
+    "third_consideration_response": {
+      "run_id": "20261024T221043-0646a730284b11802cadb8e6",
+      "reviewed_design_commit": "4200360068d088a35724819cb3de4a2cfa3e21ef",
+      "response_document": "docs/audits/2026-10-24-multipath-646-third-consideration-response.md",
+      "owner_decision": "Local queue and write timeouts are backpressure, not path failure, for both ordinary and multipath peers on opted-in endpoints.",
+      "recommendation_components": [
+        {
+          "recommendation": "F1",
+          "production": [
+            "E1"
+          ],
+          "test_support": [
+            "T1"
+          ]
+        },
+        {
+          "recommendation": "F2",
+          "production": [
+            "E3"
+          ],
+          "test_support": [
+            "T4"
+          ]
+        },
+        {
+          "recommendation": "F3",
+          "production": [
+            "L2",
+            "E2"
+          ],
+          "test_support": [
+            "T2"
+          ]
+        },
+        {
+          "recommendation": "F4",
+          "production": [
+            "L1",
+            "E1",
+            "P1"
+          ],
+          "test_support": [
+            "T1",
+            "T3"
+          ]
+        },
+        {
+          "recommendation": "F5",
+          "production": [
+            "P1",
+            "P2"
+          ],
+          "test_support": [
+            "T3"
+          ]
+        },
+        {
+          "recommendation": "F6",
+          "production": [
+            "L2",
+            "E2"
+          ],
+          "test_support": [
+            "T2",
+            "T3"
+          ]
+        },
+        {
+          "recommendation": "F7",
+          "production": [
+            "E1"
+          ],
+          "test_support": [
+            "T1",
+            "T4"
+          ]
+        },
+        {
+          "recommendation": "F8",
+          "production": [],
+          "test_support": [
+            "T3",
+            "T4"
+          ]
+        },
+        {
+          "recommendation": "F9",
+          "production": [],
+          "test_support": []
+        }
+      ],
+      "F9_accounting": "Documentation-only allocation review; no implementation allowance. F8 introduces an evidence gate and reuses fixture/support allowances; campaign execution is excluded."
+    },
+    "d0_evidence_boundary": {
+      "contract": "docs/designs/quic-multipath-d0.md",
+      "scope": "Both Reno-first and later BBR/aggregation; native support initially Linux amd64, other platforms require later qualification.",
+      "production_forecast_change": [
+        0,
+        0
+      ],
+      "test_support_forecast_change": [
+        0,
+        0
+      ],
+      "future_campaign_max_run_instances": 180,
+      "future_campaign_max_host_hours": 8,
+      "planned_regular_run_instances": 118,
+      "campaign_accounting": "Owner-accepted future operational ceiling, separate from line-edit and candidate-slice forecasts; execution not dispatched. Failed attempts count; no reset or unbounded repetition.",
+      "sizing_status": "Low-confidence line-edit forecast unchanged. The audited graph is 31 one-PR slices: 27 construction/support plus four qualification deliveries; not an elapsed-time forecast or additional allowance.",
+      "planned_smoke_run_instances": 4,
+      "required_bbr_revalidation_run_instances": 18,
+      "planned_total_run_instances": 140,
+      "remaining_run_instance_reserve": 40
+    },
+    "final_consideration_response": {
+      "run_id": "20261024T234308-04d528a09a905a64ef3a9c49",
+      "reviewed_commit": "3b5399df8da2888a9f6e7748dbe75aaf825cb12e",
+      "response_document": "docs/audits/2026-10-24-multipath-646-final-consideration-response.md",
+      "forecast_change": [
+        0,
+        0
+      ],
+      "allocation": {
+        "F1": "lifecycle recovery policy, R15; existing error completion metadata",
+        "F2": "recovery/lifecycle + bounded-I/O L2/E2/T2, E2 and B1; pending eligibility is part of nonfatal local-disposal correctness",
+        "F3": "existing lifecycle/detachment budget, R9/R12/R13; finite charges and release owner, no new subsystem",
+        "F4_F5_F9": "existing public/lifecycle fields and gate coverage, E4/R15/R16",
+        "F6_F7_F8_F10": "existing BBR scheduler and fixture support, E6/B4/B5; operational execution separately capped"
+      },
+      "audit_graph": {
+        "endpoint": 6,
+        "reno": 19,
+        "bbr": 6,
+        "construction_support": 27,
+        "qualification_delivery": 4,
+        "total": 31
+      },
+      "resize_trigger": "If E2 pending eligibility needs controller algorithm redesign, or any owner cannot fit its accepted context/evidence budget, stop and re-slice/re-size before implementation; the unchanged forecast is not permission to exceed the contract."
+    }
+  }
+}
