@@ -922,7 +922,7 @@
       }
     }
   ],
-  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn. Third design pass classifies interop support and locates CID compatibility, detachment, stalled-submission accounting and bounded per-path validation within existing allowances. No numeric forecast or historical measurement changes. Fourth design pass adopts bounded native send completion and adds 1,000\u20132,000 production edits, 2,000\u20134,000 test/support edits and 3\u20136 candidate slices to Reno-first. This is a new low-confidence manual allowance, not measured churn; inventory and historical measurements remain unchanged. Fifth design pass addresses the nine third-consideration recommendations and the owner-selected local-backpressure policy. Reassessed lifecycle/emission/public allocation remains 200\u2013400 / 650\u20131,300 / 150\u2013300 within the existing bounded-I/O increment, with additive component and test/support mappings below. No numeric forecast, principal inventory or historical measurement changes; no implementation or new review run.",
+  "forecast_calibration": "Ranges widened after inspection of the qoke draft-21 reference: its name-selected multipath subset alone adds 7,440 production and 18,329 test lines, including optional policies and excluding core-file edits. Those counts are a reference implementation, not our required minimum. See research note for method and scope. Second design pass adds allowances for submission fencing, close routing, CID admission and path-scoped migration; it splits Reno-first from later BBR/aggregation. These changes adjust judgment-based forecasts, not the historical measured churn. Third design pass classifies interop support and locates CID compatibility, detachment, stalled-submission accounting and bounded per-path validation within existing allowances. No numeric forecast or historical measurement changes. Fourth design pass adopts bounded native send completion and adds 1,000\u20132,000 production edits, 2,000\u20134,000 test/support edits and 3\u20136 candidate slices to Reno-first. This is a new low-confidence manual allowance, not measured churn; inventory and historical measurements remain unchanged. Fifth design pass addresses the nine third-consideration recommendations and the owner-selected local-backpressure policy. Reassessed lifecycle/emission/public allocation remains 200\u2013400 / 650\u20131,300 / 150\u2013300 within the existing bounded-I/O increment, with additive component and test/support mappings below. No numeric forecast, principal inventory or historical measurement changes; no implementation or new review run. D0 and final consideration make pending-local recovery eligibility, destination-error policy and migration history/attachment limits explicit. These refine the already included lifecycle/recovery/emission work; no runtime measurement supports narrowing the range. The audited handoff decomposes 27 construction/support slices plus four qualification-delivery slices, not 31 additional production slices.",
   "estimated_test_added_plus_deleted_lines": [
     15500,
     33500
@@ -1412,7 +1412,36 @@
       "future_campaign_max_host_hours": 8,
       "planned_regular_run_instances": 118,
       "campaign_accounting": "Owner-accepted future operational ceiling, separate from line-edit and candidate-slice forecasts; execution not dispatched. Failed attempts count; no reset or unbounded repetition.",
-      "sizing_status": "Unchanged low-confidence planning ranges; the subsequent slice audit must reconcile its actual graph rather than treating candidate counts as accepted PR boundaries."
+      "sizing_status": "Low-confidence line-edit forecast unchanged. The audited graph is 31 one-PR slices: 27 construction/support plus four qualification deliveries; not an elapsed-time forecast or additional allowance.",
+      "planned_smoke_run_instances": 4,
+      "required_bbr_revalidation_run_instances": 18,
+      "planned_total_run_instances": 140,
+      "remaining_run_instance_reserve": 40
+    },
+    "final_consideration_response": {
+      "run_id": "20261024T234308-04d528a09a905a64ef3a9c49",
+      "reviewed_commit": "3b5399df8da2888a9f6e7748dbe75aaf825cb12e",
+      "response_document": "docs/audits/2026-10-24-multipath-646-final-consideration-response.md",
+      "forecast_change": [
+        0,
+        0
+      ],
+      "allocation": {
+        "F1": "lifecycle recovery policy, R15; existing error completion metadata",
+        "F2": "recovery/lifecycle + bounded-I/O L2/E2/T2, E2 and B1; pending eligibility is part of nonfatal local-disposal correctness",
+        "F3": "existing lifecycle/detachment budget, R9/R12/R13; finite charges and release owner, no new subsystem",
+        "F4_F5_F9": "existing public/lifecycle fields and gate coverage, E4/R15/R16",
+        "F6_F7_F8_F10": "existing BBR scheduler and fixture support, E6/B4/B5; operational execution separately capped"
+      },
+      "audit_graph": {
+        "endpoint": 6,
+        "reno": 19,
+        "bbr": 6,
+        "construction_support": 27,
+        "qualification_delivery": 4,
+        "total": 31
+      },
+      "resize_trigger": "If E2 pending eligibility needs controller algorithm redesign, or any owner cannot fit its accepted context/evidence budget, stop and re-slice/re-size before implementation; the unchanged forecast is not permission to exceed the contract."
     }
   }
 }

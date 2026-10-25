@@ -109,3 +109,13 @@ Language for QUIC transport behavior and the fork's transmission work.
 **Packet-tracking state**: Per-packet metadata a connection keeps for loss recovery and acknowledgment, such as sent-packet records and received-packet ranges, whichever congestion controller is selected. Its lifetime is not limited to congestion-controlled flight, and payload its records reference is retained application data.
 
 **Readiness exception**: An explicit operator decision that one raised readiness flag does not block an advancement decision, for one candidate revision, platform and cell, covering the recorded evidence it names at no more than a recorded magnitude; the flag stays raised in every report, and the exception neither carries over to another revision or platform nor pre-clears later measurements. It is *attributed* when it rests on a registered cause attribution and *unattributed* when the operator grants it without a completed attribution or remedy test; neither kind changes the readiness limit.
+
+**Protocol path**: A route within one multipath QUIC connection identified by a wire path ID, with its own packet-number space and delivery conditions. Changing its local or remote address does not necessarily create a new protocol path.
+
+**Tuple generation**: One period during which a protocol path uses a particular local and remote address pair. It distinguishes feedback about an earlier route from feedback about its replacement without changing the path's identity.
+
+**Local send backpressure**: Inability to complete outgoing work within local capacity or time limits. It is distinct from evidence that the network path or peer has failed and does not itself establish whether a native transmission occurred.
+
+**Endpoint write grant**: Exclusive permission to coordinate writes and write deadlines on a supplied packet endpoint until that permission is explicitly returned. It does not transfer ownership of closing the endpoint.
+
+**Transport detachment**: The point at which a connection no longer depends on a particular transport and that transport can no longer act on the connection's behalf or destroy it. It is distinct from path retirement and from return of an endpoint's write grant.
