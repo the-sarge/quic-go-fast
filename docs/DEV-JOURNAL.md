@@ -7866,3 +7866,26 @@ The user-directed replacement run `20261024T190116-10ec24e7429b622c8f786e4e` rev
 ### Next
 
 Q2 needs its bounded candidate/reference, readiness, inventory, resource and accounting preflight before restoring execution readiness. [#599](https://github.com/the-sarge/quic-go-fast/issues/599) is the live resume point; [#600](https://github.com/the-sarge/quic-go-fast/issues/600) is the live program view.
+
+---
+
+## Multipath design and audited handoff landed - 2026-10-24 20:27 EDT
+
+**Main:** `be54eb1ba55e`
+**Actor:** Codex
+
+### Summary
+
+Merged the documentation-only [multipath #646 architecture handoff](https://github.com/the-sarge/quic-go-fast/pull/1011). The [program](adr/2026-10-24-multipath-program.md) contains 31 audited one-PR slices across bounded endpoint I/O, Reno primary/backup and BBR/aggregation: 27 construction/support slices and four qualification deliveries. No implementation or qualification experiment was dispatched.
+
+### Decisions
+
+The owner accepted exploratory implementation before measured consumer benefit, with benefit required before recommending adoption, and the finite ordinary-peer/aggregation thresholds and future 180-run/eight-host-hour ceiling. Local timeouts remain nonfatal backpressure. The [D0 decisions](designs/quic-multipath-d0.md) and current track plans settle pending-local recovery eligibility, native error policy, migration-history bounds, primary succession and controller-specific evidence claims. Planned evidence is 140 instances plus at most 40 justified reserve attempts; it remains unexecuted.
+
+### Validation
+
+The [final RAS consideration response](audits/2026-10-24-multipath-646-final-consideration-response.md) dispositions ten recommendations; all six initial reviewers and synthesis completed, with Argon's adjudication failing run-ID validation. Three independent [slice auditors](audits/2026-10-24-multipath-646-slice-audit.md) passed the corrected contracts. Local documentation certification checked 127 relative links/anchors, the 31-slice dependency graph, sizing arithmetic, evidence accounting, synthesis fingerprint and unchanged production surface. All 33 hosted checks passed on PR head `3e0f659be9f6222016fb5522deaf168227867120`; the accepted plan reached main as `be54eb1ba55e03b6cdfa1c4ee9808c199c60706f`.
+
+### Next
+
+At this entry's timestamp, publish the merged-plan child issues and OmniFocus pointers, then leave dispatch to the operator. E1/R1/R2 are the initial parallel-safe frontier; shared recovery changes remain blocked by Q2 #599. [Program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view of publication and later progress.
