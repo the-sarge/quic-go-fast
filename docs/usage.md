@@ -1,6 +1,18 @@
 # Integration and platform guide
 
-See the [README](../README.md#use-the-fork) for installation and the [published fast.8 release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) for the shipped feature set, defaults and limitations. The [changelog](../CHANGELOG.md) distinguishes released and unreleased changes. General QUIC and HTTP/3 usage is covered by the [upstream documentation](https://quic-go.net/docs/).
+See the [README](../README.md#use-the-fork) for installation, the [published fast.9 maintenance release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.9) for the idle path-MTU timer fix, and the [fast.8 release](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) for the inherited feature set, defaults and limitations. The [changelog](../CHANGELOG.md) distinguishes released and unreleased changes. General QUIC and HTTP/3 usage is covered by the [upstream documentation](https://quic-go.net/docs/).
+
+## Release and main selection
+
+| Revision | Included behavior | Evidence and adoption boundary |
+| --- | --- | --- |
+| `v0.62.1-fast.8` (`8095c72244755f0c1e24f4158253bf09cfbe6e17`) | Eleven-slice bundle, corrected BBR sender and Reno undo; excludes adaptive application-loss thresholds | Published October 23, 2026, with candidate-specific memory, baseline and Linux readiness decisions |
+| `v0.62.1-fast.9` (`0f717339f767df5d2e4091b2515266d61f66e2ac`) | Fast.8 plus the idle path-MTU timer fix only; excludes adaptive application-loss thresholds | Published October 25, 2026, from an approved maintenance branch; inherits fast.8 limitations and adds exact-source timer-fix validation |
+| `main` | Includes the timer fix and adaptive application-loss thresholds (#971) | Development branch; #971 remains unreleased and its proposed performance comparison remains deferred |
+
+Use the exact published fast.9 tag for the latest maintenance release. A higher fork prerelease suffix does not imply that all intervening `main` changes are included. Selecting `main` or a pseudo-version requires checking that exact revision's behavior and evidence; fast.8's measurements and advancement exceptions do not transfer automatically. The [#971 implementation closeout](https://github.com/the-sarge/quic-go-fast/issues/971) and [recovery assessment #962](https://github.com/the-sarge/quic-go-fast/issues/962) retain the unmeasured policy and deferred comparison context.
+
+Reno remains default and BBRv3 remains experimental, opt-in and unqualified in both published versions and current `main`. Full [Q2 qualification #599](https://github.com/the-sarge/quic-go-fast/issues/599) awaits its execution preflight and separate operator dispatch. Publishing a fork version does not complete an application's certification or adoption; each consumer owns those decisions and its module replacement.
 
 ## Packet I/O and socket ownership
 

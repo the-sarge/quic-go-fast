@@ -2,7 +2,15 @@
 
 ## Unreleased
 
+This section describes work on `main` beyond the published releases. Fast.9 was selected from a maintenance branch; its higher version does not include every change already on `main`.
+
 - Adapt application loss classification after validated, surviving spurious-loss proof: suppress packet-distance loss and grow the time threshold through 9/8, 5/4, 3/2 and 2 RTT with fresh-send gating and migration reset. Apply the same effective per-space delay to ordinary and PTO-retired classification for Reno and BBR, including late-only timer rescheduling. Greater reordering tolerance can delay genuine loss; no performance benefit or qualification is claimed. See [#971](https://github.com/the-sarge/quic-go-fast/issues/971) and [ADR 0013](docs/adr/0013-adaptive-loss-thresholds.md).
+
+## v0.62.1-fast.9 — 2026-10-25
+
+Published maintenance prerelease from `0f717339f767df5d2e4091b2515266d61f66e2ac`: fast.8 plus the idle path-MTU timer fix in [PR #1047](https://github.com/the-sarge/quic-go-fast/pull/1047). Idle connections now wake when the next MTU probe is eligible, preserving pacing and blocked-send behavior. The [release notes](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.9) and [release issue #1049](https://github.com/the-sarge/quic-go-fast/issues/1049) record the approved one-time maintenance-branch exception, exact-source checks, retained Windows test failure and bounded rerun, immutable tag, module verification and publication receipts.
+
+Fast.9 excludes adaptive application-loss thresholds (#971), which remain under Unreleased. It changes no public API, wire format, dependency graph or declared Go minimum. Fast.8 defaults, consumer gate decisions and platform qualifications remain unchanged: Reno is default; BBRv3 remains experimental, opt-in and unqualified. This timer fix establishes no throughput improvement or downstream consumer certification.
 
 ## v0.62.1-fast.8 — 2026-10-23
 

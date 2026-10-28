@@ -2,7 +2,9 @@
 
 A fork of [quic-go](https://github.com/quic-go/quic-go) for efficient bulk DATAGRAM and stream transfers, with lower allocation and copying costs, platform I/O optimizations, and transport/HTTP/3 reliability fixes. Based on **quic-go v0.62.0**, retaining its module path and QUIC/HTTP/3 wire compatibility. Requires **Go 1.26.0+**.
 
-**Latest fork release: [v0.62.1-fast.8](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8)**, published October 23, 2026. The highlights below ship in this prerelease; [Unreleased](CHANGELOG.md#unreleased) tracks subsequent work.
+**Latest fork release: [v0.62.1-fast.9](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.9)**, published October 25, 2026. This maintenance prerelease contains fast.8 plus the idle path-MTU discovery timer fix. The highlights below remain part of its shipped feature set.
+
+**Fast.9 and `main` differ:** fast.9 was released from a maintenance branch and excludes the adaptive application-loss thresholds in [#971](https://github.com/the-sarge/quic-go-fast/issues/971). That policy is implemented on `main` but remains unreleased, with no measured performance benefit or consumer qualification claimed. See [release and main selection](docs/usage.md#release-and-main-selection) and [Unreleased](CHANGELOG.md#unreleased).
 
 ## Improvements over upstream
 
@@ -32,7 +34,7 @@ These are historical, workload-specific results; they do not establish an aggreg
 Keep `github.com/quic-go/quic-go` imports. Select the fork in your application's main module:
 
 ```sh
-go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.8
+go mod edit -replace=github.com/quic-go/quic-go=github.com/the-sarge/quic-go-fast@v0.62.1-fast.9
 go mod tidy
 go list -m github.com/quic-go/quic-go
 ```
@@ -43,7 +45,7 @@ Use keyed `Config` literals; positional literals no longer compile. Applications
 
 ## Support and development
 
-Unit and integration CI run on Linux, macOS and Windows, with additional Linux race coverage. Other cross-compiled targets are build-only; native offload support depends on the host and packet-I/O path. Review the [release limitations](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) and evaluate this prerelease against your workloads.
+Unit and integration CI run on Linux, macOS and Windows, with additional Linux race coverage. Other cross-compiled targets are build-only; native offload support depends on the host and packet-I/O path. Review the [fast.9 release notes](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.9) and inherited [fast.8 limitations](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) and evaluate this prerelease against your workloads. Consumer certification and adoption remain separate decisions.
 
 - [Upstream usage documentation](https://quic-go.net/docs/) · [Fork changelog](CHANGELOG.md) · [Report a fork issue](https://github.com/the-sarge/quic-go-fast/issues)
 - [Development toolchains](docs/usage.md#development-toolchains) · [Development journal](docs/DEV-JOURNAL.md) · [Evidence index](docs/audit-evidence.md) · [Release runbook](docs/runbooks/release.md)
