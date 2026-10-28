@@ -25,13 +25,13 @@ Historical measurements of individual changes, using the explicit baselines belo
 
 | Change | Recorded result | Comparison baseline and workload |
 | --- | --- | --- |
-| [Short DATAGRAM batching](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6331925155) | **2.48× throughput**, sender/receiver CPU per GiB **−57%/−53%** | On versus off at `642f014e`; downstream Linux network namespaces |
+| [Short DATAGRAM batching](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6331858628) | **2.48× throughput**, sender/receiver CPU per GiB **−57%/−53%** | On versus off at `642f014e`; downstream Linux network namespaces |
 | [Linux GRO](https://github.com/the-sarge/quic-go-fast/blob/23c83b9896980511286ca8b81cd632f7ec56afed/docs/audits/2026-09-11-g2-gro-results.md) | **1.26× throughput**, receive syscalls/datagram **×0.263** | GRO on versus off in the adoption build, peer GSO on in both; paired Linux loopback transfers |
 | [Windows USO](https://github.com/the-sarge/quic-go-fast/blob/23c83b9896980511286ca8b81cd632f7ec56afed/docs/audits/2026-09-11-w2-uso-results.md) | **3.01× throughput**, send submissions/packet **×0.0815** | USO on versus off in the same Windows message-I/O build; paired hosted Windows loopback transfers |
 | [macOS batch send](https://github.com/the-sarge/quic-go-fast/blob/23c83b9896980511286ca8b81cd632f7ec56afed/docs/audits/2026-09-12-d1-sendmsgx-results.md) | **1.17× throughput**, send syscalls/packet **×0.126** | Batch versus per-packet sends in the adoption build; paired Darwin 25 arm64 loopback transfers |
 | [Experimental BBRv3](https://github.com/the-sarge/quic-go-fast/blob/563785cf44a6be8b36f360bdf0e80acdf59df8ae/docs/audits/2026-10-22-bundle-990-readiness/result.md) | **14.06× STREAM / 14.27× DATAGRAM useful throughput** | Fast.8 BBR versus fast.8 Reno; Linux emulation, 100 Mbps each way, 100 ms base RTT, 0.1% random forward loss; median of five paired ratios per traffic type |
 
-These are historical, workload-specific results; they do not establish an aggregate speedup for the current fork against current upstream. The short-DATAGRAM result also raised mean RTT by 22.7 µs and lifetime minimum RTT by 9.8 µs, accepted under the [recorded decision](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6331925155). The [full measurement table](CHANGELOG.md#recorded-measurements) and [release notes](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) retain the baselines, accepted costs and limitations.
+These are historical, workload-specific results; they do not establish an aggregate speedup for the current fork against current upstream. The short-DATAGRAM result also raised mean RTT by 22.7 µs and lifetime minimum RTT by 9.8 µs, accepted under the [recorded decision](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6331925155). The [fast.1 measurements](CHANGELOG.md#recorded-measurements) and [fast.8 release notes](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) retain the baselines, accepted costs and limitations.
 
 ## Use the fork
 
