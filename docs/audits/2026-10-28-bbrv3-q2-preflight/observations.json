@@ -125,7 +125,7 @@
     "python": "3.15.1"
   },
   "current_native_hosts": "Not certified or reserved",
-  "preflight_status": "Candidate, reference roles and 192-hour ceiling accepted; operational readiness/accounting pending; not dispatched",
+  "preflight_status": "Candidate, reference roles and 192-hour/$200 ceilings accepted; readiness, fixture, accounting/resources and separate guard alignment pending; not dispatched",
   "operator_decisions": {
     "date": "2026-10-28",
     "candidate": "23c83b9896980511286ca8b81cd632f7ec56afed",
@@ -133,9 +133,10 @@
     "readiness_descriptive_reno": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
     "qualification_comparison": "BBRv3 versus Reno on the selected candidate",
     "experiment_ceiling_hours": 192,
-    "cloud_ceiling_usd": 150,
+    "cloud_ceiling_usd": 200,
     "preparation_ceiling_hours": 72,
-    "dispatch_authorized": false
+    "dispatch_authorized": false,
+    "cloud_decision": "Reconcile the plan to $200; documentation only; no live guard change, allocation or experiment"
   },
   "native_host_inventory": {
     "method": "read-only SSH uname/CPU count/go version; no measurement or isolation assertion",
@@ -165,6 +166,6 @@
     "preparation_ceiling_hours": 72,
     "retained_controller_cloud_guard_usd": 150,
     "operator_authorization": "Go ahead. new cap is $200.",
-    "disposition": "Historical local claim; pending explicit dollar-cap reconciliation; accepted plan remains $150 until decided"
+    "disposition": "Historical $200 claim disclosed in review and explicitly confirmed by operator on 2026-10-28; plan reconciled to $200, staged guard remains $150"
   }
 }
