@@ -1,10 +1,10 @@
 {
   "status": "Bounded preparation source inventory; not an execution-ready dispatch manifest",
-  "estimator": "ceil(max(selected UTF-8 bytes / 4, whitespace-separated words * 2)), summed conservatively per excerpt",
+  "estimator": "For each line_ranges interval, ceil(max(UTF-8 bytes / 4, whitespace-separated words * 2)); sum interval estimates into each file entry, then sum file entries.",
   "initial_ceiling_tokens": 35000,
   "history_ceiling_tokens": 3000,
-  "selected_estimated_tokens": 32342,
-  "unallocated_context_tokens": 2658,
+  "selected_estimated_tokens": 32417,
+  "unallocated_context_tokens": 2583,
   "history": "Historical applicability and authority are summarized in the selected preflight; raw campaign archives and whole PR histories are excluded. Any additional unresolved history must stay within 3000 tokens and the total 35000 ceiling.",
   "entries": [
     {
@@ -22,7 +22,7 @@
       ],
       "selected_bytes": 24857,
       "selected_sha256": "4769819ceac298a4968d14abf45b17f43cb83d13156832bc675cf69542f9a730",
-      "estimated_tokens": 6215
+      "estimated_tokens": 6290
     },
     {
       "path": "docs/adr/2026-10-28-bbrv3-q2-execution-preflight.md",
