@@ -110,7 +110,7 @@
     "experiment_hours": 192,
     "cloud_usd": 150,
     "preparation_hours": 72,
-    "conflicts_with_accepted_plan": true
+    "conflicts_with_accepted_plan_at_inspection": true
   },
   "current_cloud_inventory": {
     "commands": [
@@ -125,5 +125,46 @@
     "python": "3.15.1"
   },
   "current_native_hosts": "Not certified or reserved",
-  "preflight_status": "Pending candidate/reference decisions, authority reconciliation and operational evidence"
+  "preflight_status": "Candidate, reference roles and 192-hour ceiling accepted; operational readiness/accounting pending; not dispatched",
+  "operator_decisions": {
+    "date": "2026-10-28",
+    "candidate": "23c83b9896980511286ca8b81cd632f7ec56afed",
+    "readiness_blocking_reno": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+    "readiness_descriptive_reno": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "qualification_comparison": "BBRv3 versus Reno on the selected candidate",
+    "experiment_ceiling_hours": 192,
+    "cloud_ceiling_usd": 150,
+    "preparation_ceiling_hours": 72,
+    "dispatch_authorized": false
+  },
+  "native_host_inventory": {
+    "method": "read-only SSH uname/CPU count/go version; no measurement or isolation assertion",
+    "m4mini-eth": {
+      "os_arch": "Darwin arm64",
+      "logical_cpus": 12,
+      "memory_bytes": 25769803776,
+      "go": "1.27.2"
+    },
+    "mbp128": {
+      "os_arch": "Darwin arm64",
+      "logical_cpus": 16,
+      "memory_bytes": 137438953472,
+      "go": "1.27.3"
+    },
+    "minimax": {
+      "os_arch": "Linux x86_64",
+      "online_logical_cpus": 32,
+      "go": "1.27.3"
+    }
+  },
+  "file_hash_scope": "Hashes record pre-amendment files inspected; qualification plan is updated by this PR after operator decisions",
+  "ledger_authority_fields": {
+    "source": ".local/cloud/bbr-campaign/q2-linux-20260930-router-diagnostic1/ledger-after-preparation.json",
+    "experiment_ceiling_hours": 192,
+    "cloud_ceiling_usd": 200,
+    "preparation_ceiling_hours": 72,
+    "retained_controller_cloud_guard_usd": 150,
+    "operator_authorization": "Go ahead. new cap is $200.",
+    "disposition": "Historical local claim; pending explicit dollar-cap reconciliation; accepted plan remains $150 until decided"
+  }
 }

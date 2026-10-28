@@ -1,0 +1,297 @@
+{
+  "status": "Bounded preparation source inventory; not an execution-ready dispatch manifest",
+  "estimator": "ceil(max(selected UTF-8 bytes / 4, whitespace-separated words * 2)), summed conservatively per excerpt",
+  "initial_ceiling_tokens": 35000,
+  "history_ceiling_tokens": 3000,
+  "selected_estimated_tokens": 32342,
+  "unallocated_context_tokens": 2658,
+  "history": "Historical applicability and authority are summarized in the selected preflight; raw campaign archives and whole PR histories are excluded. Any additional unresolved history must stay within 3000 tokens and the total 35000 ceiling.",
+  "entries": [
+    {
+      "path": "docs/adr/2026-09-24-bbrv3-qualification-plan.md",
+      "revision": "current PR",
+      "line_ranges": [
+        [
+          1,
+          77
+        ],
+        [
+          115,
+          163
+        ]
+      ],
+      "selected_bytes": 24857,
+      "selected_sha256": "4769819ceac298a4968d14abf45b17f43cb83d13156832bc675cf69542f9a730",
+      "estimated_tokens": 6215
+    },
+    {
+      "path": "docs/adr/2026-10-28-bbrv3-q2-execution-preflight.md",
+      "revision": "current PR",
+      "line_ranges": [
+        [
+          1,
+          113
+        ]
+      ],
+      "selected_bytes": 26990,
+      "selected_sha256": "fa285b7fa98ac777f47be9bd0a503214d463b0604ca1c05989b0c831ad7e49fa",
+      "estimated_tokens": 6748
+    },
+    {
+      "path": "docs/audits/2026-10-28-bbrv3-q2-preflight/observations.json",
+      "revision": "current PR",
+      "line_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "selected_bytes": 5756,
+      "selected_sha256": "04a0bca6aebd16bba6370f6bf3ab40c44e654d93001817676ef04e27c8735d48",
+      "estimated_tokens": 1439
+    },
+    {
+      "path": "docs/designs/bbrv3.md",
+      "revision": "current PR",
+      "line_ranges": [
+        [
+          181,
+          217
+        ]
+      ],
+      "selected_bytes": 8436,
+      "selected_sha256": "c67964b9256d2af8affada8130d54bbad5e1aa59b6a9ffeb9b7ba52780251f25",
+      "estimated_tokens": 2109
+    },
+    {
+      "path": "docs/audits/2026-09-23-bbrv3-acceptance-plan.md",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          1,
+          50
+        ],
+        [
+          80,
+          93
+        ],
+        [
+          120,
+          122
+        ]
+      ],
+      "selected_bytes": 14840,
+      "selected_sha256": "30201a70e09b05e08f555842b3d3723d211de9f2f9eab3d3b7b753ee2d55ee2d",
+      "estimated_tokens": 4138
+    },
+    {
+      "path": "docs/audits/2026-09-23-bbrv3-acceptance-manifest.json",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          1,
+          346
+        ]
+      ],
+      "selected_bytes": 9104,
+      "selected_sha256": "1dc334ce2c136f157d2fb875da4906dc14ce1c415090470b60c8d4799fe98e21",
+      "estimated_tokens": 2276
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/manifest-candidate.json",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "selected_bytes": 5864,
+      "selected_sha256": "22ec5f423448382160567d687ac74f28a4db8a6eb21a44e7f753ac789b43d6ed",
+      "estimated_tokens": 1466
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/clock-contract.md",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "selected_bytes": 3850,
+      "selected_sha256": "cd892f17405eea5cafcb1cec2832de4fcc341d3fd7614ac8244aecfc06bcd8d2",
+      "estimated_tokens": 1066
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/main.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          35,
+          100
+        ]
+      ],
+      "selected_bytes": 2012,
+      "selected_sha256": "c4e39964eb245bb07a1250017d642f2c9ee1244829e9943cb1839ddc13ee4c5f",
+      "estimated_tokens": 552
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/session.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          48,
+          68
+        ],
+        [
+          95,
+          133
+        ]
+      ],
+      "selected_bytes": 2464,
+      "selected_sha256": "0245fa51a465e5e624c5c904e120abb9e56f523354e408d13c269f0d6be1aa93",
+      "estimated_tokens": 672
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/case-commands.py",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          15,
+          68
+        ],
+        [
+          95,
+          108
+        ]
+      ],
+      "selected_bytes": 4870,
+      "selected_sha256": "920355a507357c21e0042e1351ece0ab7fced4394085962d07822a98cb5ef60d",
+      "estimated_tokens": 1218
+    },
+    {
+      "path": "ack_threshold.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "selected_bytes": 2029,
+      "selected_sha256": "426c00788c5eb9f2c694d5aa14b2a67ceb6b46dc545e9fa156e525d1e5ecd5a9",
+      "estimated_tokens": 534
+    },
+    {
+      "path": "congestion_control.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "selected_bytes": 1228,
+      "selected_sha256": "2d4e2669009d27e8ca48d19b689c815e9643940eaa008c922b04e8f44121aac7",
+      "estimated_tokens": 336
+    },
+    {
+      "path": "connection.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          2807,
+          2825
+        ]
+      ],
+      "selected_bytes": 522,
+      "selected_sha256": "b620e2e2db433b45e90b174e803fd36b6460f6eeb03657bb3ffe1914bda2482f",
+      "estimated_tokens": 131
+    },
+    {
+      "path": "internal/ackhandler/sent_packet_handler.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          573,
+          655
+        ],
+        [
+          890,
+          972
+        ]
+      ],
+      "selected_bytes": 6229,
+      "selected_sha256": "8fdd0f668bc07152d6e45e9a29c7e1b06f502d6414f52463bcd4d7153877b386",
+      "estimated_tokens": 1558
+    },
+    {
+      "path": "internal/ackhandler/congestion_dispatch.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          294,
+          313
+        ]
+      ],
+      "selected_bytes": 890,
+      "selected_sha256": "f418ae45b609edd1c19ea5a1ffb9890003349a86ab5ce275fef18e0fb79f81df",
+      "estimated_tokens": 223
+    },
+    {
+      "path": "packet_emission.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          160,
+          320
+        ]
+      ],
+      "selected_bytes": 5019,
+      "selected_sha256": "247b881a6d56f745a1cda6303d577c20cf850f1bd9df8ad1f824ccc99f8a8c0b",
+      "estimated_tokens": 1255
+    },
+    {
+      "path": "external_packet_io.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          122,
+          150
+        ]
+      ],
+      "selected_bytes": 1047,
+      "selected_sha256": "a152c7e4288bf51a743ec8b94ae46ab0e7c2697fefec6cb64345d0a826d6772a",
+      "estimated_tokens": 262
+    },
+    {
+      "path": "send_conn.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          155,
+          161
+        ]
+      ],
+      "selected_bytes": 226,
+      "selected_sha256": "95f2d89453e1ef86b7fcf62e7480970cdcc0934656a17e7bb672671047f0308c",
+      "estimated_tokens": 58
+    },
+    {
+      "path": "managed_packet_ecn.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "line_ranges": [
+        [
+          169,
+          179
+        ]
+      ],
+      "selected_bytes": 342,
+      "selected_sha256": "a837918c4dbe0dc9592b5e94c1f88667561272b0b94934da269aee4b3237cf02",
+      "estimated_tokens": 86
+    }
+  ],
+  "excluded_data": "520 expanded cases are machine-checked by hash and pair inventory, not loaded wholesale into the narrative context. Observation receipt contains sanitized ledger arithmetic; no raw private request or credential input.",
+  "execution_gaps": "Before dispatch replace current PR references with its merged commit, include final readiness registration, source/tool/build overlay, relevant required correctness test declarations and operational receipts, recalculate all token/history budgets, and stop/re-slice if exceeded. This inventory does not certify those absent prerequisites."
+}
