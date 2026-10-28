@@ -1,0 +1,171 @@
+{
+  "observed_date": "2026-10-28",
+  "scope": "Read-only preparation observations; no experiment, allocation or dispatch; reservations are not settled billing",
+  "source_head": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "plan_commit": "f6ad5ea70c421db6e4c75250d7383f77628c3977",
+  "file_hashes": {
+    "docs/audits/2026-09-23-bbrv3-acceptance-manifest.json": "1dc334ce2c136f157d2fb875da4906dc14ce1c415090470b60c8d4799fe98e21",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/case-inventory.jsonl": "bab8af515337f2fa32bdf3765e658a1d102ad601125112100b7043c23ef28fd1",
+    "docs/adr/2026-09-24-bbrv3-qualification-plan.md": "baf1b8dd6bd34bb39d820d6dd19681652ac60d45d3117caeb39d18514a6268a1"
+  },
+  "inventory": {
+    "platforms": {
+      "linux/amd64": {
+        "core": 340,
+        "completion": 40
+      },
+      "darwin/arm64": {
+        "core": 60,
+        "completion": 10
+      },
+      "windows/amd64": {
+        "core": 60,
+        "completion": 10
+      }
+    },
+    "total": 520,
+    "core_seconds": 129600.0,
+    "completion_timeout_seconds": 3600.0
+  },
+  "controller_root": "/Users/josh/.local/share/infra/bbr-q635-controller",
+  "local_sources": {
+    ".local/cloud/bbr-campaign/q2-linux-20260930-router-diagnostic1/ledger-after-preparation.json": "3181655447931323f083b3a6fa4a83238ee44dfb9f74c357efa0c8c487b083d5",
+    ".local/cloud/bbr-campaign/bbr-q635-20260925/reservations.json": "17b8d80c6b34cc1c5d1faa57dd164e3621327610bb5ce20950fc0eb370c34384",
+    "scripts/cloud/bbr-campaign/campaign.py": "ad9fc2c76ab2facfdf5ecb03f1fa767eca6b37b5647ccd1e707896d86c3972b0"
+  },
+  "ledger_recorded_at": "2026-09-30T02:07:57.994009+00:00",
+  "retained_baseline": {
+    "hours": 24.718,
+    "usd": 30.02
+  },
+  "post_baseline_reservations": [
+    {
+      "id": "q2-mac-dispatch-preflight",
+      "hours": 0.5,
+      "usd": 0
+    },
+    {
+      "id": "Q2-06",
+      "hours": 5.633333333333334,
+      "usd": 0
+    },
+    {
+      "id": "q2-mac-20260929-retry1-preflight",
+      "hours": 0.5,
+      "usd": 0
+    },
+    {
+      "id": "q2-mac-20260929-retry1",
+      "hours": 5.633333333333334,
+      "usd": 0
+    },
+    {
+      "id": "q2-linux-20260929-lease01",
+      "hours": 8.0,
+      "usd": 10.65
+    },
+    {
+      "id": "q2-linux-20260929-lease01-retry1",
+      "hours": 8.0,
+      "usd": 10.65
+    },
+    {
+      "id": "q2-linux-20260929-lease01-retry2",
+      "hours": 8.0,
+      "usd": 10.65
+    },
+    {
+      "id": "q2-linux-20260929-lease01-continuation2",
+      "hours": 7.15,
+      "usd": 9.545
+    },
+    {
+      "id": "q2-linux-20260929-lease01-continuation3",
+      "hours": 5.45,
+      "usd": 7.335
+    },
+    {
+      "id": "q2-linux-20260929-lease01-continuation4",
+      "hours": 5.45,
+      "usd": 7.335
+    },
+    {
+      "id": "q2-linux-20260930-router-diagnostic1",
+      "hours": 0.5,
+      "usd": 0.9
+    }
+  ],
+  "known_reservation_totals": {
+    "hours": 79.53466666666667,
+    "usd": 87.085
+  },
+  "preparation_hours_at_ledger_freeze": 25.39832347305556,
+  "launch_ledger_subset": {
+    "entries": 27,
+    "hours": 56.38333333333333,
+    "usd": 87.03166666666667
+  },
+  "effective_source_guard": {
+    "infra_remote_main": "9aace992be78041bdc738786742a3ad0ba7a73ad",
+    "experiment_hours": 192,
+    "cloud_usd": 150,
+    "preparation_hours": 72,
+    "conflicts_with_accepted_plan_at_inspection": true
+  },
+  "current_cloud_inventory": {
+    "commands": [
+      "gcloud compute instances list --project=bbr-q635-20260925 --format=json(name,status,zone,machineType) --quiet",
+      "gcloud compute disks list --project=bbr-q635-20260925 --format=json(name,status,zone,sizeGb) --quiet"
+    ],
+    "outcome": "Both returned project-not-found warning with empty array; inventory unavailable, not proof of cleanup"
+  },
+  "billing": "No billing/invoice export found in bounded local Controller inventory; not reconciled",
+  "local_tools": {
+    "go": "go1.27.3 darwin/arm64",
+    "python": "3.15.1"
+  },
+  "current_native_hosts": "Not certified or reserved",
+  "preflight_status": "Candidate, reference roles and 192-hour/$200 ceilings accepted; readiness, fixture, accounting/resources and separate guard alignment pending; not dispatched",
+  "operator_decisions": {
+    "date": "2026-10-28",
+    "candidate": "23c83b9896980511286ca8b81cd632f7ec56afed",
+    "readiness_blocking_reno": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+    "readiness_descriptive_reno": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+    "qualification_comparison": "BBRv3 versus Reno on the selected candidate",
+    "experiment_ceiling_hours": 192,
+    "cloud_ceiling_usd": 200,
+    "preparation_ceiling_hours": 72,
+    "dispatch_authorized": false,
+    "cloud_decision": "Reconcile the plan to $200; documentation only; no live guard change, allocation or experiment"
+  },
+  "native_host_inventory": {
+    "method": "read-only SSH uname/CPU count/go version; no measurement or isolation assertion",
+    "m4mini-eth": {
+      "os_arch": "Darwin arm64",
+      "logical_cpus": 12,
+      "memory_bytes": 25769803776,
+      "go": "1.27.2"
+    },
+    "mbp128": {
+      "os_arch": "Darwin arm64",
+      "logical_cpus": 16,
+      "memory_bytes": 137438953472,
+      "go": "1.27.3"
+    },
+    "minimax": {
+      "os_arch": "Linux x86_64",
+      "online_logical_cpus": 32,
+      "go": "1.27.3"
+    }
+  },
+  "file_hash_scope": "Hashes record pre-amendment files inspected; qualification plan is updated by this PR after operator decisions",
+  "ledger_authority_fields": {
+    "source": ".local/cloud/bbr-campaign/q2-linux-20260930-router-diagnostic1/ledger-after-preparation.json",
+    "experiment_ceiling_hours": 192,
+    "cloud_ceiling_usd": 200,
+    "preparation_ceiling_hours": 72,
+    "retained_controller_cloud_guard_usd": 150,
+    "operator_authorization": "Go ahead. new cap is $200.",
+    "disposition": "Historical $200 claim disclosed in review and explicitly confirmed by operator on 2026-10-28; plan reconciled to $200, staged guard remains $150"
+  }
+}
