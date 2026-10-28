@@ -7900,3 +7900,26 @@ At this entry's timestamp, publish the merged-plan child issues and OmniFocus po
 Merged [PR #1047](https://github.com/the-sarge/quic-go-fast/pull/1047), which adds the MTU finder's next eligible probe time to the connection timer after handshake confirmation. Idle path discovery now progresses without waiting for keepalive or incoming traffic. Pacing and blocked-send behavior are preserved; public API and wire format are unchanged.
 
 Validation on the reviewed head `e6a37ea76e2ab2509708179a8713094d4f31e6f6`: the eight-state virtual-time regression and existing MTU, keepalive, ACK-timer and migration tests passed under race; the complete root package, `go vet .`, `go mod tidy -diff` and whitespace checks passed. All applicable hosted checks passed. RAS review `20261025T173523-1762d067c71bae338c9018de` completed with no required fixes or follow-ups; the independent disposition is recorded in the PR. This merge has not been published in a release.
+
+---
+
+## Release guidance and planning reconciled - 2026-10-28 17:07 EDT
+
+**Main:** `ca5fa3fb812a`
+**Actor:** Codex
+
+### Summary
+
+Merged [PR #1050](https://github.com/the-sarge/quic-go-fast/pull/1050) as `ca5fa3fb812a8bc20cf9f1b18bc59767d552faf9`. Installation guidance selects published fast.9, and the README, changelog and integration guide distinguish its fast.8-plus-idle-PMTU source from main’s unreleased adaptive-loss policy. Achievement bullets highlight shipped capabilities; each performance row names its historical comparator and evidence. The release runbook records #1049’s one-time source exception, and the evidence index links completed off-main #997/#998 records without modifying their bytes.
+
+Planning reconciliation closed stale #921 against merged #923, clarified #646’s handoff-only completion, completed four stale OmniFocus tasks, refreshed Q2/reliability notes, applied Waiting gates to blocked work, and added missing roadmap mirrors. Completed evidence PRs #997/#998 were closed without merge with their branches retained.
+
+### Validation
+
+[RAS review disposition](https://github.com/the-sarge/quic-go-fast/pull/1050#issuecomment-6480460654) records run `20261028T204346-0894490771e4f0d394babdcf`: all six configured reviewers, adjudication and synthesis completed. Two bounded documentation corrections improved the measurement source link and historical-table label; two unsupported broader findings were rejected. The shared docs-only correction policy skipped another RAS cycle. No deferred or stop-for-decision findings remained, and no automated fixer was used.
+
+[Final certification](https://github.com/the-sarge/quic-go-fast/pull/1050#issuecomment-6480689033) pins head `9e208ff9ebb393ed549ac5cf0de389d0c94f15aa` and base `23c83b9896980511286ca8b81cd632f7ec56afed`: clean worktree, 61 local links/anchors, three pinned evidence references, whitespace and scope checks passed. All nine hosted workflows / 33 jobs succeeded with jobs and steps inspected; no failed-job rerun occurred. No local Go tests, runtime changes or measurements were needed for this documentation-only change.
+
+### Next
+
+Prepare and review the bounded Q2 execution preflight before resolving readiness and separate campaign dispatch. [#599](https://github.com/the-sarge/quic-go-fast/issues/599) is the live resume point; [#600](https://github.com/the-sarge/quic-go-fast/issues/600) tracks the program. This work selected no Q2 candidate, committed no campaign resources and granted no new qualification or spending authority.
