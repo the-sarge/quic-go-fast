@@ -6,26 +6,30 @@ A fork of [quic-go](https://github.com/quic-go/quic-go) for efficient bulk DATAG
 
 **Fast.9 and `main` differ:** fast.9 was released from a maintenance branch and excludes the adaptive application-loss thresholds in [#971](https://github.com/the-sarge/quic-go-fast/issues/971). That policy is implemented on `main` but remains unreleased, with no measured performance benefit or consumer qualification claimed. See [release and main selection](docs/usage.md#release-and-main-selection) and [Unreleased](CHANGELOG.md#unreleased).
 
-## Improvements over upstream
+## Improvements over the v0.62.0 baseline
 
-- **Less copying and allocation.** DATAGRAM overflow is rejected before allocation, the parser avoids an intermediate payload copy, and large stream writes use linear copying. HTTP/3 tracing and receive cleanup reduce unnecessary allocation and retained memory.
-- **More data per socket call.** Linux coalesced receive (GRO), Windows segmented send/coalesced receive (USO/URO), and qualified macOS batch sends. Equal-size short DATAGRAM packets can share a segmented send. Host capability checks and ordinary socket fallbacks govern activation.
-- **Better handling of bursts and connection lifetimes.** Deeper bounded receive queues expose drop counters. Fixes cover handshake packet sizing, path validation, cancellation, socket/buffer cleanup and HTTP/3 connection reuse and shutdown. Reno can undo a cutback when all supporting losses are proved spurious.
-- **Integration with application-owned transports.** Opt-in APIs provide external packet I/O, managed socket leases, fixed-peer filtering, bounded connection setup, candidate selection and receive-phase control. See the [integration guide](docs/usage.md) for ownership requirements and platform controls.
+Shipped capabilities combine fork-specific work and selected upstream fixes. See the [integration guide](docs/usage.md) for API ownership and platform requirements.
 
-**Experimental BBRv3 for sustained transfers over lossy WAN paths.** BBR models bandwidth and RTT to pace traffic; the measurement below shows its potential when random packet loss limits Reno's throughput. Opt in with `Config.SetCongestionControlV1("bbrv3")`. Fast.8's corrected sender remains **unqualified**: higher memory use and control-message latency, plus adverse coexistence with Reno, remain limitations. **Reno remains the default.** See the [release's BBR status](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8#corrected-bbr-and-subsequent-recovery).
+- **Lower allocation and linear stream copying.** Reject DATAGRAM overflow before allocation and remove an intermediate parser copy. Large `TryWriteAll` transfers replace quadratic tail copying with linear copying. HTTP/3 tracing and receive cleanup reduce allocation and retained memory.
+- **Native batching across platforms.** Linux GRO, Windows USO/URO and qualified macOS batch sends move more packets per socket call. Equal-size short DATAGRAM packets share segmented sends, with capability checks and ordinary socket fallbacks.
+- **Burst capacity and ACK control.** Bounded 1,024-entry received-DATAGRAM queues expose drop counters. Opt-in local ACK thresholds of 2–32 packets support known compatible peer controllers; negotiated ACK Frequency remains unimplemented.
+- **Application-owned transport integration.** External packet I/O, reusable managed socket leases, fixed-peer filtering, bounded connection setup, candidate selection and receive-phase control give applications explicit resource and traffic ownership.
+- **Managed ECN and path-MTU discovery.** Qualified managed paths preserve ECN on Linux, macOS, FreeBSD and Windows, with path-MTU discovery on qualified Linux and macOS leases.
+- **Recovery and connection lifecycle fixes.** Correct handshake sizing, path validation, cancellation, socket cleanup and HTTP/3 reuse/shutdown. Reno restores a cutback when all supporting losses are proved spurious; fast.9 also keeps idle path-MTU discovery progressing.
+
+**Experimental BBRv3 for lossy bulk transfers.** Opt in with `Config.SetCongestionControlV1("bbrv3")`. The measured benefit below is against fast.8 Reno. BBR remains **unqualified**: higher memory use, control-message latency and adverse Reno coexistence remain limitations. **Reno remains the default.** See the [release's BBR status](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8#corrected-bbr-and-subsequent-recovery).
 
 ## Performance evidence
 
-Selected measurements from individual changes:
+Historical measurements of individual changes, using the explicit baselines below:
 
-| Change | Recorded result | Workload and reference |
+| Change | Recorded result | Comparison baseline and workload |
 | --- | --- | --- |
-| Short DATAGRAM batching | **2.48× throughput**, sender/receiver CPU per GiB **−57%/−53%** | Downstream Linux network namespaces; batching enabled versus disabled |
-| Linux GRO | **1.26× throughput**, receive syscalls/datagram **×0.263** | Paired Linux loopback bulk transfers at GRO adoption |
-| Windows USO | **3.01× throughput**, send submissions/packet **×0.0815** | Paired hosted Windows loopback transfers at USO adoption |
-| macOS batch send | **1.17× throughput**, send syscalls/packet **×0.126** | Paired Darwin 25 arm64 loopback transfers at batch-send adoption |
-| Experimental BBRv3 | **14.06× STREAM / 14.27× DATAGRAM useful throughput** versus fast.8 Reno | Linux emulated path: 100 Mbps each way, 100 ms base RTT, 0.1% random forward loss; median of five paired ratios per traffic type ([results](https://github.com/the-sarge/quic-go-fast/blob/563785cf44a6be8b36f360bdf0e80acdf59df8ae/docs/audits/2026-10-22-bundle-990-readiness/result.md)) |
+| [Short DATAGRAM batching](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6331925155) | **2.48× throughput**, sender/receiver CPU per GiB **−57%/−53%** | On versus off at `642f014e`; downstream Linux network namespaces |
+| [Linux GRO](https://github.com/the-sarge/quic-go-fast/blob/23c83b9896980511286ca8b81cd632f7ec56afed/docs/audits/2026-09-11-g2-gro-results.md) | **1.26× throughput**, receive syscalls/datagram **×0.263** | GRO on versus off in the adoption build, peer GSO on in both; paired Linux loopback transfers |
+| [Windows USO](https://github.com/the-sarge/quic-go-fast/blob/23c83b9896980511286ca8b81cd632f7ec56afed/docs/audits/2026-09-11-w2-uso-results.md) | **3.01× throughput**, send submissions/packet **×0.0815** | USO on versus off in the same Windows message-I/O build; paired hosted Windows loopback transfers |
+| [macOS batch send](https://github.com/the-sarge/quic-go-fast/blob/23c83b9896980511286ca8b81cd632f7ec56afed/docs/audits/2026-09-12-d1-sendmsgx-results.md) | **1.17× throughput**, send syscalls/packet **×0.126** | Batch versus per-packet sends in the adoption build; paired Darwin 25 arm64 loopback transfers |
+| [Experimental BBRv3](https://github.com/the-sarge/quic-go-fast/blob/563785cf44a6be8b36f360bdf0e80acdf59df8ae/docs/audits/2026-10-22-bundle-990-readiness/result.md) | **14.06× STREAM / 14.27× DATAGRAM useful throughput** | Fast.8 BBR versus fast.8 Reno; Linux emulation, 100 Mbps each way, 100 ms base RTT, 0.1% random forward loss; median of five paired ratios per traffic type |
 
 These are historical, workload-specific results; they do not establish an aggregate speedup for the current fork against current upstream. The short-DATAGRAM result also raised mean RTT by 22.7 µs and lifetime minimum RTT by 9.8 µs, accepted under the [recorded decision](https://github.com/the-sarge/quic-go-fast/issues/743#issuecomment-6331925155). The [full measurement table](CHANGELOG.md#recorded-measurements) and [release notes](https://github.com/the-sarge/quic-go-fast/releases/tag/v0.62.1-fast.8) retain the baselines, accepted costs and limitations.
 
