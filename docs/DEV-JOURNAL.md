@@ -7923,3 +7923,26 @@ Planning reconciliation closed stale #921 against merged #923, clarified #646’
 ### Next
 
 Prepare and review the bounded Q2 execution preflight before resolving readiness and separate campaign dispatch. [#599](https://github.com/the-sarge/quic-go-fast/issues/599) is the live resume point; [#600](https://github.com/the-sarge/quic-go-fast/issues/600) tracks the program. This work selected no Q2 candidate, committed no campaign resources and granted no new qualification or spending authority.
+
+---
+
+## Q2 execution preflight accepted - 2026-10-28 17:40 EDT
+
+**Main:** `b67cc105fbc5`
+**Actor:** Codex
+
+### Summary
+
+Merged [Q2 execution preflight #1051](https://github.com/the-sarge/quic-go-fast/pull/1051), preserving the frozen 520-case inventory and all prior charges. This completes preparation and review; Q2 remains undispatched.
+
+### Decisions
+
+The operator selected candidate `23c83b98`, accepted the Q2 prerequisite reference roles and reconciled cumulative authority to 192 experiment-hours/$200 cloud cost with 72 preparation-hours unchanged. The [accepted decision record](adr/2026-10-28-bbrv3-q2-execution-preflight.md#accepted-operator-decisions) retains the rationale and scope. Staged cloud enforcement remains $150; no live guard or ledger changed and no resource allocation or experiment occurred.
+
+### Validation
+
+Both bounded review rounds completed with accepted findings resolved or locally corrected under the documentation policy; the review receipt discloses the initial adjudicator failure. Inventory hashes, 260 matched pairs, ledger arithmetic, JSON, relative links and bounded source hashes passed. The final 32,889-token input estimate fits the declared ceiling. All 33 hosted checks passed on `d7d7368d960b337ce8b2b654e401ad680cb29e65` before guarded squash merge. No Go behavior changed.
+
+### Next
+
+Complete read-only accounting/resource reconciliation and prepare a finite readiness/fixture registration with a refreshed resource request. Missing native readiness, send-path coverage, tools/clocks/resources and effective enforcement remain prerequisites; guard alignment and dispatch require separate authorization. [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) is the live plan pointer and resume point; Q2 and downstream execution remain pending.
