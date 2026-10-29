@@ -5,8 +5,18 @@
   "blocking_readiness_reno": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
   "descriptive_historical_reno": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
   "preparation_effort_estimate_hours": {
-    "low": 6,
-    "high": 10,
+    "pilot": {
+      "low": 4,
+      "high": 6
+    },
+    "conditional_continuation_additional": {
+      "low": 2,
+      "high": 4
+    },
+    "all_stages": {
+      "low": 6,
+      "high": 10
+    },
     "remaining_allowance_certified": false
   },
   "groups": [
@@ -26,7 +36,12 @@
       "start_seconds": 25,
       "tail_seconds": 20,
       "envelope_seconds_per_observation": 255,
-      "total_envelope_seconds": 9180
+      "total_envelope_seconds": 9180,
+      "stage_observations": {
+        "A": 6,
+        "B": 0,
+        "conditional_remaining": 30
+      }
     },
     {
       "id": "M-DELAY",
@@ -42,7 +57,12 @@
       "start_seconds": 25,
       "tail_seconds": 20,
       "envelope_seconds_per_observation": 405,
-      "total_envelope_seconds": 2430
+      "total_envelope_seconds": 2430,
+      "stage_observations": {
+        "A": 0,
+        "B": 2,
+        "conditional_remaining": 4
+      }
     },
     {
       "id": "M-COEX",
@@ -58,7 +78,12 @@
       "start_seconds": 25,
       "tail_seconds": 20,
       "envelope_seconds_per_observation": 405,
-      "total_envelope_seconds": 2430
+      "total_envelope_seconds": 2430,
+      "stage_observations": {
+        "A": 0,
+        "B": 2,
+        "conditional_remaining": 4
+      }
     },
     {
       "id": "G-LINUX",
@@ -75,7 +100,12 @@
       "start_seconds": 25,
       "tail_seconds": 20,
       "envelope_seconds_per_observation": 115,
-      "total_envelope_seconds": 1380
+      "total_envelope_seconds": 1380,
+      "stage_observations": {
+        "A": 0,
+        "B": 0,
+        "conditional_remaining": 12
+      }
     },
     {
       "id": "E-MARK",
@@ -93,7 +123,12 @@
       "start_seconds": 25,
       "tail_seconds": 20,
       "envelope_seconds_per_observation": 155,
-      "total_envelope_seconds": 1395
+      "total_envelope_seconds": 1395,
+      "stage_observations": {
+        "A": 0,
+        "B": 0,
+        "conditional_remaining": 9
+      }
     },
     {
       "id": "P-IDLE",
@@ -111,28 +146,81 @@
       "tail_seconds": 20,
       "envelope_seconds_per_observation": 165,
       "total_envelope_seconds": 660,
-      "coverage_limit": "Windows managed DF is unavailable at the pinned candidate; removal of its two impossible probe observations is the revised recommendation for review, not accepted scope."
+      "coverage_limit": "Windows managed DF is unavailable at the pinned candidate; removal of its two impossible probe observations is the revised recommendation for review, not accepted scope.",
+      "stage_observations": {
+        "A": 0,
+        "B": 0,
+        "conditional_remaining": 4
+      }
     }
   ],
   "totals": {
     "native_observations": 73,
     "native_envelope_seconds": 17475,
-    "reserved_experiment_hours": "11",
-    "historical_rate_cloud_estimate_usd": "15.20"
+    "reserved_experiment_hours": "14",
+    "historical_rate_cloud_estimate_usd": "18.70",
+    "scope": "All stages only if separately accepted; not an upfront reservation"
   },
   "windows": [
     {
-      "id": "linux",
-      "platform": "linux/amd64",
-      "reserved_hours": "5",
-      "historical_topology_usd_per_hour": "2.10",
-      "storage_export_allowance_usd": "0.25",
-      "estimated_usd": "10.75",
-      "native_envelope_seconds": 10095,
-      "remaining_window_seconds": 7905
+      "id": "A_local_validation",
+      "stage": "A",
+      "platform": null,
+      "reserved_hours": "2",
+      "historical_topology_usd_per_hour": "0",
+      "storage_export_allowance_usd": "0",
+      "estimated_usd": "0"
     },
     {
-      "id": "windows",
+      "id": "A_linux",
+      "stage": "A",
+      "platform": "linux/amd64",
+      "reserved_hours": "1.5",
+      "historical_topology_usd_per_hour": "1.30",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "2.20",
+      "native_envelope_seconds": 1530,
+      "remaining_window_seconds": 3870,
+      "overhead_seconds": {
+        "setup_staging": 1200,
+        "calibration": 900,
+        "native_preflight": 600,
+        "export_cleanup": 900,
+        "headroom": 270
+      }
+    },
+    {
+      "id": "B_linux",
+      "stage": "B",
+      "platform": "linux/amd64",
+      "reserved_hours": "1.5",
+      "historical_topology_usd_per_hour": "2.10",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "3.40",
+      "native_envelope_seconds": 1620,
+      "remaining_window_seconds": 3780,
+      "overhead_seconds": {
+        "setup_staging": 1200,
+        "calibration": 900,
+        "scenario_transition": 300,
+        "export_cleanup": 900,
+        "headroom": 480
+      }
+    },
+    {
+      "id": "remaining_linux",
+      "stage": "conditional_remaining",
+      "platform": "linux/amd64",
+      "reserved_hours": "4",
+      "historical_topology_usd_per_hour": "2.10",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "8.65",
+      "native_envelope_seconds": 6945,
+      "remaining_window_seconds": 7455
+    },
+    {
+      "id": "remaining_windows",
+      "stage": "conditional_remaining",
       "platform": "windows/amd64",
       "reserved_hours": "2",
       "historical_topology_usd_per_hour": "2.10",
@@ -142,7 +230,8 @@
       "remaining_window_seconds": 3675
     },
     {
-      "id": "mac",
+      "id": "remaining_mac",
+      "stage": "conditional_remaining",
       "platform": "darwin/arm64",
       "reserved_hours": "2",
       "historical_topology_usd_per_hour": "0",
@@ -152,9 +241,10 @@
       "remaining_window_seconds": 3345
     },
     {
-      "id": "local_validation",
+      "id": "remaining_local_validation",
+      "stage": "conditional_remaining",
       "platform": null,
-      "reserved_hours": "2",
+      "reserved_hours": "1",
       "historical_topology_usd_per_hour": "0",
       "storage_export_allowance_usd": "0",
       "estimated_usd": "0"
@@ -166,7 +256,7 @@
     "source_revision": "457bdb2d3e8b53866bb56b7ad8a32792625a3876",
     "current_prices_available": false,
     "freshness_requirement_hours": 24,
-    "formula": "5 * current_linux_topology_rate + 2 * current_windows_topology_rate + actual_storage_and_egress",
+    "formula": "Stage A: 1.5 * linux_noncompetitor_rate + storage/egress; Stage B: 1.5 * linux_competitor_rate + storage/egress; conditional remainder: 4 * linux_competitor_rate + 2 * windows_rate + storage/egress",
     "paid_local_replacements_included": false
   },
   "cumulative_basis": {
@@ -180,11 +270,228 @@
     "observed_staged_cloud_guard_usd": "150",
     "later_usage_and_charges_reconciled": false,
     "current_remaining_credit_certified": false,
-    "readiness_reserved_hours": "11",
-    "readiness_estimated_usd": "15.20",
-    "illustrative_total_hours": "135.801334",
-    "illustrative_total_usd": "168.348333",
-    "illustrative_margin_hours": "56.198666",
-    "illustrative_margin_usd": "31.651667"
+    "readiness_reserved_hours": "14",
+    "readiness_estimated_usd": "18.70",
+    "illustrative_total_hours": "138.801334",
+    "illustrative_total_usd": "171.848333",
+    "illustrative_margin_hours": "53.198666",
+    "illustrative_margin_usd": "28.151667",
+    "scenarios_not_additive": [
+      {
+        "id": "retained_plus_A",
+        "hours": "83.034667",
+        "usd": "89.285000"
+      },
+      {
+        "id": "retained_plus_pilot",
+        "hours": "84.534667",
+        "usd": "92.685000"
+      },
+      {
+        "id": "retained_plus_all_readiness",
+        "hours": "93.534667",
+        "usd": "105.785000"
+      }
+    ]
+  },
+  "revision_date": "2026-10-29",
+  "scope": "Stage A Linux LAN pilot first; B and all remaining readiness are separate conditional decisions. No execution authorized.",
+  "stages": [
+    {
+      "id": "A",
+      "condition": "Initial proposal only; prerequisites and separate implementation/allocation/dispatch authorization required",
+      "observations": 6,
+      "native_envelope_seconds": 1530,
+      "reserved_experiment_hours": "3.5",
+      "historical_rate_cloud_estimate_usd": "2.20",
+      "lease_ends_before_result_review": true
+    },
+    {
+      "id": "B",
+      "condition": "Stage A reviewed; no unresolved integrity, engagement or substantial unexplained regression; new explicit operator allocation/dispatch decision",
+      "observations": 4,
+      "native_envelope_seconds": 1620,
+      "reserved_experiment_hours": "1.5",
+      "historical_rate_cloud_estimate_usd": "3.40",
+      "lease_ends_before_result_review": true
+    },
+    {
+      "id": "conditional_remaining",
+      "condition": "Both pilot stages reviewed; separate bounded continuation decision, refreshed prerequisites and verified reuse of all ten pilot observations",
+      "observations": 63,
+      "native_envelope_seconds": 14325,
+      "reserved_experiment_hours": "9",
+      "historical_rate_cloud_estimate_usd": "13.10",
+      "lease_ends_before_result_review": true
+    }
+  ],
+  "pilot_totals": {
+    "native_observations": 10,
+    "native_envelope_seconds": 3150,
+    "native_overhead_seconds": 7650,
+    "local_validation_seconds": 7200,
+    "reserved_experiment_hours": "5",
+    "historical_rate_cloud_estimate_usd": "5.60",
+    "B_is_conditional": true
+  },
+  "ordered_pilot_observations": [
+    {
+      "id": "M-LAN/linux-amd64/R-Reno/stream/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "R-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-Reno/stream/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-BBR/stream/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/R-Reno/datagram/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "R-Reno",
+      "workload": "datagram",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-Reno/datagram/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "datagram",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-BBR/datagram/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "datagram",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-DELAY/linux-amd64/C-BBR/stream/r1",
+      "stage": "B",
+      "group": "M-DELAY",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-DELAY/linux-amd64/C-Reno/stream/r1",
+      "stage": "B",
+      "group": "M-DELAY",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-COEX/linux-amd64/C-BBR/stream/r1",
+      "stage": "B",
+      "group": "M-COEX",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-COEX/linux-amd64/C-Reno/stream/r1",
+      "stage": "B",
+      "group": "M-COEX",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    }
+  ],
+  "reuse": {
+    "qualification_case_credit": 0,
+    "automatic_reruns": false,
+    "requires": [
+      "same group/platform/arm/workload/repetition/mode/seed/event phase",
+      "unchanged source/overlay/binary/module identities and command settings",
+      "comparable hosts/resources/gateway/calibration and competitor identity",
+      "complete attributable immutable results and charges",
+      "explicit cross-lease order/time limitation for deferred STREAM bundle reference"
+    ],
+    "ineligible_result_action": "Leave obligation incomplete; separately propose and cost replacements; never silently duplicate or refund."
+  },
+  "prior_unallocated_package": {
+    "head": "e7b6b7ba94fed42a92aaf907e34a626f27258a2c",
+    "hours": "11",
+    "historical_usd": "15.20",
+    "status": "Superseded planning estimate, never allocated; do not add to staged totals."
   }
 }
