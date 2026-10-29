@@ -99,24 +99,24 @@
       "id": "P-IDLE",
       "platform_counts": {
         "linux/amd64": 2,
-        "darwin/arm64": 2,
-        "windows/amd64": 2
+        "darwin/arm64": 2
       },
       "arms": 2,
       "workloads": 1,
       "repetitions": 1,
-      "platforms": 3,
+      "platforms": 2,
       "active_seconds": 120,
-      "observations": 6,
+      "observations": 4,
       "start_seconds": 25,
       "tail_seconds": 20,
       "envelope_seconds_per_observation": 165,
-      "total_envelope_seconds": 990
+      "total_envelope_seconds": 660,
+      "coverage_limit": "Windows managed DF is unavailable at the pinned candidate; removal of its two impossible probe observations is the revised recommendation for review, not accepted scope."
     }
   ],
   "totals": {
-    "native_observations": 75,
-    "native_envelope_seconds": 17805,
+    "native_observations": 73,
+    "native_envelope_seconds": 17475,
     "reserved_experiment_hours": "11",
     "historical_rate_cloud_estimate_usd": "15.20"
   },
@@ -138,8 +138,8 @@
       "historical_topology_usd_per_hour": "2.10",
       "storage_export_allowance_usd": "0.25",
       "estimated_usd": "4.45",
-      "native_envelope_seconds": 3855,
-      "remaining_window_seconds": 3345
+      "native_envelope_seconds": 3525,
+      "remaining_window_seconds": 3675
     },
     {
       "id": "mac",

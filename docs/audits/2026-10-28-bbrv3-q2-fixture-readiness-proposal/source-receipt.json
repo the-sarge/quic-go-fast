@@ -80,6 +80,31 @@
       "path": "docs/audits/2026-10-28-bbrv3-q2-preflight/observations.json",
       "revision": "457bdb2d3e8b53866bb56b7ad8a32792625a3876",
       "sha256": "e73f8340f605c411e2e3d57efaf2e52e7d11562affc6eaae302cc6247e2b691c"
+    },
+    {
+      "path": "external_packet_io_batch_fallback.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "f0ec24a3a0eae5ff557089a9d8670d87521653c047a3ed416f8326cba7848b57"
+    },
+    {
+      "path": "send_conn_sendmsg_x_darwin.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "80e0d588038afe83b994596d9d58973bb70a452bc14f80a62f76f9f0ff2588b3"
+    },
+    {
+      "path": "external_packet_io_oob.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "b302517e5dff499eee157fdcb4acd36e4a0292f90b954a9e67ae58635a3e05af"
+    },
+    {
+      "path": "managed_packet_df_other.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "79ebc11cf1c3e4e31f45e6841a7b2d1b9ba23c72bd3d6b66143a113d9533aff2"
+    },
+    {
+      "path": "connection.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "cb0ef7f9a6a570656a5183d8096fd3713b6f0782909b552397aafd5f4568aa59"
     }
   ],
   "accepted_inventory_hashes": {
