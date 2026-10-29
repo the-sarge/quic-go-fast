@@ -1,0 +1,190 @@
+{
+  "status": "proposal-for-review; no implementation, allocation or dispatch",
+  "prepared_date": "2026-10-28",
+  "candidate": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "blocking_readiness_reno": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+  "descriptive_historical_reno": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "preparation_effort_estimate_hours": {
+    "low": 6,
+    "high": 10,
+    "remaining_allowance_certified": false
+  },
+  "groups": [
+    {
+      "id": "M-LAN",
+      "platform_counts": {
+        "linux/amd64": 12,
+        "darwin/arm64": 12,
+        "windows/amd64": 12
+      },
+      "arms": 3,
+      "workloads": 2,
+      "repetitions": 2,
+      "platforms": 3,
+      "active_seconds": 210,
+      "observations": 36,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 255,
+      "total_envelope_seconds": 9180
+    },
+    {
+      "id": "M-DELAY",
+      "platform_counts": {
+        "linux/amd64": 6
+      },
+      "arms": 3,
+      "workloads": 2,
+      "repetitions": 1,
+      "platforms": 1,
+      "active_seconds": 360,
+      "observations": 6,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 405,
+      "total_envelope_seconds": 2430
+    },
+    {
+      "id": "M-COEX",
+      "platform_counts": {
+        "linux/amd64": 6
+      },
+      "arms": 3,
+      "workloads": 2,
+      "repetitions": 1,
+      "platforms": 1,
+      "active_seconds": 360,
+      "observations": 6,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 405,
+      "total_envelope_seconds": 2430
+    },
+    {
+      "id": "G-LINUX",
+      "platform_counts": {
+        "linux/amd64": 12
+      },
+      "arms": 3,
+      "workloads": 2,
+      "modes": 2,
+      "repetitions": 1,
+      "platforms": 1,
+      "active_seconds": 70,
+      "observations": 12,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 115,
+      "total_envelope_seconds": 1380
+    },
+    {
+      "id": "E-MARK",
+      "platform_counts": {
+        "linux/amd64": 3,
+        "darwin/arm64": 3,
+        "windows/amd64": 3
+      },
+      "arms": 3,
+      "workloads": 1,
+      "repetitions": 1,
+      "platforms": 3,
+      "active_seconds": 110,
+      "observations": 9,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 155,
+      "total_envelope_seconds": 1395
+    },
+    {
+      "id": "P-IDLE",
+      "platform_counts": {
+        "linux/amd64": 2,
+        "darwin/arm64": 2,
+        "windows/amd64": 2
+      },
+      "arms": 2,
+      "workloads": 1,
+      "repetitions": 1,
+      "platforms": 3,
+      "active_seconds": 120,
+      "observations": 6,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 165,
+      "total_envelope_seconds": 990
+    }
+  ],
+  "totals": {
+    "native_observations": 75,
+    "native_envelope_seconds": 17805,
+    "reserved_experiment_hours": "11",
+    "historical_rate_cloud_estimate_usd": "15.20"
+  },
+  "windows": [
+    {
+      "id": "linux",
+      "platform": "linux/amd64",
+      "reserved_hours": "5",
+      "historical_topology_usd_per_hour": "2.10",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "10.75",
+      "native_envelope_seconds": 10095,
+      "remaining_window_seconds": 7905
+    },
+    {
+      "id": "windows",
+      "platform": "windows/amd64",
+      "reserved_hours": "2",
+      "historical_topology_usd_per_hour": "2.10",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "4.45",
+      "native_envelope_seconds": 3855,
+      "remaining_window_seconds": 3345
+    },
+    {
+      "id": "mac",
+      "platform": "darwin/arm64",
+      "reserved_hours": "2",
+      "historical_topology_usd_per_hour": "0",
+      "storage_export_allowance_usd": "0",
+      "estimated_usd": "0",
+      "native_envelope_seconds": 3855,
+      "remaining_window_seconds": 3345
+    },
+    {
+      "id": "local_validation",
+      "platform": null,
+      "reserved_hours": "2",
+      "historical_topology_usd_per_hour": "0",
+      "storage_export_allowance_usd": "0",
+      "estimated_usd": "0"
+    }
+  ],
+  "pricing": {
+    "kind": "historical-rate planning estimate, not a current quote",
+    "source": "docs/audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.md",
+    "source_revision": "457bdb2d3e8b53866bb56b7ad8a32792625a3876",
+    "current_prices_available": false,
+    "freshness_requirement_hours": 24,
+    "formula": "5 * current_linux_topology_rate + 2 * current_windows_topology_rate + actual_storage_and_egress",
+    "paid_local_replacements_included": false
+  },
+  "cumulative_basis": {
+    "known_retained_hours": "79.53466666666667",
+    "known_retained_usd": "87.085",
+    "future_520_historical_forecast_hours": "45.266667",
+    "future_520_historical_forecast_usd": "66.063333",
+    "accepted_experiment_ceiling_hours": "192",
+    "accepted_cloud_ceiling_usd": "200",
+    "accepted_preparation_ceiling_hours": "72",
+    "observed_staged_cloud_guard_usd": "150",
+    "later_usage_and_charges_reconciled": false,
+    "current_remaining_credit_certified": false,
+    "readiness_reserved_hours": "11",
+    "readiness_estimated_usd": "15.20",
+    "illustrative_total_hours": "135.801334",
+    "illustrative_total_usd": "168.348333",
+    "illustrative_margin_hours": "56.198666",
+    "illustrative_margin_usd": "31.651667"
+  }
+}
