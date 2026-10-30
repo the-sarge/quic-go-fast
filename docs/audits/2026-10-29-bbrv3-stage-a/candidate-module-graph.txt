@@ -1,0 +1,159 @@
+{
+	"Path": "q1campaign",
+	"Main": true,
+	"Dir": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a",
+	"GoMod": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/candidate.mod",
+	"GoVersion": "1.27.0"
+}
+{
+	"Path": "github.com/gopacket/gopacket",
+	"Version": "v1.7.1",
+	"Time": "2026-08-09T04:45:16Z",
+	"Dir": "/Users/josh/go/pkg/mod/github.com/gopacket/gopacket@v1.7.1",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/github.com/gopacket/gopacket/@v/v1.7.1.mod",
+	"GoVersion": "1.25.0",
+	"Sum": "h1:1C7/wrJ5HyiEAYDtStJHQk4rV0ChpanZDV9+3Ov3gaM=",
+	"GoModSum": "h1:QKowPlTLrQU2rqV5C5I14Aoaid3l8da3kbddibc/Wgk="
+}
+{
+	"Path": "github.com/jordanlewis/gcassert",
+	"Version": "v0.0.0-20250430164644-389ef753e22e",
+	"Time": "2025-04-30T16:46:44Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/quic-go/go-ossfuzz-seeds",
+	"Version": "v0.1.0",
+	"Time": "2026-05-03T10:42:53Z",
+	"Indirect": true,
+	"Dir": "/Users/josh/go/pkg/mod/github.com/quic-go/go-ossfuzz-seeds@v0.1.0",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/github.com/quic-go/go-ossfuzz-seeds/@v/v0.1.0.mod",
+	"GoVersion": "1.25",
+	"Sum": "h1:APacT+iIaNF6fd8AGEiN3bT/Jtkd2jz4v4TzM7MFjy0=",
+	"GoModSum": "h1:3IOHRbJIc+L6YKMwfDtJAM9Vj9k0YY4muhuyUYk5tbk="
+}
+{
+	"Path": "github.com/quic-go/qpack",
+	"Version": "v0.6.0",
+	"Time": "2025-11-17T02:04:08Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/quic-go/quic-go",
+	"Version": "v0.0.0",
+	"Replace": {
+		"Path": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate",
+		"Dir": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate",
+		"GoMod": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate/go.mod",
+		"GoVersion": "1.26.0"
+	},
+	"Dir": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate",
+	"GoMod": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate/go.mod",
+	"GoVersion": "1.26.0"
+}
+{
+	"Path": "github.com/stretchr/testify",
+	"Version": "v1.12.1",
+	"Time": "2026-08-17T08:24:05Z",
+	"Indirect": true,
+	"Dir": "/Users/josh/go/pkg/mod/github.com/stretchr/testify@v1.12.1",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/github.com/stretchr/testify/@v/v1.12.1.mod",
+	"GoVersion": "1.17",
+	"Sum": "h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=",
+	"GoModSum": "h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg="
+}
+{
+	"Path": "github.com/vishvananda/netlink",
+	"Version": "v1.1.0",
+	"Time": "2020-01-17T18:40:31Z",
+	"Indirect": true
+}
+{
+	"Path": "github.com/vishvananda/netns",
+	"Version": "v0.0.0-20211101163701-50045581ed74",
+	"Time": "2021-11-01T16:37:01Z",
+	"Indirect": true
+}
+{
+	"Path": "go.uber.org/mock",
+	"Version": "v0.6.0",
+	"Time": "2025-08-18T14:58:04Z",
+	"Indirect": true,
+	"Dir": "/Users/josh/go/pkg/mod/go.uber.org/mock@v0.6.0",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/go.uber.org/mock/@v/v0.6.0.mod",
+	"GoVersion": "1.23.0",
+	"Sum": "h1:hyF9dfmbgIX5EfOdasqLsWD6xqpNZlXblLB/Dbnwv3Y=",
+	"GoModSum": "h1:KiVJ4BqZJaMj4svdfmHM0AUx4NJYO8ZNpPnZn1Z+BBU="
+}
+{
+	"Path": "go.yaml.in/yaml/v3",
+	"Version": "v3.0.5",
+	"Time": "2026-07-26T14:51:55Z",
+	"Indirect": true,
+	"Dir": "/Users/josh/go/pkg/mod/go.yaml.in/yaml/v3@v3.0.5",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/go.yaml.in/yaml/v3/@v/v3.0.5.mod",
+	"GoVersion": "1.16",
+	"Sum": "h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=",
+	"GoModSum": "h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg="
+}
+{
+	"Path": "golang.org/x/crypto",
+	"Version": "v0.58.0",
+	"Time": "2026-10-09T16:24:17Z",
+	"Indirect": true,
+	"Dir": "/Users/josh/go/pkg/mod/golang.org/x/crypto@v0.58.0",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/golang.org/x/crypto/@v/v0.58.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54=",
+	"GoModSum": "h1:Xh+kl5A+M0gMiWDytH2Hhr5Z7WbNCpv/eB/EFgfSk+w="
+}
+{
+	"Path": "golang.org/x/mod",
+	"Version": "v0.42.0",
+	"Time": "2026-10-09T20:24:17Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/net",
+	"Version": "v0.61.0",
+	"Time": "2026-10-09T17:07:24Z",
+	"Dir": "/Users/josh/go/pkg/mod/golang.org/x/net@v0.61.0",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/golang.org/x/net/@v/v0.61.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:RR+6j/BTBCrggOLugxa+66R8FvoN6MHlzDlZIbN9YFw=",
+	"GoModSum": "h1:WgDCOTH8iwtB66T4/GfI94AHo/hhdb7Hah9NDseQfiI="
+}
+{
+	"Path": "golang.org/x/sync",
+	"Version": "v0.24.0",
+	"Time": "2026-09-23T16:28:17Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/sys",
+	"Version": "v0.49.0",
+	"Time": "2026-10-06T18:35:47Z",
+	"Dir": "/Users/josh/go/pkg/mod/golang.org/x/sys@v0.49.0",
+	"GoMod": "/Users/josh/go/pkg/mod/cache/download/golang.org/x/sys/@v/v0.49.0.mod",
+	"GoVersion": "1.26.0",
+	"Sum": "h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=",
+	"GoModSum": "h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og="
+}
+{
+	"Path": "golang.org/x/term",
+	"Version": "v0.47.0",
+	"Time": "2026-10-09T15:22:17Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/text",
+	"Version": "v0.43.0",
+	"Time": "2026-10-09T15:18:32Z",
+	"Indirect": true
+}
+{
+	"Path": "golang.org/x/tools",
+	"Version": "v0.52.0",
+	"Time": "2026-10-10T19:29:17Z",
+	"Indirect": true
+}
