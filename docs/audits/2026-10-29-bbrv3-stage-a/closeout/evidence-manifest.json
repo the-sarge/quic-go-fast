@@ -1,0 +1,30 @@
+{
+  "recorded_at": "2026-10-30T02:15:35.211125+00:00",
+  "verified_head": "078441f33bf146667278548b33a4f1014a1297c8",
+  "failed_run": 40983561620,
+  "failed_job": 123829131327,
+  "artifact_id": 12945903245,
+  "artifact_name": "http-macos-go1.27.3-racefalse",
+  "same_head_passing_pr_run": 40983567705,
+  "shuffle_seed": "1793322371700799000",
+  "reruns": 0,
+  "native_input_archive": {
+    "bytes": 57514100,
+    "sha256": "44967dae286b18bb3b0356c37b79cbdbd9e182978383550cdd6f20774231369e"
+  },
+  "registration_sha256": "4dc4c3a7e4c257a067d720edcad4fd6b47b4cc345459165c7775a94967d6f46e",
+  "files_sha256": {
+    "README.md": "956886687fe6bf04ee0a09aa2a6039b373f66b0477624dc586d47771f69c630f",
+    "accounting-proposal.json": "c1c85ff6ed7d929fb5bfc58c0b3a60ed43bbbf3d1d352f608209e86b2885388d",
+    "ci/capture.jsonl": "bcfd12fc3a9a71d7b8ea9fb42ec5628536fa93c04b96df97cea73619c7e74732",
+    "ci/output.log": "0ce447072849a11ebf601fbcb1cd73409d30e09c83c5ed581e69dad058777a35",
+    "ci/result.json": "10f141662ac628dff9028afb525c0c8dcaf4b69ea70aee8b05fe926c32cb86e2",
+    "ci/run.json": "9a334714b1f3475b4d06faf605d092b6e3276d5af679af40ac9cab668c764ba9",
+    "ci/source.patch": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ci-local-reproduction.json": "116ce9fb6599e07b90816b86007a6a08db0fad394ec036f113345c0a6e1996b1",
+    "cleanup.json": "437088bdf610bf3de1a8304d26f4d976c6c664fb799a43c317114276f177a989",
+    "native-correctness-receipt.json": "0a60f03179617cc392746ae9c1871189058e25394a568c25a1dde78ec0772dd4",
+    "native-driver.py": "9de5614f0d7237920ed0929ceab99adb1e7f49187eb13d77f73c94239e4d84c0",
+    "preparation-intervals.json": "197a0aff22f9de6e6cd2f7226ac02bdf50d1e822fcf224028d196eeb4fadd806"
+  }
+}

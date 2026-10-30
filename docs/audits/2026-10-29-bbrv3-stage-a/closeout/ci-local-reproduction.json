@@ -1,0 +1,25 @@
+{
+  "head": "078441f33bf146667278548b33a4f1014a1297c8",
+  "platform": "darwin/arm64",
+  "argv": [
+    "go",
+    "test",
+    "-count=1",
+    "-timeout=60s",
+    "-run",
+    "^TestHTTPServerIdleTimeout$",
+    "./integrationtests/self",
+    "-version=1"
+  ],
+  "environment": {
+    "GOTOOLCHAIN": "local",
+    "TIMESCALE_FACTOR": "3"
+  },
+  "started_at": "2026-10-30T02:09:24.781409+00:00",
+  "finished_at": "2026-10-30T02:09:26.807632+00:00",
+  "elapsed_seconds": 2.0262317079977947,
+  "exit_code": 0,
+  "output": "ok  \tgithub.com/quic-go/quic-go/integrationtests/self\t0.422s\n",
+  "attempts": 1,
+  "scope": "one diagnostic correctness execution; no stress/retry or pilot"
+}

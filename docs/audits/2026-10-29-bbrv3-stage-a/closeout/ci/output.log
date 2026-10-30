@@ -1,0 +1,1772 @@
+using QUIC version: v1
+-test.shuffle 1793322371700799000
+=== RUN   TestHTTPDatagrams
+2026/10/30 01:06:11 failed to sufficiently increase receive buffer size (was: 768 kiB, wanted: 7168 kiB, got: 6144 kiB). See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
+--- PASS: TestHTTPDatagrams (0.01s)
+=== RUN   TestMITMForgedInitialPacketWithAck
+--- PASS: TestMITMForgedInitialPacketWithAck (0.00s)
+=== RUN   TestConnectionMigration
+--- PASS: TestConnectionMigration (0.20s)
+=== RUN   TestHTTPRemoteAddrContextKey
+--- PASS: TestHTTPRemoteAddrContextKey (0.00s)
+=== RUN   TestGetConfigForClientLifecycleCleanup
+=== RUN   TestGetConfigForClientLifecycleCleanup/success
+=== RUN   TestGetConfigForClientLifecycleCleanup/success/explicit_then_deferred
+=== RUN   TestGetConfigForClientLifecycleCleanup/success/deferred_fallback
+=== RUN   TestGetConfigForClientLifecycleCleanup/join_error
+=== RUN   TestGetConfigForClientLifecycleCleanup/join_error/explicit_then_deferred
+=== RUN   TestGetConfigForClientLifecycleCleanup/join_error/deferred_fallback
+=== RUN   TestGetConfigForClientLifecycleCleanup/close_error
+=== RUN   TestGetConfigForClientLifecycleCleanup/close_error/explicit_then_deferred
+=== RUN   TestGetConfigForClientLifecycleCleanup/close_error/deferred_fallback
+=== RUN   TestGetConfigForClientLifecycleCleanup/close_and_join_errors
+=== RUN   TestGetConfigForClientLifecycleCleanup/close_and_join_errors/explicit_then_deferred
+=== RUN   TestGetConfigForClientLifecycleCleanup/close_and_join_errors/deferred_fallback
+--- PASS: TestGetConfigForClientLifecycleCleanup (0.00s)
+    --- PASS: TestGetConfigForClientLifecycleCleanup/success (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/success/explicit_then_deferred (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/success/deferred_fallback (0.00s)
+    --- PASS: TestGetConfigForClientLifecycleCleanup/join_error (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/join_error/explicit_then_deferred (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/join_error/deferred_fallback (0.00s)
+    --- PASS: TestGetConfigForClientLifecycleCleanup/close_error (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/close_error/explicit_then_deferred (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/close_error/deferred_fallback (0.00s)
+    --- PASS: TestGetConfigForClientLifecycleCleanup/close_and_join_errors (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/close_and_join_errors/explicit_then_deferred (0.00s)
+        --- PASS: TestGetConfigForClientLifecycleCleanup/close_and_join_errors/deferred_fallback (0.00s)
+=== RUN   TestHTTPServeQUICConn
+--- PASS: TestHTTPServeQUICConn (0.00s)
+=== RUN   TestHTTPRequestTrailers
+--- PASS: TestHTTPRequestTrailers (0.01s)
+=== RUN   TestTimeoutAfterSendingPacket
+--- PASS: TestTimeoutAfterSendingPacket (0.00s)
+=== RUN   TestHTTP0RTTWithChangedServerSettings
+=== RUN   TestHTTP0RTTWithChangedServerSettings/increased
+=== RUN   TestHTTP0RTTWithChangedServerSettings/decreased
+--- PASS: TestHTTP0RTTWithChangedServerSettings (0.32s)
+    --- PASS: TestHTTP0RTTWithChangedServerSettings/increased (0.16s)
+    --- PASS: TestHTTP0RTTWithChangedServerSettings/decreased (0.16s)
+=== RUN   TestHandshake05RTT
+=== RUN   TestHandshake05RTT/using_ListenEarly
+=== RUN   TestHandshake05RTT/using_Listen
+--- PASS: TestHandshake05RTT (0.00s)
+    --- PASS: TestHandshake05RTT/using_ListenEarly (0.00s)
+    --- PASS: TestHandshake05RTT/using_Listen (0.00s)
+=== RUN   TestKeyUpdates
+    key_update_test.go:90: Used 79 key phases on outgoing and 79 key phases on incoming packets.
+--- PASS: TestKeyUpdates (0.30s)
+=== RUN   TestHTTPStreamedRequests
+--- PASS: TestHTTPStreamedRequests (0.01s)
+=== RUN   TestHTTPHeaders
+--- PASS: TestHTTPHeaders (0.00s)
+=== RUN   Test0RTTRejectedWhenDisabled
+    zero_rtt_test.go:862: Sent 4 0-RTT packets.
+--- PASS: Test0RTTRejectedWhenDisabled (0.00s)
+=== RUN   TestHTTPRawConn
+--- PASS: TestHTTPRawConn (0.00s)
+=== RUN   TestHTTPErrAbortHandler
+--- PASS: TestHTTPErrAbortHandler (0.00s)
+=== RUN   TestConnContextOnServerSide
+--- PASS: TestConnContextOnServerSide (0.00s)
+=== RUN   TestHTTPCaptureAttachSourceFailure
+=== RUN   TestHTTPCaptureAttachSourceFailure/copy
+=== RUN   TestHTTPCaptureAttachSourceFailure/read-ahead
+--- PASS: TestHTTPCaptureAttachSourceFailure (0.12s)
+    --- PASS: TestHTTPCaptureAttachSourceFailure/copy (0.11s)
+    --- PASS: TestHTTPCaptureAttachSourceFailure/read-ahead (0.01s)
+=== RUN   TestHandshakePacketBuffering
+=== RUN   TestHandshakePacketBuffering/hybrid
+    handshake_drop_test.go:510: buffered packets: 2
+=== RUN   TestHandshakePacketBuffering/classical
+    handshake_drop_test.go:510: buffered packets: 2
+=== RUN   TestHandshakePacketBuffering/fragmented_ClientHello
+    handshake_drop_test.go:510: buffered packets: 2
+--- PASS: TestHandshakePacketBuffering (0.01s)
+    --- PASS: TestHandshakePacketBuffering/hybrid (0.00s)
+    --- PASS: TestHandshakePacketBuffering/classical (0.01s)
+    --- PASS: TestHandshakePacketBuffering/fragmented_ClientHello (0.00s)
+=== RUN   TestHTTPCaptureHotswapPassingCleanup
+--- PASS: TestHTTPCaptureHotswapPassingCleanup (0.56s)
+=== RUN   TestTimeoutReaderJoinsClose
+--- PASS: TestTimeoutReaderJoinsClose (0.00s)
+=== RUN   TestCorruptionCaptureUnicodeLimit
+--- PASS: TestCorruptionCaptureUnicodeLimit (0.01s)
+=== RUN   TestHTTPHeaderSizeLimitClient
+=== RUN   TestHTTPHeaderSizeLimitClient/large_HEADERS_frame
+=== RUN   TestHTTPHeaderSizeLimitClient/large_decompressed_HEADERS_frame
+--- PASS: TestHTTPHeaderSizeLimitClient (0.01s)
+    --- PASS: TestHTTPHeaderSizeLimitClient/large_HEADERS_frame (0.00s)
+    --- PASS: TestHTTPHeaderSizeLimitClient/large_decompressed_HEADERS_frame (0.00s)
+=== RUN   Test0RTTRejectedOnDatagramsDisabled
+    zero_rtt_test.go:905: Sent 4 0-RTT packets.
+--- PASS: Test0RTTRejectedOnDatagramsDisabled (0.01s)
+=== RUN   TestHTTPServerIdleTimerAfterEarly0RTTExchange
+--- PASS: TestHTTPServerIdleTimerAfterEarly0RTTExchange (0.00s)
+=== RUN   TestMultiplexServerLifecycle
+=== RUN   TestMultiplexServerLifecycle/success
+=== RUN   TestMultiplexServerLifecycle/writer_failure
+--- PASS: TestMultiplexServerLifecycle (0.02s)
+    --- PASS: TestMultiplexServerLifecycle/success (0.01s)
+    --- PASS: TestMultiplexServerLifecycle/writer_failure (0.00s)
+=== RUN   TestPathMTUSettledConnectionEnd
+=== RUN   TestPathMTUSettledConnectionEnd/local_close
+=== RUN   TestPathMTUSettledConnectionEnd/peer_close
+=== RUN   TestPathMTUSettledConnectionEnd/idle_timeout
+--- PASS: TestPathMTUSettledConnectionEnd (4.40s)
+    --- PASS: TestPathMTUSettledConnectionEnd/local_close (0.46s)
+    --- PASS: TestPathMTUSettledConnectionEnd/peer_close (0.61s)
+    --- PASS: TestPathMTUSettledConnectionEnd/idle_timeout (3.33s)
+=== RUN   TestHTTPSettings
+=== RUN   TestHTTPSettings/server_settings
+=== RUN   TestHTTPSettings/client_settings
+--- PASS: TestHTTPSettings (0.01s)
+    --- PASS: TestHTTPSettings/server_settings (0.00s)
+    --- PASS: TestHTTPSettings/client_settings (0.01s)
+=== RUN   Test0RTTRetransmitOnRetry
+=== RUN   Test0RTTRetransmitOnRetry/no_retry
+=== RUN   Test0RTTRetransmitOnRetry/with_retry
+--- PASS: Test0RTTRetransmitOnRetry (0.01s)
+    --- PASS: Test0RTTRetransmitOnRetry/no_retry (0.00s)
+    --- PASS: Test0RTTRetransmitOnRetry/with_retry (0.00s)
+=== RUN   TestHTTPDatagramStreamReset
+--- PASS: TestHTTPDatagramStreamReset (0.02s)
+=== RUN   TestStreamReadCancellation
+=== RUN   TestStreamReadCancellation/immediate
+=== RUN   TestStreamReadCancellation/after_reading_some_data
+=== RUN   TestStreamReadCancellation/concurrent
+--- PASS: TestStreamReadCancellation (0.39s)
+    --- PASS: TestStreamReadCancellation/immediate (0.12s)
+    --- PASS: TestStreamReadCancellation/after_reading_some_data (0.18s)
+    --- PASS: TestStreamReadCancellation/concurrent (0.10s)
+=== RUN   TestStreamWriteCancellation
+=== RUN   TestStreamWriteCancellation/immediate
+=== RUN   TestStreamWriteCancellation/after_writing_some_data
+=== RUN   TestStreamWriteCancellation/concurrent
+--- PASS: TestStreamWriteCancellation (0.45s)
+    --- PASS: TestStreamWriteCancellation/immediate (0.13s)
+    --- PASS: TestStreamWriteCancellation/after_writing_some_data (0.20s)
+    --- PASS: TestStreamWriteCancellation/concurrent (0.12s)
+=== RUN   TestGetConfigForClient
+--- PASS: TestGetConfigForClient (0.00s)
+=== RUN   TestHandshakeDiagnosticsEventSnapshot
+--- PASS: TestHandshakeDiagnosticsEventSnapshot (0.00s)
+=== RUN   TestCancelAcceptStream
+=== RUN   TestCancelAcceptStream/seven_cancellations
+    cancelation_test.go:328: canceled AcceptUniStream 7 times
+=== RUN   TestCancelAcceptStream/balanced
+    cancelation_test.go:331: canceled AcceptUniStream 30 times
+--- PASS: TestCancelAcceptStream (0.31s)
+    --- PASS: TestCancelAcceptStream/seven_cancellations (0.15s)
+    --- PASS: TestCancelAcceptStream/balanced (0.16s)
+=== RUN   TestConnectionIDsCustomGenerator
+    conn_id_test.go:47: using 19 byte connection ID generator for the server
+    conn_id_test.go:47: using 4 byte connection ID generator for the client
+--- PASS: TestConnectionIDsCustomGenerator (0.01s)
+=== RUN   TestHTTPStreamErrors
+=== RUN   TestHTTPStreamErrors/stream_cancellation
+=== RUN   TestHTTPStreamErrors/application_close
+--- PASS: TestHTTPStreamErrors (0.01s)
+    --- PASS: TestHTTPStreamErrors/stream_cancellation (0.00s)
+    --- PASS: TestHTTPStreamErrors/application_close (0.00s)
+=== RUN   TestHandshakeCapturedLoss
+=== RUN   TestHandshakeCapturedLoss/ACK_blackout
+=== RUN   TestHandshakeCapturedLoss/deliver_gap
+=== RUN   TestHandshakeCapturedLoss/restore_ACKs
+=== RUN   TestHandshakeCapturedLoss/delayed_ACK_feedback
+--- PASS: TestHandshakeCapturedLoss (0.01s)
+    --- PASS: TestHandshakeCapturedLoss/ACK_blackout (0.01s)
+    --- PASS: TestHandshakeCapturedLoss/deliver_gap (0.00s)
+    --- PASS: TestHandshakeCapturedLoss/restore_ACKs (0.00s)
+    --- PASS: TestHandshakeCapturedLoss/delayed_ACK_feedback (0.00s)
+=== RUN   TestPathMTUDiscovery
+    mtu_test.go:46: max client packet size: 1400, MTU: 1400
+    mtu_test.go:46: max datagram size: initial: 1163, final: 1363
+    mtu_test.go:46: max server packet size: 1234, MTU: 1400
+--- PASS: TestPathMTUDiscovery (1.91s)
+=== RUN   TestHTTPReestablishConnectionAfterDialError
+--- PASS: TestHTTPReestablishConnectionAfterDialError (0.02s)
+=== RUN   TestHandshakeIdleTimeout
+=== RUN   TestHandshakeIdleTimeout/Dial
+=== RUN   TestHandshakeIdleTimeout/DialEarly
+--- PASS: TestHandshakeIdleTimeout (0.00s)
+    --- PASS: TestHandshakeIdleTimeout/Dial (0.00s)
+    --- PASS: TestHandshakeIdleTimeout/DialEarly (0.00s)
+=== RUN   TestMITMVersionNegotiationWrongSourceConnectionID
+--- PASS: TestMITMVersionNegotiationWrongSourceConnectionID (0.06s)
+=== RUN   TestMultiplexingServerAndClientOnSameConn
+--- PASS: TestMultiplexingServerAndClientOnSameConn (0.01s)
+=== RUN   TestNetworkAdmissionEligibleRebindingAndSpoofedTraffic
+--- PASS: TestNetworkAdmissionEligibleRebindingAndSpoofedTraffic (0.07s)
+=== RUN   TestGetConfigForClientLifecycle
+=== RUN   TestGetConfigForClientLifecycle/dial_error_before_accept_error
+=== RUN   TestGetConfigForClientLifecycle/missing_publication
+=== RUN   TestGetConfigForClientLifecycle/dial_error_without_accept_publication
+=== RUN   TestGetConfigForClientLifecycle/success
+=== RUN   TestGetConfigForClientLifecycle/accept_failure
+--- PASS: TestGetConfigForClientLifecycle (0.00s)
+    --- PASS: TestGetConfigForClientLifecycle/dial_error_before_accept_error (0.00s)
+    --- PASS: TestGetConfigForClientLifecycle/missing_publication (0.00s)
+    --- PASS: TestGetConfigForClientLifecycle/dial_error_without_accept_publication (0.00s)
+    --- PASS: TestGetConfigForClientLifecycle/success (0.00s)
+    --- PASS: TestGetConfigForClientLifecycle/accept_failure (0.00s)
+=== RUN   TestHandshakeExplicitVersions
+=== RUN   TestHandshakeExplicitVersions/v1
+=== RUN   TestHandshakeExplicitVersions/v2
+--- PASS: TestHandshakeExplicitVersions (0.00s)
+    --- PASS: TestHandshakeExplicitVersions/v1 (0.00s)
+    --- PASS: TestHandshakeExplicitVersions/v2 (0.00s)
+=== RUN   TestConnectionCloseRetransmission
+--- PASS: TestConnectionCloseRetransmission (0.00s)
+=== RUN   TestWriteWithLimitStreamFlowControl
+--- PASS: TestWriteWithLimitStreamFlowControl (0.00s)
+=== RUN   TestHTTPCaptureCheckPreservationQuota
+HTTP capture unavailable: HTTP capture quota exhausted: 8 slots reserved
+--- PASS: TestHTTPCaptureCheckPreservationQuota (0.00s)
+=== RUN   TestMITCorruptPackets
+=== RUN   TestMITCorruptPackets/towards_the_server
+=== RUN   TestMITCorruptPackets/towards_the_server/initial
+    mitm_test.go:219: corrupted 1 packets
+=== RUN   TestMITCorruptPackets/towards_the_server/handshake
+    mitm_test.go:219: corrupted 1 packets
+=== RUN   TestMITCorruptPackets/towards_the_server/1RTT
+    mitm_test.go:219: corrupted 1 packets
+=== RUN   TestMITCorruptPackets/towards_the_client
+=== RUN   TestMITCorruptPackets/towards_the_client/initial
+    mitm_test.go:219: corrupted 1 packets
+=== RUN   TestMITCorruptPackets/towards_the_client/handshake
+    mitm_test.go:219: corrupted 1 packets
+=== RUN   TestMITCorruptPackets/towards_the_client/1RTT
+    mitm_test.go:219: corrupted 1 packets
+--- PASS: TestMITCorruptPackets (1.69s)
+    --- PASS: TestMITCorruptPackets/towards_the_server (0.86s)
+        --- PASS: TestMITCorruptPackets/towards_the_server/initial (0.27s)
+        --- PASS: TestMITCorruptPackets/towards_the_server/handshake (0.18s)
+        --- PASS: TestMITCorruptPackets/towards_the_server/1RTT (0.41s)
+    --- PASS: TestMITCorruptPackets/towards_the_client (0.83s)
+        --- PASS: TestMITCorruptPackets/towards_the_client/initial (0.33s)
+        --- PASS: TestMITCorruptPackets/towards_the_client/handshake (0.20s)
+        --- PASS: TestMITCorruptPackets/towards_the_client/1RTT (0.30s)
+=== RUN   TestNATRebindingReceiveFailure
+--- PASS: TestNATRebindingReceiveFailure (0.10s)
+=== RUN   TestMITMDuplicatePackets
+=== RUN   TestMITMDuplicatePackets/towards_the_server
+=== RUN   TestMITMDuplicatePackets/towards_the_client
+--- PASS: TestMITMDuplicatePackets (0.13s)
+    --- PASS: TestMITMDuplicatePackets/towards_the_server (0.02s)
+    --- PASS: TestMITMDuplicatePackets/towards_the_client (0.11s)
+=== RUN   TestHTTP1xxResponse
+--- PASS: TestHTTP1xxResponse (0.00s)
+=== RUN   TestHandshakeMTUFallback
+=== RUN   TestHandshakeMTUFallback/client/unset
+    handshake_mtu_test.go:69: client rejected oversized writes: 2
+=== RUN   TestHandshakeMTUFallback/client/explicit
+    handshake_mtu_test.go:107: client rejected oversized writes: 8; dial error: timeout: no recent network activity
+=== RUN   TestHandshakeMTUFallback/server/unset
+    handshake_mtu_test.go:69: server rejected oversized writes: 5
+=== RUN   TestHandshakeMTUFallback/server/explicit
+    handshake_mtu_test.go:107: server rejected oversized writes: 11; dial error: timeout: handshake did not complete in time
+--- PASS: TestHandshakeMTUFallback (4.92s)
+    --- PASS: TestHandshakeMTUFallback/client/unset (0.21s)
+    --- PASS: TestHandshakeMTUFallback/client/explicit (1.50s)
+    --- PASS: TestHandshakeMTUFallback/server/unset (0.21s)
+    --- PASS: TestHandshakeMTUFallback/server/explicit (3.01s)
+=== RUN   TestDatagramLoss
+    datagram_test.go:363: dropped 17 to client and 19 to server out of 200 packets
+    datagram_test.go:366: server received 81 out of 100 sent datagrams
+    datagram_test.go:368: client received 83 out of 100 sent datagrams
+--- PASS: TestDatagramLoss (0.01s)
+=== RUN   TestCorruptionCaptureSocketErrors
+--- PASS: TestCorruptionCaptureSocketErrors (0.01s)
+=== RUN   TestConnDataBlocked
+--- PASS: TestConnDataBlocked (0.00s)
+=== RUN   TestMultiplexingConnectToSelf
+--- PASS: TestMultiplexingConnectToSelf (0.02s)
+=== RUN   TestHTTPClientTrace
+--- PASS: TestHTTPClientTrace (0.11s)
+=== RUN   TestHTTPClientRequestContextCancellation
+=== RUN   TestHTTPClientRequestContextCancellation/before_response
+=== RUN   TestHTTPClientRequestContextCancellation/after_response
+--- PASS: TestHTTPClientRequestContextCancellation (0.05s)
+    --- PASS: TestHTTPClientRequestContextCancellation/before_response (0.05s)
+    --- PASS: TestHTTPClientRequestContextCancellation/after_response (0.00s)
+=== RUN   TestHandshakeRTTRetry
+=== RUN   TestHandshakeRTTRetry/retry
+=== RUN   TestHandshakeRTTRetry/no_retry
+--- PASS: TestHandshakeRTTRetry (0.00s)
+    --- PASS: TestHandshakeRTTRetry/retry (0.00s)
+    --- PASS: TestHandshakeRTTRetry/no_retry (0.00s)
+=== RUN   TestDatagramSendAfterClose
+--- PASS: TestDatagramSendAfterClose (0.00s)
+=== RUN   TestHandshakeRTTHelloRetryRequest
+--- PASS: TestHandshakeRTTHelloRetryRequest (0.00s)
+=== RUN   TestHTTP3Qlog
+--- PASS: TestHTTP3Qlog (0.02s)
+=== RUN   TestMITMInjectRandomPackets
+=== RUN   TestMITMInjectRandomPackets/towards_the_server
+=== RUN   TestMITMInjectRandomPackets/towards_the_client
+--- PASS: TestMITMInjectRandomPackets (0.42s)
+    --- PASS: TestMITMInjectRandomPackets/towards_the_server (0.20s)
+    --- PASS: TestMITMInjectRandomPackets/towards_the_client (0.22s)
+=== RUN   TestCorruptionCaptureWithoutCleanup
+--- PASS: TestCorruptionCaptureWithoutCleanup (0.30s)
+=== RUN   TestHTTPServerIdleTimerWaitsFor0RTTExchange
+--- PASS: TestHTTPServerIdleTimerWaitsFor0RTTExchange (0.01s)
+=== RUN   TestWriteWithLimitConnectionFlowControl
+--- PASS: TestWriteWithLimitConnectionFlowControl (0.00s)
+=== RUN   TestHandshakeDiagnosticsConcurrentProducers
+--- PASS: TestHandshakeDiagnosticsConcurrentProducers (0.02s)
+=== RUN   TestTLSGetConfigForClientError
+--- PASS: TestTLSGetConfigForClientError (0.00s)
+=== RUN   TestConnContextRejection
+=== RUN   TestConnContextRejection/rejecting
+=== RUN   TestConnContextRejection/not_rejecting
+--- PASS: TestConnContextRejection (0.00s)
+    --- PASS: TestConnContextRejection/rejecting (0.00s)
+    --- PASS: TestConnContextRejection/not_rejecting (0.00s)
+=== RUN   TestHandshakeCancellationError
+--- PASS: TestHandshakeCancellationError (0.00s)
+=== RUN   TestStreamPriority
+=== RUN   TestStreamPriority/incremental_streams_use_urgency_and_round_robin
+=== RUN   TestStreamPriority/non-incremental_streams_use_stream_ID
+--- PASS: TestStreamPriority (0.02s)
+    --- PASS: TestStreamPriority/incremental_streams_use_urgency_and_round_robin (0.01s)
+    --- PASS: TestStreamPriority/non-incremental_streams_use_stream_ID (0.01s)
+=== RUN   Test0RTTRejectedOnConnectionWindowDecrease
+--- PASS: Test0RTTRejectedOnConnectionWindowDecrease (0.01s)
+=== RUN   TestHTTP1xxTerminalResponse
+--- PASS: TestHTTP1xxTerminalResponse (0.00s)
+=== RUN   TestKeepAlive
+--- PASS: TestKeepAlive (0.00s)
+=== RUN   TestCorruptionFiniteCallback
+=== RUN   TestCorruptionFiniteCallback/initial
+=== RUN   TestCorruptionFiniteCallback/initial/Incoming
+=== RUN   TestCorruptionFiniteCallback/initial/Outgoing
+=== RUN   TestCorruptionFiniteCallback/handshake
+=== RUN   TestCorruptionFiniteCallback/handshake/Incoming
+=== RUN   TestCorruptionFiniteCallback/handshake/Outgoing
+=== RUN   TestCorruptionFiniteCallback/1RTT
+=== RUN   TestCorruptionFiniteCallback/1RTT/Incoming
+=== RUN   TestCorruptionFiniteCallback/1RTT/Outgoing
+--- PASS: TestCorruptionFiniteCallback (0.00s)
+    --- PASS: TestCorruptionFiniteCallback/initial (0.00s)
+        --- PASS: TestCorruptionFiniteCallback/initial/Incoming (0.00s)
+        --- PASS: TestCorruptionFiniteCallback/initial/Outgoing (0.00s)
+    --- PASS: TestCorruptionFiniteCallback/handshake (0.00s)
+        --- PASS: TestCorruptionFiniteCallback/handshake/Incoming (0.00s)
+        --- PASS: TestCorruptionFiniteCallback/handshake/Outgoing (0.00s)
+    --- PASS: TestCorruptionFiniteCallback/1RTT (0.00s)
+        --- PASS: TestCorruptionFiniteCallback/1RTT/Incoming (0.00s)
+        --- PASS: TestCorruptionFiniteCallback/1RTT/Outgoing (0.00s)
+=== RUN   Test0RTTDisabledOnDial
+--- PASS: Test0RTTDisabledOnDial (0.01s)
+=== RUN   TestHTTP3StreamPriority
+=== RUN   TestHTTP3StreamPriority/incremental_streams_use_urgency_and_round_robin
+=== RUN   TestHTTP3StreamPriority/non-incremental_streams_use_stream_ID
+--- PASS: TestHTTP3StreamPriority (0.03s)
+    --- PASS: TestHTTP3StreamPriority/incremental_streams_use_urgency_and_round_robin (0.01s)
+    --- PASS: TestHTTP3StreamPriority/non-incremental_streams_use_stream_ID (0.01s)
+=== RUN   TestHTTPServerIdleTimeoutAfterRetry
+=== RUN   TestHTTPServerIdleTimeoutAfterRetry/unusable_first_connection
+--- PASS: TestHTTPServerIdleTimeoutAfterRetry (0.04s)
+    --- PASS: TestHTTPServerIdleTimeoutAfterRetry/unusable_first_connection (0.04s)
+=== RUN   TestContentLengthForSmallResponse
+--- PASS: TestContentLengthForSmallResponse (0.00s)
+=== RUN   TestConnectionIDsZeroLength
+    conn_id_test.go:39: issuing 14 byte connection ID from the server
+    conn_id_test.go:39: issuing 0 byte connection ID from the client
+--- PASS: TestConnectionIDsZeroLength (0.00s)
+=== RUN   TestHTTPCaptureIncomplete
+=== RUN   TestHTTPCaptureIncomplete/limit
+=== RUN   TestHTTPCaptureIncomplete/oversized
+=== RUN   TestHTTPCaptureIncomplete/encoding
+=== RUN   TestHTTPCaptureIncomplete/write
+HTTP capture write failed: path=/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestHTTPCaptureIncompletewrite3902485648/001/slot-0/capture.jsonl error=write /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestHTTPCaptureIncompletewrite3902485648/001/slot-0/capture.jsonl: file already closed
+--- PASS: TestHTTPCaptureIncomplete (0.02s)
+    --- PASS: TestHTTPCaptureIncomplete/limit (0.00s)
+    --- PASS: TestHTTPCaptureIncomplete/oversized (0.01s)
+    --- PASS: TestHTTPCaptureIncomplete/encoding (0.00s)
+    --- PASS: TestHTTPCaptureIncomplete/write (0.00s)
+=== RUN   TestManagedPathMTUDiscovery
+=== RUN   TestManagedPathMTUDiscovery/ipv4
+=== RUN   TestManagedPathMTUDiscovery/ipv4/1
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/ipv4/2
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/ipv6
+=== RUN   TestManagedPathMTUDiscovery/ipv6/1
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/ipv6/2
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/dual_ipv4
+=== RUN   TestManagedPathMTUDiscovery/dual_ipv4/1
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/dual_ipv4/2
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/dual_ipv6
+=== RUN   TestManagedPathMTUDiscovery/dual_ipv6/1
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/dual_ipv6/2
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/without_ecn
+=== RUN   TestManagedPathMTUDiscovery/without_ecn/1
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/without_ecn/2
+    managed_df_test.go:109: MTU updates: [{1342 false}]
+=== RUN   TestManagedPathMTUDiscovery/turn_profile
+=== RUN   TestManagedPathMTUDiscovery/turn_profile/1
+    managed_df_test.go:109: MTU updates: []
+=== RUN   TestManagedPathMTUDiscovery/turn_profile/2
+    managed_df_test.go:109: MTU updates: []
+--- PASS: TestManagedPathMTUDiscovery (0.08s)
+    --- PASS: TestManagedPathMTUDiscovery/ipv4 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/ipv4/1 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/ipv4/2 (0.01s)
+    --- PASS: TestManagedPathMTUDiscovery/ipv6 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/ipv6/1 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/ipv6/2 (0.01s)
+    --- PASS: TestManagedPathMTUDiscovery/dual_ipv4 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/dual_ipv4/1 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/dual_ipv4/2 (0.00s)
+    --- PASS: TestManagedPathMTUDiscovery/dual_ipv6 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/dual_ipv6/1 (0.00s)
+        --- PASS: TestManagedPathMTUDiscovery/dual_ipv6/2 (0.00s)
+    --- PASS: TestManagedPathMTUDiscovery/without_ecn (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/without_ecn/1 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/without_ecn/2 (0.01s)
+    --- PASS: TestManagedPathMTUDiscovery/turn_profile (0.02s)
+        --- PASS: TestManagedPathMTUDiscovery/turn_profile/1 (0.01s)
+        --- PASS: TestManagedPathMTUDiscovery/turn_profile/2 (0.01s)
+=== RUN   Test0RTTWithSessionTicketData
+=== RUN   Test0RTTWithSessionTicketData/server
+=== RUN   Test0RTTWithSessionTicketData/client
+--- PASS: Test0RTTWithSessionTicketData (0.02s)
+    --- PASS: Test0RTTWithSessionTicketData/server (0.01s)
+    --- PASS: Test0RTTWithSessionTicketData/client (0.01s)
+=== RUN   TestHandshakeRandomLossOptIn
+=== RUN   TestHandshakeRandomLossOptIn/default
+=== RUN   TestHandshakeRandomLossOptIn/enabled
+--- PASS: TestHandshakeRandomLossOptIn (0.68s)
+    --- PASS: TestHandshakeRandomLossOptIn/default (0.36s)
+    --- PASS: TestHandshakeRandomLossOptIn/enabled (0.32s)
+=== RUN   TestDropOneThirdDirection
+=== RUN   TestDropOneThirdDirection/to_client
+=== RUN   TestDropOneThirdDirection/to_server
+=== RUN   TestDropOneThirdDirection/both
+--- PASS: TestDropOneThirdDirection (0.00s)
+    --- PASS: TestDropOneThirdDirection/to_client (0.00s)
+    --- PASS: TestDropOneThirdDirection/to_server (0.00s)
+    --- PASS: TestDropOneThirdDirection/both (0.00s)
+=== RUN   TestHTTPServerIncompleteHeadersMemory
+    http_idle_timer_test.go:76: 100 incomplete requests allocated 674240 bytes
+--- PASS: TestHTTPServerIncompleteHeadersMemory (0.01s)
+=== RUN   TestDownloadWithFixedRTT
+=== RUN   TestDownloadWithFixedRTT/10ms
+=== RUN   TestDownloadWithFixedRTT/100ms
+=== RUN   TestDownloadWithFixedRTT/500ms
+--- PASS: TestDownloadWithFixedRTT (0.03s)
+    --- PASS: TestDownloadWithFixedRTT/10ms (0.01s)
+    --- PASS: TestDownloadWithFixedRTT/100ms (0.01s)
+    --- PASS: TestDownloadWithFixedRTT/500ms (0.02s)
+=== RUN   TestCorruptionCaptureBeforeMutation
+--- PASS: TestCorruptionCaptureBeforeMutation (0.00s)
+=== RUN   TestHTTPCaptureCheckPreservation
+=== RUN   TestHTTPCaptureCheckPreservation/natural_child_failure
+=== RUN   TestHTTPCaptureCheckPreservation/passing_check
+=== RUN   TestHTTPCaptureCheckPreservation/outer_directory_unset
+--- PASS: TestHTTPCaptureCheckPreservation (2.34s)
+    --- PASS: TestHTTPCaptureCheckPreservation/natural_child_failure (0.94s)
+    --- PASS: TestHTTPCaptureCheckPreservation/passing_check (0.70s)
+    --- PASS: TestHTTPCaptureCheckPreservation/outer_directory_unset (0.70s)
+=== RUN   TestStatelessResets
+=== RUN   TestStatelessResets/zero-length_connection_IDs
+=== RUN   TestStatelessResets/10_byte_connection_IDs
+--- PASS: TestStatelessResets (0.00s)
+    --- PASS: TestStatelessResets/zero-length_connection_IDs (0.00s)
+    --- PASS: TestStatelessResets/10_byte_connection_IDs (0.00s)
+=== RUN   TestPathMTUDiscoverySnapshot
+    mtu_snapshot_test.go:97: MTU event=1326, DATAGRAM limit during ACK=1163
+    mtu_snapshot_test.go:105: after close: MTU=1326, DATAGRAM limit=1289
+--- PASS: TestPathMTUDiscoverySnapshot (0.01s)
+=== RUN   TestBidirectionalStreamMultiplexing
+=== RUN   TestBidirectionalStreamMultiplexing/client_->_server
+=== RUN   TestBidirectionalStreamMultiplexing/client_<->_server
+--- PASS: TestBidirectionalStreamMultiplexing (0.02s)
+    --- PASS: TestBidirectionalStreamMultiplexing/client_->_server (0.01s)
+    --- PASS: TestBidirectionalStreamMultiplexing/client_<->_server (0.01s)
+=== RUN   TestHandshakeDiagnosticsFailureReport
+--- PASS: TestHandshakeDiagnosticsFailureReport (0.00s)
+=== RUN   TestHTTPCaptureRetainsBeyondEarlyDial
+--- PASS: TestHTTPCaptureRetainsBeyondEarlyDial (0.00s)
+=== RUN   TestHeavyStreamCancellation
+--- PASS: TestHeavyStreamCancellation (1.02s)
+=== RUN   TestConnectionIDsRandomLengths
+    conn_id_test.go:43: issuing 8 byte connection ID from the server
+    conn_id_test.go:43: issuing 12 byte connection ID from the client
+--- PASS: TestConnectionIDsRandomLengths (0.01s)
+=== RUN   TestCancelOpenStreamSync
+    cancelation_test.go:568: Canceled OpenStreamSync 12 times
+--- PASS: TestCancelOpenStreamSync (0.41s)
+=== RUN   TestDatagramSizeLimitWithMTUDiscovery
+--- PASS: TestDatagramSizeLimitWithMTUDiscovery (0.02s)
+=== RUN   Test0RTTRejectedOnALPNChanged
+    zero_rtt_test.go:822: Sent 4 0-RTT packets.
+--- PASS: Test0RTTRejectedOnALPNChanged (0.00s)
+=== RUN   TestPathMTUSettled
+=== RUN   TestPathMTUSettled/loopback
+    path_mtu_settled_test.go:156: settled at 1441 bytes, DATAGRAM limit 1404 (initial 1243)
+=== RUN   TestPathMTUSettled/lost_probes_above_the_path_limit
+    path_mtu_settled_test.go:156: settled at 1398 bytes, DATAGRAM limit 1361 (initial 1243)
+=== RUN   TestPathMTUSettled/discovery_disabled
+--- PASS: TestPathMTUSettled (0.04s)
+    --- PASS: TestPathMTUSettled/loopback (0.01s)
+    --- PASS: TestPathMTUSettled/lost_probes_above_the_path_limit (0.03s)
+    --- PASS: TestPathMTUSettled/discovery_disabled (0.00s)
+=== RUN   TestHTTP3ListenerClosing
+=== RUN   TestHTTP3ListenerClosing/application_listener
+=== RUN   TestHTTP3ListenerClosing/listener_created_by_the_http3.Server
+--- PASS: TestHTTP3ListenerClosing (0.06s)
+    --- PASS: TestHTTP3ListenerClosing/application_listener (0.01s)
+    --- PASS: TestHTTP3ListenerClosing/listener_created_by_the_http3.Server (0.05s)
+=== RUN   TestHTTP0RTT
+--- PASS: TestHTTP0RTT (0.47s)
+=== RUN   TestFaultyPacketConn
+=== RUN   TestFaultyPacketConn/client
+    timeout_test.go:435: blocking client's connection after 20 packets
+=== RUN   TestFaultyPacketConn/server
+    timeout_test.go:435: blocking server's connection after 14 packets
+--- PASS: TestFaultyPacketConn (0.00s)
+    --- PASS: TestFaultyPacketConn/client (0.00s)
+    --- PASS: TestFaultyPacketConn/server (0.00s)
+=== RUN   TestHTTP3ListenerGracefulShutdown
+=== RUN   TestHTTP3ListenerGracefulShutdown/application_listener
+=== RUN   TestHTTP3ListenerGracefulShutdown/listener_created_by_the_http3.Server
+--- PASS: TestHTTP3ListenerGracefulShutdown (0.12s)
+    --- PASS: TestHTTP3ListenerGracefulShutdown/application_listener (0.04s)
+    --- PASS: TestHTTP3ListenerGracefulShutdown/listener_created_by_the_http3.Server (0.08s)
+=== RUN   TestHandshakeCipherSuites
+=== RUN   TestHandshakeCipherSuites/TLS_AES_128_GCM_SHA256
+=== RUN   TestHandshakeCipherSuites/TLS_AES_256_GCM_SHA384
+=== RUN   TestHandshakeCipherSuites/TLS_CHACHA20_POLY1305_SHA256
+--- PASS: TestHandshakeCipherSuites (0.02s)
+    --- PASS: TestHandshakeCipherSuites/TLS_AES_128_GCM_SHA256 (0.01s)
+    --- PASS: TestHandshakeCipherSuites/TLS_AES_256_GCM_SHA384 (0.00s)
+    --- PASS: TestHandshakeCipherSuites/TLS_CHACHA20_POLY1305_SHA256 (0.01s)
+=== RUN   TestDatagramNegotiation
+=== RUN   TestDatagramNegotiation/server_enable,_client_enable
+=== RUN   TestDatagramNegotiation/server_enable,_client_disable
+=== RUN   TestDatagramNegotiation/server_disable,_client_enable
+=== RUN   TestDatagramNegotiation/server_disable,_client_disable
+--- PASS: TestDatagramNegotiation (0.01s)
+    --- PASS: TestDatagramNegotiation/server_enable,_client_enable (0.00s)
+    --- PASS: TestDatagramNegotiation/server_enable,_client_disable (0.00s)
+    --- PASS: TestDatagramNegotiation/server_disable,_client_enable (0.00s)
+    --- PASS: TestDatagramNegotiation/server_disable,_client_disable (0.00s)
+=== RUN   TestCorruptionCaptureHandshakePrefix
+--- PASS: TestCorruptionCaptureHandshakePrefix (0.02s)
+=== RUN   TestHTTPRequestRetryAfterIdleTimeout
+=== RUN   TestHTTPRequestRetryAfterIdleTimeout/only_cached_conn
+=== RUN   TestHTTPRequestRetryAfterIdleTimeout/allow_re-dialing
+--- PASS: TestHTTPRequestRetryAfterIdleTimeout (0.19s)
+    --- PASS: TestHTTPRequestRetryAfterIdleTimeout/only_cached_conn (0.09s)
+    --- PASS: TestHTTPRequestRetryAfterIdleTimeout/allow_re-dialing (0.10s)
+=== RUN   TestCorruptionDiagnosticsCleanup
+=== RUN   TestCorruptionDiagnosticsCleanup/pass
+=== RUN   TestCorruptionDiagnosticsCleanup/fail
+--- PASS: TestCorruptionDiagnosticsCleanup (4.13s)
+    --- PASS: TestCorruptionDiagnosticsCleanup/pass (0.67s)
+    --- PASS: TestCorruptionDiagnosticsCleanup/fail (3.45s)
+=== RUN   TestReadDeadlineSync
+--- PASS: TestReadDeadlineSync (0.33s)
+=== RUN   TestHTTPHeaderSizeLimitServer
+=== RUN   TestHTTPHeaderSizeLimitServer/large_HEADERS_frame
+=== RUN   TestHTTPHeaderSizeLimitServer/large_decompressed_HEADERS_frame
+--- PASS: TestHTTPHeaderSizeLimitServer (0.01s)
+    --- PASS: TestHTTPHeaderSizeLimitServer/large_HEADERS_frame (0.01s)
+    --- PASS: TestHTTPHeaderSizeLimitServer/large_decompressed_HEADERS_frame (0.01s)
+=== RUN   TestCorruptionCaptureBatchIncomplete
+=== RUN   TestCorruptionCaptureBatchIncomplete/event_budget
+=== RUN   TestCorruptionCaptureBatchIncomplete/record_truncation
+=== RUN   TestCorruptionCaptureBatchIncomplete/write_failure
+corruption capture write failed: path=/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureBatchIncomplete2474421381/001/handshake-4142705479.jsonl error=write /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureBatchIncomplete2474421381/001/handshake-4142705479.jsonl: file already closed
+    corruption_capture_helper_test.go:71: corruption capture: path=/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureBatchIncomplete2474421381/001/handshake-4142705479.jsonl dropped=0 error=write /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureBatchIncomplete2474421381/001/handshake-4142705479.jsonl: file already closed
+--- PASS: TestCorruptionCaptureBatchIncomplete (0.41s)
+    --- PASS: TestCorruptionCaptureBatchIncomplete/event_budget (0.40s)
+    --- PASS: TestCorruptionCaptureBatchIncomplete/record_truncation (0.01s)
+    --- PASS: TestCorruptionCaptureBatchIncomplete/write_failure (0.00s)
+=== RUN   TestConnectionMigrationConcurrentState
+--- PASS: TestConnectionMigrationConcurrentState (0.20s)
+=== RUN   TestHTTPStreamer
+--- PASS: TestHTTPStreamer (0.01s)
+=== RUN   TestMultiplexingNonQUICPackets
+--- PASS: TestMultiplexingNonQUICPackets (0.07s)
+=== RUN   TestGracefulShutdownPendingStreams
+--- PASS: TestGracefulShutdownPendingStreams (0.74s)
+=== RUN   TestHTTPServerExtendedConnectRequestParsing
+=== RUN   TestHTTPServerExtendedConnectRequestParsing/escaped_path
+=== RUN   TestHTTPServerExtendedConnectRequestParsing/double_slash
+=== RUN   TestHTTPServerExtendedConnectRequestParsing/empty_query
+--- PASS: TestHTTPServerExtendedConnectRequestParsing (0.01s)
+    --- PASS: TestHTTPServerExtendedConnectRequestParsing/escaped_path (0.00s)
+    --- PASS: TestHTTPServerExtendedConnectRequestParsing/double_slash (0.00s)
+    --- PASS: TestHTTPServerExtendedConnectRequestParsing/empty_query (0.00s)
+=== RUN   TestQlogDirEnvironmentVariable
+--- PASS: TestQlogDirEnvironmentVariable (0.00s)
+=== RUN   TestHandshakeFailsWithoutClientCert
+--- PASS: TestHandshakeFailsWithoutClientCert (0.00s)
+=== RUN   TestCorruptionCaptureSyncAfterExchange
+--- PASS: TestCorruptionCaptureSyncAfterExchange (0.16s)
+=== RUN   Test0RTTPacketQueueing
+--- PASS: Test0RTTPacketQueueing (0.01s)
+=== RUN   TestHandshakeDiagnosticsCleanup
+=== RUN   TestHandshakeDiagnosticsCleanup/pass
+=== RUN   TestHandshakeDiagnosticsCleanup/fail
+--- PASS: TestHandshakeDiagnosticsCleanup (0.83s)
+    --- PASS: TestHandshakeDiagnosticsCleanup/pass (0.46s)
+    --- PASS: TestHandshakeDiagnosticsCleanup/fail (0.37s)
+=== RUN   TestHTTPServerHeaderDeadline
+=== RUN   TestHTTPServerHeaderDeadline/default
+=== RUN   TestHTTPServerHeaderDeadline/configured
+=== RUN   TestHTTPServerHeaderDeadline/disabled
+--- PASS: TestHTTPServerHeaderDeadline (0.01s)
+    --- PASS: TestHTTPServerHeaderDeadline/default (0.01s)
+    --- PASS: TestHTTPServerHeaderDeadline/configured (0.00s)
+    --- PASS: TestHTTPServerHeaderDeadline/disabled (0.00s)
+=== RUN   Test0RTTWaitForHandshakeCompletion
+    zero_rtt_test.go:375: received 6 STREAM frames in 0-RTT packets
+--- PASS: Test0RTTWaitForHandshakeCompletion (0.01s)
+=== RUN   TestCorruptionCaptureInterruptedFixtureCleanup
+--- PASS: TestCorruptionCaptureInterruptedFixtureCleanup (3.50s)
+=== RUN   TestDownloadWithReordering
+=== RUN   TestDownloadWithReordering/5ms
+    rtt_test.go:175: Smoothed RTT: 4.982ms
+    rtt_test.go:178: received 423 short header packets, detected 308 reorderings
+=== RUN   TestDownloadWithReordering/50ms
+    rtt_test.go:175: Smoothed RTT: 48.649ms
+    rtt_test.go:178: received 421 short header packets, detected 278 reorderings
+=== RUN   TestDownloadWithReordering/250ms
+    rtt_test.go:175: Smoothed RTT: 242.662ms
+    rtt_test.go:178: received 447 short header packets, detected 304 reorderings
+--- PASS: TestDownloadWithReordering (0.07s)
+    --- PASS: TestDownloadWithReordering/5ms (0.03s)
+    --- PASS: TestDownloadWithReordering/50ms (0.02s)
+    --- PASS: TestDownloadWithReordering/250ms (0.02s)
+=== RUN   TestHandshakeCloseListener
+=== RUN   TestHandshakeCloseListener/using_Transport.Listen
+=== RUN   TestHandshakeCloseListener/using_Listen
+=== RUN   TestHandshakeCloseListener/using_ListenAddr
+--- PASS: TestHandshakeCloseListener (0.25s)
+    --- PASS: TestHandshakeCloseListener/using_Transport.Listen (0.07s)
+    --- PASS: TestHandshakeCloseListener/using_Listen (0.07s)
+    --- PASS: TestHandshakeCloseListener/using_ListenAddr (0.12s)
+=== RUN   TestUnidirectionalStreams
+=== RUN   TestUnidirectionalStreams/client_->_server
+=== RUN   TestUnidirectionalStreams/server_->_client
+=== RUN   TestUnidirectionalStreams/client_<->_server
+--- PASS: TestUnidirectionalStreams (0.25s)
+    --- PASS: TestUnidirectionalStreams/client_->_server (0.07s)
+    --- PASS: TestUnidirectionalStreams/server_->_client (0.05s)
+    --- PASS: TestUnidirectionalStreams/client_<->_server (0.13s)
+=== RUN   TestHTTPResponseTrailers
+--- PASS: TestHTTPResponseTrailers (0.00s)
+=== RUN   TestHandshakeWithPacketLoss
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 8 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client
+    handshake_drop_test.go:282: random loss is opt-in stress; set QUIC_GO_TEST_RANDOM_LOSS=1
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 1 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server
+    handshake_drop_test.go:282: random loss is opt-in stress; set QUIC_GO_TEST_RANDOM_LOSS=1
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 13 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 12 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 16 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 12 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 8 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 14 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 4 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 13 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 12 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 9 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 12 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 12 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 6 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 10 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 9 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 14 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 14 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 9 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 2 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 8 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 5 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first
+    handshake_drop_test.go:382: dropped 7 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first
+    handshake_drop_test.go:382: dropped 11 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks
+    handshake_drop_test.go:382: dropped 3 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first
+    handshake_drop_test.go:382: dropped 12 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first
+    handshake_drop_test.go:382: dropped 14 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks
+    handshake_drop_test.go:382: dropped 8 packets
+=== RUN   TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both
+    handshake_drop_test.go:282: random loss is opt-in stress; set QUIC_GO_TEST_RANDOM_LOSS=1
+--- PASS: TestHandshakeWithPacketLoss (0.69s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client (0.04s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client (0.05s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client (0.06s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client (0.05s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client (0.03s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_client/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- SKIP: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_client (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server (0.05s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server (0.05s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server (0.04s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server (0.04s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server (0.03s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_to_server/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- SKIP: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_to_server (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both (0.04s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_1st_packet_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both (0.04s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_first_3_packets_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both (0.04s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_1_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both (0.06s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_2_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both (0.06s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_true/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/client_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_false/long_cert_chain:_true/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/server_speaks_first (0.01s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_false/nobody_speaks (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/client_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/server_speaks_first (0.00s)
+        --- PASS: TestHandshakeWithPacketLoss/drop_every_3rd_of_first_30_packets,_phase_3_in_direction_both/retry:_false/post_quantum:_true/long_cert_chain:_true/nobody_speaks (0.00s)
+    --- SKIP: TestHandshakeWithPacketLoss/drop_1/3_of_packets_in_direction_both (0.00s)
+=== RUN   Test0RTTWithIncreasedStreamLimit
+--- PASS: Test0RTTWithIncreasedStreamLimit (0.00s)
+=== RUN   TestInvalidToken
+--- PASS: TestInvalidToken (0.03s)
+=== RUN   TestHandshakeContextTimeout
+--- PASS: TestHandshakeContextTimeout (0.06s)
+=== RUN   TestCorruptionCaptureBatchResults
+--- PASS: TestCorruptionCaptureBatchResults (0.02s)
+=== RUN   TestHTTPGet
+=== RUN   TestHTTPGet/small
+=== RUN   TestHTTPGet/big
+--- PASS: TestHTTPGet (0.37s)
+    --- PASS: TestHTTPGet/small (0.00s)
+    --- PASS: TestHTTPGet/big (0.36s)
+=== RUN   TestContextOnClientSide
+--- PASS: TestContextOnClientSide (0.00s)
+=== RUN   TestHTTPServerRequestParsing
+=== RUN   TestHTTPServerRequestParsing/origin_form
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:GET URL:/foo?bar=baz Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a138b40 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49196 RequestURI:/foo?bar=baz TLS:0x29845c57c2a0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:GET URL:/foo?bar=baz Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a136910 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:58983 RequestURI:/foo?bar=baz TLS:0x29845c57c380 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/HEAD_request
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:HEAD URL:/head?foo=bar Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a320660 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49198 RequestURI:/head?foo=bar TLS:0x29845bb58620 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:HEAD URL:/head?foo=bar Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a137090 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:62974 RequestURI:/head?foo=bar TLS:0x29845c57c9a0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/origin-form_OPTIONS
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:OPTIONS URL:/options Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a2b6f00 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49200 RequestURI:/options TLS:0x29845bb589a0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:OPTIONS URL:/options Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a3dc000 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:61055 RequestURI:/options TLS:0x29845bb58a80 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/POST_request_with_trailers
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:POST URL:/post?foo=bar Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a2b7b30 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[X-Test-Trailer:[trailer value]] RemoteAddr:127.0.0.1:49202 RequestURI:/post?foo=bar TLS:0x29845c57ce00 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:POST URL:/post?foo=bar Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a137e50 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[X-Test-Trailer:[trailer value]] RemoteAddr:127.0.0.1:50469 RequestURI:/post?foo=bar TLS:0x29845c57cee0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/POST_request_with_known_length
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:POST URL:/post-known-length Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[Content-Length:[17] X-Test-Header:[foo bar]] Body:0x29845a2faa80 GetBody:<nil> ContentLength:17 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49204 RequestURI:/post-known-length TLS:0x29845bb58fc0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:POST URL:/post-known-length Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[Content-Length:[17] X-Test-Header:[foo bar]] Body:0x29845a40b130 GetBody:<nil> ContentLength:17 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:62307 RequestURI:/post-known-length TLS:0x298456158a80 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/origin_form_with_escaped_path
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:GET URL:/foo%2Fbar?baz=qux Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a6e10b0 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49206 RequestURI:/foo%2Fbar?baz=qux TLS:0x298456158d20 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:GET URL:/foo%2Fbar?baz=qux Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a40b810 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:65271 RequestURI:/foo%2Fbar?baz=qux TLS:0x298456158e00 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/origin_form_with_path_starting_with_double_slash
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:GET URL://foo Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a6e1ad0 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49208 RequestURI://foo TLS:0x298456158fc0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:GET URL://foo Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a764c80 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:55295 RequestURI://foo TLS:0x29845bb597a0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/origin_form_with_force_query
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:GET URL:/foo? Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a88c3f0 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49210 RequestURI:/foo? TLS:0x29845c57d420 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:GET URL:/foo? Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a83c2d0 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:58779 RequestURI:/foo? TLS:0x29845c57d500 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/origin_form_with_encoded_query
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:GET URL:/search?q=a%2Fb%20c Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a88d6b0 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49212 RequestURI:/search?q=a%2Fb%20c TLS:0x29845c57d880 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:GET URL:/search?q=a%2Fb%20c Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a83cff0 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:58309 RequestURI:/search?q=a%2Fb%20c TLS:0x29845c57d960 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/origin_form_with_explicit_authority_port
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:GET URL:/port Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a8ce180 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49214 RequestURI:/port TLS:0x29845bb59ce0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:GET URL:/port Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a83dd60 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:61661 RequestURI:/port TLS:0x29845c57dc00 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/asterisk_form
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:OPTIONS URL:* Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a8cee10 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49216 RequestURI:* TLS:0x2984561595e0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:OPTIONS URL:* Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845aa5a690 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:57038 RequestURI:* TLS:0x29845c57dce0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/authority_form
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:CONNECT URL://quic-go.net:443 Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845aa87560 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:quic-go.net:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49218 RequestURI:quic-go.net:443 TLS:0x2984561597a0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:CONNECT URL://quic-go.net:443 Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845a8e2000 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:quic-go.net:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:60118 RequestURI:quic-go.net:443 TLS:0x298456159880 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/origin_form_with_IPv6_authority
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:GET URL:/ipv6 Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845ab87560 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:[2001:db8::1]:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49220 RequestURI:/ipv6 TLS:0x29845aaa6460 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:GET URL:/ipv6 Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845ac26050 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:[2001:db8::1]:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:64238 RequestURI:/ipv6 TLS:0x29845aaa6540 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+=== RUN   TestHTTPServerRequestParsing/authority_form_with_IPv6_authority
+    http_request_parsing_test.go:190: HTTP/2 request: &{Method:CONNECT URL://[2001:db8::1]:443 Proto:HTTP/2.0 ProtoMajor:2 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845ac30d50 GetBody:<nil> ContentLength:0 TransferEncoding:[] Close:false Host:[2001:db8::1]:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:49222 RequestURI:[2001:db8::1]:443 TLS:0x29845aa407e0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+    http_request_parsing_test.go:191: HTTP/3 request: &{Method:CONNECT URL://[2001:db8::1]:443 Proto:HTTP/3.0 ProtoMajor:3 ProtoMinor:0 Header:map[X-Test-Header:[foo bar]] Body:0x29845ac26960 GetBody:<nil> ContentLength:-1 TransferEncoding:[] Close:false Host:[2001:db8::1]:443 Form:map[] PostForm:map[] MultipartForm:<nil> Trailer:map[] RemoteAddr:127.0.0.1:63940 RequestURI:[2001:db8::1]:443 TLS:0x29845aaa68c0 Cancel:<nil> Response:<nil> Pattern: ctx:{emptyCtx:{}} pat:<nil> matches:[] otherValues:map[]}
+--- PASS: TestHTTPServerRequestParsing (0.11s)
+    --- PASS: TestHTTPServerRequestParsing/origin_form (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/HEAD_request (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/origin-form_OPTIONS (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/POST_request_with_trailers (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/POST_request_with_known_length (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/origin_form_with_escaped_path (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/origin_form_with_path_starting_with_double_slash (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/origin_form_with_force_query (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/origin_form_with_encoded_query (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/origin_form_with_explicit_authority_port (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/asterisk_form (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/authority_form (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/origin_form_with_IPv6_authority (0.01s)
+    --- PASS: TestHTTPServerRequestParsing/authority_form_with_IPv6_authority (0.01s)
+=== RUN   TestHTTPDeadlines
+=== RUN   TestHTTPDeadlines/read_deadline
+=== RUN   TestHTTPDeadlines/write_deadline
+--- PASS: TestHTTPDeadlines (0.11s)
+    --- PASS: TestHTTPDeadlines/read_deadline (0.05s)
+    --- PASS: TestHTTPDeadlines/write_deadline (0.06s)
+=== RUN   TestALPN
+--- PASS: TestALPN (0.00s)
+=== RUN   TestNoPacketsSentWhenClientHelloFails
+--- PASS: TestNoPacketsSentWhenClientHelloFails (0.05s)
+=== RUN   TestHTTPConnContext
+--- PASS: TestHTTPConnContext (0.01s)
+=== RUN   TestHTTPServerIdleTimerWithIncompleteHeaders
+=== RUN   TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_40
+=== RUN   TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_0140
+=== RUN   TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_0180100000
+=== RUN   TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_018010000000
+=== RUN   TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_2140
+--- PASS: TestHTTPServerIdleTimerWithIncompleteHeaders (0.01s)
+    --- PASS: TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_40 (0.00s)
+    --- PASS: TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_0140 (0.00s)
+    --- PASS: TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_0180100000 (0.00s)
+    --- PASS: TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_018010000000 (0.00s)
+    --- PASS: TestHTTPServerIdleTimerWithIncompleteHeaders/prefix_2140 (0.00s)
+=== RUN   TestWriteDeadlineAsync
+--- PASS: TestWriteDeadlineAsync (0.35s)
+=== RUN   TestHTTPCaptureQuota
+HTTP capture unavailable: HTTP capture quota exhausted: 8 slots reserved
+--- PASS: TestHTTPCaptureQuota (0.04s)
+=== RUN   TestCorruptionCaptureBatchAfterFinalization
+--- PASS: TestCorruptionCaptureBatchAfterFinalization (0.00s)
+=== RUN   TestMultiplexingToDifferentServers
+--- PASS: TestMultiplexingToDifferentServers (0.01s)
+=== RUN   TestGracefulShutdownShortRequest
+--- PASS: TestGracefulShutdownShortRequest (0.03s)
+=== RUN   TestHTTPDifferentOrigins
+--- PASS: TestHTTPDifferentOrigins (0.01s)
+=== RUN   TestDataBlockedDelayedDelivery
+=== RUN   TestDataBlockedDelayedDelivery/stream
+=== RUN   TestDataBlockedDelayedDelivery/connection
+--- PASS: TestDataBlockedDelayedDelivery (0.01s)
+    --- PASS: TestDataBlockedDelayedDelivery/stream (0.01s)
+    --- PASS: TestDataBlockedDelayedDelivery/connection (0.00s)
+=== RUN   TestWriteDeadlineSync
+--- PASS: TestWriteDeadlineSync (0.40s)
+=== RUN   TestGracefulShutdownIdleConnection
+--- PASS: TestGracefulShutdownIdleConnection (0.00s)
+=== RUN   TestTokensFromNewTokenFrames
+=== RUN   TestTokensFromNewTokenFrames/MaxTokenAge:_1_hour
+=== RUN   TestTokensFromNewTokenFrames/MaxTokenAge:_default
+=== RUN   TestTokensFromNewTokenFrames/MaxTokenAge:_very_short
+--- PASS: TestTokensFromNewTokenFrames (0.07s)
+    --- PASS: TestTokensFromNewTokenFrames/MaxTokenAge:_1_hour (0.02s)
+    --- PASS: TestTokensFromNewTokenFrames/MaxTokenAge:_default (0.02s)
+    --- PASS: TestTokensFromNewTokenFrames/MaxTokenAge:_very_short (0.02s)
+=== RUN   TestHandshake
+=== RUN   TestHandshake/short_cert_chain
+=== RUN   TestHandshake/long_cert_chain
+--- PASS: TestHandshake (0.01s)
+    --- PASS: TestHandshake/short_cert_chain (0.00s)
+    --- PASS: TestHandshake/long_cert_chain (0.01s)
+=== RUN   TestConnectionMigrationConcurrentAddresses
+--- PASS: TestConnectionMigrationConcurrentAddresses (0.19s)
+=== RUN   TestMITCorruptPacketsRandom
+    mitm_test.go:84: random corruption is opt-in stress; set QUIC_GO_TEST_RANDOM_CORRUPTION=1
+--- SKIP: TestMITCorruptPacketsRandom (0.00s)
+=== RUN   TestHandshakeAddrResolutionHelpers
+=== RUN   TestHandshakeAddrResolutionHelpers/early=false
+=== RUN   TestHandshakeAddrResolutionHelpers/early=true
+--- PASS: TestHandshakeAddrResolutionHelpers (0.01s)
+    --- PASS: TestHandshakeAddrResolutionHelpers/early=false (0.00s)
+    --- PASS: TestHandshakeAddrResolutionHelpers/early=true (0.00s)
+=== RUN   TestServerTransportClose
+--- PASS: TestServerTransportClose (0.20s)
+=== RUN   TestGetConfigForClientErrorsConnectionRejection
+--- PASS: TestGetConfigForClientErrorsConnectionRejection (0.00s)
+=== RUN   TestDrainServerAcceptQueue
+--- PASS: TestDrainServerAcceptQueue (0.18s)
+=== RUN   TestCorruptionDiagnosticsCallback
+=== RUN   TestCorruptionDiagnosticsCallback/Incoming
+=== RUN   TestCorruptionDiagnosticsCallback/Outgoing
+--- PASS: TestCorruptionDiagnosticsCallback (0.00s)
+    --- PASS: TestCorruptionDiagnosticsCallback/Incoming (0.00s)
+    --- PASS: TestCorruptionDiagnosticsCallback/Outgoing (0.00s)
+=== RUN   TestHTTPRequestAfterGracefulShutdown
+=== RUN   TestHTTPRequestAfterGracefulShutdown/Request.GetBody_set
+=== RUN   TestHTTPRequestAfterGracefulShutdown/Request.GetBody_not_set
+--- PASS: TestHTTPRequestAfterGracefulShutdown (0.32s)
+    --- PASS: TestHTTPRequestAfterGracefulShutdown/Request.GetBody_set (0.23s)
+    --- PASS: TestHTTPRequestAfterGracefulShutdown/Request.GetBody_not_set (0.10s)
+=== RUN   TestHandshakeCapturedCorruption
+=== RUN   TestHandshakeCapturedCorruption/Initial_starvation
+    handshake_corruption_capture_test.go:206: Initial attempts=5 damaged=6 received_CRYPTO=0 received_ACK=6 authentication_drops=6 PTO=4 released=false handshake_keys=false
+=== RUN   TestHandshakeCapturedCorruption/release_retransmission
+    handshake_corruption_capture_test.go:206: Initial attempts=3 damaged=1 received_CRYPTO=2 received_ACK=1 authentication_drops=1 PTO=1 released=true handshake_keys=true
+=== RUN   TestHandshakeCapturedCorruption/undamaged
+    handshake_corruption_capture_test.go:206: Initial attempts=1 damaged=0 received_CRYPTO=1 received_ACK=1 authentication_drops=0 PTO=0 released=false handshake_keys=true
+--- PASS: TestHandshakeCapturedCorruption (0.01s)
+    --- PASS: TestHandshakeCapturedCorruption/Initial_starvation (0.00s)
+    --- PASS: TestHandshakeCapturedCorruption/release_retransmission (0.00s)
+    --- PASS: TestHandshakeCapturedCorruption/undamaged (0.01s)
+=== RUN   Test0RTTDatagrams
+    zero_rtt_test.go:1149: sent 1 0-RTT packets
+--- PASS: Test0RTTDatagrams (0.00s)
+=== RUN   TestHTTPGzip
+--- PASS: TestHTTPGzip (0.00s)
+=== RUN   TestPathMTUDiscoveryLostProbes
+    mtu_test.go:50: max client packet size: 1377, MTU: 1400
+    mtu_test.go:50: max datagram size: initial: 1163, final: 1340
+    mtu_test.go:50: max server packet size: 1234, MTU: 1400
+--- PASS: TestPathMTUDiscoveryLostProbes (0.79s)
+=== RUN   TestNATRebindingCleanup
+=== RUN   TestNATRebindingCleanup/owner
+NAT cleanup observed worker result and completion
+--- PASS: TestNATRebindingCleanup (0.76s)
+    --- PASS: TestNATRebindingCleanup/owner (0.14s)
+=== RUN   TestCorruptionCaptureBatchFinalization
+--- PASS: TestCorruptionCaptureBatchFinalization (0.06s)
+=== RUN   TestHTTPDatagramClose
+--- PASS: TestHTTPDatagramClose (0.01s)
+=== RUN   Test0RTTTransfer
+    zero_rtt_test.go:210: sent 29 0-RTT packets
+    zero_rtt_test.go:212: received 29 0-RTT packets
+--- PASS: Test0RTTTransfer (0.04s)
+=== RUN   TestHandshakeMTUFallbackVersionNegotiation
+    handshake_mtu_test.go:150: first dial writes: [1280 1280 1200 1200 1200 1200 1200]
+    handshake_mtu_test.go:159: second dial writes: [65 65 65 1280 1280 1200 1200 1200 1200 1200]
+--- PASS: TestHandshakeMTUFallbackVersionNegotiation (0.42s)
+=== RUN   TestHTTPCaptureConcurrentFinalization
+--- PASS: TestHTTPCaptureConcurrentFinalization (0.04s)
+=== RUN   TestHandshakeCorruption
+=== RUN   TestHandshakeCorruption/initial/corrupt
+=== RUN   TestHandshakeCorruption/initial/control
+=== RUN   TestHandshakeCorruption/handshake/corrupt
+=== RUN   TestHandshakeCorruption/handshake/control
+=== RUN   TestHandshakeCorruption/handshake/deadline
+--- PASS: TestHandshakeCorruption (0.02s)
+    --- PASS: TestHandshakeCorruption/initial/corrupt (0.01s)
+    --- PASS: TestHandshakeCorruption/initial/control (0.00s)
+    --- PASS: TestHandshakeCorruption/handshake/corrupt (0.00s)
+    --- PASS: TestHandshakeCorruption/handshake/control (0.00s)
+    --- PASS: TestHandshakeCorruption/handshake/deadline (0.00s)
+=== RUN   TestTransportClose
+=== RUN   TestTransportClose/Close
+=== RUN   TestTransportClose/connection_error
+--- PASS: TestTransportClose (0.07s)
+    --- PASS: TestTransportClose/Close (0.04s)
+    --- PASS: TestTransportClose/connection_error (0.03s)
+=== RUN   TestPacketDrops
+=== RUN   TestPacketDrops/from_client
+    drop_test.go:75: sending a message every 23.424475ms, 50 times
+    drop_test.go:76: dropping packets for 1.950408204s, after a delay of 51.401047ms
+    drop_test.go:114: dropped 28 packets
+=== RUN   TestPacketDrops/from_server
+    drop_test.go:75: sending a message every 86.782944ms, 50 times
+    drop_test.go:76: dropping packets for 368.149092ms, after a delay of 1.70949736s
+    drop_test.go:114: dropped 12 packets
+--- PASS: TestPacketDrops (0.02s)
+    --- PASS: TestPacketDrops/from_client (0.01s)
+    --- PASS: TestPacketDrops/from_server (0.01s)
+=== RUN   TestCorruptionCaptureOverflow
+--- PASS: TestCorruptionCaptureOverflow (0.36s)
+=== RUN   TestEarlyData
+--- PASS: TestEarlyData (0.21s)
+=== RUN   TestHTTPServerIdleTimerStartsAtHandshakeCompletion
+--- PASS: TestHTTPServerIdleTimerStartsAtHandshakeCompletion (0.00s)
+=== RUN   TestQlogHandshake
+--- PASS: TestQlogHandshake (0.00s)
+=== RUN   TestMITMForgedInitialPacket
+--- PASS: TestMITMForgedInitialPacket (0.15s)
+=== RUN   TestServerAcceptQueueOverflow
+--- PASS: TestServerAcceptQueueOverflow (0.21s)
+=== RUN   TestDatagramSizeLimit
+--- PASS: TestDatagramSizeLimit (0.00s)
+=== RUN   TestHTTP3ServerHotswap
+--- PASS: TestHTTP3ServerHotswap (0.09s)
+=== RUN   TestNATRebindingUnansweredChallengeRetry
+--- PASS: TestNATRebindingUnansweredChallengeRetry (1.23s)
+=== RUN   TestHTTPCaptureCheckPreservationBudget
+--- PASS: TestHTTPCaptureCheckPreservationBudget (0.15s)
+=== RUN   TestHTTPShutdown
+--- PASS: TestHTTPShutdown (0.01s)
+=== RUN   TestHTTPCaptureFixtureFailure
+=== RUN   TestHTTPCaptureFixtureFailure/TestHTTPServerIdleTimeout
+=== RUN   TestHTTPCaptureFixtureFailure/TestHTTPReestablishConnectionAfterDialError
+=== RUN   TestHTTPCaptureFixtureFailure/TestHTTP3ServerHotswap
+--- PASS: TestHTTPCaptureFixtureFailure (1.64s)
+    --- PASS: TestHTTPCaptureFixtureFailure/TestHTTPServerIdleTimeout (0.56s)
+    --- PASS: TestHTTPCaptureFixtureFailure/TestHTTPReestablishConnectionAfterDialError (0.50s)
+    --- PASS: TestHTTPCaptureFixtureFailure/TestHTTP3ServerHotswap (0.59s)
+=== RUN   TestHandshakeDiagnosticsBoundedTrace
+--- PASS: TestHandshakeDiagnosticsBoundedTrace (0.00s)
+=== RUN   TestTLSConfigGetConfigForClientAddresses
+--- PASS: TestTLSConfigGetConfigForClientAddresses (0.01s)
+=== RUN   TestMultiplexesConnectionsToSameServer
+--- PASS: TestMultiplexesConnectionsToSameServer (0.01s)
+=== RUN   TestConnContextFreshContext
+--- PASS: TestConnContextFreshContext (0.00s)
+=== RUN   TestGracefulShutdownLongLivedRequest
+=== RUN   TestGracefulShutdownLongLivedRequest/setup_delay_0s
+=== RUN   TestGracefulShutdownLongLivedRequest/setup_delay_225ms
+--- PASS: TestGracefulShutdownLongLivedRequest (0.39s)
+    --- PASS: TestGracefulShutdownLongLivedRequest/setup_delay_0s (0.08s)
+    --- PASS: TestGracefulShutdownLongLivedRequest/setup_delay_225ms (0.31s)
+=== RUN   Test0RTTDataLoss
+    zero_rtt_test.go:425: sent 10 0-RTT packets, dropped 2 of those.
+--- PASS: Test0RTTDataLoss (0.01s)
+=== RUN   TestInitialPacketSize
+--- PASS: TestInitialPacketSize (0.00s)
+=== RUN   TestCorruptionCaptureIncompleteRecords
+=== RUN   TestCorruptionCaptureIncompleteRecords/oversized_event
+=== RUN   TestCorruptionCaptureIncompleteRecords/failed_file_write
+corruption capture write failed: path=/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureIncompleteRecords1541292266/001/handshake-1458231213.jsonl error=write /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureIncompleteRecords1541292266/001/handshake-1458231213.jsonl: file already closed
+    corruption_capture_helper_test.go:71: corruption capture: path=/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureIncompleteRecords1541292266/001/handshake-1458231213.jsonl dropped=0 error=write /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/TestCorruptionCaptureIncompleteRecords1541292266/001/handshake-1458231213.jsonl: file already closed
+--- PASS: TestCorruptionCaptureIncompleteRecords (0.01s)
+    --- PASS: TestCorruptionCaptureIncompleteRecords/oversized_event (0.01s)
+    --- PASS: TestCorruptionCaptureIncompleteRecords/failed_file_write (0.00s)
+=== RUN   TestTLSSessionResumption
+=== RUN   TestTLSSessionResumption/uses_session_resumption
+=== RUN   TestTLSSessionResumption/disabled_in_tls.Config
+=== RUN   TestTLSSessionResumption/disabled_in_tls.Config.GetConfigForClient
+--- PASS: TestTLSSessionResumption (0.01s)
+    --- PASS: TestTLSSessionResumption/uses_session_resumption (0.00s)
+    --- PASS: TestTLSSessionResumption/disabled_in_tls.Config (0.00s)
+    --- PASS: TestTLSSessionResumption/disabled_in_tls.Config.GetConfigForClient (0.00s)
+=== RUN   TestIdleTimeout
+    timeout_test.go:129: server connection timed out after 20.001s (idle timeout: 20s)
+    timeout_test.go:138: client connection timed out after 20.0005s (idle timeout: 20s)
+--- PASS: TestIdleTimeout (0.00s)
+=== RUN   TestClosedConnectionsInAcceptQueue
+--- PASS: TestClosedConnectionsInAcceptQueue (0.08s)
+=== RUN   TestReadDeadlineAsync
+--- PASS: TestReadDeadlineAsync (0.33s)
+=== RUN   TestQlogHandshakeFailed
+--- PASS: TestQlogHandshakeFailed (0.00s)
+=== RUN   TestHTTPServerIdleTimeout
+    http_test.go:670: connection was not closed
+    http_capture_helper_test.go:132: HTTP capture: path=/Users/runner/work/_temp/quic-go-http/slot-1/capture.jsonl observed=150 retained=151 dropped=0 encoding_errors=0 error=<nil>
+--- FAIL: TestHTTPServerIdleTimeout (0.29s)
+=== RUN   TestMITMForgedRetryPacket
+--- PASS: TestMITMForgedRetryPacket (0.15s)
+=== RUN   TestACKBundling
+    packetization_test.go:128: bundled incoming packets: 99 / 100
+    packetization_test.go:129: bundled outgoing packets: 97 / 100
+--- PASS: TestACKBundling (1.78s)
+=== RUN   TestHTTPServerIdleTimerRestartsWithPendingHeaders
+--- PASS: TestHTTPServerIdleTimerRestartsWithPendingHeaders (0.01s)
+=== RUN   TestDropOneThirdConsecutiveLimit
+=== RUN   TestDropOneThirdConsecutiveLimit/to_client
+=== RUN   TestDropOneThirdConsecutiveLimit/to_server
+=== RUN   TestDropOneThirdConsecutiveLimit/both
+--- PASS: TestDropOneThirdConsecutiveLimit (0.00s)
+    --- PASS: TestDropOneThirdConsecutiveLimit/to_client (0.00s)
+    --- PASS: TestDropOneThirdConsecutiveLimit/to_server (0.00s)
+    --- PASS: TestDropOneThirdConsecutiveLimit/both (0.00s)
+=== RUN   TestCorruptionRandomOptIn
+=== RUN   TestCorruptionRandomOptIn/default
+=== RUN   TestCorruptionRandomOptIn/enabled
+--- PASS: TestCorruptionRandomOptIn (1.00s)
+    --- PASS: TestCorruptionRandomOptIn/default (0.49s)
+    --- PASS: TestCorruptionRandomOptIn/enabled (0.51s)
+=== RUN   TestHTTPContextFromQUIC
+--- PASS: TestHTTPContextFromQUIC (0.02s)
+=== RUN   TestHTTPPost
+=== RUN   TestHTTPPost/small
+=== RUN   TestHTTPPost/big
+--- PASS: TestHTTPPost (0.05s)
+    --- PASS: TestHTTPPost/small (0.00s)
+    --- PASS: TestHTTPPost/big (0.04s)
+=== RUN   TestHandshakeDiagnosticsLossObserver
+--- PASS: TestHandshakeDiagnosticsLossObserver (0.00s)
+=== RUN   TestHTTPCapturePassingCleanup
+--- PASS: TestHTTPCapturePassingCleanup (0.03s)
+=== RUN   TestHTTPMultipleRequests
+=== RUN   TestHTTPMultipleRequests/reading_the_response
+=== RUN   TestHTTPMultipleRequests/not_reading_the_response
+--- PASS: TestHTTPMultipleRequests (0.37s)
+    --- PASS: TestHTTPMultipleRequests/reading_the_response (0.01s)
+    --- PASS: TestHTTPMultipleRequests/not_reading_the_response (0.36s)
+=== RUN   Test0RTTRejectedOnStreamLimitDecrease
+    zero_rtt_test.go:709: sent 4 0-RTT packets
+--- PASS: Test0RTTRejectedOnStreamLimitDecrease (0.00s)
+=== RUN   TestStreamReadWriteCancellation
+=== RUN   TestStreamReadWriteCancellation/immediate
+=== RUN   TestStreamReadWriteCancellation/after_writing_some_data
+--- PASS: TestStreamReadWriteCancellation (0.43s)
+    --- PASS: TestStreamReadWriteCancellation/immediate (0.25s)
+    --- PASS: TestStreamReadWriteCancellation/after_writing_some_data (0.18s)
+=== RUN   TestStreamDataBlocked
+--- PASS: TestStreamDataBlocked (0.00s)
+=== RUN   TestNATRebinding
+--- PASS: TestNATRebinding (0.95s)
+=== RUN   TestNATRebindingWorkerFailure
+=== RUN   TestNATRebindingWorkerFailure/opening
+=== RUN   TestNATRebindingWorkerFailure/writing
+--- PASS: TestNATRebindingWorkerFailure (0.22s)
+    --- PASS: TestNATRebindingWorkerFailure/opening (0.12s)
+    --- PASS: TestNATRebindingWorkerFailure/writing (0.10s)
+=== RUN   TestCloseImmediatelyAfterDial
+--- PASS: TestCloseImmediatelyAfterDial (0.00s)
+=== RUN   TestTimeoutAfterInactivity
+--- PASS: TestTimeoutAfterInactivity (0.00s)
+=== RUN   TestHandshakeDiagnosticsTruncation
+--- PASS: TestHandshakeDiagnosticsTruncation (0.00s)
+=== RUN   TestMITMForgedVersionNegotiationPacket
+--- PASS: TestMITMForgedVersionNegotiationPacket (0.00s)
+=== RUN   TestHandshakeServerMismatch
+--- PASS: TestHandshakeServerMismatch (0.00s)
+FAIL
+FAIL	github.com/quic-go/quic-go/integrationtests/self	50.116s
+FAIL

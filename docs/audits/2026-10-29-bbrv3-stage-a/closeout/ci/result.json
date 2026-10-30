@@ -1,0 +1,9 @@
+{
+  "exit": 1,
+  "finished_ns": 1793322421664763000,
+  "output_observed_bytes": 164458,
+  "output_retained_bytes": 164458,
+  "truncated": false,
+  "errors": [],
+  "seed_source": "verbatim -test.shuffle line in output.log"
+}

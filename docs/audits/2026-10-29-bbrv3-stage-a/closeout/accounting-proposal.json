@@ -1,0 +1,127 @@
+{
+  "as_of": "2026-10-30T02:15:35.211125+00:00",
+  "status": "partial reconciliation proposal; no live ledger write or certified available balance",
+  "ledger_source": "/Users/josh/.local/share/infra/bbr-q635-controller/.local/cloud/bbr-campaign/q2-linux-20260930-router-diagnostic1/ledger-after-preparation.json",
+  "ledger_sha256": "3181655447931323f083b3a6fa4a83238ee44dfb9f74c357efa0c8c487b083d5",
+  "ledger_recorded_at": "2026-09-30T02:07:57.994009+00:00",
+  "retained_reservations": [
+    {
+      "id": "q2-mac-dispatch-preflight",
+      "hours": 0.5,
+      "usd": 0,
+      "scope": "Focused correctness tests, source/binary identity, clock/resource/path checks, setup and failure cleanup; no added comparison cases",
+      "status": "reserved; includes tests already started in this dispatch"
+    },
+    {
+      "id": "Q2-06",
+      "hours": 5.633333333333334,
+      "usd": 0,
+      "expires_unix": 1790511016.910701,
+      "status": "reserved before execution; unused time remains charged"
+    },
+    {
+      "id": "q2-mac-20260929-retry1-preflight",
+      "hours": 0.5,
+      "usd": 0,
+      "scope": "Finite fresh native identity, clock and packet-path preflight and cleanup; no new comparison cases",
+      "status": "reserved before native path checks; unused time charged"
+    },
+    {
+      "id": "q2-mac-20260929-retry1",
+      "lease_family": "Q2-06",
+      "hours": 5.633333333333334,
+      "usd": 0,
+      "expires_unix": 1790676374.760229,
+      "status": "reserved before execution; unused time remains charged"
+    },
+    {
+      "id": "q2-linux-20260929-lease01",
+      "lease_family": "Q2-01",
+      "hours": 8.0,
+      "usd": 10.65,
+      "status": "full reservation retained before apply, including failed/unused time"
+    },
+    {
+      "id": "q2-linux-20260929-lease01-retry1",
+      "lease_family": "Q2-01",
+      "hours": 8.0,
+      "usd": 10.65,
+      "status": "full reservation retained before apply, including failed/unused time"
+    },
+    {
+      "id": "q2-linux-20260929-lease01-retry2",
+      "lease_family": "Q2-01",
+      "hours": 8.0,
+      "usd": 10.65,
+      "status": "full reservation retained before apply, including failed/unused time"
+    },
+    {
+      "id": "q2-linux-20260929-lease01-continuation2",
+      "lease_family": "Q2-01",
+      "hours": 7.15,
+      "usd": 9.545,
+      "status": "full reservation retained before apply, including failed/unused time"
+    },
+    {
+      "id": "q2-linux-20260929-lease01-continuation3",
+      "lease_family": "Q2-01",
+      "hours": 5.45,
+      "usd": 7.335,
+      "status": "full reservation retained before apply, including failed/unused time"
+    },
+    {
+      "id": "q2-linux-20260929-lease01-continuation4",
+      "lease_family": "Q2-01",
+      "hours": 5.45,
+      "usd": 7.335,
+      "status": "full reservation retained before apply, including failed/unused time"
+    },
+    {
+      "id": "q2-linux-20260930-router-diagnostic1",
+      "lease_family": "Q2-router-diagnostic",
+      "hours": 0.5,
+      "usd": 0.9,
+      "status": "full diagnostic reservation retained before apply, including failed/unused time"
+    }
+  ],
+  "retained_basis": {
+    "experiment_hours": 79.53466666666667,
+    "cloud_usd": 87.085,
+    "preparation_hours": 25.39832347305556
+  },
+  "stage_a_validation_envelope_hours_once": 2,
+  "proposal_subtotal": {
+    "experiment_hours": 81.53466666666667,
+    "cloud_usd": 87.085,
+    "preparation_hours": 28.651101250833335
+  },
+  "additional_observed_preparation_hours": 3.2527777777777778,
+  "preparation_method": "preparation-intervals.json; occupied-wall-time upper estimate for the two observed chats, not total campaign effort",
+  "cloud_linkage": {
+    "project": "bbr-q635-20260925",
+    "command": "gcloud billing projects describe bbr-q635-20260925 --format=json --quiet",
+    "exit_code": 0,
+    "billing_enabled": false,
+    "account_link_present": false,
+    "meaning": "No current billing linkage; not settled-charge or cleanup proof"
+  },
+  "inventory_scope": "Read-only controller .local/cloud/bbr-campaign ledger/reservation/preparation files and infra local evidence roots; latest cumulative ledger found September 30. No October cumulative ledger found. Not an account-wide billing audit.",
+  "not_additive": [
+    "Historical forecast116.58466666666666h/$149.78999966666666 is a forecast, not incurred charges.",
+    "Launch reservations.json is overlapping detail; never add it to cumulative ledger. Retain cumulative $87.085, including unresolved $0.0533333333 excess over launch inventory.",
+    "Two-hour validation envelope includes prior local checks, current native Linux checks and single CI reproduction; no second two-hour charge."
+  ],
+  "unresolved": [
+    "October obligations outside two observed chats and before October28; classify attribution from source records.",
+    "Human and external review effort, and work after this receipt cutoff.",
+    "Settled billing export/invoice, storage/state/egress and any other retained resource obligations.",
+    "Reconcile full remaining forecast against current prices and effective guard before any dispatch."
+  ],
+  "ceilings": {
+    "experiment_hours": 192,
+    "cloud_usd": 200,
+    "preparation_hours": 72
+  },
+  "live_ledger_modified": false,
+  "paid_resources_created": false
+}

@@ -1,5 +1,7 @@
 # Stage A Linux registration and launch-approval package
 
+[October 30 prerequisite closeout](closeout/README.md): all three bounded native Linux correctness commands passed. Supplemental evidence retains the unresolved macOS HTTP idle-timeout CI failure and a partial accounting reconciliation. Statements below about pending source-correctness executions describe the original registration snapshot; measurement isolation, clock/calibration, billing, effective guard and launch approval remain pending.
+
 **Preparation only; launch blocked.** This implements the six-observation Stage A authorized by Josh on October 29, 2026. It does not dispatch #599, grant candidate advancement, allocate a lease, update a live guard/ledger, or authorize Stage B. The [accepted staged proposal](../../adr/2026-10-28-bbrv3-q2-fixture-readiness-proposal.md), [preflight](../../adr/2026-10-28-bbrv3-q2-execution-preflight.md) and [qualification plan](../../adr/2026-09-24-bbrv3-qualification-plan.md#q2) retain authority. Candidate `23c83b9896980511286ca8b81cd632f7ec56afed` and blocking bundle Reno `8095c72244755f0c1e24f4158253bf09cfbe6e17` are fixed. Old Reno remains descriptive only.
 
 ## Reviewable implementation

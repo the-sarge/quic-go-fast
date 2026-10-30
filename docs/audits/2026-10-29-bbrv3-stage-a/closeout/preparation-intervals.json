@@ -1,0 +1,205 @@
+{
+  "observed_at": "2026-10-30 02:10:20 UTC",
+  "source": "Codex read_thread native turn metadata; all pages of two named chats",
+  "method": "Proposal only: union start/end intervals, pad each completedAt by one second for timestamp resolution, and include current turn through cutoff. Conservatively includes tool/reviewer waits within occupied turns; excludes idle gaps. Overlap counted once. No human/other-chat effort inferred. Later work remains unrecorded until a supplemental receipt.",
+  "threads": [
+    {
+      "thread": {
+        "id": "01a18440-858b-7392-81d6-6ba91f975525",
+        "title": "quic - pre-flight Q2",
+        "createdAt": 1793220183
+      },
+      "turns": [
+        {
+          "id": "01a18a41-1cbe-7701-be84-a8c9a83553b5",
+          "status": "completed",
+          "startedAt": 1793320885,
+          "completedAt": 1793320983,
+          "durationMs": 97627
+        },
+        {
+          "id": "01a18a40-36ee-7f33-8175-b14c79eee6e5",
+          "status": "completed",
+          "startedAt": 1793320826,
+          "completedAt": 1793320834,
+          "durationMs": 7412
+        },
+        {
+          "id": "01a18a31-85c9-7e31-a007-0edf51143895",
+          "status": "completed",
+          "startedAt": 1793319863,
+          "completedAt": 1793320784,
+          "durationMs": 920953
+        },
+        {
+          "id": "01a18a1c-d47d-7ea1-94fc-314394d40626",
+          "status": "completed",
+          "startedAt": 1793318507,
+          "completedAt": 1793319790,
+          "durationMs": 1283179
+        },
+        {
+          "id": "01a18947-1ed1-7493-9dbf-40f50d77c872",
+          "status": "completed",
+          "startedAt": 1793304501,
+          "completedAt": 1793304951,
+          "durationMs": 449158
+        },
+        {
+          "id": "01a18946-add4-79b1-a086-130bb37e0f77",
+          "status": "completed",
+          "startedAt": 1793304473,
+          "completedAt": 1793304488,
+          "durationMs": 15444
+        },
+        {
+          "id": "01a188d3-7c80-7030-968c-f80fb770895f",
+          "status": "completed",
+          "startedAt": 1793296923,
+          "completedAt": 1793298710,
+          "durationMs": 1786829
+        },
+        {
+          "id": "01a1884a-e06f-7f53-b7d5-bbb216c22a82",
+          "status": "interrupted",
+          "startedAt": 1793287970,
+          "completedAt": 1793287974,
+          "durationMs": 3621
+        },
+        {
+          "id": "01a18579-4a4f-71c0-994f-56776b1cd246",
+          "status": "completed",
+          "startedAt": 1793240681,
+          "completedAt": 1793241599,
+          "durationMs": 918594
+        },
+        {
+          "id": "01a18573-d59c-7433-9b7d-672a49a951c5",
+          "status": "completed",
+          "startedAt": 1793240323,
+          "completedAt": 1793240385,
+          "durationMs": 62230
+        },
+        {
+          "id": "01a18571-d4c5-7a21-865f-6f79aae848b6",
+          "status": "completed",
+          "startedAt": 1793240192,
+          "completedAt": 1793240247,
+          "durationMs": 55149
+        },
+        {
+          "id": "01a1856b-8953-7141-bd85-fd9d563b56e1",
+          "status": "completed",
+          "startedAt": 1793239779,
+          "completedAt": 1793239911,
+          "durationMs": 132297
+        },
+        {
+          "id": "01a18440-91b4-7112-98b9-e28f99fe8726",
+          "status": "completed",
+          "startedAt": 1793220186,
+          "completedAt": 1793224086,
+          "durationMs": 3900414
+        }
+      ],
+      "hasMore": false
+    },
+    {
+      "thread": {
+        "id": "01a18a42-63e9-7060-87e9-bb30b0c2b566",
+        "title": "quic 599 Stage A",
+        "createdAt": 1793320969
+      },
+      "turns": [
+        {
+          "id": "01a18a8c-8c2f-7de2-9597-1a2716d23e97",
+          "status": "inProgress",
+          "startedAt": 1793325829,
+          "completedAt": null,
+          "durationMs": null
+        },
+        {
+          "id": "01a18a8a-f9c1-7db3-8f65-71ddf5dffcf5",
+          "status": "completed",
+          "startedAt": 1793325726,
+          "completedAt": 1793325785,
+          "durationMs": 58992
+        },
+        {
+          "id": "01a18a42-6553-7950-b2b8-9c30d697aaf8",
+          "status": "completed",
+          "startedAt": 1793320969,
+          "completedAt": 1793322279,
+          "durationMs": 1310120
+        }
+      ],
+      "hasMore": false
+    }
+  ],
+  "live_ledger_modified": false,
+  "cutoff": "2026-10-30T02:15:35.211125+00:00",
+  "union_intervals_unix_seconds": [
+    [
+      1793220186,
+      1793224087
+    ],
+    [
+      1793239779,
+      1793239912
+    ],
+    [
+      1793240192,
+      1793240248
+    ],
+    [
+      1793240323,
+      1793240386
+    ],
+    [
+      1793240681,
+      1793241600
+    ],
+    [
+      1793287970,
+      1793287975
+    ],
+    [
+      1793296923,
+      1793298711
+    ],
+    [
+      1793304473,
+      1793304489
+    ],
+    [
+      1793304501,
+      1793304952
+    ],
+    [
+      1793318507,
+      1793319791
+    ],
+    [
+      1793319863,
+      1793320785
+    ],
+    [
+      1793320826,
+      1793320835
+    ],
+    [
+      1793320885,
+      1793322280
+    ],
+    [
+      1793325726,
+      1793325786
+    ],
+    [
+      1793325829,
+      1793326537
+    ]
+  ],
+  "union_occupied_seconds": 11710,
+  "union_occupied_hours": 3.2527777777777778
+}
