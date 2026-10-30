@@ -818,6 +818,7 @@ func TestNoPacketsSentWhenClientHelloFails(t *testing.T) {
 }
 
 func TestServerTransportClose(t *testing.T) {
+	started := time.Now()
 	tlsServerConf := getTLSConfig()
 	tr := &quic.Transport{Conn: newUDPConnLocalhost(t)}
 	server, err := tr.Listen(tlsServerConf, getQuicConfig(nil))
@@ -853,13 +854,33 @@ func TestServerTransportClose(t *testing.T) {
 	time.Sleep(scaleDuration(10 * time.Millisecond))
 
 	// closing the Transport abruptly terminates connections
+	beforeClose := time.Now()
+	beforeCloseStats1, beforeCloseStats2 := conn1.ConnectionStats(), conn2.ConnectionStats()
 	require.NoError(t, tr.Close())
+	afterClose := time.Now()
+	diagnoseTimeout := func(phase string) {
+		t.Helper()
+		t.Logf("[DEBUG-transport-close] phase=%s started=%s elapsed=%s setup=%s transport_close=%s after_close=%s configured_idle=%s", phase, started.Format(time.RFC3339Nano), time.Since(started), beforeClose.Sub(started), afterClose.Sub(beforeClose), time.Since(afterClose), scaleDuration(50*time.Millisecond))
+		t.Logf("[DEBUG-transport-close] conn1 before=%+v now=%+v cause=%v", beforeCloseStats1, conn1.ConnectionStats(), context.Cause(conn1.Context()))
+		t.Logf("[DEBUG-transport-close] conn2 before=%+v now=%+v cause=%v server_cause=%v", beforeCloseStats2, conn2.ConnectionStats(), context.Cause(conn2.Context()), context.Cause(sconn.Context()))
+		stacks := make([]byte, 1<<20)
+		n := runtime.Stack(stacks, true)
+		for _, stack := range strings.Split(string(stacks[:n]), "\n\n") {
+			if strings.Contains(stack, "github.com/quic-go/quic-go") {
+				t.Logf("[DEBUG-transport-close] goroutine:\n%s", stack)
+			}
+		}
+		if n == len(stacks) {
+			t.Log("[DEBUG-transport-close] goroutine capture reached its 1 MiB limit")
+		}
+		t.Fatal("timeout")
+	}
 
 	select {
 	case <-sconn.Context().Done():
 		require.ErrorIs(t, context.Cause(sconn.Context()), quic.ErrTransportClosed)
 	case <-time.After(time.Second):
-		t.Fatal("timeout")
+		diagnoseTimeout("server context")
 	}
 
 	// no CONNECTION_CLOSE frame is sent to the peers
@@ -867,13 +888,13 @@ func TestServerTransportClose(t *testing.T) {
 	case <-conn1.Context().Done():
 		require.ErrorIs(t, context.Cause(conn1.Context()), &quic.IdleTimeoutError{})
 	case <-time.After(time.Second):
-		t.Fatal("timeout")
+		diagnoseTimeout("first client context")
 	}
 	select {
 	case <-conn2.Context().Done():
 		require.ErrorIs(t, context.Cause(conn2.Context()), &quic.IdleTimeoutError{})
 	case <-time.After(time.Second):
-		t.Fatal("timeout")
+		diagnoseTimeout("second client context")
 	}
 
 	// Accept should error after the transport was closed
