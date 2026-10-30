@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -463,25 +464,28 @@ func TestGracefulShutdownPendingStreams(t *testing.T) {
 }
 
 func TestHTTP3ListenerClosing(t *testing.T) {
+	t.Run("application listener with retries", func(t *testing.T) {
+		testHTTP3ListenerClosing(t, false, true, true)
+	})
 	t.Run("application listener", func(t *testing.T) {
-		testHTTP3ListenerClosing(t, false, true)
+		testHTTP3ListenerClosing(t, false, true, false)
 	})
 	t.Run("listener created by the http3.Server", func(t *testing.T) {
-		testHTTP3ListenerClosing(t, false, false)
+		testHTTP3ListenerClosing(t, false, false, false)
 	})
 }
 
 func TestHTTP3ListenerGracefulShutdown(t *testing.T) {
 	t.Run("application listener", func(t *testing.T) {
-		testHTTP3ListenerClosing(t, true, true)
+		testHTTP3ListenerClosing(t, true, true, false)
 	})
 	t.Run("listener created by the http3.Server", func(t *testing.T) {
-		testHTTP3ListenerClosing(t, true, false)
+		testHTTP3ListenerClosing(t, true, false, false)
 	})
 }
 
-func testHTTP3ListenerClosing(t *testing.T, graceful, useApplicationListener bool) {
-	dial := func(t *testing.T, ctx context.Context, u *url.URL) error {
+func testHTTP3ListenerClosing(t *testing.T, graceful, useApplicationListener, forceRetry bool) {
+	dial := func(t *testing.T, ctx context.Context, u *url.URL, waitForClose bool) error {
 		t.Helper()
 		tlsConf := getTLSClientConfig()
 		tlsConf.NextProtos = []string{http3.NextProtoH3}
@@ -491,10 +495,32 @@ func testHTTP3ListenerClosing(t *testing.T, graceful, useApplicationListener boo
 		}
 		defer tr.Close()
 		addDialCallback(t, tr)
+		var dialAttempts atomic.Int32
+		if waitForClose {
+			tr.Dial = func(ctx context.Context, addr string, tlsConf *tls.Config, conf *quic.Config) (*quic.Conn, error) {
+				dialAttempts.Add(1)
+				conn, err := dialAddrEarlyLocalhost(ctx, addr, tlsConf, conf)
+				if err != nil {
+					return nil, err
+				}
+				// Deliver the peer's close before the transport opens its request
+				// stream, exercising its normal retry of an unusable connection.
+				select {
+				case <-conn.Context().Done():
+					return conn, nil
+				case <-ctx.Done():
+					conn.CloseWithError(0, "")
+					return nil, ctx.Err()
+				}
+			}
+		}
 		cl := &http.Client{Transport: tr}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 		require.NoError(t, err)
 		resp, err := cl.Do(req)
+		if waitForClose {
+			require.Equal(t, int32(2), dialAttempts.Load(), "request must exercise one transport retry")
+		}
 		if err != nil {
 			return err
 		}
@@ -552,7 +578,7 @@ func testHTTP3ListenerClosing(t *testing.T, graceful, useApplicationListener boo
 	u := &url.URL{Scheme: "https", Host: host, Path: "/ok"}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	require.NoError(t, dial(t, ctx, u))
+	require.NoError(t, dial(t, ctx, u, false))
 
 	longReqChan := make(chan error, 1)
 	shutdownChan := make(chan error, 1)
@@ -561,7 +587,7 @@ func testHTTP3ListenerClosing(t *testing.T, graceful, useApplicationListener boo
 			u := &url.URL{Scheme: "https", Host: host, Path: "/long"}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
-			longReqChan <- dial(t, ctx, u)
+			longReqChan <- dial(t, ctx, u, false)
 		}()
 		// Only shut down once the long request is being handled, so that Shutdown
 		// has an active request to wait for.
@@ -589,38 +615,55 @@ func testHTTP3ListenerClosing(t *testing.T, graceful, useApplicationListener boo
 	if !useApplicationListener {
 		ctx, cancel := context.WithTimeout(context.Background(), scaleDuration(10*time.Millisecond))
 		defer cancel()
-		require.ErrorIs(t, dial(t, ctx, u), context.DeadlineExceeded)
+		require.ErrorIs(t, dial(t, ctx, u, false), context.DeadlineExceeded)
 	} else {
 		// If the listener was created by the application, it will not be closed,
 		// and it can be used to accept new connections.
+		acceptCtx, cancelAccept := context.WithCancel(context.Background())
 		errChan := make(chan error, 1)
+		acceptDone := make(chan struct{})
+		t.Cleanup(func() {
+			cancelAccept()
+			select {
+			case <-acceptDone:
+			case <-time.After(time.Second):
+				t.Error("listener accept worker did not stop")
+			}
+			select {
+			case err := <-errChan:
+				require.NoError(t, err)
+			default:
+			}
+		})
 		go func() {
+			defer close(acceptDone)
 			for {
-				conn, err := ln.Accept(context.Background())
+				conn, err := ln.Accept(acceptCtx)
 				if err != nil {
-					errChan <- err
+					if acceptCtx.Err() == nil && err != quic.ErrServerClosed {
+						errChan <- err
+					}
 					return
 				}
 				select {
 				case <-conn.HandshakeComplete():
 					conn.CloseWithError(1337, "")
+				case <-acceptCtx.Done():
+					return
 				case <-time.After(time.Second):
 					errChan <- fmt.Errorf("connection did not complete handshake")
+					return
 				}
-				errChan <- nil
 			}
 		}()
 
+		// A close received before the request stream opens can make the HTTP
+		// transport retry. Accept every connection without waiting for a result
+		// per request: one HTTP request can use more than one QUIC connection.
 		for range 2 {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
-			require.ErrorIs(t, dial(t, ctx, u), &http3.Error{ErrorCode: 1337, Remote: true})
-			select {
-			case err := <-errChan:
-				require.NoError(t, err)
-			case <-time.After(time.Second):
-				t.Fatal("server did not accept connection")
-			}
+			require.ErrorIs(t, dial(t, ctx, u, forceRetry), &http3.Error{ErrorCode: 1337, Remote: true})
 		}
 	}
 
