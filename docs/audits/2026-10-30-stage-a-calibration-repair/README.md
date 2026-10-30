@@ -1,0 +1,31 @@
+# Stage A calibration receiver diagnosis
+
+**Disposition: a receiver-efficiency improvement, not a resolved cloud calibration failure.** The authorized October 30 Stage A lease stopped before all six comparative observations when its forward UDP receiver reported 3,441,960 socket drops. The failed attempt and full reservation remain retained; its paid resources were removed. This separate audit records the subsequent local diagnosis and a candidate probe. It does not modify the [frozen registration](../2026-10-29-bbrv3-stage-a/registration.json), participant binaries, historical probe or receipts, and does not authorize another lease.
+
+## Scope
+
+The user's “Go ahead” authorized adjusting and validating calibration after the failure. This work is limited to local receiver diagnosis, an integrity-preserving optimization, affected tests and review. No replacement lease, retries of the six observations, Stage B or Q2 dispatch is included. The probe remains an IPv4 UDP path instrument; it does not measure QUIC useful delivery. Copied socket implementations preserve their original platform limitations. New Linux/arm64 evidence cannot qualify the Linux/amd64 cloud topology or other platforms.
+
+The retained diagnostic reservation is 0.25 experiment-validation hours and one preparation hour, with no new cloud charge. Added to the previous retained reservation, totals are 83.28466666666667 experiment-hours, $90.035 and 33 preparation-hours. Failed or unused reserved time is not refunded. These totals are reservations, not claimed measured CPU time or settled billing.
+
+## What the evidence establishes
+
+[The diagnostic summary](diagnostic-summary.json) retains every initial loopback trial, including failures. The original receiver repeatedly overflowed under four independent senders, each using a disjoint sequence range. The original and extracted-original runs 5, 6 and 8 reported 158,395, 167,831 and 167,078 socket drops. All used the same 8 MiB effective receive buffer and zero malformed packets. This reproduces the socket-overflow symptom, not the original cloud event's complete causal ordering.
+
+A separate diagnostic CPU profile attributed approximately 31% of sampled receiver CPU to the loop checking each payload byte individually. Replacing that loop with `bytes.Equal` against a precomputed 1,416-byte template reduced the native Linux/arm64 payload microbenchmark from 342–356 ns to 17.4–17.6 ns, with zero allocations in both versions. Every payload byte and its length are still checked. Header, sequence, truncation, metadata, duplicate, window, socket-overflow and exit handling remain unchanged. The semantic regression corrupts each of the 1,416 positions and rejects short and oversized payloads.
+
+The efficiency improvement **did not establish a no-drop high-rate receiver**. Unpaced producers accelerated with the optimized receiver: aggregate offered traffic rose from roughly 11.5–12.4 Gb/s to 17.1 Gb/s. One optimized trial had zero drops; the next two reported 12,913 and 9,612. Fixed-rate trials around 11.9 Gb/s and smaller four-packet bursts also retained drops. An additional 32-message Linux batch-reader prototype still dropped packets in all three trials and was rejected; it is not in the candidate. No failed run was discarded and no passing rate was selected as a new acceptance criterion.
+
+The local host is a non-exclusive Docker Desktop VM, Linux/arm64, using loopback with no external networking. Receiver affinity was CPUs 0–1; four senders used CPUs 2–5. All processes had finite deadlines. VM scheduling, kernel delivery and other receive costs remain possible contributors to residual drops. The profile supports optimizing a local CPU bottleneck; it does not prove that bottleneck caused all cloud losses. The rejected prototype and temporary profiling instrumentation remain only in the private debug archive.
+
+## Reproduce and inspect
+
+From this directory, run `go test -race ./probe`, `go vet ./probe`, and `go mod tidy -diff`. Build the candidate with `GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -buildvcs=false -o build/candidate-linux-amd64 ./probe`. Record the exact Go version, source revision, module graph and binary SHA256 in any future launch binding. The old fixture build digest includes its original probe: do not regenerate it to smuggle in this candidate.
+
+`python3 reproduce.py` performs exactly two original and two candidate three-second loopback stress trials in an isolated native Linux/arm64 Docker container. It requires at least six Docker CPUs and the locally cached image pinned in the script; it never pulls an image, allocates cloud resources or touches the shared native host. The baseline source hashes are verified before copying. Sender sequence offsets are diagnostic-only. Source copies, binaries, stdout/stderr, exit codes and raw receipts go to a fresh ignored `build/reproduce-*` directory. Successful script exit means orchestration completed; inspect each receiver's exit and `SocketDrops`. Rate-dependent stress is not a deterministic unit test or a CI acceptance gate.
+
+Raw initial diagnostics, scripts, source copies, profiles and binaries are retained in `/Users/josh/.local/share/quic-go-fast/stage-a-calibration-repair-20261030`, with a SHA256 manifest. This private archive contains no account-wide billing export or credentials. The new candidate is intentionally separate from frozen evidence. No production QUIC source changes are included.
+
+## Remaining decision
+
+Do not rerun the paid pilot on the strength of this optimization. Before another lease, establish a finite calibration protocol that distinguishes offered load, receiver capacity and path capacity, with acceptance criteria agreed before observing results. Preserve socket drops as a failure, rather than lowering offered load until it passes and calling that maximum path capacity. The actual isolated Linux/amd64 topology still needs validation; local loopback cannot discharge that obligation. Any new lease requires a separately bounded request, fresh pricing/accounting and binding, preserved historical charges, calibration failure stop and independently verified cleanup. The earlier explicit no-replacement-lease authorization remains in force.
