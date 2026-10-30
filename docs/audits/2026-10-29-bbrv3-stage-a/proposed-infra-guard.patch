@@ -1,0 +1,12 @@
+--- a/scripts/cloud/bbr-campaign/campaign.py
++++ b/scripts/cloud/bbr-campaign/campaign.py
+@@ -65,2 +65,2 @@
+-    if total > 150:
+-        raise ValueError('projected cost exceeds the $150 campaign allowance')
++    if total > 200:
++        raise ValueError('projected cost exceeds the $200 campaign allowance')
+--- a/cloud/gcp/bbr-campaign/main.tf
++++ b/cloud/gcp/bbr-campaign/main.tf
+@@ -35 +35 @@
+-      units         = "150"
++      units         = "200"

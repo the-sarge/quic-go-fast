@@ -1,0 +1,28 @@
+{
+  "platform": "darwin/arm64",
+  "source": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "files": [
+    "bbr_capability_test.go",
+    "bbr_continuation_test.go",
+    "bbr_controller_test.go",
+    "bbr_ecn_test.go",
+    "bbr_probe_rtt_test.go",
+    "bbr_send_policy_test.go",
+    "bbr_send_queue_depth_test.go",
+    "congestion_control_migration_test.go",
+    "packet_emission_test.go"
+  ],
+  "argv": [
+    "go",
+    "test",
+    "-count=1",
+    "-run",
+    "^(TestBBRBoundedGSOSegmentSize|TestBBRCapabilitySnapshotPerOpportunity|TestBBRContinuationServicesConnectionLoop|TestBBRContinuationWithoutLoopWakeup|TestBBRECNCoalescedAndPathProbeMarking|TestBBRInstalledPendingObservation|TestBBRPacingQuantumAndDeadline|TestBBRPendingCreditConcurrentDrainRefill|TestBBRPendingCreditGSOFallback|TestBBRPendingCreditMTUException|TestBBRPendingCreditMigrationDebt|TestBBRPendingCreditPartialAndUnknownProgress|TestBBRPendingCreditRateDecrease|TestBBRPendingCreditStoppedAndClose|TestBBRPendingCreditWorkerOwned|TestBBRProbeRTTIdleAndResume|TestBBRQuantumDeadlineExemptions|TestBBRSendQueueDepthCloseReleasesOnce|TestBBRSendQueueDepthCreditBindsFirst|TestBBRSendQueueDepthOnePacketEntries|TestBBRTransportFeedbackToAllowance|TestCongestionControlV1QueuedMigrationAndECNFence|TestEmissionECNBatchBoundary|TestEmissionEmptyCallerBuffer|TestEmissionResultConnection|TestEmissionResultQueueWakeup|TestEmissionResultRecoveryOutcome|TestSendQueueDepthEveryController)$",
+    "."
+  ],
+  "started_at": "2026-10-30T00:51:41.189214+00:00",
+  "finished_at": "2026-10-30T00:51:41.919322+00:00",
+  "elapsed_seconds": 0.7292491250009334,
+  "exit_code": 0,
+  "output": "ok  \tgithub.com/quic-go/quic-go\t0.206s\n"
+}

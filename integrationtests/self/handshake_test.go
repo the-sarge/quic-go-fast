@@ -826,13 +826,18 @@ func TestServerTransportClose(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+	// MTU probes can restart the idle timer after the server transport closes.
+	// Disable them so the clients become idle without unrelated probing traffic.
 	// the first conn is accepted by the server...
 	conn1, err := quic.Dial(
 		ctx,
 		newUDPConnLocalhost(t),
 		server.Addr(),
 		getTLSClientConfig(),
-		getQuicConfig(&quic.Config{MaxIdleTimeout: scaleDuration(50 * time.Millisecond)}),
+		getQuicConfig(&quic.Config{
+			MaxIdleTimeout:          scaleDuration(50 * time.Millisecond),
+			DisablePathMTUDiscovery: true,
+		}),
 	)
 	require.NoError(t, err)
 
@@ -846,7 +851,10 @@ func TestServerTransportClose(t *testing.T) {
 		newUDPConnLocalhost(t),
 		server.Addr(),
 		getTLSClientConfig(),
-		getQuicConfig(&quic.Config{MaxIdleTimeout: scaleDuration(50 * time.Millisecond)}),
+		getQuicConfig(&quic.Config{
+			MaxIdleTimeout:          scaleDuration(50 * time.Millisecond),
+			DisablePathMTUDiscovery: true,
+		}),
 	)
 	require.NoError(t, err)
 

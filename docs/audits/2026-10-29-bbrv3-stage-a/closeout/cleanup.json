@@ -1,0 +1,7 @@
+{
+  "removed": "/tmp/quic-stage-a-correctness-NFDomggy",
+  "exists_after": false,
+  "recorded_at": "2026-10-30T02:16:52.218350+00:00",
+  "scope": "owned temporary source export only; no Git checkout or cloud resource",
+  "receipt_verified_sha256_before_delete": "0a60f03179617cc392746ae9c1871189058e25394a568c25a1dde78ec0772dd4"
+}

@@ -1,0 +1,78 @@
+{
+  "schema": "stage-a-native-correctness-v1",
+  "started_at": "2026-10-30T02:07:05.080888+00:00",
+  "source": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "host_role": "existing shared host; correctness only, not measurement isolation",
+  "environment": {
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "GOMAXPROCS": "4",
+    "GOFLAGS": "-p=4"
+  },
+  "commands": [
+    {
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestStageAForwarding|TestStageAMetadataAndSeparation)$",
+        "./fixture"
+      ],
+      "cwd": "/tmp/quic-stage-a-correctness-NFDomggy",
+      "started_at": "2026-10-30T02:07:05.087230+00:00",
+      "finished_at": "2026-10-30T02:07:07.584533+00:00",
+      "elapsed_seconds": 2.4973154924809933,
+      "hard_cap_seconds": 300,
+      "exit_code": 0,
+      "output": "ok  \tq1campaign/fixture\t0.003s\n"
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestManagedPacketIOBatchDatagrams|TestManagedPacketIOConcurrentBatchClose|TestGSOEqualSizeBatches|TestGSOEqualSizeKillSwitch|TestGSOEqualSizeSegmentLimit|TestGSOEqualSizeStreamStartsFreshBatch|TestGSOEqualSizeControlPacketGoesAlone|TestBBRBoundedEqualSizeCredit|TestConnectionTimerWakesForIdleMTUProbe|TestMTUDiscovererTiming|TestMTUDiscovererCompletion|TestMTUDiscovererSettledOnLoss|TestSendQueueBatchFullAcceptance|TestSendQueueBatchPartialAcceptance|TestSendQueueBatchPartialAcceptanceFatalError|TestSendQueueBatchUnknownProgressFatal|TestSendQueueBatchInvalidProgress|TestSendQueueBatchUnavailableFallsBack|TestSendQueueBatchMidGroupLatch|TestSendQueueBatchGroupsByECN|TestSendQueueBatchSkipsGSO|TestSendQueueBatchCapFollowsDepth|TestSendQueueFullQueueDrainsAsOneBatch)$",
+        "."
+      ],
+      "cwd": "/tmp/quic-stage-a-correctness-NFDomggy/build/sources/candidate",
+      "started_at": "2026-10-30T02:07:07.584757+00:00",
+      "finished_at": "2026-10-30T02:07:12.594737+00:00",
+      "elapsed_seconds": 5.010005799122155,
+      "hard_cap_seconds": 600,
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/quic-go/quic-go\t0.008s\n"
+    },
+    {
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestCongestionControlV1ValidationAndCopy|TestCongestionControlV1IndependentConnections|TestCongestionControlV1DefaultReno|TestCongestionControlV1Diagnostics|TestCongestionControlV1DiagnosticsReno|TestCongestionControlV1PerClientReplacement|TestCongestionControlV1RealStreamAndDatagram|TestCongestionControlV1MigrationKeepsIdentity)$",
+        "."
+      ],
+      "cwd": "/tmp/quic-stage-a-correctness-NFDomggy/build/sources/candidate",
+      "started_at": "2026-10-30T02:07:12.595095+00:00",
+      "finished_at": "2026-10-30T02:07:12.921045+00:00",
+      "elapsed_seconds": 0.32596322149038315,
+      "hard_cap_seconds": 600,
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/quic-go/quic-go\t0.028s\n"
+    }
+  ],
+  "host_before": {
+    "uname": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux",
+    "go": "go version go1.27.3 linux/amd64",
+    "loadavg": "0.60 0.93 1.55 2/566 3050617"
+  },
+  "no_benchmarks_calibration_or_pilot": true,
+  "verified_overlay_sha256": "15d6bcf2b57151e1dfad1a81d40ed63fa9d8e961f196476490f9ab2ca2aa1273",
+  "finished_at": "2026-10-30T02:07:12.923622+00:00",
+  "elapsed_seconds": 7.842860749922693,
+  "host_after": {
+    "loadavg": "0.91 0.98 1.56 2/566 3052393",
+    "uname": "Linux minimax 7.0.0-30-generic #30-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 18:22:54 UTC 2026 x86_64 GNU/Linux"
+  }
+}

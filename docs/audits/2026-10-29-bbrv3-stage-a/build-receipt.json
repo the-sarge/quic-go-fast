@@ -1,0 +1,82 @@
+{
+  "schema": "stage-a-build-v1",
+  "started_at": "2026-10-30T00:46:09.746480+00:00",
+  "overlay_sha256": "15d6bcf2b57151e1dfad1a81d40ed63fa9d8e961f196476490f9ab2ca2aa1273",
+  "input_sha256": {
+    "fixture/accounting.go": "1b6611cca2fcf806378d253badb80701e4d36d89738ba2f8d684913eda07f2f1",
+    "fixture/accounting_test.go": "577c10818da000f0f7b8c41243a8aef5afccec2b1ff889bd8b080e3424e68a2b",
+    "fixture/main.go": "9a7e866d3e0e55877fc4b87fc2b569c1b961e9c68e6fec75c30ac4a18f4cfd6c",
+    "fixture/overlay.go": "1b324a9bf42d22f01bf78c55da194dd5c6eb03e6d90fde8e99ae8fd9429ab7fa",
+    "fixture/overlay_linux.go": "36b3050b22a9c35369bcaa68e8b487a1d3c2601dad7631d3d80fbe1b6ff45f01",
+    "fixture/overlay_linux_test.go": "cb9fcd3ddc67921304de1b3a1b403f539cb5cf9800df9ef347f3b9b628fd0581",
+    "fixture/overlay_other.go": "1dc1477f0c999f2362dd52369ccbf6a8cfcb880aa9a73de24d662f58ee1d2608",
+    "fixture/overlay_other_test.go": "4e7d23e00644b73697502d80e63a450caeb790e09ccad987b2ae1cf0e7544c69",
+    "fixture/overlay_test.go": "3117f131b23534f2098f0f86ce72903b20c2f79db816ff9ff234dec37246878f",
+    "fixture/resource_unix.go": "96f3431706476b36fc8d798592813c5676d8d66747a20bbf81235fc0e2b269b2",
+    "fixture/resource_windows.go": "f80e304994514d0c95b7f5bab1f346ef63051ef55152e1d08d9902f2e3fc1024",
+    "fixture/session.go": "d60bb0b38ab8bc2430c694687c3321e38fda1253a9921d000c094dcd3cf2c14a",
+    "fixture/session_test.go": "208592afc3817388ecc742d7446525e20f497f2e29f81a2f29823bbe8cbe014d",
+    "fixture/tcp_linux.go": "df059ab5450db4f16bdb3b88b35e2b3b9a3391ba404281df5f1358231c820fb0",
+    "fixture/tcp_linux_test.go": "22228760563646c502cdf00a301ae2c7ba20d241ac80c802bc94b67e1ed89e88",
+    "fixture/tcp_other.go": "cf3adf31d7e21c4a7071a5d4550ec74471ed701acc6252f3b9d872f99ef763f8",
+    "fixture/trace.go": "5f62f0cf26400bcc22388bdcc77a9b00e17fb5a57322e61605c173be577ed22c",
+    "fixture/trace_test.go": "9f3ca8f41d53c6b3f60974875498393ffb5b9ec566b9720434c6e9fa2d14323b",
+    "model/model.go": "eac325ae3b281767936c0c4f3a0dcf73bc456bbd144895d03006d9c9c2c4fbe7",
+    "model/model_test.go": "a99588e84e3cad449f52266adff8bf25e3cd1f30239272f071b5703120dd7e3c",
+    "model/scenarios.go": "28f79b4c666717b438f4bfedeec5e8f3e9a78823caa53aba5d072d4519f95815",
+    "probe/main.go": "0544fa3cf580a77103a8106173b26a597b5ad72bec4cf2053396b667323925be",
+    "probe/socket_darwin.go": "24cb02ca863bd2240c554d5bce811c925822cd4c422c64738b206a9cd1ca49ab",
+    "probe/socket_linux.go": "4ae423f245f90f308346006dbe198fc11ecee7a3fbc66e2aa93fcd5026ad23ed",
+    "probe/socket_unix.go": "aa94c1be45872f423b9e6623a401e6a01daaf983db1fb667e3a3a3efa81dbc00",
+    "probe/socket_windows.go": "f4f3e703e2f9afe1c564ed4add805c4c781b4c1dd1216dd4752b834ea4f55abd",
+    "router/main_linux.go": "95e56febb08173800e9389bdf8ec1053174a4ace6122a62099b22464852e4cdf",
+    "go.mod": "6477efe031bcd96f5be2f0da0cda78d279b3567dfdda2da826cd42100bb2fa50",
+    "go.sum": "8a4a2b8178f9a7f0c17e9147859df9beaea0bc9b42d96105aced69b12fffe922"
+  },
+  "build_host": "darwin\narm64",
+  "toolchain": "go version go1.27.3 darwin/arm64",
+  "execution_evidence": false,
+  "builds": {
+    "candidate": {
+      "library_revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "command": [
+        "go",
+        "build",
+        "-mod=readonly",
+        "-modfile=/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/candidate.mod",
+        "-trimpath",
+        "-buildvcs=false",
+        "-ldflags",
+        "-X main.sourceRevision=23c83b9896980511286ca8b81cd632f7ec56afed -X main.overlayDigest=15d6bcf2b57151e1dfad1a81d40ed63fa9d8e961f196476490f9ab2ca2aa1273",
+        "-o",
+        "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/candidate-fixture",
+        "./fixture"
+      ],
+      "module_graph_sha256": "aa7ceb6c7dd65c6e43af8509db87c9dcd0da6f985a1361eba2e5c550c4a7444c",
+      "binary_sha256": "9b7c12e1ae154657fe27dd07802a379dd346411ace9b3b9b08c21093ed83b815",
+      "go_version_m": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/candidate-fixture: go1.27.3\n\tpath\tq1campaign/fixture\n\tmod\tq1campaign\t(devel)\t\n\tdep\tgithub.com/quic-go/quic-go\tv0.0.0\n\t=>\t/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate\t(devel)\t\n\t\n\tdep\tgolang.org/x/crypto\tv0.58.0\th1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54=\n\tdep\tgolang.org/x/net\tv0.61.0\th1:RR+6j/BTBCrggOLugxa+66R8FvoN6MHlzDlZIbN9YFw=\n\tdep\tgolang.org/x/sys\tv0.49.0\th1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1"
+    },
+    "reference": {
+      "library_revision": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+      "command": [
+        "go",
+        "build",
+        "-mod=readonly",
+        "-modfile=/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/reference.mod",
+        "-trimpath",
+        "-buildvcs=false",
+        "-ldflags",
+        "-X main.sourceRevision=8095c72244755f0c1e24f4158253bf09cfbe6e17 -X main.overlayDigest=15d6bcf2b57151e1dfad1a81d40ed63fa9d8e961f196476490f9ab2ca2aa1273",
+        "-o",
+        "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/reference-fixture",
+        "./fixture"
+      ],
+      "module_graph_sha256": "d381cffad9800b69bc5b67c8a80ea2f961d95ccd0a82b68ba86f75ccf72a7363",
+      "binary_sha256": "2b5d3af5fa49eb0b77655d662e0ebf826fe7c95890e3362333dd2add889a299e",
+      "go_version_m": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/reference-fixture: go1.27.3\n\tpath\tq1campaign/fixture\n\tmod\tq1campaign\t(devel)\t\n\tdep\tgithub.com/quic-go/quic-go\tv0.0.0\n\t=>\t/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/reference\t(devel)\t\n\t\n\tdep\tgolang.org/x/crypto\tv0.58.0\th1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54=\n\tdep\tgolang.org/x/net\tv0.61.0\th1:RR+6j/BTBCrggOLugxa+66R8FvoN6MHlzDlZIbN9YFw=\n\tdep\tgolang.org/x/sys\tv0.49.0\th1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1"
+    }
+  },
+  "probe_sha256": "7a687a025c786efe61ce04b4f20be02adfffb703c17178c3bc5b369f57761d23",
+  "finished_at": "2026-10-30T00:46:12.991962+00:00",
+  "elapsed_seconds": 3.2327113330029533
+}

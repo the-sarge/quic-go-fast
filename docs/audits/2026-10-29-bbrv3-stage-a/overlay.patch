@@ -1,0 +1,442 @@
+--- frozen-q1/go.mod
++++ stage-a/go.mod
+@@ -9,2 +9,2 @@
+-	golang.org/x/net v0.59.0
+-	golang.org/x/sys v0.48.0
++	golang.org/x/net v0.61.0
++	golang.org/x/sys v0.49.0
+@@ -13 +13 @@
+-require golang.org/x/crypto v0.57.0 // indirect
++require golang.org/x/crypto v0.58.0 // indirect
+@@ -15 +15 @@
+-replace github.com/quic-go/quic-go => ../../..
++replace github.com/quic-go/quic-go => ./build/sources/candidate
+--- frozen-q1/go.sum
++++ stage-a/go.sum
+@@ -11,6 +11,6 @@
+-golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M=
+-golang.org/x/crypto v0.57.0/go.mod h1:Fdz0i5U6CoizGwLda9DttjSk6qlZo25zYNtR+ycvuZA=
+-golang.org/x/net v0.59.0 h1:5zfYln+w5XCxwrnMMJPufRgNoXEaGxl0wo5GqPXyues=
+-golang.org/x/net v0.59.0/go.mod h1:2DA/G1UfVbCpQPeWTmMPGY7Cs2PkBkwu743bVX5PIVg=
+-golang.org/x/sys v0.48.0 h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=
+-golang.org/x/sys v0.48.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
++golang.org/x/crypto v0.58.0 h1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54=
++golang.org/x/crypto v0.58.0/go.mod h1:Xh+kl5A+M0gMiWDytH2Hhr5Z7WbNCpv/eB/EFgfSk+w=
++golang.org/x/net v0.61.0 h1:RR+6j/BTBCrggOLugxa+66R8FvoN6MHlzDlZIbN9YFw=
++golang.org/x/net v0.61.0/go.mod h1:WgDCOTH8iwtB66T4/GfI94AHo/hhdb7Hah9NDseQfiI=
++golang.org/x/sys v0.49.0 h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=
++golang.org/x/sys v0.49.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
+--- frozen-q1/fixture/main.go
++++ stage-a/fixture/main.go
+@@ -69,0 +70,3 @@
++	if e = validateStageA(cfg, *managed, *tcp); e != nil {
++		return e
++	}
+@@ -80 +83,2 @@
+-	tr, closeTransport, e := newTransport(*local, *managed)
++	counters := &batchCounters{}
++	tr, closeTransport, e := newTransport(*local, *managed, counters)
+@@ -166,0 +171,2 @@
++		Overlay           overlayMetadata  `json:"overlay"`
++		Batch             batchSnapshot    `json:"batch"`
+@@ -179 +185 @@
+-	}{ConnectionSetupNS: connectionSetupNS, ResourceSamples: resourceSamples, Result: result, Trace: traces, Resources: after, Source: sourceRevision, GoVersion: runtime.Version(), Platform: runtime.GOOS + "/" + runtime.GOARCH, GOMAXPROCS: runtime.GOMAXPROCS(0), Managed: *managed, ElapsedNS: time.Since(started).Nanoseconds()}
++	}{Overlay: metadata(), Batch: counters.snapshot(), ConnectionSetupNS: connectionSetupNS, ResourceSamples: resourceSamples, Result: result, Trace: traces, Resources: after, Source: sourceRevision, GoVersion: runtime.Version(), Platform: runtime.GOOS + "/" + runtime.GOARCH, GOMAXPROCS: runtime.GOMAXPROCS(0), Managed: *managed, ElapsedNS: time.Since(started).Nanoseconds()}
+@@ -187 +193,10 @@
+-	if err = os.WriteFile(*output, append(data, '\n'), 0600); err != nil {
++	f, err := os.OpenFile(*output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
++	if err != nil {
++		return err
++	}
++	_, writeErr := f.Write(append(data, '\n'))
++	closeErr := f.Close()
++	if writeErr != nil {
++		return writeErr
++	}
++	if err = closeErr; err != nil {
+--- frozen-q1/fixture/overlay.go
++++ stage-a/fixture/overlay.go
+@@ -0,0 +1,142 @@
++// Campaign-only Stage A instrumentation. No buffer ownership or retry policy lives here.
++package main
++
++import (
++	"fmt"
++	"net"
++	"runtime"
++	"sync"
++)
++
++const candidateRevision = "23c83b9896980511286ca8b81cd632f7ec56afed"
++const referenceRevision = "8095c72244755f0c1e24f4158253bf09cfbe6e17"
++
++var overlayDigest = "unrecorded"
++
++type batchWriter interface {
++	WriteBatchV1([][]byte, []byte, *net.UDPAddr) (int, error)
++}
++
++type batchSnapshot struct {
++	Calls         uint64 `json:"calls"`
++	MultiOffers   uint64 `json:"multi_offers"`
++	MultiAccepted uint64 `json:"multi_accepted"`
++	Offered       uint64 `json:"offered_packets"`
++	Accepted      uint64 `json:"accepted_packets"`
++	LargestOffer  uint64 `json:"largest_offer"`
++	ShortPrefixes uint64 `json:"short_prefixes"`
++	Errors        uint64 `json:"errors"`
++	InvalidCounts uint64 `json:"invalid_counts"`
++	// Fixed order: Not-ECT, ECT(1), ECT(0), CE, unknown. Counts are datagrams.
++	MultiOfferedECN  [5]uint64 `json:"multi_offered_ecn"`
++	MultiAcceptedECN [5]uint64 `json:"multi_accepted_ecn"`
++}
++
++type batchCounters struct {
++	mu     sync.Mutex
++	counts batchSnapshot
++}
++
++func (c *batchCounters) forward(w batchWriter) func([][]byte, []byte, *net.UDPAddr) (int, error) {
++	return func(bufs [][]byte, oob []byte, addr *net.UDPAddr) (int, error) {
++		// Inspect borrowed metadata before forwarding; retain neither buffers nor destination.
++		mark := ecnBucket(oob)
++		n, err := w.WriteBatchV1(bufs, oob, addr)
++		c.mu.Lock()
++		c.counts.Calls++
++		offered := uint64(len(bufs))
++		c.counts.Offered += offered
++		c.counts.LargestOffer = max(c.counts.LargestOffer, offered)
++		if err != nil {
++			c.counts.Errors++
++		}
++		valid := n >= 0 && n <= len(bufs)
++		if valid {
++			c.counts.Accepted += uint64(n)
++			if n < len(bufs) {
++				c.counts.ShortPrefixes++
++			}
++		} else {
++			c.counts.InvalidCounts++
++		}
++		if len(bufs) > 1 {
++			c.counts.MultiOffers++
++			c.counts.MultiOfferedECN[mark] += offered
++			if valid {
++				c.counts.MultiAcceptedECN[mark] += uint64(n)
++				if n > 1 {
++					c.counts.MultiAccepted++
++				}
++			}
++		}
++		c.mu.Unlock()
++		return n, err
++	}
++}
++
++func (c *batchCounters) snapshot() batchSnapshot {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	return c.counts
++}
++
++type overlayMetadata struct {
++	Schema           string `json:"schema"`
++	OverlaySHA256    string `json:"overlay_sha256"`
++	LibraryRevision  string `json:"library_revision"`
++	FixtureRevision  string `json:"fixture_revision"`
++	Mode             string `json:"mode"`
++	Backend          string `json:"backend"`
++	BackendEvidence  string `json:"backend_evidence"`
++	Kernel           string `json:"kernel"`
++	PMTU             bool   `json:"pmtu"`
++	InitialUDPSize   int    `json:"initial_udp_size"`
++	ACKMode          string `json:"ack_mode"`
++	GSO              bool   `json:"gso"`
++	NativeCapability string `json:"native_capability"`
++}
++
++func metadata() overlayMetadata {
++	return overlayMetadata{
++		Schema: "q2-stage-a-overlay-v1", OverlaySHA256: overlayDigest,
++		LibraryRevision: sourceRevision, FixtureRevision: candidateRevision,
++		Mode: "managed-ipv4-counted-callback", Backend: "ordinary-per-datagram-write",
++		BackendEvidence: "pinned Linux source; grouping is not syscall batching",
++		Kernel:          kernelRelease(), PMTU: false, InitialUDPSize: 1400, ACKMode: "ordinary-unset", GSO: false,
++		NativeCapability: "separate per-lease receipt required; no ECN/offload qualification claim",
++	}
++}
++
++func validateStageA(r Run, managed, tcp bool) error {
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" || !managed || tcp {
++		return fmt.Errorf("Stage A requires Linux/amd64 managed IPv4 without competitors")
++	}
++	if sourceRevision != candidateRevision && sourceRevision != referenceRevision {
++		return fmt.Errorf("unregistered library revision")
++	}
++	if len(overlayDigest) != 64 {
++		return fmt.Errorf("unregistered overlay digest")
++	}
++	if r.WarmupMS != 30000 || r.MeasureMS != 180000 || r.CompletionBytes != 0 || r.BulkPauseStartMS != 0 || r.BulkPauseEndMS != 0 {
++		return fmt.Errorf("not a Stage A time window")
++	}
++	arm := "C-Reno"
++	if r.Controller == "bbrv3" {
++		arm = "C-BBR"
++	}
++	if sourceRevision == referenceRevision {
++		if r.Controller != "reno" {
++			return fmt.Errorf("reference requires Reno")
++		}
++		arm = "R-Reno"
++	}
++	id := "M-LAN-linux-amd64-" + arm + "-" + r.Workload + "-r1-managed-s635599-p0"
++	payload := 16384
++	if r.Workload == "datagram" {
++		payload = 1200
++	}
++	if r.ID != id || r.PayloadBytes != payload {
++		return fmt.Errorf("unregistered Stage A observation")
++	}
++	return r.validate()
++}
+--- frozen-q1/fixture/overlay_linux.go
++++ stage-a/fixture/overlay_linux.go
+@@ -0,0 +1,48 @@
++package main
++
++import (
++	"encoding/binary"
++	"golang.org/x/sys/unix"
++)
++
++func ecnBucket(oob []byte) int {
++	msgs, err := unix.ParseSocketControlMessage(oob)
++	if err != nil {
++		return 4
++	}
++	mark := 4
++	for _, msg := range msgs {
++		if msg.Header.Level != unix.IPPROTO_IP || msg.Header.Type != unix.IP_TOS {
++			continue
++		}
++		// Linux IP_TOS ancillary payload can be a byte or a native int.
++		var value uint32
++		switch len(msg.Data) {
++		case 1:
++			value = uint32(msg.Data[0])
++		case 4:
++			value = binary.NativeEndian.Uint32(msg.Data)
++		default:
++			return 4
++		}
++		if value > 255 || mark != 4 {
++			return 4
++		}
++		mark = int(value & 3)
++	}
++	return mark
++}
++
++func kernelRelease() string {
++	var u unix.Utsname
++	if unix.Uname(&u) != nil {
++		return "unknown"
++	}
++	b := u.Release[:]
++	for i, c := range b {
++		if c == 0 {
++			return string(b[:i])
++		}
++	}
++	return string(b)
++}
+--- frozen-q1/fixture/overlay_linux_test.go
++++ stage-a/fixture/overlay_linux_test.go
+@@ -0,0 +1,21 @@
++package main
++
++import (
++	"encoding/binary"
++	"golang.org/x/sys/unix"
++	"unsafe"
++)
++
++func markingCases() []markingCase {
++	cases := []markingCase{{"absent", nil, 4}, {"malformed", []byte{1}, 4}}
++	for i := 0; i < 4; i++ {
++		o := make([]byte, unix.CmsgSpace(4))
++		h := (*unix.Cmsghdr)(unsafe.Pointer(&o[0]))
++		h.Level = unix.IPPROTO_IP
++		h.Type = unix.IP_TOS
++		h.SetLen(unix.CmsgLen(4))
++		binary.NativeEndian.PutUint32(o[unix.CmsgLen(0):], uint32(i))
++		cases = append(cases, markingCase{[]string{"not-ect", "ect1", "ect0", "ce"}[i], o, i})
++	}
++	return cases
++}
+--- frozen-q1/fixture/overlay_other.go
++++ stage-a/fixture/overlay_other.go
+@@ -0,0 +1,7 @@
++//go:build !linux
++
++package main
++
++// Non-Linux builds support local correctness checks only; execute rejects them.
++func ecnBucket([]byte) int  { return 4 }
++func kernelRelease() string { return "unsupported-for-stage-a" }
+--- frozen-q1/fixture/overlay_other_test.go
++++ stage-a/fixture/overlay_other_test.go
+@@ -0,0 +1,5 @@
++//go:build !linux
++
++package main
++
++func markingCases() []markingCase { return []markingCase{{"unknown-native-marking", []byte{1}, 4}} }
+--- frozen-q1/fixture/overlay_test.go
++++ stage-a/fixture/overlay_test.go
+@@ -0,0 +1,116 @@
++package main
++
++import (
++	"errors"
++	"net"
++	"reflect"
++	"runtime"
++	"testing"
++)
++
++type writerFunc func([][]byte, []byte, *net.UDPAddr) (int, error)
++
++func (f writerFunc) WriteBatchV1(b [][]byte, o []byte, a *net.UDPAddr) (int, error) {
++	return f(b, o, a)
++}
++
++func TestStageAForwarding(t *testing.T) {
++	sentinel := errors.New("writer result")
++	for _, tc := range []struct {
++		name string
++		n    int
++		err  error
++	}{
++		{"full", 3, nil}, {"prefix", 1, sentinel}, {"zero", 0, sentinel}, {"unknown", -1, sentinel}, {"invalid", 4, nil},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			b := [][]byte{{1}, {2}, {3}}
++			o := []byte{9}
++			a := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 42}
++			calls := 0
++			c := &batchCounters{}
++			n, err := c.forward(writerFunc(func(got [][]byte, ancillary []byte, dst *net.UDPAddr) (int, error) {
++				calls++
++				if &got[0] != &b[0] || &got[0][0] != &b[0][0] || &ancillary[0] != &o[0] || dst != a {
++					t.Fatal("borrowed arguments changed")
++				}
++				return tc.n, tc.err
++			}))(b, o, a)
++			if calls != 1 || n != tc.n || err != tc.err {
++				t.Fatal("forwarded result changed")
++			}
++			want := batchSnapshot{Calls: 1, MultiOffers: 1, Offered: 3, LargestOffer: 3, MultiOfferedECN: [5]uint64{0, 0, 0, 0, 3}}
++			if tc.err != nil {
++				want.Errors = 1
++			}
++			if tc.n >= 0 && tc.n <= 3 {
++				want.Accepted = uint64(tc.n)
++				want.MultiAcceptedECN[4] = uint64(tc.n)
++				if tc.n < 3 {
++					want.ShortPrefixes = 1
++				}
++				if tc.n > 1 {
++					want.MultiAccepted = 1
++				}
++			} else {
++				want.InvalidCounts = 1
++			}
++			if got := c.snapshot(); got != want {
++				t.Fatalf("got %+v, want %+v", got, want)
++			}
++		})
++	}
++	for _, tc := range markingCases() {
++		t.Run(tc.name, func(t *testing.T) {
++			c := &batchCounters{}
++			c.forward(writerFunc(func(_ [][]byte, o []byte, _ *net.UDPAddr) (int, error) {
++				if !reflect.DeepEqual(o, tc.oob) {
++					t.Fatal("marking changed")
++				}
++				return 2, nil
++			}))([][]byte{{1}, {2}}, tc.oob, &net.UDPAddr{})
++			got := c.snapshot()
++			if got.MultiOfferedECN[tc.bucket] != 2 || got.MultiAcceptedECN[tc.bucket] != 2 || got.MultiAccepted != 1 {
++				t.Fatalf("bad buckets: %+v", got)
++			}
++		})
++	}
++}
++
++type markingCase struct {
++	name   string
++	oob    []byte
++	bucket int
++}
++
++func TestStageAMetadataAndSeparation(t *testing.T) {
++	oldSource, oldDigest := sourceRevision, overlayDigest
++	defer func() { sourceRevision, overlayDigest = oldSource, oldDigest }()
++	sourceRevision = candidateRevision
++	overlayDigest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
++	m := metadata()
++	if m.LibraryRevision != candidateRevision || m.OverlaySHA256 != overlayDigest || m.PMTU || m.GSO || m.InitialUDPSize != 1400 || m.ACKMode != "ordinary-unset" {
++		t.Fatalf("bad metadata: %+v", m)
++	}
++	r := Run{ID: "M-LAN-linux-amd64-C-Reno-stream-r1-managed-s635599-p0", Controller: "reno", Workload: "stream", WarmupMS: 30000, MeasureMS: 180000, PayloadBytes: 16384, StartUnixNS: 1}
++	for _, tc := range []struct {
++		name               string
++		mutate             func(*Run)
++		managed, tcp, want bool
++	}{
++		{"registered", func(*Run) {}, true, false, runtime.GOOS == "linux" && runtime.GOARCH == "amd64"},
++		{"qualification", func(r *Run) { r.ID = "q2-core-1" }, true, false, false},
++		{"native", func(*Run) {}, false, false, false},
++		{"competitor", func(*Run) {}, true, true, false},
++		{"duration", func(r *Run) { r.MeasureMS++ }, true, false, false},
++		{"completion", func(r *Run) { r.CompletionBytes = 1 }, true, false, false},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			v := r
++			tc.mutate(&v)
++			if got := validateStageA(v, tc.managed, tc.tcp) == nil; got != tc.want {
++				t.Fatalf("accepted=%v want=%v", got, tc.want)
++			}
++		})
++	}
++}
+--- frozen-q1/fixture/session.go
++++ stage-a/fixture/session.go
+@@ -94 +94 @@
+-func newTransport(address string, managed bool) (*quic.Transport, func(), error) {
++func newTransport(address string, managed bool, counters *batchCounters) (*quic.Transport, func(), error) {
+@@ -116,0 +117,6 @@
++	writer, ok := lease.(batchWriter)
++	if !ok {
++		lease.Close()
++		parent.Close()
++		return nil, nil, fmt.Errorf("managed lease lacks WriteBatchV1")
++	}
+@@ -118 +124 @@
+-	if err = tr.ConfigureManagedPacketIOV1(lease, lease, nil); err != nil {
++	if err = tr.ConfigureManagedPacketIOV1(lease, lease, counters.forward(writer)); err != nil {
+--- frozen-q1/fixture/session_test.go
++++ stage-a/fixture/session_test.go
+@@ -51 +51 @@
+-	server, closeServer, err := newTransport("127.0.0.1:0", false)
++	server, closeServer, err := newTransport("127.0.0.1:0", false, &batchCounters{})
+@@ -56 +56 @@
+-	client, closeClient, err := newTransport("127.0.0.1:0", false)
++	client, closeClient, err := newTransport("127.0.0.1:0", false, &batchCounters{})
+@@ -119 +119 @@
+-			server, closeServer, err := newTransport("127.0.0.1:0", true)
++			server, closeServer, err := newTransport("127.0.0.1:0", true, &batchCounters{})
+@@ -124 +124 @@
+-			client, closeClient, err := newTransport("127.0.0.1:0", true)
++			client, closeClient, err := newTransport("127.0.0.1:0", true, &batchCounters{})

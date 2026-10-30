@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "run_id": "v1-1793322366862207000",
+  "command": [
+    "go",
+    "test",
+    "-v",
+    "-timeout",
+    "5m",
+    "-shuffle=on",
+    "./integrationtests/self",
+    "-version=1"
+  ],
+  "cwd": "/Users/runner/work/quic-go-fast/quic-go-fast",
+  "started_ns": 1793322366862366000,
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "python": "3.15.0",
+  "head": {
+    "exit": 0,
+    "output": "078441f33bf146667278548b33a4f1014a1297c8\n"
+  },
+  "tree": {
+    "exit": 0,
+    "output": "60e82e1c2452a7476651d38493a39a1832102cd0\n"
+  },
+  "status": {
+    "exit": 0,
+    "output": "?? report_fips.xml\n?? report_self.xml\n?? report_tools.xml\n?? report_versionnegotiation.xml\n"
+  },
+  "source_scope": {
+    "excluded_paths": [],
+    "reason": "whole checkout"
+  },
+  "go": {
+    "exit": 0,
+    "output": "go version go1.27.3 darwin/arm64\n"
+  },
+  "environment": {
+    "TIMESCALE_FACTOR": "3",
+    "GOTOOLCHAIN": "local",
+    "GODEBUG": "",
+    "GOMAXPROCS": "",
+    "QUIC_GO_DISABLE_GSO": "",
+    "QUIC_GO_DISABLE_ECN": "",
+    "QUIC_GO_DIAL_OWNER_UNTIL": "",
+    "GITHUB_SHA": "078441f33bf146667278548b33a4f1014a1297c8",
+    "GITHUB_RUN_ID": "40983561620",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_JOB": "integration",
+    "RUNNER_OS": "macOS",
+    "RUNNER_ARCH": "ARM64"
+  },
+  "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_complete": false
+}

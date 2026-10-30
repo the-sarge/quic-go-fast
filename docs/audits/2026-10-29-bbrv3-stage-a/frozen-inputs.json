@@ -1,0 +1,28 @@
+{
+  "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "sha256": {
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/accounting.go": "1b6611cca2fcf806378d253badb80701e4d36d89738ba2f8d684913eda07f2f1",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/accounting_test.go": "577c10818da000f0f7b8c41243a8aef5afccec2b1ff889bd8b080e3424e68a2b",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/main.go": "0fe2177251afebba929efc56cfa5fe7236649e082e967887b7a6a9cfae26c452",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/resource_unix.go": "96f3431706476b36fc8d798592813c5676d8d66747a20bbf81235fc0e2b269b2",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/resource_windows.go": "f80e304994514d0c95b7f5bab1f346ef63051ef55152e1d08d9902f2e3fc1024",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/session.go": "f6a015f3cbf44f0c493eaed15f5dfaad340ebe54251a189709acdba9c4b9caef",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/session_test.go": "76dec83cc5412ce1976bfc3e14637cc25b7c38eaedec5172cdf2a63f7708f401",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/tcp_linux.go": "df059ab5450db4f16bdb3b88b35e2b3b9a3391ba404281df5f1358231c820fb0",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/tcp_linux_test.go": "22228760563646c502cdf00a301ae2c7ba20d241ac80c802bc94b67e1ed89e88",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/tcp_other.go": "cf3adf31d7e21c4a7071a5d4550ec74471ed701acc6252f3b9d872f99ef763f8",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/trace.go": "5f62f0cf26400bcc22388bdcc77a9b00e17fb5a57322e61605c173be577ed22c",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/trace_test.go": "9f3ca8f41d53c6b3f60974875498393ffb5b9ec566b9720434c6e9fa2d14323b",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/model/model.go": "eac325ae3b281767936c0c4f3a0dcf73bc456bbd144895d03006d9c9c2c4fbe7",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/model/model_test.go": "a99588e84e3cad449f52266adff8bf25e3cd1f30239272f071b5703120dd7e3c",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/model/scenarios.go": "28f79b4c666717b438f4bfedeec5e8f3e9a78823caa53aba5d072d4519f95815",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/probe/main.go": "0544fa3cf580a77103a8106173b26a597b5ad72bec4cf2053396b667323925be",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/probe/socket_darwin.go": "24cb02ca863bd2240c554d5bce811c925822cd4c422c64738b206a9cd1ca49ab",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/probe/socket_linux.go": "4ae423f245f90f308346006dbe198fc11ecee7a3fbc66e2aa93fcd5026ad23ed",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/probe/socket_unix.go": "aa94c1be45872f423b9e6623a401e6a01daaf983db1fb667e3a3a3efa81dbc00",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/probe/socket_windows.go": "f4f3e703e2f9afe1c564ed4add805c4c781b4c1dd1216dd4752b834ea4f55abd",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/router/main_linux.go": "95e56febb08173800e9389bdf8ec1053174a4ace6122a62099b22464852e4cdf",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/go.mod": "369c6f6cf213b7fb84743ca57725dfd53ab2efc87755414536bdb09ea2cca57a",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/go.sum": "ad35f02aa28658092653d8eccb6053a2a91d81553dd927214fbc491eccc6e3f3"
+  }
+}
