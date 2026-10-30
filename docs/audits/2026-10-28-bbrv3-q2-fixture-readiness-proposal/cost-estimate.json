@@ -1,0 +1,534 @@
+{
+  "status": "proposal-for-review; no implementation, allocation or dispatch",
+  "prepared_date": "2026-10-28",
+  "candidate": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "blocking_readiness_reno": "8095c72244755f0c1e24f4158253bf09cfbe6e17",
+  "descriptive_historical_reno": "e4f322cbbfd4225a4b714e08ec19c958cccadcb0",
+  "preparation_effort_estimate_hours": {
+    "pilot": {
+      "low": 5,
+      "high": 8
+    },
+    "conditional_continuation_additional": {
+      "low": 2,
+      "high": 4
+    },
+    "all_stages": {
+      "low": 7,
+      "high": 12
+    },
+    "remaining_allowance_certified": false,
+    "pilot_initial_preparation": {
+      "low": 4,
+      "high": 6
+    },
+    "stage_A_result_packet_and_B_refresh": {
+      "low": 0.5,
+      "high": 1
+    },
+    "stage_B_result_packet_and_reuse_assessment": {
+      "low": 0.5,
+      "high": 1
+    },
+    "through_stage_A_decision": {
+      "low": 4.5,
+      "high": 7
+    },
+    "accounting_note": "Advance templates/registration are in initial preparation; actual post-stage packets and refresh/reuse assessment are separate. Remaining implementation/registration excludes a second reuse-assessment charge. Machine runtime remains in experiment accounting."
+  },
+  "groups": [
+    {
+      "id": "M-LAN",
+      "platform_counts": {
+        "linux/amd64": 12,
+        "darwin/arm64": 12,
+        "windows/amd64": 12
+      },
+      "arms": 3,
+      "workloads": 2,
+      "repetitions": 2,
+      "platforms": 3,
+      "active_seconds": 210,
+      "observations": 36,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 255,
+      "total_envelope_seconds": 9180,
+      "stage_observations": {
+        "A": 6,
+        "B": 0,
+        "conditional_remaining": 30
+      }
+    },
+    {
+      "id": "M-DELAY",
+      "platform_counts": {
+        "linux/amd64": 6
+      },
+      "arms": 3,
+      "workloads": 2,
+      "repetitions": 1,
+      "platforms": 1,
+      "active_seconds": 360,
+      "observations": 6,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 405,
+      "total_envelope_seconds": 2430,
+      "stage_observations": {
+        "A": 0,
+        "B": 2,
+        "conditional_remaining": 4
+      }
+    },
+    {
+      "id": "M-COEX",
+      "platform_counts": {
+        "linux/amd64": 6
+      },
+      "arms": 3,
+      "workloads": 2,
+      "repetitions": 1,
+      "platforms": 1,
+      "active_seconds": 360,
+      "observations": 6,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 405,
+      "total_envelope_seconds": 2430,
+      "stage_observations": {
+        "A": 0,
+        "B": 2,
+        "conditional_remaining": 4
+      }
+    },
+    {
+      "id": "G-LINUX",
+      "platform_counts": {
+        "linux/amd64": 12
+      },
+      "arms": 3,
+      "workloads": 2,
+      "modes": 2,
+      "repetitions": 1,
+      "platforms": 1,
+      "active_seconds": 70,
+      "observations": 12,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 115,
+      "total_envelope_seconds": 1380,
+      "stage_observations": {
+        "A": 0,
+        "B": 0,
+        "conditional_remaining": 12
+      }
+    },
+    {
+      "id": "E-MARK",
+      "platform_counts": {
+        "linux/amd64": 3,
+        "darwin/arm64": 3,
+        "windows/amd64": 3
+      },
+      "arms": 3,
+      "workloads": 1,
+      "repetitions": 1,
+      "platforms": 3,
+      "active_seconds": 110,
+      "observations": 9,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 155,
+      "total_envelope_seconds": 1395,
+      "stage_observations": {
+        "A": 0,
+        "B": 0,
+        "conditional_remaining": 9
+      }
+    },
+    {
+      "id": "P-IDLE",
+      "platform_counts": {
+        "linux/amd64": 2,
+        "darwin/arm64": 2
+      },
+      "arms": 2,
+      "workloads": 1,
+      "repetitions": 1,
+      "platforms": 2,
+      "active_seconds": 120,
+      "observations": 4,
+      "start_seconds": 25,
+      "tail_seconds": 20,
+      "envelope_seconds_per_observation": 165,
+      "total_envelope_seconds": 660,
+      "coverage_limit": "Windows managed DF is unavailable at the pinned candidate; removal of its two impossible probe observations is the revised recommendation for review, not accepted scope.",
+      "stage_observations": {
+        "A": 0,
+        "B": 0,
+        "conditional_remaining": 4
+      }
+    }
+  ],
+  "totals": {
+    "native_observations": 73,
+    "native_envelope_seconds": 17475,
+    "reserved_experiment_hours": "14.25",
+    "historical_rate_cloud_estimate_usd": "19.225",
+    "scope": "All stages only if separately accepted; not an upfront reservation"
+  },
+  "windows": [
+    {
+      "id": "A_local_validation",
+      "stage": "A",
+      "platform": null,
+      "reserved_hours": "2",
+      "historical_topology_usd_per_hour": "0",
+      "storage_export_allowance_usd": "0",
+      "estimated_usd": "0"
+    },
+    {
+      "id": "A_linux",
+      "stage": "A",
+      "platform": "linux/amd64",
+      "reserved_hours": "1.5",
+      "historical_topology_usd_per_hour": "1.30",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "2.20",
+      "native_envelope_seconds": 1530,
+      "remaining_window_seconds": 3870,
+      "overhead_seconds": {
+        "setup_staging": 1200,
+        "calibration": 900,
+        "native_preflight": 600,
+        "export_cleanup": 900,
+        "headroom": 270
+      }
+    },
+    {
+      "id": "B_linux",
+      "stage": "B",
+      "platform": "linux/amd64",
+      "reserved_hours": "1.75",
+      "historical_topology_usd_per_hour": "2.10",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "3.925",
+      "native_envelope_seconds": 1620,
+      "remaining_window_seconds": 4680,
+      "overhead_seconds": {
+        "setup_staging": 1200,
+        "calibration": 900,
+        "scenario_transition": 300,
+        "export_cleanup": 900,
+        "headroom": 780,
+        "native_preflight": 600
+      }
+    },
+    {
+      "id": "remaining_linux",
+      "stage": "conditional_remaining",
+      "platform": "linux/amd64",
+      "reserved_hours": "4",
+      "historical_topology_usd_per_hour": "2.10",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "8.65",
+      "native_envelope_seconds": 6945,
+      "remaining_window_seconds": 7455
+    },
+    {
+      "id": "remaining_windows",
+      "stage": "conditional_remaining",
+      "platform": "windows/amd64",
+      "reserved_hours": "2",
+      "historical_topology_usd_per_hour": "2.10",
+      "storage_export_allowance_usd": "0.25",
+      "estimated_usd": "4.45",
+      "native_envelope_seconds": 3525,
+      "remaining_window_seconds": 3675
+    },
+    {
+      "id": "remaining_mac",
+      "stage": "conditional_remaining",
+      "platform": "darwin/arm64",
+      "reserved_hours": "2",
+      "historical_topology_usd_per_hour": "0",
+      "storage_export_allowance_usd": "0",
+      "estimated_usd": "0",
+      "native_envelope_seconds": 3855,
+      "remaining_window_seconds": 3345
+    },
+    {
+      "id": "remaining_local_validation",
+      "stage": "conditional_remaining",
+      "platform": null,
+      "reserved_hours": "1",
+      "historical_topology_usd_per_hour": "0",
+      "storage_export_allowance_usd": "0",
+      "estimated_usd": "0"
+    }
+  ],
+  "pricing": {
+    "kind": "historical-rate planning estimate, not a current quote",
+    "source": "docs/audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.md",
+    "source_revision": "457bdb2d3e8b53866bb56b7ad8a32792625a3876",
+    "current_prices_available": false,
+    "freshness_requirement_hours": 24,
+    "formula": "Stage A: 1.5 * linux_noncompetitor_rate + storage/egress; Stage B: 1.75 * linux_competitor_rate + storage/egress; conditional remainder: 4 * linux_competitor_rate + 2 * windows_rate + storage/egress",
+    "paid_local_replacements_included": false
+  },
+  "cumulative_basis": {
+    "known_retained_hours": "79.53466666666667",
+    "known_retained_usd": "87.085",
+    "future_520_historical_forecast_hours": "45.266667",
+    "future_520_historical_forecast_usd": "66.063333",
+    "accepted_experiment_ceiling_hours": "192",
+    "accepted_cloud_ceiling_usd": "200",
+    "accepted_preparation_ceiling_hours": "72",
+    "observed_staged_cloud_guard_usd": "150",
+    "later_usage_and_charges_reconciled": false,
+    "current_remaining_credit_certified": false,
+    "readiness_reserved_hours": "14.25",
+    "readiness_estimated_usd": "19.225",
+    "illustrative_total_hours": "139.051334",
+    "illustrative_total_usd": "172.373333",
+    "illustrative_margin_hours": "52.948666",
+    "illustrative_margin_usd": "27.626667",
+    "scenarios_not_additive": [
+      {
+        "id": "retained_plus_A",
+        "hours": "83.034667",
+        "usd": "89.285000"
+      },
+      {
+        "id": "retained_plus_pilot",
+        "hours": "84.784667",
+        "usd": "93.210000"
+      },
+      {
+        "id": "retained_plus_all_readiness",
+        "hours": "93.784667",
+        "usd": "106.310000"
+      }
+    ]
+  },
+  "revision_date": "2026-10-29",
+  "scope": "Stage A Linux LAN pilot first; B and all remaining readiness are separate conditional decisions. No execution authorized.",
+  "stages": [
+    {
+      "id": "A",
+      "condition": "Initial proposal only; prerequisites and separate implementation/allocation/dispatch authorization required",
+      "observations": 6,
+      "native_envelope_seconds": 1530,
+      "reserved_experiment_hours": "3.5",
+      "historical_rate_cloud_estimate_usd": "2.20",
+      "lease_ends_before_result_review": true
+    },
+    {
+      "id": "B",
+      "condition": "Stage A reviewed; no unresolved integrity, engagement or substantial unexplained regression; new explicit operator allocation/dispatch decision",
+      "observations": 4,
+      "native_envelope_seconds": 1620,
+      "reserved_experiment_hours": "1.75",
+      "historical_rate_cloud_estimate_usd": "3.925",
+      "lease_ends_before_result_review": true
+    },
+    {
+      "id": "conditional_remaining",
+      "condition": "Both pilot stages reviewed; separate bounded continuation decision, refreshed prerequisites and verified reuse of all ten pilot observations",
+      "observations": 63,
+      "native_envelope_seconds": 14325,
+      "reserved_experiment_hours": "9",
+      "historical_rate_cloud_estimate_usd": "13.10",
+      "lease_ends_before_result_review": true
+    }
+  ],
+  "pilot_totals": {
+    "native_observations": 10,
+    "native_envelope_seconds": 3150,
+    "native_overhead_seconds": 8550,
+    "local_validation_seconds": 7200,
+    "reserved_experiment_hours": "5.25",
+    "historical_rate_cloud_estimate_usd": "6.125",
+    "B_is_conditional": true
+  },
+  "ordered_pilot_observations": [
+    {
+      "id": "M-LAN/linux-amd64/R-Reno/stream/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "R-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-Reno/stream/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-BBR/stream/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/R-Reno/datagram/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "R-Reno",
+      "workload": "datagram",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-Reno/datagram/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "datagram",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-LAN/linux-amd64/C-BBR/datagram/r1",
+      "stage": "A",
+      "group": "M-LAN",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "datagram",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": null,
+      "active_seconds": 210,
+      "envelope_seconds": 255,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-DELAY/linux-amd64/C-BBR/stream/r1",
+      "stage": "B",
+      "group": "M-DELAY",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-DELAY/linux-amd64/C-Reno/stream/r1",
+      "stage": "B",
+      "group": "M-DELAY",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-COEX/linux-amd64/C-BBR/stream/r1",
+      "stage": "B",
+      "group": "M-COEX",
+      "platform": "linux/amd64",
+      "arm": "C-BBR",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    },
+    {
+      "id": "M-COEX/linux-amd64/C-Reno/stream/r1",
+      "stage": "B",
+      "group": "M-COEX",
+      "platform": "linux/amd64",
+      "arm": "C-Reno",
+      "workload": "stream",
+      "repetition": 1,
+      "seed": 635599,
+      "event_phase": 0,
+      "active_seconds": 360,
+      "envelope_seconds": 405,
+      "mode": "managed-batching"
+    }
+  ],
+  "reuse": {
+    "qualification_case_credit": 0,
+    "automatic_reruns": false,
+    "requires": [
+      "same group/platform/arm/workload/repetition/mode/seed/event phase",
+      "unchanged source/overlay/binary/module identities and command settings",
+      "comparable hosts/resources/gateway/calibration and competitor identity",
+      "complete attributable immutable results and charges",
+      "explicit cross-lease order/time limitation for deferred STREAM bundle reference"
+    ],
+    "ineligible_result_action": "Leave obligation incomplete; separately propose and cost replacements; never silently duplicate or refund."
+  },
+  "prior_unallocated_package": {
+    "head": "e7b6b7ba94fed42a92aaf907e34a626f27258a2c",
+    "hours": "11",
+    "historical_usd": "15.20",
+    "status": "Superseded planning estimate, never allocated; do not add to staged totals."
+  },
+  "pilot_phase_timing_receipts": {
+    "stages": [
+      "A",
+      "B"
+    ],
+    "required_phases": [
+      "first_cloud_orchestration",
+      "setup_staging",
+      "calibration",
+      "native_preflight_and_pre_post_clock_checks",
+      "each_observation_including_start_tail",
+      "export",
+      "teardown"
+    ],
+    "record_start_and_end": true,
+    "distinguish_serial_lease_boundary_and_overlap": true,
+    "retain_failures_and_incomplete_phases": true,
+    "forecast_use": "Use applicable observations in the Stage B refresh and continuation forecast; explain deviations, preserve estimates for unmeasured platforms/topologies/specialized checks and reforecast before continuing if needed."
+  }
+}

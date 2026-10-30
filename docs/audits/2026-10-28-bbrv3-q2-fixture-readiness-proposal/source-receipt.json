@@ -1,0 +1,114 @@
+{
+  "scope": "Static source inspection and arithmetic only; no compilation or experiment",
+  "sources": [
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/session.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "f6a015f3cbf44f0c493eaed15f5dfaad340ebe54251a189709acdba9c4b9caef"
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/main.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "0fe2177251afebba929efc56cfa5fe7236649e082e967887b7a6a9cfae26c452"
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/fixture/trace.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "5f62f0cf26400bcc22388bdcc77a9b00e17fb5a57322e61605c173be577ed22c"
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/go.mod",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "369c6f6cf213b7fb84743ca57725dfd53ab2efc87755414536bdb09ea2cca57a"
+    },
+    {
+      "path": "external_packet_io.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "40ce5be27e1458f71ff331452a4cbf686681bd03ec78f9f52c482a33fba87eca"
+    },
+    {
+      "path": "managed_packet_endpoint.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "035d1aee83237e23825ce2201fa6ea4b2df47d9cd242fe103bc633c9da6918c1"
+    },
+    {
+      "path": "managed_packet_ecn.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "dbe1c751a52116aa78ea52d6fa1b9add286f57f9bb7660d8040186b2c2b45650"
+    },
+    {
+      "path": "send_conn.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "5d11718305d98b87a33988d0c8dcaae88da93bc5d32d10bc8dec32813eab87d7"
+    },
+    {
+      "path": "send_queue.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "c5cddf9dd1484f086088beac5deab8c73288322b2a6299dbf4820b51a6885a5d"
+    },
+    {
+      "path": "send_queue_batch_test.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "6b8cd5f5f7dac96648569d9b9ef889e107da63988003572367a393a5685852bf"
+    },
+    {
+      "path": "packet_emission_gso.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "f47bc5373fded35ff1381e85b7b6c53e506401e981d89fae6f65178c593c720a"
+    },
+    {
+      "path": "packet_emission_gso_test.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "a311b8c61a9595270def10de9a32c736af28b24d417f445dd91da6aa1d4fe461"
+    },
+    {
+      "path": "connection_idle_pmtu_test.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "f23268dc7ecd990770bae3931d060802eaaa843148d4fdbb49e9761cc0089d6f"
+    },
+    {
+      "path": "mtu_discoverer_test.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "a01f45e00466a1b33a8c3b964df3353ea47174a6e60ec0d1d6e4eebcc0b68dff"
+    },
+    {
+      "path": "docs/audits/2026-09-25-bbrv3-q1-campaign/budget-proposal.md",
+      "revision": "457bdb2d3e8b53866bb56b7ad8a32792625a3876",
+      "sha256": "9600a58c321f0eddeaa4eccff0cbd60b77fffa570f8bb19375ed0d92ac606eb1"
+    },
+    {
+      "path": "docs/audits/2026-10-28-bbrv3-q2-preflight/observations.json",
+      "revision": "457bdb2d3e8b53866bb56b7ad8a32792625a3876",
+      "sha256": "e73f8340f605c411e2e3d57efaf2e52e7d11562affc6eaae302cc6247e2b691c"
+    },
+    {
+      "path": "external_packet_io_batch_fallback.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "f0ec24a3a0eae5ff557089a9d8670d87521653c047a3ed416f8326cba7848b57"
+    },
+    {
+      "path": "send_conn_sendmsg_x_darwin.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "80e0d588038afe83b994596d9d58973bb70a452bc14f80a62f76f9f0ff2588b3"
+    },
+    {
+      "path": "external_packet_io_oob.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "b302517e5dff499eee157fdcb4acd36e4a0292f90b954a9e67ae58635a3e05af"
+    },
+    {
+      "path": "managed_packet_df_other.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "79ebc11cf1c3e4e31f45e6841a7b2d1b9ba23c72bd3d6b66143a113d9533aff2"
+    },
+    {
+      "path": "connection.go",
+      "revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+      "sha256": "cb0ef7f9a6a570656a5183d8096fd3713b6f0782909b552397aafd5f4568aa59"
+    }
+  ],
+  "accepted_inventory_hashes": {
+    "docs/audits/2026-09-23-bbrv3-acceptance-manifest.json": "1dc334ce2c136f157d2fb875da4906dc14ce1c415090470b60c8d4799fe98e21",
+    "docs/audits/2026-09-25-bbrv3-q1-campaign/case-inventory.jsonl": "bab8af515337f2fa32bdf3765e658a1d102ad601125112100b7043c23ef28fd1"
+  }
+}
