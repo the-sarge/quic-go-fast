@@ -1,0 +1,13 @@
+{
+  "validator": "jsonschema 4.25.1 Draft 2020-12",
+  "started_at": "2026-10-30T01:02:49.710154+00:00",
+  "finished_at": "2026-10-30T01:02:49.746354+00:00",
+  "elapsed_seconds": 0.03605004200289841,
+  "checks": [
+    "schema meta-validation",
+    "representative failed receiver / never-started sender accepted",
+    "not-started phase fabricated timestamp rejected"
+  ],
+  "exit_code": 0,
+  "experimental_execution": false
+}
