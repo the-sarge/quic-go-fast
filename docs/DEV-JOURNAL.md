@@ -7969,3 +7969,24 @@ Staged RAS review `20261030T000315-0e2631f62ddd1986087ad69a` produced three inde
 ### Next
 
 [Issue #599](https://github.com/the-sarge/quic-go-fast/issues/599) remains the live Q2 state and blocker pointer. Q2 is outstanding and not dispatched. Reconcile billing/resources and prepare any separately authorized implementation/registration; scope, guard alignment, allocation, each readiness stage and full Q2 dispatch remain separate decisions. BBRv3 remains experimental, opt-in and unqualified; Reno remains default.
+
+---
+
+## Stage A registration and CI test corrections merged - 2026-10-30 04:09 EDT
+
+**Main:** `f59bba2d6dfc`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1056](https://github.com/the-sarge/quic-go-fast/pull/1056), registering the bounded six-observation Linux Stage A pilot, its counted managed-batch fixture, immutable build identities, operation recipe and conditional execution authorization. Registration SHA-256 remains `4dc4c3a7e4c257a067d720edcad4fd6b47b4cc345459165c7775a94967d6f46e`; no cloud lease or pilot observation has started.
+
+Corrected two independently reproduced integration-test defects: path-MTU probing interfered with the transport-close idle deadline on Windows, and per-connection success notifications deadlocked the HTTP/3 listener test when a request legitimately retried. Both corrections affect tests only, preserve existing deadlines and assertions, and passed independent Standards and Spec reviews.
+
+### Validation
+
+All 33 applicable hosted checks passed on reviewed head `7a0d4e3d46aced2d116573dc67eb0ab3a602598b` before squash merge. Windows native verification passed 100 focused repetitions and the original seeded full suite; macOS native verification passed 100 focused repetitions including the deterministic retry regression and the original seeded full suite. Integrated local seeded suite, vet, tidy-diff and diff checks passed. The earlier HTTP idle-timeout timing failure remains explicitly deferred under the [execution authorization](audits/2026-10-29-bbrv3-stage-a/execution-authorization.md); these passes do not establish its cause or resolution.
+
+### Next
+
+Complete the remaining accounting, current price and launch binding, dedicated resource access, calibration and cleanup gates under the existing authorization. The live campaign remains [issue #599](https://github.com/the-sarge/quic-go-fast/issues/599): Stage A does not authorize Stage B or the full Q2 dispatch. Preserve the cumulative 192 experiment-hour, $200 cloud and 72 preparation-hour ceilings and one 90-minute Linux lease.
