@@ -1,0 +1,106 @@
+{
+  "schema": "stage-a-validation-v1",
+  "kind": "ordinary local correctness, not measurement or native readiness",
+  "platform": "darwin\narm64",
+  "library_revision": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "commands": [
+    {
+      "label": "overlay-packages",
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "./..."
+      ],
+      "started_at": "2026-10-30T00:47:11.637617+00:00",
+      "finished_at": "2026-10-30T00:48:35.151256+00:00",
+      "elapsed_seconds": 83.51332454099975,
+      "exit_code": 0,
+      "output": "ok  \tq1campaign/fixture\t81.870s\nok  \tq1campaign/model\t0.166s\n?   \tq1campaign/probe\t[no test files]\n"
+    },
+    {
+      "label": "overlay-vet",
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a",
+      "argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "started_at": "2026-10-30T00:48:35.154179+00:00",
+      "finished_at": "2026-10-30T00:48:35.632393+00:00",
+      "elapsed_seconds": 0.47823166599846445,
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "label": "overlay-tidy",
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a",
+      "argv": [
+        "go",
+        "mod",
+        "tidy",
+        "-diff"
+      ],
+      "started_at": "2026-10-30T00:48:35.632686+00:00",
+      "finished_at": "2026-10-30T00:48:35.662709+00:00",
+      "elapsed_seconds": 0.03002816699881805,
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "label": "candidate-named-regressions",
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestManagedPacketIOBatchDatagrams|TestManagedPacketIOConcurrentBatchClose|TestGSOEqualSizeBatches|TestGSOEqualSizeKillSwitch|TestGSOEqualSizeSegmentLimit|TestGSOEqualSizeStreamStartsFreshBatch|TestGSOEqualSizeControlPacketGoesAlone|TestBBRBoundedEqualSizeCredit|TestConnectionTimerWakesForIdleMTUProbe|TestMTUDiscovererTiming|TestMTUDiscovererCompletion|TestMTUDiscovererSettledOnLoss|TestSendQueueBatchFullAcceptance|TestSendQueueBatchPartialAcceptance|TestSendQueueBatchPartialAcceptanceFatalError|TestSendQueueBatchUnknownProgressFatal|TestSendQueueBatchInvalidProgress|TestSendQueueBatchUnavailableFallsBack|TestSendQueueBatchMidGroupLatch|TestSendQueueBatchGroupsByECN|TestSendQueueBatchSkipsGSO|TestSendQueueBatchCapFollowsDepth|TestSendQueueFullQueueDrainsAsOneBatch)$",
+        "."
+      ],
+      "started_at": "2026-10-30T00:48:35.666005+00:00",
+      "finished_at": "2026-10-30T00:48:39.345021+00:00",
+      "elapsed_seconds": 3.679012625001633,
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/quic-go/quic-go\t0.231s\n"
+    },
+    {
+      "label": "candidate-inherited-packages",
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "./internal/congestion",
+        "./internal/ackhandler"
+      ],
+      "started_at": "2026-10-30T00:48:39.348225+00:00",
+      "finished_at": "2026-10-30T00:49:01.006414+00:00",
+      "elapsed_seconds": 21.658148999998957,
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/quic-go/quic-go/internal/congestion\t0.140s\nok  \tgithub.com/quic-go/quic-go/internal/ackhandler\t20.681s\n"
+    },
+    {
+      "label": "overlay-callback-close-race",
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a",
+      "argv": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-run",
+        "^(TestStageAForwarding|TestStageAMetadataAndSeparation|TestNativeFixtureRoundTrip)$",
+        "./fixture"
+      ],
+      "started_at": "2026-10-30T00:49:01.006710+00:00",
+      "finished_at": "2026-10-30T00:49:22.016598+00:00",
+      "elapsed_seconds": 21.009867167002085,
+      "exit_code": 0,
+      "output": "ok  \tq1campaign/fixture\t18.811s\n"
+    }
+  ],
+  "budget_seconds": 7200,
+  "live_ledger_modified": false,
+  "elapsed_seconds": 130.3787678339977
+}

@@ -1,0 +1,60 @@
+{
+  "observed_at": "2026-10-30T00:48:49.761088+00:00",
+  "method": "read-only; no live controller action called",
+  "cloud": {
+    "project_id": "bbr-q635-20260925",
+    "project_lifecycle": "DELETE_REQUESTED",
+    "visible_active_bbr_q635_projects": [],
+    "instances": "project-not-found warning; empty output is NOT cleanup proof",
+    "disks": "project-not-found warning; empty output is NOT cleanup proof",
+    "quota": "project-not-found error",
+    "current_price_quote": null,
+    "billing": "no settled current export located in bounded controller inventory"
+  },
+  "linux_available_host": {
+    "name": "minimax",
+    "kernel": "7.0.0-30-generic",
+    "arch": "x86_64",
+    "online_cpus": 32,
+    "go": "go1.27.3",
+    "users_at_inspection": 3,
+    "load_1_5_15": [
+      2.03,
+      1.33,
+      1.24
+    ],
+    "tools": [
+      "go",
+      "python3",
+      "tc",
+      "ip",
+      "ethtool",
+      "chronyc"
+    ],
+    "isolation": "unproven; shared host; not selected as measurement topology"
+  },
+  "controller_files_sha256": {
+    "scripts/cloud/bbr-campaign/campaign.py": "ad9fc2c76ab2facfdf5ecb03f1fa767eca6b37b5647ccd1e707896d86c3972b0",
+    "cloud/gcp/bbr-campaign/main.tf": "2a1af81cd3423ed83cc77c104ffc5d4aab6260db39f8ca4524968a1520be3c90"
+  },
+  "guard_source": {
+    "experiment_hours": 192,
+    "cloud_usd": 150,
+    "preparation_hours": 72,
+    "effective_deployment": "not verified; source only"
+  },
+  "ledger_sha256": "3181655447931323f083b3a6fa4a83238ee44dfb9f74c357efa0c8c487b083d5",
+  "ledger_matches_october28": true,
+  "retained_lower_bound": {
+    "experiment_hours": 79.53466666666667,
+    "cloud_usd": 87.085,
+    "preparation_hours": 25.39832347305556
+  },
+  "additional_obligations": "unreconciled October preparation, other reservations, billing/storage/egress; no certified credit",
+  "pricing": {
+    "primary_source": "https://cloud.google.com/products/compute/pricing/general-purpose",
+    "result": "search found official page; direct retrieval timed out; no current numerical quote certified",
+    "freshness_gate_hours": 24
+  },
+  "cleanup": "future lease must independently verify instances, disks, addresses, snapshots, forwarding rules, state bucket and billing export; current deleted project is not zero-charge evidence"
+}

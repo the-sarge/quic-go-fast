@@ -1,0 +1,11 @@
+{
+  "source_path": "/Users/josh/.local/share/infra/bbr-q635-controller/.local/cloud/bbr-campaign/q2-linux-20260930-router-diagnostic1/clock-observe.py",
+  "source_sha256": "962194b9afe3d3cf2c1a3d487207fbdbf54e30fee820f7230a00b82b625d3ddf",
+  "overlay_sha256": "2fc55cd698e8edee81c7f69bb5ffaccd3a3621c2f18fd21a3e520b39e704c699",
+  "changes": [
+    "project/zone explicit arguments; Linux only entry",
+    "exclusive output files",
+    "correct wall-clock duration description"
+  ],
+  "native_execution": "not run"
+}
