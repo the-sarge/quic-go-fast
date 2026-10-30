@@ -7946,3 +7946,26 @@ Both bounded review rounds completed with accepted findings resolved or locally 
 ### Next
 
 Complete read-only accounting/resource reconciliation and prepare a finite readiness/fixture registration with a refreshed resource request. Missing native readiness, send-path coverage, tools/clocks/resources and effective enforcement remain prerequisites; guard alignment and dispatch require separate authorization. [Q2 #599](https://github.com/the-sarge/quic-go-fast/issues/599) is the live plan pointer and resume point; Q2 and downstream execution remain pending.
+
+---
+
+## Q2 staged Linux pilot proposal merged - 2026-10-29 20:32 EDT
+
+**Main:** `14ffaefcdb27`
+**Actor:** Codex
+
+### Summary
+
+Merged the reviewed staged Linux pilot proposal in [PR #1054](https://github.com/the-sarge/quic-go-fast/pull/1054), commit `14ffaefcdb27d733e7ab7370fe5f85c6975242e5`. This is planning documentation only: no overlay implementation, resource allocation, live guard/ledger mutation or experiment was performed.
+
+### Decisions
+
+The [merged proposal](https://github.com/the-sarge/quic-go-fast/blob/14ffaefcdb27d733e7ab7370fe5f85c6975242e5/docs/adr/2026-10-28-bbrv3-q2-fixture-readiness-proposal.md) places six Linux LAN observations before a separate decision on four candidate STREAM delay/coexistence observations. Stage A estimates 3.5 experiment-hours / $2.20; both pilot stages estimate 5.25 hours / $6.125, with 5–8 preparation-effort hours through both result packets. Remaining readiness is conditional; all stages would estimate 14.25 hours / $19.225 at historical rates. Current prices, later charges and operational prerequisites remain unresolved. The ten pilot observations may contribute once to the proposed 73-observation readiness inventory under explicit reuse rules; the 520 qualification cases and frozen evidence are unchanged.
+
+### Validation
+
+Staged RAS review `20261030T000315-0e2631f62ddd1986087ad69a` produced three independently accepted documentation fixes and two rejected objections. All six initial reviewers completed; Argon adjudication failed and that limitation is retained in the [review record](https://github.com/the-sarge/quic-go-fast/blob/14ffaefcdb27d733e7ab7370fe5f85c6975242e5/docs/audits/2026-10-28-bbrv3-q2-fixture-readiness-proposal/review-dispositions.md). The shared docs-only rule skipped a further RAS cycle after static validation. Exact pushed head `0c1888a4d020077e7a6c980e9285d520768945a5` passed clean-tree/diff checks, 21 source hashes, both frozen inventory hashes, 27 relative links, JSON and stage/overhead/effort/cost arithmetic. All 33 hosted checks passed before exact-head squash merge. No native campaign validation was run.
+
+### Next
+
+[Issue #599](https://github.com/the-sarge/quic-go-fast/issues/599) remains the live Q2 state and blocker pointer. Q2 is outstanding and not dispatched. Reconcile billing/resources and prepare any separately authorized implementation/registration; scope, guard alignment, allocation, each readiness stage and full Q2 dispatch remain separate decisions. BBRv3 remains experimental, opt-in and unqualified; Reno remains default.
