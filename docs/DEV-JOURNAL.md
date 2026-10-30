@@ -7990,3 +7990,26 @@ All 33 applicable hosted checks passed on reviewed head `7a0d4e3d46aced2d116573d
 ### Next
 
 Complete the remaining accounting, current price and launch binding, dedicated resource access, calibration and cleanup gates under the existing authorization. The live campaign remains [issue #599](https://github.com/the-sarge/quic-go-fast/issues/599): Stage A does not authorize Stage B or the full Q2 dispatch. Preserve the cumulative 192 experiment-hour, $200 cloud and 72 preparation-hour ceilings and one 90-minute Linux lease.
+
+---
+
+## Stage A calibration receiver diagnosis retained - 2026-10-30 05:22 EDT
+
+**Main:** `3b6e77b2c0bc`
+**Actor:** Codex
+
+### Summary
+
+[PR #1058](https://github.com/the-sarge/quic-go-fast/pull/1058) merged the [Stage A calibration receiver diagnosis](audits/2026-10-30-stage-a-calibration-repair/README.md) and an independently versioned probe candidate. The historical probe, registration and QUIC participant binaries remain unchanged. This records a receiver-efficiency improvement; the cloud calibration failure remains unresolved.
+
+### Validation
+
+Native Linux/arm64 profiling identified the byte-by-byte payload loop as about 31% of receiver samples. Optimized complete-byte comparison reduced the payload microbenchmark from 342–356 ns to 17.4–17.6 ns with zero allocations. Every-byte corruption and length regressions, affected race tests, vet, tidy checks and cross-builds passed. High-rate original and optimized diagnostics still retained socket drops; a batch-reader prototype was rejected. All raw evidence was archived and hash-verified. Independent Standards and Spec reviews closed with no unresolved findings, and all 33 hosted checks passed at reviewed head `ab1e25476131eccbae203e63faadf98a53478f0f` before merge.
+
+### Decisions
+
+No calibration pass, replacement paid lease, comparative observation or broad campaign authorization is implied. The prior failed lease and full charges remain retained. Local diagnostics reserved another 0.25 validation hours and one preparation hour: cumulative retained reservations are 83.28466666666667 experiment-hours, $90.035 and 33 preparation-hours. All owned diagnostic containers and remote scratch files were removed.
+
+### Next
+
+The [audit's remaining decision](audits/2026-10-30-stage-a-calibration-repair/README.md#remaining-decision) requires a finite calibration protocol and actual isolated Linux/amd64 validation before any separately authorized replacement lease; local loopback stress does not certify the cloud path.
