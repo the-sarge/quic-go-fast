@@ -1,6 +1,13 @@
 {
   "schema": "q2-stage-a-registration-v1",
   "status": "registered-preparation; launch blocked",
+  "artifact_sha256": {
+    "build-receipt.json": "7aa643461081b9317c3a784bdb4cc77d5148502aa31dca4749fb93ddb61a0fba",
+    "receipt.schema.json": "098dd5bc910b564e7549046400d703bc053b3167239e12257d702825061f2409",
+    "register.py": "cad85494e16ee484bc452d5229dbb3c98c16f67dfbf0a9b7bd34ebc59451db08",
+    "operations.md": "73a47e537ffde8fa040e3f7a3485d8259e5f14b7dc3cdbc257d4f37a734862bc",
+    "remaining-correctness.json": "179be24463f83d9da35982c4d237e28d9a6736343e8b9a601a4406e908ba7ca9"
+  },
   "experiment_dispatch_authorized": false,
   "qualification_cases": 520,
   "readiness_map_total": 73,
@@ -329,7 +336,7 @@
     "M-COEX-linux-amd64-C-BBR-stream-r1-managed-s635599-p0",
     "M-COEX-linux-amd64-C-Reno-stream-r1-managed-s635599-p0"
   ],
-  "epoch_binding": "For each observation once: epoch=controller time +25s; translate with valid host clock bounds. Bind exact configs/commands and hashes before launch; never reuse attempt paths.",
+  "epoch_binding": "For each observation once: epoch=controller time +25s, identical numeric value on both endpoints; retain bounded clock uncertainty and translate evidence only. Bind exact configs/commands and hashes before launch; never reuse attempt paths.",
   "command_templates": [
     {
       "id": "M-LAN-linux-amd64-R-Reno-stream-r1-managed-s635599-p0",

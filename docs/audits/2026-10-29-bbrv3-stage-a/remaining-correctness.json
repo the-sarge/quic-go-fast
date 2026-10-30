@@ -1,0 +1,62 @@
+{
+  "source": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "toolchain": "go1.27.3 linux/amd64",
+  "status": "prepared, unexecuted native commands",
+  "allocation": "within remaining two-hour Stage A local validation; total four-hour calibration/correctness retained",
+  "attempt_limit": 1,
+  "env": {
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "GOMAXPROCS": "4"
+  },
+  "deterministic_trace_sources_sha256": {
+    "internal/congestion/bbr_conformance_test.go": "523b5d0c43524a437121b085beeaa4ccff1a378548b5d01756c90a92e31897dd",
+    "internal/congestion/bbr_ecn_test.go": "f19b43fdeecb5fa35c9ff42673f2afd683f714da859401bed7df64d7bc4dd394",
+    "internal/congestion/bbr_probe_rtt_test.go": "d0649fc282d2ba8ac8f4bfcce04024aa0970ff6972ea778915620513e724c964",
+    "internal/congestion/bbr_probe_test.go": "6932db22df5ac8e28f7a9d42faffa7bf60c7641b5f17a2d0aede0469a8663c38",
+    "internal/congestion/bbr_recovery_test.go": "2eaaac5f65be7d654e65c2de4c78f14fad4a3539bf20a8b9bcd700498579d513",
+    "internal/congestion/bbr_sender_test.go": "f201a583ec8c17fa6b8bbe940026625f90612e7535caca8c03760202f51968d2",
+    "docs/designs/bbrv3.md": "0cd74aaa4dab4a7375a98020c0b8bf5910d3ea359578bb5a1b798bba7af9b09e",
+    "testdata/congestioncontrol/main.go": "8a6cf7c2d3f84f7b3c671d58c7a0999b260e6e5730668cfd7359edec23292c6c"
+  },
+  "commands": [
+    {
+      "cwd": "overlay with exact candidate replacement",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestStageAForwarding|TestStageAMetadataAndSeparation)$",
+        "./fixture"
+      ],
+      "hard_cap_seconds": 300
+    },
+    {
+      "cwd": "candidate exact extracted source",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestManagedPacketIOBatchDatagrams|TestManagedPacketIOConcurrentBatchClose|TestGSOEqualSizeBatches|TestGSOEqualSizeKillSwitch|TestGSOEqualSizeSegmentLimit|TestGSOEqualSizeStreamStartsFreshBatch|TestGSOEqualSizeControlPacketGoesAlone|TestBBRBoundedEqualSizeCredit|TestConnectionTimerWakesForIdleMTUProbe|TestMTUDiscovererTiming|TestMTUDiscovererCompletion|TestMTUDiscovererSettledOnLoss|TestSendQueueBatchFullAcceptance|TestSendQueueBatchPartialAcceptance|TestSendQueueBatchPartialAcceptanceFatalError|TestSendQueueBatchUnknownProgressFatal|TestSendQueueBatchInvalidProgress|TestSendQueueBatchUnavailableFallsBack|TestSendQueueBatchMidGroupLatch|TestSendQueueBatchGroupsByECN|TestSendQueueBatchSkipsGSO|TestSendQueueBatchCapFollowsDepth|TestSendQueueFullQueueDrainsAsOneBatch)$",
+        "."
+      ],
+      "hard_cap_seconds": 600
+    },
+    {
+      "cwd": "candidate exact extracted source",
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestCongestionControlV1ValidationAndCopy|TestCongestionControlV1IndependentConnections|TestCongestionControlV1DefaultReno|TestCongestionControlV1Diagnostics|TestCongestionControlV1DiagnosticsReno|TestCongestionControlV1PerClientReplacement|TestCongestionControlV1RealStreamAndDatagram|TestCongestionControlV1MigrationKeepsIdentity)$",
+        "."
+      ],
+      "hard_cap_seconds": 600
+    }
+  ],
+  "no_new_tests_or_instrumentation": true,
+  "stop": "any failure, missing evidence, unapproved native host or cumulative validation budget exhaustion"
+}

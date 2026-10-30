@@ -1,24 +1,12 @@
 --- a/scripts/cloud/bbr-campaign/campaign.py
 +++ b/scripts/cloud/bbr-campaign/campaign.py
-@@ -62,8 +62,8 @@
-         raise ValueError('hourly_usd is below the conservative published-price floor')
-     total = (number(request, 'spent_usd') + number(request, 'reserve_usd')
-              + number(request, 'hourly_usd', Decimal('0.01')) * minutes / 60)
+@@ -65,2 +65,2 @@
 -    if total > 150:
 -        raise ValueError('projected cost exceeds the $150 campaign allowance')
 +    if total > 200:
 +        raise ValueError('projected cost exceeds the $200 campaign allowance')
-     return {'projected_total_usd': float(total), 'reserved_usd': float(
-         number(request, 'hourly_usd') * minutes / 60 + number(request, 'reserve_usd'))}
- 
 --- a/cloud/gcp/bbr-campaign/main.tf
 +++ b/cloud/gcp/bbr-campaign/main.tf
-@@ -32,7 +32,7 @@
-   amount {
-     specified_amount {
-       currency_code = "USD"
+@@ -35 +35 @@
 -      units         = "150"
 +      units         = "200"
-     }
-   }
-   dynamic "threshold_rules" {

@@ -1,0 +1,145 @@
+{
+  "source": "23c83b9896980511286ca8b81cd632f7ec56afed",
+  "platform": "darwin/arm64",
+  "kind": "local bounded correctness only",
+  "commands": [
+    {
+      "argv": [
+        "go",
+        "test",
+        "-count=1",
+        "-run",
+        "^(TestCongestionControlV1ValidationAndCopy|TestCongestionControlV1IndependentConnections|TestCongestionControlV1DefaultReno|TestCongestionControlV1Diagnostics|TestCongestionControlV1DiagnosticsReno|TestCongestionControlV1PerClientReplacement|TestCongestionControlV1RealStreamAndDatagram|TestCongestionControlV1MigrationKeepsIdentity)$",
+        "."
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate",
+      "started_at": "2026-10-30T00:58:22.649538+00:00",
+      "finished_at": "2026-10-30T00:58:23.223856+00:00",
+      "elapsed_seconds": 0.5743296250002459,
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/quic-go/quic-go\t0.284s\n"
+    },
+    {
+      "argv": [
+        "go",
+        "mod",
+        "tidy"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-upstream",
+      "started_at": "2026-10-30T00:58:23.224630+00:00",
+      "finished_at": "2026-10-30T00:58:23.934976+00:00",
+      "elapsed_seconds": 0.7103562080010306,
+      "exit_code": 0,
+      "output": "go: downloading golang.org/x/net v0.56.0\n"
+    },
+    {
+      "argv": [
+        "go",
+        "version"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-upstream",
+      "started_at": "2026-10-30T00:58:23.935232+00:00",
+      "finished_at": "2026-10-30T00:58:23.942121+00:00",
+      "elapsed_seconds": 0.006899250001879409,
+      "exit_code": 0,
+      "output": "go version go1.27.3 darwin/arm64\n"
+    },
+    {
+      "argv": [
+        "go",
+        "list",
+        "-m",
+        "-json",
+        "github.com/quic-go/quic-go"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-upstream",
+      "started_at": "2026-10-30T00:58:23.942399+00:00",
+      "finished_at": "2026-10-30T00:58:23.949260+00:00",
+      "elapsed_seconds": 0.006869458000437589,
+      "exit_code": 0,
+      "output": "{\n\t\"Path\": \"github.com/quic-go/quic-go\",\n\t\"Version\": \"v0.62.0\",\n\t\"Time\": \"2026-08-30T06:05:43Z\",\n\t\"Dir\": \"/Users/josh/go/pkg/mod/github.com/quic-go/quic-go@v0.62.0\",\n\t\"GoMod\": \"/Users/josh/go/pkg/mod/cache/download/github.com/quic-go/quic-go/@v/v0.62.0.mod\",\n\t\"GoVersion\": \"1.26.0\",\n\t\"Sum\": \"h1:ZHDjCk5OacATwGvs8PWE97CTvX7AqZiVoW7++ZOXTf8=\",\n\t\"GoModSum\": \"h1:RAro2j2yN9a9EiPACLHT9IB2NXCvGQmmo/alT0yYI0w=\"\n}\n"
+    },
+    {
+      "argv": [
+        "go",
+        "run",
+        ".",
+        "upstream"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-upstream",
+      "started_at": "2026-10-30T00:58:23.949473+00:00",
+      "finished_at": "2026-10-30T00:58:24.863506+00:00",
+      "elapsed_seconds": 0.9140439590009919,
+      "exit_code": 0,
+      "output": "upstream: ordinary connection established; capability and identity assertions passed\n"
+    },
+    {
+      "argv": [
+        "go",
+        "mod",
+        "tidy"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-fork",
+      "started_at": "2026-10-30T00:58:24.864196+00:00",
+      "finished_at": "2026-10-30T00:58:24.896065+00:00",
+      "elapsed_seconds": 0.03188712499832036,
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "argv": [
+        "go",
+        "version"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-fork",
+      "started_at": "2026-10-30T00:58:24.897937+00:00",
+      "finished_at": "2026-10-30T00:58:24.904927+00:00",
+      "elapsed_seconds": 0.006998166001721984,
+      "exit_code": 0,
+      "output": "go version go1.27.3 darwin/arm64\n"
+    },
+    {
+      "argv": [
+        "go",
+        "list",
+        "-m",
+        "-json",
+        "github.com/quic-go/quic-go"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-fork",
+      "started_at": "2026-10-30T00:58:24.906192+00:00",
+      "finished_at": "2026-10-30T00:58:24.913526+00:00",
+      "elapsed_seconds": 0.0073419580003246665,
+      "exit_code": 0,
+      "output": "{\n\t\"Path\": \"github.com/quic-go/quic-go\",\n\t\"Version\": \"v0.62.0\",\n\t\"Replace\": {\n\t\t\"Path\": \"/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate\",\n\t\t\"Dir\": \"/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate\",\n\t\t\"GoMod\": \"/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate/go.mod\",\n\t\t\"GoVersion\": \"1.26.0\"\n\t},\n\t\"Dir\": \"/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate\",\n\t\"GoMod\": \"/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/sources/candidate/go.mod\",\n\t\"GoVersion\": \"1.26.0\"\n}\n"
+    },
+    {
+      "argv": [
+        "go",
+        "run",
+        ".",
+        "reno"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-fork",
+      "started_at": "2026-10-30T00:58:24.913774+00:00",
+      "finished_at": "2026-10-30T00:58:25.240614+00:00",
+      "elapsed_seconds": 0.3268511659989599,
+      "exit_code": 0,
+      "output": "reno: ordinary connection established; capability and identity assertions passed\n"
+    },
+    {
+      "argv": [
+        "go",
+        "run",
+        ".",
+        "bbrv3"
+      ],
+      "cwd": "/Volumes/worktrees/quic-go-fast/stage-a-linux-registration/docs/audits/2026-10-29-bbrv3-stage-a/build/compat-fork",
+      "started_at": "2026-10-30T00:58:25.240965+00:00",
+      "finished_at": "2026-10-30T00:58:25.410464+00:00",
+      "elapsed_seconds": 0.16951033400255255,
+      "exit_code": 0,
+      "output": "bbrv3: ordinary connection established; capability and identity assertions passed\n"
+    }
+  ]
+}

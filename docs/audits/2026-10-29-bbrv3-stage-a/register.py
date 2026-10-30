@@ -57,6 +57,7 @@ def main():
         return
     if args.start_unix_ns is not None:parser.error('--index required')
     registration={'schema':'q2-stage-a-registration-v1','status':'registered-preparation; launch blocked',
+       'artifact_sha256':{name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in ('build-receipt.json','receipt.schema.json','register.py','operations.md','remaining-correctness.json')},
        'experiment_dispatch_authorized':False,'qualification_cases':520,'readiness_map_total':73,
        'source_base':'ec01159a222055f3392ce0e30900c4473cb9261b','plan_commit':'b67cc105fbc5e133c44c0f4df51a60c290c1b422',
        'overlay_sha256':digest()[0],'observations':rows,'total_envelope_seconds':1530,
@@ -74,7 +75,7 @@ def main():
           'conditions':['same overlay and binaries','unchanged settings','valid attributable raw evidence','comparable host/calibration','explicit eligibility decision; cross-lease order limitation retained']},
        'deferred_stage_b_ids':[f'{group}-linux-amd64-{arm}-stream-r1-managed-s635599-p0'
           for group in ('M-DELAY','M-COEX') for arm in ('C-BBR','C-Reno')],
-       'epoch_binding':'For each observation once: epoch=controller time +25s; translate with valid host clock bounds. Bind exact configs/commands and hashes before launch; never reuse attempt paths.',
+       'epoch_binding':'For each observation once: epoch=controller time +25s, identical numeric value on both endpoints; retain bounded clock uncertainty and translate evidence only. Bind exact configs/commands and hashes before launch; never reuse attempt paths.',
        'command_templates':[{'id':r['id'],'commands':commands(r,'START_UNIX_NS')} for r in rows]}
     data=(json.dumps(registration,indent=2)+'\n').encode()
     (ROOT/'registration.json').write_bytes(data)
