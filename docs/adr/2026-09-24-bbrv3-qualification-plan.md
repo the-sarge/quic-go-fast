@@ -1,13 +1,19 @@
 # Qualification readiness and evidence implementation plan
 
 **Date:** 2026-09-24
-**Status:** Q1 complete; Q2 outstanding, pending execution-preflight reconciliation and separate operator dispatch
+**Status:** Q1 complete; full Q2 deferred by owner decision on 2026-10-30, incomplete and not an application-default prerequisite
 **Track:** Q in `QGF-BBR3-20260924`
 **Depends on:** Slice edges below; no implicit track-wide dependency
 **Related:** [Program](2026-09-24-bbrv3-program.md), [accepted design](../designs/bbrv3.md), ADRs [0001](0001-upstream-compatibility.md), [0002](0002-adopt-through-module-replacement.md), [0004](0004-packet-emission-ownership.md), [0007](0007-managed-ecn-qualification.md), [0009](0009-opt-in-bbrv3.md)
 **Normative scope:** Current outcome, boundaries, invariants, evidence, blockers and stop conditions
 **Audit history:** [Handoff audit](../audits/2026-09-24-bbrv3-handoff/README.md)
 **Parent issue:** [#586](https://github.com/the-sarge/quic-go-fast/issues/586); execution child [#599](https://github.com/the-sarge/quic-go-fast/issues/599)
+
+## Owner amendment — GridCast application-default prerequisite
+
+On 2026-10-30 the owner explicitly replaced full Q2 as the GridCast app-default prerequisite with a [bounded application release gate](https://github.com/GridCastIO/gridcast/blob/dad90224fd38f9b8e132dc26c95130eb0eb59840/docs/adr/2026-10-30-bbr-app-default-release-gate.md). Q2 is deferred, not passed or retired as evidence. Preserve its 520-case inventory, candidate/reference choices, prior charges, operational receipts and unresolved results for any separately authorized resumption. Neither Q2's staged pilot nor its billing/resource reconciliation is a prerequisite to the smaller application gate. The historical dispatch conditions below apply only if full Q2 is resumed; they do not reactivate it.
+
+The application gate uses released fast.9 and actual GridCast transfers, including a limited coexistence screen informed by the adverse #808 result. It does not qualify this fork generally, transfer old readiness exceptions, change algorithm/ECN/ownership contracts, or make Q2's different selected candidate an app dependency. Reno remains the fork default and BBR remains experimental and generally unqualified. A later scoped GridCast default is its owner's release decision under the replacement plan. No execution, spending, ledger reset or guard change is authorized here. #619/#645 retain their existing deferred scope and are not application-default prerequisites.
 
 ## Goal
 
@@ -52,7 +58,7 @@ The [design specification](../designs/bbrv3.md) is normative for algorithm/inter
 | Slice | Status/disposition | Delivers | Blocked by | Removes temporary seam |
 | --- | --- | --- | --- | --- |
 | [Q1](#q1) | complete | Establish the bounded native campaign prerequisites | None | None; see slice budget |
-| [Q2](#q2) | pending execution-preflight reconciliation; not dispatched | Run the accepted qualification campaign and publish evidence | Q1, B6 | None; see slice budget |
+| [Q2](#q2) | deferred; not an app-default prerequisite | Run the accepted qualification campaign and publish evidence | Q1, B6 | None; see slice budget |
 
 ## Operating discipline
 
@@ -116,7 +122,7 @@ B6 completed the public opt-in selector after the original private T/B slices; o
 
 ### Q2 — Run the accepted qualification campaign and publish evidence
 
-**Current state:** Outstanding; pending the current dispatch gates and active-budget reconciliation above, followed by separate operator dispatch. This reconciliation is documentation only and does not execute Q2.
+**Current state:** Deferred by the October 30 owner amendment; incomplete and not an app-default prerequisite. Only a separate decision to resume full Q2 reactivates its dispatch gates and cumulative-budget reconciliation.
 
 **What it delivers:** Run the accepted 460 core and 60 completion cases with the complete candidate, native platform pairs and receiver-defined useful delivery, respecting one experiment ledger and hard correctness gates. Publish immutable raw records, per-scenario comparisons, advisory flags, limitations and an adoption decision packet. Produce evidence only: no default switch, consumer rollout or automatic adoption decision.
 
