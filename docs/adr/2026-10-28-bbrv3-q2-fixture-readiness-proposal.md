@@ -1,5 +1,7 @@
 # Q2 staged Linux pilot and conditional readiness proposal
 
+**Current disposition (2026-10-30):** Full Q2 is deferred and no longer a GridCast app-default prerequisite under the [owner amendment](2026-09-24-bbrv3-qualification-plan.md#owner-amendment--gridcast-application-default-prerequisite). This pre-existing preparation record is preserved for a separately authorized Q2 resumption; its next steps are not the application release path and authorize no current dispatch.
+
 **Status:** Proposed for review; not accepted, implemented, allocated or dispatched. **Date:** 2026-10-28; staged revision 2026-10-29. **Owner:** Q2 campaign runner; the operator owns scope acceptance, advancement and dispatch. **Identity:** `QGF-BBR3-20260924/Q2`, [#599](https://github.com/the-sarge/quic-go-fast/issues/599). **Governing contract:** [qualification plan](2026-09-24-bbrv3-qualification-plan.md#q2), accepted at `b67cc105fbc5e133c44c0f4df51a60c290c1b422`, and [execution preflight](2026-10-28-bbrv3-q2-execution-preflight.md). This proposal does not amend that contract or turn historical evidence into current readiness.
 
 ## Review decision requested
