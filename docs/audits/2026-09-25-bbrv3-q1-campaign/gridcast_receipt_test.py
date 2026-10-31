@@ -15,6 +15,10 @@ def receipts():
     peer=dict(result=result)
     observation=dict(Error='',SocketDrops=0,NonCanonical=0,SendErrors=0,MissingTimestamps=0,Stats=dict(PropagationOverflow=0),MaxIngressLagNS=1,MaxEgressLagNS=1,Samples=[dict(UnixNS=i*gate.SECOND,FocalPackets=i,CompetitorPackets=i) for i in range(9,132)])
     router=dict(Config=dict(Scenario='gridcast-coexistence',Phase=0),Profiled=False,Observations=[observation,copy.deepcopy(observation)])
+    router['Activity']=[dict(x,DirectionFocal=[x['FocalPackets'],0],DirectionCompetitor=[x['CompetitorPackets'],0]) for x in observation['Samples']]
+    for x in router['Activity']:
+        x['DirectionFocal']=[x['FocalPackets'],x['FocalPackets']];x['FocalPackets']*=2
+        x['DirectionCompetitor']=[x['CompetitorPackets'],x['CompetitorPackets']];x['CompetitorPackets']*=2
     app=dict(start_unix_ns=0,end_unix_ns=140*gate.SECOND,exit=0)
     return copy.deepcopy(peer),copy.deepcopy(peer),router,app
 
@@ -26,7 +30,9 @@ class ReconcileTests(unittest.TestCase):
     def test_missing_overlap_and_invalid_adapter_cannot_pass(self):
         for mutation in ('flow','adapter','early','clock','delivery','latency','identity'):
             args=receipts();sender,receiver,router,app=args
-            if mutation=='flow':router['Observations'][0]['Samples'][65]['FocalPackets']=64
+            if mutation=='flow':
+                router['Activity'][65]['FocalPackets']=router['Activity'][64]['FocalPackets']
+                router['Activity'][65]['DirectionFocal']=router['Activity'][64]['DirectionFocal'][:]
             if mutation=='adapter':router['Observations'][0]['SocketDrops']=1
             if mutation=='early':app['end_unix_ns']=100*gate.SECOND
             if mutation=='clock':sender['result']['control']['clock_offset_bounds_ns']=[[100,0]]
@@ -49,15 +55,28 @@ class ReconcileTests(unittest.TestCase):
         control.update(unresolved=1,replies=57,latency_ns=[100]*57)
         self.assertEqual(gate.reconcile(*args)['status'],'inconclusive')
 
-    def test_linux_competitor_does_not_need_unscheduled_traffic(self):
-        for phase in (25_000_000,100_000_000,975_000_000):
+    def test_duplex_activity_respects_clock_and_propagation(self):
+        for phase in (-975_000_000,-100_000_000,-25_000_000,25_000_000):
             args=receipts()
             args[0]['result']['control']['clock_offset_bounds_ns']=[[-50_000_000,50_000_000]]
-            for obs in args[2]['Observations']:
-                obs['Samples']=[dict(UnixNS=i*gate.SECOND-phase,FocalPackets=i,CompetitorPackets=max(0,min(120*gate.SECOND,(i-10)*gate.SECOND-phase))) for i in range(8,134)]
+            samples=[]
+            for i in range(8,134):
+                at=i*gate.SECOND+phase
+                forward=max(0,min(120*gate.SECOND,at-10*gate.SECOND))
+                reverse=max(0,min(120*gate.SECOND,at-10*gate.SECOND-50_000_000))
+                samples.append(dict(UnixNS=at,FocalPackets=2*i,CompetitorPackets=forward+reverse,DirectionFocal=[i,i],DirectionCompetitor=[forward,reverse]))
+            args[2]['Activity']=samples
             with self.subTest(phase=phase):self.assertEqual(gate.reconcile(*args)['status'],'reconciled')
-            args[2]['Observations'][0]['Samples'][60]['CompetitorPackets']=args[2]['Observations'][0]['Samples'][59]['CompetitorPackets']
+            samples[60]['CompetitorPackets']=samples[59]['CompetitorPackets']
+            samples[60]['DirectionCompetitor']=samples[59]['DirectionCompetitor'][:]
             self.assertEqual(gate.reconcile(*args)['status'],'inconclusive')
+
+    def test_missing_direction_is_not_hidden_by_forward_progress(self):
+        args=receipts()
+        for sample in args[2]['Activity']:
+            sample['DirectionCompetitor'][1]=0
+            sample['CompetitorPackets']=sum(sample['DirectionCompetitor'])
+        self.assertIn('missing direction traversal during joint window',gate.reconcile(*args)['reasons'])
 
     def test_malformed_cli_is_structured_inconclusive(self):
         for kind in ('offset','run'):

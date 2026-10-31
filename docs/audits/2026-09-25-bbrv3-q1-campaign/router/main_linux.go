@@ -115,6 +115,15 @@ func run() error {
 		ctx, cancel = context.WithDeadline(ctx, measured.Add(time.Duration(c.MeasureSeconds)*time.Second+20*time.Second))
 	}
 	defer cancel()
+	var activity *flowActivity
+	var activityDone chan struct{}
+	var activityResult chan []activitySample
+	if c.AttemptClock != "" {
+		activity = &flowActivity{}
+		activityDone = make(chan struct{})
+		activityResult = make(chan []activitySample, 1)
+		go func() { activityResult <- collectActivity(activity, activityDone) }()
+	}
 	results := make(chan observation, 2)
 	var wg sync.WaitGroup
 	for i, pair := range [][2]side{{c.A, c.B}, {c.B, c.A}} {
@@ -125,7 +134,7 @@ func run() error {
 		wg.Add(1)
 		go func(index int, from, to side, q *model.Queue) {
 			defer wg.Done()
-			r := forward(ctx, measured, index, from, to, q, packetVersion, c.AttemptClock != "")
+			r := forward(ctx, measured, index, from, to, q, packetVersion, c.AttemptClock != "", activity)
 			if r.Error != "" {
 				cancel()
 			}
@@ -133,6 +142,11 @@ func run() error {
 		}(i, pair[0], pair[1], q)
 	}
 	wg.Wait()
+	var activitySamples []activitySample
+	if activity != nil {
+		close(activityDone)
+		activitySamples = <-activityResult
+	}
 	close(results)
 	var observations []observation
 	failed := false
@@ -157,7 +171,8 @@ func run() error {
 		Source        string
 		GoVersion     string
 		ClockError    string
-	}{c, observations, *profile != "", *version, sourceRevision, runtime.Version(), clockError}, "", "  ")
+		Activity      []activitySample `json:",omitempty"`
+	}{c, observations, *profile != "", *version, sourceRevision, runtime.Version(), clockError, activitySamples}, "", "  ")
 	if e != nil {
 		return e
 	}
@@ -188,7 +203,7 @@ func socket(name string) (int, *net.Interface, error) {
 	return fd, nic, nil
 }
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
-func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion, gate bool) observation {
+func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion, gate bool, activity *flowActivity) observation {
 	o := observation{Direction: fmt.Sprintf("%s->%s", from.Interface, to.Interface)}
 	o.Samples = append(o.Samples, sample{UnixNS: time.Now().UnixNano()})
 	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), version, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
@@ -369,6 +384,7 @@ loop:
 			send(q.Advance(at))
 			competitor := isCompetitor(h.Src, h.Dst, fromIP, toIP, fromComp, toComp)
 			if h.Protocol == 17 {
+				activity.record(index, competitor)
 				if competitor {
 					o.CompetitorPackets++
 				} else {

@@ -37,18 +37,26 @@ def reconcile(sender, receiver, router, application):
     require(len(router['Observations'])==2, 'missing router direction')
     for observation in router['Observations']:
         require(not observation['Error'] and not any(observation[k] for k in ('SocketDrops','NonCanonical','SendErrors','MissingTimestamps')) and observation['Stats']['PropagationOverflow']==0 and observation['MaxIngressLagNS']<=5_000_000 and observation['MaxEgressLagNS']<=5_000_000, 'router adapter validity failure')
-        samples=observation['Samples']
-        require(bool(samples) and samples[0]['UnixNS']<=earliest and samples[-1]['UnixNS']>=latest, 'router observations do not bracket joint window')
-        relevant=[(a,b) for a,b in zip(samples,samples[1:]) if a['UnixNS']<latest and b['UnixNS']>earliest]
-        require(bool(relevant), 'no joint activity observations')
-        for a,b in relevant:
-            require(0<b['UnixNS']-a['UnixNS']<=2*SECOND, 'missing router sampling interval')
-            require(b['FocalPackets']>a['FocalPackets'], 'missing focal activity during joint interval')
-            # The competitor and router share the Linux clock; its engine waits
-            # until start and stops at end. Do not demand pre-start traffic.
-            if a['UnixNS']<end and b['UnixNS']>start:
-                require(b['CompetitorPackets']>a['CompetitorPackets'], 'missing competitor activity during joint interval')
-    return dict(status='inconclusive' if reasons else 'reconciled', reasons=sorted(set(reasons)), warmup_start_unix_ns=start, measured_start_unix_ns=measured, measured_end_unix_ns=end, peer_clock_offset_bounds_ns=[lo,hi], useful_bytes=delivery['useful_bytes'],per_second_bytes=bins,control_latency_ns=control['latency_ns'],control_skipped=control['skipped'],control_unresolved=control['unresolved'],activity_evidence='cumulative canonical UDP packet counts per router sampling interval; not steady GridCast useful bytes')
+    # One synchronized duplex snapshot is the flow-activity representation.
+    # Direction-specific observations still own queue traversal and validity.
+    samples=router['Activity']
+    require(bool(samples) and samples[0]['UnixNS']<=earliest and samples[-1]['UnixNS']>=latest, 'router observations do not bracket joint window')
+    relevant=[(a,b) for a,b in zip(samples,samples[1:]) if a['UnixNS']<latest and b['UnixNS']>earliest]
+    require(bool(relevant), 'no joint activity observations')
+    for a,b in relevant:
+        require(0<b['UnixNS']-a['UnixNS']<=2*SECOND, 'missing router sampling interval')
+        for counter,directions in (('FocalPackets','DirectionFocal'),('CompetitorPackets','DirectionCompetitor')):
+            require(len(a[directions])==len(b[directions])==2 and sum(a[directions])==a[counter] and sum(b[directions])==b[counter] and all(y>=x for x,y in zip(a[directions],b[directions])), 'inconsistent duplex activity counters')
+        require(b['FocalPackets']>a['FocalPackets'], 'missing focal activity during joint interval')
+        # Scheduled production shares the router's Linux clock. Reverse ingress
+        # may begin later because it is causally downstream of forward traffic.
+        if a['UnixNS']<end and b['UnixNS']>start:
+            require(b['CompetitorPackets']>a['CompetitorPackets'], 'missing competitor activity during joint interval')
+    if relevant:
+        first,last=relevant[0][0],relevant[-1][1]
+        for directions in ('DirectionFocal','DirectionCompetitor'):
+            require(all(y>x for x,y in zip(first[directions],last[directions])), 'missing direction traversal during joint window')
+    return dict(status='inconclusive' if reasons else 'reconciled', reasons=sorted(set(reasons)), warmup_start_unix_ns=start, measured_start_unix_ns=measured, measured_end_unix_ns=end, peer_clock_offset_bounds_ns=[lo,hi], useful_bytes=delivery['useful_bytes'],per_second_bytes=bins,control_latency_ns=control['latency_ns'],control_skipped=control['skipped'],control_unresolved=control['unresolved'],activity_evidence='synchronized duplex canonical UDP packet counts per router sampling interval; not steady GridCast useful bytes')
 
 
 def main():
