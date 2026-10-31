@@ -25,23 +25,10 @@ import (
 	"q1campaign/model"
 )
 
-type side struct {
-	Interface  string
-	PeerMAC    string
-	Focal      string
-	Competitor string
-}
-type config struct {
-	A, B           side
-	Scenario       string
-	StartUnixNS    int64
-	MeasureSeconds int
-	Phase          int
-	Seed           uint64
-}
 type sample struct {
-	UnixNS int64
-	Stats  model.Stats
+	UnixNS                          int64
+	Stats                           model.Stats
+	FocalPackets, CompetitorPackets uint64
 }
 type observation struct {
 	Direction                                          string
@@ -52,6 +39,7 @@ type observation struct {
 	MaxKernelToReadNS, MaxReadToAdmissionNS            int64
 	MissingTimestamps                                  uint64
 	Samples                                            []sample
+	FocalPackets, CompetitorPackets                    uint64
 	Stats                                              model.Stats
 }
 
@@ -96,7 +84,10 @@ func run() error {
 	if e = json.Unmarshal(b, &c); e != nil {
 		return e
 	}
-	if c.MeasureSeconds < 1 || c.MeasureSeconds > 300 || time.Until(time.Unix(0, c.StartUnixNS)) > 2*time.Minute || *output == "" {
+	if err := validateConfig(c, time.Now()); err != nil {
+		return err
+	}
+	if *output == "" {
 		return fmt.Errorf("invalid bounded configuration")
 	}
 	forwarding, e := os.ReadFile("/proc/sys/net/ipv4/ip_forward")
@@ -110,7 +101,11 @@ func run() error {
 	// Keep the path alive through the fixture's bounded 15-second receipt/export
 	// deadline, plus five seconds of shutdown margin. Measurement still ends at
 	// MeasureSeconds; this tail is charged as command/teardown overhead.
-	ctx, cancel := context.WithDeadline(ctx, measured.Add(time.Duration(c.MeasureSeconds)*time.Second+20*time.Second))
+	deadline := measured.Add(time.Duration(c.MeasureSeconds)*time.Second + 20*time.Second)
+	if c.LifetimeSeconds != 0 {
+		deadline = time.Now().Add(time.Duration(c.LifetimeSeconds) * time.Second)
+	}
+	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	results := make(chan observation, 2)
 	var wg sync.WaitGroup
@@ -179,6 +174,7 @@ func socket(name string) (int, *net.Interface, error) {
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
 func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion) observation {
 	o := observation{Direction: fmt.Sprintf("%s->%s", from.Interface, to.Interface)}
+	o.Samples = append(o.Samples, sample{UnixNS: time.Now().UnixNano()})
 	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), version, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
 	if e != nil {
 		o.Error = e.Error()
@@ -316,7 +312,7 @@ loop:
 		case <-ticker.C:
 			send(q.Advance(time.Since(epoch)))
 		case now := <-samples.C:
-			o.Samples = append(o.Samples, sample{now.UnixNano(), q.Stats})
+			o.Samples = append(o.Samples, sample{now.UnixNano(), q.Stats, o.FocalPackets, o.CompetitorPackets})
 		case a := <-incoming:
 			if a.frame == nil {
 				o.Error = "packet receive failed"
@@ -351,7 +347,15 @@ loop:
 			}
 			at := time.Since(epoch)
 			send(q.Advance(at))
-			q.Admit(at, model.Packet{Frame: a.frame[:14+h.TotalLen], Bytes: a.frame[14 : 14+h.TotalLen], ECN: uint8(h.TOS & 3), Competitor: (fromComp != nil && h.Src.Equal(fromComp)) || (toComp != nil && h.Dst.Equal(toComp))})
+			competitor := isCompetitor(h.Src, h.Dst, fromIP, toIP, fromComp, toComp)
+			if h.Protocol == 17 {
+				if competitor {
+					o.CompetitorPackets++
+				} else {
+					o.FocalPackets++
+				}
+			}
+			q.Admit(at, model.Packet{Frame: a.frame[:14+h.TotalLen], Bytes: a.frame[14 : 14+h.TotalLen], ECN: uint8(h.TOS & 3), Competitor: competitor})
 		}
 	}
 	cancel()
@@ -368,6 +372,7 @@ loop:
 		// The library fills only the counter set for the selected ring ABI.
 		o.SocketDrops = uint64(stats.Drops()) + uint64(statsV3.Drops())
 	}
+	o.Samples = append(o.Samples, sample{time.Now().UnixNano(), q.Stats, o.FocalPackets, o.CompetitorPackets})
 	o.Stats = q.Stats
 	return o
 }
