@@ -19,3 +19,7 @@ The accepted quic-go-fast evidence campaign owns qualification; consumer changes
 ## Narrow compatibility exception
 
 Adding private per-Config selection changes the struct field count and makes external positional Config literals invalid. This is a narrow exception to an absolute reading of ADR 0001's source-compatibility promise: existing keyed literals, fields, methods and runtime contracts remain stable, while positional literals require conversion to keyed form. The agent selects this under the owner's delegated design authority and requires disclosure in eventual release notes. A process-global side table or transport-only selection was rejected because it complicates lifetime/copy semantics or loses the per-connection configuration contract. Upstream-compatible consumers use keyed configuration plus structural capability detection.
+
+## Consumer release evidence amendment — 2026-10-30
+
+The [qualification-plan amendment](2026-09-24-bbrv3-qualification-plan.md#owner-amendment--gridcast-application-default-prerequisite) defers full Q2 and removes it as the GridCast app-default prerequisite in favor of the bounded application release gate. General controller qualification remains incomplete. This changes consumer adoption sequencing only; Reno remains the fork default, explicit selection remains local, and algorithm, managed ECN, protocol and ownership obligations are unchanged. Historical adverse coexistence findings remain evidence for the application decision.
