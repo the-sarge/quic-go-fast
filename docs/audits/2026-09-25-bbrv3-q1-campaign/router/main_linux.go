@@ -34,6 +34,7 @@ type observation struct {
 	Direction                                          string
 	Error                                              string
 	ReadPackets, NonCanonical, SocketDrops, SendErrors uint64
+	CancellationDiscards                               uint64
 	MaxIngressLagNS, MaxEgressLagNS                    int64
 	MaxIngressAtNS, MaxEgressAtNS                      int64
 	MaxKernelToReadNS, MaxReadToAdmissionNS            int64
@@ -96,16 +97,23 @@ func run() error {
 	}
 	runtime.GOMAXPROCS(4)
 	measured := time.Now().Add(time.Until(time.Unix(0, c.StartUnixNS)))
+	if c.AttemptClock != "" {
+		measured = time.Now()
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	// Keep the path alive through the fixture's bounded 15-second receipt/export
 	// deadline, plus five seconds of shutdown margin. Measurement still ends at
 	// MeasureSeconds; this tail is charged as command/teardown overhead.
-	deadline := measured.Add(time.Duration(c.MeasureSeconds)*time.Second + 20*time.Second)
-	if c.LifetimeSeconds != 0 {
-		deadline = time.Now().Add(time.Duration(c.LifetimeSeconds) * time.Second)
+	var cancel context.CancelFunc
+	var clockResult chan error
+	if c.AttemptClock != "" {
+		ctx, cancel = context.WithCancel(ctx)
+		clockResult = make(chan error, 1)
+		go func() { clockResult <- watchAttempt(ctx, c.AttemptClock); cancel() }()
+	} else {
+		ctx, cancel = context.WithDeadline(ctx, measured.Add(time.Duration(c.MeasureSeconds)*time.Second+20*time.Second))
 	}
-	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	results := make(chan observation, 2)
 	var wg sync.WaitGroup
@@ -117,7 +125,7 @@ func run() error {
 		wg.Add(1)
 		go func(index int, from, to side, q *model.Queue) {
 			defer wg.Done()
-			r := forward(ctx, measured, index, from, to, q, packetVersion)
+			r := forward(ctx, measured, index, from, to, q, packetVersion, c.AttemptClock != "")
 			if r.Error != "" {
 				cancel()
 			}
@@ -134,6 +142,13 @@ func run() error {
 			failed = true
 		}
 	}
+	clockError := ""
+	if clockResult != nil {
+		if err := <-clockResult; err != nil {
+			clockError = err.Error()
+			failed = true
+		}
+	}
 	data, e := json.MarshalIndent(struct {
 		Config        config
 		Observations  []observation
@@ -141,7 +156,8 @@ func run() error {
 		PacketVersion int
 		Source        string
 		GoVersion     string
-	}{c, observations, *profile != "", *version, sourceRevision, runtime.Version()}, "", "  ")
+		ClockError    string
+	}{c, observations, *profile != "", *version, sourceRevision, runtime.Version(), clockError}, "", "  ")
 	if e != nil {
 		return e
 	}
@@ -172,7 +188,7 @@ func socket(name string) (int, *net.Interface, error) {
 	return fd, nic, nil
 }
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
-func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion) observation {
+func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion, gate bool) observation {
 	o := observation{Direction: fmt.Sprintf("%s->%s", from.Interface, to.Interface)}
 	o.Samples = append(o.Samples, sample{UnixNS: time.Now().UnixNano()})
 	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), version, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
@@ -258,7 +274,9 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 		var emitted observation
 		for p := range outgoing {
 			if ctx.Err() != nil {
-				emitted.SendErrors++
+				errors, discards := cancellationCounts(gate)
+				emitted.SendErrors += errors
+				emitted.CancellationDiscards += discards
 				continue
 			}
 
@@ -299,7 +317,9 @@ func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *
 			select {
 			case outgoing <- p:
 			case <-ctx.Done():
-				o.SendErrors++
+				errors, discards := cancellationCounts(gate)
+				o.SendErrors += errors
+				o.CancellationDiscards += discards
 			}
 		}
 	}
@@ -363,6 +383,7 @@ loop:
 	close(outgoing)
 	emitted := <-emitDone
 	o.SendErrors += emitted.SendErrors
+	o.CancellationDiscards += emitted.CancellationDiscards
 	o.MaxEgressLagNS = emitted.MaxEgressLagNS
 	o.MaxEgressAtNS = emitted.MaxEgressAtNS
 	stats, statsV3, err := rx.SocketStats()
@@ -375,4 +396,48 @@ loop:
 	o.Samples = append(o.Samples, sample{time.Now().UnixNano(), q.Stats, o.FocalPackets, o.CompetitorPackets})
 	o.Stats = q.Stats
 	return o
+}
+
+// The Linux lifecycle publishes this clock once immediately before sender exec.
+// Router preparation consumes none of the sender's 600 seconds.
+func watchAttempt(ctx context.Context, path string) error {
+	preparation := time.NewTimer(1800 * time.Second)
+	defer preparation.Stop()
+	tick := time.NewTicker(20 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			c, err := parseAttemptClock(data)
+			if err != nil {
+				return err
+			}
+			var now unix.Timespec
+			if err = unix.ClockGettime(unix.CLOCK_MONOTONIC, &now); err != nil {
+				return err
+			}
+			remaining := time.Duration(c.DeadlineMonotonicNS - now.Nano())
+			if remaining <= 0 {
+				return nil
+			}
+			deadline := time.NewTimer(remaining)
+			defer deadline.Stop()
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-deadline.C:
+				return nil
+			}
+		}
+		if !os.IsNotExist(err) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-preparation.C:
+			return fmt.Errorf("sender clock not published before preparation expired")
+		case <-tick.C:
+		}
+	}
 }

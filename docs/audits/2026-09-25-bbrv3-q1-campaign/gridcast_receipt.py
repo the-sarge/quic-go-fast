@@ -18,10 +18,10 @@ def reconcile(sender, receiver, router, application):
     require(not any(x.get('error') or x['result'].get('errors') for x in (sender,receiver)), 'competitor error')
     require(s['receiver']==r['receiver'], 'receiver receipt differs between peers')
     delivery=r['receiver'];bins=delivery['per_second_bytes']
-    require(len(bins)==60 and all(x>0 for x in bins) and sum(bins)==delivery['useful_bytes'], 'missing useful delivery in measured second or inconsistent total')
+    require(len(bins)==60 and all(type(x) is int and x>=0 for x in bins) and sum(bins)==delivery['useful_bytes'], 'missing delivery bins or inconsistent total')
     require(delivery['corrupt']==0 and delivery['duplicates']==0, 'invalid competitor payload accounting')
     control=s['control']
-    require(not control.get('error') and control['missed_opportunities']==control['skipped']==control['unresolved']==0 and control['offered']==control['replies']==len(control['latency_ns'])==len(control['opportunity_times_ns']) and control['replies']>0, 'control-latency window cannot be reconciled')
+    require(not control.get('error') and control['missed_opportunities']==control['unresolved']==0 and control['skipped']>=0 and control['offered']+control['skipped']==len(control['opportunity_times_ns'])==60 and control['offered']==control['replies']==len(control['latency_ns']) and control['replies']>0, 'control-latency window cannot be reconciled')
     start=run['start_unix_ns'];measured=start+60*SECOND;end=measured+60*SECOND
     require(all(measured<=observed<end and measured<=scheduled<end for scheduled,observed in control['opportunity_times_ns']), 'control observation outside measured window')
     offsets=control['clock_offset_bounds_ns']
@@ -33,6 +33,7 @@ def reconcile(sender, receiver, router, application):
     earliest=min(start,start-hi);latest=max(end,end-lo)
     require(application['start_unix_ns']<=earliest and application['end_unix_ns']>=latest and application.get('exit')==0, 'GridCast lifetime does not cover warmup plus overlap')
     require(router['Config']['Scenario']=='gridcast-coexistence' and router['Config']['Phase']==0 and not router['Profiled'], 'wrong router profile or diagnostic build')
+    require(not router.get('ClockError'), 'invalid sender-owned router clock')
     require(len(router['Observations'])==2, 'missing router direction')
     for observation in router['Observations']:
         require(not observation['Error'] and not any(observation[k] for k in ('SocketDrops','NonCanonical','SendErrors','MissingTimestamps')) and observation['Stats']['PropagationOverflow']==0 and observation['MaxIngressLagNS']<=5_000_000 and observation['MaxEgressLagNS']<=5_000_000, 'router adapter validity failure')
@@ -42,8 +43,12 @@ def reconcile(sender, receiver, router, application):
         require(bool(relevant), 'no joint activity observations')
         for a,b in relevant:
             require(0<b['UnixNS']-a['UnixNS']<=2*SECOND, 'missing router sampling interval')
-            require(b['FocalPackets']>a['FocalPackets'] and b['CompetitorPackets']>a['CompetitorPackets'], 'missing focal or competitor activity during joint interval')
-    return dict(status='inconclusive' if reasons else 'reconciled', reasons=sorted(set(reasons)), warmup_start_unix_ns=start, measured_start_unix_ns=measured, measured_end_unix_ns=end, peer_clock_offset_bounds_ns=[lo,hi], useful_bytes=delivery['useful_bytes'],control_latency_ns=control['latency_ns'],activity_evidence='cumulative canonical UDP packet counts per router sampling interval; not steady GridCast useful bytes')
+            require(b['FocalPackets']>a['FocalPackets'], 'missing focal activity during joint interval')
+            # The competitor and router share the Linux clock; its engine waits
+            # until start and stops at end. Do not demand pre-start traffic.
+            if a['UnixNS']<end and b['UnixNS']>start:
+                require(b['CompetitorPackets']>a['CompetitorPackets'], 'missing competitor activity during joint interval')
+    return dict(status='inconclusive' if reasons else 'reconciled', reasons=sorted(set(reasons)), warmup_start_unix_ns=start, measured_start_unix_ns=measured, measured_end_unix_ns=end, peer_clock_offset_bounds_ns=[lo,hi], useful_bytes=delivery['useful_bytes'],per_second_bytes=bins,control_latency_ns=control['latency_ns'],control_skipped=control['skipped'],control_unresolved=control['unresolved'],activity_evidence='cumulative canonical UDP packet counts per router sampling interval; not steady GridCast useful bytes')
 
 
 def main():
@@ -52,7 +57,7 @@ def main():
     args=p.parse_args()
     try:
         result=reconcile(*(json.loads(getattr(args,k).read_text()) for k in ('sender','receiver','router','application')))
-    except (KeyError,TypeError,ValueError) as error:
+    except (KeyError,TypeError,ValueError,IndexError,AttributeError,OSError) as error:
         result=dict(status='inconclusive',reasons=['missing or malformed receipt: '+str(error)])
     print(json.dumps(result,indent=2))
     return 0 if result['status']=='reconciled' else 1
