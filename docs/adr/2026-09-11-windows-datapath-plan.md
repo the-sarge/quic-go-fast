@@ -144,4 +144,4 @@ Universal criteria carry the per-slice domains, owners, guarantee levels, and te
 
 ## Operating Discipline
 
-Follow the shared review-loop and contract-closure baselines supplied by `$implement-architecture-slice` for every slice/PR; no repository-specific overlay exists. Track-specific stops: the rejected direct-Winsock alternative must not be resurrected without operator decision; the Server 2022 ancillary policy is binding; reverts run W3, W2, W1 in that order. Vocabulary per the root `CONTEXT.md`.
+Follow the shared review-loop and contract-closure baselines supplied by `$implement-architecture-slice` for every slice/PR; no repository-specific overlay exists. Track-specific stops: the rejected direct-Winsock alternative must not be resurrected without operator decision; the Server 2022 ancillary policy is binding; reverts run W3, W2, W1 in that order. Vocabulary per the root `GLOSSARY.md`.

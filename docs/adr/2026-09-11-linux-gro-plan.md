@@ -111,4 +111,4 @@ Universal criteria: domains, owners, guarantee levels, and terminating evidence 
 
 ## Operating Discipline
 
-Follow the shared review-loop and contract-closure baselines supplied by `$implement-architecture-slice` for every slice/PR; no repository-specific overlay exists. Track-specific stops: the datapath offload plan's storage and gating rules are binding; a change to the split seam's ownership, the ADR 0005 amendment boundary, or the caller-owned-socket rule returns for decision. Vocabulary: coalesced receive, receive batch, and segmented send are defined in the root `CONTEXT.md`.
+Follow the shared review-loop and contract-closure baselines supplied by `$implement-architecture-slice` for every slice/PR; no repository-specific overlay exists. Track-specific stops: the datapath offload plan's storage and gating rules are binding; a change to the split seam's ownership, the ADR 0005 amendment boundary, or the caller-owned-socket rule returns for decision. Vocabulary: coalesced receive, receive batch, and segmented send are defined in the root `GLOSSARY.md`.

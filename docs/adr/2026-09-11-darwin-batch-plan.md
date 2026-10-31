@@ -113,4 +113,4 @@ Universal criteria carry the per-slice domains, owners, guarantee levels, and te
 
 ## Operating Discipline
 
-Follow the shared review-loop and contract-closure baselines supplied by `$implement-architecture-slice` for every slice/PR; no repository-specific overlay exists. Track-specific stops: the program plan's build-tag, allowlist, and self-check contract is binding; any weakening of fail-closed qualification, any iOS exposure, or any send-queue ownership change beyond ADR 0004 returns for decision. Vocabulary per the root `CONTEXT.md`.
+Follow the shared review-loop and contract-closure baselines supplied by `$implement-architecture-slice` for every slice/PR; no repository-specific overlay exists. Track-specific stops: the program plan's build-tag, allowlist, and self-check contract is binding; any weakening of fail-closed qualification, any iOS exposure, or any send-queue ownership change beyond ADR 0004 returns for decision. Vocabulary per the root `GLOSSARY.md`.
