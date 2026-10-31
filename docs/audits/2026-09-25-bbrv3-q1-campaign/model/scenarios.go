@@ -12,6 +12,20 @@ func Scenario(id string, forward bool, phase int, seed uint64, mtu int) (*Queue,
 	if mtu != 1460 || phase < 0 || phase > 12 || (phase%3 != 0 && !(id == "L1" && phase == 2)) {
 		return nil, fmt.Errorf("expected MTU 1460 and core phase 0,3,6,9,12 or L1 completion phase 2")
 	}
+	// The application gate has two fixed rows, independent of historical S6/L6.
+	if id == "gridcast-loss" || id == "gridcast-coexistence" {
+		if phase != 0 {
+			return nil, fmt.Errorf("GridCast profiles require phase zero")
+		}
+		d := Direction{Rate: 100000000, Capacity: 1251220, Delay: 50 * time.Millisecond, Seed: seed}
+		if id == "gridcast-loss" {
+			d.Delay = 40 * time.Millisecond
+			if forward {
+				d.Loss = .001
+			}
+		}
+		return New(d, Schedule{}), nil
+	}
 	rates := map[string][3]float64{
 		"S2": {20, 100, 150}, "S3": {1000, 1000, 200}, "S4": {20, 100, 250}, "S5": {100, 100, 100}, "S6": {100, 100, 100}, "S7": {100, 100, 100}, "S8": {100, 100, 100},
 		"L0": {20, 100, 40}, "L1": {20, 100, 40}, "L2": {20, 100, 40}, "L3": {5, 30, 50}, "L4": {4, 4, 1000}, "L5": {.256, .256, 1000}, "L6": {100, 100, 100}, "L7": {100, 100, 100}, "L8": {100, 100, 100},

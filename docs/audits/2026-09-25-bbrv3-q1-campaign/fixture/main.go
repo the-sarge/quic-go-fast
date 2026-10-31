@@ -67,6 +67,9 @@ func execute() error {
 	if e = json.Unmarshal(b, &cfg); e != nil {
 		return e
 	}
+	if *tcp && cfg.GridCastGate {
+		return fmt.Errorf("GridCast gate requires the QUIC Reno competitor")
+	}
 	if *tcp {
 		return executeTCP(cfg, *role, *local, *peer, *output)
 	}
@@ -80,6 +83,12 @@ func execute() error {
 	tr, closeTransport, e := newTransport(*local, *managed)
 	if e != nil {
 		return e
+	}
+	if cfg.GridCastGate {
+		if e = tr.ConfigureAckThresholdV1(2); e != nil {
+			closeTransport()
+			return e
+		}
 	}
 	tlsConfig, e := loadTLS(*cert, *key, *role == "receive")
 	if e != nil {

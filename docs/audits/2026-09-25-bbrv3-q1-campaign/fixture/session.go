@@ -27,6 +27,7 @@ import (
 
 type Run struct {
 	ID               string `json:"id"`
+	GridCastGate     bool   `json:"gridcast_gate,omitempty"`
 	Controller       string `json:"controller"`
 	Workload         string `json:"workload"`
 	StartUnixNS      int64  `json:"start_unix_ns"`
@@ -46,6 +47,9 @@ func (r Run) end() time.Time {
 	return r.measuredStart().Add(time.Duration(r.MeasureMS) * time.Millisecond)
 }
 func (r Run) validate() error {
+	if r.GridCastGate && (r.Controller != "reno" || r.Workload != "stream" || r.WarmupMS != 60000 || r.MeasureMS != 60000 || r.CompletionBytes != 0 || r.BulkPauseStartMS != 0 || r.BulkPauseEndMS != 0) {
+		return fmt.Errorf("GridCast competitor requires Reno stream and fixed 60s warmup/60s measurement without pauses")
+	}
 	if r.ID == "" || len(r.ID) > 128 || (r.Controller != "reno" && r.Controller != "bbrv3") || (r.Workload != "stream" && r.Workload != "datagram") {
 		return fmt.Errorf("invalid run identity/controller/workload")
 	}
