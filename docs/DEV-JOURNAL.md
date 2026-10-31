@@ -8028,3 +8028,18 @@ The [audit's remaining decision](audits/2026-10-30-stage-a-calibration-repair/RE
 **Decisions:** Full Q2 is deferred outside the application-default prerequisite; ordinary measurements are accepted with integrity and Reno-coexistence requirements intact. The [canonical fixture/evidence decision](https://github.com/GridCastIO/gridcast/issues/1705#issuecomment-6537913556) owns the details. No traffic, fixture deployment or default change occurred.
 
 **Next:** [Adapt the existing fixture for the bounded GridCast BBR release check](https://github.com/GridCastIO/gridcast/issues/1706), then complete the existing registration; that issue is the live work pointer.
+
+---
+
+## GridCast fixed fixture companion merged - 2026-10-31 01:04 EDT
+
+**Main:** `fbd4c6ec81a9`
+**Actor:** Codex
+
+**Completed:** Merged [Add fixed GridCast BBR release profiles to existing Q1 fixtures](https://github.com/the-sarge/quic-go-fast/pull/1062). The fixed loss/coexistence profiles reuse the Q1 model, raw router and Reno competitor. Duplex activity receipts now use synchronized per-flow snapshots, and the router follows the admitted Linux sender's absolute 600-second deadline.
+
+**Validation:** Original-review verification cleared all 12 findings. The full four-reviewer replacement panel completed; one second-round adjudication failed semantic validation because it returned a mistyped run ID. The other three adjudications and synthesis completed, with independent dispositions retained in [GRIDCAST-REVIEW.md](audits/2026-09-25-bbrv3-q1-campaign/GRIDCAST-REVIEW.md). Focused Go tests, router race tests, vet, tidy, seven receipt tests and Linux/Darwin builds passed. All 33 hosted checks passed on final head `6ab370c509401be628dd5a90b2bf538da9c4a141` before merge. Built artifacts retain that source identity and verified hashes.
+
+**Decisions:** A combined diagnostic reason can mention lifetime coverage when the original GridCast exit failed; the original process receipt remains authoritative. Rechecked against merged `fbd4c6ec81a929ac5a9425fd8e716989733bb4d6`, this minor evidence-aid wording limitation remains documented without an additional maintenance ticket. No application or competitor traffic ran, no default changed, and this does not establish live path validity.
+
+**Next:** Finish the infrastructure companion, actual temporary LAN allocation and registration handoff under [Adapt the existing fixture for the bounded GridCast BBR release check](https://github.com/GridCastIO/gridcast/issues/1706). Registration and operator dispatch remain separate.
