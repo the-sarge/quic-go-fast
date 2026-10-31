@@ -8013,3 +8013,18 @@ No calibration pass, replacement paid lease, comparative observation or broad ca
 ### Next
 
 The [audit's remaining decision](audits/2026-10-30-stage-a-calibration-repair/README.md#remaining-decision) requires a finite calibration protocol and actual isolated Linux/amd64 validation before any separately authorized replacement lease; local loopback stress does not certify the cloud path.
+
+---
+
+## Q2 deferral for GridCast adoption merged - 2026-10-30 22:57 EDT
+
+**Main:** `921ce90c3a33`
+**Actor:** Codex
+
+**Completed:** Merged [Defer full Q2 outside the GridCast default release path](https://github.com/the-sarge/quic-go-fast/pull/1060) at `921ce90c3a33c9308c9b3a5948ede7daef50f4dc`. Q2's historical inventory/accounting remains preserved; Reno remains the fork default and general BBR qualification remains incomplete.
+
+**Validation:** Configured-panel RAS run `20261031T024841-089cd736eb944c10c06bdc18` required no fixes. Exact-head clean-tree, whitespace and changed-document relative-link checks passed. PR-event cross-compilation, Docker interop, lint, unit and integration workflows all passed at `a13c3a81907f9f8f311d5dc41b5b1343050bc7e6` before the guarded squash merge. The pre-existing usage-guide wording observation was rechecked on merged main; it does not change the governing amendment or require a new task.
+
+**Decisions:** Full Q2 is deferred outside the application-default prerequisite; ordinary measurements are accepted with integrity and Reno-coexistence requirements intact. The [canonical fixture/evidence decision](https://github.com/GridCastIO/gridcast/issues/1705#issuecomment-6537913556) owns the details. No traffic, fixture deployment or default change occurred.
+
+**Next:** [Adapt the existing fixture for the bounded GridCast BBR release check](https://github.com/GridCastIO/gridcast/issues/1706), then complete the existing registration; that issue is the live work pointer.
