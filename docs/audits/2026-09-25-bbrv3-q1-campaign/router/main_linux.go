@@ -415,10 +415,9 @@ loop:
 }
 
 // The Linux lifecycle publishes this clock once immediately before sender exec.
-// Router preparation consumes none of the sender's 600 seconds.
+// The admitted Linux supervisor owns preparation expiry under its lifecycle lock.
+// A second local timer could race its sender admission, so wait for clock or custody cancellation.
 func watchAttempt(ctx context.Context, path string) error {
-	preparation := time.NewTimer(1800 * time.Second)
-	defer preparation.Stop()
 	tick := time.NewTicker(20 * time.Millisecond)
 	defer tick.Stop()
 	for {
@@ -451,8 +450,6 @@ func watchAttempt(ctx context.Context, path string) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-preparation.C:
-			return fmt.Errorf("sender clock not published before preparation expired")
 		case <-tick.C:
 		}
 	}

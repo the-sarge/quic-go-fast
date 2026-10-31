@@ -47,3 +47,5 @@ Reconciliation is not the release verdict. The existing paired 0.70 useful-byte 
 ## Source validation
 
 The deterministic tests cover exact rates/queues/delays/loss, seed replay, mixed-flow FIFO capacity and serialization, the old L6 transition time, shared-Mac reverse classification, lifetime restrictions, fixed competitor config and receipt rejection on missing overlap/invalid counters. The existing model and fixture tests also run against the released dependency boundary. Linux router cross-compilation checks the adapter build. These checks do not establish macvlan/offload support, physical propagation, queue calibration or a GridCast result on the new path.
+
+Pre-clock preparation expiry is owned solely by the admitted Linux supervisor under the infrastructure lifecycle lock. The gate router waits for the sender clock or custody cancellation; it does not run an independent preparation timer that could race sender admission. After publication it independently enforces the absolute Linux sender deadline. Gate mode is supported only through the registered infrastructure owner.
