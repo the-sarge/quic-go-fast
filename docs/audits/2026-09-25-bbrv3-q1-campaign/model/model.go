@@ -74,6 +74,10 @@ type Queue struct {
 }
 
 func New(d Direction, s Schedule) *Queue {
+	return newQueue(d, s, 1460)
+}
+
+func newQueue(d Direction, s Schedule, mtu int) *Queue {
 	rate, delay := d.Rate, d.Delay
 	for _, c := range s.Changes {
 		rate = max(rate, c.Rate)
@@ -85,7 +89,7 @@ func New(d Direction, s Schedule) *Queue {
 	if s.Competitors {
 		delay = max(delay, 50*time.Millisecond)
 	}
-	limit := int(math.Ceil(float64(rate)*delay.Seconds()/8)) + d.Capacity + 2*1460
+	limit := int(math.Ceil(float64(rate)*delay.Seconds()/8)) + d.Capacity + 2*mtu
 	return &Queue{PropagationLimit: limit, Direction: d, Schedule: s, lastFinish: -time.Hour, rng: rand.New(rand.NewPCG(d.Seed, d.Seed^0x517cc1b727220a95))}
 }
 func (q *Queue) parameters(at time.Duration) (int64, time.Duration) {

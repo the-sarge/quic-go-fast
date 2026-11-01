@@ -9,13 +9,13 @@ import (
 // Scenario fixes the accepted IP-byte domain and first-phase L3 queue basis.
 // S1 deliberately uses native routing with this emulator stopped.
 func Scenario(id string, forward bool, phase int, seed uint64, mtu int) (*Queue, error) {
-	if mtu != 1460 || phase < 0 || phase > 12 || (phase%3 != 0 && !(id == "L1" && phase == 2)) {
-		return nil, fmt.Errorf("expected MTU 1460 and core phase 0,3,6,9,12 or L1 completion phase 2")
+	if phase < 0 || phase > 12 || (phase%3 != 0 && !(id == "L1" && phase == 2)) {
+		return nil, fmt.Errorf("expected core phase 0,3,6,9,12 or L1 completion phase 2")
 	}
 	// The application gate has two fixed rows, independent of historical S6/L6.
 	if id == "gridcast-loss" || id == "gridcast-coexistence" {
-		if phase != 0 {
-			return nil, fmt.Errorf("GridCast profiles require phase zero")
+		if phase != 0 || mtu != 1500 {
+			return nil, fmt.Errorf("GridCast profiles require MTU 1500 and phase zero")
 		}
 		d := Direction{Rate: 100000000, Capacity: 1251220, Delay: 50 * time.Millisecond, Seed: seed}
 		if id == "gridcast-loss" {
@@ -24,7 +24,10 @@ func Scenario(id string, forward bool, phase int, seed uint64, mtu int) (*Queue,
 				d.Loss = .001
 			}
 		}
-		return New(d, Schedule{}), nil
+		return newQueue(d, Schedule{}, mtu), nil
+	}
+	if mtu != 1460 {
+		return nil, fmt.Errorf("historical profiles require MTU 1460")
 	}
 	rates := map[string][3]float64{
 		"S2": {20, 100, 150}, "S3": {1000, 1000, 200}, "S4": {20, 100, 250}, "S5": {100, 100, 100}, "S6": {100, 100, 100}, "S7": {100, 100, 100}, "S8": {100, 100, 100},

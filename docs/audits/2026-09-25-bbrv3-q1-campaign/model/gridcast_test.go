@@ -9,7 +9,7 @@ import (
 func TestGridCastFixedProfiles(t *testing.T) {
 	for _, id := range []string{"gridcast-loss", "gridcast-coexistence"} {
 		for _, forward := range []bool{true, false} {
-			q, err := Scenario(id, forward, 0, 1701, 1460)
+			q, err := Scenario(id, forward, 0, 1701, 1500)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -35,7 +35,7 @@ func TestGridCastFixedProfiles(t *testing.T) {
 			}
 		}
 	}
-	q, _ := Scenario("gridcast-coexistence", true, 0, 17, 1460)
+	q, _ := Scenario("gridcast-coexistence", true, 0, 17, 1500)
 	for i := 0; i < 857; i++ {
 		if !q.Admit(0, Packet{Bytes: make([]byte, 1460), Competitor: i%2 == 0}) {
 			t.Fatal("early overflow")
@@ -49,7 +49,7 @@ func TestGridCastFixedProfiles(t *testing.T) {
 func TestGridCastLossRepeatableAndHistoricalRowsUnchanged(t *testing.T) {
 	var receipts []Stats
 	for k := 0; k < 2; k++ {
-		q, _ := Scenario("gridcast-loss", true, 0, 1701, 1460)
+		q, _ := Scenario("gridcast-loss", true, 0, 1701, 1500)
 		for i := 0; i < 100000; i++ {
 			at := time.Duration(i) * time.Millisecond
 			q.Advance(at)
@@ -65,7 +65,43 @@ func TestGridCastLossRepeatableAndHistoricalRowsUnchanged(t *testing.T) {
 	if s.Direction.Delay != 50*time.Millisecond || s.Direction.Loss != .001 || !l.Schedule.Competitors {
 		t.Fatal("historical row changed")
 	}
-	if _, err := Scenario("gridcast-loss", true, 3, 17, 1460); err == nil {
+	if _, err := Scenario("gridcast-loss", true, 3, 17, 1500); err == nil {
 		t.Fatal("accepted changing phase")
+	}
+}
+
+func TestProfileMTUDomainsStaySeparate(t *testing.T) {
+	for _, id := range []string{"gridcast-loss", "gridcast-coexistence"} {
+		if _, err := Scenario(id, true, 0, 17, 1500); err != nil {
+			t.Fatal(id, err)
+		}
+		if _, err := Scenario(id, true, 0, 17, 1460); err == nil {
+			t.Fatal("accepted old cloud MTU for local profile", id)
+		}
+	}
+	if _, err := Scenario("S6", true, 0, 17, 1500); err == nil {
+		t.Fatal("changed historical cloud MTU")
+	}
+}
+
+func TestLocalPropagationBoundUses1500BytePackets(t *testing.T) {
+	for _, row := range []struct {
+		id    string
+		limit int
+	}{{"gridcast-loss", 1754220}, {"gridcast-coexistence", 1879220}} {
+		q, err := Scenario(row.id, true, 0, 17, 1500)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if q.PropagationLimit != row.limit {
+			t.Errorf("%s propagation limit %d, want %d", row.id, q.PropagationLimit, row.limit)
+		}
+	}
+	q, err := Scenario("S6", true, 0, 17, 1460)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q.PropagationLimit != 1879140 {
+		t.Fatal("historical propagation bound changed", q.PropagationLimit)
 	}
 }
