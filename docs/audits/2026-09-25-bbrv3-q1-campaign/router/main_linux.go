@@ -127,14 +127,14 @@ func run() error {
 	results := make(chan observation, 2)
 	var wg sync.WaitGroup
 	for i, pair := range [][2]side{{c.A, c.B}, {c.B, c.A}} {
-		q, err := model.Scenario(c.Scenario, i == 0, c.Phase, c.Seed+uint64(i), 1460)
+		q, err := model.Scenario(c.Scenario, i == 0, c.Phase, c.Seed+uint64(i), packetMTU(c))
 		if err != nil {
 			return err
 		}
 		wg.Add(1)
 		go func(index int, from, to side, q *model.Queue) {
 			defer wg.Done()
-			r := forward(ctx, measured, index, from, to, q, packetVersion, c.AttemptClock != "", activity)
+			r := forward(ctx, measured, index, from, to, q, packetVersion, c.AttemptClock != "", activity, packetMTU(c))
 			if r.Error != "" {
 				cancel()
 			}
@@ -203,7 +203,7 @@ func socket(name string) (int, *net.Interface, error) {
 	return fd, nic, nil
 }
 func htons(n uint16) uint16 { return n<<8 | n>>8 }
-func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion, gate bool, activity *flowActivity) observation {
+func forward(ctx context.Context, epoch time.Time, index int, from, to side, q *model.Queue, version afpacket.OptTPacketVersion, gate bool, activity *flowActivity, mtu int) observation {
 	o := observation{Direction: fmt.Sprintf("%s->%s", from.Interface, to.Interface)}
 	o.Samples = append(o.Samples, sample{UnixNS: time.Now().UnixNano()})
 	rx, e := afpacket.NewTPacket(afpacket.OptInterface(from.Interface), afpacket.OptProtocol(unix.ETH_P_IP), version, afpacket.OptFrameSize(2048), afpacket.OptBlockSize(65536), afpacket.OptNumBlocks(128), afpacket.OptBlockTimeout(time.Millisecond), afpacket.OptPollTimeout(100*time.Millisecond))
@@ -366,7 +366,7 @@ loop:
 			if !srcOK || !dstOK {
 				continue
 			}
-			if h.Len != 20 || h.TotalLen > 1460 || h.TotalLen < 20 || h.TotalLen+14 > len(a.frame) || h.FragOff != 0 || h.Flags&ipv4.MoreFragments != 0 || h.TTL < 2 || (h.Protocol != 1 && h.Protocol != 6 && h.Protocol != 17) {
+			if !canonicalPacket(h, len(a.frame), mtu) {
 				o.NonCanonical++
 				continue
 			}
