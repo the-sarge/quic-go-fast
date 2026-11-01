@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** accepted design and audited slices; not implemented. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** pending.
+**Status:** E1 complete; the endpoint route remains inactive. E4 is the endpoint frontier; E2 remains blocked by Q2 #599. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -206,7 +206,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 | Slice | Disposition | Delivery | Blocked by |
 | --- | --- | --- | --- |
-| [E1](#e1) | new | Bound native request ownership behind an inactive endpoint seam | None |
+| [E1](#e1) | complete | Bound native request ownership behind an inactive endpoint seam | None |
 | [E2](#e2) | new | Deliver nonfatal ordinary packet completions through recovery | #599, E1 |
 | [E3](#e3) | new | Transfer validation and MTU probes asynchronously | E2 |
 | [E4](#e4) | new | Cover transport replies, cached close and public writes | E1 |
@@ -218,6 +218,8 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 <a id="e1"></a>
 
 ### E1 — Bound native request ownership behind an inactive endpoint seam
+
+**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E4 is ready; E2 still requires Q2 #599. The slice contract below remains the acceptance authority.
 
 **Delivers:** Create the internal endpoint control/writer boundary and exercise an actual UDP write through it in a private fixture. Admission, absolute deadlines, independent queued expiry, claimed-token fencing, finite completion reservations, leased fair readiness and nonblocking diagnostics belong to this boundary. No production constructor can activate it yet; native qualification is E6.
 
