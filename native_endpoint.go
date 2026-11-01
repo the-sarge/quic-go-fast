@@ -140,9 +140,10 @@ type endpointToken struct {
 }
 
 type endpointWriteResult struct {
-	token  *endpointToken
-	result endpointResult
-	fault  bool
+	token      *endpointToken
+	result     endpointResult
+	fault      bool
+	returnedAt time.Time
 }
 
 type endpointState struct {
@@ -217,12 +218,13 @@ func (e *nativeEndpoint) do(f func(*endpointState)) {
 
 func (e *nativeEndpoint) attach(id uint64) (*endpointParticipant, error) {
 	var p *endpointParticipant
-	err := errEndpointCapacity
+	err := net.ErrClosed
 	e.do(func(s *endpointState) {
 		if s.sealed || s.faulted {
 			err = net.ErrClosed
 			return
 		}
+		err = errEndpointCapacity
 		for _, existing := range s.participants[:endpointParticipants] {
 			if existing != nil && existing.id == id {
 				return
@@ -280,7 +282,7 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 		w := &p.wait[lane]
 		if !w.pending || w.bytes != n {
 			if s.grant != nil && s.grant.participant == p && s.grant.lane == lane {
-				s.grant = nil
+				s.releaseGrant()
 			}
 			w.pending, w.bytes = true, n
 		}
@@ -349,6 +351,20 @@ func (e *nativeEndpoint) stop() <-chan struct{} {
 	return e.done
 }
 
+// cancelReadiness withdraws work that was refused and remains producer-owned.
+// It never cancels an admitted request or touches a native borrow.
+func (e *nativeEndpoint) cancelReadiness(p *endpointParticipant, lane int) {
+	e.do(func(s *endpointState) {
+		if !s.valid(p) || lane < 0 || lane >= len(p.wait) {
+			return
+		}
+		p.wait[lane].pending = false
+		if g := s.grant; g != nil && g.participant == p && g.lane == lane {
+			s.releaseGrant()
+		}
+	})
+}
+
 // detach cancels queued work immediately. A claimed request, including blocked
 // deadline setup/reset, keeps the participant's fence until actual native return.
 func (e *nativeEndpoint) detach(p *endpointParticipant) <-chan struct{} {
@@ -371,7 +387,7 @@ func (s *endpointState) revoke(p *endpointParticipant) {
 	p.active = false
 	clear(p.wait[:])
 	if s.grant != nil && s.grant.participant == p {
-		s.grant = nil
+		s.releaseGrant()
 	}
 	for _, i := range p.results {
 		s.records[i] = endpointRecord{}
@@ -504,7 +520,10 @@ func (s *endpointState) run() {
 		case command := <-e.commands:
 			command(s)
 		case result := <-e.returned:
-			if result.fault {
+			// Use the writer's native-return fact, not the time this control
+			// arm ran. A ready return must not erase an overdue token, and
+			// delayed consumption must not turn timely I/O into late I/O.
+			if result.fault || !result.returnedAt.Before(result.token.request.deadline.Add(endpointTolerance)) {
 				s.fail()
 			}
 			s.publish(result.token.index, result.result)
@@ -537,30 +556,37 @@ func endpointTurn(available [4]bool, controls, cursor *int) endpointClass {
 	return endpointData
 }
 
+// Releasing a turn and publishing the capacity generation share the same owner
+// as admission, so a waiter never has to race a separate rearming operation.
+func (s *endpointState) releaseGrant() {
+	if s.grant == nil {
+		return
+	}
+	select {
+	case <-s.grant.participant.ready:
+	default:
+	}
+	s.grant = nil
+	s.capacityGeneration++
+}
+
 // A selected large request accumulates capacity before its lease begins. Other
-// arrivals cannot consume that capacity. A paused grantee loses its turn after
-// the finite lease and cannot immediately reacquire it in a tight retry loop.
+// arrivals cannot consume that capacity. An unused lease ends its registration;
+// a producer that still owns pending work can register again after the floor.
 func (s *endpointState) chooseGrant(now time.Time) {
 	if s.sealed || s.faulted {
-		s.grant = nil
+		s.releaseGrant()
 		return
 	}
 	// Backpressure can arrive after a readiness grant was issued. Revalidate
 	// that same central eligibility rule before any caller can consume it.
 	if g := s.grant; g != nil && now.Before(g.participant.wait[g.lane].notBefore) {
-		select {
-		case <-g.participant.ready:
-		default:
-		}
-		s.grant = nil
+		s.releaseGrant()
 	}
 	if g := s.grant; g != nil && !g.expires.IsZero() && !now.Before(g.expires) {
+		g.participant.wait[g.lane].pending = false
 		g.participant.wait[g.lane].notBefore = now.Add(endpointRetry)
-		select {
-		case <-g.participant.ready:
-		default:
-		}
-		s.grant = nil
+		s.releaseGrant()
 	}
 	if s.grant == nil {
 		free := false
@@ -716,6 +742,6 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
 			result.err, fault = errors.Join(result.err, err), true
 		}
-		e.returned <- endpointWriteResult{token: token, result: result, fault: fault}
+		e.returned <- endpointWriteResult{token: token, result: result, fault: fault, returnedAt: time.Now()}
 	}
 }

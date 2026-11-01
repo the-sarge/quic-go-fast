@@ -176,7 +176,31 @@ func TestNativeEndpointOverdueBorrow(t *testing.T) {
 		close(release)
 		<-stopped
 		_, err = e.attach(2)
-		require.Error(t, err, "late return must not reopen endpoint")
+		require.ErrorIs(t, err, net.ErrClosed, "late return must not reopen endpoint")
+	})
+}
+
+func TestNativeEndpointReturnAtWatchdogBoundary(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := startNativeEndpoint(endpointTestNative{send: func(b []byte) (int, error) {
+			time.Sleep(10*time.Millisecond + endpointTolerance)
+			return len(b), nil
+		}}, 10*time.Millisecond, nil)
+		defer func() { <-e.stop() }()
+		p, err := e.attach(1)
+		require.NoError(t, err)
+		require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "accepted at overdue boundary")))
+		time.Sleep(31 * time.Millisecond)
+		synctest.Wait()
+		result, ok := e.take(p)
+		require.True(t, ok)
+		require.Equal(t, 1, result.accepted, "quarantine must preserve the actual native acceptance")
+		require.NoError(t, result.err)
+		select {
+		case <-e.fault:
+		default:
+			t.Fatal("native return cannot erase the watchdog boundary")
+		}
 	})
 }
 
@@ -195,15 +219,21 @@ func TestNativeEndpointFairLargeAdmission(t *testing.T) {
 		permits := make(chan struct{}, endpointBatch)
 		e := startNativeEndpoint(endpointTestNative{send: func(b []byte) (int, error) { <-permits; return len(b), nil }}, time.Second, nil)
 		defer func() { close(permits); <-e.stop() }()
-		for id := uint64(1); id <= 3; id++ {
+		var large *endpointParticipant
+		for _, id := range []uint64{1, 2, 4} {
 			p, err := e.attach(id)
 			require.NoError(t, err)
-			for range 3 {
-				require.NoError(t, e.offer(p, 0, endpointTestLargeRequest(id)))
+			if id == 4 {
+				large = p
+			}
+			for j := range 3 {
+				r := endpointTestLargeRequest(id)
+				if id == 4 && j == 0 {
+					r.deadline = time.Now().Add(10 * time.Millisecond)
+				}
+				require.NoError(t, e.offer(p, 0, r))
 			}
 		}
-		large, err := e.attach(4)
-		require.NoError(t, err)
 		r := endpointTestLargeRequest(4)
 		require.ErrorIs(t, e.offer(large, 0, r), errEndpointCapacity, "data class must respect its byte cap")
 		small, err := e.attach(5)
@@ -211,9 +241,10 @@ func TestNativeEndpointFairLargeAdmission(t *testing.T) {
 		smallRequest := endpointTestRequest(5, "small")
 		require.ErrorIs(t, e.offer(small, 0, smallRequest), errEndpointCapacity, "small arrivals cannot overtake selected large request")
 		defer smallRequest.buffers[0].Release()
-		for range endpointBatch {
-			permits <- struct{}{}
-		}
+		e.cancelReadiness(small, 0) // producer withdraws its still-owned work
+		time.Sleep(10100 * time.Microsecond)
+		require.ErrorIs(t, e.offer(large, 0, r), errEndpointCapacity, "an accumulating grant must also respect the timeout floor")
+		time.Sleep(time.Millisecond)
 		synctest.Wait()
 		select {
 		case <-large.ready:
@@ -410,18 +441,21 @@ func TestNativeEndpointReadinessLease(t *testing.T) {
 		<-p.completed
 		_, ok := e.take(p)
 		require.True(t, ok)
-		<-p.ready
+		generation := <-p.ready
 		other, err := e.attach(2)
 		require.NoError(t, err)
 		next := endpointTestRequest(2, "next turn")
 		require.ErrorIs(t, e.offer(other, 0, next), errEndpointCapacity)
 		time.Sleep(11 * time.Millisecond)
 		select {
-		case <-other.ready:
+		case observed := <-other.ready:
+			require.Greater(t, observed, generation, "lease reclamation releases a capacity turn")
 		default:
 			t.Fatal("paused producer held capacity beyond lease")
 		}
 		require.NoError(t, e.offer(other, 0, next))
+		time.Sleep(2 * time.Millisecond)
+		require.NoError(t, e.offer(other, 0, endpointTestRequest(2, "continued progress")), "an unused lease must not re-register abandoned work")
 	})
 }
 
