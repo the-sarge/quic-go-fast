@@ -8043,3 +8043,18 @@ The [audit's remaining decision](audits/2026-10-30-stage-a-calibration-repair/RE
 **Decisions:** A combined diagnostic reason can mention lifetime coverage when the original GridCast exit failed; the original process receipt remains authoritative. Rechecked against merged `fbd4c6ec81a929ac5a9425fd8e716989733bb4d6`, this minor evidence-aid wording limitation remains documented without an additional maintenance ticket. No application or competitor traffic ran, no default changed, and this does not establish live path validity.
 
 **Next:** Finish the infrastructure companion, actual temporary LAN allocation and registration handoff under [Adapt the existing fixture for the bounded GridCast BBR release check](https://github.com/GridCastIO/gridcast/issues/1706). Registration and operator dispatch remain separate.
+
+---
+
+## Local GridCast fixture uses Ethernet MTU - 2026-10-31 20:50 EDT
+
+**Main:** `5922ad798c8a`
+**Actor:** Codex
+
+**Summary:** [PR #1065](https://github.com/the-sarge/quic-go-fast/pull/1065) merged the operator-approved local GridCast MTU correction. Both local profiles admit canonical unfragmented IPv4 up to1500 bytes; historical cloud profiles retain1460. Fixed1251220-byte service queues, rates/delays/loss/seeds, non-size packet guards and ordinary product QUIC/controller behavior are unchanged. The local propagation-storage margin now uses two1500-byte packets.
+
+**Decisions:** [The operator selected1500 and completing the six pending slots](https://github.com/GridSwarm/wiremux/issues/1469#issuecomment-6551312915). Preserve the two consumed inconclusive loss results and all historical evidence; no replacement, validity waiver or default switch. Scope and source/native evidence limits are in [the companion contract](audits/2026-09-25-bbrv3-q1-campaign/GRIDCAST.md).
+
+**Validation:** Full configured RAS review `20261101T004123-370614f463e701b4ba410729` completed all four R1, all four R2 and synthesis with no actionable fixes. The historical README finding was independently rejected within its frozen cloud domain. Exact pushed head `3a92582dda7facbbdec6814dd82bded3ed0f569c` passed affected model/router/fixture tests, model/router races, affected vet, alternate-module tidy-diff, Linux router cross-build and all33 applicable hosted checks before its exact-head squash merge. This is source evidence, not a new native performance result.
+
+**Next:** [wiremux #1469 is the live execution view](https://github.com/GridSwarm/wiremux/issues/1469): finish corresponding infra topology/route correction and pending registration/build/allocation pins, then execute the six remaining slots under their existing validity/deadline/cleanup rules. BBR stays opt-in pending the actual evidence and owner decision.
