@@ -1,3 +1,5 @@
+//go:build unix
+
 package quic
 
 import (
@@ -6,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -264,10 +267,8 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 			if b == nil || b.refCount != 1 || len(b.Data) == 0 {
 				return
 			}
-			for _, previous := range request.buffers[:i] {
-				if previous == b {
-					return
-				}
+			if slices.Contains(request.buffers[:i], b) {
+				return
 			}
 			n += cap(b.Data)
 		}
@@ -394,7 +395,7 @@ func (s *endpointState) publish(index int, result endpointResult) {
 	s.classCount[r.class]--
 	s.classBytes[r.class] -= r.bytes
 	s.capacityGeneration++
-	if errors.Is(result.err, os.ErrDeadlineExceeded) {
+	if errors.Is(result.err, os.ErrDeadlineExceeded) || errors.Is(result.err, syscall.EAGAIN) || errors.Is(result.err, syscall.EWOULDBLOCK) || errors.Is(result.err, syscall.ENOBUFS) {
 		r.participant.wait[r.lane].notBefore = time.Now().Add(endpointRetry)
 	}
 	r.request = endpointRequest{}
@@ -543,6 +544,15 @@ func (s *endpointState) chooseGrant(now time.Time) {
 	if s.sealed || s.faulted {
 		s.grant = nil
 		return
+	}
+	// Backpressure can arrive after a readiness grant was issued. Revalidate
+	// that same central eligibility rule before any caller can consume it.
+	if g := s.grant; g != nil && now.Before(g.participant.wait[g.lane].notBefore) {
+		select {
+		case <-g.participant.ready:
+		default:
+		}
+		s.grant = nil
 	}
 	if g := s.grant; g != nil && !g.expires.IsZero() && !now.Before(g.expires) {
 		g.participant.wait[g.lane].notBefore = now.Add(endpointRetry)

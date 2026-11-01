@@ -1,3 +1,5 @@
+//go:build unix
+
 package quic
 
 import (
@@ -49,14 +51,26 @@ func TestNativeEndpointQueuedExpiry(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "current")))
 		synctest.Wait()
-		r := endpointTestRequest(1, "queued")
-		r.deadline = time.Now().Add(10 * time.Millisecond)
-		require.NoError(t, e.offer(p, 1, r))
-		time.Sleep(11 * time.Millisecond)
+		for _, delay := range []time.Duration{5 * time.Millisecond, 10 * time.Millisecond, 10 * time.Millisecond} {
+			r := endpointTestRequest(1, "queued")
+			r.deadline = time.Now().Add(delay)
+			require.NoError(t, e.offer(p, 1, r))
+		}
+		next := endpointTestRequest(1, "waiting producer")
+		require.ErrorIs(t, e.offer(p, 1, next), errEndpointCapacity)
+		time.Sleep(6 * time.Millisecond)
 		result, ok := e.take(p)
 		require.True(t, ok, "queued expiry must not wait for native return")
 		require.Equal(t, 1, result.unsubmitted)
 		require.ErrorIs(t, result.err, os.ErrDeadlineExceeded)
+		<-p.ready
+		// Another expiry invalidates this already-issued grant until the floor
+		// elapses. A stale wakeup must not authorize another immediate transfer.
+		time.Sleep(4100 * time.Microsecond)
+		require.ErrorIs(t, e.offer(p, 1, next), errEndpointCapacity)
+		time.Sleep(time.Millisecond)
+		<-p.ready
+		require.NoError(t, e.offer(p, 1, next))
 	})
 }
 
