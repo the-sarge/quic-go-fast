@@ -1,0 +1,107 @@
+{
+  "program": "QGF-MP646-20261024",
+  "slice": "R1 #1021",
+  "candidate": "30fbd8cfee5fba5ea7c934e3950658d99604fcfa",
+  "prior_published_instances": 0,
+  "instances_charged": 10,
+  "measured_invocation_seconds": 247.733,
+  "conservative_host_seconds_charged": 452,
+  "charge_basis": "Entire sequential setup/diagnosis/smoke interval rounded up, including failed attempts and container overhead.",
+  "remaining_instances": 170,
+  "remaining_host_seconds": 28348,
+  "reserve_instances_remaining": 32,
+  "attempts": [
+    {
+      "kind": "setup",
+      "candidate": "af667616c3df4305b9f3d9ba3c87a16f87e4ed22",
+      "charged_instances": 1,
+      "host_seconds": 30.386,
+      "exit_code": 1
+    },
+    {
+      "kind": "setup",
+      "candidate": "276ee95166894597cf85132cccd489dccced7cf2",
+      "charged_instances": 1,
+      "host_seconds": 88.759,
+      "exit_code": 0,
+      "cause": "Correct missing Debian security/updates snapshot; prior attempt failed libssl-dev dependency resolution before peer compilation."
+    },
+    {
+      "kind": "ordinary-control",
+      "candidate": "276ee95166894597cf85132cccd489dccced7cf2",
+      "charged_instances": 2,
+      "host_seconds": 22.454,
+      "cli_exit": 1,
+      "state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 1,
+        "Error": "",
+        "StartedAt": "2026-11-02T00:29:08.081734882Z",
+        "FinishedAt": "2026-11-02T00:29:30.45457792Z"
+      },
+      "image_id": "sha256:bb6064f0e04b1b0cfb50cb22ca5a7a206e8ac75c56365fe54207a5d1b80056ba"
+    },
+    {
+      "kind": "setup",
+      "candidate": "e0b5dd06c8089a699c5b29805407a55ddbae6e8b",
+      "charged_instances": 1,
+      "host_seconds": 38.909,
+      "exit_code": 0
+    },
+    {
+      "kind": "ordinary-control",
+      "candidate": "e0b5dd06c8089a699c5b29805407a55ddbae6e8b",
+      "charged_instances": 2,
+      "host_seconds": 22.439,
+      "cli_exit": 1,
+      "state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 1,
+        "Error": "",
+        "StartedAt": "2026-11-02T00:31:21.669173346Z",
+        "FinishedAt": "2026-11-02T00:31:44.028271384Z"
+      },
+      "image_id": "sha256:17d5c20173f1f28cd159ba4c9866a0d510cf400f170df8cce2860fce02a91a10"
+    },
+    {
+      "kind": "setup",
+      "candidate": "30fbd8cfee5fba5ea7c934e3950658d99604fcfa",
+      "charged_instances": 1,
+      "host_seconds": 42.012,
+      "exit_code": 0
+    },
+    {
+      "kind": "ordinary-control",
+      "candidate": "30fbd8cfee5fba5ea7c934e3950658d99604fcfa",
+      "charged_instances": 2,
+      "host_seconds": 2.774,
+      "cli_exit": 0,
+      "state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-02T00:33:20.943438346Z",
+        "FinishedAt": "2026-11-02T00:33:23.6312065Z"
+      },
+      "image_id": "sha256:4fccd3c8f1596897724cb57647c8b49f4e9b90553510fa398972802cdc8f7066"
+    }
+  ]
+}

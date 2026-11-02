@@ -1,0 +1,2 @@
+# Preserve the peer's raw output, including whitespace emitted by picoquic.
+*-peer.log -whitespace

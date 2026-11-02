@@ -1,0 +1,14 @@
+{
+  "candidate": "30fbd8cfee5fba5ea7c934e3950658d99604fcfa",
+  "reason": "Clear parsed RawSubject so the named CA is actually encoded. Exact construction independently passed openssl verify before this invocation.",
+  "prior_instances": 7,
+  "prior_host_seconds": 202.947,
+  "remaining_instances": 173,
+  "remaining_host_seconds": 28597.053,
+  "reserved_setup_instances": 1,
+  "reserved_smoke_instances": 2,
+  "setup_timeout_seconds": 1200,
+  "smoke_timeout_seconds": 150,
+  "image_platform": "linux/amd64 under emulation",
+  "pins": "Unchanged except Go fixture RawSubject correction"
+}

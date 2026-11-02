@@ -1,0 +1,14 @@
+{
+  "candidate": "e0b5dd06c8089a699c5b29805407a55ddbae6e8b",
+  "reason": "Named CA resolves OpenSSL self-issued classification caused by empty names. Both roles share changed certificate construction.",
+  "prior_instances": 4,
+  "prior_host_seconds": 141.599,
+  "remaining_instances": 176,
+  "remaining_host_seconds": 28658.401,
+  "reserved_setup_instances": 1,
+  "reserved_smoke_instances": 2,
+  "setup_timeout_seconds": 1200,
+  "smoke_timeout_seconds": 150,
+  "image_platform": "linux/amd64 under emulation",
+  "pins": "Unchanged from previous build except Go driver certificate construction"
+}

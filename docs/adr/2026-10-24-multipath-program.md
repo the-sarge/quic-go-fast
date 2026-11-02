@@ -1,16 +1,16 @@
 # QUIC multipath #646 program
 
-**Identity:** `QGF-MP646-20261024`. **Status:** accepted design and audited slices; not implemented. **Scope:** both Reno-first primary/backup and BBR/aggregation. **Tracking issue:** [#646](https://github.com/the-sarge/quic-go-fast/issues/646). The track plans are the current implementation contracts. Historical design/sizing and review notes explain decisions; issues and OmniFocus own current status/pointers rather than mirrored contracts.
+**Identity:** `QGF-MP646-20261024`. **Status:** implementation in progress; R1 complete (1/31 slices). **Scope:** both Reno-first primary/backup and BBR/aggregation. **Tracking issue:** [#646](https://github.com/the-sarge/quic-go-fast/issues/646). The track plans are the current implementation contracts. Historical design/sizing and review notes explain decisions; issues and OmniFocus own current status/pointers rather than mirrored contracts.
 
 ## Tracks and frontier
 
-| Track | Plan | Parent | Slices | Initial state |
+| Track | Plan | Parent | Slices | Current state |
 | --- | --- | --- | ---: | --- |
 | E — native endpoint | [Endpoint plan](2026-10-24-multipath-endpoint-plan.md) | pending | 6 | E1 frontier; E2 also blocked by Q2 #599 |
-| R — Reno primary/backup | [Reno plan](2026-10-24-multipath-reno-plan.md) | pending | 19 | R1 and R2 frontier; R7 also blocked by Q2 #599 |
+| R — Reno primary/backup | [Reno plan](2026-10-24-multipath-reno-plan.md) | [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013) | 19 | R1 complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); R2 frontier; R7 also blocked by Q2 #599 |
 | B — BBR/aggregation | [BBR plan](2026-10-24-multipath-bbr-plan.md) | pending | 6 | B1 blocked by R19 |
 
-Initial parallel-safe work is E1 (endpoint owner), R1 (independent-peer fixture) and R2 (wire parser). Recommended first dispatch is E1, with R1/R2 independently available. All descendants remain blocked by their actual slice edges. Q2 is outstanding and its own operational readiness must be resolved independently; this handoff does not dispatch or amend it.
+Current frontier is E1 (endpoint owner, #1015) and R2 (wire parser, #1022), with isolated ownership. R1 #1021 is complete; its [receipt and cumulative operational ledger](../audits/2026-11-01-multipath-r1-receipt.md) record 10 charged instances and 452 host-seconds, leaving 170 instances and 28,348 host-seconds before later concurrent charges. R14 #1034 remains blocked by R12 #1032, so R1 completion creates no newly ready successor. All other descendants remain blocked by their actual slice edges. Q2 #599 remains outstanding; this transition does not grant it readiness.
 
 Cross-track edges: R9 requires E5 (which requires E3); R16 requires E6; B1 requires R19. Within-track edges live in the slice tables. Shared ownership still requires isolated branches/worktrees and current-main source review before a later dispatch; parallel-safe does not permit conflicting ownership or bypassing a direct blocker.
 

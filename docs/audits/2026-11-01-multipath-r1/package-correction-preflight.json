@@ -1,0 +1,23 @@
+{
+  "candidate": "276ee95166894597cf85132cccd489dccced7cf2",
+  "comparison": "picoquic 01e124ebdf9fc50df307e01e71f2744471ddc470 ordinary QUIC v1 in both roles",
+  "picotls": "bfa67875982afc4c24f21e146cef4747fa189c2f",
+  "base_image": "sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9",
+  "package_snapshot": "20261031T000000Z",
+  "toolchain": "go1.27.3 linux/amd64",
+  "host": "Darwin arm64, Docker Desktop Linux arm64 7.0.14-linuxkit; amd64 emulation",
+  "workload": "R1 ordinary QUIC v1 control\\n repeated 4096 times; no workload random seed",
+  "budget": {
+    "ceiling_instances": 180,
+    "ceiling_host_seconds": 28800,
+    "prior_recorded_operational_instances": 1,
+    "prior_recorded_host_seconds": 30.386,
+    "reserved_setup_instances": 1,
+    "reserved_smoke_instances": 2,
+    "setup_timeout_seconds": 1200,
+    "smoke_timeout_seconds": 120,
+    "maximum_reserved_host_seconds": 1320
+  },
+  "basis": "No prior operational receipts in current program; E1 deterministic tests are not native qualification.",
+  "retry_cause": "Correct missing Debian security/updates snapshot; prior attempt failed libssl-dev dependency resolution before peer compilation."
+}

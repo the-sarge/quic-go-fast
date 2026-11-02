@@ -1,0 +1,17 @@
+{"Time":"2026-11-02T00:33:22.823303305Z","Action":"start","Package":"github.com/quic-go/quic-go/integrationtests/self"}
+{"Time":"2026-11-02T00:33:23.105246597Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Output":"using QUIC version: v1\n"}
+{"Time":"2026-11-02T00:33:23.106487805Z","Action":"run","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl"}
+{"Time":"2026-11-02T00:33:23.106510972Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl","Output":"=== RUN   TestPicoquicOrdinaryControl\n","OutputType":"frame"}
+{"Time":"2026-11-02T00:33:23.107612555Z","Action":"run","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/client"}
+{"Time":"2026-11-02T00:33:23.107638889Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/client","Output":"=== RUN   TestPicoquicOrdinaryControl/client\n","OutputType":"frame"}
+{"Time":"2026-11-02T00:33:23.362591125Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/client","Output":"--- PASS: TestPicoquicOrdinaryControl/client (0.25s)\n","OutputType":"frame"}
+{"Time":"2026-11-02T00:33:23.362639833Z","Action":"pass","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/client","Elapsed":0.25}
+{"Time":"2026-11-02T00:33:23.363110541Z","Action":"run","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/server"}
+{"Time":"2026-11-02T00:33:23.363132833Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/server","Output":"=== RUN   TestPicoquicOrdinaryControl/server\n","OutputType":"frame"}
+{"Time":"2026-11-02T00:33:23.600257208Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/server","Output":"--- PASS: TestPicoquicOrdinaryControl/server (0.24s)\n","OutputType":"frame"}
+{"Time":"2026-11-02T00:33:23.600297375Z","Action":"pass","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl/server","Elapsed":0.24}
+{"Time":"2026-11-02T00:33:23.600307291Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl","Output":"--- PASS: TestPicoquicOrdinaryControl (0.49s)\n","OutputType":"frame"}
+{"Time":"2026-11-02T00:33:23.6003115Z","Action":"pass","Package":"github.com/quic-go/quic-go/integrationtests/self","Test":"TestPicoquicOrdinaryControl","Elapsed":0.49}
+{"Time":"2026-11-02T00:33:23.600690291Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-02T00:33:23.602790416Z","Action":"output","Package":"github.com/quic-go/quic-go/integrationtests/self","Output":"ok  \tgithub.com/quic-go/quic-go/integrationtests/self\t0.772s\n"}
+{"Time":"2026-11-02T00:33:23.602994625Z","Action":"pass","Package":"github.com/quic-go/quic-go/integrationtests/self","Elapsed":0.775}
