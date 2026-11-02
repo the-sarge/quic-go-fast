@@ -8098,3 +8098,26 @@ All four configured reviewers completed RAS review `20261102T013355-39a1ed229b08
 ### Next
 
 Resume E1 [PR #1070](https://github.com/the-sarge/quic-go-fast/pull/1070) with a current-main refresh and final exact-head gates. [E1 issue #1015](https://github.com/the-sarge/quic-go-fast/issues/1015) is the live status surface.
+
+---
+
+## Multipath E1 inactive endpoint boundary landed - 2026-11-01 21:03 EST
+
+**Main:** `91365e6b0d40`
+**Actor:** Codex
+
+### Completed
+
+Merged E1 [PR #1070](https://github.com/the-sarge/quic-go-fast/pull/1070), closing [slice #1015](https://github.com/the-sarge/quic-go-fast/issues/1015), as `91365e6b0d40e623c9b34663b67c83022dabe141`. The inactive private endpoint boundary owns bounded admission, fair leased readiness, independent queued expiry, claimed native-borrow fencing, reserved exact-once completion and nonblocking diagnostics. No production constructor activates it; public activation and E6 native qualification remain later work.
+
+### Decisions
+
+The scoped native-timing re-audit in [PR #1072](https://github.com/the-sarge/quic-go-fast/pull/1072) made an immutable current-token native-return fact authoritative before control decides overdue status. Identity-free coalesced wakeups carry no completion authority. The [native-timing audit](audits/2026-11-01-e1-native-timing-reaudit.md) and [current E1 contract](adr/2026-10-24-multipath-endpoint-plan.md#e1) hold the rationale and accepted boundary. An unchanged HTTP/3 fixture race was repaired separately in [PR #1076](https://github.com/the-sarge/quic-go-fast/pull/1076), with journal [PR #1077](https://github.com/the-sarge/quic-go-fast/pull/1077), before E1 resumed.
+
+### Validation
+
+Sixteen deterministic endpoint test functions include real UDP traversal, queued expiry, cancellation/fencing, bounded resources and completion, readiness fairness, blocked diagnostics and timely-native/delayed-control reconciliation. Final four-reviewer RAS base-refresh review `20261102T015200-5b49e587d3398e141c7870f1` reported no findings or follow-ups. Root tests/vet, tidy diff, configured lint/go-fix, Plan 9 and Windows package builds, clean-tree checks and the single focused endpoint race run passed. All 33 hosted checks passed on exact head `876830e83d5f24f82d9c35f66269799e6117fcba`; [PR #1070 final certificate](https://github.com/the-sarge/quic-go-fast/pull/1070#issuecomment-6567295972) records the commands and the unrelated Plan 9 test-compile limitation. These fixtures do not establish native qualification.
+
+### Next
+
+The merged completion transition records E1 and R1 complete (2/31 slices). E4 [#1018](https://github.com/the-sarge/quic-go-fast/issues/1018) is newly ready; R2 [#1022](https://github.com/the-sarge/quic-go-fast/issues/1022) is already dispatched in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074). E2 [#1016](https://github.com/the-sarge/quic-go-fast/issues/1016) still has recorded Q2 [#599](https://github.com/the-sarge/quic-go-fast/issues/599) dependency. The [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view.
