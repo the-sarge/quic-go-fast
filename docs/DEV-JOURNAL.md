@@ -8340,3 +8340,28 @@ Affected ackhandler/congestion and root tests, inherited recovery/delivery equiv
 ### Next
 
 [E2C issue #1086](https://github.com/the-sarge/quic-go-fast/issues/1086) now has its sole blocker closed; reconcile its ready label and OmniFocus blocked prefix after journal completion. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live current-state views. No separate frontier/status PR or review follow-up issue is required.
+
+---
+
+## Reno multipath recovery partition landed - 2026-11-02 13:13 EST
+
+**Main:** `8d6fa76727d4`
+**Actor:** Codex
+
+### Completed
+
+[PR #1107 — Give Reno paths independent recovery and pacing](https://github.com/the-sarge/quic-go-fast/pull/1107) merged as `8d6fa76727d486f8594bb305c0b77b352d96d075`, closing [R7 issue #1027](https://github.com/the-sarge/quic-go-fast/issues/1027). Private admitted application contexts now have independent sent histories, ACK targets, Reno loss/PTO, registration-prefix undo, adaptive-loss state and pacing. The recovery root retains aggregate history/probe ceilings, and local-completion tokens route back to their original context. Connection and existing-stream flow control share a stable RTT observation without changing per-path recovery estimators. Public multipath negotiation and BBR multipath remain disabled; real path admission and emission remain later slices.
+
+The product PR owns R7 completion and its committed frontier transition: 7/19 Reno slices and 10/34 program slices complete. Documentation-only reconciliation preserved the E2C state published by [PR #1106](https://github.com/the-sarge/quic-go-fast/pull/1106). This journal appends history only.
+
+### Validation
+
+Thirteen deterministic new scenarios cover path identity, loss/PTO, undo/adaptation, pacing, carrier pruning, local completion, aggregate/skip capacity, existing-flight admission and stable RTT observation. Both budgeted RAS rounds completed with all four configured reviewers; their RTT-reader advisories were independently rejected within R7's boundary, with no runtime fix or verification obligation. The [initial disposition for PR #1107](https://github.com/the-sarge/quic-go-fast/pull/1107#issuecomment-6583513581) and [replacement disposition for PR #1107](https://github.com/the-sarge/quic-go-fast/pull/1107#issuecomment-6583783610) retain the reasoning.
+
+Exact pushed head `dd5653063756e92aa030e99d00e319397d720aba` on base `e76ca8261810b214a2d8060ee9f3b316a71ffe74` passed affected-package tests and vet, module tidiness, configured go-fix/formatter checks, focused race tests, clean-tree/diff checks and full `go test ./...` with existing CI `TIMESCALE_FACTOR=3`. The [final certification receipt for PR #1107](https://github.com/the-sarge/quic-go-fast/pull/1107#issuecomment-6583971839) records docs-only base reconciliation without another RAS round. Earlier default-scale HTTP idle-timeout fixture failures also reproduced on the clean pinned base; that remains a reported local-suite limitation, and no HTTP behavior or timeout was changed.
+
+All 17 distinct applicable hosted checks passed (33 push/PR entries), including [integration run 41492746522](https://github.com/the-sarge/quic-go-fast/actions/runs/41492746522) and [unit run 41492746614](https://github.com/the-sarge/quic-go-fast/actions/runs/41492746614), before exact-head squash merge. GitHub confirmed that cancelled macOS jobs had acquired no runner and executed no steps; only those infrastructure cancellations were requested for same-head retry under the existing policy. No review follow-up, additional operational/platform campaign or admitted material untraced effect remains within R7's boundary.
+
+### Next
+
+[R8 issue #1028](https://github.com/the-sarge/quic-go-fast/issues/1028) remains the ready Reno frontier. [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) still requires [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019) and R8 (#1028); R7 completion creates no newly ready successor. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live current-state views. Complete the exact slice task after journal closure; no separate frontier/status PR is needed.
