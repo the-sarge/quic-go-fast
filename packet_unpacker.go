@@ -106,7 +106,12 @@ func (u *packetUnpacker) UnpackLongHeader(hdr *wire.Header, data []byte) (*unpac
 	}, nil
 }
 
-func (u *packetUnpacker) UnpackShortHeader(rcvTime monotime.Time, data []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error) {
+func (u *packetUnpacker) UnpackShortHeader(pathID protocol.PathID, rcvTime monotime.Time, data []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error) {
+	// Until path-qualified protection lands, fail closed rather than alias a
+	// nonzero routing binding onto path zero's PN and key-update state.
+	if pathID != 0 {
+		return 0, 0, 0, nil, &headerParseError{fmt.Errorf("unsupported protocol path %d", pathID)}
+	}
 	opener, err := u.cs.Get1RTTOpener()
 	if err != nil {
 		return 0, 0, 0, nil, err

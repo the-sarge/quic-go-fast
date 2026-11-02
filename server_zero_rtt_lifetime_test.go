@@ -21,7 +21,7 @@ func newZeroRTTLifetimeServer(t *testing.T) *baseServer {
 	require.NoError(t, err)
 	return &baseServer{
 		conn:                   conn,
-		tr:                     &packetHandlerMap{handlers: make(map[protocol.ConnectionID]packetHandler), logger: utils.DefaultLogger},
+		tr:                     &packetHandlerMap{handlers: make(map[protocol.ConnectionID]packetHandlerEntry), logger: utils.DefaultLogger},
 		config:                 populateConfig(nil),
 		logger:                 utils.DefaultLogger,
 		acceptEarlyConns:       true,

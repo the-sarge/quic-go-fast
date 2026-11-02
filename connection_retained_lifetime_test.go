@@ -67,7 +67,7 @@ func TestConnectionRetainedLifetimeReplay(t *testing.T) {
 				if failEarly {
 					n = 1
 				}
-				u.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).DoAndReturn(func(_ monotime.Time, data []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error) {
+				u.EXPECT().UnpackShortHeader(protocol.PathID(0), gomock.Any(), gomock.Any()).DoAndReturn(func(_ protocol.PathID, _ monotime.Time, data []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error) {
 					pn := data[len(data)-1]
 					order = append(order, pn)
 					if pn == 1 {

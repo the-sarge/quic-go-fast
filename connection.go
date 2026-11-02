@@ -28,7 +28,7 @@ import (
 
 type unpacker interface {
 	UnpackLongHeader(hdr *wire.Header, data []byte) (*unpackedPacket, error)
-	UnpackShortHeader(rcvTime monotime.Time, data []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error)
+	UnpackShortHeader(pathID protocol.PathID, rcvTime monotime.Time, data []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error)
 }
 
 type cryptoStreamHandler interface {
@@ -53,6 +53,8 @@ type receivedPacket struct {
 
 	ecn protocol.ECN
 
+	pathID protocol.PathID // supplied by the destination-CID routing entry, before authentication
+
 	info packetInfo // only valid if the contained IP address is valid
 }
 
@@ -71,6 +73,7 @@ func (p *receivedPacket) Clone() *receivedPacket {
 		buffer:     p.buffer,
 		ecn:        p.ecn,
 		info:       p.info,
+		pathID:     p.pathID,
 	}
 }
 
@@ -1339,7 +1342,7 @@ func (c *Conn) handleShortHeaderPacket(
 		}
 		return false, nil
 	}
-	pn, pnLen, keyPhase, data, err := c.unpacker.UnpackShortHeader(p.rcvTime, p.data)
+	pn, pnLen, keyPhase, data, err := c.unpacker.UnpackShortHeader(p.pathID, p.rcvTime, p.data)
 	if err != nil {
 		// Stateless reset packets (see RFC 9000, section 10.3):
 		// * fill the entire UDP datagram (i.e. they cannot be part of a coalesced packet)
