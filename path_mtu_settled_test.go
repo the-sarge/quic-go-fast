@@ -107,7 +107,7 @@ func TestPathMTUSettledProbeOutcome(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, cs := newPathMTUSettledTestConnection(t, &Config{EnableDatagrams: true}, 1500, true)
-			cs.EXPECT().SetLargest1RTTAcked(gomock.Any()).AnyTimes()
+			cs.EXPECT().Set1RTTAcked(gomock.Any(), gomock.Any()).AnyTimes()
 			now := monotime.Now()
 			confirmPathMTUSettledTestConnection(t, c, cs, now)
 			requirePathMTUSettled(t, c, false)

@@ -34,7 +34,7 @@ type unpacker interface {
 type cryptoStreamHandler interface {
 	StartHandshake(context.Context) error
 	ChangeConnectionID(protocol.ConnectionID)
-	SetLargest1RTTAcked(protocol.PacketNumber) error
+	Set1RTTAcked(protocol.ApplicationKeyReceipt, monotime.Time) error
 	SetHandshakeConfirmed()
 	GetSessionTicket() ([]byte, error)
 	NextEvent() handshake.Event
@@ -2354,7 +2354,7 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 	if err != nil {
 		return err
 	}
-	if !acked1RTTPacket {
+	if !acked1RTTPacket.Valid {
 		return nil
 	}
 	// On the client side: If the packet acknowledged a 1-RTT packet, this confirms the handshake.
@@ -2381,7 +2381,7 @@ func (c *Conn) handleAckFrame(frame *wire.AckFrame, encLevel protocol.Encryption
 			}
 		}
 	}
-	return c.cryptoStreamHandler.SetLargest1RTTAcked(frame.LargestAcked())
+	return c.cryptoStreamHandler.Set1RTTAcked(acked1RTTPacket, rcvTime)
 }
 
 func (c *Conn) handleDatagramFrame(f *wire.DatagramFrame) error {

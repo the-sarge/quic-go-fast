@@ -366,7 +366,10 @@ func fuzzRunHandshake(
 		t.Fatal("expected to get a 1-RTT opener")
 	}
 	const plaintext = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-	encrypted := sealer.Seal(nil, []byte(plaintext), 1337, []byte("foobar"))
+	encrypted, err := sealer.Seal(nil, []byte(plaintext), 1337, []byte("foobar"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	decrypted, err := opener.Open(nil, encrypted, 0, 1337, protocol.KeyPhaseZero, []byte("foobar"))
 	if err != nil {
 		t.Fatalf("decrypting message failed: %s", err)

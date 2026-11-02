@@ -32,7 +32,13 @@ func SetKeyUpdateInterval(v uint64) (reset func()) {
 var FirstKeyUpdateInterval uint64 = 100
 
 type updatableAEAD struct {
-	suite cipherSuite
+	suite                               cipherSuite
+	paths                               map[protocol.PathID]*pathProtection
+	largestAdmittedPath                 protocol.PathID
+	rcvTrafficSecret, sendTrafficSecret []byte
+	prevRcvTrafficSecret                []byte
+	updateConfirmed                     bool
+	nextUpdateTime                      monotime.Time
 
 	keyPhase           protocol.KeyPhase
 	largestAcked       protocol.PacketNumber
@@ -109,6 +115,8 @@ func (a *updatableAEAD) rollKeys() {
 	}
 
 	a.keyPhase++
+	a.updateConfirmed = false
+	a.nextUpdateTime = 0
 	a.firstRcvdWithCurrentKey = protocol.InvalidPacketNumber
 	a.firstSentWithCurrentKey = protocol.InvalidPacketNumber
 	a.numRcvdWithCurrentKey = 0
@@ -117,16 +125,30 @@ func (a *updatableAEAD) rollKeys() {
 	a.rcvAEAD = a.nextRcvAEAD
 	a.sendAEAD = a.nextSendAEAD
 
+	a.prevRcvTrafficSecret = a.rcvTrafficSecret
+	a.rcvTrafficSecret = a.nextRcvTrafficSecret
+	a.sendTrafficSecret = a.nextSendTrafficSecret
 	a.nextRcvTrafficSecret = a.getNextTrafficSecret(a.suite.Hash, a.nextRcvTrafficSecret)
 	a.nextSendTrafficSecret = a.getNextTrafficSecret(a.suite.Hash, a.nextSendTrafficSecret)
 	a.nextRcvAEAD = createAEAD(a.suite, a.nextRcvTrafficSecret, a.version)
 	a.nextSendAEAD = createAEAD(a.suite, a.nextSendTrafficSecret, a.version)
+	for id, p := range a.paths {
+		p.firstCurrent = protocol.InvalidPacketNumber
+		p.previous = p.current
+		p.current = p.next
+		p.send = p.nextSend
+		p.next = createPathAEAD(a.suite, a.nextRcvTrafficSecret, a.version, id)
+		p.nextSend = createPathAEAD(a.suite, a.nextSendTrafficSecret, a.version, id)
+	}
 }
 
 func (a *updatableAEAD) startKeyDropTimer(now monotime.Time) {
 	d := 3 * a.rttStats.PTO(true)
+	if a.paths != nil {
+		d = a.keyRetentionDuration()
+	}
 	a.logger.Debugf("Starting key drop timer to drop key phase %d (in %s)", a.keyPhase-1, d)
-	a.prevRcvAEADExpiry = now.Add(d)
+	a.prevRcvAEADExpiry = saturatingKeyDeadline(now, d)
 }
 
 func (a *updatableAEAD) getNextTrafficSecret(hash crypto.Hash, ts []byte) []byte {
@@ -137,6 +159,7 @@ func (a *updatableAEAD) getNextTrafficSecret(hash crypto.Hash, ts []byte) []byte
 // For the client, this function is called before SetWriteKey.
 // For the server, this function is called after SetWriteKey.
 func (a *updatableAEAD) SetReadKey(suite cipherSuite, trafficSecret []byte) {
+	a.rcvTrafficSecret = append([]byte(nil), trafficSecret...)
 	a.rcvAEAD = createAEAD(suite, trafficSecret, a.version)
 	a.headerDecrypter = newHeaderProtector(suite, trafficSecret, false, a.version)
 	if a.suite.ID == 0 { // suite is not set yet
@@ -151,6 +174,7 @@ func (a *updatableAEAD) SetReadKey(suite cipherSuite, trafficSecret []byte) {
 // For the client, this function is called after SetReadKey.
 // For the server, this function is called before SetReadKey.
 func (a *updatableAEAD) SetWriteKey(suite cipherSuite, trafficSecret []byte) {
+	a.sendTrafficSecret = append([]byte(nil), trafficSecret...)
 	a.sendAEAD = createAEAD(suite, trafficSecret, a.version)
 	a.headerEncrypter = newHeaderProtector(suite, trafficSecret, false, a.version)
 	if a.suite.ID == 0 { // suite is not set yet
@@ -176,10 +200,16 @@ func (a *updatableAEAD) setAEADParameters(aead cipher.AEAD, suite cipherSuite) {
 }
 
 func (a *updatableAEAD) DecodePacketNumber(wirePN protocol.PacketNumber, wirePNLen protocol.PacketNumberLen) protocol.PacketNumber {
+	if a.paths != nil {
+		return protocol.DecodePacketNumber(wirePNLen, a.paths[0].highest, wirePN)
+	}
 	return protocol.DecodePacketNumber(wirePNLen, a.highestRcvdPN, wirePN)
 }
 
 func (a *updatableAEAD) Open(dst, src []byte, rcvTime monotime.Time, pn protocol.PacketNumber, kp protocol.KeyPhaseBit, ad []byte) ([]byte, error) {
+	if a.paths != nil {
+		return a.openPath(a.paths[0], dst, src, rcvTime, pn, kp, ad)
+	}
 	dec, err := a.open(dst, src, rcvTime, pn, kp, ad)
 	if err == ErrDecryptionFailed {
 		a.invalidPacketCount++
@@ -196,6 +226,7 @@ func (a *updatableAEAD) Open(dst, src []byte, rcvTime monotime.Time, pn protocol
 func (a *updatableAEAD) open(dst, src []byte, rcvTime monotime.Time, pn protocol.PacketNumber, kp protocol.KeyPhaseBit, ad []byte) ([]byte, error) {
 	if a.prevRcvAEAD != nil && !a.prevRcvAEADExpiry.IsZero() && rcvTime.After(a.prevRcvAEADExpiry) {
 		a.prevRcvAEAD = nil
+		a.prevRcvTrafficSecret = nil
 		a.logger.Debugf("Dropping key phase %d", a.keyPhase-1)
 		a.prevRcvAEADExpiry = 0
 		if a.qlogger != nil {
@@ -273,7 +304,13 @@ func (a *updatableAEAD) open(dst, src []byte, rcvTime monotime.Time, pn protocol
 	return dec, err
 }
 
-func (a *updatableAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) []byte {
+func (a *updatableAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) ([]byte, error) {
+	if err := a.checkEncryptionLimit(); err != nil {
+		return nil, err
+	}
+	if a.paths != nil {
+		return a.sealPath(a.paths[0], dst, src, pn, ad)
+	}
 	if a.firstSentWithCurrentKey == protocol.InvalidPacketNumber {
 		a.firstSentWithCurrentKey = pn
 	}
@@ -284,10 +321,15 @@ func (a *updatableAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byt
 	binary.BigEndian.PutUint64(a.nonceBuf[len(a.nonceBuf)-8:], uint64(pn))
 	// The AEAD we're using here will be the qtls.aeadAESGCM13.
 	// It uses the nonce provided here and XOR it with the IV.
-	return a.sendAEAD.Seal(dst, a.nonceBuf, src, ad)
+	return a.sendAEAD.Seal(dst, a.nonceBuf, src, ad), nil
 }
 
+// SetLargestAcked is the ordinary path-zero PN boundary. Multipath callers
+// must supply the generation captured at sealing through SetAcked.
 func (a *updatableAEAD) SetLargestAcked(pn protocol.PacketNumber) error {
+	if a.paths != nil {
+		return fmt.Errorf("multipath ACK requires sent key generation")
+	}
 	if a.firstSentWithCurrentKey != protocol.InvalidPacketNumber &&
 		pn >= a.firstSentWithCurrentKey && a.numRcvdWithCurrentKey == 0 {
 		return &qerr.TransportError{
@@ -304,6 +346,9 @@ func (a *updatableAEAD) SetHandshakeConfirmed() {
 }
 
 func (a *updatableAEAD) updateAllowed() bool {
+	if a.paths != nil {
+		return a.handshakeConfirmed && (a.keyPhase == 0 || (a.updateConfirmed && !monotime.Now().Before(a.nextUpdateTime)))
+	}
 	if !a.handshakeConfirmed {
 		return false
 	}

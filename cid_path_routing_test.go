@@ -6,6 +6,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/mocks"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -67,7 +68,7 @@ func TestCIDPathRoutingLengthAndRemoval(t *testing.T) {
 	require.Equal(t, protocol.PathID(2), (<-packets).pathID)
 }
 
-func TestCIDPathUnpackerRejectsUnimplementedPath(t *testing.T) {
+func TestCIDPathUnpackerRejectsUnadmittedPath(t *testing.T) {
 	for _, name := range []string{"1-RTT", "0-RTT"} {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -75,10 +76,15 @@ func TestCIDPathUnpackerRejectsUnimplementedPath(t *testing.T) {
 			tc := newServerTestConnection(t, ctrl, nil, false, connectionOptUnpacker(u))
 			var data []byte
 			if name == "1-RTT" {
-				// A real unpacker with no crypto setup makes any accidental use of
-				// path zero's opener fail, instead of masking incorrect forwarding.
-				tc.conn.unpacker = newPacketUnpacker(nil, tc.srcConnID.Len())
-				data = append(append([]byte{0x40}, tc.srcConnID.Bytes()...), 0)
+				// No admitted protection exists for the routed path.
+				cs := mocks.NewMockCryptoSetup(ctrl)
+				// Available zero-path protection must never be consulted to decode
+				// or open a routed, unadmitted identity. No opener calls are expected.
+				cs.EXPECT().Get1RTTOpener().Return(mocks.NewMockShortHeaderOpener(ctrl), nil)
+				tc.conn.unpacker = newPacketUnpacker(cs, tc.srcConnID.Len())
+				// Include the complete protection sample, so bypassing path
+				// resolution reaches the forbidden opener rather than a length guard.
+				data = append(append([]byte{0x40}, tc.srcConnID.Bytes()...), make([]byte, 20)...)
 			} else {
 				hdr := &wire.ExtendedHeader{Header: wire.Header{
 					Type: protocol.PacketType0RTT, Version: protocol.Version1,

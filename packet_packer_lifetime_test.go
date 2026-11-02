@@ -54,7 +54,7 @@ func TestCoalescedConstructorFailureLifetime(t *testing.T) {
 	tc := newServerTestConnection(t, ctrl, &Config{InitialPacketSize: 1200}, false)
 	c := tc.conn
 	sealing := NewMockSealingManager(ctrl)
-	sealing.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
+	sealing.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil).AnyTimes()
 	sealing.EXPECT().GetHandshakeSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
 	sealing.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
 	p := newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, mismatchedConstructionNumber{c.sentPacketHandler}, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
@@ -76,8 +76,8 @@ func TestPTOConstructorFailureLifetime(t *testing.T) {
 			tc := newServerTestConnection(t, ctrl, &Config{InitialPacketSize: 1200}, false)
 			c := tc.conn
 			sealing := NewMockSealingManager(ctrl)
-			sealing.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
-			sealing.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
+			sealing.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil).AnyTimes()
+			sealing.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil).AnyTimes()
 			sealing.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
 			p := newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, mismatchedConstructionNumber{c.sentPacketHandler}, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
 			observed := observeConstructionBuffer(t)

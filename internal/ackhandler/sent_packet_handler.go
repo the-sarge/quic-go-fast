@@ -467,15 +467,16 @@ func (h *sentPacketHandler) getPacketNumberSpace(encLevel protocol.EncryptionLev
 	}
 }
 
-func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (bool /* contained 1-RTT packet */, error) {
+func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (protocol.ApplicationKeyReceipt, error) {
 	if h.local != nil && h.local.closed {
-		return false, nil
+		return protocol.ApplicationKeyReceipt{}, nil
 	}
+
 	pnSpace := h.getPacketNumberSpace(encLevel)
 
 	largestAcked := ack.LargestAcked()
 	if largestAcked > pnSpace.largestSent {
-		return false, &qerr.TransportError{
+		return protocol.ApplicationKeyReceipt{}, &qerr.TransportError{
 			ErrorCode:    qerr.ProtocolViolation,
 			ErrorMessage: "received ACK for an unsent packet",
 		}
@@ -493,7 +494,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	priorInFlight := h.bytesInFlight
 	ackedPackets, hasAckEliciting, err := h.detectAndRemoveAckedPackets(ack, encLevel)
 	if err != nil {
-		return false, err
+		return protocol.ApplicationKeyReceipt{}, err
 	}
 	if h.congestionEvents != nil {
 		h.ExpireDelivery(rcvTime)
@@ -524,7 +525,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 				h.finishCongestionFeedback()
 			}
 		}
-		return false, nil
+		return protocol.ApplicationKeyReceipt{}, nil
 	}
 	h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, ackedPackets, largestAcked)
 	witness := h.appendRetainedAck(ack, encLevel)
@@ -582,13 +583,15 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	if encLevel == protocol.Encryption1RTT {
 		h.detectLostPathProbes(rcvTime)
 	}
-	var acked1RTTPacket bool
+	var acked1RTTPacket protocol.ApplicationKeyReceipt
 	for _, p := range ackedPackets {
 		if p.includedInBytesInFlight {
 			h.congestion.OnPacketAcked(congestion.NewPacketKey(p.EncryptionLevel, p.PacketNumber), p.Length, priorInFlight, rcvTime)
 		}
 		if p.EncryptionLevel == protocol.Encryption1RTT {
-			acked1RTTPacket = true
+			if !acked1RTTPacket.Valid || p.Context.KeyGeneration >= acked1RTTPacket.KeyGeneration {
+				acked1RTTPacket = protocol.ApplicationKeyReceipt{Valid: true, PathID: p.Context.PathID, PacketNumber: p.PacketNumber, KeyGeneration: p.Context.KeyGeneration}
+			}
 		}
 		h.removeFromBytesInFlight(p.packet)
 		if !p.isPathProbePacket {

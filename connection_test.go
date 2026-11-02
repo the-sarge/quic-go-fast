@@ -100,13 +100,13 @@ func useLifecyclePacketPacker(t *testing.T, ctrl *gomock.Controller, tc *testCon
 		if c.droppedInitialKeys {
 			return nil, handshake.ErrKeysDropped
 		}
-		return sealer, nil
+		return newTestLongHeaderSealer(), nil
 	}).AnyTimes()
 	sealing.EXPECT().GetHandshakeSealer().DoAndReturn(func() (handshake.LongHeaderSealer, error) {
 		if c.handshakeConfirmed {
 			return nil, handshake.ErrKeysDropped
 		}
-		return sealer, nil
+		return newTestLongHeaderSealer(), nil
 	}).AnyTimes()
 	sealing.EXPECT().Get1RTTSealer().DoAndReturn(func() (handshake.ShortHeaderSealer, error) {
 		if !c.handshakeComplete {

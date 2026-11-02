@@ -90,10 +90,10 @@ func bbrLoopConnection(t *testing.T, onSeal func(c *Conn, n int, payload []byte)
 	sealer.EXPECT().Overhead().Return(7).AnyTimes()
 	sealer.EXPECT().EncryptHeader(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	n := 0
-	sealer.EXPECT().Seal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, src []byte, _ protocol.PacketNumber, _ []byte) []byte {
+	sealer.EXPECT().Seal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, src []byte, _ protocol.PacketNumber, _ []byte) ([]byte, error) {
 		n++
 		onSeal(c, n, src)
-		return append(src, bytes.Repeat([]byte{'s'}, 7)...)
+		return append(src, bytes.Repeat([]byte{'s'}, 7)...), nil
 	}).AnyTimes()
 	sealing := NewMockSealingManager(ctrl)
 	sealing.EXPECT().Get1RTTSealer().Return(sealer, nil).AnyTimes()
