@@ -1,3 +1,6 @@
+// Adapted from qoke/mp-quic-go at 084c13ea3834fbe58cedb63db9208951d714f839.
+// Copyright (c) 2016 the quic-go authors & Google, Inc. Licensed under the MIT license in ../../LICENSE.
+
 package wire
 
 import (

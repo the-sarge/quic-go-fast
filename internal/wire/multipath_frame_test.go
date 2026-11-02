@@ -38,6 +38,17 @@ func TestMultipathParserGates(t *testing.T) {
 		_, _, err = parser.ParseType(b, level)
 		requireTransportError(t, err, qerr.ProtocolViolation, FrameTypeMaxPathID)
 	}
+	t.Run("disabledPATH_ACK", func(t *testing.T) {
+		parser := NewFrameParser(false, false, false)
+		_, _, err := parser.ParseAckFrame(FrameTypePathAck, []byte{3, 10, 0, 0, 0}, protocol.Encryption1RTT, protocol.Version1)
+		requireTransportError(t, err, qerr.FrameEncodingError, FrameTypePathAck)
+	})
+	t.Run("wrongLevelPATH_ACK", func(t *testing.T) {
+		parser := NewFrameParser(false, false, false)
+		parser.EnableMultipath()
+		_, _, err := parser.ParseAckFrame(FrameTypePathAck, []byte{3, 10, 0, 0, 0}, protocol.EncryptionHandshake, protocol.Version1)
+		requireTransportError(t, err, qerr.ProtocolViolation, FrameTypePathAck)
+	})
 }
 
 func TestMultipathPathIDBounds(t *testing.T) {
