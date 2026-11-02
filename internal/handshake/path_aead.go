@@ -2,6 +2,7 @@ package handshake
 
 import (
 	"crypto/cipher"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -61,6 +62,9 @@ func (a *updatableAEAD) admitPath(id protocol.PathID, rtt *utils.RTTStats) error
 		send:     createPathAEAD(a.suite, a.sendTrafficSecret, a.version, id),
 		nextSend: createPathAEAD(a.suite, a.nextSendTrafficSecret, a.version, id), rtt: rtt,
 	}
+	if a.prevRcvAEAD != nil {
+		a.paths[id].previous = createPathAEAD(a.suite, a.prevRcvTrafficSecret, a.version, id)
+	}
 	a.largestAdmittedPath = id
 	return nil
 }
@@ -112,9 +116,9 @@ func (p *pathAEAD) Open(dst, src []byte, now monotime.Time, pn protocol.PacketNu
 	return p.owner.openPath(p.protection, dst, src, now, pn, kp, ad)
 }
 
-func (p *pathAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) []byte {
+func (p *pathAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) ([]byte, error) {
 	if p.owner.paths[p.protection.id] != p.protection || p.protection.retired {
-		panic("sealing on inactive crypto path")
+		return nil, ErrKeysDropped
 	}
 	return p.owner.sealPath(p.protection, dst, src, pn, ad)
 }
@@ -130,9 +134,12 @@ func (p *pathAEAD) DecryptHeader(sample []byte, first *byte, pn []byte) {
 	p.owner.DecryptHeader(sample, first, pn)
 }
 
-func (a *updatableAEAD) sealPath(p *pathProtection, dst, src []byte, pn protocol.PacketNumber, ad []byte) []byte {
+func (a *updatableAEAD) sealPath(p *pathProtection, dst, src []byte, pn protocol.PacketNumber, ad []byte) ([]byte, error) {
+	if err := a.checkEncryptionLimit(); err != nil {
+		return nil, err
+	}
 	if p.retired {
-		panic("sealing on retired crypto path")
+		return nil, ErrKeysDropped
 	}
 	if a.firstSentWithCurrentKey == protocol.InvalidPacketNumber {
 		a.firstSentWithCurrentKey = pn
@@ -142,7 +149,7 @@ func (a *updatableAEAD) sealPath(p *pathProtection, dst, src []byte, pn protocol
 	}
 	a.numSentWithCurrentKey++
 	binary.BigEndian.PutUint64(a.nonceBuf, uint64(pn))
-	return p.send.Seal(dst, a.nonceBuf, src, ad)
+	return p.send.Seal(dst, a.nonceBuf, src, ad), nil
 }
 
 func (a *updatableAEAD) trial(key cipher.AEAD, dst, src, ad []byte) ([]byte, error) {
@@ -160,6 +167,7 @@ func (a *updatableAEAD) trial(key cipher.AEAD, dst, src, ad []byte) ([]byte, err
 func (a *updatableAEAD) openPath(p *pathProtection, dst, src []byte, now monotime.Time, pn protocol.PacketNumber, kp protocol.KeyPhaseBit, ad []byte) ([]byte, error) {
 	if a.prevRcvAEAD != nil && !a.prevRcvAEADExpiry.IsZero() && !now.Before(a.prevRcvAEADExpiry) {
 		a.prevRcvAEAD = nil
+		a.prevRcvTrafficSecret = nil
 		a.prevRcvAEADExpiry = 0
 		for _, path := range a.paths {
 			path.previous = nil
@@ -287,6 +295,9 @@ func ShortHeaderOpenerForPath(opener ShortHeaderOpener, id protocol.PathID) (Sho
 
 func ShortHeaderSealerForPath(sealer ShortHeaderSealer, id protocol.PathID) (ShortHeaderSealer, error) {
 	if id == 0 {
+		if a, ok := sealer.(*updatableAEAD); ok && a.paths != nil && a.paths[0].retired {
+			return nil, ErrKeysDropped
+		}
 		return sealer, nil
 	}
 	a, ok := sealer.(*updatableAEAD)
@@ -301,4 +312,15 @@ func ShortHeaderSealerForPath(sealer ShortHeaderSealer, id protocol.PathID) (Sho
 		return nil, ErrKeysDropped
 	}
 	return p, nil
+}
+
+// RFC 9001 section 6.6: AES-GCM permits 2^23 encryptions per key.
+// ChaCha20's confidentiality limit exceeds the QUIC packet-number domain.
+// KeyPhase may initiate an allowed update before sealing; exhaustion here is
+// terminal and must not bypass the confirmed-update spacing requirement.
+func (a *updatableAEAD) checkEncryptionLimit() error {
+	if (a.suite.ID == tls.TLS_AES_128_GCM_SHA256 || a.suite.ID == tls.TLS_AES_256_GCM_SHA384) && a.numSentWithCurrentKey >= 1<<23 {
+		return &qerr.TransportError{ErrorCode: qerr.AEADLimitReached, ErrorMessage: "encryption limit reached"}
+	}
+	return nil
 }

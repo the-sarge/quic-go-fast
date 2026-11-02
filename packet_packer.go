@@ -18,7 +18,8 @@ import (
 var errNothingToPack = errors.New("nothing to pack")
 
 type sealer interface {
-	handshake.LongHeaderSealer
+	EncryptHeader(sample []byte, firstByte *byte, pnBytes []byte)
+	Overhead() int
 }
 
 type payload struct {
@@ -975,7 +976,10 @@ func (p *packetPacker) appendLongHeaderPacket(context ackhandler.PacketContext, 
 	if err != nil {
 		return nil, err
 	}
-	raw = p.encryptPacket(raw, sealer, header.PacketNumber, payloadOffset, pnLen)
+	raw, err = p.encryptPacket(raw, sealer, header.PacketNumber, payloadOffset, pnLen)
+	if err != nil {
+		return nil, err
+	}
 	buffer.Data = buffer.Data[:len(buffer.Data)+len(raw)]
 
 	if pn := p.pnManager.PopPacketNumber(encLevel); pn != header.PacketNumber {
@@ -1026,7 +1030,7 @@ func (p *packetPacker) prepareShortHeaderPacket(
 	isMTUProbePacket bool,
 	v protocol.Version,
 ) (preparedShortHeaderPacket, error) {
-	if context.PathID != 0 {
+	{
 		short, ok := sealer.(handshake.ShortHeaderSealer)
 		if !ok {
 			return preparedShortHeaderPacket{}, handshake.ErrKeysDropped
@@ -1085,7 +1089,10 @@ func (p *packetPacker) commitShortHeaderPacket(buffer *packetBuffer, prepared pr
 	if generation, ok := prepared.sealer.(interface{ KeyGeneration() protocol.KeyPhase }); ok {
 		packet.Context.KeyGeneration = generation.KeyGeneration()
 	}
-	raw := p.encryptPacket(buffer.Data[prepared.bufferStart:], prepared.sealer, packet.PacketNumber, prepared.payloadOffset, protocol.ByteCount(packet.PacketNumberLen))
+	raw, err := p.encryptPacket(buffer.Data[prepared.bufferStart:], prepared.sealer, packet.PacketNumber, prepared.payloadOffset, protocol.ByteCount(packet.PacketNumberLen))
+	if err != nil {
+		return shortHeaderPacket{}, err
+	}
 	buffer.Data = buffer.Data[:prepared.bufferStart+len(raw)]
 	if newPN := p.pnManager.PopPacketNumber(protocol.Encryption1RTT); newPN != packet.PacketNumber {
 		return shortHeaderPacket{}, fmt.Errorf("packetPacker BUG: Peeked and Popped packet numbers do not match: expected %d, got %d", packet.PacketNumber, newPN)
@@ -1133,13 +1140,19 @@ func (p *packetPacker) appendPacketPayload(raw []byte, pl payload, paddingLen pr
 	return raw, nil
 }
 
-func (p *packetPacker) encryptPacket(raw []byte, sealer sealer, pn protocol.PacketNumber, payloadOffset, pnLen protocol.ByteCount) []byte {
-	_ = sealer.Seal(raw[payloadOffset:payloadOffset], raw[payloadOffset:], pn, raw[:payloadOffset])
+func (p *packetPacker) encryptPacket(raw []byte, sealer sealer, pn protocol.PacketNumber, payloadOffset, pnLen protocol.ByteCount) ([]byte, error) {
+	if short, ok := sealer.(handshake.ShortHeaderSealer); ok {
+		if _, err := short.Seal(raw[payloadOffset:payloadOffset], raw[payloadOffset:], pn, raw[:payloadOffset]); err != nil {
+			return nil, err
+		}
+	} else {
+		_ = sealer.(handshake.LongHeaderSealer).Seal(raw[payloadOffset:payloadOffset], raw[payloadOffset:], pn, raw[:payloadOffset])
+	}
 	raw = raw[:len(raw)+sealer.Overhead()]
 	// apply header protection
 	pnOffset := payloadOffset - pnLen
 	sealer.EncryptHeader(raw[pnOffset+4:pnOffset+4+16], &raw[0], raw[pnOffset:payloadOffset])
-	return raw
+	return raw, nil
 }
 
 func (p *packetPacker) SetToken(token []byte) {

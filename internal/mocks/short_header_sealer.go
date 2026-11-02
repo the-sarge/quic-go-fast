@@ -153,11 +153,12 @@ func (c *MockShortHeaderSealerOverheadCall) DoAndReturn(f func() int) *MockShort
 }
 
 // Seal mocks base method.
-func (m *MockShortHeaderSealer) Seal(dst, src []byte, packetNumber protocol.PacketNumber, associatedData []byte) []byte {
+func (m *MockShortHeaderSealer) Seal(dst, src []byte, packetNumber protocol.PacketNumber, associatedData []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Seal", dst, src, packetNumber, associatedData)
 	ret0, _ := ret[0].([]byte)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Seal indicates an expected call of Seal.
@@ -173,19 +174,19 @@ type MockShortHeaderSealerSealCall struct {
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockShortHeaderSealerSealCall) Return(arg0 []byte) *MockShortHeaderSealerSealCall {
-	c.Call = c.Call.Return(arg0)
+func (c *MockShortHeaderSealerSealCall) Return(arg0 []byte, arg1 error) *MockShortHeaderSealerSealCall {
+	c.Call = c.Call.Return(arg0, arg1)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockShortHeaderSealerSealCall) Do(f func([]byte, []byte, protocol.PacketNumber, []byte) []byte) *MockShortHeaderSealerSealCall {
+func (c *MockShortHeaderSealerSealCall) Do(f func([]byte, []byte, protocol.PacketNumber, []byte) ([]byte, error)) *MockShortHeaderSealerSealCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockShortHeaderSealerSealCall) DoAndReturn(f func([]byte, []byte, protocol.PacketNumber, []byte) []byte) *MockShortHeaderSealerSealCall {
+func (c *MockShortHeaderSealerSealCall) DoAndReturn(f func([]byte, []byte, protocol.PacketNumber, []byte) ([]byte, error)) *MockShortHeaderSealerSealCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

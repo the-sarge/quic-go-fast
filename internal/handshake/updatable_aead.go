@@ -36,6 +36,7 @@ type updatableAEAD struct {
 	paths                               map[protocol.PathID]*pathProtection
 	largestAdmittedPath                 protocol.PathID
 	rcvTrafficSecret, sendTrafficSecret []byte
+	prevRcvTrafficSecret                []byte
 	updateConfirmed                     bool
 	nextUpdateTime                      monotime.Time
 
@@ -124,6 +125,7 @@ func (a *updatableAEAD) rollKeys() {
 	a.rcvAEAD = a.nextRcvAEAD
 	a.sendAEAD = a.nextSendAEAD
 
+	a.prevRcvTrafficSecret = a.rcvTrafficSecret
 	a.rcvTrafficSecret = a.nextRcvTrafficSecret
 	a.sendTrafficSecret = a.nextSendTrafficSecret
 	a.nextRcvTrafficSecret = a.getNextTrafficSecret(a.suite.Hash, a.nextRcvTrafficSecret)
@@ -224,6 +226,7 @@ func (a *updatableAEAD) Open(dst, src []byte, rcvTime monotime.Time, pn protocol
 func (a *updatableAEAD) open(dst, src []byte, rcvTime monotime.Time, pn protocol.PacketNumber, kp protocol.KeyPhaseBit, ad []byte) ([]byte, error) {
 	if a.prevRcvAEAD != nil && !a.prevRcvAEADExpiry.IsZero() && rcvTime.After(a.prevRcvAEADExpiry) {
 		a.prevRcvAEAD = nil
+		a.prevRcvTrafficSecret = nil
 		a.logger.Debugf("Dropping key phase %d", a.keyPhase-1)
 		a.prevRcvAEADExpiry = 0
 		if a.qlogger != nil {
@@ -301,7 +304,10 @@ func (a *updatableAEAD) open(dst, src []byte, rcvTime monotime.Time, pn protocol
 	return dec, err
 }
 
-func (a *updatableAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) []byte {
+func (a *updatableAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) ([]byte, error) {
+	if err := a.checkEncryptionLimit(); err != nil {
+		return nil, err
+	}
 	if a.paths != nil {
 		return a.sealPath(a.paths[0], dst, src, pn, ad)
 	}
@@ -315,7 +321,7 @@ func (a *updatableAEAD) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byt
 	binary.BigEndian.PutUint64(a.nonceBuf[len(a.nonceBuf)-8:], uint64(pn))
 	// The AEAD we're using here will be the qtls.aeadAESGCM13.
 	// It uses the nonce provided here and XOR it with the IV.
-	return a.sendAEAD.Seal(dst, a.nonceBuf, src, ad)
+	return a.sendAEAD.Seal(dst, a.nonceBuf, src, ad), nil
 }
 
 // SetLargestAcked is the ordinary path-zero PN boundary. Multipath callers

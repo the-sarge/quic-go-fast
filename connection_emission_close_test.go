@@ -60,7 +60,7 @@ func TestCloseConstructorFailureLifetime(t *testing.T) {
 			p.pnManager = mismatchedConstructionNumber{c.sentPacketHandler}
 			sealing := NewMockSealingManager(gomock.NewController(t))
 			if longHeader {
-				sealing.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(gomock.NewController(t)), nil)
+				sealing.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
 				sealing.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 			} else {
 				sealing.EXPECT().GetInitialSealer().Return(nil, handshake.ErrKeysDropped)
@@ -88,8 +88,8 @@ func TestEmissionCloseCoalescedClient1RTT(t *testing.T) {
 			defer c.ctxCancel(context.Canceled)
 			defer c.cryptoStreamHandler.Close()
 			sealing := NewMockSealingManager(ctrl)
-			sealing.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(ctrl), nil)
-			sealing.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(ctrl), nil)
+			sealing.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
+			sealing.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 			sealing.EXPECT().Get0RTTSealer().Return(nil, handshake.ErrKeysDropped)
 			sealing.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil)
 			c.emission.packer.cryptoSetup = sealing

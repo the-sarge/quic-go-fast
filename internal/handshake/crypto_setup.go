@@ -632,7 +632,7 @@ func (h *cryptoSetup) Get1RTTSealer() (ShortHeaderSealer, error) {
 	if !h.has1RTTSealer {
 		return nil, ErrKeysNotYetAvailable
 	}
-	return h.aead, nil
+	return ShortHeaderSealerForPath(h.aead, 0)
 }
 
 func (h *cryptoSetup) GetInitialOpener() (LongHeaderOpener, error) {

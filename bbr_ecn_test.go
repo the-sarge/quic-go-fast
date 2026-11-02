@@ -63,7 +63,7 @@ func TestBBRECNCoalescedAndPathProbeMarking(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		sealing := NewMockSealingManager(ctrl)
 		sealing.EXPECT().GetInitialSealer().Return(nil, handshake.ErrKeysDropped).AnyTimes()
-		sealing.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
+		sealing.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil).AnyTimes()
 		sealing.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
 		c.emission.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
 		c.handshakeStream.Write([]byte("handshake"))

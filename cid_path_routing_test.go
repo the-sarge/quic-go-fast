@@ -6,7 +6,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/quic-go/quic-go/internal/handshake"
 	"github.com/quic-go/quic-go/internal/mocks"
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -79,7 +78,9 @@ func TestCIDPathUnpackerRejectsUnadmittedPath(t *testing.T) {
 			if name == "1-RTT" {
 				// No admitted protection exists for the routed path.
 				cs := mocks.NewMockCryptoSetup(ctrl)
-				cs.EXPECT().Get1RTTOpener().Return(nil, handshake.ErrKeysDropped)
+				// Available zero-path protection must never be consulted to decode
+				// or open a routed, unadmitted identity. No opener calls are expected.
+				cs.EXPECT().Get1RTTOpener().Return(mocks.NewMockShortHeaderOpener(ctrl), nil)
 				tc.conn.unpacker = newPacketUnpacker(cs, tc.srcConnID.Len())
 				data = append(append([]byte{0x40}, tc.srcConnID.Bytes()...), 0)
 			} else {

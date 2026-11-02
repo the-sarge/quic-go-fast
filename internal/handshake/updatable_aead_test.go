@@ -110,7 +110,7 @@ func TestChaChaTestVector(t *testing.T) {
 			header := splitHexString(t, "4200bff4")
 			payloadOffset := len(header)
 			plaintext := splitHexString(t, "01")
-			payload := aead.Seal(nil, plaintext, 654360564, header)
+			payload := sealForTest(t, aead, nil, plaintext, 654360564, header)
 			require.Equal(t, tc.expectedPayload, payload)
 			packet := append(header, payload...)
 			aead.EncryptHeader(packet[pnOffset+4:pnOffset+4+16], &packet[0], packet[pnOffset:payloadOffset])
@@ -176,7 +176,7 @@ func TestUpdatableAEADEncryptDecryptMessage(t *testing.T) {
 				msg := []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
 				ad := []byte("Donec in velit neque.")
 
-				encrypted := server.Seal(nil, msg, 0x1337, ad)
+				encrypted := sealForTest(t, server, nil, msg, 0x1337, ad)
 
 				opened, err := client.Open(nil, encrypted, monotime.Now(), 0x1337, protocol.KeyPhaseZero, ad)
 				require.NoError(t, err)
@@ -197,9 +197,9 @@ func TestUpdatableAEADPacketNumbers(t *testing.T) {
 	msg := []byte("Lorem ipsum")
 	ad := []byte("Donec in velit neque.")
 
-	encrypted := server.Seal(nil, msg, 0x1337, ad)
+	encrypted := sealForTest(t, server, nil, msg, 0x1337, ad)
 	require.Equal(t, protocol.PacketNumber(0x1337), server.FirstPacketNumber()) // make sure we save the first packet number
-	_ = server.Seal(nil, msg, 0x1338, ad)
+	_ = sealForTest(t, server, nil, msg, 0x1338, ad)
 	require.Equal(t, protocol.PacketNumber(0x1337), server.FirstPacketNumber()) // make sure we save the first packet number
 
 	// check that decoding the packet number works as expected
@@ -231,10 +231,10 @@ func TestKeyUpdates(t *testing.T) {
 
 	now := monotime.Now()
 	require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
-	encrypted0 := server.Seal(nil, []byte(msg), 0x1337, []byte(ad))
+	encrypted0 := sealForTest(t, server, nil, []byte(msg), 0x1337, []byte(ad))
 	server.rollKeys()
 	require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
-	encrypted1 := server.Seal(nil, []byte(msg), 0x1337, []byte(ad))
+	encrypted1 := sealForTest(t, server, nil, []byte(msg), 0x1337, []byte(ad))
 	require.NotEqual(t, encrypted0, encrypted1)
 
 	_, err := client.Open(nil, encrypted1, now, 0x1337, protocol.KeyPhaseZero, []byte(ad))
@@ -285,14 +285,14 @@ func TestReorderedPacketAfterKeyUpdate(t *testing.T) {
 	client, server, eventRecorder := setupEndpoints(t, utils.NewRTTStats())
 
 	now := monotime.Now()
-	encrypted01 := client.Seal(nil, []byte(msg), 0x42, []byte(ad))
-	encrypted02 := client.Seal(nil, []byte(msg), 0x43, []byte(ad))
+	encrypted01 := sealForTest(t, client, nil, []byte(msg), 0x42, []byte(ad))
+	encrypted02 := sealForTest(t, client, nil, []byte(msg), 0x43, []byte(ad))
 	_, err := server.Open(nil, encrypted01, now, 0x42, protocol.KeyPhaseZero, []byte(ad))
 	require.NoError(t, err)
-	_ = server.Seal(nil, []byte(msg), 0x1, []byte(ad))
+	_ = sealForTest(t, server, nil, []byte(msg), 0x1, []byte(ad))
 
 	client.rollKeys()
-	encrypted1 := client.Seal(nil, []byte(msg), 0x44, []byte(ad))
+	encrypted1 := sealForTest(t, client, nil, []byte(msg), 0x44, []byte(ad))
 	require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
 	_, err = server.Open(nil, encrypted1, now, 0x44, protocol.KeyPhaseOne, []byte(ad))
 	require.NoError(t, err)
@@ -316,14 +316,14 @@ func TestDropsKeys3PTOsAfterKeyUpdate(t *testing.T) {
 	now := monotime.Now()
 	rttStats.UpdateRTT(10*time.Millisecond, 0)
 	pto := rttStats.PTO(true)
-	encrypted01 := client.Seal(nil, []byte(msg), 0x42, []byte(ad))
-	encrypted02 := client.Seal(nil, []byte(msg), 0x43, []byte(ad))
+	encrypted01 := sealForTest(t, client, nil, []byte(msg), 0x42, []byte(ad))
+	encrypted02 := sealForTest(t, client, nil, []byte(msg), 0x43, []byte(ad))
 	_, err := server.Open(nil, encrypted01, now, 0x42, protocol.KeyPhaseZero, []byte(ad))
 	require.NoError(t, err)
-	_ = server.Seal(nil, []byte(msg), 0x1, []byte(ad))
+	_ = sealForTest(t, server, nil, []byte(msg), 0x1, []byte(ad))
 
 	client.rollKeys()
-	encrypted1 := client.Seal(nil, []byte(msg), 0x44, []byte(ad))
+	encrypted1 := sealForTest(t, client, nil, []byte(msg), 0x44, []byte(ad))
 	require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
 	_, err = server.Open(nil, encrypted1, now, 0x44, protocol.KeyPhaseOne, []byte(ad))
 	require.NoError(t, err)
@@ -346,7 +346,7 @@ func TestDropsKeys3PTOsAfterKeyUpdate(t *testing.T) {
 func TestAllowsFirstKeyUpdateImmediately(t *testing.T) {
 	client, server, serverTracer := setupEndpoints(t, utils.NewRTTStats())
 	client.rollKeys()
-	encrypted := client.Seal(nil, []byte(msg), 0x1337, []byte(ad))
+	encrypted := sealForTest(t, client, nil, []byte(msg), 0x1337, []byte(ad))
 
 	// if decryption failed, we don't expect a key phase update
 	_, err := server.Open(nil, encrypted[:len(encrypted)-1], monotime.Now(), 0x1337, protocol.KeyPhaseOne, []byte(ad))
@@ -366,12 +366,12 @@ func TestRejectFrequentKeyUpdates(t *testing.T) {
 
 	server.rollKeys()
 	client.rollKeys()
-	encrypted0 := client.Seal(nil, []byte(msg), 0x42, []byte(ad))
+	encrypted0 := sealForTest(t, client, nil, []byte(msg), 0x42, []byte(ad))
 	_, err := server.Open(nil, encrypted0, monotime.Now(), 0x42, protocol.KeyPhaseOne, []byte(ad))
 	require.NoError(t, err)
 
 	client.rollKeys()
-	encrypted1 := client.Seal(nil, []byte(msg), 0x42, []byte(ad))
+	encrypted1 := sealForTest(t, client, nil, []byte(msg), 0x42, []byte(ad))
 	_, err = server.Open(nil, encrypted1, monotime.Now(), 0x42, protocol.KeyPhaseZero, []byte(ad))
 	require.Equal(t, &qerr.TransportError{
 		ErrorCode:    qerr.KeyUpdateError,
@@ -401,7 +401,7 @@ func TestInitiateKeyUpdateAfterSendingMaxPackets(t *testing.T) {
 	// first key update
 	for range firstKeyUpdateInterval {
 		require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
-		server.Seal(nil, []byte(msg), pn, []byte(ad))
+		sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 		pn++
 	}
 	// the first update is allowed without receiving an acknowledgement
@@ -415,14 +415,14 @@ func TestInitiateKeyUpdateAfterSendingMaxPackets(t *testing.T) {
 	// subsequent key update
 	for range 2 * keyUpdateInterval {
 		require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
-		server.Seal(nil, []byte(msg), pn, []byte(ad))
+		sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 		pn++
 	}
 	// no update allowed before receiving an acknowledgement for the current key phase
 	require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
 	// receive an ACK for a packet sent in key phase 1
 	client.rollKeys()
-	b := client.Seal(nil, []byte("foobar"), 1, []byte("ad"))
+	b := sealForTest(t, client, nil, []byte("foobar"), 1, []byte("ad"))
 	_, err := server.Open(nil, b, monotime.Now(), 1, protocol.KeyPhaseOne, []byte("ad"))
 	require.NoError(t, err)
 	require.NoError(t, server.SetLargestAcked(firstKeyUpdateInterval))
@@ -449,7 +449,7 @@ func TestKeyUpdateEnforceACKKeyPhase(t *testing.T) {
 	for i := range firstKeyUpdateInterval {
 		pn := protocol.PacketNumber(i)
 		require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
-		server.Seal(nil, []byte(msg), pn, []byte(ad))
+		sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 	}
 	require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
 	require.Equal(t,
@@ -460,7 +460,7 @@ func TestKeyUpdateEnforceACKKeyPhase(t *testing.T) {
 
 	// Now that our keys are updated, send a packet using the new keys.
 	const nextPN = firstKeyUpdateInterval + 1
-	server.Seal(nil, []byte(msg), nextPN, []byte(ad))
+	sealForTest(t, server, nil, []byte(msg), nextPN, []byte(ad))
 
 	for i := range firstKeyUpdateInterval {
 		// We haven't decrypted any packet in the new key phase yet.
@@ -494,7 +494,7 @@ func TestKeyUpdateAfterOpeningMaxPackets(t *testing.T) {
 	var pn protocol.PacketNumber
 	for range firstKeyUpdateInterval {
 		require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
-		encrypted := client.Seal(nil, msg, pn, ad)
+		encrypted := sealForTest(t, client, nil, msg, pn, ad)
 		_, err := server.Open(nil, encrypted, monotime.Now(), pn, protocol.KeyPhaseZero, ad)
 		require.NoError(t, err)
 		pn++
@@ -512,7 +512,7 @@ func TestKeyUpdateAfterOpeningMaxPackets(t *testing.T) {
 	client.rollKeys()
 	for range keyUpdateInterval {
 		require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
-		encrypted := client.Seal(nil, msg, pn, ad)
+		encrypted := sealForTest(t, client, nil, msg, pn, ad)
 		_, err := server.Open(nil, encrypted, monotime.Now(), pn, protocol.KeyPhaseOne, ad)
 		require.NoError(t, err)
 		pn++
@@ -520,7 +520,7 @@ func TestKeyUpdateAfterOpeningMaxPackets(t *testing.T) {
 
 	// No update allowed before receiving an acknowledgement for the current key phase
 	require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
-	server.Seal(nil, msg, 1, ad)
+	sealForTest(t, server, nil, msg, 1, ad)
 	require.NoError(t, server.SetLargestAcked(firstKeyUpdateInterval+1))
 	require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
 	require.Equal(t,
@@ -543,13 +543,13 @@ func TestKeyUpdateKeyPhaseSkipping(t *testing.T) {
 	server.SetHandshakeConfirmed()
 
 	now := monotime.Now()
-	data1 := client.Seal(nil, []byte(msg), 1, []byte(ad))
+	data1 := sealForTest(t, client, nil, []byte(msg), 1, []byte(ad))
 	_, err := server.Open(nil, data1, now, 1, protocol.KeyPhaseZero, []byte(ad))
 	require.NoError(t, err)
 	for i := range firstKeyUpdateInterval {
 		pn := protocol.PacketNumber(i)
 		require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
-		server.Seal(nil, []byte(msg), pn, []byte(ad))
+		sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 		require.NoError(t, server.SetLargestAcked(pn))
 	}
 	require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
@@ -561,7 +561,7 @@ func TestKeyUpdateKeyPhaseSkipping(t *testing.T) {
 
 	// The server never received a packet at key phase 1.
 	// Make sure the key phase 0 is still there at a much later point.
-	data2 := client.Seal(nil, []byte(msg), 2, []byte(ad))
+	data2 := sealForTest(t, client, nil, []byte(msg), 2, []byte(ad))
 	_, err = server.Open(nil, data2, now.Add(10*rttStats.PTO(true)), 2, protocol.KeyPhaseZero, []byte(ad))
 	require.NoError(t, err)
 	require.Empty(t, eventRecorder.Events())
@@ -578,10 +578,10 @@ func TestFastKeyUpdatesByPeer(t *testing.T) {
 	var pn protocol.PacketNumber
 	for range firstKeyUpdateInterval {
 		require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
-		server.Seal(nil, []byte(msg), pn, []byte(ad))
+		sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 		pn++
 	}
-	b := client.Seal(nil, []byte("foobar"), 1, []byte("ad"))
+	b := sealForTest(t, client, nil, []byte("foobar"), 1, []byte("ad"))
 	_, err := server.Open(nil, b, monotime.Now(), 1, protocol.KeyPhaseZero, []byte("ad"))
 	require.NoError(t, err)
 	require.NoError(t, server.SetLargestAcked(0))
@@ -594,9 +594,9 @@ func TestFastKeyUpdatesByPeer(t *testing.T) {
 
 	// Send and receive an acknowledgement for a packet in key phase 1.
 	// We are now running a timer to drop the keys with 3 PTO.
-	server.Seal(nil, []byte(msg), pn, []byte(ad))
+	sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 	client.rollKeys()
-	dataKeyPhaseOne := client.Seal(nil, []byte(msg), 2, []byte(ad))
+	dataKeyPhaseOne := sealForTest(t, client, nil, []byte(msg), 2, []byte(ad))
 	now := monotime.Now()
 	_, err = server.Open(nil, dataKeyPhaseOne, now, 2, protocol.KeyPhaseOne, []byte(ad))
 	require.NoError(t, err)
@@ -604,7 +604,7 @@ func TestFastKeyUpdatesByPeer(t *testing.T) {
 	// Now the client sends us a packet in key phase 2, forcing us to update keys before the 3 PTO period is over.
 	// This mean that we need to drop the keys for key phase 0 immediately.
 	client.rollKeys()
-	dataKeyPhaseTwo := client.Seal(nil, []byte(msg), 3, []byte(ad))
+	dataKeyPhaseTwo := sealForTest(t, client, nil, []byte(msg), 3, []byte(ad))
 
 	_, err = server.Open(nil, dataKeyPhaseTwo, now, 3, protocol.KeyPhaseZero, []byte(ad))
 	require.NoError(t, err)
@@ -632,9 +632,9 @@ func TestFastKeyUpdateByUs(t *testing.T) {
 	for i := range firstKeyUpdateInterval {
 		pn := protocol.PacketNumber(i)
 		require.Equal(t, protocol.KeyPhaseZero, server.KeyPhase())
-		server.Seal(nil, []byte(msg), pn, []byte(ad))
+		sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 	}
-	b := client.Seal(nil, []byte("foobar"), 1, []byte("ad"))
+	b := sealForTest(t, client, nil, []byte("foobar"), 1, []byte("ad"))
 	_, err := server.Open(nil, b, monotime.Now(), 1, protocol.KeyPhaseZero, []byte("ad"))
 	require.NoError(t, err)
 	require.NoError(t, server.SetLargestAcked(0))
@@ -649,10 +649,10 @@ func TestFastKeyUpdateByUs(t *testing.T) {
 	for i := keyUpdateInterval; i < 2*keyUpdateInterval; i++ {
 		pn := protocol.PacketNumber(i)
 		require.Equal(t, protocol.KeyPhaseOne, server.KeyPhase())
-		server.Seal(nil, []byte(msg), pn, []byte(ad))
+		sealForTest(t, server, nil, []byte(msg), pn, []byte(ad))
 	}
 	client.rollKeys()
-	b = client.Seal(nil, []byte("foobar"), 2, []byte("ad"))
+	b = sealForTest(t, client, nil, []byte("foobar"), 2, []byte("ad"))
 	now := monotime.Now()
 	_, err = server.Open(nil, b, now, 2, protocol.KeyPhaseOne, []byte("ad"))
 	require.NoError(t, err)
@@ -669,7 +669,7 @@ func TestFastKeyUpdateByUs(t *testing.T) {
 
 	// We haven't received an ACK for a packet sent in key phase 2 yet.
 	// Make sure we canceled the timer to drop the previous key phase.
-	b = client.Seal(nil, []byte("foobar"), 3, []byte("ad"))
+	b = sealForTest(t, client, nil, []byte("foobar"), 3, []byte("ad"))
 	_, err = server.Open(nil, b, now.Add(10*rttStats.PTO(true)), 3, protocol.KeyPhaseOne, []byte("ad"))
 	require.NoError(t, err)
 	require.Empty(t, eventRecorder.Events())
@@ -702,7 +702,11 @@ func BenchmarkPacketEncryption(b *testing.B) {
 
 	var pn protocol.PacketNumber
 	for b.Loop() {
-		src = client.Seal(src[:0], src[:l], pn, ad)
+		var err error
+		src, err = client.Seal(src[:0], src[:l], pn, ad)
+		if err != nil {
+			b.Fatal(err)
+		}
 		pn++
 	}
 }
@@ -715,7 +719,7 @@ func BenchmarkPacketDecryption(b *testing.B) {
 	rand.Read(src)
 	ad := make([]byte, 32)
 	rand.Read(ad)
-	src = client.Seal(src[:0], src[:l], 1337, ad)
+	src = sealForTest(b, client, src[:0], src[:l], 1337, ad)
 
 	for b.Loop() {
 		if _, err := server.Open(dst[:0], src, 0, 1337, protocol.KeyPhaseZero, ad); err != nil {

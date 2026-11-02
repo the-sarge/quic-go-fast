@@ -439,7 +439,7 @@ type probeSealRecorder struct {
 	numbers []protocol.PacketNumber
 }
 
-func (s *probeSealRecorder) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) []byte {
+func (s *probeSealRecorder) Seal(dst, src []byte, pn protocol.PacketNumber, ad []byte) ([]byte, error) {
 	s.numbers = append(s.numbers, pn)
 	return s.ShortHeaderSealer.Seal(dst, src, pn, ad)
 }
