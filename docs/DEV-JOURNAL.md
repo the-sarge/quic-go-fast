@@ -8313,3 +8313,30 @@ Final candidate 4ce991e32c239ad1b7ac1a656be10ed3e64b128a passed exact-head verif
 ### Next
 
 [R7 issue #1027](https://github.com/the-sarge/quic-go-fast/issues/1027) now has its sole blocker closed; reconcile its ready label and OmniFocus blocked prefix during journal closure. [R8 issue #1028](https://github.com/the-sarge/quic-go-fast/issues/1028) remains independently ready. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views. No separate frontier/status PR or review follow-up issue is required.
+
+---
+
+## Local rich recovery qualification landed - 2026-11-02 03:34 EST
+
+**Main:** `2f2f6eb02e53`
+**Actor:** Codex
+
+### Completed
+
+[PR #1097 — Qualify rich recovery evidence after local completion](https://github.com/the-sarge/quic-go-fast/pull/1097) merged as `2f2f6eb02e5364142e9daeab249bc3d62d1be3f7`, closing [E2B issue #1085](https://github.com/the-sarge/quic-go-fast/issues/1085). The private rich delivery/BBR route now consumes the existing local-completion lifecycle without registering transmissions again. A bounded registration-order cursor qualifies native-return timing for persistent-congestion and PTO-confirmation queries; pending or excluded evidence cannot certify spans, and accepted suffixes regain usable evidence. Raw send provenance, logical delivery, ordinary loss/PTO and recovery witnesses retain their meanings. Qualification storage is local-only; the legacy outcome ring remains compact and pointer-free. ECN and production endpoint activation remain excluded.
+
+The product PR owns E2B completion and the E2C frontier: 3/9 endpoint slices and 9/34 program slices complete. Reconciliation preserves R6 #1026 completion and the R7 #1027/R8 #1028 frontier. This journal appends history only.
+
+### Decisions
+
+[Amendment PR #1100](https://github.com/the-sarge/quic-go-fast/pull/1100) separates timing-only restoration from logical lifecycle generations and retains send-spacing bounds through stale receipts. [Amendment PR #1102](https://github.com/the-sarge/quic-go-fast/pull/1102) closes the receipt-admission and coherent-baseline requirement after the replacement review. The [current E2B contract](adr/2026-10-24-multipath-endpoint-plan.md#e2b) owns these decisions: one connection-owned dispatch/sampler boundary, the same typed domain, three scenario functions, and no added controller formula, resource cap or fresh product review. Existing conservative uncertainty fences remain intact.
+
+### Validation
+
+Initial RAS run `20261102T060633-3a89548200e906ffe1894a94` and replacement run `20261102T072520-b3021f75c2eb71292d4a244c` consumed the bounded fresh-review allowance. Final verification of the replacement run at `66c315fb6f5990a02f8c6bcee72f942e31b97126` was clear, with both source clusters resolved. The ACK-only regression rejects partial timing baselines and produces the expected 10 ms / 120,000-byte/s sample; eviction, pending-credit/lifecycle restoration, compressed live/retained ACKs and overlapping accepted traffic remain covered within the existing three scenarios.
+
+Affected ackhandler/congestion and root tests, inherited recovery/delivery equivalence and tagged indexed-work bounds, affected-package vet and lint, module tidiness, clean-tree/whitespace and added-link checks passed at the exact pushed head on base `8ab23af8ef6017f23ab9539da29aa7b5e94b3972`. The [certification receipt for PR #1097](https://github.com/the-sarge/quic-go-fast/pull/1097#issuecomment-6572471436) records the evidence. All 17 distinct applicable hosted checks passed (33 push/PR jobs), including [unit run 41412001530](https://github.com/the-sarge/quic-go-fast/actions/runs/41412001530), before exact-head squash merge. No deferred finding, additional stress/race/native/platform campaign or admitted untraced effect remains.
+
+### Next
+
+[E2C issue #1086](https://github.com/the-sarge/quic-go-fast/issues/1086) now has its sole blocker closed; reconcile its ready label and OmniFocus blocked prefix after journal completion. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live current-state views. No separate frontier/status PR or review follow-up issue is required.
