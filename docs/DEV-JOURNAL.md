@@ -8415,3 +8415,14 @@ Initial review `20261102T201107-9c140b79d2f560f027e2a239` was independently disp
 ### Next
 
 [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) remains blocked by [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019); R8 completion makes no new Reno successor ready. The surviving PATH_STATUS integration concern was revalidated at merge `704c7226329bff0e1b84360a66ab3ed0636289d9` (`internal/wire/frame_parser.go:197`, `connection.go:2150`) and retained on existing R9 (#1029)/[R15 issue #1035](https://github.com/the-sarge/quic-go-fast/issues/1035) tracking. [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016) and [E4 issue #1018](https://github.com/the-sarge/quic-go-fast/issues/1018) remain the endpoint frontier. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live state views; this journal appends history only.
+
+---
+
+## Sent-path adaptive isolation fixture stabilized - 2026-11-02 18:32 EST
+
+**Main:** `cdd2951f7b59`
+**Actor:** Codex
+
+Completed [issue #1120 — Stabilize sent-path adaptive isolation fixture](https://github.com/the-sarge/quic-go-fast/issues/1120) in [PR #1121](https://github.com/the-sarge/quic-go-fast/pull/1121), merged as `cdd2951f7b592928531f9da7f09df52d226042c5`. The existing isolation test now assigns separate sequential packet-number generators to both paths before sending packets, making its cross-path ACK assumptions deterministic while preserving its assertions and timing.
+
+Validation passed on candidate `7263c393fd3ccc8732c6b58a1a474d2a827fa055`: 300 focused executions, 100 race-enabled focused executions, the ackhandler package tests, affected-package vet, module tidiness, formatting and diff checks. RAS review `20261102T231746-9c81c26c6f168e4e99fa1af5` reported no findings. Existing hosted PR checks passed before the exact-head squash merge. Issue #1120 is closed; no review follow-ups remain.
