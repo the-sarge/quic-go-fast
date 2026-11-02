@@ -160,8 +160,9 @@ type Conn struct {
 	connIDManager   *connIDManager
 	connIDGenerator *connIDGenerator
 
-	rttStats  *utils.RTTStats
-	connStats utils.ConnectionStats
+	rttStats       *utils.RTTStats
+	rttObservation *rttObservation
+	connStats      utils.ConnectionStats
 
 	cryptoStreamManager   *cryptoStreamManager
 	sentPacketHandler     ackhandler.SentPacketHandler
@@ -568,6 +569,7 @@ func (c *Conn) preSetup() {
 		false, // ACK_FREQUENCY is not supported yet
 	)
 	c.rttStats = utils.NewRTTStats()
+	c.rttObservation = newRTTObservation(c.rttStats)
 	c.connFlowController = newConnectionFlowController(
 		protocol.ByteCount(c.config.InitialConnectionReceiveWindow),
 		protocol.ByteCount(c.config.MaxConnectionReceiveWindow),
@@ -577,7 +579,7 @@ func (c *Conn) preSetup() {
 			}
 			return c.config.AllowConnectionWindowIncrease(c, uint64(size))
 		},
-		c.rttStats,
+		c.flowControlRTT(),
 		c.logger,
 	)
 	c.earlyConnReadyChan = make(chan struct{})
@@ -609,6 +611,11 @@ func (c *Conn) preSetup() {
 
 // run the connection main loop
 func (c *Conn) run() (err error) {
+	defer func() {
+		if c.rttObservation != nil {
+			c.rttObservation.freeze()
+		}
+	}()
 	defer func() { c.ctxCancel(err) }()
 	defer func() { c.receivePhase.stop(err) }()
 	defer c.pathMTUSettled.settle()
@@ -914,10 +921,10 @@ type ConnectionStats struct {
 
 func (c *Conn) ConnectionStats() ConnectionStats {
 	return ConnectionStats{
-		MinRTT:        c.rttStats.MinRTT(),
-		LatestRTT:     c.rttStats.LatestRTT(),
-		SmoothedRTT:   c.rttStats.SmoothedRTT(),
-		MeanDeviation: c.rttStats.MeanDeviation(),
+		MinRTT:        c.observedRTT().MinRTT(),
+		LatestRTT:     c.observedRTT().LatestRTT(),
+		SmoothedRTT:   c.observedRTT().SmoothedRTT(),
+		MeanDeviation: c.observedRTT().MeanDeviation(),
 
 		BytesSent:       c.connStats.BytesSent.Load(),
 		PacketsSent:     c.connStats.PacketsSent.Load(),
@@ -930,7 +937,7 @@ func (c *Conn) ConnectionStats() ConnectionStats {
 
 // Time when the connection should time out
 func (c *Conn) nextIdleTimeoutTime() monotime.Time {
-	idleTimeout := max(c.idleTimeout, c.rttStats.PTO(true)*3)
+	idleTimeout := max(c.idleTimeout, c.observedRTT().PTO(true)*3)
 	return c.idleTimeoutStartTime().Add(idleTimeout)
 }
 
@@ -940,7 +947,7 @@ func (c *Conn) nextKeepAliveTime() monotime.Time {
 	if c.config.KeepAlivePeriod == 0 || c.keepAlivePingSent {
 		return 0
 	}
-	keepAliveInterval := max(c.keepAliveInterval, c.rttStats.PTO(true)*3/2)
+	keepAliveInterval := max(c.keepAliveInterval, c.observedRTT().PTO(true)*3/2)
 	return c.lastPacketReceivedTime.Add(keepAliveInterval)
 }
 
@@ -1065,7 +1072,7 @@ func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 	c.undecryptablePackets = nil
 
 	c.connIDManager.SetHandshakeComplete()
-	c.connIDGenerator.SetHandshakeComplete(now.Add(3 * c.rttStats.PTO(false)))
+	c.connIDGenerator.SetHandshakeComplete(now.Add(3 * c.observedRTT().PTO(false)))
 
 	if c.qlogger != nil {
 		c.qlogger.RecordEvent(qlog.ALPNInformation{
@@ -1097,7 +1104,7 @@ func (c *Conn) handleHandshakeComplete(now monotime.Time) error {
 			}
 		}
 	}
-	token, err := c.tokenGenerator.NewToken(c.conn.RemoteAddr(), c.rttStats.SmoothedRTT())
+	token, err := c.tokenGenerator.NewToken(c.conn.RemoteAddr(), c.observedRTT().SmoothedRTT())
 	if err != nil {
 		return err
 	}
@@ -2099,7 +2106,7 @@ func (c *Conn) handleFrame(
 	case *wire.NewConnectionIDFrame:
 		err = c.connIDManager.Add(frame)
 	case *wire.RetireConnectionIDFrame:
-		err = c.connIDGenerator.Retire(frame.SequenceNumber, destConnID, rcvTime.Add(3*c.rttStats.PTO(false)))
+		err = c.connIDGenerator.Retire(frame.SequenceNumber, destConnID, rcvTime.Add(3*c.observedRTT().PTO(false)))
 	case *wire.HandshakeDoneFrame:
 		err = c.handleHandshakeDoneFrame(rcvTime)
 	default:
@@ -2331,7 +2338,7 @@ func (c *Conn) handleNewTokenFrame(frame *wire.NewTokenFrame) error {
 		}
 	}
 	if c.config.TokenStore != nil {
-		c.config.TokenStore.Put(c.tokenStoreKey, &ClientToken{data: frame.Token, rtt: c.rttStats.SmoothedRTT()})
+		c.config.TokenStore.Put(c.tokenStoreKey, &ClientToken{data: frame.Token, rtt: c.observedRTT().SmoothedRTT()})
 	}
 	return nil
 }
@@ -2552,7 +2559,7 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 
 	// If this is a remote close we're done here
 	if isRemoteClose {
-		c.connIDGenerator.ReplaceWithClosed(nil, 3*c.rttStats.PTO(false))
+		c.connIDGenerator.ReplaceWithClosed(nil, 3*c.observedRTT().PTO(false))
 		return
 	}
 	// Recreating for version negotiation never sends a close in the old version.
@@ -2571,7 +2578,7 @@ func (c *Conn) handleCloseError(closeErr *closeError) {
 		c.logger.Debugf("Error sending CONNECTION_CLOSE: %s", err)
 		closeOutcome = candidateCloseFailure(err)
 	}
-	c.connIDGenerator.ReplaceWithClosed(connClosePacket, 3*c.rttStats.PTO(false))
+	c.connIDGenerator.ReplaceWithClosed(connClosePacket, 3*c.observedRTT().PTO(false))
 }
 
 func (c *Conn) dropEncryptionLevel(encLevel protocol.EncryptionLevel, now monotime.Time) {
@@ -2954,7 +2961,7 @@ func (c *Conn) newFlowController(id protocol.StreamID) *streamFlowController {
 		protocol.ByteCount(c.config.InitialStreamReceiveWindow),
 		protocol.ByteCount(c.config.MaxStreamReceiveWindow),
 		initialSendWindow,
-		c.rttStats,
+		c.flowControlRTT(),
 		c.logger,
 	)
 }

@@ -45,6 +45,9 @@ type SentPacketHandler interface {
 // TimeoutOutcome reports what an OnLossDetectionTimeout call did.
 // It does not depend on tracing.
 type TimeoutOutcome struct {
+	// PathID identifies the application recovery owner whose PTO expired.
+	PathID protocol.PathID
+
 	// PTO is set if a probe timeout expired: recovery counted the expiration and
 	// requested probe packets. Time-threshold loss and calls that expire nothing
 	// leave it unset.

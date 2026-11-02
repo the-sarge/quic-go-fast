@@ -83,6 +83,10 @@ type alarmTimer struct {
 }
 
 type sentPacketHandler struct {
+	pathID   protocol.PathID
+	pathRoot *sentPacketHandler
+	paths    map[protocol.PathID]*sentPacketHandler
+
 	local                   *localCompletions
 	initialPackets          *packetNumberSpace
 	handshakePackets        *packetNumberSpace
@@ -338,7 +342,15 @@ func (h *sentPacketHandler) SentPacketWithContext(
 func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streamFrames []StreamFrame, frames []Frame, encLevel protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount, isPathMTUProbePacket, isPathProbePacket bool, local *localRegistration) {
 	// Additional protocol paths are not active in this prefactor. Validate
 	// before accounting so an invalid identity cannot partially register.
-	if !validPacketContext(context, encLevel) {
+	if context.PathID != h.pathID {
+		path := h.path(context.PathID)
+		if path == nil || encLevel != protocol.Encryption1RTT {
+			panic("unavailable recovery path")
+		}
+		path.sentPacket(context, t, pn, largestAcked, streamFrames, frames, encLevel, ecn, size, isPathMTUProbePacket, isPathProbePacket, local)
+		return
+	}
+	if !h.validPacketContext(context, encLevel) {
 		panic("invalid path-zero packet context")
 	}
 	targets := snapshotAckTargets(largestAcked, frames, encLevel)
@@ -471,9 +483,13 @@ func (h *sentPacketHandler) getPacketNumberSpace(encLevel protocol.EncryptionLev
 }
 
 func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (protocol.ApplicationKeyReceipt, error) {
-	// R7 supplies nonzero sent spaces. Until then a PATH_ACK for another
-	// target must not be interpreted in this handler's path-zero history.
-	if ack.HasPathID && (ack.PathID != 0 || encLevel != protocol.Encryption1RTT) {
+	if ack.HasPathID && ack.PathID != h.pathID {
+		if path := h.path(ack.PathID); path != nil && encLevel == protocol.Encryption1RTT {
+			return path.ReceivedAck(ack, encLevel, rcvTime)
+		}
+		return protocol.ApplicationKeyReceipt{}, &qerr.TransportError{ErrorCode: qerr.ProtocolViolation, ErrorMessage: "ACK for unavailable path space"}
+	}
+	if (ack.HasPathID && encLevel != protocol.Encryption1RTT) || (h.pathID != 0 && !ack.HasPathID) {
 		return protocol.ApplicationKeyReceipt{}, &qerr.TransportError{ErrorCode: qerr.ProtocolViolation, ErrorMessage: "ACK for unavailable path space"}
 	}
 	if h.local != nil && h.local.closed {
@@ -1076,6 +1092,9 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 }
 
 func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOutcome, error) {
+	if path := h.earliestRecoveryPath(); path != h {
+		return path.OnLossDetectionTimeout(now)
+	}
 	defer h.setLossDetectionTimer(now)
 
 	if h.handshakeConfirmed {
@@ -1153,7 +1172,7 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOu
 		// Skip a packet number to elicit an immediate ACK. The private route
 		// cannot bypass a retained producer PN or overrun the shared history
 		// budget with the generator skip plus this marker.
-		if h.local == nil || (ps.localUnregisteredPN == protocol.InvalidPacketNumber &&
+		if (h.local == nil && h.pathRoot == nil && len(h.paths) == 0) || (ps.localUnregisteredPN == protocol.InvalidPacketNumber &&
 			h.numTrackedPackets()+int(ps.pns.Peek()-ps.history.highestPacketNumber) <= protocol.MaxTrackedSentPackets) {
 			pn := h.PopPacketNumber(protocol.Encryption1RTT)
 			ps.history.SkippedPacket(pn)
@@ -1163,11 +1182,11 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOu
 	default:
 		return TimeoutOutcome{}, fmt.Errorf("PTO timer in unexpected encryption level: %s", encLevel)
 	}
-	return TimeoutOutcome{PTO: true, EncLevel: encLevel}, nil
+	return TimeoutOutcome{PTO: true, EncLevel: encLevel, PathID: h.pathID}, nil
 }
 
 func (h *sentPacketHandler) GetLossDetectionTimeout() monotime.Time {
-	return h.alarm.Time
+	return h.earliestRecoveryPath().alarm.Time
 }
 
 func (h *sentPacketHandler) ECNMode(isShortHeaderPacket bool) protocol.ECN {
@@ -1222,6 +1241,18 @@ func (h *sentPacketHandler) SendAllowance(now monotime.Time) (SendMode, protocol
 }
 
 func (h *sentPacketHandler) numTrackedPackets() int {
+	root := h
+	if h.pathRoot != nil {
+		root = h.pathRoot
+	}
+	count := root.localTrackedPackets()
+	for _, path := range root.paths {
+		count += path.localTrackedPackets()
+	}
+	return count
+}
+
+func (h *sentPacketHandler) localTrackedPackets() int {
 	numTrackedPackets := h.appDataPackets.history.Len()
 	if h.initialPackets != nil {
 		numTrackedPackets += h.initialPackets.history.Len()
@@ -1236,7 +1267,15 @@ func (h *sentPacketHandler) CanSendPathProbe() bool {
 	if h.local != nil {
 		return false
 	}
-	if h.appDataPackets.history.pathProbePackets.Len() >= maxOutstandingPathProbes {
+	root := h
+	if h.pathRoot != nil {
+		root = h.pathRoot
+	}
+	probes := root.appDataPackets.history.pathProbePackets.Len()
+	for _, path := range root.paths {
+		probes += path.appDataPackets.history.pathProbePackets.Len()
+	}
+	if probes >= maxOutstandingPathProbes {
 		return false
 	}
 	// Popping the next packet number can also insert a skipped-number marker.
@@ -1252,6 +1291,14 @@ func (h *sentPacketHandler) sendMode(now monotime.Time, paced bool) SendMode {
 		return SendNone
 	}
 	numTrackedPackets := h.numTrackedPackets()
+	// Multipath admission reserves the selected application's skip marker and
+	// packet against the shared ceiling before the packer consumes any work.
+	if h.pathRoot != nil || len(h.paths) != 0 {
+		additional := max(protocol.PacketNumber(1), h.appDataPackets.pns.Peek()-h.appDataPackets.history.highestPacketNumber)
+		if numTrackedPackets+int(additional) > protocol.MaxTrackedSentPackets {
+			return SendNone
+		}
+	}
 
 	if h.isAmplificationLimited() {
 		h.logger.Debugf("Amplification window limited. Received %d bytes, already sent out %d bytes", h.bytesReceived, h.bytesSent)
@@ -1369,7 +1416,7 @@ func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
 	localRTTEligible := true
 	h.congestion.OnPacketsDiscarded()
 	h.lostPackets.Reset()
-	h.ackCarriers = ackCarrierHistory{}
+	h.ackCarriers = ackCarrierHistory{limit: h.ackCarriers.limit}
 	h.resetCongestionCapture(false)
 	h.bytesInFlight = 0
 	var firstPacketSendTime monotime.Time
