@@ -12,6 +12,7 @@ import (
 type lostPacket struct {
 	PacketNumber protocol.PacketNumber
 	SendTime     monotime.Time
+	received     bool // local Reno receipt held while a possible CE delta is unresolved
 }
 
 type lostPacketTracker struct {

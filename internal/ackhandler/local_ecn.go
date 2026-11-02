@@ -257,6 +257,7 @@ func (h *sentPacketHandler) completeLocalECN(reg *localRegistration, now monotim
 	if h.local == nil || h.local.ecn == nil {
 		return
 	}
+	defer h.settleLocalUndo(now)
 	e := h.local.ecn
 	e.reconcileTerminal(h, reg)
 	if e.failed || e.closed || reg.level != protocol.Encryption1RTT {
@@ -628,4 +629,34 @@ func (e *localECNEvidence) apply(h *sentPacketHandler, priorInFlight protocol.By
 	copy(e.records, e.records[n:])
 	clear(e.records[len(e.records)-n:])
 	e.records = e.records[:len(e.records)-n]
+}
+
+// Local Reno alone needs to coordinate its existing undo receipts with delayed
+// ECN validation. The ECN owner supplies the decision; the loss history retains
+// receipts under its existing age, capacity and destructive-reset authority.
+func (h *sentPacketHandler) localRenoECN() *localECNEvidence {
+	if h.local == nil || h.bbrECN != nil {
+		return nil
+	}
+	return h.local.ecn
+}
+
+func (h *sentPacketHandler) settleLocalUndo(now monotime.Time) {
+	e := h.localRenoECN()
+	if e == nil {
+		return
+	}
+	h.expireLostPackets(now.Add(-3 * h.rttStats.PTO(false)))
+	t := h.ecnTracker.(*ecnTracker)
+	if !e.failed && !e.closed && t.state != ecnStateFailed && e.pending && len(e.constraints) != 0 && e.reported.CE > uint64(t.numAckedECNCE) {
+		return
+	}
+	// apply has either delivered qualified CE first, or the report failed
+	// without CE authority. Neither decision may silently discard valid undo.
+	for _, p := range h.lostPackets.lostPackets {
+		if p.received {
+			h.congestion.OnSpuriousLoss(congestion.NewPacketKey(protocol.Encryption1RTT, p.PacketNumber))
+		}
+	}
+	h.lostPackets.lostPackets = slices.DeleteFunc(h.lostPackets.lostPackets, func(p lostPacket) bool { return p.received })
 }

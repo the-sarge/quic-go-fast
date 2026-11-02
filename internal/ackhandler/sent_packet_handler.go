@@ -666,14 +666,21 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 }
 
 // detectSpuriousLosses consumes metadata only, after application ACK admission.
-// The returned batch contains only unexpired receipts and lives for this ACK.
+// The returned batch contains only unexpired receipts. Local Reno retains their
+// received disposition in the existing bounded history until CE is decided.
 func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime monotime.Time) (_ []lostPacket, timeThresholdIncreased bool) {
 	ackTime := rcvTime.Add(-min(ack.DelayTime, h.rttStats.MaxAckDelay()))
 	cutoff := rcvTime.Add(-3 * h.rttStats.PTO(false))
 	var maxTimeReordering time.Duration
 	ackRangeIdx := len(ack.AckRanges) - 1
 	var spuriousLosses []lostPacket
-	for pn, sendTime := range h.lostPackets.All() {
+	retainUndo := h.localRenoECN() != nil
+	for i := range h.lostPackets.lostPackets {
+		p := &h.lostPackets.lostPackets[i]
+		if p.received {
+			continue
+		}
+		pn, sendTime := p.PacketNumber, p.SendTime
 		if h.local != nil {
 			// Local completion can introduce a lower PN after a higher loss.
 			ackRangeIdx = len(ack.AckRanges) - 1
@@ -698,6 +705,7 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 					TimeReordering:   timeReordering,
 				})
 			}
+			p.received = retainUndo
 			spuriousLosses = append(spuriousLosses, lostPacket{PacketNumber: pn, SendTime: sendTime})
 			// Diagnostics keep their consumption-before-cleanup order. Only
 			// surviving evidence may train policy or restore congestion state.
@@ -711,7 +719,9 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 	}
 	unexpired := spuriousLosses[:0]
 	for _, p := range spuriousLosses {
-		h.lostPackets.Delete(p.PacketNumber)
+		if !retainUndo || p.SendTime.Before(cutoff) {
+			h.lostPackets.Delete(p.PacketNumber)
+		}
 		if !p.SendTime.Before(cutoff) {
 			unexpired = append(unexpired, p)
 		}
@@ -727,6 +737,10 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 }
 
 func (h *sentPacketHandler) finishSpuriousLosses(packets []lostPacket, now monotime.Time) {
+	if h.localRenoECN() != nil {
+		h.settleLocalUndo(now)
+		return
+	}
 	for _, p := range packets {
 		h.congestion.OnSpuriousLoss(congestion.NewPacketKey(protocol.Encryption1RTT, p.PacketNumber))
 	}
@@ -1113,6 +1127,7 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOu
 		return path.OnLossDetectionTimeout(now)
 	}
 	defer h.setLossDetectionTimer(now)
+	defer h.settleLocalUndo(now)
 
 	if h.handshakeConfirmed {
 		h.detectLostPathProbes(now)
@@ -1376,6 +1391,7 @@ func (h *sentPacketHandler) QueueProbePacket(encLevel protocol.EncryptionLevel) 
 }
 
 func (h *sentPacketHandler) QueueProbePacketAt(encLevel protocol.EncryptionLevel, now monotime.Time) bool {
+	defer h.settleLocalUndo(now)
 	pnSpace := h.getPacketNumberSpace(encLevel)
 	if pnSpace == nil || (h.local != nil && h.local.closed) {
 		return false

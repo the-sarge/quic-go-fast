@@ -328,29 +328,38 @@ func (b *bbrECNTracker) unsubmitted(pn protocol.PacketNumber, ordinal uint64) {
 		b.failEvidence()
 		return
 	}
-	r := b.ranges[i]
+	// Rewriting a mark can make both neighbours equivalent. Include them so
+	// capacity is charged to semantic ranges, including consecutive disposals.
+	start, end := max(0, i-1), min(len(b.ranges), i+2)
 	b.scratch = b.scratch[:0]
-	if r.first < pn {
+	for j := start; j < end; j++ {
+		r := b.ranges[j]
+		if j != i {
+			b.appendScratch(r)
+			continue
+		}
+		if r.first < pn {
+			part := r
+			part.last = pn - 1
+			b.appendScratch(part)
+		}
 		part := r
-		part.last = pn - 1
+		part.first, part.last = pn, pn
+		part.ordinal += uint64(pn - r.first)
+		part.mark = protocol.ECNNon
 		b.appendScratch(part)
+		if pn < r.last {
+			part = r
+			part.first = pn + 1
+			part.ordinal += uint64(part.first - r.first)
+			b.appendScratch(part)
+		}
 	}
-	part := r
-	part.first, part.last = pn, pn
-	part.ordinal += uint64(pn - r.first)
-	part.mark = protocol.ECNNon
-	b.appendScratch(part)
-	if pn < r.last {
-		part = r
-		part.first = pn + 1
-		part.ordinal += uint64(part.first - r.first)
-		b.appendScratch(part)
-	}
-	if len(b.ranges)-1+len(b.scratch) > maxECNMarkRanges {
+	if len(b.ranges)-(end-start)+len(b.scratch) > maxECNMarkRanges {
 		b.failEvidence()
 		return
 	}
-	b.splice(i, i+1)
+	b.splice(start, end)
 }
 
 func (e *bbrECNTracker) failEvidence() {
