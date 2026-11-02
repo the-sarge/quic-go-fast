@@ -8217,3 +8217,26 @@ Final candidate `c10f6e17f30a7447dff651be4f01a066eb94bb94`, base `fc668a05c70066
 ### Next
 
 [R4 issue #1024](https://github.com/the-sarge/quic-go-fast/issues/1024) remains ready; [R5 issue #1025](https://github.com/the-sarge/quic-go-fast/issues/1025) still requires R4, so R3 creates no newly ready successor. [Track parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live status surfaces. Revalidate the earlier hosted admission-recorder ordering failure against the merged code before filing its deferred follow-up; no same-head CI rerun or adjacent runtime change was used.
+
+---
+
+## CID path routing landed - 2026-11-01 23:49 EST
+
+**Main:** `abebca0194c6`
+**Actor:** Codex
+
+### Completed
+
+[PR #1091 — Bind CID routing to protocol path identity](https://github.com/the-sarge/quic-go-fast/pull/1091) merged as `abebca0194c602b60e91abcfeac7355a0426ea84`, closing [R4 issue #1024](https://github.com/the-sarge/quic-go-fast/issues/1024). Routing entries retain handler and protocol-path identity together, and ingress carries that identity through receive cloning into short-header unpacking before decryption. Explicit path registration rejects fixed-CID-length mismatches and duplicate rebinding; issued-CID retirement, ordinary zero-CID routing, stateless resets and closed-handler lifetimes retain their existing owners. Nonzero application input fails closed, including 0-RTT before opener lookup. Production issuance remains path zero and public multipath negotiation remains disabled.
+
+The product PR includes the committed completion/frontier transition: 4/19 Reno slices and 5/34 program slices complete, with R5 and R8 newly unblocked. This journal appends history only.
+
+### Validation
+
+Initial RAS run `20261102T042630-c2b228d141b4fc3939675803` identified the accepted nonzero-bound 0-RTT receive guard correction. The ingress regression was made red, then fixed and verified at exact head `e21dd9c1f1b6a815668db864d055bd45365931ea`; verification completed with both clusters resolved and no new findings. Replacement run `20261102T043710-8740685fcc0f7d1cc03347ca` returned no fixes or follow-ups. [Independent dispositions for PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091#issuecomment-6569149982) retain the bounded contract and evidence rationale.
+
+Seven deterministic semantic scenarios in six top-level tests, existing CID/reset/receive-lifetime cases, the full `go test ./...` suite, changed-package vet, module tidiness, repository lint and the single focused race gate passed. The candidate was clean and matched the live PR head on base `8b26fc94b911abb2a005e2dccc3e02b0b2e64d9c`; the [certification receipt for PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091#issuecomment-6569230226) records the commands. All 17 applicable hosted PR checks passed, including [unit run 41389339945](https://github.com/the-sarge/quic-go-fast/actions/runs/41389339945). The duplicate push-run macOS Go 1.26.10 job passed its tests but failed artifact creation with DNS `ENOTFOUND`; its permitted targeted same-head rerun passed in [push unit run 41389335004, attempt 2](https://github.com/the-sarge/quic-go-fast/actions/runs/41389335004). The certified candidate was squash-merged with `--match-head-commit`. No deferred follow-up or material untraced effect remains; no new operational or platform campaign ran.
+
+### Next
+
+[R5 issue #1025](https://github.com/the-sarge/quic-go-fast/issues/1025) and [R8 issue #1028](https://github.com/the-sarge/quic-go-fast/issues/1028) now have no open native blockers; they remain separate one-PR slices with isolated worktrees and fresh-context dispatch. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views.
