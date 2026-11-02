@@ -69,7 +69,7 @@ type localRegistration struct {
 
 // NewLocalSentPacketHandler admits Reno and rich delivery modes without ECN.
 // Local outcomes and authenticated ACKs are reconciled in the connection context.
-func NewLocalSentPacketHandler(initialPN protocol.PacketNumber, size protocol.ByteCount, rtt *utils.RTTStats, stats *utils.ConnectionStats, validated, enableECN bool, ignore func(protocol.PacketNumber), perspective protocol.Perspective, qlogger qlogwriter.Recorder, logger utils.Logger) (LocalSentPacketHandler, error) {
+func NewLocalSentPacketHandler(initialPN protocol.PacketNumber, size protocol.ByteCount, rtt *utils.RTTStats, stats *utils.ConnectionStats, validated, enableECN bool, ignore func(protocol.PathID, protocol.PacketNumber), perspective protocol.Perspective, qlogger qlogwriter.Recorder, logger utils.Logger) (LocalSentPacketHandler, error) {
 	if enableECN {
 		return nil, errLocalPacketMode
 	}
@@ -260,6 +260,7 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 	h.initialPackets, h.handshakePackets = nil, nil
 	h.appDataPackets = newPacketNumberSpace(0, true)
 	h.lostPackets.Reset()
+	h.ackCarriers = ackCarrierHistory{}
 	h.numProbesToSend = 0
 	h.ptoMode = SendNone
 	h.congestion.OnPacketsDiscarded()

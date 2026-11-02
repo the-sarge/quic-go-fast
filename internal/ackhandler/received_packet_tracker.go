@@ -186,6 +186,15 @@ func (h *appDataReceivedPacketTracker) IgnoreBelow(pn protocol.PacketNumber) {
 	}
 	h.ignoreBelow = pn
 	h.packetHistory.DeleteBelow(pn)
+	// A carrier acknowledged on another path can remove the last pending
+	// range without a new packet replenishing this target's receive history.
+	if len(h.packetHistory.ranges) == 0 {
+		h.hasNewAck = false
+		h.ackQueued = false
+		h.ackAlarm = 0
+		h.ackElicitingPacketsReceivedSinceLastAck = 0
+		h.oldestUnackedRcvdTime = 0
+	}
 	if h.logger.Debug() {
 		h.logger.Debugf("\tIgnoring all packets below %d.", pn)
 	}
