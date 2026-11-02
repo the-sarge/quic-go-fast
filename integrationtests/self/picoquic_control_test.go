@@ -45,7 +45,7 @@ func TestPicoquicOrdinaryControl(t *testing.T) {
 		t.Run(role, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
-			dir, err := os.MkdirTemp(root, role+"-")
+			dir, err := os.MkdirTemp(root, role+"-") //nolint:usetesting // Retain peer evidence after the test process exits.
 			require.NoError(t, err)
 			ca, caKey, err := tools.GenerateCA()
 			require.NoError(t, err)
