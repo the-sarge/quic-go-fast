@@ -189,6 +189,7 @@ func (h *sentPacketHandler) completeLocalECN(reg *localRegistration, now monotim
 		return
 	}
 	e := h.local.ecn
+	e.reconcileTerminal(h, reg)
 	if e.failed || e.closed || reg.level != protocol.Encryption1RTT {
 		return
 	}
@@ -198,7 +199,7 @@ func (h *sentPacketHandler) completeLocalECN(reg *localRegistration, now monotim
 	}
 	switch reg.outcome {
 	case localPacketPending, LocalPacketUncertain:
-		// Possible transmission remains unresolved until an authenticated receipt.
+		// Live possible transmission awaits an authenticated receipt or terminal reconciliation.
 	case LocalPacketAccepted:
 		e.qualify(h, r)
 	case LocalPacketUnsubmitted:
@@ -272,18 +273,26 @@ func (e *localECNEvidence) close() {
 	e.pending = false
 }
 
+// reconcileTerminal consumes protocol ownership and native outcome together.
+// Retirement can precede native return, and packet content does not grant ECN
+// authority. Neither fact alone establishes unavailable uncertain transmission.
+func (e *localECNEvidence) reconcileTerminal(h *sentPacketHandler, reg *localRegistration) {
+	if e.failed || e.closed || reg.level != protocol.Encryption1RTT || reg.packet != nil || reg.acked || reg.outcome != LocalPacketUncertain {
+		return
+	}
+	r := e.find(reg.pn)
+	if r == nil || r.registration != reg || !marked(r.mark) {
+		return
+	}
+	e.fail(h)
+}
+
 func (e *localECNEvidence) lost(h *sentPacketHandler, pn protocol.PacketNumber) {
 	r := e.find(pn)
 	if r == nil || r.lost {
 		return
 	}
 	r.lost = true
-	// Loss cannot establish native submission. Retire this unavailable proof
-	// through the existing failed-evidence policy without inventing test credit.
-	if !r.qualified && r.registration.outcome == LocalPacketUncertain {
-		e.fail(h)
-		return
-	}
 	if r.qualified {
 		e.reportLoss(h, pn)
 	}

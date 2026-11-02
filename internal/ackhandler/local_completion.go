@@ -171,6 +171,9 @@ func (h *sentPacketHandler) retireLocal(p *packet, acked bool) {
 		}
 		r.acked = r.acked || acked
 		r.packet = nil
+		if h.local.ecn != nil {
+			h.local.ecn.reconcileTerminal(h, r)
+		}
 	}
 }
 
