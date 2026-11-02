@@ -90,6 +90,9 @@ func TestLocalRichOrderedCompletion(t *testing.T) {
 			acknowledgeRecoveryPacket(t, h, protocol.EncryptionHandshake, at.Add(time.Microsecond), pn)
 			r.sends, r.feedback = nil, nil
 		}
+		_, fresh := localRichPacket(t, h, now.Add(40*time.Second))
+		require.NoError(t, h.CompleteLocalPacket(fresh, LocalPacketAccepted, now.Add(41*time.Second)))
+		r.sends, r.feedback = nil, nil
 		before := h.DeliveryStats()
 		require.Positive(t, before.OutcomeEvicted)
 		require.NoError(t, h.CompleteLocalPacket(old, LocalPacketAccepted, now.Add(time.Second)))
@@ -98,6 +101,7 @@ func TestLocalRichOrderedCompletion(t *testing.T) {
 		require.Empty(t, r.feedback)
 		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(time.Minute), pn)
 		require.False(t, r.feedback[len(r.feedback)-1].Delivery.Valid, "missing outcome cannot recover old timing")
+		require.Equal(t, uint64((maxRecoveryOutcomes+1)*1200), r.feedback[len(r.feedback)-1].Delivery.Delivered, "timing eviction cannot lose logical delivery")
 	})
 }
 
@@ -164,6 +168,81 @@ func TestLocalRichTimingFence(t *testing.T) {
 		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(16*time.Millisecond), c)
 		require.True(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
 		require.Equal(t, uint64(3600), r.feedback[len(r.feedback)-1].Delivery.Delivered)
+	})
+	for _, lifecycle := range []bool{false, true} {
+		t.Run(map[bool]string{false: "pending credit after timing fence", true: "pending credit after 0-RTT disposal"}[lifecycle], func(t *testing.T) {
+			h, r := newLocalRichHandler(t)
+			var pending protocol.ByteCount
+			h.congestionEvents.pending = func() protocol.ByteCount { return pending }
+			now := monotime.Now()
+			level := protocol.EncryptionInitial
+			if lifecycle {
+				level = protocol.Encryption0RTT
+			}
+			a, ta := registerLocalTestPacket(t, h, now, level, []Frame{{Frame: &wire.PingFrame{}}})
+			if lifecycle {
+				h.DropPackets(level, now.Add(time.Millisecond))
+			} else {
+				require.NoError(t, h.CompleteLocalPacket(ta, LocalPacketUncertain, now.Add(time.Millisecond)))
+			}
+			generation := h.congestionEvents.sampleGeneration
+			pending = 1200
+			b, tb := localRichPacket(t, h, now.Add(2*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(tb, LocalPacketAccepted, now.Add(3*time.Millisecond)))
+			pending = 0
+			c, tc := localRichPacket(t, h, now.Add(4*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(tc, LocalPacketAccepted, now.Add(5*time.Millisecond)))
+			require.Equal(t, generation, r.sends[2].Packet.SampleGeneration, "origin restoration is timing-only")
+			if !lifecycle {
+				acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(6*time.Millisecond), a)
+			}
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(7*time.Millisecond), b)
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(16*time.Millisecond), c)
+			e := r.feedback[len(r.feedback)-1]
+			delivered := uint64(3600)
+			if lifecycle {
+				delivered = 2400
+			}
+			require.Equal(t, delivered, e.Delivery.Delivered)
+			require.Zero(t, e.Delivery.Lost)
+			require.False(t, e.Delivery.Valid)
+			fresh, ft := localRichPacket(t, h, now.Add(20*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(ft, LocalPacketAccepted, now.Add(21*time.Millisecond)))
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(30*time.Millisecond), fresh)
+			require.True(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
+			require.Equal(t, delivered+1200, r.feedback[len(r.feedback)-1].Delivery.Delivered)
+		})
+
+	}
+
+	t.Run("older accepted receipt preserves the send-time bound", func(t *testing.T) {
+		for _, retained := range []bool{false, true} {
+			t.Run(map[bool]string{false: "live", true: "PTO retained"}[retained], func(t *testing.T) {
+				h, r := newLocalRichHandler(t)
+				now := monotime.Now()
+				a, ta := localRichPacket(t, h, now)
+				b, tb := localRichPacket(t, h, now.Add(time.Millisecond))
+				require.NoError(t, h.CompleteLocalPacket(tb, LocalPacketAccepted, now.Add(2*time.Millisecond)))
+				require.NoError(t, h.CompleteLocalPacket(ta, LocalPacketUncertain, now.Add(3*time.Millisecond)))
+				acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(4*time.Millisecond), a)
+				if retained {
+					require.True(t, h.QueueProbePacketAt(protocol.EncryptionInitial, now.Add(5*time.Millisecond)))
+				}
+				c, tc := localRichPacket(t, h, now.Add(100*time.Millisecond))
+				require.NoError(t, h.CompleteLocalPacket(tc, LocalPacketAccepted, now.Add(100*time.Millisecond+100*time.Microsecond)))
+				acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(100*time.Millisecond+200*time.Microsecond), b)
+				acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(101*time.Millisecond), c)
+				e := r.feedback[len(r.feedback)-1]
+				require.Equal(t, uint64(3600), e.Delivery.Delivered)
+				require.Zero(t, e.Delivery.Lost)
+				require.False(t, e.Delivery.Valid, "older delivery must not enter a numerator without its send-time bound")
+				fresh, ft := localRichPacket(t, h, now.Add(110*time.Millisecond))
+				require.NoError(t, h.CompleteLocalPacket(ft, LocalPacketAccepted, now.Add(111*time.Millisecond)))
+				acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(120*time.Millisecond), fresh)
+				require.True(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
+				require.Equal(t, uint64(4800), r.feedback[len(r.feedback)-1].Delivery.Delivered)
+			})
+		}
 	})
 
 	for _, lifecycle := range []string{"Retry", "Initial drop", "Handshake drop", "0-RTT drop", "close"} {
@@ -249,6 +328,21 @@ func TestLocalRichRecoveryQualification(t *testing.T) {
 				lost = 0
 			}
 			require.Equal(t, lost, e.Delivery.Lost, "PTO confirmation adds no delivery loss")
+			// The restart itself advances logical identity; origin restoration
+			// after pending credit must retain deliveries from that new epoch.
+			var pending protocol.ByteCount = 1200
+			h.congestionEvents.pending = func() protocol.ByteCount { return pending }
+			generation := h.congestionEvents.sampleGeneration
+			originless, ot := localRichPacket(t, h, now.Add(250*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(ot, LocalPacketAccepted, now.Add(251*time.Millisecond)))
+			pending = 0
+			fresh, ft := localRichPacket(t, h, now.Add(260*time.Millisecond))
+			require.NoError(t, h.CompleteLocalPacket(ft, LocalPacketAccepted, now.Add(261*time.Millisecond)))
+			require.Equal(t, generation, r.sends[len(r.sends)-1].Packet.SampleGeneration)
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(270*time.Millisecond), originless, fresh)
+			require.Equal(t, e.Delivery.Delivered+2400, r.feedback[len(r.feedback)-1].Delivery.Delivered)
+			require.False(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
+
 		})
 	}
 	for _, outcome := range []LocalPacketOutcome{localPacketPending, LocalPacketUncertain, LocalPacketUnsubmitted} {

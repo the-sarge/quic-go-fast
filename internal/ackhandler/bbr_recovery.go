@@ -26,10 +26,6 @@ const (
 )
 
 type recoveryOutcome struct {
-	local           bool
-	qualified       bool
-	qualification   *localRegistration // borrowed authoritative fact until cursor consumption
-	eligibleAt      monotime.Time
 	number          protocol.PacketNumber
 	ordinal         uint64
 	sent            monotime.Time
@@ -45,17 +41,16 @@ type recoveryOutcome struct {
 // creates a summary that could bridge unknown history. Derived indexes let ACK
 // service visit only the outcomes an ACK resolves or a query returns.
 type recoveryEvidence struct {
-	qualifiedOrdinal uint64
-	lastEligible     monotime.Time
-	index            *recoveryIndex
-	head, count      int
-	evicted          uint64
-	measured         bool
-	reported         uint64
-	episode          congestion.RecoveryEpisode
-	members          map[uint64]struct{}
-	ackOrdinal       uint64
-	unconfirmedLoss  bool
+	local           *localRecoveryEvidence
+	index           *recoveryIndex
+	head, count     int
+	evicted         uint64
+	measured        bool
+	reported        uint64
+	episode         congestion.RecoveryEpisode
+	members         map[uint64]struct{}
+	ackOrdinal      uint64
+	unconfirmedLoss bool
 	// Packet numbers are monotonic within each of the three spaces. These
 	// boundary witnesses survive optional sampler and outcome-ring eviction.
 	latestPackets   spacePackets
@@ -98,6 +93,9 @@ func (r *recoveryEvidence) recordBytes() uintptr {
 	for i := range r.index.spaces {
 		n += uintptr(cap(r.index.spaces[i].slots)) * unsafe.Sizeof(uint16(0))
 	}
+	if r.local != nil {
+		n += unsafe.Sizeof(localRecoveryEvidence{}) + uintptr(cap(r.local.outcomes))*unsafe.Sizeof(localRecoveryOutcome{})
+	}
 	return n
 }
 
@@ -125,13 +123,18 @@ func (r *recoveryEvidence) sentLocal(p congestion.PacketInfo, generation uint64,
 	key := congestionKey(p.EncryptionLevel, p.PacketNumber)
 	o := recoveryOutcome{
 		number: key.number, space: key.space, level: p.EncryptionLevel, ordinal: p.Ordinal, sent: p.SendTime,
-		local: local != nil, qualification: local,
 		// Path/Retry reset clears the ledger; disposal prevents readmission.
 		receiptEligible: currentPathRecoveryReceipt(p, generation),
 		endpoint:        r.measured && p.RegistrationValid && p.AckEliciting && !p.PathProbe && !p.MTUProbe,
 	}
 	if !p.RegistrationValid || p.PathProbe || p.MTUProbe {
 		o.state = outcomeExcluded
+	}
+	if local != nil {
+		if r.local == nil {
+			r.local = &localRecoveryEvidence{outcomes: make([]localRecoveryOutcome, maxRecoveryOutcomes)}
+		}
+		r.local.outcomes[slot] = localRecoveryOutcome{registration: local}
 	}
 	x.outcomes[slot] = o
 	s := recoverySpace(key.space)
@@ -166,9 +169,9 @@ func (r *recoveryEvidence) setState(p int, state recoveryOutcomeState) {
 	s := recoverySpace(o.space)
 	x.pending[s].assign(p, pendingOutcome(state))
 	x.eligible[s].assign(p, o.receiptEligible && state != outcomeDisposed)
-	x.ptoPending[s].assign(p, o.ptoRetired && state == outcomeUnresolved && (!o.local || o.qualified))
+	x.ptoPending[s].assign(p, o.ptoRetired && state == outcomeUnresolved && r.timingQualified(p))
 	if (old == outcomeLost) != (state == outcomeLost) {
-		r.setLost(p, state == outcomeLost && (!o.local || o.qualified))
+		r.setLost(p, state == outcomeLost && r.timingQualified(p))
 	}
 }
 
@@ -272,7 +275,7 @@ func (r *recoveryEvidence) retirePTO(key congestionPacketKey) {
 	if i := r.find(key); i >= 0 && r.index.outcomes[i].state == outcomeUnresolved {
 		o := &r.index.outcomes[i]
 		o.ptoRetired = true
-		r.index.ptoPending[recoverySpace(o.space)].assign(i, !o.local || o.qualified)
+		r.index.ptoPending[recoverySpace(o.space)].assign(i, r.timingQualified(i))
 	}
 }
 
@@ -296,7 +299,7 @@ func (r *recoveryEvidence) confirmPTO(space protocol.EncryptionLevel, witness pr
 		p := r.slot(l)
 		o := &x.outcomes[p]
 		countInspected()
-		if o.number >= witness || o.evidenceTime().After(cutoff) {
+		if o.number >= witness || r.evidenceTime(p).After(cutoff) {
 			countFailed()
 			break
 		}
@@ -507,7 +510,7 @@ func (r *recoveryEvidence) runFrom(l int) (first, last int, d time.Duration) {
 	if last == first {
 		return first, last, 0
 	}
-	return first, last, r.index.outcomes[r.slot(last)].evidenceTime().Sub(r.index.outcomes[r.slot(first)].evidenceTime())
+	return first, last, r.evidenceTime(r.slot(last)).Sub(r.evidenceTime(r.slot(first)))
 }
 
 // setLost maintains run membership, run starts and the block maxima of every
