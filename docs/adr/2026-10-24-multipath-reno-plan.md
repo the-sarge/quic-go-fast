@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7 complete (7/19 slices), R8 frontier. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4/R5/R6/R7/R8 complete (8/19 slices); R9 #1029 awaits E5 #1019. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -376,7 +376,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R5](#r5) | complete | Protect path-qualified packets under one key schedule | R3, R4 |
 | [R6](#r6) | complete | Route receive ACK histories by target and carrier | R5 |
 | [R7](#r7) | complete | Give Reno paths independent recovery and pacing | R6 |
-| [R8](#r8) | new | Issue bounded path credit and CID windows | R4 |
+| [R8](#r8) | complete | Issue bounded path credit and CID windows | R4 |
 | [R9](#r9) | new | Admit and validate a second authenticated path | E5, R7, R8 |
 | [R10](#r10) | new | Carry reliable traffic over the selected path | R9 |
 | [R11](#r11) | new | Schedule DATAGRAMs with path-qualified PMTU | R10 |
@@ -395,7 +395,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R1 — Pin the independent peer and ordinary fallback control
 
-**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 is complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is ready. R14 #1034 remains blocked by R12 #1032.
+**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 is complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete. R14 #1034 remains blocked by R12 #1032.
 
 **Delivers:** Add the reproducible pinned picoquic build/driver and strict executed-case accounting. Demonstrate the ordinary no-negotiation control through current public APIs; reserve multipath scenarios for later slices. This is the maintained peer deliverable approved by the design, not a second protocol implementation.
 
@@ -421,7 +421,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R2 — Parse the bounded draft-21 wire profile without advertisement
 
-**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is ready. Public negotiation remains disabled.
+**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete. Public negotiation remains disabled.
 
 **Delivers:** Adapt multipath codecs/transport parameter into the real parser and canonical validator, with path-zero ACK compatibility and 1-RTT-only gates. Keep public negotiation disabled; receiving unsupported extension frames follows the selected protocol error. Add wire path identity distinct from tuple generation.
 
@@ -447,7 +447,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R3 — Make path-zero context explicit without changing recovery
 
-**State:** complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082). R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is ready.
+**State:** complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082). R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete.
 
 **Delivers:** Prefactor application packet identity/context selection so the existing ordinary path-zero flow carries explicit path and tuple identity through registration and packing. Initial/Handshake remain connection-owned. Preserve existing algorithms, ordering and one active path behavior.
 
@@ -473,7 +473,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R4 — Bind CID routing to bounded protocol-path identity
 
-**State:** complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091). R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is ready; their remaining direct predecessors are complete. Production issuance remains path zero and public negotiation remains disabled.
+**State:** complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091). R5 #1025 is complete; R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete; their direct predecessors are complete. Production issuance remains path zero and public negotiation remains disabled.
 
 **Delivers:** Extend CID lookup/registration with a bounded wire-path binding before decryption while preserving ordinary routing, reset-token and closed-handler behavior. Unknown/unissued IDs cannot allocate path state. Exercise duplicate tuple/path-zero cases through real ingress routing.
 
@@ -499,7 +499,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R5 — Protect path-qualified packets under one key schedule
 
-**State:** complete. R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is the Reno frontier; public negotiation remains disabled.
+**State:** complete. R6 #1026 is complete; R7 #1027 is complete; R8 #1028 is complete; public negotiation remains disabled.
 
 **Delivers:** Integrate path nonce/PN reconstruction and per-path transition evidence under one TLS/key-phase owner. Include previous/current/next receive-key decisions, silent/abandoned path retention, global AEAD limits and ACK confirmation by sent key generation. Public negotiation remains off. Capture actual key generation at sealing, carry it in registration, extract it before acknowledged packet records are pooled and forward it through the real connection ACK caller.
 
@@ -525,7 +525,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R6 — Route receive ACK histories by target and carrier
 
-**State:** complete. R7 #1027 is complete; R8 #1028 is the Reno frontier; public negotiation remains disabled.
+**State:** complete. R7 #1027 is complete; R8 #1028 is complete; public negotiation remains disabled.
 
 **Delivers:** Extend receive tracking and ACK construction for independent application path spaces. Store each PATH_ACK target/watermark in its carrier registration; acknowledgment prunes target history even when carrier differs. Preserve ordinary ACK for path zero and unique Initial/Handshake spaces.
 
@@ -551,7 +551,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R7 — Give Reno paths independent recovery and pacing
 
-**State:** complete. R8 #1028 remains the Reno frontier. R9 #1029 still requires E5 #1019 and R8 #1028; this completion creates no newly ready successor. Public negotiation remains disabled.
+**State:** complete. R8 #1028 is complete. R9 #1029 still requires E5 #1019; there is no newly ready Reno successor. Public negotiation remains disabled.
 
 **Delivers:** Partition application sent histories, loss/PTO, Reno registration prefix/undo and adaptive-loss state by protocol path, with aggregate logical delivery/resource ceilings. Demultiplex target ACK independent of carrier; preserve per-generation retained evidence and path-zero behavior. Create one stable connection-owned RTT observation/accessor for connection and already-created stream flow controllers; constructors/readers use it while per-path recovery retains separate RTT state. Later retirement/primary transitions update that same owner.
 
@@ -588,6 +588,8 @@ The thirteen deterministic new scenarios and one focused race run terminate this
 <a id="r8"></a>
 
 ### R8 — Issue bounded path credit and CID windows
+
+**State:** complete. Two slots and the fixed initial unused-ID/CID window are available only through private activation. R9 #1029 remains blocked by E5 #1019; there is no newly ready Reno successor. Public negotiation remains disabled.
 
 **Delivers:** Implement two live slots, one unused-ID issuance window, monotonic grants, per-path CID limits and compliant-churn resource decline through real control handlers. Do not allocate arrays from sparse peer IDs or grant replacement credit while an unresolved submission still occupies a slot. Establish the common terminal-transition owner via unused-issued-ID abandonment: real control ingress queues the reciprocal frame and retains bounded CID/terminal evidence. Compliant resource decline uses this owner; no terminal cleanup is deferred to a successor.
 

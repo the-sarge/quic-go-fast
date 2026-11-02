@@ -18,7 +18,8 @@ type newConnID struct {
 }
 
 type connIDManager struct {
-	queue []newConnID
+	pathCIDs map[protocol.PathID]*receivedPathCIDs
+	queue    []newConnID
 
 	highestProbingID uint64
 	pathMx           sync.Mutex
@@ -195,6 +196,17 @@ func (h *connIDManager) Close() {
 	defer h.pathMx.Unlock()
 
 	h.closed = true
+	if h.pathCIDs != nil {
+		for _, set := range h.pathCIDs {
+			for _, entry := range set.records {
+				if entry.hasToken {
+					h.removeStatelessResetToken(entry.StatelessResetToken)
+				}
+			}
+		}
+		clear(h.pathCIDs)
+		return
+	}
 	if h.activeStatelessResetToken != nil {
 		h.removeStatelessResetToken(*h.activeStatelessResetToken)
 	}
@@ -244,6 +256,10 @@ func (h *connIDManager) shouldUpdateConnID() bool {
 
 func (h *connIDManager) Get() protocol.ConnectionID {
 	h.assertNotClosed()
+	if h.pathCIDs != nil {
+		set := h.pathCIDs[0]
+		return set.records[set.active].ConnectionID
+	}
 	if h.shouldUpdateConnID() {
 		h.updateConnectionID()
 	}
@@ -263,6 +279,9 @@ func (h *connIDManager) GetConnIDForPath(id pathID) (protocol.ConnectionID, bool
 	defer h.pathMx.Unlock()
 
 	h.assertNotClosed()
+	if h.pathCIDs != nil {
+		return protocol.ConnectionID{}, false
+	}
 	// if we're using zero-length connection IDs, we don't need to change the connection ID
 	if h.activeConnectionID.Len() == 0 {
 		return protocol.ConnectionID{}, true
@@ -305,6 +324,16 @@ func (h *connIDManager) IsActiveStatelessResetToken(token protocol.StatelessRese
 	h.pathMx.Lock()
 	defer h.pathMx.Unlock()
 
+	if h.pathCIDs != nil {
+		for _, set := range h.pathCIDs {
+			for _, entry := range set.records {
+				if entry.hasToken && entry.StatelessResetToken == token {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	if h.activeStatelessResetToken != nil {
 		if *h.activeStatelessResetToken == token {
 			return true

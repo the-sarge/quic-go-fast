@@ -29,6 +29,8 @@ func (e *packetEmission) handoff(buf *packetBuffer, gso uint16, ecn protocol.ECN
 		metadata.pathGeneration = e.reservation.generation
 		e.reservation = nil
 	}
+	metadata.terminalReceipts = e.terminalReceipts
+	e.terminalReceipts = [2]*pathAbandonReceipt{}
 	e.queue.Send(buf, gso, ecn, metadata)
 }
 

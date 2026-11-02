@@ -128,7 +128,8 @@ const (
 //   - [StatelessResetError]: when we receive a stateless reset
 //   - [VersionNegotiationError]: returned by the client, when there's no version overlap between the peers
 type Conn struct {
-	emission packetEmission
+	pathCredit *pathCreditRegistry
+	emission   packetEmission
 	// Destination connection ID used during the handshake.
 	// Used to check source connection ID on incoming packets.
 	handshakeDestConnID protocol.ConnectionID
@@ -335,11 +336,7 @@ var newConnection = func(
 		srcConnID,
 		&clientDestConnID,
 		statelessResetter,
-		connRunnerCallbacks{
-			AddConnectionID:    func(connID protocol.ConnectionID) { runner.Add(connID, s) },
-			RemoveConnectionID: runner.Remove,
-			ReplaceWithClosed:  runner.ReplaceWithClosed,
-		},
+		connectionRunnerCallbacks(runner, s),
 		s.queueControlFrame,
 		connIDGenerator,
 	)
@@ -469,11 +466,7 @@ var newClientConnection = func(
 		srcConnID,
 		nil,
 		statelessResetter,
-		connRunnerCallbacks{
-			AddConnectionID:    func(connID protocol.ConnectionID) { runner.Add(connID, s) },
-			RemoveConnectionID: runner.Remove,
-			ReplaceWithClosed:  runner.ReplaceWithClosed,
-		},
+		connectionRunnerCallbacks(runner, s),
 		s.queueControlFrame,
 		connIDGenerator,
 	)
@@ -786,6 +779,12 @@ runLoop:
 			}
 		}
 
+		if c.pathCredit != nil {
+			if err := c.pathCredit.expire(now); err != nil {
+				c.setCloseError(&closeError{err: err})
+				break runLoop
+			}
+		}
 		c.connIDGenerator.RemoveRetiredConnIDs(now)
 		if c.pathManager != nil {
 			c.pathManager.Expire(now)
@@ -969,6 +968,11 @@ func (c *Conn) maybeResetTimer() {
 			} else {
 				deadline = c.nextIdleTimeoutTime()
 			}
+		}
+	}
+	if c.pathCredit != nil {
+		if t := c.pathCredit.nextExpiry(); t != 0 && t.Before(deadline) {
+			deadline = t
 		}
 	}
 	// Path attempts expire even while local capacity blocks all sending.
@@ -2104,9 +2108,42 @@ func (c *Conn) handleFrame(
 	case *wire.NewTokenFrame:
 		err = c.handleNewTokenFrame(frame)
 	case *wire.NewConnectionIDFrame:
-		err = c.connIDManager.Add(frame)
+		if c.pathCredit == nil {
+			err = c.connIDManager.Add(frame)
+		} else {
+			err = c.pathCredit.receiveCID(&wire.PathNewConnectionIDFrame{PathID: 0, SequenceNumber: frame.SequenceNumber, RetirePriorTo: frame.RetirePriorTo, ConnectionID: frame.ConnectionID, StatelessResetToken: frame.StatelessResetToken}, rcvTime)
+		}
 	case *wire.RetireConnectionIDFrame:
-		err = c.connIDGenerator.Retire(frame.SequenceNumber, destConnID, rcvTime.Add(3*c.observedRTT().PTO(false)))
+		if c.pathCredit == nil {
+			err = c.connIDGenerator.Retire(frame.SequenceNumber, destConnID, rcvTime.Add(3*c.observedRTT().PTO(false)))
+		} else {
+			err = c.pathCredit.retireCID(&wire.PathRetireConnectionIDFrame{PathID: 0, SequenceNumber: frame.SequenceNumber}, destConnID, rcvTime)
+		}
+	case *wire.PathRetireConnectionIDFrame:
+		if c.pathCredit != nil {
+			err = c.pathCredit.retireCID(frame, destConnID, rcvTime)
+		}
+	case *wire.PathAbandonFrame:
+		if c.pathCredit != nil {
+			err = c.pathCredit.abandon(frame.PathID, rcvTime)
+		}
+	case *wire.PathCIDsBlockedFrame:
+		if c.pathCredit != nil {
+			err = c.pathCredit.cidsBlocked(frame)
+		}
+	case *wire.PathNewConnectionIDFrame:
+		if c.pathCredit != nil {
+			err = c.pathCredit.receiveCID(frame, rcvTime)
+		}
+	case *wire.MaxPathIDFrame:
+		if c.pathCredit != nil {
+			c.pathCredit.peerMax = max(c.pathCredit.peerMax, frame.MaximumPathID)
+			err = c.pathCredit.issueWindow()
+		}
+	case *wire.PathsBlockedFrame:
+		if c.pathCredit != nil {
+			err = c.pathCredit.issueWindow()
+		}
 	case *wire.HandshakeDoneFrame:
 		err = c.handleHandshakeDoneFrame(rcvTime)
 	default:
@@ -2464,6 +2501,9 @@ func (c *Conn) closeWithTransportError(code TransportErrorCode) {
 }
 
 func (c *Conn) handleCloseError(closeErr *closeError) {
+	if c.pathCredit != nil {
+		c.pathCredit.close()
+	}
 	if closeErr.immediate {
 		if nerr, ok := closeErr.err.(net.Error); ok && nerr.Timeout() {
 			c.logger.Errorf("Destroying connection: %s", closeErr.err)
@@ -3164,14 +3204,9 @@ func (c *Conn) AddPath(t *Transport) (*Path, error) {
 		200*time.Millisecond, // initial RTT estimate
 		func() {
 			runner := (*packetHandlerMap)(t)
-			c.connIDGenerator.AddConnRunner(
-				runner,
-				connRunnerCallbacks{
-					AddConnectionID:    func(connID protocol.ConnectionID) { runner.Add(connID, c) },
-					RemoveConnectionID: runner.Remove,
-					ReplaceWithClosed:  runner.ReplaceWithClosed,
-				},
-			)
+			if err := c.connIDGenerator.AddConnRunner(runner, connectionRunnerCallbacks(runner, c)); err != nil {
+				c.closeLocal(&qerr.TransportError{ErrorCode: qerr.InternalError, ErrorMessage: err.Error()})
+			}
 		},
 	), nil
 }
