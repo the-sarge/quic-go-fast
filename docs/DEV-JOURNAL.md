@@ -8415,3 +8415,28 @@ Initial review `20261102T201107-9c140b79d2f560f027e2a239` was independently disp
 ### Next
 
 [R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) remains blocked by [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019); R8 completion makes no new Reno successor ready. The surviving PATH_STATUS integration concern was revalidated at merge `704c7226329bff0e1b84360a66ab3ed0636289d9` (`internal/wire/frame_parser.go:197`, `connection.go:2150`) and retained on existing R9 (#1029)/[R15 issue #1035](https://github.com/the-sarge/quic-go-fast/issues/1035) tracking. [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016) and [E4 issue #1018](https://github.com/the-sarge/quic-go-fast/issues/1018) remain the endpoint frontier. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live state views; this journal appends history only.
+
+---
+
+## Contextual Datagram admission landed - 2026-11-02 18:37 EST
+
+**Main:** `bc4915ea0de0`
+**Actor:** Codex
+
+### Completed
+
+[PR #1119 — Add cancellable Datagram admission with waiter progress](https://github.com/the-sarge/quic-go-fast/pull/1119) merged as `bc4915ea0de0c238ecfdc51d827f7da67639a789`, closing [S1 issue #1105](https://github.com/the-sarge/quic-go-fast/issues/1105). `Conn.SendDatagramContext` shares payload validation/copying with legacy sends and delegates admission to the existing queue. A canceled notified waiter transfers available capacity notification under the queue mutex, preserving progress for contextual and legacy survivors without a second dequeue. Capacity 32, admitted FIFO, payload ownership, closure behavior and connection reuse are retained.
+
+### Decisions
+
+The [accepted S1 contract under parent #2168](https://github.com/GridSwarm/wiremux/issues/2168) keeps cancellation at the admission owner and excludes new workers, stronger fairness, shipping Wire changes and release publication. The Go-generated immutable dependency is `github.com/the-sarge/quic-go-fast@v0.62.1-fast.8.0.20261102233542-bc4915ea0de0`; its origin is the merged main-line commit, not a fast.9-only patch. No tag was created or Wiremux dependency changed.
+
+### Validation
+
+Full-panel review retry `20261102T231447-8202db0f9186fae4108da14b` completed all four R1 reviewers, all four R2 adjudicators and synthesis, with zero required fixes or follow-ups. The low-value runtime FIFO staging observation was independently rejected; its proposed rewrite would weaken the notification regression. The [PR #1119 certification receipt](https://github.com/the-sarge/quic-go-fast/pull/1119#issuecomment-6591243770) records the review, dispositions and interrupted reviewer experiment without claiming it as passing evidence.
+
+Post-review certification of exact head `7eb75c162380aea1ae57d6f1c747755a50b590b4` on base `704c7226329bff0e1b84360a66ab3ed0636289d9` passed root tests, root race tests, the full affected integration package, affected-package vet, tidy-diff, configured lint and clean-tree/whitespace checks with installed Go 1.27.3. All 17 distinct hosted checks passed before the exact-head squash merge. Existing behavioral RED evidence demonstrates both contextual and legacy survivors require the notification transfer. No new stress/platform campaign, surviving deferred finding or material untraced effect remains in S1's scope.
+
+### Next
+
+S1's merged consumable revision satisfies the dependency of [S2 issue #2169 — Contextual comparator integration](https://github.com/GridSwarm/wiremux/issues/2169). The [track parent #2168](https://github.com/GridSwarm/wiremux/issues/2168) and [program tracker #1454](https://github.com/GridSwarm/wiremux/issues/1454) own live readiness and completion; administrative closure is being reconciled after this journal. S2 implementation and physical qualification have not started as part of this slice.
