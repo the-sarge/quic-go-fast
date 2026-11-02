@@ -8058,3 +8058,24 @@ The [audit's remaining decision](audits/2026-10-30-stage-a-calibration-repair/RE
 **Validation:** Full configured RAS review `20261101T004123-370614f463e701b4ba410729` completed all four R1, all four R2 and synthesis with no actionable fixes. The historical README finding was independently rejected within its frozen cloud domain. Exact pushed head `3a92582dda7facbbdec6814dd82bded3ed0f569c` passed affected model/router/fixture tests, model/router races, affected vet, alternate-module tidy-diff, Linux router cross-build and all33 applicable hosted checks before its exact-head squash merge. This is source evidence, not a new native performance result.
 
 **Next:** [wiremux #1469 is the live execution view](https://github.com/GridSwarm/wiremux/issues/1469): finish corresponding infra topology/route correction and pending registration/build/allocation pins, then execute the six remaining slots under their existing validity/deadline/cleanup rules. BBR stays opt-in pending the actual evidence and owner decision.
+
+---
+
+## R1 independent peer control landed - 2026-11-01 19:52 EST
+
+**Main:** `920785785a67`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1071 — Pin independent peer and ordinary QUIC controls](https://github.com/the-sarge/quic-go-fast/pull/1071) as `920785785a67b092424854ce4ca722c359d8e23f`, closing [R1 #1021](https://github.com/the-sarge/quic-go-fast/issues/1021). The maintained fixture pins picoquic, PicoTLS, the Go toolchain, the container base and Debian package snapshots; its public-API driver compares the full 114,688-byte ordinary QUIC v1 workload in both endpoint roles. Strict accounting refuses missing prerequisites, skips and missing/duplicate expected cases. The product PR also committed R1 completion and the real frontier transition.
+
+### Validation
+
+Both independent-peer role controls passed. Five accounting regressions, affected integration tests, tagged compilation/vet/lint, module tidiness, whitespace and link/frontier checks passed. The configured four-reviewer RAS run `20261102T003540-f3e97f47961f80b233414beb` found one PR-description byte-count correction; independent dispositions left no deferred or unresolved decision finding. The final metadata-only archive attribute preserved raw evidence, with RAS reruns skipped under the shared docs-only polish policy. Exact head `932e125a1e13b631dd93ea1b403e37b6d5d8e4b2` passed local certification and all 33 applicable hosted checks, none skipped; see the [PR #1071 certification receipt](https://github.com/the-sarge/quic-go-fast/pull/1071#issuecomment-6566388891).
+
+The [fixed evidence and cumulative ledger](audits/2026-11-01-multipath-r1-receipt.md) charge all failed setups and cause-specific corrections: 10 instances and 452 conservative host-seconds, leaving 170 instances and 28,348 host-seconds before later concurrent charges. The passing Linux amd64 emulation is example-level ordinary interoperability evidence and does not qualify native endpoints or multipath support.
+
+### Next
+
+At this entry, [R2 #1022](https://github.com/the-sarge/quic-go-fast/issues/1022) remains ready; [R14 #1034](https://github.com/the-sarge/quic-go-fast/issues/1034) still needs [R12 #1032](https://github.com/the-sarge/quic-go-fast/issues/1032), so R1 creates no newly ready successor. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live views. Complete the R1 OmniFocus task and reconcile those mutable mirrors after this journal merge.
