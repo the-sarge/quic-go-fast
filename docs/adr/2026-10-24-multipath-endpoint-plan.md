@@ -1,6 +1,6 @@
 # Bounded native endpoint I/O implementation plan
 
-**Status:** accepted design and audited slices; not implemented. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** pending.
+**Status:** E1 complete; the endpoint route remains inactive. E4 is the endpoint frontier; E2 remains blocked by Q2 #599. Dispatch requires a verified frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** E, 1 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1012](https://github.com/the-sarge/quic-go-fast/issues/1012).
 
 ## Binding contract and operating discipline
 
@@ -206,7 +206,7 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 | Slice | Disposition | Delivery | Blocked by |
 | --- | --- | --- | --- |
-| [E1](#e1) | new | Bound native request ownership behind an inactive endpoint seam | None |
+| [E1](#e1) | complete | Bound native request ownership behind an inactive endpoint seam | None |
 | [E2](#e2) | new | Deliver nonfatal ordinary packet completions through recovery | #599, E1 |
 | [E3](#e3) | new | Transfer validation and MTU probes asynchronously | E2 |
 | [E4](#e4) | new | Cover transport replies, cached close and public writes | E1 |
@@ -218,6 +218,8 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 <a id="e1"></a>
 
 ### E1 — Bound native request ownership behind an inactive endpoint seam
+
+**Current state:** complete. `native_endpoint.go` owns the inactive endpoint boundary; `native_endpoint_test.go` covers the admitted ownership classes. No production constructor selects this route. E4 is ready; E2 still requires Q2 #599. The slice contract below remains the acceptance authority.
 
 **Delivers:** Create the internal endpoint control/writer boundary and exercise an actual UDP write through it in a private fixture. Admission, absolute deadlines, independent queued expiry, claimed-token fencing, finite completion reservations, leased fair readiness and nonblocking diagnostics belong to this boundary. No production constructor can activate it yet; native qualification is E6.
 
@@ -251,13 +253,13 @@ E6 uses 12 of the shared 118 regular run instances. The [Reno program ledger](20
 
 | Semantic class | Expected disposition | Enforcement owner | Finite evidence | Current status |
 | --- | --- | --- | --- | --- |
-| Timely native acknowledgment published while control consumes it after the cutoff | Preserve acceptance, publish once, keep admission available | Current-token reconciliation after loading the writer fact | Extend `TestNativeEndpointReturnAtWatchdogBoundary` with a controlled control-mailbox scheduling barrier and continued admission | Pending central correction |
-| Native acknowledgment at/after the existing cutoff, including return winning selection | Record permanent fault; preserve actual acceptance and release once after acknowledgment | Same reconciliation | Existing late-return boundary case | Pending central correction |
-| No native acknowledgment after the cutoff | Fault admission independently; retain current storage and prevent successful stop/join | Same reconciliation and independent timer | `TestNativeEndpointOverdueBorrow` | Pending central correction |
-| Pre-cutoff completion timestamp but publication follows an absent-fact overdue inspection | Keep the already-recorded fault permanent; preserve acceptance and release once after publication | Same reconciliation and existing permanent-fault guard | Publication/inspection ordering trace plus existing late-return disposal assertions; no added test function | Pending central correction |
-| Revocation/stop followed by acknowledgment | Dispose through the captured owner once; never reopen or affect a replacement | Same reconciliation and existing retirement owner | `TestNativeEndpointClaimRevocation` and overdue-borrow shutdown assertions | Pending central correction |
-| Coalesced/stale wakeup after a token transition | Inspect only current fact; no duplicate completion or lost current fact | Same reconciliation; wakeup has no payload authority | Continued admission/exact-one-result assertions in the return-boundary scenario, plus existing service turns | Pending central correction |
-| Deadline/native-control failure with acknowledged return | Fault the endpoint; publish the known outcome without inventing acceptance | Same reconciliation with unchanged native error facts | `TestNativeEndpointDeadlineFailure` | Pending central correction |
+| Timely native acknowledgment published while control consumes it after the cutoff | Preserve acceptance, publish once, keep admission available | Current-token reconciliation after loading the writer fact | Extend `TestNativeEndpointReturnAtWatchdogBoundary` with a controlled control-mailbox scheduling barrier and continued admission | Covered by central reconciliation |
+| Native acknowledgment at/after the existing cutoff, including return winning selection | Record permanent fault; preserve actual acceptance and release once after acknowledgment | Same reconciliation | Existing late-return boundary case | Covered by central reconciliation |
+| No native acknowledgment after the cutoff | Fault admission independently; retain current storage and prevent successful stop/join | Same reconciliation and independent timer | `TestNativeEndpointOverdueBorrow` | Covered by central reconciliation |
+| Pre-cutoff completion timestamp but publication follows an absent-fact overdue inspection | Keep the already-recorded fault permanent; preserve acceptance and release once after publication | Same reconciliation and existing permanent-fault guard | Publication/inspection ordering trace plus existing late-return disposal assertions; no added test function | Covered by central reconciliation |
+| Revocation/stop followed by acknowledgment | Dispose through the captured owner once; never reopen or affect a replacement | Same reconciliation and existing retirement owner | `TestNativeEndpointClaimRevocation` and overdue-borrow shutdown assertions | Covered by central reconciliation |
+| Coalesced/stale wakeup after a token transition | Inspect only current fact; no duplicate completion or lost current fact | Same reconciliation; wakeup has no payload authority | Continued admission/exact-one-result assertions in the return-boundary scenario, plus existing service turns | Covered by central reconciliation |
+| Deadline/native-control failure with acknowledged return | Fault the endpoint; publish the known outcome without inventing acceptance | Same reconciliation with unchanged native error facts | `TestNativeEndpointDeadlineFailure` | Covered by central reconciliation |
 
 **Terminating evidence and review budget:** Keep the existing 16 deterministic endpoint test functions; extend the return-boundary function with the timely-published/delayed-control case and preserve its late-return case. The scheduling barrier is a test-only use of the existing control mailbox, with observations through submission, completion, fault and stop; add no production hook or replacement I/O provider. Existing never-return and revocation cases remain required. The transport test suite owns these maintained regression aids; equivalent replacement or feature removal governs retirement. Run affected root tests/vet, tidy diff, configured lint/go-fix, existing ordinary portability checks, and the single reserved focused race run at final certification. No additional mutation, repeated timing stress, native venue, qualification run or fixture-completeness obligation is required. Context remains at most 24k input tokens: this E1 contract, matching closure rows, focused endpoint symbols and only the two unresolved timing counterexamples behind the audit link.
 
