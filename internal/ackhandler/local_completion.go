@@ -136,6 +136,9 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 	if outcome < LocalPacketAccepted || outcome > LocalPacketUnsubmitted || returnedAt.IsZero() || returnedAt.Before(r.registeredAt) {
 		return errors.New("invalid local completion outcome or time")
 	}
+	// Completion can retire other local packets during its loss scan. Finalize
+	// held undo only after that scan and every ECN transition in this operation.
+	defer h.settleLocalUndo(returnedAt)
 	delete(h.local.records, token.id)
 	r.outcome = outcome
 	r.eligibleAt = returnedAt

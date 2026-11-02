@@ -155,15 +155,17 @@ func TestLocalECNOutcomes(t *testing.T) {
 }
 
 func TestLocalECNSnapshotSupersession(t *testing.T) {
-	t.Run("retired-only CE precedes Reno loss undo", func(t *testing.T) {
+	t.Run("CE precedes Reno loss undo", func(t *testing.T) {
 		for _, tc := range []struct {
-			name    string
-			outcome LocalPacketOutcome
+			name           string
+			outcome        LocalPacketOutcome
+			completionLoss bool
 		}{
 			{name: "immediate"},
 			{name: "deferred accepted", outcome: LocalPacketAccepted},
 			{name: "invalidated unsubmitted", outcome: LocalPacketUnsubmitted},
 			{name: "terminal uncertain", outcome: LocalPacketUncertain},
+			{name: "completion retires uncertain ACK-only", outcome: LocalPacketUncertain, completionLoss: true},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				h, _ := newLocalECNTestHandler(t, false)
@@ -185,31 +187,49 @@ func TestLocalECNSnapshotSupersession(t *testing.T) {
 				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(7*time.Millisecond)))
 				for h.QueueProbePacketAt(protocol.Encryption1RTT, now.Add(8*time.Millisecond)) {
 				}
-				ce := uint64(1)
+				counts, ce := uint64(5), uint64(1)
+				if tc.completionLoss {
+					pn := h.PopPacketNumber(protocol.Encryption1RTT)
+					uncertain, err := h.RegisterLocalPacket(PacketContext{}, now.Add(9*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, nil, protocol.Encryption1RTT, h.ECNMode(true), 1200)
+					require.NoError(t, err)
+					require.NoError(t, h.CompleteLocalPacket(uncertain, LocalPacketUncertain, now.Add(9*time.Millisecond)))
+					proof, token := localECNPacket(t, h, now.Add(9*time.Millisecond))
+					require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(9*time.Millisecond)))
+					pns = append(pns, proof)
+					counts++
+				}
 				var pending LocalCompletionToken
 				if tc.outcome != localPacketPending {
 					_, pending = localECNPacket(t, h, now.Add(9*time.Millisecond))
 					ce = 2
 				}
-				ackBBRECNAt(t, h, now.Add(10*time.Millisecond), ackRanges(pns...), 5, ce)
+				ackBBRECNAt(t, h, now.Add(10*time.Millisecond), ackRanges(pns...), counts, ce)
 				require.Equal(t, protocol.ECT0, h.ECNMode(true))
 				expected := protocol.ByteCount(18816)
 				if tc.outcome != localPacketPending {
 					require.Equal(t, protocol.ByteCount(26880), h.congestion.GetCongestionWindow(), "pending CE must resolve before undo can restore the window")
-					require.NoError(t, h.CompleteLocalPacket(pending, tc.outcome, now.Add(11*time.Millisecond)))
+					returnedAt := now.Add(11 * time.Millisecond)
+					if tc.completionLoss {
+						// Reach ACK-only time loss while the received loss remains
+						// inside the existing undo-retention window.
+						returnedAt = now.Add(15 * time.Millisecond)
+					}
+					require.NoError(t, h.CompleteLocalPacket(pending, tc.outcome, returnedAt))
 					switch tc.outcome {
 					case LocalPacketUnsubmitted:
 						expected = 38400
 						require.Equal(t, protocol.ECNNon, h.ECNMode(true), "invalid counters do not invent CE or suppress legitimate undo")
 					case LocalPacketUncertain:
-						require.Equal(t, protocol.ByteCount(26880), h.congestion.GetCongestionWindow())
-						require.True(t, h.QueueProbePacketAt(protocol.Encryption1RTT, now.Add(12*time.Millisecond)))
+						if !tc.completionLoss {
+							require.Equal(t, protocol.ByteCount(26880), h.congestion.GetCongestionWindow())
+							require.True(t, h.QueueProbePacketAt(protocol.Encryption1RTT, now.Add(12*time.Millisecond)))
+						}
 						expected = 38400
 						require.Equal(t, protocol.ECNNon, h.ECNMode(true), "unavailable evidence ends the pending CE decision without invented loss")
 					}
 				}
 				require.Equal(t, expected, h.congestion.GetCongestionWindow())
-				ackBBRECNAt(t, h, now.Add(13*time.Millisecond), ackRanges(pns...), 5, ce)
+				ackBBRECNAt(t, h, now.Add(21*time.Millisecond), ackRanges(pns...), counts, ce)
 				require.Equal(t, expected, h.congestion.GetCongestionWindow(), "duplicate receipts repeat neither CE nor undo")
 			})
 		}

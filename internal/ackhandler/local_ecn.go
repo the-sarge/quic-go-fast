@@ -257,7 +257,6 @@ func (h *sentPacketHandler) completeLocalECN(reg *localRegistration, now monotim
 	if h.local == nil || h.local.ecn == nil {
 		return
 	}
-	defer h.settleLocalUndo(now)
 	e := h.local.ecn
 	e.reconcileTerminal(h, reg)
 	if e.failed || e.closed || reg.level != protocol.Encryption1RTT {
