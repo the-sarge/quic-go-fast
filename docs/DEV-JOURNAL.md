@@ -8121,3 +8121,28 @@ Sixteen deterministic endpoint test functions include real UDP traversal, queued
 ### Next
 
 The merged completion transition records E1 and R1 complete (2/31 slices). E4 [#1018](https://github.com/the-sarge/quic-go-fast/issues/1018) is newly ready; R2 [#1022](https://github.com/the-sarge/quic-go-fast/issues/1022) is already dispatched in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074). E2 [#1016](https://github.com/the-sarge/quic-go-fast/issues/1016) still has recorded Q2 [#599](https://github.com/the-sarge/quic-go-fast/issues/599) dependency. The [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live view.
+
+---
+
+## Multipath R2 wire representations landed - 2026-11-01 21:21 EST
+
+**Main:** `59e0d970d524`
+**Actor:** Codex
+
+### Summary
+
+[R2 — Parse the bounded draft-21 wire profile without advertisement (#1022)](https://github.com/the-sarge/quic-go-fast/issues/1022) landed in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074), merge `59e0d970d524601e61029755278aba917c4bdf4c`. The existing wire parser now owns bounded multipath frame representations and the optional initial_max_path_id parameter. Public negotiation and path activation remain disabled.
+
+### Completed
+
+Added a distinct 32-bit protocol-path identity, canonical path/field validation, real parser negotiation and 1-RTT gates, PATH_ACK/ECN support with ordinary path-zero/reset compatibility, and parameter absence-versus-zero handling without session-ticket retention. Adapted codecs retain the pinned MIT provenance. The same product PR reconciled E1/R1/R2 completion (3/31) and the E4/R3/R4 frontier; no separate status PR is needed.
+
+### Validation
+
+Exact candidate `bfc7678bcb307ac8d1a96004174e93aca48ee7ee` passed the full local Go suite including merged E1 tests, affected-package vet, tidy-diff, go-fix diff, configured lint, whitespace/link checks and clean-tree certification. All 17 jobs in the five applicable pull_request workflows passed on that head, including platform and Linux race coverage. The merged tree matches the certified candidate. The [hosted receipt for PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074#issuecomment-6567513865) and [local/review receipt for PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074#issuecomment-6567499593) retain exact runs and dispositions, including the external Claude structured-delivery failure in the settled-base review. No unresolved accepted finding or follow-up remains.
+
+The finite R2 inventory is 18 named deterministic regressions and one discriminating direct-ACK-guard deletion/restoration. No new operational, native qualification, stress or platform campaign was consumed, and the R1 operational ledger is unchanged. No untraced effect was found inside the accepted wire boundary; later activation, recovery, CID and diagnostics integration retain their existing slice owners.
+
+### Next
+
+R3 #1023 and R4 #1024 have no open blocker after R2 closure; reconcile their GitHub and OmniFocus readiness, then dispatch either through the audited slice workflow. E4 #1018 remains the endpoint frontier. The [R track parent (#1013)](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views.
