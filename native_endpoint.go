@@ -279,6 +279,9 @@ func (e *nativeEndpoint) offer(p *endpointParticipant, lane int, request endpoin
 		}
 		err = errEndpointCapacity
 		now := time.Now()
+		// Settle the old lease before registering this command's live work.
+		// A retry racing the timer must not be erased as an abandoned offer.
+		s.reclaimGrant(now)
 		w := &p.wait[lane]
 		if !w.pending || w.bytes != n {
 			if s.grant != nil && s.grant.participant == p && s.grant.lane == lane {
@@ -570,10 +573,8 @@ func (s *endpointState) releaseGrant() {
 	s.capacityGeneration++
 }
 
-// A selected large request accumulates capacity before its lease begins. Other
-// arrivals cannot consume that capacity. An unused lease ends its registration;
-// a producer that still owns pending work can register again after the floor.
-func (s *endpointState) chooseGrant(now time.Time) {
+// Reclamation precedes fresh registration and does not arbitrate a new turn.
+func (s *endpointState) reclaimGrant(now time.Time) {
 	if s.sealed || s.faulted {
 		s.releaseGrant()
 		return
@@ -587,6 +588,16 @@ func (s *endpointState) chooseGrant(now time.Time) {
 		g.participant.wait[g.lane].pending = false
 		g.participant.wait[g.lane].notBefore = now.Add(endpointRetry)
 		s.releaseGrant()
+	}
+}
+
+// A selected large request accumulates capacity before its lease begins. Other
+// arrivals cannot consume that capacity. An unused lease ends its registration;
+// a producer that still owns pending work can register again after the floor.
+func (s *endpointState) chooseGrant(now time.Time) {
+	s.reclaimGrant(now)
+	if s.sealed || s.faulted {
+		return
 	}
 	if s.grant == nil {
 		free := false

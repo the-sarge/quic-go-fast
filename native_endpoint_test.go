@@ -456,6 +456,44 @@ func TestNativeEndpointReadinessLease(t *testing.T) {
 		require.NoError(t, e.offer(other, 0, next))
 		time.Sleep(2 * time.Millisecond)
 		require.NoError(t, e.offer(other, 0, endpointTestRequest(2, "continued progress")), "an unused lease must not re-register abandoned work")
+
+		// A later live retry is a new registration, even if its command wins
+		// against the old lease timer. It must survive to receive its next turn.
+		require.NoError(t, e.offer(p, 0, endpointTestRequest(1, "refill")))
+		retry := endpointTestRequest(1, "live retry")
+		owned := true
+		defer func() {
+			if owned {
+				retry.buffers[0].Release()
+			}
+		}()
+		require.ErrorIs(t, e.offer(p, 0, retry), errEndpointCapacity)
+		permits <- struct{}{}
+		<-p.completed
+		_, ok = e.take(p)
+		require.True(t, ok)
+		<-p.ready
+		peerRetry := endpointTestRequest(2, "peer turn")
+		require.ErrorIs(t, e.offer(other, 0, peerRetry), errEndpointCapacity)
+		time.Sleep(endpointLease)
+		err = e.offer(p, 0, retry)
+		if err == nil {
+			owned = false
+		}
+		require.ErrorIs(t, err, errEndpointCapacity)
+		time.Sleep(endpointRetry)
+		require.NoError(t, e.offer(other, 0, peerRetry))
+		synctest.Wait()
+		select {
+		case <-p.ready:
+		default:
+			t.Fatal("lease expiry erased the incoming live retry")
+		}
+		err = e.offer(p, 0, retry)
+		if err == nil {
+			owned = false
+		}
+		require.NoError(t, err)
 	})
 }
 
