@@ -8194,3 +8194,26 @@ The restarted independent audit passed after corrections to mode-installation ga
 ### Next
 
 E2A #1084 is the recommended fresh-context starter through `$implement-architecture-slice`; E4 #1018 and R4 #1024 remain independent ready work. R3 #1023 is already in progress in PR #1082 and must not be dispatched again. The [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) is the live current-state view; clear context between child issues and reconcile latest main before each implementation.
+
+---
+
+## Path-zero context landed - 2026-11-01 23:04 EST
+
+**Main:** `7063233df8fe`
+**Actor:** Codex
+
+### Completed
+
+[PR #1082 — Make path-zero packet context explicit](https://github.com/the-sarge/quic-go-fast/pull/1082) merged as `7063233df8fe031c16704d91ec123403cf97b1f3`, closing [R3 issue #1023](https://github.com/the-sarge/quic-go-fast/issues/1023). The connection-owned tuple generation is captured before packing and retained through recovery registration. Initial/Handshake remain connection-owned; ordinary Reno, ACK/loss, pacing, packet-number, public and wire behavior are preserved. The production-created packer is retained in the capture regression, which exercises a real path switch.
+
+The product PR owns the committed R3 completion and frontier transition: 3/19 Reno slices and 4/34 program slices complete. Its program-index reconciliation preserves the E2 prerequisite split from [PR #1083](https://github.com/the-sarge/quic-go-fast/pull/1083). Public multipath negotiation remains disabled.
+
+### Validation
+
+The bounded review completed with initial RAS run `20261102T032418-edc871da834be8e8391c3bc2`, exact-head accepted-finding verification and replacement run `20261102T033808-ed93196643997ccadd898923`. The two accepted constructor-evidence/current-state corrections were resolved; the replacement required no fixes. Later documentation-only base updates kept the reviewed Go tree unchanged and used the shared docs-only policy. [Review dispositions and CI diagnosis for PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082#issuecomment-6568410882) retain the detailed evidence.
+
+Final candidate `c10f6e17f30a7447dff651be4f01a066eb94bb94`, base `fc668a05c70066715cfe08b22f2d69272e688290`, passed the 31-package ordinary unit suite, focused context/emission/migration/Reno race checks, affected-package vet, module tidiness and clean-tree/diff/frontier/link validation. [Exact-head certification receipt for PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082#issuecomment-6568658676) records the local result. All 17 hosted PR jobs passed across unit, integration, lint, cross-compilation and interop workflows; [unit run 41385532024](https://github.com/the-sarge/quic-go-fast/actions/runs/41385532024) includes both toolchains and all three platforms. The exact candidate was squash-merged with `--match-head-commit`.
+
+### Next
+
+[R4 issue #1024](https://github.com/the-sarge/quic-go-fast/issues/1024) remains ready; [R5 issue #1025](https://github.com/the-sarge/quic-go-fast/issues/1025) still requires R4, so R3 creates no newly ready successor. [Track parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live status surfaces. Revalidate the earlier hosted admission-recorder ordering failure against the merged code before filing its deferred follow-up; no same-head CI rerun or adjacent runtime change was used.
