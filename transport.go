@@ -144,7 +144,7 @@ type Transport struct {
 	Tracer qlogwriter.Recorder
 
 	mutex       sync.Mutex
-	handlers    map[protocol.ConnectionID]packetHandler
+	handlers    map[protocol.ConnectionID]packetHandlerEntry
 	resetTokens map[protocol.StatelessResetToken]packetHandler
 
 	packetIO packetIOConfig
@@ -391,7 +391,7 @@ func (t *Transport) doDial(
 		conn.abortUnstarted(err)
 		return nil, err
 	}
-	t.handlers[srcConnID] = conn
+	t.handlers[srcConnID] = packetHandlerEntry{handler: conn}
 	t.mutex.Unlock()
 
 	// The error channel needs to be buffered, as the run loop will continue running
@@ -486,7 +486,7 @@ func (t *Transport) init(allowZeroLengthConnIDs bool) error {
 
 		t.logger = utils.DefaultLogger // TODO: make this configurable
 		t.conn = conn
-		t.handlers = make(map[protocol.ConnectionID]packetHandler)
+		t.handlers = make(map[protocol.ConnectionID]packetHandlerEntry)
 		t.resetTokens = make(map[protocol.StatelessResetToken]packetHandler)
 		t.listening = make(chan struct{})
 		t.readRetryCanceled = make(chan struct{})
@@ -643,7 +643,7 @@ func (t *Transport) close(e error) {
 	// Close existing connections
 	var wg sync.WaitGroup
 	for _, handler := range t.handlers {
-		wg.Go(func() { handler.destroy(e) })
+		wg.Go(func() { handler.handler.destroy(e) })
 	}
 	t.mutex.Unlock() // closing connections requires releasing transport mutex
 	wg.Wait()
@@ -967,11 +967,33 @@ func setTLSConfigServerName(tlsConf *tls.Config, addr net.Addr, host string) {
 	tlsConf.ServerName = h
 }
 
+// packetHandlerEntry keeps routing identity and its lifetime in one map entry.
+// A binding is only an attribution hint for authentication, never path admission.
+type packetHandlerEntry struct {
+	handler packetHandler
+	pathID  protocol.PathID
+}
+
 type packetHandlerMap Transport
 
 var _ connRunner = &packetHandlerMap{}
 
+// Add registers an ordinary path-zero CID, including the server's original
+// destination-CID alias, whose long-header length can differ from connIDLen.
 func (h *packetHandlerMap) Add(id protocol.ConnectionID, handler packetHandler) bool /* was added */ {
+	return h.add(id, 0, handler)
+}
+
+// AddPath registers a locally issued CID under the transport's fixed decoder.
+// The caller owns issuance and its resource budget; ingress never calls this.
+func (h *packetHandlerMap) AddPath(id protocol.ConnectionID, pathID protocol.PathID, handler packetHandler) bool {
+	if id.Len() != h.connIDLen || id.Len() == 0 && pathID != 0 {
+		return false
+	}
+	return h.add(id, pathID, handler)
+}
+
+func (h *packetHandlerMap) add(id protocol.ConnectionID, pathID protocol.PathID, handler packetHandler) bool {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -979,7 +1001,7 @@ func (h *packetHandlerMap) Add(id protocol.ConnectionID, handler packetHandler) 
 		h.logger.Debugf("Not adding connection ID %s, as it already exists.", id)
 		return false
 	}
-	h.handlers[id] = handler
+	h.handlers[id] = packetHandlerEntry{handler: handler, pathID: pathID}
 	h.logger.Debugf("Adding connection ID %s.", id)
 	return true
 }
@@ -988,7 +1010,7 @@ func (h *packetHandlerMap) Get(connID protocol.ConnectionID) (packetHandler, boo
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 	handler, ok := h.handlers[connID]
-	return handler, ok
+	return handler.handler, ok
 }
 
 func (h *packetHandlerMap) AddResetToken(token protocol.StatelessResetToken, handler packetHandler) {
@@ -1011,8 +1033,8 @@ func (h *packetHandlerMap) AddWithConnID(clientDestConnID, newConnID protocol.Co
 		h.logger.Debugf("Not adding connection ID %s for a new connection, as it already exists.", clientDestConnID)
 		return false
 	}
-	h.handlers[clientDestConnID] = handler
-	h.handlers[newConnID] = handler
+	h.handlers[clientDestConnID] = packetHandlerEntry{handler: handler}
+	h.handlers[newConnID] = packetHandlerEntry{handler: handler}
 	h.logger.Debugf("Adding connection IDs %s and %s for a new connection.", clientDestConnID, newConnID)
 	return true
 }
@@ -1031,10 +1053,14 @@ func (h *packetHandlerMap) Remove(id protocol.ConnectionID) {
 // dispatch and the server's re-lookups of queued Initial and 0-RTT packets
 // share this one gate.
 func (h *packetHandlerMap) deliverPermitted(connID protocol.ConnectionID, p receivedPacket) bool {
-	handler, ok := h.Get(connID)
+	h.mutex.Lock()
+	entry, ok := h.handlers[connID]
+	h.mutex.Unlock()
 	if !ok {
 		return false
 	}
+	handler := entry.handler
+	p.pathID = entry.pathID
 	if h.candidates != nil && !handlerAuthority(handler).permitsWork() {
 		p.buffer.Release()
 		return true
@@ -1059,9 +1085,9 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 	for _, id := range ids {
 		if handler, ok := h.handlers[id]; ok {
 			if h.candidates != nil || h.setupAdmission != nil {
-				authority = handlerAuthority(handler)
+				authority = handlerAuthority(handler.handler)
 			}
-			setup = handlerSetup(handler)
+			setup = handlerSetup(handler.handler)
 			break
 		}
 	}
@@ -1105,14 +1131,16 @@ func (h *packetHandlerMap) ReplaceWithClosed(ids []protocol.ConnectionID, connCl
 		return
 	}
 	for _, id := range ids {
-		h.handlers[id] = handler
+		entry := h.handlers[id]
+		entry.handler = handler
+		h.handlers[id] = entry
 	}
 	var timer *time.Timer
 	retire := sync.OnceFunc(func() {
 		h.mutex.Lock()
 		timer.Stop()
 		for _, id := range ids {
-			if h.handlers[id] == handler {
+			if h.handlers[id].handler == handler {
 				delete(h.handlers, id)
 			}
 		}

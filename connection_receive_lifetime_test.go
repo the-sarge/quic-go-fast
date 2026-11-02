@@ -41,7 +41,7 @@ func TestConnectionReceiveLifetimeRejectedRetention(t *testing.T) {
 	data, err := wire.AppendShortHeader(nil, tc.srcConnID, 1, protocol.PacketNumberLen2, protocol.KeyPhaseZero)
 	require.NoError(t, err)
 	p := lifetimePacket(t, tc, data)
-	u.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(
+	u.EXPECT().UnpackShortHeader(protocol.PathID(0), gomock.Any(), gomock.Any()).Return(
 		protocol.PacketNumber(0), protocol.PacketNumberLen2, protocol.KeyPhaseZero, nil, handshake.ErrKeysNotYetAvailable,
 	)
 	processed, err := tc.conn.handleOnePacket(p, 42)
@@ -132,7 +132,7 @@ func TestConnectionReceiveLifetimeViews(t *testing.T) {
 				}).Times(n)
 			}
 			if name == "short success" || name == "long short" {
-				u.EXPECT().UnpackShortHeader(p.rcvTime, gomock.Any()).DoAndReturn(func(monotime.Time, []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error) {
+				u.EXPECT().UnpackShortHeader(protocol.PathID(0), p.rcvTime, gomock.Any()).DoAndReturn(func(protocol.PathID, monotime.Time, []byte) (protocol.PacketNumber, protocol.PacketNumberLen, protocol.KeyPhaseBit, []byte, error) {
 					checkLive()
 					return 3, protocol.PacketNumberLen2, protocol.KeyPhaseZero, []byte{0}, nil
 				})

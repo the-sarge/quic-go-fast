@@ -436,7 +436,7 @@ func registeredConnIDs(tr *Transport, conn *Conn) []protocol.ConnectionID {
 	defer tr.mutex.Unlock()
 	var ids []protocol.ConnectionID
 	for id, h := range tr.handlers {
-		if w, ok := h.(*wrappedConn); (ok && w.Conn == conn) || h == packetHandler(conn) {
+		if w, ok := h.handler.(*wrappedConn); (ok && w.Conn == conn) || h.handler == packetHandler(conn) {
 			ids = append(ids, id)
 		}
 	}
@@ -802,7 +802,7 @@ func TestCandidateGroupContract(t *testing.T) {
 	tr.mutex.Lock()
 	for _, id := range earlierIDs {
 		if h, ok := tr.handlers[id]; ok {
-			retained = append(retained, h)
+			retained = append(retained, h.handler)
 		}
 	}
 	tr.mutex.Unlock()
@@ -924,7 +924,7 @@ func retainedEntries(t *testing.T, tr *Transport, ids []protocol.ConnectionID) [
 	var entries []*closedLocalConn
 	for _, id := range ids {
 		if h, ok := tr.handlers[id]; ok {
-			entry, ok := h.(*closedLocalConn)
+			entry, ok := h.handler.(*closedLocalConn)
 			require.True(t, ok, "expected a closed-local entry, got %T", h)
 			entries = append(entries, entry)
 		}

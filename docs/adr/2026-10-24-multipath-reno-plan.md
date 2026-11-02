@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2/R3 complete (3/19 slices), R4 frontier. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3/R4 complete (4/19 slices), R5 and R8 frontier. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -372,7 +372,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | [R1](#r1) | new | Pin the independent peer and ordinary fallback control | None |
 | [R2](#r2) | new | Parse the bounded draft-21 wire profile without advertisement | None |
 | [R3](#r3) | complete | Make path-zero context explicit without changing recovery | R2 |
-| [R4](#r4) | new | Bind CID routing to bounded protocol-path identity | R2 |
+| [R4](#r4) | complete | Bind CID routing to bounded protocol-path identity | R2 |
 | [R5](#r5) | new | Protect path-qualified packets under one key schedule | R3, R4 |
 | [R6](#r6) | new | Route receive ACK histories by target and carrier | R5 |
 | [R7](#r7) | new | Give Reno paths independent recovery and pacing | R6 |
@@ -395,7 +395,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R1 — Pin the independent peer and ordinary fallback control
 
-**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 is complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is ready. R14 #1034 remains blocked by R12 #1032.
+**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 is complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 and R8 #1028 are ready. R14 #1034 remains blocked by R12 #1032.
 
 **Delivers:** Add the reproducible pinned picoquic build/driver and strict executed-case accounting. Demonstrate the ordinary no-negotiation control through current public APIs; reserve multipath scenarios for later slices. This is the maintained peer deliverable approved by the design, not a second protocol implementation.
 
@@ -421,7 +421,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R2 — Parse the bounded draft-21 wire profile without advertisement
 
-**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is ready. Public negotiation remains disabled.
+**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 and R8 #1028 are ready. Public negotiation remains disabled.
 
 **Delivers:** Adapt multipath codecs/transport parameter into the real parser and canonical validator, with path-zero ACK compatibility and 1-RTT-only gates. Keep public negotiation disabled; receiving unsupported extension frames follows the selected protocol error. Add wire path identity distinct from tuple generation.
 
@@ -447,7 +447,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R3 — Make path-zero context explicit without changing recovery
 
-**State:** complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082). R4 #1024 remains ready; R5 #1025 remains blocked by R4 #1024.
+**State:** complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082). R4 #1024 is complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091); R5 #1025 and R8 #1028 are ready.
 
 **Delivers:** Prefactor application packet identity/context selection so the existing ordinary path-zero flow carries explicit path and tuple identity through registration and packing. Initial/Handshake remain connection-owned. Preserve existing algorithms, ordering and one active path behavior.
 
@@ -472,6 +472,8 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 <a id="r4"></a>
 
 ### R4 — Bind CID routing to bounded protocol-path identity
+
+**State:** complete in [PR #1091](https://github.com/the-sarge/quic-go-fast/pull/1091). R5 #1025 and R8 #1028 are ready; their remaining direct predecessors are complete. Production issuance remains path zero and public negotiation remains disabled.
 
 **Delivers:** Extend CID lookup/registration with a bounded wire-path binding before decryption while preserving ordinary routing, reset-token and closed-handler behavior. Unknown/unissued IDs cannot allocate path state. Exercise duplicate tuple/path-zero cases through real ingress routing.
 

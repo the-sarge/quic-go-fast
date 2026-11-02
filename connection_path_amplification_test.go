@@ -49,7 +49,7 @@ func TestConnectionUnvalidatedPathAmplification(t *testing.T) {
 				payload, err := challenge.Append(nil, c.version)
 				require.NoError(t, err)
 				pn := protocol.PacketNumber(i + 10)
-				unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
+				unpacker.EXPECT().UnpackShortHeader(protocol.PathID(0), gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
 				packet := getShortHeaderPacket(t, addr, tc.srcConnID, pn, nil)
 				packet.data = append(packet.data, make([]byte, size-len(packet.data))...)
 				received[addr.String()] += len(packet.data)
@@ -70,7 +70,7 @@ func TestConnectionUnvalidatedPathAmplification(t *testing.T) {
 				require.Equal(t, 1, responses)
 
 				// Replays cannot add credit or produce another response.
-				unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
+				unpacker.EXPECT().UnpackShortHeader(protocol.PathID(0), gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
 				duplicate := getShortHeaderPacket(t, addr, tc.srcConnID, pn, make([]byte, 1200))
 				processed, err = c.handleShortHeaderPacket(duplicate, false, 0)
 				require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestConnectionCompactPathValidation(t *testing.T) {
 					payload, err = frame.Append(payload, c.version)
 					require.NoError(t, err)
 				}
-				unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
+				unpacker.EXPECT().UnpackShortHeader(protocol.PathID(0), gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
 				packet := getShortHeaderPacket(t, remote, tc.srcConnID, pn, nil)
 				packet.data = append(packet.data, make([]byte, 100-len(packet.data))...)
 				pn++

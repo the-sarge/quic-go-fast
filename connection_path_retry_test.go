@@ -47,7 +47,7 @@ func TestConnectionPathValidationRetry(t *testing.T) {
 						payload, err = frame.Append(payload, c.version)
 						require.NoError(t, err)
 					}
-					unpacker.EXPECT().UnpackShortHeader(gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
+					unpacker.EXPECT().UnpackShortHeader(protocol.PathID(0), gomock.Any(), gomock.Any()).Return(pn, protocol.PacketNumberLen2, protocol.KeyPhaseZero, payload, nil)
 					packet := getShortHeaderPacket(t, addr, tc.srcConnID, pn, nil)
 					packet.data = append(packet.data, make([]byte, size-len(packet.data))...)
 					pn++

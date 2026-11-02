@@ -64,7 +64,7 @@ func TestTransportTerminalLifetimeForward(t *testing.T) {
 	packets := make(chan receivedPacket, 1)
 	tr := &Transport{
 		connIDLen: 4, logger: utils.DefaultLogger,
-		handlers: map[protocol.ConnectionID]packetHandler{connID: &mockPacketHandler{packets: packets}},
+		handlers: map[protocol.ConnectionID]packetHandlerEntry{connID: {handler: &mockPacketHandler{packets: packets}}},
 	}
 	buf := getPacketBuffer()
 	var err error
