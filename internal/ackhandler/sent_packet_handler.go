@@ -323,7 +323,7 @@ func (h *sentPacketHandler) SentPacketWithContext(
 func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streamFrames []StreamFrame, frames []Frame, encLevel protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount, isPathMTUProbePacket, isPathProbePacket bool, local *localRegistration) {
 	// Additional protocol paths are not active in this prefactor. Validate
 	// before accounting so an invalid identity cannot partially register.
-	if context.PathID != 0 || ((encLevel == protocol.EncryptionInitial || encLevel == protocol.EncryptionHandshake) && context != (PacketContext{})) {
+	if !validPacketContext(context, encLevel) {
 		panic("invalid path-zero packet context")
 	}
 	priorInFlight := h.bytesInFlight

@@ -16,7 +16,7 @@ import (
 // no frame ownership. SentPacket is forbidden on this route.
 type LocalSentPacketHandler interface {
 	SentPacketHandler
-	RegisterLocalPacket(monotime.Time, protocol.PacketNumber, protocol.PacketNumber, []StreamFrame, []Frame, protocol.EncryptionLevel, protocol.ECN, protocol.ByteCount) (LocalCompletionToken, error)
+	RegisterLocalPacket(PacketContext, monotime.Time, protocol.PacketNumber, protocol.PacketNumber, []StreamFrame, []Frame, protocol.EncryptionLevel, protocol.ECN, protocol.ByteCount) (LocalCompletionToken, error)
 	CompleteLocalPacket(LocalCompletionToken, LocalPacketOutcome, monotime.Time) error
 	CloseLocal(monotime.Time)
 }
@@ -75,7 +75,7 @@ func NewLocalSentPacketHandler(initialPN protocol.PacketNumber, size protocol.By
 	return h, nil
 }
 
-func (h *sentPacketHandler) RegisterLocalPacket(t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount) (LocalCompletionToken, error) {
+func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streams []StreamFrame, frames []Frame, level protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount) (LocalCompletionToken, error) {
 	if h.local == nil || h.local.closed || h.enableECN || h.congestionEvents != nil || h.bbrECN != nil || (ecn != protocol.ECNNon && ecn != protocol.ECNUnsupported) {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
@@ -83,7 +83,7 @@ func (h *sentPacketHandler) RegisterLocalPacket(t monotime.Time, pn, largestAcke
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
 	ps := h.getPacketNumberSpace(level)
-	if ps == nil || t.IsZero() || size <= 0 || pn < 0 || (ps.history.highestPacketNumber != protocol.InvalidPacketNumber && pn != ps.history.highestPacketNumber+1) {
+	if !validPacketContext(context, level) || ps == nil || t.IsZero() || size <= 0 || pn < 0 || (ps.history.highestPacketNumber != protocol.InvalidPacketNumber && pn != ps.history.highestPacketNumber+1) {
 		return LocalCompletionToken{}, errLocalPacketMode
 	}
 	// Reserve against the shared history/tombstone budget before any accounting,
@@ -99,7 +99,7 @@ func (h *sentPacketHandler) RegisterLocalPacket(t monotime.Time, pn, largestAcke
 	token := LocalCompletionToken{owner: &h.local.owner, id: h.local.owner.next, epoch: ps.localEpoch}
 	r := &localRegistration{pn: pn, level: level, epoch: ps.localEpoch, registeredAt: t}
 	h.local.records[token.id] = r
-	h.sentPacket(PacketContext{}, t, pn, largestAcked, streams, frames, level, ecn, size, false, false, r)
+	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, false, false, r)
 	return token, nil
 }
 

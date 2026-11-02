@@ -21,7 +21,7 @@ func newLocalTestHandler(t *testing.T) LocalSentPacketHandler {
 func registerLocalTestPacket(t *testing.T, h LocalSentPacketHandler, now monotime.Time, level protocol.EncryptionLevel, frames []Frame) (protocol.PacketNumber, LocalCompletionToken) {
 	t.Helper()
 	pn := h.PopPacketNumber(level)
-	token, err := h.RegisterLocalPacket(now, pn, protocol.InvalidPacketNumber, nil, frames, level, protocol.ECNNon, 1200)
+	token, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, frames, level, protocol.ECNNon, 1200)
 	require.NoError(t, err)
 	return pn, token
 }
@@ -67,6 +67,22 @@ func TestLocalCompletionPendingOnly(t *testing.T) {
 			h.SentPacket(now, 1, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200, false, false)
 		})
 	}
+	t.Run("current path-zero context", func(t *testing.T) {
+		h := newLocalTestHandler(t)
+		pn := h.PopPacketNumber(protocol.Encryption1RTT)
+		_, err := h.RegisterLocalPacket(PacketContext{PathID: 1}, now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.Encryption1RTT, protocol.ECNNon, 1200)
+		require.Error(t, err)
+		context := PacketContext{TupleGeneration: 7}
+		token, err := h.RegisterLocalPacket(context, now, pn, protocol.InvalidPacketNumber, nil, []Frame{{Frame: &wire.PingFrame{}}}, protocol.Encryption1RTT, protocol.ECNNon, 1200)
+		require.NoError(t, err)
+		context.TupleGeneration++
+		_, packet := h.(*sentPacketHandler).appDataPackets.history.FirstOutstanding()
+		require.Equal(t, PacketContext{TupleGeneration: 7}, packet.Context)
+		require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(time.Millisecond)))
+		require.Panics(t, func() {
+			h.SentPacketWithContext(PacketContext{}, now, pn+1, protocol.InvalidPacketNumber, nil, nil, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, false)
+		})
+	})
 	_, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger)
 	require.Error(t, err)
 }
@@ -192,7 +208,7 @@ func TestLocalCompletionUnsubmitted(t *testing.T) {
 	}).SendAllowance(now)
 	pn := h.PopPacketNumber(protocol.EncryptionInitial)
 	streamReturns := 0
-	token, err := h.RegisterLocalPacket(now, pn, protocol.InvalidPacketNumber, []StreamFrame{{Frame: &wire.StreamFrame{StreamID: 4, Data: []byte("reliable")}, Handler: &customFrameHandler{onLost: func(wire.Frame) { streamReturns++ }}}}, []Frame{tracker.NewPingFrame(0), {Frame: &wire.DatagramFrame{Data: []byte("discard")}}}, protocol.EncryptionInitial, protocol.ECNNon, 1200)
+	token, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, []StreamFrame{{Frame: &wire.StreamFrame{StreamID: 4, Data: []byte("reliable")}, Handler: &customFrameHandler{onLost: func(wire.Frame) { streamReturns++ }}}}, []Frame{tracker.NewPingFrame(0), {Frame: &wire.DatagramFrame{Data: []byte("discard")}}}, protocol.EncryptionInitial, protocol.ECNNon, 1200)
 	require.NoError(t, err)
 	require.NoError(t, h.CompleteLocalPacket(token, LocalPacketUnsubmitted, now.Add(time.Second)))
 	require.Equal(t, []protocol.PacketNumber{0}, tracker.Lost)
@@ -289,7 +305,7 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 			if action != "close" {
 				replacementPN, replacement = registerLocalTestPacket(t, h, now.Add(time.Second), protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(100)})
 			} else {
-				_, err := h.RegisterLocalPacket(now, 0, protocol.InvalidPacketNumber, nil, nil, protocol.Encryption1RTT, protocol.ECNNon, 1200)
+				_, err := h.RegisterLocalPacket(PacketContext{}, now, 0, protocol.InvalidPacketNumber, nil, nil, protocol.Encryption1RTT, protocol.ECNNon, 1200)
 				require.Error(t, err)
 				require.False(t, h.QueueProbePacket(protocol.EncryptionInitial))
 			}
@@ -320,23 +336,23 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 			}
 		}
 		pn := h.PopPacketNumber(protocol.EncryptionInitial)
-		_, err := h.RegisterLocalPacket(now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
+		_, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
 		require.ErrorIs(t, err, ErrLocalCompletionCapacity)
 		// Retire an interior record before the prefix, then all remaining history.
 		_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn - 1, Largest: pn - 1}}}, protocol.EncryptionInitial, now.Add(time.Millisecond))
 		require.NoError(t, err)
-		_, err = h.RegisterLocalPacket(now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
+		_, err = h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
 		require.ErrorIs(t, err, ErrLocalCompletionCapacity)
 		_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 0, Largest: pn - 1}}}, protocol.EncryptionInitial, now.Add(time.Millisecond))
 		require.NoError(t, err)
 		h.ResetForRetry(now.Add(2 * time.Millisecond))
 		next, _ := h.PeekPacketNumber(protocol.EncryptionInitial)
 		require.Greater(t, next, pn)
-		_, err = h.RegisterLocalPacket(now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
+		_, err = h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
 		require.ErrorIs(t, err, ErrLocalCompletionCapacity)
 		require.Equal(t, SendNone, h.SendMode(now))
 		require.NoError(t, h.CompleteLocalPacket(first, LocalPacketAccepted, now.Add(3*time.Millisecond)))
-		_, err = h.RegisterLocalPacket(now.Add(4*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
+		_, err = h.RegisterLocalPacket(PacketContext{}, now.Add(4*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
 		require.NoError(t, err)
 	})
 }

@@ -70,3 +70,8 @@ func putPacket(p *packet) {
 	p.StreamFrames = nil
 	packetPool.Put(p)
 }
+
+// validPacketContext is shared by legacy and atomic local registration.
+func validPacketContext(context PacketContext, level protocol.EncryptionLevel) bool {
+	return context.PathID == 0 && ((level != protocol.EncryptionInitial && level != protocol.EncryptionHandshake) || context == (PacketContext{}))
+}
