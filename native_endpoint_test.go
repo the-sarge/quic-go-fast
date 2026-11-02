@@ -181,6 +181,85 @@ func TestNativeEndpointOverdueBorrow(t *testing.T) {
 }
 
 func TestNativeEndpointReturnAtWatchdogBoundary(t *testing.T) {
+	t.Run("timely return consumed late", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			entered, reset := make(chan struct{}, 1), make(chan struct{}, 1)
+			releaseNative, releaseControl := make(chan struct{}), make(chan struct{})
+			e := startNativeEndpoint(endpointTestNative{
+				deadline: func(d time.Time) error {
+					if d.IsZero() {
+						select {
+						case reset <- struct{}{}:
+						default:
+						}
+					}
+					return nil
+				},
+				send: func(b []byte) (int, error) {
+					select {
+					case entered <- struct{}{}:
+					default:
+					}
+					<-releaseNative
+					return len(b), nil
+				},
+			}, 10*time.Millisecond, nil)
+			defer func() {
+				select {
+				case <-releaseNative:
+				default:
+					close(releaseNative)
+				}
+				select {
+				case <-releaseControl:
+				default:
+					close(releaseControl)
+				}
+				<-e.stop()
+			}()
+			p, err := e.attach(1)
+			require.NoError(t, err)
+			first := endpointTestRequest(1, "timely native result")
+			first.identity.registration = 11
+			require.NoError(t, e.offer(p, 0, first))
+			<-entered
+			held, released := make(chan struct{}), make(chan struct{})
+			go func() {
+				// A scheduling barrier on the existing private mailbox models
+				// delayed control consumption; production callbacks never do this.
+				e.do(func(*endpointState) { close(held); <-releaseControl })
+				close(released)
+			}()
+			<-held
+			close(releaseNative)
+			<-reset
+			synctest.Wait() // native return and its publication precede the cutoff
+			time.Sleep(31 * time.Millisecond)
+			close(releaseControl)
+			<-released
+			<-p.completed
+			result, ok := e.take(p)
+			require.True(t, ok)
+			require.Equal(t, uint64(11), result.identity.registration)
+			require.Equal(t, 1, result.accepted)
+			require.NoError(t, result.err)
+			select {
+			case <-e.fault:
+				t.Fatal("control latency was classified as native overrun")
+			default:
+			}
+			second := endpointTestRequest(1, "continued admission")
+			second.identity.registration = 22
+			require.NoError(t, e.offer(p, 0, second))
+			<-p.completed
+			result, ok = e.take(p)
+			require.True(t, ok)
+			require.Equal(t, uint64(22), result.identity.registration)
+			require.Equal(t, 1, result.accepted)
+			_, ok = e.take(p)
+			require.False(t, ok, "coalesced wakeups cannot duplicate a terminal result")
+		})
+	})
 	synctest.Test(t, func(t *testing.T) {
 		e := startNativeEndpoint(endpointTestNative{send: func(b []byte) (int, error) {
 			time.Sleep(10*time.Millisecond + endpointTolerance)

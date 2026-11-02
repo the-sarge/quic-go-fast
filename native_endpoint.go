@@ -86,7 +86,7 @@ type nativeEndpoint struct {
 	generation        uint64
 	commands          chan func(*endpointState)
 	work              chan *endpointToken
-	returned          chan endpointWriteResult
+	returned          chan struct{}
 	done              chan struct{}
 	fault             chan struct{}
 	diagnostics       chan endpointDiagnostic
@@ -137,10 +137,12 @@ type endpointToken struct {
 	index    int
 	request  endpointRequest
 	canceled atomic.Bool
+	// The writer publishes once, after all native/deadline operations. The
+	// immutable fact is authoritative even while its wakeup is still pending.
+	completion atomic.Pointer[endpointWriteResult]
 }
 
 type endpointWriteResult struct {
-	token      *endpointToken
 	result     endpointResult
 	fault      bool
 	returnedAt time.Time
@@ -174,7 +176,7 @@ func startNativeEndpoint(native endpointNativeIO, budget time.Duration, sink fun
 	e := &nativeEndpoint{
 		generation: nextNativeEndpoint.Add(1),
 		commands:   make(chan func(*endpointState)), work: make(chan *endpointToken, 1),
-		returned: make(chan endpointWriteResult, 1), done: make(chan struct{}), fault: make(chan struct{}),
+		returned: make(chan struct{}, 1), done: make(chan struct{}), fault: make(chan struct{}),
 		diagnostics: make(chan endpointDiagnostic, 128),
 	}
 	go func() {
@@ -448,9 +450,7 @@ func (s *endpointState) run() {
 	defer timer.Stop()
 	for {
 		now := time.Now()
-		if s.current != nil && !now.Before(s.current.request.deadline.Add(endpointTolerance)) {
-			s.fail()
-		}
+		s.reconcileCurrent(now)
 		if s.sealed {
 			for _, p := range s.participants {
 				if p != nil && p.active {
@@ -522,17 +522,35 @@ func (s *endpointState) run() {
 		case <-wake:
 		case command := <-e.commands:
 			command(s)
-		case result := <-e.returned:
-			// Use the writer's native-return fact, not the time this control
-			// arm ran. A ready return must not erase an overdue token, and
-			// delayed consumption must not turn timely I/O into late I/O.
-			if result.fault || !result.returnedAt.Before(result.token.request.deadline.Add(endpointTolerance)) {
-				s.fail()
-			}
-			s.publish(result.token.index, result.result)
-			s.current = nil
+		case <-e.returned:
+			// Coalesced notification only. The next reconciliation reads the
+			// current token's fact, never a result carried by an old wakeup.
 		}
 	}
+}
+
+// reconcileCurrent is the sole native-timing decision and terminal handoff.
+// The fact load is the overdue inspection: once an absent-fact inspection
+// faults, subsequent publication cannot reopen the endpoint, even if its
+// timestamp predates the cutoff. A visible timely fact wins over control time.
+func (s *endpointState) reconcileCurrent(now time.Time) {
+	token := s.current
+	if token == nil {
+		return
+	}
+	cutoff := token.request.deadline.Add(endpointTolerance)
+	completion := token.completion.Load()
+	if completion == nil {
+		if !now.Before(cutoff) {
+			s.fail()
+		}
+		return // still fenced; only the writer can acknowledge native return
+	}
+	if completion.fault || !completion.returnedAt.Before(cutoff) {
+		s.fail()
+	}
+	s.publish(token.index, completion.result)
+	s.current = nil
 }
 
 func earlierEndpointTime(a, b time.Time) time.Time {
@@ -753,6 +771,12 @@ func (e *nativeEndpoint) write(native endpointNativeIO) {
 		if err := native.SetWriteDeadline(time.Time{}); err != nil {
 			result.err, fault = errors.Join(result.err, err), true
 		}
-		e.returned <- endpointWriteResult{token: token, result: result, fault: fault, returnedAt: time.Now()}
+		// Publication ends this token's native borrow. Do not access payload
+		// after Store: control may immediately release/reuse its storage.
+		token.completion.Store(&endpointWriteResult{result: result, fault: fault, returnedAt: time.Now()})
+		select {
+		case e.returned <- struct{}{}:
+		default:
+		}
 	}
 }
