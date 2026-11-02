@@ -3101,6 +3101,24 @@ func (c *Conn) recordStreamPriorityUpdated(id protocol.StreamID, urgency int8, i
 // In addition, a datagram may be dropped before being sent out if the available packet size suddenly decreases.
 // If the payload is too large to be sent at the current time, a [DatagramTooLargeError] is returned.
 func (c *Conn) SendDatagram(p []byte) error {
+	return c.sendDatagram(context.Background(), p)
+}
+
+// SendDatagramContext sends a datagram with the same validation and delivery
+// semantics as SendDatagram, but permits cancellation while waiting for queue capacity.
+// The context must not be nil. An already-canceled context returns ctx.Err()
+// before payload validation; later cancellation can lose to validation or admission.
+// A context error guarantees that the datagram was not admitted. Cancellation
+// cannot revoke an admitted datagram, and does not close the connection.
+// If closure and cancellation overlap, either error may be returned.
+func (c *Conn) SendDatagramContext(ctx context.Context, p []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return c.sendDatagram(ctx, p)
+}
+
+func (c *Conn) sendDatagram(ctx context.Context, p []byte) error {
 	if !c.supportsDatagrams() {
 		return errors.New("datagram support disabled")
 	}
@@ -3117,7 +3135,7 @@ func (c *Conn) SendDatagram(p []byte) error {
 	}
 	f.Data = make([]byte, len(p))
 	copy(f.Data, p)
-	return c.datagramQueue.Add(f)
+	return c.datagramQueue.AddContext(ctx, f)
 }
 
 // ReceiveDatagram gets a message received in a QUIC datagram, as specified in RFC 9221.
