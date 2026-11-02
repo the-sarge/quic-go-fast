@@ -8267,3 +8267,26 @@ All six maintained local-completion scenarios, the full ackhandler and root-pack
 ### Next
 
 [E2B issue #1085](https://github.com/the-sarge/quic-go-fast/issues/1085) has its sole predecessor, E2A, complete; reconcile its ready label and OmniFocus blocked prefix after journal completion. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views. The deferred scan-cost observation was revalidated against merged commit `b96462ad36ab0df4fb7f2c387e1362921ef6a14c` and filed as [investigation #1095](https://github.com/the-sarge/quic-go-fast/issues/1095), mirrored to OmniFocus; it adds no blocker or campaign and does not claim a measured throughput regression.
+
+---
+
+## Path-qualified protection landed - 2026-11-02 01:08 EST
+
+**Main:** `fb77bc397f5f`
+**Actor:** Codex
+
+### Completed
+
+[PR #1094 — Protect path-qualified packets under one key schedule](https://github.com/the-sarge/quic-go-fast/pull/1094) merged as `fb77bc397f5f59013e0be76bf4abe7b93b5d9330`, closing [R5 issue #1025](https://github.com/the-sarge/quic-go-fast/issues/1025). Bounded admitted-path protection uses independent nonce/PN and transition state under the existing TLS/key-phase owner, with previous/current/next authentication, retained-key expiry, aggregate usage limits and confirmed-update spacing. The actual sealed generation travels through recovery registration into an immutable ACK receipt before packet pooling and reaches the real connection ACK caller. Short-header sealing propagates controlled exhaustion errors before irreversible commitment. Public multipath negotiation remains disabled; authenticated membership and per-path recovery remain in their later slices.
+
+The product PR owns the committed R5 completion and R6 frontier transition: 5/19 Reno slices and 7/34 program slices complete. Integration preserves the merged E2A recovery-lifetime and E2B readiness state. This journal appends history only.
+
+### Validation
+
+Initial RAS run `20261102T050332-de9905fbb9393085bb0d72a8` supplied the accepted encryption-ceiling, overlap-admission, retired-zero acquisition and discriminating ingress-regression corrections. Exact-head verification at the integrated candidate confirmed every accepted fix resolved. Replacement run `20261102T053216-4a187e0c2ef5bad71f7b3cc7` completed with no required fixes or follow-ups. [Independent dispositions for PR #1094](https://github.com/the-sarge/quic-go-fast/pull/1094#issuecomment-6569719617) and the [base-integration disposition](https://github.com/the-sarge/quic-go-fast/pull/1094#issuecomment-6570141554) retain the bounded decisions: diagnostic parity, an unsupported removed-path receipt sequence and reserved close-notification capacity were not added as obligations.
+
+Thirteen new deterministic scenarios, the independent nonce oracle, one discriminating central-resolver bypass with observed test failure, the full `go test ./... -count=1` suite, focused sealing/ACK/error race checks, affected-package vet, module tidiness, lint, compiler assertions and clean-tree/diff checks passed. Final candidate `2873f451e4f45f2c1f732f1d8914f5ffd30bf8e3`, base `7c6c6f96917436842ed76c47783819ca93d91995`, has an [exact-head certification receipt for PR #1094](https://github.com/the-sarge/quic-go-fast/pull/1094#issuecomment-6570201386). All 17 distinct applicable hosted checks passed (33 push/PR jobs), including [unit run 41396377165](https://github.com/the-sarge/quic-go-fast/actions/runs/41396377165); the [hosted validation receipt for PR #1094](https://github.com/the-sarge/quic-go-fast/pull/1094#issuecomment-6570354184) links integration, lint, cross-compilation and interop results. The certified candidate was squash-merged with `--match-head-commit`. No pending defer, extra native/performance/platform campaign or material untraced effect remains within R5's accepted boundary.
+
+### Next
+
+[R6 issue #1026](https://github.com/the-sarge/quic-go-fast/issues/1026) now has its sole predecessor, R5, complete; reconcile its ready label and OmniFocus blocked prefix after journal completion. [R8 issue #1028](https://github.com/the-sarge/quic-go-fast/issues/1028) remains independently ready. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views. No separate frontier/status PR or review follow-up issue is required.
