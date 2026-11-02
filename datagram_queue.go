@@ -50,9 +50,23 @@ func newDatagramQueue(hasData func(), logger utils.Logger) *datagramQueue {
 // Up to 32 DATAGRAM frames will be queued.
 // Once that limit is reached, Add blocks until the queue size has reduced.
 func (h *datagramQueue) Add(f *wire.DatagramFrame) error {
+	return h.AddContext(context.Background(), f)
+}
+
+func (h *datagramQueue) AddContext(ctx context.Context, f *wire.DatagramFrame) error {
 	h.sendMx.Lock()
 
 	for {
+		if err := ctx.Err(); err != nil {
+			if h.sendQueue.Len() < maxDatagramSendQueueLen {
+				select {
+				case h.sent <- struct{}{}:
+				default:
+				}
+			}
+			h.sendMx.Unlock()
+			return err
+		}
 		// Recheck closure before admitting a frame, including after a dequeue.
 		select {
 		case <-h.closed:
@@ -72,6 +86,7 @@ func (h *datagramQueue) Add(f *wire.DatagramFrame) error {
 		}
 		h.sendMx.Unlock()
 		select {
+		case <-ctx.Done():
 		case <-h.closed:
 			return h.closeErr
 		case <-h.sent:
