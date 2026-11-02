@@ -19,7 +19,7 @@ func TestSentPathIndependentLoss(t *testing.T) {
 	h.DropPackets(protocol.EncryptionHandshake, now)
 	require.NoError(t, h.AddPath(17, 1200))
 	var zero, other packetTracker
-	for pn := protocol.PacketNumber(0); pn < 4; pn++ {
+	for pn := range protocol.PacketNumber(4) {
 		h.SentPacketWithContext(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, []Frame{zero.NewPingFrame(pn)}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, false)
 		h.SentPacketWithContext(PacketContext{PathID: 17, TupleGeneration: 2}, now, pn, protocol.InvalidPacketNumber, nil, []Frame{other.NewPingFrame(pn)}, protocol.Encryption1RTT, protocol.ECNNon, 1200, false, false)
 	}
@@ -106,7 +106,7 @@ func TestSentPathUndoAndAdaptiveIsolation(t *testing.T) {
 	now := monotime.Time(time.Second)
 	var zero, other packetTracker
 	var pns []protocol.PacketNumber
-	for pn := protocol.PacketNumber(0); pn < 5; pn++ {
+	for pn := range protocol.PacketNumber(5) {
 		sendOnRecoveryPath(h, 0, now.Add(time.Duration(pn)*time.Millisecond), []Frame{zero.NewPingFrame(pn)})
 		pns = append(pns, sendOnRecoveryPath(h, 17, now.Add(time.Duration(pn)*time.Millisecond), []Frame{other.NewPingFrame(pn)}))
 	}
@@ -134,7 +134,7 @@ func TestSentPathAggregateCapacity(t *testing.T) {
 	h.appDataPackets.pns = newSequentialPacketNumberGenerator(0)
 	h.path(17).appDataPackets.pns = newSequentialPacketNumberGenerator(0)
 	// Both paths individually remain below their history and congestion limits.
-	for n := 0; n < protocol.MaxTrackedSentPackets; n++ {
+	for n := range protocol.MaxTrackedSentPackets {
 		id := protocol.PathID(0)
 		if n%2 != 0 {
 			id = 17
@@ -223,7 +223,7 @@ func TestSentPathSkipCapacity(t *testing.T) {
 	now := monotime.Time(time.Second)
 	h.appDataPackets.pns = newSequentialPacketNumberGenerator(0)
 	h.path(17).appDataPackets.pns = newSequentialPacketNumberGenerator(0)
-	for n := 0; n < protocol.MaxTrackedSentPackets-1; n++ {
+	for n := range protocol.MaxTrackedSentPackets - 1 {
 		id := protocol.PathID(0)
 		if n%2 != 0 {
 			id = 17
