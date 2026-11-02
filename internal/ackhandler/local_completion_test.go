@@ -86,7 +86,7 @@ func TestLocalCompletionPendingOnly(t *testing.T) {
 		})
 	})
 	_, err := NewLocalSentPacketHandler(0, 1200, utils.NewRTTStats(), &utils.ConnectionStats{}, true, true, nil, protocol.PerspectiveServer, nil, utils.DefaultLogger)
-	require.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestLocalCompletionHigherACK(t *testing.T) {

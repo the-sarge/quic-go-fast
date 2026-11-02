@@ -409,6 +409,9 @@ func (h *sentPacketHandler) sentPacket(context PacketContext, t monotime.Time, p
 	if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil {
 		h.ecnTracker.SentPacket(pn, ecn)
 	}
+	if h.local != nil && h.local.ecn != nil && congestionKey(encLevel, pn).space == protocol.Encryption1RTT {
+		h.registerLocalECN(local, ecn)
+	}
 
 	pnSpace.history.SentPacket(pn, p)
 	if !isAckEliciting {
@@ -540,14 +543,22 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 			h.detectLostPackets(rcvTime, encLevel)
 			h.setLossDetectionTimer(rcvTime)
 		}
+		localECN := h.local != nil && h.local.ecn != nil
+		if localECN {
+			// A real receipt can qualify CE even after protocol retirement.
+			// CE must invalidate saved Reno undo before spurious losses restore it.
+			h.captureBBRECN(ack, encLevel, priorInFlight)
+		}
 		if encLevel == protocol.Encryption1RTT {
 			h.finishSpuriousLosses(spuriousLosses, rcvTime)
 		}
 		if encLevel == protocol.Encryption1RTT && h.qlogger != nil {
 			h.qlogMetricsUpdated()
 		}
+		if !localECN {
+			h.captureBBRECN(ack, encLevel, priorInFlight)
+		}
 		if h.congestionEvents != nil {
-			h.captureBBRECN(ack, encLevel)
 			if len(h.congestionEvents.event.Acked) > 0 || len(h.congestionEvents.event.Lost) > 0 || priorInFlight != h.bytesInFlight || h.congestionEvents.recovery.needsAckFeedback() || (h.bbrECN != nil && encLevel == protocol.Encryption1RTT) {
 				h.finishCongestionFeedback()
 			}
@@ -556,7 +567,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	}
 	h.beginCongestionFeedback(rcvTime, encLevel, priorInFlight, ackedPackets, largestAcked)
 	witness := h.appendRetainedAck(ack, encLevel)
-	h.captureBBRECN(ack, encLevel)
+	h.captureBBRECN(ack, encLevel, priorInFlight)
 	// update the RTT, if:
 	// * the largest acked is newly acknowledged, AND
 	// * at least one new ack-eliciting packet was acknowledged
@@ -586,7 +597,7 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 	}
 
 	// Only inform the ECN tracker about new 1-RTT ACKs if the ACK increases the largest acked.
-	if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil && largestAcked > pnSpace.largestAcked {
+	if h.local == nil && encLevel == protocol.Encryption1RTT && h.ecnTracker != nil && largestAcked > pnSpace.largestAcked {
 		congested := h.ecnTracker.HandleNewlyAcked(ackedPackets, int64(ack.ECT0), int64(ack.ECT1), int64(ack.ECNCE))
 		if h.congestionEvents != nil {
 			h.congestionEvents.event.ECNChecked = true
@@ -655,14 +666,21 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 }
 
 // detectSpuriousLosses consumes metadata only, after application ACK admission.
-// The returned batch contains only unexpired receipts and lives for this ACK.
+// The returned batch contains only unexpired receipts. Local Reno retains their
+// received disposition in the existing bounded history until CE is decided.
 func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime monotime.Time) (_ []lostPacket, timeThresholdIncreased bool) {
 	ackTime := rcvTime.Add(-min(ack.DelayTime, h.rttStats.MaxAckDelay()))
 	cutoff := rcvTime.Add(-3 * h.rttStats.PTO(false))
 	var maxTimeReordering time.Duration
 	ackRangeIdx := len(ack.AckRanges) - 1
 	var spuriousLosses []lostPacket
-	for pn, sendTime := range h.lostPackets.All() {
+	retainUndo := h.localRenoECN() != nil
+	for i := range h.lostPackets.lostPackets {
+		p := &h.lostPackets.lostPackets[i]
+		if p.received {
+			continue
+		}
+		pn, sendTime := p.PacketNumber, p.SendTime
 		if h.local != nil {
 			// Local completion can introduce a lower PN after a higher loss.
 			ackRangeIdx = len(ack.AckRanges) - 1
@@ -687,6 +705,7 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 					TimeReordering:   timeReordering,
 				})
 			}
+			p.received = retainUndo
 			spuriousLosses = append(spuriousLosses, lostPacket{PacketNumber: pn, SendTime: sendTime})
 			// Diagnostics keep their consumption-before-cleanup order. Only
 			// surviving evidence may train policy or restore congestion state.
@@ -700,7 +719,9 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 	}
 	unexpired := spuriousLosses[:0]
 	for _, p := range spuriousLosses {
-		h.lostPackets.Delete(p.PacketNumber)
+		if !retainUndo || p.SendTime.Before(cutoff) {
+			h.lostPackets.Delete(p.PacketNumber)
+		}
 		if !p.SendTime.Before(cutoff) {
 			unexpired = append(unexpired, p)
 		}
@@ -716,6 +737,10 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 }
 
 func (h *sentPacketHandler) finishSpuriousLosses(packets []lostPacket, now monotime.Time) {
+	if h.localRenoECN() != nil {
+		h.settleLocalUndo(now)
+		return
+	}
 	for _, p := range packets {
 		h.congestion.OnSpuriousLoss(congestion.NewPacketKey(protocol.Encryption1RTT, p.PacketNumber))
 	}
@@ -1080,11 +1105,17 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 				if !p.IsPathMTUProbePacket {
 					h.congestion.OnCongestionEvent(congestion.NewPacketKey(p.EncryptionLevel, pn), p.Length, priorInFlight)
 				}
-				if encLevel == protocol.Encryption1RTT && h.bbrECN != nil {
-					h.bbrECN.lostPacket(pn)
-				}
-				if encLevel == protocol.Encryption1RTT && h.ecnTracker != nil {
-					h.ecnTracker.LostPacket(pn)
+				if encLevel == protocol.Encryption1RTT {
+					if h.local != nil && h.local.ecn != nil {
+						h.local.ecn.lost(h, pn)
+					} else {
+						if h.bbrECN != nil {
+							h.bbrECN.lostPacket(pn)
+						}
+						if h.ecnTracker != nil {
+							h.ecnTracker.LostPacket(pn)
+						}
+					}
 				}
 			}
 		}
@@ -1096,6 +1127,7 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOu
 		return path.OnLossDetectionTimeout(now)
 	}
 	defer h.setLossDetectionTimer(now)
+	defer h.settleLocalUndo(now)
 
 	if h.handshakeConfirmed {
 		h.detectLostPathProbes(now)
@@ -1192,6 +1224,9 @@ func (h *sentPacketHandler) GetLossDetectionTimeout() monotime.Time {
 func (h *sentPacketHandler) ECNMode(isShortHeaderPacket bool) protocol.ECN {
 	if h.bbrECN != nil {
 		return h.bbrECN.mode(isShortHeaderPacket)
+	}
+	if h.local != nil && h.local.ecn != nil && (h.local.ecn.failed || h.local.ecn.closed) {
+		return protocol.ECNNon
 	}
 	if !h.enableECN {
 		return protocol.ECNUnsupported
@@ -1356,6 +1391,7 @@ func (h *sentPacketHandler) QueueProbePacket(encLevel protocol.EncryptionLevel) 
 }
 
 func (h *sentPacketHandler) QueueProbePacketAt(encLevel protocol.EncryptionLevel, now monotime.Time) bool {
+	defer h.settleLocalUndo(now)
 	pnSpace := h.getPacketNumberSpace(encLevel)
 	if pnSpace == nil || (h.local != nil && h.local.closed) {
 		return false
