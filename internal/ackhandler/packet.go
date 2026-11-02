@@ -22,6 +22,7 @@ type PacketContext struct {
 // A Packet is a packet
 type packet struct {
 	Context         PacketContext
+	local           *localRegistration
 	SendTime        monotime.Time
 	StreamFrames    []StreamFrame
 	Frames          []Frame
@@ -48,6 +49,7 @@ var packetPool = sync.Pool{New: func() any { return &packet{} }}
 func getPacket() *packet {
 	p := packetPool.Get().(*packet)
 	p.Context = PacketContext{}
+	p.local = nil
 	p.StreamFrames = nil
 	p.Frames = nil
 	p.LargestAcked = 0
@@ -63,6 +65,7 @@ func getPacket() *packet {
 // We currently only return Packets back into the pool when they're acknowledged (not when they're lost).
 // This simplifies the code, and gives the vast majority of the performance benefit we can gain from using the pool.
 func putPacket(p *packet) {
+	p.local = nil
 	p.Frames = nil
 	p.StreamFrames = nil
 	packetPool.Put(p)

@@ -14,7 +14,7 @@ type bbrECNPath func(drain bool) (generation uint64, drained, capable bool)
 // EnableBBRECN installs the private validation policy before any registration.
 func EnableBBRECN(handler SentPacketHandler, path bbrECNPath) {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.bytesSent != 0 || h.congestionEvents == nil || h.bbrECN != nil || path == nil {
+	if !ok || h.local != nil || h.bytesSent != 0 || h.congestionEvents == nil || h.bbrECN != nil || path == nil {
 		panic("invalid BBR ECN installation")
 	}
 	h.bbrECN = &bbrECNTracker{path: path, watermark: protocol.InvalidPacketNumber}
