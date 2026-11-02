@@ -15,6 +15,7 @@ type packetWithPacketNumber struct {
 // PacketContext identifies the application protocol path and its address tuple.
 // Initial and Handshake use the zero value and remain connection-owned.
 type PacketContext struct {
+	KeyGeneration   protocol.KeyPhase
 	PathID          protocol.PathID
 	TupleGeneration uint64
 }

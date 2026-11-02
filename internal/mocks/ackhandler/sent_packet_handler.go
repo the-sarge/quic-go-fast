@@ -384,10 +384,10 @@ func (c *MockSentPacketHandlerQueueProbePacketCall) DoAndReturn(f func(protocol.
 }
 
 // ReceivedAck mocks base method.
-func (m *MockSentPacketHandler) ReceivedAck(f *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (bool, error) {
+func (m *MockSentPacketHandler) ReceivedAck(f *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (protocol.ApplicationKeyReceipt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReceivedAck", f, encLevel, rcvTime)
-	ret0, _ := ret[0].(bool)
+	ret0, _ := ret[0].(protocol.ApplicationKeyReceipt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -405,19 +405,19 @@ type MockSentPacketHandlerReceivedAckCall struct {
 }
 
 // Return rewrite *gomock.Call.Return
-func (c *MockSentPacketHandlerReceivedAckCall) Return(arg0 bool, arg1 error) *MockSentPacketHandlerReceivedAckCall {
+func (c *MockSentPacketHandlerReceivedAckCall) Return(arg0 protocol.ApplicationKeyReceipt, arg1 error) *MockSentPacketHandlerReceivedAckCall {
 	c.Call = c.Call.Return(arg0, arg1)
 	return c
 }
 
 // Do rewrite *gomock.Call.Do
-func (c *MockSentPacketHandlerReceivedAckCall) Do(f func(*wire.AckFrame, protocol.EncryptionLevel, monotime.Time) (bool, error)) *MockSentPacketHandlerReceivedAckCall {
+func (c *MockSentPacketHandlerReceivedAckCall) Do(f func(*wire.AckFrame, protocol.EncryptionLevel, monotime.Time) (protocol.ApplicationKeyReceipt, error)) *MockSentPacketHandlerReceivedAckCall {
 	c.Call = c.Call.Do(f)
 	return c
 }
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockSentPacketHandlerReceivedAckCall) DoAndReturn(f func(*wire.AckFrame, protocol.EncryptionLevel, monotime.Time) (bool, error)) *MockSentPacketHandlerReceivedAckCall {
+func (c *MockSentPacketHandlerReceivedAckCall) DoAndReturn(f func(*wire.AckFrame, protocol.EncryptionLevel, monotime.Time) (protocol.ApplicationKeyReceipt, error)) *MockSentPacketHandlerReceivedAckCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

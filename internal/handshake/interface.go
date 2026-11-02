@@ -50,7 +50,9 @@ type LongHeaderSealer interface {
 
 // ShortHeaderSealer seals a short header packet
 type ShortHeaderSealer interface {
-	LongHeaderSealer
+	Seal(dst, src []byte, packetNumber protocol.PacketNumber, associatedData []byte) ([]byte, error)
+	EncryptHeader(sample []byte, firstByte *byte, pnBytes []byte)
+	Overhead() int
 	KeyPhase() protocol.KeyPhaseBit
 }
 
@@ -130,7 +132,7 @@ type CryptoSetup interface {
 	HandleMessage([]byte, protocol.EncryptionLevel) error
 	NextEvent() Event
 
-	SetLargest1RTTAcked(protocol.PacketNumber) error
+	Set1RTTAcked(protocol.ApplicationKeyReceipt, monotime.Time) error
 	DiscardInitialKeys()
 	SetHandshakeConfirmed()
 	ConnectionState() ConnectionState

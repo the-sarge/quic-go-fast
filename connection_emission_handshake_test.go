@@ -39,9 +39,9 @@ func newSizedHandshakeEmissionConnection(t *testing.T, client bool, initialPacke
 		if c.droppedInitialKeys {
 			return nil, handshake.ErrKeysDropped
 		}
-		return newMockShortHeaderSealer(ctrl), nil
+		return newTestLongHeaderSealer(), nil
 	}).AnyTimes()
-	sealing.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
+	sealing.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil).AnyTimes()
 	sealing.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
 	sealing.EXPECT().Get0RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable).AnyTimes()
 	c.emission.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)

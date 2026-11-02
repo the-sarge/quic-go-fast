@@ -77,8 +77,8 @@ func newMockShortHeaderSealer(mockCtrl *gomock.Controller) *mocks.MockShortHeade
 	sealer.EXPECT().KeyPhase().Return(protocol.KeyPhaseOne).AnyTimes()
 	sealer.EXPECT().Overhead().Return(7).AnyTimes()
 	sealer.EXPECT().EncryptHeader(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
-	sealer.EXPECT().Seal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(dst, src []byte, pn protocol.PacketNumber, associatedData []byte) []byte {
-		return append(src, bytes.Repeat([]byte{'s'}, sealer.Overhead())...)
+	sealer.EXPECT().Seal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(dst, src []byte, pn protocol.PacketNumber, associatedData []byte) ([]byte, error) {
+		return append(src, bytes.Repeat([]byte{'s'}, sealer.Overhead())...), nil
 	}).AnyTimes()
 	return sealer
 }
@@ -174,8 +174,8 @@ func testPackLongHeaders(t *testing.T, includeACK bool) {
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(0x24))
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen4)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(0x42))
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
-	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
+	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionInitial, now, false)
 	var numRanges int
 	if includeACK {
@@ -233,8 +233,8 @@ func TestPackCoalescedAckOnlyPacketNothingToSend(t *testing.T) {
 	tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveClient)
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.Encryption1RTT).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
 	// the packet number is not popped
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
-	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
+	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionInitial, gomock.Any(), true)
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionHandshake, gomock.Any(), true)
@@ -257,7 +257,7 @@ func testPackInitialAckOnlyPacket(t *testing.T, pers protocol.Perspective) {
 	tp.packer.pathZeroGeneration = &generation
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(0x42))
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
 	ack := &wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 1, Largest: 10}}}
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionInitial, gomock.Any(), true).Return(ack)
 	p, err := tp.packer.PackCoalescedPacket(true, maxPacketSize, monotime.Now(), protocol.Version1)
@@ -302,8 +302,8 @@ func TestPack0RTTPacket(t *testing.T) {
 	tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveClient)
 	generation := uint64(7)
 	tp.packer.pathZeroGeneration = &generation
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
-	tp.sealingManager.EXPECT().Get0RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
+	tp.sealingManager.EXPECT().Get0RTTSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionInitial, gomock.Any(), true)
@@ -334,7 +334,7 @@ func TestPack0RTTPacket(t *testing.T) {
 func TestPack0RTTPacketNoACK(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveClient)
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionInitial, gomock.Any(), true)
@@ -364,7 +364,7 @@ func testPackCoalescedAppData(t *testing.T, withAck bool) {
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.Encryption1RTT).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.Encryption1RTT).Return(protocol.PacketNumber(0x42))
 	tp.sealingManager.EXPECT().GetInitialSealer().Return(nil, handshake.ErrKeysDropped)
-	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
 	tp.framer.EXPECT().HasData().Return(true)
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionHandshake, gomock.Any(), false)
@@ -424,11 +424,11 @@ func testPackConnectionCloseCoalesced(t *testing.T, pers protocol.Perspective) {
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(1))
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(2), protocol.PacketNumberLen2)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(2))
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
-	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
+	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 	switch pers {
 	case protocol.PerspectiveClient:
-		tp.sealingManager.EXPECT().Get0RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+		tp.sealingManager.EXPECT().Get0RTTSealer().Return(newTestLongHeaderSealer(), nil)
 		tp.sealingManager.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 		tp.pnManager.EXPECT().PeekPacketNumber(protocol.Encryption0RTT).Return(protocol.PacketNumber(3), protocol.PacketNumberLen2)
 		tp.pnManager.EXPECT().PopPacketNumber(protocol.Encryption0RTT).Return(protocol.PacketNumber(3))
@@ -503,8 +503,8 @@ func TestPackConnectionCloseCoalescedClient1RTT(t *testing.T) {
 	const maxPacketSize protocol.ByteCount = protocol.MaxPacketBufferSize
 	ctrl := gomock.NewController(t)
 	tp := newTestPacketPacker(t, ctrl, protocol.PerspectiveClient)
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(ctrl), nil)
-	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(ctrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
+	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.sealingManager.EXPECT().Get0RTTSealer().Return(nil, handshake.ErrKeysDropped)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil)
 	for i, level := range []protocol.EncryptionLevel{protocol.EncryptionInitial, protocol.EncryptionHandshake, protocol.Encryption1RTT} {
@@ -540,7 +540,7 @@ func TestPackConnectionCloseCryptoError(t *testing.T) {
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(0x42))
 	tp.sealingManager.EXPECT().GetInitialSealer().Return(nil, handshake.ErrKeysDropped)
-	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 	quicErr := qerr.NewLocalCryptoError(0x42, errors.New("crypto error"))
 	quicErr.FrameType = 0x1234
@@ -755,7 +755,7 @@ func TestPackRetransmissions(t *testing.T) {
 	tp.retransmissionQueue.addHandshake(&wire.CryptoFrame{Data: []byte("Handshake")})
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(0x42))
-	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+	tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
 	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
 	tp.ackFramer.EXPECT().GetAckFrame(protocol.EncryptionInitial, gomock.Any(), false)
@@ -839,7 +839,7 @@ func TestPackLongHeaderPadToAtLeast4Bytes(t *testing.T) {
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen1)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionHandshake).Return(protocol.PacketNumber(0x42))
 
-	sealer := newMockShortHeaderSealer(mockCtrl)
+	sealer := newTestLongHeaderSealer()
 	tp.sealingManager.EXPECT().GetInitialSealer().Return(nil, handshake.ErrKeysDropped)
 	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(sealer, nil)
 	tp.sealingManager.EXPECT().Get1RTTSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
@@ -946,13 +946,13 @@ func testPackProbePacket(t *testing.T, encLevel protocol.EncryptionLevel, perspe
 	var cryptoData []byte
 	switch encLevel {
 	case protocol.EncryptionInitial:
-		tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+		tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil)
 		var err error
 		cryptoData, err = getClientHello("")
 		require.NoError(t, err)
 		tp.packer.initialStream.Write(cryptoData)
 	case protocol.EncryptionHandshake:
-		tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
+		tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil)
 		cryptoData = []byte("foobar")
 		tp.packer.handshakeStream.Write(cryptoData)
 	}
@@ -1032,9 +1032,9 @@ func testPackPTOProbePacketNothingToPack(t *testing.T, encLevel protocol.Encrypt
 
 	switch encLevel {
 	case protocol.EncryptionInitial:
-		tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil).Times(2)
+		tp.sealingManager.EXPECT().GetInitialSealer().Return(newTestLongHeaderSealer(), nil).Times(2)
 	case protocol.EncryptionHandshake:
-		tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newMockShortHeaderSealer(mockCtrl), nil).Times(2)
+		tp.sealingManager.EXPECT().GetHandshakeSealer().Return(newTestLongHeaderSealer(), nil).Times(2)
 	case protocol.Encryption1RTT:
 		tp.sealingManager.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil).Times(2)
 		tp.framer.EXPECT().HasData().Times(2)
@@ -1119,3 +1119,14 @@ func TestPackPathProbePacket(t *testing.T) {
 	require.True(t, p.IsPathProbePacket)
 	require.False(t, p.IsPathMTUProbePacket)
 }
+
+// Transparent long-header protection for lifecycle fixtures. Its shape matches
+// the existing short-header fixture without introducing a fallible long seal.
+type testLongHeaderSealer struct{}
+
+func (testLongHeaderSealer) Seal(dst, src []byte, _ protocol.PacketNumber, _ []byte) []byte {
+	return append(src, bytes.Repeat([]byte{'s'}, 7)...)
+}
+func (testLongHeaderSealer) Overhead() int                       { return 7 }
+func (testLongHeaderSealer) EncryptHeader([]byte, *byte, []byte) {}
+func newTestLongHeaderSealer() handshake.LongHeaderSealer        { return testLongHeaderSealer{} }
