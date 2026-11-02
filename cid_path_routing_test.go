@@ -12,6 +12,7 @@ import (
 	"github.com/quic-go/quic-go/internal/wire"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestCIDPathRoutingIngress(t *testing.T) {
@@ -67,11 +68,39 @@ func TestCIDPathRoutingLengthAndRemoval(t *testing.T) {
 }
 
 func TestCIDPathUnpackerRejectsUnimplementedPath(t *testing.T) {
-	// R4 supplies attribution before decryption. Nonzero cryptographic spaces
-	// belong to R5, so they must not silently use the ordinary path-zero opener.
-	u := newPacketUnpacker(nil, 4)
-	_, _, _, _, err := u.UnpackShortHeader(1, 0, nil)
-	require.Error(t, err)
+	for _, name := range []string{"1-RTT", "0-RTT"} {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			u := NewMockUnpacker(ctrl) // No long-header opener may be consulted.
+			tc := newServerTestConnection(t, ctrl, nil, false, connectionOptUnpacker(u))
+			var data []byte
+			if name == "1-RTT" {
+				// A real unpacker with no crypto setup makes any accidental use of
+				// path zero's opener fail, instead of masking incorrect forwarding.
+				tc.conn.unpacker = newPacketUnpacker(nil, tc.srcConnID.Len())
+				data = append(append([]byte{0x40}, tc.srcConnID.Bytes()...), 0)
+			} else {
+				hdr := &wire.ExtendedHeader{Header: wire.Header{
+					Type: protocol.PacketType0RTT, Version: protocol.Version1,
+					DestConnectionID: tc.srcConnID, SrcConnectionID: tc.destConnID, Length: 2,
+				}, PacketNumber: 7, PacketNumberLen: protocol.PacketNumberLen1}
+				var err error
+				data, err = hdr.Append(nil, protocol.Version1)
+				require.NoError(t, err)
+				data = append(data, 1) // PING
+			}
+			tr := &Transport{connIDLen: tc.srcConnID.Len(), handlers: make(map[protocol.ConnectionID]packetHandlerEntry), logger: utils.DefaultLogger}
+			require.True(t, (*packetHandlerMap)(tr).AddPath(tc.srcConnID, 1, tc.conn))
+			p := lifetimePacket(t, tc, data)
+			tr.handlePacket(p)
+			processed, err := tc.conn.handlePackets()
+			require.NoError(t, err, "unsupported application input is a nonfatal drop")
+			require.False(t, processed)
+			require.False(t, tc.conn.receivedPacketHandler.IsPotentiallyDuplicate(7, protocol.Encryption1RTT))
+			require.Empty(t, tc.conn.undecryptablePackets)
+			require.Zero(t, p.buffer.refCount)
+		})
+	}
 }
 
 func TestCIDPathZeroLengthFallback(t *testing.T) {

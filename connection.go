@@ -1475,8 +1475,8 @@ func (c *Conn) handleLongHeaderPacket(p receivedPacket, hdr *wire.Header, datagr
 		c.logger.Debugf("Dropping Initial packet (%d bytes) with unexpected source connection ID: %s (expected %s)", p.Size(), hdr.SrcConnectionID, c.handshakeDestConnID)
 		return false, nil
 	}
-	// drop 0-RTT packets, if we are a client
-	if c.perspective == protocol.PerspectiveClient && hdr.Type == protocol.PacketType0RTT {
+	// 0-RTT belongs to path zero and can only be received by a server.
+	if hdr.Type == protocol.PacketType0RTT && (c.perspective == protocol.PerspectiveClient || p.pathID != 0) {
 		if c.qlogger != nil {
 			c.qlogger.RecordEvent(qlog.PacketDropped{
 				Header: qlog.PacketHeader{
