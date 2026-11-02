@@ -543,13 +543,21 @@ func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.En
 			h.detectLostPackets(rcvTime, encLevel)
 			h.setLossDetectionTimer(rcvTime)
 		}
+		localECN := h.local != nil && h.local.ecn != nil
+		if localECN {
+			// A real receipt can qualify CE even after protocol retirement.
+			// CE must invalidate saved Reno undo before spurious losses restore it.
+			h.captureBBRECN(ack, encLevel, priorInFlight)
+		}
 		if encLevel == protocol.Encryption1RTT {
 			h.finishSpuriousLosses(spuriousLosses, rcvTime)
 		}
 		if encLevel == protocol.Encryption1RTT && h.qlogger != nil {
 			h.qlogMetricsUpdated()
 		}
-		h.captureBBRECN(ack, encLevel, priorInFlight)
+		if !localECN {
+			h.captureBBRECN(ack, encLevel, priorInFlight)
+		}
 		if h.congestionEvents != nil {
 			if len(h.congestionEvents.event.Acked) > 0 || len(h.congestionEvents.event.Lost) > 0 || priorInFlight != h.bytesInFlight || h.congestionEvents.recovery.needsAckFeedback() || (h.bbrECN != nil && encLevel == protocol.Encryption1RTT) {
 				h.finishCongestionFeedback()

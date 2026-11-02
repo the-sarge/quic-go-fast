@@ -155,6 +155,30 @@ func TestLocalECNOutcomes(t *testing.T) {
 }
 
 func TestLocalECNSnapshotSupersession(t *testing.T) {
+	t.Run("retired-only CE precedes Reno loss undo", func(t *testing.T) {
+		h, _ := newLocalECNTestHandler(t, false)
+		now := monotime.Now()
+		anchor, token := localECNPacket(t, h, now)
+		require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(time.Millisecond)))
+		ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(anchor), 1, 0)
+		var pns []protocol.PacketNumber
+		for range 4 {
+			pn, token := localECNPacket(t, h, now.Add(3*time.Millisecond))
+			pns = append(pns, pn)
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(4*time.Millisecond)))
+		}
+		require.Equal(t, protocol.ByteCount(38400), h.congestion.GetCongestionWindow())
+		ackBBRECNAt(t, h, now.Add(5*time.Millisecond), ackRanges(pns[3]), 2, 0)
+		require.Equal(t, protocol.ByteCount(26880), h.congestion.GetCongestionWindow())
+		last, token := localECNPacket(t, h, now.Add(6*time.Millisecond))
+		pns = append(pns, last)
+		require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(7*time.Millisecond)))
+		for h.QueueProbePacketAt(protocol.Encryption1RTT, now.Add(8*time.Millisecond)) {
+		}
+		ackBBRECNAt(t, h, now.Add(9*time.Millisecond), ackRanges(pns...), 5, 1)
+		require.Equal(t, protocol.ECT0, h.ECNMode(true))
+		require.Equal(t, protocol.ByteCount(18816), h.congestion.GetCongestionWindow(), "CE invalidates the saved loss undo before spurious receipts are applied")
+	})
 	t.Run("historical report limits survive later traffic", func(t *testing.T) {
 		for _, bbr := range []bool{false, true} {
 			for _, supersede := range []bool{false, true} {
@@ -274,6 +298,27 @@ func TestLocalECNSnapshotSupersession(t *testing.T) {
 }
 
 func TestLocalECNLifecycleAndExhaustion(t *testing.T) {
+	t.Run("qualified flight retains ECN capacity", func(t *testing.T) {
+		for _, bbr := range []bool{false, true} {
+			h, events := newLocalECNTestHandler(t, bbr)
+			now := monotime.Now()
+			anchor, token := localECNPacket(t, h, now)
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(time.Millisecond)))
+			ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(anchor), 1, 0)
+			var pns []protocol.PacketNumber
+			for range maxECNMarkRanges + 2 {
+				pn, token := localECNPacket(t, h, now.Add(3*time.Millisecond))
+				pns = append(pns, pn)
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(4*time.Millisecond)))
+			}
+			require.Equal(t, protocol.ECT0, h.ECNMode(true), "equivalent qualified facts must retain the supported flight domain")
+			ackBBRECNAt(t, h, now.Add(5*time.Millisecond), ackRanges(pns...), uint64(len(pns)), 1)
+			require.Equal(t, protocol.ECT0, h.ECNMode(true))
+			if bbr {
+				require.Equal(t, uint64(1), events.feedback[len(events.feedback)-1].ECN.Delta.CE)
+			}
+		}
+	})
 	t.Run("migration and uncertain outcome converge in either order", func(t *testing.T) {
 		for _, bbr := range []bool{false, true} {
 			for _, retirementFirst := range []bool{false, true} {
@@ -436,11 +481,9 @@ func TestLocalECNLifecycleAndExhaustion(t *testing.T) {
 				_, token := localECNPacket(t, h, now)
 				if i == 0 {
 					old = token
-				} else {
-					require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(time.Millisecond)))
 				}
 			}
-			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "unavailable bounded evidence cannot certify ECN")
+			require.Equal(t, protocol.ECNNon, h.ECNMode(true), "unresolved identities exhaust bounded evidence explicitly")
 			require.NoError(t, h.CompleteLocalPacket(old, LocalPacketAccepted, now.Add(2*time.Millisecond)))
 			require.Equal(t, protocol.ECNNon, h.ECNMode(true))
 			if bbr {
