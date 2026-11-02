@@ -54,6 +54,8 @@ const (
 	legacyResetStreamAtParameterID transportParameterID = 0x17f7586d2cb571
 	// https://datatracker.ietf.org/doc/draft-ietf-quic-ack-frequency/11/
 	minAckDelayParameterID transportParameterID = 0xff04de1b
+	// draft-ietf-quic-multipath-21
+	initialMaxPathIDParameterID transportParameterID = 0x3e
 )
 
 // PreferredAddress is the value encoding in the preferred_address transport parameter
@@ -94,6 +96,10 @@ type TransportParameters struct {
 	MaxDatagramFrameSize protocol.ByteCount // RFC 9221
 	EnableResetStreamAt  bool               // https://datatracker.ietf.org/doc/draft-ietf-quic-reliable-stream-reset/09/
 	MinAckDelay          *time.Duration
+
+	// InitialMaxPathID is nil when absent; zero still advertises multipath support.
+	// It is never saved in a session ticket (draft-21 section 2.1).
+	InitialMaxPathID *protocol.PathID
 }
 
 // Unmarshal the transport parameters
@@ -120,6 +126,7 @@ func (p *TransportParameters) unmarshal(b []byte, sentBy protocol.Perspective, f
 	p.MaxAckDelay = protocol.DefaultMaxAckDelay
 	p.MaxDatagramFrameSize = protocol.InvalidByteCount
 	p.ActiveConnectionIDLimit = protocol.DefaultActiveConnectionIDLimit
+	p.InitialMaxPathID = nil
 
 	for len(b) > 0 {
 		paramIDInt, l, err := quicvarint.Parse(b)
@@ -138,6 +145,18 @@ func (p *TransportParameters) unmarshal(b []byte, sentBy protocol.Perspective, f
 		}
 		parameterIDs = append(parameterIDs, paramID)
 		switch paramID {
+		case initialMaxPathIDParameterID:
+			id, n, err := parsePathID(b[:paramLen])
+			if err != nil {
+				return fmt.Errorf("invalid initial_max_path_id: %w", err)
+			}
+			if n != int(paramLen) {
+				return errors.New("inconsistent transport parameter length for initial_max_path_id")
+			}
+			if !fromSessionTicket {
+				p.InitialMaxPathID = &id
+			}
+			b = b[paramLen:]
 		case maxIdleTimeoutParameterID,
 			maxUDPPayloadSizeParameterID,
 			initialMaxDataParameterID,
@@ -360,6 +379,9 @@ func (p *TransportParameters) Marshal(pers protocol.Perspective) []byte {
 	// especially the lengths of the Connection IDs.
 	// Allocate 256 bytes, so we won't have to grow the slice in any case.
 	b := make([]byte, 0, 256)
+	if p.InitialMaxPathID != nil {
+		b = p.marshalVarintParam(b, initialMaxPathIDParameterID, uint64(*p.InitialMaxPathID))
+	}
 
 	// add a greased value
 	random := make([]byte, 18)

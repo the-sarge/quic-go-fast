@@ -18,6 +18,7 @@ type FrameParser struct {
 	supportsDatagrams     bool
 	supportsResetStreamAt bool
 	supportsAckFrequency  bool
+	supportsMultipath     bool
 
 	// To avoid allocating when parsing, keep a single ACK frame struct.
 	// It is used over and over again.
@@ -55,7 +56,8 @@ func (p *FrameParser) ParseType(b []byte, encLevel protocol.EncryptionLevel) (Fr
 		valid := ft.isValidRFC9000() ||
 			(p.supportsDatagrams && ft.IsDatagramFrameType()) ||
 			(p.supportsResetStreamAt && ft == FrameTypeResetStreamAt) ||
-			(p.supportsAckFrequency && (ft == FrameTypeAckFrequency || ft == FrameTypeImmediateAck))
+			(p.supportsAckFrequency && (ft == FrameTypeAckFrequency || ft == FrameTypeImmediateAck)) ||
+			(p.supportsMultipath && ft.IsMultipathFrameType())
 		if !valid {
 			return 0, parsed, &qerr.TransportError{
 				ErrorCode:    qerr.FrameEncodingError,
@@ -64,8 +66,12 @@ func (p *FrameParser) ParseType(b []byte, encLevel protocol.EncryptionLevel) (Fr
 			}
 		}
 		if !ft.isAllowedAtEncLevel(encLevel) {
+			code := qerr.FrameEncodingError
+			if ft.IsMultipathFrameType() {
+				code = qerr.ProtocolViolation
+			}
 			return 0, parsed, &qerr.TransportError{
-				ErrorCode:    qerr.FrameEncodingError,
+				ErrorCode:    code,
 				FrameType:    typ,
 				ErrorMessage: fmt.Sprintf("%d not allowed at encryption level %s", ft, encLevel),
 			}
@@ -88,6 +94,14 @@ func (p *FrameParser) ParseStreamFrame(frameType FrameType, data []byte, v proto
 }
 
 func (p *FrameParser) ParseAckFrame(frameType FrameType, data []byte, encLevel protocol.EncryptionLevel, v protocol.Version) (*AckFrame, int, error) {
+	if frameType.IsPathAckFrameType() {
+		if !p.supportsMultipath {
+			return nil, 0, &qerr.TransportError{ErrorCode: qerr.FrameEncodingError, FrameType: uint64(frameType), ErrorMessage: errUnknownFrameType.Error()}
+		}
+		if encLevel != protocol.Encryption1RTT {
+			return nil, 0, &qerr.TransportError{ErrorCode: qerr.ProtocolViolation, FrameType: uint64(frameType), ErrorMessage: "PATH_ACK requires 1-RTT"}
+		}
+	}
 	ackDelayExponent := p.ackDelayExponent
 	if encLevel != protocol.Encryption1RTT {
 		ackDelayExponent = protocol.DefaultAckDelayExponent
@@ -95,8 +109,12 @@ func (p *FrameParser) ParseAckFrame(frameType FrameType, data []byte, encLevel p
 	p.ackFrame.Reset()
 	l, err := parseAckFrame(p.ackFrame, data, frameType, ackDelayExponent, v)
 	if err != nil {
+		code := qerr.FrameEncodingError
+		if errors.Is(err, errInvalidPathID) {
+			code = qerr.ProtocolViolation
+		}
 		return nil, l, &qerr.TransportError{
-			ErrorCode:    qerr.FrameEncodingError,
+			ErrorCode:    code,
 			FrameType:    uint64(frameType),
 			ErrorMessage: err.Error(),
 		}
@@ -122,6 +140,13 @@ func (p *FrameParser) ParseDatagramFrame(frameType FrameType, data []byte, v pro
 // ParseLessCommonFrame parses everything except STREAM, ACK or DATAGRAM.
 // These cases should be handled separately for performance reasons.
 func (p *FrameParser) ParseLessCommonFrame(frameType FrameType, data []byte, v protocol.Version) (Frame, int, error) {
+	if frameType.IsMultipathFrameType() && !p.supportsMultipath {
+		return nil, 0, &qerr.TransportError{
+			ErrorCode:    qerr.FrameEncodingError,
+			FrameType:    uint64(frameType),
+			ErrorMessage: errUnknownFrameType.Error(),
+		}
+	}
 	var frame Frame
 	var l int
 	var err error
@@ -167,12 +192,30 @@ func (p *FrameParser) ParseLessCommonFrame(frameType FrameType, data []byte, v p
 		frame, l, err = parseAckFrequencyFrame(data, v)
 	case FrameTypeImmediateAck:
 		frame = &ImmediateAckFrame{}
+	case FrameTypePathAbandon:
+		frame, l, err = parsePathAbandonFrame(data, v)
+	case FrameTypePathStatusBackup, FrameTypePathStatusAvailable:
+		frame, l, err = parsePathStatusFrame(data, frameType, v)
+	case FrameTypePathNewConnectionID:
+		frame, l, err = parsePathNewConnectionIDFrame(data, v)
+	case FrameTypePathRetireConnectionID:
+		frame, l, err = parsePathRetireConnectionIDFrame(data, v)
+	case FrameTypePathsBlocked:
+		frame, l, err = parsePathsBlockedFrame(data, v)
+	case FrameTypePathCIDsBlocked:
+		frame, l, err = parsePathCIDsBlockedFrame(data, v)
+	case FrameTypeMaxPathID:
+		frame, l, err = parseMaxPathIDFrame(data, v)
 	default:
 		err = errUnknownFrameType
 	}
 	if err != nil {
+		code := qerr.FrameEncodingError
+		if errors.Is(err, errInvalidPathID) {
+			code = qerr.ProtocolViolation
+		}
 		return frame, l, &qerr.TransportError{
-			ErrorCode:    qerr.FrameEncodingError,
+			ErrorCode:    code,
 			FrameType:    uint64(frameType),
 			ErrorMessage: err.Error(),
 		}
@@ -184,6 +227,12 @@ func (p *FrameParser) ParseLessCommonFrame(frameType FrameType, data []byte, v p
 // This value is used to scale the ACK Delay field in the ACK frame.
 func (p *FrameParser) SetAckDelayExponent(exp uint8) {
 	p.ackDelayExponent = exp
+}
+
+// EnableMultipath permits draft-21 representations after negotiation.
+// This inert parser switch neither advertises support nor activates a path.
+func (p *FrameParser) EnableMultipath() {
+	p.supportsMultipath = true
 }
 
 func replaceUnexpectedEOF(e error) error {

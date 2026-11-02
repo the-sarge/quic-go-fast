@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1 complete (1/19 slices), R2 frontier. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2 complete (2/19 slices), R3/R4 frontier. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -395,7 +395,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R1 — Pin the independent peer and ordinary fallback control
 
-**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 remains frontier; R14 #1034 remains blocked by R12 #1032.
+**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 is complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 and R4 #1024 are ready. R14 #1034 remains blocked by R12 #1032.
 
 **Delivers:** Add the reproducible pinned picoquic build/driver and strict executed-case accounting. Demonstrate the ordinary no-negotiation control through current public APIs; reserve multipath scenarios for later slices. This is the maintained peer deliverable approved by the design, not a second protocol implementation.
 
@@ -420,6 +420,8 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 <a id="r2"></a>
 
 ### R2 — Parse the bounded draft-21 wire profile without advertisement
+
+**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 and R4 #1024 are ready. Public negotiation remains disabled.
 
 **Delivers:** Adapt multipath codecs/transport parameter into the real parser and canonical validator, with path-zero ACK compatibility and 1-RTT-only gates. Keep public negotiation disabled; receiving unsupported extension frames follows the selected protocol error. Add wire path identity distinct from tuple generation.
 

@@ -18,12 +18,25 @@ type AckFrame struct {
 	DelayTime time.Duration
 
 	ECT0, ECT1, ECNCE uint64
+
+	// PathID identifies the acknowledged packet-number space. Ordinary ACKs target zero.
+	PathID protocol.PathID
+	// HasPathID selects PATH_ACK, including an explicit path-zero PATH_ACK.
+	HasPathID bool
 }
 
-// parseAckFrame reads an ACK frame
+// parseAckFrame reads an ACK or PATH_ACK frame
 func parseAckFrame(frame *AckFrame, b []byte, typ FrameType, ackDelayExponent uint8, _ protocol.Version) (int, error) {
 	startLen := len(b)
-	ecn := typ == FrameTypeAckECN
+	ecn := typ == FrameTypeAckECN || typ == FrameTypePathAckECN
+	if typ.IsPathAckFrameType() {
+		id, n, err := parsePathID(b)
+		if err != nil {
+			return 0, err
+		}
+		frame.PathID, frame.HasPathID = id, true
+		b = b[n:]
+	}
 
 	la, l, err := quicvarint.Parse(b)
 	if err != nil {
@@ -118,13 +131,21 @@ func parseAckFrame(frame *AckFrame, b []byte, typ FrameType, ackDelayExponent ui
 	return startLen - len(b), nil
 }
 
-// Append appends an ACK frame.
+// Append appends an ACK frame, or PATH_ACK when HasPathID is set.
 func (f *AckFrame) Append(b []byte, _ protocol.Version) ([]byte, error) {
 	hasECN := f.ECT0 > 0 || f.ECT1 > 0 || f.ECNCE > 0
-	if hasECN {
+	switch {
+	case f.HasPathID && hasECN:
+		b = append(b, byte(FrameTypePathAckECN))
+	case f.HasPathID:
+		b = append(b, byte(FrameTypePathAck))
+	case hasECN:
 		b = append(b, byte(FrameTypeAckECN))
-	} else {
+	default:
 		b = append(b, byte(FrameTypeAck))
+	}
+	if f.HasPathID {
+		b = quicvarint.Append(b, uint64(f.PathID))
 	}
 	b = quicvarint.Append(b, uint64(f.LargestAcked()))
 	b = quicvarint.Append(b, encodeAckDelay(f.DelayTime))
@@ -158,6 +179,9 @@ func (f *AckFrame) Length(_ protocol.Version) protocol.ByteCount {
 	// The number of ACK ranges is limited to 64, which guarantees that the
 	// ACK Range Count value can be encoded in a single byte varint.
 	length := 1 + quicvarint.Len(uint64(largestAcked)) + quicvarint.Len(encodeAckDelay(f.DelayTime)) + 1
+	if f.HasPathID {
+		length += quicvarint.Len(uint64(f.PathID))
+	}
 
 	lowestInFirstRange := f.AckRanges[0].Smallest
 	length += quicvarint.Len(uint64(largestAcked - lowestInFirstRange))
@@ -187,6 +211,9 @@ func (f *AckFrame) numEncodableAckRanges(maxSize protocol.ByteCount) int {
 	// We just assume the worst case scenario: every varint is encoded to 8 bytes.
 	// If the result is still smaller than the maximum ACK frame size, the actual ACK frame will definitely fit.
 	length := 1 + 8 /* largest acked */ + 8 /* delay */ + 1 /* ack range count */ + 8 /* first range */
+	if f.HasPathID {
+		length += quicvarint.Len(uint64(f.PathID))
+	}
 	if f.ECT0 > 0 || f.ECT1 > 0 || f.ECNCE > 0 {
 		length += 8 + 8 + 8
 	}
@@ -198,6 +225,9 @@ func (f *AckFrame) numEncodableAckRanges(maxSize protocol.ByteCount) int {
 
 	// Slow path: Calculate the exact length of the ACK frame.
 	length = 1 + quicvarint.Len(uint64(f.LargestAcked())) + quicvarint.Len(encodeAckDelay(f.DelayTime)) + 1
+	if f.HasPathID {
+		length += quicvarint.Len(uint64(f.PathID))
+	}
 	_, firstRange := f.encodeAckRange(0)
 	length += quicvarint.Len(firstRange)
 	if f.ECT0 > 0 || f.ECT1 > 0 || f.ECNCE > 0 {
@@ -282,6 +312,8 @@ func (f *AckFrame) AcksPacket(p protocol.PacketNumber) bool {
 }
 
 func (f *AckFrame) Reset() {
+	f.PathID = 0
+	f.HasPathID = false
 	f.DelayTime = 0
 	f.ECT0 = 0
 	f.ECT1 = 0
