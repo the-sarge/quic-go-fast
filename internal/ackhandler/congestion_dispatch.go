@@ -26,7 +26,7 @@ func EnableDeliverySampling(handler SentPacketHandler, sink interface {
 }, pending func() protocol.ByteCount,
 ) {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.bytesSent != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
+	if !ok || h.bytesSent != 0 || h.pathRoot != nil || len(h.paths) != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
 		panic("invalid delivery sampler installation")
 	}
 	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending, localRoute: h.local != nil}
@@ -382,7 +382,7 @@ func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.Enc
 // Its caller must install bounded emission and BBR ECN validation.
 func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func() protocol.ByteCount) *congestion.BBRSender {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.bytesSent != 0 || h.congestionEvents != nil {
+	if !ok || h.bytesSent != 0 || h.congestionEvents != nil || h.pathRoot != nil || len(h.paths) != 0 {
 		panic("invalid BBR installation")
 	}
 	b := congestion.NewBBRSender(size)

@@ -26,7 +26,7 @@ func newConnectionFlowController(
 	receiveWindow protocol.ByteCount,
 	maxReceiveWindow protocol.ByteCount,
 	allowWindowIncrease func(size protocol.ByteCount) bool,
-	rttStats *utils.RTTStats,
+	rttStats rttReader,
 	logger utils.Logger,
 ) *connectionFlowController {
 	return &connectionFlowController{

@@ -22,7 +22,7 @@ type receiveFlowController struct {
 
 	epochStartTime   monotime.Time
 	epochStartOffset protocol.ByteCount
-	rttStats         *utils.RTTStats
+	rttStats         rttReader
 
 	logger utils.Logger
 }

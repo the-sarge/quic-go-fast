@@ -87,7 +87,10 @@ type retiredAckCarrier struct {
 	targets ackTargets
 }
 
-type ackCarrierHistory struct{ carriers []retiredAckCarrier }
+type ackCarrierHistory struct {
+	carriers []retiredAckCarrier
+	limit    int
+}
 
 const maxRetiredAckCarriers = 64
 
@@ -95,7 +98,11 @@ func (h *ackCarrierHistory) add(pn protocol.PacketNumber, expires monotime.Time,
 	if targets.count == 0 {
 		return
 	}
-	if len(h.carriers) == maxRetiredAckCarriers {
+	limit := h.limit
+	if limit == 0 {
+		limit = maxRetiredAckCarriers
+	}
+	if len(h.carriers) == limit {
 		h.carriers = slices.Delete(h.carriers, 0, 1)
 	}
 	h.carriers = append(h.carriers, retiredAckCarrier{pn: pn, expires: expires, targets: targets, local: local})
