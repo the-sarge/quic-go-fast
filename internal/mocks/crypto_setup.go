@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	handshake "github.com/quic-go/quic-go/internal/handshake"
+	monotime "github.com/quic-go/quic-go/internal/monotime"
 	protocol "github.com/quic-go/quic-go/internal/protocol"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -617,6 +618,44 @@ func (c *MockCryptoSetupNextEventCall) DoAndReturn(f func() handshake.Event) *Mo
 	return c
 }
 
+// Set1RTTAcked mocks base method.
+func (m *MockCryptoSetup) Set1RTTAcked(arg0 protocol.ApplicationKeyReceipt, arg1 monotime.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Set1RTTAcked", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Set1RTTAcked indicates an expected call of Set1RTTAcked.
+func (mr *MockCryptoSetupMockRecorder) Set1RTTAcked(arg0, arg1 any) *MockCryptoSetupSet1RTTAckedCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set1RTTAcked", reflect.TypeOf((*MockCryptoSetup)(nil).Set1RTTAcked), arg0, arg1)
+	return &MockCryptoSetupSet1RTTAckedCall{Call: call}
+}
+
+// MockCryptoSetupSet1RTTAckedCall wrap *gomock.Call
+type MockCryptoSetupSet1RTTAckedCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockCryptoSetupSet1RTTAckedCall) Return(arg0 error) *MockCryptoSetupSet1RTTAckedCall {
+	c.Call = c.Call.Return(arg0)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockCryptoSetupSet1RTTAckedCall) Do(f func(protocol.ApplicationKeyReceipt, monotime.Time) error) *MockCryptoSetupSet1RTTAckedCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockCryptoSetupSet1RTTAckedCall) DoAndReturn(f func(protocol.ApplicationKeyReceipt, monotime.Time) error) *MockCryptoSetupSet1RTTAckedCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // SetHandshakeConfirmed mocks base method.
 func (m *MockCryptoSetup) SetHandshakeConfirmed() {
 	m.ctrl.T.Helper()
@@ -649,44 +688,6 @@ func (c *MockCryptoSetupSetHandshakeConfirmedCall) Do(f func()) *MockCryptoSetup
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockCryptoSetupSetHandshakeConfirmedCall) DoAndReturn(f func()) *MockCryptoSetupSetHandshakeConfirmedCall {
-	c.Call = c.Call.DoAndReturn(f)
-	return c
-}
-
-// SetLargest1RTTAcked mocks base method.
-func (m *MockCryptoSetup) SetLargest1RTTAcked(arg0 protocol.PacketNumber) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetLargest1RTTAcked", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SetLargest1RTTAcked indicates an expected call of SetLargest1RTTAcked.
-func (mr *MockCryptoSetupMockRecorder) SetLargest1RTTAcked(arg0 any) *MockCryptoSetupSetLargest1RTTAckedCall {
-	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLargest1RTTAcked", reflect.TypeOf((*MockCryptoSetup)(nil).SetLargest1RTTAcked), arg0)
-	return &MockCryptoSetupSetLargest1RTTAckedCall{Call: call}
-}
-
-// MockCryptoSetupSetLargest1RTTAckedCall wrap *gomock.Call
-type MockCryptoSetupSetLargest1RTTAckedCall struct {
-	*gomock.Call
-}
-
-// Return rewrite *gomock.Call.Return
-func (c *MockCryptoSetupSetLargest1RTTAckedCall) Return(arg0 error) *MockCryptoSetupSetLargest1RTTAckedCall {
-	c.Call = c.Call.Return(arg0)
-	return c
-}
-
-// Do rewrite *gomock.Call.Do
-func (c *MockCryptoSetupSetLargest1RTTAckedCall) Do(f func(protocol.PacketNumber) error) *MockCryptoSetupSetLargest1RTTAckedCall {
-	c.Call = c.Call.Do(f)
-	return c
-}
-
-// DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockCryptoSetupSetLargest1RTTAckedCall) DoAndReturn(f func(protocol.PacketNumber) error) *MockCryptoSetupSetLargest1RTTAckedCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

@@ -162,8 +162,8 @@ func TestHandshakeMTUFallbackCongestionGrowth(t *testing.T) {
 			realHandler := c.sentPacketHandler
 			sph := mockackhandler.NewMockSentPacketHandler(ctrl)
 			c.sentPacketHandler = sph
-			sph.EXPECT().ReceivedAck(gomock.Any(), protocol.Encryption1RTT, gomock.Any()).Return(true, nil).Times(len(tc.growth))
-			cs.EXPECT().SetLargest1RTTAcked(gomock.Any()).Times(len(tc.growth))
+			sph.EXPECT().ReceivedAck(gomock.Any(), protocol.Encryption1RTT, gomock.Any()).Return(protocol.ApplicationKeyReceipt{Valid: true}, nil).Times(len(tc.growth))
+			cs.EXPECT().Set1RTTAcked(gomock.Any(), gomock.Any()).Times(len(tc.growth))
 			for _, expected := range tc.growth {
 				ping, _ := c.mtuDiscoverer.GetPing(monotime.Now())
 				ping.Handler.OnAcked(ping.Frame)

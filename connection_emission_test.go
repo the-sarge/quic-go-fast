@@ -177,7 +177,7 @@ func TestEmissionDatagramOutput(t *testing.T) {
 					// already happened, rather than happening after I/O completion.
 					acked, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, monotime.Now().Add(time.Millisecond))
 					require.NoError(t, err)
-					require.True(t, acked)
+					require.True(t, acked.Valid)
 				}
 				return nil
 			}).AnyTimes()
@@ -257,7 +257,7 @@ func TestEmissionFatalCallerBuffer(t *testing.T) {
 				if failAt == 2 {
 					acked, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 0, Largest: 0}}}, protocol.Encryption1RTT, monotime.Now().Add(time.Millisecond))
 					require.NoError(t, err)
-					require.True(t, acked, "registration survives failed handoff")
+					require.True(t, acked.Valid, "registration survives failed handoff")
 				}
 				for len(q.queue) > 0 {
 					(<-q.queue).buf.Release()

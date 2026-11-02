@@ -1026,6 +1026,17 @@ func (p *packetPacker) prepareShortHeaderPacket(
 	isMTUProbePacket bool,
 	v protocol.Version,
 ) (preparedShortHeaderPacket, error) {
+	if context.PathID != 0 {
+		short, ok := sealer.(handshake.ShortHeaderSealer)
+		if !ok {
+			return preparedShortHeaderPacket{}, handshake.ErrKeysDropped
+		}
+		selected, err := handshake.ShortHeaderSealerForPath(short, context.PathID)
+		if err != nil {
+			return preparedShortHeaderPacket{}, err
+		}
+		sealer = selected
+	}
 	var paddingLen protocol.ByteCount
 	if pl.length < 4-protocol.ByteCount(pnLen) {
 		paddingLen = 4 - protocol.ByteCount(pnLen) - pl.length
@@ -1071,6 +1082,9 @@ func (p *packetPacker) prepareShortHeaderPacket(
 // prepared datagram after sealing without consuming its number and registering it.
 func (p *packetPacker) commitShortHeaderPacket(buffer *packetBuffer, prepared preparedShortHeaderPacket) (shortHeaderPacket, error) {
 	packet := prepared.shortHeaderPacket
+	if generation, ok := prepared.sealer.(interface{ KeyGeneration() protocol.KeyPhase }); ok {
+		packet.Context.KeyGeneration = generation.KeyGeneration()
+	}
 	raw := p.encryptPacket(buffer.Data[prepared.bufferStart:], prepared.sealer, packet.PacketNumber, prepared.payloadOffset, protocol.ByteCount(packet.PacketNumberLen))
 	buffer.Data = buffer.Data[:prepared.bufferStart+len(raw)]
 	if newPN := p.pnManager.PopPacketNumber(protocol.Encryption1RTT); newPN != packet.PacketNumber {

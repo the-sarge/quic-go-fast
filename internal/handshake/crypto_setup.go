@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -180,8 +181,8 @@ func (h *cryptoSetup) ChangeConnectionID(id protocol.ConnectionID) {
 	}
 }
 
-func (h *cryptoSetup) SetLargest1RTTAcked(pn protocol.PacketNumber) error {
-	return h.aead.SetLargestAcked(pn)
+func (h *cryptoSetup) Set1RTTAcked(receipt protocol.ApplicationKeyReceipt, now monotime.Time) error {
+	return h.aead.SetAcked(receipt, now)
 }
 
 func (h *cryptoSetup) StartHandshake(ctx context.Context) error {

@@ -71,7 +71,7 @@ func TestConnectionPathValidationRetry(t *testing.T) {
 				time.Sleep(time.Millisecond)
 				acked, err := c.sentPacketHandler.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: challengePN, Largest: challengePN}}}, protocol.Encryption1RTT, monotime.Now())
 				require.NoError(t, err)
-				require.True(t, acked)
+				require.True(t, acked.Valid)
 				before := len(writes)
 				receive(1200, nil)
 				require.Len(t, writes, before, "respect the probe backoff")

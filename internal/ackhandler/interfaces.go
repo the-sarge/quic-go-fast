@@ -14,7 +14,7 @@ type SentPacketHandler interface {
 	SentPacketWithContext(context PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streamFrames []StreamFrame, frames []Frame, encLevel protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount, isPathMTUProbePacket, isPathProbePacket bool)
 	// ReceivedAck processes an ACK frame.
 	// It does not store a copy of the frame.
-	ReceivedAck(f *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (bool /* 1-RTT packet acked */, error)
+	ReceivedAck(f *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime monotime.Time) (protocol.ApplicationKeyReceipt, error)
 	ReceivedPacket(protocol.EncryptionLevel, monotime.Time)
 	ReceivedBytes(_ protocol.ByteCount, rcvTime monotime.Time)
 	DropPackets(_ protocol.EncryptionLevel, rcvTime monotime.Time)

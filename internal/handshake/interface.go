@@ -130,7 +130,7 @@ type CryptoSetup interface {
 	HandleMessage([]byte, protocol.EncryptionLevel) error
 	NextEvent() Event
 
-	SetLargest1RTTAcked(protocol.PacketNumber) error
+	Set1RTTAcked(protocol.ApplicationKeyReceipt, monotime.Time) error
 	DiscardInitialKeys()
 	SetHandshakeConfirmed()
 	ConnectionState() ConnectionState

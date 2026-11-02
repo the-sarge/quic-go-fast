@@ -8,6 +8,13 @@ import (
 )
 
 func createAEAD(suite cipherSuite, trafficSecret []byte, v protocol.Version) cipher.AEAD {
+	return createPathAEAD(suite, trafficSecret, v, 0)
+}
+
+// Folding the fixed path ID into the IV is equivalent to XORing the 96-bit
+// path-and-packet number at each operation (multipath draft-21, section 2.4).
+// The suite still owns the cipher, including its FIPS nonce accounting.
+func createPathAEAD(suite cipherSuite, trafficSecret []byte, v protocol.Version, pathID protocol.PathID) cipher.AEAD {
 	keyLabel := hkdfLabelKeyV1
 	ivLabel := hkdfLabelIVV1
 	if v == protocol.Version2 {
@@ -16,6 +23,11 @@ func createAEAD(suite cipherSuite, trafficSecret []byte, v protocol.Version) cip
 	}
 	key := hkdfExpandLabel(suite.Hash, trafficSecret, []byte{}, keyLabel, suite.KeyLen)
 	iv := hkdfExpandLabel(suite.Hash, trafficSecret, []byte{}, ivLabel, suite.IVLen())
+	var path [4]byte
+	binary.BigEndian.PutUint32(path[:], uint32(pathID))
+	for i, b := range path {
+		iv[i] ^= b
+	}
 	return suite.AEAD(key, iv)
 }
 
