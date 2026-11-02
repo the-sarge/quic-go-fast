@@ -8146,3 +8146,28 @@ The finite R2 inventory is 18 named deterministic regressions and one discrimina
 ### Next
 
 R3 #1023 and R4 #1024 have no open blocker after R2 closure; reconcile their GitHub and OmniFocus readiness, then dispatch either through the audited slice workflow. E4 #1018 remains the endpoint frontier. The [R track parent (#1013)](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views.
+
+---
+
+## Deferred Q2 removed from E2 and R7 sequencing - 2026-11-01 21:46 EST
+
+**Main:** `85eb071a0cfd`
+**Actor:** Codex
+
+### Decisions
+
+Merged [PR #1079](https://github.com/the-sarge/quic-go-fast/pull/1079) as `85eb071a0cfda2fe44487d914e2d6fc9bcfd2c4b`: the owner explicitly removed deferred full Q2 [#599](https://github.com/the-sarge/quic-go-fast/issues/599) from E2 [#1016](https://github.com/the-sarge/quic-go-fast/issues/1016), and the delegated review removed the same prerequisite from R7 [#1027](https://github.com/the-sarge/quic-go-fast/issues/1027). E2 consumes completed E1; R7 consumes R6 target/carrier identities. Existing preservation cases, evidence budgets, algorithm stops and later qualification remain unchanged. The [current Reno sequencing rule](adr/2026-10-24-multipath-reno-plan.md#program-qualification-ledger-and-sequencing) owns this decision and supersedes the shared-recovery sequencing sentence in preserved Q2 preparation records for E2/R7 dispatch. R3 retains its behavior-change re-audit stop without reactivating deferred Q2.
+
+The existing B1 [#1040](https://github.com/the-sarge/quic-go-fast/issues/1040) single-path Q2 receipt prerequisite is now explicit in the program graph and native issue dependencies after removal of the former transitive path. B-track qualification policy is unchanged. Full Q2 remains deferred and incomplete, with its campaign, accounting, guard and budgets preserved. The bounded GridCast application gate supplies no replacement dependency or transport qualification.
+
+### Completed
+
+Published exact plan pointers and synchronized native GitHub edges, current child/parent/program mirrors and OmniFocus. E2 is ready with its Waiting tag removed; R7 remains Waiting only on R6 [#1026](https://github.com/the-sarge/quic-go-fast/issues/1026). B1 retains R19 [#1039](https://github.com/the-sarge/quic-go-fast/issues/1039) plus Q2. Runtime, frozen audits and historical journal entries are unchanged.
+
+### Validation
+
+All four configured reviewers and adjudicators completed RAS review `20261102T022128-7411f3c3c237ac325e791d7d`. Four low documentation corrections were applied and verified through the shared lightweight docs-only path; no further RAS cycle or runtime tests were added. Exact head `fab07162f23e991c3dc4405fd5dc8620c8b4c449` passed local document/graph/source-anchor checks and all 33 hosted checks. [PR #1079 disposition receipt](https://github.com/the-sarge/quic-go-fast/pull/1079#issuecomment-6567655579) and [PR #1079 final certificate](https://github.com/the-sarge/quic-go-fast/pull/1079#issuecomment-6567704611) record the scope and evidence. Live open-blocker counts were verified as E2 zero, R7 one and B1 two; no follow-up issue is required.
+
+### Next
+
+E2 and E4 are ready alongside R3/R4. E2/R3 share packet-emission and recovery interfaces; coordinate their existing isolated-worktree and current-main preservation checks without adding an ordering dependency. The [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier view. No implementation or campaign is dispatched by this amendment.
