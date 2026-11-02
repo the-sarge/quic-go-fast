@@ -8390,3 +8390,28 @@ Exact-head affected-package tests passed (31.200s), along with vet, module tidy 
 ### Next
 
 The merged product owns E2C completion and the committed E2 readiness transition. [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016) has both native blockers closed and joins [E4 issue #1018](https://github.com/the-sarge/quic-go-fast/issues/1018) on the endpoint frontier. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live current-state views. No separate frontier/status PR is required.
+
+---
+
+## R8 bounded path credit and CID windows landed - 2026-11-02 17:44 EST
+
+**Main:** `704c7226329b`
+**Actor:** Codex
+
+### Completed
+
+[PR #1115 — Implement R8 bounded path credit and CID windows](https://github.com/the-sarge/quic-go-fast/pull/1115) merged as `704c7226329bff0e1b84360a66ab3ed0636289d9`, closing [R8 issue #1028](https://github.com/the-sarge/quic-go-fast/issues/1028). Private connections now enforce two charged slots, one fixed unused-ID/CID window, directional monotonic grants and bounded per-path CID retention. Compliant churn uses the terminal owner without evicting routing or token evidence; peer active-limit violations retain protocol errors. Public negotiation remains disabled. The product owns the completion/frontier transition: 8/19 Reno slices and 12/34 program slices complete.
+
+### Decisions
+
+The received-CID manager owns actual identity use and one reset-eligibility predicate. Activation transfers that fact without rotating selection; unused and retired records retain evidence without reset-detection authority. Terminal timing separately uses the first accepted whole-datagram receipt from the existing sender. The [published R8 contract for issue #1028](adr/2026-10-24-multipath-reno-plan.md#r8), repaired by [PR #1114](https://github.com/the-sarge/quic-go-fast/pull/1114) and [PR #1117](https://github.com/the-sarge/quic-go-fast/pull/1117), owns these bounded semantics and successor boundaries.
+
+### Validation
+
+Exact pushed head `49df0c7cfb162be064fbdbdfa560dbccc489fce2` on base `f262cf544c727367ac49a4dfd19f33924a08a390` passed root/recovery tests, the existing focused credit race gate, affected-package vet, module tidiness, configured lint and clean-tree/whitespace checks. The unchanged 16-scenario inventory includes activation/use, alias/retirement, churn, acceptance/nonacceptance, retention and close. Native error evidence uses the established platform helper. All 17 distinct hosted checks passed (33 push/PR entries) before exact-head squash merge.
+
+Initial review `20261102T201107-9c140b79d2f560f027e2a239` was independently dispositioned, with all accepted fixes verified at the final head and all 11 findings covered. The single replacement review `20261102T222951-e353bb6e8e27adb4b78616a2` completed with all four configured reviewers and no findings. The [certification receipt for PR #1115](https://github.com/the-sarge/quic-go-fast/pull/1115#issuecomment-6590345482) retains the evidence. No added scenario, worker, public API or operational/platform campaign was required, and no additional untraced effect remains in R8's admitted scope.
+
+### Next
+
+[R9 issue #1029](https://github.com/the-sarge/quic-go-fast/issues/1029) remains blocked by [E5 issue #1019](https://github.com/the-sarge/quic-go-fast/issues/1019); R8 completion makes no new Reno successor ready. The surviving PATH_STATUS integration concern was revalidated at merge `704c7226329bff0e1b84360a66ab3ed0636289d9` (`internal/wire/frame_parser.go:197`, `connection.go:2150`) and retained on existing R9 (#1029)/[R15 issue #1035](https://github.com/the-sarge/quic-go-fast/issues/1035) tracking. [E2 issue #1016](https://github.com/the-sarge/quic-go-fast/issues/1016) and [E4 issue #1018](https://github.com/the-sarge/quic-go-fast/issues/1018) remain the endpoint frontier. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) remain the live state views; this journal appends history only.
