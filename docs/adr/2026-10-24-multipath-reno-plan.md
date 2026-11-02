@@ -395,7 +395,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R1 — Pin the independent peer and ordinary fallback control
 
-**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 is complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 and R4 #1024 are ready. R14 #1034 remains blocked by R12 #1032.
+**State:** complete in [PR #1071](https://github.com/the-sarge/quic-go-fast/pull/1071); see the [fixed evidence and cumulative ledger](../audits/2026-11-01-multipath-r1-receipt.md). R2 #1022 is complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is ready. R14 #1034 remains blocked by R12 #1032.
 
 **Delivers:** Add the reproducible pinned picoquic build/driver and strict executed-case accounting. Demonstrate the ordinary no-negotiation control through current public APIs; reserve multipath scenarios for later slices. This is the maintained peer deliverable approved by the design, not a second protocol implementation.
 
@@ -421,7 +421,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 
 ### R2 — Parse the bounded draft-21 wire profile without advertisement
 
-**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 and R4 #1024 are ready. Public negotiation remains disabled.
+**State:** complete in [PR #1074](https://github.com/the-sarge/quic-go-fast/pull/1074); R3 #1023 is complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082) and R4 #1024 is ready. Public negotiation remains disabled.
 
 **Delivers:** Adapt multipath codecs/transport parameter into the real parser and canonical validator, with path-zero ACK compatibility and 1-RTT-only gates. Keep public negotiation disabled; receiving unsupported extension frames follows the selected protocol error. Add wire path identity distinct from tuple generation.
 
@@ -446,6 +446,8 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 <a id="r3"></a>
 
 ### R3 — Make path-zero context explicit without changing recovery
+
+**State:** complete in [PR #1082](https://github.com/the-sarge/quic-go-fast/pull/1082). R4 #1024 remains ready; R5 #1025 remains blocked by R4 #1024.
 
 **Delivers:** Prefactor application packet identity/context selection so the existing ordinary path-zero flow carries explicit path and tuple identity through registration and packing. Initial/Handshake remain connection-owned. Preserve existing algorithms, ordering and one active path behavior.
 
