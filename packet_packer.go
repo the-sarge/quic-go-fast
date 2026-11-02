@@ -666,8 +666,8 @@ func (p *packetPacker) maybeGetAppDataPacket(
 	pl := p.composeNextPacket(maxPayloadSize, onlyAck, ackAllowed, now, v)
 
 	// check if we have anything to send
-	if len(pl.frames) == 0 && len(pl.streamFrames) == 0 {
-		if pl.ack == nil {
+	if !ackhandler.HasAckElicitingFrames(pl.frames) && len(pl.streamFrames) == 0 {
+		if pl.ack == nil && len(pl.frames) == 0 {
 			return payload{}
 		}
 		// the packet only contains an ACK
@@ -694,9 +694,13 @@ func (p *packetPacker) composeNextPacket(
 	if onlyAck {
 		if ack := p.acks.GetAckFrame(protocol.Encryption1RTT, now, true); ack != nil {
 			ack.Truncate(maxPayloadSize, v)
-			return payload{ack: ack, length: ack.Length(v)}
+			pl := payload{ack: ack, length: ack.Length(v)}
+			p.appendPathAcks(&pl, maxPayloadSize, now, true, v)
+			return pl
 		}
-		return payload{}
+		var pl payload
+		p.appendPathAcks(&pl, maxPayloadSize, now, true, v)
+		return pl
 	}
 
 	hasData := p.framer.HasData()
@@ -711,6 +715,9 @@ func (p *packetPacker) composeNextPacket(
 		}
 	}
 
+	if ackAllowed {
+		p.appendPathAcks(&pl, maxPayloadSize, now, !hasRetransmission && !hasData, v)
+	}
 	if p.datagramQueue != nil {
 		if f := p.datagramQueue.Peek(); f != nil {
 			size := f.Length(v)
@@ -718,7 +725,7 @@ func (p *packetPacker) composeNextPacket(
 				pl.frames = append(pl.frames, ackhandler.Frame{Frame: f})
 				pl.length += size
 				p.datagramQueue.Pop()
-			} else if pl.ack == nil {
+			} else if pl.ack == nil && len(pl.frames) == 0 {
 				// The DATAGRAM frame doesn't fit, and the packet doesn't contain an ACK.
 				// Discard this frame. There's no point in retrying this in the next packet,
 				// as it's unlikely that the available packet size will increase.
@@ -728,7 +735,7 @@ func (p *packetPacker) composeNextPacket(
 		}
 	}
 
-	if pl.ack != nil && !hasData && !hasRetransmission {
+	if (pl.ack != nil || len(pl.frames) > 0) && !hasData && !hasRetransmission {
 		return pl
 	}
 
@@ -1165,3 +1172,17 @@ var _ ackhandler.FrameHandler = emptyHandler{}
 
 func (emptyHandler) OnAcked(wire.Frame) {}
 func (emptyHandler) OnLost(wire.Frame)  {}
+
+// The receive owner exposes admitted path views only to private fixtures until
+// R9. Ordinary sources and public construction retain path-zero behavior.
+func (p *packetPacker) appendPathAcks(pl *payload, maxSize protocol.ByteCount, now monotime.Time, onlyIfQueued bool, v protocol.Version) {
+	source, ok := p.acks.(interface {
+		AppendPathAckFrames([]ackhandler.Frame, protocol.ByteCount, monotime.Time, bool, protocol.Version) ([]ackhandler.Frame, protocol.ByteCount)
+	})
+	if !ok {
+		return
+	}
+	var length protocol.ByteCount
+	pl.frames, length = source.AppendPathAckFrames(pl.frames, maxSize-pl.length, now, onlyIfQueued, v)
+	pl.length += length
+}

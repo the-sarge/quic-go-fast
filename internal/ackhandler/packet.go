@@ -27,6 +27,7 @@ type packet struct {
 	SendTime        monotime.Time
 	StreamFrames    []StreamFrame
 	Frames          []Frame
+	ackTargets      ackTargets
 	LargestAcked    protocol.PacketNumber // InvalidPacketNumber if the packet doesn't contain an ACK
 	Length          protocol.ByteCount
 	EncryptionLevel protocol.EncryptionLevel
@@ -42,7 +43,7 @@ func (p *packet) Outstanding() bool {
 }
 
 func (p *packet) IsAckEliciting() bool {
-	return len(p.StreamFrames) > 0 || len(p.Frames) > 0
+	return len(p.StreamFrames) > 0 || HasAckElicitingFrames(p.Frames)
 }
 
 var packetPool = sync.Pool{New: func() any { return &packet{} }}
@@ -54,6 +55,7 @@ func getPacket() *packet {
 	p.StreamFrames = nil
 	p.Frames = nil
 	p.LargestAcked = 0
+	p.ackTargets = ackTargets{}
 	p.Length = 0
 	p.EncryptionLevel = protocol.EncryptionLevel(0)
 	p.SendTime = 0
