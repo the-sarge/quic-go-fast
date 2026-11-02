@@ -8240,3 +8240,30 @@ Seven deterministic semantic scenarios in six top-level tests, existing CID/rese
 ### Next
 
 [R5 issue #1025](https://github.com/the-sarge/quic-go-fast/issues/1025) and [R8 issue #1028](https://github.com/the-sarge/quic-go-fast/issues/1028) now have no open native blockers; they remain separate one-PR slices with isolated worktrees and fresh-context dispatch. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views.
+
+---
+
+## Local completion recovery lifetime landed - 2026-11-02 00:33 EST
+
+**Main:** `b96462ad36ab`
+**Actor:** Codex
+
+### Completed
+
+[PR #1088 — Own local packet completion and terminal recovery lifetime](https://github.com/the-sarge/quic-go-fast/pull/1088) merged as `b96462ad36ab0df4fb7f2c387e1362921ef6a14c`, closing [E2A issue #1084](https://github.com/the-sarge/quic-go-fast/issues/1084). The private Reno/no-ECN recovery handler atomically registers local packets, reserves pending flight, and qualifies loss/PTO evidence at native-return time. Early ACK, local disposal, Retry, key drop and close preserve exact-once frame ownership and bounded late-completion identities under the existing shared tracking limit. Production construction and endpoint activation remain unchanged.
+
+The product PR owns E2A's committed completion and E2B's resulting frontier transition: 2/9 endpoint slices and 6/34 program slices complete. This journal appends history only.
+
+### Decisions
+
+The replacement review exposed a supported collision between a capacity-refused producer PN and an independent PTO skip. [Amendment PR #1092](https://github.com/the-sarge/quic-go-fast/pull/1092) published the handler-owned sequencing/capacity rule at `cf7e36e87f718ce829f02256fdab6f7f54f42966` before product edits resumed. Optional local PTO markers cannot bypass held producer numbering or exceed shared capacity; QUIC Retry preserves the held PN and pending generator skip together. Legacy behavior, producer retry order and the existing six-scenario allocation remain the boundaries. The [scoped re-audit and repair receipt for PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088#issuecomment-6569699638) records the disposition and red/green evidence.
+
+### Validation
+
+Initial RAS run `20261102T035213-c46f93f6843294fdb64ece54` and replacement run `20261102T041953-df71830ffaaffd70fea49e79` completed the bounded fresh-review allocation. The final verification of the replacement run at `48088145752f200fe6d6051c03dcc5a6cd6dbd01` resolved all four source clusters with no new findings and a clear blocking projection. No third fresh product review was run.
+
+All six maintained local-completion scenarios, the full ackhandler and root-package tests, affected-package vet, module tidiness, ackhandler lint, Go-fix diff, whitespace and documentation-state/link checks passed at the exact pushed head on base `cf7e36e87f718ce829f02256fdab6f7f54f42966`. The [certification receipt for PR #1088](https://github.com/the-sarge/quic-go-fast/pull/1088#issuecomment-6569731023) records the commands and verification limits. All 17 hosted PR checks passed across unit, integration, lint, cross-compilation and interop workflows, including [unit run 41393303198](https://github.com/the-sarge/quic-go-fast/actions/runs/41393303198). The clean, reviewed candidate was squash-merged with `--match-head-commit`. No additional performance, race, native or platform campaign was introduced, and no material untraced effect remains.
+
+### Next
+
+[E2B issue #1085](https://github.com/the-sarge/quic-go-fast/issues/1085) has its sole predecessor, E2A, complete; reconcile its ready label and OmniFocus blocked prefix after journal completion. [Endpoint parent #1012](https://github.com/the-sarge/quic-go-fast/issues/1012) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live current-state views. The deferred scan-cost observation was revalidated against merged commit `b96462ad36ab0df4fb7f2c387e1362921ef6a14c` and filed as [investigation #1095](https://github.com/the-sarge/quic-go-fast/issues/1095), mirrored to OmniFocus; it adds no blocker or campaign and does not claim a measured throughput regression.
