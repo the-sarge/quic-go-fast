@@ -8079,3 +8079,22 @@ The [fixed evidence and cumulative ledger](audits/2026-11-01-multipath-r1-receip
 ### Next
 
 At this entry, [R2 #1022](https://github.com/the-sarge/quic-go-fast/issues/1022) remains ready; [R14 #1034](https://github.com/the-sarge/quic-go-fast/issues/1034) still needs [R12 #1032](https://github.com/the-sarge/quic-go-fast/issues/1032), so R1 creates no newly ready successor. [Reno parent #1013](https://github.com/the-sarge/quic-go-fast/issues/1013) and [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) are the live views. Complete the R1 OmniFocus task and reconcile those mutable mirrors after this journal merge.
+
+---
+
+## HTTP/3 admission cleanup race repaired - 2026-11-01 20:43 EST
+
+**Main:** `41129a8f2639`
+**Actor:** Codex
+
+### Completed
+
+Merged [PR #1076](https://github.com/the-sarge/quic-go-fast/pull/1076) for [fixture repair #1075](https://github.com/the-sarge/quic-go-fast/issues/1075) as `41129a8f2639ebb932f22e928916be62e8608ae8`. The HTTP/3 request-admission cleanup helper now requires an ended context and seals qlog producer admission under its existing mutex before waiting. A deterministic late-producer regression failed on the old helper and passes with the repair. Runtime HTTP/3 behavior is unchanged.
+
+### Validation
+
+All four configured reviewers completed RAS review `20261102T013355-39a1ed229b080a0f92964aba` with no findings. Go 1.26.10 HTTP/3 tests, vet, tidy diff, the single focused request-admission race run, configured lint/go-fix and clean-tree checks passed. All 33 hosted checks passed on exact head `0fbcda17bdfc33b3b9391cab49c327657e75e3d6`; [local certificate and review receipt in PR #1076](https://github.com/the-sarge/quic-go-fast/pull/1076#issuecomment-6567009099).
+
+### Next
+
+Resume E1 [PR #1070](https://github.com/the-sarge/quic-go-fast/pull/1070) with a current-main refresh and final exact-head gates. [E1 issue #1015](https://github.com/the-sarge/quic-go-fast/issues/1015) is the live status surface.
