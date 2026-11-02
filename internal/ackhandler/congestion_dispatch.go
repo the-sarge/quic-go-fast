@@ -200,7 +200,7 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 				fence, origin = true, 0
 				break
 			}
-			if p.TimingGeneration != d.sampler.timingGeneration && (origin.IsZero() || p.SendTime.Before(origin)) {
+			if contributesDelivery(p, &d.event) && p.TimingGeneration != d.sampler.timingGeneration && (origin.IsZero() || p.SendTime.Before(origin)) {
 				// This accepted delivery needs its original send-spacing bound.
 				// Invalidate existing snapshots, but preserve that raw bound for
 				// future registrations. A stale snapshot covered by the bound is
@@ -211,6 +211,11 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 		if fence {
 			d.sampler.fenceTiming()
 			d.sampler.sendOrigin = origin
+			if !origin.IsZero() {
+				// Retain a complete baseline pair for future snapshots. Excluded
+				// timing still clears both until a fresh registration establishes them.
+				d.sampler.deliveredTime = d.event.Time
+			}
 			d.event.RawRTT = 0
 		}
 	}

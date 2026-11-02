@@ -268,6 +268,42 @@ func TestLocalRichTimingFence(t *testing.T) {
 		}
 	})
 
+	t.Run("accepted ACK-only receipt cannot seed a partial baseline", func(t *testing.T) {
+		h, r := newLocalRichHandler(t)
+		now := monotime.Now()
+		ao := h.PopPacketNumber(protocol.EncryptionInitial)
+		aot, err := h.RegisterLocalPacket(PacketContext{}, now, ao, 0, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
+		require.NoError(t, err)
+		require.NoError(t, h.CompleteLocalPacket(aot, LocalPacketAccepted, now.Add(time.Millisecond)))
+		_, bt := localRichPacket(t, h, now.Add(2*time.Millisecond))
+		require.NoError(t, h.CompleteLocalPacket(bt, LocalPacketUncertain, now.Add(5*time.Millisecond)))
+		generation := h.congestionEvents.sampler.timingGeneration
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(5*time.Millisecond+time.Microsecond), ao)
+		require.Equal(t, generation, h.congestionEvents.sampler.timingGeneration, "a known accepted receipt outside the numerator cannot retain a stale send bound")
+		require.Zero(t, h.congestionEvents.sampler.delivered)
+		c, ct := localRichPacket(t, h, now.Add(6*time.Millisecond))
+		require.NoError(t, h.CompleteLocalPacket(ct, LocalPacketAccepted, now.Add(7*time.Millisecond)))
+		snapshot := r.sends[len(r.sends)-1].Packet.Delivery
+		require.True(t, snapshot.Valid)
+		require.Equal(t, now.Add(6*time.Millisecond), snapshot.DeliveredTime)
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(16*time.Millisecond), c)
+		e := r.feedback[len(r.feedback)-1]
+		require.True(t, e.Delivery.Valid)
+		require.Equal(t, 10*time.Millisecond, e.Delivery.Interval)
+		require.Equal(t, uint64(1200), e.Delivery.Delivered)
+		require.Equal(t, uint64(120000), e.Delivery.BytesPerSecond)
+		fresh, ft := localRichPacket(t, h, now.Add(20*time.Millisecond))
+		require.NoError(t, h.CompleteLocalPacket(ft, LocalPacketAccepted, now.Add(21*time.Millisecond)))
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(30*time.Millisecond), fresh)
+		require.True(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
+		require.Equal(t, uint64(2400), r.feedback[len(r.feedback)-1].Delivery.Delivered)
+		for _, sent := range r.sends {
+			if sent.Packet.Delivery.Valid {
+				require.False(t, sent.Packet.Delivery.DeliveredTime.IsZero(), "valid snapshots require a complete timing baseline")
+			}
+		}
+	})
+
 	for _, lifecycle := range []string{"Retry", "Initial drop", "Handshake drop", "0-RTT drop", "close"} {
 		t.Run(lifecycle, func(t *testing.T) {
 			h, r := newLocalRichHandler(t)

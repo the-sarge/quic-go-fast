@@ -289,11 +289,17 @@ func (s *deliverySampler) sent(info *congestion.PacketInfo, prior, post protocol
 	info.Delivery = congestion.DeliverySnapshot{
 		Delivered: s.delivered, Lost: s.lost, DeliveredTime: s.deliveredTime, SendOrigin: s.sendOrigin,
 		PriorInFlight: prior, PostInFlight: post, Outstanding: s.outstanding,
-		Valid: info.Length > 0 && info.RegistrationValid && !s.sendOrigin.IsZero() && !info.SendTime.Before(s.sendOrigin),
+		Valid: info.Length > 0 && info.RegistrationValid && !s.sendOrigin.IsZero() && !s.deliveredTime.IsZero() && !info.SendTime.Before(s.sendOrigin),
 	}
 	info.Delivery.Limited = s.activeLimitation()
 	s.outstanding += info.Length
 	s.applicationExhausted = false
+}
+
+// contributesDelivery is shared by logical accounting and receipt-derived timing
+// qualification. A receipt outside this numerator cannot supply its send bound.
+func contributesDelivery(p congestion.PacketInfo, e *congestion.FeedbackEvent) bool {
+	return p.AckEliciting && !p.PathProbe && p.PathGeneration == e.PathGeneration && p.SampleGeneration == e.SampleGeneration
 }
 
 func (s *deliverySampler) feedback(e *congestion.FeedbackEvent) {
@@ -312,11 +318,10 @@ func (s *deliverySampler) feedback(e *congestion.FeedbackEvent) {
 	deliveredBefore := s.delivered
 	for i := range e.Acked {
 		p := &e.Acked[i]
-		if !p.AckEliciting || p.PathProbe {
-			continue
+		if p.AckEliciting && !p.PathProbe {
+			s.outstanding -= p.Length
 		}
-		s.outstanding -= p.Length
-		if p.PathGeneration != e.PathGeneration || p.SampleGeneration != e.SampleGeneration {
+		if !contributesDelivery(*p, e) {
 			continue
 		}
 		s.delivered = addDelivery(s.delivered, uint64(p.Length))
