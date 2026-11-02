@@ -18,7 +18,8 @@ type newConnID struct {
 }
 
 type connIDManager struct {
-	queue []newConnID
+	pathCIDs map[protocol.PathID]*receivedPathCIDs
+	queue    []newConnID
 
 	highestProbingID uint64
 	pathMx           sync.Mutex
@@ -28,6 +29,7 @@ type connIDManager struct {
 	activeSequenceNumber      uint64
 	highestRetired            uint64
 	activeConnectionID        protocol.ConnectionID
+	activeConnectionIDUsed    bool // ordinary current identity use, transferred during private activation
 	activeStatelessResetToken *protocol.StatelessResetToken
 
 	// We change the connection ID after sending on average
@@ -184,6 +186,7 @@ func (h *connIDManager) updateConnectionID() {
 	h.queue = h.queue[1:]
 	h.activeSequenceNumber = front.SequenceNumber
 	h.activeConnectionID = front.ConnectionID
+	h.activeConnectionIDUsed = false
 	h.activeStatelessResetToken = &front.StatelessResetToken
 	h.packetsSinceLastChange = 0
 	h.packetsPerConnectionID = protocol.PacketsPerConnectionID/2 + uint32(h.rand.Int31n(protocol.PacketsPerConnectionID))
@@ -195,6 +198,17 @@ func (h *connIDManager) Close() {
 	defer h.pathMx.Unlock()
 
 	h.closed = true
+	if h.pathCIDs != nil {
+		for _, set := range h.pathCIDs {
+			for _, entry := range set.records {
+				if entry.detectsReset() {
+					h.removeStatelessResetToken(entry.StatelessResetToken)
+				}
+			}
+		}
+		clear(h.pathCIDs)
+		return
+	}
 	if h.activeStatelessResetToken != nil {
 		h.removeStatelessResetToken(*h.activeStatelessResetToken)
 	}
@@ -210,6 +224,9 @@ func (h *connIDManager) ChangeInitialConnID(newConnID protocol.ConnectionID) {
 	if h.activeSequenceNumber != 0 {
 		panic("expected first connection ID to have sequence number 0")
 	}
+	if h.activeConnectionID != newConnID {
+		h.activeConnectionIDUsed = false
+	}
 	h.activeConnectionID = newConnID
 }
 
@@ -224,6 +241,19 @@ func (h *connIDManager) SetStatelessResetToken(token protocol.StatelessResetToke
 }
 
 func (h *connIDManager) SentPacket() {
+	if h.pathCIDs != nil {
+		set := h.pathCIDs[0]
+		entry := set.records[set.active]
+		if !entry.used && !entry.retired {
+			entry.used = true
+			set.records[set.active] = entry
+			if entry.detectsReset() {
+				h.addStatelessResetToken(entry.StatelessResetToken)
+			}
+		}
+	} else {
+		h.activeConnectionIDUsed = true
+	}
 	h.packetsSinceLastChange++
 }
 
@@ -244,6 +274,10 @@ func (h *connIDManager) shouldUpdateConnID() bool {
 
 func (h *connIDManager) Get() protocol.ConnectionID {
 	h.assertNotClosed()
+	if h.pathCIDs != nil {
+		set := h.pathCIDs[0]
+		return set.records[set.active].ConnectionID
+	}
 	if h.shouldUpdateConnID() {
 		h.updateConnectionID()
 	}
@@ -263,6 +297,9 @@ func (h *connIDManager) GetConnIDForPath(id pathID) (protocol.ConnectionID, bool
 	defer h.pathMx.Unlock()
 
 	h.assertNotClosed()
+	if h.pathCIDs != nil {
+		return protocol.ConnectionID{}, false
+	}
 	// if we're using zero-length connection IDs, we don't need to change the connection ID
 	if h.activeConnectionID.Len() == 0 {
 		return protocol.ConnectionID{}, true
@@ -305,6 +342,16 @@ func (h *connIDManager) IsActiveStatelessResetToken(token protocol.StatelessRese
 	h.pathMx.Lock()
 	defer h.pathMx.Unlock()
 
+	if h.pathCIDs != nil {
+		for _, set := range h.pathCIDs {
+			for _, entry := range set.records {
+				if entry.detectsReset() && entry.StatelessResetToken == token {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	if h.activeStatelessResetToken != nil {
 		if *h.activeStatelessResetToken == token {
 			return true

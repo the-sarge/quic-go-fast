@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
 )
 
@@ -20,9 +21,10 @@ type sender interface {
 
 // sendMetadata is captured by the connection loop, never read from it by the worker.
 type sendMetadata struct {
-	credit         *sendReservation
-	handshake      bool
-	pathGeneration uint64
+	terminalReceipts [2]*pathAbandonReceipt
+	credit           *sendReservation
+	handshake        bool
+	pathGeneration   uint64
 }
 
 // handshakeSendFeedback retains the latest eligible failure without retaining buffers.
@@ -239,6 +241,13 @@ func (h *sendQueue) writeEntry(e queueEntry) error {
 	} else {
 		err = h.conn.Write(e.buf.Data, e.gsoSize, e.ecn)
 	}
+	if err == nil {
+		for _, receipt := range e.metadata.terminalReceipts {
+			if receipt != nil {
+				receipt.publish(monotime.Now())
+			}
+		}
+	}
 	if err != nil {
 		if errors.Is(err, errSubmissionDenied) {
 			return nil // fenced during the write; the caller releases the entry
@@ -262,7 +271,7 @@ func (h *sendQueue) runBatched(e queueEntry, bs batchSender) error {
 	defer func() { h.batchScratch = group[:0] }()
 	for len(h.queue) > 0 && len(group) < maxSendBatch {
 		next := <-h.queue
-		if next.gsoSize != group[0].gsoSize || next.ecn != group[0].ecn {
+		if next.gsoSize != group[0].gsoSize || next.ecn != group[0].ecn || next.metadata.hasTerminalReceipt() || group[0].metadata.hasTerminalReceipt() {
 			if err := h.sendBatchEntries(group, bs); err != nil {
 				next.release()
 				return err

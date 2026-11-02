@@ -19,11 +19,13 @@ import (
 // packetEmission owns packet construction, registration, output handoff and
 // temporary storage. The closed handler retains an immutable close payload.
 type packetEmission struct {
-	bbr             *bbrSendPolicy
-	reservation     *sendReservation // connection-owned until handoff
-	paceReservation bool
-	pacingBytes     protocol.ByteCount
-	reservationTime monotime.Time
+	pathCredit       *pathCreditRegistry
+	terminalReceipts [2]*pathAbandonReceipt
+	bbr              *bbrSendPolicy
+	reservation      *sendReservation // connection-owned until handoff
+	paceReservation  bool
+	pacingBytes      protocol.ByteCount
+	reservationTime  monotime.Time
 	// One capability snapshot per BBR opportunity, taken on first use.
 	inOpportunity, capsTaken bool
 	caps                     connCapabilities
@@ -176,6 +178,9 @@ func (e *packetEmission) sendAny(now monotime.Time, confirmed bool) emissionResu
 }
 
 func (e *packetEmission) advance(now monotime.Time, gso bool) emissionResult {
+	if e.pathCredit != nil && e.pathCredit.needsReceipt() {
+		gso = false // no accepted-prefix ambiguity for terminal control datagrams
+	}
 	if e.queue.WouldBlock() {
 		return emissionResult{stop: emissionQueueFull, available: e.queue.Available()}
 	}
@@ -320,6 +325,7 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 }
 
 func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, now monotime.Time) {
+	e.captureTerminalReceipts(p.Frames)
 	if p.IsPathProbePacket {
 		(*e.recovery).SentPacketWithContext(
 			p.Context,
@@ -524,6 +530,7 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 		e.policy.noteCoalescedRegistration(p.EncryptionLevel(), now)
 	}
 	if p := packet.shortHdrPacket; p != nil {
+		e.captureTerminalReceipts(p.Frames)
 		e.policy.noteCoalescedActivity(p.IsAckEliciting(), now)
 		largestAcked := protocol.InvalidPacketNumber
 		if p.Ack != nil {

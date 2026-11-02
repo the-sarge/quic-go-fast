@@ -12,9 +12,10 @@ import (
 )
 
 type connRunnerCallbacks struct {
-	AddConnectionID    func(protocol.ConnectionID)
-	RemoveConnectionID func(protocol.ConnectionID)
-	ReplaceWithClosed  func([]protocol.ConnectionID, []byte, time.Duration)
+	AddConnectionID     func(protocol.ConnectionID)
+	AddPathConnectionID func(protocol.ConnectionID, protocol.PathID) bool
+	RemoveConnectionID  func(protocol.ConnectionID)
+	ReplaceWithClosed   func([]protocol.ConnectionID, []byte, time.Duration)
 }
 
 // The memory address of the Transport is used as the key.
@@ -44,6 +45,7 @@ type connIDToRetire struct {
 }
 
 type connIDGenerator struct {
+	pathCIDs    map[protocol.PathID]*issuedPathCIDs
 	generator   ConnectionIDGenerator
 	highestSeq  uint64
 	connRunners connRunners
@@ -79,6 +81,9 @@ func newConnIDGenerator(
 }
 
 func (m *connIDGenerator) SetMaxActiveConnIDs(limit uint64) error {
+	if m.pathCIDs != nil {
+		return m.issuePathCIDs(0, min(limit, 2))
+	}
 	if m.generator.ConnectionIDLen() == 0 {
 		return nil
 	}
@@ -97,6 +102,9 @@ func (m *connIDGenerator) SetMaxActiveConnIDs(limit uint64) error {
 }
 
 func (m *connIDGenerator) Retire(seq uint64, sentWithDestConnID protocol.ConnectionID, expiry monotime.Time) error {
+	if m.pathCIDs != nil {
+		return m.retirePathCID(&wire.PathRetireConnectionIDFrame{SequenceNumber: seq}, sentWithDestConnID, expiry)
+	}
 	if seq > m.highestSeq {
 		return &qerr.TransportError{
 			ErrorCode:    qerr.ProtocolViolation,
@@ -171,6 +179,9 @@ func (m *connIDGenerator) RemoveRetiredConnIDs(now monotime.Time) {
 }
 
 func (m *connIDGenerator) RemoveAll() {
+	for _, cid := range m.extraPathCIDs() {
+		m.connRunners.RemoveConnectionID(cid)
+	}
 	if m.initialClientDestConnID != nil {
 		m.connRunners.RemoveConnectionID(*m.initialClientDestConnID)
 	}
@@ -193,14 +204,18 @@ func (m *connIDGenerator) ReplaceWithClosed(connClose []byte, expiry time.Durati
 	for _, c := range m.connIDsToRetire {
 		connIDs = append(connIDs, c.connID)
 	}
+	connIDs = append(connIDs, m.extraPathCIDs()...)
 	m.connRunners.ReplaceWithClosed(connIDs, connClose, expiry)
 }
 
-func (m *connIDGenerator) AddConnRunner(runner connRunner, r connRunnerCallbacks) {
+func (m *connIDGenerator) AddConnRunner(runner connRunner, r connRunnerCallbacks) error {
+	if m.pathCIDs != nil {
+		return fmt.Errorf("legacy migration is unavailable with private multipath credit")
+	}
 	// The transport might have already been added earlier.
 	// This happens if the application migrates back to and old path.
 	if _, ok := m.connRunners[runner]; ok {
-		return
+		return nil
 	}
 	m.connRunners[runner] = r
 	if m.initialClientDestConnID != nil {
@@ -209,4 +224,5 @@ func (m *connIDGenerator) AddConnRunner(runner connRunner, r connRunnerCallbacks
 	for _, connID := range m.activeSrcConnIDs {
 		r.AddConnectionID(connID)
 	}
+	return nil
 }
