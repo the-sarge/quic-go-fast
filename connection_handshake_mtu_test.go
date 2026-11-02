@@ -387,7 +387,7 @@ func TestHandshakeMTUFallbackSendClassification(t *testing.T) {
 				if len(tt.types) == 0 {
 					packet.shortHdrPacket = &shortHeaderPacket{}
 				}
-				sph.EXPECT().SentPacket(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false, false).Times(max(1, len(tt.types)))
+				sph.EXPECT().SentPacketWithContext(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false, false).Times(max(1, len(tt.types)))
 				sender.EXPECT().Send(packet.buffer, uint16(0), protocol.ECNNon, sendMetadata{handshake: tt.eligible && size == 0, pathGeneration: 7})
 				c.emission.sendCoalesced(packet, protocol.ECNNon, monotime.Now())
 			})

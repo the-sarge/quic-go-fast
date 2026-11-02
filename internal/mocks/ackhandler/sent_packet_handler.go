@@ -604,6 +604,42 @@ func (c *MockSentPacketHandlerSentPacketCall) DoAndReturn(f func(monotime.Time, 
 	return c
 }
 
+// SentPacketWithContext mocks base method.
+func (m *MockSentPacketHandler) SentPacketWithContext(context ackhandler.PacketContext, t monotime.Time, pn, largestAcked protocol.PacketNumber, streamFrames []ackhandler.StreamFrame, frames []ackhandler.Frame, encLevel protocol.EncryptionLevel, ecn protocol.ECN, size protocol.ByteCount, isPathMTUProbePacket, isPathProbePacket bool) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SentPacketWithContext", context, t, pn, largestAcked, streamFrames, frames, encLevel, ecn, size, isPathMTUProbePacket, isPathProbePacket)
+}
+
+// SentPacketWithContext indicates an expected call of SentPacketWithContext.
+func (mr *MockSentPacketHandlerMockRecorder) SentPacketWithContext(context, t, pn, largestAcked, streamFrames, frames, encLevel, ecn, size, isPathMTUProbePacket, isPathProbePacket any) *MockSentPacketHandlerSentPacketWithContextCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SentPacketWithContext", reflect.TypeOf((*MockSentPacketHandler)(nil).SentPacketWithContext), context, t, pn, largestAcked, streamFrames, frames, encLevel, ecn, size, isPathMTUProbePacket, isPathProbePacket)
+	return &MockSentPacketHandlerSentPacketWithContextCall{Call: call}
+}
+
+// MockSentPacketHandlerSentPacketWithContextCall wrap *gomock.Call
+type MockSentPacketHandlerSentPacketWithContextCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockSentPacketHandlerSentPacketWithContextCall) Return() *MockSentPacketHandlerSentPacketWithContextCall {
+	c.Call = c.Call.Return()
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockSentPacketHandlerSentPacketWithContextCall) Do(f func(ackhandler.PacketContext, monotime.Time, protocol.PacketNumber, protocol.PacketNumber, []ackhandler.StreamFrame, []ackhandler.Frame, protocol.EncryptionLevel, protocol.ECN, protocol.ByteCount, bool, bool)) *MockSentPacketHandlerSentPacketWithContextCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockSentPacketHandlerSentPacketWithContextCall) DoAndReturn(f func(ackhandler.PacketContext, monotime.Time, protocol.PacketNumber, protocol.PacketNumber, []ackhandler.StreamFrame, []ackhandler.Frame, protocol.EncryptionLevel, protocol.ECN, protocol.ByteCount, bool, bool)) *MockSentPacketHandlerSentPacketWithContextCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // SetMaxDatagramSize mocks base method.
 func (m *MockSentPacketHandler) SetMaxDatagramSize(count protocol.ByteCount) {
 	m.ctrl.T.Helper()

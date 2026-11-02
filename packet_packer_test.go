@@ -253,6 +253,8 @@ func testPackInitialAckOnlyPacket(t *testing.T, pers protocol.Perspective) {
 	const maxPacketSize protocol.ByteCount = 1234
 	mockCtrl := gomock.NewController(t)
 	tp := newTestPacketPacker(t, mockCtrl, pers)
+	generation := uint64(7)
+	tp.packer.pathZeroGeneration = &generation
 	tp.pnManager.EXPECT().PeekPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(0x42), protocol.PacketNumberLen2)
 	tp.pnManager.EXPECT().PopPacketNumber(protocol.EncryptionInitial).Return(protocol.PacketNumber(0x42))
 	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
@@ -276,6 +278,7 @@ func testPackInitialAckOnlyPacket(t *testing.T, pers protocol.Perspective) {
 	require.Empty(t, more)
 	require.Len(t, hdrs, 1)
 	require.Equal(t, protocol.PacketTypeInitial, hdrs[0].Type)
+	require.Equal(t, ackhandler.PacketContext{}, p.longHdrPackets[0].context)
 }
 
 func TestPack1RTTAckOnlyPacket(t *testing.T) {
@@ -297,6 +300,8 @@ func TestPack1RTTAckOnlyPacket(t *testing.T) {
 func TestPack0RTTPacket(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveClient)
+	generation := uint64(7)
+	tp.packer.pathZeroGeneration = &generation
 	tp.sealingManager.EXPECT().GetInitialSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
 	tp.sealingManager.EXPECT().Get0RTTSealer().Return(newMockShortHeaderSealer(mockCtrl), nil)
 	tp.sealingManager.EXPECT().GetHandshakeSealer().Return(nil, handshake.ErrKeysNotYetAvailable)
@@ -321,9 +326,11 @@ func TestPack0RTTPacket(t *testing.T) {
 	require.Len(t, p.longHdrPackets[0].frames, 1)
 	require.Equal(t, cf.Frame, p.longHdrPackets[0].frames[0].Frame)
 	require.NotNil(t, p.longHdrPackets[0].frames[0].Handler)
+	require.Equal(t, ackhandler.PacketContext{TupleGeneration: 7}, p.longHdrPackets[0].context)
 }
 
 // ACK frames can't be sent in 0-RTT packets
+
 func TestPack0RTTPacketNoACK(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	tp := newTestPacketPacker(t, mockCtrl, protocol.PerspectiveClient)

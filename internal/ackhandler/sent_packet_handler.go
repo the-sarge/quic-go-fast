@@ -292,6 +292,26 @@ func (h *sentPacketHandler) SentPacket(
 	isPathMTUProbePacket bool,
 	isPathProbePacket bool,
 ) {
+	h.SentPacketWithContext(PacketContext{}, t, pn, largestAcked, streamFrames, frames, encLevel, ecn, size, isPathMTUProbePacket, isPathProbePacket)
+}
+
+func (h *sentPacketHandler) SentPacketWithContext(
+	context PacketContext,
+	t monotime.Time,
+	pn, largestAcked protocol.PacketNumber,
+	streamFrames []StreamFrame,
+	frames []Frame,
+	encLevel protocol.EncryptionLevel,
+	ecn protocol.ECN,
+	size protocol.ByteCount,
+	isPathMTUProbePacket bool,
+	isPathProbePacket bool,
+) {
+	// Additional protocol paths are not active in this prefactor. Validate
+	// before accounting so an invalid identity cannot partially register.
+	if context.PathID != 0 || ((encLevel == protocol.EncryptionInitial || encLevel == protocol.EncryptionHandshake) && context != (PacketContext{})) {
+		panic("invalid path-zero packet context")
+	}
 	priorInFlight := h.bytesInFlight
 	h.bytesSent += size
 	h.connStats.BytesSent.Add(uint64(size))
@@ -310,6 +330,7 @@ func (h *sentPacketHandler) SentPacket(
 	}
 
 	p := getPacket()
+	p.Context = context
 	p.SendTime = t
 	p.EncryptionLevel = encLevel
 	p.Length = size

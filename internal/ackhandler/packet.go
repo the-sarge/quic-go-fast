@@ -12,8 +12,16 @@ type packetWithPacketNumber struct {
 	*packet
 }
 
+// PacketContext identifies the application protocol path and its address tuple.
+// Initial and Handshake use the zero value and remain connection-owned.
+type PacketContext struct {
+	PathID          protocol.PathID
+	TupleGeneration uint64
+}
+
 // A Packet is a packet
 type packet struct {
+	Context         PacketContext
 	SendTime        monotime.Time
 	StreamFrames    []StreamFrame
 	Frames          []Frame
@@ -39,6 +47,7 @@ var packetPool = sync.Pool{New: func() any { return &packet{} }}
 
 func getPacket() *packet {
 	p := packetPool.Get().(*packet)
+	p.Context = PacketContext{}
 	p.StreamFrames = nil
 	p.Frames = nil
 	p.LargestAcked = 0

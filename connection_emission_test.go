@@ -33,7 +33,7 @@ func newConfiguredEmissionTestConnection(t *testing.T, gso bool, config *Config)
 	c := tc.conn
 	sealing := NewMockSealingManager(ctrl)
 	sealing.EXPECT().Get1RTTSealer().Return(newMockShortHeaderSealer(ctrl), nil).AnyTimes()
-	c.emission.packer = newPacketPacker(tc.srcConnID, c.connIDManager.Get, c.initialStream, c.handshakeStream, c.sentPacketHandler, c.retransmissionQueue, sealing, c.framer, &c.receivedPacketHandler, c.datagramQueue, c.perspective)
+	c.emission.packer.cryptoSetup = sealing
 	c.sentPacketHandler.ReceivedBytes(1<<20, monotime.Now())
 	c.sentPacketHandler.DropPackets(protocol.EncryptionInitial, monotime.Now())
 	c.sentPacketHandler.DropPackets(protocol.EncryptionHandshake, monotime.Now())
