@@ -45,9 +45,32 @@ func waitRequestAdmission(t *testing.T) {
 func requireAdmissionCleanup(t *testing.T, cc *ClientConn) {
 	t.Helper()
 	require.False(t, cc.rawConn.hasActiveStreams())
+	require.NotNil(t, context.Cause(cc.rawConn.conn.Context()), "cleanup requires an ended connection context")
+	// These fixtures count control-stream work even without a recorder.
+	// Seal before waiting so a delayed constructor worker cannot add work
+	// after the empty wait group has already been observed.
+	cc.rawConn.qloggerMx.Lock()
+	cc.rawConn.qloggerClosing = true
+	cc.rawConn.qloggerMx.Unlock()
 	done := make(chan struct{})
 	go func() { cc.rawConn.qloggerWG.Wait(); close(done) }()
 	receiveExchange(t, done)
+}
+
+func TestRequestAdmissionCleanupRejectsDelayedQlogProducer(t *testing.T) {
+	client, _ := newConnPair(t)
+	cc := (&Transport{}).NewRawClientConn(client).ClientConn
+	require.NoError(t, client.CloseWithError(0, "cleanup ended"))
+	receiveExchange(t, client.Context().Done())
+	requireAdmissionCleanup(t, cc)
+
+	// Model the constructor's control-stream worker starting only after the
+	// fixture observed cleanup. Waiting must already have sealed new work.
+	err := cc.rawConn.beginQlogWork()
+	if err == nil {
+		cc.rawConn.qloggerWG.Done()
+	}
+	require.ErrorIs(t, err, context.Cause(client.Context()))
 }
 
 func TestRequestAdmissionAfterTracking(t *testing.T) {
