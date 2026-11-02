@@ -83,7 +83,7 @@ func TestPackerReservesPeriodicPingForFullAckBundle(t *testing.T) {
 			require.NoError(t, c.receivedPacketHandler.AddPath(64))
 			now := monotime.Now()
 			for _, id := range []protocol.PathID{0, 64} {
-				for i := protocol.PacketNumber(0); i < 64; i++ {
+				for i := range protocol.PacketNumber(64) {
 					require.NoError(t, c.receivedPacketHandler.ReceivedPacketOnPath(id, i*((1<<30)+2), protocol.ECT0, now, true))
 				}
 			}
