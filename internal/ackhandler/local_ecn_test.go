@@ -239,6 +239,32 @@ func TestLocalECNSnapshotSupersession(t *testing.T) {
 }
 
 func TestLocalECNLifecycleAndExhaustion(t *testing.T) {
+	t.Run("pending mark outlives capable feedback compaction", func(t *testing.T) {
+		for _, bbr := range []bool{false, true} {
+			for _, outcome := range []LocalPacketOutcome{LocalPacketAccepted, LocalPacketUnsubmitted} {
+				h, r := newLocalECNTestHandler(t, bbr)
+				now := monotime.Now()
+				a, ta := localECNPacket(t, h, now)
+				require.NoError(t, h.CompleteLocalPacket(ta, LocalPacketAccepted, now.Add(time.Millisecond)))
+				ackBBRECNAt(t, h, now.Add(2*time.Millisecond), ackRanges(a), 1, 0)
+				_, pending := localECNPacket(t, h, now.Add(3*time.Millisecond))
+				c, tc := localECNPacket(t, h, now.Add(3*time.Millisecond))
+				require.NoError(t, h.CompleteLocalPacket(tc, LocalPacketAccepted, now.Add(4*time.Millisecond)))
+				ackBBRECNAt(t, h, now.Add(5*time.Millisecond), ackRanges(c), 2, 0)
+				require.Equal(t, protocol.ECT0, h.ECNMode(true))
+				require.NoError(t, h.CompleteLocalPacket(pending, outcome, now.Add(6*time.Millisecond)))
+				require.Equal(t, protocol.ECT0, h.ECNMode(true), "authoritative compaction is not missing evidence")
+				d, td := localECNPacket(t, h, now.Add(7*time.Millisecond))
+				require.NoError(t, h.CompleteLocalPacket(td, LocalPacketAccepted, now.Add(8*time.Millisecond)))
+				ackBBRECNAt(t, h, now.Add(9*time.Millisecond), ackRanges(d), 2, 1)
+				require.Equal(t, protocol.ECT0, h.ECNMode(true))
+				if bbr {
+					require.Equal(t, uint64(1), r.feedback[len(r.feedback)-1].ECN.Delta.CE)
+				}
+			}
+		}
+	})
+
 	t.Run("discharged prefixes keep ECN usable", func(t *testing.T) {
 		for _, bbr := range []bool{false, true} {
 			for _, hole := range []string{"unsubmitted", "loss", "0-RTT drop", "ACK-only", "migration"} {

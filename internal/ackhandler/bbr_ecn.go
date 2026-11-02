@@ -316,6 +316,43 @@ func (e *bbrECNTracker) compact(retireBelow protocol.PacketNumber) {
 	e.ranges = e.ranges[:len(e.ranges)-n]
 }
 
+// unsubmitted reconciles a local outcome against this ledger's retirement
+// authority. A consumed ordinal needs no rewrite: compaction already retired
+// its unacknowledged mark without counting it as an accepted receipt.
+func (b *bbrECNTracker) unsubmitted(pn protocol.PacketNumber, ordinal uint64) {
+	if ordinal != 0 && ordinal <= b.compactedOrdinal {
+		return
+	}
+	i := b.searchRanges(pn)
+	if i == len(b.ranges) || b.ranges[i].first > pn {
+		b.failEvidence()
+		return
+	}
+	r := b.ranges[i]
+	b.scratch = b.scratch[:0]
+	if r.first < pn {
+		part := r
+		part.last = pn - 1
+		b.appendScratch(part)
+	}
+	part := r
+	part.first, part.last = pn, pn
+	part.ordinal += uint64(pn - r.first)
+	part.mark = protocol.ECNNon
+	b.appendScratch(part)
+	if pn < r.last {
+		part = r
+		part.first = pn + 1
+		part.ordinal += uint64(part.first - r.first)
+		b.appendScratch(part)
+	}
+	if len(b.ranges)-1+len(b.scratch) > maxECNMarkRanges {
+		b.failEvidence()
+		return
+	}
+	b.splice(i, i+1)
+}
+
 func (e *bbrECNTracker) failEvidence() {
 	e.evidenceLost = true
 	e.state = ecnStateFailed

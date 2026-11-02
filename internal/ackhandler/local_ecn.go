@@ -214,7 +214,7 @@ func (h *sentPacketHandler) completeLocalECN(reg *localRegistration, now monotim
 				e.releaseTest(h, r.pn)
 			}
 			if b := h.bbrECN; b != nil {
-				e.removeMark(b, r.pn)
+				b.unsubmitted(r.pn, reg.richOrdinal)
 			}
 			e.updateConstraints(h, r.pn, r.mark, false)
 			r.mark = protocol.ECNNon
@@ -249,37 +249,6 @@ func (e *localECNEvidence) releaseTest(h *sentPacketHandler, pn protocol.PacketN
 			t.lastTestingPacket = protocol.InvalidPacketNumber
 		}
 	}
-}
-
-func (e *localECNEvidence) removeMark(b *bbrECNTracker, pn protocol.PacketNumber) {
-	i := b.searchRanges(pn)
-	if i == len(b.ranges) || b.ranges[i].first > pn {
-		b.failEvidence()
-		return
-	}
-	r := b.ranges[i]
-	b.scratch = b.scratch[:0]
-	if r.first < pn {
-		part := r
-		part.last = pn - 1
-		b.appendScratch(part)
-	}
-	part := r
-	part.first, part.last = pn, pn
-	part.ordinal += uint64(pn - r.first)
-	part.mark = protocol.ECNNon
-	b.appendScratch(part)
-	if pn < r.last {
-		part = r
-		part.first = pn + 1
-		part.ordinal += uint64(part.first - r.first)
-		b.appendScratch(part)
-	}
-	if len(b.ranges)-1+len(b.scratch) > maxECNMarkRanges {
-		b.failEvidence()
-		return
-	}
-	b.splice(i, i+1)
 }
 
 func (e *localECNEvidence) fail(h *sentPacketHandler) {
