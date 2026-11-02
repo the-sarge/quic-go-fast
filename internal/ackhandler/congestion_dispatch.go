@@ -192,13 +192,26 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	if h.bbrECN != nil {
 		d.event.ECN.Failed = h.bbrECN.state == ecnStateFailed || h.bbrECN.evidenceLost
 	}
-	for _, p := range d.event.Acked {
-		if p.TimingExcluded || (d.localRoute && p.TimingGeneration != d.sampler.timingGeneration) {
-			// Older receipts still deliver bytes, but those bytes cannot enter a
-			// newer snapshot without their original send-spacing bound.
+	if d.localRoute {
+		origin := d.sampler.sendOrigin
+		fence := false
+		for _, p := range d.event.Acked {
+			if p.TimingExcluded {
+				fence, origin = true, 0
+				break
+			}
+			if p.TimingGeneration != d.sampler.timingGeneration && (origin.IsZero() || p.SendTime.Before(origin)) {
+				// This accepted delivery needs its original send-spacing bound.
+				// Invalidate existing snapshots, but preserve that raw bound for
+				// future registrations. A stale snapshot covered by the bound is
+				// not itself another unknown interval: accepted pipelines recover.
+				fence, origin = true, p.SendTime
+			}
+		}
+		if fence {
 			d.sampler.fenceTiming()
+			d.sampler.sendOrigin = origin
 			d.event.RawRTT = 0
-			break
 		}
 	}
 	// Invalidate timing snapshots before either the sampler or controller sees

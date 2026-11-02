@@ -212,7 +212,6 @@ func TestLocalRichTimingFence(t *testing.T) {
 			require.True(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
 			require.Equal(t, delivered+1200, r.feedback[len(r.feedback)-1].Delivery.Delivered)
 		})
-
 	}
 
 	t.Run("older accepted receipt preserves the send-time bound", func(t *testing.T) {
@@ -242,6 +241,30 @@ func TestLocalRichTimingFence(t *testing.T) {
 				require.True(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
 				require.Equal(t, uint64(4800), r.feedback[len(r.feedback)-1].Delivery.Delivered)
 			})
+		}
+	})
+
+	t.Run("accepted pipeline recovers without draining", func(t *testing.T) {
+		h, r := newLocalRichHandler(t)
+		now := monotime.Now()
+		a, ta := localRichPacket(t, h, now)
+		previous, tb := localRichPacket(t, h, now.Add(time.Millisecond))
+		require.NoError(t, h.CompleteLocalPacket(tb, LocalPacketAccepted, now.Add(2*time.Millisecond)))
+		require.NoError(t, h.CompleteLocalPacket(ta, LocalPacketUncertain, now.Add(3*time.Millisecond)))
+		acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(4*time.Millisecond), a)
+		for i := range 8 {
+			at := now.Add(time.Duration(10+i*10) * time.Millisecond)
+			next, tok := localRichPacket(t, h, at)
+			require.NoError(t, h.CompleteLocalPacket(tok, LocalPacketAccepted, at.Add(time.Millisecond)))
+			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, at.Add(2*time.Millisecond), previous)
+			e := r.feedback[len(r.feedback)-1]
+			require.Equal(t, uint64(i+2)*1200, e.Delivery.Delivered)
+			require.Zero(t, e.Delivery.Lost)
+			if i >= 2 {
+				require.True(t, e.Delivery.Valid, "accepted successors covered by the retained send-time bound recover sampling")
+				require.Positive(t, e.RawRTT)
+			}
+			previous = next
 		}
 	})
 
@@ -342,7 +365,6 @@ func TestLocalRichRecoveryQualification(t *testing.T) {
 			acknowledgeRecoveryPacket(t, h, protocol.EncryptionInitial, now.Add(270*time.Millisecond), originless, fresh)
 			require.Equal(t, e.Delivery.Delivered+2400, r.feedback[len(r.feedback)-1].Delivery.Delivered)
 			require.False(t, r.feedback[len(r.feedback)-1].Delivery.Valid)
-
 		})
 	}
 	for _, outcome := range []LocalPacketOutcome{localPacketPending, LocalPacketUncertain, LocalPacketUnsubmitted} {
