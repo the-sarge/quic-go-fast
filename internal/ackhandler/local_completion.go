@@ -2,6 +2,7 @@ package ackhandler
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/quic-go/quic-go/internal/monotime"
 	"github.com/quic-go/quic-go/internal/protocol"
@@ -133,6 +134,7 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 		}
 		r.packet = nil
 	} else {
+		h.getPacketNumberSpace(r.level).history.qualifyLocal(r.pn)
 		// A higher ACK may already have passed this packet while it was pending.
 		h.detectLostPackets(returnedAt, r.level)
 	}
@@ -142,6 +144,9 @@ func (h *sentPacketHandler) CompleteLocalPacket(token LocalCompletionToken, outc
 
 func (h *sentPacketHandler) retireLocal(p *packet, acked bool) {
 	if r := p.local; r != nil {
+		if acked {
+			h.getPacketNumberSpace(r.level).history.qualifyLocal(r.pn)
+		}
 		r.acked = r.acked || acked
 		r.packet = nil
 	}
@@ -239,4 +244,14 @@ func (h *sentPacketHandler) CloseLocal(now monotime.Time) {
 	h.ptoMode = SendNone
 	h.congestion.OnPacketsDiscarded()
 	h.setLossDetectionTimer(now)
+}
+
+// Local eligibility timestamps and loss declarations can arrive in either order.
+// The existing receipt ceiling bounds this filter independently of packet history.
+func (h *sentPacketHandler) expireLostPackets(cutoff monotime.Time) {
+	if h.local == nil {
+		h.lostPackets.DeleteBefore(cutoff)
+		return
+	}
+	h.lostPackets.lostPackets = slices.DeleteFunc(h.lostPackets.lostPackets, func(p lostPacket) bool { return p.SendTime.Before(cutoff) })
 }

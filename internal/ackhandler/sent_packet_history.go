@@ -14,6 +14,9 @@ const maxSkippedPackets = 4
 type sentPacketHistory struct {
 	packets        []*packet
 	skippedPackets []protocol.PacketNumber
+	// Derived local evidence, bounded by the retained history span. Pending and
+	// proven-unsubmitted PNs do not contribute to packet-distance recovery.
+	unqualifiedLocal []protocol.PacketNumber
 	// Keep probes in send order for timeouts, with indexed O(1) removal on ACKs.
 	pathProbePackets list.List[packetWithPacketNumber]
 	pathProbeIndex   map[protocol.PacketNumber]*list.Element[packetWithPacketNumber]
@@ -63,6 +66,9 @@ func (h *sentPacketHistory) SkippedPacket(pn protocol.PacketNumber) {
 
 func (h *sentPacketHistory) SentPacket(pn protocol.PacketNumber, p *packet) {
 	h.checkSequentialPacketNumberUse(pn)
+	if p.local != nil {
+		h.unqualifiedLocal = append(h.unqualifiedLocal, pn)
+	}
 	h.packets = append(h.packets, p)
 	if p.Outstanding() {
 		h.numOutstanding++
@@ -224,11 +230,14 @@ func (h *sentPacketHistory) cleanupStart() {
 		if p != nil {
 			h.packets = h.packets[i:]
 			h.firstPacketNumber += protocol.PacketNumber(i)
+			first, _ := slices.BinarySearch(h.unqualifiedLocal, h.firstPacketNumber)
+			h.unqualifiedLocal = h.unqualifiedLocal[first:]
 			return
 		}
 	}
 	h.packets = h.packets[:0]
 	h.firstPacketNumber = protocol.InvalidPacketNumber
+	h.unqualifiedLocal = h.unqualifiedLocal[:0]
 }
 
 func (h *sentPacketHistory) LowestPacketNumber() protocol.PacketNumber {
@@ -266,6 +275,11 @@ func (h *sentPacketHistory) DeclareLost(pn protocol.PacketNumber) {
 // so this function is not guaranteed to return the correct result after a while.
 func (h *sentPacketHistory) Difference(a, b protocol.PacketNumber) protocol.PacketNumber {
 	diff := a - b
+	if a > b && len(h.unqualifiedLocal) > 0 {
+		first, _ := slices.BinarySearch(h.unqualifiedLocal, b+1)
+		last, _ := slices.BinarySearch(h.unqualifiedLocal, a)
+		diff -= protocol.PacketNumber(last - first)
+	}
 	if len(h.skippedPackets) == 0 {
 		return diff
 	}
@@ -278,4 +292,12 @@ func (h *sentPacketHistory) Difference(a, b protocol.PacketNumber) protocol.Pack
 		}
 	}
 	return diff
+}
+
+// qualifyLocal admits accepted/uncertain completion or authenticated transmission
+// exactly once. Logical ACK qualification does not release its completion token.
+func (h *sentPacketHistory) qualifyLocal(pn protocol.PacketNumber) {
+	if i, found := slices.BinarySearch(h.unqualifiedLocal, pn); found {
+		h.unqualifiedLocal = slices.Delete(h.unqualifiedLocal, i, i+1)
+	}
 }

@@ -88,6 +88,80 @@ func TestLocalCompletionHigherACK(t *testing.T) {
 	require.Zero(t, h.GetLossDetectionTimeout())
 	require.NoError(t, h.CompleteLocalPacket(pending, LocalPacketUnsubmitted, now.Add(3*time.Second)))
 	require.Equal(t, []protocol.PacketNumber{0}, tracker.Lost)
+	for _, wait := range []time.Duration{20 * time.Millisecond, 100 * time.Millisecond} {
+		t.Run("qualified age "+wait.String(), func(t *testing.T) {
+			h := newLocalTestHandler(t).(*sentPacketHandler)
+			now := monotime.Now()
+			h.DropPackets(protocol.EncryptionInitial, now)
+			h.DropPackets(protocol.EncryptionHandshake, now)
+			h.rttStats.UpdateRTT(5*time.Millisecond, 0)
+			var tracker packetTracker
+			pn, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(0)})
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(wait)))
+			var higher protocol.PacketNumber
+			for i := 1; i <= 3; i++ {
+				n, tok := registerLocalTestPacket(t, h, now.Add(wait), protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(protocol.PacketNumber(i))})
+				require.NoError(t, h.CompleteLocalPacket(tok, LocalPacketAccepted, now.Add(wait)))
+				higher = n
+			}
+			window := h.congestion.GetCongestionWindow()
+			_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(higher)}, protocol.Encryption1RTT, now.Add(wait+time.Millisecond))
+			require.NoError(t, err)
+			require.Equal(t, []protocol.PacketNumber{0}, tracker.Lost)
+			require.Less(t, h.congestion.GetCongestionWindow(), window)
+			_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pn)}, protocol.Encryption1RTT, now.Add(wait+2*time.Millisecond))
+			require.NoError(t, err)
+			require.GreaterOrEqual(t, h.congestion.GetCongestionWindow(), window, "qualified loss receipt permits Reno undo")
+			require.True(t, h.packetThresholdDisabled)
+			require.Equal(t, uint8(defaultTimeThresholdEighths), h.timeThresholdEighths, "local wait is not network reordering")
+		})
+	}
+	for _, expire := range []bool{false, true} {
+		t.Run(map[bool]string{false: "unordered receipts", true: "unordered expiry"}[expire], func(t *testing.T) {
+			h := newLocalTestHandler(t).(*sentPacketHandler)
+			now := monotime.Now()
+			h.DropPackets(protocol.EncryptionInitial, now)
+			h.DropPackets(protocol.EncryptionHandshake, now)
+			h.rttStats.UpdateRTT(10*time.Millisecond, 0)
+			var tracker packetTracker
+			var pns [6]protocol.PacketNumber
+			var tokens [6]LocalCompletionToken
+			for i := range pns {
+				var frames []Frame
+				if i == 0 || i == 2 || i == 5 {
+					frames = []Frame{tracker.NewPingFrame(protocol.PacketNumber(i))}
+				}
+				pns[i], tokens[i] = registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, frames)
+				if i != 0 {
+					require.NoError(t, h.CompleteLocalPacket(tokens[i], LocalPacketAccepted, now.Add(3*time.Millisecond)))
+				}
+			}
+			window := h.congestion.GetCongestionWindow()
+			_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns[5])}, protocol.Encryption1RTT, now.Add(4*time.Millisecond))
+			require.NoError(t, err)
+			// An earlier native return is consumed later, after the higher ACK.
+			require.NoError(t, h.CompleteLocalPacket(tokens[0], LocalPacketAccepted, now.Add(time.Millisecond)))
+			require.Equal(t, []protocol.PacketNumber{2, 0}, tracker.Lost)
+			if expire {
+				at := now.Add(3*h.rttStats.PTO(false) + 2*time.Millisecond)
+				_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns[5])}, protocol.Encryption1RTT, at)
+				require.NoError(t, err)
+				var retained []protocol.PacketNumber
+				for pn := range h.lostPackets.All() {
+					retained = append(retained, pn)
+				}
+				require.Equal(t, []protocol.PacketNumber{pns[2]}, retained, "expiry examines every bounded receipt")
+				_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns[2])}, protocol.Encryption1RTT, at.Add(time.Microsecond))
+				require.NoError(t, err)
+				require.True(t, h.packetThresholdDisabled, "the retained fresh receipt remains usable")
+			} else {
+				_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(pns[0], pns[2], pns[5])}, protocol.Encryption1RTT, now.Add(5*time.Millisecond))
+				require.NoError(t, err)
+				require.GreaterOrEqual(t, h.congestion.GetCongestionWindow(), window)
+				require.Empty(t, h.lostPackets.lostPackets)
+			}
+		})
+	}
 }
 
 func TestLocalCompletionMixedPTO(t *testing.T) {
@@ -132,6 +206,34 @@ func TestLocalCompletionUnsubmitted(t *testing.T) {
 	require.Len(t, tracker.Lost, 1)
 	require.Equal(t, 1, streamReturns)
 	require.Zero(t, h.GetLossDetectionTimeout())
+	for _, outcome := range []LocalPacketOutcome{localPacketPending, LocalPacketUnsubmitted, LocalPacketAccepted, LocalPacketUncertain} {
+		t.Run(map[LocalPacketOutcome]string{localPacketPending: "pending distance", LocalPacketUnsubmitted: "unsubmitted distance", LocalPacketAccepted: "accepted distance", LocalPacketUncertain: "uncertain distance"}[outcome], func(t *testing.T) {
+			h := newLocalTestHandler(t).(*sentPacketHandler)
+			now := monotime.Now()
+			h.rttStats.UpdateRTT(5*time.Millisecond, 0)
+			var tracker packetTracker
+			_, token := registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, []Frame{tracker.NewPingFrame(0)})
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now.Add(time.Millisecond)))
+			for i := 1; i <= 2; i++ {
+				_, tok := registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, nil)
+				if outcome != localPacketPending {
+					require.NoError(t, h.CompleteLocalPacket(tok, outcome, now.Add(time.Millisecond)))
+				}
+			}
+			higher, tok := registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, []Frame{tracker.NewPingFrame(3)})
+			require.NoError(t, h.CompleteLocalPacket(tok, LocalPacketAccepted, now.Add(time.Millisecond)))
+			window := h.congestion.GetCongestionWindow()
+			_, err := h.ReceivedAck(&wire.AckFrame{AckRanges: ackRanges(higher)}, protocol.EncryptionInitial, now.Add(2*time.Millisecond))
+			require.NoError(t, err)
+			if outcome == LocalPacketAccepted || outcome == LocalPacketUncertain {
+				require.Equal(t, []protocol.PacketNumber{0}, tracker.Lost, "qualified positive control still detects packet loss")
+				require.Less(t, h.congestion.GetCongestionWindow(), window)
+			} else {
+				require.Empty(t, tracker.Lost)
+				require.GreaterOrEqual(t, h.congestion.GetCongestionWindow(), window)
+			}
+		})
+	}
 }
 
 func TestLocalCompletionEarlyACK(t *testing.T) {
@@ -211,13 +313,13 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 		h := newLocalTestHandler(t)
 		now := monotime.Now()
 		var first LocalCompletionToken
-		for i := 0; i < protocol.MaxTrackedSentPackets; i++ {
+		for i := range protocol.MaxTrackedSentPackets {
 			_, token := registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, []Frame{{Frame: &wire.PingFrame{}}})
 			if i == 0 {
 				first = token
 			}
 		}
-		pn, _ := h.PeekPacketNumber(protocol.EncryptionInitial)
+		pn := h.PopPacketNumber(protocol.EncryptionInitial)
 		_, err := h.RegisterLocalPacket(now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
 		require.ErrorIs(t, err, ErrLocalCompletionCapacity)
 		// Retire an interior record before the prefix, then all remaining history.
@@ -228,11 +330,13 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 		_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: 0, Largest: pn - 1}}}, protocol.EncryptionInitial, now.Add(time.Millisecond))
 		require.NoError(t, err)
 		h.ResetForRetry(now.Add(2 * time.Millisecond))
-		pn, _ = h.PeekPacketNumber(protocol.EncryptionInitial)
+		next, _ := h.PeekPacketNumber(protocol.EncryptionInitial)
+		require.Greater(t, next, pn)
 		_, err = h.RegisterLocalPacket(now, pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
 		require.ErrorIs(t, err, ErrLocalCompletionCapacity)
 		require.Equal(t, SendNone, h.SendMode(now))
 		require.NoError(t, h.CompleteLocalPacket(first, LocalPacketAccepted, now.Add(3*time.Millisecond)))
-		registerLocalTestPacket(t, h, now.Add(4*time.Millisecond), protocol.EncryptionInitial, nil)
+		_, err = h.RegisterLocalPacket(now.Add(4*time.Millisecond), pn, protocol.InvalidPacketNumber, nil, nil, protocol.EncryptionInitial, protocol.ECNNon, 1200)
+		require.NoError(t, err)
 	})
 }

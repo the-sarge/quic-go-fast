@@ -619,6 +619,10 @@ func (h *sentPacketHandler) detectSpuriousLosses(ack *wire.AckFrame, rcvTime mon
 	ackRangeIdx := len(ack.AckRanges) - 1
 	var spuriousLosses []lostPacket
 	for pn, sendTime := range h.lostPackets.All() {
+		if h.local != nil {
+			// Local completion can introduce a lower PN after a higher loss.
+			ackRangeIdx = len(ack.AckRanges) - 1
+		}
 		ackRange := ack.AckRanges[ackRangeIdx]
 		for pn > ackRange.Largest && ackRangeIdx > 0 {
 			ackRangeIdx--
@@ -673,7 +677,7 @@ func (h *sentPacketHandler) finishSpuriousLosses(packets []lostPacket, now monot
 	}
 	// Include any losses declared by this ACK in the existing strict send-age
 	// cleanup. Diagnostics consume matching records before cleanup on both paths.
-	h.lostPackets.DeleteBefore(now.Add(-3 * h.rttStats.PTO(false)))
+	h.expireLostPackets(now.Add(-3 * h.rttStats.PTO(false)))
 }
 
 // Packets are returned in ascending packet number order.
@@ -1020,7 +1024,7 @@ func (h *sentPacketHandler) detectLostPackets(now monotime.Time, encLevel protoc
 		if packetLost {
 			h.captureCongestionLoss(encLevel, pn, p)
 			if p.Outstanding() && (encLevel == protocol.Encryption0RTT || encLevel == protocol.Encryption1RTT) {
-				h.lostPackets.Add(pn, p.SendTime)
+				h.lostPackets.Add(pn, p.recoveryTime())
 			}
 			h.retireLocal(p, false)
 			pnSpace.history.DeclareLost(pn)
