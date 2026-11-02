@@ -8171,3 +8171,26 @@ All four configured reviewers and adjudicators completed RAS review `20261102T02
 ### Next
 
 E2 and E4 are ready alongside R3/R4. E2/R3 share packet-emission and recovery interfaces; coordinate their existing isolated-worktree and current-main preservation checks without adding an ordering dependency. The [program tracker #646](https://github.com/the-sarge/quic-go-fast/issues/646) is the live frontier view. No implementation or campaign is dispatched by this amendment.
+
+---
+
+## E2 recovery handoff split into bounded prerequisites - 2026-11-01 22:41 EST
+
+**Main:** `2a8179e47801`
+**Actor:** Codex
+
+### Decisions
+
+Published the scoped E2 re-audit in [PR #1083](https://github.com/the-sarge/quic-go-fast/pull/1083), merged as `2a8179e4780190cac379f23885a814c1bc3f5c9b`. The [accepted endpoint plan](adr/2026-10-24-multipath-endpoint-plan.md#e2-recovery-contract) splits recovery ownership, ordered delivery evidence, cumulative ECN reconciliation and final endpoint routing into four bounded implementation slices. The previous uncommitted E2 draft is preserved as evidence and replaced as an implementation baseline; the [audit receipt](audits/2026-11-02-e2-slice-reaudit.md) owns the findings and publication verdict.
+
+### Completed
+
+Created E2A [#1084](https://github.com/the-sarge/quic-go-fast/issues/1084), E2B [#1085](https://github.com/the-sarge/quic-go-fast/issues/1085) and E2C [#1086](https://github.com/the-sarge/quic-go-fast/issues/1086); retained final integration as E2 [#1016](https://github.com/the-sarge/quic-go-fast/issues/1016). Published native blocking edges E2A → E2B → E2C → E2, exact merged plan pointers in all four child issues, and matching OmniFocus tasks. Updated the [E track parent (#1012)](https://github.com/the-sarge/quic-go-fast/issues/1012) to nine slices and the program to 34 slices, with three completed. This handoff dispatched no implementation; public endpoint and multipath activation remain disabled.
+
+### Validation
+
+The restarted independent audit passed after corrections to mode-installation gates, shared retained-token capacity, ordered evidence exclusion/re-anchoring, cumulative ECN failure preservation and pending ECN test reservations. Documentation links, slice identities, dependency graph and the shared 16-scenario evidence ceiling passed local checks. All 17 applicable pull-request checks passed on exact docs head `1e777fe79a42110d9fdb8eec73a53093ef2b79af`; the merged plan and audit files match that reviewed head. Native issue parents, blockers and ready labels were read back after publication. No new Go behavior or operational qualification was claimed.
+
+### Next
+
+E2A #1084 is the recommended fresh-context starter through `$implement-architecture-slice`; E4 #1018 and R4 #1024 remain independent ready work. R3 #1023 is already in progress in PR #1082 and must not be dispatched again. The [program tracker (#646)](https://github.com/the-sarge/quic-go-fast/issues/646) is the live current-state view; clear context between child issues and reconcile latest main before each implementation.
