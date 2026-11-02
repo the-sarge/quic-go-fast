@@ -8440,3 +8440,14 @@ Post-review certification of exact head `7eb75c162380aea1ae57d6f1c747755a50b590b
 ### Next
 
 S1's merged consumable revision satisfies the dependency of [S2 issue #2169 — Contextual comparator integration](https://github.com/GridSwarm/wiremux/issues/2169). The [track parent #2168](https://github.com/GridSwarm/wiremux/issues/2168) and [program tracker #1454](https://github.com/GridSwarm/wiremux/issues/1454) own live readiness and completion; administrative closure is being reconciled after this journal. S2 implementation and physical qualification have not started as part of this slice.
+
+---
+
+## Sent-path adaptive isolation fixture stabilized - 2026-11-02 18:32 EST
+
+**Main:** `cdd2951f7b59`
+**Actor:** Codex
+
+Completed [issue #1120 — Stabilize sent-path adaptive isolation fixture](https://github.com/the-sarge/quic-go-fast/issues/1120) in [PR #1121](https://github.com/the-sarge/quic-go-fast/pull/1121), merged as `cdd2951f7b592928531f9da7f09df52d226042c5`. The existing isolation test now assigns separate sequential packet-number generators to both paths before sending packets, making its cross-path ACK assumptions deterministic while preserving its assertions and timing.
+
+Validation passed on candidate `7263c393fd3ccc8732c6b58a1a474d2a827fa055`: 300 focused executions, 100 race-enabled focused executions, the ackhandler package tests, affected-package vet, module tidiness, formatting and diff checks. RAS review `20261102T231746-9c81c26c6f168e4e99fa1af5` reported no findings. Existing hosted PR checks passed before the exact-head squash merge. Issue #1120 is closed; no review follow-ups remain.
