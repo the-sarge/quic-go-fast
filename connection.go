@@ -2806,6 +2806,7 @@ func (c *Conn) prepareEmission(now monotime.Time) emissionIntent {
 // feedback exist. Recovery follows the live Conn slot; the packer retains its
 // captured packet-number manager.
 func (c *Conn) initPacketEmission(packer *packetPacker) {
+	packer.pathZeroGeneration = &c.pathGeneration
 	bbr := c.config.CongestionControlV1() == "bbrv3"
 	queue := newSendQueue(c.conn, &c.handshakeSendFeedback)
 	c.emission = packetEmission{

@@ -285,7 +285,7 @@ func TestCongestionDispatchPreservesRenoOrder(t *testing.T) {
 					onAcked: func(wire.Frame) { order = append(order, fmt.Sprintf("frame ack %d", pn)) },
 					onLost:  func(wire.Frame) { order = append(order, fmt.Sprintf("frame loss %d", pn)) },
 				}}
-				h.SentPacket(sent, pn, protocol.InvalidPacketNumber, nil, []Frame{frame}, protocol.Encryption1RTT, h.ECNMode(true), 1000, i == 1, false)
+				h.SentPacketWithContext(PacketContext{TupleGeneration: 7}, sent, pn, protocol.InvalidPacketNumber, nil, []Frame{frame}, protocol.Encryption1RTT, h.ECNMode(true), 1000, i == 1, false)
 			}
 			require.Equal(t, []string{"sent 0 flight 1000", "sent 1 flight 2000", "sent 2 flight 3000", "sent 3 flight 4000"}, order)
 			order = nil

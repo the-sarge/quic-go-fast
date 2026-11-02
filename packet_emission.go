@@ -321,7 +321,8 @@ func (e *packetEmission) withGSO(now monotime.Time) (result emissionResult) {
 
 func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, now monotime.Time) {
 	if p.IsPathProbePacket {
-		(*e.recovery).SentPacket(
+		(*e.recovery).SentPacketWithContext(
+			p.Context,
 			now,
 			p.PacketNumber,
 			protocol.InvalidPacketNumber,
@@ -341,7 +342,8 @@ func (e *packetEmission) registerPacket(p shortHeaderPacket, ecn protocol.ECN, n
 	if p.Ack != nil {
 		largestAcked = p.Ack.LargestAcked()
 	}
-	(*e.recovery).SentPacket(
+	(*e.recovery).SentPacketWithContext(
+		p.Context,
 		now,
 		p.PacketNumber,
 		largestAcked,
@@ -506,7 +508,8 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 		if p.ack != nil {
 			largestAcked = p.ack.LargestAcked()
 		}
-		(*e.recovery).SentPacket(
+		(*e.recovery).SentPacketWithContext(
+			p.context,
 			now,
 			p.header.PacketNumber,
 			largestAcked,
@@ -526,7 +529,8 @@ func (e *packetEmission) sendCoalesced(packet *coalescedPacket, ecn protocol.ECN
 		if p.Ack != nil {
 			largestAcked = p.Ack.LargestAcked()
 		}
-		(*e.recovery).SentPacket(
+		(*e.recovery).SentPacketWithContext(
+			p.Context,
 			now,
 			p.PacketNumber,
 			largestAcked,

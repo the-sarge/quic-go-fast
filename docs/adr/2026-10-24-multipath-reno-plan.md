@@ -1,6 +1,6 @@
 # Reno-first QUIC multipath implementation plan
 
-**Status:** implementation in progress; R1/R2 complete (2/19 slices), R3/R4 frontier. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
+**Status:** implementation in progress; R1/R2/R3 complete (3/19 slices), R4 frontier. Dispatch requires the verified default-branch publication and a frontier child issue. **Program:** `QGF-MP646-20261024`. **Track:** R, 2 of 3. **Date:** 2026-10-24. **Normative scope:** current outcomes, boundaries, invariants, evidence, blockers and stops. **Audit history:** [final consideration response](../audits/2026-10-24-multipath-646-final-consideration-response.md) and [slice audit](../audits/2026-10-24-multipath-646-slice-audit.md). **Parent issue:** [#1013](https://github.com/the-sarge/quic-go-fast/issues/1013).
 
 ## Binding contract and operating discipline
 
@@ -371,7 +371,7 @@ Use the MIT-licensed qoke reference at `084c13ea3834fbe58cedb63db9208951d714f839
 | --- | --- | --- | --- |
 | [R1](#r1) | new | Pin the independent peer and ordinary fallback control | None |
 | [R2](#r2) | new | Parse the bounded draft-21 wire profile without advertisement | None |
-| [R3](#r3) | new | Make path-zero context explicit without changing recovery | R2 |
+| [R3](#r3) | complete | Make path-zero context explicit without changing recovery | R2 |
 | [R4](#r4) | new | Bind CID routing to bounded protocol-path identity | R2 |
 | [R5](#r5) | new | Protect path-qualified packets under one key schedule | R3, R4 |
 | [R6](#r6) | new | Route receive ACK histories by target and carrier | R5 |
