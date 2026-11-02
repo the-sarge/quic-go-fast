@@ -26,10 +26,10 @@ func EnableDeliverySampling(handler SentPacketHandler, sink interface {
 }, pending func() protocol.ByteCount,
 ) {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.local != nil || h.bytesSent != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
+	if !ok || h.bytesSent != 0 || h.congestionEvents != nil || sink == nil || pending == nil {
 		panic("invalid delivery sampler installation")
 	}
-	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending}
+	h.congestionEvents = &congestionDispatch{sink: sink, pending: pending, localRoute: h.local != nil}
 }
 
 type congestionPacketKey struct {
@@ -45,6 +45,7 @@ func congestionKey(level protocol.EncryptionLevel, pn protocol.PacketNumber) con
 }
 
 type congestionDispatch struct {
+	localRoute       bool
 	pending          func() protocol.ByteCount
 	sampler          deliverySampler
 	recovery         recoveryEvidence
@@ -94,6 +95,8 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		EncryptionLevel:   p.EncryptionLevel,
 		SendTime:          p.SendTime,
 		RegistrationValid: registrationValid,
+		TimingExcluded:    p.local != nil,
+		TimingGeneration:  d.sampler.timingGeneration,
 		Length:            p.Length,
 		AckEliciting:      p.IsAckEliciting(),
 		InFlight:          p.includedInBytesInFlight,
@@ -101,7 +104,13 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 		MTUProbe:          p.IsPathMTUProbePacket,
 		ECN:               ecn,
 	}
-	d.recovery.sent(info, d.pathGeneration)
+	if p.local != nil {
+		p.local.richOrdinal = info.Ordinal
+	}
+	d.recovery.sentLocal(info, d.pathGeneration, p.local)
+	if p.local != nil {
+		d.advanceLocalQualification()
+	}
 	d.registrationTime = max(d.registrationTime, p.SendTime)
 
 	if d.packets.len() < maxDeliveryLive {
@@ -113,6 +122,10 @@ func (h *sentPacketHandler) captureCongestionSend(pn protocol.PacketNumber, p *p
 	} else {
 		d.sampler.missing++ // Optional evidence never evicts mandatory recovery.
 		d.sampler.evidenceLost = true
+		if p.local != nil {
+			p.local.timingMissing = true
+			d.sampler.fenceTiming()
+		}
 	}
 	d.sink.Sent(congestion.SendEvent{Packet: info, PriorInFlight: prior, PostInFlight: h.bytesInFlight})
 }
@@ -175,6 +188,21 @@ func (h *sentPacketHandler) finishCongestionFeedback() {
 	if h.bbrECN != nil {
 		d.event.ECN.Failed = h.bbrECN.state == ecnStateFailed || h.bbrECN.evidenceLost
 	}
+	for _, p := range d.event.Acked {
+		if p.TimingExcluded {
+			d.sampler.fenceTiming()
+			d.event.RawRTT = 0
+			break
+		}
+	}
+	// Invalidate timing snapshots before either the sampler or controller sees
+	// feedback, without altering their registration identity or delivery totals.
+	for i := range d.event.Acked {
+		p := &d.event.Acked[i]
+		if p.TimingExcluded || p.TimingGeneration != d.sampler.timingGeneration {
+			p.Delivery.Valid = false
+		}
+	}
 	slices.SortFunc(d.event.Lost, func(a, b congestion.PacketInfo) int { return cmp.Compare(a.Ordinal, b.Ordinal) })
 	d.sampler.feedback(&d.event)
 	d.recovery.feedback(&d.event, h.rttStats.PTO(true))
@@ -208,6 +236,7 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 		d := h.congestionEvents
 		key := congestionKey(level, pn)
 		d.recovery.discard(key)
+		d.advanceLocalQualification()
 		if p, ok := d.packets.take(key); ok {
 			d.sampler.dispose(p)
 		}
@@ -217,6 +246,7 @@ func (h *sentPacketHandler) discardCongestionPacket(level protocol.EncryptionLev
 func (h *sentPacketHandler) discardCongestionSpace(level protocol.EncryptionLevel) {
 	if d := h.congestionEvents; d != nil {
 		d.recovery.discardSpace(level)
+		d.advanceLocalQualification()
 		// Disposal is a commutative subtraction, so visiting order is irrelevant.
 		d.packets.each(func(key congestionPacketKey, p congestion.PacketInfo) {
 			if p.EncryptionLevel == level {
@@ -303,7 +333,7 @@ func (h *sentPacketHandler) captureDeliveryRTT(p packetWithPacketNumber, now mon
 		return
 	}
 	for _, info := range d.event.Acked {
-		if info.PacketNumber == p.PacketNumber && info.EncryptionLevel == p.EncryptionLevel && info.PathGeneration == d.pathGeneration && info.SampleGeneration == d.sampleGeneration && info.RegistrationValid {
+		if info.PacketNumber == p.PacketNumber && info.EncryptionLevel == p.EncryptionLevel && info.PathGeneration == d.pathGeneration && info.SampleGeneration == d.sampleGeneration && info.RegistrationValid && !info.TimingExcluded && info.TimingGeneration == d.sampler.timingGeneration {
 			d.event.RawRTT = now.Sub(p.SendTime)
 			return
 		}
@@ -323,7 +353,7 @@ func (h *sentPacketHandler) captureBBRECN(ack *wire.AckFrame, level protocol.Enc
 // Its caller must install bounded emission and BBR ECN validation.
 func EnableBBR(handler SentPacketHandler, size protocol.ByteCount, pending func() protocol.ByteCount) *congestion.BBRSender {
 	h, ok := handler.(*sentPacketHandler)
-	if !ok || h.local != nil || h.bytesSent != 0 || h.congestionEvents != nil {
+	if !ok || h.bytesSent != 0 || h.congestionEvents != nil {
 		panic("invalid BBR installation")
 	}
 	b := congestion.NewBBRSender(size)

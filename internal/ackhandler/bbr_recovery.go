@@ -26,6 +26,10 @@ const (
 )
 
 type recoveryOutcome struct {
+	local           bool
+	qualified       bool
+	qualification   *localRegistration // borrowed authoritative fact until cursor consumption
+	eligibleAt      monotime.Time
 	number          protocol.PacketNumber
 	ordinal         uint64
 	sent            monotime.Time
@@ -41,15 +45,17 @@ type recoveryOutcome struct {
 // creates a summary that could bridge unknown history. Derived indexes let ACK
 // service visit only the outcomes an ACK resolves or a query returns.
 type recoveryEvidence struct {
-	index           *recoveryIndex
-	head, count     int
-	evicted         uint64
-	measured        bool
-	reported        uint64
-	episode         congestion.RecoveryEpisode
-	members         map[uint64]struct{}
-	ackOrdinal      uint64
-	unconfirmedLoss bool
+	qualifiedOrdinal uint64
+	lastEligible     monotime.Time
+	index            *recoveryIndex
+	head, count      int
+	evicted          uint64
+	measured         bool
+	reported         uint64
+	episode          congestion.RecoveryEpisode
+	members          map[uint64]struct{}
+	ackOrdinal       uint64
+	unconfirmedLoss  bool
 	// Packet numbers are monotonic within each of the three spaces. These
 	// boundary witnesses survive optional sampler and outcome-ring eviction.
 	latestPackets   spacePackets
@@ -99,6 +105,10 @@ func (r *recoveryEvidence) slot(l int) int    { return (r.head + l) & recoverySl
 func (r *recoveryEvidence) logical(p int) int { return (p - r.head) & recoverySlotMask }
 
 func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
+	r.sentLocal(p, generation, nil)
+}
+
+func (r *recoveryEvidence) sentLocal(p congestion.PacketInfo, generation uint64, local *localRegistration) {
 	if r.index == nil {
 		r.index = &recoveryIndex{outcomes: make([]recoveryOutcome, maxRecoveryOutcomes)}
 	}
@@ -115,6 +125,7 @@ func (r *recoveryEvidence) sent(p congestion.PacketInfo, generation uint64) {
 	key := congestionKey(p.EncryptionLevel, p.PacketNumber)
 	o := recoveryOutcome{
 		number: key.number, space: key.space, level: p.EncryptionLevel, ordinal: p.Ordinal, sent: p.SendTime,
+		local: local != nil, qualification: local,
 		// Path/Retry reset clears the ledger; disposal prevents readmission.
 		receiptEligible: currentPathRecoveryReceipt(p, generation),
 		endpoint:        r.measured && p.RegistrationValid && p.AckEliciting && !p.PathProbe && !p.MTUProbe,
@@ -155,9 +166,9 @@ func (r *recoveryEvidence) setState(p int, state recoveryOutcomeState) {
 	s := recoverySpace(o.space)
 	x.pending[s].assign(p, pendingOutcome(state))
 	x.eligible[s].assign(p, o.receiptEligible && state != outcomeDisposed)
-	x.ptoPending[s].assign(p, o.ptoRetired && state == outcomeUnresolved)
+	x.ptoPending[s].assign(p, o.ptoRetired && state == outcomeUnresolved && (!o.local || o.qualified))
 	if (old == outcomeLost) != (state == outcomeLost) {
-		r.setLost(p, state == outcomeLost)
+		r.setLost(p, state == outcomeLost && (!o.local || o.qualified))
 	}
 }
 
@@ -261,7 +272,7 @@ func (r *recoveryEvidence) retirePTO(key congestionPacketKey) {
 	if i := r.find(key); i >= 0 && r.index.outcomes[i].state == outcomeUnresolved {
 		o := &r.index.outcomes[i]
 		o.ptoRetired = true
-		r.index.ptoPending[recoverySpace(o.space)].set(i)
+		r.index.ptoPending[recoverySpace(o.space)].assign(i, !o.local || o.qualified)
 	}
 }
 
@@ -272,6 +283,8 @@ func (r *recoveryEvidence) retirePTO(key congestionPacketKey) {
 // valid registration only when its send time is not before any earlier one.
 // Packet numbers also rise within a space, so eligible PTO outcomes form a
 // prefix of the space's PTO-retired backlog: the first ineligible one ends it.
+// On the local route, the registration-order cursor admits only globally
+// nondecreasing native-return times; excluded entries never enter this index.
 func (r *recoveryEvidence) confirmPTO(space protocol.EncryptionLevel, witness protocol.PacketNumber, cutoff monotime.Time) {
 	if witness == protocol.InvalidPacketNumber || r.index == nil {
 		return
@@ -283,7 +296,7 @@ func (r *recoveryEvidence) confirmPTO(space protocol.EncryptionLevel, witness pr
 		p := r.slot(l)
 		o := &x.outcomes[p]
 		countInspected()
-		if o.number >= witness || o.sent.After(cutoff) {
+		if o.number >= witness || o.evidenceTime().After(cutoff) {
 			countFailed()
 			break
 		}
@@ -494,7 +507,7 @@ func (r *recoveryEvidence) runFrom(l int) (first, last int, d time.Duration) {
 	if last == first {
 		return first, last, 0
 	}
-	return first, last, r.index.outcomes[r.slot(last)].sent.Sub(r.index.outcomes[r.slot(first)].sent)
+	return first, last, r.index.outcomes[r.slot(last)].evidenceTime().Sub(r.index.outcomes[r.slot(first)].evidenceTime())
 }
 
 // setLost maintains run membership, run starts and the block maxima of every

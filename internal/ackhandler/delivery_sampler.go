@@ -15,6 +15,7 @@ import (
 // deliverySampler is used only by the private rich dispatcher. Recovery owns
 // frames and flight; this state owns only copied delivery evidence.
 type deliverySampler struct {
+	timingGeneration          uint64
 	delivered, lost           uint64
 	deliveredTime, sendOrigin monotime.Time
 	outstanding               protocol.ByteCount
@@ -319,7 +320,7 @@ func (s *deliverySampler) feedback(e *congestion.FeedbackEvent) {
 			continue
 		}
 		s.delivered = addDelivery(s.delivered, uint64(p.Length))
-		if !p.MTUProbe && (anchor == nil || p.Ordinal > anchor.Ordinal) {
+		if !p.MTUProbe && !p.TimingExcluded && p.TimingGeneration == s.timingGeneration && (anchor == nil || p.Ordinal > anchor.Ordinal) {
 			anchor = p
 		}
 	}

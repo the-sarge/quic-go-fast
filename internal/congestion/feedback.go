@@ -17,7 +17,9 @@ type PacketInfo struct {
 	PacketNumber      protocol.PacketNumber
 	EncryptionLevel   protocol.EncryptionLevel
 	SendTime          monotime.Time
-	RegistrationValid bool // positive, nondecreasing connection registration time
+	TimingExcluded    bool   // local outcome cannot supply timing evidence
+	TimingGeneration  uint64 // sampling fence, independent of logical delivery identity
+	RegistrationValid bool   // positive, nondecreasing connection registration time
 	Length            protocol.ByteCount
 	AckEliciting      bool
 	InFlight          bool
