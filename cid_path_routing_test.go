@@ -82,7 +82,9 @@ func TestCIDPathUnpackerRejectsUnadmittedPath(t *testing.T) {
 				// or open a routed, unadmitted identity. No opener calls are expected.
 				cs.EXPECT().Get1RTTOpener().Return(mocks.NewMockShortHeaderOpener(ctrl), nil)
 				tc.conn.unpacker = newPacketUnpacker(cs, tc.srcConnID.Len())
-				data = append(append([]byte{0x40}, tc.srcConnID.Bytes()...), 0)
+				// Include the complete protection sample, so bypassing path
+				// resolution reaches the forbidden opener rather than a length guard.
+				data = append(append([]byte{0x40}, tc.srcConnID.Bytes()...), make([]byte, 20)...)
 			} else {
 				hdr := &wire.ExtendedHeader{Header: wire.Header{
 					Type: protocol.PacketType0RTT, Version: protocol.Version1,
