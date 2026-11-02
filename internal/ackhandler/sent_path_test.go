@@ -103,6 +103,9 @@ func TestSentPathIndependentPTO(t *testing.T) {
 
 func TestSentPathUndoAndAdaptiveIsolation(t *testing.T) {
 	h := newSentPathFixture(t)
+	// The cross-path ACKs below require matching packet numbers without skips.
+	h.appDataPackets.pns = newSequentialPacketNumberGenerator(0)
+	h.path(17).appDataPackets.pns = newSequentialPacketNumberGenerator(0)
 	now := monotime.Time(time.Second)
 	var zero, other packetTracker
 	var pns []protocol.PacketNumber
