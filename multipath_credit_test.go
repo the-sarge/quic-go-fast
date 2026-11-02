@@ -506,6 +506,7 @@ func TestMultipathCreditDefaultDisabledAndFresh(t *testing.T) {
 	rotated, rotatedRoute := newCreditTestOwners(t)
 	h := rotated.conn.connIDManager
 	initialToken := protocol.StatelessResetToken{10}
+	h.SentPacket() // confirmed handshake already used this CID
 	h.SetStatelessResetToken(initialToken)
 	h.activeSequenceNumber, h.highestRetired = 10, 10
 	h.handshakeComplete, h.packetsPerConnectionID = true, protocol.PacketsPerConnectionID
@@ -523,4 +524,64 @@ func TestMultipathCreditDefaultDisabledAndFresh(t *testing.T) {
 	require.NotContains(t, h.pathCIDs[0].records, uint64(9))
 	require.NotContains(t, rotatedRoute.resetTokens, stale.StatelessResetToken)
 	require.Contains(t, packedCreditFrames(t, rotated), &wire.PathRetireConnectionIDFrame{SequenceNumber: 9})
+
+	for _, selectBeforeActivation := range []bool{false, true} {
+		unused, unusedRoute := newCreditTestOwners(t)
+		manager := unused.conn.connIDManager
+		original := manager.activeConnectionID
+		if selectBeforeActivation {
+			unused.conn.noteEmissionRegistration() // use of the old identity cannot transfer through rotation
+		}
+		manager.SetStatelessResetToken(initialToken)
+		manager.SetHandshakeComplete()
+		next := receivedCreditCID(0, 1, 0)
+		require.NoError(t, manager.Add(&wire.NewConnectionIDFrame{SequenceNumber: 1, ConnectionID: next.ConnectionID, StatelessResetToken: next.StatelessResetToken}))
+		current, token := original, initialToken
+		if selectBeforeActivation {
+			current, token = next.ConnectionID, next.StatelessResetToken
+			require.Equal(t, current, manager.Get())
+			require.Contains(t, unusedRoute.resetTokens, token, "ordinary selection preserves legacy registration")
+		}
+		_, err = unused.conn.enableMultipathCredit(2, 1, 4)
+		require.NoError(t, err)
+		require.Equal(t, current, manager.Get(), "activation does not rotate the current CID")
+		require.Empty(t, unusedRoute.resetTokens, "activation disarms a selected but unused CID")
+		require.False(t, manager.IsActiveStatelessResetToken(initialToken))
+		require.False(t, manager.IsActiveStatelessResetToken(next.StatelessResetToken))
+		unused.conn.noteEmissionRegistration()
+		require.True(t, manager.IsActiveStatelessResetToken(token))
+		require.Contains(t, unusedRoute.resetTokens, token)
+		require.Len(t, unusedRoute.resetTokens, 1, "use arms only the current CID")
+		manager.Close()
+		require.Empty(t, unusedRoute.resetTokens)
+		require.False(t, manager.IsActiveStatelessResetToken(token))
+		_, err = unused.conn.enableMultipathCredit(2, 1, 4)
+		require.Error(t, err)
+	}
+
+	for _, replaceIdentity := range []bool{false, true} {
+		replaced, replacedRoute := newCreditTestOwners(t)
+		manager := replaced.conn.connIDManager
+		replaced.conn.noteEmissionRegistration()
+		manager.SetStatelessResetToken(initialToken)
+		current := manager.Get()
+		if replaceIdentity {
+			current = protocol.ParseConnectionID([]byte{9, 8, 7, 6, 5, 4, 3, 2})
+		}
+		manager.ChangeInitialConnID(current)
+		_, err = replaced.conn.enableMultipathCredit(2, 1, 4)
+		require.NoError(t, err)
+		require.Equal(t, !replaceIdentity, manager.IsActiveStatelessResetToken(initialToken), "use belongs to the actual CID identity")
+		require.Equal(t, !replaceIdentity, replacedRoute.resetTokens[initialToken] != nil)
+		replaced.conn.noteEmissionRegistration()
+		require.True(t, manager.IsActiveStatelessResetToken(initialToken))
+		require.Contains(t, replacedRoute.resetTokens, initialToken)
+		manager.Close()
+		require.Empty(t, replacedRoute.resetTokens)
+	}
+
+	closed, _ := newCreditTestOwners(t)
+	closed.conn.connIDManager.Close()
+	_, err = closed.conn.enableMultipathCredit(2, 1, 4)
+	require.Error(t, err, "a closed CID owner cannot activate private state")
 }

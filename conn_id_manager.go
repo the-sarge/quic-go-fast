@@ -29,6 +29,7 @@ type connIDManager struct {
 	activeSequenceNumber      uint64
 	highestRetired            uint64
 	activeConnectionID        protocol.ConnectionID
+	activeConnectionIDUsed    bool // ordinary current identity use, transferred during private activation
 	activeStatelessResetToken *protocol.StatelessResetToken
 
 	// We change the connection ID after sending on average
@@ -185,6 +186,7 @@ func (h *connIDManager) updateConnectionID() {
 	h.queue = h.queue[1:]
 	h.activeSequenceNumber = front.SequenceNumber
 	h.activeConnectionID = front.ConnectionID
+	h.activeConnectionIDUsed = false
 	h.activeStatelessResetToken = &front.StatelessResetToken
 	h.packetsSinceLastChange = 0
 	h.packetsPerConnectionID = protocol.PacketsPerConnectionID/2 + uint32(h.rand.Int31n(protocol.PacketsPerConnectionID))
@@ -222,6 +224,9 @@ func (h *connIDManager) ChangeInitialConnID(newConnID protocol.ConnectionID) {
 	if h.activeSequenceNumber != 0 {
 		panic("expected first connection ID to have sequence number 0")
 	}
+	if h.activeConnectionID != newConnID {
+		h.activeConnectionIDUsed = false
+	}
 	h.activeConnectionID = newConnID
 }
 
@@ -246,6 +251,8 @@ func (h *connIDManager) SentPacket() {
 				h.addStatelessResetToken(entry.StatelessResetToken)
 			}
 		}
+	} else {
+		h.activeConnectionIDUsed = true
 	}
 	h.packetsSinceLastChange++
 }

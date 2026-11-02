@@ -31,9 +31,12 @@ type receivedPathCIDs struct {
 }
 
 func (h *connIDManager) enablePathCIDs() {
-	initial := receivedPathCID{used: true, newConnID: newConnID{SequenceNumber: h.activeSequenceNumber, ConnectionID: h.activeConnectionID}}
+	initial := receivedPathCID{used: h.activeConnectionIDUsed, newConnID: newConnID{SequenceNumber: h.activeSequenceNumber, ConnectionID: h.activeConnectionID}}
 	if h.activeStatelessResetToken != nil {
 		initial.StatelessResetToken, initial.hasToken = *h.activeStatelessResetToken, true
+		if !initial.detectsReset() {
+			h.removeStatelessResetToken(initial.StatelessResetToken)
+		}
 	}
 	set := &receivedPathCIDs{records: map[uint64]receivedPathCID{h.activeSequenceNumber: initial}, active: h.activeSequenceNumber, retirePrior: max(h.activeSequenceNumber, h.highestRetired, h.highestProbingID)}
 	for _, entry := range h.queue {
