@@ -54,6 +54,7 @@ func TestPicoquicOrdinaryControl(t *testing.T) {
 			// OpenSSL treats an empty issuer/subject leaf as self-issued. Give
 			// this independent-peer CA a distinct name before issuing its leaf.
 			ca.Subject = pkix.Name{CommonName: "R1 independent peer control CA"}
+			ca.RawSubject = nil
 			caDER, err := x509.CreateCertificate(rand.Reader, ca, ca, ca.PublicKey, caKey)
 			require.NoError(t, err)
 			ca, err = x509.ParseCertificate(caDER)
