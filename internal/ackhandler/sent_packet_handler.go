@@ -39,6 +39,8 @@ type packetNumberSpace struct {
 	localEpoch uint64
 	history    sentPacketHistory
 	pns        packetNumberGenerator
+	// A private producer retains this consumed PN until registration succeeds.
+	localUnregisteredPN protocol.PacketNumber
 
 	lossTime                   monotime.Time
 	lastAckElicitingPacketTime monotime.Time
@@ -55,11 +57,23 @@ func newPacketNumberSpace(initialPN protocol.PacketNumber, isAppData bool) *pack
 		pns = newSequentialPacketNumberGenerator(initialPN)
 	}
 	return &packetNumberSpace{
-		history:      *newSentPacketHistory(isAppData),
-		pns:          pns,
-		largestSent:  protocol.InvalidPacketNumber,
-		largestAcked: protocol.InvalidPacketNumber,
+		localUnregisteredPN: protocol.InvalidPacketNumber,
+		history:             *newSentPacketHistory(isAppData),
+		pns:                 pns,
+		largestSent:         protocol.InvalidPacketNumber,
+		largestAcked:        protocol.InvalidPacketNumber,
 	}
+}
+
+func (s *packetNumberSpace) resetForRetry(isAppData bool) *packetNumberSpace {
+	space := newPacketNumberSpace(s.pns.Peek(), isAppData)
+	if s.localUnregisteredPN != protocol.InvalidPacketNumber {
+		// Keep the consumed PN and the generator's pending skip together. Starting
+		// at Peek alone can lose the skip between the held PN and the next one.
+		space.localUnregisteredPN = s.localUnregisteredPN
+		space.pns = s.pns
+	}
+	return space
 }
 
 type alarmTimer struct {
@@ -1121,9 +1135,15 @@ func (h *sentPacketHandler) OnLossDetectionTimeout(now monotime.Time) (TimeoutOu
 	case protocol.EncryptionHandshake:
 		h.ptoMode = SendPTOHandshake
 	case protocol.Encryption1RTT:
-		// skip a packet number in order to elicit an immediate ACK
-		pn := h.PopPacketNumber(protocol.Encryption1RTT)
-		h.getPacketNumberSpace(protocol.Encryption1RTT).history.SkippedPacket(pn)
+		// Skip a packet number to elicit an immediate ACK. The private route
+		// cannot bypass a retained producer PN or overrun the shared history
+		// budget with the generator skip plus this marker.
+		if h.local == nil || (ps.localUnregisteredPN == protocol.InvalidPacketNumber &&
+			h.numTrackedPackets()+int(ps.pns.Peek()-ps.history.highestPacketNumber) <= protocol.MaxTrackedSentPackets) {
+			pn := h.PopPacketNumber(protocol.Encryption1RTT)
+			ps.history.SkippedPacket(pn)
+			ps.localUnregisteredPN = protocol.InvalidPacketNumber
+		}
 		h.ptoMode = SendPTOAppData
 	default:
 		return TimeoutOutcome{}, fmt.Errorf("PTO timer in unexpected encryption level: %s", encLevel)
@@ -1164,6 +1184,9 @@ func (h *sentPacketHandler) PopPacketNumber(encLevel protocol.EncryptionLevel) p
 		if h.logger.Debug() {
 			h.logger.Debugf("Skipping packet number %d", skippedPN)
 		}
+	}
+	if h.local != nil {
+		pnSpace.localUnregisteredPN = pn
 	}
 	return pn
 }
@@ -1367,8 +1390,8 @@ func (h *sentPacketHandler) ResetForRetry(now monotime.Time) {
 			h.qlogMetricsUpdated()
 		}
 	}
-	h.initialPackets = newPacketNumberSpace(h.initialPackets.pns.Peek(), false)
-	h.appDataPackets = newPacketNumberSpace(h.appDataPackets.pns.Peek(), true)
+	h.initialPackets = h.initialPackets.resetForRetry(false)
+	h.appDataPackets = h.appDataPackets.resetForRetry(true)
 	oldAlarm := h.alarm
 	h.alarm = alarmTimer{}
 	if h.qlogger != nil {

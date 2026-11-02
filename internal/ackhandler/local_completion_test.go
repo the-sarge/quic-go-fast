@@ -325,6 +325,134 @@ func TestLocalCompletionTerminalLifetime(t *testing.T) {
 			}
 		})
 	}
+	for _, generatorSkip := range []bool{true, false} {
+		name := "capacity and PTO without generator skip"
+		if generatorSkip {
+			name = "capacity and PTO with generator skip"
+		}
+		t.Run(name, func(t *testing.T) {
+			h := newLocalTestHandler(t)
+			owner := h.(*sentPacketHandler)
+			now := monotime.Now()
+			var release [4]LocalCompletionToken
+			for i := range protocol.MaxTrackedSentPackets - 4 {
+				_, token := registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, nil)
+				if i < len(release) {
+					release[i] = token
+				}
+			}
+			h.DropPackets(protocol.EncryptionInitial, now)
+			h.DropPackets(protocol.EncryptionHandshake, now)
+			generator := owner.appDataPackets.pns.(*skippingPacketNumberGenerator)
+			generator.nextToSkip = 4
+			if generatorSkip {
+				generator.nextToSkip = 3
+			}
+			var tracker packetTracker
+			for i := range 3 {
+				_, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(protocol.PacketNumber(i))})
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+			}
+			require.Equal(t, SendAck, h.SendMode(now))
+			pn := h.PopPacketNumber(protocol.Encryption1RTT)
+			frames := []Frame{tracker.NewPingFrame(pn)}
+			register := func() error {
+				token, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption1RTT, protocol.ECNNon, 1200)
+				if err == nil {
+					require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+				}
+				return err
+			}
+			if generatorSkip {
+				require.ErrorIs(t, register(), ErrLocalCompletionCapacity)
+			} else {
+				require.NoError(t, register())
+			}
+			next, _ := h.PeekPacketNumber(protocol.Encryption1RTT)
+			deadline := h.GetLossDetectionTimeout()
+			require.False(t, deadline.IsZero())
+			outcome, err := h.OnLossDetectionTimeout(deadline)
+			require.NoError(t, err)
+			require.True(t, outcome.PTO)
+			require.Equal(t, protocol.Encryption1RTT, outcome.EncLevel)
+			after, _ := h.PeekPacketNumber(protocol.Encryption1RTT)
+			require.Equal(t, next, after, "PTO cannot consume a held PN or exceed capacity")
+			require.EqualValues(t, 1, owner.ptoCount)
+			require.EqualValues(t, 2, owner.numProbesToSend)
+			require.Equal(t, protocol.MaxTrackedSentPackets, owner.numTrackedPackets())
+			require.NoError(t, h.CompleteLocalPacket(release[0], LocalPacketUnsubmitted, now))
+			if generatorSkip {
+				require.NoError(t, register(), "retry the original PN after releasing capacity")
+			}
+			for _, token := range release[1:] {
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketUnsubmitted, now))
+			}
+			outcome, err = h.OnLossDetectionTimeout(deadline.Add(time.Second))
+			require.NoError(t, err)
+			require.True(t, outcome.PTO)
+			after, _ = h.PeekPacketNumber(protocol.Encryption1RTT)
+			require.Greater(t, after, next, "ordinary PTO marker resumes after settlement and capacity release")
+			require.EqualValues(t, 2, owner.ptoCount)
+			require.LessOrEqual(t, owner.numTrackedPackets(), protocol.MaxTrackedSentPackets)
+			_, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, nil)
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketUnsubmitted, now))
+			for range 4 {
+				require.True(t, h.QueueProbePacket(protocol.Encryption1RTT))
+			}
+			require.False(t, h.QueueProbePacket(protocol.Encryption1RTT))
+			require.Equal(t, []protocol.PacketNumber{0, 1, 2, pn}, tracker.Lost)
+			require.Empty(t, tracker.Acked)
+		})
+	}
+	for _, action := range []string{"Retry", "0-RTT rejection"} {
+		t.Run("held application PN through "+action, func(t *testing.T) {
+			h := newLocalTestHandler(t)
+			owner := h.(*sentPacketHandler)
+			now := monotime.Now()
+			var first LocalCompletionToken
+			for i := range protocol.MaxTrackedSentPackets - 2 {
+				_, token := registerLocalTestPacket(t, h, now, protocol.EncryptionInitial, nil)
+				if i == 0 {
+					first = token
+				}
+			}
+			generator := owner.appDataPackets.pns.(*skippingPacketNumberGenerator)
+			generator.nextToSkip = 3
+			var tracker packetTracker
+			var old [2]LocalCompletionToken
+			for i := range old {
+				_, old[i] = registerLocalTestPacket(t, h, now, protocol.Encryption0RTT, []Frame{tracker.NewPingFrame(protocol.PacketNumber(i))})
+			}
+			pn := h.PopPacketNumber(protocol.Encryption0RTT)
+			require.EqualValues(t, 2, pn)
+			frames := []Frame{tracker.NewPingFrame(pn)}
+			_, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption0RTT, protocol.ECNNon, 1200)
+			require.ErrorIs(t, err, ErrLocalCompletionCapacity)
+			require.Equal(t, generator.nextToSkip, generator.next, "pending skip immediately follows held PN")
+			if action == "Retry" {
+				h.ResetForRetry(now)
+			} else {
+				h.DropPackets(protocol.EncryptionInitial, now)
+				h.DropPackets(protocol.Encryption0RTT, now)
+			}
+			lost := append([]protocol.PacketNumber(nil), tracker.Lost...)
+			for _, token := range old {
+				require.NoError(t, h.CompleteLocalPacket(token, LocalPacketUnsubmitted, now))
+			}
+			require.NoError(t, h.CompleteLocalPacket(first, LocalPacketUnsubmitted, now))
+			token, err := h.RegisterLocalPacket(PacketContext{}, now, pn, protocol.InvalidPacketNumber, nil, frames, protocol.Encryption0RTT, protocol.ECNNon, 1200)
+			require.NoError(t, err, "first typed registration of the retained PN")
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+			next, token := registerLocalTestPacket(t, h, now, protocol.Encryption1RTT, []Frame{tracker.NewPingFrame(4)})
+			require.EqualValues(t, 4, next, "the intervening generator skip survives Retry")
+			require.NoError(t, h.CompleteLocalPacket(token, LocalPacketAccepted, now))
+			require.LessOrEqual(t, owner.numTrackedPackets(), protocol.MaxTrackedSentPackets)
+			_, err = h.ReceivedAck(&wire.AckFrame{AckRanges: []wire.AckRange{{Smallest: next, Largest: next}, {Smallest: pn, Largest: pn}}}, protocol.Encryption1RTT, now.Add(time.Millisecond))
+			require.NoError(t, err)
+			require.Equal(t, []protocol.PacketNumber{2, 4}, tracker.Acked)
+			require.Equal(t, lost, tracker.Lost, "late outcomes cannot requeue retired frames")
+		})
+	}
 	t.Run("capacity retained through early ACK and Retry", func(t *testing.T) {
 		h := newLocalTestHandler(t)
 		now := monotime.Now()

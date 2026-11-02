@@ -100,6 +100,9 @@ func (h *sentPacketHandler) RegisterLocalPacket(context PacketContext, t monotim
 	r := &localRegistration{pn: pn, level: level, epoch: ps.localEpoch, registeredAt: t}
 	h.local.records[token.id] = r
 	h.sentPacket(context, t, pn, largestAcked, streams, frames, level, ecn, size, false, false, r)
+	if ps.localUnregisteredPN == pn {
+		ps.localUnregisteredPN = protocol.InvalidPacketNumber
+	}
 	return token, nil
 }
 
